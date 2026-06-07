@@ -2,6 +2,8 @@
 
 The final review submitted to GitHub carries the reviewer's human approval plus a scoped tool-verification receipt — never an "AI approval" or "double approval" stamp. The receipt reports what the tool mechanically verified, what it did not check, and the disposition of every flag (addressed vs dismissed-with-reason).
 
+> **Update (2026-06-07): receipt delivery refined.** The receipt is no longer inlined into the GitHub review body. The native GitHub review reads as a normal human review; a one-line **Signature line** links to a static, tool-hosted **Review Summary** (per-submission permalink) that renders the receipt + analysis context. This preserves the receipt's auditable-transparency value for author/org while keeping the review surface clean. The core decision (receipt, not approval) is unchanged — only the delivery surface moved from inline block to linked static page.
+
 ## Considered Options
 
 - **AI as gate / veto** — AI must approve before reviewer can submit. Rejected: kills the "human authority" wedge and reproduces the CodeRabbit power dynamic the product is positioned against.

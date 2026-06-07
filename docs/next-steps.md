@@ -30,6 +30,161 @@ Decided in scope but explicitly pushed past v1:
 - **Manual-trigger config knob.** Only if customer pull surfaces during sales conversations — default stays auto-debounced.
 - **"Mind space grows beyond code review."** Long-tail ambition: the private thinking-space metaphor could extend to other engineering decisions (RFCs, post-incident reviews, design docs). Park as future direction; fence MVP strictly to PR review.
 
+## Competitive Scan Findings (2026-05-19)
+
+Preliminary breadth survey (not deep audit yet). Confirmed enough to proceed with MVP without being benchmarked head-to-head against incumbents.
+
+### White space holds for v1
+- **Diff-by-intent multi-tag categorization** at chunk level (pure-move, lib-bump, schema-change, etc.) — no observed competitor doing this. Closest is industry "materiality tiers" (size + security-sensitivity at PR level), which is coarser and on a different axis.
+- **Per-category templated playbooks** as engineering checklists — competitors run per-*domain* sub-agents (security, perf); we'd run per-*change-type* playbooks. Orthogonal lens, no observed overlap.
+- **No-AI-authored-prose comments** (human writes cold, AI validates after) — all observed competitors do the opposite. Cloudflare explicitly: "coordinator posts a single structured review comment." Genuine wedge.
+- **Private mind-map workspace** — none observed. All competitors surface AI work on the public PR thread.
+- **Receipt-not-approval** semantics — none observed.
+
+### Adjacency that narrowed
+- **Delta brief / state-aware re-review.** Cloudflare's internal system already does state-aware incremental re-review at the *finding* level (auto-resolve fixed, re-emit unfixed, respect user-resolved unless worsened). Ours operates at the *comprehension* level ("what shifted in YOUR mental model"). Different unit but adjacent. Either:
+  - Reframe positioning of delta brief as comprehension-layer-not-finding-layer, OR
+  - Deprioritize it as a v1 differentiator if customers conflate the two.
+
+### Strategic implication
+The combined edges (intent taxonomy + playbooks + private engagement) place the MVP in a **different evaluation lane** than CodeRabbit/Greptile/Diamond/Qodo. Prospects compare us to the *status quo behavior* ("skim AI summary, click approve") rather than to incumbents. Avoids the second-mover trap of "is this just CodeRabbit but different?" Different mental model, different yardstick.
+
+Trade-off: selling a new mental model is slower than selling a faster incumbent. Customer education cost is real.
+
+### Why competitor absence is a weak signal (caveats to flag during interviews)
+Five interpretations of "no competitor does this":
+1. Genuine gap (best case).
+2. Tried and failed — incumbents built it, users didn't pull.
+3. Market doesn't reward it — customers loud-want "catch more bugs", quiet about "help me think". Tools follow loud signal.
+4. Stealth / recent entrant not in search results.
+5. Already exists inside something else (internal Cloudflare-style tools, JetBrains, GitLab Duo, etc.).
+
+### Validation requirement during interviews
+The edges are validated **only** when customers *spontaneously* describe wanting:
+- Intent-tagging / change-type structure
+- Per-category review structure
+- A private place to think through a review
+- A receipt of what the tool actually verified
+
+If they describe wanting "better bug catching" instead, either the wedge is wrong, or right-but-described-differently — investigate which. Do not prompt toward the design; let customers reach for the structure themselves.
+
+## Competitive Update — Linear Diffs (announced 2026-05-19)
+
+Linear shipped a code-review feature inside their PM tool the day before this comparison. Pulled from https://linear.app/now/code-review-should-be-fast and https://linear.app/docs/diffs.
+
+### What Linear Diffs IS
+- New PR review surface **inside Linear** (PM tool), bidirectionally synced with GitHub. GH stays source of truth.
+- **"Guided reviews / chapters"** — diff organized into chapters that follow "the order the work was reasoned through" (narrative sequence).
+- **"Structural diff highlighting"** — strips formatting noise (whitespace, format-only changes).
+- Unified or side-by-side diff toggle.
+- AI involvement is present but the announcement is vague on what AI does; FAQ mentions labeling feedback.
+- Wedge claim: review next to issue/project/customer context.
+
+### Where we overlap (honest)
+- Both leave the GH PR thread and build custom review surfaces.
+- Both target reviewer experience, not bug-catching depth.
+- Both group related chunks across files rather than presenting raw file-by-file diff.
+
+### Where we differ — narrative vs taxonomic grouping
+
+| Axis | Linear chapters | Our categorization |
+|---|---|---|
+| What the group IS | A *narrative* unit ("set up fixture", "fix the cache", "add regression test") | A *taxonomy* unit (`pure-move`, `lib-bump`, `schema-change`, etc.) |
+| Labels are | PR-specific strings, different every PR | Stable taxonomy, same across every PR ever |
+| Across-PR queryable | No (chapters are unique strings) | Yes (`schema-change` PRs in last quarter…) |
+| Per-category playbook possible | No (chapters are unique per PR; nothing stable to attach playbook to) | Yes (the whole wedge) |
+| Hard-case detection (e.g., `move-with-edits` hidden) | Often invisible — Linear groups by story, the move-with-edits pattern bundles into "test fixture setup" and the hidden edit is masked | Surfaced — taxonomy explicitly names the pattern |
+
+**The two axes are orthogonal, not competing.** Narrative says *how the change is told*; taxonomy says *what kind of change it is*. A future Linear could add taxonomy on top of chapters; a future of ours could add narrative on top of categories. Neither subsumes the other today.
+
+### Edges that remain unique to us
+- Intent-based multi-tag categorization with stable taxonomy
+- Per-category templated engineering playbooks
+- No-AI-authored-prose comment rule
+- Private mind-map workspace
+- Receipt-not-approval semantics
+- Delta brief on re-review
+- Three-bucket risk surface
+
+### Strategic read
+- **Validation signal (positive).** A credible player shipping a non-GH review surface legitimizes the direction.
+- **Distribution risk > feature risk.** Linear has captive users (their PM customers); we don't. They monetize PM seats; review is a feature, not a product — less likely to pour effort into comprehension scaffolding once "review next to issue context" boxes the wedge.
+- **Positioning risk (medium).** Interview prospects on Linear may say "why not wait for Linear to add this?" Need a clean answer.
+- **Tail risk.** If Linear ships intent taxonomy + playbooks in the next 6–12 months, our unique edges narrow materially. Worth watching.
+
+### Required adjustments
+- **Phase 1 interview script update.** Add explicit Linear probe to every interview: "Are you on Linear? Have you seen Diffs? Does it solve the pain you described, or no?" Capture their reaction verbatim — it's a key signal for both positioning and wedge survival.
+- **Update positioning language.** From "the only one leaving the GH thread" to "the intent-aware comprehension layer with engineering playbooks — runs alongside your PM tool's review surface or native GH."
+- **Watch Linear's roadmap.** Quarterly check. If they ship taxonomy/playbooks/risk surface — re-evaluate.
+- **Reframe Linear as complement, not competitor in the pitch.** A future overlay of intent categories on top of their chapters is technically coherent. Don't bash them; differentiate axis.
+
+### Verdict
+Moderate risk, not stop-go. Proceed with Phase 1 with adjusted interview script. Most "is X going to kill us?" framings collapse when looked at by axis. Linear's axis is narrative; ours is taxonomic. They are different products solving overlapping pain.
+
+### Update (2026-06-07) — overlap re-assessed after the change-group / LoC work
+
+Designing change-groups + carrier/supporting + concern split + weighted LoC moved us **onto Linear's substrate**. Linear's own doc: *"surface the core parts of an implementation first while grouping supporting or lower-signal changes separately"* — that is carrier-vs-supporting. The grouping substrate is now **table stakes**, not a differentiator. This is the most overlap the product has had with Linear.
+
+**What still does not overlap — the differentiator layer:** stable Category taxonomy, per-category engineering playbooks, risk-surface attributes, verification receipt, private mind-map. These ride *on top* of the grouping; they were never the grouping.
+
+**Strategic reframe:** stop pitching grouping/core-supporting/LoC as differentiators — substrate everyone converges on. Defensibility = the non-obvious layer (playbooks-as-engineering-rules, cross-PR stable taxonomy, verification). If that layer isn't genuinely valuable, there's no moat, because grouping is free from Linear.
+
+**Methodological consequence — adopted (replaces raw-diff baseline):** Phase 1 now tests **Treatment vs Baseline B′**, where B′ = grouped substrate with taxonomy/playbooks/risk-surface stripped (≈ Linear-equivalent). The delta isolates the differentiator layer. Raw-diff baseline dropped entirely — the "beats status quo" signal already exists; we test the harder, existential question (does our layer beat what Linear gives free?). See `phase-1.md`.
+
+### Two-layer / dual-consumer model (formalized in CONTEXT.md, 2026-06-07)
+
+- **Analysis Layer** (change-groups, taxonomy, playbooks, risk-surface, concern split, LoC) — reviewer-agnostic core; serves both humans and AI-agent reviewers. The true moat.
+- **Engagement Layer** (no-AI-prose rule, private mind-map, seeds, human-written comments, approval + receipt) — human-only workflow.
+- **Dual-consumer:** human reviewer consumes Analysis via Engagement (v1); AI-agent reviewer consumes Analysis directly via API (v1.5+ headless lead-in — confirmed NOT in first release). The no-AI-prose rule and mind-map are human-mode only; agent-mode inverts the prose rule by design.
+- **Submission:** review lands natively on GitHub (comments + verdict) authored by the reviewer; a one-line signature links to a static **Review Summary** holding the receipt. Tool present but unobtrusive (ADR 0002, 2026-06-07 delivery refinement).
+
+## Strategic Direction — Headless Distribution (v2 lever, v1.5 lead-in)
+
+A distribution edge, not a feature edge. **Not v1.** Lift after Phases 1+2 validate the wedge and 1+ team actively uses the web app.
+
+### What headless means here
+
+Product becomes two things:
+1. **API/SDK exposing comprehension primitives** — categorization, playbooks, receipts, risk surface, mind-map state as structured objects consumable by other surfaces.
+2. **Reference UI (the web app)** — one client of the API, not the whole product.
+
+Embeds that become possible: inside Linear (their Diffs panel rendering our categories + playbooks), inside GitHub (extension/App with richer surfaces), inside Cursor/VS Code (IDE reviewer plugin), inside Slack/internal portals (enterprise), and consumption by other AI agents (Claude Code Review, Copilot agent) as structured comprehension data.
+
+### Why it's a real edge
+
+- **Direct answer to the Linear distribution problem.** Linear has captive PM users → being inside Linear via partnership beats competing with them. Same for Cursor, GitHub, JetBrains.
+- **AI agents are a new buyer class.** Code-review agents need structured taxonomy + playbook data via API. Nobody else supplies that primitive.
+- **Enterprise procurement.** Enterprises buy *layers*, not *apps*. "Comprehension primitives for code review" reads procurement-friendly; "yet another review tool" reads procurement-hostile.
+- **Moats compound.** The taxonomy + playbooks are the IP. Headless makes the IP consumable everywhere.
+
+### Why NOT in v1
+
+- **Headless needs a strong reference UI to demo and adopt.** "We have an API" sells to nobody who hasn't seen what it does. v1 web app must prove the wedge first.
+- **Headless ≠ moat.** Don't conflate. Distribution on top of the moat, not the moat itself.
+- **API design is expensive.** Public contracts are hard to change. Lock-in too early = future pain.
+- **Headless-as-MVP is a known PMF anti-pattern.** Liveblocks, Plate, Clerk — all shipped strong reference UIs first, headless later. None shipped API-only.
+- **Partners come post-validation.** Linear/Cursor/JetBrains won't partner with an unvalidated wedge.
+
+### Lead-in (v1.5) → Full play (v2)
+
+- **v1.5:** Publish the data model that drives the web app as a structured public format (read-only API). Lets enterprises export receipts to internal systems; lets a curious agent consume the taxonomy.
+- **v2:** Full headless API with the web app as reference client. Pursue partner embeds (Linear, IDE makers, agent runtimes).
+
+### Two concrete adjustments to make today
+
+1. **Design the v1 data model (Phase 3 / D) with headless in mind.** Even without exposing the API yet, internal schemas should be clean enough to lift later — Categorization, Playbooks, Receipt, Risk Surface, Mind-Map Space all as first-class structured objects.
+2. **Marketing language can hint at it.** "Comprehension primitives for code review" reads differently than "another AI code review tool". Plants the headless seed without committing engineering.
+
+### Honest risks
+
+- **Distraction.** "Headless" feels like architectural cleverness — easy to over-invest before validating the wedge. Hold the discipline.
+- **Different ICP / motion.** Headless means selling to platforms and agents, not end teams. Eng managers buy SaaS; platform teams buy APIs. Different pricing and sales motion.
+- **Incumbents could go headless too.** If Linear opens an API and lets others build on their chapters, the partnership flips. Worth watching.
+
+### Verdict
+
+Real edge. Distribution edge, not feature edge. **v2 lever with v1.5 lead-in**, not a v1 commitment. The wedge is the taxonomy + playbooks; headless makes that wedge consumable everywhere — but only after the wedge is proven.
+
 ## PMF Validation Track (from Problem Framing)
 
 Lifted from `docs/problem-framing/initial.md` recommended next steps — these run in parallel with product scoping, not after.

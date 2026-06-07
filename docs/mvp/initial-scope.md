@@ -83,21 +83,22 @@ The brief contains:
 - Warning does **not** block — reviewer authorizes. Receipt records the dismissal + reason verbatim.
 - Reduces dismissal-as-rubber-stamp on items where AI is most confident, without nagging on low-stakes ones.
 
-### 7. Final Review Submission — Receipt, Not Approval
+### 7. Final Review Submission — Native Review + Linked Receipt
 
-- Reviewer's final approval/changes-requested/comment ships to GitHub as a normal review (via GH API), under the reviewer's identity.
-- Appended to the review body: a **scoped tool verification receipt** of what the agent mechanically verified:
+- Reviewer's final approval/changes-requested/comment ships to GitHub as a **normal review** (via GH API), under the reviewer's identity. Reads as a hand-written human review.
+- The only tool footprint is a **signature line** appended to the review: `Reviewed with [tool] — summary`, linking to a static **Review Summary** (per-submission permalink, tool-hosted, frozen at submit).
+- The **Review Summary** renders the scoped verification **receipt** + analysis context:
 
   ```
   Reviewed by @reviewer (human)
-  + Tool verification receipt:
+  Tool verification receipt:
      ✓ pure-move integrity: 3/3 chunks bytes-identical
      ✓ lib-bump (axios 1.x→2.x): changelog §3.2 cross-checked, 8/8 call sites visited
      ✓ risk surface: 5/5 flagged hunks addressed (4 commented, 1 dismissed with reason)
      ⚠ not checked: business intent, performance under load, integration with billing service
   ```
 
-- Receipt is **scoped to mechanical claims only** — never "this PR is good". See ADR 0002.
+- Receipt is **scoped to mechanical claims only** — never "this PR is good". Delivered via the linked Review Summary, not inlined into the review body. See ADR 0002 (incl. 2026-06-07 delivery refinement).
 
 ## Multi-Reviewer PRs (Hybrid Model)
 

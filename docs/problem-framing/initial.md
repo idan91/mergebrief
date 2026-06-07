@@ -118,5 +118,17 @@ Frames 3 and 4 likely point at the freshest white space.
 - [DEV — AI Is Quietly Destroying Code Review](https://dev.to/harsh2644/ai-is-quietly-destroying-code-review-and-nobody-is-stopping-it-309p)
 - [arXiv — How Humans Review AI-Generated Pull Requests](https://arxiv.org/html/2605.02273v1)
 
+## Pain Dimensions Discovered Post-Framing (2026-05-20)
+
+Surfaced during qualitative validation with EM + engineer friends across multiple companies. Extends the original framing.
+
+The original framing emphasized **short-term symptoms**: rubber-stamp merges, reviewer fatigue, comprehension debt at merge time. The post-framing conversation surfaced a second, related dimension that is potentially *more existential* for engineering organizations:
+
+- **Skill atrophy from AI over-reliance.** Engineers who increasingly accept AI-generated code without engaging with it are gradually losing their own technical and domain instincts. Not just "the bug merged" — the human's ability to *catch the bug next time* is eroding. This is a slow-burn organizational pain: domain expertise distributing across the team becomes thinner, harder to maintain, and harder to recover.
+
+Implication for product positioning: the wedge is not only "fewer bugs ship today" — it is also "engineers stay sharp tomorrow." The intent-categorization + playbooks layer is, in effect, **a forcing function for human engagement** with the codebase, not just a quality gate. That framing may resonate with eng managers + staff engineers more than the short-term rubber-stamp framing alone.
+
+Sample is qualitative N=few from peer network — directional, not conclusive. Broader interviews (`docs/next-steps.md` Phase #1) should test whether other engineers spontaneously describe this dimension.
+
 ## See Also
 - [[PM Tools Pain - Problem Framing]]

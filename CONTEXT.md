@@ -12,21 +12,46 @@ _Avoid_: report, analysis, AI summary
 The comprehension artifact for re-review — what changed for THIS reviewer's mental model since they last looked: new chunks tagged, flag resolution status, comment-target tracking, playbook delta, net receipt diff.
 _Avoid_: incremental brief, diff-of-diff (informal only), update
 
+**Change-group**:
+A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent* — it carries the Categorization and the summary. Spans files and Concerns: one or more carrier chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
+**Boundary rule:** one group = the largest chunk set expressible as ONE Summary + ONE Dominant Category. If a set needs two unrelated summaries, split it. Author commit structure is a *hint* for understanding intent, never the boundary itself. A single-intent PR is one group; a grab-bag PR (fix + lib bump + README typo) is several.
+_Avoid_: chapter (Linear's narrative-only term), story, cluster, section
+
 **Category**:
-A tag describing the *intent* of a diff chunk, not opinion about it. Examples: `pure-move`, `move-with-edits`, `lib-bump`, `logic-refactor`, `new-feature`, `bugfix`, `schema-change`, `test-only`, `config-only`, `generated-code`, `dependency-update`. A chunk may carry multiple categories.
-_Avoid_: type, classification, label, kind
+A taxonomy entry describing the *intent* of a Change-group, not opinion about it. Examples: `pure-move`, `move-with-edits`, `lib-bump`, `logic-refactor`, `new-feature`, `bugfix`, `schema-change`, `dependency-update`. Category answers "what kind of change"; Concern answers "what kind of artifact" — they are orthogonal axes.
+_Avoid_: type, classification, label, tag, kind. ("Label" and "tag" are not used in product or UX language — Category is the single word.) Also: `test-only`, `config-only`, `generated-code` are NOT Categories — they were artifact-concerns masquerading as intent; they are now Concern values.
+
+**Categorization**:
+The result of categorizing a Change-group: one or more Categories attached to that group, exactly one of which is the Dominant Category. A group has one Categorization; a Categorization contains one or more Categories. A group that is "mostly a bugfix but includes a move" has `{ dominant: bugfix, secondary: [pure-move] }` — this expresses sub-operations without a formal sub-chunk tree.
+_Avoid_: tags, labels (plural informal usage), classification
 
 **Dominant Category**:
-The primary category surfaced for a chunk that carries multiple tags.
-_Avoid_: main tag, primary type
+The single Category surfaced as primary when a Change-group's Categorization contains multiple Categories.
+_Avoid_: main tag, primary type, main label
+
+**Concern**:
+The artifact a chunk touches: `implementation`, `test`, `doc`, `spec`, `config`, `generated`. Orthogonal to Category. Mostly derivable from file path. The Concern view pivots the brief by Concern to route attention — how much of the PR is real implementation vs supporting scaffolding. Default resolution of the overloaded "spec": `spec` = specification document (distinct from `doc`); `.spec.ts`/`.test.ts` files map to `test`.
+_Avoid_: production (env-restrictive), file-type, type, bucket
+
+**Role**:
+Whether a chunk is the `carrier` of its Change-group's intent or `supporting`. Default: `implementation` concern → carrier; `test`/`doc`/`spec`/`config` → supporting. Flippable when a supporting artifact is itself the purpose (e.g., a flaky-test fix makes the test chunk the carrier, and it then takes the group's intent).
+_Avoid_: primary/secondary (collides with Dominant/secondary Category), main, lead
+
+**Summary**:
+The descriptive sentence(s) of what a Change-group changed. Lives on the group. Descriptive *what*, never narrative *why* — the why belongs in the PR description and the linked issue. Narrative drift collapses the wedge into Linear Diffs' lane.
+_Avoid_: description, explanation, story, narrative
+
+**LoC**:
+Added/deleted line counts. Shown non-prominently (corner) per Category in the Story view and per Concern bucket in the Concern view. An attention-routing *distribution* — never a headline size verdict. "Where is the real change", not "how big is this". The displayed value is **attention-weighted LoC**, not raw git: `pure-move` lines show as a `moved N` badge (excluded from +added/−deleted, since net logic change is zero); the `generated` Concern is a separate collapsed bucket excluded from the implementation/test/doc split by default. Weighted numbers carry a visible badge marking them as adjusted; the raw **git LoC** is revealed on click. The two will not match GitHub's header at a glance — intentional, and the click reconciles it.
+_Avoid_: diff size, churn, lines-changed-as-quality-metric, raw LoC (as the default display)
 
 **Playbook**:
 A templated, domain-rule checklist of items to verify for a given category. Not AI-generated hypotheses — known engineering checklists per change type. Example for `lib-bump`: "verify breaking changes from changelog, all call sites updated."
 _Avoid_: checklist, rules, review template
 
 **Risk Surface**:
-Factual attributes attached to a chunk that indicate elevated review attention is warranted: `touches-auth`, `no-tests`, `mutates-state`, `external-io`, `removes-validation`, etc. Attributes only — never verdicts.
-_Avoid_: critical area, hot spot, risky code
+The set of factual attributes attached to a chunk. Attributes only — never verdicts. Severity (when needed) emerges from the *combination* of attributes, never from a graded prefix on any single attribute. Three-bucket structure: **about the code** (e.g., `no-tests`, `legacy-area`), **about the change** (e.g., `touches-auth`, `mutates-state`, `removes-validation`), **about the blast radius** (e.g., `external-io`, `widely-imported`, `cross-service`). Full library in `docs/mvp/risk-surface.md`.
+_Avoid_: critical area, hot spot, risky code, severity tag
 
 **Flag**:
 A single AI-surfaced item from the brief that requires reviewer attention — either a risk-surface attribute on a specific hunk, or a playbook item that hasn't been visited.
@@ -41,8 +66,24 @@ The AI's explicit label on categorization or flag output when its confidence is 
 _Avoid_: low confidence (informal only), unknown, maybe
 
 **Receipt**:
-The scoped tool-verification artifact appended to the reviewer's final review. Reports mechanical claims the tool verified, what it didn't check, and the disposition of flags (addressed vs dismissed with reason). Never an "approval".
-_Avoid_: AI approval, signature, stamp, attestation
+The scoped tool-verification content: mechanical claims the tool verified, what it didn't check, and the disposition of flags (addressed vs dismissed with reason). Never an "approval". Delivered via the **Review Summary** linked from the signature line on the GitHub review — not inlined into the review body.
+_Avoid_: AI approval, stamp, attestation
+
+**Signature line**:
+A single line appended to the native GitHub review ("Reviewed with [tool] — summary") linking to the static **Review Summary**. The only tool footprint on the GitHub review itself; the review otherwise reads as a normal human review.
+_Avoid_: tool signature (informal), banner, badge
+
+**Review Summary**:
+A static, tool-hosted snapshot page produced when a reviewer submits, linked from the **Signature line**. Renders the **Receipt** plus the review's analysis context (which Change-groups, what was verified, dismissals with reasons). Static = frozen at submit time, per-submission permalink. The public face of the private **Mind-Map Space**'s output — the audit trail the author and org can open.
+_Avoid_: report, dashboard, public mind-map
+
+**Analysis Layer**:
+The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surface, Concern split, LoC. Consumed by the human **Engagement Layer** (v1) and, later, by AI-agent reviewers via API (v1.5+ headless lead-in). The true product core and moat.
+_Avoid_: engine, backend, core (informal)
+
+**Engagement Layer**:
+The human-reviewer workflow built on the **Analysis Layer**: no-AI-authored-prose rule, Seeds, private Mind-Map Space, human-written Comments, Approval + Receipt. Human-only — does not apply to AI-agent reviewers. The v1 product surface.
+_Avoid_: UI layer, frontend, workflow (informal)
 
 **Mind-Map Space**:
 The private (per reviewer × PR) workspace inside the web app where the reviewer thinks, drafts, asks the agent questions, dismisses flags, and refines comments — without that work being visible on the PR thread.
@@ -67,12 +108,16 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.
-- A **Brief** contains many **Chunks**. Each chunk has one or more **Categories** (one of which is **Dominant**), zero or more **Risk Surface** attributes, and inherits a **Playbook** from its dominant category.
+- A **Brief** contains many **Chunks**, clustered into **Change-groups**.
+- A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one carrier chunk plus zero or more supporting chunks.
+- A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (carrier/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (+added/−deleted).
+- The brief is read through two pivots over the same chunk set: the **Story view** (by Change-group) and the **Concern view** (by Concern). LoC rolls up under both.
 - A new push to an **Activated** PR produces a **Delta Brief** (debounced) relative to the previous SHA's brief.
 - Each (PR × Reviewer) pairing has one private **Mind-Map Space**.
 - A **Comment** belongs to a reviewer and ships to the PR. A **Seed** belongs to a chunk in the brief and never ships.
 - A **Flag** can be **addressed** (responded to by a comment that targets it) or **dismissed** (recorded with reason).
-- A final **Approval** + **Receipt** ships together to GitHub on review submit. Receipt aggregates across all reviewers when multi-reviewer.
+- On submit, the review lands **natively on GitHub** (comments + approve/request-changes) authored by the reviewer. A **Signature line** links to the static **Review Summary**, which renders the **Receipt**. The review otherwise reads as a normal human review. Receipt aggregates across all reviewers when multi-reviewer.
+- The **Analysis Layer** is reviewer-agnostic. A human reviewer consumes it through the **Engagement Layer** (v1). An AI-agent reviewer consumes it directly via API (v1.5+ headless) — the no-AI-prose rule and Mind-Map Space are human-mode only and do not apply to agent-mode.
 
 ## Example dialogue
 
@@ -89,3 +134,7 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 - **"User"** in early scope was ambiguous (author vs reviewer). Resolved: v1 product surface is **Reviewer**-only; the **Author** surface is v2 and explicitly named when referenced.
 - **"Critical code areas might mislead reviewer"** — the original concern was anchoring bias. Resolved by Risk Surface + Playbook + no-verdict model. Anchoring is the design's chief enemy at the brief layer.
 - **"Pure AI code review comments"** was an informal phrase. Resolved as a strict product rule: the agent never authors prose that ships as a **Comment**. Seeds and validation only.
+- **Intent lived on the chunk** in the original model. Resolved: intent (**Category**, **Summary**) lives on the **Change-group**; the chunk carries **Concern**, **Role**, and **LoC**. A test/doc chunk supports a group's intent rather than re-deriving its own. See ADR 0005.
+- **`test-only` / `config-only` / `generated-code` as Categories** conflated *artifact* with *intent*. Resolved: these are **Concern** values, not Categories. Category is purely intent (what kind of change); Concern is artifact (what kind of file).
+- **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.
+- **"production" rejected** as the carrier-concern name — bakes in a deployment assumption. Resolved: `implementation`.
