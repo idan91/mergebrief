@@ -2,12 +2,13 @@
 
 How to fill in a Phase 1 brief. Follow this order — different from the order the brief file lists its sections. The order here produces better calibration.
 
-## Step 0 — Open Four Tabs
+## Step 0 — Open Tabs
 
-- The PR diff view (e.g., `https://github.com/vercel/next.js/pull/93940/files`)
-- `docs/mvp/playbooks.md`
-- `docs/mvp/risk-surface.md`
-- The brief stub you're filling in (e.g., `nextjs-93940.md`)
+- The PR diff view (e.g., `https://github.com/<owner>/<repo>/pull/<n>/files`)
+- **`docs/mvp/labeling-schema.md`** — the controlled vocabulary (all valid Category / Concern / Role / Risk-Surface tokens + quick rules). Your cheat-sheet. If you need a token that isn't here, register it here first.
+- `docs/mvp/playbooks.md` — per-Category checklists
+- `docs/mvp/risk-surface.md` — per-attribute detail
+- The brief stub you're filling in (e.g., `medusa-15605.md`)
 
 ## Step 1 — Read the Diff Cold (~15 min)
 
@@ -16,6 +17,10 @@ How to fill in a Phase 1 brief. Follow this order — different from the order t
 - After the diff, read the PR description and title. Note where the author's framing matches your read and where it diverges. **Divergence is signal worth saving** — capture it in `## Labeling Scratch` at the bottom of the brief.
 
 ## Step 2 — Inventory Each Chunk: Concern, Role, LoC (~20 min)
+
+> **A chunk is sub-file.** It's a contiguous run of changed lines sharing one Concern and one Change-group — NOT necessarily a whole file or a whole git hunk. If a file (or a single git hunk) contains parts with **different concerns or different intents**, split it into multiple chunk rows and label each separately. The inventory tables in the stubs pre-list one row per file as a *starting point* — add rows when a file splits.
+>
+> **Exception (the one unhandled case):** if the multiplicity is *interleaved within one inseparable span* (e.g., a move and a logic-fix woven line-by-line, impossible to split cleanly), keep it as one chunk and capture the secondary operation via the group's secondary Category + a prose note in the Summary. This is the deferred sub-operation tree (ADR 0005) — don't force a split that isn't there.
 
 Fill the **Chunk Inventory** table. For each chunk:
 

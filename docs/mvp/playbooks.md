@@ -10,7 +10,7 @@ This file is the source of truth. A Change-group's dominant **Category** pulls i
 - **Specific** — a Category playbook does not belong to another Category; a Concern check does not belong to another Concern.
 - **Failure-mode-grounded** — each item encodes something that historically goes wrong with this change type.
 
-**Status:** initial subset of 5 Category playbooks (`bugfix`, `logic-refactor`, `lib-bump`, `move-with-edits`) + the `test` Concern check. Remaining Categories (`new-feature`, `pure-move`, `schema-change`, `dependency-update`) and Concern checks (`doc`, `spec`, `config`, `generated`) drafted opportunistically as PR labeling hits them. Note: `test-only`/`config-only`/`generated-code` are NOT Categories — they are Concerns; their checks live in the Concern-checks section.
+**Status:** Category playbooks for `bugfix`, `logic-refactor`, `lib-bump`, `move-with-edits`, and opportunistic `new-feature` draft + the `test` and `doc` Concern checks. Remaining Categories (`pure-move`, `schema-change`, `dependency-update`) and Concern checks (`spec`, `config`, `generated`) drafted opportunistically as PR labeling hits them. Note: `test-only`/`config-only`/`generated-code` are NOT Categories — they are Concerns; their checks live in the Concern-checks section.
 
 ---
 
@@ -47,6 +47,24 @@ Items:
 - [ ] Check for performance regressions implied by the refactor — algorithmic complexity, allocation patterns, sync→async boundaries, query count.
 - [ ] Look for edge cases (null/empty inputs, error returns, boundary values) handled explicitly in the old code; verify the new code still handles each.
 - [ ] If a new abstraction is introduced, identify what it leaks (state, errors, performance) and confirm callers handle the leaks.
+
+---
+
+## `new-feature`
+
+Failure modes this playbook is designed to catch:
+- New public capability lacks a clear contract, so callers infer behavior from implementation details.
+- Tests cover only obvious examples and miss boundary inputs or unsupported inputs.
+- Feature is added in one package/module but is not discoverable from the intended public surface.
+- Existing behavior changes as a side effect of adding the new capability.
+- Unsupported-input behavior is accidental rather than explicit.
+
+Items:
+- [ ] Identify the new public capability added by the diff; confirm its intended contract is clear from exported names, types, docs, or tests.
+- [ ] Enumerate the main input classes for the new capability; confirm tests cover normal inputs, empty inputs, boundary values, and representative edge cases.
+- [ ] Check how existing callers or consumers can discover and use the new capability without relying on private/internal paths.
+- [ ] Verify the new capability composes safely with existing behavior and does not silently change unrelated code paths.
+- [ ] Confirm failure or unsupported-input behavior is explicit rather than accidental.
 
 ---
 
@@ -106,3 +124,15 @@ Items:
 - [ ] Confirm the test exercises the production code path, not just mocks or setup code (no "tests the mock" anti-pattern).
 - [ ] Check the test for ordering, timing, or external-state dependencies that could cause flakiness.
 - [ ] Identify the branch / code path the test covers; confirm it is the path most likely to break (not the easy happy path while the bug lives on the error path).
+
+### `doc` Concern check
+
+Failure modes this check is designed to catch:
+- Doc/update claims behavior that differs from the implementation.
+- Package names, exported symbols, version notes, or public API references drift from the changed code.
+- Release-note phrasing over-promises support for behavior not covered by implementation or tests.
+
+Items:
+- [ ] Confirm the doc/update accurately describes the behavior introduced by the carrier chunks.
+- [ ] Check that names, package scopes, version notes, and public API references match the implementation exactly.
+- [ ] Verify the doc/update does not promise behavior that is not covered by implementation or tests.

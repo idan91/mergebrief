@@ -6,36 +6,39 @@
 
 Curated open-source PRs for hand-labeling. Picked for: manageable size (~4–12 files, ~80–400 additions), category mix (exercises the multi-tag taxonomy), public reviewability (no permission negotiation), and well-known repos (some reviewers will have context).
 
-### Primary PR — Next.js #93940
+### Primary PR — medusa #15605
 
-**Title:** Fix cross-param leak with `prefetch={true}` and `cachedNavigations`
-**URL:** https://github.com/vercel/next.js/pull/93940
-**Size:** 6 files, +165/-32
+**Title:** validate http(s) scheme on fulfillment label URLs
+**URL:** https://github.com/medusajs/medusa/pull/15605
+**Size:** 8 files, +77/−17
+**Stub:** `briefs/medusa-15605.md` (+ `medusa-15605.baseline.md` for B′)
 
 **Why this PR for the first hand-label pass:**
-- Mid-sized — manageable to fully label by hand in one sitting.
-- Exercises the multi-tag taxonomy with a clear dominant category and several secondary tags.
-- Contains the **move-with-edits** hard case — the pattern your taxonomy is uniquely positioned to catch, and the case GitHub's diff view obscures.
-- Bugfix is the dominant category, but the PR's body is mostly test scaffolding — a realistic example of how PR composition is often misread by reviewers.
+- **Self-explanatory from the diff alone** — the concept ("only accept `http:`/`https:` URLs; still allow empty + `#`") needs zero library-internals knowledge. The right difficulty to *calibrate the process* before harder PRs.
+- **No moves** — weighted LoC ≈ git LoC, so the labeler isn't fighting move/edit separation on their first pass.
+- **Clean dominant `new-feature`** (a shared `safeHttpUrl` validator applied across endpoints), with a legitimate `new-feature`-vs-security-hardening framing tension that makes a good inter-rater test point.
+- **Three concerns naturally:** implementation (validator + 2 call sites + FE adoption) / test (unit + integration + fixtures) / doc (the `.changeset`).
+- **Generalist-gradable tricky-cases:** the empty/`#` carve-outs, all-call-sites coverage, and whether the test asserts *rejection* of bad schemes (not just acceptance).
+- BE-primary with one FE touch; not a bugfix, not bespoke config.
 
 **Anticipated structure (to validate during hand-label):**
 
-This PR is likely a **single Change-group** (one intent: fix the cross-param leak), since all chunks serve that one fix. The boundary rule confirms: one Summary + one Dominant Category covers the set.
+Likely a **single Change-group** — one intent: enforce http(s) on the fulfillment/label URL fields. Verify against the boundary rule (one Summary + one Dominant Category).
 
-- **Group 1 — "fix cross-param leak"** · dominant `bugfix`, possible secondary `move-with-edits`
-  - **Carrier:** `cache.ts` (+24/−10) — Concern `implementation`, the actual fix.
-  - **Supporting:** the `layout.tsx` pair — Concern `test`. The deleted `[slug]/layout.tsx` (−22) + added `with-fallback-params/layout.tsx` (+51) are the candidate `move-with-edits`: inspect what moved (→ `moved N`, excluded from weighted LoC) vs what was edited.
-  - **Supporting:** `page.tsx` (+3), `cached-navigations.test.ts` (+54), `link-accordion.tsx` (+33) — all Concern `test`, fixtures/coverage for the fix.
+- **Group 1 — "enforce http(s) on fulfillment/label URLs"** · dominant `new-feature` (or security-hardening — labeler's call)
+  - **Carriers:** `common.ts` (+20, the `safeHttpUrl` refinement), `fulfillments/validators.ts` (+3/−3), `orders/validators.ts` (+3/−3), `order-fulfillment-section.tsx` (+11/−1, FE adoption) — Concern `implementation`.
+  - **Supporting:** `common.spec.ts` (+24), `fulfillment/index.spec.ts` (+8/−8), `fixtures/fulfillment/index.ts` (+2/−2) — Concern `test`. `.changeset/warm-rockets-laugh.md` (+6) — Concern `doc`.
 
-Intent lives on the group (`bugfix`); the test chunks *support* it — they are not independently categorized as their own bugfix/new-feature.
+Intent lives on the group; the test/doc chunks *support* it — not independently categorized.
 
-**Concern view (anticipated LoC split):** implementation small (~+24/−10), test large (the bulk). This is the attention-routing signal — the real logic change is tiny, most of the PR is test scaffolding.
+**Concern view (anticipated LoC split):** implementation moderate, test moderate, doc tiny. No moves to exclude — a clean baseline calibration of the concern split.
 
-**Playbook items to test against this PR (from the group's dominant Category + supporting-Concern checks):**
+**Playbook items to test against this PR:**
 
-- `bugfix` (dominant) → verify the fix addresses the root cause; regression test covers the exact path; check adjacent paths for the same bug.
-- `move-with-edits` (secondary) → identify what was moved vs edited in the layout.tsx pair; byte-level inspection.
-- `test` Concern checks (supporting) → tests fail without the carrier change; test names describe what they exercise; fixture (`link-accordion.tsx`) is actually used, not dead code.
+- dominant Category (`new-feature` if not yet in `playbooks.md`, draft it) → new capability is actually wired into every intended call site; carve-outs (empty, `#`) are intentional and tested; no unintended behavior change to adjacent fields.
+- `test` Concern checks (supporting) → unit test asserts rejection of bad schemes, not just acceptance; integration test exercises the real endpoint path.
+
+> Note: `new-feature` has no playbook yet. Expect to draft it during this label (see Labeling Scratch guidance in the stub). This is the opportunistic-expansion path working as designed.
 
 ### Backup PR — drizzle-orm #5331
 
@@ -53,7 +56,7 @@ Intent lives on the group (`bugfix`); the test chunks *support* it — they are 
 
 ## How to Find More Candidates
 
-When extending beyond #93940 and #5331, use this query against any well-known repo. Adjust the size filters as needed.
+When extending beyond zod #5926 and the candidates above, use this query against any well-known repo. Adjust the size filters as needed. Found via this exact scan: `colinhacks/zod#5926`, `react-hook-form#13420`, `trpc#7262`, `remix-run/react-router#15101` (lib-bump candidate).
 
 ```bash
 gh pr list --repo <owner>/<repo> --state merged --limit 50 \
@@ -116,7 +119,7 @@ For each PR in the set, produce a labeled artifact that mirrors what the product
 
 For each PR, capture:
 
-1. **Chunk inventory.** A chunk roughly maps to a contiguous hunk. For each chunk capture:
+1. **Chunk inventory.** A chunk is a contiguous run of changed lines sharing **one Concern and one Change-group** — sub-file, possibly finer than a git hunk. Split a file (or hunk) into multiple chunks when its parts differ in concern or intent; the only thing you can't split is multiplicity interleaved line-by-line within one inseparable span (capture that via secondary Category + Summary prose — the deferred sub-op tree). For each chunk capture:
    - **Concern** — `implementation` / `test` / `doc` / `spec` / `config` / `generated` (mostly from file path).
    - **Role** — `carrier` or `supporting` (default: `implementation` → carrier, else → supporting; flip when a supporting artifact is itself the purpose).
    - **Weighted LoC** — `+added/−deleted` excluding moved & generated lines; note moves as `moved N`, generated as collapsed.

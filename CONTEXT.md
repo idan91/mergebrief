@@ -2,6 +2,8 @@
 
 Comprehension scaffolding for human reviewers of pull requests. Not another reviewer bot. The tool's job is to restore *engagement* and *comprehension* to code review in an AI-authored world, by re-unitizing the diff from "lines" to "categorized chunks with playbooks", and by separating AI assistance from AI authorship.
 
+> This file defines the *meaning* of each term. For the authoritative closed list of valid labeling **tokens** (the current Category / Concern / Role / Risk-Surface values + quick rules), see `docs/mvp/labeling-schema.md` — the controlled vocabulary. A token is not valid unless registered there.
+
 ## Language
 
 **Brief**:
@@ -11,6 +13,11 @@ _Avoid_: report, analysis, AI summary
 **Delta Brief**:
 The comprehension artifact for re-review — what changed for THIS reviewer's mental model since they last looked: new chunks tagged, flag resolution status, comment-target tracking, playbook delta, net receipt diff.
 _Avoid_: incremental brief, diff-of-diff (informal only), update
+
+**Chunk**:
+A contiguous run of changed lines sharing **one Concern and one Change-group** — the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC.
+_Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
+_Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree (ADR 0005); until then, express it via dominant+secondary Categorization on the group plus a prose callout in the Summary.
 
 **Change-group**:
 A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent* — it carries the Categorization and the summary. Spans files and Concerns: one or more carrier chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
@@ -108,7 +115,7 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.
-- A **Brief** contains many **Chunks**, clustered into **Change-groups**.
+- A **Brief** contains many **Chunks**, clustered into **Change-groups**. A chunk is a contiguous run of changed lines sharing one Concern and one Change-group; a git hunk may be split into multiple chunks, and one file's chunks may span multiple Change-groups.
 - A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one carrier chunk plus zero or more supporting chunks.
 - A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (carrier/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (+added/−deleted).
 - The brief is read through two pivots over the same chunk set: the **Story view** (by Change-group) and the **Concern view** (by Concern). LoC rolls up under both.
@@ -137,4 +144,5 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 - **Intent lived on the chunk** in the original model. Resolved: intent (**Category**, **Summary**) lives on the **Change-group**; the chunk carries **Concern**, **Role**, and **LoC**. A test/doc chunk supports a group's intent rather than re-deriving its own. See ADR 0005.
 - **`test-only` / `config-only` / `generated-code` as Categories** conflated *artifact* with *intent*. Resolved: these are **Concern** values, not Categories. Category is purely intent (what kind of change); Concern is artifact (what kind of file).
 - **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.
+- **"A file with multiple changes/concerns"** — resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case → deferred sub-operation tree (ADR 0005).
 - **"production" rejected** as the carrier-concern name — bakes in a deployment assumption. Resolved: `implementation`.

@@ -15,12 +15,12 @@
 
 | Chunk | Concern | Role | Group # | Weighted LoC |
 |---|---|---|---|---|
-| `packages/next/src/client/components/segment-cache/cache.ts` (+24/−10) | implementation | carrier | <from Treatment> | <from Treatment> |
-| `.../with-fallback-params/[slug]/layout.tsx` (−22, deleted) | test | supporting | <…> | <…> |
-| `.../with-fallback-params/layout.tsx` (+51, added) | test | supporting | <…> | <…> |
-| `.../with-fallback-params/page.tsx` (+3) | test | supporting | <…> | <…> |
-| `.../cached-navigations.test.ts` (+54) | test | supporting | <…> | <…> |
-| `.../components/link-accordion.tsx` (+33) | test | supporting | <…> | <…> |
+| `packages/next/src/client/components/segment-cache/cache.ts` (+24/−10) · (+) 2597-2614, 2629, 2632, 2658, 2661, 2684-2685 · (−) 2611-2612, 2615, 2641-2642, 2645, 2667-2668, 2670-2671 | implementation | carrier | <from Treatment> | <from Treatment> |
+| `.../with-fallback-params/[slug]/layout.tsx` (−22, deleted) · (+) — · (−) 1-22 | test | supporting | <…> | <…> |
+| `.../with-fallback-params/layout.tsx` (+51, added) · (+) 1-51 · (−) — | test | supporting | <…> | <…> |
+| `.../with-fallback-params/page.tsx` (+3) · (+) 1-3 · (−) — | test | supporting | <…> | <…> |
+| `.../cached-navigations.test.ts` (+54) · (+) 938-991 · (−) — | test | supporting | <…> | <…> |
+| `.../components/link-accordion.tsx` (+33) · (+) 1-33 · (−) — | test | supporting | <…> | <…> |
 
 ## 2. Change-groups (Story View — substrate only)
 
