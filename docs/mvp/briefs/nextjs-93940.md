@@ -9,8 +9,8 @@
 > 1. **Inventory** — verify the suggested Concern + Role for each chunk (Concern derived from path; Role derived from Concern: `implementation` → carrier, else → supporting). Override where wrong.
 > 2. **Group** — cluster chunks into Change-groups using the boundary rule: one group = the largest chunk set expressible as ONE Summary + ONE Dominant Category. Assign each chunk a Group #.
 > 3. For each group: write the **Summary** (descriptive *what*, not narrative *why*), the **Categorization** (dominant + secondary), and copy the **Playbook** items for the dominant Category from `../playbooks.md`.
-> 4. **Weighted LoC** — fill per chunk: `+added/−deleted` excluding moved & generated lines; note moves as `moved N`, generated as collapsed.
-> 5. **Concern view** — roll up weighted LoC per Concern.
+> 4. **Adjusted LoC** — fill per chunk: `+added/−deleted` excluding moved & generated lines; note moves as `moved N`, generated as collapsed.
+> 5. **Concern view** — roll up adjusted LoC per Concern.
 > 6. **Tricky-Cases Note** — pre-register hard cases BEFORE any reviewer session. Freeze once written.
 > 7. Delete this instruction block when done.
 
@@ -20,7 +20,7 @@
 
 Verify suggested Concern/Role. Assign each chunk to a Change-group (Group # — you define groups in section 2).
 
-| Chunk | Suggested Concern | Suggested Role | Group # | Weighted LoC | Risk Surface |
+| Chunk | Suggested Concern | Suggested Role | Group # | Adjusted LoC | Risk Surface |
 |---|---|---|---|---|---|
 | `packages/next/src/client/components/segment-cache/cache.ts` (+24/−10) · (+) 2597-2614, 2629, 2632, 2658, 2661, 2684-2685 · (−) 2611-2612, 2615, 2641-2642, 2645, 2667-2668, 2670-2671 | implementation | carrier | <TODO> | <TODO> | <TODO> |
 | `test/e2e/app-dir/segment-cache/cached-navigations/app/with-fallback-params/[slug]/layout.tsx` (−22, deleted) · (+) — · (−) 1-22 | test | supporting | <TODO> | <TODO> | <TODO> |
@@ -29,7 +29,7 @@ Verify suggested Concern/Role. Assign each chunk to a Change-group (Group # — 
 | `test/e2e/app-dir/segment-cache/cached-navigations/cached-navigations.test.ts` (+54) · (+) 938-991 · (−) — | test | supporting | <TODO> | <TODO> | <TODO> |
 | `test/e2e/app-dir/segment-cache/cached-navigations/components/link-accordion.tsx` (+33) · (+) 1-33 · (−) — | test | supporting | <TODO> | <TODO> | <TODO> |
 
-> The two `layout.tsx` rows (deleted in `[slug]/`, added at parent path) are the candidate `move-with-edits`. Inspect by content — what was moved (→ `moved N`, excluded from +/−) vs what was edited inside the move (→ counts as weighted LoC).
+> The two `layout.tsx` rows (deleted in `[slug]/`, added at parent path) are the candidate `move-with-edits`. Inspect by content — what was moved (→ `moved N`, excluded from +/−) vs what was edited inside the move (→ counts as adjusted LoC).
 
 ## 2. Change-groups (Story View)
 
@@ -41,7 +41,7 @@ Verify suggested Concern/Role. Assign each chunk to a Change-group (Group # — 
 **Summary:** <one descriptive sentence — what these chunks do, not why>
 **Carrier chunks:** <list>
 **Supporting chunks:** <list>
-**Attention-weighted LoC:** +<A>/−<D> (moved <M>, generated <G> excluded)
+**Adjusted LoC:** +<A>/−<D> (moved <M>, generated <G> excluded)
 
 **Playbook (dominant Category — copy verbatim from `../playbooks.md`):**
 - [ ] <item>
@@ -53,9 +53,9 @@ Verify suggested Concern/Role. Assign each chunk to a Change-group (Group # — 
 
 ## 3. Concern View (LoC Split)
 
-Roll up attention-weighted LoC across all chunks by Concern.
+Roll up adjusted LoC across all chunks by Concern.
 
-| Concern | Weighted LoC | Notes |
+| Concern | Adjusted LoC | Notes |
 |---|---|---|
 | implementation | +<TODO>/−<TODO> | |
 | test | +<TODO>/−<TODO> | |

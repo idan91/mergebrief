@@ -54,7 +54,7 @@ Closed set. Mostly derivable from file path.
 | `config` | configuration files | supporting |
 | `generated` | generated / vendored output (lockfiles, bundles) | supporting |
 
-`generated` LoC is excluded from the weighted Concern split by default (collapsed).
+`generated` LoC is excluded from the adjusted Concern split by default (collapsed).
 
 ---
 
@@ -83,17 +83,19 @@ Three buckets. Full detail in `risk-surface.md`. Factual only — never verdicts
 
 A chunk carries both, and they must not be conflated:
 
-- **Counts (size):** git `+added/−deleted`, plus the **attention-weighted LoC** (counts after exclusions).
-  - **Displayed = attention-weighted**, not raw git.
+- **Counts (size):** git `+added/−deleted`, plus the **adjusted LoC** (counts after exclusions).
+  - **Displayed = adjusted**, not raw git.
   - **Moved** lines → `moved N`, excluded from +/−.
-  - **Generated** Concern → collapsed, excluded from the weighted split.
-  - Raw **git LoC** reachable on click; weighted carries an "adjusted" badge.
+  - **Generated** Concern → collapsed, excluded from the adjusted split.
+  - Raw **git LoC** reachable on click; carries an "adjusted" badge.
 - **Location (where):** the *actual changed lines*, split by side —
   - **`(+) added`** = new-side line numbers; **`(−) removed`** = old-side line numbers.
   - Changed lines only, NOT the `@@` hunk window (which includes context).
   - Used for navigation and diff rendering; many disjoint ranges = scattered change = chunk-split candidate.
 
-This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diffs.com / `@git-diff-view`, react-diff-view) represent hunks — so a Chunk's data maps directly onto the FE rendering primitive: `{ filePath, concern, role, group, addedRanges(new-side), removedRanges(old-side), gitAdded, gitDeleted, weighted…, movedCount }`. The chosen FE lib renders the diff; our chunk metadata overlays category/concern/role/risk on top.
+This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diffs.com / `@git-diff-view`, react-diff-view) represent hunks — so a Chunk's data maps directly onto the FE rendering primitive: `{ filePath, concern, role, group, addedRanges(new-side), removedRanges(old-side), gitAdded, gitDeleted, adjustedAdded, adjustedDeleted, movedCount }`. The chosen FE lib renders the diff; our chunk metadata overlays category/concern/role/risk on top.
+
+> **Naming:** this is **adjusted LoC** (objective — git minus moves minus generated). A future **signal LoC** (mechanically excluding blank/punctuation/import lines) is possible but deferred; it must be deterministic, never hand-judged, or it breaks inter-rater reproducibility and the git reconciliation.
 
 ---
 

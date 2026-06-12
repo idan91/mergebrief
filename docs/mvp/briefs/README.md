@@ -21,7 +21,7 @@ Each brief draws categories from `../playbooks.md` and risk-surface attributes f
 - `—` means none on that side. A deleted file shows `(+) — · (−) 1-N`.
 - Many disjoint ranges in one file = the change is scattered → a **chunk-split candidate** if those spans differ in concern or intent.
 
-These ranges are *location* (for navigation + diff rendering). They are distinct from **weighted LoC** (the *counts*, after move/generated exclusion) — keep both.
+These ranges are *location* (for navigation + diff rendering). They are distinct from **adjusted LoC** (the *counts*, after move/generated exclusion) — keep both.
 
 Generate with the parser in `/tmp/diffranges.awk` (or inline):
 

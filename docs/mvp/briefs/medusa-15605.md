@@ -8,10 +8,10 @@
 
 > Labeling instructions (full process in `labeling-workflow.md`):
 > 1. **Read the diff cold** (`gh pr diff 15605 --repo medusajs/medusa`) before the PR description.
-> 2. **Inventory** — verify suggested Concern + Role per chunk; fill weighted LoC.
+> 2. **Inventory** — verify suggested Concern + Role per chunk; fill adjusted LoC.
 > 3. **Group** — boundary rule: one group = ONE Summary + ONE Dominant Category.
 > 4. Per group: **Summary** (what not why), **Categorization** (dominant + secondary), **Playbook** from `../playbooks.md`.
-> 5. **Concern view** — roll up weighted LoC.
+> 5. **Concern view** — roll up adjusted LoC.
 > 6. **Tricky-Cases Note** — pre-register, freeze.
 > 7. Generate `medusa-15605.baseline.md` (B′) by stripping Category/playbooks/risk-surface.
 > 8. Delete this instruction block when done.
@@ -20,7 +20,7 @@
 
 ## 1. Chunk Inventory
 
-| Chunk | Suggested Concern | Suggested Role | Group # | Weighted LoC | Risk Surface |
+| Chunk | Suggested Concern | Suggested Role | Group # | Adjusted LoC | Risk Surface |
 |---|---|---|---|---|---|
 | `packages/medusa/src/api/utils/common-validators/common.ts` (+20) · (+) 19-38 · (−) — | implementation | carrier | <TODO> | <TODO> | <TODO> |
 | `packages/medusa/src/api/admin/fulfillments/validators.ts` (+3/−3) · (+) 2, 18-19 · (−) 2, 18-19 | implementation | carrier | <TODO> | <TODO> | <TODO> |
@@ -31,7 +31,7 @@
 | `integration-tests/modules/__tests__/fixtures/fulfillment/index.ts` (+2/−2) · (+) 49-50 · (−) 49-50 | test | supporting | <TODO> | <TODO> | <TODO> |
 | `.changeset/warm-rockets-laugh.md` (+6) · (+) 1-6 · (−) — | doc | supporting | <TODO> | <TODO> | <TODO> |
 
-> No moves here — straightforward additions/edits. Weighted LoC ≈ git LoC for this PR (nothing to exclude). A clean first case to calibrate on before tackling move-heavy PRs.
+> No moves here — straightforward additions/edits. Adjusted LoC ≈ git LoC for this PR (nothing to exclude). A clean first case to calibrate on before tackling move-heavy PRs.
 
 ## 2. Change-groups (Story View)
 
@@ -43,7 +43,7 @@
 **Summary:** <one descriptive sentence — what changed, not why>
 **Carrier chunks:** <list>
 **Supporting chunks:** <list>
-**Attention-weighted LoC:** +<A>/−<D>
+**Adjusted LoC:** +<A>/−<D>
 
 **Playbook (copy verbatim from `../playbooks.md` for the dominant Category + supporting-Concern checks):**
 - [ ] <item>
@@ -56,7 +56,7 @@
 
 ## 3. Concern View (LoC Split)
 
-| Concern | Weighted LoC | Notes |
+| Concern | Adjusted LoC | Notes |
 |---|---|---|
 | implementation | +<TODO>/−<TODO> | validator + 2 call sites + FE adoption |
 | test | +<TODO>/−<TODO> | unit + integration + fixtures |

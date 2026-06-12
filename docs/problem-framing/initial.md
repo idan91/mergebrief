@@ -130,5 +130,14 @@ Implication for product positioning: the wedge is not only "fewer bugs ship toda
 
 Sample is qualitative N=few from peer network — directional, not conclusive. Broader interviews (`docs/next-steps.md` Phase #1) should test whether other engineers spontaneously describe this dimension.
 
+## Project Intent (2026-06-09)
+
+This doc is written in PMF-test language (TAM sizing, pricing probes). Correcting the record on actual intent so future sessions don't over-rotate on business validation:
+
+- **Primary goal: build something genuinely useful** for a real pain Idan and peers experience. Commercial success is upside, not the bar.
+- **Business case is tracked seriously but secondarily** — it informs scope discipline (don't build what nobody wants) rather than gating decisions on revenue potential.
+- **Practical consequences:** kill criteria emphasize "do I and people I know reach for it weekly", not "will strangers pay". WTP/pricing probes are optional, deferred until organic pull appears. ICP/pricing open questions stay parked without blocking anything.
+- TAM/pricing sections above remain valid as context; read them as "if this works, here's the upside", not as targets.
+
 ## See Also
 - [[PM Tools Pain - Problem Framing]]

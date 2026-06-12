@@ -10,6 +10,7 @@ These four items came up during the reviewer-side scope grilling but were deferr
 2. **"Uncertain" threshold calibration.** When does the AI label its category/flag output as `uncertain`? Per-category threshold (some categories are easier to classify than others)? Per-playbook? Single global threshold? Tied to model confidence score or to disagreement between multiple passes?
 3. **Two-reviewers-same-flag UX.** When two reviewers dismiss the same flag with different reasons, what does the receipt show — both reasons attributed, latest only, or some merged form? UX detail but matters for multi-reviewer audit trail.
 4. **Bottoms-up POC flow for individuals.** Onboarding assumes admin installs the GH App org-wide. How does a single curious reviewer try the tool on their personal repos before pitching it upward? Distribution path for grassroots adoption.
+   **Resolved direction (2026-06-09): zero-install try path, promoted to a planned v1.5 deliverable** (shape may shift, commitment shouldn't). A single engineer pastes any public-PR URL into the web app (or runs `npx <tool> <pr-url>`) → brief renders read-only via the public GitHub API. No GH App, no admin, no OAuth. Rationale: the actual adopter is a single curious reviewer, and under the useful-tool-first intent (see "Project Intent" in `docs/problem-framing/initial.md`) peers trying it IS the distribution model. Also doubles as the Phase 2 demo surface — and, if the open-core direction is taken, the OSS BYOK client is this same artifact (see "Open-Core / BYOK Split" below).
 
 ## Author Side (v2) — Full Grilling Pending
 
@@ -138,6 +139,49 @@ Designing change-groups + carrier/supporting + concern split + weighted LoC move
 - **Dual-consumer:** human reviewer consumes Analysis via Engagement (v1); AI-agent reviewer consumes Analysis directly via API (v1.5+ headless lead-in — confirmed NOT in first release). The no-AI-prose rule and mind-map are human-mode only; agent-mode inverts the prose rule by design.
 - **Submission:** review lands natively on GitHub (comments + verdict) authored by the reviewer; a one-line signature links to a static **Review Summary** holding the receipt. Tool present but unobtrusive (ADR 0002, 2026-06-07 delivery refinement).
 
+## Moat Honesty (2026-06-09)
+
+Terminology fix across the docs: the taxonomy + playbooks + risk-surface layer is the **wedge**, not the moat. A moat is a structural defense that stops competitors copying you *after* the idea is proven (switching costs, network effects, proprietary data, distribution lock-in). A feature is not a moat.
+
+**Why the old claim was soft:** taxonomy + playbooks are prompt engineering plus a markdown library — any competent team rebuilds them in weeks. CodeRabbit/Greptile can ship "change-type-aware checklists" in a sprint *once Phase 1/2 success proves the wedge works*; our validation becomes their spec. The docs previously watched Linear closely while underweighting incumbent copy speed.
+
+**What could compound into a real moat (earned, not claimed):**
+- **Data exhaust.** Every reviewer reclassification, dismissal-with-reason, and playbook-item visit is labeled training data nobody else has. It improves the categorizer; competitors start cold.
+- **Org-learned playbooks (2026-06-09).** Preset playbooks are the commodity layer; the compounding layer is per-org playbook items mined from that org's own review activity on the platform — recurring review comments, dismissal reasons, flag-address patterns — summarized into suggested additions ("in this repo, `schema-change` also means check the analytics consumer"). Proprietary where it draws on in-platform exhaust (dismissals, reclassifications, item visits — invisible to competitors); only semi-proprietary where it draws on GitHub comment history (any installed tool can mine that). Guardrails: human-approve loop (tech lead accepts suggested items before they activate — consistent with the no-verdict ethos), org data never trains other orgs' playbooks, cold-start means this only pays after months of usage. Post-validation work; parked here as the concrete mechanism behind "data exhaust".
+  - **Playbook digest (2026-06-09, v2+).** The visibility surface for the learning loop: a recurring summary of suggested playbook additions — "3 suggested additions to `schema-change`, mined from 14 reviews — approve/reject." Doubles as (a) the tech lead's approval inbox (without it, suggestions rot in a settings page) and (b) a team-facing institutional-knowledge artifact ("what our reviews taught us about our codebase this week") — direct feed for the skill-atrophy / review-as-learning-loop positioning (problem-framing HMW #5). Cadence: weekly, **threshold-gated** (send when ≥N pending suggestions OR weekly, whichever first) — never daily; additions are rare events and empty digests train people to ignore it. Hosted-only by nature (requires cross-PR org state — see Open-Core Direction below).
+- **Cross-PR repo history.** The stable taxonomy makes "all `schema-change` PRs last quarter" queryable; value grows with tenure on a repo.
+- **Workflow lock-in.** Receipts as an org's review audit trail = switching cost.
+
+**Rule:** product docs say "wedge" for the layer, "moat" only for the earned candidates above. `CONTEXT.md` Analysis Layer entry updated accordingly.
+
+## Strategic Direction — Open-Core / BYOK Split (2026-06-09, decision deferred to post-Phase-2)
+
+Candidate distribution model: **OSS BYOK client + hosted product**, with an unusually honest cut line — the split falls exactly where server state begins, so the OSS version is genuinely useful rather than artificially crippled.
+
+### The cut line: stateless comprehension is free; organizational memory is the product
+
+- **OSS BYOK (stateless layer):** brief on a single PR — categorizer, preset playbooks, risk-surface, concern split. Runs with the user's own API key, no server state. This is the commodity layer from Moat Honesty — copyable anyway, so open-sourcing it costs near-zero moat.
+- **Hosted (stateful layer):** every moat candidate happens to require persistent cross-PR / cross-reviewer state — org-learned playbooks + digest, repo history queries, multi-reviewer aggregation, receipts as audit trail, mind-map sync, delta briefs across sessions.
+
+### Why it compounds with existing strategy
+
+- **Zero-install path and OSS client are the same artifact.** `npx <tool> <pr-url>` + own key = bottoms-up distribution at zero infra cost (resolves open question #4 above).
+- **OSS client is a natural headless reference client.** Three strategies (zero-install, headless, open-core) collapse into one architecture — a sign the cut line is real.
+- **Preset playbook library as community commons.** Playbooks are markdown — an ESLint-rules-style contribution surface. Community improves the commodity layer free; we stay the canonical home.
+- **Kills the privacy objection.** BYOK + code-never-leaves-org answers enterprise trust before it's asked.
+- **Fits useful-tool-first intent** (see Project Intent in `docs/problem-framing/initial.md`) — peers use it free, forever.
+
+### Honest risks
+
+- **Conversion tension.** If OSS alone satisfies, hosted never sells. Mitigation is the natural line: single-PR briefs are useful, but the *felt compounding* (digest, history, audit trail) only exists hosted.
+- **Fork risk.** Someone rebuilds persistence on top — standard open-core exposure (Sentry, GitLab, Cal.com live with it); acceptable at this scale.
+- **OSS maintenance tax.** Issues, PRs, support. **Do not open-source before the wedge is validated** — otherwise we maintain a public repo for a dead idea.
+- **BYOK breaks the exhaust loop for OSS users.** Self-hosted produces no dismissal/reclassification telemetry. By design: learning is hosted-only; no opt-in telemetry bolt-ons.
+
+### Sequencing
+
+Same gate as headless: decide after Phases 1+2 validate the wedge. One adjustment that applies **today** (strengthens the existing headless adjustment): the Phase 3 data model must keep a hard schema boundary between stateless analysis (brief computation) and stateful learning (org memory) — that boundary later becomes the OSS/hosted line, the API surface, or both.
+
 ## Strategic Direction — Headless Distribution (v2 lever, v1.5 lead-in)
 
 A distribution edge, not a feature edge. **Not v1.** Lift after Phases 1+2 validate the wedge and 1+ team actively uses the web app.
@@ -190,6 +234,17 @@ Real edge. Distribution edge, not feature edge. **v2 lever with v1.5 lead-in**, 
 Lifted from `docs/problem-framing/initial.md` recommended next steps — these run in parallel with product scoping, not after.
 
 1. **8–12 problem-discovery interviews** split across PR author, reviewer, tech lead, eng manager. Anchor on the rubber-stamp moment: "walk me through the last AI-authored PR you merged — where did you stop reading?" Goal: validate the *comprehension* gap (not the bug-catch gap) is the live pain.
+
+   **Sequencing (2026-06-09): run ≥4 of these BEFORE the first Phase 1 reviewer session** — not in parallel. Interviews are the cheapest kill-test and may reshape PR selection and playbook content before labeling hours are spent. Phase 1 debriefs double as interviews (discovery questions appended *after* the review-task discussion — see `phase-1.md`), so net-new recruiting is ~4–6 people.
+
+   **Script (Mom Test discipline — past behavior, never hypotheticals; pitch nothing until the end):**
+   1. Recency anchor: "Last AI-heavy PR you reviewed — walk me through it. Where did you stop reading?"
+   2. Failure story: "Tell me about a bug that got through review. What happened after?"
+   3. Coping: "A 600-line PR lands and you have 20 minutes — what do you actually do?"
+   4. Re-review: "The author pushes follow-up commits after your review — what do you look at?"
+   5. Tools tried: "What do you use now (CodeRabbit / Copilot review / …)? What stuck, what didn't, why?"
+   6. Linear probe (verbatim capture — see Competitive Update above).
+   7. Last 10 minutes only: show a hand-labeled brief (e.g. medusa-15605). Watch: do they grab it and start navigating, or nod politely? Grabbing = signal; polite nodding = nothing.
 2. **Survey ≥100 devs** measuring % of AI-authored PRs they (a) understood fully before approving, (b) approved with reservation, (c) approved without engaging. Sizes the rubber-stamp rate quantitatively.
 3. **Audit 3–5 existing tools** (CodeRabbit, Graphite Diamond, Qodo, Copilot PR review, Claude Code Review) on the author-side / pre-review / comprehension axis specifically. Score depth, friction, adoption. Map the gap.
 4. **Sketch a wedge experiment.** Smallest possible "pre-review comprehension brief" an author runs on their own diff before requesting review. Test if (a) authors run it voluntarily, (b) reviewers report changed behavior.

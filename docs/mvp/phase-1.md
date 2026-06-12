@@ -15,7 +15,7 @@ Curated open-source PRs for hand-labeling. Picked for: manageable size (~4–12 
 
 **Why this PR for the first hand-label pass:**
 - **Self-explanatory from the diff alone** — the concept ("only accept `http:`/`https:` URLs; still allow empty + `#`") needs zero library-internals knowledge. The right difficulty to *calibrate the process* before harder PRs.
-- **No moves** — weighted LoC ≈ git LoC, so the labeler isn't fighting move/edit separation on their first pass.
+- **No moves** — adjusted LoC ≈ git LoC, so the labeler isn't fighting move/edit separation on their first pass.
 - **Clean dominant `new-feature`** (a shared `safeHttpUrl` validator applied across endpoints), with a legitimate `new-feature`-vs-security-hardening framing tension that makes a good inter-rater test point.
 - **Three concerns naturally:** implementation (validator + 2 call sites + FE adoption) / test (unit + integration + fixtures) / doc (the `.changeset`).
 - **Generalist-gradable tricky-cases:** the empty/`#` carve-outs, all-call-sites coverage, and whether the test asserts *rejection* of bad schemes (not just acceptance).
@@ -85,10 +85,11 @@ gh pr view <pr-number> --repo <owner>/<repo> \
 
 ## PR Set Composition
 
-**Two tracks, ~8 PRs total:**
+**Three tracks, ~9 PRs total:**
 
 - **Track 1 — Gate evaluation set: 6 PRs.** Clean dominant categories, distributed across the taxonomy. Reviewer sessions run on these. PRs are *reused* across reviewers — same PR appears in Treatment for Reviewer A and Baseline B′ for Reviewer B, counterbalanced. Each reviewer sees ~4 of the 6, never the same PR twice.
 - **Track 2 — Taxonomy stress-test set: 2 PRs.** Deliberately picked because they don't fit the taxonomy cleanly — mixed-category-no-dominant, or change types the taxonomy doesn't cover, or unusually shaped PRs (monorepo-spanning, vibe-coded experimental, etc.). Hand-labeled by you only, no reviewer sessions. Output: a list of taxonomy gaps to feed Phase 2.
+- **Track 3 — Re-review / delta-brief probe: 1 PR.** One PR with real follow-up commits in its history. Label the brief at the base SHA, then hand-build the **Delta Brief** for the follow-up push (new chunks tagged, flag resolution status, playbook delta). Run with 2–3 of the reviewers in two sittings: initial review at SHA1, then return with the delta brief at SHA2. Observe: do they check the regressed / unaddressed items, or skim-approve on the back of their prior review? Rationale: `initial-scope.md` names re-review after follow-up commits the *hardest* rubber-stamp pool and the delta brief a v1 must-have — without this track the claimed-hardest pain has zero Phase 1 coverage. Directional probe, not part of the pre-registered gate. Cost: ~2 extra labeling hours.
 
 **Target distribution across the 6 gate PRs:**
 
@@ -122,7 +123,7 @@ For each PR, capture:
 1. **Chunk inventory.** A chunk is a contiguous run of changed lines sharing **one Concern and one Change-group** — sub-file, possibly finer than a git hunk. Split a file (or hunk) into multiple chunks when its parts differ in concern or intent; the only thing you can't split is multiplicity interleaved line-by-line within one inseparable span (capture that via secondary Category + Summary prose — the deferred sub-op tree). For each chunk capture:
    - **Concern** — `implementation` / `test` / `doc` / `spec` / `config` / `generated` (mostly from file path).
    - **Role** — `carrier` or `supporting` (default: `implementation` → carrier, else → supporting; flip when a supporting artifact is itself the purpose).
-   - **Weighted LoC** — `+added/−deleted` excluding moved & generated lines; note moves as `moved N`, generated as collapsed.
+   - **Adjusted LoC** — `+added/−deleted` excluding moved & generated lines; note moves as `moved N`, generated as collapsed.
    - **Risk-surface attributes** — zero or more from `risk-surface.md` (`touches-auth`, `no-tests`, `mutates-state`, etc.).
 2. **Change-groups.** Cluster chunks into groups using the boundary rule: one group = largest chunk set expressible as ONE Summary + ONE Dominant Category. Commits are a hint, not a boundary. For each group:
    - **Summary** — 1 descriptive sentence. *What* the group changes, not *why*. (Why belongs in the PR description / issue — narrative drift collapses the wedge into Linear's lane.)
@@ -130,8 +131,8 @@ For each PR, capture:
      - Bad: "Elegantly fixes a long-standing cross-segment caching bug by isolating the param scope."
    - **Categorization** — dominant Category + secondary (zero or more). Intent lives on the group, carried by the carrier chunk(s); supporting chunks serve it and are NOT independently categorized.
    - **Playbook** — items for the dominant Category, copied verbatim from `playbooks.md`. Plus supporting-Concern checks for the group's test/doc/spec chunks.
-   - **Attention-weighted LoC** — rolled up across the group's chunks.
-3. **Concern view.** Roll up weighted LoC per Concern across the whole PR — the implementation-vs-scaffolding attention split.
+   - **Adjusted LoC** — rolled up across the group's chunks.
+3. **Concern view.** Roll up adjusted LoC per Concern across the whole PR — the implementation-vs-scaffolding attention split.
 4. **Tricky-cases note** — anything subtle a non-engaged reviewer would miss (move-with-edits, behavior-preservation drift, regressions in adjacent paths). Pre-register BEFORE reviewer sessions; freeze once written. This is what the playbook items should drive the reviewer toward.
 
 ## Reviewer Composition (Senior-Only)
@@ -150,7 +151,7 @@ Rationale:
 Same reviewer reviews multiple PRs, half with the full **Treatment** brief, half with the **Baseline B′** rendering.
 
 **The two conditions isolate exactly the differentiator layer:**
-- **Treatment** — full brief: change-groups, carrier/supporting, concern split, weighted LoC, descriptive summaries, **+ Category taxonomy + playbooks + risk-surface**.
+- **Treatment** — full brief: change-groups, carrier/supporting, concern split, adjusted LoC, descriptive summaries, **+ Category taxonomy + playbooks + risk-surface**.
 - **Baseline B′** — same brief with the three differentiator fields **stripped**: no Category labels, no playbooks, no risk-surface. Everything else (groups, carrier/supporting, concern split, LoC, summaries) is identical.
 
 The delta between conditions is therefore *only* {taxonomy + playbooks + risk-surface}. This is a deliberately **harder, more honest baseline** than raw diff: it grants the grouping substrate that Linear Diffs already ships for free (see `next-steps.md`), so the test measures the *marginal* value of your layer, not the bundle. We do not test against raw diff — the "beats status quo" signal already exists; spending effort on a baseline we won't ship would be waste.
@@ -167,9 +168,11 @@ The delta between conditions is therefore *only* {taxonomy + playbooks + risk-su
 Two-touch protocol per reviewer per PR:
 
 1. **Async screen recording.** Reviewer records themselves silently going through the PR (Loom / QuickTime). No think-aloud required — captures real behavior without observation-effect distortion. ~10 minutes per PR on the reviewer's schedule.
-2. **15-minute live debrief.** You watch the recording at 2× speed beforehand and identify 3–5 moments worth probing. Debrief covers: "what made you slow down here", "did you notice X", "would you want this on every PR".
+2. **15-minute live debrief.** You watch the recording at 2× speed beforehand and identify 3–5 moments worth probing. Debrief covers: "what made you slow down here", "did you notice X", "would you want this on every PR", plus the time-acceptability questions from the guardrail ("worth the extra time?").
 
 Total: ~25 minutes per reviewer per PR, half async on their side.
+
+**Debrief doubles as a discovery interview.** After the review-task discussion is done (never before — anchoring), append 10 minutes of discovery questions from the interview script (`next-steps.md`, PMF track #1): last AI-heavy PR walkthrough, bug-that-got-through story, re-review habits, tools tried, Linear probe. Each Phase 1 reviewer then counts toward the interview quota, cutting net-new recruiting to ~4–6 people.
 
 Rejected for Phase 1:
 - Live think-aloud (Zoom + narration) — too expensive, distorts behavior via narration overhead.
@@ -189,6 +192,8 @@ The Phase 1 gate ("the differentiator layer moves behavior beyond B′") is oper
    - **Output signal:** Treatment reviews contain on average ≥2 playbook-derived checks per PR that B′ reviews lack.
    - **Self-report signal:** ≥3/5 reviewers report the taxonomy/playbook layer changed behavior in debrief AND ≥3/5 say "would want this on every PR."
 
+**Guardrail — time cost (not part of the gate, but can downgrade it).** Log wall-clock review time per PR per condition from the screen recordings (already captured — zero extra cost). Treatment is *expected* to take longer — engagement costs time — so the guardrail is acceptability, not parity. In every debrief ask: "was the extra time worth it?" and "would you spend this on every PR?" If Treatment wins on detection but ≥3/5 reviewers call the time cost unacceptable for daily use, the result is **ambiguous**, not a pass — the layer works but the friction must shrink before Phase 2.
+
 **Phase 1 fails if** Treatment shows no detectable hard-case gap over B′ regardless of confirmation — i.e., the differentiator layer adds nothing beyond grouping.
 
 **Phase 1 is ambiguous if** primary is weak but confirmation is strong → run more sessions (more PRs, more reviewers) before concluding either way.
@@ -197,6 +202,8 @@ The Phase 1 gate ("the differentiator layer moves behavior beyond B′") is oper
 - Hard cases per PR are written in the brief's `Tricky-Cases Note` *before* sessions.
 - The Treatment-vs-B′ gap threshold is committed at the pilot session and not adjusted retroactively.
 - A "comment matches a hard case" judgment is made by reviewing the reviewer's comment text against the tricky-cases note — done by you (the labeler) consistently across both conditions.
+- **Score blind.** You are labeler, scorer, and hypothesis-holder — bias risk is real. Mitigate: collect all reviewer comments first, strip condition identifiers (Treatment vs B′) from the comment sets, score every comment against the tricky-cases notes in one sitting, then unblind. Do not score session-by-session with conditions visible.
+- **Don't reveal which condition is "yours."** Reviewers come from your peer network and will perform engagement if they know which rendering you're rooting for. Frame both renderings neutrally ("two formats we're comparing").
 
 ## What to Track During Reviewer Observation
 

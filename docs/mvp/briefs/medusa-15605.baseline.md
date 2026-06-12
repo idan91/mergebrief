@@ -4,14 +4,14 @@
 **Repo:** medusajs/medusa
 **Size (git):** 8 files, +77/−17
 
-> **Baseline B′ rendering.** Full brief minus the differentiator layer: NO Category labels, NO playbooks, NO risk-surface. Keeps the grouped substrate — change-groups, carrier/supporting, concern split, weighted LoC, descriptive summaries (≈ what Linear Diffs ships for free).
+> **Baseline B′ rendering.** Full brief minus the differentiator layer: NO Category labels, NO playbooks, NO risk-surface. Keeps the grouped substrate — change-groups, carrier/supporting, concern split, adjusted LoC, descriptive summaries (≈ what Linear Diffs ships for free).
 > Generate by copying the filled `medusa-15605.md`, then deleting: Categorization lines, all Playbook sections, the Risk Surface column. Do NOT hand-author separately.
 
 ---
 
 ## 1. Chunks (grouped)
 
-| Chunk | Concern | Role | Group # | Weighted LoC |
+| Chunk | Concern | Role | Group # | Adjusted LoC |
 |---|---|---|---|---|
 | `packages/medusa/src/api/utils/common-validators/common.ts` (+20) · (+) 19-38 · (−) — | implementation | carrier | <from Treatment> | <from Treatment> |
 | `packages/medusa/src/api/admin/fulfillments/validators.ts` (+3/−3) · (+) 2, 18-19 · (−) 2, 18-19 | implementation | carrier | <…> | <…> |
@@ -29,13 +29,13 @@
 **Summary:** <descriptive summary — copied from Treatment>
 **Carrier chunks:** <list>
 **Supporting chunks:** <list>
-**Attention-weighted LoC:** +<A>/−<D>
+**Adjusted LoC:** +<A>/−<D>
 
 > No Categorization, no Playbook — stripped for B′.
 
 ## 3. Concern View (LoC Split)
 
-| Concern | Weighted LoC |
+| Concern | Adjusted LoC |
 |---|---|
 | implementation | +<TODO>/−<TODO> |
 | test | +<TODO>/−<TODO> |

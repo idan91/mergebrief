@@ -24,23 +24,27 @@ Active checklist. Items grouped by phase from `docs/mvp/validation-plan.md`. Gat
   - [ ] `new-feature`
   - [ ] `bugfix`
   - [ ] `schema-change`
-  - [ ] `test-only`
-  - [ ] `config-only`
-  - [ ] `generated-code`
   - [ ] `dependency-update`
+  - [ ] Supporting-Concern checks for `test` / `config` / `generated` (these are Concern values now, not Categories — see CONTEXT.md flagged ambiguities)
 - [ ] Decide presentation format for Phase 1 (Notion doc / Loom walkthrough / markdown render / paper prototype). Pick one — fastest wins.
-- [ ] Define a raw-diff-only baseline condition for behavior comparison
+- [ ] Generate Baseline B′ renderings from the full briefs (taxonomy/playbooks/risk-surface stripped — see `phase-1.md`; raw-diff baseline dropped 2026-06-07)
+- [ ] Label the Track 3 re-review PR: brief at base SHA + hand-built delta brief for the follow-up push
+
+### Discovery interviews (run BEFORE first reviewer session — see next-steps.md sequencing note 2026-06-09)
+- [ ] Run ≥4 discovery interviews using the script in `next-steps.md` (recency anchor, failure story, coping, re-review habits, tools tried, Linear probe, brief reaction last)
+- [ ] Fold findings back into PR selection + playbook content before labeling the remaining gate PRs
 
 ### Reviewer recruitment
-- [ ] Identify 3–5 friendly reviewers spanning the four personas (PR author, human reviewer, tech lead, eng manager)
-- [ ] Schedule observation sessions (live or async screen-recorded)
-- [ ] Prepare observation protocol — what behaviors to log (read time on playbooks, navigation via categories, spontaneous mentions, dismissals, etc.)
+- [ ] Identify 3–5 friendly reviewers (senior/staff/tech-lead per `phase-1.md`; don't reveal which condition is "ours")
+- [ ] Schedule observation sessions (async screen-recording + 15-min debrief; debrief tail doubles as discovery interview)
+- [ ] Prepare observation protocol — what behaviors to log (read time on playbooks, navigation via categories, spontaneous mentions, dismissals, wall-clock time per PR per condition)
 
 ### Run + analyze
 - [ ] Run sessions
-- [ ] Log behavior data per reviewer per PR
-- [ ] Compare against baseline
-- [ ] **Gate check:** behavior visibly moves vs raw diff. Reviewers reach for the structure unprompted. If yes → unlock Phase 2. If no → revisit wedge.
+- [ ] Log behavior data per reviewer per PR (incl. wall-clock time per condition — guardrail)
+- [ ] Score hard-case matches blind (condition labels stripped, one sitting — see `phase-1.md` pre-registration discipline)
+- [ ] Compare Treatment vs Baseline B′
+- [ ] **Gate check:** hard-case detection delta over B′ + ≥2/3 confirmation families (`phase-1.md`). Time-cost guardrail can downgrade pass → ambiguous. If pass → unlock Phase 2. If fail → revisit wedge.
 
 ## Phase 2 — Categorizer Benchmark (gated, not active)
 

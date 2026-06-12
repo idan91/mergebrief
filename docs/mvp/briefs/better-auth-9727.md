@@ -10,14 +10,14 @@
 
 ## 1. Chunk Inventory
 
-| Chunk | Suggested Concern | Suggested Role | Group # | Weighted LoC | Risk Surface |
+| Chunk | Suggested Concern | Suggested Role | Group # | Adjusted LoC | Risk Surface |
 |---|---|---|---|---|---|
-| `packages/core/src/utils/string.ts` (+37) · (+) 4-40 · (−) — | implementation | carrier | 1 | +30/−0 | widely-imported |
-| `packages/core/src/utils/string.test.ts` (+77) · (+) 1-77 · (−) — | test | supporting | 1 | +50/−0 | N/A |
-| `packages/better-auth/src/client/proxy.ts` (+2/−7) · (+) 6, 71 · (−) 70-76 | implementation | carrier | 1 | +1/−0 | touches-auth, hot-path |
-| `packages/better-auth/src/plugins/open-api/generator.ts` (+2/−2) · (+) 7, 430 · (−) 7, 430 | implementation | carrier | 1 | +1/−0 | cross-service |
-| `packages/cli/src/generators/drizzle.ts` (+2/−8) · (+) 2, 11 · (−) 10-17 | implementation | carrier | 1 | +1/−7 | schema-adjacent |
-| `.changeset/string-case-utils.md` (+5) · (+) 1-5 · (−) — | doc | supporting | 1 | +2/−0 | N/A |
+| `packages/core/src/utils/string.ts` (+37) · (+) 4-40 · (−) — | implementation | carrier | 1 | +37/−0 | widely-imported |
+| `packages/core/src/utils/string.test.ts` (+77) · (+) 1-77 · (−) — | test | supporting | 1 | +77/−0 | — |
+| `packages/better-auth/src/client/proxy.ts` (+2/−7) · (+) 6, 71 · (−) 70-76 | implementation | carrier | 1 | +2/−7 | hot-path |
+| `packages/better-auth/src/plugins/open-api/generator.ts` (+2/−2) · (+) 7, 430 · (−) 7, 430 | implementation | carrier | 1 | +2/−2 | cross-service |
+| `packages/cli/src/generators/drizzle.ts` (+2/−8) · (+) 2, 11 · (−) 10-17 | implementation | carrier | 1 | +2/−8 | schema-adjacent |
+| `.changeset/string-case-utils.md` (+5) · (+) 1-5 · (−) — | doc | supporting | 1 | +5/−0 | — |
 
 > The 3 small `−7/−8/−2` chunks are call sites swapping an inline regex for the new shared helper. They are a `logic-refactor` (dedup), riding on the new-feature carrier.
 
@@ -29,7 +29,7 @@
 **Summary:** Added shared Unicode-aware string case conversion helpers and replaced inline case-conversion logic in the client proxy, Drizzle generator, and OpenAPI generator.
 **Carrier chunks:** `packages/core/src/utils/string.ts`; `packages/better-auth/src/client/proxy.ts`; `packages/better-auth/src/plugins/open-api/generator.ts`; `packages/cli/src/generators/drizzle.ts`
 **Supporting chunks:** `packages/core/src/utils/string.test.ts`; `.changeset/string-case-utils.md`
-**Attention-weighted LoC:** +85/−7
+**Adjusted LoC:** +125/−17
 
 **Playbook (copy from `../playbooks.md` for dominant Category + supporting-Concern checks):**
 - [ ] Identify the new public capability added by the diff; confirm its intended contract is clear from exported names, types, docs, or tests.
@@ -48,11 +48,11 @@
 
 ## 3. Concern View (LoC Split)
 
-| Concern | Weighted LoC | Notes |
+| Concern | Adjusted LoC | Notes |
 |---|---|---|
-| implementation | +33/−7 | new shared util + 3 call-site replacements |
-| test | +50/−0 | string.test.ts covers existing `capitalizeFirstLetter` plus new case helpers |
-| doc | +2/−0 | changeset |
+| implementation | +43/−17 | new shared util + 3 call-site replacements |
+| test | +77/−0 | string.test.ts covers existing `capitalizeFirstLetter` plus new case helpers |
+| doc | +5/−0 | changeset |
 | spec | +0/−0 | |
 | config | +0/−0 | |
 | generated | (collapsed) | |

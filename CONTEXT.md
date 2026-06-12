@@ -49,7 +49,7 @@ The descriptive sentence(s) of what a Change-group changed. Lives on the group. 
 _Avoid_: description, explanation, story, narrative
 
 **LoC**:
-Added/deleted line counts. Shown non-prominently (corner) per Category in the Story view and per Concern bucket in the Concern view. An attention-routing *distribution* — never a headline size verdict. "Where is the real change", not "how big is this". The displayed value is **attention-weighted LoC**, not raw git: `pure-move` lines show as a `moved N` badge (excluded from +added/−deleted, since net logic change is zero); the `generated` Concern is a separate collapsed bucket excluded from the implementation/test/doc split by default. Weighted numbers carry a visible badge marking them as adjusted; the raw **git LoC** is revealed on click. The two will not match GitHub's header at a glance — intentional, and the click reconciles it.
+Added/deleted line counts. Shown non-prominently (corner) per Category in the Story view and per Concern bucket in the Concern view. An attention-routing *distribution* — never a headline size verdict. "Where is the real change", not "how big is this". The displayed value is **adjusted LoC**, not raw git: `pure-move` lines show as a `moved N` badge (excluded from +added/−deleted, since net logic change is zero); the `generated` Concern is a separate collapsed bucket excluded from the implementation/test/doc split by default. Adjusted numbers carry a visible badge marking them as adjusted; the raw **git LoC** is revealed on click. The two will not match GitHub's header at a glance — intentional, and the click reconciles it. The name is **adjusted** (not "weighted") deliberately: it excludes only *mechanically detectable* lines — moves and generated — never hand-judged significance, so two labelers and the Phase 2 categorizer reproduce it identically. A future **signal LoC** could additionally exclude blank/punctuation/import lines, but only by a deterministic rule, never by judgment.
 _Avoid_: diff size, churn, lines-changed-as-quality-metric, raw LoC (as the default display)
 
 **Playbook**:
@@ -85,7 +85,7 @@ A static, tool-hosted snapshot page produced when a reviewer submits, linked fro
 _Avoid_: report, dashboard, public mind-map
 
 **Analysis Layer**:
-The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surface, Concern split, LoC. Consumed by the human **Engagement Layer** (v1) and, later, by AI-agent reviewers via API (v1.5+ headless lead-in). The true product core and moat.
+The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surface, Concern split, LoC. Consumed by the human **Engagement Layer** (v1) and, later, by AI-agent reviewers via API (v1.5+ headless lead-in). The product core and wedge — not yet a moat: taxonomy + playbooks are reproducible by incumbents once proven; durable defensibility must be earned later (see "Moat Honesty" in `docs/next-steps.md`).
 _Avoid_: engine, backend, core (informal)
 
 **Engagement Layer**:
