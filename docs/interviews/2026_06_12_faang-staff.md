@@ -1,0 +1,13 @@
+## Capture Sheet
+
+| Field | Entry |
+|---|---|
+| Role / seniority / team size | Staff SWE, infra/platform-adjacent product team, ~9 engineers in immediate team, ~40 in broader org |
+| % AI-heavy PRs (their guess) | ~35–50% AI-heavy. Higher for tests, migrations, CRUD/backend glue, docs. Lower for core architecture/perf/security-sensitive changes |
+| Rubber-stamp moment (verbatim) | "I stopped reading carefully once the diff became repetitive: same pattern across ten files, tests looked plausible, CodeRabbit only had nits, and CI was green. At that point I sampled instead of reviewed." |
+| Failure story — visible in diff? | Yes. AI-generated retry logic swallowed a specific auth error and retried requests that should have hard-failed. Visible in diff, but buried in a helper refactor + large test additions. Would’ve taken checking semantic behavior vs just coverage. A table-driven negative test would’ve caught it. |
+| Skill-atrophy mentioned spontaneously? | yes — "The scary part is juniors are getting good at producing review-shaped code without understanding the system. Reviewers then see nice structure and tests and assume understanding exists." |
+| Re-review pain: vivid / mild / none | Vivid. "Re-review is where I rubber-stamp the most. I look at the pushed commits, maybe the GitHub diff since last review, but I almost never reconstruct whether the new change invalidates something I already approved." Also mentioned follow-up commits occasionally touching nearby logic not directly tied to comments. Usually caught by rereading commit list or CI, not tooling. |
+| Tools used + honest relationship | CodeRabbit + Claude Code used heavily. CodeRabbit: useful for obvious bugs, missing null checks, stale comments, test gaps, API misuse; noisy on style/design, often lacks product context. I skim most comments, trust almost none blindly, auto-resolve ~30–50% if obviously low value. Claude Code: great for summarizing unfamiliar diffs and generating targeted tests; risky when asked "is this safe?" because it overconfidently blesses code. |
+| Spontaneous wedge mentions | Need better "review briefing": what changed semantically, risky files, behavior deltas, hidden coupling, what to re-check after follow-up commits. Especially useful for re-review and large AI-generated repetitive diffs. Less interested in another bot leaving line comments. |
+| Referrals given | 2 suggested: one tech lead reviewing many AI-heavy frontend PRs; one senior backend engineer owning incident-prone services |

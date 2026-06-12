@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Brief — medusajs/medusa #15605</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0c; --panel:#111114; --panel2:#0d0d10; --line:#1f1f24; --line2:#2b2b32;
+  --text:#ececee; --dim:#9a9aa3; --faint:#62626b;
+  --green:#5fc88f; --red:#e06c6c; --amber:#d9a45c;
+  --blue:#7da7d9; --violet:#a98fd1;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --sans:'Instrument Sans',-apple-system,'Helvetica Neue',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg);
+  background-image:radial-gradient(1200px 500px at 50% -200px, #131318 0%, var(--bg) 70%);
+  color:var(--text); font-family:var(--sans); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:#34343e;color:#fff}
+
+/* ---------- header ---------- */
+header{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:22px;
+  padding:0 28px;height:60px;background:rgba(10,10,12,0.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+}
+.wordmark{font-weight:700;font-size:15px;letter-spacing:-0.01em;white-space:nowrap;color:var(--text)}
+.wordmark span{color:var(--faint);font-weight:400}
+.prmeta{display:flex;flex-direction:column;min-width:0;flex:1;line-height:1.35}
+.prmeta .title{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prmeta .sub{font-size:12px;color:var(--faint)}
+.prmeta .sub b{color:var(--dim);font-weight:500}
+.prmeta .sub .ghlink{color:var(--dim);text-decoration:none}
+.prmeta .sub .ghlink:hover{color:var(--text);text-decoration:underline;text-underline-offset:3px}
+.hdr-stats{display:flex;gap:20px;align-items:center}
+.stat{font-size:12px;color:var(--faint);text-align:right;line-height:1.3;cursor:default;white-space:nowrap}
+.stat b{display:block;font-size:13px;color:var(--text);font-weight:600;font-family:var(--mono)}
+#locBadge{cursor:pointer;position:relative}
+#locBadge:hover .statlabel{color:var(--dim)}
+#locPop{
+  display:none;position:absolute;top:calc(100% + 14px);right:0;width:280px;background:var(--panel);
+  border:1px solid var(--line2);border-radius:8px;padding:14px 16px;font-size:12.5px;
+  color:var(--dim);text-align:left;box-shadow:0 16px 48px rgba(0,0,0,0.6);z-index:60;line-height:1.7;
+}
+#locPop b{color:var(--text);font-weight:600}
+#locBadge.open #locPop{display:block}
+.btn{
+  font-family:var(--sans);font-weight:600;font-size:13px;
+  padding:8px 16px;border-radius:7px;border:1px solid var(--line2);background:transparent;color:var(--text);
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+}
+.btn:hover{border-color:#3d3d46;background:#16161a}
+.btn.primary{background:var(--text);color:#0a0a0c;border-color:var(--text)}
+.btn.primary:hover{background:#fff;border-color:#fff}
+
+#progressBar{position:fixed;top:60px;left:0;height:1px;background:#d8d8de;width:0%;z-index:51;transition:width .35s cubic-bezier(.2,.8,.2,1)}
+
+/* ---------- layout ---------- */
+main{max-width:980px;margin:0 auto;padding:36px 28px 140px}
+.reveal{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+.label{font-size:12px;font-weight:500;color:var(--faint);margin-bottom:12px}
+.label .count{color:var(--dim);font-family:var(--mono);font-size:11.5px}
+
+/* summary strip */
+.pr-summary{margin-bottom:30px;max-width:64ch}
+.pr-summary .eyebrow{font-size:12px;font-weight:500;color:var(--faint);margin-bottom:8px}
+.pr-summary p{font-size:15.5px;color:var(--dim);line-height:1.65}
+.pr-summary p code{font-family:var(--mono);font-size:13px;background:#1a1a1f;padding:1px 6px;border-radius:4px;color:var(--text)}
+
+/* view toggle */
+.toolbar{display:flex;align-items:center;gap:14px;margin-bottom:30px}
+.viewbar{display:inline-flex;gap:2px;border:1px solid var(--line);border-radius:8px;padding:3px;background:var(--panel2)}
+.layoutbar{margin-left:auto}
+.layoutbar button{padding:7px 14px}
+.viewbar button{
+  font-family:var(--sans);font-weight:500;font-size:13px;
+  padding:7px 18px;background:transparent;border:none;border-radius:6px;color:var(--faint);cursor:pointer;transition:all .15s;
+}
+.viewbar button.active{background:#1e1e24;color:var(--text)}
+.viewbar button:not(.active):hover{color:var(--dim)}
+
+/* ---------- group card ---------- */
+.group-card{border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,#121216 0%,#0e0e11 100%);margin-bottom:40px}
+.group-head{padding:26px 30px 24px;border-bottom:1px solid var(--line)}
+.group-eyebrow{display:flex;align-items:baseline;gap:12px;margin-bottom:12px}
+.group-eyebrow .gnum{font-size:12px;color:var(--faint)}
+.group-eyebrow .gloc{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.group-summary{font-size:19px;font-weight:600;line-height:1.45;letter-spacing:-0.01em;max-width:38em;color:var(--text)}
+.group-summary code{font-family:var(--mono);font-size:0.85em;font-weight:500;color:var(--text);background:#1d1d23;padding:1px 6px;border-radius:4px}
+.cat-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:18px}
+.chip{font-size:12.5px;font-weight:500;padding:4px 12px;border-radius:99px;border:1px solid var(--line2);color:var(--dim);display:inline-flex;align-items:center;gap:7px}
+.chip.dominant{background:#1e1e24;color:var(--text);border-color:var(--line2)}
+.chip.dominant em{font-style:normal;color:var(--faint);font-weight:400}
+.chip.uncertain{color:var(--amber);border-color:rgba(217,164,92,0.35)}
+.uncertain-panel{
+  margin-top:16px;border:1px solid var(--line);border-radius:9px;padding:14px 18px;background:#101014;
+  display:flex;flex-wrap:wrap;align-items:center;gap:14px;
+}
+.uncertain-panel .q{color:var(--dim);font-size:13.5px;line-height:1.6;flex:1;min-width:260px}
+.uncertain-panel .q b{color:var(--text);font-weight:600}
+.uncertain-panel .pick{display:flex;gap:8px}
+.pickbtn{font-family:var(--sans);font-size:13px;font-weight:500;padding:7px 16px;border-radius:7px;cursor:pointer;border:1px solid var(--line2);background:transparent;color:var(--text);transition:all .15s}
+.pickbtn:hover{background:#1c1c22;border-color:#3d3d46}
+.reclass-note{font-size:12.5px;color:var(--faint)}
+
+/* group body grid */
+.group-body{display:grid;grid-template-columns:1fr 300px}
+@media(max-width:880px){.group-body{grid-template-columns:1fr}}
+.playbook{padding:24px 30px 28px;border-right:1px solid var(--line)}
+@media(max-width:880px){.playbook{border-right:none;border-bottom:1px solid var(--line)}}
+.pb-item{display:flex;gap:13px;padding:8px 10px;margin:0 -10px;border-radius:7px;cursor:pointer;transition:background .12s;align-items:flex-start}
+.pb-item:hover{background:rgba(255,255,255,0.03)}
+.pb-box{flex:none;width:16px;height:16px;border:1.5px solid #3a3a42;border-radius:4px;margin-top:3px;position:relative;transition:all .15s}
+.pb-item:hover .pb-box{border-color:#55555f}
+.pb-item.checked .pb-box{background:var(--text);border-color:var(--text)}
+.pb-item.checked .pb-box::after{content:"";position:absolute;inset:0;background:no-repeat center/10px url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M2 6.5 4.8 9 10 3.2" fill="none" stroke="%230a0a0c" stroke-width="2.2" stroke-linecap="round"/></svg>')}
+.pb-text{font-size:13.5px;color:#c9c9d0;line-height:1.6}
+.pb-item.checked .pb-text{color:var(--faint)}
+.pb-sub{margin-top:20px}
+.pb-sub .label{cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px}
+.pb-sub .label:hover{color:var(--dim)}
+.pb-sub .tw{transition:transform .2s;display:inline-block;font-size:9px}
+.pb-sub.open .tw{transform:rotate(90deg)}
+.pb-sub .items{display:none}
+.pb-sub.open .items{display:block;margin-top:4px}
+
+/* flags rail */
+.flags{padding:24px 26px 28px}
+.flag{padding:14px 0;border-bottom:1px solid var(--line)}
+.flag:last-child{border-bottom:none;padding-bottom:0}
+.flag .frow{display:flex;align-items:baseline;gap:8px;margin-bottom:5px}
+.flag .fattr{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--amber)}
+.flag.addressed .fattr{color:var(--green)}
+.flag.dismissed .fattr{color:var(--faint)}
+.flag .floc{font-family:var(--mono);font-size:11px;color:var(--faint);cursor:pointer;margin-left:auto;text-align:right}
+.flag .floc:hover{color:var(--dim);text-decoration:underline;text-underline-offset:3px}
+.flag .fdesc{font-size:12.5px;color:var(--dim);line-height:1.55;margin-bottom:10px}
+.flag.dismissed .fdesc{color:var(--faint)}
+.flag .factions{display:flex;gap:8px}
+.fbtn{font-family:var(--sans);font-size:12px;font-weight:500;padding:5px 12px;border-radius:6px;border:1px solid var(--line2);background:transparent;color:var(--dim);cursor:pointer;transition:all .15s}
+.fbtn:hover{color:var(--text);border-color:#3d3d46;background:#16161a}
+.flag .fstate{font-size:12px;line-height:1.55}
+.flag.addressed .fstate{color:var(--green)}
+.flag.dismissed .fstate{color:var(--faint)}
+.flag .fstate i{color:var(--faint);font-style:normal;display:block}
+
+/* ---------- chunks / diff ---------- */
+.chunks-label{font-size:12px;color:var(--faint);margin:0 0 14px;display:flex;align-items:center;gap:12px}
+.chunks-label .rule{flex:1;height:1px;background:var(--line)}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:12px;color:var(--dim);cursor:pointer;user-select:none}
+.switch input{display:none}
+.switch .track{width:26px;height:15px;border-radius:99px;background:#26262d;border:1px solid var(--line2);position:relative;transition:background .15s}
+.switch .track::after{content:"";position:absolute;top:1.5px;left:2px;width:10px;height:10px;border-radius:50%;background:#6a6a74;transition:all .15s}
+.switch input:checked + .track{background:#3a3a44}
+.switch input:checked + .track::after{left:12px;background:var(--text)}
+.chunk{border:1px solid var(--line);border-radius:10px;margin-bottom:12px;background:var(--panel2);overflow:clip}
+.chunk-head{
+  position:sticky;top:60px;z-index:10;display:flex;align-items:center;gap:12px;padding:11px 16px;
+  background:rgba(17,17,20,0.92);backdrop-filter:blur(10px);cursor:pointer;
+}
+.chunk.open .chunk-head{border-bottom:1px solid var(--line)}
+.chunk-head .tw{color:var(--faint);font-size:9px;flex:none;transition:transform .2s}
+.chunk.open .chunk-head .tw{transform:rotate(90deg)}
+.chunk-head .cfile{font-family:var(--mono);font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chunk-head .cfile .dir{color:var(--faint)}
+.chunk-head .cfile .new{color:var(--green);font-size:10px;margin-left:6px}
+.cchips{display:flex;gap:14px;align-items:center;margin-left:auto;flex:none;font-size:12px}
+.cc{color:var(--faint);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.cc .dot{width:5px;height:5px;border-radius:50%;background:var(--faint)}
+.cc.concern-implementation .dot{background:#d8d8de}
+.cc.concern-test .dot{background:var(--blue)}
+.cc.concern-doc .dot{background:var(--violet)}
+.cc.risk{color:var(--amber)}
+.cc.loc{font-family:var(--mono);font-size:11.5px}
+.cc.loc .a{color:var(--green)}.cc.loc .d{color:var(--red)}
+.markbtn{font-family:var(--sans);font-size:12px;font-weight:500;padding:4px 12px;border-radius:6px;border:1px solid var(--line2);background:transparent;color:var(--faint);cursor:pointer;flex:none;transition:all .15s}
+.markbtn:hover{color:var(--text);border-color:#3d3d46}
+.chunk.reviewed .markbtn{background:#1e1e24;color:var(--text);border-color:var(--line2)}
+.chunk-body{display:none}
+.chunk.open .chunk-body{display:block}
+.collapse-note{font-size:12px;color:var(--faint);padding:0 16px 11px;margin-top:-3px}
+.chunk.open .collapse-note{display:none}
+
+table.diff{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;line-height:1.7}
+.diff td{padding:0 14px;white-space:pre;vertical-align:top}
+.diff .ln{width:42px;min-width:42px;text-align:right;color:#3b3b43;user-select:none}
+.diff tr.add{background:rgba(95,200,143,0.05)}
+.diff tr.add .code{color:#c3e6d2}
+.diff tr.add .ln{color:rgba(95,200,143,0.45)}
+.diff tr.del{background:rgba(224,108,108,0.05)}
+.diff tr.del .code{color:#e0bcbc}
+.diff tr.del .ln{color:rgba(224,108,108,0.4)}
+.diff tr.ctx .code{color:#85858e}
+.diff tr.hunk td{color:var(--faint);font-size:11px;padding:6px 14px;background:#101013}
+.diff tr.note td{color:var(--faint);font-style:italic;padding:7px 14px;font-size:11.5px}
+.diff .sign{display:inline-block;width:16px;opacity:0.6}
+
+/* ---------- concern view ---------- */
+.concern-intro{margin-bottom:26px;max-width:60ch}
+.concern-intro .eyebrow{font-size:12px;color:var(--faint);margin-bottom:8px}
+.concern-intro p{font-size:15px;color:var(--dim);line-height:1.6}
+.concern-bucket{border:1px solid var(--line);border-radius:10px;background:var(--panel2);margin-bottom:12px;padding:20px 24px}
+.cb-head{display:flex;align-items:baseline;gap:14px;margin-bottom:12px}
+.cb-name{font-weight:600;font-size:14.5px;display:flex;align-items:center;gap:9px}
+.cb-name .dot{width:6px;height:6px;border-radius:50%}
+.cb-loc{font-family:var(--mono);font-size:12px;color:var(--dim)}
+.cb-loc .a{color:var(--green)}.cb-loc .d{color:var(--red)}
+.cb-count{margin-left:auto;font-size:12px;color:var(--faint)}
+.cb-bar{height:4px;border-radius:2px;background:#1c1c21;overflow:hidden;margin-bottom:14px}
+.cb-bar i{display:block;height:100%;border-radius:2px}
+.cb-files{font-family:var(--mono);font-size:12px;color:var(--dim);line-height:2.1}
+.cb-files span[data-jumpc]{cursor:pointer}
+.cb-files span[data-jumpc]:hover{color:var(--text);text-decoration:underline;text-underline-offset:3px}
+.cb-files .floc2{color:var(--faint)}
+.cb-files .floc2 .a{color:var(--green)}.cb-files .floc2 .d{color:var(--red)}
+.cb-note{font-size:12.5px;color:var(--faint);margin-top:8px}
+.concern-bucket.muted{padding:14px 24px;opacity:0.7}
+.concern-bucket.muted .cb-head{margin-bottom:0}
+
+/* ---------- receipt drawer ---------- */
+#scrim{position:fixed;inset:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .25s;z-index:90}
+#scrim.show{opacity:1;pointer-events:auto}
+#receipt{
+  position:fixed;left:0;right:0;bottom:0;z-index:95;background:#101013;border-top:1px solid var(--line2);
+  transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);max-height:78vh;overflow-y:auto;
+  box-shadow:0 -24px 80px rgba(0,0,0,0.6);border-radius:14px 14px 0 0;
+}
+#receipt.show{transform:none}
+.receipt-inner{max-width:740px;margin:0 auto;padding:32px 28px 40px}
+.receipt-title{display:flex;align-items:center;gap:12px;margin-bottom:4px}
+.receipt-title h2{font-weight:600;font-size:17px}
+.receipt-title .tag{font-size:11px;font-weight:500;color:var(--amber);border:1px solid rgba(217,164,92,0.35);padding:3px 10px;border-radius:99px}
+.receipt-sub{font-size:12.5px;color:var(--faint);margin-bottom:22px}
+pre.receipt-body{
+  font-family:var(--mono);font-size:12.5px;line-height:1.95;color:#c9c9d0;background:var(--bg);
+  border:1px solid var(--line);border-radius:10px;padding:22px 26px;white-space:pre-wrap;
+}
+pre.receipt-body .ok{color:var(--green)}
+pre.receipt-body .warn{color:var(--amber)}
+pre.receipt-body .dimline{color:var(--faint)}
+.receipt-actions{display:flex;gap:12px;margin-top:22px;align-items:center}
+.receipt-note{font-size:12px;color:var(--faint);max-width:42ch;line-height:1.5}
+
+/* ---------- dismiss modal ---------- */
+#modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);backdrop-filter:blur(3px)}
+#modal.show{display:flex}
+.modal-box{width:460px;max-width:92vw;background:#131316;border:1px solid var(--line2);border-radius:12px;padding:26px 28px;animation:rise .25s both}
+.modal-box h3{font-weight:600;font-size:15px;margin-bottom:3px}
+.modal-box .mattr{font-family:var(--mono);font-size:12px;color:var(--amber);margin-bottom:16px}
+.modal-box textarea{
+  width:100%;min-height:84px;background:var(--bg);border:1px solid var(--line2);border-radius:8px;color:var(--text);
+  font-family:var(--sans);font-size:13.5px;padding:11px 13px;resize:vertical;outline:none;line-height:1.55;
+}
+.modal-box textarea:focus{border-color:#45454f}
+.modal-warn{
+  display:none;margin-top:12px;border:1px solid rgba(217,164,92,0.3);border-radius:8px;background:rgba(217,164,92,0.05);
+  padding:11px 14px;font-size:12.5px;color:var(--amber);line-height:1.55;
+}
+.modal-warn.show{display:block}
+.modal-actions{display:flex;gap:10px;margin-top:18px;justify-content:flex-end}
+
+/* toast */
+#toast{
+  position:fixed;bottom:28px;left:50%;transform:translate(-50%,90px);z-index:120;background:#1c1c22;color:var(--text);
+  border:1px solid var(--line2);font-size:13px;font-weight:500;padding:12px 20px;border-radius:9px;
+  transition:transform .3s cubic-bezier(.2,.8,.2,1);max-width:560px;text-align:center;box-shadow:0 12px 36px rgba(0,0,0,0.5);
+}
+#toast.show{transform:translate(-50%,0)}
+
+footer{max-width:980px;margin:0 auto;padding:0 28px 40px;font-size:11.5px;color:#4a4a52}
+
+/* ---------- split layout (changes left, details right) ---------- */
+body.split main{max-width:1560px}
+body.split #storyView{display:grid;grid-template-columns:minmax(0,1fr) max(600px, 25%);gap:18px;align-items:start}
+body.split #chunksArea{grid-column:1;grid-row:1;min-width:0}
+body.split .group-card{grid-column:2;grid-row:1;position:sticky;top:74px;max-height:calc(100vh - 94px);overflow-y:auto;margin-bottom:0}
+body.split .group-head{padding:20px 22px 18px}
+body.split .group-summary{font-size:17px;line-height:1.5}
+body.split .group-body{grid-template-columns:1fr}
+body.split .playbook{border-right:none;border-bottom:1px solid var(--line);padding:20px 22px 22px}
+body.split .flags{padding:20px 22px 24px}
+body.split .uncertain-panel{flex-direction:column;align-items:flex-start;gap:10px}
+@media(max-width:1180px){
+  body.split #storyView{display:block}
+  body.split .group-card{position:static;max-height:none;margin-bottom:40px}
+}
+
+/* active chunk (scroll-spy in split view, or click in any layout): chunk outline + its playbook section */
+.chunk.current{border-color:#41414c;box-shadow:0 0 0 1px #41414c}
+.chunk.current .chunk-head{background:rgba(22,22,27,0.95)}
+.label.spy{color:var(--text)}
+.label.spy .count{color:var(--dim)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">Brief<span> / review</span></div>
+  <div class="prmeta">
+    <div class="title">validate http(s) scheme on fulfillment label URLs</div>
+    <div class="sub"><b>medusajs/medusa</b> · <a class="ghlink" href="https://github.com/medusajs/medusa/pull/15605" target="_blank" rel="noopener">#15605 ↗</a> · activated 12 min ago</div>
+  </div>
+  <div class="hdr-stats">
+    <div class="stat" id="locBadge">
+      <span class="statlabel">adjusted lines</span>
+      <b><span style="color:var(--green)">+77</span> <span style="color:var(--faint)">/</span> <span style="color:var(--red)">−17</span></b>
+      <div id="locPop">
+        <b>Adjusted = git for this PR.</b><br>
+        Moved lines: 0 · generated lines: 0.<br><br>
+        Nothing was mechanically excluded, so these numbers match GitHub's header. On move-heavy PRs they won't — moved code is shown separately.
+      </div>
+    </div>
+    <div class="stat">playbook<b><span id="stPb">0</span>/13</b></div>
+    <div class="stat">chunks<b><span id="stCh">0</span>/8</b></div>
+    <div class="stat">flags<b><span id="stFl">0</span>/4</b></div>
+  </div>
+  <button class="btn primary" id="openReceipt">Receipt</button>
+</header>
+<div id="progressBar"></div>
+
+<main>
+  <!-- PR summary -->
+  <section class="pr-summary reveal" style="animation-delay:.05s">
+    <div class="eyebrow">What this PR does</div>
+    <p>Only accept <code>http:</code> / <code>https:</code> URLs for the <code>tracking_url</code> and <code>label_url</code> fields on fulfillment labels, via a shared <code>safeHttpUrl</code> zod refinement wired into the admin endpoints. Empty strings and the <code>"#"</code> placeholder stay accepted.</p>
+  </section>
+
+  <!-- view + layout toggles -->
+  <div class="toolbar reveal" style="animation-delay:.1s">
+    <div class="viewbar">
+      <button id="tabStory" class="active">Story</button>
+      <button id="tabConcern">Concerns</button>
+    </div>
+    <div class="viewbar layoutbar" id="layoutBar">
+      <button id="layStack" class="active" title="Details on top, changes below">Stacked</button>
+      <button id="laySplit" title="Changes left, details right">Side by side</button>
+    </div>
+  </div>
+
+  <!-- ============ STORY VIEW ============ -->
+  <div id="storyView">
+    <section class="group-card reveal" style="animation-delay:.15s">
+      <div class="group-head">
+        <div class="group-eyebrow">
+          <span class="gnum">Change-group 1 of 1 — single-intent PR</span>
+          <span class="gloc" id="grpLoc"><span style="color:var(--green)">+77</span> / <span style="color:var(--red)">−17</span> · 4 carrier · 4 supporting</span>
+        </div>
+        <div class="group-summary">Adds a shared <code>safeHttpUrl</code> refinement and applies it to <code>tracking_url</code> / <code>label_url</code> in the fulfillments and orders admin validators and the dashboard fulfillment section; <code>""</code> and <code>"#"</code> remain accepted.</div>
+        <div class="cat-row" id="catRow">
+          <span class="chip dominant" id="domChip"><em>dominant</em> new-feature</span>
+          <span class="chip uncertain" id="uncChip">uncertain</span>
+        </div>
+        <div class="uncertain-panel" id="uncPanel">
+          <span class="q">The categorizer is split on this group's intent — added validation capability (<b>new-feature</b>) vs. previously-unvalidated input now rejected (<b>bugfix</b>). Your call; the playbook follows your choice.</span>
+          <span class="pick">
+            <button class="pickbtn" data-cat="new-feature">new-feature</button>
+            <button class="pickbtn" data-cat="bugfix">bugfix</button>
+          </span>
+        </div>
+      </div>
+
+      <div class="group-body">
+        <div class="playbook">
+          <div class="label" id="pbCarrierLabel">Playbook — <span id="pbCatName">new-feature</span> &nbsp;<span class="count" id="pbCount">0/5</span></div>
+          <div id="pbCarrier"></div>
+
+          <div class="pb-sub" id="subTest">
+            <div class="label" data-toggle="subTest"><span class="tw">▶</span> Supporting checks — tests <span class="count" id="pbTestCount">0/5</span></div>
+            <div class="items" id="pbTest"></div>
+          </div>
+          <div class="pb-sub" id="subDoc">
+            <div class="label" data-toggle="subDoc"><span class="tw">▶</span> Supporting checks — docs <span class="count" id="pbDocCount">0/3</span></div>
+            <div class="items" id="pbDoc"></div>
+          </div>
+        </div>
+
+        <div class="flags">
+          <div class="label">Risk surface — 4 flags <span class="count">attributes, not verdicts</span></div>
+          <div id="flagList"></div>
+        </div>
+      </div>
+    </section>
+
+    <div id="chunksArea">
+      <div class="chunks-label reveal" style="animation-delay:.2s">
+        <span>8 chunks · carriers first</span>
+        <span class="rule"></span>
+        <label class="switch"><input type="checkbox" id="collapseSupporting" checked><span class="track"></span>Collapse supporting</label>
+      </div>
+      <div id="chunkList" class="reveal" style="animation-delay:.25s"></div>
+    </div>
+  </div>
+
+  <!-- ============ CONCERN VIEW ============ -->
+  <div id="concernView" style="display:none"></div>
+</main>
+
+<footer>Mockup — hand-labeled brief for medusajs/medusa #15605. No AI ran on this page.</footer>
+
+<!-- receipt -->
+<div id="scrim"></div>
+<div id="receipt">
+  <div class="receipt-inner">
+    <div class="receipt-title"><h2>Verification receipt</h2><span class="tag">not an approval</span></div>
+    <div class="receipt-sub">Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours</div>
+    <pre class="receipt-body" id="receiptBody"></pre>
+    <div class="receipt-actions">
+      <button class="btn primary" id="submitBtn">Submit review to GitHub</button>
+      <button class="btn" id="closeReceipt">Keep reviewing</button>
+      <span class="receipt-note">Scoped to mechanical claims. The approve / request-changes verdict is yours alone.</span>
+    </div>
+  </div>
+</div>
+
+<!-- dismiss modal -->
+<div id="modal">
+  <div class="modal-box">
+    <h3>Dismiss flag</h3>
+    <div class="mattr" id="modalAttr"></div>
+    <textarea id="dismissReason" placeholder="Why is this flag not actionable here? Your reason lands on the receipt, verbatim."></textarea>
+    <div class="modal-warn" id="modalWarn">Thin reason on a flag — it will appear on the receipt exactly as written. Dismiss anyway?</div>
+    <div class="modal-actions">
+      <button class="btn" id="cancelDismiss">Cancel</button>
+      <button class="btn primary" id="confirmDismiss">Dismiss with reason</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ============================= DATA ============================= */
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+const PLAYBOOKS = {
+  "new-feature": [
+    "Identify the new public capability added by the diff; confirm its intended contract is clear from exported names, types, docs, or tests.",
+    "Enumerate the main input classes for the new capability; confirm tests cover normal inputs, empty inputs, boundary values, and representative edge cases.",
+    "Check how existing callers or consumers can discover and use the new capability without relying on private/internal paths.",
+    "Verify the new capability composes safely with existing behavior and does not silently change unrelated code paths.",
+    "Confirm failure or unsupported-input behavior is explicit rather than accidental."
+  ],
+  "bugfix": [
+    "Confirm the fix addresses the root cause described in the PR title/description, not just the visible symptom.",
+    "Identify the regression test added for this bug; confirm it actually fails on the pre-fix code.",
+    "Check adjacent code paths (siblings of the fixed function, alternate branches, other callers) for the same bug pattern.",
+    "Confirm no error/exception is being silently swallowed where the bug previously surfaced.",
+    "Verify no behavior changes outside the bug's scope are included in the diff (no smuggled refactors or unrelated tweaks)."
+  ]
+};
+const TEST_CHECK = [
+  "Confirm the test fails (red) on the relevant pre-change code, and passes (green) on the changed code.",
+  "Verify the test name accurately describes the behavior being exercised; rename if not.",
+  "Confirm the test exercises the production code path, not just mocks or setup code.",
+  "Check the test for ordering, timing, or external-state dependencies that could cause flakiness.",
+  "Identify the code path the test covers; confirm it is the path most likely to break — not the easy happy path while the bug lives on the error path."
+];
+const DOC_CHECK = [
+  "Confirm the doc/update accurately describes the behavior introduced by the carrier chunks.",
+  "Check that names, package scopes, version notes, and public API references match the implementation exactly.",
+  "Verify the doc/update does not promise behavior that is not covered by implementation or tests."
+];
+
+const FLAGS = [
+  {id:"f1", attr:"widely-imported", chunk:"c1", loc:"common.ts",
+   desc:"safeHttpUrl is exported from the common-validators public entry — consumed across the admin API surface. Any contract change ripples broadly."},
+  {id:"f2", attr:"cross-service", chunk:"c2", loc:"fulfillments/validators.ts",
+   desc:"Validates a public admin API payload. Previously-accepted values (arbitrary strings) are now rejected — external API consumers may break."},
+  {id:"f3", attr:"cross-service", chunk:"c3", loc:"orders/validators.ts",
+   desc:"Same contract tightening on the orders shipment payload. Existing callers sending non-http(s) URLs now get a 400."},
+  {id:"f4", attr:"no-tests", chunk:"c4", loc:"order-fulfillment-section.tsx",
+   desc:"The dashboard component has no test coverage. The duplicated client-side URL check can drift from the server refinement unnoticed."}
+];
+
+const CHUNKS = [
+  {id:"c1", dir:"packages/medusa/src/api/utils/common-validators/", file:"common.ts",
+   concern:"implementation", role:"carrier", loc:["+20","−0"], risk:["widely-imported"], open:true,
+   diff:[
+    {t:"hunk", x:"@@ -16,6 +16,26 @@"},
+    {t:"ctx", o:"16", n:"16", c:"  })"},
+    {t:"ctx", o:"17", n:"17", c:"  .strict()"},
+    {t:"ctx", o:"18", n:"18", c:""},
+    {t:"add", n:"19", c:"/**"},
+    {t:"add", n:"20", c:" * Validates that a string is either empty, the placeholder \"#\", or a URL using"},
+    {t:"add", n:"21", c:" * the http: or https: scheme. Rejects dangerous schemes such as javascript:,"},
+    {t:"add", n:"22", c:" * data:, and vbscript: that can lead to stored XSS when rendered in an href."},
+    {t:"add", n:"23", c:" */"},
+    {t:"add", n:"24", c:"export const safeHttpUrl = z.string().refine("},
+    {t:"add", n:"25", c:"  (value) => {"},
+    {t:"add", n:"26", c:"    if (value === \"\" || value === \"#\") {"},
+    {t:"add", n:"27", c:"      return true"},
+    {t:"add", n:"28", c:"    }"},
+    {t:"add", n:"29", c:"    try {"},
+    {t:"add", n:"30", c:"      const parsed = new URL(value)"},
+    {t:"add", n:"31", c:"      return parsed.protocol === \"http:\" || parsed.protocol === \"https:\""},
+    {t:"add", n:"32", c:"    } catch {"},
+    {t:"add", n:"33", c:"      return false"},
+    {t:"add", n:"34", c:"    }"},
+    {t:"add", n:"35", c:"  },"},
+    {t:"add", n:"36", c:"  { message: \"URL must use http: or https: scheme\" }"},
+    {t:"add", n:"37", c:")"},
+    {t:"add", n:"38", c:""},
+    {t:"ctx", o:"19", n:"39", c:"export const BigNumberInput = z.union(["}
+   ]},
+  {id:"c2", dir:"packages/medusa/src/api/admin/fulfillments/", file:"validators.ts",
+   concern:"implementation", role:"carrier", loc:["+3","−3"], risk:["cross-service"], open:true,
+   diff:[
+    {t:"hunk", x:"@@ -1,5 +1,5 @@"},
+    {t:"ctx", o:"1", n:"1", c:"import { z } from \"@medusajs/framework/zod\""},
+    {t:"del", o:"2", c:"import { AddressPayload } from \"../../utils/common-validators\""},
+    {t:"add", n:"2", c:"import { AddressPayload, safeHttpUrl } from \"../../utils/common-validators\""},
+    {t:"ctx", o:"3", n:"3", c:"import { createSelectParams } from \"../../utils/validators\""},
+    {t:"hunk", x:"@@ -15,8 +15,8 @@"},
+    {t:"ctx", o:"15", n:"15", c:"const AdminCreateFulfillmentLabel = z.object({"},
+    {t:"ctx", o:"16", n:"16", c:"  tracking_number: z.string(),"},
+    {t:"del", o:"17", c:"  tracking_url: z.string(),"},
+    {t:"del", o:"18", c:"  label_url: z.string(),"},
+    {t:"add", n:"17", c:"  tracking_url: safeHttpUrl,"},
+    {t:"add", n:"18", c:"  label_url: safeHttpUrl,"},
+    {t:"ctx", o:"19", n:"19", c:"})"}
+   ]},
+  {id:"c3", dir:"packages/medusa/src/api/admin/orders/", file:"validators.ts",
+   concern:"implementation", role:"carrier", loc:["+3","−3"], risk:["cross-service"], open:true,
+   diff:[
+    {t:"hunk", x:"@@ -1,5 +1,5 @@"},
+    {t:"ctx", o:"1", n:"1", c:"import { z } from \"@medusajs/framework/zod\""},
+    {t:"del", o:"2", c:"import { AddressPayload } from \"../../utils/common-validators\""},
+    {t:"add", n:"2", c:"import { AddressPayload, safeHttpUrl } from \"../../utils/common-validators\""},
+    {t:"hunk", x:"@@ -106,8 +106,8 @@"},
+    {t:"ctx", o:"106", n:"106", c:"const Label = z.object({"},
+    {t:"ctx", o:"107", n:"107", c:"  tracking_number: z.string(),"},
+    {t:"del", o:"108", c:"  tracking_url: z.string(),"},
+    {t:"del", o:"109", c:"  label_url: z.string(),"},
+    {t:"add", n:"108", c:"  tracking_url: safeHttpUrl,"},
+    {t:"add", n:"109", c:"  label_url: safeHttpUrl,"},
+    {t:"ctx", o:"110", n:"110", c:"})"}
+   ]},
+  {id:"c4", dir:"packages/admin/dashboard/src/routes/orders/order-detail/…/", file:"order-fulfillment-section.tsx",
+   concern:"implementation", role:"carrier", loc:["+11","−1"], risk:["no-tests"], open:true,
+   diff:[
+    {t:"hunk", x:"@@ -326,7 +326,17 @@"},
+    {t:"ctx", o:"326", n:"326", c:"    throw error"},
+    {t:"ctx", o:"327", n:"327", c:"  }"},
+    {t:"ctx", o:"328", n:"328", c:""},
+    {t:"del", o:"329", c:"  const isValidUrl = (url?: string) => url && url.length > 0 && url !== \"#\""},
+    {t:"add", n:"329", c:"  const isValidUrl = (url?: string) => {"},
+    {t:"add", n:"330", c:"    if (!url || url.length === 0 || url === \"#\") {"},
+    {t:"add", n:"331", c:"      return false"},
+    {t:"add", n:"332", c:"    }"},
+    {t:"add", n:"333", c:"    try {"},
+    {t:"add", n:"334", c:"      const parsed = new URL(url)"},
+    {t:"add", n:"335", c:"      return parsed.protocol === \"http:\" || parsed.protocol === \"https:\""},
+    {t:"add", n:"336", c:"    } catch {"},
+    {t:"add", n:"337", c:"      return false"},
+    {t:"add", n:"338", c:"    }"},
+    {t:"add", n:"339", c:"  }"},
+    {t:"ctx", o:"330", n:"340", c:""},
+    {t:"ctx", o:"331", n:"341", c:"  return ("}
+   ]},
+  {id:"c5", dir:"packages/medusa/src/api/utils/common-validators/__tests__/", file:"common.spec.ts",
+   concern:"test", role:"supporting", loc:["+24","−0"], risk:[], open:false, newfile:true,
+   diff:[
+    {t:"hunk", x:"new file"},
+    {t:"add", n:"1", c:"import { safeHttpUrl } from \"../common\""},
+    {t:"add", n:"2", c:""},
+    {t:"add", n:"3", c:"describe(\"safeHttpUrl\", () => {"},
+    {t:"add", n:"4", c:"  it.each(["},
+    {t:"add", n:"5", c:"    [\"https://example.com/tracking/123\", \"https URL\"],"},
+    {t:"add", n:"6", c:"    [\"http://example.com/label.pdf\", \"http URL\"],"},
+    {t:"add", n:"7", c:"    [\"\", \"empty string\"],"},
+    {t:"add", n:"8", c:"    [\"#\", \"placeholder hash\"],"},
+    {t:"add", n:"9", c:"  ])(\"accepts %s (%s)\", (value) => {"},
+    {t:"add", n:"10", c:"    expect(safeHttpUrl.safeParse(value).success).toBe(true)"},
+    {t:"add", n:"11", c:"  })"},
+    {t:"add", n:"12", c:""},
+    {t:"add", n:"13", c:"  it.each(["},
+    {t:"add", n:"14", c:"    \"javascript:alert(document.domain)\","},
+    {t:"add", n:"15", c:"    \"JavaScript:alert(1)\","},
+    {t:"add", n:"16", c:"    \"  javascript:alert(1)\","},
+    {t:"add", n:"17", c:"    \"data:text/html,<script>alert(1)<\/script>\","},
+    {t:"add", n:"18", c:"    \"vbscript:msgbox(1)\","},
+    {t:"add", n:"19", c:"    \"file:///etc/passwd\","},
+    {t:"add", n:"20", c:"    \"not a url\","},
+    {t:"add", n:"21", c:"  ])(\"rejects dangerous or invalid URL %s\", (value) => {"},
+    {t:"add", n:"22", c:"    expect(safeHttpUrl.safeParse(value).success).toBe(false)"},
+    {t:"add", n:"23", c:"  })"},
+    {t:"add", n:"24", c:"})"}
+   ]},
+  {id:"c6", dir:"integration-tests/modules/__tests__/fulfillment/", file:"index.spec.ts",
+   concern:"test", role:"supporting", loc:["+8","−8"], risk:[], open:false,
+   diff:[
+    {t:"hunk", x:"@@ -223,8 +223,8 @@"},
+    {t:"ctx", o:"223", n:"223", c:"              labels: ["},
+    {t:"ctx", o:"224", n:"224", c:"                {"},
+    {t:"ctx", o:"225", n:"225", c:"                  tracking_number: \"test-tracking-number\","},
+    {t:"del", o:"226", c:"                  tracking_url: \"test-tracking-url\","},
+    {t:"del", o:"227", c:"                  label_url: \"test-label-url\","},
+    {t:"add", n:"226", c:"                  tracking_url: \"https://example.com/tracking\","},
+    {t:"add", n:"227", c:"                  label_url: \"https://example.com/label\","},
+    {t:"ctx", o:"228", n:"228", c:"                },"},
+    {t:"note", x:"3 more identical fixture-URL replacements (lines 256, 274, 301)"}
+   ]},
+  {id:"c7", dir:"integration-tests/modules/__tests__/fixtures/fulfillment/", file:"index.ts",
+   concern:"test", role:"supporting", loc:["+2","−2"], risk:[], open:false,
+   diff:[
+    {t:"hunk", x:"@@ -46,8 +46,8 @@"},
+    {t:"ctx", o:"46", n:"46", c:"    labels: data.labels ?? ["},
+    {t:"ctx", o:"47", n:"47", c:"      {"},
+    {t:"ctx", o:"48", n:"48", c:"        tracking_number: \"test-tracking-number_\" + randomString,"},
+    {t:"del", o:"49", c:"        tracking_url: \"test-tracking-url_\" + randomString,"},
+    {t:"del", o:"50", c:"        label_url: \"test-label-url_\" + randomString,"},
+    {t:"add", n:"49", c:"        tracking_url: \"https://example.com/tracking/\" + randomString,"},
+    {t:"add", n:"50", c:"        label_url: \"https://example.com/label/\" + randomString,"},
+    {t:"ctx", o:"51", n:"51", c:"      },"}
+   ]},
+  {id:"c8", dir:".changeset/", file:"warm-rockets-laugh.md",
+   concern:"doc", role:"supporting", loc:["+6","−0"], risk:[], open:false, newfile:true,
+   diff:[
+    {t:"hunk", x:"new file"},
+    {t:"add", n:"1", c:"---"},
+    {t:"add", n:"2", c:"\"@medusajs/dashboard\": patch"},
+    {t:"add", n:"3", c:"\"@medusajs/medusa\": patch"},
+    {t:"add", n:"4", c:"---"},
+    {t:"add", n:"5", c:""},
+    {t:"add", n:"6", c:"chore(dashboard, medusa): validate http(s) scheme on fulfillment label URLs"}
+   ]}
+];
+
+/* ============================= STATE ============================= */
+const state = {
+  dominant: "new-feature",
+  reclassified: false,
+  checked: { carrier:new Set(), test:new Set(), doc:new Set() },
+  reviewed: new Set(),
+  flags: Object.fromEntries(FLAGS.map(f=>[f.id,{status:"open",reason:""}])),
+  dismissTarget: null
+};
+
+/* ============================= RENDER ============================= */
+const $ = id => document.getElementById(id);
+
+function renderPlaybookList(el, items, bucket){
+  el.innerHTML = items.map((txt,i)=>`
+    <div class="pb-item ${state.checked[bucket].has(i)?'checked':''}" data-bucket="${bucket}" data-i="${i}">
+      <div class="pb-box"></div><div class="pb-text">${esc(txt)}</div>
+    </div>`).join("");
+}
+
+function renderPlaybooks(){
+  renderPlaybookList($("pbCarrier"), PLAYBOOKS[state.dominant], "carrier");
+  renderPlaybookList($("pbTest"), TEST_CHECK, "test");
+  renderPlaybookList($("pbDoc"), DOC_CHECK, "doc");
+  $("pbCatName").textContent = state.dominant;
+  $("pbCount").textContent = `${state.checked.carrier.size}/5`;
+  $("pbTestCount").textContent = `${state.checked.test.size}/5`;
+  $("pbDocCount").textContent = `${state.checked.doc.size}/3`;
+}
+
+function renderFlags(){
+  $("flagList").innerHTML = FLAGS.map(f=>{
+    const st = state.flags[f.id];
+    let stateHtml = "";
+    if(st.status==="addressed") stateHtml = `<div class="fstate">✓ addressed — your comment will be linked on the receipt</div>`;
+    if(st.status==="dismissed") stateHtml = `<div class="fstate">dismissed<i>"${esc(st.reason)}"</i></div>`;
+    return `
+    <div class="flag ${st.status!=='open'?st.status:''}">
+      <div class="frow">
+        <span class="fattr">${f.attr}</span>
+        <span class="floc" data-jump="${f.chunk}">${f.loc}</span>
+      </div>
+      <div class="fdesc">${esc(f.desc)}</div>
+      ${st.status==="open" ? `
+      <div class="factions">
+        <button class="fbtn" data-addr="${f.id}">Addressed</button>
+        <button class="fbtn" data-dismiss="${f.id}">Dismiss…</button>
+      </div>` : stateHtml}
+    </div>`;
+  }).join("");
+}
+
+function diffTable(ch){
+  const rows = ch.diff.map(l=>{
+    if(l.t==="hunk") return `<tr class="hunk"><td colspan="3">${esc(l.x)}</td></tr>`;
+    if(l.t==="note") return `<tr class="note"><td colspan="3">${esc(l.x)}</td></tr>`;
+    const sign = l.t==="add"?"+":l.t==="del"?"−":" ";
+    return `<tr class="${l.t}">
+      <td class="ln">${l.o||""}</td><td class="ln">${l.n||""}</td>
+      <td class="code"><span class="sign">${sign}</span>${esc(l.c)}</td></tr>`;
+  }).join("");
+  return `<table class="diff">${rows}</table>`;
+}
+
+function renderChunks(){
+  $("chunkList").innerHTML = CHUNKS.map(ch=>{
+    const riskChips = ch.risk.map(r=>`<span class="cc risk">${r}</span>`).join("");
+    return `
+    <div class="chunk ${ch.open?'open':''} ${state.reviewed.has(ch.id)?'reviewed':''}" id="${ch.id}">
+      <div class="chunk-head" data-fold="${ch.id}">
+        <span class="tw">▶</span>
+        <span class="cfile"><span class="dir">${esc(ch.dir)}</span>${esc(ch.file)}${ch.newfile?'<span class="new">new</span>':''}</span>
+        <span class="cchips">
+          ${riskChips}
+          <span class="cc concern-${ch.concern}"><span class="dot"></span>${ch.concern}${ch.role==="carrier"?" · carrier":""}</span>
+          <span class="cc loc"><span class="a">${ch.loc[0]}</span> <span class="d">${ch.loc[1]}</span></span>
+          <button class="markbtn" data-mark="${ch.id}">${state.reviewed.has(ch.id)?"Reviewed ✓":"Mark reviewed"}</button>
+        </span>
+      </div>
+      <div class="collapse-note">${ch.role==="supporting"?"supporting chunk — collapsed":"collapsed"}</div>
+      <div class="chunk-body">${diffTable(ch)}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderConcern(){
+  const buckets = [
+    {name:"implementation", loc:["+37","−7"], pct:47, color:"#d8d8de", note:"The real change — validator, two call sites, dashboard adoption.",
+     files:CHUNKS.filter(c=>c.concern==="implementation")},
+    {name:"test", loc:["+34","−10"], pct:47, color:"var(--blue)", note:"Unit, integration and fixtures — all supporting the one intent.",
+     files:CHUNKS.filter(c=>c.concern==="test")},
+    {name:"doc", loc:["+6","−0"], pct:6, color:"var(--violet)", note:"Changeset only.", files:CHUNKS.filter(c=>c.concern==="doc")}
+  ];
+  $("concernView").innerHTML = `
+    <div class="concern-intro reveal">
+      <div class="eyebrow">Attention split</div>
+      <p>The same 8 chunks, pivoted by artifact. About half this PR's lines are test scaffolding supporting one implementation intent.</p>
+    </div>
+    ${buckets.map(b=>`
+    <div class="concern-bucket reveal">
+      <div class="cb-head">
+        <span class="cb-name"><span class="dot" style="background:${b.color}"></span>${b.name}</span>
+        <span class="cb-loc"><span class="a">${b.loc[0]}</span> <span class="d">${b.loc[1]}</span></span>
+        <span class="cb-count">${b.files.length} chunk${b.files.length>1?"s":""}</span>
+      </div>
+      <div class="cb-bar"><i style="width:${b.pct}%;background:${b.color}"></i></div>
+      <div class="cb-files">${b.files.map(f=>`<span data-jumpc="${f.id}">${esc(f.dir)}${esc(f.file)}</span> <span class="floc2">· <span class="a">${f.loc[0]}</span> <span class="d">${f.loc[1]}</span></span>`).join("<br>")}</div>
+      <div class="cb-note">${b.note}</div>
+    </div>`).join("")}
+    <div class="concern-bucket muted reveal">
+      <div class="cb-head"><span class="cb-name" style="color:var(--faint)">generated · spec · config</span><span class="cb-count">0 lines — excluded from the split</span></div>
+    </div>`;
+}
+
+function totals(){
+  const pb = state.checked.carrier.size + state.checked.test.size + state.checked.doc.size;
+  const fl = Object.values(state.flags).filter(f=>f.status!=="open").length;
+  return {pb, ch:state.reviewed.size, fl};
+}
+
+function renderStats(){
+  const t = totals();
+  $("stPb").textContent = t.pb; $("stCh").textContent = t.ch; $("stFl").textContent = t.fl;
+  $("progressBar").style.width = ((t.pb+t.ch+t.fl)/(13+8+4)*100)+"%";
+}
+
+function renderReceipt(){
+  const t = totals();
+  const dis = FLAGS.filter(f=>state.flags[f.id].status==="dismissed");
+  const addr = FLAGS.filter(f=>state.flags[f.id].status==="addressed");
+  const open = FLAGS.filter(f=>state.flags[f.id].status==="open");
+  const mk = (n,d,label) => `<span class="${n>=d?'ok':'warn'}">${n>=d?'✓':'•'}</span> ${label}: ${n}/${d}`;
+  let body = "";
+  body += `Reviewed by @you (human) · medusajs/medusa #15605 @ 2803816\n`;
+  body += `Tool verification receipt — mechanical claims only\n\n`;
+  body += `  ${mk(state.checked.carrier.size,5,`playbook (${state.dominant})`)} items visited\n`;
+  body += `  ${mk(state.checked.test.size,5,"supporting checks (test)")} · ${state.checked.doc.size}/3 (doc)\n`;
+  body += `  ${mk(t.ch,8,"chunks read")}\n`;
+  body += `  ${addr.length+dis.length===4?'<span class="ok">✓</span>':'<span class="warn">•</span>'} risk surface: ${addr.length} addressed · ${dis.length} dismissed · ${open.length} open\n`;
+  dis.forEach(f=>{ body += `      dismissed: ${f.attr} @ ${f.loc} — "${esc(state.flags[f.id].reason)}"\n`; });
+  open.forEach(f=>{ body += `      <span class="warn">open: ${f.attr} @ ${f.loc} — not addressed, not dismissed</span>\n`; });
+  if(state.reclassified) body += `\n  <span class="dimline">1 group reclassified by reviewer → ${state.dominant} (categorizer was uncertain)</span>\n`;
+  body += `\n  <span class="warn">not checked:</span> <span class="dimline">business intent · runtime behavior · performance under load ·\n  integration with downstream fulfillment providers</span>`;
+  $("receiptBody").innerHTML = body;
+}
+
+/* ============================= EVENTS ============================= */
+document.addEventListener("click", e=>{
+  /* playbook check */
+  const pb = e.target.closest(".pb-item");
+  if(pb){
+    const set = state.checked[pb.dataset.bucket]; const i = +pb.dataset.i;
+    set.has(i) ? set.delete(i) : set.add(i);
+    renderPlaybooks(); renderStats(); return;
+  }
+  /* collapsible supporting-check sections */
+  const tog = e.target.closest("[data-toggle]");
+  if(tog){ $(tog.dataset.toggle).classList.toggle("open"); return; }
+  /* chunk fold — ignore clicks on the mark button; clicking also activates the chunk */
+  const fold = e.target.closest("[data-fold]");
+  if(fold && !e.target.closest(".markbtn")){
+    $(fold.dataset.fold).classList.toggle("open");
+    setActive(CHUNKS.find(c=>c.id===fold.dataset.fold));
+    suppressSpyUntil = Date.now() + 800; /* don't let reflow-triggered scroll override the click */
+    return;
+  }
+  /* mark reviewed */
+  const mark = e.target.closest("[data-mark]");
+  if(mark){
+    const id = mark.dataset.mark;
+    state.reviewed.has(id) ? state.reviewed.delete(id) : state.reviewed.add(id);
+    const el = $(id);
+    el.classList.toggle("reviewed", state.reviewed.has(id));
+    el.querySelector(".markbtn").textContent = state.reviewed.has(id)?"Reviewed ✓":"Mark reviewed";
+    renderStats(); return;
+  }
+  /* flag jump */
+  const jump = e.target.closest("[data-jump]");
+  if(jump){
+    showStory();
+    const el = $(jump.dataset.jump);
+    el.classList.add("open");
+    el.scrollIntoView({behavior:"smooth", block:"start"});
+    return;
+  }
+  const jumpc = e.target.closest("[data-jumpc]");
+  if(jumpc){
+    showStory();
+    const el = $(jumpc.dataset.jumpc);
+    el.classList.add("open");
+    el.scrollIntoView({behavior:"smooth", block:"start"});
+    return;
+  }
+  /* flag address */
+  const ad = e.target.closest("[data-addr]");
+  if(ad){
+    state.flags[ad.dataset.addr].status = "addressed";
+    renderFlags(); renderStats();
+    toast("Flag marked addressed — link a comment to it before submit and the receipt shows the pairing.");
+    return;
+  }
+  /* flag dismiss → modal */
+  const dm = e.target.closest("[data-dismiss]");
+  if(dm){
+    state.dismissTarget = dm.dataset.dismiss;
+    const f = FLAGS.find(x=>x.id===state.dismissTarget);
+    $("modalAttr").textContent = `${f.attr} @ ${f.loc}`;
+    $("dismissReason").value = ""; $("modalWarn").classList.remove("show");
+    $("confirmDismiss").textContent = "Dismiss with reason";
+    $("modal").classList.add("show"); $("dismissReason").focus();
+    return;
+  }
+  /* category pick */
+  const pk = e.target.closest(".pickbtn");
+  if(pk){
+    state.dominant = pk.dataset.cat;
+    state.reclassified = true;
+    state.checked.carrier.clear();
+    $("uncPanel").style.display = "none";
+    $("uncChip").remove();
+    const chip = $("domChip");
+    chip.innerHTML = `<em>dominant</em> ${state.dominant}`;
+    const note = document.createElement("span");
+    note.className = "reclass-note";
+    note.textContent = "set by you · playbook swapped · recorded on receipt";
+    $("catRow").appendChild(note);
+    renderPlaybooks(); renderStats();
+    toast(`Dominant category set to ${state.dominant} — the ${state.dominant} playbook is now active.`);
+    return;
+  }
+});
+
+/* dismiss modal */
+$("cancelDismiss").onclick = ()=> $("modal").classList.remove("show");
+$("confirmDismiss").onclick = ()=>{
+  const reason = $("dismissReason").value.trim();
+  const warned = $("modalWarn").classList.contains("show");
+  if(reason.length < 12 && !warned){
+    $("modalWarn").classList.add("show");
+    $("confirmDismiss").textContent = "Dismiss anyway";
+    return; /* warn once — never block. reviewer authorizes. */
+  }
+  state.flags[state.dismissTarget] = {status:"dismissed", reason: reason || "(no reason given)"};
+  $("modal").classList.remove("show");
+  renderFlags(); renderStats();
+  toast("Dismissed. Reason recorded verbatim on the receipt.");
+};
+
+/* receipt drawer */
+function openReceipt(){ renderReceipt(); $("receipt").classList.add("show"); $("scrim").classList.add("show"); }
+$("openReceipt").onclick = openReceipt;
+$("closeReceipt").onclick = closeReceipt;
+$("scrim").onclick = closeReceipt;
+function closeReceipt(){ $("receipt").classList.remove("show"); $("scrim").classList.remove("show"); }
+$("submitBtn").onclick = ()=>{
+  closeReceipt();
+  toast("Mockup — submit posts your review natively to GitHub under your name, with one signature line linking this receipt.");
+};
+
+/* LoC popover */
+$("locBadge").onclick = e => { e.stopPropagation(); $("locBadge").classList.toggle("open"); };
+document.addEventListener("click", e=>{ if(!e.target.closest("#locBadge")) $("locBadge").classList.remove("open"); });
+
+/* layout toggle */
+$("layStack").onclick = ()=>{
+  document.body.classList.remove("split");
+  $("layStack").classList.add("active"); $("laySplit").classList.remove("active");
+  updateSpy();
+};
+$("laySplit").onclick = ()=>{
+  document.body.classList.add("split");
+  $("laySplit").classList.add("active"); $("layStack").classList.remove("active");
+  updateSpy();
+};
+
+/* active chunk: set by scroll-spy (split view) or by clicking a chunk header (any layout).
+   Highlights the chunk card + the matching playbook section heading. */
+const spyLabel = concern =>
+  concern==="implementation" ? $("pbCarrierLabel")
+  : concern==="test" ? $("subTest").querySelector(".label")
+  : $("subDoc").querySelector(".label");
+function clearActive(){
+  document.querySelectorAll(".chunk.current").forEach(e=>e.classList.remove("current"));
+  document.querySelectorAll(".label.spy").forEach(e=>e.classList.remove("spy"));
+}
+const clearSpy = clearActive;
+function setActive(ch){
+  clearActive();
+  $(ch.id).classList.add("current");
+  const lbl = spyLabel(ch.concern);
+  lbl.classList.add("spy");
+  /* keep the highlighted section visible inside the sticky rail — scroll the rail only, never the window */
+  const rail = lbl.closest(".group-card");
+  if(rail && rail.scrollHeight > rail.clientHeight){
+    const lr = lbl.getBoundingClientRect(), rr = rail.getBoundingClientRect();
+    if(lr.top < rr.top + 8) rail.scrollTop += lr.top - rr.top - 8;
+    else if(lr.bottom > rr.bottom - 8) rail.scrollTop += lr.bottom - rr.bottom + 8;
+  }
+}
+let suppressSpyUntil = 0;
+function updateSpy(){
+  /* scroll only drives the highlight in split view; in stacked, click-set highlights persist */
+  if(!document.body.classList.contains("split") || $("storyView").style.display==="none") return;
+  if(Date.now() < suppressSpyUntil) return;
+  const ref = 150; /* reading line below the sticky header */
+  let current = null;
+  for(const ch of CHUNKS){
+    const r = $(ch.id).getBoundingClientRect();
+    if(r.top <= ref && r.bottom > ref){ current = ch; break; }
+  }
+  current ? setActive(current) : clearActive();
+}
+let spyTick = false;
+window.addEventListener("scroll", ()=>{
+  if(spyTick) return;
+  spyTick = true;
+  requestAnimationFrame(()=>{ spyTick = false; updateSpy(); });
+}, {passive:true});
+
+/* collapse-supporting toggle */
+$("collapseSupporting").onchange = e => {
+  const collapse = e.target.checked;
+  CHUNKS.filter(c=>c.role==="supporting").forEach(c=>{
+    $(c.id).classList.toggle("open", !collapse);
+  });
+};
+
+/* view toggle */
+function showStory(){ $("storyView").style.display=""; $("concernView").style.display="none";
+  $("tabStory").classList.add("active"); $("tabConcern").classList.remove("active"); updateSpy(); }
+$("tabStory").onclick = showStory;
+$("tabConcern").onclick = ()=>{
+  $("storyView").style.display="none"; $("concernView").style.display="";
+  $("tabConcern").classList.add("active"); $("tabStory").classList.remove("active");
+  renderConcern(); clearSpy();
+};
+
+/* toast */
+let toastTimer;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove("show"), 4200);
+}
+
+/* init */
+renderPlaybooks(); renderFlags(); renderChunks(); renderStats();
+</script>
+</body>
+</html>

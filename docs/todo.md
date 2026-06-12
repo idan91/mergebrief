@@ -31,8 +31,9 @@ Active checklist. Items grouped by phase from `docs/mvp/validation-plan.md`. Gat
 - [ ] Label the Track 3 re-review PR: brief at base SHA + hand-built delta brief for the follow-up push
 
 ### Discovery interviews (run BEFORE first reviewer session — see next-steps.md sequencing note 2026-06-09)
-- [ ] Run ≥4 discovery interviews using the script in `next-steps.md` (recency anchor, failure story, coping, re-review habits, tools tried, Linear probe, brief reaction last)
-- [ ] Fold findings back into PR selection + playbook content before labeling the remaining gate PRs
+- [ ] Send interview asks (6+ targets; interviewees are excluded from the Phase 1 reviewer pool — see script pool rule)
+- [ ] Run ≥4 discovery interviews per [`docs/interviews/script.md`](./interviews/script.md); fill capture sheet within 1 hour of each
+- [ ] Write `docs/interviews/synthesis.md` (5 gate questions in the script); fold findings into PR selection + playbook content before labeling the remaining gate PRs
 
 ### Reviewer recruitment
 - [ ] Identify 3–5 friendly reviewers (senior/staff/tech-lead per `phase-1.md`; don't reveal which condition is "ours")

@@ -237,7 +237,7 @@ Lifted from `docs/problem-framing/initial.md` recommended next steps — these r
 
    **Sequencing (2026-06-09): run ≥4 of these BEFORE the first Phase 1 reviewer session** — not in parallel. Interviews are the cheapest kill-test and may reshape PR selection and playbook content before labeling hours are spent. Phase 1 debriefs double as interviews (discovery questions appended *after* the review-task discussion — see `phase-1.md`), so net-new recruiting is ~4–6 people.
 
-   **Script (Mom Test discipline — past behavior, never hypotheticals; pitch nothing until the end):**
+   **Full runnable script with probes, capture sheet, and synthesis gate: [`docs/interviews/script.md`](./interviews/script.md).** Outline:
    1. Recency anchor: "Last AI-heavy PR you reviewed — walk me through it. Where did you stop reading?"
    2. Failure story: "Tell me about a bug that got through review. What happened after?"
    3. Coping: "A 600-line PR lands and you have 20 minutes — what do you actually do?"
