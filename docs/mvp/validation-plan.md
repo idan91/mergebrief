@@ -13,7 +13,9 @@ The rule: **spend in proportion to remaining risk**.
 
 ## Phase 1 — Wizard-of-Oz C Test
 
-**Goal:** Confirm reviewers behave differently when shown intent categories + per-category playbooks vs raw diff. Kill the wedge fast if it's going to die.
+> **⚠ Goal redefinition pending (2026-06-13 reshape — see [`center-of-gravity.md`](./center-of-gravity.md)).** The goal below tests the **playbook** layer, which the reshape demotes. The phase still earns its place, but the question changes: does **story + risk-surface + delta** (the new center of gravity) move reviewer behavior — not "do per-category playbooks". Re-derive the goal, conditions, and gate (`phase-1.md`) before labeling. Method/cost/structure carry over.
+
+**Goal (pending redefinition):** Confirm reviewers behave differently when shown intent categories + per-category playbooks vs raw diff. Kill the wedge fast if it's going to die.
 
 **Method:**
 - Hand-label 10–20 real PRs across mixed change types (refactor, lib-bump, schema-change, new-feature, pure-move, etc.).

@@ -2,7 +2,19 @@
 
 Active checklist. Items grouped by phase from `docs/mvp/validation-plan.md`. Gated phases stay unchecked until their gate is met.
 
-## Phase 1 — Wizard-of-Oz C Test (active)
+## ⮕ Reshape follow-ups (2026-06-13) — do before resuming Phase 1
+
+From the direction reshape — full statement in [`mvp/center-of-gravity.md`](./mvp/center-of-gravity.md).
+
+- [ ] **(GATING) Redefine the Phase 1 experiment** around the new center of gravity (does *story + risk-surface + delta* move reviewer behavior) — the current Treatment-vs-B′ tests the now-demoted playbook. Do this **before labeling any PRs**.
+- [ ] **Grill the author-side self-review brief** — promoted to v1 but never decision-tree-walked. Hold scope loosely; keep it on the same web app.
+- [ ] **Re-derive the moat** given taxonomy-secondary + playbook-demoted (delta + comment-to-rule + dual-consumer + create-to-merge workflow).
+- [ ] **Write/revisit ADRs:** revisit 0004 (mind-map → persistence only); amend 0002 (receipt → org-quality-audit role); new ADRs for draft-first activation, author-side-in-v1, playbook demotion.
+- [ ] Define the OSS / zero-install free tier minimally (individual + reviewer-side-only + distribution).
+- [ ] Spec the comment-to-rule governance (role-gated promotion via CODEOWNERS / repo-YAML approvers; rules land as PRs) — v2+, but lock the guardrails now.
+- [ ] Later: update `mockup/` + `mockup/ux.md` to reflect demotions (playbook collapsed/optional, author view) — not urgent.
+
+## Phase 1 — Wizard-of-Oz C Test (active — paused pending redefinition above)
 
 > Full Phase 1 protocol, PR candidates, and observation axes in [`phase-1.md`](./mvp/phase-1.md).
 

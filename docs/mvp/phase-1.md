@@ -1,6 +1,8 @@
 # Phase 1 — Wizard-of-Oz C Test
 
-> Foundational gate: confirm the differentiator layer (taxonomy + playbooks + risk-surface) moves reviewer behavior **beyond Baseline B′** — the grouped substrate (change-groups, carrier/supporting, concern split, LoC) that Linear Diffs already ships for free. Not tested against raw diff. Full plan and gating criteria in [validation-plan.md](./validation-plan.md).
+> **⚠ REDEFINITION REQUIRED before any labeling (2026-06-13 reshape — see [`center-of-gravity.md`](./center-of-gravity.md)).** This plan isolates the **playbook** layer (Treatment = taxonomy + playbooks + risk-surface vs Baseline B′ = grouping only). The reshape **demotes the playbook** — interview D, a senior, called it noise for experienced engineers, and that demotion is now a direction decision, not a hypothesis to test. Running the experiment as written would burn ~8 labeling hours validating a layer being hidden. **Redefine the experiment around the new center of gravity — does *story + risk-surface + delta* move reviewer behavior — before labeling any PRs.** The PR set, hand-labeling protocol, observation method, and pre-registration discipline below are reusable; the **Treatment/B′ conditions and success gate are not** until redefined. Treat everything past this banner as pending that rewrite.
+>
+> Original framing (retained for reference): confirm the differentiator layer (taxonomy + playbooks + risk-surface) moves reviewer behavior **beyond Baseline B′** — the grouped substrate (change-groups, carrier/supporting, concern split, LoC) that Linear Diffs already ships for free. Not tested against raw diff. Full plan and gating criteria in [validation-plan.md](./validation-plan.md).
 
 ## Working PR Set
 

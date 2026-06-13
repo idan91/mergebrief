@@ -2,6 +2,20 @@
 
 Running list of items to revisit in future sessions. Grouped by type.
 
+## ⮕ Direction reshape (2026-06-13) — read first
+
+The product's center of gravity was reshaped after the discovery interviews (`docs/interviews/synthesis.md`), most sharply by **D** (a senior who challenged the playbook). Full statement in **[`mvp/center-of-gravity.md`](./mvp/center-of-gravity.md)** — that doc is now the source of truth; sections below predate it and are partially superseded where noted.
+
+Headline shifts:
+- **Center of gravity = velocity-without-the-stability-tax** (PR-creation → merge, minimal re-review), delivered through **story + intent** and **quality / risk-surface**. Velocity is the *byproduct* of quality, never the metric sold — else it's a rubber-stamp accelerator.
+- **Lead value story:** re-review is a context-switch tax (reload the mental model of a PR you last saw days ago). The **delta brief** does the reload for you — cheap context-switch, not shallow review. Highest-pain, least-Linear-overlapping, least-contested thing in the interviews (3/3 vivid).
+- **Demotions:** playbook → agent-facing + optional junior UI (not a human headline panel); private mind-map → persistence only (thinking-space framing cut); taxonomy + concern-grouping → engine, not headline.
+- **Author side promoted to v1** (held loosely): the same brief one step earlier, so re-review is *prevented* before submit. Needs its own grilling pass.
+- **Activation:** opt-in **draft-first** via repo YAML + GitHub App webhook, native-draft fail-open. Reverses the lazy cost gate.
+- **Comment-to-rule loop** (v2+): accepted, *role-gated*, valuable comments → repo-local agent context (md) via reviewed PRs → agents stop repeating mistakes. The playbook's real destiny and the most defensible moat candidate (supersedes the hosted org-learned-playbooks framing below).
+- **Org primary, individual door open, OSS = free distribution.**
+- **Gating consequence:** Phase 1's Treatment-vs-B′ tests the now-demoted playbook → redefine the experiment around story + risk + delta *before* labeling (`phase-1.md`).
+
 ## Unresolved from Grilling Session (2026-05-19)
 
 These four items came up during the reviewer-side scope grilling but were deferred — they need their own focused conversation.
@@ -134,7 +148,7 @@ Designing change-groups + carrier/supporting + concern split + weighted LoC move
 
 ### Two-layer / dual-consumer model (formalized in CONTEXT.md, 2026-06-07)
 
-- **Analysis Layer** (change-groups, taxonomy, playbooks, risk-surface, concern split, LoC) — reviewer-agnostic core; serves both humans and AI-agent reviewers. The true moat.
+- **Analysis Layer** (change-groups, taxonomy, playbooks, risk-surface, concern split, LoC) — reviewer-agnostic core; serves both humans and AI-agent reviewers. *(2026-06-13: this is the engine, not the moat — see the reshape at the top and `mvp/center-of-gravity.md`. The defensible core is delta + comment-to-rule + dual-consumer + integrated create-to-merge workflow, not the taxonomy/playbook alone.)*
 - **Engagement Layer** (no-AI-prose rule, private mind-map, seeds, human-written comments, approval + receipt) — human-only workflow.
 - **Dual-consumer:** human reviewer consumes Analysis via Engagement (v1); AI-agent reviewer consumes Analysis directly via API (v1.5+ headless lead-in — confirmed NOT in first release). The no-AI-prose rule and mind-map are human-mode only; agent-mode inverts the prose rule by design.
 - **Submission:** review lands natively on GitHub (comments + verdict) authored by the reviewer; a one-line signature links to a static **Review Summary** holding the receipt. Tool present but unobtrusive (ADR 0002, 2026-06-07 delivery refinement).
@@ -145,9 +159,11 @@ Terminology fix across the docs: the taxonomy + playbooks + risk-surface layer i
 
 **Why the old claim was soft:** taxonomy + playbooks are prompt engineering plus a markdown library — any competent team rebuilds them in weeks. CodeRabbit/Greptile can ship "change-type-aware checklists" in a sprint *once Phase 1/2 success proves the wedge works*; our validation becomes their spec. The docs previously watched Linear closely while underweighting incumbent copy speed.
 
+> **Concretized 2026-06-13 → the comment-to-rule loop.** The "org-learned playbooks" idea below has a concrete, more defensible instantiation in `mvp/center-of-gravity.md`: accepted, **role-gated**, valuable review comments are promoted (by CODEOWNERS / YAML-declared approvers, as reviewed PRs) into **repo-local agent context (md)**, so agents stop repeating mistakes. Repo-local + portable (transparent, OSS-friendly) rather than hosted-proprietary — so the moat shifts from *owning the data* to *the engine that produces good rules* + the in-platform exhaust competitors can't see (dismissals, reclassifications, recurrence). This **supersedes** the hosted framing below as the primary mechanism; the bullets remain as the conceptual ancestor.
+
 **What could compound into a real moat (earned, not claimed):**
 - **Data exhaust.** Every reviewer reclassification, dismissal-with-reason, and playbook-item visit is labeled training data nobody else has. It improves the categorizer; competitors start cold.
-- **Org-learned playbooks (2026-06-09).** Preset playbooks are the commodity layer; the compounding layer is per-org playbook items mined from that org's own review activity on the platform — recurring review comments, dismissal reasons, flag-address patterns — summarized into suggested additions ("in this repo, `schema-change` also means check the analytics consumer"). Proprietary where it draws on in-platform exhaust (dismissals, reclassifications, item visits — invisible to competitors); only semi-proprietary where it draws on GitHub comment history (any installed tool can mine that). Guardrails: human-approve loop (tech lead accepts suggested items before they activate — consistent with the no-verdict ethos), org data never trains other orgs' playbooks, cold-start means this only pays after months of usage. Post-validation work; parked here as the concrete mechanism behind "data exhaust".
+- **Org-learned playbooks (2026-06-09; concretized 2026-06-13 as the comment-to-rule loop — see note above).** Preset playbooks are the commodity layer; the compounding layer is per-org playbook items mined from that org's own review activity on the platform — recurring review comments, dismissal reasons, flag-address patterns — summarized into suggested additions ("in this repo, `schema-change` also means check the analytics consumer"). Proprietary where it draws on in-platform exhaust (dismissals, reclassifications, item visits — invisible to competitors); only semi-proprietary where it draws on GitHub comment history (any installed tool can mine that). Guardrails: **role-gated** human-approve loop (CODEOWNERS / YAML-declared approvers accept suggested items before they activate — never auto-commit, never a junior's one-off comment self-promoting), org data never trains other orgs' playbooks, cold-start means this only pays after months of usage. Post-validation work; parked here as the concrete mechanism behind "data exhaust".
   - **Playbook digest (2026-06-09, v2+).** The visibility surface for the learning loop: a recurring summary of suggested playbook additions — "3 suggested additions to `schema-change`, mined from 14 reviews — approve/reject." Doubles as (a) the tech lead's approval inbox (without it, suggestions rot in a settings page) and (b) a team-facing institutional-knowledge artifact ("what our reviews taught us about our codebase this week") — direct feed for the skill-atrophy / review-as-learning-loop positioning (problem-framing HMW #5). Cadence: weekly, **threshold-gated** (send when ≥N pending suggestions OR weekly, whichever first) — never daily; additions are rare events and empty digests train people to ignore it. Hosted-only by nature (requires cross-PR org state — see Open-Core Direction below).
 - **Cross-PR repo history.** The stable taxonomy makes "all `schema-change` PRs last quarter" queryable; value grows with tenure on a repo.
 - **Workflow lock-in.** Receipts as an org's review audit trail = switching cost.

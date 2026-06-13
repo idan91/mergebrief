@@ -1,7 +1,9 @@
 # Initial Scope
 
-> v1 focus: **Reviewer side**. v2: **Author side** (defined below for continuity, not built first).
-> Wedge: comprehension scaffolding for human reviewers, not another reviewer bot.
+> **⚠ Partially superseded by the 2026-06-13 reshape — read [`center-of-gravity.md`](./center-of-gravity.md) first.** The reviewer-side *mechanics* here still hold; what changed is emphasis. Specifically: the **playbook** is demoted (agent-facing + optional junior UI, not a human headline panel — §2, §3); the **private mind-map** shrinks to persistence only, "thinking space" framing cut (§5); **taxonomy/grouping** become engine, not headline; the **author side** is promoted from the v2 placeholder below into a real (secondary) v1 surface; and **draft-first activation** is added as an opt-in alternative to the click-to-activate model in §1. Where this file and `center-of-gravity.md` disagree on emphasis, the latter wins.
+>
+> v1 focus: **Reviewer side** (+ a thin author-side self-review surface — see reshape). ~~v2: Author side.~~
+> Wedge: comprehension scaffolding, not another reviewer bot — delivered as story + risk + delta (velocity-through-quality).
 
 ## Foundational Principles
 
@@ -44,7 +46,7 @@ The brief contains:
 - **Multi-tag categorization per chunk.** Each diff chunk is tagged with categories describing *intent*, not opinion:
   - `pure-move`, `move-with-edits`, `lib-bump`, `logic-refactor`, `new-feature`, `bugfix`, `schema-change`, `test-only`, `config-only`, `generated-code`, `dependency-update`.
   - Chunks may carry multiple tags. The **dominant category** is surfaced as primary; others as secondary tags.
-- **Per-category templated playbook.** Known engineering checklists per change type. Not AI hypotheses — domain rules.
+- **Per-category templated playbook.** Known engineering checklists per change type. Not AI hypotheses — domain rules. *(DEMOTED 2026-06-13: not a human headline panel — D, a senior, called it noise. It becomes agent-facing guidance + an optional, off-by-default junior UI, and the seed of the comment-to-rule loop. See `center-of-gravity.md`.)*
   - Example — `pure-move`: verify bytes identical, imports updated, no hidden edits.
   - Example — `lib-bump`: verify breaking changes from changelog, all call sites updated.
   - Example — `schema-change`: verify migration reversibility, backfill plan, downstream consumers.
@@ -70,7 +72,9 @@ The brief contains:
 - **v1.5 add-on (B):** orchestrate competitor bug-catchers (CodeRabbit, Greptile). Ingest their comments, dedupe against reviewer's own, surface gaps.
 - See ADR 0003.
 
-### 5. Review Discussion (Private Mind-Map)
+### 5. Review Discussion (Private Mind-Map) — DEMOTED (2026-06-13)
+
+> Shrunk to **persistence only** (draft comments, per-chunk read state, comment-target tracking — the State Persistence section below). The "private place to think / discuss with the agent" framing is **cut**: interview D and the founder both questioned its benefit over a GitHub pending review you don't submit. Revisit ADR 0004. Bullets below describe the old fuller version.
 
 - Agent ↔ Reviewer discussion lives **entirely inside the web app**. Never visible on the PR thread.
 - Reviewer can challenge agent, dismiss flags, ask clarifying questions, draft and discard ideas — without performing competence for the author.
@@ -170,9 +174,9 @@ Boundaries:
 
 ---
 
-## Author Side (v2 — Placeholder, Not Yet Grilled)
+## Author Side (PROMOTED to v1, secondary — 2026-06-13; still not grilled)
 
-> Original author-side bullets, preserved as-is. Not yet resolved through the grilling process. Will be revisited in a later session.
+> **Reshape:** the author side moved from a deferred v2 placeholder to a real (secondary) v1 surface — the same brief, one step earlier, so re-review is *prevented* before submit (the draft-first self-review window). Shape in `center-of-gravity.md` ("Author view"). **Still needs its own grilling pass; hold scope loosely** — keep it on the same web app, not a separate IDE/CLI surface. Original bullets below preserved as raw input to that session.
 
 ### Pre PR submission
 1. Human readable change summary

@@ -4,6 +4,8 @@ Comprehension scaffolding for human reviewers of pull requests. Not another revi
 
 > This file defines the *meaning* of each term. For the authoritative closed list of valid labeling **tokens** (the current Category / Concern / Role / Risk-Surface values + quick rules), see `docs/mvp/labeling-schema.md` — the controlled vocabulary. A token is not valid unless registered there.
 
+> **Emphasis note (2026-06-13 reshape):** the *terms* below are still valid, but their product weight changed — see `docs/mvp/center-of-gravity.md` for the current center of gravity (story + risk-surface + delta; velocity-through-quality). In short: **Playbook** is demoted (agent-facing + optional junior UI, not a human headline); **Mind-Map Space** shrinks to persistence only (the "thinking space" framing is cut); the **Analysis Layer** is the engine, not the moat. This file describes vocabulary, not priority.
+
 ## Language
 
 **Brief**:
