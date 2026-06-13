@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# TanStack Start / Vite output
+dist/
+.vinxi/
+.output/
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# Logs and caches
+*.log
+.vite/
+.cache/

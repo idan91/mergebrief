@@ -1,0 +1,58 @@
+:root {
+  --bg: #0a0a0c;
+  --panel: #111114;
+  --panel2: #0d0d10;
+  --line: #1f1f24;
+  --line2: #2b2b32;
+  --text: #ececee;
+  --dim: #9a9aa3;
+  --faint: #62626b;
+  --green: #5fc88f;
+  --red: #e06c6c;
+  --amber: #d9a45c;
+  --blue: #7da7d9;
+  --violet: #a98fd1;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --sans: "Instrument Sans", -apple-system, "Helvetica Neue", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--bg);
+  background-image: radial-gradient(1200px 500px at 50% -200px, #131318 0%, var(--bg) 70%);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+::selection {
+  background: #34343e;
+  color: #fff;
+}
+
+.app-shell {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 36px 28px 140px;
+}
