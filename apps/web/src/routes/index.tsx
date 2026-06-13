@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { CATEGORY_PLAYBOOKS } from "../features/brief/playbooks";
 import { localBriefQueryOptions } from "../features/brief/queries";
@@ -319,24 +319,19 @@ function StoryView(props: {
 }) {
   return (
     <div className="story-view">
-      <section className="group-stack">
-        {props.model.groups.map((group) => (
-          <GroupCard key={group.id} {...props} group={group} />
-        ))}
-      </section>
-      <section className="chunks-area">
-        <div className="chunks-label reveal">
-          <span>{props.brief.chunks.length} chunks · carriers first</span>
-          <span className="rule" />
-          <label className="switch">
-            <input checked={props.collapseSupporting} suppressHydrationWarning type="checkbox" onChange={(event) => props.setCollapseSupporting(event.target.checked)} />
-            <span className="track" />
-            Collapse supporting
-          </label>
-        </div>
-        <div className="chunk-list reveal">
-          {props.model.groups.flatMap((group) =>
-            group.chunks.map((chunk) => (
+      <div className="chunks-label reveal">
+        <span>{props.brief.chunks.length} chunks · grouped by intent</span>
+        <span className="rule" />
+        <label className="switch">
+          <input checked={props.collapseSupporting} suppressHydrationWarning type="checkbox" onChange={(event) => props.setCollapseSupporting(event.target.checked)} />
+          <span className="track" />
+          Collapse supporting
+        </label>
+      </div>
+      {props.model.groups.map((group) => (
+        <section className="story-group reveal" key={group.id}>
+          <div className="group-chunks">
+            {group.chunks.map((chunk) => (
               <ChunkCard
                 key={chunk.id}
                 active={props.activeChunkId === chunk.id}
@@ -347,10 +342,11 @@ function StoryView(props: {
                 markReviewed={props.markReviewed}
                 toggleChunk={props.toggleChunk}
               />
-            )),
-          )}
-        </div>
-      </section>
+            ))}
+          </div>
+          <GroupCard {...props} group={group} />
+        </section>
+      ))}
     </div>
   );
 }
@@ -532,13 +528,45 @@ function ChunkCard({
       {!expanded ? <div className="collapse-note">{chunk.role === "supporting" ? "supporting chunk — collapsed" : "collapsed"}</div> : null}
       {expanded ? (
         <div className="chunk-body">
-          <div className="metadata-diff">
-            <span>metadata-only chunk</span>
-            <p>The local brief currently contains file, concern, role, LoC, and risk attributes, but not raw diff hunks. Diff rendering can be added once the categorizer emits hunk rows.</p>
-          </div>
+          <DiffTable chunk={chunk} />
         </div>
       ) : null}
     </article>
+  );
+}
+
+function DiffTable({ chunk }: { chunk: BriefChunk }) {
+  if (!chunk.diff || chunk.diff.length === 0) {
+    return (
+      <div className="metadata-diff">
+        <span>diff unavailable</span>
+        <p>The brief loaded, but no matching raw diff was available for this chunk. The durable fix is to emit chunk-level hunk rows from the categorizer.</p>
+      </div>
+    );
+  }
+
+  return (
+    <table className="diff">
+      <tbody>
+        {chunk.diff.map((line, index) => {
+          if (line.kind === "hunk" || line.kind === "note") {
+            return (
+              <tr className={line.kind} key={`${line.kind}-${index}`}>
+                <td colSpan={3}>{line.content}</td>
+              </tr>
+            );
+          }
+          const sign = line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
+          return (
+            <tr className={line.kind} key={`${line.kind}-${index}`}>
+              <td className="ln">{line.oldLine ?? ""}</td>
+              <td className="ln">{line.newLine ?? ""}</td>
+              <td className="code"><span className="sign">{sign}</span>{line.content}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
 

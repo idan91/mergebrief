@@ -316,29 +316,39 @@ header {
   flex-direction: column;
 }
 
-.split-main .story-view {
+.story-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 40px;
+
+  .group-card {
+    order: 1;
+    margin-bottom: 0;
+  }
+
+  .group-chunks {
+    order: 2;
+  }
+}
+
+.split-main .story-group {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) max(600px, 25%);
+  grid-template-columns: minmax(0, 1fr) max(520px, 28%);
   gap: 18px;
   align-items: start;
 
-  .group-stack {
-    grid-column: 2;
-    grid-row: 1;
+  .group-card {
     position: sticky;
     top: 74px;
-    max-height: calc(100vh - 94px);
-    overflow-y: auto;
+    order: initial;
+    grid-column: 2;
   }
 
-  .chunks-area {
+  .group-chunks {
+    order: initial;
     grid-column: 1;
-    grid-row: 1;
     min-width: 0;
-  }
-
-  .group-card {
-    margin-bottom: 18px;
   }
 }
 
@@ -836,7 +846,8 @@ header {
 }
 
 .chunk-body {
-  padding: 16px;
+  overflow-x: auto;
+  padding: 0;
 }
 
 .metadata-diff {
@@ -853,6 +864,78 @@ header {
     color: var(--text);
     font-family: var(--mono);
     font-size: 12px;
+  }
+}
+
+table.diff {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+
+.diff {
+  td {
+    padding: 0 14px;
+    vertical-align: top;
+    white-space: pre;
+  }
+
+  .ln {
+    width: 42px;
+    min-width: 42px;
+    color: #3b3b43;
+    text-align: right;
+    user-select: none;
+  }
+
+  .code {
+    color: #85858e;
+  }
+
+  .sign {
+    display: inline-block;
+    width: 16px;
+    opacity: 0.6;
+  }
+
+  tr.add {
+    background: rgba(95, 200, 143, 0.05);
+
+    .code {
+      color: #c3e6d2;
+    }
+
+    .ln {
+      color: rgba(95, 200, 143, 0.45);
+    }
+  }
+
+  tr.del {
+    background: rgba(224, 108, 108, 0.05);
+
+    .code {
+      color: #e0bcbc;
+    }
+
+    .ln {
+      color: rgba(224, 108, 108, 0.4);
+    }
+  }
+
+  tr.hunk td {
+    padding: 6px 14px;
+    background: #101013;
+    color: var(--faint);
+    font-size: 11px;
+  }
+
+  tr.note td {
+    padding: 7px 14px;
+    color: var(--faint);
+    font-size: 11.5px;
+    font-style: italic;
   }
 }
 
@@ -1185,13 +1268,16 @@ footer {
 }
 
 @media (max-width: 1180px) {
-  .split-main .story-view {
-    display: block;
+  .split-main .story-group {
+    display: flex;
 
-    .group-stack {
+    .group-card {
       position: static;
-      max-height: none;
-      overflow: visible;
+      order: 1;
+    }
+
+    .group-chunks {
+      order: 2;
     }
   }
 }

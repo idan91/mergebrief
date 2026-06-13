@@ -62,6 +62,15 @@ export interface ChunkLoc {
   deleted: number;
 }
 
+export type DiffLineKind = "hunk" | "add" | "del" | "ctx" | "note";
+
+export interface DiffLine {
+  kind: DiffLineKind;
+  content: string;
+  oldLine?: number;
+  newLine?: number;
+}
+
 export interface BriefChunk {
   id: string;
   file: string;
@@ -69,6 +78,7 @@ export interface BriefChunk {
   role: Role;
   loc: ChunkLoc;
   riskSurface: RiskSurfaceAttribute[];
+  diff?: DiffLine[];
 }
 
 export interface ChangeGroup {
