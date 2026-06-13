@@ -113,3 +113,11 @@ export interface Brief {
   chunks: BriefChunk[];
   concernView: ConcernRollup[];
 }
+
+export interface LocalBriefSummary {
+  id: string;
+  repo: string;
+  number: number;
+  title: string;
+  sha: string;
+}

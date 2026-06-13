@@ -1,9 +1,9 @@
 import "@tanstack/react-start/server-only";
 
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import type { Brief, BriefChunk, DiffLine, LineRange } from "./types";
+import type { Brief, BriefChunk, DiffLine, LineRange, LocalBriefSummary } from "./types";
 import { parseBrief } from "./validation";
 
 interface FileDiffSidecar {
@@ -17,21 +17,55 @@ interface ParsedFileDiff {
 }
 
 const OUT_DIR = resolve(process.cwd(), "../../tools/categorizer/out");
-const LOCAL_BRIEF_PATH = resolve(OUT_DIR, "Idan91-flexer-55.brief.json");
-const LOCAL_DIFFS_PATH = resolve(OUT_DIR, "Idan91-flexer-55.diffs.json");
+const BRIEF_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 
-export async function readLocalBrief(): Promise<Brief> {
-  const raw = await readFile(LOCAL_BRIEF_PATH, "utf8");
+export async function listLocalBriefs(): Promise<LocalBriefSummary[]> {
+  const entries = await readdir(OUT_DIR);
+  const briefIds = entries.filter((entry) => entry.endsWith(".brief.json")).map((entry) => entry.slice(0, -".brief.json".length)).filter(isValidBriefId).sort();
+  const summaries: LocalBriefSummary[] = [];
+
+  for (const briefId of briefIds) {
+    const brief = await readBriefFile(briefId);
+    summaries.push({
+      id: briefId,
+      repo: brief.pr.repo,
+      number: brief.pr.number,
+      title: brief.pr.title,
+      sha: brief.pr.sha,
+    });
+  }
+
+  return summaries;
+}
+
+export async function readLocalBrief(briefId: string): Promise<Brief> {
+  const brief = await readBriefFile(briefId);
+  return attachChunkDiffs(brief, briefId);
+}
+
+async function readBriefFile(briefId: string): Promise<Brief> {
+  assertValidBriefId(briefId);
+  const raw = await readFile(resolve(OUT_DIR, `${briefId}.brief.json`), "utf8");
   const parsedJson: unknown = JSON.parse(raw);
   const parsedBrief = parseBrief(parsedJson);
   if (!parsedBrief.ok) {
     throw new Error(`Invalid local brief: ${parsedBrief.error}`);
   }
-  return attachChunkDiffs(parsedBrief.value);
+  return parsedBrief.value;
 }
 
-async function attachChunkDiffs(brief: Brief): Promise<Brief> {
-  const fileDiffs = await readFileDiffs();
+function assertValidBriefId(briefId: string): void {
+  if (!isValidBriefId(briefId)) {
+    throw new Error(`Invalid brief id: ${briefId}`);
+  }
+}
+
+function isValidBriefId(briefId: string): boolean {
+  return BRIEF_ID_PATTERN.test(briefId);
+}
+
+async function attachChunkDiffs(brief: Brief, briefId: string): Promise<Brief> {
+  const fileDiffs = await readFileDiffs(briefId);
   if (fileDiffs.size === 0) return brief;
 
   return {
@@ -47,8 +81,8 @@ async function attachChunkDiffs(brief: Brief): Promise<Brief> {
   };
 }
 
-async function readFileDiffs(): Promise<Map<string, ParsedFileDiff>> {
-  const raw = await readFile(LOCAL_DIFFS_PATH, "utf8");
+async function readFileDiffs(briefId: string): Promise<Map<string, ParsedFileDiff>> {
+  const raw = await readFile(resolve(OUT_DIR, `${briefId}.diffs.json`), "utf8");
   const parsedJson: unknown = JSON.parse(raw);
   if (!Array.isArray(parsedJson)) {
     throw new Error("Invalid diffs sidecar: expected an array");

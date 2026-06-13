@@ -10,33 +10,43 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BriefsBriefIdRouteImport } from './routes/briefs.$briefId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BriefsBriefIdRoute = BriefsBriefIdRouteImport.update({
+  id: '/briefs/$briefId',
+  path: '/briefs/$briefId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/briefs/$briefId': typeof BriefsBriefIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/briefs/$briefId': typeof BriefsBriefIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/briefs/$briefId': typeof BriefsBriefIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/briefs/$briefId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/briefs/$briefId'
+  id: '__root__' | '/' | '/briefs/$briefId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BriefsBriefIdRoute: typeof BriefsBriefIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +58,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/briefs/$briefId': {
+      id: '/briefs/$briefId'
+      path: '/briefs/$briefId'
+      fullPath: '/briefs/$briefId'
+      preLoaderRoute: typeof BriefsBriefIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BriefsBriefIdRoute: BriefsBriefIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
