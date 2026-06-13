@@ -477,15 +477,15 @@ function GroupCard({
           <div className="label">Risk surface — {groupFlags.length} flags <span className="count">attributes, not verdicts</span></div>
           {groupFlags.length === 0 ? <p className="empty">No risk-surface attributes on this group.</p> : null}
           {groupRiskByAttribute(groupFlags).map((riskGroup) => {
-            const riskFlagIds = riskGroup.flags.map((flag) => flag.id);
-            const selectedCount = riskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)).length;
-            const allSelected = riskFlagIds.length > 0 && selectedCount === riskFlagIds.length;
+            const openRiskFlagIds = riskGroup.flags.filter((flag) => (flagStates[flag.id]?.status ?? "open") === "open").map((flag) => flag.id);
+            const selectedCount = openRiskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)).length;
+            const allSelected = openRiskFlagIds.length > 0 && selectedCount === openRiskFlagIds.length;
             const hasSelection = selectedCount > 0;
             return (
               <div className="risk-group" key={riskGroup.attr}>
                 <div className="risk-group-head">
                   <label className="risk-check">
-                    <input checked={allSelected} suppressHydrationWarning type="checkbox" onChange={() => toggleRiskGroup(riskFlagIds)} />
+                    <input checked={allSelected} disabled={openRiskFlagIds.length === 0} suppressHydrationWarning type="checkbox" onChange={() => toggleRiskGroup(openRiskFlagIds)} />
                     <span className="risk-group-title">{riskGroup.attr}</span>
                   </label>
                   <div className="risk-bulk-actions">
@@ -494,7 +494,7 @@ function GroupCard({
                       disabled={!hasSelection}
                       type="button"
                       onClick={() => {
-                        setFlagStatuses(riskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)), "addressed");
+                        setFlagStatuses(openRiskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)), "addressed");
                         setToast(`${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} marked addressed — pair with review comments before submit.`);
                       }}
                     >
@@ -506,7 +506,7 @@ function GroupCard({
                       type="button"
                       onClick={() => {
                         setDismissTarget({
-                          flagIds: riskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)),
+                          flagIds: openRiskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)),
                           label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
                         });
                       }}
@@ -517,34 +517,37 @@ function GroupCard({
                 </div>
                 <div className="risk-files">
                   {riskGroup.flags.map((flag) => {
-                  const state = flagStates[flag.id] ?? { status: "open", reason: "" };
-                  return (
-                    <div className={`flag ${state.status !== "open" ? state.status : ""}`} key={flag.id}>
-                      <div className="frow">
-                        <input
-                          aria-label={`Select ${flag.attr} flag for ${flag.file}`}
-                          checked={selectedRiskFlags.has(flag.id)}
-                          className="flag-check"
-                          suppressHydrationWarning
-                          type="checkbox"
-                          onChange={() => toggleRiskFlag(flag.id)}
-                        />
-                        <button className="floc full-path" type="button" onClick={() => jumpToChunk(flag.chunkId)}>{flag.file}</button>
-                      </div>
-                      <div className="fdesc">{flag.description}</div>
-                      {state.status === "open" ? (
-                        <div className="factions">
-                          <button className="fbtn" type="button" onClick={() => {
-                            setFlagStatus(flag, "addressed");
-                            setToast("Flag marked addressed — pair it with a comment before submit.");
-                          }}>Addressed</button>
-                          <button className="fbtn" type="button" onClick={() => setDismissTarget({ flagIds: [flag.id], label: `${flag.attr} @ ${flag.file}` })}>Dismiss…</button>
+                    const state = flagStates[flag.id] ?? { status: "open", reason: "" };
+                    const isResolved = state.status !== "open";
+                    return (
+                      <div className={`flag ${isResolved ? `resolved ${state.status}` : ""}`} key={flag.id}>
+                        <div className="frow">
+                          <input
+                            aria-label={`Select ${flag.attr} flag for ${flag.file}`}
+                            checked={!isResolved && selectedRiskFlags.has(flag.id)}
+                            className="flag-check"
+                            disabled={isResolved}
+                            suppressHydrationWarning
+                            type="checkbox"
+                            onChange={() => toggleRiskFlag(flag.id)}
+                          />
+                          <button className="floc full-path" type="button" onClick={() => jumpToChunk(flag.chunkId)}>{flag.file}</button>
+                          {isResolved ? <span className="fstate compact">{state.status}</span> : null}
                         </div>
-                      ) : (
-                        <div className="fstate">{state.status === "addressed" ? "✓ addressed — your comment will be linked on the receipt" : <>dismissed<i>"{state.reason}"</i></>}</div>
-                      )}
-                    </div>
-                  );
+                        {!isResolved ? (
+                          <>
+                            <div className="fdesc">{flag.description}</div>
+                            <div className="factions">
+                              <button className="fbtn" type="button" onClick={() => {
+                                setFlagStatus(flag, "addressed");
+                                setToast("Flag marked addressed — pair it with a comment before submit.");
+                              }}>Addressed</button>
+                              <button className="fbtn" type="button" onClick={() => setDismissTarget({ flagIds: [flag.id], label: `${flag.attr} @ ${flag.file}` })}>Dismiss…</button>
+                            </div>
+                          </>
+                        ) : null}
+                      </div>
+                    );
                   })}
                 </div>
               </div>

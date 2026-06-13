@@ -689,6 +689,11 @@ header {
   height: 14px;
   accent-color: var(--amber);
   cursor: pointer;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+  }
 }
 
 .risk-files {
@@ -700,13 +705,22 @@ header {
   padding: 0 0 2px 14px;
   border-left: 1px solid var(--line2);
 
-  &.addressed .fattr {
-    color: var(--green);
-  }
+  &.resolved {
+    padding-bottom: 0;
+    border-left-color: #222229;
+    opacity: 0.62;
 
-  &.dismissed .fattr,
-  &.dismissed .fdesc {
-    color: var(--faint);
+    .frow {
+      margin-bottom: 0;
+    }
+
+    .floc {
+      color: #6f6f78;
+    }
+
+    &:hover {
+      opacity: 0.78;
+    }
   }
 }
 
@@ -794,6 +808,18 @@ header {
   color: var(--green);
   font-size: 12px;
   line-height: 1.55;
+
+  &.compact {
+    flex: none;
+    margin-left: auto;
+    padding: 1px 6px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: #85858e;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    line-height: 1.4;
+  }
 
   i {
     display: block;
