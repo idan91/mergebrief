@@ -30,6 +30,8 @@ const validBrief = {
       concern: "implementation",
       role: "carrier",
       loc: { added: 1, deleted: 0 },
+      addedRanges: [{ start: 5, end: 5 }],
+      removedRanges: [],
       riskSurface: ["mutates-state"],
     },
   ],

@@ -81,7 +81,7 @@ You will receive a PR's title, description, file list, and unified diff — and,
 ## What a brief contains
 
 - **summary**: Markdown telling the PR's story, in this order — (1) a concise one-paragraph **overview** of what the PR does; (2) the fuller plain-English what-it-does for the whole PR; (3) optionally, a "## Changelog" bullet list when the change warrants one. The overview and the what-it-does are required; the changelog is not.
-- **chunks[]**: a chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group — it is **sub-file**. One file commonly yields several chunks: the same file can split across multiple hunks, multiple concerns, or multiple change-groups, and each such run is its own chunk with its own stable id (c1, c2, …). Record its file, concern, role, git LoC (added/deleted), and risk-surface attributes.
+- **chunks[]**: a chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group — it is **sub-file**. One file commonly yields several chunks: the same file can split across multiple hunks, multiple concerns, or multiple change-groups, and each such run is its own chunk with its own stable id (c1, c2, …). Record its file, concern, role, git LoC (added/deleted), **line ranges** (see below), and risk-surface attributes.
 - **changeGroups[]**: one group = the largest chunk set expressible as ONE title + ONE summary + ONE dominant category. Give each a one-line **title** that names the change. Reference its carrier and supporting chunk ids.
 - **concernView[]**: LoC rollup per concern present in the PR.
 
@@ -126,5 +126,14 @@ You never hide uncertainty. When your confidence on a group's dominant category 
 
 ## LoC
 
-Report git +added/−deleted per chunk. We treat git LoC as an approximation of adjusted LoC; if a chunk looks like a relocation, say so in the group summary rather than trying to net out moved lines. Roll the same git counts up per concern in \`concernView\`.`;
+Report git +added/−deleted per chunk. We treat git LoC as an approximation of adjusted LoC; if a chunk looks like a relocation, say so in the group summary rather than trying to net out moved lines. Roll the same git counts up per concern in \`concernView\`.
+
+## Line ranges (per chunk)
+
+For each chunk give the **actual changed lines** by side, as inclusive 1-based ranges:
+
+- \`addedRanges\` — **new-side** line numbers of \`+\` lines.
+- \`removedRanges\` — **old-side** line numbers of \`−\` lines.
+
+Compute absolute line numbers from each hunk header \`@@ -oldStart,oldCount +newStart,newCount @@\`: the new side starts numbering at \`newStart\`, the old side at \`oldStart\`, and context lines advance both counters. Record only the changed (\`+\`/\`−\`) lines, **never the surrounding context or the \`@@\` window**. Merge consecutive changed lines into one range; emit separate ranges when a gap of context splits them (many disjoint ranges = a scattered change). A pure-addition chunk has empty \`removedRanges\`; a pure-deletion chunk has empty \`addedRanges\`.`;
 }

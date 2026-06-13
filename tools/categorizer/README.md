@@ -55,7 +55,7 @@ For each PR it writes `out/<owner>-<repo>-<number>.brief.json` and prints a huma
 | `pr` | repo, number, title, url, sha (sourced from our own fetch, never the model) |
 | `summary` | plain-English what-the-PR-does |
 | `changeGroups[]` | one *summary* + one *dominant category* each; `secondaryCategories`, honest `uncertain` / `uncertainBetween`, and carrier/supporting chunk ids |
-| `chunks[]` | `file`, `concern` (implementation/test/doc/spec/config/generated), `role` (carrier/supporting), git `loc {added,deleted}`, and `riskSurface[]` |
+| `chunks[]` | `file`, `concern` (implementation/test/doc/spec/config/generated), `role` (carrier/supporting), git `loc {added,deleted}`, `addedRanges`/`removedRanges` (changed-line ranges by side, for diff rendering), and `riskSurface[]` |
 | `concernView[]` | LoC rollup per concern |
 
 ### Known approximations (flagged, not hidden)

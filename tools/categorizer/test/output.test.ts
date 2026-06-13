@@ -31,6 +31,8 @@ const brief: Brief = {
       concern: "implementation",
       role: "carrier",
       loc: { added: 40, deleted: 2 },
+      addedRanges: [{ start: 10, end: 49 }],
+      removedRanges: [{ start: 10, end: 11 }],
       riskSurface: ["widely-imported", "no-tests"],
     },
     {
@@ -39,6 +41,8 @@ const brief: Brief = {
       concern: "test",
       role: "supporting",
       loc: { added: 30, deleted: 0 },
+      addedRanges: [{ start: 1, end: 30 }],
+      removedRanges: [],
       riskSurface: [],
     },
   ],

@@ -94,6 +94,15 @@ export const PrRefSchema = z.object({
     ),
 });
 
+/** A contiguous run of line numbers (1-based, inclusive) on one side of the diff. */
+export const LineRangeSchema = z.object({
+  start: z.number().int().describe("first line number (1-based, inclusive)"),
+  end: z
+    .number()
+    .int()
+    .describe("last line number (inclusive); equals start for a single line"),
+});
+
 export const ChunkSchema = z.object({
   id: z
     .string()
@@ -112,6 +121,16 @@ export const ChunkSchema = z.object({
     })
     .describe(
       "approximation: git LoC ≈ adjusted LoC. Note likely moves in the group summary; we do not claim move-accurate LoC.",
+    ),
+  addedRanges: z
+    .array(LineRangeSchema)
+    .describe(
+      "new-side (+) line-number ranges of the actual ADDED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only deletes. Many disjoint ranges = scattered change.",
+    ),
+  removedRanges: z
+    .array(LineRangeSchema)
+    .describe(
+      "old-side (−) line-number ranges of the actual REMOVED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only adds.",
     ),
   riskSurface: z
     .array(riskSurfaceEnum)
@@ -175,6 +194,7 @@ export const BriefSchema = z.object({
 });
 
 export type PrRef = z.infer<typeof PrRefSchema>;
+export type LineRange = z.infer<typeof LineRangeSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
 export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;
