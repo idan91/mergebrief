@@ -13,5 +13,6 @@ dist/
 
 # Logs and caches
 *.log
+*.tsbuildinfo
 .vite/
 .cache/
