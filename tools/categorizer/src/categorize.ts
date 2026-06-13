@@ -36,7 +36,10 @@ export async function categorize(
   pr: FetchedPr,
   client: Anthropic = new Anthropic(),
 ): Promise<Brief> {
-  const response = await client.messages.parse({
+  // Stream rather than parse(): with adaptive thinking + a large max_tokens the
+  // SDK refuses a non-streaming request that may exceed its 10-minute timeout.
+  // finalMessage() still yields parsed_output from the zodOutputFormat schema.
+  const stream = client.messages.stream({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     thinking: { type: "adaptive" },
@@ -50,6 +53,7 @@ export async function categorize(
     ],
     messages: [{ role: "user", content: renderUser(pr) }],
   });
+  const response = await stream.finalMessage();
 
   if (response.stop_reason === "refusal") {
     throw new Error("Model refused to categorize this PR.");
