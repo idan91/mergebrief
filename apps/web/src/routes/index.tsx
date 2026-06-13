@@ -96,6 +96,11 @@ function BriefApp() {
 
   function markReviewed(chunkId: string) {
     setReviewedChunks((current) => toggleSet(current, chunkId));
+    setOpenChunks((current) => {
+      const next = new Set(current);
+      next.delete(chunkId);
+      return next;
+    });
   }
 
   function jumpToChunk(chunkId: string) {
