@@ -32,9 +32,13 @@ ${fileList || "(none reported)"}
 ${pr.diff}`;
 }
 
+/** Progress sink — defaults to no-op so the function stays usable in tests. */
+export type Logger = (message: string) => void;
+
 export async function categorize(
   pr: FetchedPr,
   client: Anthropic = new Anthropic(),
+  log: Logger = () => {},
 ): Promise<Brief> {
   // Stream rather than parse(): with adaptive thinking + a large max_tokens the
   // SDK refuses a non-streaming request that may exceed its 10-minute timeout.
@@ -53,7 +57,43 @@ export async function categorize(
     ],
     messages: [{ role: "user", content: renderUser(pr) }],
   });
-  const response = await stream.finalMessage();
+
+  // Live progress: which phase the model is in, how long it has run, and how
+  // much output it has emitted. A heartbeat covers the long silent stretches
+  // (e.g. extended thinking) where no deltas arrive for a while.
+  const start = Date.now();
+  const elapsed = (): string => `${((Date.now() - start) / 1000).toFixed(0)}s`;
+  let phase: "thinking" | "writing brief" = "thinking";
+  let outChars = 0;
+  stream.on("streamEvent", (event) => {
+    if (event.type === "content_block_start" && event.content_block.type === "text") {
+      phase = "writing brief";
+      log(`writing brief… (${elapsed()})`);
+    } else if (
+      event.type === "content_block_delta" &&
+      event.delta.type === "text_delta"
+    ) {
+      outChars += event.delta.text.length;
+    }
+  });
+  log("thinking…");
+  const heartbeat = setInterval(() => {
+    const size = outChars > 0 ? `, ${outChars} chars` : "";
+    log(`…${phase} (${elapsed()}${size})`);
+  }, 5000);
+
+  let response;
+  try {
+    response = await stream.finalMessage();
+  } finally {
+    clearInterval(heartbeat);
+  }
+
+  const u = response.usage;
+  log(
+    `done in ${elapsed()} — tokens in:${u.input_tokens} out:${u.output_tokens} ` +
+      `cache_read:${u.cache_read_input_tokens ?? 0}`,
+  );
 
   if (response.stop_reason === "refusal") {
     throw new Error("Model refused to categorize this PR.");

@@ -1,12 +1,22 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
-import { fetchPr } from "./github.js";
+import { fetchPr, parsePrUrl } from "./github.js";
 import { categorize } from "./categorize.js";
 import { outName, printSummary } from "./output.js";
 import type { Brief } from "./types.js";
 
 const OUT_DIR = "out";
+
+/** Short, stable label for log lines: `owner/repo#number`, or the URL if unparseable. */
+function prTag(url: string): string {
+  try {
+    const { owner, repo, number } = parsePrUrl(url);
+    return `${owner}/${repo}#${number}`;
+  } catch {
+    return url;
+  }
+}
 
 /** Load tools/categorizer/.env if present; otherwise rely on the ambient env. */
 function loadEnv(): void {
@@ -41,11 +51,15 @@ async function main(): Promise<void> {
   const results = await Promise.all(
     urls.map(
       async (url): Promise<{ url: string; brief: Brief } | { url: string; error: unknown }> => {
+        // Tag every line with the PR so parallel runs stay legible.
+        const tag = prTag(url);
+        const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
         try {
-          console.error(`→ ${url}`);
+          log("fetching diff + metadata…");
           const pr = await fetchPr(url);
-          console.error(`  fetched ${pr.meta.files.length} files from ${url}`);
-          return { url, brief: await categorize(pr, client) };
+          log(`fetched ${pr.meta.files.length} files; categorizing…`);
+          const brief = await categorize(pr, client, log);
+          return { url, brief };
         } catch (error) {
           return { url, error };
         }
@@ -66,7 +80,7 @@ async function main(): Promise<void> {
     }
     const file = join(OUT_DIR, outName(result.brief));
     await writeFile(file, `${JSON.stringify(result.brief, null, 2)}\n`);
-    console.error(`\n  wrote ${file}`);
+    console.error(`\n[${prTag(result.url)}] wrote ${file}`);
     console.log("");
     printSummary(result.brief);
   }
