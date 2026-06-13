@@ -3,6 +3,7 @@ import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { fetchPr } from "./github.js";
 import { categorize } from "./categorize.js";
+import { outName, printSummary } from "./output.js";
 import type { Brief } from "./types.js";
 
 const OUT_DIR = "out";
@@ -14,51 +15,6 @@ function loadEnv(): void {
   } catch {
     // no .env file — ANTHROPIC_API_KEY may still be set in the environment
   }
-}
-
-function outName(brief: Brief): string {
-  return `${brief.pr.repo.replace("/", "-")}-${brief.pr.number}.brief.json`;
-}
-
-function printSummary(brief: Brief): void {
-  const byId = new Map(brief.chunks.map((c) => [c.id, c]));
-  const lines: string[] = [];
-  lines.push(`PR  ${brief.pr.repo}#${brief.pr.number} — ${brief.pr.title}`);
-  lines.push(`    ${brief.summary}`);
-  lines.push("");
-
-  lines.push(`Change groups (${brief.changeGroups.length}):`);
-  for (const g of brief.changeGroups) {
-    const secondary = g.secondaryCategories.length
-      ? ` (+${g.secondaryCategories.join(", ")})`
-      : "";
-    const uncertain = g.uncertain
-      ? `  ⚠ uncertain: ${g.uncertainBetween.join(" vs ")}`
-      : "";
-    lines.push(`  • [${g.dominantCategory}]${secondary} ${g.summary}${uncertain}`);
-    lines.push(
-      `      carriers: ${g.carrierChunkIds.join(", ") || "—"}` +
-        `  supporting: ${g.supportingChunkIds.join(", ") || "—"}`,
-    );
-  }
-  lines.push("");
-
-  lines.push(`Concern view (LoC):`);
-  for (const r of brief.concernView) {
-    lines.push(`  ${r.concern.padEnd(14)} +${r.added} -${r.deleted}`);
-  }
-  lines.push("");
-
-  const flagged = brief.chunks.filter((c) => c.riskSurface.length > 0);
-  lines.push(`Risk-surface flags (${flagged.length}/${brief.chunks.length} chunks):`);
-  for (const c of flagged) {
-    const chunk = byId.get(c.id);
-    lines.push(
-      `  ${c.id} ${chunk?.file ?? ""} [${c.role}]: ${c.riskSurface.join(", ")}`,
-    );
-  }
-
-  console.log(lines.join("\n"));
 }
 
 async function main(): Promise<void> {
