@@ -9,10 +9,12 @@ const brief: Brief = {
     title: "Add stock location feature",
     url: "https://github.com/medusajs/medusa/pull/15605",
     sha: "abc123",
+    description: "Adds stock locations.",
   },
   summary: "Adds a stock-location capability.",
   changeGroups: [
     {
+      title: "Add stock-location module",
       summary: "New stock-location module",
       dominantCategory: "new-feature",
       secondaryCategories: [],

@@ -87,6 +87,11 @@ export const PrRefSchema = z.object({
   title: z.string(),
   url: z.string().describe("PR URL"),
   sha: z.string().describe("head commit SHA of the PR"),
+  description: z
+    .string()
+    .describe(
+      "the PR description (body) as authored, kept for display and as optional agent context",
+    ),
 });
 
 export const ChunkSchema = z.object({
@@ -116,6 +121,11 @@ export const ChunkSchema = z.object({
 });
 
 export const ChangeGroupSchema = z.object({
+  title: z
+    .string()
+    .describe(
+      "a one-line title describing the change group (what, not why), e.g. 'Add stock-location module to inventory service'",
+    ),
   summary: z
     .string()
     .describe("what the group does (what, not why), one group = one summary"),
@@ -152,7 +162,11 @@ export const ConcernRollupSchema = z.object({
 
 export const BriefSchema = z.object({
   pr: PrRefSchema,
-  summary: z.string().describe("plain-English what-it-does for the whole PR"),
+  summary: z
+    .string()
+    .describe(
+      "Markdown, in this order: (1) a concise one-paragraph **overview** of what the PR does; (2) the fuller plain-English what-it-does for the whole PR; (3) optionally, a '## Changelog' bullet list when the change warrants one. The changelog is not required; the overview and the what-it-does are.",
+    ),
   changeGroups: z.array(ChangeGroupSchema),
   chunks: z.array(ChunkSchema),
   concernView: z

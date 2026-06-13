@@ -1,5 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { isIP } from "node:net";
+import { lookup } from "node:dns/promises";
 import { z } from "zod/v4";
 
 const execFileAsync = promisify(execFile);
@@ -27,10 +29,125 @@ export interface PrMetadata {
   files: PrFile[];
 }
 
+/** Text fetched from a URL found in the PR description. Best-effort context. */
+export interface LinkedContext {
+  url: string;
+  content: string;
+}
+
 export interface FetchedPr {
   locator: PrLocator;
   meta: PrMetadata;
   diff: string;
+  links: LinkedContext[];
+}
+
+/** Minimal logger — structural so callers (CLI) can pass a tagged sink. */
+type Log = (message: string) => void;
+
+/** Cap fetched link bodies so a huge page can't blow up token cost. */
+const MAX_LINK_CHARS = 20_000;
+/** Bound how many links we chase per PR — cost and latency control. */
+const MAX_LINKS = 5;
+const LINK_TIMEOUT_MS = 10_000;
+
+const URL_IN_TEXT = /https?:\/\/[^\s<>()\[\]"']+/g;
+
+const PRIVATE_IPV4 = [
+  /^0\./,
+  /^10\./,
+  /^127\./,
+  /^169\.254\./, // link-local incl. cloud metadata 169.254.169.254
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+];
+
+function isPrivateAddr(addr: string): boolean {
+  if (addr === "::1" || addr.startsWith("fc") || addr.startsWith("fd") || addr.startsWith("fe80")) {
+    return true;
+  }
+  const v4 = addr.startsWith("::ffff:") ? addr.slice("::ffff:".length) : addr;
+  return PRIVATE_IPV4.some((re) => re.test(v4));
+}
+
+/**
+ * SSRF guard. The links come from an untrusted PR description, so before we
+ * fetch one we reject non-http(s) schemes and any host that resolves to a
+ * loopback / link-local / private address (cloud metadata, localhost dev
+ * servers, internal hosts). DNS is resolved here; the fetch itself uses
+ * `redirect: "manual"` so a public URL can't 3xx us into the private network.
+ */
+export async function isPublicUrl(raw: string): Promise<boolean> {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+  const host = url.hostname;
+  if (host === "localhost" || host.endsWith(".local")) return false;
+  try {
+    const addr = isIP(host) ? host : (await lookup(host)).address;
+    return !isPrivateAddr(addr);
+  } catch {
+    return false; // unresolvable → skip
+  }
+}
+
+/** Distinct http(s) URLs in the PR description, trimmed of trailing punctuation. */
+export function extractLinks(body: string): string[] {
+  const seen = new Set<string>();
+  for (const raw of body.match(URL_IN_TEXT) ?? []) {
+    const url = raw.replace(/[.,;:]+$/, "");
+    if (!seen.has(url)) seen.add(url);
+  }
+  return [...seen].slice(0, MAX_LINKS);
+}
+
+/**
+ * Fetch the text behind each link in the PR description. Best-effort: any
+ * failure (network, non-OK status, timeout, binary body) is logged and
+ * skipped — a brief must still be producible from the diff alone.
+ *
+ * Future: richer extraction (HTML→text), auth'd sources, and private trackers
+ * will likely move behind MCP servers / connectors. For now we take whatever a
+ * plain GET returns, capped, and treat absence as normal.
+ */
+export async function fetchLinkedContext(
+  body: string,
+  log: Log = () => {},
+): Promise<LinkedContext[]> {
+  const urls = extractLinks(body);
+  const results = await Promise.all(
+    urls.map(async (url): Promise<LinkedContext | null> => {
+      try {
+        if (!(await isPublicUrl(url))) {
+          log(`linked context: ${url} blocked (non-public or unresolvable), skipping`);
+          return null;
+        }
+        // redirect: "manual" — do not let a public URL bounce us to an
+        // internal one; a 3xx is simply skipped below.
+        const res = await fetch(url, {
+          signal: AbortSignal.timeout(LINK_TIMEOUT_MS),
+          redirect: "manual",
+        });
+        if (!res.ok) {
+          log(`linked context: ${url} → HTTP ${res.status}, skipping`);
+          return null;
+        }
+        const text = (await res.text()).slice(0, MAX_LINK_CHARS);
+        log(`linked context: fetched ${url} (${text.length} chars)`);
+        return { url, content: text };
+      } catch (error) {
+        log(
+          `linked context: ${url} failed (${error instanceof Error ? error.message : String(error)}), skipping`,
+        );
+        return null;
+      }
+    }),
+  );
+  return results.filter((r): r is LinkedContext => r !== null);
 }
 
 /**
@@ -113,12 +230,19 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
   };
 }
 
-/** Parse a PR URL, then fetch its diff and metadata in parallel. */
-export async function fetchPr(url: string): Promise<FetchedPr> {
+/**
+ * Parse a PR URL, then fetch its diff and metadata in parallel. Once we have
+ * the description, chase any links in it for extra context (best-effort).
+ */
+export async function fetchPr(
+  url: string,
+  log: Log = () => {},
+): Promise<FetchedPr> {
   const locator = parsePrUrl(url);
   const [diff, meta] = await Promise.all([
     fetchPrDiff(locator),
     fetchPrMetadata(locator),
   ]);
-  return { locator, meta, diff };
+  const links = await fetchLinkedContext(meta.body, log);
+  return { locator, meta, diff, links };
 }

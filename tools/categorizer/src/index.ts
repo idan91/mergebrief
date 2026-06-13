@@ -3,7 +3,8 @@ import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { fetchPr, parsePrUrl } from "./github.js";
 import { categorize } from "./categorize.js";
-import { outName, printSummary } from "./output.js";
+import { splitDiffByFile } from "./diff.js";
+import { diffsName, outName, printSummary } from "./output.js";
 import type { Brief } from "./types.js";
 
 const OUT_DIR = "out";
@@ -50,16 +51,23 @@ async function main(): Promise<void> {
   const client = new Anthropic();
   const results = await Promise.all(
     urls.map(
-      async (url): Promise<{ url: string; brief: Brief } | { url: string; error: unknown }> => {
+      async (
+        url,
+      ): Promise<
+        | { url: string; brief: Brief; diff: string }
+        | { url: string; error: unknown }
+      > => {
         // Tag every line with the PR so parallel runs stay legible.
         const tag = prTag(url);
         const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
         try {
           log("fetching diff + metadata…");
-          const pr = await fetchPr(url);
-          log(`fetched ${pr.meta.files.length} files; categorizing…`);
+          const pr = await fetchPr(url, log);
+          log(
+            `fetched ${pr.meta.files.length} files, ${pr.links.length} linked refs; categorizing…`,
+          );
           const brief = await categorize(pr, client, log);
-          return { url, brief };
+          return { url, brief, diff: pr.diff };
         } catch (error) {
           return { url, error };
         }
@@ -78,9 +86,17 @@ async function main(): Promise<void> {
       );
       continue;
     }
-    const file = join(OUT_DIR, outName(result.brief));
-    await writeFile(file, `${JSON.stringify(result.brief, null, 2)}\n`);
-    console.error(`\n[${prTag(result.url)}] wrote ${file}`);
+    const tag = prTag(result.url);
+    const briefFile = join(OUT_DIR, outName(result.brief));
+    await writeFile(briefFile, `${JSON.stringify(result.brief, null, 2)}\n`);
+
+    // Per-file diffs sidecar, so a UI can show the actual code for each chunk.
+    const diffsFile = join(OUT_DIR, diffsName(result.brief));
+    const fileDiffs = splitDiffByFile(result.diff);
+    await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
+
+    console.error(`\n[${tag}] wrote ${briefFile}`);
+    console.error(`[${tag}] wrote ${diffsFile} (${fileDiffs.length} files)`);
     console.log("");
     printSummary(result.brief);
   }

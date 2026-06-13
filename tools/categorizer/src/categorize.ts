@@ -17,6 +17,17 @@ function renderUser(pr: FetchedPr): string {
   const fileList = pr.meta.files
     .map((f) => `- ${f.path} (+${f.additions} -${f.deletions})`)
     .join("\n");
+  // Fetched link bodies are untrusted third-party text. Fence each in a tag
+  // (and strip any nested fence so the content can't break out) so the model
+  // treats it as data, not instructions. See the system prompt's warning.
+  const linked = pr.links.length
+    ? pr.links
+        .map((l) => {
+          const safe = l.content.replace(/<\/?linked_context/gi, "");
+          return `<linked_context url="${l.url}">\n${safe}\n</linked_context>`;
+        })
+        .join("\n\n")
+    : "(none)";
   return `PR: ${pr.meta.url}
 Repo: ${pr.locator.owner}/${pr.locator.repo}
 Number: ${pr.locator.number}
@@ -24,6 +35,9 @@ Title: ${pr.meta.title}
 
 ## Description
 ${pr.meta.body.trim() || "(no description)"}
+
+## Linked context
+${linked}
 
 ## Files changed
 ${fileList || "(none reported)"}
@@ -47,7 +61,7 @@ export async function categorize(
     model: MODEL,
     max_tokens: MAX_TOKENS,
     thinking: { type: "adaptive" },
-    output_config: { format: zodOutputFormat(BriefSchema) },
+    output_config: { format: zodOutputFormat(BriefSchema), effort: 'medium' },
     system: [
       {
         type: "text",
@@ -105,14 +119,15 @@ export async function categorize(
     );
   }
 
-  // PR identifiers come from our own fetch, not the model — never trust the
-  // model for repo/number/url/sha.
+  // PR identifiers + description come from our own fetch, not the model —
+  // never trust the model for repo/number/url/sha or the verbatim description.
   brief.pr = {
     repo: `${pr.locator.owner}/${pr.locator.repo}`,
     number: pr.locator.number,
     title: pr.meta.title,
     url: pr.meta.url,
     sha: pr.meta.sha,
+    description: pr.meta.body,
   };
   return brief;
 }

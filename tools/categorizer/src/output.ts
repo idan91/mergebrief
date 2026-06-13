@@ -1,8 +1,18 @@
 import type { Brief } from "./types.js";
 
+/** `<owner>-<repo>-<number>` — shared stem for a PR's output files. */
+function stem(brief: Brief): string {
+  return `${brief.pr.repo.replace("/", "-")}-${brief.pr.number}`;
+}
+
 /** Output filename for a brief: `<owner>-<repo>-<number>.brief.json`. */
 export function outName(brief: Brief): string {
-  return `${brief.pr.repo.replace("/", "-")}-${brief.pr.number}.brief.json`;
+  return `${stem(brief)}.brief.json`;
+}
+
+/** Sidecar filename for per-file diffs: `<owner>-<repo>-<number>.diffs.json`. */
+export function diffsName(brief: Brief): string {
+  return `${stem(brief)}.diffs.json`;
 }
 
 /** Render a brief into the lines printed to stdout for human eyeballing. */

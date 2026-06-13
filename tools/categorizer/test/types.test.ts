@@ -8,10 +8,12 @@ const validBrief = {
     title: "t",
     url: "https://github.com/o/r/pull/1",
     sha: "deadbeef",
+    description: "d",
   },
   summary: "s",
   changeGroups: [
     {
+      title: "g title",
       summary: "g",
       dominantCategory: "bugfix",
       secondaryCategories: [],
