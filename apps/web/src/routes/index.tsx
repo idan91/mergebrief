@@ -329,7 +329,7 @@ function StoryView(props: {
           <span>{props.brief.chunks.length} chunks · carriers first</span>
           <span className="rule" />
           <label className="switch">
-            <input checked={props.collapseSupporting} type="checkbox" onChange={(event) => props.setCollapseSupporting(event.target.checked)} />
+            <input checked={props.collapseSupporting} suppressHydrationWarning type="checkbox" onChange={(event) => props.setCollapseSupporting(event.target.checked)} />
             <span className="track" />
             Collapse supporting
           </label>
@@ -644,7 +644,7 @@ function DismissModal({
       <div className="modal-box">
         <h3>Dismiss flag</h3>
         <div className="mattr">{target?.label}</div>
-        <textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why is this flag not actionable here? Your reason lands on the receipt, verbatim." />
+        <textarea suppressHydrationWarning value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why is this flag not actionable here? Your reason lands on the receipt, verbatim." />
         <div className={warned ? "modal-warn show" : "modal-warn"}>Thin reason on a flag — it will appear on the receipt exactly as written. Dismiss anyway?</div>
         <div className="modal-actions">
           <button className="btn" type="button" onClick={cancel}>Cancel</button>
