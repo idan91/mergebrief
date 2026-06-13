@@ -54,7 +54,7 @@ Structured-output notes (from the claude-api skill): use `client.messages.parse(
 
 ## Model & cost
 
-Opus 4.8 (`claude-opus-4-8`), adaptive thinking, one `cache_control` on the system prompt. ~$0.10/PR — negligible. Cost-optimize to Sonnet 4.6 / Haiku 4.5 only **after** seeing Opus's quality ceiling against the hand-labels.
+Opus 4.8 (`claude-opus-4-8`), adaptive thinking, one `cache_control` on the system prompt. **Measured ~$0.46 on a real medium PR** (Opus 4.8, effort `high`) — the original ~$0.10 estimate was low. Cost scales with **input** (the full diff, now plus fetched linked-context) far more than output, so big PRs cost more. Levers, cheapest-first: lower `output_config.effort` (now defaulting to `medium`), cap very large diffs/links, then cost-optimize to Sonnet 4.6 / Haiku 4.5 — but only **after** seeing Opus's quality ceiling against the hand-labels.
 
 ## Commit plan (chunked, with pre-commit review gate)
 
