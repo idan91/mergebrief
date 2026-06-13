@@ -55,11 +55,17 @@ export interface PrRef {
   title: string;
   url: string;
   sha: string;
+  description: string;
 }
 
 export interface ChunkLoc {
   added: number;
   deleted: number;
+}
+
+export interface LineRange {
+  start: number;
+  end: number;
 }
 
 export type DiffLineKind = "hunk" | "add" | "del" | "ctx" | "note";
@@ -77,11 +83,14 @@ export interface BriefChunk {
   concern: Concern;
   role: Role;
   loc: ChunkLoc;
+  addedRanges: LineRange[];
+  removedRanges: LineRange[];
   riskSurface: RiskSurfaceAttribute[];
   diff?: DiffLine[];
 }
 
 export interface ChangeGroup {
+  title: string;
   summary: string;
   dominantCategory: Category;
   secondaryCategories: Category[];

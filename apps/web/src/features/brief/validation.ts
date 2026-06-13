@@ -10,6 +10,7 @@ import {
   type ChunkLoc,
   type Concern,
   type ConcernRollup,
+  type LineRange,
   type PrRef,
   type RiskSurfaceAttribute,
   type Role,
@@ -76,8 +77,9 @@ function parsePrRef(value: unknown): Result<PrRef> {
   const title = value["title"];
   const url = value["url"];
   const sha = value["sha"];
-  if (!isString(repo) || !isInteger(number) || !isString(title) || !isString(url) || !isString(sha)) {
-    return { ok: false, error: "Expected pr repo, number, title, url, and sha" };
+  const description = value["description"];
+  if (!isString(repo) || !isInteger(number) || !isString(title) || !isString(url) || !isString(sha) || !isString(description)) {
+    return { ok: false, error: "Expected pr repo, number, title, url, sha, and description" };
   }
   return {
     ok: true,
@@ -87,6 +89,7 @@ function parsePrRef(value: unknown): Result<PrRef> {
       title,
       url,
       sha,
+      description,
     },
   };
 }
@@ -103,6 +106,18 @@ function parseLoc(value: unknown): Result<ChunkLoc> {
   return { ok: true, value: { added, deleted } };
 }
 
+function parseLineRange(value: unknown): Result<LineRange> {
+  if (!isRecord(value)) {
+    return { ok: false, error: "Expected line range start/end integers" };
+  }
+  const start = value["start"];
+  const end = value["end"];
+  if (!isInteger(start) || !isInteger(end)) {
+    return { ok: false, error: "Expected line range start/end integers" };
+  }
+  return { ok: true, value: { start, end } };
+}
+
 function parseChunk(value: unknown): Result<BriefChunk> {
   if (!isRecord(value)) return { ok: false, error: "Expected chunk to be an object" };
   const id = value["id"];
@@ -111,6 +126,10 @@ function parseChunk(value: unknown): Result<BriefChunk> {
   const role = value["role"];
   const loc = parseLoc(value["loc"]);
   if (!loc.ok) return loc;
+  const addedRanges = parseArray(value["addedRanges"], parseLineRange, "addedRanges");
+  if (!addedRanges.ok) return addedRanges;
+  const removedRanges = parseArray(value["removedRanges"], parseLineRange, "removedRanges");
+  if (!removedRanges.ok) return removedRanges;
   const risks = riskSurfaceArray(value["riskSurface"]);
   if (!risks.ok) return risks;
   if (!isString(id) || !isString(file) || !oneOf(Concerns, concern) || !oneOf(Roles, role)) {
@@ -124,6 +143,8 @@ function parseChunk(value: unknown): Result<BriefChunk> {
       concern: concern as Concern,
       role: role as Role,
       loc: loc.value,
+      addedRanges: addedRanges.value,
+      removedRanges: removedRanges.value,
       riskSurface: risks.value,
     },
   };
@@ -131,6 +152,7 @@ function parseChunk(value: unknown): Result<BriefChunk> {
 
 function parseChangeGroup(value: unknown): Result<ChangeGroup> {
   if (!isRecord(value)) return { ok: false, error: "Expected change group to be an object" };
+  const title = value["title"];
   const summary = value["summary"];
   const dominantCategory = value["dominantCategory"];
   const uncertain = value["uncertain"];
@@ -142,12 +164,13 @@ function parseChangeGroup(value: unknown): Result<ChangeGroup> {
   if (!carrierChunkIds.ok) return carrierChunkIds;
   const supportingChunkIds = stringArray(value["supportingChunkIds"]);
   if (!supportingChunkIds.ok) return supportingChunkIds;
-  if (!isString(summary) || !oneOf(Categories, dominantCategory) || typeof uncertain !== "boolean") {
-    return { ok: false, error: "Expected change group summary, dominant category, and uncertainty" };
+  if (!isString(title) || !isString(summary) || !oneOf(Categories, dominantCategory) || typeof uncertain !== "boolean") {
+    return { ok: false, error: "Expected change group title, summary, dominant category, and uncertainty" };
   }
   return {
     ok: true,
     value: {
+      title,
       summary,
       dominantCategory: dominantCategory as Category,
       secondaryCategories: secondaryCategories.value,

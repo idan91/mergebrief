@@ -1,11 +1,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 
-import { CATEGORY_PLAYBOOKS } from "../features/brief/playbooks";
 import { localBriefQueryOptions } from "../features/brief/queries";
 import type { Brief, BriefChunk, Category, Concern } from "../features/brief/types";
-import { buildBriefViewModel, categoryLabel, concernChecksFor, concernLabel, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
+import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
 
 type ViewMode = "story" | "concerns";
 type LayoutMode = "stacked" | "split";
@@ -44,14 +44,15 @@ function BriefApp() {
   const [activeChunkId, setActiveChunkId] = useState<string | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
+  const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [dismissTarget, setDismissTarget] = useState<DismissTarget | null>(null);
   const [dismissReason, setDismissReason] = useState("");
   const [dismissWarned, setDismissWarned] = useState(false);
   const [toast, setToast] = useState("");
 
   const totals = useMemo(() => summarizeProgress(model, checkedItems, reviewedChunks, flagStates, dominants), [checkedItems, dominants, flagStates, model, reviewedChunks]);
-  const totalWork = model.flags.length + brief.chunks.length + totals.playbookTotal;
-  const progress = totalWork === 0 ? 0 : ((totals.playbookChecked + totals.reviewed + totals.flagsResolved) / totalWork) * 100;
+  const totalWork = model.flags.length + brief.chunks.length;
+  const progress = totalWork === 0 ? 0 : ((totals.reviewed + totals.flagsResolved) / totalWork) * 100;
 
   useEffect(() => {
     if (!toast) return;
@@ -107,7 +108,7 @@ function BriefApp() {
     setDominants((current) => ({ ...current, [groupId]: category }));
     setReclassifiedGroups((current) => new Set(current).add(groupId));
     setCheckedItems((current) => ({ ...current, [`carrier:${groupId}`]: new Set() }));
-    setToast(`Dominant category set to ${category} — the playbook is now active.`);
+    setToast(`Dominant category set to ${category} — recorded on the receipt.`);
   }
 
   function setFlagStatus(flag: RiskFlag, status: FlagStatus, reason = "") {
@@ -136,8 +137,17 @@ function BriefApp() {
       <Header brief={brief} model={model} totals={totals} progress={progress} locOpen={locOpen} setLocOpen={setLocOpen} openReceipt={() => setReceiptOpen(true)} />
       <main className={layoutMode === "split" && viewMode === "story" ? "main split-main" : "main"}>
         <section className="pr-summary reveal">
-          <div className="eyebrow">What this PR does</div>
-          <p>{brief.summary}</p>
+          <div className="eyebrow">Brief</div>
+          <Markdown content={brief.summary} />
+          <button className="description-toggle" type="button" onClick={() => setDescriptionOpen(!descriptionOpen)}>
+            {descriptionOpen ? "Hide original PR description" : "Show original PR description"}
+          </button>
+          {descriptionOpen ? (
+            <div className="pr-description">
+              <div className="eyebrow">Original PR description</div>
+              <Markdown content={brief.pr.description || "_No PR description provided._"} />
+            </div>
+          ) : null}
         </section>
 
         <Toolbar viewMode={viewMode} setViewMode={setViewMode} layoutMode={layoutMode} setLayoutMode={setLayoutMode} />
@@ -245,9 +255,6 @@ function Header({
             Move detection is not in the current categorizer output, so moved/generated exclusions are not claimed yet.
           </span>
         </button>
-        <div className="stat">
-          playbook<b>{totals.playbookChecked}/{totals.playbookTotal}</b>
-        </div>
         <div className="stat">
           chunks<b>{totals.reviewed}/{totals.chunkTotal}</b>
         </div>
@@ -379,7 +386,6 @@ function GroupCard({
   toggleCheck: (bucket: CheckBucket, index: number) => void;
 }) {
   const dominant = dominants[group.id] ?? group.group.dominantCategory;
-  const carrierItems = CATEGORY_PLAYBOOKS[dominant];
   const groupFlags = model.flags.filter((flag) => flag.groupId === group.id);
   const isReclassified = reclassifiedGroups.has(group.id);
 
@@ -392,19 +398,20 @@ function GroupCard({
             <span className="green">+{group.added}</span> / <span className="red">−{group.deleted}</span> · {group.carrierChunks.length} carrier · {group.supportingChunks.length} supporting
           </span>
         </div>
-        <div className="group-summary">{group.group.summary}</div>
+        <h2 className="group-title">{group.group.title}</h2>
+        <p className="group-summary">{group.group.summary}</p>
         <div className="cat-row">
           <span className="chip dominant"><em>dominant</em> {dominant}</span>
           {group.group.secondaryCategories.map((category) => (
             <span className="chip" key={category}>secondary {category}</span>
           ))}
           {group.group.uncertain && !isReclassified ? <span className="chip uncertain">uncertain</span> : null}
-          {isReclassified ? <span className="reclass-note">set by you · playbook swapped · recorded on receipt</span> : null}
+          {isReclassified ? <span className="reclass-note">set by you · recorded on receipt</span> : null}
         </div>
         {group.group.uncertain && !isReclassified ? (
           <div className="uncertain-panel">
             <span className="q">
-              The categorizer is split on this group’s intent: <b>{group.group.uncertainBetween.join(" vs ")}</b>. Your call; the playbook follows your choice.
+              The categorizer is split on this group’s intent: <b>{group.group.uncertainBetween.join(" vs ")}</b>. Your call; the receipt records the override.
             </span>
             <span className="pick">
               {group.group.uncertainBetween.map((category) => (
@@ -417,32 +424,19 @@ function GroupCard({
         ) : null}
       </div>
       <div className="group-body">
-        <div className="playbook">
-          <PlaybookList bucket={`carrier:${group.id}`} checked={checkedItems[`carrier:${group.id}`] ?? new Set()} label={`Playbook — ${categoryLabel(dominant)}`} items={carrierItems} toggleCheck={toggleCheck} />
-          {group.supportConcerns.map((concern) => {
-            const bucket: CheckBucket = `support:${group.id}:${concern}`;
-            return (
-              <PlaybookList
-                bucket={bucket}
-                checked={checkedItems[bucket] ?? new Set()}
-                items={concernChecksFor(concern)}
-                key={bucket}
-                label={`Supporting checks — ${concernLabel(concern)}`}
-                toggleCheck={toggleCheck}
-              />
-            );
-          })}
-        </div>
         <div className="flags">
           <div className="label">Risk surface — {groupFlags.length} flags <span className="count">attributes, not verdicts</span></div>
           {groupFlags.length === 0 ? <p className="empty">No risk-surface attributes on this group.</p> : null}
-          {groupFlags.map((flag) => {
-            const state = flagStates[flag.id] ?? { status: "open", reason: "" };
+          {groupRiskByAttribute(groupFlags).map((riskGroup) => (
+            <div className="risk-group" key={riskGroup.attr}>
+              <div className="risk-group-title">{riskGroup.attr}</div>
+              <div className="risk-files">
+                {riskGroup.flags.map((flag) => {
+                  const state = flagStates[flag.id] ?? { status: "open", reason: "" };
             return (
               <div className={`flag ${state.status !== "open" ? state.status : ""}`} key={flag.id}>
                 <div className="frow">
-                  <span className="fattr">{flag.attr}</span>
-                  <button className="floc" type="button" onClick={() => jumpToChunk(flag.chunkId)}>{shortFile(flag.file)}</button>
+                  <button className="floc full-path" type="button" onClick={() => jumpToChunk(flag.chunkId)}>{flag.file}</button>
                 </div>
                 <div className="fdesc">{flag.description}</div>
                 {state.status === "open" ? (
@@ -458,38 +452,13 @@ function GroupCard({
                 )}
               </div>
             );
-          })}
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </article>
-  );
-}
-
-function PlaybookList({
-  bucket,
-  checked,
-  label,
-  items,
-  toggleCheck,
-}: {
-  bucket: CheckBucket;
-  checked: Set<number>;
-  label: string;
-  items: string[];
-  toggleCheck: (bucket: CheckBucket, index: number) => void;
-}) {
-  return (
-    <div className="pb-sub open">
-      <div className="label">{label} <span className="count">{checked.size}/{items.length}</span></div>
-      <div className="items">
-        {items.map((item, index) => (
-          <button className={checked.has(index) ? "pb-item checked" : "pb-item"} key={item} type="button" onClick={() => toggleCheck(bucket, index)}>
-            <span className="pb-box" />
-            <span className="pb-text">{item}</span>
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -633,7 +602,6 @@ function ReceiptDrawer(props: {
           <pre className="receipt-body">{`Reviewed by @you (human) · ${props.brief.pr.repo} #${props.brief.pr.number} @ ${props.brief.pr.sha.slice(0, 7)}
 Tool verification receipt — mechanical claims only
 
-  ${totals.playbookChecked >= totals.playbookTotal ? "✓" : "•"} playbook/supporting items visited: ${totals.playbookChecked}/${totals.playbookTotal}
   ${totals.reviewed >= totals.chunkTotal ? "✓" : "•"} chunks read: ${totals.reviewed}/${totals.chunkTotal}
   ${addressed.length + dismissed.length >= props.model.flags.length ? "✓" : "•"} risk surface: ${addressed.length} addressed · ${dismissed.length} dismissed · ${open.length} open
 ${dismissed.map((flag) => `      dismissed: ${flag.attr} @ ${shortFile(flag.file)} — "${props.flagStates[flag.id]?.reason ?? ""}"`).join("\n")}
@@ -687,6 +655,77 @@ function Footer() {
   return <footer>Live TanStack Start rewrite · local brief fetched from tools/categorizer/out. No AI-authored review prose ships from this surface.</footer>;
 }
 
+function Markdown({ content }: { content: string }) {
+  return <div className="markdown">{parseMarkdown(content).map((block) => block)}</div>;
+}
+
+function parseMarkdown(content: string): ReactNode[] {
+  const blocks: ReactNode[] = [];
+  const lines = content.split("\n");
+  let paragraph: string[] = [];
+  let list: string[] = [];
+
+  const flushParagraph = () => {
+    if (paragraph.length === 0) return;
+    blocks.push(<p key={`p-${blocks.length}`}>{renderInline(paragraph.join(" "))}</p>);
+    paragraph = [];
+  };
+  const flushList = () => {
+    if (list.length === 0) return;
+    blocks.push(
+      <ul key={`ul-${blocks.length}`}>
+        {list.map((item) => <li key={item}>{renderInline(item)}</li>)}
+      </ul>,
+    );
+    list = [];
+  };
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushParagraph();
+      flushList();
+      continue;
+    }
+    if (trimmed.startsWith("### ")) {
+      flushParagraph();
+      flushList();
+      blocks.push(<h4 key={`h4-${blocks.length}`}>{renderInline(trimmed.slice(4))}</h4>);
+      continue;
+    }
+    if (trimmed.startsWith("## ")) {
+      flushParagraph();
+      flushList();
+      blocks.push(<h3 key={`h3-${blocks.length}`}>{renderInline(trimmed.slice(3))}</h3>);
+      continue;
+    }
+    if (trimmed.startsWith("- ")) {
+      flushParagraph();
+      list.push(trimmed.slice(2));
+      continue;
+    }
+    paragraph.push(trimmed);
+  }
+  flushParagraph();
+  flushList();
+  return blocks;
+}
+
+function renderInline(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(`[^`]+`|\*\*[^*]+\*\*)/g;
+  let cursor = 0;
+  for (const match of text.matchAll(pattern)) {
+    if (match.index > cursor) nodes.push(text.slice(cursor, match.index));
+    const token = match[0];
+    if (token.startsWith("`")) nodes.push(<code key={`${token}-${match.index}`}>{token.slice(1, -1)}</code>);
+    else nodes.push(<strong key={`${token}-${match.index}`}>{token.slice(2, -2)}</strong>);
+    cursor = match.index + token.length;
+  }
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
+}
+
 function BriefError({ error }: { error: Error }) {
   return (
     <main className="main">
@@ -708,14 +747,13 @@ interface ProgressTotals {
 }
 
 function summarizeProgress(model: BriefViewModel, checkedItems: Record<CheckBucket, Set<number>>, reviewedChunks: Set<string>, flagStates: Record<string, FlagState>, dominants: Record<string, Category>): ProgressTotals {
-  const supportTotal = model.groups.reduce((total, group) => total + group.supportConcerns.reduce((inner, concern) => inner + concernChecksFor(concern).length, 0), 0);
-  const carrierTotal = model.groups.reduce((total, group) => total + CATEGORY_PLAYBOOKS[dominants[group.id] ?? group.group.dominantCategory].length, 0);
-  const playbookChecked = Object.values(checkedItems).reduce((total, checked) => total + checked.size, 0);
+  void checkedItems;
+  void dominants;
   const flagsResolved = Object.values(flagStates).filter((flag) => flag.status !== "open").length;
 
   return {
-    playbookChecked,
-    playbookTotal: carrierTotal + supportTotal,
+    playbookChecked: 0,
+    playbookTotal: 0,
     reviewed: reviewedChunks.size,
     chunkTotal: model.groups.reduce((total, group) => total + group.chunks.length, 0),
     flagsResolved,

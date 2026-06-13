@@ -31,6 +31,11 @@ export interface BriefViewModel {
   chunkToGroup: Map<string, string>;
 }
 
+export interface RiskAttributeGroup {
+  attr: RiskSurfaceAttribute;
+  flags: RiskFlag[];
+}
+
 const RISK_DESCRIPTIONS: Record<RiskSurfaceAttribute, string> = {
   "no-tests": "Changed code path has no direct test coverage in the brief; verify behavior manually or ask for coverage.",
   "no-types": "Changed code lacks useful type coverage; verify runtime safety and narrowing at the boundary.",
@@ -125,6 +130,14 @@ export function concernLabel(concern: Concern): string {
 
 export function categoryLabel(category: Category): string {
   return category.replace("-", " ");
+}
+
+export function groupRiskByAttribute(flags: RiskFlag[]): RiskAttributeGroup[] {
+  const groups = new Map<RiskSurfaceAttribute, RiskFlag[]>();
+  for (const flag of flags) {
+    groups.set(flag.attr, [...(groups.get(flag.attr) ?? []), flag]);
+  }
+  return [...groups.entries()].map(([attr, groupedFlags]) => ({ attr, flags: groupedFlags }));
 }
 
 function sumLoc(chunks: BriefChunk[], key: keyof BriefChunk["loc"]): number {

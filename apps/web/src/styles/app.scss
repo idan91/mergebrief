@@ -263,11 +263,76 @@ header {
     font-weight: 500;
   }
 
-  p {
-    color: var(--dim);
-    font-size: 15.5px;
-    line-height: 1.65;
+}
+
+.markdown {
+  color: var(--dim);
+  font-size: 15.5px;
+  line-height: 1.65;
+
+  h3,
+  h4 {
+    margin: 18px 0 8px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
   }
+
+  h3:first-child,
+  h4:first-child {
+    margin-top: 0;
+  }
+
+  p,
+  ul {
+    margin-bottom: 12px;
+  }
+
+  ul {
+    padding-left: 20px;
+  }
+
+  li + li {
+    margin-top: 3px;
+  }
+
+  code {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: #1a1a1f;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.88em;
+  }
+
+  strong {
+    color: #d7d7dc;
+    font-weight: 600;
+  }
+}
+
+.description-toggle {
+  margin-top: 4px;
+  border: 0;
+  background: transparent;
+  color: var(--dim);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.pr-description {
+  margin-top: 18px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel2);
 }
 
 .toolbar {
@@ -383,13 +448,21 @@ header {
   }
 }
 
-.group-summary {
+.group-title {
   max-width: 38em;
+  margin: 0 0 8px;
   color: var(--text);
   font-size: 19px;
   font-weight: 600;
   letter-spacing: 0;
   line-height: 1.45;
+}
+
+.group-summary {
+  max-width: 46em;
+  color: var(--dim);
+  font-size: 13.5px;
+  line-height: 1.6;
 }
 
 .cat-row {
@@ -481,8 +554,7 @@ header {
 }
 
 .group-body {
-  display: grid;
-  grid-template-columns: 1fr 300px;
+  display: block;
 }
 
 .playbook {
@@ -566,14 +638,32 @@ header {
   line-height: 1.6;
 }
 
-.flag {
-  padding: 14px 0;
+.risk-group {
+  padding: 12px 0;
   border-bottom: 1px solid var(--line);
 
   &:last-child {
     border-bottom: 0;
     padding-bottom: 0;
   }
+}
+
+.risk-group-title {
+  margin-bottom: 8px;
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.risk-files {
+  display: grid;
+  gap: 10px;
+}
+
+.flag {
+  padding: 0 0 2px 14px;
+  border-left: 1px solid var(--line2);
 
   &.addressed .fattr {
     color: var(--green);
@@ -600,7 +690,7 @@ header {
 }
 
 .floc {
-  margin-left: auto;
+  margin-left: 0;
   border: 0;
   background: transparent;
   color: var(--faint);
@@ -614,6 +704,12 @@ header {
     text-decoration: underline;
     text-underline-offset: 3px;
   }
+}
+
+.full-path {
+  overflow-wrap: anywhere;
+  text-align: left;
+  white-space: normal;
 }
 
 .fdesc,
