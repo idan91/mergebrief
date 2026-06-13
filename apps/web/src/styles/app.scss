@@ -656,6 +656,41 @@ header {
   font-weight: 500;
 }
 
+.risk-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.risk-check {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+
+  .risk-group-title {
+    margin-bottom: 0;
+  }
+}
+
+.risk-bulk-actions {
+  display: flex;
+  flex: none;
+  gap: 8px;
+}
+
+.risk-check input,
+.flag-check {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--amber);
+  cursor: pointer;
+}
+
 .risk-files {
   display: grid;
   gap: 10px;
@@ -677,7 +712,7 @@ header {
 
 .frow {
   display: flex;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 8px;
   margin-bottom: 5px;
 }
@@ -739,6 +774,19 @@ header {
     border-color: #3d3d46;
     background: #16161a;
     color: var(--text);
+  }
+
+  &:disabled {
+    border-color: var(--line);
+    background: transparent;
+    color: #4c4c54;
+    cursor: not-allowed;
+  }
+
+  &:disabled:hover {
+    border-color: var(--line);
+    background: transparent;
+    color: #4c4c54;
   }
 }
 

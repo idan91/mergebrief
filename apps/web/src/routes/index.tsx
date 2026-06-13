@@ -18,7 +18,7 @@ interface FlagState {
 }
 
 interface DismissTarget {
-  flagId: string;
+  flagIds: string[];
   label: string;
 }
 
@@ -41,6 +41,7 @@ function BriefApp() {
   const [dominants, setDominants] = useState<Record<string, Category>>(initialDominants);
   const [reclassifiedGroups, setReclassifiedGroups] = useState<Set<string>>(() => new Set());
   const [flagStates, setFlagStates] = useState<Record<string, FlagState>>(() => Object.fromEntries(model.flags.map((flag) => [flag.id, { status: "open", reason: "" }])));
+  const [selectedRiskFlags, setSelectedRiskFlags] = useState<Set<string>>(() => new Set());
   const [activeChunkId, setActiveChunkId] = useState<string | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
@@ -112,7 +113,41 @@ function BriefApp() {
   }
 
   function setFlagStatus(flag: RiskFlag, status: FlagStatus, reason = "") {
-    setFlagStates((current) => ({ ...current, [flag.id]: { status, reason } }));
+    setFlagStatuses([flag.id], status, reason);
+  }
+
+  function setFlagStatuses(flagIds: string[], status: FlagStatus, reason = "") {
+    if (flagIds.length === 0) return;
+    setFlagStates((current) => {
+      const next = { ...current };
+      for (const flagId of flagIds) {
+        next[flagId] = { status, reason };
+      }
+      return next;
+    });
+    setSelectedRiskFlags((current) => {
+      const next = new Set(current);
+      for (const flagId of flagIds) {
+        next.delete(flagId);
+      }
+      return next;
+    });
+  }
+
+  function toggleRiskFlag(flagId: string) {
+    setSelectedRiskFlags((current) => toggleSet(current, flagId));
+  }
+
+  function toggleRiskGroup(flagIds: string[]) {
+    setSelectedRiskFlags((current) => {
+      const allSelected = flagIds.length > 0 && flagIds.every((flagId) => current.has(flagId));
+      const next = new Set(current);
+      for (const flagId of flagIds) {
+        if (allSelected) next.delete(flagId);
+        else next.add(flagId);
+      }
+      return next;
+    });
   }
 
   function confirmDismiss() {
@@ -122,14 +157,12 @@ function BriefApp() {
       setDismissWarned(true);
       return;
     }
-    setFlagStates((current) => ({
-      ...current,
-      [dismissTarget.flagId]: { status: "dismissed", reason: reason || "(no reason given)" },
-    }));
+    setFlagStatuses(dismissTarget.flagIds, "dismissed", reason || "(no reason given)");
+    const dismissedCount = dismissTarget.flagIds.length;
     setDismissTarget(null);
     setDismissReason("");
     setDismissWarned(false);
-    setToast("Dismissed. Reason recorded verbatim on the receipt.");
+    setToast(dismissedCount === 1 ? "Dismissed. Reason recorded verbatim on the receipt." : `${dismissedCount} flags dismissed. Reason recorded verbatim on the receipt.`);
   }
 
   return (
@@ -164,19 +197,23 @@ function BriefApp() {
             openChunks={openChunks}
             reclassifiedGroups={reclassifiedGroups}
             reviewedChunks={reviewedChunks}
+            selectedRiskFlags={selectedRiskFlags}
             chooseDominant={chooseDominant}
             jumpToChunk={jumpToChunk}
             markReviewed={markReviewed}
             setCollapseSupporting={setCollapseSupporting}
-            setDismissTarget={(flag) => {
-              setDismissTarget({ flagId: flag.id, label: `${flag.attr} @ ${shortFile(flag.file)}` });
+            setDismissTarget={(target) => {
+              setDismissTarget(target);
               setDismissReason("");
               setDismissWarned(false);
             }}
             setFlagStatus={setFlagStatus}
+            setFlagStatuses={setFlagStatuses}
             setToast={setToast}
             toggleCheck={toggleCheck}
             toggleChunk={toggleChunk}
+            toggleRiskFlag={toggleRiskFlag}
+            toggleRiskGroup={toggleRiskGroup}
           />
         ) : (
           <ConcernView brief={brief} model={model} jumpToChunk={jumpToChunk} />
@@ -314,15 +351,19 @@ function StoryView(props: {
   openChunks: Set<string>;
   reclassifiedGroups: Set<string>;
   reviewedChunks: Set<string>;
+  selectedRiskFlags: Set<string>;
   chooseDominant: (groupId: string, category: Category) => void;
   jumpToChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
   setCollapseSupporting: (value: boolean) => void;
-  setDismissTarget: (flag: RiskFlag) => void;
+  setDismissTarget: (target: DismissTarget) => void;
   setFlagStatus: (flag: RiskFlag, status: FlagStatus, reason?: string) => void;
+  setFlagStatuses: (flagIds: string[], status: FlagStatus, reason?: string) => void;
   setToast: (message: string) => void;
   toggleCheck: (bucket: CheckBucket, index: number) => void;
   toggleChunk: (chunkId: string) => void;
+  toggleRiskFlag: (flagId: string) => void;
+  toggleRiskGroup: (flagIds: string[]) => void;
 }) {
   return (
     <div className="story-view">
@@ -365,12 +406,16 @@ function GroupCard({
   flagStates,
   model,
   reclassifiedGroups,
+  selectedRiskFlags,
   chooseDominant,
   jumpToChunk,
   setDismissTarget,
   setFlagStatus,
+  setFlagStatuses,
   setToast,
   toggleCheck,
+  toggleRiskFlag,
+  toggleRiskGroup,
 }: {
   group: GroupView;
   checkedItems: Record<CheckBucket, Set<number>>;
@@ -378,12 +423,16 @@ function GroupCard({
   flagStates: Record<string, FlagState>;
   model: BriefViewModel;
   reclassifiedGroups: Set<string>;
+  selectedRiskFlags: Set<string>;
   chooseDominant: (groupId: string, category: Category) => void;
   jumpToChunk: (chunkId: string) => void;
-  setDismissTarget: (flag: RiskFlag) => void;
+  setDismissTarget: (target: DismissTarget) => void;
   setFlagStatus: (flag: RiskFlag, status: FlagStatus, reason?: string) => void;
+  setFlagStatuses: (flagIds: string[], status: FlagStatus, reason?: string) => void;
   setToast: (message: string) => void;
   toggleCheck: (bucket: CheckBucket, index: number) => void;
+  toggleRiskFlag: (flagId: string) => void;
+  toggleRiskGroup: (flagIds: string[]) => void;
 }) {
   const dominant = dominants[group.id] ?? group.group.dominantCategory;
   const groupFlags = model.flags.filter((flag) => flag.groupId === group.id);
@@ -427,35 +476,80 @@ function GroupCard({
         <div className="flags">
           <div className="label">Risk surface — {groupFlags.length} flags <span className="count">attributes, not verdicts</span></div>
           {groupFlags.length === 0 ? <p className="empty">No risk-surface attributes on this group.</p> : null}
-          {groupRiskByAttribute(groupFlags).map((riskGroup) => (
-            <div className="risk-group" key={riskGroup.attr}>
-              <div className="risk-group-title">{riskGroup.attr}</div>
-              <div className="risk-files">
-                {riskGroup.flags.map((flag) => {
-                  const state = flagStates[flag.id] ?? { status: "open", reason: "" };
+          {groupRiskByAttribute(groupFlags).map((riskGroup) => {
+            const riskFlagIds = riskGroup.flags.map((flag) => flag.id);
+            const selectedCount = riskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)).length;
+            const allSelected = riskFlagIds.length > 0 && selectedCount === riskFlagIds.length;
+            const hasSelection = selectedCount > 0;
             return (
-              <div className={`flag ${state.status !== "open" ? state.status : ""}`} key={flag.id}>
-                <div className="frow">
-                  <button className="floc full-path" type="button" onClick={() => jumpToChunk(flag.chunkId)}>{flag.file}</button>
-                </div>
-                <div className="fdesc">{flag.description}</div>
-                {state.status === "open" ? (
-                  <div className="factions">
-                    <button className="fbtn" type="button" onClick={() => {
-                      setFlagStatus(flag, "addressed");
-                      setToast("Flag marked addressed — pair it with a comment before submit.");
-                    }}>Addressed</button>
-                    <button className="fbtn" type="button" onClick={() => setDismissTarget(flag)}>Dismiss…</button>
+              <div className="risk-group" key={riskGroup.attr}>
+                <div className="risk-group-head">
+                  <label className="risk-check">
+                    <input checked={allSelected} suppressHydrationWarning type="checkbox" onChange={() => toggleRiskGroup(riskFlagIds)} />
+                    <span className="risk-group-title">{riskGroup.attr}</span>
+                  </label>
+                  <div className="risk-bulk-actions">
+                    <button
+                      className="fbtn"
+                      disabled={!hasSelection}
+                      type="button"
+                      onClick={() => {
+                        setFlagStatuses(riskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)), "addressed");
+                        setToast(`${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} marked addressed — pair with review comments before submit.`);
+                      }}
+                    >
+                      Address selected
+                    </button>
+                    <button
+                      className="fbtn"
+                      disabled={!hasSelection}
+                      type="button"
+                      onClick={() => {
+                        setDismissTarget({
+                          flagIds: riskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)),
+                          label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
+                        });
+                      }}
+                    >
+                      Dismiss selected…
+                    </button>
                   </div>
-                ) : (
-                  <div className="fstate">{state.status === "addressed" ? "✓ addressed — your comment will be linked on the receipt" : <>dismissed<i>"{state.reason}"</i></>}</div>
-                )}
+                </div>
+                <div className="risk-files">
+                  {riskGroup.flags.map((flag) => {
+                  const state = flagStates[flag.id] ?? { status: "open", reason: "" };
+                  return (
+                    <div className={`flag ${state.status !== "open" ? state.status : ""}`} key={flag.id}>
+                      <div className="frow">
+                        <input
+                          aria-label={`Select ${flag.attr} flag for ${flag.file}`}
+                          checked={selectedRiskFlags.has(flag.id)}
+                          className="flag-check"
+                          suppressHydrationWarning
+                          type="checkbox"
+                          onChange={() => toggleRiskFlag(flag.id)}
+                        />
+                        <button className="floc full-path" type="button" onClick={() => jumpToChunk(flag.chunkId)}>{flag.file}</button>
+                      </div>
+                      <div className="fdesc">{flag.description}</div>
+                      {state.status === "open" ? (
+                        <div className="factions">
+                          <button className="fbtn" type="button" onClick={() => {
+                            setFlagStatus(flag, "addressed");
+                            setToast("Flag marked addressed — pair it with a comment before submit.");
+                          }}>Addressed</button>
+                          <button className="fbtn" type="button" onClick={() => setDismissTarget({ flagIds: [flag.id], label: `${flag.attr} @ ${flag.file}` })}>Dismiss…</button>
+                        </div>
+                      ) : (
+                        <div className="fstate">{state.status === "addressed" ? "✓ addressed — your comment will be linked on the receipt" : <>dismissed<i>"{state.reason}"</i></>}</div>
+                      )}
+                    </div>
+                  );
+                  })}
+                </div>
               </div>
             );
-                })}
-              </div>
-            </div>
-          ))}
+          })}
         </div>
       </div>
     </article>
