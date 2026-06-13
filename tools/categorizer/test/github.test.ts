@@ -47,8 +47,8 @@ describe("parsePrUrl", () => {
   });
 });
 
-describe("isPublicUrl (SSRF guard)", () => {
-  // These all short-circuit before any DNS lookup, so the test stays offline.
+describe("isPublicUrl (SSRF pre-filter)", () => {
+  // Synchronous gate — no DNS. The authoritative check is at connect time.
   it.each([
     "http://localhost:6006/", // loopback by name
     "http://127.0.0.1/admin", // loopback IP
@@ -60,8 +60,13 @@ describe("isPublicUrl (SSRF guard)", () => {
     "http://service.local/", // mDNS
     "ftp://example.com/", // non-http scheme
     "file:///etc/passwd", // non-http scheme
+    "http://user:pass@example.com/", // embedded credentials
     "not a url", // malformed
-  ])("blocks %s", async (url) => {
-    expect(await isPublicUrl(url)).toBe(false);
+  ])("blocks %s", (url) => {
+    expect(isPublicUrl(url)).toBe(false);
+  });
+
+  it("allows a plain public URL", () => {
+    expect(isPublicUrl("https://example.com/docs/a.md")).toBe(true);
   });
 });
