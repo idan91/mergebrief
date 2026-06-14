@@ -565,7 +565,16 @@ function GroupCard({
       </div>
       <div className="group-body">
         <div className="flags">
-          <div className="label">Risk surface — {groupFlags.length} flags <span className="count">attributes, not verdicts</span></div>
+          <div className="label risk-label">
+            <span>Risk surface — {groupFlags.length} flags <span className="count">attributes, not verdicts</span></span>
+            <span className="risk-info">
+              <button aria-describedby={`${group.id}-risk-help`} aria-label="Risk surface status meanings" className="info-button" type="button">i</button>
+              <span className="risk-info-popover" id={`${group.id}-risk-help`} role="tooltip">
+                <span><b>Addressed:</b> this risk was reviewed and handled.</span>
+                <span><b>Dismissed:</b> this risk is not applicable, duplicate, or a false positive.</span>
+              </span>
+            </span>
+          </div>
           {groupFlags.length === 0 ? <p className="empty">No risk-surface attributes on this group.</p> : null}
           {groupRiskByAttribute(groupFlags).map((riskGroup) => {
             const openRiskFlagIds = riskGroup.flags.filter((flag) => (flagStates[flag.id]?.status ?? "open") === "open").map((flag) => flag.id);
@@ -583,6 +592,7 @@ function GroupCard({
                     <button
                       className="fbtn"
                       disabled={!hasSelection}
+                      title="Mark selected risks as reviewed and handled"
                       type="button"
                       onClick={() => {
                         setFlagStatuses(openRiskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)), "addressed");
@@ -594,6 +604,7 @@ function GroupCard({
                     <button
                       className="fbtn"
                       disabled={!hasSelection}
+                      title="Mark selected risks as not applicable"
                       type="button"
                       onClick={() => {
                         setDismissTarget({
@@ -629,11 +640,11 @@ function GroupCard({
                           <>
                             <div className="fdesc">{flag.description}</div>
                             <div className="factions">
-                              <button className="fbtn" type="button" onClick={() => {
+                              <button className="fbtn" title="Mark this risk as reviewed and handled" type="button" onClick={() => {
                                 setFlagStatus(flag, "addressed");
                                 setToast("Flag marked addressed — pair it with a comment before submit.");
                               }}>Addressed</button>
-                              <button className="fbtn" type="button" onClick={() => setDismissTarget({ flagIds: [flag.id], label: `${flag.attr} @ ${flag.file}` })}>Dismiss…</button>
+                              <button className="fbtn" title="Mark this risk as not applicable" type="button" onClick={() => setDismissTarget({ flagIds: [flag.id], label: `${flag.attr} @ ${flag.file}` })}>Dismiss…</button>
                             </div>
                           </>
                         ) : null}

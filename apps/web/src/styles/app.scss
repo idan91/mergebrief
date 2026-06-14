@@ -642,6 +642,74 @@ header {
   font-weight: 500;
 }
 
+.risk-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.risk-info {
+  position: relative;
+  flex: none;
+}
+
+.info-button {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--faint);
+  cursor: help;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1;
+
+  &:hover,
+  &:focus-visible {
+    border-color: rgba(232, 184, 108, 0.45);
+    color: var(--amber);
+    outline: 0;
+  }
+}
+
+.risk-info-popover {
+  position: absolute;
+  z-index: 20;
+  top: 26px;
+  right: 0;
+  display: grid;
+  width: min(280px, calc(100vw - 48px));
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  background: #151519;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+  color: var(--dim);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+
+  b {
+    color: var(--text);
+    font-weight: 600;
+  }
+}
+
+.risk-info:hover .risk-info-popover,
+.risk-info:focus-within .risk-info-popover {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .count {
   color: var(--dim);
   font-family: var(--mono);
