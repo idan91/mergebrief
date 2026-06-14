@@ -1,0 +1,12 @@
+{
+  "name": "code-review",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm -C apps/web dev",
+    "build": "pnpm -C apps/web build",
+    "typecheck": "pnpm -C apps/web typecheck",
+    "test": "pnpm -C tools/categorizer test"
+  },
+  "packageManager": "pnpm@10.0.0"
+}

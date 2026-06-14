@@ -18,6 +18,9 @@ Thumbs.db
 *.log
 logs/
 
+# Dependencies
+node_modules/
+
 # Env & secrets
 .env
 .env.*
@@ -30,6 +33,7 @@ logs/
 dist/
 build/
 out/
+*.tsbuildinfo
 
 # Misc
 *.tmp
