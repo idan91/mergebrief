@@ -1193,6 +1193,11 @@ function MarkdownPreview({ anchor, body }: { anchor: CommentAnchor; body: string
         <div className="suggestion-card" key={suggestion.index}>
           <div className="suggestion-title">Suggested change</div>
           <table className="diff suggestion-diff" aria-label="Suggested change diff">
+            <colgroup>
+              <col className="suggestion-line-col" />
+              <col className="suggestion-line-col" />
+              <col />
+            </colgroup>
             <tbody>
               {buildSuggestionDiffRows(anchor, suggestion.body).map((row, index) => (
                 <tr className={row.kind} key={`${row.kind}-${index}`}>
