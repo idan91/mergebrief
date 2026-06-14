@@ -1481,7 +1481,7 @@ table.diff {
 }
 
 table.suggestion-diff {
-  table-layout: fixed;
+  table-layout: auto;
   border-bottom: 1px solid var(--line);
   background: #0b0b0e;
   font-size: 12px;
@@ -1491,12 +1491,13 @@ table.suggestion-diff {
   }
 
   .ln {
-    width: 34px;
-    min-width: 34px;
+    width: 32px;
+    min-width: 32px;
     padding-right: 8px;
   }
 
   .code {
+    width: 100%;
     padding-left: 0;
     padding-right: 12px;
   }
