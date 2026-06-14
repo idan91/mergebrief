@@ -1,16 +1,28 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import { localBriefQueryOptions } from "../features/brief/queries";
 import type { Brief, BriefChunk, Category, Concern } from "../features/brief/types";
 import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
+import {
+  applyMarkdownWrap,
+  createCommentAnchor,
+  parseSuggestionBlocks,
+  replaceSelectionWithSuggestion,
+  rowId,
+  stripSuggestionBlocks,
+  type CommentAnchor,
+  type ReviewComment,
+} from "../features/review/comments";
 
 type ViewMode = "story" | "concerns";
 type LayoutMode = "stacked" | "split";
 type CheckBucket = `carrier:${string}` | `support:${string}:${Concern}`;
 type FlagStatus = "open" | "addressed" | "dismissed";
+type ComposerMode = "write" | "preview";
 
 interface FlagState {
   status: FlagStatus;
@@ -54,6 +66,8 @@ function BriefApp({ briefId }: { briefId: string }) {
   const [dismissTarget, setDismissTarget] = useState<DismissTarget | null>(null);
   const [dismissReason, setDismissReason] = useState("");
   const [dismissWarned, setDismissWarned] = useState(false);
+  const [reviewComments, setReviewComments] = useState<ReviewComment[]>(() => []);
+  const [activeCommentAnchor, setActiveCommentAnchor] = useState<CommentAnchor | null>(null);
   const [toast, setToast] = useState("");
 
   const totals = useMemo(() => summarizeProgress(model, checkedItems, reviewedChunks, flagStates, dominants), [checkedItems, dominants, flagStates, model, reviewedChunks]);
@@ -175,6 +189,45 @@ function BriefApp({ briefId }: { briefId: string }) {
     setToast(dismissedCount === 1 ? "Dismissed. Reason recorded verbatim on the receipt." : `${dismissedCount} flags dismissed. Reason recorded verbatim on the receipt.`);
   }
 
+  function saveReviewComment(anchor: CommentAnchor, body: string) {
+    const trimmed = body.trim();
+    if (!trimmed) {
+      setToast("Comment cannot be empty.");
+      return;
+    }
+    setReviewComments((current) => [
+      ...current,
+      {
+        id: `${anchor.chunkId}-${anchor.side}-${anchor.startLine}-${anchor.endLine}-${current.length + 1}`,
+        anchor,
+        body: trimmed,
+        status: "draft",
+        collapsed: false,
+      },
+    ]);
+    setActiveCommentAnchor(null);
+    setToast("Draft comment added to this review.");
+  }
+
+  function updateReviewComment(commentId: string, body: string) {
+    const trimmed = body.trim();
+    if (!trimmed) {
+      setToast("Comment cannot be empty.");
+      return;
+    }
+    setReviewComments((current) => current.map((comment) => (comment.id === commentId ? { ...comment, body: trimmed, collapsed: false } : comment)));
+    setToast("Draft comment updated.");
+  }
+
+  function deleteReviewComment(commentId: string) {
+    setReviewComments((current) => current.filter((comment) => comment.id !== commentId));
+    setToast("Draft comment deleted.");
+  }
+
+  function toggleReviewComment(commentId: string) {
+    setReviewComments((current) => current.map((comment) => (comment.id === commentId ? { ...comment, collapsed: !comment.collapsed } : comment)));
+  }
+
   return (
     <>
       <Header brief={brief} model={model} totals={totals} progress={progress} locOpen={locOpen} setLocOpen={setLocOpen} openReceipt={() => setReceiptOpen(true)} />
@@ -206,11 +259,17 @@ function BriefApp({ briefId }: { briefId: string }) {
             flagStates={flagStates}
             openChunks={openChunks}
             reclassifiedGroups={reclassifiedGroups}
+            reviewComments={reviewComments}
             reviewedChunks={reviewedChunks}
             selectedRiskFlags={selectedRiskFlags}
+            activeCommentAnchor={activeCommentAnchor}
+            cancelCommentComposer={() => setActiveCommentAnchor(null)}
             chooseDominant={chooseDominant}
+            deleteReviewComment={deleteReviewComment}
             jumpToChunk={jumpToChunk}
             markReviewed={markReviewed}
+            openCommentComposer={setActiveCommentAnchor}
+            saveReviewComment={saveReviewComment}
             setCollapseSupporting={setCollapseSupporting}
             setDismissTarget={(target) => {
               setDismissTarget(target);
@@ -224,6 +283,8 @@ function BriefApp({ briefId }: { briefId: string }) {
             toggleChunk={toggleChunk}
             toggleRiskFlag={toggleRiskFlag}
             toggleRiskGroup={toggleRiskGroup}
+            toggleReviewComment={toggleReviewComment}
+            updateReviewComment={updateReviewComment}
           />
         ) : (
           <ConcernView brief={brief} model={model} jumpToChunk={jumpToChunk} />
@@ -238,6 +299,7 @@ function BriefApp({ briefId }: { briefId: string }) {
         flagStates={flagStates}
         open={receiptOpen}
         reclassifiedGroups={reclassifiedGroups}
+        reviewComments={reviewComments}
         reviewedChunks={reviewedChunks}
         close={() => setReceiptOpen(false)}
         submit={() => {
@@ -360,11 +422,17 @@ function StoryView(props: {
   flagStates: Record<string, FlagState>;
   openChunks: Set<string>;
   reclassifiedGroups: Set<string>;
+  reviewComments: ReviewComment[];
   reviewedChunks: Set<string>;
   selectedRiskFlags: Set<string>;
+  activeCommentAnchor: CommentAnchor | null;
+  cancelCommentComposer: () => void;
   chooseDominant: (groupId: string, category: Category) => void;
+  deleteReviewComment: (commentId: string) => void;
   jumpToChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
+  openCommentComposer: (anchor: CommentAnchor) => void;
+  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
   setCollapseSupporting: (value: boolean) => void;
   setDismissTarget: (target: DismissTarget) => void;
   setFlagStatus: (flag: RiskFlag, status: FlagStatus, reason?: string) => void;
@@ -374,6 +442,8 @@ function StoryView(props: {
   toggleChunk: (chunkId: string) => void;
   toggleRiskFlag: (flagId: string) => void;
   toggleRiskGroup: (flagIds: string[]) => void;
+  toggleReviewComment: (commentId: string) => void;
+  updateReviewComment: (commentId: string, body: string) => void;
 }) {
   return (
     <div className="story-view">
@@ -397,8 +467,16 @@ function StoryView(props: {
                 forceCollapsed={props.collapseSupporting && chunk.role === "supporting" && !props.openChunks.has(chunk.id)}
                 open={props.openChunks.has(chunk.id)}
                 reviewed={props.reviewedChunks.has(chunk.id)}
+                activeCommentAnchor={props.activeCommentAnchor?.chunkId === chunk.id ? props.activeCommentAnchor : null}
+                cancelCommentComposer={props.cancelCommentComposer}
+                comments={props.reviewComments.filter((comment) => comment.anchor.chunkId === chunk.id)}
+                deleteReviewComment={props.deleteReviewComment}
                 markReviewed={props.markReviewed}
+                openCommentComposer={props.openCommentComposer}
+                saveReviewComment={props.saveReviewComment}
                 toggleChunk={props.toggleChunk}
+                toggleReviewComment={props.toggleReviewComment}
+                updateReviewComment={props.updateReviewComment}
               />
             ))}
           </div>
@@ -575,16 +653,32 @@ function ChunkCard({
   open,
   reviewed,
   forceCollapsed,
+  activeCommentAnchor,
+  cancelCommentComposer,
+  comments,
+  deleteReviewComment,
   toggleChunk,
   markReviewed,
+  openCommentComposer,
+  saveReviewComment,
+  toggleReviewComment,
+  updateReviewComment,
 }: {
   chunk: BriefChunk;
   active: boolean;
   open: boolean;
   reviewed: boolean;
   forceCollapsed: boolean;
+  activeCommentAnchor: CommentAnchor | null;
+  cancelCommentComposer: () => void;
+  comments: ReviewComment[];
+  deleteReviewComment: (commentId: string) => void;
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
+  openCommentComposer: (anchor: CommentAnchor) => void;
+  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
+  toggleReviewComment: (commentId: string) => void;
+  updateReviewComment: (commentId: string, body: string) => void;
 }) {
   const expanded = open && !forceCollapsed;
   return (
@@ -595,23 +689,57 @@ function ChunkCard({
         <span className="cchips">
           {chunk.riskSurface.map((risk) => <span className="cc risk" key={risk}>{risk}</span>)}
           <span className={`cc concern-${chunk.concern}`}><span className="dot" />{chunk.concern}{chunk.role === "carrier" ? " · carrier" : ""}</span>
+          {comments.length > 0 ? <span className="cc comments">{comments.length} comment{comments.length === 1 ? "" : "s"}</span> : null}
           <span className="cc loc"><span className="a">+{chunk.loc.added}</span> <span className="d">−{chunk.loc.deleted}</span></span>
         </span>
       </button>
       <div className="chunk-actions">
         <button className="markbtn" type="button" onClick={() => markReviewed(chunk.id)}>{reviewed ? "Reviewed ✓" : "Mark reviewed"}</button>
       </div>
-      {!expanded ? <div className="collapse-note">{chunk.role === "supporting" ? "supporting chunk — collapsed" : "collapsed"}</div> : null}
+      {!expanded ? <div className="collapse-note">{chunk.role === "supporting" ? "supporting chunk — collapsed" : "collapsed"}{comments.length > 0 ? ` · ${comments.length} draft comment${comments.length === 1 ? "" : "s"}` : ""}</div> : null}
       {expanded ? (
         <div className="chunk-body">
-          <DiffTable chunk={chunk} />
+          <DiffTable
+            activeCommentAnchor={activeCommentAnchor}
+            cancelCommentComposer={cancelCommentComposer}
+            chunk={chunk}
+            comments={comments}
+            deleteReviewComment={deleteReviewComment}
+            openCommentComposer={openCommentComposer}
+            saveReviewComment={saveReviewComment}
+            toggleReviewComment={toggleReviewComment}
+            updateReviewComment={updateReviewComment}
+          />
         </div>
       ) : null}
     </article>
   );
 }
 
-function DiffTable({ chunk }: { chunk: BriefChunk }) {
+function DiffTable({
+  chunk,
+  activeCommentAnchor,
+  cancelCommentComposer,
+  comments,
+  deleteReviewComment,
+  openCommentComposer,
+  saveReviewComment,
+  toggleReviewComment,
+  updateReviewComment,
+}: {
+  chunk: BriefChunk;
+  activeCommentAnchor: CommentAnchor | null;
+  cancelCommentComposer: () => void;
+  comments: ReviewComment[];
+  deleteReviewComment: (commentId: string) => void;
+  openCommentComposer: (anchor: CommentAnchor) => void;
+  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
+  toggleReviewComment: (commentId: string) => void;
+  updateReviewComment: (commentId: string, body: string) => void;
+}) {
+  const [dragStart, setDragStart] = useState<number | null>(null);
+  const [dragCurrent, setDragCurrent] = useState<number | null>(null);
+
   if (!chunk.diff || chunk.diff.length === 0) {
     return (
       <div className="metadata-diff">
@@ -619,6 +747,17 @@ function DiffTable({ chunk }: { chunk: BriefChunk }) {
         <p>The brief loaded, but no matching raw diff was available for this chunk. The durable fix is to emit chunk-level hunk rows from the categorizer.</p>
       </div>
     );
+  }
+
+  const dragIndexes = dragStart === null || dragCurrent === null ? [] : rangeBetween(dragStart, dragCurrent);
+  const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
+
+  function finishSelection(rowIndex: number) {
+    const indexes = dragStart === null ? [rowIndex] : rangeBetween(dragStart, rowIndex);
+    setDragStart(null);
+    setDragCurrent(null);
+    const anchor = createCommentAnchor(chunk.id, chunk.file, chunk.diff ?? [], indexes);
+    if (anchor) openCommentComposer(anchor);
   }
 
   return (
@@ -633,16 +772,250 @@ function DiffTable({ chunk }: { chunk: BriefChunk }) {
             );
           }
           const sign = line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
+          const id = rowId(chunk.id, index);
+          const rowComments = comments.filter((comment) => comment.anchor.rowIds.at(-1) === id);
+          const isSelected = dragIndexes.includes(index) || activeRowIds.has(id);
+          const showComposer = activeCommentAnchor?.chunkId === chunk.id && activeCommentAnchor.rowIds.at(-1) === id;
           return (
-            <tr className={line.kind} key={`${line.kind}-${index}`}>
-              <td className="ln">{line.oldLine ?? ""}</td>
-              <td className="ln">{line.newLine ?? ""}</td>
-              <td className="code"><span className="sign">{sign}</span>{line.content}</td>
-            </tr>
+            <Fragment key={`${line.kind}-${index}`}>
+              <tr
+                className={`${line.kind} commentable ${isSelected ? "selected" : ""}`}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") finishSelection(index);
+                }}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  setDragStart(index);
+                  setDragCurrent(index);
+                }}
+                onMouseEnter={() => {
+                  if (dragStart !== null) setDragCurrent(index);
+                }}
+                onMouseUp={() => finishSelection(index)}
+                tabIndex={0}
+              >
+                <td className="ln">{line.oldLine ?? ""}</td>
+                <td className="ln">{line.newLine ?? ""}</td>
+                <td className="code"><span className="sign">{sign}</span>{line.content}</td>
+              </tr>
+              {showComposer ? (
+                <tr className="comment-row">
+                  <td colSpan={3}>
+                    <CommentComposer anchor={activeCommentAnchor} cancel={cancelCommentComposer} save={saveReviewComment} />
+                  </td>
+                </tr>
+              ) : null}
+              {rowComments.map((comment) => (
+                <tr className="comment-row" key={comment.id}>
+                  <td colSpan={3}>
+                    <CommentThread comment={comment} deleteComment={deleteReviewComment} toggle={toggleReviewComment} update={updateReviewComment} />
+                  </td>
+                </tr>
+              ))}
+            </Fragment>
           );
         })}
       </tbody>
     </table>
+  );
+}
+
+function CommentComposer({ anchor, cancel, save }: { anchor: CommentAnchor; cancel: () => void; save: (anchor: CommentAnchor, body: string) => void }) {
+  const [body, setBody] = useState("");
+  const [mode, setMode] = useState<ComposerMode>("write");
+  const [error, setError] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  function applyTextEdit(edit: (text: string, start: number, end: number) => { text: string; selectionStart: number; selectionEnd: number }) {
+    const textarea = textareaRef.current;
+    const start = textarea?.selectionStart ?? body.length;
+    const end = textarea?.selectionEnd ?? body.length;
+    const next = edit(body, start, end);
+    setBody(next.text);
+    window.setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(next.selectionStart, next.selectionEnd);
+    }, 0);
+  }
+
+  function insertLinePrefix(prefix: string) {
+    applyTextEdit((text, start, end) => {
+      const selected = text.slice(start, end) || "list item";
+      const replacement = selected.split("\n").map((line) => `${prefix}${line}`).join("\n");
+      return {
+        text: `${text.slice(0, start)}${replacement}${text.slice(end)}`,
+        selectionStart: start,
+        selectionEnd: start + replacement.length,
+      };
+    });
+  }
+
+  function insertLink() {
+    applyTextEdit((text, start, end) => {
+      const selected = text.slice(start, end) || "link text";
+      const replacement = `[${selected}](https://example.com)`;
+      return {
+        text: `${text.slice(0, start)}${replacement}${text.slice(end)}`,
+        selectionStart: start + 1,
+        selectionEnd: start + 1 + selected.length,
+      };
+    });
+  }
+
+  function insertSuggestion() {
+    applyTextEdit((text, start, end) => replaceSelectionWithSuggestion(text, start, end, text.slice(start, end) || anchor.selectedText));
+  }
+
+  function submit() {
+    if (!body.trim()) {
+      setError("Comment cannot be empty.");
+      return;
+    }
+    save(anchor, body);
+  }
+
+  return (
+    <div className="comment-composer">
+      <div className="comment-meta">
+        <span>{anchor.file}</span>
+        <span>{anchor.side === "new" ? "+" : "-"}{anchor.startLine}{anchor.endLine !== anchor.startLine ? `-${anchor.endLine}` : ""}</span>
+      </div>
+      <div className="comment-tabs">
+        <button className={mode === "write" ? "active" : ""} type="button" onClick={() => setMode("write")}>Write</button>
+        <button className={mode === "preview" ? "active" : ""} type="button" onClick={() => setMode("preview")}>Preview</button>
+      </div>
+      {mode === "write" ? (
+        <>
+          <div className="comment-toolbar">
+            <button type="button" onClick={() => applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "**"))}>B</button>
+            <button type="button" onClick={() => applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "_"))}>I</button>
+            <button type="button" onClick={() => applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "`"))}>Code</button>
+            <button type="button" onClick={() => insertLinePrefix("> ")}>Quote</button>
+            <button type="button" onClick={() => insertLinePrefix("- ")}>List</button>
+            <button type="button" onClick={() => insertLinePrefix("1. ")}>1.</button>
+            <button type="button" onClick={() => insertLinePrefix("- [ ] ")}>Task</button>
+            <button type="button" onClick={insertLink}>Link</button>
+            <button type="button" onClick={insertSuggestion}>Suggestion</button>
+          </div>
+          <textarea
+            ref={textareaRef}
+            autoFocus
+            onChange={(event) => {
+              setBody(event.target.value);
+              setError("");
+            }}
+            onKeyDown={(event) => {
+              if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+                event.preventDefault();
+                applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "**"));
+              }
+              if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "i") {
+                event.preventDefault();
+                applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "_"));
+              }
+              if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+                event.preventDefault();
+                insertLink();
+              }
+            }}
+            placeholder="Leave a comment"
+            suppressHydrationWarning
+            value={body}
+          />
+        </>
+      ) : (
+        <MarkdownPreview anchor={anchor} body={body} />
+      )}
+      {error ? <div className="comment-error">{error}</div> : null}
+      <div className="comment-actions">
+        <button className="btn primary" type="button" onClick={submit}>Start review</button>
+        <button className="btn" type="button" onClick={cancel}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
+function CommentThread({
+  comment,
+  deleteComment,
+  toggle,
+  update,
+}: {
+  comment: ReviewComment;
+  deleteComment: (commentId: string) => void;
+  toggle: (commentId: string) => void;
+  update: (commentId: string, body: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [body, setBody] = useState(comment.body);
+
+  if (comment.collapsed) {
+    return (
+      <div className="comment-thread collapsed">
+        <button type="button" onClick={() => toggle(comment.id)}>Draft comment on {comment.anchor.side === "new" ? "+" : "-"}{comment.anchor.startLine}</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="comment-thread">
+      <div className="comment-thread-head">
+        <span>@you pending</span>
+        <span>{comment.anchor.file}:{comment.anchor.startLine}{comment.anchor.endLine !== comment.anchor.startLine ? `-${comment.anchor.endLine}` : ""}</span>
+      </div>
+      {editing ? (
+        <>
+          <textarea suppressHydrationWarning value={body} onChange={(event) => setBody(event.target.value)} />
+          <div className="comment-actions">
+            <button className="btn primary" type="button" onClick={() => {
+              update(comment.id, body);
+              setEditing(false);
+            }}>Save</button>
+            <button className="btn" type="button" onClick={() => {
+              setBody(comment.body);
+              setEditing(false);
+            }}>Cancel</button>
+          </div>
+        </>
+      ) : (
+        <MarkdownPreview anchor={comment.anchor} body={comment.body} />
+      )}
+      <div className="comment-thread-actions">
+        <button type="button" onClick={() => setEditing(true)}>Edit</button>
+        <button type="button" onClick={() => toggle(comment.id)}>Collapse</button>
+        <button type="button" onClick={() => deleteComment(comment.id)}>Delete</button>
+      </div>
+    </div>
+  );
+}
+
+function MarkdownPreview({ anchor, body }: { anchor: CommentAnchor; body: string }) {
+  const suggestions = parseSuggestionBlocks(body);
+  const markdown = stripSuggestionBlocks(body);
+  return (
+    <div className="comment-preview">
+      {markdown ? (
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+      ) : (
+        <p className="preview-empty">Nothing to preview.</p>
+      )}
+      {suggestions.map((suggestion) => (
+        <div className="suggestion-card" key={suggestion.index}>
+          <div className="suggestion-title">Suggested change</div>
+          <div className="suggestion-grid">
+            <div>
+              <span>Current</span>
+              <pre>{anchor.selectedText}</pre>
+            </div>
+            <div>
+              <span>Suggestion</span>
+              <pre>{suggestion.body}</pre>
+            </div>
+          </div>
+          <button disabled type="button">Apply suggestion unavailable in mockup</button>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -690,6 +1063,7 @@ function ReceiptDrawer(props: {
   flagStates: Record<string, FlagState>;
   open: boolean;
   reclassifiedGroups: Set<string>;
+  reviewComments: ReviewComment[];
   reviewedChunks: Set<string>;
   close: () => void;
   submit: () => void;
@@ -711,6 +1085,8 @@ Tool verification receipt — mechanical claims only
 
   ${totals.reviewed >= totals.chunkTotal ? "✓" : "•"} chunks read: ${totals.reviewed}/${totals.chunkTotal}
   ${addressed.length + dismissed.length >= props.model.flags.length ? "✓" : "•"} risk surface: ${addressed.length} addressed · ${dismissed.length} dismissed · ${open.length} open
+  ${props.reviewComments.length > 0 ? "✓" : "•"} inline comments: ${props.reviewComments.length} draft
+${props.reviewComments.map((comment) => `      comment: ${comment.anchor.file}:${comment.anchor.startLine}${comment.anchor.endLine !== comment.anchor.startLine ? `-${comment.anchor.endLine}` : ""} — ${comment.body.split("\n")[0] ?? ""}`).join("\n")}
 ${dismissed.map((flag) => `      dismissed: ${flag.attr} @ ${shortFile(flag.file)} — "${props.flagStates[flag.id]?.reason ?? ""}"`).join("\n")}
 ${open.map((flag) => `      open: ${flag.attr} @ ${shortFile(flag.file)} — not addressed, not dismissed`).join("\n")}
 ${props.reclassifiedGroups.size > 0 ? `\n  ${props.reclassifiedGroups.size} group reclassified by reviewer` : ""}
@@ -763,74 +1139,11 @@ function Footer() {
 }
 
 function Markdown({ content }: { content: string }) {
-  return <div className="markdown">{parseMarkdown(content).map((block) => block)}</div>;
-}
-
-function parseMarkdown(content: string): ReactNode[] {
-  const blocks: ReactNode[] = [];
-  const lines = content.split("\n");
-  let paragraph: string[] = [];
-  let list: string[] = [];
-
-  const flushParagraph = () => {
-    if (paragraph.length === 0) return;
-    blocks.push(<p key={`p-${blocks.length}`}>{renderInline(paragraph.join(" "))}</p>);
-    paragraph = [];
-  };
-  const flushList = () => {
-    if (list.length === 0) return;
-    blocks.push(
-      <ul key={`ul-${blocks.length}`}>
-        {list.map((item) => <li key={item}>{renderInline(item)}</li>)}
-      </ul>,
-    );
-    list = [];
-  };
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      flushParagraph();
-      flushList();
-      continue;
-    }
-    if (trimmed.startsWith("### ")) {
-      flushParagraph();
-      flushList();
-      blocks.push(<h4 key={`h4-${blocks.length}`}>{renderInline(trimmed.slice(4))}</h4>);
-      continue;
-    }
-    if (trimmed.startsWith("## ")) {
-      flushParagraph();
-      flushList();
-      blocks.push(<h3 key={`h3-${blocks.length}`}>{renderInline(trimmed.slice(3))}</h3>);
-      continue;
-    }
-    if (trimmed.startsWith("- ")) {
-      flushParagraph();
-      list.push(trimmed.slice(2));
-      continue;
-    }
-    paragraph.push(trimmed);
-  }
-  flushParagraph();
-  flushList();
-  return blocks;
-}
-
-function renderInline(text: string): ReactNode[] {
-  const nodes: ReactNode[] = [];
-  const pattern = /(`[^`]+`|\*\*[^*]+\*\*)/g;
-  let cursor = 0;
-  for (const match of text.matchAll(pattern)) {
-    if (match.index > cursor) nodes.push(text.slice(cursor, match.index));
-    const token = match[0];
-    if (token.startsWith("`")) nodes.push(<code key={`${token}-${match.index}`}>{token.slice(1, -1)}</code>);
-    else nodes.push(<strong key={`${token}-${match.index}`}>{token.slice(2, -2)}</strong>);
-    cursor = match.index + token.length;
-  }
-  if (cursor < text.length) nodes.push(text.slice(cursor));
-  return nodes;
+  return (
+    <div className="markdown">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  );
 }
 
 function BriefError({ error }: { error: Error }) {
@@ -873,6 +1186,12 @@ function toggleSet(current: Set<string>, value: string): Set<string> {
   if (next.has(value)) next.delete(value);
   else next.add(value);
   return next;
+}
+
+function rangeBetween(start: number, end: number): number[] {
+  const low = Math.min(start, end);
+  const high = Math.max(start, end);
+  return Array.from({ length: high - low + 1 }, (_, index) => low + index);
 }
 
 function shortFile(path: string): string {
