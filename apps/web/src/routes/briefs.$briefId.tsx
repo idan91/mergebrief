@@ -1192,14 +1192,20 @@ function MarkdownPreview({ anchor, body }: { anchor: CommentAnchor; body: string
       {suggestions.map((suggestion) => (
         <div className="suggestion-card" key={suggestion.index}>
           <div className="suggestion-title">Suggested change</div>
-          <div className="suggestion-diff" role="table" aria-label="Suggested change diff">
-            {buildSuggestionDiffRows(anchor.selectedText, suggestion.body).map((row, index) => (
-              <div className={`suggestion-diff-row ${row.kind}`} role="row" key={`${row.kind}-${index}`}>
-                <span className="suggestion-sign" role="cell">{row.kind === "add" ? "+" : "-"}</span>
-                <code role="cell">{row.content || " "}</code>
-              </div>
-            ))}
-          </div>
+          <table className="diff suggestion-diff" aria-label="Suggested change diff">
+            <tbody>
+              {buildSuggestionDiffRows(anchor, suggestion.body).map((row, index) => (
+                <tr className={row.kind} key={`${row.kind}-${index}`}>
+                  <td className="ln">{row.oldLine ?? ""}</td>
+                  <td className="ln">{row.newLine ?? ""}</td>
+                  <td className="code">
+                    <span className="sign">{row.kind === "add" ? "+" : "−"}</span>
+                    {row.content}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
           <button disabled type="button">Apply suggestion unavailable in mockup</button>
         </div>
       ))}

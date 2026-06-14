@@ -25,6 +25,8 @@ export interface SuggestionBlock {
 
 export interface SuggestionDiffRow {
   kind: "del" | "add";
+  oldLine?: number;
+  newLine?: number;
   content: string;
 }
 
@@ -108,10 +110,10 @@ export function stripSuggestionBlocks(markdown: string): string {
   return markdown.replace(/\n?```suggestion\n[\s\S]*?\n```/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-export function buildSuggestionDiffRows(currentText: string, suggestionText: string): SuggestionDiffRow[] {
+export function buildSuggestionDiffRows(anchor: CommentAnchor, suggestionText: string): SuggestionDiffRow[] {
   return [
-    ...splitDiffText(currentText).map((content) => ({ kind: "del", content }) satisfies SuggestionDiffRow),
-    ...splitDiffText(suggestionText).map((content) => ({ kind: "add", content }) satisfies SuggestionDiffRow),
+    ...splitDiffText(anchor.selectedText).map((content, index) => ({ kind: "del", ...suggestionLineNumber(anchor, index), content }) satisfies SuggestionDiffRow),
+    ...splitDiffText(suggestionText).map((content, index) => ({ kind: "add", ...suggestionLineNumber(anchor, index), content }) satisfies SuggestionDiffRow),
   ];
 }
 
@@ -132,6 +134,11 @@ function lineForSide(row: DiffLine | undefined, side: CommentSide): number | und
 
 function isContinuous(indexes: number[]): boolean {
   return indexes.every((index, position) => position === 0 || index === indexes[position - 1]! + 1);
+}
+
+function suggestionLineNumber(anchor: CommentAnchor, lineOffset: number): Pick<SuggestionDiffRow, "oldLine" | "newLine"> {
+  const line = anchor.startLine + lineOffset;
+  return anchor.side === "old" ? { oldLine: line } : { newLine: line };
 }
 
 function splitDiffText(text: string): string[] {

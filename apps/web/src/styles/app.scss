@@ -1480,52 +1480,15 @@ table.diff {
   font-weight: 650;
 }
 
-.suggestion-diff {
-  overflow: hidden;
+table.suggestion-diff {
   border-bottom: 1px solid var(--line);
   background: #0b0b0e;
-  font-family: var(--mono);
   font-size: 12px;
-}
 
-.suggestion-diff-row {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  min-height: 24px;
-
-  &.del {
-    background: rgba(248, 81, 73, 0.11);
-
-    .suggestion-sign {
-      background: rgba(248, 81, 73, 0.16);
-      color: #ff8d86;
-    }
+  td {
+    padding-top: 1px;
+    padding-bottom: 1px;
   }
-
-  &.add {
-    background: rgba(63, 185, 80, 0.1);
-
-    .suggestion-sign {
-      background: rgba(63, 185, 80, 0.16);
-      color: #7ee787;
-    }
-  }
-
-  code {
-    display: block;
-    min-width: 0;
-    padding: 4px 10px;
-    overflow-x: auto;
-    color: var(--text);
-    white-space: pre;
-  }
-}
-
-.suggestion-sign {
-  display: grid;
-  place-items: center;
-  color: var(--faint);
-  user-select: none;
 }
 
 .concern-intro {

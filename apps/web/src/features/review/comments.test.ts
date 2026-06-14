@@ -72,12 +72,25 @@ describe("parseSuggestionBlocks", () => {
 });
 
 describe("buildSuggestionDiffRows", () => {
-  it("renders current selected text as deletions and suggestion text as additions", () => {
-    expect(buildSuggestionDiffRows("const label = 'old';\nreturn label;", "const label = 'new';\nreturn label.trim();")).toEqual([
-      { kind: "del", content: "const label = 'old';" },
-      { kind: "del", content: "return label;" },
-      { kind: "add", content: "const label = 'new';" },
-      { kind: "add", content: "return label.trim();" },
+  it("renders suggestion previews with diff gutters anchored to the selected lines", () => {
+    expect(
+      buildSuggestionDiffRows(
+        {
+          chunkId: "chunk-1",
+          file: "src/a.ts",
+          side: "new",
+          startLine: 21,
+          endLine: 22,
+          rowIds: ["chunk-1:3", "chunk-1:4"],
+          selectedText: "const label = 'old';\nreturn label;",
+        },
+        "const label = 'new';\nreturn label.trim();",
+      ),
+    ).toEqual([
+      { kind: "del", newLine: 21, content: "const label = 'old';" },
+      { kind: "del", newLine: 22, content: "return label;" },
+      { kind: "add", newLine: 21, content: "const label = 'new';" },
+      { kind: "add", newLine: 22, content: "return label.trim();" },
     ]);
   });
 });
