@@ -1,0 +1,201 @@
+import { z } from "zod/v4";
+
+/**
+ * Brief schema — the heart of the categorizer.
+ *
+ * Mirrors the controlled vocabulary in `docs/mvp/labeling-schema.md` (the
+ * authoritative closed token list) and `docs/mvp/risk-surface.md` (the 16
+ * factual attributes). If a token is not registered there, it is not valid
+ * here — keep these enums in lockstep with those files.
+ *
+ * Structured-output constraints (from the claude-api skill): no recursive
+ * schemas, no min/max constraints. Optionality is avoided in favour of
+ * always-present arrays (empty when N/A) so the strict schema stays simple.
+ */
+
+// --- Closed vocabularies (one source of truth per axis) -------------------
+
+/** Category — intent. Attaches to a change-group. */
+export const Categories = [
+  "bugfix", // correct a defect in existing behavior
+  "logic-refactor", // behavior-preserving restructure of logic
+  "move-with-edits", // relocation of code with edits inside the move
+  "lib-bump", // dependency version change *with* API/behavior impact
+  "pure-move", // relocation only, bytes identical, no edits
+  "new-feature", // adds a new capability
+  "dependency-update", // dep version bump with no API/behavior impact
+  "schema-change", // data-model / migration change
+] as const;
+
+/** Concern — artifact. Attaches to a chunk. Mostly derivable from file path. */
+export const Concerns = [
+  "implementation", // the functional change itself (default carrier)
+  "test", // tests, fixtures (incl. .test.* / .spec.* files)
+  "doc", // docs, READMEs, changesets, doc-only files
+  "spec", // specification document (NOT .spec.ts — that's test)
+  "config", // configuration files
+  "generated", // generated / vendored output (lockfiles, bundles)
+] as const;
+
+/** Role — carrier vs supporting. Attaches to a chunk. */
+export const Roles = [
+  "carrier", // holds the change-group's intent
+  "supporting", // serves the carrier (its tests, docs, specs, config)
+] as const;
+
+/**
+ * Risk surface — 16 factual attributes (never verdicts). Attaches to a chunk.
+ * Three buckets: about the code / about the change / about the blast radius.
+ */
+export const RiskSurfaceAttributes = [
+  // about the CODE
+  "no-tests",
+  "no-types",
+  "legacy-area",
+  "dense-logic",
+  // about the CHANGE
+  "touches-auth",
+  "mutates-state",
+  "removes-validation",
+  "relaxes-permissions",
+  "widens-error-handling",
+  "adds-feature-flag",
+  // about the BLAST RADIUS
+  "external-io",
+  "cross-service",
+  "schema-adjacent",
+  "hot-path",
+  "widely-imported",
+  "release-imminent",
+] as const;
+
+export type Category = (typeof Categories)[number];
+export type Concern = (typeof Concerns)[number];
+export type Role = (typeof Roles)[number];
+export type RiskSurfaceAttribute = (typeof RiskSurfaceAttributes)[number];
+
+const categoryEnum = z.enum(Categories);
+const concernEnum = z.enum(Concerns);
+const roleEnum = z.enum(Roles);
+const riskSurfaceEnum = z.enum(RiskSurfaceAttributes);
+
+// --- Brief shape ----------------------------------------------------------
+
+export const PrRefSchema = z.object({
+  repo: z.string().describe("owner/name, e.g. medusajs/medusa"),
+  number: z.number().int().describe("PR number"),
+  title: z.string(),
+  url: z.string().describe("PR URL"),
+  sha: z.string().describe("head commit SHA of the PR"),
+  description: z
+    .string()
+    .describe(
+      "the PR description (body) as authored, kept for display and as optional agent context",
+    ),
+});
+
+/** A contiguous run of line numbers (1-based, inclusive) on one side of the diff. */
+export const LineRangeSchema = z.object({
+  start: z.number().int().describe("first line number (1-based, inclusive)"),
+  end: z
+    .number()
+    .int()
+    .describe("last line number (inclusive); equals start for a single line"),
+});
+
+export const ChunkSchema = z.object({
+  id: z
+    .string()
+    .describe("stable id referenced by change-groups, e.g. c1, c2, …"),
+  file: z.string().describe("file path the chunk lives in"),
+  concern: concernEnum.describe(
+    "artifact kind; mostly derivable from the file path",
+  ),
+  role: roleEnum.describe(
+    "carrier holds intent; supporting serves it. Default from concern (implementation→carrier, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix).",
+  ),
+  loc: z
+    .object({
+      added: z.number().int().describe("git lines added in this chunk"),
+      deleted: z.number().int().describe("git lines deleted in this chunk"),
+    })
+    .describe(
+      "approximation: git LoC ≈ adjusted LoC. Note likely moves in the group summary; we do not claim move-accurate LoC.",
+    ),
+  addedRanges: z
+    .array(LineRangeSchema)
+    .describe(
+      "new-side (+) line-number ranges of the actual ADDED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only deletes. Many disjoint ranges = scattered change.",
+    ),
+  removedRanges: z
+    .array(LineRangeSchema)
+    .describe(
+      "old-side (−) line-number ranges of the actual REMOVED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only adds.",
+    ),
+  riskSurface: z
+    .array(riskSurfaceEnum)
+    .describe(
+      "factual attributes that apply to this chunk (empty if none). Never verdicts — severity emerges from combinations.",
+    ),
+});
+
+export const ChangeGroupSchema = z.object({
+  title: z
+    .string()
+    .describe(
+      "a one-line title describing the change group (what, not why), e.g. 'Add stock-location module to inventory service'",
+    ),
+  summary: z
+    .string()
+    .describe("what the group does (what, not why), one group = one summary"),
+  dominantCategory: categoryEnum.describe("the group's primary intent"),
+  secondaryCategories: z
+    .array(categoryEnum)
+    .describe("additional intents present in the group (empty if none)"),
+  uncertain: z
+    .boolean()
+    .describe(
+      "true when confidence on the dominant category is below threshold. AI never hides uncertainty — flag it rather than forcing a token.",
+    ),
+  uncertainBetween: z
+    .array(categoryEnum)
+    .describe(
+      "the categories in tension when uncertain=true (e.g. new-feature vs bugfix); empty when uncertain=false",
+    ),
+  carrierChunkIds: z
+    .array(z.string())
+    .describe("ids of the chunks that carry this group's intent"),
+  supportingChunkIds: z
+    .array(z.string())
+    .describe("ids of the chunks that support the carriers"),
+});
+
+export const ConcernRollupSchema = z.object({
+  concern: concernEnum,
+  added: z.number().int().describe("total git lines added for this concern"),
+  deleted: z
+    .number()
+    .int()
+    .describe("total git lines deleted for this concern"),
+});
+
+export const BriefSchema = z.object({
+  pr: PrRefSchema,
+  summary: z
+    .string()
+    .describe(
+      "Markdown, in this order: (1) a concise one-paragraph **overview** of what the PR does; (2) the fuller plain-English what-it-does for the whole PR; (3) optionally, a '## Changelog' bullet list when the change warrants one. The changelog is not required; the overview and the what-it-does are.",
+    ),
+  changeGroups: z.array(ChangeGroupSchema),
+  chunks: z.array(ChunkSchema),
+  concernView: z
+    .array(ConcernRollupSchema)
+    .describe("LoC rollup per concern (one entry per concern present)"),
+});
+
+export type PrRef = z.infer<typeof PrRefSchema>;
+export type LineRange = z.infer<typeof LineRangeSchema>;
+export type Chunk = z.infer<typeof ChunkSchema>;
+export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
+export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;
+export type Brief = z.infer<typeof BriefSchema>;
