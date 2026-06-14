@@ -69,7 +69,7 @@ function BriefApp({ briefId }: { briefId: string }) {
   const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
   const [reviewOutcome, setReviewOutcome] = useState<ReviewOutcome>("comment");
   const [viewMode, setViewMode] = useState<ViewMode>("story");
-  const [layoutMode, setLayoutMode] = useState<LayoutMode>("stacked");
+  const [layoutMode] = useState<LayoutMode>("split");
   const [collapseSupporting, setCollapseSupporting] = useState(true);
   const [openChunks, setOpenChunks] = useState<Set<string>>(() => new Set(model.groups.flatMap((group) => group.carrierChunks.map((chunk) => chunk.id))));
   const [reviewedChunks, setReviewedChunks] = useState<Set<string>>(() => new Set());
@@ -324,7 +324,7 @@ function BriefApp({ briefId }: { briefId: string }) {
 
         <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
 
-        <Toolbar viewMode={viewMode} setViewMode={setViewMode} layoutMode={layoutMode} setLayoutMode={setLayoutMode} />
+        <Toolbar viewMode={viewMode} setViewMode={setViewMode} />
 
         {viewMode === "story" ? (
           <StoryView
@@ -532,13 +532,9 @@ function DemoControls({
 function Toolbar({
   viewMode,
   setViewMode,
-  layoutMode,
-  setLayoutMode,
 }: {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
-  layoutMode: LayoutMode;
-  setLayoutMode: (mode: LayoutMode) => void;
 }) {
   return (
     <div className="toolbar reveal">
@@ -548,14 +544,6 @@ function Toolbar({
         </button>
         <button className={viewMode === "concerns" ? "active" : ""} type="button" onClick={() => setViewMode("concerns")}>
           Concerns
-        </button>
-      </div>
-      <div className="viewbar layoutbar">
-        <button className={layoutMode === "stacked" ? "active" : ""} type="button" onClick={() => setLayoutMode("stacked")}>
-          Stacked
-        </button>
-        <button className={layoutMode === "split" ? "active" : ""} type="button" onClick={() => setLayoutMode("split")}>
-          Side by side
         </button>
       </div>
     </div>
