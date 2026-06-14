@@ -10,6 +10,7 @@ import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type Gr
 import { SummaryPreview } from "../features/review/SummaryPreview";
 import {
   applyMarkdownWrap,
+  buildSuggestionDiffRows,
   commentAnchorLabel,
   createCommentAnchor,
   parseSuggestionBlocks,
@@ -1191,15 +1192,13 @@ function MarkdownPreview({ anchor, body }: { anchor: CommentAnchor; body: string
       {suggestions.map((suggestion) => (
         <div className="suggestion-card" key={suggestion.index}>
           <div className="suggestion-title">Suggested change</div>
-          <div className="suggestion-grid">
-            <div>
-              <span>Current</span>
-              <pre>{anchor.selectedText}</pre>
-            </div>
-            <div>
-              <span>Suggestion</span>
-              <pre>{suggestion.body}</pre>
-            </div>
+          <div className="suggestion-diff" role="table" aria-label="Suggested change diff">
+            {buildSuggestionDiffRows(anchor.selectedText, suggestion.body).map((row, index) => (
+              <div className={`suggestion-diff-row ${row.kind}`} role="row" key={`${row.kind}-${index}`}>
+                <span className="suggestion-sign" role="cell">{row.kind === "add" ? "+" : "-"}</span>
+                <code role="cell">{row.content || " "}</code>
+              </div>
+            ))}
           </div>
           <button disabled type="button">Apply suggestion unavailable in mockup</button>
         </div>

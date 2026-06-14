@@ -23,6 +23,11 @@ export interface SuggestionBlock {
   index: number;
 }
 
+export interface SuggestionDiffRow {
+  kind: "del" | "add";
+  content: string;
+}
+
 export interface ReviewComment {
   id: string;
   anchor: CommentAnchor;
@@ -103,6 +108,13 @@ export function stripSuggestionBlocks(markdown: string): string {
   return markdown.replace(/\n?```suggestion\n[\s\S]*?\n```/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+export function buildSuggestionDiffRows(currentText: string, suggestionText: string): SuggestionDiffRow[] {
+  return [
+    ...splitDiffText(currentText).map((content) => ({ kind: "del", content }) satisfies SuggestionDiffRow),
+    ...splitDiffText(suggestionText).map((content) => ({ kind: "add", content }) satisfies SuggestionDiffRow),
+  ];
+}
+
 export function reviewCommentSubmitLabel(existingCommentCount: number): string {
   return existingCommentCount === 0 ? "Start review" : "Add review comment";
 }
@@ -120,4 +132,9 @@ function lineForSide(row: DiffLine | undefined, side: CommentSide): number | und
 
 function isContinuous(indexes: number[]): boolean {
   return indexes.every((index, position) => position === 0 || index === indexes[position - 1]! + 1);
+}
+
+function splitDiffText(text: string): string[] {
+  if (text.length === 0) return [""];
+  return text.split("\n");
 }

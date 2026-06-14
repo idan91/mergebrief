@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "../brief/types";
-import { applyMarkdownWrap, commentAnchorLabel, createCommentAnchor, parseSuggestionBlocks, replaceSelectionWithSuggestion, reviewCommentSubmitLabel, stripSuggestionBlocks } from "./comments";
+import { applyMarkdownWrap, buildSuggestionDiffRows, commentAnchorLabel, createCommentAnchor, parseSuggestionBlocks, replaceSelectionWithSuggestion, reviewCommentSubmitLabel, stripSuggestionBlocks } from "./comments";
 
 const diffRows: DiffLine[] = [
   { kind: "hunk", content: "@@ -10,4 +10,5 @@" },
@@ -68,6 +68,17 @@ describe("parseSuggestionBlocks", () => {
 
   it("removes suggestion fences from the regular markdown preview", () => {
     expect(stripSuggestionBlocks("Before\n```suggestion\nreturn next;\n```\nAfter")).toBe("Before\nAfter");
+  });
+});
+
+describe("buildSuggestionDiffRows", () => {
+  it("renders current selected text as deletions and suggestion text as additions", () => {
+    expect(buildSuggestionDiffRows("const label = 'old';\nreturn label;", "const label = 'new';\nreturn label.trim();")).toEqual([
+      { kind: "del", content: "const label = 'old';" },
+      { kind: "del", content: "return label;" },
+      { kind: "add", content: "const label = 'new';" },
+      { kind: "add", content: "return label.trim();" },
+    ]);
   });
 });
 

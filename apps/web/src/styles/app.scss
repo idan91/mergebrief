@@ -1480,33 +1480,52 @@ table.diff {
   font-weight: 650;
 }
 
-.suggestion-grid {
+.suggestion-diff {
+  overflow: hidden;
+  border-bottom: 1px solid var(--line);
+  background: #0b0b0e;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.suggestion-diff-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--line);
+  grid-template-columns: 34px minmax(0, 1fr);
+  min-height: 24px;
 
-  div {
-    min-width: 0;
-    background: #0b0b0e;
+  &.del {
+    background: rgba(248, 81, 73, 0.11);
+
+    .suggestion-sign {
+      background: rgba(248, 81, 73, 0.16);
+      color: #ff8d86;
+    }
   }
 
-  span {
+  &.add {
+    background: rgba(63, 185, 80, 0.1);
+
+    .suggestion-sign {
+      background: rgba(63, 185, 80, 0.16);
+      color: #7ee787;
+    }
+  }
+
+  code {
     display: block;
-    padding: 7px 10px;
-    color: var(--faint);
-    font-size: 11px;
-    font-weight: 650;
-  }
-
-  pre {
-    margin: 0;
-    border-radius: 0;
-    background: transparent;
+    min-width: 0;
+    padding: 4px 10px;
+    overflow-x: auto;
     color: var(--text);
-    font-family: var(--mono);
-    font-size: 12px;
+    white-space: pre;
   }
+}
+
+.suggestion-sign {
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  user-select: none;
 }
 
 .concern-intro {
