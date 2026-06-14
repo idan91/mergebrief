@@ -10,9 +10,7 @@ import {
   type ChunkLoc,
   type Concern,
   type ConcernRollup,
-  type DeltaBrief,
   type LineRange,
-  type MovedCommentAnchor,
   type PrRef,
   type RiskSurfaceAttribute,
   type Role,
@@ -213,53 +211,6 @@ function parseArray<T>(value: unknown, parser: (item: unknown) => Result<T>, lab
     parsed.push(result.value);
   }
   return { ok: true, value: parsed };
-}
-
-function parseMovedCommentAnchor(value: unknown): Result<MovedCommentAnchor> {
-  if (!isRecord(value)) return { ok: false, error: "Expected moved comment anchor to be an object" };
-  const commentId = value["commentId"];
-  const from = value["from"];
-  const to = value["to"];
-  if (!isString(commentId) || !isString(from) || !isString(to)) {
-    return { ok: false, error: "Expected moved comment anchor commentId, from, and to" };
-  }
-  return { ok: true, value: { commentId, from, to } };
-}
-
-export function parseDeltaBrief(value: unknown): Result<DeltaBrief> {
-  if (!isRecord(value)) return { ok: false, error: "Expected delta brief to be an object" };
-  const previousSha = value["previousSha"];
-  const currentSha = value["currentSha"];
-  const summary = value["summary"];
-  const newChunkIds = stringArray(value["newChunkIds"]);
-  if (!newChunkIds.ok) return newChunkIds;
-  const changedChunkIds = stringArray(value["changedChunkIds"]);
-  if (!changedChunkIds.ok) return changedChunkIds;
-  const reopenedRiskFlagIds = stringArray(value["reopenedRiskFlagIds"]);
-  if (!reopenedRiskFlagIds.ok) return reopenedRiskFlagIds;
-  const movedCommentAnchors = parseArray(value["movedCommentAnchors"], parseMovedCommentAnchor, "movedCommentAnchors");
-  if (!movedCommentAnchors.ok) return movedCommentAnchors;
-  const orphanedCommentIds = stringArray(value["orphanedCommentIds"]);
-  if (!orphanedCommentIds.ok) return orphanedCommentIds;
-  const stillResolvedRiskFlagIds = stringArray(value["stillResolvedRiskFlagIds"]);
-  if (!stillResolvedRiskFlagIds.ok) return stillResolvedRiskFlagIds;
-  if (!isString(previousSha) || !isString(currentSha) || !isString(summary)) {
-    return { ok: false, error: "Expected delta brief previousSha, currentSha, and summary" };
-  }
-  return {
-    ok: true,
-    value: {
-      previousSha,
-      currentSha,
-      summary,
-      newChunkIds: newChunkIds.value,
-      changedChunkIds: changedChunkIds.value,
-      reopenedRiskFlagIds: reopenedRiskFlagIds.value,
-      movedCommentAnchors: movedCommentAnchors.value,
-      orphanedCommentIds: orphanedCommentIds.value,
-      stillResolvedRiskFlagIds: stillResolvedRiskFlagIds.value,
-    },
-  };
 }
 
 export function parseBrief(value: unknown): Result<Brief> {

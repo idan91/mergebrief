@@ -3,8 +3,8 @@ import "@tanstack/react-start/server-only";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import type { Brief, BriefChunk, DeltaBrief, DiffLine, LineRange, LocalBriefSummary } from "./types";
-import { parseBrief, parseDeltaBrief } from "./validation";
+import type { Brief, BriefChunk, DiffLine, LineRange, LocalBriefSummary } from "./types";
+import { parseBrief } from "./validation";
 
 interface FileDiffSidecar {
   file: string;
@@ -40,9 +40,7 @@ export async function listLocalBriefs(): Promise<LocalBriefSummary[]> {
 
 export async function readLocalBrief(briefId: string): Promise<Brief> {
   const brief = await readBriefFile(briefId);
-  const withDiffs = await attachChunkDiffs(brief, briefId);
-  const delta = await readDeltaBrief(briefId);
-  return delta ? { ...withDiffs, delta } : withDiffs;
+  return attachChunkDiffs(brief, briefId);
 }
 
 async function readBriefFile(briefId: string): Promise<Brief> {
@@ -98,25 +96,6 @@ async function readFileDiffs(briefId: string): Promise<Map<string, ParsedFileDif
     diffs.set(item.file, { file: item.file, rows: parseUnifiedDiffPatch(item.patch) });
   }
   return diffs;
-}
-
-async function readDeltaBrief(briefId: string): Promise<DeltaBrief | undefined> {
-  try {
-    const raw = await readFile(resolve(OUT_DIR, `${briefId}.delta.json`), "utf8");
-    const parsedJson: unknown = JSON.parse(raw);
-    const parsedDelta = parseDeltaBrief(parsedJson);
-    if (!parsedDelta.ok) {
-      throw new Error(`Invalid local delta brief: ${parsedDelta.error}`);
-    }
-    return parsedDelta.value;
-  } catch (error) {
-    if (isMissingFileError(error)) return undefined;
-    throw error;
-  }
-}
-
-function isMissingFileError(error: unknown): boolean {
-  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 function isFileDiffSidecar(value: unknown): value is FileDiffSidecar {

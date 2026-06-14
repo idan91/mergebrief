@@ -80,20 +80,6 @@ export function SummaryPreview({ brief, snapshot, setOutcome }: SummaryPreviewPr
           </div>
         </section>
 
-        {snapshot.briefMode === "delta" && brief.delta ? (
-          <section className="summary-card">
-            <h2>Delta / re-review</h2>
-            <p>{brief.delta.summary}</p>
-            <div className="delta-metrics">
-              <span>{brief.delta.newChunkIds.length} new chunks</span>
-              <span>{brief.delta.changedChunkIds.length} changed chunks</span>
-              <span>{brief.delta.reopenedRiskFlagIds.length} risks reopened</span>
-              <span>{brief.delta.movedCommentAnchors.length} comments moved</span>
-              <span>{brief.delta.orphanedCommentIds.length} comments orphaned</span>
-            </div>
-          </section>
-        ) : null}
-
         <section className="summary-card not-checked">
           <h2>Not checked</h2>
           <span>business intent</span>

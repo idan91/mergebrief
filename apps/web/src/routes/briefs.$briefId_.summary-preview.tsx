@@ -30,7 +30,6 @@ function emptySnapshot(briefId: string, brief: Brief): DemoReviewSnapshot {
   return {
     briefId,
     reviewMode: "reviewer",
-    briefMode: brief.delta ? "delta" : "current",
     reviewOutcome: "comment",
     flagStates: Object.fromEntries(buildBriefViewModel(brief).flags.map((flag) => [flag.id, { status: "open", reason: "" }])),
     riskEvidence: {},

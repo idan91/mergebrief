@@ -4,7 +4,6 @@ import type { ReviewComment } from "./comments";
 
 export type FlagStatus = "open" | "addressed" | "dismissed";
 export type ReviewMode = "reviewer" | "author";
-export type BriefMode = "current" | "delta";
 export type ReviewOutcome = "comment" | "approve" | "request-changes";
 export type RiskEvidenceKind = "linked-comment" | "chunk-reviewed" | "manual-note";
 export type UnresolvedItemKind = "open-risk" | "missing-evidence" | "unreviewed-carrier" | "draft-comment" | "thin-dismissal";

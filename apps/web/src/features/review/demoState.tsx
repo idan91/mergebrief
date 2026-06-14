@@ -1,11 +1,10 @@
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
-import type { BriefMode, FlagState, ReviewMode, ReviewOutcome, RiskEvidence } from "./state";
+import type { FlagState, ReviewMode, ReviewOutcome, RiskEvidence } from "./state";
 import type { ReviewComment } from "./comments";
 
 export interface DemoReviewSnapshot {
   briefId: string;
   reviewMode: ReviewMode;
-  briefMode: BriefMode;
   reviewOutcome: ReviewOutcome;
   flagStates: Record<string, FlagState>;
   riskEvidence: Record<string, RiskEvidence>;

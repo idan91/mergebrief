@@ -25,7 +25,6 @@ import {
   commentLocation,
   deriveUnresolvedItems,
   riskEvidenceLabel,
-  type BriefMode,
   type FlagState,
   type FlagStatus,
   type ReviewMode,
@@ -66,9 +65,7 @@ function BriefApp({ briefId }: { briefId: string }) {
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
   const setDemoSnapshot = useSetDemoReviewSnapshot();
   const initialDominants = useMemo(() => Object.fromEntries(model.groups.map((group) => [group.id, group.group.dominantCategory])), [model.groups]);
-  const hasDelta = Boolean(brief.delta);
   const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
-  const [briefMode, setBriefMode] = useState<BriefMode>("current");
   const [reviewOutcome, setReviewOutcome] = useState<ReviewOutcome>("comment");
   const [viewMode, setViewMode] = useState<ViewMode>("story");
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("stacked");
@@ -104,21 +101,16 @@ function BriefApp({ briefId }: { briefId: string }) {
   );
 
   useEffect(() => {
-    if (!hasDelta && briefMode === "delta") setBriefMode("current");
-  }, [briefMode, hasDelta]);
-
-  useEffect(() => {
     setDemoSnapshot(briefId, {
       briefId,
       reviewMode,
-      briefMode,
       reviewOutcome,
       flagStates,
       riskEvidence,
       reviewedChunkIds: [...reviewedChunks],
       reviewComments,
     });
-  }, [briefId, briefMode, flagStates, reviewComments, reviewMode, reviewOutcome, reviewedChunks, riskEvidence, setDemoSnapshot]);
+  }, [briefId, flagStates, reviewComments, reviewMode, reviewOutcome, reviewedChunks, riskEvidence, setDemoSnapshot]);
 
   useEffect(() => {
     if (!toast) return;
@@ -316,7 +308,7 @@ function BriefApp({ briefId }: { briefId: string }) {
       />
       <main className={layoutMode === "split" && viewMode === "story" ? "main split-main" : "main"}>
         <section className="pr-summary reveal">
-          <div className="eyebrow">{briefMode === "delta" ? "Re-review brief" : reviewMode === "author" ? "Author self-review" : "Brief"}</div>
+          <div className="eyebrow">{reviewMode === "author" ? "Author self-review" : "Brief"}</div>
           <Markdown content={brief.summary} />
           <button className="description-toggle" type="button" onClick={() => setDescriptionOpen(!descriptionOpen)}>
             {descriptionOpen ? "Hide original PR description" : "Show original PR description"}
@@ -329,8 +321,7 @@ function BriefApp({ briefId }: { briefId: string }) {
           ) : null}
         </section>
 
-        <DemoControls brief={brief} briefMode={briefMode} reviewMode={reviewMode} setBriefMode={setBriefMode} setReviewMode={setReviewMode} />
-        {briefMode === "delta" && brief.delta ? <DeltaPanel brief={brief} jumpToChunk={jumpToChunk} /> : null}
+        <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
 
         <Toolbar viewMode={viewMode} setViewMode={setViewMode} layoutMode={layoutMode} setLayoutMode={setLayoutMode} />
 
@@ -343,7 +334,6 @@ function BriefApp({ briefId }: { briefId: string }) {
             collapseSupporting={collapseSupporting}
             dominants={dominants}
             flagStates={flagStates}
-            briefMode={briefMode}
             openChunks={openChunks}
             reclassifiedGroups={reclassifiedGroups}
             reviewComments={reviewComments}
@@ -406,7 +396,6 @@ function BriefApp({ briefId }: { briefId: string }) {
         snapshot={{
           briefId,
           reviewMode,
-          briefMode,
           reviewOutcome,
           flagStates,
           riskEvidence,
@@ -523,16 +512,10 @@ function Header({
 }
 
 function DemoControls({
-  brief,
-  briefMode,
   reviewMode,
-  setBriefMode,
   setReviewMode,
 }: {
-  brief: Brief;
-  briefMode: BriefMode;
   reviewMode: ReviewMode;
-  setBriefMode: (mode: BriefMode) => void;
   setReviewMode: (mode: ReviewMode) => void;
 }) {
   return (
@@ -541,48 +524,6 @@ function DemoControls({
         <button className={reviewMode === "reviewer" ? "active" : ""} type="button" onClick={() => setReviewMode("reviewer")}>Reviewer review</button>
         <button className={reviewMode === "author" ? "active" : ""} type="button" onClick={() => setReviewMode("author")}>Author self-review</button>
       </div>
-      {brief.delta ? (
-        <div className="viewbar">
-          <button className={briefMode === "current" ? "active" : ""} type="button" onClick={() => setBriefMode("current")}>Current brief</button>
-          <button className={briefMode === "delta" ? "active" : ""} type="button" onClick={() => setBriefMode("delta")}>Re-review</button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function DeltaPanel({ brief, jumpToChunk }: { brief: Brief; jumpToChunk: (chunkId: string) => void }) {
-  const delta = brief.delta;
-  if (!delta) return null;
-  return (
-    <section className="delta-panel reveal">
-      <div>
-        <div className="eyebrow">What changed since your last review</div>
-        <h2>Re-review brief</h2>
-        <p>{delta.summary}</p>
-      </div>
-      <div className="delta-columns">
-        <DeltaColumn title="New since last review" ids={delta.newChunkIds} jumpToChunk={jumpToChunk} />
-        <DeltaColumn title="Needs another look" ids={[...delta.changedChunkIds, ...delta.reopenedRiskFlagIds]} jumpToChunk={jumpToChunk} />
-        <DeltaColumn title="Still resolved" ids={delta.stillResolvedRiskFlagIds} jumpToChunk={jumpToChunk} />
-      </div>
-      <div className="delta-comment-notes">
-        {delta.movedCommentAnchors.length > 0 ? <span>{delta.movedCommentAnchors.length} prior comment target moved</span> : null}
-        {delta.orphanedCommentIds.length > 0 ? <span>{delta.orphanedCommentIds.length} prior comment target orphaned</span> : null}
-      </div>
-    </section>
-  );
-}
-
-function DeltaColumn({ title, ids, jumpToChunk }: { title: string; ids: string[]; jumpToChunk: (chunkId: string) => void }) {
-  return (
-    <div>
-      <h3>{title}</h3>
-      {ids.length === 0 ? <p>None.</p> : null}
-      {ids.map((id) => {
-        const chunkId = id.split("-")[0] ?? id;
-        return <button key={id} type="button" onClick={() => jumpToChunk(chunkId)}>{id}</button>;
-      })}
     </div>
   );
 }
@@ -624,7 +565,6 @@ function StoryView(props: {
   brief: Brief;
   model: BriefViewModel;
   activeChunkId: string | null;
-  briefMode: BriefMode;
   checkedItems: Record<CheckBucket, Set<number>>;
   collapseSupporting: boolean;
   dominants: Record<string, Category>;
@@ -675,7 +615,6 @@ function StoryView(props: {
                 key={chunk.id}
                 active={props.activeChunkId === chunk.id}
                 chunk={chunk}
-                delta={props.briefMode === "delta" ? props.brief.delta : undefined}
                 forceCollapsed={props.collapseSupporting && chunk.role === "supporting" && !props.openChunks.has(chunk.id)}
                 open={props.openChunks.has(chunk.id)}
                 reviewed={props.reviewedChunks.has(chunk.id)}
@@ -884,7 +823,6 @@ function GroupCard({
 
 function ChunkCard({
   chunk,
-  delta,
   active,
   open,
   reviewed,
@@ -902,7 +840,6 @@ function ChunkCard({
   updateReviewComment,
 }: {
   chunk: BriefChunk;
-  delta: Brief["delta"];
   active: boolean;
   open: boolean;
   reviewed: boolean;
@@ -920,14 +857,12 @@ function ChunkCard({
   updateReviewComment: (commentId: string, body: string) => void;
 }) {
   const expanded = open && !forceCollapsed;
-  const deltaBadges = deltaBadgesForChunk(chunk.id, delta);
   return (
     <article className={`chunk ${expanded ? "open" : ""} ${reviewed ? "reviewed" : ""} ${active ? "current" : ""}`} id={chunk.id}>
       <button className="chunk-head" type="button" onClick={() => toggleChunk(chunk.id)}>
         <span className="tw">▶</span>
         <span className="cfile">{chunk.file}</span>
         <span className="cchips">
-          {deltaBadges.map((badge) => <span className={`cc delta ${badge.className}`} key={badge.label}>{badge.label}</span>)}
           {chunk.riskSurface.map((risk) => <span className="cc risk" key={risk}>{risk}</span>)}
           <span className={`cc concern-${chunk.concern}`}><span className="dot" />{chunk.concern}{chunk.role === "carrier" ? " · carrier" : ""}</span>
           {comments.length > 0 ? <span className="cc comments">{comments.length} comment{comments.length === 1 ? "" : "s"}</span> : null}
@@ -1578,16 +1513,6 @@ function unresolvedKindLabel(kind: UnresolvedItem["kind"]): string {
     "thin-dismissal": "Thin dismissal reason",
   };
   return labels[kind];
-}
-
-function deltaBadgesForChunk(chunkId: string, delta: Brief["delta"]): Array<{ label: string; className: string }> {
-  if (!delta) return [];
-  const badges: Array<{ label: string; className: string }> = [];
-  if (delta.newChunkIds.includes(chunkId)) badges.push({ label: "new", className: "new" });
-  if (delta.changedChunkIds.includes(chunkId)) badges.push({ label: "changed", className: "changed" });
-  if (delta.reopenedRiskFlagIds.some((flagId) => flagId.startsWith(`${chunkId}-`))) badges.push({ label: "risk reopened", className: "reopened" });
-  if (delta.stillResolvedRiskFlagIds.some((flagId) => flagId.startsWith(`${chunkId}-`))) badges.push({ label: "still resolved", className: "resolved" });
-  return badges;
 }
 
 function evidenceTextForFlag(flagId: string, evidenceByFlag: Record<string, RiskEvidence>, comments: ReviewComment[], chunks: BriefChunk[]): string {
