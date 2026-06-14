@@ -9,6 +9,7 @@ import type { Brief, BriefChunk, Category, Concern } from "../features/brief/typ
 import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
 import {
   applyMarkdownWrap,
+  commentAnchorLabel,
   createCommentAnchor,
   parseSuggestionBlocks,
   replaceSelectionWithSuggestion,
@@ -894,8 +895,8 @@ function CommentComposer({
   return (
     <div className="comment-composer">
       <div className="comment-meta">
-        <span>{anchor.file}</span>
-        <span>{anchor.side === "new" ? "+" : "-"}{anchor.startLine}{anchor.endLine !== anchor.startLine ? `-${anchor.endLine}` : ""}</span>
+        <span>{commentAnchorLabel(anchor)}</span>
+        <span>{anchor.rowIds.length} line{anchor.rowIds.length === 1 ? "" : "s"}</span>
       </div>
       <div className="comment-tabs">
         <button className={mode === "write" ? "active" : ""} type="button" onClick={() => setMode("write")}>Write</button>

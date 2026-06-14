@@ -107,6 +107,12 @@ export function reviewCommentSubmitLabel(existingCommentCount: number): string {
   return existingCommentCount === 0 ? "Start review" : "Add review comment";
 }
 
+export function commentAnchorLabel(anchor: CommentAnchor): string {
+  const sign = anchor.side === "new" ? "+" : "-";
+  const range = anchor.startLine === anchor.endLine ? `${sign}${anchor.startLine}` : `${sign}${anchor.startLine}-${anchor.endLine}`;
+  return `${anchor.file} · ${range}`;
+}
+
 function lineForSide(row: DiffLine | undefined, side: CommentSide): number | undefined {
   if (!row) return undefined;
   return side === "old" ? row.oldLine : row.newLine;

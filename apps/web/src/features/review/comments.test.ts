@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "../brief/types";
-import { applyMarkdownWrap, createCommentAnchor, parseSuggestionBlocks, replaceSelectionWithSuggestion, reviewCommentSubmitLabel, stripSuggestionBlocks } from "./comments";
+import { applyMarkdownWrap, commentAnchorLabel, createCommentAnchor, parseSuggestionBlocks, replaceSelectionWithSuggestion, reviewCommentSubmitLabel, stripSuggestionBlocks } from "./comments";
 
 const diffRows: DiffLine[] = [
   { kind: "hunk", content: "@@ -10,4 +10,5 @@" },
@@ -75,5 +75,12 @@ describe("reviewCommentSubmitLabel", () => {
   it("uses GitHub's start-review label for the first draft comment only", () => {
     expect(reviewCommentSubmitLabel(0)).toBe("Start review");
     expect(reviewCommentSubmitLabel(1)).toBe("Add review comment");
+  });
+});
+
+describe("commentAnchorLabel", () => {
+  it("includes the file and selected line range", () => {
+    expect(commentAnchorLabel({ chunkId: "c1", file: "src/a.ts", side: "new", startLine: 11, endLine: 13, rowIds: [], selectedText: "" })).toBe("src/a.ts · +11-13");
+    expect(commentAnchorLabel({ chunkId: "c1", file: "src/a.ts", side: "old", startLine: 7, endLine: 7, rowIds: [], selectedText: "" })).toBe("src/a.ts · -7");
   });
 });
