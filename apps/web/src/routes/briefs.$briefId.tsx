@@ -12,6 +12,7 @@ import {
   createCommentAnchor,
   parseSuggestionBlocks,
   replaceSelectionWithSuggestion,
+  reviewCommentSubmitLabel,
   rowId,
   stripSuggestionBlocks,
   type CommentAnchor,
@@ -471,6 +472,7 @@ function StoryView(props: {
                 cancelCommentComposer={props.cancelCommentComposer}
                 comments={props.reviewComments.filter((comment) => comment.anchor.chunkId === chunk.id)}
                 deleteReviewComment={props.deleteReviewComment}
+                existingReviewCommentCount={props.reviewComments.length}
                 markReviewed={props.markReviewed}
                 openCommentComposer={props.openCommentComposer}
                 saveReviewComment={props.saveReviewComment}
@@ -657,6 +659,7 @@ function ChunkCard({
   cancelCommentComposer,
   comments,
   deleteReviewComment,
+  existingReviewCommentCount,
   toggleChunk,
   markReviewed,
   openCommentComposer,
@@ -673,6 +676,7 @@ function ChunkCard({
   cancelCommentComposer: () => void;
   comments: ReviewComment[];
   deleteReviewComment: (commentId: string) => void;
+  existingReviewCommentCount: number;
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
   openCommentComposer: (anchor: CommentAnchor) => void;
@@ -705,6 +709,7 @@ function ChunkCard({
             chunk={chunk}
             comments={comments}
             deleteReviewComment={deleteReviewComment}
+            existingReviewCommentCount={existingReviewCommentCount}
             openCommentComposer={openCommentComposer}
             saveReviewComment={saveReviewComment}
             toggleReviewComment={toggleReviewComment}
@@ -722,6 +727,7 @@ function DiffTable({
   cancelCommentComposer,
   comments,
   deleteReviewComment,
+  existingReviewCommentCount,
   openCommentComposer,
   saveReviewComment,
   toggleReviewComment,
@@ -732,6 +738,7 @@ function DiffTable({
   cancelCommentComposer: () => void;
   comments: ReviewComment[];
   deleteReviewComment: (commentId: string) => void;
+  existingReviewCommentCount: number;
   openCommentComposer: (anchor: CommentAnchor) => void;
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
   toggleReviewComment: (commentId: string) => void;
@@ -801,7 +808,7 @@ function DiffTable({
               {showComposer ? (
                 <tr className="comment-row">
                   <td colSpan={3}>
-                    <CommentComposer anchor={activeCommentAnchor} cancel={cancelCommentComposer} save={saveReviewComment} />
+                    <CommentComposer anchor={activeCommentAnchor} cancel={cancelCommentComposer} existingReviewCommentCount={existingReviewCommentCount} save={saveReviewComment} />
                   </td>
                 </tr>
               ) : null}
@@ -820,7 +827,17 @@ function DiffTable({
   );
 }
 
-function CommentComposer({ anchor, cancel, save }: { anchor: CommentAnchor; cancel: () => void; save: (anchor: CommentAnchor, body: string) => void }) {
+function CommentComposer({
+  anchor,
+  cancel,
+  existingReviewCommentCount,
+  save,
+}: {
+  anchor: CommentAnchor;
+  cancel: () => void;
+  existingReviewCommentCount: number;
+  save: (anchor: CommentAnchor, body: string) => void;
+}) {
   const [body, setBody] = useState("");
   const [mode, setMode] = useState<ComposerMode>("write");
   const [error, setError] = useState("");
@@ -928,7 +945,7 @@ function CommentComposer({ anchor, cancel, save }: { anchor: CommentAnchor; canc
       )}
       {error ? <div className="comment-error">{error}</div> : null}
       <div className="comment-actions">
-        <button className="btn primary" type="button" onClick={submit}>Start review</button>
+        <button className="btn primary" type="button" onClick={submit}>{reviewCommentSubmitLabel(existingReviewCommentCount)}</button>
         <button className="btn" type="button" onClick={cancel}>Cancel</button>
       </div>
     </div>

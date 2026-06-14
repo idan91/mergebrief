@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "../brief/types";
-import { applyMarkdownWrap, createCommentAnchor, parseSuggestionBlocks, replaceSelectionWithSuggestion, stripSuggestionBlocks } from "./comments";
+import { applyMarkdownWrap, createCommentAnchor, parseSuggestionBlocks, replaceSelectionWithSuggestion, reviewCommentSubmitLabel, stripSuggestionBlocks } from "./comments";
 
 const diffRows: DiffLine[] = [
   { kind: "hunk", content: "@@ -10,4 +10,5 @@" },
@@ -68,5 +68,12 @@ describe("parseSuggestionBlocks", () => {
 
   it("removes suggestion fences from the regular markdown preview", () => {
     expect(stripSuggestionBlocks("Before\n```suggestion\nreturn next;\n```\nAfter")).toBe("Before\nAfter");
+  });
+});
+
+describe("reviewCommentSubmitLabel", () => {
+  it("uses GitHub's start-review label for the first draft comment only", () => {
+    expect(reviewCommentSubmitLabel(0)).toBe("Start review");
+    expect(reviewCommentSubmitLabel(1)).toBe("Add review comment");
   });
 });

@@ -103,6 +103,10 @@ export function stripSuggestionBlocks(markdown: string): string {
   return markdown.replace(/\n?```suggestion\n[\s\S]*?\n```/g, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+export function reviewCommentSubmitLabel(existingCommentCount: number): string {
+  return existingCommentCount === 0 ? "Start review" : "Add review comment";
+}
+
 function lineForSide(row: DiffLine | undefined, side: CommentSide): number | undefined {
   if (!row) return undefined;
   return side === "old" ? row.oldLine : row.newLine;
