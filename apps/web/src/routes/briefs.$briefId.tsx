@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import { localBriefQueryOptions } from "../features/brief/queries";
 import type { Brief, BriefChunk, Category, Concern } from "../features/brief/types";
 import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
+import { SummaryPreview } from "../features/review/SummaryPreview";
 import {
   applyMarkdownWrap,
   commentAnchorLabel,
@@ -19,19 +20,32 @@ import {
   type CommentAnchor,
   type ReviewComment,
 } from "../features/review/comments";
+import { useSetDemoReviewSnapshot } from "../features/review/demoState";
+import {
+  commentLocation,
+  deriveUnresolvedItems,
+  riskEvidenceLabel,
+  type BriefMode,
+  type FlagState,
+  type FlagStatus,
+  type ReviewMode,
+  type ReviewOutcome,
+  type RiskEvidence,
+  type RiskEvidenceKind,
+  type UnresolvedItem,
+} from "../features/review/state";
 
 type ViewMode = "story" | "concerns";
 type LayoutMode = "stacked" | "split";
 type CheckBucket = `carrier:${string}` | `support:${string}:${Concern}`;
-type FlagStatus = "open" | "addressed" | "dismissed";
 type ComposerMode = "write" | "preview";
 
-interface FlagState {
-  status: FlagStatus;
-  reason: string;
+interface DismissTarget {
+  flagIds: string[];
+  label: string;
 }
 
-interface DismissTarget {
+interface EvidenceTarget {
   flagIds: string[];
   label: string;
 }
@@ -50,7 +64,12 @@ function BriefRoute() {
 function BriefApp({ briefId }: { briefId: string }) {
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
+  const setDemoSnapshot = useSetDemoReviewSnapshot();
   const initialDominants = useMemo(() => Object.fromEntries(model.groups.map((group) => [group.id, group.group.dominantCategory])), [model.groups]);
+  const hasDelta = Boolean(brief.delta);
+  const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
+  const [briefMode, setBriefMode] = useState<BriefMode>("current");
+  const [reviewOutcome, setReviewOutcome] = useState<ReviewOutcome>("comment");
   const [viewMode, setViewMode] = useState<ViewMode>("story");
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("stacked");
   const [collapseSupporting, setCollapseSupporting] = useState(true);
@@ -60,12 +79,16 @@ function BriefApp({ briefId }: { briefId: string }) {
   const [dominants, setDominants] = useState<Record<string, Category>>(initialDominants);
   const [reclassifiedGroups, setReclassifiedGroups] = useState<Set<string>>(() => new Set());
   const [flagStates, setFlagStates] = useState<Record<string, FlagState>>(() => Object.fromEntries(model.flags.map((flag) => [flag.id, { status: "open", reason: "" }])));
+  const [riskEvidence, setRiskEvidence] = useState<Record<string, RiskEvidence>>(() => ({}));
   const [selectedRiskFlags, setSelectedRiskFlags] = useState<Set<string>>(() => new Set());
   const [activeChunkId, setActiveChunkId] = useState<string | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
+  const [preSubmitOpen, setPreSubmitOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [dismissTarget, setDismissTarget] = useState<DismissTarget | null>(null);
+  const [evidenceTarget, setEvidenceTarget] = useState<EvidenceTarget | null>(null);
   const [dismissReason, setDismissReason] = useState("");
   const [dismissWarned, setDismissWarned] = useState(false);
   const [reviewComments, setReviewComments] = useState<ReviewComment[]>(() => []);
@@ -75,6 +98,27 @@ function BriefApp({ briefId }: { briefId: string }) {
   const totals = useMemo(() => summarizeProgress(model, checkedItems, reviewedChunks, flagStates, dominants), [checkedItems, dominants, flagStates, model, reviewedChunks]);
   const totalWork = model.flags.length + brief.chunks.length;
   const progress = totalWork === 0 ? 0 : ((totals.reviewed + totals.flagsResolved) / totalWork) * 100;
+  const unresolvedItems = useMemo(
+    () => deriveUnresolvedItems({ chunks: brief.chunks, flags: model.flags, flagStates, riskEvidence, reviewedChunkIds: reviewedChunks, comments: reviewComments }),
+    [brief.chunks, flagStates, model.flags, reviewComments, reviewedChunks, riskEvidence],
+  );
+
+  useEffect(() => {
+    if (!hasDelta && briefMode === "delta") setBriefMode("current");
+  }, [briefMode, hasDelta]);
+
+  useEffect(() => {
+    setDemoSnapshot(briefId, {
+      briefId,
+      reviewMode,
+      briefMode,
+      reviewOutcome,
+      flagStates,
+      riskEvidence,
+      reviewedChunkIds: [...reviewedChunks],
+      reviewComments,
+    });
+  }, [briefId, briefMode, flagStates, reviewComments, reviewMode, reviewOutcome, reviewedChunks, riskEvidence, setDemoSnapshot]);
 
   useEffect(() => {
     if (!toast) return;
@@ -158,6 +202,29 @@ function BriefApp({ briefId }: { briefId: string }) {
       }
       return next;
     });
+    if (status !== "addressed") {
+      setRiskEvidence((current) => {
+        const next = { ...current };
+        for (const flagId of flagIds) {
+          delete next[flagId];
+        }
+        return next;
+      });
+    }
+  }
+
+  function addressWithEvidence(flagIds: string[], evidenceForFlag: (flag: RiskFlag) => RiskEvidence) {
+    const flags = flagIds.map((flagId) => model.flags.find((flag) => flag.id === flagId)).filter((flag): flag is RiskFlag => Boolean(flag));
+    if (flags.length === 0) return;
+    setFlagStatuses(flags.map((flag) => flag.id), "addressed");
+    setRiskEvidence((current) => {
+      const next = { ...current };
+      for (const flag of flags) {
+        next[flag.id] = evidenceForFlag(flag);
+      }
+      return next;
+    });
+    setToast(flags.length === 1 ? "Risk marked addressed with evidence." : `${flags.length} risks marked addressed with evidence.`);
   }
 
   function toggleRiskFlag(flagId: string) {
@@ -189,6 +256,10 @@ function BriefApp({ briefId }: { briefId: string }) {
     setDismissReason("");
     setDismissWarned(false);
     setToast(dismissedCount === 1 ? "Dismissed. Reason recorded verbatim on the receipt." : `${dismissedCount} flags dismissed. Reason recorded verbatim on the receipt.`);
+  }
+
+  function openPreSubmit() {
+    setPreSubmitOpen(true);
   }
 
   function saveReviewComment(anchor: CommentAnchor, body: string) {
@@ -232,10 +303,20 @@ function BriefApp({ briefId }: { briefId: string }) {
 
   return (
     <>
-      <Header brief={brief} model={model} totals={totals} progress={progress} locOpen={locOpen} setLocOpen={setLocOpen} openReceipt={() => setReceiptOpen(true)} />
+      <Header
+        brief={brief}
+        briefId={briefId}
+        model={model}
+        totals={totals}
+        progress={progress}
+        locOpen={locOpen}
+        reviewMode={reviewMode}
+        setLocOpen={setLocOpen}
+        openReceipt={openPreSubmit}
+      />
       <main className={layoutMode === "split" && viewMode === "story" ? "main split-main" : "main"}>
         <section className="pr-summary reveal">
-          <div className="eyebrow">Brief</div>
+          <div className="eyebrow">{briefMode === "delta" ? "Re-review brief" : reviewMode === "author" ? "Author self-review" : "Brief"}</div>
           <Markdown content={brief.summary} />
           <button className="description-toggle" type="button" onClick={() => setDescriptionOpen(!descriptionOpen)}>
             {descriptionOpen ? "Hide original PR description" : "Show original PR description"}
@@ -248,6 +329,9 @@ function BriefApp({ briefId }: { briefId: string }) {
           ) : null}
         </section>
 
+        <DemoControls brief={brief} briefMode={briefMode} reviewMode={reviewMode} setBriefMode={setBriefMode} setReviewMode={setReviewMode} />
+        {briefMode === "delta" && brief.delta ? <DeltaPanel brief={brief} jumpToChunk={jumpToChunk} /> : null}
+
         <Toolbar viewMode={viewMode} setViewMode={setViewMode} layoutMode={layoutMode} setLayoutMode={setLayoutMode} />
 
         {viewMode === "story" ? (
@@ -259,10 +343,12 @@ function BriefApp({ briefId }: { briefId: string }) {
             collapseSupporting={collapseSupporting}
             dominants={dominants}
             flagStates={flagStates}
+            briefMode={briefMode}
             openChunks={openChunks}
             reclassifiedGroups={reclassifiedGroups}
             reviewComments={reviewComments}
             reviewedChunks={reviewedChunks}
+            riskEvidence={riskEvidence}
             selectedRiskFlags={selectedRiskFlags}
             activeCommentAnchor={activeCommentAnchor}
             cancelCommentComposer={() => setActiveCommentAnchor(null)}
@@ -278,6 +364,7 @@ function BriefApp({ briefId }: { briefId: string }) {
               setDismissReason("");
               setDismissWarned(false);
             }}
+            setEvidenceTarget={setEvidenceTarget}
             setFlagStatus={setFlagStatus}
             setFlagStatuses={setFlagStatuses}
             setToast={setToast}
@@ -299,14 +386,48 @@ function BriefApp({ briefId }: { briefId: string }) {
         checkedItems={checkedItems}
         dominants={dominants}
         flagStates={flagStates}
+        reviewMode={reviewMode}
+        riskEvidence={riskEvidence}
         open={receiptOpen}
         reclassifiedGroups={reclassifiedGroups}
         reviewComments={reviewComments}
         reviewedChunks={reviewedChunks}
         close={() => setReceiptOpen(false)}
+        openSummaryPreview={() => setSummaryPreviewOpen(true)}
         submit={() => {
           setReceiptOpen(false);
-          setToast("Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.");
+          setToast(reviewMode === "author" ? "Mockup flow — this would mark the PR ready for review after self-review." : "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.");
+        }}
+      />
+      <SummaryPreviewDrawer
+        brief={brief}
+        open={summaryPreviewOpen}
+        reviewOutcome={reviewOutcome}
+        snapshot={{
+          briefId,
+          reviewMode,
+          briefMode,
+          reviewOutcome,
+          flagStates,
+          riskEvidence,
+          reviewedChunkIds: [...reviewedChunks],
+          reviewComments,
+        }}
+        close={() => setSummaryPreviewOpen(false)}
+        setOutcome={setReviewOutcome}
+      />
+      <PreSubmitModal
+        mode={reviewMode}
+        open={preSubmitOpen}
+        unresolvedItems={unresolvedItems}
+        close={() => setPreSubmitOpen(false)}
+        continueToReceipt={() => {
+          setPreSubmitOpen(false);
+          setReceiptOpen(true);
+        }}
+        jumpToItem={(item) => {
+          setPreSubmitOpen(false);
+          jumpToChunk(item.targetId);
         }}
       />
       <DismissModal
@@ -317,6 +438,21 @@ function BriefApp({ briefId }: { briefId: string }) {
         confirm={confirmDismiss}
         setReason={setDismissReason}
       />
+      <EvidenceModal
+        chunks={brief.chunks}
+        comments={reviewComments}
+        target={evidenceTarget}
+        cancel={() => setEvidenceTarget(null)}
+        confirm={(kind, commentId, note) => {
+          if (!evidenceTarget) return;
+          addressWithEvidence(evidenceTarget.flagIds, (flag) => {
+            if (kind === "linked-comment") return commentId ? { kind, commentId } : { kind: "chunk-reviewed", chunkId: flag.chunkId };
+            if (kind === "chunk-reviewed") return { kind, chunkId: flag.chunkId };
+            return note ? { kind, note } : { kind };
+          });
+          setEvidenceTarget(null);
+        }}
+      />
       <div className={toast ? "toast show" : "toast"}>{toast}</div>
     </>
   );
@@ -324,18 +460,22 @@ function BriefApp({ briefId }: { briefId: string }) {
 
 function Header({
   brief,
+  briefId,
   model,
   totals,
   progress,
   locOpen,
+  reviewMode,
   setLocOpen,
   openReceipt,
 }: {
   brief: Brief;
+  briefId: string;
   model: BriefViewModel;
   totals: ProgressTotals;
   progress: number;
   locOpen: boolean;
+  reviewMode: ReviewMode;
   setLocOpen: (value: boolean) => void;
   openReceipt: () => void;
 }) {
@@ -374,10 +514,76 @@ function Header({
         </div>
       </div>
       <button className="btn primary" type="button" onClick={openReceipt}>
-        Receipt
+        {reviewMode === "author" ? "Ready for review" : "Receipt"}
       </button>
+      <Link className="btn" params={{ briefId }} to="/briefs/$briefId/summary-preview">Summary preview</Link>
       <div className="progress-bar" style={{ width: `${progress}%` }} />
     </header>
+  );
+}
+
+function DemoControls({
+  brief,
+  briefMode,
+  reviewMode,
+  setBriefMode,
+  setReviewMode,
+}: {
+  brief: Brief;
+  briefMode: BriefMode;
+  reviewMode: ReviewMode;
+  setBriefMode: (mode: BriefMode) => void;
+  setReviewMode: (mode: ReviewMode) => void;
+}) {
+  return (
+    <div className="demo-controls reveal">
+      <div className="viewbar">
+        <button className={reviewMode === "reviewer" ? "active" : ""} type="button" onClick={() => setReviewMode("reviewer")}>Reviewer review</button>
+        <button className={reviewMode === "author" ? "active" : ""} type="button" onClick={() => setReviewMode("author")}>Author self-review</button>
+      </div>
+      {brief.delta ? (
+        <div className="viewbar">
+          <button className={briefMode === "current" ? "active" : ""} type="button" onClick={() => setBriefMode("current")}>Current brief</button>
+          <button className={briefMode === "delta" ? "active" : ""} type="button" onClick={() => setBriefMode("delta")}>Re-review</button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DeltaPanel({ brief, jumpToChunk }: { brief: Brief; jumpToChunk: (chunkId: string) => void }) {
+  const delta = brief.delta;
+  if (!delta) return null;
+  return (
+    <section className="delta-panel reveal">
+      <div>
+        <div className="eyebrow">What changed since your last review</div>
+        <h2>Re-review brief</h2>
+        <p>{delta.summary}</p>
+      </div>
+      <div className="delta-columns">
+        <DeltaColumn title="New since last review" ids={delta.newChunkIds} jumpToChunk={jumpToChunk} />
+        <DeltaColumn title="Needs another look" ids={[...delta.changedChunkIds, ...delta.reopenedRiskFlagIds]} jumpToChunk={jumpToChunk} />
+        <DeltaColumn title="Still resolved" ids={delta.stillResolvedRiskFlagIds} jumpToChunk={jumpToChunk} />
+      </div>
+      <div className="delta-comment-notes">
+        {delta.movedCommentAnchors.length > 0 ? <span>{delta.movedCommentAnchors.length} prior comment target moved</span> : null}
+        {delta.orphanedCommentIds.length > 0 ? <span>{delta.orphanedCommentIds.length} prior comment target orphaned</span> : null}
+      </div>
+    </section>
+  );
+}
+
+function DeltaColumn({ title, ids, jumpToChunk }: { title: string; ids: string[]; jumpToChunk: (chunkId: string) => void }) {
+  return (
+    <div>
+      <h3>{title}</h3>
+      {ids.length === 0 ? <p>None.</p> : null}
+      {ids.map((id) => {
+        const chunkId = id.split("-")[0] ?? id;
+        return <button key={id} type="button" onClick={() => jumpToChunk(chunkId)}>{id}</button>;
+      })}
+    </div>
   );
 }
 
@@ -418,6 +624,7 @@ function StoryView(props: {
   brief: Brief;
   model: BriefViewModel;
   activeChunkId: string | null;
+  briefMode: BriefMode;
   checkedItems: Record<CheckBucket, Set<number>>;
   collapseSupporting: boolean;
   dominants: Record<string, Category>;
@@ -426,6 +633,7 @@ function StoryView(props: {
   reclassifiedGroups: Set<string>;
   reviewComments: ReviewComment[];
   reviewedChunks: Set<string>;
+  riskEvidence: Record<string, RiskEvidence>;
   selectedRiskFlags: Set<string>;
   activeCommentAnchor: CommentAnchor | null;
   cancelCommentComposer: () => void;
@@ -437,6 +645,7 @@ function StoryView(props: {
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
   setCollapseSupporting: (value: boolean) => void;
   setDismissTarget: (target: DismissTarget) => void;
+  setEvidenceTarget: (target: EvidenceTarget) => void;
   setFlagStatus: (flag: RiskFlag, status: FlagStatus, reason?: string) => void;
   setFlagStatuses: (flagIds: string[], status: FlagStatus, reason?: string) => void;
   setToast: (message: string) => void;
@@ -466,6 +675,7 @@ function StoryView(props: {
                 key={chunk.id}
                 active={props.activeChunkId === chunk.id}
                 chunk={chunk}
+                delta={props.briefMode === "delta" ? props.brief.delta : undefined}
                 forceCollapsed={props.collapseSupporting && chunk.role === "supporting" && !props.openChunks.has(chunk.id)}
                 open={props.openChunks.has(chunk.id)}
                 reviewed={props.reviewedChunks.has(chunk.id)}
@@ -492,15 +702,19 @@ function StoryView(props: {
 
 function GroupCard({
   group,
+  brief,
   checkedItems,
   dominants,
   flagStates,
   model,
   reclassifiedGroups,
+  reviewComments,
+  riskEvidence,
   selectedRiskFlags,
   chooseDominant,
   jumpToChunk,
   setDismissTarget,
+  setEvidenceTarget,
   setFlagStatus,
   setFlagStatuses,
   setToast,
@@ -509,15 +723,19 @@ function GroupCard({
   toggleRiskGroup,
 }: {
   group: GroupView;
+  brief: Brief;
   checkedItems: Record<CheckBucket, Set<number>>;
   dominants: Record<string, Category>;
   flagStates: Record<string, FlagState>;
   model: BriefViewModel;
   reclassifiedGroups: Set<string>;
+  reviewComments: ReviewComment[];
+  riskEvidence: Record<string, RiskEvidence>;
   selectedRiskFlags: Set<string>;
   chooseDominant: (groupId: string, category: Category) => void;
   jumpToChunk: (chunkId: string) => void;
   setDismissTarget: (target: DismissTarget) => void;
+  setEvidenceTarget: (target: EvidenceTarget) => void;
   setFlagStatus: (flag: RiskFlag, status: FlagStatus, reason?: string) => void;
   setFlagStatuses: (flagIds: string[], status: FlagStatus, reason?: string) => void;
   setToast: (message: string) => void;
@@ -595,8 +813,10 @@ function GroupCard({
                       title="Mark selected risks as reviewed and handled"
                       type="button"
                       onClick={() => {
-                        setFlagStatuses(openRiskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)), "addressed");
-                        setToast(`${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} marked addressed — pair with review comments before submit.`);
+                        setEvidenceTarget({
+                          flagIds: openRiskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)),
+                          label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
+                        });
                       }}
                     >
                       Address selected
@@ -641,12 +861,13 @@ function GroupCard({
                             <div className="fdesc">{flag.description}</div>
                             <div className="factions">
                               <button className="fbtn" title="Mark this risk as reviewed and handled" type="button" onClick={() => {
-                                setFlagStatus(flag, "addressed");
-                                setToast("Flag marked addressed — pair it with a comment before submit.");
+                                setEvidenceTarget({ flagIds: [flag.id], label: `${flag.attr} @ ${flag.file}` });
                               }}>Addressed</button>
                               <button className="fbtn" title="Mark this risk as not applicable" type="button" onClick={() => setDismissTarget({ flagIds: [flag.id], label: `${flag.attr} @ ${flag.file}` })}>Dismiss…</button>
                             </div>
                           </>
+                        ) : state.status === "addressed" ? (
+                          <div className="fstate-detail">{evidenceTextForFlag(flag.id, riskEvidence, reviewComments, brief.chunks)}</div>
                         ) : null}
                       </div>
                     );
@@ -663,6 +884,7 @@ function GroupCard({
 
 function ChunkCard({
   chunk,
+  delta,
   active,
   open,
   reviewed,
@@ -680,6 +902,7 @@ function ChunkCard({
   updateReviewComment,
 }: {
   chunk: BriefChunk;
+  delta: Brief["delta"];
   active: boolean;
   open: boolean;
   reviewed: boolean;
@@ -697,12 +920,14 @@ function ChunkCard({
   updateReviewComment: (commentId: string, body: string) => void;
 }) {
   const expanded = open && !forceCollapsed;
+  const deltaBadges = deltaBadgesForChunk(chunk.id, delta);
   return (
     <article className={`chunk ${expanded ? "open" : ""} ${reviewed ? "reviewed" : ""} ${active ? "current" : ""}`} id={chunk.id}>
       <button className="chunk-head" type="button" onClick={() => toggleChunk(chunk.id)}>
         <span className="tw">▶</span>
         <span className="cfile">{chunk.file}</span>
         <span className="cchips">
+          {deltaBadges.map((badge) => <span className={`cc delta ${badge.className}`} key={badge.label}>{badge.label}</span>)}
           {chunk.riskSurface.map((risk) => <span className="cc risk" key={risk}>{risk}</span>)}
           <span className={`cc concern-${chunk.concern}`}><span className="dot" />{chunk.concern}{chunk.role === "carrier" ? " · carrier" : ""}</span>
           {comments.length > 0 ? <span className="cc comments">{comments.length} comment{comments.length === 1 ? "" : "s"}</span> : null}
@@ -1090,11 +1315,14 @@ function ReceiptDrawer(props: {
   checkedItems: Record<CheckBucket, Set<number>>;
   dominants: Record<string, Category>;
   flagStates: Record<string, FlagState>;
+  reviewMode: ReviewMode;
+  riskEvidence: Record<string, RiskEvidence>;
   open: boolean;
   reclassifiedGroups: Set<string>;
   reviewComments: ReviewComment[];
   reviewedChunks: Set<string>;
   close: () => void;
+  openSummaryPreview: () => void;
   submit: () => void;
 }) {
   const totals = summarizeProgress(props.model, props.checkedItems, props.reviewedChunks, props.flagStates, props.dominants);
@@ -1107,8 +1335,8 @@ function ReceiptDrawer(props: {
       <button aria-label="Close receipt" className={props.open ? "scrim show" : "scrim"} type="button" onClick={props.close} />
       <aside className={props.open ? "receipt show" : "receipt"}>
         <div className="receipt-inner">
-          <div className="receipt-title"><h2>Verification receipt</h2><span className="tag">not an approval</span></div>
-          <div className="receipt-sub">Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours</div>
+          <div className="receipt-title"><h2>{props.reviewMode === "author" ? "Self-review summary" : "Verification receipt"}</h2><span className="tag">not an approval</span></div>
+          <div className="receipt-sub">{props.reviewMode === "author" ? "Author-side preview · catches unresolved risk before requesting review" : "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours"}</div>
           <pre className="receipt-body">{`Reviewed by @you (human) · ${props.brief.pr.repo} #${props.brief.pr.number} @ ${props.brief.pr.sha.slice(0, 7)}
 Tool verification receipt — mechanical claims only
 
@@ -1116,19 +1344,137 @@ Tool verification receipt — mechanical claims only
   ${addressed.length + dismissed.length >= props.model.flags.length ? "✓" : "•"} risk surface: ${addressed.length} addressed · ${dismissed.length} dismissed · ${open.length} open
   ${props.reviewComments.length > 0 ? "✓" : "•"} inline comments: ${props.reviewComments.length} draft
 ${props.reviewComments.map((comment) => `      comment: ${comment.anchor.file}:${comment.anchor.startLine}${comment.anchor.endLine !== comment.anchor.startLine ? `-${comment.anchor.endLine}` : ""} — ${comment.body.split("\n")[0] ?? ""}`).join("\n")}
+${addressed.map((flag) => `      addressed: ${flag.attr} @ ${shortFile(flag.file)} — ${evidenceTextForFlag(flag.id, props.riskEvidence, props.reviewComments, props.brief.chunks)}`).join("\n")}
 ${dismissed.map((flag) => `      dismissed: ${flag.attr} @ ${shortFile(flag.file)} — "${props.flagStates[flag.id]?.reason ?? ""}"`).join("\n")}
 ${open.map((flag) => `      open: ${flag.attr} @ ${shortFile(flag.file)} — not addressed, not dismissed`).join("\n")}
 ${props.reclassifiedGroups.size > 0 ? `\n  ${props.reclassifiedGroups.size} group reclassified by reviewer` : ""}
 
   not checked: business intent · runtime behavior · performance under load · integration with downstream systems`}</pre>
           <div className="receipt-actions">
-            <button className="btn primary" type="button" onClick={props.submit}>Submit review to GitHub</button>
+            <button className="btn primary" type="button" onClick={props.submit}>{props.reviewMode === "author" ? "Mark ready for review" : "Submit review to GitHub"}</button>
+            <button className="btn" type="button" onClick={props.openSummaryPreview}>Preview public summary</button>
             <button className="btn" type="button" onClick={props.close}>Keep reviewing</button>
             <span className="receipt-note">Scoped to mechanical claims. The approve / request-changes verdict is yours alone.</span>
           </div>
         </div>
       </aside>
     </>
+  );
+}
+
+function SummaryPreviewDrawer({
+  brief,
+  close,
+  open,
+  reviewOutcome,
+  setOutcome,
+  snapshot,
+}: {
+  brief: Brief;
+  close: () => void;
+  open: boolean;
+  reviewOutcome: ReviewOutcome;
+  setOutcome: (outcome: ReviewOutcome) => void;
+  snapshot: Parameters<typeof SummaryPreview>[0]["snapshot"];
+}) {
+  return (
+    <>
+      <button aria-label="Close summary preview" className={open ? "scrim show" : "scrim"} type="button" onClick={close} />
+      <aside className={open ? "receipt summary-drawer show" : "receipt summary-drawer"}>
+        <SummaryPreview brief={brief} snapshot={{ ...snapshot, reviewOutcome }} setOutcome={setOutcome} />
+      </aside>
+    </>
+  );
+}
+
+function PreSubmitModal({
+  close,
+  continueToReceipt,
+  jumpToItem,
+  mode,
+  open,
+  unresolvedItems,
+}: {
+  close: () => void;
+  continueToReceipt: () => void;
+  jumpToItem: (item: UnresolvedItem) => void;
+  mode: ReviewMode;
+  open: boolean;
+  unresolvedItems: UnresolvedItem[];
+}) {
+  const title = mode === "author" ? "Before requesting review" : "Before the receipt";
+  const primary = mode === "author" ? "Continue to self-review summary" : "Continue to receipt";
+  return (
+    <div className={open ? "modal show" : "modal"}>
+      <div className="modal-box unresolved-box">
+        <h3>{title}</h3>
+        <p className="modal-copy">This is advisory. You can continue, but the summary will show unresolved items exactly as they are.</p>
+        <div className="unresolved-list">
+          {unresolvedItems.length === 0 ? <div className="empty">No unresolved review items.</div> : null}
+          {unresolvedItems.map((item) => (
+            <button className="unresolved-item" key={item.id} type="button" onClick={() => jumpToItem(item)}>
+              <span>{unresolvedKindLabel(item.kind)}</span>
+              <b>{item.label}</b>
+            </button>
+          ))}
+        </div>
+        <div className="modal-actions">
+          <button className="btn" type="button" onClick={close}>Keep reviewing</button>
+          <button className="btn primary" type="button" onClick={continueToReceipt}>{primary}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EvidenceModal({
+  cancel,
+  chunks,
+  comments,
+  confirm,
+  target,
+}: {
+  cancel: () => void;
+  chunks: BriefChunk[];
+  comments: ReviewComment[];
+  confirm: (kind: RiskEvidenceKind, commentId: string | undefined, note: string | undefined) => void;
+  target: EvidenceTarget | null;
+}) {
+  const [kind, setKind] = useState<RiskEvidenceKind>("chunk-reviewed");
+  const [commentId, setCommentId] = useState("");
+  const [note, setNote] = useState("");
+
+  useEffect(() => {
+    if (!target) return;
+    setKind(comments.length > 0 ? "linked-comment" : "chunk-reviewed");
+    setCommentId(comments[0]?.id ?? "");
+    setNote("");
+  }, [comments, target]);
+
+  const linkedCommentDisabled = kind === "linked-comment" && !commentId;
+  return (
+    <div className={target ? "modal show" : "modal"}>
+      <div className="modal-box evidence-box">
+        <h3>Address risk with evidence</h3>
+        <div className="mattr">{target?.label}</div>
+        <div className="evidence-options">
+          <label><input checked={kind === "linked-comment"} disabled={comments.length === 0} name="risk-evidence" type="radio" onChange={() => setKind("linked-comment")} /> Linked comment</label>
+          <label><input checked={kind === "chunk-reviewed"} name="risk-evidence" type="radio" onChange={() => setKind("chunk-reviewed")} /> Reviewed related chunk</label>
+          <label><input checked={kind === "manual-note"} name="risk-evidence" type="radio" onChange={() => setKind("manual-note")} /> Manually verified</label>
+        </div>
+        {kind === "linked-comment" ? (
+          <select value={commentId} onChange={(event) => setCommentId(event.target.value)}>
+            {comments.map((comment) => <option key={comment.id} value={comment.id}>{commentLocation(comment)}</option>)}
+          </select>
+        ) : null}
+        {kind === "chunk-reviewed" ? <p className="modal-copy">Each selected risk will link to its related chunk. Reviewed chunks are shown as evidence in the receipt.</p> : null}
+        {kind === "manual-note" ? <textarea placeholder="What did you verify?" value={note} onChange={(event) => setNote(event.target.value)} /> : null}
+        <div className="modal-actions">
+          <button className="btn" type="button" onClick={cancel}>Cancel</button>
+          <button className="btn primary" disabled={linkedCommentDisabled} type="button" onClick={() => confirm(kind, commentId || undefined, note.trim() || undefined)}>Mark addressed</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1221,6 +1567,32 @@ function rangeBetween(start: number, end: number): number[] {
   const low = Math.min(start, end);
   const high = Math.max(start, end);
   return Array.from({ length: high - low + 1 }, (_, index) => low + index);
+}
+
+function unresolvedKindLabel(kind: UnresolvedItem["kind"]): string {
+  const labels: Record<UnresolvedItem["kind"], string> = {
+    "open-risk": "Open risk",
+    "missing-evidence": "Addressed without evidence",
+    "unreviewed-carrier": "Unreviewed carrier chunk",
+    "draft-comment": "Draft comment",
+    "thin-dismissal": "Thin dismissal reason",
+  };
+  return labels[kind];
+}
+
+function deltaBadgesForChunk(chunkId: string, delta: Brief["delta"]): Array<{ label: string; className: string }> {
+  if (!delta) return [];
+  const badges: Array<{ label: string; className: string }> = [];
+  if (delta.newChunkIds.includes(chunkId)) badges.push({ label: "new", className: "new" });
+  if (delta.changedChunkIds.includes(chunkId)) badges.push({ label: "changed", className: "changed" });
+  if (delta.reopenedRiskFlagIds.some((flagId) => flagId.startsWith(`${chunkId}-`))) badges.push({ label: "risk reopened", className: "reopened" });
+  if (delta.stillResolvedRiskFlagIds.some((flagId) => flagId.startsWith(`${chunkId}-`))) badges.push({ label: "still resolved", className: "resolved" });
+  return badges;
+}
+
+function evidenceTextForFlag(flagId: string, evidenceByFlag: Record<string, RiskEvidence>, comments: ReviewComment[], chunks: BriefChunk[]): string {
+  const evidence = evidenceByFlag[flagId];
+  return evidence ? riskEvidenceLabel(evidence, comments, chunks) : "addressed without linked evidence";
 }
 
 function shortFile(path: string): string {

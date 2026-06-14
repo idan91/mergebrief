@@ -1,0 +1,137 @@
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+import { Roles, type Brief } from "../brief/types";
+import { buildBriefViewModel } from "../brief/viewModel";
+import type { DemoReviewSnapshot } from "./demoState";
+import { commentLocation } from "./state";
+import { riskDispositionCounts, riskEvidenceLabel, summarySignatureLine } from "./state";
+
+interface SummaryPreviewProps {
+  brief: Brief;
+  snapshot: DemoReviewSnapshot;
+  setOutcome?: (outcome: DemoReviewSnapshot["reviewOutcome"]) => void;
+}
+
+export function SummaryPreview({ brief, snapshot, setOutcome }: SummaryPreviewProps) {
+  const model = buildBriefViewModel(brief);
+  const flagIds = model.flags.map((flag) => flag.id);
+  const counts = riskDispositionCounts(snapshot.flagStates, flagIds);
+  const reviewedChunkIds = new Set(snapshot.reviewedChunkIds);
+  const carrierChunks = brief.chunks.filter((chunk) => chunk.role === Roles.Carrier);
+  const supportingChunks = brief.chunks.filter((chunk) => chunk.role === Roles.Supporting);
+  const addressed = model.flags.filter((flag) => snapshot.flagStates[flag.id]?.status === "addressed");
+  const dismissed = model.flags.filter((flag) => snapshot.flagStates[flag.id]?.status === "dismissed");
+  const open = model.flags.filter((flag) => (snapshot.flagStates[flag.id]?.status ?? "open") === "open");
+  const title = snapshot.reviewMode === "author" ? "Self-review summary" : "Review Summary";
+
+  return (
+    <main className="summary-page">
+      <section className="summary-shell">
+        <div className="summary-kicker">Frozen preview · interview demo</div>
+        <div className="summary-head">
+          <div>
+            <h1>{title}</h1>
+            <p>Reviewed by @you · {brief.pr.repo} #{brief.pr.number} · {brief.pr.sha.slice(0, 7)}</p>
+          </div>
+          <span className="summary-badge">Tool receipt, not an approval</span>
+        </div>
+
+        <section className="summary-card">
+          <div className="summary-row">
+            <span>Review outcome</span>
+            <div className="outcome-pick">
+              {(["comment", "approve", "request-changes"] as const).map((outcome) => (
+                <button className={snapshot.reviewOutcome === outcome ? "active" : ""} disabled={!setOutcome} key={outcome} type="button" onClick={() => setOutcome?.(outcome)}>
+                  {reviewOutcomeLabel(outcome)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="signature-line">{summarySignatureLine({ reviewedChunks: reviewedChunkIds.size, addressedRisks: counts.addressed, dismissedRisks: counts.dismissed })}</div>
+        </section>
+
+        <section className="summary-grid">
+          <div className="summary-card">
+            <h2>What the reviewer covered</h2>
+            <dl className="summary-metrics">
+              <div><dt>Chunks reviewed</dt><dd>{reviewedChunkIds.size}/{brief.chunks.length}</dd></div>
+              <div><dt>Carrier chunks</dt><dd>{carrierChunks.filter((chunk) => reviewedChunkIds.has(chunk.id)).length}/{carrierChunks.length}</dd></div>
+              <div><dt>Supporting chunks</dt><dd>{supportingChunks.filter((chunk) => reviewedChunkIds.has(chunk.id)).length}/{supportingChunks.length}</dd></div>
+            </dl>
+            <h3>Inline comments</h3>
+            {snapshot.reviewComments.length === 0 ? <p className="summary-empty">No draft comments in this preview.</p> : null}
+            {snapshot.reviewComments.map((comment) => (
+              <div className="summary-comment" key={comment.id}>
+                <span>{commentLocation(comment)}</span>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{comment.body.split("\n")[0] ?? ""}</ReactMarkdown>
+              </div>
+            ))}
+          </div>
+
+          <div className="summary-card">
+            <h2>Risk surface disposition</h2>
+            <RiskList title="Addressed risks" flags={addressed} renderDetail={(flag) => {
+              const evidence = snapshot.riskEvidence[flag.id];
+              return evidence ? riskEvidenceLabel(evidence, snapshot.reviewComments, brief.chunks) : "no evidence linked";
+            }} />
+            <RiskList title="Dismissed risks" flags={dismissed} renderDetail={(flag) => snapshot.flagStates[flag.id]?.reason ?? ""} />
+            <RiskList title="Open risks at submit" flags={open} renderDetail={() => "not addressed, not dismissed"} />
+          </div>
+        </section>
+
+        {snapshot.briefMode === "delta" && brief.delta ? (
+          <section className="summary-card">
+            <h2>Delta / re-review</h2>
+            <p>{brief.delta.summary}</p>
+            <div className="delta-metrics">
+              <span>{brief.delta.newChunkIds.length} new chunks</span>
+              <span>{brief.delta.changedChunkIds.length} changed chunks</span>
+              <span>{brief.delta.reopenedRiskFlagIds.length} risks reopened</span>
+              <span>{brief.delta.movedCommentAnchors.length} comments moved</span>
+              <span>{brief.delta.orphanedCommentIds.length} comments orphaned</span>
+            </div>
+          </section>
+        ) : null}
+
+        <section className="summary-card not-checked">
+          <h2>Not checked</h2>
+          <span>business intent</span>
+          <span>runtime behavior</span>
+          <span>performance under load</span>
+          <span>downstream integration</span>
+          <span>general bug finding</span>
+        </section>
+      </section>
+    </main>
+  );
+}
+
+function reviewOutcomeLabel(outcome: DemoReviewSnapshot["reviewOutcome"]): string {
+  if (outcome === "request-changes") return "Request changes";
+  if (outcome === "approve") return "Approve";
+  return "Comment";
+}
+
+function RiskList({
+  title,
+  flags,
+  renderDetail,
+}: {
+  title: string;
+  flags: ReturnType<typeof buildBriefViewModel>["flags"];
+  renderDetail: (flag: ReturnType<typeof buildBriefViewModel>["flags"][number]) => string;
+}) {
+  return (
+    <div className="summary-risk-list">
+      <h3>{title}</h3>
+      {flags.length === 0 ? <p className="summary-empty">None.</p> : null}
+      {flags.map((flag) => (
+        <div className="summary-risk" key={flag.id}>
+          <span>{flag.attr} · {flag.file}</span>
+          <small>{renderDetail(flag)}</small>
+        </div>
+      ))}
+    </div>
+  );
+}

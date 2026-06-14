@@ -112,6 +112,7 @@ export interface Brief {
   changeGroups: ChangeGroup[];
   chunks: BriefChunk[];
   concernView: ConcernRollup[];
+  delta?: DeltaBrief;
 }
 
 export interface LocalBriefSummary {
@@ -120,4 +121,22 @@ export interface LocalBriefSummary {
   number: number;
   title: string;
   sha: string;
+}
+
+export interface MovedCommentAnchor {
+  commentId: string;
+  from: string;
+  to: string;
+}
+
+export interface DeltaBrief {
+  previousSha: string;
+  currentSha: string;
+  summary: string;
+  newChunkIds: string[];
+  changedChunkIds: string[];
+  reopenedRiskFlagIds: string[];
+  movedCommentAnchors: MovedCommentAnchor[];
+  orphanedCommentIds: string[];
+  stillResolvedRiskFlagIds: string[];
 }

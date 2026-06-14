@@ -6,6 +6,7 @@
   "description": "Turns a real PR diff into a usable review brief (story + concern + risk-surface), validated against hand-labels.",
   "scripts": {
     "categorize": "tsx src/index.ts",
+    "make-delta-fixture": "tsx src/delta-fixture.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },

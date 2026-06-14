@@ -1,6 +1,7 @@
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { DemoReviewSnapshotProvider } from "../features/review/demoState";
 import type { RouterContext } from "../router";
 import appStyles from "../styles/app.scss?url";
 
@@ -27,7 +28,9 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootComponent() {
   return (
     <RootDocument>
-      <Outlet />
+      <DemoReviewSnapshotProvider>
+        <Outlet />
+      </DemoReviewSnapshotProvider>
     </RootDocument>
   );
 }
