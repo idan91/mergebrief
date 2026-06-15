@@ -13,8 +13,12 @@ The comprehension artifact the tool produces for a PR — summary, multi-tag cat
 _Avoid_: report, analysis, AI summary
 
 **Delta Brief**:
-The comprehension artifact for re-review — what changed for THIS reviewer's mental model since they last looked: new chunks tagged, flag resolution status, comment-target tracking, playbook delta, net receipt diff.
+The comprehension artifact for re-review — what changed for THIS reviewer's mental model since they last looked: new chunks tagged, flag resolution status, comment-target tracking, playbook delta, net receipt diff. Computed as a diff between two states (the reviewer's **Checkpoint** tree and the current head tree), not a replay of commits — so it is well-defined across rebases and force-pushes. Exists only when the reviewer has a Checkpoint (a prior submitted review); a first-time reviewer gets the full **Brief**, no Delta.
 _Avoid_: incremental brief, diff-of-diff (informal only), update
+
+**Checkpoint**:
+The commit SHA at which a given reviewer last *submitted* a review. The baseline from which that reviewer's **Delta Brief** is computed (Checkpoint → current head). Advances on review submission, never on mere viewing; distinct per reviewer, so two reviewers can hold different Checkpoints on the same PR and therefore receive different Delta Briefs.
+_Avoid_: baseline (informal), last-seen, watermark
 
 **Chunk**:
 A contiguous run of changed lines sharing **one Concern and one Change-group** — the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC.
@@ -121,7 +125,7 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 - A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one carrier chunk plus zero or more supporting chunks.
 - A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (carrier/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (+added/−deleted).
 - The brief is read through two pivots over the same chunk set: the **Story view** (by Change-group) and the **Concern view** (by Concern). LoC rolls up under both.
-- A new push to an **Activated** PR produces a **Delta Brief** (debounced) relative to the previous SHA's brief.
+- A full **Brief** at a given SHA is shared across all reviewers of that SHA. A **Delta Brief** spans the *reviewer's* last-reviewed SHA → current head, so two reviewers at different checkpoints receive different Delta Briefs over different commit spans. The full Brief is the shared, per-SHA artifact; the Delta Brief is selected per reviewer by their baseline. New pushes (debounced) move the head, after which a fresh full Brief and new Delta Briefs become available.
 - Each (PR × Reviewer) pairing has one private **Mind-Map Space**.
 - A **Comment** belongs to a reviewer and ships to the PR. A **Seed** belongs to a chunk in the brief and never ships.
 - A **Flag** can be **addressed** (responded to by a comment that targets it) or **dismissed** (recorded with reason).
