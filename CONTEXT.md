@@ -20,6 +20,14 @@ _Avoid_: incremental brief, diff-of-diff (informal only), update
 The commit SHA at which a given reviewer last *submitted* a review. The baseline from which that reviewer's **Delta Brief** is computed (Checkpoint → current head). Advances on review submission, never on mere viewing; distinct per reviewer, so two reviewers can hold different Checkpoints on the same PR and therefore receive different Delta Briefs.
 _Avoid_: baseline (informal), last-seen, watermark
 
+**Carry-over status**:
+How a prior **Flag** is classified in a **Delta Brief** relative to this reviewer's **Checkpoint**. One of: **New** (not present at the Checkpoint); **Reopened** (the reviewer had addressed or dismissed it and its region was touched in the span — so the prior decision must be re-made); **Settled** (addressed/dismissed and its region untouched — the prior decision still holds; FE may gloss as "still holds"); **Dropped** (the attribute no longer fires at head — the risk condition is gone, independent of any reviewer action). Decision order: Dropped → Reopened → Settled → New. Reopen is purely positional — *any* change to the flagged region reopens; meaningfulness is never inferred. On ambiguity, classify as Reopened, never Settled.
+_Avoid_: still-resolved, cleared, gone, stale, resolved (as state names)
+
+**Comment anchoring**:
+How a prior comment is placed in a **Delta Brief** once head has moved. A shipped **Comment** (GitHub-native) carries GitHub's own position/outdated tracking — we read it, not recompute it. A **Flag** or an unshipped draft (**Mind-Map Space**) is anchored by us via the span's positional line-map: **moved** (relocated to a new line) or **orphaned** (its target line is gone). Ambiguous → orphaned / needs re-look, never silently dropped.
+_Avoid_: re-anchor (informal), outdated (GitHub's word, only for shipped comments)
+
 **Chunk**:
 A contiguous run of changed lines sharing **one Concern and one Change-group** — the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC.
 _Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
