@@ -111,8 +111,16 @@ The private (per reviewer × PR) workspace inside the web app where the reviewer
 _Avoid_: workspace, scratchpad, draft space
 
 **Activation**:
-The state transition when a human first clicks the deep-link button on a PR's tool-comment. Before activation: no compute fires. After activation: brief computes, and subsequent pushes auto-trigger debounced delta recompute.
+The state transition when a human first clicks the deep-link button on a PR's tool-comment (or, under draft-first, when the draft opens). Before activation: no compute fires. After activation: the **Brief** computes, and subsequent pushes auto-trigger debounced brief regeneration; **Delta Briefs** are per-reviewer (computed from each reviewer's **Checkpoint**), not a single push-triggered recompute.
 _Avoid_: enable, turn on, open
+
+**Intent check**:
+A secondary section of the **Brief** comparing the change's *stated intent* — a linked ticket (fetched from the PR description) or, failing that, the PR description itself — against what the diff actually does. When the intent source is *precise*, it reports three factual buckets: **accomplished**, **stated-but-missing**, **done-but-unstated**. When the source is *broad* (an epic/parent) or *absent*, it reports that the check is unavailable rather than guessing. Deliberately de-emphasized — the **Change-groups** carry the story; the intent check is the AI's fallible read, shown to both author and reviewer, never a verdict or focal point.
+_Avoid_: requirements check, spec compliance, intent verdict
+
+**Soft gate**:
+A transient, non-blocking nudge shown to the **Author** at the ready-for-review handoff, surfacing unaddressed **Risk Surface** flags (primary, factual) and — only when the **Intent check** source is precise — stated-but-missing intent gaps (secondary). The author may fix or authorize; it never blocks and leaves no persistent author state (the author side has no **Dismissal** or **Receipt** of its own).
+_Avoid_: pre-submit gate, block, author approval
 
 **Comment**:
 Reviewer-authored prose that ships to the PR. In this product, comments are never AI-authored — the agent provides structure (seeds) and post-hoc validation, but the reviewer writes the sentence.
@@ -152,7 +160,7 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 
 - **"Critical area"** was rejected as terminology. It bundled *verdict* into what should be *attributes*. Resolved: split into **Risk Surface** (factual per-chunk attributes) and **Flag** (a specific item needing attention or dismissal).
 - **"Approval"** was used ambiguously to mean reviewer judgment AND AI verification. Resolved: only humans **Approve**. The tool issues a **Receipt**, scoped to mechanical claims.
-- **"User"** in early scope was ambiguous (author vs reviewer). Resolved: v1 product surface is **Reviewer**-only; the **Author** surface is v2 and explicitly named when referenced.
+- **"User"** in early scope was ambiguous (author vs reviewer). Resolved: **Reviewer** is the primary v1 surface; the **Author** self-review surface is a *secondary* v1 surface (promoted 2026-06 — see ADR 0009 / `center-of-gravity.md`), consuming the same shared **Brief** plus the **Intent check** and **Soft gate**. Both are named explicitly when referenced.
 - **"Critical code areas might mislead reviewer"** — the original concern was anchoring bias. Resolved by Risk Surface + Playbook + no-verdict model. Anchoring is the design's chief enemy at the brief layer.
 - **"Pure AI code review comments"** was an informal phrase. Resolved as a strict product rule: the agent never authors prose that ships as a **Comment**. Seeds and validation only.
 - **Intent lived on the chunk** in the original model. Resolved: intent (**Category**, **Summary**) lives on the **Change-group**; the chunk carries **Concern**, **Role**, and **LoC**. A test/doc chunk supports a group's intent rather than re-deriving its own. See ADR 0005.
