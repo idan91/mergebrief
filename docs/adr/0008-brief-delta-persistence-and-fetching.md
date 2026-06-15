@@ -17,7 +17,8 @@ ADR 0006 fixed delta generation/state and ADR 0007 fixed comment anchoring + fla
 
 ### Entities & keys
 - **Brief** `(repo, PR, headSHA)` → brief JSON. Immutable, shared.
-- **Delta** `(repo, PR, baselineSHA, headSHA)` → delta JSON. Immutable, regenerable cache.
+- **Delta core** `(repo, PR, baselineSHA, headSHA)` → the code-change narrative (new/changed groups + summary). Shared across all reviewers at that span; the expensive (LLM) part. Immutable, regenerable.
+- **Carry-over overlay** `(reviewer, repo, PR, baselineSHA, headSHA)` → this reviewer's flag carry-over statuses + comment anchoring (ADR 0007). Per-reviewer (baseline-time dispositions differ); cheap (positional map + small LLM). Immutable, regenerable. Rendered Delta = core + the viewer's overlay.
 - **DiffSnapshot** `(repo, PR, SHA)` → unified diff. Survives force-push GC (ADR 0006 #8).
 - **Checkpoint** `(repo, PR, reviewer)` → lastSubmittedSHA, ts.
 - **Disposition** `(reviewer, repo, PR, file, attribute, region, decidedAtSHA)` → decision (addressed/dismissed) + reason. **Anchored, not id-referenced**; matched forward to head via the positional line-map (ADR 0007).
