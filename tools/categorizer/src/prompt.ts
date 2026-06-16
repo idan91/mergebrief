@@ -119,6 +119,9 @@ ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
 - One group = ONE title + ONE summary + ONE dominant category. If you need two unrelated summaries, split into two groups.
 - The author's commit structure is a hint, never the boundary.
 - Intent lives on the carrier chunk(s); supporting chunks inherit it and are not independently categorized.
+- **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if a set of changes has no intent-holder of its own, those chunks are *supporting* chunks of the group whose intent they serve, not a group.
+- **Export / barrel / re-export chunks (e.g. \`index.ts\`) are supporting** — attach each to the group whose feature it exports, never a catch-all "exports" group. If one file re-exports several features, split it into separate chunks (one per feature), each attached to its group.
+- **A standalone change with its own intent (e.g. dropping a CSS rule, a config tweak) is its own group with that chunk as the carrier** — don't fold it into an unrelated group.
 
 ## Honest uncertainty (load-bearing)
 
@@ -180,6 +183,12 @@ ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
 ## Chunks are sub-file
 
 A chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group. One file's changed lines may serve different intents — split them into separate chunks, each pointing at the one group it serves via \`changeGroupId\`; a file's hunks can be distributed across several groups. **Each chunk belongs to exactly ONE change-group (set \`changeGroupId\`). A file appears in multiple groups only via *different* chunks — so a reviewer never reviews the same lines twice.** Each chunk records \`changeGroupId\`, file, concern, role, git LoC, line ranges, and risk-surface attributes.
+
+## Change-group rules
+
+- **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if changes have no intent-holder of their own, they are *supporting* chunks of the group they serve, not a group.
+- **Export / barrel / re-export chunks (e.g. \`index.ts\`) are supporting** — attach each to the group whose feature it exports (split per feature when it exports several); never a catch-all "exports" group.
+- **A standalone change with its own intent (e.g. dropping a CSS rule, a config tweak) is its own group with that chunk as the carrier** — don't fold it into an unrelated group.
 
 ## Line ranges (per chunk)
 
