@@ -11,26 +11,19 @@ The rule: **spend in proportion to remaining risk**.
 - **Unknown (C — reviewer behavior):** Does presenting intent categories + per-category playbooks actually change reviewer engagement vs raw diff? Could fail even with perfect labels.
 - **Unknown (D — data model / persistence / identity):** Architectural unknowns. Matters at scale, not at validation.
 
-## Phase 1 — Wizard-of-Oz C Test
+## Phase 1 — Dogfood the Real Tool (Reviewer Behavior, C)
 
-> **⚠ Goal redefinition pending (2026-06-13 reshape — see [`center-of-gravity.md`](./center-of-gravity.md)).** The goal below tests the **playbook** layer, which the reshape demotes. The phase still earns its place, but the question changes: does **story + risk-surface + delta** (the new center of gravity) move reviewer behavior — not "do per-category playbooks". Re-derive the goal, conditions, and gate (`phase-1.md`) before labeling. Method/cost/structure carry over.
+> **Redefined 2026-06 — full plan in [`phase-1.md`](./phase-1.md).** The original Wizard-of-Oz Treatment-vs-B′ design tested the now-demoted **playbook** and assumed no tool existed. Both premises are gone (playbook demoted; categorizer built + gold-checked), so Phase 1 is now: **dogfood the real categorizer** on real PRs, centered on the **delta re-review**, baseline = status-quo GitHub review, **kill criterion = peer usage**. Useful-tool-first, not a clinical experiment.
 
-**Goal (pending redefinition):** Confirm reviewers behave differently when shown intent categories + per-category playbooks vs raw diff. Kill the wedge fast if it's going to die.
+**Goal:** Does **story + risk-surface + delta** change reviewer behavior — above all, does the **Delta Brief** defeat the re-review rubber-stamp? Kill the wedge fast if it doesn't.
 
-**Method:**
-- Hand-label 10–20 real PRs across mixed change types (refactor, lib-bump, schema-change, new-feature, pure-move, etc.).
-- For each PR, produce a brief in the format defined in `initial-scope.md`: summary + multi-tag categorization (dominant + secondary) + per-category playbook + risk-surface attributes.
-- Present the brief and the PR (in whatever simple UX is fastest — a Notion doc, a Loom walkthrough, a markdown rendering, paper prototype) to 3–5 friendly reviewers.
-- Watch behavior. Do they read the playbooks? Use the categories to navigate? Engage differently than they would with raw GitHub diff?
-- Compare against a baseline — same reviewers, similar PRs, raw-diff-only.
+**Method / gate (full detail in [`phase-1.md`](./phase-1.md)):** Real categorizer output on real PRs; 3–5 senior reviewers; async screen-record + debrief; the **delta re-review** (review at SHA1 → return with the Delta Brief at SHA2) as the primary test. Passes on visible behavior movement + **voluntary repeat usage**; the status-quo GitHub review is the baseline.
 
-**Cost:** Hours of labeling + days of observation. No production code.
-
-**Gate:** Behavior visibly moves vs raw-diff baseline. Reviewers spontaneously reach for the structure (not just acknowledge it politely). If they skim past it the same way they skim AI CR comments today → wedge is wrong even with perfect AI. Stop and revisit.
+**Cost:** ~$0.46/PR of model spend + days of observation. No hand-labeling, no production-code gate.
 
 ## Phase 2 — Categorizer Benchmark (B)
 
-**Only if Phase 1 passes.**
+> **Largely complete (2026-06).** The categorizer thin slice (`tools/categorizer/`) is built and gold-checked against the medusa hand-labels (judged v1-good). Under the useful-tool-first approach, Phase 1 (dogfood) and Phase 2 (build) have effectively merged — the metrics below remain useful for broader accuracy tracking, not as a gate.
 
 **Goal:** Confirm AI can produce the categorization at usable accuracy across the change types the product depends on.
 
@@ -51,7 +44,7 @@ The rule: **spend in proportion to remaining risk**.
 
 ## Phase 3 — Architecture & D Commit
 
-**Only if Phase 2 passes.**
+> **Architecture decided (2026-06).** The data model, persistence, and delta subsystem are specified in ADRs 0006–0009. What remains is implementation + first onboarding.
 
 **Goal:** Build the product surface that supports the validated wedge at scale.
 
