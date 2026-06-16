@@ -110,7 +110,7 @@ Default from concern (implementation → carrier, else → supporting). **Flip**
 
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
 
-Severity is NOT your job — it emerges later from combinations. Attach an attribute only when the diff or repo context supports it.
+Severity is NOT your job — it emerges later from combinations. Attach an attribute only when the diff or repo context supports it. **Be consistent with your own prose: if you note a risk in the summary (a widened public API → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it — never describe a risk in prose without flagging it on a chunk.**
 
 ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
 
@@ -177,6 +177,8 @@ ${bullets(Concerns, CONCERN_GLOSS)}
 - \`carrier\`: holds the change-group's intent. \`supporting\`: serves it (tests, docs, specs, config). Default from concern; flip when a supporting artifact is itself the purpose.
 
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
+
+Attach an attribute only when the incremental diff supports it — and **be consistent with your own prose: if you note a risk in the summary or \`wholePrImpact\` (a widened public API → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it. Never describe a risk without flagging it on a chunk.**
 
 ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
 
