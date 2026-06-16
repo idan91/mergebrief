@@ -1,4 +1,9 @@
-import type { Brief } from "./types.js";
+import type { Brief, DeltaBrief } from "./types.js";
+
+/** First 8 chars of a SHA, for filenames and summaries. */
+function shortSha(sha: string): string {
+  return sha.slice(0, 8);
+}
 
 /** `<owner>-<repo>-<number>` — shared stem for a PR's output files. */
 function stem(brief: Brief): string {
@@ -61,4 +66,46 @@ export function summaryLines(brief: Brief): string[] {
 
 export function printSummary(brief: Brief): void {
   console.log(summaryLines(brief).join("\n"));
+}
+
+/** Sidecar filename for a delta: `<owner>-<repo>-<num>-<base8>..<head8>.delta.json`. */
+export function deltaOutName(delta: DeltaBrief): string {
+  return `${delta.pr.repo.replace("/", "-")}-${delta.pr.number}-${shortSha(delta.baselineSha)}..${shortSha(delta.headSha)}.delta.json`;
+}
+
+/** Lines printed for a delta brief (the re-review reload). */
+export function deltaSummaryLines(delta: DeltaBrief): string[] {
+  const lines: string[] = [];
+  lines.push(
+    `DELTA  ${delta.pr.repo}#${delta.pr.number} — ${shortSha(delta.baselineSha)} → ${shortSha(delta.headSha)}`,
+  );
+  lines.push(`    ${delta.summary.split("\n")[0] ?? ""}`);
+  lines.push("");
+
+  lines.push(`Changed groups (${delta.changedGroups.length}):`);
+  for (const g of delta.changedGroups) {
+    const secondary = g.secondaryCategories.length
+      ? ` (+${g.secondaryCategories.join(", ")})`
+      : "";
+    const uncertain = g.uncertain
+      ? `  ⚠ ${g.uncertainBetween.join(" vs ")}`
+      : "";
+    lines.push(`  • [${g.dominantCategory}]${secondary} ${g.title}${uncertain}`);
+  }
+  lines.push("");
+
+  const flagged = delta.chunks.filter((c) => c.riskSurface.length > 0);
+  lines.push(
+    `Risk-surface flags (${flagged.length}/${delta.chunks.length} changed chunks):`,
+  );
+  for (const c of flagged) {
+    lines.push(`  ${c.id} ${c.file} [${c.role}]: ${c.riskSurface.join(", ")}`);
+  }
+  lines.push("");
+  lines.push(`Whole-PR impact: ${delta.wholePrImpact}`);
+  return lines;
+}
+
+export function printDeltaSummary(delta: DeltaBrief): void {
+  console.log(deltaSummaryLines(delta).join("\n"));
 }

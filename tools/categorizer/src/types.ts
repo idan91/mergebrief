@@ -193,9 +193,38 @@ export const BriefSchema = z.object({
     .describe("LoC rollup per concern (one entry per concern present)"),
 });
 
+/**
+ * Delta brief — the re-review reload. This is the **delta core** only: the
+ * code-change narrative between a baseline SHA and the head SHA (per ADR 0006).
+ * The per-reviewer carry-over overlay (reopened/settled flags, moved/orphaned
+ * comments) requires reviewer state and is out of scope for the stateless CLI.
+ */
+export const DeltaBriefSchema = z.object({
+  pr: PrRefSchema,
+  baselineSha: z.string().describe("the SHA the reviewer last looked at"),
+  headSha: z.string().describe("the current head SHA"),
+  summary: z
+    .string()
+    .describe(
+      "Markdown reload, in this order: (1) a concise one-paragraph overview of what changed *since the baseline*; (2) the fuller what-changed; (3) optionally a '## Changelog' of the follow-up commits. Frame it as 'since you last looked'.",
+    ),
+  changedGroups: z
+    .array(ChangeGroupSchema)
+    .describe("change-groups for the incremental (baseline→head) change only"),
+  chunks: z
+    .array(ChunkSchema)
+    .describe("chunks of the incremental change only"),
+  wholePrImpact: z
+    .string()
+    .describe(
+      "how this follow-up affects the overall PR — does it complete/alter the original intent, or introduce new risk not present at the baseline. Grounded in the diff; not a verdict.",
+    ),
+});
+
 export type PrRef = z.infer<typeof PrRefSchema>;
 export type LineRange = z.infer<typeof LineRangeSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
 export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;
 export type Brief = z.infer<typeof BriefSchema>;
+export type DeltaBrief = z.infer<typeof DeltaBriefSchema>;

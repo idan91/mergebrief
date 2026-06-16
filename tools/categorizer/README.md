@@ -43,6 +43,16 @@ pnpm categorize https://github.com/medusajs/medusa/pull/15605
 
 For each PR it writes `out/<owner>-<repo>-<number>.brief.json` and prints a human-readable summary to stdout. Multiple PRs are fetched and categorized in parallel; one bad URL doesn't abort the batch.
 
+### Delta (re-review reload)
+
+```bash
+pnpm delta <pr-url> <baseline-sha> <head-sha>
+```
+
+Generates the **delta core** — "what changed since the baseline" — for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics — exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json`.
+
+This is the delta **core** only — the per-reviewer **carry-over overlay** (reopened/settled flags, moved/orphaned comments) needs reviewer state and is out of scope for the stateless CLI (see ADRs 0006–0008). SHAs must be hex commit-ishes (7–40 chars).
+
 ### Output
 
 - **File:** the full brief as pretty JSON in `out/` (gitignored).
@@ -76,9 +86,10 @@ Tests cover the pure logic: PR-URL parsing edge cases (`src/github.ts`), output 
 
 | File | Purpose |
 |---|---|
-| `src/types.ts` | Zod brief schema — the closed vocabulary, the heart |
-| `src/github.ts` | parse PR URL → `gh pr diff` + `gh pr view --json` (no shell; validated) |
-| `src/prompt.ts` | system prompt assembled from the schema constants so it can't drift |
-| `src/categorize.ts` | `messages.parse()` + `zodOutputFormat(BriefSchema)` |
-| `src/output.ts` | output filename + stdout summary rendering |
-| `src/index.ts` | CLI: args → fetch → categorize → write JSON + print summary |
+| `src/types.ts` | Zod brief + delta schemas — the closed vocabulary, the heart |
+| `src/github.ts` | parse PR URL → `gh pr diff` / `gh pr view` / `gh api …/compare` (no shell; validated) |
+| `src/prompt.ts` | brief + delta system prompts, assembled from the schema constants so they can't drift |
+| `src/categorize.ts` | shared streaming helper → `categorize()` (brief) + `categorizeDelta()` (delta core) |
+| `src/output.ts` | output filenames + stdout summary rendering (brief + delta) |
+| `src/index.ts` | brief CLI: args → fetch → categorize → write JSON + print summary |
+| `src/delta-cli.ts` | delta CLI: url + base/head SHAs → compare diff → categorizeDelta → write JSON |

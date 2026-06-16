@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BriefSchema } from "../src/types.js";
+import { BriefSchema, DeltaBriefSchema } from "../src/types.js";
 
 const validBrief = {
   pr: {
@@ -53,5 +53,62 @@ describe("BriefSchema", () => {
     const bad = structuredClone(validBrief);
     bad.chunks[0]!.riskSurface = ["scary"];
     expect(BriefSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
+const validDelta = {
+  pr: {
+    repo: "o/r",
+    number: 1,
+    title: "t",
+    url: "https://github.com/o/r/pull/1",
+    sha: "deadbeef",
+    description: "d",
+  },
+  baselineSha: "1111111",
+  headSha: "2222222",
+  summary: "since you last looked, the author added a test",
+  changedGroups: [
+    {
+      title: "g title",
+      summary: "g",
+      dominantCategory: "bugfix",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+      carrierChunkIds: ["c1"],
+      supportingChunkIds: [],
+    },
+  ],
+  chunks: [
+    {
+      id: "c1",
+      file: "a.ts",
+      concern: "implementation",
+      role: "carrier",
+      loc: { added: 1, deleted: 0 },
+      addedRanges: [{ start: 5, end: 5 }],
+      removedRanges: [],
+      riskSurface: ["mutates-state"],
+    },
+  ],
+  wholePrImpact: "completes the original intent",
+};
+
+describe("DeltaBriefSchema", () => {
+  it("accepts a well-formed delta", () => {
+    expect(DeltaBriefSchema.safeParse(validDelta).success).toBe(true);
+  });
+
+  it("rejects an out-of-vocabulary category in a changed group", () => {
+    const bad = structuredClone(validDelta);
+    bad.changedGroups[0]!.dominantCategory = "refactor-everything";
+    expect(DeltaBriefSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a delta missing wholePrImpact", () => {
+    const bad = structuredClone(validDelta) as Partial<typeof validDelta>;
+    delete bad.wholePrImpact;
+    expect(DeltaBriefSchema.safeParse(bad).success).toBe(false);
   });
 });

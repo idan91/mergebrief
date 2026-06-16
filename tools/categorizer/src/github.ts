@@ -311,6 +311,46 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
   };
 }
 
+/** A commit-ish we will interpolate into a `gh api` path — restrict to hex SHAs. */
+const COMMITISH = /^[0-9a-fA-F]{7,40}$/;
+
+export function isCommitish(ref: string): boolean {
+  return COMMITISH.test(ref);
+}
+
+/**
+ * Incremental unified diff between two commits of a PR's repo, via the GitHub
+ * compare API (`base...head`). NOTE: the compare endpoint is **three-dot
+ * (merge-base) semantics** — identical to a true tree diff when head descends
+ * from baseline (the normal follow-up case), but after a rebase/force-push it
+ * can include merge-base noise. The rebase-robust two-dot (`git diff base head`,
+ * ADR 0006's intent) needs a local clone — a known CLI limitation to revisit.
+ * base/head are validated as hex SHAs before they reach the api path (defense
+ * in depth — execFile, no shell).
+ */
+export async function fetchCompareDiff(
+  loc: PrLocator,
+  baseSha: string,
+  headSha: string,
+): Promise<string> {
+  if (!isCommitish(baseSha) || !isCommitish(headSha)) {
+    throw new Error(
+      `base/head must be hex commit SHAs (7–40 chars); got "${baseSha}" / "${headSha}"`,
+    );
+  }
+  const { stdout } = await execFileAsync(
+    "gh",
+    [
+      "api",
+      `repos/${loc.owner}/${loc.repo}/compare/${baseSha}...${headSha}`,
+      "-H",
+      "Accept: application/vnd.github.diff",
+    ],
+    { maxBuffer: MAX_BUFFER },
+  );
+  return stdout;
+}
+
 /**
  * Parse a PR URL, then fetch its diff and metadata in parallel. Once we have
  * the description, chase any links in it for extra context (best-effort).

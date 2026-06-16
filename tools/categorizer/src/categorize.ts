@@ -1,88 +1,76 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { BriefSchema, type Brief } from "./types.js";
-import { buildSystemPrompt } from "./prompt.js";
-import type { FetchedPr } from "./github.js";
+import { z } from "zod/v4";
+import {
+  BriefSchema,
+  DeltaBriefSchema,
+  type Brief,
+  type DeltaBrief,
+} from "./types.js";
+import { buildSystemPrompt, buildDeltaSystemPrompt } from "./prompt.js";
+import type { FetchedPr, LinkedContext, PrLocator, PrMetadata } from "./github.js";
 
 /**
  * Opus 4.8 with adaptive thinking. The system prompt (the taxonomy) is the
  * stable prefix, so it carries a cache_control breakpoint; the volatile diff
  * goes in the user turn after it. Structured output is enforced with
- * messages.parse() + zodOutputFormat(BriefSchema).
+ * messages.stream() + zodOutputFormat(...). Streaming (not parse()) because
+ * adaptive thinking + a large max_tokens trips the SDK's 10-minute guard.
  */
 const MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 32000;
 
-function renderUser(pr: FetchedPr): string {
-  const fileList = pr.meta.files
-    .map((f) => `- ${f.path} (+${f.additions} -${f.deletions})`)
-    .join("\n");
-  // Fetched link bodies are untrusted third-party text. Fence each in a tag
-  // (and strip any nested fence so the content can't break out) so the model
-  // treats it as data, not instructions. See the system prompt's warning.
-  const linked = pr.links.length
-    ? pr.links
-        .map((l) => {
-          const safe = l.content.replace(/<\/?linked_context/gi, "");
-          return `<linked_context url="${l.url}">\n${safe}\n</linked_context>`;
-        })
-        .join("\n\n")
-    : "(none)";
-  return `PR: ${pr.meta.url}
-Repo: ${pr.locator.owner}/${pr.locator.repo}
-Number: ${pr.locator.number}
-Title: ${pr.meta.title}
-
-## Description
-${pr.meta.body.trim() || "(no description)"}
-
-## Linked context
-${linked}
-
-## Files changed
-${fileList || "(none reported)"}
-
-## Unified diff
-${pr.diff}`;
-}
-
-/** Progress sink — defaults to no-op so the function stays usable in tests. */
+/** Progress sink — defaults to no-op so the functions stay usable in tests. */
 export type Logger = (message: string) => void;
 
-export async function categorize(
-  pr: FetchedPr,
-  client: Anthropic = new Anthropic(),
-  log: Logger = () => {},
-): Promise<Brief> {
-  // Stream rather than parse(): with adaptive thinking + a large max_tokens the
-  // SDK refuses a non-streaming request that may exceed its 10-minute timeout.
-  // finalMessage() still yields parsed_output from the zodOutputFormat schema.
+/** Render the untrusted linked-context section, fenced so it reads as data. */
+function renderLinked(links: LinkedContext[]): string {
+  if (links.length === 0) return "(none)";
+  return links
+    .map((l) => {
+      const safe = l.content.replace(/<\/?linked_context/gi, "");
+      return `<linked_context url="${l.url}">\n${safe}\n</linked_context>`;
+    })
+    .join("\n\n");
+}
+
+/**
+ * Shared streaming + structured-parse path with live progress logging. Both the
+ * full brief and the delta use it — they differ only in system prompt, schema,
+ * and user content.
+ */
+async function streamStructured<S extends z.ZodType>(
+  client: Anthropic,
+  schema: S,
+  system: string,
+  userContent: string,
+  label: string,
+  log: Logger,
+): Promise<z.infer<S>> {
   const stream = client.messages.stream({
     model: MODEL,
     max_tokens: MAX_TOKENS,
     thinking: { type: "adaptive" },
-    output_config: { format: zodOutputFormat(BriefSchema), effort: 'medium' },
+    output_config: { format: zodOutputFormat(schema), effort: "medium" },
     system: [
-      {
-        type: "text",
-        text: buildSystemPrompt(),
-        cache_control: { type: "ephemeral" },
-      },
+      { type: "text", text: system, cache_control: { type: "ephemeral" } },
     ],
-    messages: [{ role: "user", content: renderUser(pr) }],
+    messages: [{ role: "user", content: userContent }],
   });
 
-  // Live progress: which phase the model is in, how long it has run, and how
-  // much output it has emitted. A heartbeat covers the long silent stretches
-  // (e.g. extended thinking) where no deltas arrive for a while.
+  // Live progress: phase + elapsed + output size. A heartbeat covers the long
+  // silent stretches (e.g. extended thinking) where no deltas arrive.
   const start = Date.now();
   const elapsed = (): string => `${((Date.now() - start) / 1000).toFixed(0)}s`;
-  let phase: "thinking" | "writing brief" = "thinking";
+  let phase: "thinking" | "writing" = "thinking";
   let outChars = 0;
   stream.on("streamEvent", (event) => {
-    if (event.type === "content_block_start" && event.content_block.type === "text") {
-      phase = "writing brief";
-      log(`writing brief… (${elapsed()})`);
+    if (
+      event.type === "content_block_start" &&
+      event.content_block.type === "text"
+    ) {
+      phase = "writing";
+      log(`writing ${label}… (${elapsed()})`);
     } else if (
       event.type === "content_block_delta" &&
       event.delta.type === "text_delta"
@@ -90,10 +78,10 @@ export async function categorize(
       outChars += event.delta.text.length;
     }
   });
-  log("thinking…");
+  log(`thinking… (${label})`);
   const heartbeat = setInterval(() => {
     const size = outChars > 0 ? `, ${outChars} chars` : "";
-    log(`…${phase} (${elapsed()}${size})`);
+    log(`…${phase} ${label} (${elapsed()}${size})`);
   }, 5000);
 
   let response;
@@ -110,17 +98,55 @@ export async function categorize(
   );
 
   if (response.stop_reason === "refusal") {
-    throw new Error("Model refused to categorize this PR.");
+    throw new Error(`Model refused to produce the ${label}.`);
   }
-  const brief = response.parsed_output;
-  if (!brief) {
+  const parsed = response.parsed_output;
+  if (!parsed) {
     throw new Error(
-      `No structured output returned (stop_reason=${response.stop_reason}).`,
+      `No structured output for ${label} (stop_reason=${response.stop_reason}).`,
     );
   }
+  return parsed;
+}
 
-  // PR identifiers + description come from our own fetch, not the model —
-  // never trust the model for repo/number/url/sha or the verbatim description.
+// --- Full brief -----------------------------------------------------------
+
+function renderUser(pr: FetchedPr): string {
+  const fileList = pr.meta.files
+    .map((f) => `- ${f.path} (+${f.additions} -${f.deletions})`)
+    .join("\n");
+  return `PR: ${pr.meta.url}
+Repo: ${pr.locator.owner}/${pr.locator.repo}
+Number: ${pr.locator.number}
+Title: ${pr.meta.title}
+
+## Description
+${pr.meta.body.trim() || "(no description)"}
+
+## Linked context
+${renderLinked(pr.links)}
+
+## Files changed
+${fileList || "(none reported)"}
+
+## Unified diff
+${pr.diff}`;
+}
+
+export async function categorize(
+  pr: FetchedPr,
+  client: Anthropic = new Anthropic(),
+  log: Logger = () => {},
+): Promise<Brief> {
+  const brief = await streamStructured(
+    client,
+    BriefSchema,
+    buildSystemPrompt(),
+    renderUser(pr),
+    "brief",
+    log,
+  );
+  // PR identifiers + description come from our own fetch, not the model.
   brief.pr = {
     repo: `${pr.locator.owner}/${pr.locator.repo}`,
     number: pr.locator.number,
@@ -130,4 +156,61 @@ export async function categorize(
     description: pr.meta.body,
   };
   return brief;
+}
+
+// --- Delta (delta core; per-reviewer carry-over is out of CLI scope) -------
+
+export interface DeltaInput {
+  locator: PrLocator;
+  meta: PrMetadata;
+  baselineSha: string;
+  headSha: string;
+  /** The baseline→head incremental unified diff. */
+  incrementalDiff: string;
+  links?: LinkedContext[];
+}
+
+function renderDeltaUser(input: DeltaInput): string {
+  return `PR: ${input.meta.url}
+Repo: ${input.locator.owner}/${input.locator.repo}
+Number: ${input.locator.number}
+Title: ${input.meta.title}
+Baseline SHA: ${input.baselineSha}
+Head SHA: ${input.headSha}
+
+## Description
+${input.meta.body.trim() || "(no description)"}
+
+## Linked context
+${renderLinked(input.links ?? [])}
+
+## Incremental diff (baseline→head)
+${input.incrementalDiff}`;
+}
+
+export async function categorizeDelta(
+  input: DeltaInput,
+  client: Anthropic = new Anthropic(),
+  log: Logger = () => {},
+): Promise<DeltaBrief> {
+  const delta = await streamStructured(
+    client,
+    DeltaBriefSchema,
+    buildDeltaSystemPrompt(),
+    renderDeltaUser(input),
+    "delta",
+    log,
+  );
+  // Identifiers come from our own fetch, not the model.
+  delta.pr = {
+    repo: `${input.locator.owner}/${input.locator.repo}`,
+    number: input.locator.number,
+    title: input.meta.title,
+    url: input.meta.url,
+    sha: input.meta.sha,
+    description: input.meta.body,
+  };
+  delta.baselineSha = input.baselineSha;
+  delta.headSha = input.headSha;
+  return delta;
 }

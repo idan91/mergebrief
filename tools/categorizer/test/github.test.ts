@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isPublicUrl, parsePrUrl } from "../src/github.js";
+import {
+  fetchCompareDiff,
+  isCommitish,
+  isPublicUrl,
+  parsePrUrl,
+} from "../src/github.js";
 
 describe("parsePrUrl", () => {
   it("parses a canonical PR URL", () => {
@@ -68,5 +73,29 @@ describe("isPublicUrl (SSRF pre-filter)", () => {
 
   it("allows a plain public URL", () => {
     expect(isPublicUrl("https://example.com/docs/a.md")).toBe(true);
+  });
+});
+
+describe("isCommitish", () => {
+  it.each(["abc1234", "0123456789abcdef0123456789abcdef01234567"])(
+    "accepts hex SHA %s",
+    (sha) => expect(isCommitish(sha)).toBe(true),
+  );
+  it.each([
+    "abc", // too short
+    "main", // branch name
+    "feat/x", // path-ish
+    "../../etc", // traversal
+    "0123456789abcdef0123456789abcdef012345678", // 41 chars
+    "ghijklm", // non-hex
+  ])("rejects %s", (sha) => expect(isCommitish(sha)).toBe(false));
+});
+
+describe("fetchCompareDiff", () => {
+  // Rejects before any network call when SHAs aren't commit-ish.
+  it("throws on non-SHA refs", async () => {
+    await expect(
+      fetchCompareDiff({ owner: "o", repo: "r", number: 1 }, "main", "deadbeef"),
+    ).rejects.toThrow(/hex commit SHAs/);
   });
 });
