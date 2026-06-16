@@ -79,6 +79,7 @@ export interface DiffLine {
 
 export interface BriefChunk {
   id: string;
+  changeGroupId: string;
   file: string;
   concern: Concern;
   role: Role;
@@ -86,18 +87,19 @@ export interface BriefChunk {
   addedRanges: LineRange[];
   removedRanges: LineRange[];
   riskSurface: RiskSurfaceAttribute[];
+  summary?: string;
+  addressesComments?: string[];
   diff?: DiffLine[];
 }
 
 export interface ChangeGroup {
+  id: string;
   title: string;
   summary: string;
   dominantCategory: Category;
   secondaryCategories: Category[];
   uncertain: boolean;
   uncertainBetween: Category[];
-  carrierChunkIds: string[];
-  supportingChunkIds: string[];
 }
 
 export interface ConcernRollup {
@@ -106,18 +108,36 @@ export interface ConcernRollup {
   deleted: number;
 }
 
+export interface AddressedReviewComment {
+  id: string;
+  file: string;
+  line: number | null;
+  author: string;
+  body: string;
+  inReplyToId: string | null;
+}
+
 export interface Brief {
+  artifactKind: "brief" | "delta";
   pr: PrRef;
   summary: string;
   changeGroups: ChangeGroup[];
   chunks: BriefChunk[];
   concernView: ConcernRollup[];
+  baselineSha?: string;
+  headSha?: string;
+  commentsAddressed?: string;
+  reviewComments?: AddressedReviewComment[];
+  wholePrImpact?: string;
 }
 
 export interface LocalBriefSummary {
   id: string;
+  artifactKind: "brief" | "delta";
   repo: string;
   number: number;
   title: string;
   sha: string;
+  baselineSha?: string;
+  headSha?: string;
 }

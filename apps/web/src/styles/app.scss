@@ -287,10 +287,30 @@ header {
 }
 
 .brief-link-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   color: var(--text);
   font-size: 16px;
   font-weight: 650;
   line-height: 1.35;
+}
+
+.artifact-pill {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--line2);
+  border-radius: 999px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+
+  &.delta {
+    border-color: rgba(125, 167, 217, 0.35);
+    color: var(--blue);
+  }
 }
 
 .brief-link-meta {
@@ -402,6 +422,25 @@ header {
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--panel2);
+}
+
+.delta-context {
+  display: grid;
+  gap: 14px;
+  margin: 18px 0;
+
+  section {
+    padding: 16px 18px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel2);
+  }
+
+  p {
+    color: var(--dim);
+    font-size: 14px;
+    line-height: 1.65;
+  }
 }
 
 .toolbar {
@@ -1164,6 +1203,83 @@ header {
 .chunk-body {
   overflow-x: auto;
   padding: 0;
+}
+
+.chunk-delta-summary {
+  display: grid;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #0f0f12;
+  color: var(--dim);
+  font-size: 12.5px;
+
+  p {
+    color: var(--text);
+  }
+
+  span {
+    color: var(--blue);
+    font-family: var(--mono);
+    font-size: 11.5px;
+  }
+}
+
+.addressed-comments {
+  display: grid;
+  gap: 6px;
+}
+
+.addressed-comment {
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #111115;
+
+  summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 11px;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 12px;
+    list-style-position: inside;
+
+    span {
+      color: var(--text);
+      font-family: var(--sans);
+      font-weight: 600;
+    }
+
+    b {
+      overflow: hidden;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 11.5px;
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    em {
+      margin-left: auto;
+      color: var(--faint);
+      font-style: normal;
+      white-space: nowrap;
+    }
+  }
+
+  .markdown {
+    padding: 0 12px 12px 28px;
+    font-size: 12.5px;
+  }
+}
+
+.reply-note {
+  padding: 0 12px 12px 28px;
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11.5px;
 }
 
 .metadata-diff {

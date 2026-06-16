@@ -4,7 +4,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type { Brief, BriefChunk, DiffLine, LineRange, LocalBriefSummary } from "./types";
-import { parseBrief } from "./validation";
+import { parseBrief, parseDeltaBrief } from "./validation";
 
 interface FileDiffSidecar {
   file: string;
@@ -21,17 +21,27 @@ const BRIEF_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 
 export async function listLocalBriefs(): Promise<LocalBriefSummary[]> {
   const entries = await readdir(OUT_DIR);
-  const briefIds = entries.filter((entry) => entry.endsWith(".brief.json")).map((entry) => entry.slice(0, -".brief.json".length)).filter(isValidBriefId).sort();
+  const briefIds = entries
+    .flatMap((entry) => {
+      if (entry.endsWith(".brief.json")) return [entry.slice(0, -".brief.json".length)];
+      if (entry.endsWith(".delta.json")) return [entry.slice(0, -".delta.json".length)];
+      return [];
+    })
+    .filter(isValidBriefId)
+    .sort();
   const summaries: LocalBriefSummary[] = [];
 
   for (const briefId of briefIds) {
     const brief = await readBriefFile(briefId);
     summaries.push({
       id: briefId,
+      artifactKind: brief.artifactKind,
       repo: brief.pr.repo,
       number: brief.pr.number,
       title: brief.pr.title,
       sha: brief.pr.sha,
+      ...(brief.baselineSha ? { baselineSha: brief.baselineSha } : {}),
+      ...(brief.headSha ? { headSha: brief.headSha } : {}),
     });
   }
 
@@ -45,13 +55,25 @@ export async function readLocalBrief(briefId: string): Promise<Brief> {
 
 async function readBriefFile(briefId: string): Promise<Brief> {
   assertValidBriefId(briefId);
-  const raw = await readFile(resolve(OUT_DIR, `${briefId}.brief.json`), "utf8");
-  const parsedJson: unknown = JSON.parse(raw);
-  const parsedBrief = parseBrief(parsedJson);
-  if (!parsedBrief.ok) {
-    throw new Error(`Invalid local brief: ${parsedBrief.error}`);
+  try {
+    const raw = await readFile(resolve(OUT_DIR, `${briefId}.brief.json`), "utf8");
+    const parsedJson: unknown = JSON.parse(raw);
+    const parsedBrief = parseBrief(parsedJson);
+    if (!parsedBrief.ok) {
+      throw new Error(`Invalid local brief: ${parsedBrief.error}`);
+    }
+    return parsedBrief.value;
+  } catch (error) {
+    if (!isNodeError(error) || error.code !== "ENOENT") throw error;
   }
-  return parsedBrief.value;
+
+  const raw = await readFile(resolve(OUT_DIR, `${briefId}.delta.json`), "utf8");
+  const parsedJson: unknown = JSON.parse(raw);
+  const parsedDelta = parseDeltaBrief(parsedJson);
+  if (!parsedDelta.ok) {
+    throw new Error(`Invalid local delta: ${parsedDelta.error}`);
+  }
+  return parsedDelta.value;
 }
 
 function assertValidBriefId(briefId: string): void {
@@ -65,7 +87,7 @@ function isValidBriefId(briefId: string): boolean {
 }
 
 async function attachChunkDiffs(brief: Brief, briefId: string): Promise<Brief> {
-  const fileDiffs = await readFileDiffs(briefId);
+  const fileDiffs = await readFileDiffs(briefId, brief.artifactKind);
   if (fileDiffs.size === 0) return brief;
 
   return {
@@ -81,8 +103,9 @@ async function attachChunkDiffs(brief: Brief, briefId: string): Promise<Brief> {
   };
 }
 
-async function readFileDiffs(briefId: string): Promise<Map<string, ParsedFileDiff>> {
-  const raw = await readFile(resolve(OUT_DIR, `${briefId}.diffs.json`), "utf8");
+async function readFileDiffs(briefId: string, artifactKind: Brief["artifactKind"]): Promise<Map<string, ParsedFileDiff>> {
+  const suffix = artifactKind === "delta" ? ".delta.diffs.json" : ".diffs.json";
+  const raw = await readFile(resolve(OUT_DIR, `${briefId}${suffix}`), "utf8");
   const parsedJson: unknown = JSON.parse(raw);
   if (!Array.isArray(parsedJson)) {
     throw new Error("Invalid diffs sidecar: expected an array");
@@ -100,6 +123,10 @@ async function readFileDiffs(briefId: string): Promise<Map<string, ParsedFileDif
 
 function isFileDiffSidecar(value: unknown): value is FileDiffSidecar {
   return typeof value === "object" && value !== null && "file" in value && "patch" in value && typeof value.file === "string" && typeof value.patch === "string";
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
 }
 
 function sliceChunkDiff(rows: DiffLine[], chunk: BriefChunk): DiffLine[] {

@@ -65,13 +65,10 @@ const CONCERN_ORDER: Concern[] = [
 ];
 
 export function buildBriefViewModel(brief: Brief): BriefViewModel {
-  const chunksById = new Map(brief.chunks.map((chunk) => [chunk.id, chunk]));
   const chunkToGroup = new Map<string, string>();
   const groups = brief.changeGroups.map((group, index) => {
-    const id = `g${index + 1}`;
-    const groupChunks = [...group.carrierChunkIds, ...group.supportingChunkIds]
-      .map((chunkId) => chunksById.get(chunkId))
-      .filter((chunk): chunk is BriefChunk => Boolean(chunk));
+    const id = group.id;
+    const groupChunks = brief.chunks.filter((chunk) => chunk.changeGroupId === id);
     groupChunks.forEach((chunk) => chunkToGroup.set(chunk.id, id));
     const carrierChunks = groupChunks.filter((chunk) => chunk.role === Roles.Carrier);
     const supportingChunks = groupChunks.filter((chunk) => chunk.role === Roles.Supporting);

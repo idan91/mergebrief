@@ -27,9 +27,12 @@ function BriefPicker() {
           <div className="brief-list">
             {briefs.map((brief) => (
               <Link className="brief-link" key={brief.id} params={{ briefId: brief.id }} to="/briefs/$briefId">
-                <span className="brief-link-title">{brief.title}</span>
+                <span className="brief-link-title">
+                  <span className={`artifact-pill ${brief.artifactKind}`}>{brief.artifactKind === "delta" ? "delta" : "brief"}</span>
+                  {brief.title}
+                </span>
                 <span className="brief-link-meta">
-                  {brief.repo} #{brief.number} · {brief.id} · {brief.sha.slice(0, 7)}
+                  {brief.repo} #{brief.number} · {brief.id} · {brief.artifactKind === "delta" && brief.baselineSha && brief.headSha ? `${brief.baselineSha.slice(0, 7)} → ${brief.headSha.slice(0, 7)}` : brief.sha.slice(0, 7)}
                 </span>
               </Link>
             ))}

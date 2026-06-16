@@ -7,6 +7,7 @@ import { deriveUnresolvedItems, riskEvidenceLabel, summarySignatureLine } from "
 
 const carrierChunk = {
   id: "chunk-a",
+  changeGroupId: "g1",
   file: "src/a.ts",
   concern: "implementation",
   role: Roles.Carrier,
@@ -18,6 +19,7 @@ const carrierChunk = {
 
 const supportingChunk = {
   id: "chunk-b",
+  changeGroupId: "g1",
   file: "src/a.test.ts",
   concern: "test",
   role: Roles.Supporting,

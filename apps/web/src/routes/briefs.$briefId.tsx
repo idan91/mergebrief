@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { localBriefQueryOptions } from "../features/brief/queries";
-import type { Brief, BriefChunk, Category, Concern } from "../features/brief/types";
+import type { AddressedReviewComment, Brief, BriefChunk, Category, Concern } from "../features/brief/types";
 import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
 import { SummaryPreview } from "../features/review/SummaryPreview";
 import {
@@ -309,8 +309,9 @@ function BriefApp({ briefId }: { briefId: string }) {
       />
       <main className={layoutMode === "split" && viewMode === "story" ? "main split-main" : "main"}>
         <section className="pr-summary reveal">
-          <div className="eyebrow">{reviewMode === "author" ? "Author self-review" : "Brief"}</div>
+          <div className="eyebrow">{brief.artifactKind === "delta" ? "Delta brief" : reviewMode === "author" ? "Author self-review" : "Brief"}</div>
           <Markdown content={brief.summary} />
+          {brief.artifactKind === "delta" ? <DeltaContext brief={brief} /> : null}
           <button className="description-toggle" type="button" onClick={() => setDescriptionOpen(!descriptionOpen)}>
             {descriptionOpen ? "Hide original PR description" : "Show original PR description"}
           </button>
@@ -481,7 +482,7 @@ function Header({
           <a className="ghlink" href={brief.pr.url} target="_blank" rel="noreferrer">
             #{brief.pr.number} ↗
           </a>{" "}
-          · local brief @ {brief.pr.sha.slice(0, 7)}
+          · {artifactHeaderLabel(brief)}
         </div>
       </div>
       <div className="hdr-stats">
@@ -509,6 +510,25 @@ function Header({
       <Link className="btn" params={{ briefId }} to="/briefs/$briefId/summary-preview">Summary preview</Link>
       <div className="progress-bar" style={{ width: `${progress}%` }} />
     </header>
+  );
+}
+
+function DeltaContext({ brief }: { brief: Brief }) {
+  return (
+    <div className="delta-context">
+      {brief.commentsAddressed ? (
+        <section>
+          <div className="eyebrow">Comments addressed</div>
+          <Markdown content={brief.commentsAddressed} />
+        </section>
+      ) : null}
+      {brief.wholePrImpact ? (
+        <section>
+          <div className="eyebrow">Whole-PR impact</div>
+          <p>{brief.wholePrImpact}</p>
+        </section>
+      ) : null}
+    </div>
   );
 }
 
@@ -608,6 +628,7 @@ function StoryView(props: {
                 open={props.openChunks.has(chunk.id)}
                 reviewed={props.reviewedChunks.has(chunk.id)}
                 activeCommentAnchor={props.activeCommentAnchor?.chunkId === chunk.id ? props.activeCommentAnchor : null}
+                addressedReviewComments={props.brief.reviewComments ?? []}
                 cancelCommentComposer={props.cancelCommentComposer}
                 comments={props.reviewComments.filter((comment) => comment.anchor.chunkId === chunk.id)}
                 deleteReviewComment={props.deleteReviewComment}
@@ -817,6 +838,7 @@ function ChunkCard({
   reviewed,
   forceCollapsed,
   activeCommentAnchor,
+  addressedReviewComments,
   cancelCommentComposer,
   comments,
   deleteReviewComment,
@@ -834,6 +856,7 @@ function ChunkCard({
   reviewed: boolean;
   forceCollapsed: boolean;
   activeCommentAnchor: CommentAnchor | null;
+  addressedReviewComments: AddressedReviewComment[];
   cancelCommentComposer: () => void;
   comments: ReviewComment[];
   deleteReviewComment: (commentId: string) => void;
@@ -864,6 +887,12 @@ function ChunkCard({
       {!expanded ? <div className="collapse-note">{chunk.role === "supporting" ? "supporting chunk — collapsed" : "collapsed"}{comments.length > 0 ? ` · ${comments.length} draft comment${comments.length === 1 ? "" : "s"}` : ""}</div> : null}
       {expanded ? (
         <div className="chunk-body">
+          {chunk.summary || chunk.addressesComments?.length ? (
+            <div className="chunk-delta-summary">
+              {chunk.summary ? <p>{chunk.summary}</p> : null}
+              {chunk.addressesComments?.length ? <AddressedComments chunk={chunk} comments={commentsForChunk(addressedReviewComments, chunk.addressesComments)} /> : null}
+            </div>
+          ) : null}
           <DiffTable
             activeCommentAnchor={activeCommentAnchor}
             cancelCommentComposer={cancelCommentComposer}
@@ -879,6 +908,29 @@ function ChunkCard({
         </div>
       ) : null}
     </article>
+  );
+}
+
+function AddressedComments({ chunk, comments }: { chunk: BriefChunk; comments: AddressedReviewComment[] }) {
+  const ids = chunk.addressesComments ?? [];
+  if (ids.length === 0) return null;
+  if (comments.length === 0) {
+    return <span>addresses comments {ids.join(", ")}</span>;
+  }
+  return (
+    <div className="addressed-comments">
+      {comments.map((comment) => (
+        <details className="addressed-comment" key={comment.id}>
+          <summary>
+            <span>@{comment.author}</span>
+            <b>{comment.file}{comment.line != null ? `:${comment.line}` : ""}</b>
+            <em>comment {comment.id}</em>
+          </summary>
+          <Markdown content={comment.body} />
+          {comment.inReplyToId ? <div className="reply-note">reply to {comment.inReplyToId}</div> : null}
+        </details>
+      ))}
+    </div>
   );
 }
 
@@ -1518,7 +1570,19 @@ function evidenceTextForFlag(flagId: string, evidenceByFlag: Record<string, Risk
   return evidence ? riskEvidenceLabel(evidence, comments, chunks) : "addressed without linked evidence";
 }
 
+function commentsForChunk(comments: AddressedReviewComment[], commentIds: string[]): AddressedReviewComment[] {
+  const byId = new Map(comments.map((comment) => [comment.id, comment]));
+  return commentIds.map((commentId) => byId.get(commentId)).filter((comment): comment is AddressedReviewComment => Boolean(comment));
+}
+
 function shortFile(path: string): string {
   const parts = path.split("/");
   return parts.at(-1) ?? path;
+}
+
+function artifactHeaderLabel(brief: Brief): string {
+  if (brief.artifactKind === "delta" && brief.baselineSha && brief.headSha) {
+    return `local delta ${brief.baselineSha.slice(0, 7)} → ${brief.headSha.slice(0, 7)}`;
+  }
+  return `local brief @ ${brief.pr.sha.slice(0, 7)}`;
 }

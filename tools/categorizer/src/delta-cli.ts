@@ -62,7 +62,7 @@ async function main(): Promise<void> {
 
   await mkdir(OUT_DIR, { recursive: true });
   const file = join(OUT_DIR, deltaOutName(delta));
-  await writeFile(file, `${JSON.stringify(delta, null, 2)}\n`);
+  await writeFile(file, `${JSON.stringify({ ...delta, reviewComments: comments }, null, 2)}\n`);
   const diffsFile = join(OUT_DIR, deltaDiffsName(delta));
   const fileDiffs = splitDiffByFile(incrementalDiff);
   await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);

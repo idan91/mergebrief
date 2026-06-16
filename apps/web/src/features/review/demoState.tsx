@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import type { FlagState, ReviewMode, ReviewOutcome, RiskEvidence } from "./state";
 import type { ReviewComment } from "./comments";
 
@@ -21,15 +21,25 @@ const DemoReviewSnapshotContext = createContext<DemoReviewSnapshotContextValue |
 
 export function DemoReviewSnapshotProvider({ children }: { children: ReactNode }) {
   const [snapshots, setSnapshots] = useState<Record<string, DemoReviewSnapshot>>({});
+  const setSnapshot = useCallback((briefId: string, snapshot: DemoReviewSnapshot) => {
+    setSnapshots((current) => {
+      if (snapshotsEqual(current[briefId], snapshot)) return current;
+      return { ...current, [briefId]: snapshot };
+    });
+  }, []);
   const value = useMemo(
     () => ({
       snapshots,
-      setSnapshot: (briefId: string, snapshot: DemoReviewSnapshot) => setSnapshots((current) => ({ ...current, [briefId]: snapshot })),
+      setSnapshot,
     }),
-    [snapshots],
+    [setSnapshot, snapshots],
   );
 
   return <DemoReviewSnapshotContext.Provider value={value}>{children}</DemoReviewSnapshotContext.Provider>;
+}
+
+function snapshotsEqual(a: DemoReviewSnapshot | undefined, b: DemoReviewSnapshot): boolean {
+  return a !== undefined && JSON.stringify(a) === JSON.stringify(b);
 }
 
 export function useDemoReviewSnapshot(briefId: string): DemoReviewSnapshot | undefined {
