@@ -23,7 +23,7 @@ The rule: **spend in proportion to remaining risk**.
 
 ## Phase 2 — Categorizer Benchmark (B)
 
-> **Largely complete (2026-06).** The categorizer thin slice (`tools/categorizer/`) is built and gold-checked against the medusa hand-labels (judged v1-good). Under the useful-tool-first approach, Phase 1 (dogfood) and Phase 2 (build) have effectively merged — the metrics below remain useful for broader accuracy tracking, not as a gate.
+> **Thin slice built; accuracy not broadly validated (2026-06).** The categorizer (`tools/categorizer/`) is built and **calibrated on N=1** (the medusa hand-labels, eyeballed) — enough to dogfood for *behavior* testing, **not** a broad accuracy claim across domains / change-types. The metrics below remain the way to validate accuracy properly when it matters; treat the thin slice as "ready for behavior testing," not "Phase 2 solved."
 
 **Goal:** Confirm AI can produce the categorization at usable accuracy across the change types the product depends on.
 

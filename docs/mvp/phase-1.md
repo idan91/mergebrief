@@ -30,7 +30,7 @@ On first review (full brief vs status-quo GitHub):
 ## Method — dogfood, don't Wizard-of-Oz
 
 - **Run the real categorizer** on real PRs (tool generates brief + delta; ~$0.46/PR). No hand-labeling.
-- **Reviewers:** 3–5 senior / staff / tech-lead engineers. Rationale unchanged — hardest to move (refined instincts, less naive rubber-stamping), closest to the buyer persona, and the exact rubber-stamp pool (seniors approving small follow-ups / AI-authored chunks) the product targets. Junior cohort deferred to Phase 1.5 (the skill-atrophy angle).
+- **Reviewers:** 3–5 senior / staff / tech-lead engineers. Rationale unchanged — hardest to move (refined instincts, less naive rubber-stamping), closest to the buyer persona, and the exact rubber-stamp pool (seniors approving small follow-ups / AI-authored chunks) the product targets. Junior cohort deferred to Phase 1.5 (the skill-atrophy angle). **At least one reviewer must be non-adjacent** — not from the peer network. The synthesis flags the friendly sample as the gate's weak point; one stranger's reaction is worth more than three friends'.
 - **Observation:** async screen recording (~10 min/PR, silent — no think-aloud, avoids observation-effect) + a 15-min debrief (watch at 2× first, probe 3–5 moments: "what made you slow down," "did you notice X," "worth it on every PR"). The debrief doubles as a discovery interview — append the PMF questions *after* the task, never before (anchoring).
 - **Honesty disciplines (kept — they are cheap):** neutral framing ("a format we're trying"), don't reveal what you're rooting for, weight observed behavior over self-report. The kill criterion — voluntary repeat usage — is the hardest-to-fake signal of all.
 
@@ -38,7 +38,7 @@ On first review (full brief vs status-quo GitHub):
 
 Real PRs to run the tool on. The **delta test requires PRs with real follow-up-commit history** (a SHA1→SHA2 with substantive follow-ups), so bias selection toward PRs that actually had review-then-fix cycles.
 
-- **Primary calibration PR — medusa #15605** (`validate http(s) scheme on fulfillment label URLs`, 8 files, +77/−17). Already gold-checked against `briefs/medusa-15605.md`. Clean dominant `new-feature` with a security-hardening framing tension — a good first dogfood.
+- **Primary calibration PR — medusa #15605** (`validate http(s) scheme on fulfillment label URLs`, 8 files, +77/−17). **Calibrated** against `briefs/medusa-15605.md` — an **N=1 eyeball**, enough to dogfood for *behavior* testing, **not** a broad accuracy claim. Clean dominant `new-feature` with a security-hardening framing tension — a good first dogfood.
 - **Backup — drizzle-orm #5331** (introspection refactor + progress callbacks; +254/−146). Bundles `logic-refactor` + `new-feature`; heavier; schema-aware so risk-surface flags fire.
 
 Find more candidates (clean dominant categories, ~4–12 files, +80–400):
@@ -62,7 +62,16 @@ The full web app does not exist yet. Reviewers see real briefs via the React app
 - **Changed:** baseline = status-quo GitHub review (not B′); artifact = real tool output (not hand-labels); the **delta re-review is the primary test** (was "Track 3, a side probe"); the gate is **peer usage + visible behavior movement** (not a pre-registered detection delta).
 - **Kept:** senior-only cohort + rationale, async-record + debrief, neutral framing, the "every PR?" guardrail, PR sourcing.
 
-## Open questions
+## Go/no-go floor (set before sessions)
 
-- **Go/no-go floor.** Directional, not clinical — but set a minimum before concluding: e.g., the delta test on ≥3 real follow-up PRs with ≥3 seniors, plus at least one peer who reaches for it again unprompted.
-- **Recovery move if it fails.** Delta doesn't move re-review behavior → is the headline wrong, or is the *delta rendering* wrong (fixable) vs the *concept* wrong (fatal)? Separate those before killing.
+A floor, not a clinical gate — directional, but concrete enough that "it's working" can't be wishful. Commit before running; don't move it after:
+
+- **Coverage:** the delta re-review test on **≥3 real follow-up PRs**, with **≥3 senior reviewers**, **≥1 non-adjacent** (not peer-network).
+- **Behavior movement:** in the delta test, a reviewer **engages ≥1 Reopened / changed item they would otherwise have skimmed** (judged from the recording) — not merely calls the brief nice.
+- **Pull, not politeness:** **≥1 reviewer reaches for it again unprompted** on a PR you didn't stage. Hardest signal to fake; the real kill criterion.
+
+Below the floor → keep dogfooding, conclude nothing. Meeting it → continue toward the product build.
+
+## Recovery move if it fails
+
+If the delta doesn't move re-review behavior, **separate a rendering failure from a concept failure before killing the wedge** — is the *delta presentation* wrong (fixable) or is "delta reload changes behavior" itself false (fatal)? Don't conflate them.
