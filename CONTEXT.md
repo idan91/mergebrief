@@ -114,6 +114,14 @@ _Avoid_: workspace, scratchpad, draft space
 The state transition when a human first clicks the deep-link button on a PR's tool-comment (or, under draft-first, when the draft opens). Before activation: no compute fires. After activation: the **Brief** computes, and subsequent pushes auto-trigger debounced brief regeneration; **Delta Briefs** are per-reviewer (computed from each reviewer's **Checkpoint**), not a single push-triggered recompute.
 _Avoid_: enable, turn on, open
 
+**Triage**:
+The cheap cascade run on every PR (and every follow-up) *before* any expensive generation, deciding both the *experience* and the *spend*: a free deterministic floor (dependency/migration/auth-config paths + size) → a small-model (**Haiku**) pass that judges trivial-vs-escalate and, when trivial, emits the **Fast-lane** view. Escalation produces the full **Brief** / **Delta Brief** (Opus); otherwise the fast-lane is shown with a manual upgrade. **Risk decides escalation, size decides spend**; for follow-ups, touching a reviewer's prior **Flag** or **Comment** (carry-over) is itself an escalation. Never a verdict, never a gate — the human can always upgrade.
+_Avoid_: gate, pre-filter (informal), severity score
+
+**Fast-lane**:
+The compact, cheap view shown for a triaged-trivial PR or follow-up — a short summary (from the **Triage** model) over the diff, without the full **Brief** / **Delta Brief**, always upgradeable to the full brief on demand. The "daily mode" that keeps tiny low-surface changes from feeling like homework.
+_Avoid_: lite brief, mini brief, summary-only (informal)
+
 **Intent check**:
 A secondary section of the **Brief** comparing the change's *stated intent* — a linked ticket (fetched from the PR description) or, failing that, the PR description itself — against what the diff actually does. When the intent source is *precise*, it reports three factual buckets: **accomplished**, **stated-but-missing**, **done-but-unstated**. When the source is *broad* (an epic/parent) or *absent*, it reports that the check is unavailable rather than guessing. Deliberately de-emphasized — the **Change-groups** carry the story; the intent check is the AI's fallible read, shown to both author and reviewer, never a verdict or focal point.
 _Avoid_: requirements check, spec compliance, intent verdict
