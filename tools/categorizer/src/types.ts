@@ -115,7 +115,7 @@ export const ChunkSchema = z.object({
     "artifact kind; mostly derivable from the file path",
   ),
   role: roleEnum.describe(
-    "carrier holds intent; supporting serves it. Default from concern (implementation→carrier, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix).",
+    "carrier holds intent; supporting serves it. Default from concern (implementation→carrier, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are carrier when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another carrier.",
   ),
   loc: z
     .object({

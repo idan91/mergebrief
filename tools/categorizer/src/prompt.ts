@@ -108,6 +108,8 @@ ${bullets(Concerns, CONCERN_GLOSS)}
 
 Default from concern (implementation → carrier, else → supporting). **Flip** when a supporting artifact is itself the purpose (e.g. a flaky-test fix or a coverage backfill) — that chunk becomes the carrier and takes the group's intent.
 
+Type, context, and CSS/style files are not automatically supporting. They are \`carrier\` when they define the changed contract, state model, or visual behavior; they are \`supporting\` only when they merely accompany another carrier without carrying the group's intent.
+
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
 
 Severity is NOT your job — it emerges later from combinations. Attach an attribute only when the diff or repo context supports it. **Be consistent with your own prose: if you note a risk in the summary (a widened public API → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it — never describe a risk in prose without flagging it on a chunk.**
@@ -180,6 +182,8 @@ ${bullets(Concerns, CONCERN_GLOSS)}
 ## Role — carrier vs supporting (per chunk)
 
 - \`carrier\`: holds the change-group's intent. \`supporting\`: serves it (tests, docs, specs, config). Default from concern; flip when a supporting artifact is itself the purpose.
+
+Type, context, and CSS/style files are not automatically supporting. They are \`carrier\` when they define the changed contract, state model, or visual behavior; they are \`supporting\` only when they merely accompany another carrier without carrying the group's intent.
 
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
 

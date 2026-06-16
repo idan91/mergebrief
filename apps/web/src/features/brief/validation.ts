@@ -119,7 +119,7 @@ function parsePrRef(value: unknown): Result<PrRef> {
   };
 }
 
-function parseAddressedReviewComment(value: unknown): Result<AddressedReviewComment> {
+export function parseAddressedReviewComment(value: unknown): Result<AddressedReviewComment> {
   if (!isRecord(value)) return { ok: false, error: "Expected review comment to be an object" };
   const id = value["id"];
   const file = value["file"];
@@ -160,6 +160,10 @@ function parseAddressedReviewComment(value: unknown): Result<AddressedReviewComm
       outdated,
     },
   };
+}
+
+export function parseAddressedReviewComments(value: unknown): Result<AddressedReviewComment[]> {
+  return parseArray(value, parseAddressedReviewComment, "reviewComments");
 }
 
 function parseLoc(value: unknown): Result<ChunkLoc> {

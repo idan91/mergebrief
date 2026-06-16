@@ -3,8 +3,8 @@ import "@tanstack/react-start/server-only";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import type { Brief, BriefChunk, DiffLine, LineRange, LocalBriefSummary } from "./types";
-import { parseBrief, parseDeltaBrief } from "./validation";
+import type { AddressedReviewComment, Brief, BriefChunk, DiffLine, LineRange, LocalBriefSummary } from "./types";
+import { parseAddressedReviewComments, parseBrief, parseDeltaBrief } from "./validation";
 
 interface FileDiffSidecar {
   file: string;
@@ -50,7 +50,8 @@ export async function listLocalBriefs(): Promise<LocalBriefSummary[]> {
 
 export async function readLocalBrief(briefId: string): Promise<Brief> {
   const brief = await readBriefFile(briefId);
-  return attachChunkDiffs(brief, briefId);
+  const withComments = await attachReviewComments(brief, briefId);
+  return attachChunkDiffs(withComments, briefId);
 }
 
 async function readBriefFile(briefId: string): Promise<Brief> {
@@ -101,6 +102,32 @@ async function attachChunkDiffs(brief: Brief, briefId: string): Promise<Brief> {
       } satisfies BriefChunk;
     }),
   };
+}
+
+async function attachReviewComments(brief: Brief, briefId: string): Promise<Brief> {
+  const reviewComments = await readReviewComments(briefId, brief.artifactKind);
+  if (reviewComments === undefined) return brief;
+  return {
+    ...brief,
+    reviewComments,
+  };
+}
+
+async function readReviewComments(briefId: string, artifactKind: Brief["artifactKind"]): Promise<AddressedReviewComment[] | undefined> {
+  const suffix = artifactKind === "delta" ? ".delta.comments.json" : ".comments.json";
+  let raw: string;
+  try {
+    raw = await readFile(resolve(OUT_DIR, `${briefId}${suffix}`), "utf8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return undefined;
+    throw error;
+  }
+  const parsedJson: unknown = JSON.parse(raw);
+  const parsedComments = parseAddressedReviewComments(parsedJson);
+  if (!parsedComments.ok) {
+    throw new Error(`Invalid comments sidecar: ${parsedComments.error}`);
+  }
+  return parsedComments.value;
 }
 
 async function readFileDiffs(briefId: string, artifactKind: Brief["artifactKind"]): Promise<Map<string, ParsedFileDiff>> {

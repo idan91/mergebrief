@@ -1571,6 +1571,23 @@ table.diff {
   }
 }
 
+.addressed-diff-comment {
+  border-color: rgba(125, 167, 217, 0.35);
+
+  summary {
+    cursor: pointer;
+    list-style-position: inside;
+  }
+
+  .comment-thread-head {
+    color: var(--blue);
+  }
+
+  .comment-preview {
+    min-height: 0;
+  }
+}
+
 .suggestion-card {
   margin-top: 12px;
   border: 1px solid var(--line2);
