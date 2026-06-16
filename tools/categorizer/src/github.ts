@@ -5,6 +5,9 @@ import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { z } from "zod/v4";
+import { type ReviewComment } from "./types.js";
+
+export type { ReviewComment };
 
 const execFileAsync = promisify(execFile);
 
@@ -28,6 +31,10 @@ export interface PrMetadata {
   body: string;
   url: string;
   sha: string;
+  /** PR base commit SHA — the start of the whole-PR commit range (ADR 0012). */
+  baseSha: string;
+  /** Number of commits in the PR at this head. */
+  commitCount: number;
   files: PrFile[];
 }
 
@@ -276,6 +283,9 @@ const GhViewSchema = z.object({
   body: z.string().nullish(),
   url: z.string(),
   headRefOid: z.string(),
+  baseRefOid: z.string(),
+  // `commits` carries one entry per commit in the PR; we only need the count.
+  commits: z.array(z.unknown()).nullish(),
   files: z
     .array(
       z.object({
@@ -297,7 +307,7 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
       "--repo",
       repoSlug(loc),
       "--json",
-      "title,body,url,headRefOid,files",
+      "title,body,url,headRefOid,baseRefOid,commits,files",
     ],
     { maxBuffer: MAX_BUFFER },
   );
@@ -307,6 +317,8 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
     body: view.body ?? "",
     url: view.url,
     sha: view.headRefOid,
+    baseSha: view.baseRefOid,
+    commitCount: view.commits?.length ?? 0,
     files: view.files ?? [],
   };
 }
@@ -351,15 +363,37 @@ export async function fetchCompareDiff(
   return stdout;
 }
 
-/** A PR review comment (line comment or a reply), trimmed to what the delta needs. */
-export interface ReviewComment {
-  id: string;
-  file: string;
-  line: number | null;
-  author: string;
-  body: string;
-  /** id of the comment this one replies to, when it's a thread reply. */
-  inReplyToId: string | null;
+/**
+ * Number of commits in a PR's `base...head` span, via the compare API's
+ * `total_commits`. Used for a brief's commit range when an explicit range is
+ * given (the default whole-PR case reads the count from `gh pr view`). base/head
+ * validated as hex SHAs before they reach the api path (defense in depth).
+ */
+export async function fetchCompareCommitCount(
+  loc: PrLocator,
+  baseSha: string,
+  headSha: string,
+): Promise<number> {
+  if (!isCommitish(baseSha) || !isCommitish(headSha)) {
+    throw new Error(
+      `base/head must be hex commit SHAs (7–40 chars); got "${baseSha}" / "${headSha}"`,
+    );
+  }
+  const { stdout } = await execFileAsync(
+    "gh",
+    [
+      "api",
+      `repos/${loc.owner}/${loc.repo}/compare/${baseSha}...${headSha}`,
+      "--jq",
+      ".total_commits",
+    ],
+    { maxBuffer: MAX_BUFFER },
+  );
+  const n = Number(stdout.trim());
+  if (!Number.isInteger(n)) {
+    throw new Error(`could not read total_commits for ${baseSha}...${headSha}`);
+  }
+  return n;
 }
 
 const MAX_COMMENTS = 100;
@@ -368,6 +402,9 @@ const MAX_COMMENT_CHARS = 2_000;
 const GhCommentSchema = z.object({
   id: z.number(),
   path: z.string().nullish(),
+  // `position` is null when the comment is outdated relative to the PR's latest
+  // commit (the diff hunk it anchored to changed) — GitHub's own signal.
+  position: z.number().nullish(),
   line: z.number().nullish(),
   original_line: z.number().nullish(),
   body: z.string().nullish(),
@@ -377,8 +414,16 @@ const GhCommentSchema = z.object({
 
 /**
  * Fetch a PR's review comments (line comments + thread replies) via the GitHub
- * API. Stateless, public — feeds the delta's "comments addressed" analysis
- * (ADR 0011). Capped in count and per-comment length to bound prompt cost.
+ * API. Stateless, public — display data for the brief + delta comment sidecars
+ * (ADR 0012) and input to the delta's "comments addressed" analysis (ADR 0011).
+ * Capped in count and per-comment length to bound prompt cost.
+ *
+ * `outdated` is read straight from GitHub (`position == null`), never recomputed
+ * (ADR 0007). NOTE: GitHub computes outdated relative to the PR's *current* head.
+ * That is exact for the full brief (always at current head), but for a delta run
+ * at an arbitrary (base, head) it is outdated-relative-to-current-PR-head, not
+ * the delta's head — a documented limitation, like the three-dot compare-diff
+ * caveat above.
  */
 export async function fetchReviewComments(
   loc: PrLocator,
@@ -392,10 +437,12 @@ export async function fetchReviewComments(
   return raw.slice(0, MAX_COMMENTS).map((c) => ({
     id: String(c.id),
     file: c.path ?? "",
-    line: c.line ?? c.original_line ?? null,
+    line: c.line ?? null,
+    originalLine: c.original_line ?? null,
     author: c.user?.login ?? "unknown",
     body: (c.body ?? "").slice(0, MAX_COMMENT_CHARS),
     inReplyToId: c.in_reply_to_id != null ? String(c.in_reply_to_id) : null,
+    outdated: c.position == null,
   }));
 }
 

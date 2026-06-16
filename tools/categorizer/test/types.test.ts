@@ -10,6 +10,8 @@ const validBrief = {
     sha: "deadbeef",
     description: "d",
   },
+  index: 1,
+  commitRange: { base: "base0000", head: "deadbeef", commitCount: 2 },
   summary: "s",
   changeGroups: [
     {

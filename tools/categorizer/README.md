@@ -32,7 +32,8 @@ cp .env.example .env
 ## Usage
 
 ```bash
-pnpm categorize <pr-url> [<pr-url> …]
+pnpm categorize <pr-url> [<pr-url> …]              # whole PR at current head
+pnpm categorize <pr-url> <base-sha> <head-sha>     # brief over an explicit span
 ```
 
 Example:
@@ -41,7 +42,15 @@ Example:
 pnpm categorize https://github.com/medusajs/medusa/pull/15605
 ```
 
-For each PR it writes `out/<owner>-<repo>-<number>.brief.json` and prints a human-readable summary to stdout. Multiple PRs are fetched and categorized in parallel; one bad URL doesn't abort the batch.
+For each brief it writes three files under `out/`, versioned by a PR-global **index** and the head SHA (ADR 0012) so successive briefs of one PR coexist:
+
+- `out/<owner>-<repo>-<num>_<index>_<head8>.brief.json` — the brief (now carrying `index` + `commitRange`)
+- `…_<index>_<head8>.diffs.json` — per-file diffs sidecar
+- `…_<index>_<head8>.comments.json` — review comments (all reviewers, threaded, each with GitHub-native `outdated`) for GitHub-style display
+
+The index is assigned from a per-PR manifest `out/<owner>-<repo>-<num>.briefs.json` (head SHA → ordinal, first-seen; re-running a known SHA reuses its index). Multiple PRs run in parallel; one bad URL doesn't abort the batch.
+
+By default the brief covers the **whole PR at the current head** (range read from `gh pr view`). Passing an explicit `<base-sha> <head-sha>` (mirroring `delta`) briefs that span instead — useful for dogfooding the full flow on a real PR with comments: generate `_1` at an earlier head, then a `delta`, then `_2` at the later head.
 
 ### Delta (re-review reload)
 
@@ -49,7 +58,7 @@ For each PR it writes `out/<owner>-<repo>-<number>.brief.json` and prints a huma
 pnpm delta <pr-url> <baseline-sha> <head-sha>
 ```
 
-Generates the **delta core** — "what changed since the baseline" — for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics — exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json` plus a per-file `.delta.diffs.json` sidecar (same split-by-file shape as the brief's `diffs.json`, for rendering the delta's diffs).
+Generates the **delta core** — "what changed since the baseline" — for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics — exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json` plus a per-file `.delta.diffs.json` sidecar and a `.delta.comments.json` comments sidecar (same shapes as the brief's sidecars). Note: comment `outdated` is GitHub's flag relative to the PR's *current* head, not the delta's head (documented in `github.ts`).
 
 Each delta chunk belongs to exactly one change-group (a file appears in multiple groups only via different chunks), so no line is shown to the reviewer twice.
 
@@ -92,6 +101,7 @@ Tests cover the pure logic: PR-URL parsing edge cases (`src/github.ts`), output 
 | `src/github.ts` | parse PR URL → `gh pr diff` / `gh pr view` / `gh api …/compare` (no shell; validated) |
 | `src/prompt.ts` | brief + delta system prompts, assembled from the schema constants so they can't drift |
 | `src/categorize.ts` | shared streaming helper → `categorize()` (brief) + `categorizeDelta()` (delta core) |
-| `src/output.ts` | output filenames + stdout summary rendering (brief + delta) |
-| `src/index.ts` | brief CLI: args → fetch → categorize → write JSON + print summary |
-| `src/delta-cli.ts` | delta CLI: url + base/head SHAs → compare diff → categorizeDelta → write JSON |
+| `src/output.ts` | output filenames (index/head-versioned) + stdout summary rendering (brief + delta) |
+| `src/manifest.ts` | per-PR brief manifest (head SHA → PR-global index); the stateless stand-in for the product DB |
+| `src/index.ts` | brief CLI: args (whole PR or explicit span) → fetch → categorize → write brief + diffs + comments sidecars |
+| `src/delta-cli.ts` | delta CLI: url + base/head SHAs → compare diff → categorizeDelta → write delta + diffs + comments sidecars |

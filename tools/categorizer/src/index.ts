@@ -1,13 +1,37 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
-import { fetchPr, parsePrUrl } from "./github.js";
+import {
+  fetchCompareCommitCount,
+  fetchCompareDiff,
+  fetchLinkedContext,
+  fetchPrDiff,
+  fetchPrMetadata,
+  fetchReviewComments,
+  isCommitish,
+  parsePrUrl,
+  type FetchedPr,
+  type ReviewComment,
+} from "./github.js";
 import { categorize } from "./categorize.js";
 import { splitDiffByFile } from "./diff.js";
-import { diffsName, outName, printSummary } from "./output.js";
-import type { Brief } from "./types.js";
+import { assignBriefIndex } from "./manifest.js";
+import {
+  commentsName,
+  diffsName,
+  outName,
+  prStem,
+  printSummary,
+} from "./output.js";
+import type { Brief, CommitRange } from "./types.js";
 
 const OUT_DIR = "out";
+
+/** An explicit base..head span for a brief, instead of the whole PR at head. */
+interface Range {
+  base: string;
+  head: string;
+}
 
 /** Short, stable label for log lines: `owner/repo#number`, or the URL if unparseable. */
 function prTag(url: string): string {
@@ -28,10 +52,113 @@ function loadEnv(): void {
   }
 }
 
+/**
+ * Fetch everything a brief needs: metadata, the diff (whole PR, or the given
+ * base..head span), review comments, and linked context. The commit range is
+ * the whole PR by default (base from metadata, count from `gh pr view`) or the
+ * explicit span (count from the compare API) when a range is given.
+ */
+async function buildInputs(
+  url: string,
+  range: Range | undefined,
+  log: (msg: string) => void,
+): Promise<{ pr: FetchedPr; comments: ReviewComment[]; commitRange: CommitRange }> {
+  const locator = parsePrUrl(url);
+  const meta = await fetchPrMetadata(locator);
+  const [diff, comments, commitRange] = await Promise.all([
+    range
+      ? fetchCompareDiff(locator, range.base, range.head)
+      : fetchPrDiff(locator),
+    fetchReviewComments(locator),
+    range
+      ? fetchCompareCommitCount(locator, range.base, range.head).then(
+          (commitCount): CommitRange => ({
+            base: range.base,
+            head: range.head,
+            commitCount,
+          }),
+        )
+      : Promise.resolve<CommitRange>({
+          base: meta.baseSha,
+          head: meta.sha,
+          commitCount: meta.commitCount,
+        }),
+  ]);
+  const links = await fetchLinkedContext(meta.body, log);
+  return { pr: { locator, meta, diff, links }, comments, commitRange };
+}
+
+/** Generate one brief and write its artifacts. Returns the brief for printing. */
+async function runOne(
+  url: string,
+  range: Range | undefined,
+  client: Anthropic,
+): Promise<Brief> {
+  const tag = prTag(url);
+  const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
+  log(
+    range
+      ? `fetching compare ${range.base.slice(0, 8)}..${range.head.slice(0, 8)} + metadata…`
+      : "fetching diff + metadata…",
+  );
+  const { pr, comments, commitRange } = await buildInputs(url, range, log);
+
+  const stem = prStem(`${pr.locator.owner}/${pr.locator.repo}`, pr.locator.number);
+  const index = await assignBriefIndex(OUT_DIR, stem, commitRange.head);
+  log(
+    `brief _${index}; ${pr.meta.files.length} files, ${pr.links.length} linked refs, ${comments.length} comments; categorizing…`,
+  );
+
+  const brief = await categorize(pr, index, commitRange, client, log);
+
+  const briefFile = join(OUT_DIR, outName(brief));
+  await writeFile(briefFile, `${JSON.stringify(brief, null, 2)}\n`);
+
+  // Per-file diffs sidecar, so a UI can show the actual code for each chunk.
+  const diffsFile = join(OUT_DIR, diffsName(brief));
+  const fileDiffs = splitDiffByFile(pr.diff);
+  await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
+
+  // Review comments sidecar (display data, +outdated) — ADR 0012.
+  const commentsFile = join(OUT_DIR, commentsName(brief));
+  await writeFile(commentsFile, `${JSON.stringify(comments, null, 2)}\n`);
+
+  console.error(`\n[${tag}] wrote ${briefFile}`);
+  console.error(`[${tag}] wrote ${diffsFile} (${fileDiffs.length} files)`);
+  console.error(`[${tag}] wrote ${commentsFile} (${comments.length} comments)`);
+  return brief;
+}
+
+/**
+ * Parse argv into either a single range run (`<url> <base> <head>`, mirroring
+ * the delta CLI) or a batch of whole-PR runs (`<url> [<url> …]`). Range mode is
+ * detected by the 2nd and 3rd args being commit-ish SHAs.
+ */
+function parseArgs(
+  args: string[],
+): { urls: string[]; range: Range | undefined } | null {
+  if (args.length === 0) return null;
+  const [url, maybeBase, maybeHead] = args;
+  if (
+    args.length === 3 &&
+    url &&
+    maybeBase &&
+    maybeHead &&
+    isCommitish(maybeBase) &&
+    isCommitish(maybeHead)
+  ) {
+    return { urls: [url], range: { base: maybeBase, head: maybeHead } };
+  }
+  return { urls: args, range: undefined };
+}
+
 async function main(): Promise<void> {
-  const urls = process.argv.slice(2);
-  if (urls.length === 0) {
-    console.error("usage: pnpm categorize <pr-url> [<pr-url> …]");
+  const parsed = parseArgs(process.argv.slice(2));
+  if (!parsed) {
+    console.error(
+      "usage: pnpm categorize <pr-url> [<pr-url> …]\n" +
+        "       pnpm categorize <pr-url> <base-sha> <head-sha>   (brief over an explicit span)",
+    );
     process.exit(1);
   }
 
@@ -45,29 +172,16 @@ async function main(): Promise<void> {
 
   await mkdir(OUT_DIR, { recursive: true });
 
-  // PRs are independent — fetch and categorize them in parallel, sharing one
-  // client so the SDK's connection pool is reused. A single bad URL must not
-  // kill the whole batch, so each result is captured as success or failure.
+  // PRs are independent — run them in parallel, sharing one client so the SDK's
+  // connection pool is reused. A single bad URL must not kill the whole batch.
   const client = new Anthropic();
   const results = await Promise.all(
-    urls.map(
+    parsed.urls.map(
       async (
         url,
-      ): Promise<
-        | { url: string; brief: Brief; diff: string }
-        | { url: string; error: unknown }
-      > => {
-        // Tag every line with the PR so parallel runs stay legible.
-        const tag = prTag(url);
-        const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
+      ): Promise<{ url: string; brief: Brief } | { url: string; error: unknown }> => {
         try {
-          log("fetching diff + metadata…");
-          const pr = await fetchPr(url, log);
-          log(
-            `fetched ${pr.meta.files.length} files, ${pr.links.length} linked refs; categorizing…`,
-          );
-          const brief = await categorize(pr, client, log);
-          return { url, brief, diff: pr.diff };
+          return { url, brief: await runOne(url, parsed.range, client) };
         } catch (error) {
           return { url, error };
         }
@@ -75,7 +189,6 @@ async function main(): Promise<void> {
     ),
   );
 
-  // Write + print in input order so output stays deterministic.
   let failures = 0;
   for (const result of results) {
     if ("error" in result) {
@@ -86,17 +199,6 @@ async function main(): Promise<void> {
       );
       continue;
     }
-    const tag = prTag(result.url);
-    const briefFile = join(OUT_DIR, outName(result.brief));
-    await writeFile(briefFile, `${JSON.stringify(result.brief, null, 2)}\n`);
-
-    // Per-file diffs sidecar, so a UI can show the actual code for each chunk.
-    const diffsFile = join(OUT_DIR, diffsName(result.brief));
-    const fileDiffs = splitDiffByFile(result.diff);
-    await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
-
-    console.error(`\n[${tag}] wrote ${briefFile}`);
-    console.error(`[${tag}] wrote ${diffsFile} (${fileDiffs.length} files)`);
     console.log("");
     printSummary(result.brief);
   }

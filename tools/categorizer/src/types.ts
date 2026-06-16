@@ -179,8 +179,56 @@ export const ConcernRollupSchema = z.object({
     .describe("total git lines deleted for this concern"),
 });
 
+/**
+ * The commit span a full brief covers — the whole PR, base→head — plus a count.
+ * CLI-owned metadata (the model never produces it); see ADR 0012.
+ */
+export const CommitRangeSchema = z.object({
+  base: z.string().describe("PR base commit SHA"),
+  head: z.string().describe("head commit SHA this brief covers"),
+  commitCount: z
+    .number()
+    .int()
+    .describe("number of commits in the PR at this head"),
+});
+
+/**
+ * A PR review comment (line comment or thread reply) as carried in the
+ * `.comments.json` sidecar — display data for both the brief and the delta
+ * (ADR 0012). `outdated` is read from GitHub (position == null), never
+ * recomputed (ADR 0007).
+ */
+export const ReviewCommentSchema = z.object({
+  id: z.string(),
+  file: z.string(),
+  line: z.number().int().nullable().describe("current diff line; null if outdated"),
+  originalLine: z
+    .number()
+    .int()
+    .nullable()
+    .describe("line at the time the comment was made"),
+  author: z.string(),
+  body: z.string(),
+  inReplyToId: z
+    .string()
+    .nullable()
+    .describe("id of the comment this replies to; null for a thread root"),
+  outdated: z
+    .boolean()
+    .describe("GitHub-native outdated status (position == null); read, not recomputed"),
+});
+
 export const BriefSchema = z.object({
   pr: PrRefSchema,
+  index: z
+    .number()
+    .int()
+    .describe(
+      "PR-global brief ordinal — the Nth distinct head SHA briefed for this PR. CLI-assigned, not model-produced.",
+    ),
+  commitRange: CommitRangeSchema.describe(
+    "the commit span this brief covers (whole PR, base→head). CLI-assigned.",
+  ),
   summary: z
     .string()
     .describe(
@@ -191,6 +239,17 @@ export const BriefSchema = z.object({
   concernView: z
     .array(ConcernRollupSchema)
     .describe("LoC rollup per concern (one entry per concern present)"),
+});
+
+/**
+ * What the model actually generates for a full brief: BriefSchema minus the
+ * CLI-owned metadata (`pr`, `index`, `commitRange`), which the CLI fills after
+ * generation so the model never echoes identifiers it cannot know (ADR 0012).
+ */
+export const BriefGenerationSchema = BriefSchema.omit({
+  pr: true,
+  index: true,
+  commitRange: true,
 });
 
 /**
@@ -247,6 +306,8 @@ export type LineRange = z.infer<typeof LineRangeSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
 export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;
+export type CommitRange = z.infer<typeof CommitRangeSchema>;
+export type ReviewComment = z.infer<typeof ReviewCommentSchema>;
 export type Brief = z.infer<typeof BriefSchema>;
 export type DeltaChunk = z.infer<typeof DeltaChunkSchema>;
 export type DeltaBrief = z.infer<typeof DeltaBriefSchema>;

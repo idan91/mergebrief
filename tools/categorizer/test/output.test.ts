@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { deltaDiffsName, outName, summaryLines } from "../src/output.js";
+import {
+  commentsName,
+  deltaCommentsName,
+  deltaDiffsName,
+  diffsName,
+  outName,
+  summaryLines,
+} from "../src/output.js";
 import type { Brief, DeltaBrief } from "../src/types.js";
 
 const brief: Brief = {
@@ -8,8 +15,14 @@ const brief: Brief = {
     number: 15605,
     title: "Add stock location feature",
     url: "https://github.com/medusajs/medusa/pull/15605",
-    sha: "abc123",
+    sha: "abc12300deadbeef",
     description: "Adds stock locations.",
+  },
+  index: 2,
+  commitRange: {
+    base: "base1234aaaa",
+    head: "abc12300deadbeef",
+    commitCount: 5,
   },
   summary: "Adds a stock-location capability.",
   changeGroups: [
@@ -71,16 +84,26 @@ const delta: DeltaBrief = {
   wholePrImpact: "The follow-up narrows behavior around the original accordion work.",
 };
 
-describe("outName", () => {
-  it("builds <owner>-<repo>-<number>.brief.json", () => {
-    expect(outName(brief)).toBe("medusajs-medusa-15605.brief.json");
+describe("brief artifact names", () => {
+  it("version the stem with index + head8 (ADR 0012)", () => {
+    expect(outName(brief)).toBe("medusajs-medusa-15605_2_abc12300.brief.json");
+    expect(diffsName(brief)).toBe("medusajs-medusa-15605_2_abc12300.diffs.json");
+    expect(commentsName(brief)).toBe(
+      "medusajs-medusa-15605_2_abc12300.comments.json",
+    );
   });
 });
 
-describe("deltaDiffsName", () => {
+describe("delta sidecar names", () => {
   it("builds <owner>-<repo>-<number>-<base8>..<head8>.delta.diffs.json", () => {
     expect(deltaDiffsName(delta)).toBe(
       "Idan91-components-4-35788079..a01bcf1d.delta.diffs.json",
+    );
+  });
+
+  it("builds the matching .delta.comments.json sidecar", () => {
+    expect(deltaCommentsName(delta)).toBe(
+      "Idan91-components-4-35788079..a01bcf1d.delta.comments.json",
     );
   });
 });
@@ -90,6 +113,10 @@ describe("summaryLines", () => {
 
   it("surfaces the uncertainty between categories", () => {
     expect(text).toContain("uncertain: new-feature vs bugfix");
+  });
+
+  it("shows the brief index and commit range", () => {
+    expect(text).toContain("brief _2 | base1234..abc12300, 5 commit(s)");
   });
 
   it("lists only chunks that carry risk-surface flags", () => {

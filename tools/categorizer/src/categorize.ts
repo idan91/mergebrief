@@ -2,9 +2,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import {
-  BriefSchema,
+  BriefGenerationSchema,
   DeltaBriefSchema,
   type Brief,
+  type CommitRange,
   type DeltaBrief,
 } from "./types.js";
 import { buildSystemPrompt, buildDeltaSystemPrompt } from "./prompt.js";
@@ -142,25 +143,33 @@ ${pr.diff}`;
 
 export async function categorize(
   pr: FetchedPr,
+  index: number,
+  commitRange: CommitRange,
   client: Anthropic = new Anthropic(),
   log: Logger = () => {},
 ): Promise<Brief> {
-  const brief = await streamStructured(
+  // The model produces analysis only; pr / index / commitRange are CLI-owned
+  // metadata it cannot know, filled in here (ADR 0012).
+  const generated = await streamStructured(
     client,
-    BriefSchema,
+    BriefGenerationSchema,
     buildSystemPrompt(),
     renderUser(pr),
     "brief",
     log,
   );
-  // PR identifiers + description come from our own fetch, not the model.
-  brief.pr = {
-    repo: `${pr.locator.owner}/${pr.locator.repo}`,
-    number: pr.locator.number,
-    title: pr.meta.title,
-    url: pr.meta.url,
-    sha: pr.meta.sha,
-    description: pr.meta.body,
+  const brief: Brief = {
+    ...generated,
+    pr: {
+      repo: `${pr.locator.owner}/${pr.locator.repo}`,
+      number: pr.locator.number,
+      title: pr.meta.title,
+      url: pr.meta.url,
+      sha: commitRange.head,
+      description: pr.meta.body,
+    },
+    index,
+    commitRange,
   };
   warnIssues(validatePartition(brief.changeGroups, brief.chunks), log);
   return brief;

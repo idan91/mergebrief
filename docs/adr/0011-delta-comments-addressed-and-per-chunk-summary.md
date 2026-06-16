@@ -26,7 +26,7 @@ Structured beats prose: a re-reviewer scans chunks and immediately sees which on
 
 ## Consequences
 
-- **`DeltaBriefSchema` grows:** delta-level `commentsAddressed` (string, empty when none); per-chunk `summary` (string) and `addressesComments` (string[] of comment ids). Per-chunk summary is **delta-specific** for now — not added to the full brief.
+- **`DeltaBriefSchema` grows:** delta-level `commentsAddressed` (string, empty when none); per-chunk `summary` (string) and `addressesComments` (string[] of comment ids). Per-chunk summary is **delta-specific** for now — not added to the full brief. **(Partially revised by ADR 0012:** review *comments themselves* are now carried on the full Brief too, **display-only** — no resolution analysis; the per-chunk summary stays delta-specific. Comments move to a `.comments.json` sidecar for both artifacts.**)**
 - **CLI build:** fetch PR review comments (`gh api …/comments`), pass them to the delta prompt, emit the new fields. Comment→chunk attribution is the model's inference in the CLI; the product version uses the FE's `CommentAnchor.chunkId` + carry-over anchoring (ADR 0007).
 - **Delta prompt:** instruct it to produce `commentsAddressed` + per-chunk `summary` + `addressesComments` grounded in the supplied comments; never author replies.
 - **FE:** reuse + extend `ReviewComment` (submitted variant) with reply threads; wire `addressesComments` into the chunk view. Part of the FE wiring.

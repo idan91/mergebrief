@@ -9,8 +9,8 @@ Comprehension scaffolding for human reviewers of pull requests. Not another revi
 ## Language
 
 **Brief**:
-The comprehension artifact the tool produces for a PR — summary, multi-tag categorization per chunk, per-category playbooks, risk-surface attributes. Computed on activation, cached by commit SHA.
-_Avoid_: report, analysis, AI summary
+The comprehension artifact the tool produces for a PR — summary, multi-tag categorization per chunk, per-category playbooks, risk-surface attributes. Computed on activation, cached by commit SHA. Each Brief carries a PR-global **index** (the Nth distinct head SHA briefed for this PR — shared across reviewers, never per-reviewer) and the **commit range** it covers (the whole PR, base→head). A Brief also surfaces the PR's shipped **Comments** (from all reviewers) with their GitHub-native **outdated** status, for display only — *which change resolved which comment* is the **Delta Brief**'s job, not the Brief's.
+_Avoid_: report, analysis, AI summary, brief number (for index)
 
 **Delta Brief**:
 The comprehension artifact for re-review — what changed for THIS reviewer's mental model since they last looked: new chunks tagged, flag resolution status, comment-target tracking, playbook delta, net receipt diff. Computed as a diff between two states (the reviewer's **Checkpoint** tree and the current head tree), not a replay of commits — so it is well-defined across rebases and force-pushes. Exists only when the reviewer has a Checkpoint (a prior submitted review); a first-time reviewer gets the full **Brief**, no Delta.
@@ -149,6 +149,7 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.
+- A **Brief**'s **index** is a PR-global ordinal over the *distinct head SHAs* briefed (shared, not per-reviewer); a **Delta Brief** spans the gap between two such SHAs.
 - A **Brief** contains many **Chunks**, clustered into **Change-groups**. A chunk is a contiguous run of changed lines sharing one Concern and one Change-group; a git hunk may be split into multiple chunks, and one file's chunks may span multiple Change-groups.
 - A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one carrier chunk plus zero or more supporting chunks.
 - A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (carrier/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (+added/−deleted).

@@ -6,24 +6,42 @@ function shortSha(sha: string): string {
 }
 
 /** `<owner>-<repo>-<number>` — shared stem for a PR's output files. */
-function stem(brief: Brief): string {
-  return `${brief.pr.repo.replace("/", "-")}-${brief.pr.number}`;
+export function prStem(repo: string, number: number): string {
+  return `${repo.replace("/", "-")}-${number}`;
 }
 
-/** Output filename for a brief: `<owner>-<repo>-<number>.brief.json`. */
+/**
+ * `<owner>-<repo>-<number>_<index>_<head8>` — versioned stem for one brief's
+ * artifacts (ADR 0012). The index + head SHA let successive briefs of the same
+ * PR coexist on disk.
+ */
+function briefStem(brief: Brief): string {
+  return `${prStem(brief.pr.repo, brief.pr.number)}_${brief.index}_${shortSha(brief.commitRange.head)}`;
+}
+
+/** Output filename for a brief: `<stem>_<index>_<head8>.brief.json`. */
 export function outName(brief: Brief): string {
-  return `${stem(brief)}.brief.json`;
+  return `${briefStem(brief)}.brief.json`;
 }
 
-/** Sidecar filename for per-file diffs: `<owner>-<repo>-<number>.diffs.json`. */
+/** Sidecar filename for per-file diffs: `<stem>_<index>_<head8>.diffs.json`. */
 export function diffsName(brief: Brief): string {
-  return `${stem(brief)}.diffs.json`;
+  return `${briefStem(brief)}.diffs.json`;
+}
+
+/** Sidecar filename for review comments: `<stem>_<index>_<head8>.comments.json`. */
+export function commentsName(brief: Brief): string {
+  return `${briefStem(brief)}.comments.json`;
 }
 
 /** Render a brief into the lines printed to stdout for human eyeballing. */
 export function summaryLines(brief: Brief): string[] {
   const lines: string[] = [];
   lines.push(`PR  ${brief.pr.repo}#${brief.pr.number} — ${brief.pr.title}`);
+  const { base, head, commitCount } = brief.commitRange;
+  lines.push(
+    `    brief _${brief.index} | ${shortSha(base)}..${shortSha(head)}, ${commitCount} commit(s)`,
+  );
   lines.push(`    ${brief.summary.split("\n")[0] ?? ""}`);
   lines.push("");
 
@@ -77,6 +95,11 @@ export function deltaOutName(delta: DeltaBrief): string {
 /** Sidecar filename for delta per-file diffs: `<owner>-<repo>-<num>-<base8>..<head8>.delta.diffs.json`. */
 export function deltaDiffsName(delta: DeltaBrief): string {
   return `${delta.pr.repo.replace("/", "-")}-${delta.pr.number}-${shortSha(delta.baselineSha)}..${shortSha(delta.headSha)}.delta.diffs.json`;
+}
+
+/** Sidecar filename for delta review comments: `<...>-<base8>..<head8>.delta.comments.json`. */
+export function deltaCommentsName(delta: DeltaBrief): string {
+  return `${delta.pr.repo.replace("/", "-")}-${delta.pr.number}-${shortSha(delta.baselineSha)}..${shortSha(delta.headSha)}.delta.comments.json`;
 }
 
 /** Lines printed for a delta brief (the re-review reload). */

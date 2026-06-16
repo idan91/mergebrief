@@ -10,7 +10,12 @@ import {
 } from "./github.js";
 import { categorizeDelta } from "./categorize.js";
 import { splitDiffByFile } from "./diff.js";
-import { deltaDiffsName, deltaOutName, printDeltaSummary } from "./output.js";
+import {
+  deltaCommentsName,
+  deltaDiffsName,
+  deltaOutName,
+  printDeltaSummary,
+} from "./output.js";
 
 const OUT_DIR = "out";
 
@@ -62,12 +67,16 @@ async function main(): Promise<void> {
 
   await mkdir(OUT_DIR, { recursive: true });
   const file = join(OUT_DIR, deltaOutName(delta));
-  await writeFile(file, `${JSON.stringify({ ...delta, reviewComments: comments }, null, 2)}\n`);
+  await writeFile(file, `${JSON.stringify(delta, null, 2)}\n`);
   const diffsFile = join(OUT_DIR, deltaDiffsName(delta));
   const fileDiffs = splitDiffByFile(incrementalDiff);
   await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
+  // Review comments sidecar (display data, +outdated) — ADR 0012; matches brief.
+  const commentsFile = join(OUT_DIR, deltaCommentsName(delta));
+  await writeFile(commentsFile, `${JSON.stringify(comments, null, 2)}\n`);
   console.error(`\n[${tag}] wrote ${file}`);
   console.error(`[${tag}] wrote ${diffsFile} (${fileDiffs.length} files)`);
+  console.error(`[${tag}] wrote ${commentsFile} (${comments.length} comments)`);
   console.log("");
   printDeltaSummary(delta);
 }
