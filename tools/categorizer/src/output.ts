@@ -22,10 +22,9 @@ export function diffsName(brief: Brief): string {
 
 /** Render a brief into the lines printed to stdout for human eyeballing. */
 export function summaryLines(brief: Brief): string[] {
-  const byId = new Map(brief.chunks.map((c) => [c.id, c]));
   const lines: string[] = [];
   lines.push(`PR  ${brief.pr.repo}#${brief.pr.number} — ${brief.pr.title}`);
-  lines.push(`    ${brief.summary}`);
+  lines.push(`    ${brief.summary.split("\n")[0] ?? ""}`);
   lines.push("");
 
   lines.push(`Change groups (${brief.changeGroups.length}):`);
@@ -36,10 +35,15 @@ export function summaryLines(brief: Brief): string[] {
     const uncertain = g.uncertain
       ? `  ⚠ uncertain: ${g.uncertainBetween.join(" vs ")}`
       : "";
-    lines.push(`  • [${g.dominantCategory}]${secondary} ${g.summary}${uncertain}`);
+    lines.push(`  • [${g.dominantCategory}]${secondary} ${g.title}${uncertain}`);
+    const members = brief.chunks.filter((c) => c.changeGroupId === g.id);
+    const carriers = members.filter((c) => c.role === "carrier").map((c) => c.id);
+    const supporting = members
+      .filter((c) => c.role === "supporting")
+      .map((c) => c.id);
     lines.push(
-      `      carriers: ${g.carrierChunkIds.join(", ") || "—"}` +
-        `  supporting: ${g.supportingChunkIds.join(", ") || "—"}`,
+      `      carriers: ${carriers.join(", ") || "—"}` +
+        `  supporting: ${supporting.join(", ") || "—"}`,
     );
   }
   lines.push("");
@@ -55,10 +59,7 @@ export function summaryLines(brief: Brief): string[] {
     `Risk-surface flags (${flagged.length}/${brief.chunks.length} chunks):`,
   );
   for (const c of flagged) {
-    const chunk = byId.get(c.id);
-    lines.push(
-      `  ${c.id} ${chunk?.file ?? ""} [${c.role}]: ${c.riskSurface.join(", ")}`,
-    );
+    lines.push(`  ${c.id} ${c.file} [${c.role}]: ${c.riskSurface.join(", ")}`);
   }
 
   return lines;

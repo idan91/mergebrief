@@ -14,19 +14,19 @@ const brief: Brief = {
   summary: "Adds a stock-location capability.",
   changeGroups: [
     {
+      id: "g1",
       title: "Add stock-location module",
       summary: "New stock-location module",
       dominantCategory: "new-feature",
       secondaryCategories: [],
       uncertain: true,
       uncertainBetween: ["new-feature", "bugfix"],
-      carrierChunkIds: ["c1"],
-      supportingChunkIds: ["c2"],
     },
   ],
   chunks: [
     {
       id: "c1",
+      changeGroupId: "g1",
       file: "src/module.ts",
       concern: "implementation",
       role: "carrier",
@@ -37,6 +37,7 @@ const brief: Brief = {
     },
     {
       id: "c2",
+      changeGroupId: "g1",
       file: "src/module.test.ts",
       concern: "test",
       role: "supporting",

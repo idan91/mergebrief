@@ -104,9 +104,12 @@ export const LineRangeSchema = z.object({
 });
 
 export const ChunkSchema = z.object({
-  id: z
+  id: z.string().describe("stable chunk id, e.g. c1, c2, …"),
+  changeGroupId: z
     .string()
-    .describe("stable id referenced by change-groups, e.g. c1, c2, …"),
+    .describe(
+      "id of the single change-group this chunk belongs to (exactly one — a chunk is never shared across groups; a file spans groups only via different chunks)",
+    ),
   file: z.string().describe("file path the chunk lives in"),
   concern: concernEnum.describe(
     "artifact kind; mostly derivable from the file path",
@@ -140,6 +143,9 @@ export const ChunkSchema = z.object({
 });
 
 export const ChangeGroupSchema = z.object({
+  id: z
+    .string()
+    .describe("stable group id referenced by chunks' changeGroupId, e.g. g1, g2, …"),
   title: z
     .string()
     .describe(
@@ -162,12 +168,6 @@ export const ChangeGroupSchema = z.object({
     .describe(
       "the categories in tension when uncertain=true (e.g. new-feature vs bugfix); empty when uncertain=false",
     ),
-  carrierChunkIds: z
-    .array(z.string())
-    .describe("ids of the chunks that carry this group's intent"),
-  supportingChunkIds: z
-    .array(z.string())
-    .describe("ids of the chunks that support the carriers"),
 });
 
 export const ConcernRollupSchema = z.object({

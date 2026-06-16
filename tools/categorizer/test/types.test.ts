@@ -13,19 +13,19 @@ const validBrief = {
   summary: "s",
   changeGroups: [
     {
+      id: "g1",
       title: "g title",
       summary: "g",
       dominantCategory: "bugfix",
       secondaryCategories: [],
       uncertain: false,
       uncertainBetween: [],
-      carrierChunkIds: ["c1"],
-      supportingChunkIds: [],
     },
   ],
   chunks: [
     {
       id: "c1",
+      changeGroupId: "g1",
       file: "a.ts",
       concern: "implementation",
       role: "carrier",
@@ -70,19 +70,19 @@ const validDelta = {
   summary: "since you last looked, the author added a test",
   changedGroups: [
     {
+      id: "g1",
       title: "g title",
       summary: "g",
       dominantCategory: "bugfix",
       secondaryCategories: [],
       uncertain: false,
       uncertainBetween: [],
-      carrierChunkIds: ["c1"],
-      supportingChunkIds: [],
     },
   ],
   chunks: [
     {
       id: "c1",
+      changeGroupId: "g1",
       file: "a.ts",
       concern: "implementation",
       role: "carrier",

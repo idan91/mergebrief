@@ -8,6 +8,7 @@ import {
   type DeltaBrief,
 } from "./types.js";
 import { buildSystemPrompt, buildDeltaSystemPrompt } from "./prompt.js";
+import { validatePartition } from "./validate.js";
 import type { FetchedPr, LinkedContext, PrLocator, PrMetadata } from "./github.js";
 
 /**
@@ -155,7 +156,14 @@ export async function categorize(
     sha: pr.meta.sha,
     description: pr.meta.body,
   };
+  warnIssues(validatePartition(brief.changeGroups, brief.chunks), log);
   return brief;
+}
+
+function warnIssues(issues: string[], log: Logger): void {
+  if (issues.length > 0) {
+    log(`⚠ partition issues: ${issues.join("; ")}`);
+  }
 }
 
 // --- Delta (delta core; per-reviewer carry-over is out of CLI scope) -------
@@ -212,5 +220,6 @@ export async function categorizeDelta(
   };
   delta.baselineSha = input.baselineSha;
   delta.headSha = input.headSha;
+  warnIssues(validatePartition(delta.changedGroups, delta.chunks), log);
   return delta;
 }
