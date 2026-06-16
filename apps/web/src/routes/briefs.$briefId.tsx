@@ -5,7 +5,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { localBriefQueryOptions } from "../features/brief/queries";
-import type { AddressedReviewComment, Brief, BriefChunk, Category, Concern, DiffLine } from "../features/brief/types";
+import { reviewCommentMatchesDiffLine, reviewCommentsForChunk } from "../features/brief/reviewComments";
+import type { AddressedReviewComment, Brief, BriefChunk, Category, Concern } from "../features/brief/types";
 import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
 import { SummaryPreview } from "../features/review/SummaryPreview";
 import {
@@ -869,7 +870,8 @@ function ChunkCard({
   updateReviewComment: (commentId: string, body: string) => void;
 }) {
   const expanded = open && !forceCollapsed;
-  const addressedComments = commentsForChunk(addressedReviewComments, chunk.addressesComments);
+  const chunkReviewComments = reviewCommentsForChunk(addressedReviewComments, chunk);
+  const hasLinkedAddressedComments = Boolean(chunk.addressesComments?.length);
   return (
     <article className={`chunk ${expanded ? "open" : ""} ${reviewed ? "reviewed" : ""} ${active ? "current" : ""}`} id={chunk.id}>
       <button className="chunk-head" type="button" onClick={() => toggleChunk(chunk.id)}>
@@ -879,7 +881,7 @@ function ChunkCard({
           {chunk.riskSurface.map((risk) => <span className="cc risk" key={risk}>{risk}</span>)}
           <span className={`cc concern-${chunk.concern}`}><span className="dot" />{chunk.concern}{chunk.role === "carrier" ? " · carrier" : ""}</span>
           {comments.length > 0 ? <span className="cc comments">{comments.length} comment{comments.length === 1 ? "" : "s"}</span> : null}
-          {addressedComments.length > 0 ? <span className="cc comments">{addressedComments.length} addressed</span> : null}
+          {chunkReviewComments.length > 0 ? <span className="cc comments">{chunkReviewComments.length} {hasLinkedAddressedComments ? "addressed" : "review"}</span> : null}
           <span className="cc loc"><span className="a">+{chunk.loc.added}</span> <span className="d">−{chunk.loc.deleted}</span></span>
         </span>
       </button>
@@ -892,18 +894,19 @@ function ChunkCard({
           {chunk.summary || chunk.addressesComments?.length ? (
             <div className="chunk-delta-summary">
               {chunk.summary ? <p>{chunk.summary}</p> : null}
-              {chunk.addressesComments?.length ? <AddressedComments chunk={chunk} comments={addressedComments} /> : null}
+              {chunk.addressesComments?.length ? <AddressedComments chunk={chunk} comments={chunkReviewComments} /> : null}
             </div>
           ) : null}
           <DiffTable
             activeCommentAnchor={activeCommentAnchor}
-            addressedComments={addressedComments}
+            addressedComments={chunkReviewComments}
             cancelCommentComposer={cancelCommentComposer}
             chunk={chunk}
             comments={comments}
             deleteReviewComment={deleteReviewComment}
             existingReviewCommentCount={existingReviewCommentCount}
             openCommentComposer={openCommentComposer}
+            reviewCommentLabel={hasLinkedAddressedComments ? "addressed" : "review comment"}
             saveReviewComment={saveReviewComment}
             toggleReviewComment={toggleReviewComment}
             updateReviewComment={updateReviewComment}
@@ -946,6 +949,7 @@ function DiffTable({
   deleteReviewComment,
   existingReviewCommentCount,
   openCommentComposer,
+  reviewCommentLabel,
   saveReviewComment,
   toggleReviewComment,
   updateReviewComment,
@@ -958,6 +962,7 @@ function DiffTable({
   deleteReviewComment: (commentId: string) => void;
   existingReviewCommentCount: number;
   openCommentComposer: (anchor: CommentAnchor) => void;
+  reviewCommentLabel: string;
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
   toggleReviewComment: (commentId: string) => void;
   updateReviewComment: (commentId: string, body: string) => void;
@@ -999,7 +1004,7 @@ function DiffTable({
           const sign = line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
           const id = rowId(chunk.id, index);
           const rowComments = comments.filter((comment) => comment.anchor.rowIds.at(-1) === id);
-          const rowAddressedComments = addressedComments.filter((comment) => addressedCommentMatchesDiffLine(comment, chunk.file, line));
+          const rowAddressedComments = addressedComments.filter((comment) => reviewCommentMatchesDiffLine(comment, chunk.file, line, chunk.diff));
           const isSelected = dragIndexes.includes(index) || activeRowIds.has(id);
           const showComposer = activeCommentAnchor?.chunkId === chunk.id && activeCommentAnchor.rowIds.at(-1) === id;
           return (
@@ -1041,7 +1046,7 @@ function DiffTable({
               {rowAddressedComments.map((comment) => (
                 <tr className="comment-row" key={`addressed-${comment.id}`}>
                   <td colSpan={3}>
-                    <AddressedDiffComment comment={comment} />
+                    <AddressedDiffComment comment={comment} label={reviewCommentLabel} />
                   </td>
                 </tr>
               ))}
@@ -1053,11 +1058,11 @@ function DiffTable({
   );
 }
 
-function AddressedDiffComment({ comment }: { comment: AddressedReviewComment }) {
+function AddressedDiffComment({ comment, label }: { comment: AddressedReviewComment; label: string }) {
   return (
     <details className="comment-thread addressed-diff-comment">
       <summary className="comment-thread-head">
-        <span>@{comment.author} addressed</span>
+        <span>@{comment.author} {label}</span>
         <span>{comment.file}{addressedCommentRange(comment)}</span>
       </summary>
       <div className="comment-preview">
@@ -1598,26 +1603,12 @@ function evidenceTextForFlag(flagId: string, evidenceByFlag: Record<string, Risk
   return evidence ? riskEvidenceLabel(evidence, comments, chunks) : "addressed without linked evidence";
 }
 
-function commentsForChunk(comments: AddressedReviewComment[], commentIds: string[] | undefined): AddressedReviewComment[] {
-  if (!commentIds?.length) return [];
-  const byId = new Map(comments.map((comment) => [comment.id, comment]));
-  return commentIds.map((commentId) => byId.get(commentId)).filter((comment): comment is AddressedReviewComment => Boolean(comment));
-}
-
 function addressedCommentRange(comment: AddressedReviewComment): string {
   if (comment.startLine != null && comment.line != null) return `:${comment.startLine}-${comment.line}`;
   if (comment.line != null) return `:${comment.line}`;
   if (comment.originalStartLine != null && comment.originalLine != null) return `:original ${comment.originalStartLine}-${comment.originalLine}`;
   if (comment.originalLine != null) return `:original ${comment.originalLine}`;
   return "";
-}
-
-function addressedCommentMatchesDiffLine(comment: AddressedReviewComment, chunkFile: string, line: DiffLine): boolean {
-  if (line.kind === "hunk" || line.kind === "note") return false;
-  if (comment.file !== chunkFile) return false;
-  if (comment.line != null) return line.newLine === comment.line;
-  if (comment.originalLine != null) return line.oldLine === comment.originalLine;
-  return false;
 }
 
 function shortFile(path: string): string {
