@@ -49,7 +49,9 @@ For each PR it writes `out/<owner>-<repo>-<number>.brief.json` and prints a huma
 pnpm delta <pr-url> <baseline-sha> <head-sha>
 ```
 
-Generates the **delta core** — "what changed since the baseline" — for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics — exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json`.
+Generates the **delta core** — "what changed since the baseline" — for a reviewer returning to a PR. It fetches the incremental diff via the GitHub compare API (`baseline...head`, three-dot/merge-base semantics — exact for normal follow-ups; the rebase-robust two-dot needs a local clone, a known limitation), then runs the delta categorizer. Writes `out/<owner>-<repo>-<num>-<base8>..<head8>.delta.json` plus a per-file `.delta.diffs.json` sidecar (same split-by-file shape as the brief's `diffs.json`, for rendering the delta's diffs).
+
+Each delta chunk belongs to exactly one change-group (a file appears in multiple groups only via different chunks), so no line is shown to the reviewer twice.
 
 This is the delta **core** only — the per-reviewer **carry-over overlay** (reopened/settled flags, moved/orphaned comments) needs reviewer state and is out of scope for the stateless CLI (see ADRs 0006–0008). SHAs must be hex commit-ishes (7–40 chars).
 
