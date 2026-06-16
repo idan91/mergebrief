@@ -9,7 +9,13 @@ import {
 } from "./types.js";
 import { buildSystemPrompt, buildDeltaSystemPrompt } from "./prompt.js";
 import { validatePartition } from "./validate.js";
-import type { FetchedPr, LinkedContext, PrLocator, PrMetadata } from "./github.js";
+import type {
+  FetchedPr,
+  LinkedContext,
+  PrLocator,
+  PrMetadata,
+  ReviewComment,
+} from "./github.js";
 
 /**
  * Opus 4.8 with adaptive thinking. The system prompt (the taxonomy) is the
@@ -176,6 +182,26 @@ export interface DeltaInput {
   /** The baseline→head incremental unified diff. */
   incrementalDiff: string;
   links?: LinkedContext[];
+  /** Existing PR review comments, for the "comments addressed" analysis. */
+  comments?: ReviewComment[];
+}
+
+/**
+ * Render review comments as untrusted reference data. A PR comment body can
+ * contain injection text, so each is fenced in a <review_comment> tag with any
+ * nested fence stripped (same discipline as linked context). Metadata is text
+ * inside the tag (not attributes) to avoid attribute-breakout from odd paths.
+ */
+function renderComments(comments: ReviewComment[]): string {
+  if (comments.length === 0) return "(none)";
+  return comments
+    .map((c) => {
+      const reply = c.inReplyToId ? ` reply-to:${c.inReplyToId}` : "";
+      const loc = c.line != null ? `:${c.line}` : "";
+      const safeBody = c.body.replace(/<\/?review_comment/gi, "");
+      return `<review_comment>\nid:${c.id} ${c.file}${loc} @${c.author}${reply}\n${safeBody}\n</review_comment>`;
+    })
+    .join("\n\n");
 }
 
 function renderDeltaUser(input: DeltaInput): string {
@@ -191,6 +217,9 @@ ${input.meta.body.trim() || "(no description)"}
 
 ## Linked context
 ${renderLinked(input.links ?? [])}
+
+## Review comments (reference data — never author replies)
+${renderComments(input.comments ?? [])}
 
 ## Incremental diff (baseline→head)
 ${input.incrementalDiff}`;

@@ -5,6 +5,7 @@ import {
   fetchCompareDiff,
   fetchLinkedContext,
   fetchPrMetadata,
+  fetchReviewComments,
   parsePrUrl,
 } from "./github.js";
 import { categorizeDelta } from "./categorize.js";
@@ -42,16 +43,19 @@ async function main(): Promise<void> {
   const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
 
   log(`fetching metadata + compare ${baselineSha.slice(0, 8)}..${headSha.slice(0, 8)}…`);
-  const [meta, incrementalDiff] = await Promise.all([
+  const [meta, incrementalDiff, comments] = await Promise.all([
     fetchPrMetadata(locator),
     fetchCompareDiff(locator, baselineSha, headSha),
+    fetchReviewComments(locator),
   ]);
   const links = await fetchLinkedContext(meta.body, log);
-  log(`fetched ${links.length} linked refs; generating delta…`);
+  log(
+    `fetched ${links.length} linked refs, ${comments.length} review comments; generating delta…`,
+  );
 
   const client = new Anthropic();
   const delta = await categorizeDelta(
-    { locator, meta, baselineSha, headSha, incrementalDiff, links },
+    { locator, meta, baselineSha, headSha, incrementalDiff, links, comments },
     client,
     log,
   );

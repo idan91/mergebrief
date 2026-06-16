@@ -65,6 +65,7 @@ const delta: DeltaBrief = {
   baselineSha: "3578807971c2ddc8dc76a978f25f61e09f524941",
   headSha: "a01bcf1db649b18404dddc9d61b9dd1b3cc75dfd",
   summary: "Since you last looked, the accordion review comments were addressed.",
+  commentsAddressed: "",
   changedGroups: [],
   chunks: [],
   wholePrImpact: "The follow-up narrows behavior around the original accordion work.",

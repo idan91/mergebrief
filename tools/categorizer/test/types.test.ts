@@ -68,6 +68,7 @@ const validDelta = {
   baselineSha: "1111111",
   headSha: "2222222",
   summary: "since you last looked, the author added a test",
+  commentsAddressed: "addresses the reviewer's request to add a test",
   changedGroups: [
     {
       id: "g1",
@@ -90,6 +91,8 @@ const validDelta = {
       addedRanges: [{ start: 5, end: 5 }],
       removedRanges: [],
       riskSurface: ["mutates-state"],
+      summary: "adds a unit test for the fix",
+      addressesComments: ["101"],
     },
   ],
   wholePrImpact: "completes the original intent",

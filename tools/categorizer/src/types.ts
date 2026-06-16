@@ -199,6 +199,22 @@ export const BriefSchema = z.object({
  * The per-reviewer carry-over overlay (reopened/settled flags, moved/orphaned
  * comments) requires reviewer state and is out of scope for the stateless CLI.
  */
+/**
+ * Delta chunk = a brief chunk plus delta-only fields: a one-line what-changed
+ * summary and the review comment(s) this chunk resolves (ADR 0011). These are
+ * delta-specific; the full brief uses the base ChunkSchema.
+ */
+export const DeltaChunkSchema = ChunkSchema.extend({
+  summary: z
+    .string()
+    .describe("one-line, what changed in this chunk (what, not why)"),
+  addressesComments: z
+    .array(z.string())
+    .describe(
+      "ids of the review comments this chunk resolves (empty if it addresses none)",
+    ),
+});
+
 export const DeltaBriefSchema = z.object({
   pr: PrRefSchema,
   baselineSha: z.string().describe("the SHA the reviewer last looked at"),
@@ -208,11 +224,16 @@ export const DeltaBriefSchema = z.object({
     .describe(
       "Markdown reload, in this order: (1) a concise one-paragraph overview of what changed *since the baseline*; (2) the fuller what-changed; (3) optionally a '## Changelog' of the follow-up commits. Frame it as 'since you last looked'.",
     ),
+  commentsAddressed: z
+    .string()
+    .describe(
+      "Markdown: how the follow-up answers the prior review comments overall. Empty string when there are no comments. Never author replies — only describe how the change addresses them.",
+    ),
   changedGroups: z
     .array(ChangeGroupSchema)
     .describe("change-groups for the incremental (baseline→head) change only"),
   chunks: z
-    .array(ChunkSchema)
+    .array(DeltaChunkSchema)
     .describe("chunks of the incremental change only"),
   wholePrImpact: z
     .string()
@@ -227,4 +248,5 @@ export type Chunk = z.infer<typeof ChunkSchema>;
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
 export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;
 export type Brief = z.infer<typeof BriefSchema>;
+export type DeltaChunk = z.infer<typeof DeltaChunkSchema>;
 export type DeltaBrief = z.infer<typeof DeltaBriefSchema>;

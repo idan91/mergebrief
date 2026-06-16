@@ -107,7 +107,19 @@ export function deltaSummaryLines(delta: DeltaBrief): string[] {
   for (const c of flagged) {
     lines.push(`  ${c.id} ${c.file} [${c.role}]: ${c.riskSurface.join(", ")}`);
   }
-  lines.push("");
+  const addressing = delta.chunks.filter(
+    (c) => c.addressesComments.length > 0,
+  );
+  if (delta.commentsAddressed.trim() || addressing.length > 0) {
+    lines.push(
+      `Comments addressed (${addressing.length} chunk(s) linked):`,
+    );
+    lines.push(`  ${delta.commentsAddressed.split("\n")[0] ?? ""}`);
+    for (const c of addressing) {
+      lines.push(`  ${c.id} ${c.file} → comments ${c.addressesComments.join(", ")}`);
+    }
+    lines.push("");
+  }
   lines.push(`Whole-PR impact: ${delta.wholePrImpact}`);
   return lines;
 }

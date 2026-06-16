@@ -351,6 +351,54 @@ export async function fetchCompareDiff(
   return stdout;
 }
 
+/** A PR review comment (line comment or a reply), trimmed to what the delta needs. */
+export interface ReviewComment {
+  id: string;
+  file: string;
+  line: number | null;
+  author: string;
+  body: string;
+  /** id of the comment this one replies to, when it's a thread reply. */
+  inReplyToId: string | null;
+}
+
+const MAX_COMMENTS = 100;
+const MAX_COMMENT_CHARS = 2_000;
+
+const GhCommentSchema = z.object({
+  id: z.number(),
+  path: z.string().nullish(),
+  line: z.number().nullish(),
+  original_line: z.number().nullish(),
+  body: z.string().nullish(),
+  user: z.object({ login: z.string() }).nullish(),
+  in_reply_to_id: z.number().nullish(),
+});
+
+/**
+ * Fetch a PR's review comments (line comments + thread replies) via the GitHub
+ * API. Stateless, public — feeds the delta's "comments addressed" analysis
+ * (ADR 0011). Capped in count and per-comment length to bound prompt cost.
+ */
+export async function fetchReviewComments(
+  loc: PrLocator,
+): Promise<ReviewComment[]> {
+  const { stdout } = await execFileAsync(
+    "gh",
+    ["api", "--paginate", `repos/${repoSlug(loc)}/pulls/${loc.number}/comments`],
+    { maxBuffer: MAX_BUFFER },
+  );
+  const raw = z.array(GhCommentSchema).parse(JSON.parse(stdout));
+  return raw.slice(0, MAX_COMMENTS).map((c) => ({
+    id: String(c.id),
+    file: c.path ?? "",
+    line: c.line ?? c.original_line ?? null,
+    author: c.user?.login ?? "unknown",
+    body: (c.body ?? "").slice(0, MAX_COMMENT_CHARS),
+    inReplyToId: c.in_reply_to_id != null ? String(c.in_reply_to_id) : null,
+  }));
+}
+
 /**
  * Parse a PR URL, then fetch its diff and metadata in parallel. Once we have
  * the description, chase any links in it for extra context (best-effort).
