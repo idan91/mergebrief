@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { outName, summaryLines } from "../src/output.js";
-import type { Brief } from "../src/types.js";
+import { deltaDiffsName, outName, summaryLines } from "../src/output.js";
+import type { Brief, DeltaBrief } from "../src/types.js";
 
 const brief: Brief = {
   pr: {
@@ -52,9 +52,34 @@ const brief: Brief = {
   ],
 };
 
+const delta: DeltaBrief = {
+  pr: {
+    repo: "Idan91/components",
+    number: 4,
+    title: "feat: Add Accordion And Collapsible Components",
+    url: "https://github.com/Idan91/components/pull/4",
+    sha: "a01bcf1db649b18404dddc9d61b9dd1b3cc75dfd",
+    description: "Adds accordion and collapsible components.",
+  },
+  baselineSha: "3578807971c2ddc8dc76a978f25f61e09f524941",
+  headSha: "a01bcf1db649b18404dddc9d61b9dd1b3cc75dfd",
+  summary: "Since you last looked, the accordion review comments were addressed.",
+  changedGroups: [],
+  chunks: [],
+  wholePrImpact: "The follow-up narrows behavior around the original accordion work.",
+};
+
 describe("outName", () => {
   it("builds <owner>-<repo>-<number>.brief.json", () => {
     expect(outName(brief)).toBe("medusajs-medusa-15605.brief.json");
+  });
+});
+
+describe("deltaDiffsName", () => {
+  it("builds <owner>-<repo>-<number>-<base8>..<head8>.delta.diffs.json", () => {
+    expect(deltaDiffsName(delta)).toBe(
+      "Idan91-components-4-35788079..a01bcf1d.delta.diffs.json",
+    );
   });
 });
 

@@ -8,7 +8,8 @@ import {
   parsePrUrl,
 } from "./github.js";
 import { categorizeDelta } from "./categorize.js";
-import { deltaOutName, printDeltaSummary } from "./output.js";
+import { splitDiffByFile } from "./diff.js";
+import { deltaDiffsName, deltaOutName, printDeltaSummary } from "./output.js";
 
 const OUT_DIR = "out";
 
@@ -58,7 +59,11 @@ async function main(): Promise<void> {
   await mkdir(OUT_DIR, { recursive: true });
   const file = join(OUT_DIR, deltaOutName(delta));
   await writeFile(file, `${JSON.stringify(delta, null, 2)}\n`);
+  const diffsFile = join(OUT_DIR, deltaDiffsName(delta));
+  const fileDiffs = splitDiffByFile(incrementalDiff);
+  await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
   console.error(`\n[${tag}] wrote ${file}`);
+  console.error(`[${tag}] wrote ${diffsFile} (${fileDiffs.length} files)`);
   console.log("");
   printDeltaSummary(delta);
 }

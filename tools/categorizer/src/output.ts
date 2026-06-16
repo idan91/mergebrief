@@ -73,6 +73,11 @@ export function deltaOutName(delta: DeltaBrief): string {
   return `${delta.pr.repo.replace("/", "-")}-${delta.pr.number}-${shortSha(delta.baselineSha)}..${shortSha(delta.headSha)}.delta.json`;
 }
 
+/** Sidecar filename for delta per-file diffs: `<owner>-<repo>-<num>-<base8>..<head8>.delta.diffs.json`. */
+export function deltaDiffsName(delta: DeltaBrief): string {
+  return `${delta.pr.repo.replace("/", "-")}-${delta.pr.number}-${shortSha(delta.baselineSha)}..${shortSha(delta.headSha)}.delta.diffs.json`;
+}
+
 /** Lines printed for a delta brief (the re-review reload). */
 export function deltaSummaryLines(delta: DeltaBrief): string[] {
   const lines: string[] = [];
