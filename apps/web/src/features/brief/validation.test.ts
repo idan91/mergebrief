@@ -81,10 +81,14 @@ describe("parseDeltaBrief", () => {
       reviewComments: [{
         id: "3419186366",
         file: "src/components/Accordion/Accordion.tsx",
+        startLine: 40,
         line: 42,
+        originalStartLine: 38,
+        originalLine: 40,
         author: "Idan91",
         body: "Can we avoid literal state strings here?",
         inReplyToId: null,
+        outdated: false,
       }],
       changedGroups: [newShapeGroup],
       chunks: [{
@@ -108,5 +112,7 @@ describe("parseDeltaBrief", () => {
     expect(parsed.value.chunks[0]?.summary).toBe("Adds AccordionStates and context state.");
     expect(parsed.value.chunks[1]?.addressesComments).toEqual([]);
     expect(parsed.value.reviewComments?.[0]?.body).toBe("Can we avoid literal state strings here?");
+    expect(parsed.value.reviewComments?.[0]?.startLine).toBe(40);
+    expect(parsed.value.reviewComments?.[0]?.originalStartLine).toBe(38);
   });
 });

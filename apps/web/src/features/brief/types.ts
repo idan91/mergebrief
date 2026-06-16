@@ -111,10 +111,14 @@ export interface ConcernRollup {
 export interface AddressedReviewComment {
   id: string;
   file: string;
+  startLine: number | null;
   line: number | null;
+  originalStartLine: number | null;
+  originalLine: number | null;
   author: string;
   body: string;
   inReplyToId: string | null;
+  outdated: boolean;
 }
 
 export interface Brief {

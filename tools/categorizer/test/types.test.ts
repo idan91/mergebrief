@@ -119,3 +119,26 @@ describe("DeltaBriefSchema", () => {
     expect(DeltaBriefSchema.safeParse(bad).success).toBe(false);
   });
 });
+
+describe("ReviewCommentSchema", () => {
+  it("accepts GitHub-style range anchors", async () => {
+    const { ReviewCommentSchema } = await import("../src/types.js");
+    const parsed = ReviewCommentSchema.safeParse({
+      id: "101",
+      file: "src/a.ts",
+      startLine: 10,
+      line: 12,
+      originalStartLine: 8,
+      originalLine: 10,
+      author: "reviewer",
+      body: "Could we cover this range?",
+      inReplyToId: null,
+      outdated: false,
+    });
+
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.startLine).toBe(10);
+    expect(parsed.data.originalStartLine).toBe(8);
+  });
+});

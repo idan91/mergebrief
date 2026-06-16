@@ -123,22 +123,41 @@ function parseAddressedReviewComment(value: unknown): Result<AddressedReviewComm
   if (!isRecord(value)) return { ok: false, error: "Expected review comment to be an object" };
   const id = value["id"];
   const file = value["file"];
+  const startLine = value["startLine"] ?? null;
   const line = value["line"];
+  const originalStartLine = value["originalStartLine"] ?? null;
+  const originalLine = value["originalLine"] ?? null;
   const author = value["author"];
   const body = value["body"];
   const inReplyToId = value["inReplyToId"];
-  if (!isString(id) || !isString(file) || !isNullableInteger(line) || !isString(author) || !isString(body) || !isNullableString(inReplyToId)) {
-    return { ok: false, error: "Expected review comment id, file, line, author, body, and inReplyToId" };
+  const outdated = value["outdated"] ?? line === null;
+  if (
+    !isString(id) ||
+    !isString(file) ||
+    !isNullableInteger(startLine) ||
+    !isNullableInteger(line) ||
+    !isNullableInteger(originalStartLine) ||
+    !isNullableInteger(originalLine) ||
+    !isString(author) ||
+    !isString(body) ||
+    !isNullableString(inReplyToId) ||
+    typeof outdated !== "boolean"
+  ) {
+    return { ok: false, error: "Expected review comment id, file, startLine, line, originalStartLine, originalLine, author, body, inReplyToId, and outdated" };
   }
   return {
     ok: true,
     value: {
       id,
       file,
+      startLine,
       line,
+      originalStartLine,
+      originalLine,
       author,
       body,
       inReplyToId,
+      outdated,
     },
   };
 }

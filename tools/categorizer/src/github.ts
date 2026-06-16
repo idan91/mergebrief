@@ -402,7 +402,9 @@ const MAX_COMMENT_CHARS = 2_000;
 const GhCommentSchema = z.object({
   id: z.number(),
   path: z.string().nullish(),
+  start_line: z.number().nullish(),
   line: z.number().nullish(),
+  original_start_line: z.number().nullish(),
   original_line: z.number().nullish(),
   // "line" for a line/range comment, "file" for a file-level comment.
   subject_type: z.string().nullish(),
@@ -424,6 +426,22 @@ export function isCommentOutdated(
 ): boolean {
   if ((subjectType ?? "line") !== "line") return false;
   return line == null;
+}
+
+export function normalizeReviewComment(value: unknown): ReviewComment {
+  const c = GhCommentSchema.parse(value);
+  return {
+    id: String(c.id),
+    file: c.path ?? "",
+    startLine: c.start_line ?? null,
+    line: c.line ?? null,
+    originalStartLine: c.original_start_line ?? null,
+    originalLine: c.original_line ?? null,
+    author: c.user?.login ?? "unknown",
+    body: (c.body ?? "").slice(0, MAX_COMMENT_CHARS),
+    inReplyToId: c.in_reply_to_id != null ? String(c.in_reply_to_id) : null,
+    outdated: isCommentOutdated(c.line ?? null, c.subject_type ?? null),
+  };
 }
 
 /**
@@ -448,16 +466,7 @@ export async function fetchReviewComments(
     { maxBuffer: MAX_BUFFER },
   );
   const raw = z.array(GhCommentSchema).parse(JSON.parse(stdout));
-  return raw.slice(0, MAX_COMMENTS).map((c) => ({
-    id: String(c.id),
-    file: c.path ?? "",
-    line: c.line ?? null,
-    originalLine: c.original_line ?? null,
-    author: c.user?.login ?? "unknown",
-    body: (c.body ?? "").slice(0, MAX_COMMENT_CHARS),
-    inReplyToId: c.in_reply_to_id != null ? String(c.in_reply_to_id) : null,
-    outdated: isCommentOutdated(c.line ?? null, c.subject_type ?? null),
-  }));
+  return raw.slice(0, MAX_COMMENTS).map(normalizeReviewComment);
 }
 
 /**

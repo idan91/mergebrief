@@ -4,6 +4,7 @@ import {
   isCommentOutdated,
   isCommitish,
   isPublicUrl,
+  normalizeReviewComment,
   parsePrUrl,
 } from "../src/github.js";
 
@@ -112,5 +113,33 @@ describe("fetchCompareDiff", () => {
     await expect(
       fetchCompareDiff({ owner: "o", repo: "r", number: 1 }, "main", "deadbeef"),
     ).rejects.toThrow(/hex commit SHAs/);
+  });
+});
+
+describe("normalizeReviewComment", () => {
+  it("preserves GitHub range comment anchors", () => {
+    expect(normalizeReviewComment({
+      id: 101,
+      path: "src/a.ts",
+      start_line: 10,
+      line: 12,
+      original_start_line: 8,
+      original_line: 10,
+      subject_type: "line",
+      body: "Could we cover this range?",
+      user: { login: "reviewer" },
+      in_reply_to_id: null,
+    })).toEqual({
+      id: "101",
+      file: "src/a.ts",
+      startLine: 10,
+      line: 12,
+      originalStartLine: 8,
+      originalLine: 10,
+      author: "reviewer",
+      body: "Could we cover this range?",
+      inReplyToId: null,
+      outdated: false,
+    });
   });
 });

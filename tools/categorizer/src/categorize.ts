@@ -209,11 +209,23 @@ function renderComments(comments: ReviewComment[]): string {
   return comments
     .map((c) => {
       const reply = c.inReplyToId ? ` reply-to:${c.inReplyToId}` : "";
-      const loc = c.line != null ? `:${c.line}` : "";
+      const loc = commentLocation(c);
       const safeBody = c.body.replace(/<\/?review_comment/gi, "");
       return `<review_comment>\nid:${c.id} ${c.file}${loc} @${c.author}${reply}\n${safeBody}\n</review_comment>`;
     })
     .join("\n\n");
+}
+
+function commentLocation(comment: ReviewComment): string {
+  if (comment.startLine != null && comment.line != null) {
+    return `:${comment.startLine}-${comment.line}`;
+  }
+  if (comment.line != null) return `:${comment.line}`;
+  if (comment.originalStartLine != null && comment.originalLine != null) {
+    return `:original ${comment.originalStartLine}-${comment.originalLine}`;
+  }
+  if (comment.originalLine != null) return `:original ${comment.originalLine}`;
+  return "";
 }
 
 function renderDeltaUser(input: DeltaInput): string {

@@ -923,7 +923,7 @@ function AddressedComments({ chunk, comments }: { chunk: BriefChunk; comments: A
         <details className="addressed-comment" key={comment.id}>
           <summary>
             <span>@{comment.author}</span>
-            <b>{comment.file}{comment.line != null ? `:${comment.line}` : ""}</b>
+            <b>{comment.file}{addressedCommentRange(comment)}</b>
             <em>comment {comment.id}</em>
           </summary>
           <Markdown content={comment.body} />
@@ -1573,6 +1573,14 @@ function evidenceTextForFlag(flagId: string, evidenceByFlag: Record<string, Risk
 function commentsForChunk(comments: AddressedReviewComment[], commentIds: string[]): AddressedReviewComment[] {
   const byId = new Map(comments.map((comment) => [comment.id, comment]));
   return commentIds.map((commentId) => byId.get(commentId)).filter((comment): comment is AddressedReviewComment => Boolean(comment));
+}
+
+function addressedCommentRange(comment: AddressedReviewComment): string {
+  if (comment.startLine != null && comment.line != null) return `:${comment.startLine}-${comment.line}`;
+  if (comment.line != null) return `:${comment.line}`;
+  if (comment.originalStartLine != null && comment.originalLine != null) return `:original ${comment.originalStartLine}-${comment.originalLine}`;
+  if (comment.originalLine != null) return `:original ${comment.originalLine}`;
+  return "";
 }
 
 function shortFile(path: string): string {

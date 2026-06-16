@@ -201,12 +201,22 @@ export const CommitRangeSchema = z.object({
 export const ReviewCommentSchema = z.object({
   id: z.string(),
   file: z.string(),
-  line: z.number().int().nullable().describe("current diff line; null if outdated"),
+  startLine: z
+    .number()
+    .int()
+    .nullable()
+    .describe("current diff range start; null for single-line comments, file-level comments, or outdated anchors"),
+  line: z.number().int().nullable().describe("current diff line/range end; null if outdated"),
+  originalStartLine: z
+    .number()
+    .int()
+    .nullable()
+    .describe("range start at the time the comment was made; null for single-line comments"),
   originalLine: z
     .number()
     .int()
     .nullable()
-    .describe("line at the time the comment was made"),
+    .describe("line/range end at the time the comment was made"),
   author: z.string(),
   body: z.string(),
   inReplyToId: z
