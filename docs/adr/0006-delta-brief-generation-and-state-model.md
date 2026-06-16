@@ -41,6 +41,8 @@ Five forks drove the design.
 10. **No front-end progressive streaming in v1.** Backend streaming is retained only because the SDK rejects non-streaming calls over ~10 min. The wait UX is diff-first (raw diff visible immediately) + a determinate progress state; the structured brief renders atomically on completion.
 11. **Delta spans checkpoint→head as one artifact; never per-commit.**
 
+7. **Mid-review follow-ups use a session baseline, not the Checkpoint.** While a reviewer is mid-review (opened, not yet submitted), a follow-up commit is surfaced **in-tool** relative to their current view SHA (a transient *session baseline*) — a non-intrusive "N new commits since you opened" notice, then the **Fast-lane** (cheap) or full **Delta** of the change per the triage (ADR 0010). The reviewer never needs GitHub to see it and is never yanked off their current view; they choose when to advance to the new head (re-anchoring draft work via the line-map). The **Checkpoint** advances only on submit. Carry-over for a mid-review follow-up runs against the reviewer's **draft** comments/dispositions (Mind-Map state), not Settled flags.
+
 ## Why This Way
 
 The per-reviewer Checkpoint is the only baseline that satisfies the interview value — "reload *my* model since *I* last looked," across however many rounds were missed — and the obvious objection (it sounds like per-reviewer regeneration cost) dissolves once the delta is **cached by the `(checkpoint, head)` pair**: cost scales with distinct baseline spans actually opened, not with reviewer count, and reviewers on the same cadence share. That reconciles the per-reviewer correctness with the agnostic/sharing instinct that motivated the rolling-chain alternative.

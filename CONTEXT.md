@@ -20,6 +20,10 @@ _Avoid_: incremental brief, diff-of-diff (informal only), update
 The commit SHA at which a given reviewer last *submitted* a review. The baseline from which that reviewer's **Delta Brief** is computed (Checkpoint → current head). Advances on review submission, never on mere viewing; distinct per reviewer, so two reviewers can hold different Checkpoints on the same PR and therefore receive different Delta Briefs.
 _Avoid_: baseline (informal), last-seen, watermark
 
+**Session baseline**:
+The SHA a reviewer is *currently viewing* in an in-progress review, before they submit. A follow-up commit that lands mid-review is shown **in-tool** relative to this session baseline ("what changed since you opened") via the same delta machinery — **not** relative to the durable **Checkpoint**, which advances only on submit. Transient and per-session; the **Fast-lane** or full **Delta Brief** of a mid-review follow-up anchors here, and carry-over runs against the reviewer's *draft* comments rather than Settled flags.
+_Avoid_: working SHA (informal), draft checkpoint
+
 **Carry-over status**:
 How a prior **Flag** is classified in a **Delta Brief** relative to this reviewer's **Checkpoint**. One of: **New** (not present at the Checkpoint); **Reopened** (the reviewer had addressed or dismissed it and its region was touched in the span — so the prior decision must be re-made); **Settled** (addressed/dismissed and its region untouched — the prior decision still holds; FE may gloss as "still holds"); **Dropped** (the attribute no longer fires at head — the risk condition is gone, independent of any reviewer action). Decision order: Dropped → Reopened → Settled → New. Reopen is purely positional — *any* change to the flagged region reopens; meaningfulness is never inferred. On ambiguity, classify as Reopened, never Settled.
 _Avoid_: still-resolved, cleared, gone, stale, resolved (as state names)
