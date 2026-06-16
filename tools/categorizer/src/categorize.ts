@@ -3,7 +3,7 @@ import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
 import {
   BriefGenerationSchema,
-  DeltaBriefSchema,
+  DeltaBriefGenerationSchema,
   type Brief,
   type CommitRange,
   type DeltaBrief,
@@ -188,6 +188,9 @@ export interface DeltaInput {
   meta: PrMetadata;
   baselineSha: string;
   headSha: string;
+  /** Brief index of each end (null if never briefed); for the `_b→_h` label. */
+  baselineIndex?: number | null;
+  headIndex?: number | null;
   /** The baseline→head incremental unified diff. */
   incrementalDiff: string;
   links?: LinkedContext[];
@@ -239,25 +242,31 @@ export async function categorizeDelta(
   client: Anthropic = new Anthropic(),
   log: Logger = () => {},
 ): Promise<DeltaBrief> {
-  const delta = await streamStructured(
+  // The model produces analysis only; identifiers + endpoint indices are
+  // CLI-owned (ADR 0012), filled in here.
+  const generated = await streamStructured(
     client,
-    DeltaBriefSchema,
+    DeltaBriefGenerationSchema,
     buildDeltaSystemPrompt(),
     renderDeltaUser(input),
     "delta",
     log,
   );
-  // Identifiers come from our own fetch, not the model.
-  delta.pr = {
-    repo: `${input.locator.owner}/${input.locator.repo}`,
-    number: input.locator.number,
-    title: input.meta.title,
-    url: input.meta.url,
-    sha: input.meta.sha,
-    description: input.meta.body,
+  const delta: DeltaBrief = {
+    ...generated,
+    pr: {
+      repo: `${input.locator.owner}/${input.locator.repo}`,
+      number: input.locator.number,
+      title: input.meta.title,
+      url: input.meta.url,
+      sha: input.meta.sha,
+      description: input.meta.body,
+    },
+    baselineSha: input.baselineSha,
+    headSha: input.headSha,
+    baselineIndex: input.baselineIndex ?? null,
+    headIndex: input.headIndex ?? null,
   };
-  delta.baselineSha = input.baselineSha;
-  delta.headSha = input.headSha;
   warnIssues(validatePartition(delta.changedGroups, delta.chunks), log);
   return delta;
 }

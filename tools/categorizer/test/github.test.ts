@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   fetchCompareDiff,
+  isCommentOutdated,
   isCommitish,
   isPublicUrl,
   parsePrUrl,
@@ -89,6 +90,20 @@ describe("isCommitish", () => {
     "0123456789abcdef0123456789abcdef012345678", // 41 chars
     "ghijklm", // non-hex
   ])("rejects %s", (sha) => expect(isCommitish(sha)).toBe(false));
+});
+
+describe("isCommentOutdated", () => {
+  it("treats a line comment with a null line as outdated", () => {
+    // GitHub nulls `line` when the anchor leaves the current diff.
+    expect(isCommentOutdated(null, "line")).toBe(true);
+    expect(isCommentOutdated(null, null)).toBe(true); // default subject = line
+  });
+  it("treats a line comment with a live line as current", () => {
+    expect(isCommentOutdated(42, "line")).toBe(false);
+  });
+  it("never marks a file-level comment outdated (null line by design)", () => {
+    expect(isCommentOutdated(null, "file")).toBe(false);
+  });
 });
 
 describe("fetchCompareDiff", () => {

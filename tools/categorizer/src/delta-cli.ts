@@ -10,10 +10,12 @@ import {
 } from "./github.js";
 import { categorizeDelta } from "./categorize.js";
 import { splitDiffByFile } from "./diff.js";
+import { lookupBriefIndex } from "./manifest.js";
 import {
   deltaCommentsName,
   deltaDiffsName,
   deltaOutName,
+  prStem,
   printDeltaSummary,
 } from "./output.js";
 
@@ -54,13 +56,29 @@ async function main(): Promise<void> {
     fetchReviewComments(locator),
   ]);
   const links = await fetchLinkedContext(meta.body, log);
+  // Endpoint brief indices (read-only) for the `_b→_h` label — null if unbriefed.
+  const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
+  const [baselineIndex, headIndex] = await Promise.all([
+    lookupBriefIndex(OUT_DIR, stem, baselineSha),
+    lookupBriefIndex(OUT_DIR, stem, headSha),
+  ]);
   log(
     `fetched ${links.length} linked refs, ${comments.length} review comments; generating delta…`,
   );
 
   const client = new Anthropic();
   const delta = await categorizeDelta(
-    { locator, meta, baselineSha, headSha, incrementalDiff, links, comments },
+    {
+      locator,
+      meta,
+      baselineSha,
+      headSha,
+      baselineIndex,
+      headIndex,
+      incrementalDiff,
+      links,
+      comments,
+    },
     client,
     log,
   );

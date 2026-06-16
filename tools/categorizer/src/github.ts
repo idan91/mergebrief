@@ -402,15 +402,29 @@ const MAX_COMMENT_CHARS = 2_000;
 const GhCommentSchema = z.object({
   id: z.number(),
   path: z.string().nullish(),
-  // `position` is null when the comment is outdated relative to the PR's latest
-  // commit (the diff hunk it anchored to changed) — GitHub's own signal.
-  position: z.number().nullish(),
   line: z.number().nullish(),
   original_line: z.number().nullish(),
+  // "line" for a line/range comment, "file" for a file-level comment.
+  subject_type: z.string().nullish(),
   body: z.string().nullish(),
   user: z.object({ login: z.string() }).nullish(),
   in_reply_to_id: z.number().nullish(),
 });
+
+/**
+ * GitHub marks a *line* comment outdated by nulling its `line` — the line it
+ * anchored to is no longer part of the diff at the PR's current head (the
+ * `original_line` is retained). This is read, not recomputed (ADR 0007); the
+ * legacy `position` field is unreliable for this. *File*-level comments carry a
+ * null `line` by design and are never "outdated".
+ */
+export function isCommentOutdated(
+  line: number | null,
+  subjectType: string | null,
+): boolean {
+  if ((subjectType ?? "line") !== "line") return false;
+  return line == null;
+}
 
 /**
  * Fetch a PR's review comments (line comments + thread replies) via the GitHub
@@ -418,12 +432,12 @@ const GhCommentSchema = z.object({
  * (ADR 0012) and input to the delta's "comments addressed" analysis (ADR 0011).
  * Capped in count and per-comment length to bound prompt cost.
  *
- * `outdated` is read straight from GitHub (`position == null`), never recomputed
- * (ADR 0007). NOTE: GitHub computes outdated relative to the PR's *current* head.
- * That is exact for the full brief (always at current head), but for a delta run
- * at an arbitrary (base, head) it is outdated-relative-to-current-PR-head, not
- * the delta's head — a documented limitation, like the three-dot compare-diff
- * caveat above.
+ * `outdated` is read straight from GitHub (a nulled `line`, see isCommentOutdated),
+ * never recomputed (ADR 0007). NOTE: GitHub computes outdated relative to the PR's
+ * *current* head. That is exact for the full brief (always at current head), but
+ * for a delta run at an arbitrary (base, head) it is outdated-relative-to-current-
+ * PR-head, not the delta's head — a documented limitation, like the three-dot
+ * compare-diff caveat above.
  */
 export async function fetchReviewComments(
   loc: PrLocator,
@@ -442,7 +456,7 @@ export async function fetchReviewComments(
     author: c.user?.login ?? "unknown",
     body: (c.body ?? "").slice(0, MAX_COMMENT_CHARS),
     inReplyToId: c.in_reply_to_id != null ? String(c.in_reply_to_id) : null,
-    outdated: c.position == null,
+    outdated: isCommentOutdated(c.line ?? null, c.subject_type ?? null),
   }));
 }
 

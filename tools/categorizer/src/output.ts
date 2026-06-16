@@ -105,8 +105,12 @@ export function deltaCommentsName(delta: DeltaBrief): string {
 /** Lines printed for a delta brief (the re-review reload). */
 export function deltaSummaryLines(delta: DeltaBrief): string[] {
   const lines: string[] = [];
+  // Label the endpoints by brief index when both ends were briefed (e.g. _1→_2),
+  // falling back to the SHA otherwise.
+  const endpoint = (idx: number | null, sha: string): string =>
+    idx != null ? `_${idx} (${shortSha(sha)})` : shortSha(sha);
   lines.push(
-    `DELTA  ${delta.pr.repo}#${delta.pr.number} — ${shortSha(delta.baselineSha)} → ${shortSha(delta.headSha)}`,
+    `DELTA  ${delta.pr.repo}#${delta.pr.number} — ${endpoint(delta.baselineIndex, delta.baselineSha)} → ${endpoint(delta.headIndex, delta.headSha)}`,
   );
   lines.push(`    ${delta.summary.split("\n")[0] ?? ""}`);
   lines.push("");

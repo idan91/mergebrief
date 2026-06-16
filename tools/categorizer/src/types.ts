@@ -215,7 +215,9 @@ export const ReviewCommentSchema = z.object({
     .describe("id of the comment this replies to; null for a thread root"),
   outdated: z
     .boolean()
-    .describe("GitHub-native outdated status (position == null); read, not recomputed"),
+    .describe(
+      "GitHub-native outdated status (GitHub nulls the comment's `line` when its anchor leaves the current diff); read, not recomputed",
+    ),
 });
 
 export const BriefSchema = z.object({
@@ -278,6 +280,20 @@ export const DeltaBriefSchema = z.object({
   pr: PrRefSchema,
   baselineSha: z.string().describe("the SHA the reviewer last looked at"),
   headSha: z.string().describe("the current head SHA"),
+  baselineIndex: z
+    .number()
+    .int()
+    .nullable()
+    .describe(
+      "brief index of the baseline SHA (null if that end was never briefed). CLI-assigned.",
+    ),
+  headIndex: z
+    .number()
+    .int()
+    .nullable()
+    .describe(
+      "brief index of the head SHA (null if that end was never briefed). CLI-assigned.",
+    ),
   summary: z
     .string()
     .describe(
@@ -299,6 +315,19 @@ export const DeltaBriefSchema = z.object({
     .describe(
       "how this follow-up affects the overall PR — does it complete/alter the original intent, or introduce new risk not present at the baseline. Grounded in the diff; not a verdict.",
     ),
+});
+
+/**
+ * What the model generates for a delta: DeltaBriefSchema minus the CLI-owned
+ * fields (`pr`, `baselineSha`, `headSha`, `baselineIndex`, `headIndex`), which
+ * the CLI fills after generation (ADR 0012) — same discipline as the brief.
+ */
+export const DeltaBriefGenerationSchema = DeltaBriefSchema.omit({
+  pr: true,
+  baselineSha: true,
+  headSha: true,
+  baselineIndex: true,
+  headIndex: true,
 });
 
 export type PrRef = z.infer<typeof PrRefSchema>;

@@ -69,6 +69,8 @@ const validDelta = {
   },
   baselineSha: "1111111",
   headSha: "2222222",
+  baselineIndex: 1,
+  headIndex: 2,
   summary: "since you last looked, the author added a test",
   commentsAddressed: "addresses the reviewer's request to add a test",
   changedGroups: [

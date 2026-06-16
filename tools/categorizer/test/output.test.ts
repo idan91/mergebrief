@@ -3,6 +3,7 @@ import {
   commentsName,
   deltaCommentsName,
   deltaDiffsName,
+  deltaSummaryLines,
   diffsName,
   outName,
   summaryLines,
@@ -77,6 +78,8 @@ const delta: DeltaBrief = {
   },
   baselineSha: "3578807971c2ddc8dc76a978f25f61e09f524941",
   headSha: "a01bcf1db649b18404dddc9d61b9dd1b3cc75dfd",
+  baselineIndex: 1,
+  headIndex: 2,
   summary: "Since you last looked, the accordion review comments were addressed.",
   commentsAddressed: "",
   changedGroups: [],
@@ -123,5 +126,20 @@ describe("summaryLines", () => {
     expect(text).toContain("c1 src/module.ts [carrier]: widely-imported, no-tests");
     expect(text).toContain("flags (1/2 chunks)");
     expect(text).not.toContain("c2 src/module.test.ts");
+  });
+});
+
+describe("deltaSummaryLines", () => {
+  it("labels endpoints by brief index when both ends were briefed", () => {
+    const text = deltaSummaryLines(delta).join("\n");
+    expect(text).toContain("_1 (35788079) → _2 (a01bcf1d)");
+  });
+
+  it("falls back to the SHA when an endpoint was never briefed", () => {
+    const text = deltaSummaryLines({
+      ...delta,
+      baselineIndex: null,
+    }).join("\n");
+    expect(text).toContain("35788079 → _2 (a01bcf1d)");
   });
 });
