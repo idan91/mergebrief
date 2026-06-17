@@ -91,8 +91,12 @@ The AI's explicit label on categorization or flag output when its confidence is 
 _Avoid_: low confidence (informal only), unknown, maybe
 
 **Receipt**:
-The scoped tool-verification content: mechanical claims the tool verified, what it didn't check, and the disposition of flags (addressed vs dismissed with reason). Never an "approval". Delivered via the **Review Summary** linked from the signature line on the GitHub review — not inlined into the review body.
+The scoped tool-verification content: mechanical claims the tool verified, what it didn't check, the disposition of flags (addressed vs dismissed with reason), and the **Generation provenance** of the analysis. Never an "approval". Delivered via the **Review Summary** linked from the signature line on the GitHub review — not inlined into the review body.
 _Avoid_: AI approval, stamp, attestation
+
+**Generation provenance**:
+Which provider, model, and effort produced a **Brief** or **Delta Brief** — recorded on the artifact and surfaced on the **Receipt** (and as an understated header label), so the reader always knows what generated the analysis and never mistakes it for a verdict. Becomes load-bearing once the provider can vary (BYOK / multiple SDKs).
+_Avoid_: model tag, attribution, watermark, AI signature (collides with Signature line)
 
 **Signature line**:
 A single line appended to the native GitHub review ("Reviewed with [tool] — summary") linking to the static **Review Summary**. The only tool footprint on the GitHub review itself; the review otherwise reads as a normal human review.
@@ -181,3 +185,4 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 - **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.
 - **"A file with multiple changes/concerns"** — resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case → deferred sub-operation tree (ADR 0005).
 - **"production" rejected** as the carrier-concern name — bakes in a deployment assumption. Resolved: `implementation`.
+- **"Consume an AI context manager (Unblocked) to flag cross-context issues"** was proposed as a brief feature. Rejected: a tool asserting AI-hypothesized "potential issues" is the **bug-bot the product is positioned against** (no-verdict rule; `center-of-gravity.md` "no bug-bot noise"; ADR 0003 category-scoped, not general). Resolved into three data-flows: (1) external context may **enrich the Intent check and Risk Surface with *cited* facts only** — cite-or-stay-silent, never a verdict; (2) AI *review* of the code is the **headless dual-consumer lane** — the org hooks its own agent to consume our **Brief**, and that agent owns its verdicts, not us (preserves no-verdict because we are the analysis substrate, not the reviewer); (3) the **comment-to-rule loop** is the inverse arrow (we *produce* repo-local agent context). Only (1) is a consume-side build, and it is deferred. See ADR 0014.
