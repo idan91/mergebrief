@@ -7,18 +7,28 @@ export function reviewCommentsForChunk(comments: AddressedReviewComment[], chunk
   }
 
   const sameFileComments = comments.filter((comment) => comment.file === chunk.file);
-  if (!chunk.diff?.length) return sameFileComments;
-  return sameFileComments.filter((comment) => chunk.diff?.some((line) => reviewCommentMatchesDiffLine(comment, chunk.file, line, chunk.diff)) ?? false);
+  return sameFileComments.filter((comment) => reviewCommentBelongsToChunk(comment, chunk));
 }
 
-export function reviewCommentMatchesDiffLine(comment: AddressedReviewComment, chunkFile: string, line: DiffLine, chunkDiff: DiffLine[] = []): boolean {
+export function reviewCommentMatchesDiffLine(comment: AddressedReviewComment, chunkFile: string, line: DiffLine, _chunkDiff: DiffLine[] = []): boolean {
   if (line.kind === "hunk" || line.kind === "note") return false;
   if (comment.file !== chunkFile) return false;
   if (comment.line != null) return line.newLine === comment.line;
   if (comment.originalLine != null) {
-    if (line.oldLine === comment.originalLine) return true;
-    const hasOldSideAnchor = chunkDiff.some((row) => row.kind !== "hunk" && row.kind !== "note" && row.oldLine === comment.originalLine);
-    return !hasOldSideAnchor && line.kind === "add" && line.newLine === comment.originalLine;
+    return line.oldLine === comment.originalLine;
   }
   return false;
+}
+
+function reviewCommentBelongsToChunk(comment: AddressedReviewComment, chunk: BriefChunk): boolean {
+  const currentLine = comment.line;
+  if (currentLine != null) return lineInRanges(currentLine, chunk.addedRanges);
+
+  const originalLine = comment.originalLine;
+  if (originalLine == null) return true;
+  return lineInRanges(originalLine, chunk.removedRanges) || lineInRanges(originalLine, chunk.addedRanges);
+}
+
+function lineInRanges(line: number, ranges: BriefChunk["addedRanges"]): boolean {
+  return ranges.some((range) => line >= range.start && line <= range.end);
 }

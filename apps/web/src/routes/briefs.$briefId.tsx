@@ -872,6 +872,8 @@ function ChunkCard({
   const expanded = open && !forceCollapsed;
   const chunkReviewComments = reviewCommentsForChunk(addressedReviewComments, chunk);
   const hasLinkedAddressedComments = Boolean(chunk.addressesComments?.length);
+  const topReviewComments = hasLinkedAddressedComments ? chunkReviewComments : chunkReviewComments.filter((comment) => comment.outdated || comment.line == null);
+  const inlineReviewComments = hasLinkedAddressedComments ? chunkReviewComments : chunkReviewComments.filter((comment) => !comment.outdated && comment.line != null);
   return (
     <article className={`chunk ${expanded ? "open" : ""} ${reviewed ? "reviewed" : ""} ${active ? "current" : ""}`} id={chunk.id}>
       <button className="chunk-head" type="button" onClick={() => toggleChunk(chunk.id)}>
@@ -891,15 +893,16 @@ function ChunkCard({
       {!expanded ? <div className="collapse-note">{chunk.role === "supporting" ? "supporting chunk — collapsed" : "collapsed"}{comments.length > 0 ? ` · ${comments.length} draft comment${comments.length === 1 ? "" : "s"}` : ""}</div> : null}
       {expanded ? (
         <div className="chunk-body">
-          {chunk.summary || chunk.addressesComments?.length ? (
+          {chunk.summary || chunk.addressesComments?.length || topReviewComments.length > 0 ? (
             <div className="chunk-delta-summary">
               {chunk.summary ? <p>{chunk.summary}</p> : null}
-              {chunk.addressesComments?.length ? <AddressedComments chunk={chunk} comments={chunkReviewComments} /> : null}
+              {chunk.addressesComments?.length ? <AddressedComments chunk={chunk} comments={topReviewComments} /> : null}
+              {!chunk.addressesComments?.length && topReviewComments.length > 0 ? <ReviewComments comments={topReviewComments} label="review comment" /> : null}
             </div>
           ) : null}
           <DiffTable
             activeCommentAnchor={activeCommentAnchor}
-            addressedComments={chunkReviewComments}
+            addressedComments={inlineReviewComments}
             cancelCommentComposer={cancelCommentComposer}
             chunk={chunk}
             comments={comments}
@@ -924,13 +927,19 @@ function AddressedComments({ chunk, comments }: { chunk: BriefChunk; comments: A
     return <span>addresses comments {ids.join(", ")}</span>;
   }
   return (
+    <ReviewComments comments={comments} label="comment" />
+  );
+}
+
+function ReviewComments({ comments, label }: { comments: AddressedReviewComment[]; label: string }) {
+  return (
     <div className="addressed-comments">
       {comments.map((comment) => (
         <details className="addressed-comment" key={comment.id}>
           <summary>
             <span>@{comment.author}</span>
             <b>{comment.file}{addressedCommentRange(comment)}</b>
-            <em>comment {comment.id}</em>
+            <em>{label} {comment.id}</em>
           </summary>
           <Markdown content={comment.body} />
           {comment.inReplyToId ? <div className="reply-note">reply to {comment.inReplyToId}</div> : null}
