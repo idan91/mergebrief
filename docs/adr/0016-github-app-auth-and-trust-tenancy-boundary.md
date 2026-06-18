@@ -1,0 +1,43 @@
+# GitHub App, Reviewer Auth, and the Trust/Tenancy Boundary
+
+One ADR for the product's whole trust surface: the per-instance **GitHub App** (least-privilege scopes + activation), **reviewer authentication** (GitHub OAuth + a repo-access gate on every read), the **tenancy boundary** (instance = trust boundary; rows scoped by `(installation_id, repo)`), **secret handling**, the **all-inputs prompt-injection invariant**, the hosted **"no raw code" posture**, **retention/erasure**, and the **architectural seams** that keep SOC2 a later operational program rather than a redesign. Closes epic gating decisions #3 (App scopes) + #4 (secret storage) and the deferred GPT-5.5 review item #6 (trust posture). Sits under the OSS-self-host-first model (ADR 0017, `docs/system-overview.md`).
+
+## Context
+
+The product handles orgs' private source code; the GPT-5.5 review named trust/tenancy the largest gap and "a sales blocker earlier than expected." Distribution is OSS self-host first (ADR 0017): the **adopter is the data controller**, which removes most of our obligations now — but the boundary must be designed so a future hosted, multi-tenant mode is an operational lift, not a re-architecture. Runtime flow is in `docs/system-overview.md` §3.
+
+## Considered Options
+
+- **Activation surface.** Check Run (tidy, but the CTA is a buried "Details" link) · **PR comment (chosen)** — visible CTA, matches CONTEXT.md's Activation; Check Run deferred.
+- **Comment lifecycle.** Edit-in-place (no notification, gets buried) · **delete + repost (chosen)** — stays at the bottom and fires a "re-review ready" notification; debounced to one per settled head.
+- **Comment permission.** `Issues: write` · **`Pull requests: write` (chosen)** — already required for the reviewer's review, and it also authorizes the PR-conversation comment, so `Issues` is dropped.
+- **Persisting code (hosted).** Persist diffs · **fetch on-demand by token (chosen)** — persist only the analysis; baseline snapshot configurable.
+- **Secret redaction.** None · broad DLP (rejected — degrades analysis) · **high-confidence patterns, line-preserving (chosen)**.
+- **Tenancy.** Instance-only · **scope every row by `(installation_id, repo)` from day one (chosen)** even while single-tenant.
+
+## Decision
+
+1. **Per-instance GitHub App.** Identity (app-id, private key, webhook secret, OAuth client) is all env/config; created via the app-manifest flow; logo uploaded per instance. No hosted-singleton assumption — self-host and hosted differ only in deployment + tenancy density.
+2. **Least-privilege scopes:** `Contents: read` (read diffs — never write code), `Pull requests: write`, `Metadata: read`. The PR-conversation comment uses `pull_requests:write` (also needed for the reviewer's review) — **no `Issues` permission**. Events: `pull_request`, `pull_request_review`, `installation`, `installation_repositories`.
+3. **Activation = one branded comment, delete + repost per debounced generation** (bottom-of-thread + a "re-review ready" notification; one ping per settled head, never per push). The Brief is read in the web app, **never posted into the PR**. Check Run deferred.
+4. **Reviewer auth = GitHub OAuth (user-to-server) + session.** The reviewer's token authors *their own* review at submit; it is short-lived, **field-level envelope-encrypted at rest**, and deleted on expiry/logout.
+5. **Authorization gate on every artifact read** — a single enforced middleware verifies the viewer has GitHub access to the repo (briefs = private source); not per-endpoint. Returns 401 / 403 / 404.
+6. **Tenancy = instance is the trust boundary** (no cross-instance data); within an instance **every row is scoped by `(installation_id, repo)`** with a mandatory tenant filter — carried from day one though M1 self-host is single-tenant, so a future hosted multi-tenant mode is not a schema rewrite.
+7. **Secrets.** All static secrets (model/BYOK key by env-name per ADR 0013, App private key, webhook secret, OAuth secret) live in env/secret-manager — **never in the DB, never in the repo**. The one dynamic secret (the reviewer token) is envelope-encrypted with a key resolved via a **provider interface** (env now, KMS-droppable later). Generation provenance (ADR 0013) is recorded on every artifact.
+8. **Prompt-injection invariant — ALL model inputs are untrusted:** PR title/description, the diff/code (including code comments and string literals), review comments, and fetched context. They are **fenced as data, never instructions**; the system prompt (the taxonomy) is the *sole* instruction authority. Containment: the **structured-output floor** (ADR 0013) limits escape into free-form output; **no-verdict + human-in-loop** bound the blast radius (worst case = a misleading-but-valid brief, still human-reviewed, never an auto-gate); rendered output is sanitized (`rehype-sanitize`) and flagged untrusted to the headless consumer (ADR 0014). Extends ADR 0011/0014 fencing to *all* inputs.
+9. **Secret redaction before the model** — a **line-preserving** pass over the diff redacting **high-confidence credential patterns only** (private keys, recognizable key/token formats); default-on, documented best-effort. Not a general DLP (a redacted credential never changes the brief; broad redaction would degrade analysis).
+10. **Hosted "no raw code" posture** — diffs are fetched **on-demand by token** at render (ADR 0006 #9), never persisted (an ephemeral per-session cache is fine; disk/DB is not). Only the **brief (analysis)** and an optional, **configurable baseline snapshot** are stored; with the snapshot off, a delta degrades to a full Brief when the checkpoint commit is GC'd. All model egress flows through the single **Generator port** (ADR 0013) — one auditable confidentiality + sub-processor boundary.
+11. **Retention + erasure** — configurable retention window; sweep on PR-close + grace (ADR 0015); **purge by org/installation** (cascading, verifiable) for offboarding + right-to-erasure, with the deletion itself audit-logged.
+12. **SOC2 architectural readiness — seams now, program later.** Design in: tenant isolation (#6), the single auth/authz gate (#5), the single code→model egress (#10), an **append-only audit log** (one emit per boundary — auth, view, generate, delete, config — immutable, tenant-scoped), the encryption-key provider interface (#7), no-raw-code minimization (#10), and cascade-by-tenant erasure (#11). Processing Integrity is already served by content-addressed idempotent writes (ADR 0006/0008) + provenance (0013) + the immutable Receipt (0002). The SOC2 **program** (monitoring, incident response, change management, vendor risk, the audit engagement) is operational and deferred to the hosted offering — on self-host it is the adopter's responsibility.
+
+## Why This Way
+
+Self-host makes the adopter the controller, which removes most obligations now; the discipline is to design the *boundaries* — tenant scope, one auth gate, one egress chokepoint, an audit seam, key-provider indirection — so the hosted offering is an operational lift rather than a re-architecture. Least-privilege, the no-raw-code posture, and the all-inputs injection invariant directly answer the GPT-5.5 trust gap; and the no-verdict / human-in-loop design that *defines* the product also caps injection blast radius — the honesty stance is a security control.
+
+## Consequences
+
+- The App is never a hosted singleton: every instance carries its own identity/config.
+- `installation_id` on every row from day one — minor cost, large future saving (the one true redesign-avoider).
+- Net-new but small: an append-only audit table, a central auth middleware, and a key-provider interface. Populating/hardening them is the hosted lift.
+- The Generator port (ADR 0013) is now also the confidentiality + sub-processor boundary.
+- Builds on ADR 0006 (diffs on-demand, baseline snapshot), 0008 (artifacts/anchoring/retention), 0011/0014 (fencing), 0013 (Generator port, provenance, secrets), 0015 (runtime/store, deletion seam), 0017 (distribution); closes epic gating #3/#4 and GPT-5.5 review #6.

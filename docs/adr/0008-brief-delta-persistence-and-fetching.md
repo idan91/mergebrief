@@ -16,7 +16,7 @@ ADR 0006 fixed delta generation/state and ADR 0007 fixed comment anchoring + fla
 ## Decision
 
 ### Entities & keys
-- **Brief** `(repo, PR, headSHA)` → brief JSON. Immutable, shared.
+- **Brief** `(repo, PR, baseSHA, headSHA)` → brief JSON. Covers the whole PR (`base→head`); `baseSHA` = PR-base (merge-base / base-branch tip), **distinct from the Delta's checkpoint baseline**. Keyed on **both** endpoints — content is a function of both, so a head-only key would return a stale brief (and force a mutating overwrite, breaking immutability) when the base advances under a static head. Immutable, shared. *(Amended from `(repo, PR, headSHA)`; ADR 0012's per-distinct-head index stays a display label — see ADR 0018.)*
 - **Delta core** `(repo, PR, baselineSHA, headSHA)` → the code-change narrative (new/changed groups + summary). Shared across all reviewers at that span; the expensive (LLM) part. Immutable, regenerable.
 - **Carry-over overlay** `(reviewer, repo, PR, baselineSHA, headSHA)` → this reviewer's flag carry-over statuses + comment anchoring (ADR 0007). Per-reviewer (baseline-time dispositions differ); cheap (positional map + small LLM). Immutable, regenerable. Rendered Delta = core + the viewer's overlay.
 - **DiffSnapshot** `(repo, PR, SHA)` → unified diff. Survives force-push GC (ADR 0006 #8).
@@ -54,6 +54,6 @@ One store keeps v1 operationally trivial while the content-addressed seam keeps 
 
 - **FE owns real work:** per-file caching, range-slicing, group-order prefetch, and virtualization of both skeleton and hunks. The brief is an index; the view is assembled client-side.
 - **The categorizer prompt is prescriptive** about splitting a file's lines into per-intent chunks across groups (`tools/categorizer/src/prompt.ts`); `CONTEXT.md`'s Chunk term matches.
-- **Deferred + reversible:** object storage, response streaming, the compute model (Lambda/ECS/SSE), and the DB vendor. This ADR commits only to the logical model.
+- **Deferred + reversible:** object storage, response streaming, the compute model (Lambda/ECS/SSE), and the DB vendor. This ADR commits only to the logical model. **(Compute model + DB vendor now resolved: long-lived worker + vanilla Postgres as the single stateful dependency — ADR 0015.)**
 - **Cross-PR taxonomy querying** (a future engine capability noted in `CONTEXT.md`) would extract fields into real columns/tables rather than change this artifact model.
 - Completes the delta subsystem design alongside ADR 0006 (generation/state) and ADR 0007 (anchoring/carry-over).

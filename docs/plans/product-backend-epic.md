@@ -4,20 +4,21 @@ The stateless categorizer (`tools/categorizer/`) is proven. Everything that make
 
 Grounded in: ADR 0006 (delta generation/state), 0007 (carry-over/anchoring), 0008 (persistence/fetching), 0010 (triage), 0013 (provider-agnostic generation + YAML config), 0014 (external-context boundary). Read those for the *decisions*; this is the *build order*.
 
-## Hard prerequisite decisions (block all code below)
+> **Update (2026-06):** the gating decisions below are now **resolved** — see `docs/system-overview.md` and ADRs **0015** (runtime + Postgres single dependency), **0016** (GitHub App + auth + trust/tenancy), **0017** (OSS self-host-first distribution). Milestones reframed accordingly: **self-host is M1**, and **BYOK is the default**, not a deferred slice.
 
-These are genuine forks with no default — decide before building, don't let the first PR pick them by accident:
+## Gating decisions — RESOLVED (2026-06)
 
-1. **Datastore.** A single relational DB (ADR 0008). Which one (Postgres vs hosted equivalent) + where it runs. The repo memory notes the stack is not finalized — this is the gating decision.
-2. **Runtime / hosting.** Serverless (keeps the polling-not-SSE choice of ADR 0006 cheap) vs a long-lived worker. ADR 0006 deliberately chose polling to keep the serverless option open — honor or revisit.
-3. **GitHub App** registration + **least-privilege** permission set (the deferred GPT-5.5 review item #6). Exactly which scopes (contents:read, pull_requests:read/write for the signature-line comment, checks?) and which webhook events.
-4. **Secret/BYOK key storage** — where per-org provider keys live (env/secret-manager), referenced by name from the per-repo YAML (ADR 0013). Never in the DB as plaintext, never in the repo YAML.
+The four forks are decided (see `docs/system-overview.md` + ADRs 0015–0017); none block the workstreams any longer. A fifth, foundational decision — **distribution** — was added and resolved.
 
-Until 1–3 are decided, the workstreams below cannot start; #4 only gates the BYOK slice.
+0. **Distribution (new, foundational).** OSS **self-host first**, open-core; one core / three modes (static demo · self-host · deferred hosted). → **ADR 0017**.
+1. **Datastore.** Vanilla Postgres as the **single stateful dependency** (data + `graphile-worker` queue + advisory lock); no broker, no swappable DB. → **ADR 0015**.
+2. **Runtime / hosting.** **Long-lived worker** (not serverless — the minutes-long generation can't fit a 60 s function); the web tier stays serverless-compatible. → **ADR 0015**.
+3. **GitHub App.** Per-instance App; least-privilege `Contents:read`, `Pull requests:write`, `Metadata:read`; events `pull_request`, `pull_request_review`, `installation*`; activation = one branded comment (delete+repost). → **ADR 0016**.
+4. **Secret/BYOK storage.** All static secrets in env/secret-manager by name (never DB/repo); reviewer token envelope-encrypted; **BYOK is the default**. → **ADR 0013/0016**.
 
 ## Workstreams, in dependency order
 
-1. **Persistence layer (ADR 0008).** Schema: Brief keyed by head SHA; Delta keyed by `(baseline, head)` SHA-pair; per-reviewer Checkpoint; baseline tree/diff snapshot (survives force-push/GC). Brief-as-index + per-file lazy diff fetch; retention policy. → unblocks everything.
+1. **Persistence layer (ADR 0008; physical schema ADR 0018).** Schema: Brief keyed by the `(base, head)` span; Delta by `(baseline, head)` SHA-pair; per-reviewer Checkpoint; configurable baseline snapshot (survives force-push/GC). Brief-as-index + per-file lazy diff fetch; `(installation_id, repo)` tenant scoping; cascade deletion seam + append-only audit log; `generation` status projection for the wait UX. → unblocks everything.
 2. **GitHub App + webhooks + polling (ADR 0006).** Events: `push`/`synchronize` → brief; `ready_for_review` → author self-review warm; `review_requested` → delta warm. Client polls latest head SHA (~30–60s) for mid-review follow-ups (no SSE). Activation = first deep-link click.
 3. **Background worker (ADR 0006).** Debounced (~60s trailing) trigger → single-flight lock → fetch PR data → call the **existing stateless `Generator`** → write content-keyed artifact. Cancellation on superseded head; never abort a generation a human is awaiting. The categorizer is reused as-is — this wraps it, doesn't rewrite it.
 4. **Triage cascade (ADR 0010).** Deterministic floor (dep/migration/auth-config paths + size) → Haiku trivial-vs-escalate → Opus full brief/delta. Risk decides escalation, size decides spend; touching a reviewer's prior flag/comment is itself an escalation. Emits Fast-lane for trivial. Uses the `Generator` port's per-call `model`/`effort` (already in place from ADR 0013/step C).
@@ -27,9 +28,9 @@ Until 1–3 are decided, the workstreams below cannot start; #4 only gates the B
 
 ## Suggested milestones
 
-- **M1 — "warm artifacts"**: decisions 1–3 + workstreams 1–3. A GitHub App that, on push, generates and persists a Brief (and a delta core when a reviewer returns), served to a read-only view. No triage, no carry-over, single provider. This is the smallest thing that makes the tool live.
+- **M1 — "warm artifacts" (self-hosted)**: workstreams 1–3. A **self-hostable** GitHub App that, on push, generates and persists a Brief (and a delta core when a reviewer returns), served to an **auth-gated** read-only view — plus the **static demo** funnel. No triage, no carry-over. **BYOK default** (single adapter, adopter's key). The smallest thing that makes the tool live.
 - **M2 — "cheap + per-reviewer"**: workstreams 4 (triage) + 5 (carry-over overlay). The delta becomes per-reviewer and most PRs get the cheap Fast-lane.
-- **M3 — "open"**: workstream 6 (YAML config + BYOK adapters). Enterprise trust story (keys never leave the org).
+- **M3 — "open"**: workstream 6 (YAML config + **additional** provider adapters) **+ the hosted open-core arm**. The "keys/code never leave the org" trust story is already delivered by self-host in M1; M3 adds provider breadth and the optional hosted multi-tenant offering (on ADR 0016's tenancy/audit seams).
 - **Later**: workstream 7.
 
 ## What stays out of scope here
