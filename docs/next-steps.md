@@ -44,107 +44,33 @@ Decided in scope but explicitly pushed past v1:
 - **Selective "promote to PR thread" (C from Q7).** Reviewer can one-click push a private agent chat exchange to the public PR thread when useful for the author.
 - **Manual-trigger config knob.** Only if customer pull surfaces during sales conversations — default stays auto-debounced.
 - **"Mind space grows beyond code review."** Long-tail ambition: the private thinking-space metaphor could extend to other engineering decisions (RFCs, post-incident reviews, design docs). Park as future direction; fence MVP strictly to PR review.
+- **Narrative-chapter walkthrough layer (v2+).** A Linear-style "order the work was reasoned through" sequence laid *on top* of the taxonomy change-groups. The structured walkthrough (the Brief: groups + Summary + Story/Concern views) is **v1 core**; this is the optional narrative ordering over it — narrative-on-top-of-taxonomy, neither axis subsumes the other. (See `competitive-analysis.md`.)
+- **Codebase-context enrichment (v3 / post-validation, behind ADR 0014).** A full-repo index feeding the *risk-surface blast-radius* attributes (`widely-imported`, `cross-service`, `external-io`) + cleaner change-group boundaries — framed as a risk-surface upgrade, not bug-catching. Heaviest infra add, but **pgvector on the existing Postgres keeps the single-stateful-dependency principle** (ADR 0015). Cited-only / no-verdict still binds (ADR 0014) — enrich with facts, never hypothesized issues.
 
-## Competitive Scan Findings (2026-05-19)
+## Confidence scores + FP-suppression (now → future)
 
-Preliminary breadth survey (not deep audit yet). Confirmed enough to proceed with MVP without being benchmarked head-to-head against incumbents.
+Decision (2026-06-19): integrate self-reported confidence **now**, defer the calibration engine.
 
-### White space holds for v1
-- **Diff-by-intent multi-tag categorization** at chunk level (pure-move, lib-bump, schema-change, etc.) — no observed competitor doing this. Closest is industry "materiality tiers" (size + security-sensitivity at PR level), which is coarser and on a different axis.
-- **Per-category templated playbooks** as engineering checklists — competitors run per-*domain* sub-agents (security, perf); we'd run per-*change-type* playbooks. Orthogonal lens, no observed overlap.
-- **No-AI-authored-prose comments** (human writes cold, AI validates after) — all observed competitors do the opposite. Cloudflare explicitly: "coordinator posts a single structured review comment." Genuine wedge.
-- **Private mind-map workspace** — none observed. All competitors surface AI work on the public PR thread.
-- **Receipt-not-approval** semantics — none observed.
+- **Now — M1 categorizer enhancement** (behind ADR 0013's structured-output floor). Add a `confidence` field per **Categorization** and per **Flag** in the generation output — lives inside the brief JSON (TEXT passthrough), **no DB schema change** (ADR 0018 untouched). Wiring: `confidence < threshold` → emit the existing **`Uncertain`** label (forces human judgment); surface the score *understated* (like Generation provenance), **never an auto-gate or silent suppressor** (no-verdict + anti-noise). Value is twofold — asking for confidence + rationale improves the model's self-validation, and the threshold drives `Uncertain`.
+- **Caveat:** self-reported LLM confidence is **poorly calibrated** (systematically overconfident; not a true probability). Treat it as a *relative* signal, not a calibrated one — hence no gate.
+- **Future — the real FP-suppression rigor.** Better-calibrated signals at higher cost/complexity: **multi-pass / self-consistency** (run N times; disagreement → `Uncertain`) and **exhaust-tuned per-category thresholds** learned from **Dispositions** (dismissals/reclassifications) — the latter doubles as a data-exhaust moat candidate (see Moat Honesty).
 
-### Adjacency that narrowed
-- **Delta brief / state-aware re-review.** Cloudflare's internal system already does state-aware incremental re-review at the *finding* level (auto-resolve fixed, re-emit unfixed, respect user-resolved unless worsened). Ours operates at the *comprehension* level ("what shifted in YOUR mental model"). Different unit but adjacent. Either:
-  - Reframe positioning of delta brief as comprehension-layer-not-finding-layer, OR
-  - Deprioritize it as a v1 differentiator if customers conflate the two.
+## Competitive Scan — see `docs/competitive-analysis.md`
 
-### Strategic implication
-The combined edges (intent taxonomy + playbooks + private engagement) place the MVP in a **different evaluation lane** than CodeRabbit/Greptile/Diamond/Qodo. Prospects compare us to the *status quo behavior* ("skim AI summary, click approve") rather than to incumbents. Avoids the second-mover trap of "is this just CodeRabbit but different?" Different mental model, different yardstick.
+Current landscape (positioning, funding, favorability, features-to-take) lives in **[`competitive-analysis.md`](./competitive-analysis.md)** (2026-06-18). Durable strategic conclusions from the original 2026-05 scan, retained:
 
-Trade-off: selling a new mental model is slower than selling a faster incumbent. Customer education cost is real.
+- **Different evaluation lane.** Intent taxonomy + playbooks + private engagement + no-verdict put us against the *status quo behavior* ("skim AI summary, click approve"), not against CodeRabbit/Greptile/Qodo. Trade-off: selling a new mental model is slower; customer-education cost is real.
+- **"No competitor does X" is a weak signal** — genuine gap, tried-and-failed, market-doesn't-reward (loud-want "catch bugs", quiet about "help me think"), stealth, or already-inside-something-else. Don't over-read absence.
+- **Validation requirement:** the wedge is validated only when customers *spontaneously* reach for intent-structure / per-category review / a private thinking space / a verification receipt — never when prompted. "Better bug catching" instead → investigate whether the wedge is wrong or just described differently.
 
-### Why competitor absence is a weak signal (caveats to flag during interviews)
-Five interpretations of "no competitor does this":
-1. Genuine gap (best case).
-2. Tried and failed — incumbents built it, users didn't pull.
-3. Market doesn't reward it — customers loud-want "catch more bugs", quiet about "help me think". Tools follow loud signal.
-4. Stealth / recent entrant not in search results.
-5. Already exists inside something else (internal Cloudflare-style tools, JetBrains, GitLab Duo, etc.).
+## Competitive Update — Linear Diffs
 
-### Validation requirement during interviews
-The edges are validated **only** when customers *spontaneously* describe wanting:
-- Intent-tagging / change-type structure
-- Per-category review structure
-- A private place to think through a review
-- A receipt of what the tool actually verified
+Current state in **[`competitive-analysis.md`](./competitive-analysis.md)** (Linear Diffs GA'd May 2026: review-inside-Linear, guided reviews, agents + MCP). Durable strategic conclusions, retained:
 
-If they describe wanting "better bug catching" instead, either the wedge is wrong, or right-but-described-differently — investigate which. Do not prompt toward the design; let customers reach for the structure themselves.
-
-## Competitive Update — Linear Diffs (announced 2026-05-19)
-
-Linear shipped a code-review feature inside their PM tool the day before this comparison. Pulled from https://linear.app/now/code-review-should-be-fast and https://linear.app/docs/diffs.
-
-### What Linear Diffs IS
-- New PR review surface **inside Linear** (PM tool), bidirectionally synced with GitHub. GH stays source of truth.
-- **"Guided reviews / chapters"** — diff organized into chapters that follow "the order the work was reasoned through" (narrative sequence).
-- **"Structural diff highlighting"** — strips formatting noise (whitespace, format-only changes).
-- Unified or side-by-side diff toggle.
-- AI involvement is present but the announcement is vague on what AI does; FAQ mentions labeling feedback.
-- Wedge claim: review next to issue/project/customer context.
-
-### Where we overlap (honest)
-- Both leave the GH PR thread and build custom review surfaces.
-- Both target reviewer experience, not bug-catching depth.
-- Both group related chunks across files rather than presenting raw file-by-file diff.
-
-### Where we differ — narrative vs taxonomic grouping
-
-| Axis | Linear chapters | Our categorization |
-|---|---|---|
-| What the group IS | A *narrative* unit ("set up fixture", "fix the cache", "add regression test") | A *taxonomy* unit (`pure-move`, `lib-bump`, `schema-change`, etc.) |
-| Labels are | PR-specific strings, different every PR | Stable taxonomy, same across every PR ever |
-| Across-PR queryable | No (chapters are unique strings) | Yes (`schema-change` PRs in last quarter…) |
-| Per-category playbook possible | No (chapters are unique per PR; nothing stable to attach playbook to) | Yes (the whole wedge) |
-| Hard-case detection (e.g., `move-with-edits` hidden) | Often invisible — Linear groups by story, the move-with-edits pattern bundles into "test fixture setup" and the hidden edit is masked | Surfaced — taxonomy explicitly names the pattern |
-
-**The two axes are orthogonal, not competing.** Narrative says *how the change is told*; taxonomy says *what kind of change it is*. A future Linear could add taxonomy on top of chapters; a future of ours could add narrative on top of categories. Neither subsumes the other today.
-
-### Edges that remain unique to us
-- Intent-based multi-tag categorization with stable taxonomy
-- Per-category templated engineering playbooks
-- No-AI-authored-prose comment rule
-- Private mind-map workspace
-- Receipt-not-approval semantics
-- Delta brief on re-review
-- Three-bucket risk surface
-
-### Strategic read
-- **Validation signal (positive).** A credible player shipping a non-GH review surface legitimizes the direction.
-- **Distribution risk > feature risk.** Linear has captive users (their PM customers); we don't. They monetize PM seats; review is a feature, not a product — less likely to pour effort into comprehension scaffolding once "review next to issue context" boxes the wedge.
-- **Positioning risk (medium).** Interview prospects on Linear may say "why not wait for Linear to add this?" Need a clean answer.
-- **Tail risk.** If Linear ships intent taxonomy + playbooks in the next 6–12 months, our unique edges narrow materially. Worth watching.
-
-### Required adjustments
-- **Phase 1 interview script update.** Add explicit Linear probe to every interview: "Are you on Linear? Have you seen Diffs? Does it solve the pain you described, or no?" Capture their reaction verbatim — it's a key signal for both positioning and wedge survival.
-- **Update positioning language.** From "the only one leaving the GH thread" to "the intent-aware comprehension layer with engineering playbooks — runs alongside your PM tool's review surface or native GH."
-- **Watch Linear's roadmap.** Quarterly check. If they ship taxonomy/playbooks/risk surface — re-evaluate.
-- **Reframe Linear as complement, not competitor in the pitch.** A future overlay of intent categories on top of their chapters is technically coherent. Don't bash them; differentiate axis.
-
-### Verdict
-Moderate risk, not stop-go. Proceed with Phase 1 with adjusted interview script. Most "is X going to kill us?" framings collapse when looked at by axis. Linear's axis is narrative; ours is taxonomic. They are different products solving overlapping pain.
-
-### Update (2026-06-07) — overlap re-assessed after the change-group / LoC work
-
-Designing change-groups + carrier/supporting + concern split + weighted LoC moved us **onto Linear's substrate**. Linear's own doc: *"surface the core parts of an implementation first while grouping supporting or lower-signal changes separately"* — that is carrier-vs-supporting. The grouping substrate is now **table stakes**, not a differentiator. This is the most overlap the product has had with Linear.
-
-**What still does not overlap — the differentiator layer:** stable Category taxonomy, per-category engineering playbooks, risk-surface attributes, verification receipt, private mind-map. These ride *on top* of the grouping; they were never the grouping.
-
-**Strategic reframe:** stop pitching grouping/core-supporting/LoC as differentiators — substrate everyone converges on. Defensibility = the non-obvious layer (playbooks-as-engineering-rules, cross-PR stable taxonomy, verification). If that layer isn't genuinely valuable, there's no moat, because grouping is free from Linear.
-
-**Methodological consequence — adopted (replaces raw-diff baseline):** Phase 1 now tests **Treatment vs Baseline B′**, where B′ = grouped substrate with taxonomy/playbooks/risk-surface stripped (≈ Linear-equivalent). The delta isolates the differentiator layer. Raw-diff baseline dropped entirely — the "beats status quo" signal already exists; we test the harder, existential question (does our layer beat what Linear gives free?). See `phase-1.md`.
+- **Narrative vs taxonomic grouping (orthogonal axes).** Linear groups by *story* (PR-specific narrative chapters); we group by *stable taxonomy* (`pure-move`, `lib-bump`, `schema-change`…). Theirs isn't cross-PR queryable and can't anchor a per-category playbook; ours can. Neither subsumes the other — either could later add the other's axis. Pitch Linear as **complement, not competitor**; watch if they add stable taxonomy + playbooks (tail risk to our edges).
+- **Grouping is now table stakes (2026-06-07).** Change-groups + carrier/supporting + concern split + adjusted LoC put us *onto Linear's substrate* ("surface core parts first, group supporting changes separately" = carrier-vs-supporting). Stop pitching grouping as a differentiator — defensibility is the layer *on top*: stable taxonomy, per-category playbooks, risk-surface, receipt, delta.
+- **Methodological consequence:** Phase 1 tests **Treatment vs Baseline B′** (grouped substrate with the differentiator layer stripped ≈ Linear-equivalent) to isolate whether that layer beats what Linear gives free. Raw-diff baseline dropped. See `phase-1.md`.
+- **Distribution risk > feature risk.** Linear has captive PM users; we don't. Counter is the different lane + OSS self-host/BYOK (see `competitive-analysis.md` §5).
 
 ### Two-layer / dual-consumer model (formalized in CONTEXT.md, 2026-06-07)
 
