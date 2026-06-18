@@ -8,8 +8,10 @@ import {
   type Category,
   type ChangeGroup,
   type ChunkLoc,
+  type CommitRange,
   type Concern,
   type ConcernRollup,
+  type Generation,
   type LineRange,
   type PrRef,
   type AddressedReviewComment,
@@ -304,6 +306,21 @@ function parseArray<T>(value: unknown, parser: (item: unknown) => Result<T>, lab
   return { ok: true, value: parsed };
 }
 
+// Lenient: legacy artifacts without these fields still parse (return undefined).
+function parseCommitRange(value: unknown): CommitRange | undefined {
+  if (!isRecord(value)) return undefined;
+  const { base, head, commitCount } = value;
+  if (!isString(base) || !isString(head) || !isInteger(commitCount)) return undefined;
+  return { base, head, commitCount };
+}
+
+function parseGeneration(value: unknown): Generation | undefined {
+  if (!isRecord(value)) return undefined;
+  const { provider, model, effort } = value;
+  if (!isString(provider) || !isString(model)) return undefined;
+  return { provider, model, effort: isString(effort) ? effort : null };
+}
+
 export function parseBrief(value: unknown): Result<Brief> {
   if (!isRecord(value)) return { ok: false, error: "Expected brief to be an object" };
   const summary = value["summary"];
@@ -318,12 +335,18 @@ export function parseBrief(value: unknown): Result<Brief> {
   if (!isString(summary)) return { ok: false, error: "Expected brief summary" };
   const normalized = normalizeGroupsAndChunks(changeGroups.value, chunks.value);
   if (!normalized.ok) return normalized;
+  const index = value["index"];
+  const commitRange = parseCommitRange(value["commitRange"]);
+  const generation = parseGeneration(value["generation"]);
   return {
     ok: true,
     value: {
       artifactKind: "brief",
       pr: pr.value,
       summary,
+      ...(isInteger(index) ? { index } : {}),
+      ...(commitRange ? { commitRange } : {}),
+      ...(generation ? { generation } : {}),
       changeGroups: normalized.value.changeGroups,
       chunks: normalized.value.chunks,
       concernView: concernView.value,
@@ -357,6 +380,9 @@ export function parseDeltaBrief(value: unknown): Result<Brief> {
   }
   const normalized = normalizeGroupsAndChunks(changeGroups.value, chunks.value);
   if (!normalized.ok) return normalized;
+  const baselineIndex = value["baselineIndex"];
+  const headIndex = value["headIndex"];
+  const generation = parseGeneration(value["generation"]);
   return {
     ok: true,
     value: {
@@ -364,6 +390,9 @@ export function parseDeltaBrief(value: unknown): Result<Brief> {
       pr: pr.value,
       baselineSha,
       headSha,
+      ...(isNullableInteger(baselineIndex) ? { baselineIndex } : {}),
+      ...(isNullableInteger(headIndex) ? { headIndex } : {}),
+      ...(generation ? { generation } : {}),
       summary,
       commentsAddressed,
       ...(reviewComments !== undefined ? { reviewComments: parsedReviewComments.value } : {}),

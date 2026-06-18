@@ -121,6 +121,18 @@ export interface AddressedReviewComment {
   outdated: boolean;
 }
 
+export interface CommitRange {
+  base: string;
+  head: string;
+  commitCount: number;
+}
+
+export interface Generation {
+  provider: string;
+  model: string;
+  effort: string | null;
+}
+
 export interface Brief {
   artifactKind: "brief" | "delta";
   pr: PrRef;
@@ -128,8 +140,13 @@ export interface Brief {
   changeGroups: ChangeGroup[];
   chunks: BriefChunk[];
   concernView: ConcernRollup[];
+  index?: number;
+  commitRange?: CommitRange;
+  generation?: Generation;
   baselineSha?: string;
   headSha?: string;
+  baselineIndex?: number | null;
+  headIndex?: number | null;
   commentsAddressed?: string;
   reviewComments?: AddressedReviewComment[];
   wholePrImpact?: string;

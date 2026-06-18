@@ -485,6 +485,7 @@ function Header({
           </a>{" "}
           · {artifactHeaderLabel(brief)}
         </div>
+        {briefMetaLine(brief) ? <div className="sub faint">{briefMetaLine(brief)}</div> : null}
       </div>
       <div className="hdr-stats">
         <button className={locOpen ? "stat loc-badge open" : "stat loc-badge"} type="button" onClick={() => setLocOpen(!locOpen)}>
@@ -1630,4 +1631,24 @@ function artifactHeaderLabel(brief: Brief): string {
     return `local delta ${brief.baselineSha.slice(0, 7)} → ${brief.headSha.slice(0, 7)}`;
   }
   return `local brief @ ${brief.pr.sha.slice(0, 7)}`;
+}
+
+/** Muted index/commit-range + generation provenance, when present (ADR 0012/0013). */
+function briefMetaLine(brief: Brief): string {
+  const parts: string[] = [];
+  if (brief.artifactKind === "brief" && brief.index != null) {
+    const range = brief.commitRange
+      ? ` · ${brief.commitRange.base.slice(0, 8)}..${brief.commitRange.head.slice(0, 8)}, ${brief.commitRange.commitCount} commit${brief.commitRange.commitCount === 1 ? "" : "s"}`
+      : "";
+    parts.push(`brief _${brief.index}${range}`);
+  } else if (brief.artifactKind === "delta" && (brief.baselineIndex != null || brief.headIndex != null)) {
+    const b = brief.baselineIndex != null ? `_${brief.baselineIndex}` : (brief.baselineSha?.slice(0, 8) ?? "?");
+    const h = brief.headIndex != null ? `_${brief.headIndex}` : (brief.headSha?.slice(0, 8) ?? "?");
+    parts.push(`${b} → ${h}`);
+  }
+  if (brief.generation) {
+    const g = brief.generation;
+    parts.push(`via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`);
+  }
+  return parts.join(" · ");
 }
