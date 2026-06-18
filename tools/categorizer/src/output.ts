@@ -42,6 +42,8 @@ export function summaryLines(brief: Brief): string[] {
   lines.push(
     `    brief _${brief.index} | ${shortSha(base)}..${shortSha(head)}, ${commitCount} commit(s)`,
   );
+  const g = brief.generation;
+  lines.push(`    via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`);
   lines.push(`    ${brief.summary.split("\n")[0] ?? ""}`);
   lines.push("");
 
@@ -112,6 +114,8 @@ export function deltaSummaryLines(delta: DeltaBrief): string[] {
   lines.push(
     `DELTA  ${delta.pr.repo}#${delta.pr.number} — ${endpoint(delta.baselineIndex, delta.baselineSha)} → ${endpoint(delta.headIndex, delta.headSha)}`,
   );
+  const g = delta.generation;
+  lines.push(`    via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`);
   lines.push(`    ${delta.summary.split("\n")[0] ?? ""}`);
   lines.push("");
 

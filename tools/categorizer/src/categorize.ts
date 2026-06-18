@@ -7,6 +7,8 @@ import {
   type Brief,
   type CommitRange,
   type DeltaBrief,
+  type Effort,
+  type Generation,
 } from "./types.js";
 import { buildSystemPrompt, buildDeltaSystemPrompt } from "./prompt.js";
 import { validatePartition } from "./validate.js";
@@ -27,6 +29,10 @@ import type {
  */
 const MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 32000;
+const PROVIDER = "anthropic";
+const EFFORT: Effort = "medium";
+/** Provenance stamped on every artifact this (Anthropic) path produces (ADR 0013). */
+const GENERATION: Generation = { provider: PROVIDER, model: MODEL, effort: EFFORT };
 
 /** Progress sink — defaults to no-op so the functions stay usable in tests. */
 export type Logger = (message: string) => void;
@@ -59,7 +65,7 @@ async function streamStructured<S extends z.ZodType>(
     model: MODEL,
     max_tokens: MAX_TOKENS,
     thinking: { type: "adaptive" },
-    output_config: { format: zodOutputFormat(schema), effort: "medium" },
+    output_config: { format: zodOutputFormat(schema), effort: EFFORT },
     system: [
       { type: "text", text: system, cache_control: { type: "ephemeral" } },
     ],
@@ -170,6 +176,7 @@ export async function categorize(
     },
     index,
     commitRange,
+    generation: GENERATION,
   };
   warnIssues(validatePartition(brief.changeGroups, brief.chunks), log);
   return brief;
@@ -278,6 +285,7 @@ export async function categorizeDelta(
     headSha: input.headSha,
     baselineIndex: input.baselineIndex ?? null,
     headIndex: input.headIndex ?? null,
+    generation: GENERATION,
   };
   warnIssues(validatePartition(delta.changedGroups, delta.chunks), log);
   return delta;

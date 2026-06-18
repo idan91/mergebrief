@@ -12,6 +12,7 @@ const validBrief = {
   },
   index: 1,
   commitRange: { base: "base0000", head: "deadbeef", commitCount: 2 },
+  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
   summary: "s",
   changeGroups: [
     {
@@ -71,6 +72,7 @@ const validDelta = {
   headSha: "2222222",
   baselineIndex: 1,
   headIndex: 2,
+  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
   summary: "since you last looked, the author added a test",
   commentsAddressed: "addresses the reviewer's request to add a test",
   changedGroups: [

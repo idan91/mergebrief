@@ -25,6 +25,7 @@ const brief: Brief = {
     head: "abc12300deadbeef",
     commitCount: 5,
   },
+  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
   summary: "Adds a stock-location capability.",
   changeGroups: [
     {
@@ -80,6 +81,7 @@ const delta: DeltaBrief = {
   headSha: "a01bcf1db649b18404dddc9d61b9dd1b3cc75dfd",
   baselineIndex: 1,
   headIndex: 2,
+  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
   summary: "Since you last looked, the accordion review comments were addressed.",
   commentsAddressed: "",
   changedGroups: [],
@@ -122,6 +124,10 @@ describe("summaryLines", () => {
     expect(text).toContain("brief _2 | base1234..abc12300, 5 commit(s)");
   });
 
+  it("shows generation provenance", () => {
+    expect(text).toContain("via anthropic/claude-opus-4-8 · effort medium");
+  });
+
   it("lists only chunks that carry risk-surface flags", () => {
     expect(text).toContain("c1 src/module.ts [carrier]: widely-imported, no-tests");
     expect(text).toContain("flags (1/2 chunks)");
@@ -141,5 +147,11 @@ describe("deltaSummaryLines", () => {
       baselineIndex: null,
     }).join("\n");
     expect(text).toContain("35788079 → _2 (a01bcf1d)");
+  });
+
+  it("shows generation provenance", () => {
+    expect(deltaSummaryLines(delta).join("\n")).toContain(
+      "via anthropic/claude-opus-4-8 · effort medium",
+    );
   });
 });

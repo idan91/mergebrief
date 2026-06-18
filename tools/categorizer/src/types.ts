@@ -44,6 +44,13 @@ export const Roles = [
 ] as const;
 
 /**
+ * Effort — the normalized, cross-provider reasoning-effort knob. Each adapter
+ * maps it to its provider's own setting (Anthropic `output_config.effort`,
+ * OpenAI `reasoning_effort`, …); a provider without the concept ignores it.
+ */
+export const Efforts = ["low", "medium", "high"] as const;
+
+/**
  * Risk surface — 16 factual attributes (never verdicts). Attaches to a chunk.
  * Three buckets: about the code / about the change / about the blast radius.
  */
@@ -73,6 +80,7 @@ export type Category = (typeof Categories)[number];
 export type Concern = (typeof Concerns)[number];
 export type Role = (typeof Roles)[number];
 export type RiskSurfaceAttribute = (typeof RiskSurfaceAttributes)[number];
+export type Effort = (typeof Efforts)[number];
 
 const categoryEnum = z.enum(Categories);
 const concernEnum = z.enum(Concerns);
@@ -193,6 +201,25 @@ export const CommitRangeSchema = z.object({
 });
 
 /**
+ * Generation provenance — which provider/model/effort produced this artifact.
+ * CLI-owned metadata (the model never produces it); surfaced on the Receipt and
+ * as an understated header label so the analysis is never mistaken for a verdict
+ * (ADR 0012/0013).
+ */
+export const GenerationSchema = z.object({
+  provider: z
+    .string()
+    .describe("LLM provider that produced this artifact, e.g. 'anthropic'"),
+  model: z.string().describe("model id, e.g. 'claude-opus-4-8'"),
+  effort: z
+    .enum(Efforts)
+    .nullable()
+    .describe(
+      "normalized reasoning effort used; null when the provider has no effort concept",
+    ),
+});
+
+/**
  * A PR review comment (line comment or thread reply) as carried in the
  * `.comments.json` sidecar — display data for both the brief and the delta
  * (ADR 0012). `outdated` is read from GitHub (position == null), never
@@ -241,6 +268,9 @@ export const BriefSchema = z.object({
   commitRange: CommitRangeSchema.describe(
     "the commit span this brief covers (whole PR, base→head). CLI-assigned.",
   ),
+  generation: GenerationSchema.describe(
+    "which provider/model/effort produced this brief. CLI-assigned.",
+  ),
   summary: z
     .string()
     .describe(
@@ -262,6 +292,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   pr: true,
   index: true,
   commitRange: true,
+  generation: true,
 });
 
 /**
@@ -304,6 +335,9 @@ export const DeltaBriefSchema = z.object({
     .describe(
       "brief index of the head SHA (null if that end was never briefed). CLI-assigned.",
     ),
+  generation: GenerationSchema.describe(
+    "which provider/model/effort produced this delta. CLI-assigned.",
+  ),
   summary: z
     .string()
     .describe(
@@ -338,6 +372,7 @@ export const DeltaBriefGenerationSchema = DeltaBriefSchema.omit({
   headSha: true,
   baselineIndex: true,
   headIndex: true,
+  generation: true,
 });
 
 export type PrRef = z.infer<typeof PrRefSchema>;
@@ -346,6 +381,7 @@ export type Chunk = z.infer<typeof ChunkSchema>;
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
 export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;
 export type CommitRange = z.infer<typeof CommitRangeSchema>;
+export type Generation = z.infer<typeof GenerationSchema>;
 export type ReviewComment = z.infer<typeof ReviewCommentSchema>;
 export type Brief = z.infer<typeof BriefSchema>;
 export type DeltaChunk = z.infer<typeof DeltaChunkSchema>;
