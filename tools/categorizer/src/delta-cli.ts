@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
 import {
   fetchCompareDiff,
   fetchLinkedContext,
@@ -9,6 +8,7 @@ import {
   parsePrUrl,
 } from "./github.js";
 import { categorizeDelta } from "./categorize.js";
+import { AnthropicGenerator } from "./generator.js";
 import { splitDiffByFile } from "./diff.js";
 import { lookupBriefIndex } from "./manifest.js";
 import {
@@ -66,7 +66,6 @@ async function main(): Promise<void> {
     `fetched ${links.length} linked refs, ${comments.length} review comments; generating delta…`,
   );
 
-  const client = new Anthropic();
   const delta = await categorizeDelta(
     {
       locator,
@@ -79,7 +78,7 @@ async function main(): Promise<void> {
       links,
       comments,
     },
-    client,
+    new AnthropicGenerator(),
     log,
   );
 

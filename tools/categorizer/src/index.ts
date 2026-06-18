@@ -1,6 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
 import {
   fetchCompareCommitCount,
   fetchCompareDiff,
@@ -14,6 +13,7 @@ import {
   type ReviewComment,
 } from "./github.js";
 import { categorize } from "./categorize.js";
+import { AnthropicGenerator, type Generator } from "./generator.js";
 import { splitDiffByFile } from "./diff.js";
 import { assignBriefIndex } from "./manifest.js";
 import {
@@ -92,7 +92,7 @@ async function buildInputs(
 async function runOne(
   url: string,
   range: Range | undefined,
-  client: Anthropic,
+  generator: Generator,
 ): Promise<Brief> {
   const tag = prTag(url);
   const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
@@ -109,7 +109,7 @@ async function runOne(
     `brief _${index}; ${pr.meta.files.length} files, ${pr.links.length} linked refs, ${comments.length} comments; categorizing…`,
   );
 
-  const brief = await categorize(pr, index, commitRange, client, log);
+  const brief = await categorize(pr, index, commitRange, generator, log);
 
   const briefFile = join(OUT_DIR, outName(brief));
   await writeFile(briefFile, `${JSON.stringify(brief, null, 2)}\n`);
@@ -172,16 +172,16 @@ async function main(): Promise<void> {
 
   await mkdir(OUT_DIR, { recursive: true });
 
-  // PRs are independent — run them in parallel, sharing one client so the SDK's
-  // connection pool is reused. A single bad URL must not kill the whole batch.
-  const client = new Anthropic();
+  // PRs are independent — run them in parallel, sharing one generator so the
+  // SDK's connection pool is reused. A single bad URL must not kill the batch.
+  const generator = new AnthropicGenerator();
   const results = await Promise.all(
     parsed.urls.map(
       async (
         url,
       ): Promise<{ url: string; brief: Brief } | { url: string; error: unknown }> => {
         try {
-          return { url, brief: await runOne(url, parsed.range, client) };
+          return { url, brief: await runOne(url, parsed.range, generator) };
         } catch (error) {
           return { url, error };
         }

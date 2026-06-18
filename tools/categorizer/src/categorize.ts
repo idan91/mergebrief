@@ -1,6 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { z } from "zod/v4";
 import {
   BriefGenerationSchema,
   DeltaBriefGenerationSchema,
@@ -8,8 +5,12 @@ import {
   type CommitRange,
   type DeltaBrief,
   type Effort,
-  type Generation,
 } from "./types.js";
+import {
+  AnthropicGenerator,
+  type Generator,
+  type Logger,
+} from "./generator.js";
 import { buildSystemPrompt, buildDeltaSystemPrompt } from "./prompt.js";
 import { validatePartition } from "./validate.js";
 import type {
@@ -20,22 +21,10 @@ import type {
   ReviewComment,
 } from "./github.js";
 
-/**
- * Opus 4.8 with adaptive thinking. The system prompt (the taxonomy) is the
- * stable prefix, so it carries a cache_control breakpoint; the volatile diff
- * goes in the user turn after it. Structured output is enforced with
- * messages.stream() + zodOutputFormat(...). Streaming (not parse()) because
- * adaptive thinking + a large max_tokens trips the SDK's 10-minute guard.
- */
-const MODEL = "claude-opus-4-8";
-const MAX_TOKENS = 32000;
-const PROVIDER = "anthropic";
-const EFFORT: Effort = "medium";
-/** Provenance stamped on every artifact this (Anthropic) path produces (ADR 0013). */
-const GENERATION: Generation = { provider: PROVIDER, model: MODEL, effort: EFFORT };
+export type { Logger };
 
-/** Progress sink — defaults to no-op so the functions stay usable in tests. */
-export type Logger = (message: string) => void;
+/** Normalized reasoning effort the categorizer requests (each adapter maps it). */
+const EFFORT: Effort = "medium";
 
 /** Render the untrusted linked-context section, fenced so it reads as data. */
 function renderLinked(links: LinkedContext[]): string {
@@ -46,81 +35,6 @@ function renderLinked(links: LinkedContext[]): string {
       return `<linked_context url="${l.url}">\n${safe}\n</linked_context>`;
     })
     .join("\n\n");
-}
-
-/**
- * Shared streaming + structured-parse path with live progress logging. Both the
- * full brief and the delta use it — they differ only in system prompt, schema,
- * and user content.
- */
-async function streamStructured<S extends z.ZodType>(
-  client: Anthropic,
-  schema: S,
-  system: string,
-  userContent: string,
-  label: string,
-  log: Logger,
-): Promise<z.infer<S>> {
-  const stream = client.messages.stream({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    thinking: { type: "adaptive" },
-    output_config: { format: zodOutputFormat(schema), effort: EFFORT },
-    system: [
-      { type: "text", text: system, cache_control: { type: "ephemeral" } },
-    ],
-    messages: [{ role: "user", content: userContent }],
-  });
-
-  // Live progress: phase + elapsed + output size. A heartbeat covers the long
-  // silent stretches (e.g. extended thinking) where no deltas arrive.
-  const start = Date.now();
-  const elapsed = (): string => `${((Date.now() - start) / 1000).toFixed(0)}s`;
-  let phase: "thinking" | "writing" = "thinking";
-  let outChars = 0;
-  stream.on("streamEvent", (event) => {
-    if (
-      event.type === "content_block_start" &&
-      event.content_block.type === "text"
-    ) {
-      phase = "writing";
-      log(`writing ${label}… (${elapsed()})`);
-    } else if (
-      event.type === "content_block_delta" &&
-      event.delta.type === "text_delta"
-    ) {
-      outChars += event.delta.text.length;
-    }
-  });
-  log(`thinking… (${label})`);
-  const heartbeat = setInterval(() => {
-    const size = outChars > 0 ? `, ${outChars} chars` : "";
-    log(`…${phase} ${label} (${elapsed()}${size})`);
-  }, 5000);
-
-  let response;
-  try {
-    response = await stream.finalMessage();
-  } finally {
-    clearInterval(heartbeat);
-  }
-
-  const u = response.usage;
-  log(
-    `done in ${elapsed()} — tokens in:${u.input_tokens} out:${u.output_tokens} ` +
-      `cache_read:${u.cache_read_input_tokens ?? 0}`,
-  );
-
-  if (response.stop_reason === "refusal") {
-    throw new Error(`Model refused to produce the ${label}.`);
-  }
-  const parsed = response.parsed_output;
-  if (!parsed) {
-    throw new Error(
-      `No structured output for ${label} (stop_reason=${response.stop_reason}).`,
-    );
-  }
-  return parsed;
 }
 
 // --- Full brief -----------------------------------------------------------
@@ -151,19 +65,19 @@ export async function categorize(
   pr: FetchedPr,
   index: number,
   commitRange: CommitRange,
-  client: Anthropic = new Anthropic(),
+  generator: Generator = new AnthropicGenerator(),
   log: Logger = () => {},
 ): Promise<Brief> {
-  // The model produces analysis only; pr / index / commitRange are CLI-owned
-  // metadata it cannot know, filled in here (ADR 0012).
-  const generated = await streamStructured(
-    client,
-    BriefGenerationSchema,
-    buildSystemPrompt(),
-    renderUser(pr),
-    "brief",
+  // The model produces analysis only; pr / index / commitRange / generation are
+  // CLI-owned metadata it cannot know, filled in here (ADR 0012/0013).
+  const generated = await generator.generate({
+    schema: BriefGenerationSchema,
+    system: buildSystemPrompt(),
+    user: renderUser(pr),
+    effort: EFFORT,
+    label: "brief",
     log,
-  );
+  });
   const brief: Brief = {
     ...generated,
     pr: {
@@ -176,7 +90,7 @@ export async function categorize(
     },
     index,
     commitRange,
-    generation: GENERATION,
+    generation: generator.provenance(EFFORT),
   };
   warnIssues(validatePartition(brief.changeGroups, brief.chunks), log);
   return brief;
@@ -258,19 +172,19 @@ ${input.incrementalDiff}`;
 
 export async function categorizeDelta(
   input: DeltaInput,
-  client: Anthropic = new Anthropic(),
+  generator: Generator = new AnthropicGenerator(),
   log: Logger = () => {},
 ): Promise<DeltaBrief> {
-  // The model produces analysis only; identifiers + endpoint indices are
-  // CLI-owned (ADR 0012), filled in here.
-  const generated = await streamStructured(
-    client,
-    DeltaBriefGenerationSchema,
-    buildDeltaSystemPrompt(),
-    renderDeltaUser(input),
-    "delta",
+  // The model produces analysis only; identifiers + endpoint indices + generation
+  // are CLI-owned (ADR 0012/0013), filled in here.
+  const generated = await generator.generate({
+    schema: DeltaBriefGenerationSchema,
+    system: buildDeltaSystemPrompt(),
+    user: renderDeltaUser(input),
+    effort: EFFORT,
+    label: "delta",
     log,
-  );
+  });
   const delta: DeltaBrief = {
     ...generated,
     pr: {
@@ -285,7 +199,7 @@ export async function categorizeDelta(
     headSha: input.headSha,
     baselineIndex: input.baselineIndex ?? null,
     headIndex: input.headIndex ?? null,
-    generation: GENERATION,
+    generation: generator.provenance(EFFORT),
   };
   warnIssues(validatePartition(delta.changedGroups, delta.chunks), log);
   return delta;
