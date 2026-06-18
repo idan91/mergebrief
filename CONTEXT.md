@@ -82,8 +82,12 @@ _Avoid_: critical area, hot spot, risky code, severity tag
 A single AI-surfaced item from the brief that requires reviewer attention — either a risk-surface attribute on a specific hunk, or a playbook item that hasn't been visited.
 _Avoid_: issue, warning, finding
 
+**Disposition**:
+A reviewer's recorded decision on a **Flag** — either *addressed* (a **Comment** now targets it) or *dismissed* (with a reason). Anchored to the flagged code region (file, attribute, region@SHA), never to a brief-local id, so it survives regeneration and carries forward across re-reviews (ADR 0007/0008). Frozen into the **Receipt** on **Submit**.
+_Avoid_: resolution (informal), flag status, decision (bare)
+
 **Dismissal**:
-A reviewer's recorded decision not to act on a flag, accompanied by a reason. Dismissals appear on the receipt with reason verbatim.
+The *dismissed* value of a **Disposition** — a reviewer's recorded decision **not** to act on a Flag, accompanied by a reason. Dismissals appear on the **Receipt** with the reason verbatim. (The other value is *addressed*.)
 _Avoid_: ignore, skip, override
 
 **Uncertain**:
@@ -150,6 +154,10 @@ _Avoid_: suggestion, draft, AI comment
 The reviewer's human judgment ("approve / request changes / comment") submitted to GitHub. Only humans approve. The tool issues a receipt, not an approval.
 _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 
+**Submit**:
+A reviewer finalizing their review on GitHub (the **Approval** plus any **Comments**). The only event that advances the reviewer's **Checkpoint**, freezes their **Dispositions** into the **Receipt**, and produces the static **Review Summary** — mere viewing never does.
+_Avoid_: send, post, finish (informal)
+
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.
@@ -161,7 +169,7 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 - A full **Brief** at a given SHA is shared across all reviewers of that SHA. A **Delta Brief** spans the *reviewer's* last-reviewed SHA → current head, so two reviewers at different checkpoints receive different Delta Briefs over different commit spans. The full Brief is the shared, per-SHA artifact; the Delta Brief is selected per reviewer by their baseline. New pushes (debounced) move the head, after which a fresh full Brief and new Delta Briefs become available.
 - Each (PR × Reviewer) pairing has one private **Mind-Map Space**.
 - A **Comment** belongs to a reviewer and ships to the PR. A **Seed** belongs to a chunk in the brief and never ships.
-- A **Flag** can be **addressed** (responded to by a comment that targets it) or **dismissed** (recorded with reason).
+- A reviewer records a **Disposition** on a **Flag**: **addressed** (a **Comment** targets it) or **dismissed** (with reason). Dispositions are frozen into the **Receipt** on **Submit**.
 - On submit, the review lands **natively on GitHub** (comments + approve/request-changes) authored by the reviewer. A **Signature line** links to the static **Review Summary**, which renders the **Receipt**. The review otherwise reads as a normal human review. Receipt aggregates across all reviewers when multi-reviewer.
 - The **Analysis Layer** is reviewer-agnostic. A human reviewer consumes it through the **Engagement Layer** (v1). An AI-agent reviewer consumes it directly via API (v1.5+ headless) — the no-AI-prose rule and Mind-Map Space are human-mode only and do not apply to agent-mode.
 
@@ -177,6 +185,7 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 
 - **"Critical area"** was rejected as terminology. It bundled *verdict* into what should be *attributes*. Resolved: split into **Risk Surface** (factual per-chunk attributes) and **Flag** (a specific item needing attention or dismissal).
 - **"Approval"** was used ambiguously to mean reviewer judgment AND AI verification. Resolved: only humans **Approve**. The tool issues a **Receipt**, scoped to mechanical claims.
+- **"Dismissal" vs "Disposition"** — *Dismissal* was used for the whole flag-decision concept. Resolved: **Disposition** is the umbrella (*addressed* or *dismissed*); **Dismissal** is only the *dismissed* value.
 - **"User"** in early scope was ambiguous (author vs reviewer). Resolved: **Reviewer** is the primary v1 surface; the **Author** self-review surface is a *secondary* v1 surface (promoted 2026-06 — see ADR 0009 / `center-of-gravity.md`), consuming the same shared **Brief** plus the **Intent check** and **Soft gate**. Both are named explicitly when referenced.
 - **"Critical code areas might mislead reviewer"** — the original concern was anchoring bias. Resolved by Risk Surface + Playbook + no-verdict model. Anchoring is the design's chief enemy at the brief layer.
 - **"Pure AI code review comments"** was an informal phrase. Resolved as a strict product rule: the agent never authors prose that ships as a **Comment**. Seeds and validation only.

@@ -245,3 +245,26 @@ reviewer_session   -- the self-host default adapter; the ONE secret-bearing tabl
 - `installation_id` on every row from day one (the redesign-avoider); RLS is an additive hosted hardening, not a schema change (D2b).
 - All blob access goes through one code-level `ArtifactStore`; the object-storage migration is localized there (D6).
 - Erasure (purge by PR / repo / installation) is mostly an FK cascade off `pull_request` + a small explicit routine for the non-PR tables (`reviewer_session`); `audit_log` is retained, numeric-only (D5/D9).
+
+## Implementation notes (for workstream 1 — not yet built)
+
+High-level reminders so the Drizzle build doesn't re-derive these; no schema written yet.
+
+- **Drizzle expresses the tables; a few things drop to raw SQL in the migration:** the **partial** index `WHERE purge_after IS NOT NULL` (D5 sweep); the **`REVOKE UPDATE/DELETE` on `audit_log`** that enforces append-only (D9 — convention in M1, REVOKE is the hosted hardening); and `INSERT … ON CONFLICT (natural_key) DO UPDATE` for content-addressed artifact writes (idempotency, D6) and `generation` status transitions (D10).
+- **Column conventions:** surrogate PK via `.generatedAlwaysAsIdentity()`; SHAs as `text` (D2); timestamps `withTimezone`. Factor shared `tenant` (`id` + `installation_id`) and `stamps` (`created_at`) column groups to keep every table uniform.
+- **Two migration systems, kept apart:** graphile-worker runs its own migrations into the `graphile_worker` schema; scope Drizzle (and especially `drizzle-kit push`) to the app schema only so it never tries to manage graphile's tables (D10).
+- **Tenant repo is the only DB surface:** `forTenant(ctx)` injects `installation_id`; do not export the raw handle (D2b). Worker builds its context from the job payload; web from the authz middleware.
+- **Auth library (D11):** lean Arctic (+ own sessions) or Better Auth behind the identity-provider seam; verify the chosen lib's maintenance status at build time (Lucia is winding down).
+
+## Model vocabulary (persistence-domain terms)
+
+Collected here so the model terms live next to the schema; `CONTEXT.md` stays product/UX-facing (a reviewer never sees these). Product terms (Disposition, Submit, …) live in `CONTEXT.md`.
+
+- **Span artifact** — a Brief or Delta identified by two SHA endpoints `[lower, head]`.
+- **Brief base** (`base_sha`) — the PR-base endpoint; a Brief covers the whole PR, `base→head`.
+- **Checkpoint baseline** (`baseline_sha`) — a Delta's lower endpoint = the reviewer's **Checkpoint** (a prior head). Distinct from the Brief base.
+- **Delta core** — the shared, reviewer-agnostic code-change narrative for a span (the expensive LLM part); table `delta`.
+- **Carry-over overlay** — the per-reviewer layer (flag carry-over + comment anchoring) on top of the core; `Rendered Delta = core + overlay`; table `delta_overlay` (M2).
+- **DiffSnapshot / baseline snapshot** — the persisted `base→checkpoint` diff at a Checkpoint; config-gated; lets a Delta survive force-push GC; table `diff_snapshot`.
+- **Generation (projection)** — the mutable CQRS status mirror of a worker job (queued/running/succeeded/failed); table `generation`; not a domain artifact.
+- **Tenant / installation** — the trust-boundary unit; `instance = tenant`; every row scoped by `installation_id`.
