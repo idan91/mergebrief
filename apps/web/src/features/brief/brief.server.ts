@@ -18,8 +18,14 @@ interface ParsedFileDiff {
 
 const OUT_DIR = resolve(process.cwd(), "../../tools/categorizer/out");
 const BRIEF_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
+let localBriefSummaries: Promise<LocalBriefSummary[]> | undefined;
 
 export async function listLocalBriefs(): Promise<LocalBriefSummary[]> {
+  localBriefSummaries ??= readLocalBriefSummaries();
+  return localBriefSummaries;
+}
+
+async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
   const entries = await readdir(OUT_DIR);
   const briefIds = entries
     .flatMap((entry) => {
@@ -29,23 +35,22 @@ export async function listLocalBriefs(): Promise<LocalBriefSummary[]> {
     })
     .filter(isValidBriefId)
     .sort();
-  const summaries: LocalBriefSummary[] = [];
-
-  for (const briefId of briefIds) {
+  return Promise.all(briefIds.map(async (briefId) => {
     const brief = await readBriefFile(briefId);
-    summaries.push({
+    return {
       id: briefId,
       artifactKind: brief.artifactKind,
       repo: brief.pr.repo,
       number: brief.pr.number,
       title: brief.pr.title,
       sha: brief.pr.sha,
+      ...(brief.index != null ? { index: brief.index } : {}),
       ...(brief.baselineSha ? { baselineSha: brief.baselineSha } : {}),
       ...(brief.headSha ? { headSha: brief.headSha } : {}),
-    });
-  }
-
-  return summaries;
+      ...(brief.baselineIndex != null ? { baselineIndex: brief.baselineIndex } : {}),
+      ...(brief.headIndex != null ? { headIndex: brief.headIndex } : {}),
+    } satisfies LocalBriefSummary;
+  }));
 }
 
 export async function readLocalBrief(briefId: string): Promise<Brief> {

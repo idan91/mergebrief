@@ -1,12 +1,13 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { localBriefQueryOptions } from "../features/brief/queries";
+import { localBriefQueryOptions, localBriefsQueryOptions } from "../features/brief/queries";
 import { reviewCommentMatchesDiffLine, reviewCommentsForChunk } from "../features/brief/reviewComments";
-import type { AddressedReviewComment, Brief, BriefChunk, Category, Concern } from "../features/brief/types";
+import type { AddressedReviewComment, Brief, BriefChunk, Category, Concern, LocalBriefSummary } from "../features/brief/types";
+import { buildBriefTimeline, type BriefTimeline } from "../features/brief/timeline";
 import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
 import { SummaryPreview } from "../features/review/SummaryPreview";
 import {
@@ -22,7 +23,7 @@ import {
   type CommentAnchor,
   type ReviewComment,
 } from "../features/review/comments";
-import { useSetDemoReviewSnapshot } from "../features/review/demoState";
+import { useClearDemoReviewSnapshots, useSetDemoReviewSnapshot } from "../features/review/demoState";
 import {
   commentLocation,
   deriveUnresolvedItems,
@@ -52,20 +53,23 @@ interface EvidenceTarget {
 }
 
 export const Route = createFileRoute("/briefs/$briefId")({
-  loader: ({ context, params }) => context.queryClient.ensureQueryData(localBriefQueryOptions(params.briefId)),
+  loader: ({ context, params }) => Promise.all([context.queryClient.ensureQueryData(localBriefQueryOptions(params.briefId)), context.queryClient.ensureQueryData(localBriefsQueryOptions())]),
   component: BriefRoute,
   errorComponent: BriefError,
 });
 
 function BriefRoute() {
   const { briefId } = Route.useParams();
-  return <BriefApp briefId={briefId} key={briefId} />;
+  const artifacts = useSuspenseQuery(localBriefsQueryOptions()).data;
+  return <BriefApp artifacts={artifacts} briefId={briefId} key={briefId} />;
 }
 
-function BriefApp({ briefId }: { briefId: string }) {
+function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; briefId: string }) {
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
+  const timeline = useMemo(() => buildBriefTimeline(artifacts, briefId), [artifacts, briefId]);
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
   const setDemoSnapshot = useSetDemoReviewSnapshot();
+  const clearDemoSnapshots = useClearDemoReviewSnapshots();
   const initialDominants = useMemo(() => Object.fromEntries(model.groups.map((group) => [group.id, group.group.dominantCategory])), [model.groups]);
   const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
   const [reviewOutcome, setReviewOutcome] = useState<ReviewOutcome>("comment");
@@ -119,6 +123,10 @@ function BriefApp({ briefId }: { briefId: string }) {
     const timer = window.setTimeout(() => setToast(""), 4200);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    document.getElementById("brief-content")?.focus();
+  }, [briefId]);
 
   useEffect(() => {
     if (viewMode !== "story" || layoutMode !== "split") return;
@@ -300,6 +308,7 @@ function BriefApp({ briefId }: { briefId: string }) {
       <Header
         brief={brief}
         briefId={briefId}
+        timeline={timeline}
         model={model}
         totals={totals}
         progress={progress}
@@ -307,8 +316,9 @@ function BriefApp({ briefId }: { briefId: string }) {
         reviewMode={reviewMode}
         setLocOpen={setLocOpen}
         openReceipt={openPreSubmit}
+        clearDrafts={clearDemoSnapshots}
       />
-      <main className={layoutMode === "split" && viewMode === "story" ? "main split-main" : "main"}>
+      <main className={layoutMode === "split" && viewMode === "story" ? "main split-main" : "main"} id="brief-content" tabIndex={-1}>
         <section className="pr-summary reveal">
           <div className="eyebrow">{brief.artifactKind === "delta" ? "Delta brief" : reviewMode === "author" ? "Author self-review" : "Brief"}</div>
           <Markdown content={brief.summary} />
@@ -453,6 +463,7 @@ function BriefApp({ briefId }: { briefId: string }) {
 function Header({
   brief,
   briefId,
+  timeline,
   model,
   totals,
   progress,
@@ -460,9 +471,11 @@ function Header({
   reviewMode,
   setLocOpen,
   openReceipt,
+  clearDrafts,
 }: {
   brief: Brief;
   briefId: string;
+  timeline: BriefTimeline;
   model: BriefViewModel;
   totals: ProgressTotals;
   progress: number;
@@ -470,6 +483,7 @@ function Header({
   reviewMode: ReviewMode;
   setLocOpen: (value: boolean) => void;
   openReceipt: () => void;
+  clearDrafts: () => void;
 }) {
   return (
     <header>
@@ -487,6 +501,7 @@ function Header({
         </div>
         {briefMetaLine(brief) ? <div className="sub faint">{briefMetaLine(brief)}</div> : null}
       </div>
+      <TimelineNavigator briefId={briefId} timeline={timeline} />
       <div className="hdr-stats">
         <button className={locOpen ? "stat loc-badge open" : "stat loc-badge"} type="button" onClick={() => setLocOpen(!locOpen)}>
           <span className="statlabel">adjusted lines</span>
@@ -510,8 +525,42 @@ function Header({
         {reviewMode === "author" ? "Ready for review" : "Receipt"}
       </button>
       <Link className="btn" params={{ briefId }} to="/briefs/$briefId/summary-preview">Summary preview</Link>
+      <button className="clear-drafts" type="button" onClick={clearDrafts}>Clear local drafts</button>
       <div className="progress-bar" style={{ width: `${progress}%` }} />
     </header>
+  );
+}
+
+function TimelineNavigator({ briefId, timeline }: { briefId: string; timeline: BriefTimeline }) {
+  const navigate = useNavigate();
+  const selected = timeline.selectedPoint;
+  const currentIndex = selected ? timeline.points.findIndex((point) => point.briefId === selected.briefId) : -1;
+  const previous = currentIndex > 0 ? timeline.points[currentIndex - 1] : undefined;
+  const next = currentIndex >= 0 ? timeline.points[currentIndex + 1] : undefined;
+  const deltaId = selected?.deltaId;
+
+  if (!selected) return null;
+  return (
+    <nav className="timeline" aria-label="PR revision timeline">
+      <span aria-live="polite" className="sr-only">Viewing Brief {selected.index} of {timeline.points.length}</span>
+      {previous ? <Link aria-label={`Previous brief, ${previous.index}`} className="timeline-arrow" params={{ briefId: previous.briefId }} to="/briefs/$briefId">←</Link> : <span aria-hidden="true" className="timeline-arrow disabled">←</span>}
+      <label className="timeline-picker">
+        <span className="sr-only">Select PR revision</span>
+        <select value={selected.briefId} onChange={(event) => navigate({ to: "/briefs/$briefId", params: { briefId: event.target.value } })}>
+          {timeline.points.map((point) => <option key={point.briefId} value={point.briefId}>Brief {point.index} · {point.headSha.slice(0, 7)}</option>)}
+        </select>
+      </label>
+      {next ? <Link aria-label={`Next brief, ${next.index}`} className="timeline-arrow" params={{ briefId: next.briefId }} to="/briefs/$briefId">→</Link> : <span aria-hidden="true" className="timeline-arrow disabled">→</span>}
+      <div className="timeline-lens" role="group" aria-label="Brief lens">
+        <Link className={briefId === selected.briefId ? "active" : ""} params={{ briefId: selected.briefId }} to="/briefs/$briefId">Full</Link>
+        {deltaId ? <Link className={briefId === deltaId ? "active" : ""} params={{ briefId: deltaId }} to="/briefs/$briefId">Delta</Link> : <span aria-disabled="true" title="No local delta is available for this revision">Delta</span>}
+      </div>
+      <ol className="timeline-steps">
+        {timeline.points.slice(Math.max(0, currentIndex - 4), currentIndex + 5).map((point) => (
+          <li key={point.briefId}><Link aria-current={point.briefId === selected.briefId ? "step" : undefined} className={point.briefId === selected.briefId ? "active" : point.deltaId ? "has-delta" : ""} params={{ briefId: point.briefId }} to="/briefs/$briefId"><span className="sr-only">Brief {point.index}</span></Link></li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 
