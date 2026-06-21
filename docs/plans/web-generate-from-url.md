@@ -81,6 +81,7 @@ tools/categorizer (engine, reused)
 ## Testing (TDD where it pays)
 
 Pure logic gets tests first: `parsePrUrl` reuse, `briefId` derivation, dedupe decision (exists → reuse / absent → generate), and the single-flight guard (two concurrent calls for one key → one underlying run, both resolve). The model call itself is not unit-tested (it's the engine's concern, already covered in `tools/categorizer/test`); the server fn is tested with the engine boundary faked.
+Follow red-green-refctor method.
 
 ## How it lifts to M1 ("geared towards all of these")
 
@@ -99,13 +100,13 @@ The synchronous server function is the liftable unit. At M1 (ADR 0015/0018), wit
 
 - **Branch:** `feature/web-generate-from-url`, off `main`.
 - **Commits:** **chunked** — one per logical unit. Authorship rules: **no `Co-Authored-By` trailers, no AI-attribution** in commits or the PR body.
-- **Pre-commit review gate (every commit):** dispatch **`security-reviewer`** and **`performance-reviewer`** in parallel on the staged diff (`git diff --cached`). Any finding with confidence ≥ 80 → present, fix, re-stage, re-run both until clean. Only then commit. (The server fn runs `gh` + a model call on user-pasted input — the security pass is load-bearing, not ceremonial.)
+- **Pre-commit review gate (every commit):** dispatch **`security-reviewer`** and **`performance-reviewer`** in parallel on the staged diff (`git diff --cached`). Any finding with confidence ≥ 80 → present, fix, re-stage, re-run both until clean. Only then commit. (The server fn runs `gh` + a model call on user-pasted input — the security pass is load-bearing, not ceremonial.) **`plan-alignment`** should run automatically as well.
 - **Suggested commit chunks:**
   1. `refactor(categorizer): extract generateAndWrite + package exports`
   2. `feat(web): single-flight guard` (+ tests)
   3. `feat(web): generateBriefFromUrl server fn` (+ tests, dedupe)
   4. `feat(web): URL input + loading/error on picker route`
-- **Push / PR:** only when the user asks; PR via `gh` per git-eng PR rules.
+- **Push / PR:** Submit a PR automatically at the end accordig to the git-eng guideliens
 
 ## Out of scope / fast-follows
 
