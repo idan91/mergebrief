@@ -11,12 +11,16 @@ export function prStem(repo: string, number: number): string {
 }
 
 /**
- * `<owner>-<repo>-<number>_<index>_<head8>` — versioned stem for one brief's
- * artifacts (ADR 0012). The index + head SHA let successive briefs of the same
- * PR coexist on disk.
+ * `<stem>_<index>_<head8>` — versioned id for one brief's artifacts (ADR 0012),
+ * given just the pieces a caller may have without a full `Brief` object yet
+ * (e.g. a dedupe lookup before generation has run).
  */
+export function briefId(stem: string, index: number, head: string): string {
+  return `${stem}_${index}_${shortSha(head)}`;
+}
+
 function briefStem(brief: Brief): string {
-  return `${prStem(brief.pr.repo, brief.pr.number)}_${brief.index}_${shortSha(brief.commitRange.head)}`;
+  return briefId(prStem(brief.pr.repo, brief.pr.number), brief.index, brief.commitRange.head);
 }
 
 /** Output filename for a brief: `<stem>_<index>_<head8>.brief.json`. */
