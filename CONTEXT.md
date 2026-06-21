@@ -9,7 +9,7 @@ Comprehension scaffolding for human reviewers of pull requests. Not another revi
 ## Language
 
 **Brief**:
-The comprehension artifact the tool produces for a PR — summary, multi-tag categorization per chunk, per-category playbooks, risk-surface attributes. Computed on activation, cached by commit SHA. Each Brief carries a PR-global **index** (the Nth distinct head SHA briefed for this PR — shared across reviewers, never per-reviewer) and the **commit range** it covers (the whole PR, base→head). A Brief also surfaces the PR's shipped **Comments** (from all reviewers) with their GitHub-native **outdated** status, for display only — *which change resolved which comment* is the **Delta Brief**'s job, not the Brief's.
+The comprehension artifact the tool produces for a PR — summary, multi-tag categorization per chunk, per-category playbooks, risk-surface attributes. Computed eagerly on push (see **Trigger**), cached by commit SHA. Each Brief carries a PR-global **index** (the Nth distinct head SHA briefed for this PR — shared across reviewers, never per-reviewer) and the **commit range** it covers (the whole PR, base→head). A Brief also surfaces the PR's shipped **Comments** (from all reviewers) with their GitHub-native **outdated** status, for display only — *which change resolved which comment* is the **Delta Brief**'s job, not the Brief's.
 _Avoid_: report, analysis, AI summary, brief number (for index)
 
 **Delta Brief**:
@@ -122,9 +122,17 @@ _Avoid_: UI layer, frontend, workflow (informal)
 The private (per reviewer × PR) workspace inside the web app where the reviewer thinks, drafts, asks the agent questions, dismisses flags, and refines comments — without that work being visible on the PR thread.
 _Avoid_: workspace, scratchpad, draft space
 
-**Activation**:
-The state transition when a human first clicks the deep-link button on a PR's tool-comment (or, under draft-first, when the draft opens). Before activation: no compute fires. After activation: the **Brief** computes, and subsequent pushes auto-trigger debounced brief regeneration; **Delta Briefs** are per-reviewer (computed from each reviewer's **Checkpoint**), not a single push-triggered recompute.
-_Avoid_: enable, turn on, open
+**Trigger**:
+What causes a **Brief** to compute: eager-on-push, debounced (~60s trailing), on PR-open (first push) and every subsequent push — including while the PR is a draft. No lazy "compute-on-first-click" gate; spend is bounded by debounce + **Triage** + skipping trivial/instantly-closed PRs, not by withholding compute. **Delta Briefs** are per-reviewer (from each reviewer's **Checkpoint**), not a push-triggered recompute. See ADR 0020.
+_Avoid_: activation (as "what fires compute"), cost gate, click-to-activate
+
+**Entry**:
+How a human reaches a computed **Brief**: one branded PR comment carrying a deep-link (ADR 0016), delete+reposted per debounced generation, one ping per settled head. The reviewer-facing Entry posts only when the PR is non-draft (ready). The deep-link click is navigation, never a compute **Trigger**.
+_Avoid_: activation (as "the click"), deep-link gate
+
+**Draft-first**:
+A per-repo opt-in (repo YAML; org default + per-repo override; off by default) that holds the reviewer-facing **Entry** until the author marks `ready_for_review`, turning the draft window into the author's self-review pass. It does **not** change the **Trigger** — the **Brief** still computes on every push during draft; draft-first only gates *when reviewers are notified*. Native-draft only (never a custom lock), so a generation failure leaves a normal GitHub draft the author controls. See ADR 0020.
+_Avoid_: activation (as "turning the tool on"), draft mode, draft gate
 
 **Triage**:
 The cheap cascade run on every PR (and every follow-up) *before* any expensive generation, deciding both the *experience* and the *spend*: a free deterministic floor (dependency/migration/auth-config paths + size) → a small-model (**Haiku**) pass that judges trivial-vs-escalate and, when trivial, emits the **Fast-lane** view. Escalation produces the full **Brief** / **Delta Brief** (Opus); otherwise the fast-lane is shown with a manual upgrade. **Risk decides escalation, size decides spend**; for follow-ups, touching a reviewer's prior **Flag** or **Comment** (carry-over) is itself an escalation. Never a verdict, never a gate — the human can always upgrade.
@@ -171,6 +179,7 @@ _Avoid_: send, post, finish (informal)
 - A **Comment** belongs to a reviewer and ships to the PR. A **Seed** belongs to a chunk in the brief and never ships.
 - A reviewer records a **Disposition** on a **Flag**: **addressed** (a **Comment** targets it) or **dismissed** (with reason). Dispositions are frozen into the **Receipt** on **Submit**.
 - On submit, the review lands **natively on GitHub** (comments + approve/request-changes) authored by the reviewer. A **Signature line** links to the static **Review Summary**, which renders the **Receipt**. The review otherwise reads as a normal human review. Receipt aggregates across all reviewers when multi-reviewer.
+- A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires eagerly on every push; the reviewer **Entry** comment posts only when the PR is ready. **Draft-first** changes only the Entry timing, never the Trigger.
 - The **Analysis Layer** is reviewer-agnostic. A human reviewer consumes it through the **Engagement Layer** (v1). An AI-agent reviewer consumes it directly via API (v1.5+ headless) — the no-AI-prose rule and Mind-Map Space are human-mode only and do not apply to agent-mode.
 
 ## Example dialogue
@@ -194,4 +203,5 @@ _Avoid_: send, post, finish (informal)
 - **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.
 - **"A file with multiple changes/concerns"** — resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case → deferred sub-operation tree (ADR 0005).
 - **"production" rejected** as the carrier-concern name — bakes in a deployment assumption. Resolved: `implementation`.
+- **"Activation"** was one word for three independent things — *what fires compute*, *how a human reaches the brief*, and *turning draft-first on*. The old definition (compute-on-first-click) also contradicted ADR 0006's eager-on-push generation. Resolved into **Trigger** (eager-on-push compute), **Entry** (the branded deep-link comment, posts on ready), and **Draft-first** (per-repo opt-in that gates Entry until `ready_for_review`, never the Trigger). "Activation" is retired. See ADR 0020.
 - **"Consume an AI context manager (Unblocked) to flag cross-context issues"** was proposed as a brief feature. Rejected: a tool asserting AI-hypothesized "potential issues" is the **bug-bot the product is positioned against** (no-verdict rule; `center-of-gravity.md` "no bug-bot noise"; ADR 0003 category-scoped, not general). Resolved into three data-flows: (1) external context may **enrich the Intent check and Risk Surface with *cited* facts only** — cite-or-stay-silent, never a verdict; (2) AI *review* of the code is the **headless dual-consumer lane** — the org hooks its own agent to consume our **Brief**, and that agent owns its verdicts, not us (preserves no-verdict because we are the analysis substrate, not the reviewer); (3) the **comment-to-rule loop** is the inverse arrow (we *produce* repo-local agent context). Only (1) is a consume-side build, and it is deferred. See ADR 0014.
