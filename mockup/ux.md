@@ -13,6 +13,18 @@
 | Progress bar | 1px bar under the header; fills proportionally to (playbook items + chunks read + flags resolved) / total. |
 | Receipt button | Opens the receipt drawer (see below). The single primary (white) action in the header. |
 
+## PR timeline navigator
+
+| Behavior | Detail |
+|---|---|
+| Timeline point | A point represents one indexed full **Brief** at a distinct PR head. It is never a flat mixture of Brief and Delta artifacts. |
+| Direct selection | The header provides Previous/Next buttons and a native revision picker, which reaches every revision. A wider screen also shows up to nine ordered visual steps around the current point, plus first/last shortcuts and ellipses; each is a normal button, not a drag-only control. |
+| Current selection | The selected point announces its Brief index, short SHA, and available context. Selecting it updates the URL, loads the corresponding Brief, and moves focus to the Brief heading with a polite status announcement. |
+| Full / Delta lens | A separate toggle controls whether the selected point shows the full Brief or a valid Delta Brief. The Delta label names its baseline, e.g. `Delta Brief · since your checkpoint _2`. |
+| Delta availability | Every valid Delta maps to the full Brief at the same head. Points with a valid Delta are marked in the visual timeline and may switch lenses in place. If the selected Delta is unavailable, pending, fails, or falls back because its span is too large, the full Brief remains visible with an honest explanation. |
+| Historical review state | Historical timeline points are read-only. Local draft comments and review state are silently retained in session storage while the reviewer looks elsewhere; `Clear local drafts` removes them, and they expire when the browser session ends. |
+| Responsive and accessibility | WCAG 2.2 AA: labelled buttons, native picker, 44px targets, Tab/Enter/Space support, optional Left/Right convenience between steps, visible focus, and no swipe-only selection. On small screens, retain Previous/Next plus the picker and hide the visual stepper if needed. |
+
 ## Toolbar (below the PR summary)
 
 | Behavior | Detail |

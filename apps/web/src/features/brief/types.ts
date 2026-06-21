@@ -159,6 +159,9 @@ export interface LocalBriefSummary {
   number: number;
   title: string;
   sha: string;
+  index?: number;
   baselineSha?: string;
   headSha?: string;
+  baselineIndex?: number | null;
+  headIndex?: number | null;
 }
