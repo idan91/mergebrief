@@ -64,8 +64,19 @@ function realEngine(): GenerateBriefEngine {
         );
       }
       sharedGenerator ??= new AnthropicGenerator();
-      const brief = await generateAndWrite(OUT_DIR, url, undefined, sharedGenerator, () => {});
-      return { repo: brief.pr.repo, number: brief.pr.number, index: brief.index, head: brief.commitRange.head };
+      const brief = await generateAndWrite(
+        OUT_DIR,
+        url,
+        undefined,
+        sharedGenerator,
+        () => {},
+      );
+      return {
+        repo: brief.pr.repo,
+        number: brief.pr.number,
+        index: brief.index,
+        head: brief.commitRange.head,
+      };
     },
   };
 }
@@ -82,7 +93,10 @@ const singleFlight = createSingleFlight<string>();
  * error states; `MissingApiKeyError` is already safe and specific, so it
  * passes through unwrapped.
  */
-export async function generateBriefFromUrl(url: string, engine: GenerateBriefEngine = realEngine()): Promise<string> {
+export async function generateBriefFromUrl(
+  url: string,
+  engine: GenerateBriefEngine = realEngine(),
+): Promise<string> {
   const locator = parsePrUrl(url);
 
   let head: string;
@@ -90,7 +104,9 @@ export async function generateBriefFromUrl(url: string, engine: GenerateBriefEng
     head = await engine.fetchHeadSha(locator);
   } catch (error) {
     console.error("generateBriefFromUrl: failed to fetch PR metadata", error);
-    throw new Error("Couldn't fetch this PR — is it public, and are you `gh auth login`'d?");
+    throw new Error(
+      "Couldn't fetch this PR — is it public, and are you `gh auth login`'d?",
+    );
   }
 
   const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
@@ -104,8 +120,14 @@ export async function generateBriefFromUrl(url: string, engine: GenerateBriefEng
     } catch (error) {
       if (error instanceof MissingApiKeyError) throw error;
       console.error("generateBriefFromUrl: generation failed", error);
-      throw new Error("Couldn't generate the brief for this PR — check the server logs and try again.");
+      throw new Error(
+        "Couldn't generate the brief for this PR — check the server logs and try again.",
+      );
     }
-    return briefId(prStem(result.repo, result.number), result.index, result.head);
+    return briefId(
+      prStem(result.repo, result.number),
+      result.index,
+      result.head,
+    );
   });
 }
