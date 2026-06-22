@@ -321,6 +321,41 @@ header {
   line-height: 1.6;
 }
 
+.generate-form {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 14px;
+
+  input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--line2);
+    border-radius: 7px;
+    background: var(--panel2);
+    color: var(--text);
+    font-size: 14px;
+
+    &::placeholder {
+      color: var(--faint);
+    }
+
+    &:focus-visible {
+      outline: none;
+      border-color: var(--text);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+    }
+  }
+}
+
+.generate-error {
+  margin: 0 0 20px;
+  color: var(--red);
+  font-size: 13px;
+}
+
 .brief-list {
   display: grid;
   gap: 12px;
