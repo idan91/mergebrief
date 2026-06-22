@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Turns a real PR diff into a usable review brief (story + concern + risk-surface), validated against hand-labels.",
+  "exports": {
+    ".": "./src/lib.ts"
+  },
   "scripts": {
     "categorize": "tsx src/index.ts",
     "delta": "tsx src/delta-cli.ts",

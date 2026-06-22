@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   fetchCompareCommitCount,
   fetchCompareDiff,
@@ -28,7 +29,7 @@ import type { Brief, CommitRange } from "./types.js";
 const OUT_DIR = "out";
 
 /** An explicit base..head span for a brief, instead of the whole PR at head. */
-interface Range {
+export interface Range {
   base: string;
   head: string;
 }
@@ -88,14 +89,20 @@ async function buildInputs(
   return { pr: { locator, meta, diff, links }, comments, commitRange };
 }
 
-/** Generate one brief and write its artifacts. Returns the brief for printing. */
-async function runOne(
+/**
+ * Generate one brief and write its artifacts (the diff/metadata fetch, the
+ * model call, and the brief/diffs/comments sidecars) under `outDir`. The
+ * shared engine body for both the CLI and any other front door (e.g. the web
+ * app's server fn) — the only thing a caller supplies beyond the PR is where
+ * to write.
+ */
+export async function generateAndWrite(
+  outDir: string,
   url: string,
   range: Range | undefined,
   generator: Generator,
+  log: (msg: string) => void,
 ): Promise<Brief> {
-  const tag = prTag(url);
-  const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
   log(
     range
       ? `fetching compare ${range.base.slice(0, 8)}..${range.head.slice(0, 8)} + metadata…`
@@ -104,29 +111,40 @@ async function runOne(
   const { pr, comments, commitRange } = await buildInputs(url, range, log);
 
   const stem = prStem(`${pr.locator.owner}/${pr.locator.repo}`, pr.locator.number);
-  const index = await assignBriefIndex(OUT_DIR, stem, commitRange.head);
+  const index = await assignBriefIndex(outDir, stem, commitRange.head);
   log(
     `brief _${index}; ${pr.meta.files.length} files, ${pr.links.length} linked refs, ${comments.length} comments; categorizing…`,
   );
 
   const brief = await categorize(pr, index, commitRange, generator, log);
 
-  const briefFile = join(OUT_DIR, outName(brief));
+  const briefFile = join(outDir, outName(brief));
   await writeFile(briefFile, `${JSON.stringify(brief, null, 2)}\n`);
 
   // Per-file diffs sidecar, so a UI can show the actual code for each chunk.
-  const diffsFile = join(OUT_DIR, diffsName(brief));
+  const diffsFile = join(outDir, diffsName(brief));
   const fileDiffs = splitDiffByFile(pr.diff);
   await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
 
   // Review comments sidecar (display data, +outdated) — ADR 0012.
-  const commentsFile = join(OUT_DIR, commentsName(brief));
+  const commentsFile = join(outDir, commentsName(brief));
   await writeFile(commentsFile, `${JSON.stringify(comments, null, 2)}\n`);
 
-  console.error(`\n[${tag}] wrote ${briefFile}`);
-  console.error(`[${tag}] wrote ${diffsFile} (${fileDiffs.length} files)`);
-  console.error(`[${tag}] wrote ${commentsFile} (${comments.length} comments)`);
+  log(`wrote ${briefFile}`);
+  log(`wrote ${diffsFile} (${fileDiffs.length} files)`);
+  log(`wrote ${commentsFile} (${comments.length} comments)`);
   return brief;
+}
+
+/** CLI wrapper: generate one brief into the CLI's fixed OUT_DIR, tagged log lines. */
+async function runOne(
+  url: string,
+  range: Range | undefined,
+  generator: Generator,
+): Promise<Brief> {
+  const tag = prTag(url);
+  const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
+  return generateAndWrite(OUT_DIR, url, range, generator, log);
 }
 
 /**
@@ -206,7 +224,12 @@ async function main(): Promise<void> {
   if (failures > 0) process.exit(1);
 }
 
-main().catch((err: unknown) => {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exit(1);
-});
+// Only run the CLI when this file is the process entry point — `generateAndWrite`
+// (and the other exports in ./lib.js) must be importable by other front doors
+// (e.g. the web app's server fn) without triggering argv parsing / process.exit.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main().catch((err: unknown) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });
+}
