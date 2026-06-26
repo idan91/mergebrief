@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Revision changes — highlight treatment comparison</title>
+<style>
+  :root{
+    --bg:#0a0a0c; --panel:#111114; --panel2:#0d0d10; --line:#1f1f24; --line2:#2b2b32;
+    --text:#ececee; --dim:#9a9aa3; --faint:#62626b;
+    --green:#5fc88f; --red:#e06c6c; --amber:#d9a45c; --blue:#7da7d9; --violet:#a98fd1;
+    --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --sans:"Instrument Sans", -apple-system, "Helvetica Neue", sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg);
+    background-image:radial-gradient(1200px 500px at 50% -200px, #131318 0%, var(--bg) 70%);
+    color:var(--text); font-family:var(--sans); font-size:15px; line-height:1.55; padding:40px 28px 80px;
+  }
+  .wrap{max-width:860px;margin:0 auto}
+  h1{font-size:22px;font-weight:600;margin:0 0 6px}
+  .lede{color:var(--dim);font-size:14px;margin:0 0 28px;max-width:680px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--dim);margin-bottom:30px;font-family:var(--mono)}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .sw{width:13px;height:13px;border-radius:3px;display:inline-block}
+  .sw.green{background:rgba(95,200,143,0.22);border:1px solid rgba(95,200,143,0.5)}
+  .sw.red{background:rgba(224,108,108,0.22);border:1px solid rgba(224,108,108,0.5)}
+  .sw.blue{background:rgba(125,167,217,0.22);border:1px solid rgba(125,167,217,0.6)}
+
+  .opt{border:1px solid var(--line);border-radius:12px;background:linear-gradient(180deg,#121216 0%,#0e0e11 100%);margin-bottom:30px;overflow:hidden}
+  .opt-head{padding:16px 20px 14px;border-bottom:1px solid var(--line)}
+  .opt-head .tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  .opt-head h2{font-size:16px;font-weight:600;margin:4px 0 0;display:flex;align-items:center;gap:10px}
+  .opt-head h2 .rec{font-family:var(--sans);font-size:10.5px;font-weight:600;color:#0a0a0c;background:var(--blue);padding:2px 8px;border-radius:99px;letter-spacing:.02em}
+  .opt-body{padding:8px 4px 4px}
+
+  /* toolbar affordances */
+  .toolbar{display:flex;align-items:center;gap:14px;padding:10px 18px 6px;flex-wrap:wrap}
+  .switch{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--dim);font-family:var(--sans)}
+  .track{width:30px;height:17px;border-radius:99px;background:var(--blue);position:relative;flex:none}
+  .track::after{content:"";position:absolute;top:2px;left:15px;width:13px;height:13px;border-radius:50%;background:#0a0a0c}
+  .count{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+  .jump{display:inline-flex;gap:2px;margin-left:auto}
+  .jump button{font-family:var(--mono);font-size:12px;color:var(--dim);background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:3px 9px;cursor:pointer}
+  .jump button:hover{color:var(--text);border-color:#3d3d46}
+
+  /* base diff */
+  table.diff{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12.5px;line-height:1.7}
+  .diff td{padding:0 14px;white-space:pre;vertical-align:top}
+  .diff .ln{width:40px;min-width:40px;text-align:right;color:#3b3b43;user-select:none;padding:0 8px}
+  .diff tr.add{background:rgba(95,200,143,0.05)}
+  .diff tr.add .code{color:#c3e6d2}
+  .diff tr.add .ln{color:rgba(95,200,143,0.45)}
+  .diff tr.del{background:rgba(224,108,108,0.05)}
+  .diff tr.del .code{color:#e0bcbc}
+  .diff tr.del .ln{color:rgba(224,108,108,0.4)}
+  .diff tr.ctx .code{color:#85858e}
+  .diff .sign{display:inline-block;width:14px;opacity:0.6}
+
+  /* callout (shared) */
+  .callout{
+    position:absolute;z-index:5;left:54px;top:calc(100% + 6px);width:330px;
+    background:#15151a;border:1px solid var(--line2);border-radius:10px;padding:12px 14px;
+    box-shadow:0 14px 40px rgba(0,0,0,0.55);font-family:var(--sans);
+    opacity:0;visibility:hidden;transform:translateY(-4px);transition:all .14s;pointer-events:none;
+  }
+  .callout .ey{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--blue);margin-bottom:5px}
+  .callout .ttl{font-size:13.5px;font-weight:600;margin-bottom:4px}
+  .callout .sum{font-size:12.5px;color:var(--dim);line-height:1.5}
+  .callout code{font-family:var(--mono);font-size:0.86em;background:#1d1d23;padding:1px 5px;border-radius:4px;color:var(--text)}
+  .callout .opp{margin-top:8px;font-size:11px;color:var(--faint);border-top:1px solid var(--line);padding-top:7px}
+
+  /* ===== OPTION 1: line fill ===== */
+  .opt1 tr.rev{background:rgba(125,167,217,0.17)}
+  .opt1 tr.rev .code{color:#cfdef2}
+  .opt1 tr.rev .ln{color:rgba(125,167,217,0.55)}
+  .opt1 .run-wrap{position:relative}
+  .opt1 .callout.demo{opacity:1;visibility:visible;transform:none;left:120px;top:30px}
+
+  /* ===== OPTION 2: gutter rail ===== */
+  .opt2 .gut{width:26px;min-width:26px;padding:0;position:relative}
+  .railbtn{
+    position:absolute;left:9px;top:0;bottom:0;width:4px;border:0;padding:0;border-radius:3px;
+    background:var(--blue);cursor:pointer;
+  }
+  .railbtn:hover,.railbtn:focus-visible{outline:2px solid var(--blue);outline-offset:2px;background:#9dc0e8}
+  .railwrap{position:relative}
+  .railbtn:hover + .callout,.railbtn:focus-visible + .callout{opacity:1;visibility:visible;transform:none;pointer-events:auto}
+  .opt2 tr.rev .ln{color:rgba(125,167,217,0.5)}
+  .newtag{display:inline-block;font-family:var(--sans);font-size:9.5px;font-weight:600;color:var(--blue);border:1px solid rgba(125,167,217,0.45);border-radius:99px;padding:0 6px;margin-left:8px;vertical-align:1px}
+
+  /* ===== OPTION 3: surrounding outline ===== */
+  .opt3 tr.rev td.code{border-top:0;border-bottom:0}
+  .opt3 tr.rev-first td{box-shadow:inset 0 2px 0 var(--blue)}
+  .opt3 tr.rev-last td{box-shadow:inset 0 -2px 0 var(--blue)}
+  .opt3 tr.rev td.first-cell{box-shadow:inset 2px 0 0 var(--blue)}
+  .opt3 tr.rev-first td.first-cell{box-shadow:inset 2px 0 0 var(--blue), inset 0 2px 0 var(--blue)}
+  .opt3 tr.rev-last td.first-cell{box-shadow:inset 2px 0 0 var(--blue), inset 0 -2px 0 var(--blue)}
+  .opt3 tr.rev td.last-cell{box-shadow:inset -2px 0 0 var(--blue)}
+  .opt3 tr.rev-first td.last-cell{box-shadow:inset -2px 0 0 var(--blue), inset 0 2px 0 var(--blue)}
+  .opt3 tr.rev-last td.last-cell{box-shadow:inset -2px 0 0 var(--blue), inset 0 -2px 0 var(--blue)}
+  .opt3 .cornerbtn{
+    position:absolute;right:8px;margin-top:-9px;font-family:var(--sans);font-size:9.5px;font-weight:600;
+    color:var(--blue);background:#15151a;border:1px solid rgba(125,167,217,0.5);border-radius:99px;padding:1px 8px;cursor:pointer;z-index:3;
+  }
+  .opt3 .cornerbtn:hover,.opt3 .cornerbtn:focus-visible{background:#1d2430;outline:2px solid var(--blue);outline-offset:1px}
+  .opt3 .cornerwrap{position:relative}
+  .opt3 .cornerbtn:hover + .callout,.opt3 .cornerbtn:focus-visible + .callout{opacity:1;visibility:visible;transform:none;pointer-events:auto;left:auto;right:0;top:18px}
+
+  /* ===== OPTION 4: hybrid ===== */
+  .opt4 .gut{width:26px;min-width:26px;padding:0;position:relative}
+  .opt4 tr.rev .code{background:linear-gradient(90deg, rgba(125,167,217,0.10), rgba(125,167,217,0.02) 60%)}
+  .opt4 tr.rev .ln{color:rgba(125,167,217,0.5)}
+  .opt4 .railbtn:hover + .callout,.opt4 .railbtn:focus-visible + .callout{opacity:1;visibility:visible;transform:none;pointer-events:auto}
+
+  /* deletion handling (option 4) */
+  .remtag{display:inline-block;font-family:var(--sans);font-size:9.5px;font-weight:600;color:var(--red);border:1px solid rgba(224,108,108,0.5);border-radius:99px;padding:0 6px;margin-left:8px;vertical-align:1px}
+  .case-lbl td{font-family:var(--mono);font-size:10px;color:var(--faint);padding:9px 14px 3px;background:transparent}
+  tr.caret-row td{padding:0;height:0}
+  .caret{position:relative;height:0}
+  .caret .bar{position:absolute;left:9px;right:14px;top:-1px;height:2px;background:repeating-linear-gradient(90deg,var(--blue),var(--blue) 4px,transparent 4px,transparent 8px);opacity:.6}
+  .caret .lbl{position:absolute;left:60px;top:-9px;font-family:var(--mono);font-size:10px;color:var(--faint);background:#0e0e11;padding:0 6px}
+  tr.v2{opacity:.5}
+  .v2tag{font-family:var(--sans);font-size:9px;font-weight:600;color:var(--faint);border:1px solid var(--line2);border-radius:99px;padding:0 6px;margin-left:6px;vertical-align:1px}
+
+  .pc{display:flex;gap:24px;padding:12px 20px 18px;flex-wrap:wrap}
+  .pc div{flex:1;min-width:240px}
+  .pc h4{font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:0 0 6px;font-family:var(--mono)}
+  .pc.pros h4{color:var(--green)} .pc .pros-h{color:var(--green)} .pc .cons-h{color:var(--red)}
+  .pc ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--dim);line-height:1.6}
+  .foot{border-top:1px solid var(--line);padding-top:20px;margin-top:8px;font-size:12.5px;color:var(--dim)}
+  .foot b{color:var(--text)}
+  .a11y{font-family:var(--mono);font-size:10.5px;color:var(--faint);padding:0 20px 14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Revision changes — highlight treatment</h1>
+  <p class="lede">Same hunk, four treatments. The blue marks lines <b>new in this revision</b> (prevHead&rarr;head, shared, mechanical). The challenge: blue must coexist with the existing <span style="color:var(--green)">+add</span>/<span style="color:var(--red)">&minus;del</span> coloring, stay readable, and expose its callout to keyboard + touch (WCAG 2.2 AA), not hover alone.</p>
+  <div class="legend">
+    <span><i class="sw green"></i> added vs PR base</span>
+    <span><i class="sw red"></i> removed vs PR base</span>
+    <span><i class="sw blue"></i> new in THIS revision</span>
+    <span style="color:var(--faint)">line 31 = added in a <i>prior</i> revision (green, not blue) — the case each option must keep distinct</span>
+  </div>
+
+  <!-- OPTION 1 -->
+  <section class="opt opt1">
+    <div class="opt-head"><div class="tag">Option 1 — your original</div><h2>Line fill (blue row background)</h2></div>
+    <div class="toolbar"><label class="switch"><span class="track"></span> Revision changes</label><span class="count">3 lines new this revision</span></div>
+    <div class="opt-body"><div class="run-wrap">
+      <table class="diff"><tbody>
+        <tr class="ctx"><td class="ln">30</td><td class="ln">30</td><td class="code"><span class="sign"> </span>  return (</td></tr>
+        <tr class="add"><td class="ln"></td><td class="ln">31</td><td class="code"><span class="sign">+</span>    &lt;Wrapper&gt;</td></tr>
+        <tr class="add rev"><td class="ln"></td><td class="ln">32</td><td class="code"><span class="sign">+</span>      &lt;div data-state={AccordionStates.Open}&gt;</td></tr>
+        <tr class="add rev"><td class="ln"></td><td class="ln">33</td><td class="code"><span class="sign">+</span>        {label}</td></tr>
+        <tr class="add rev"><td class="ln"></td><td class="ln">34</td><td class="code"><span class="sign">+</span>      &lt;/div&gt;</td></tr>
+        <tr class="del"><td class="ln">31</td><td class="ln"></td><td class="code"><span class="sign">&minus;</span>      &lt;div data-state="open"&gt;</td></tr>
+        <tr class="ctx"><td class="ln">32</td><td class="ln">35</td><td class="code"><span class="sign"> </span>    &lt;/Wrapper&gt;</td></tr>
+      </tbody></table>
+      <div class="callout demo">
+        <div class="ey">Revision 2 · shown on hover</div>
+        <div class="ttl">Type-safe open/close state</div>
+        <div class="sum">Threads typed <code>AccordionState</code> through context; replaces the inline <code>open ? "open" : "closed"</code> ternary.</div>
+        <div class="opp">Summary present only because a shared <code>(prevHead,head)</code> delta core exists — else marks stay, callout says "summary unavailable".</div>
+      </div>
+    </div></div>
+    <div class="a11y">a11y: rows aren't natural focus targets · hover-only callout · color-only signal</div>
+    <div class="pc"><div><h4 class="pros-h">Pros</h4><ul><li>Dead simple, zero new columns</li><li>Whole changed line reads as "new"</li></ul></div>
+      <div><h4 class="cons-h">Cons</h4><ul><li><b>Collides with green/red</b> — blue fill buries the add/del tint; can't tell add from "new" except by the +/&minus; glyph</li><li>Color-only (fails 1.4.1)</li><li>Callout has no keyboard/touch target</li></ul></div></div>
+  </section>
+
+  <!-- OPTION 2 -->
+  <section class="opt opt2">
+    <div class="opt-head"><div class="tag">Option 2 — my proposal</div><h2>Gutter rail (focusable, per run)</h2></div>
+    <div class="toolbar"><label class="switch"><span class="track"></span> Revision changes</label><span class="count">1 run · 3 lines</span></div>
+    <div class="opt-body">
+      <table class="diff"><tbody>
+        <tr class="ctx"><td class="gut"></td><td class="ln">30</td><td class="ln">30</td><td class="code"><span class="sign"> </span>  return (</td></tr>
+        <tr class="add"><td class="gut"></td><td class="ln"></td><td class="ln">31</td><td class="code"><span class="sign">+</span>    &lt;Wrapper&gt;</td></tr>
+        <tr class="add rev"><td class="gut railwrap" rowspan="3">
+            <button class="railbtn" aria-label="New in revision 2: Type-safe open/close state. 3 lines."></button>
+            <div class="callout"><div class="ey">Revision 2 · new this push</div><div class="ttl">Type-safe open/close state</div><div class="sum">Threads typed <code>AccordionState</code> through context; replaces the inline <code>open ? "open" : "closed"</code> ternary.</div><div class="opp">Hover · focus · click — Esc to dismiss.</div></div>
+          </td><td class="ln"></td><td class="ln">32</td><td class="code"><span class="sign">+</span>      &lt;div data-state={AccordionStates.Open}&gt;<span class="newtag">new</span></td></tr>
+        <tr class="add rev"><td class="ln"></td><td class="ln">33</td><td class="code"><span class="sign">+</span>        {label}</td></tr>
+        <tr class="add rev"><td class="ln"></td><td class="ln">34</td><td class="code"><span class="sign">+</span>      &lt;/div&gt;</td></tr>
+        <tr class="del"><td class="gut"></td><td class="ln">31</td><td class="ln"></td><td class="code"><span class="sign">&minus;</span>      &lt;div data-state="open"&gt;</td></tr>
+        <tr class="ctx"><td class="gut"></td><td class="ln">32</td><td class="ln">35</td><td class="code"><span class="sign"> </span>    &lt;/Wrapper&gt;</td></tr>
+      </tbody></table>
+    </div>
+    <div class="a11y">a11y: rail = one &lt;button&gt; per run · callout on hover + focus + click · "new" tag = non-color cue · Tab visits runs, not lines</div>
+    <div class="pc"><div><h4 class="pros-h">Pros</h4><ul><li><b>No collision</b> — add/del color untouched; blue is a separate channel</li><li>One focus target per run (not per line)</li><li>Keyboard + touch reach the callout</li></ul></div>
+      <div><h4 class="cons-h">Cons</h4><ul><li>Adds a gutter column</li><li>A thin rail is a smaller "new" signal than a full fill</li></ul></div></div>
+  </section>
+
+  <!-- OPTION 3 -->
+  <section class="opt opt3">
+    <div class="opt-head"><div class="tag">Option 3 — your new idea</div><h2>Surrounding outline (box around the run)</h2></div>
+    <div class="toolbar"><label class="switch"><span class="track"></span> Revision changes</label><span class="count">1 run · 3 lines</span></div>
+    <div class="opt-body"><div class="cornerwrap">
+      <table class="diff"><tbody>
+        <tr class="ctx"><td class="ln first-cell">30</td><td class="ln">30</td><td class="code last-cell"><span class="sign"> </span>  return (</td></tr>
+        <tr class="add"><td class="ln first-cell"></td><td class="ln">31</td><td class="code last-cell"><span class="sign">+</span>    &lt;Wrapper&gt;</td></tr>
+        <tr class="add rev rev-first"><td class="ln first-cell"></td><td class="ln">32</td><td class="code last-cell"><span class="sign">+</span>      &lt;div data-state={AccordionStates.Open}&gt;</td></tr>
+        <tr class="add rev"><td class="ln first-cell"></td><td class="ln">33</td><td class="code last-cell"><span class="sign">+</span>        {label}</td></tr>
+        <tr class="add rev rev-last"><td class="ln first-cell"></td><td class="ln">34</td><td class="code last-cell"><span class="sign">+</span>      &lt;/div&gt;</td></tr>
+        <tr class="del"><td class="ln first-cell">31</td><td class="ln"></td><td class="code last-cell"><span class="sign">&minus;</span>      &lt;div data-state="open"&gt;</td></tr>
+        <tr class="ctx"><td class="ln first-cell">32</td><td class="ln">35</td><td class="code last-cell"><span class="sign"> </span>    &lt;/Wrapper&gt;</td></tr>
+      </tbody></table>
+      <button class="cornerbtn" aria-label="New in revision 2: Type-safe open/close state. 3 lines.">new · rev 2</button>
+      <div class="callout"><div class="ey">Revision 2 · new this push</div><div class="ttl">Type-safe open/close state</div><div class="sum">Threads typed <code>AccordionState</code> through context; replaces the inline <code>open ? "open" : "closed"</code> ternary.</div><div class="opp">Hover · focus · click — Esc to dismiss.</div></div>
+    </div></div>
+    <div class="a11y">a11y: corner pill = &lt;button&gt; labelling the whole run · callout on hover + focus + click · outline + pill text = non-color cue</div>
+    <div class="pc"><div><h4 class="pros-h">Pros</h4><ul><li><b>Groups the run visually</b> — clear "these N lines belong together," strongest scent of a unit</li><li>No row-background collision</li><li>Corner pill is an obvious labelled target</li></ul></div>
+      <div><h4 class="cons-h">Cons</h4><ul><li>Boxes inside a table are fiddly (borders break across virtualized/wrapped rows)</li><li>Nested runs / a run split by a deletion get visually awkward</li><li>More visual weight per run on a busy diff</li></ul></div></div>
+  </section>
+
+  <!-- OPTION 4 -->
+  <section class="opt opt4">
+    <div class="opt-head"><div class="tag">Option 4 — hybrid</div><h2>Rail + soft edge tint + jump-nav <span class="rec">recommended</span></h2></div>
+    <div class="toolbar"><label class="switch"><span class="track"></span> Revision changes</label><span class="count">7 runs this revision</span>
+      <span class="jump"><button>&#9656; prev change</button><button>next change &#9656;</button></span></div>
+    <div class="opt-body">
+      <table class="diff"><tbody>
+        <tr class="ctx"><td class="gut"></td><td class="ln">30</td><td class="ln">30</td><td class="code"><span class="sign"> </span>  return (</td></tr>
+        <tr class="add"><td class="gut"></td><td class="ln"></td><td class="ln">31</td><td class="code"><span class="sign">+</span>    &lt;Wrapper&gt;</td></tr>
+        <tr class="add rev"><td class="gut railwrap" rowspan="3">
+            <button class="railbtn" aria-label="New in revision 2: Type-safe open/close state. 3 lines."></button>
+            <div class="callout"><div class="ey">Revision 2 · new this push</div><div class="ttl">Type-safe open/close state</div><div class="sum">Threads typed <code>AccordionState</code> through context; replaces the inline <code>open ? "open" : "closed"</code> ternary.</div><div class="opp">Hover · focus · click — Esc to dismiss.</div></div>
+          </td><td class="ln"></td><td class="ln">32</td><td class="code"><span class="sign">+</span>      &lt;div data-state={AccordionStates.Open}&gt;<span class="newtag">new</span></td></tr>
+        <tr class="add rev"><td class="ln"></td><td class="ln">33</td><td class="code"><span class="sign">+</span>        {label}</td></tr>
+        <tr class="add rev"><td class="ln"></td><td class="ln">34</td><td class="code"><span class="sign">+</span>      &lt;/div&gt;</td></tr>
+        <tr class="del"><td class="gut"></td><td class="ln">31</td><td class="ln"></td><td class="code"><span class="sign">&minus;</span>      &lt;div data-state="open"&gt;</td></tr>
+        <tr class="ctx"><td class="gut"></td><td class="ln">32</td><td class="ln">35</td><td class="code"><span class="sign"> </span>    &lt;/Wrapper&gt;</td></tr>
+      </tbody></table>
+    </div>
+    <div class="a11y">a11y: rail &lt;button&gt; + "new" tag + soft left-edge tint (3 cues) · callout hover/focus/click · jump-nav scrubs runs without scrolling</div>
+    <div class="pc"><div><h4 class="pros-h">Pros</h4><ul><li>Rail's no-collision channel <b>plus</b> a faint edge tint so the line itself reads as "new" (your fill instinct, without burying green/red)</li><li>Jump-nav is the real win on a 95%-rename PR — hop the 3 real spots, no hunting</li><li>3 redundant cues (rail, tag, tint) = robust + accessible</li></ul></div>
+      <div><h4 class="cons-h">Cons</h4><ul><li>Most moving parts to build</li><li>Edge tint must stay subtle or it re-introduces mild collision</li></ul></div></div>
+  </section>
+
+  <!-- OPTION 4 — DELETIONS -->
+  <section class="opt opt4">
+    <div class="opt-head"><div class="tag">Option 4 — deletion handling</div><h2>How the rail behaves on removed lines</h2></div>
+    <div class="opt-body">
+      <table class="diff"><tbody>
+        <tr class="case-lbl"><td colspan="4">case A — modification (del + add): signal lands on the ADD side; the red old line stays clean</td></tr>
+        <tr class="ctx"><td class="gut"></td><td class="ln">41</td><td class="ln">41</td><td class="code"><span class="sign"> </span>  const label = props.label;</td></tr>
+        <tr class="del"><td class="gut"></td><td class="ln">42</td><td class="ln"></td><td class="code"><span class="sign">&minus;</span>  const open = props.open ?? false;</td></tr>
+        <tr class="add rev"><td class="gut railwrap">
+            <button class="railbtn" aria-label="New in revision 2: typed open state. 1 line."></button>
+            <div class="callout"><div class="ey">Revision 2 · new this push</div><div class="ttl">Type-safe open/close state</div><div class="sum">Replaces the boolean with the typed <code>AccordionState</code>.</div></div>
+          </td><td class="ln"></td><td class="ln">42</td><td class="code"><span class="sign">+</span>  const open = props.isOpen ?? AccordionStates.Closed;<span class="newtag">new</span></td></tr>
+        <tr class="ctx"><td class="gut"></td><td class="ln">43</td><td class="ln">43</td><td class="code"><span class="sign"> </span>  return label;</td></tr>
+
+        <tr class="case-lbl"><td colspan="4">case B — standalone deletion this revision (line was present at PR base): rail on the RED row, "removed" tag, no tint</td></tr>
+        <tr class="ctx"><td class="gut"></td><td class="ln">44</td><td class="ln">44</td><td class="code"><span class="sign"> </span>  useEffect(() =&gt; {</td></tr>
+        <tr class="del rev"><td class="gut railwrap">
+            <button class="railbtn del" aria-label="Removed in revision 2: stray debug log. 1 line."></button>
+            <div class="callout"><div class="ey">Revision 2 · removed this push</div><div class="ttl">Drop stray debug log</div><div class="sum">Removes the <code>console.log</code> left in from the previous round.</div><div class="opp">Joined on the old side (no head line) — rail only, no tint/tag.</div></div>
+          </td><td class="ln">45</td><td class="ln"></td><td class="code"><span class="sign">&minus;</span>    console.log("debug", state);<span class="remtag">removed</span></td></tr>
+        <tr class="ctx"><td class="gut"></td><td class="ln">46</td><td class="ln">45</td><td class="code"><span class="sign"> </span>  }, [state]);</td></tr>
+
+        <tr class="case-lbl"><td colspan="4">case C — added-then-removed within the PR (no row at head): between-lines caret <span class="v2tag">v2</span></td></tr>
+        <tr class="ctx v2"><td class="gut"></td><td class="ln">47</td><td class="ln">46</td><td class="code"><span class="sign"> </span>  const el = render();</td></tr>
+        <tr class="caret-row v2"><td></td><td colspan="3"><div class="caret"><div class="bar"></div><span class="lbl">1 line removed this revision · v2</span></div></td></tr>
+        <tr class="ctx v2"><td class="gut"></td><td class="ln">48</td><td class="ln">47</td><td class="code"><span class="sign"> </span>  return el;</td></tr>
+      </tbody></table>
+    </div>
+    <div class="a11y">a11y: rail (blue) is the revision-change channel on red rows too · "removed" tag = non-color cue · callout says "removed this push"</div>
+    <div class="pc"><div><h4 class="pros-h">What v1 covers</h4><ul><li><b>A</b> — modifications: free, signal on the green side, red stays clean</li><li><b>B</b> — base-present deletions: rail on the red row + "removed" tag + callout</li></ul></div>
+      <div><h4 class="cons-h">Deferred to v2</h4><ul><li><b>C</b> — added-then-removed: no row exists at head, needs the between-lines caret; rare, and the cheap head-line join can't reach it</li></ul></div></div>
+  </section>
+
+  <div class="foot">
+    <p><b>Deletions</b> (the red line above) have no head line number, so none of these can "highlight" a deleted line the same way — a run that's purely a removal-since-checkpoint needs a between-lines marker (a thin blue caret in the gutter). That's a still-open sub-question, independent of which option you pick.</p>
+    <p><b>The callout body</b> is shown filled here only because a shared <code>(prevHead,head)</code> delta core happened to exist (option b, opportunistic). When it doesn't, every option keeps its marks and the callout reads "new this revision — summary unavailable for this span." The <i>marks</i> never depend on generation.</p>
+  </div>
+</div>
+</body>
+</html>
