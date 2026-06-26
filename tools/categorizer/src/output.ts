@@ -38,6 +38,11 @@ export function commentsName(brief: Brief): string {
   return `${briefStem(brief)}.comments.json`;
 }
 
+/** Sidecar filename for revision changes: `<stem>_<index>_<head8>.revchanges.json` (ADR 0021). */
+export function revChangesName(brief: Brief): string {
+  return `${briefStem(brief)}.revchanges.json`;
+}
+
 /** Render a brief into the lines printed to stdout for human eyeballing. */
 export function summaryLines(brief: Brief): string[] {
   const lines: string[] = [];

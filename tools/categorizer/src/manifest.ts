@@ -41,6 +41,23 @@ export async function lookupBriefIndex(
 }
 
 /**
+ * Reverse lookup: the head SHA assigned to a given brief index, or `null` if no
+ * brief holds that index. Used to find a brief's *previous* head (index − 1) for
+ * the revision-changes sidecar (ADR 0021).
+ */
+export async function lookupBriefShaByIndex(
+  outDir: string,
+  stem: string,
+  index: number,
+): Promise<string | null> {
+  const manifest = await load(manifestPath(outDir, stem));
+  for (const [sha, i] of Object.entries(manifest)) {
+    if (i === index) return sha;
+  }
+  return null;
+}
+
+/**
  * Assign (or look up) the PR-global brief index for a head SHA, persisting the
  * manifest. A known SHA returns its existing index (idempotent re-run); a new
  * SHA takes max+1. `stem` is `<owner>-<repo>-<number>`.
