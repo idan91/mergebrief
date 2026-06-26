@@ -3,8 +3,8 @@ import "@tanstack/react-start/server-only";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import type { AddressedReviewComment, Brief, BriefChunk, DiffLine, LineRange, LocalBriefSummary } from "./types";
-import { parseAddressedReviewComments, parseBrief, parseDeltaBrief } from "./validation";
+import type { AddressedReviewComment, Brief, BriefChunk, DiffLine, LineRange, LocalBriefSummary, RevisionChanges } from "./types";
+import { parseAddressedReviewComments, parseBrief, parseDeltaBrief, parseRevisionChanges } from "./validation";
 
 interface FileDiffSidecar {
   file: string;
@@ -57,6 +57,34 @@ export async function readLocalBrief(briefId: string): Promise<Brief> {
   const brief = await readBriefFile(briefId);
   const withComments = await attachReviewComments(brief, briefId);
   return attachChunkDiffs(withComments, briefId);
+}
+
+/**
+ * Read the revision-changes sidecar (ADR 0021) for a brief, or `null` when it is
+ * absent (first brief) — never an error: the overlay must never block the brief.
+ * A malformed sidecar fails closed (logged, treated as absent), so a generation
+ * glitch degrades the overlay rather than the whole review.
+ */
+export async function readRevisionChanges(briefId: string): Promise<RevisionChanges | null> {
+  assertValidBriefId(briefId);
+  let raw: string;
+  try {
+    raw = await readFile(resolve(OUT_DIR, `${briefId}.revchanges.json`), "utf8");
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    const parsed = parseRevisionChanges(JSON.parse(raw));
+    if (!parsed.ok) {
+      console.warn(`Ignoring invalid revision-changes sidecar for ${briefId}: ${parsed.error}`);
+      return null;
+    }
+    return parsed.value;
+  } catch (error) {
+    console.warn(`Ignoring unreadable revision-changes sidecar for ${briefId}: ${String(error)}`);
+    return null;
+  }
 }
 
 async function readBriefFile(briefId: string): Promise<Brief> {

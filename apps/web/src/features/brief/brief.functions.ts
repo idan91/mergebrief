@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { listLocalBriefs, readLocalBrief } from "./brief.server";
+import { listLocalBriefs, readLocalBrief, readRevisionChanges } from "./brief.server";
 import { generateBriefFromUrl } from "./generate.server";
 
 interface LocalBriefRequest {
@@ -42,6 +42,10 @@ export const getLocalBrief = createServerFn({ method: "GET" })
 export const getLocalBriefs = createServerFn({ method: "GET" }).handler(
   async () => listLocalBriefs(),
 );
+
+export const getLocalRevisionChanges = createServerFn({ method: "GET" })
+  .validator(parseLocalBriefRequest)
+  .handler(async ({ data }) => readRevisionChanges(data.briefId));
 
 export const generateBrief = createServerFn({ method: "POST" })
   .validator(parseGenerateBriefRequest)

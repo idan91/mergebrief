@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { localBriefQueryOptions, localBriefsQueryOptions } from "../features/brief/queries";
+import { localBriefQueryOptions, localBriefsQueryOptions, localRevisionChangesQueryOptions } from "../features/brief/queries";
 import { reviewCommentMatchesDiffLine, reviewCommentsForChunk } from "../features/brief/reviewComments";
 import type { AddressedReviewComment, Brief, BriefChunk, Category, Concern, LocalBriefSummary } from "../features/brief/types";
 import { buildBriefTimeline, type BriefTimeline } from "../features/brief/timeline";
@@ -53,7 +53,12 @@ interface EvidenceTarget {
 }
 
 export const Route = createFileRoute("/briefs/$briefId")({
-  loader: ({ context, params }) => Promise.all([context.queryClient.ensureQueryData(localBriefQueryOptions(params.briefId)), context.queryClient.ensureQueryData(localBriefsQueryOptions())]),
+  loader: ({ context, params }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(localBriefQueryOptions(params.briefId)),
+      context.queryClient.ensureQueryData(localBriefsQueryOptions()),
+      context.queryClient.ensureQueryData(localRevisionChangesQueryOptions(params.briefId)),
+    ]),
   component: BriefRoute,
   errorComponent: BriefError,
 });

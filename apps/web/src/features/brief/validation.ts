@@ -15,6 +15,8 @@ import {
   type LineRange,
   type PrRef,
   type AddressedReviewComment,
+  type RevisionChangeFile,
+  type RevisionChanges,
   type RiskSurfaceAttribute,
   type Role,
   type ValueOf,
@@ -190,6 +192,30 @@ function parseLineRange(value: unknown): Result<LineRange> {
     return { ok: false, error: "Expected line range start/end integers" };
   }
   return { ok: true, value: { start, end } };
+}
+
+function parseRevisionChangeFile(value: unknown): Result<RevisionChangeFile> {
+  if (!isRecord(value)) return { ok: false, error: "Expected revision-change file to be an object" };
+  const file = value["file"];
+  if (!isString(file)) return { ok: false, error: "Expected revision-change file path" };
+  const addedRanges = parseArray(value["addedRanges"], parseLineRange, "addedRanges");
+  if (!addedRanges.ok) return addedRanges;
+  const removedRanges = parseArray(value["removedRanges"], parseLineRange, "removedRanges");
+  if (!removedRanges.ok) return removedRanges;
+  return { ok: true, value: { file, addedRanges: addedRanges.value, removedRanges: removedRanges.value } };
+}
+
+export function parseRevisionChanges(value: unknown): Result<RevisionChanges> {
+  if (!isRecord(value)) return { ok: false, error: "Expected revision changes to be an object" };
+  const headSha = value["headSha"];
+  const prevHeadSha = value["prevHeadSha"];
+  const prevIndex = value["prevIndex"];
+  if (!isString(headSha) || !isString(prevHeadSha) || !isInteger(prevIndex)) {
+    return { ok: false, error: "Expected revision changes headSha, prevHeadSha, and prevIndex" };
+  }
+  const files = parseArray(value["files"], parseRevisionChangeFile, "files");
+  if (!files.ok) return files;
+  return { ok: true, value: { headSha, prevHeadSha, prevIndex, files: files.value } };
 }
 
 function parseChunk(value: unknown): Result<ParsedChunk> {
