@@ -1,7 +1,7 @@
 /**
  * Feature-specific revision-change navigation. DOM-driven on purpose — the rail
- * positions live in the rendered diff (`main .diff .railbtn`), so this is the
- * single place coupled to that markup. Steps focus to the next/prev rendered
+ * positions live in the rendered diff (`main .diff .railbtn-focus`), so this is
+ * the single place coupled to that markup. Steps focus to the next/prev rendered
  * revision rail relative to the reading line, wrapping at the ends.
  */
 export interface RevisionNavigation {
@@ -11,7 +11,9 @@ export interface RevisionNavigation {
 
 function jumpToRevisionChange(direction: 1 | -1): void {
   const rails = [
-    ...document.querySelectorAll<HTMLButtonElement>("main .diff .railbtn"),
+    ...document.querySelectorAll<HTMLButtonElement>(
+      "main .diff .railbtn-focus",
+    ),
   ];
   if (rails.length === 0) return;
   const readingLine = window.scrollY + 160;

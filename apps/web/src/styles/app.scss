@@ -686,7 +686,9 @@ header {
 
   .group-card {
     position: sticky;
-    top: 74px;
+    // Clear the sticky header (min-height 116px) plus a small gap so the card
+    // top is never tucked underneath it.
+    top: 132px;
     order: initial;
     grid-column: 2;
   }
