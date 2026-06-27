@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import calloutStyles from "./revisionCallout.module.scss";
+
 import {
   localBriefQueryOptions,
   localBriefsQueryOptions,
@@ -1956,22 +1958,28 @@ function RevisionGutterCell({
           pos &&
           createPortal(
             <span
-              className="callout"
+              className={calloutStyles["callout"]}
               role="tooltip"
               style={{ position: "fixed", top: pos.top, left: pos.left }}
             >
-              <span className="ey">{verb} this revision</span>
+              <span className={calloutStyles["ey"]}>{verb} this revision</span>
               {callout.available ? (
                 <>
                   {callout.groupTitle ? (
-                    <span className="ttl">{callout.groupTitle}</span>
+                    <span className={calloutStyles["ttl"]}>
+                      {callout.groupTitle}
+                    </span>
                   ) : null}
                   {callout.summary ? (
-                    <span className="sum">{callout.summary}</span>
+                    <span className={calloutStyles["sum"]}>
+                      {callout.summary}
+                    </span>
                   ) : null}
                 </>
               ) : (
-                <span className="sum unavailable">
+                <span
+                  className={`${calloutStyles["sum"]} ${calloutStyles["unavailable"]}`}
+                >
                   Summary unavailable for this span.
                 </span>
               )}

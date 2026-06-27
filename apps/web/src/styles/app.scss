@@ -1667,46 +1667,6 @@ table.diff {
   }
 }
 
-.callout {
-  z-index: 1000;
-  width: 320px;
-  padding: 12px 14px;
-  border: 1px solid var(--line2);
-  border-radius: 10px;
-  background: #15151a;
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
-  white-space: normal;
-  font-family: var(--sans);
-
-  .ey {
-    display: block;
-    margin-bottom: 5px;
-    color: var(--blue);
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.07em;
-    text-transform: uppercase;
-  }
-
-  .ttl {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 13.5px;
-    font-weight: 600;
-  }
-
-  .sum {
-    display: block;
-    color: var(--dim);
-    font-size: 12.5px;
-    line-height: 1.5;
-
-    &.unavailable {
-      font-style: italic;
-    }
-  }
-}
-
 .comment-composer,
 .comment-thread {
   overflow: hidden;
