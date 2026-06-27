@@ -1,12 +1,15 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import calloutStyles from "./revisionCallout.module.scss";
-
+import {
+  Callout,
+  CalloutBody,
+  CalloutEyebrow,
+  CalloutTitle,
+} from "../components/Callout";
 import {
   localBriefQueryOptions,
   localBriefsQueryOptions,
@@ -1915,46 +1918,44 @@ function DiffTable({
           })}
         </tbody>
       </table>
-      {railHover &&
-        (() => {
-          const callout = bindCallout(railHover.run, chunk, revisionDelta);
-          const verb = railHover.run.kind === "removed" ? "Removed" : "New";
-          return createPortal(
-            <span
-              className={calloutStyles["callout"]}
-              role="tooltip"
-              style={{
-                position: "fixed",
-                top: railHover.pos.top,
-                left: railHover.pos.left,
-              }}
-            >
-              <span className={calloutStyles["ey"]}>{verb} this revision</span>
-              {callout.available ? (
-                <>
-                  {callout.groupTitle ? (
-                    <span className={calloutStyles["ttl"]}>
-                      {callout.groupTitle}
-                    </span>
-                  ) : null}
-                  {callout.summary ? (
-                    <span className={calloutStyles["sum"]}>
-                      {callout.summary}
-                    </span>
-                  ) : null}
-                </>
-              ) : (
-                <span
-                  className={`${calloutStyles["sum"]} ${calloutStyles["unavailable"]}`}
-                >
-                  Summary unavailable for this span.
-                </span>
-              )}
-            </span>,
-            document.body,
-          );
-        })()}
+      {railHover && (
+        <RevisionRunCallout
+          hover={railHover}
+          chunk={chunk}
+          delta={revisionDelta}
+        />
+      )}
     </>
+  );
+}
+
+function RevisionRunCallout({
+  hover,
+  chunk,
+  delta,
+}: {
+  hover: { run: RevisionRun; pos: { top: number; left: number } };
+  chunk: BriefChunk;
+  delta: Brief | null;
+}) {
+  const callout = bindCallout(hover.run, chunk, delta);
+  const verb = hover.run.kind === "removed" ? "Removed" : "New";
+  return (
+    <Callout pos={hover.pos}>
+      <CalloutEyebrow>{verb} this revision</CalloutEyebrow>
+      {callout.available ? (
+        <>
+          {callout.groupTitle && (
+            <CalloutTitle>{callout.groupTitle}</CalloutTitle>
+          )}
+          {callout.summary && <CalloutBody>{callout.summary}</CalloutBody>}
+        </>
+      ) : (
+        <CalloutBody unavailable>
+          Summary unavailable for this span.
+        </CalloutBody>
+      )}
+    </Callout>
   );
 }
 
