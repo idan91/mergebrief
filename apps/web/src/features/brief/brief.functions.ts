@@ -1,6 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { listLocalBriefs, readLocalBrief, readRevisionChanges } from "./brief.server";
+import {
+  listLocalBriefs,
+  readLocalBrief,
+  readRevisionChanges,
+} from "./brief.server";
 import { generateBriefFromUrl } from "./generate.server";
 
 interface LocalBriefRequest {

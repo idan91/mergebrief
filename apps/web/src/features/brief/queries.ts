@@ -1,6 +1,10 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getLocalBrief, getLocalBriefs, getLocalRevisionChanges } from "./brief.functions";
+import {
+  getLocalBrief,
+  getLocalBriefs,
+  getLocalRevisionChanges,
+} from "./brief.functions";
 
 export function localBriefQueryOptions(briefId: string) {
   return queryOptions({

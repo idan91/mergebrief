@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { bindCallout, buildChunkRevisionView, groupRevisionRuns, markRevisionRows } from "./revisionChanges";
+import {
+  bindCallout,
+  buildChunkRevisionView,
+  groupRevisionRuns,
+  markRevisionRows,
+} from "./revisionChanges";
 import type { Brief, BriefChunk, DiffLine, RevisionChanges } from "./types";
 
 function chunk(file: string, diff: DiffLine[]): BriefChunk {
@@ -33,7 +38,13 @@ const rc: RevisionChanges = {
   headSha: "head",
   prevHeadSha: "prev",
   prevIndex: 1,
-  files: [{ file: "src/a.ts", addedRanges: [{ start: 11, end: 12 }], removedRanges: [{ start: 12, end: 12 }] }],
+  files: [
+    {
+      file: "src/a.ts",
+      addedRanges: [{ start: 11, end: 12 }],
+      removedRanges: [{ start: 12, end: 12 }],
+    },
+  ],
 };
 
 describe("markRevisionRows", () => {
@@ -47,13 +58,17 @@ describe("markRevisionRows", () => {
   });
 
   it("marks a context row whose head line changed this revision", () => {
-    const ctxChunk = chunk("src/a.ts", [{ kind: "ctx", content: "x", oldLine: 11, newLine: 11 }]);
+    const ctxChunk = chunk("src/a.ts", [
+      { kind: "ctx", content: "x", oldLine: 11, newLine: 11 },
+    ]);
     expect(markRevisionRows(ctxChunk, rc).get(0)).toBe("added");
   });
 
   it("returns no marks when the sidecar is absent or the file is untouched", () => {
     expect(markRevisionRows(scenario, null).size).toBe(0);
-    expect(markRevisionRows(chunk("src/other.ts", scenario.diff ?? []), rc).size).toBe(0);
+    expect(
+      markRevisionRows(chunk("src/other.ts", scenario.diff ?? []), rc).size,
+    ).toBe(0);
   });
 });
 
@@ -74,7 +89,13 @@ describe("groupRevisionRuns", () => {
       headSha: "head",
       prevHeadSha: "prev",
       prevIndex: 1,
-      files: [{ file: "src/a.ts", addedRanges: [{ start: 20, end: 20 }], removedRanges: [{ start: 20, end: 20 }] }],
+      files: [
+        {
+          file: "src/a.ts",
+          addedRanges: [{ start: 20, end: 20 }],
+          removedRanges: [{ start: 20, end: 20 }],
+        },
+      ],
     };
     const runs = groupRevisionRuns(mod, markRevisionRows(mod, modRc));
     expect(runs).toHaveLength(1);
@@ -94,13 +115,39 @@ describe("buildChunkRevisionView", () => {
 describe("bindCallout", () => {
   const delta: Brief = {
     artifactKind: "delta",
-    pr: { repo: "o/r", number: 1, title: "t", url: "u", sha: "head", description: "" },
+    pr: {
+      repo: "o/r",
+      number: 1,
+      title: "t",
+      url: "u",
+      sha: "head",
+      description: "",
+    },
     summary: "s",
     changeGroups: [
-      { id: "g1", title: "Typed state", summary: "group summary", dominantCategory: "logic-refactor", secondaryCategories: [], uncertain: false, uncertainBetween: [] },
+      {
+        id: "g1",
+        title: "Typed state",
+        summary: "group summary",
+        dominantCategory: "logic-refactor",
+        secondaryCategories: [],
+        uncertain: false,
+        uncertainBetween: [],
+      },
     ],
     chunks: [
-      { id: "d1", changeGroupId: "g1", file: "src/a.ts", concern: "implementation", role: "carrier", loc: { added: 2, deleted: 0 }, addedRanges: [{ start: 11, end: 12 }], removedRanges: [], riskSurface: [], summary: "chunk summary" },
+      {
+        id: "d1",
+        changeGroupId: "g1",
+        file: "src/a.ts",
+        concern: "implementation",
+        role: "carrier",
+        loc: { added: 2, deleted: 0 },
+        addedRanges: [{ start: 11, end: 12 }],
+        removedRanges: [],
+        riskSurface: [],
+        summary: "chunk summary",
+      },
     ],
     concernView: [],
   };
@@ -108,7 +155,11 @@ describe("bindCallout", () => {
   it("resolves the delta change-group for an added run when a delta is loaded", () => {
     const run = groupRevisionRuns(scenario, markRevisionRows(scenario, rc))[0];
     if (!run) throw new Error("expected a run");
-    expect(bindCallout(run, scenario, delta)).toEqual({ available: true, groupTitle: "Typed state", summary: "chunk summary" });
+    expect(bindCallout(run, scenario, delta)).toEqual({
+      available: true,
+      groupTitle: "Typed state",
+      summary: "chunk summary",
+    });
   });
 
   it("is unavailable with no delta or no matching delta chunk", () => {
@@ -116,6 +167,12 @@ describe("bindCallout", () => {
     if (!run) throw new Error("expected a run");
     expect(bindCallout(run, scenario, null)).toEqual({ available: false });
     const otherFileRun = { ...run, file: "src/missing.ts" };
-    expect(bindCallout(otherFileRun, chunk("src/missing.ts", scenario.diff ?? []), delta)).toEqual({ available: false });
+    expect(
+      bindCallout(
+        otherFileRun,
+        chunk("src/missing.ts", scenario.diff ?? []),
+        delta,
+      ),
+    ).toEqual({ available: false });
   });
 });

@@ -1,4 +1,10 @@
-import type { Brief, BriefChunk, DiffLine, LineRange, RevisionChanges } from "./types";
+import type {
+  Brief,
+  BriefChunk,
+  DiffLine,
+  LineRange,
+  RevisionChanges,
+} from "./types";
 
 /**
  * The full-brief revision-changes overlay (ADR 0021): join the shared,
@@ -38,7 +44,10 @@ export interface RevisionCallout {
 }
 
 function lineInRanges(line: number | undefined, ranges: LineRange[]): boolean {
-  return typeof line === "number" && ranges.some((range) => line >= range.start && line <= range.end);
+  return (
+    typeof line === "number" &&
+    ranges.some((range) => line >= range.start && line <= range.end)
+  );
 }
 
 /**
@@ -47,15 +56,24 @@ function lineInRanges(line: number | undefined, ranges: LineRange[]): boolean {
  * (`oldLine` ∈ removedRanges). Returns an empty map when there is no sidecar or
  * the file is untouched this revision (first brief, etc.).
  */
-export function markRevisionRows(chunk: BriefChunk, rc: RevisionChanges | null): Map<number, RevisionRowKind> {
+export function markRevisionRows(
+  chunk: BriefChunk,
+  rc: RevisionChanges | null,
+): Map<number, RevisionRowKind> {
   const marks = new Map<number, RevisionRowKind>();
   if (!rc || !chunk.diff) return marks;
   const file = rc.files.find((entry) => entry.file === chunk.file);
   if (!file) return marks;
   chunk.diff.forEach((row, index) => {
-    if ((row.kind === "add" || row.kind === "ctx") && lineInRanges(row.newLine, file.addedRanges)) {
+    if (
+      (row.kind === "add" || row.kind === "ctx") &&
+      lineInRanges(row.newLine, file.addedRanges)
+    ) {
       marks.set(index, "added");
-    } else if (row.kind === "del" && lineInRanges(row.oldLine, file.removedRanges)) {
+    } else if (
+      row.kind === "del" &&
+      lineInRanges(row.oldLine, file.removedRanges)
+    ) {
       marks.set(index, "removed");
     }
   });
@@ -68,10 +86,14 @@ export function markRevisionRows(chunk: BriefChunk, rc: RevisionChanges | null):
  * pair — the new side carries it); a run of only removed rows is a standalone
  * deletion ("removed", case B).
  */
-export function groupRevisionRuns(chunk: BriefChunk, marks: Map<number, RevisionRowKind>): RevisionRun[] {
+export function groupRevisionRuns(
+  chunk: BriefChunk,
+  marks: Map<number, RevisionRowKind>,
+): RevisionRun[] {
   if (!chunk.diff || marks.size === 0) return [];
   const runs: RevisionRun[] = [];
-  let current: { rowIndexes: number[]; hasAdded: boolean; end: number } | null = null;
+  let current: { rowIndexes: number[]; hasAdded: boolean; end: number } | null =
+    null;
   for (let index = 0; index < chunk.diff.length; index += 1) {
     const kind = marks.get(index);
     if (kind === undefined) {
@@ -84,7 +106,12 @@ export function groupRevisionRuns(chunk: BriefChunk, marks: Map<number, Revision
       current.hasAdded ||= kind === "added";
     } else {
       current = { rowIndexes: [index], hasAdded: kind === "added", end: index };
-      runs.push({ chunkId: chunk.id, file: chunk.file, rowIndexes: current.rowIndexes, kind: kind });
+      runs.push({
+        chunkId: chunk.id,
+        file: chunk.file,
+        rowIndexes: current.rowIndexes,
+        kind: kind,
+      });
     }
     const run = runs.at(-1);
     if (run) run.kind = current.hasAdded ? "added" : "removed";
@@ -92,7 +119,10 @@ export function groupRevisionRuns(chunk: BriefChunk, marks: Map<number, Revision
   return runs;
 }
 
-export function buildChunkRevisionView(chunk: BriefChunk, rc: RevisionChanges | null): ChunkRevisionView {
+export function buildChunkRevisionView(
+  chunk: BriefChunk,
+  rc: RevisionChanges | null,
+): ChunkRevisionView {
   const marks = markRevisionRows(chunk, rc);
   const runs = groupRevisionRuns(chunk, marks);
   const runByRow = new Map<number, RevisionRun>();
@@ -108,13 +138,21 @@ export function buildChunkRevisionView(chunk: BriefChunk, rc: RevisionChanges | 
  * head line; removed runs on old line. Absent delta or no match → unavailable,
  * and the rail still renders (marks never depend on this).
  */
-export function bindCallout(run: RevisionRun, chunk: BriefChunk, delta: Brief | null): RevisionCallout {
+export function bindCallout(
+  run: RevisionRun,
+  chunk: BriefChunk,
+  delta: Brief | null,
+): RevisionCallout {
   if (!delta || !chunk.diff) return { available: false };
   const rows = run.rowIndexes
     .map((index) => chunk.diff?.[index])
     .filter((row): row is DiffLine => row !== undefined);
-  const headLines = rows.map((row) => row.newLine).filter((line): line is number => typeof line === "number");
-  const oldLines = rows.map((row) => row.oldLine).filter((line): line is number => typeof line === "number");
+  const headLines = rows
+    .map((row) => row.newLine)
+    .filter((line): line is number => typeof line === "number");
+  const oldLines = rows
+    .map((row) => row.oldLine)
+    .filter((line): line is number => typeof line === "number");
   const deltaChunk = delta.chunks.find(
     (candidate) =>
       candidate.file === run.file &&
@@ -122,7 +160,13 @@ export function bindCallout(run: RevisionRun, chunk: BriefChunk, delta: Brief | 
         oldLines.some((line) => lineInRanges(line, candidate.removedRanges))),
   );
   if (!deltaChunk) return { available: false };
-  const group = delta.changeGroups.find((candidate) => candidate.id === deltaChunk.changeGroupId);
+  const group = delta.changeGroups.find(
+    (candidate) => candidate.id === deltaChunk.changeGroupId,
+  );
   if (!group) return { available: false };
-  return { available: true, groupTitle: group.title, summary: deltaChunk.summary ?? group.summary };
+  return {
+    available: true,
+    groupTitle: group.title,
+    summary: deltaChunk.summary ?? group.summary,
+  };
 }

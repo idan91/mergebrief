@@ -1608,7 +1608,11 @@ table.diff {
   }
 
   tr.rev-added .code {
-    background: linear-gradient(90deg, rgba(125, 167, 217, 0.1), rgba(125, 167, 217, 0.015) 60%);
+    background: linear-gradient(
+      90deg,
+      rgba(125, 167, 217, 0.1),
+      rgba(125, 167, 217, 0.015) 60%
+    );
   }
 
   .gut.rev .rail {

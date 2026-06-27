@@ -7,8 +7,16 @@ const valid = {
   prevHeadSha: "35788079",
   prevIndex: 1,
   files: [
-    { file: "src/a.ts", addedRanges: [{ start: 31, end: 32 }], removedRanges: [] },
-    { file: "src/b.scss", addedRanges: [], removedRanges: [{ start: 45, end: 45 }] },
+    {
+      file: "src/a.ts",
+      addedRanges: [{ start: 31, end: 32 }],
+      removedRanges: [],
+    },
+    {
+      file: "src/b.scss",
+      addedRanges: [],
+      removedRanges: [{ start: 45, end: 45 }],
+    },
   ],
 };
 
@@ -19,7 +27,9 @@ describe("parseRevisionChanges", () => {
     if (result.ok) {
       expect(result.value.prevIndex).toBe(1);
       expect(result.value.files).toHaveLength(2);
-      expect(result.value.files[1]?.removedRanges).toEqual([{ start: 45, end: 45 }]);
+      expect(result.value.files[1]?.removedRanges).toEqual([
+        { start: 45, end: 45 },
+      ]);
     }
   });
 
@@ -29,7 +39,16 @@ describe("parseRevisionChanges", () => {
   });
 
   it("rejects a malformed line range", () => {
-    const bad = { ...valid, files: [{ file: "src/a.ts", addedRanges: [{ start: "x", end: 2 }], removedRanges: [] }] };
+    const bad = {
+      ...valid,
+      files: [
+        {
+          file: "src/a.ts",
+          addedRanges: [{ start: "x", end: 2 }],
+          removedRanges: [],
+        },
+      ],
+    };
     expect(parseRevisionChanges(bad).ok).toBe(false);
   });
 
