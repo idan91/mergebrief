@@ -1971,36 +1971,31 @@ function RevisionGutterCell({
   onRailLeave: () => void;
 }) {
   if (!run) return <td className="gut" />;
-  if (!isStart) {
-    return (
-      <td
-        className={`gut rev ${run.kind}`}
-        onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
-        onMouseLeave={onRailLeave}
-      >
-        <span className="rail" aria-hidden="true" />
-      </td>
-    );
-  }
   const count = run.rowIndexes.length;
   const verb = run.kind === "removed" ? "Removed" : "New";
-  const label = `${verb} this revision. ${count} line${count === 1 ? "" : "s"}.`;
+  // All cells in the run use the same td-level hover so the entire rail
+  // width is hoverable, not just the 4px button inside the start cell.
   return (
-    <td className={`gut rev ${run.kind}`}>
-      <span className="railwrap">
+    <td
+      className={`gut rev ${run.kind}`}
+      onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
+      onMouseLeave={onRailLeave}
+    >
+      {isStart ? (
+        // Invisible button overlaying the td gives keyboard users a focus
+        // target; the visual rail is the shared .rail span below.
         <button
-          className={`railbtn ${run.kind}`}
+          className="railbtn-focus"
           type="button"
-          aria-label={label}
-          onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
-          onMouseLeave={onRailLeave}
+          aria-label={`${verb} this revision. ${count} line${count === 1 ? "" : "s"}.`}
           onFocus={(e) => onRailEnter(run, e.currentTarget)}
           onBlur={onRailLeave}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") event.currentTarget.blur();
+          onKeyDown={(e) => {
+            if (e.key === "Escape") e.currentTarget.blur();
           }}
         />
-      </span>
+      ) : null}
+      <span className="rail" aria-hidden="true" />
     </td>
   );
 }

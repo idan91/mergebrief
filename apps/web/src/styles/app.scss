@@ -1615,34 +1615,34 @@ table.diff {
     );
   }
 
-  .gut.rev .rail {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 9px;
-    width: 4px;
-    background: var(--blue);
-  }
-
-  .railwrap {
-    position: absolute;
-    inset: 0;
-  }
-
-  .railbtn {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 9px;
-    width: 4px;
-    padding: 0;
-    border: 0;
-    border-radius: 3px;
-    background: var(--blue);
+  .gut.rev {
     cursor: pointer;
 
-    &:hover,
-    &:focus-visible {
+    .rail {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 9px;
+      width: 4px;
+      background: var(--blue);
+      pointer-events: none;
+    }
+
+    &:hover .rail {
+      background: #9dc0e8;
+    }
+  }
+
+  // Invisible full-cell button for keyboard focus only; visual is .rail above.
+  .railbtn-focus {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    &:focus-visible ~ .rail {
       background: #9dc0e8;
       outline: 2px solid var(--blue);
       outline-offset: 2px;
