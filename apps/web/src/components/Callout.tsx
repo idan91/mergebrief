@@ -31,15 +31,13 @@ export function CalloutTitle({ children }: { children: ReactNode }) {
 
 export function CalloutBody({
   children,
-  unavailable,
+  dim,
 }: {
   children: ReactNode;
-  unavailable?: boolean;
+  dim?: boolean;
 }) {
   return (
-    <span
-      className={`${styles["body"]}${unavailable ? ` ${styles["unavailable"]}` : ""}`}
-    >
+    <span className={`${styles["body"]}${dim ? ` ${styles["dim"]}` : ""}`}>
       {children}
     </span>
   );

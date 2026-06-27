@@ -1954,9 +1954,7 @@ function RevisionRunCallout({
           {callout.summary && <CalloutBody>{callout.summary}</CalloutBody>}
         </>
       ) : (
-        <CalloutBody unavailable>
-          Summary unavailable for this span.
-        </CalloutBody>
+        <CalloutBody dim>Summary unavailable for this span.</CalloutBody>
       )}
     </Callout>
   );
