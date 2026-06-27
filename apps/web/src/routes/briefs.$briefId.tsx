@@ -4,8 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { Callout } from "../components/Callout";
-import { DeltaCallout } from "../features/brief/DeltaCallout";
+import { DeltaCallout } from "../features/brief/components/DeltaCallout/DeltaCallout";
 import {
   localBriefQueryOptions,
   localBriefsQueryOptions,
@@ -1918,38 +1917,14 @@ function DiffTable({
         </tbody>
       </table>
       {railHover && (
-        <RevisionRunCallout
-          hover={railHover}
+        <DeltaCallout
+          pos={railHover.pos}
+          run={railHover.run}
           chunk={chunk}
           delta={revisionDelta}
         />
       )}
     </>
-  );
-}
-
-function RevisionRunCallout({
-  hover,
-  chunk,
-  delta,
-}: {
-  hover: { run: RevisionRun; pos: { top: number; left: number } };
-  chunk: BriefChunk;
-  delta: Brief | null;
-}) {
-  const callout = bindCallout(hover.run, chunk, delta);
-  const verb = hover.run.kind === "removed" ? "Removed" : "New";
-  return (
-    <DeltaCallout
-      pos={hover.pos}
-      eyebrow={`${verb} this revision`}
-      unavailable={!callout.available}
-    >
-      {callout.groupTitle && (
-        <Callout.Title>{callout.groupTitle}</Callout.Title>
-      )}
-      {callout.summary && <Callout.Body>{callout.summary}</Callout.Body>}
-    </DeltaCallout>
   );
 }
 
