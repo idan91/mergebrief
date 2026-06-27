@@ -1,6 +1,7 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -1902,6 +1903,17 @@ function RevisionGutterCell({
   chunk: BriefChunk;
   delta: Brief | null;
 }) {
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("scroll", close, { capture: true, passive: true });
+    return () => window.removeEventListener("scroll", close, { capture: true });
+  }, [open]);
+
   if (!run) return <td className="gut" />;
   if (!isStart) {
     return (
@@ -1910,38 +1922,62 @@ function RevisionGutterCell({
       </td>
     );
   }
+
   const callout = bindCallout(run, chunk, delta);
   const count = run.rowIndexes.length;
   const verb = run.kind === "removed" ? "Removed" : "New";
   const label = `${verb} this revision${callout.groupTitle ? `: ${callout.groupTitle}` : ""}. ${count} line${count === 1 ? "" : "s"}.`;
+
+  const handleShow = () => {
+    if (!btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    setPos({ top: rect.top, left: rect.right + 8 });
+    setOpen(true);
+  };
+
   return (
     <td className={`gut rev ${run.kind}`}>
       <span className="railwrap">
         <button
+          ref={btnRef}
           className={`railbtn ${run.kind}`}
           type="button"
           aria-label={label}
+          aria-expanded={open}
+          onMouseEnter={handleShow}
+          onMouseLeave={() => setOpen(false)}
+          onFocus={handleShow}
+          onBlur={() => setOpen(false)}
           onKeyDown={(event) => {
             if (event.key === "Escape") event.currentTarget.blur();
           }}
         />
-        <span className="callout" role="tooltip">
-          <span className="ey">{verb} this revision</span>
-          {callout.available ? (
-            <>
-              {callout.groupTitle ? (
-                <span className="ttl">{callout.groupTitle}</span>
-              ) : null}
-              {callout.summary ? (
-                <span className="sum">{callout.summary}</span>
-              ) : null}
-            </>
-          ) : (
-            <span className="sum unavailable">
-              Summary unavailable for this span.
-            </span>
+        {open &&
+          pos &&
+          createPortal(
+            <span
+              className="callout"
+              role="tooltip"
+              style={{ position: "fixed", top: pos.top, left: pos.left }}
+            >
+              <span className="ey">{verb} this revision</span>
+              {callout.available ? (
+                <>
+                  {callout.groupTitle ? (
+                    <span className="ttl">{callout.groupTitle}</span>
+                  ) : null}
+                  {callout.summary ? (
+                    <span className="sum">{callout.summary}</span>
+                  ) : null}
+                </>
+              ) : (
+                <span className="sum unavailable">
+                  Summary unavailable for this span.
+                </span>
+              )}
+            </span>,
+            document.body,
           )}
-        </span>
       </span>
     </td>
   );

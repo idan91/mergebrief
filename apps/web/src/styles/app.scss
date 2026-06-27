@@ -1649,14 +1649,6 @@ table.diff {
     }
   }
 
-  .railbtn:hover + .callout,
-  .railbtn:focus + .callout {
-    visibility: visible;
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
-  }
-
   .newtag {
     margin-left: 10px;
     padding: 0 6px;
@@ -1675,10 +1667,7 @@ table.diff {
   }
 
   .callout {
-    position: absolute;
-    z-index: 5;
-    top: 0;
-    left: 22px;
+    z-index: 1000;
     width: 320px;
     padding: 12px 14px;
     border: 1px solid var(--line2);
@@ -1687,11 +1676,6 @@ table.diff {
     box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
     white-space: normal;
     font-family: var(--sans);
-    visibility: hidden;
-    opacity: 0;
-    transform: translateY(-4px);
-    transition: all 0.14s;
-    pointer-events: none;
 
     .ey {
       display: block;
