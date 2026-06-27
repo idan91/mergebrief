@@ -4,12 +4,8 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import {
-  Callout,
-  CalloutBody,
-  CalloutEyebrow,
-  CalloutTitle,
-} from "../components/Callout";
+import { Callout } from "../components/Callout";
+import { DeltaCallout } from "../features/brief/DeltaCallout";
 import {
   localBriefQueryOptions,
   localBriefsQueryOptions,
@@ -1944,19 +1940,16 @@ function RevisionRunCallout({
   const callout = bindCallout(hover.run, chunk, delta);
   const verb = hover.run.kind === "removed" ? "Removed" : "New";
   return (
-    <Callout pos={hover.pos}>
-      <CalloutEyebrow>{verb} this revision</CalloutEyebrow>
-      {callout.available ? (
-        <>
-          {callout.groupTitle && (
-            <CalloutTitle>{callout.groupTitle}</CalloutTitle>
-          )}
-          {callout.summary && <CalloutBody>{callout.summary}</CalloutBody>}
-        </>
-      ) : (
-        <CalloutBody dim>Summary unavailable for this span.</CalloutBody>
+    <DeltaCallout
+      pos={hover.pos}
+      eyebrow={`${verb} this revision`}
+      unavailable={!callout.available}
+    >
+      {callout.groupTitle && (
+        <Callout.Title>{callout.groupTitle}</Callout.Title>
       )}
-    </Callout>
+      {callout.summary && <Callout.Body>{callout.summary}</Callout.Body>}
+    </DeltaCallout>
   );
 }
 

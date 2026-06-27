@@ -3,12 +3,13 @@ import { createPortal } from "react-dom";
 
 import styles from "./Callout.module.scss";
 
-interface CalloutProps {
+function CalloutRoot({
+  pos,
+  children,
+}: {
   pos: { top: number; left: number };
   children: ReactNode;
-}
-
-export function Callout({ pos, children }: CalloutProps) {
+}) {
   return createPortal(
     <span
       className={styles["callout"]}
@@ -21,24 +22,20 @@ export function Callout({ pos, children }: CalloutProps) {
   );
 }
 
-export function CalloutEyebrow({ children }: { children: ReactNode }) {
+function CalloutEyebrow({ children }: { children: ReactNode }) {
   return <span className={styles["eyebrow"]}>{children}</span>;
 }
 
-export function CalloutTitle({ children }: { children: ReactNode }) {
+function CalloutTitle({ children }: { children: ReactNode }) {
   return <span className={styles["title"]}>{children}</span>;
 }
 
-export function CalloutBody({
-  children,
-  dim,
-}: {
-  children: ReactNode;
-  dim?: boolean;
-}) {
-  return (
-    <span className={`${styles["body"]}${dim ? ` ${styles["dim"]}` : ""}`}>
-      {children}
-    </span>
-  );
+function CalloutBody({ children }: { children: ReactNode }) {
+  return <span className={styles["body"]}>{children}</span>;
 }
+
+export const Callout = Object.assign(CalloutRoot, {
+  Eyebrow: CalloutEyebrow,
+  Title: CalloutTitle,
+  Body: CalloutBody,
+});
