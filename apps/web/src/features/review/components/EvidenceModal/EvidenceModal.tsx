@@ -9,13 +9,7 @@ export interface EvidenceTarget {
   label: string;
 }
 
-export function EvidenceModal({
-  cancel,
-  chunks,
-  comments,
-  confirm,
-  target,
-}: {
+export interface EvidenceModalProps {
   cancel: () => void;
   chunks: BriefChunk[];
   comments: ReviewComment[];
@@ -25,7 +19,15 @@ export function EvidenceModal({
     note: string | undefined,
   ) => void;
   target: EvidenceTarget | null;
-}) {
+}
+
+export function EvidenceModal({
+  cancel,
+  chunks,
+  comments,
+  confirm,
+  target,
+}: EvidenceModalProps) {
   const [kind, setKind] = useState<RiskEvidenceKind>("chunk-reviewed");
   const [commentId, setCommentId] = useState("");
   const [note, setNote] = useState("");

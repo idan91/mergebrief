@@ -1,13 +1,12 @@
 export type ViewMode = "story" | "concerns";
 export type LayoutMode = "stacked" | "split";
 
-export function Toolbar({
-  viewMode,
-  setViewMode,
-}: {
+export interface ToolbarProps {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
-}) {
+}
+
+export function Toolbar({ viewMode, setViewMode }: ToolbarProps) {
   return (
     <div className="toolbar reveal">
       <div className="viewbar">

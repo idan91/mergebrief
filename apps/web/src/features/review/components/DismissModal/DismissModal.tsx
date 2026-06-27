@@ -3,6 +3,15 @@ export interface DismissTarget {
   label: string;
 }
 
+export interface DismissModalProps {
+  target: DismissTarget | null;
+  reason: string;
+  warned: boolean;
+  cancel: () => void;
+  confirm: () => void;
+  setReason: (reason: string) => void;
+}
+
 export function DismissModal({
   target,
   reason,
@@ -10,14 +19,7 @@ export function DismissModal({
   cancel,
   confirm,
   setReason,
-}: {
-  target: DismissTarget | null;
-  reason: string;
-  warned: boolean;
-  cancel: () => void;
-  confirm: () => void;
-  setReason: (reason: string) => void;
-}) {
+}: DismissModalProps) {
   return (
     <div className={target ? "modal show" : "modal"}>
       <div className="modal-box">

@@ -7,6 +7,20 @@ import type { Brief } from "../../types";
 import type { BriefViewModel } from "../../viewModel";
 import { TimelineNavigator } from "../TimelineNavigator/TimelineNavigator";
 
+export interface HeaderProps {
+  brief: Brief;
+  briefId: string;
+  timeline: BriefTimeline;
+  model: BriefViewModel;
+  totals: ProgressTotals;
+  progress: number;
+  locOpen: boolean;
+  reviewMode: ReviewMode;
+  setLocOpen: (value: boolean) => void;
+  openReceipt: () => void;
+  clearDrafts: () => void;
+}
+
 export function Header({
   brief,
   briefId,
@@ -19,19 +33,7 @@ export function Header({
   setLocOpen,
   openReceipt,
   clearDrafts,
-}: {
-  brief: Brief;
-  briefId: string;
-  timeline: BriefTimeline;
-  model: BriefViewModel;
-  totals: ProgressTotals;
-  progress: number;
-  locOpen: boolean;
-  reviewMode: ReviewMode;
-  setLocOpen: (value: boolean) => void;
-  openReceipt: () => void;
-  clearDrafts: () => void;
-}) {
+}: HeaderProps) {
   return (
     <header>
       <div className="wordmark">

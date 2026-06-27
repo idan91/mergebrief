@@ -1,15 +1,13 @@
 import type { Brief } from "../../types";
 import type { BriefViewModel } from "../../viewModel";
 
-export function ConcernView({
-  brief,
-  model,
-  jumpToChunk,
-}: {
+export interface ConcernViewProps {
   brief: Brief;
   model: BriefViewModel;
   jumpToChunk: (chunkId: string) => void;
-}) {
+}
+
+export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
   const totalTouched = Math.max(1, model.totalAdded + model.totalDeleted);
   return (
     <section className="concern-view">

@@ -1,12 +1,11 @@
 import type { ReviewMode } from "../../../review/state";
 
-export function DemoControls({
-  reviewMode,
-  setReviewMode,
-}: {
+export interface DemoControlsProps {
   reviewMode: ReviewMode;
   setReviewMode: (mode: ReviewMode) => void;
-}) {
+}
+
+export function DemoControls({ reviewMode, setReviewMode }: DemoControlsProps) {
   return (
     <div className="demo-controls reveal">
       <div className="viewbar">

@@ -2,13 +2,15 @@ import { Link, useNavigate } from "@tanstack/react-router";
 
 import type { BriefTimeline } from "../../timeline";
 
+export interface TimelineNavigatorProps {
+  briefId: string;
+  timeline: BriefTimeline;
+}
+
 export function TimelineNavigator({
   briefId,
   timeline,
-}: {
-  briefId: string;
-  timeline: BriefTimeline;
-}) {
+}: TimelineNavigatorProps) {
   const navigate = useNavigate();
   const selected = timeline.selectedPoint;
   const currentIndex = selected

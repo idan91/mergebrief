@@ -1,5 +1,14 @@
 import type { ReviewMode, UnresolvedItem } from "../../state";
 
+export interface PreSubmitModalProps {
+  close: () => void;
+  continueToReceipt: () => void;
+  jumpToItem: (item: UnresolvedItem) => void;
+  mode: ReviewMode;
+  open: boolean;
+  unresolvedItems: UnresolvedItem[];
+}
+
 export function PreSubmitModal({
   close,
   continueToReceipt,
@@ -7,14 +16,7 @@ export function PreSubmitModal({
   mode,
   open,
   unresolvedItems,
-}: {
-  close: () => void;
-  continueToReceipt: () => void;
-  jumpToItem: (item: UnresolvedItem) => void;
-  mode: ReviewMode;
-  open: boolean;
-  unresolvedItems: UnresolvedItem[];
-}) {
+}: PreSubmitModalProps) {
   const title =
     mode === "author" ? "Before requesting review" : "Before the receipt";
   const primary =
