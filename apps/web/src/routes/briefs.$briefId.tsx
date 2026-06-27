@@ -55,7 +55,7 @@ import {
   type GroupView,
   type RiskFlag,
 } from "../features/brief/viewModel";
-import { SummaryPreview } from "../features/review/SummaryPreview";
+import { SummaryPreview } from "../features/review/components/SummaryPreview/SummaryPreview";
 import {
   DismissModal,
   type DismissTarget,
@@ -65,6 +65,8 @@ import {
   type EvidenceTarget,
 } from "../features/review/components/EvidenceModal/EvidenceModal";
 import { PreSubmitModal } from "../features/review/components/PreSubmitModal/PreSubmitModal";
+import { ReceiptDrawer } from "../features/review/components/ReceiptDrawer/ReceiptDrawer";
+import { buildReceipt } from "../features/review/receipt";
 import {
   applyMarkdownWrap,
   buildSuggestionDiffRows,
@@ -355,6 +357,33 @@ function BriefScreen({
         comments: reviewComments,
       }),
     [brief.chunks, dispositions, model.flags, reviewComments, reviewedChunks],
+  );
+  // Frozen snapshot + Receipt: the inputs the drawer and summary preview render.
+  const snapshot = useMemo(
+    () =>
+      serializeSnapshot(briefId, {
+        dispositions,
+        dominants,
+        reclassifiedGroups,
+        reviewedChunks,
+        checkedItems,
+        reviewComments,
+        reviewOutcome,
+      }),
+    [
+      briefId,
+      checkedItems,
+      dispositions,
+      dominants,
+      reclassifiedGroups,
+      reviewComments,
+      reviewOutcome,
+      reviewedChunks,
+    ],
+  );
+  const receipt = useMemo(
+    () => buildReceipt(snapshot, brief, model),
+    [snapshot, brief, model],
   );
 
   useEffect(() => {
@@ -656,17 +685,9 @@ function BriefScreen({
       </main>
       <Footer />
       <ReceiptDrawer
-        brief={brief}
-        model={model}
-        checkedItems={checkedItems}
-        dominants={dominants}
-        flagStates={flagStates}
+        receipt={receipt}
         reviewMode={reviewMode}
-        riskEvidence={riskEvidence}
         open={receiptOpen}
-        reclassifiedGroups={reclassifiedGroups}
-        reviewComments={reviewComments}
-        reviewedChunks={reviewedChunks}
         close={() => setReceiptOpen(false)}
         openSummaryPreview={() => setSummaryPreviewOpen(true)}
         submit={() => {
@@ -682,15 +703,7 @@ function BriefScreen({
         brief={brief}
         mode={reviewMode}
         open={summaryPreviewOpen}
-        snapshot={serializeSnapshot(briefId, {
-          dispositions,
-          dominants,
-          reclassifiedGroups,
-          reviewedChunks,
-          checkedItems,
-          reviewComments,
-          reviewOutcome,
-        })}
+        snapshot={snapshot}
         close={() => setSummaryPreviewOpen(false)}
         setOutcome={actions.setOutcome}
       />
@@ -2046,106 +2059,6 @@ function MarkdownPreview({
   );
 }
 
-function ReceiptDrawer(props: {
-  brief: Brief;
-  model: BriefViewModel;
-  checkedItems: Record<CheckBucket, Set<number>>;
-  dominants: Record<string, Category>;
-  flagStates: Record<string, FlagState>;
-  reviewMode: ReviewMode;
-  riskEvidence: Record<string, RiskEvidence>;
-  open: boolean;
-  reclassifiedGroups: Set<string>;
-  reviewComments: ReviewComment[];
-  reviewedChunks: Set<string>;
-  close: () => void;
-  openSummaryPreview: () => void;
-  submit: () => void;
-}) {
-  const totals = summarizeProgress(
-    props.model,
-    props.checkedItems,
-    props.reviewedChunks,
-    props.flagStates,
-    props.dominants,
-  );
-  const dismissed = props.model.flags.filter(
-    (flag) => props.flagStates[flag.id]?.status === "dismissed",
-  );
-  const addressed = props.model.flags.filter(
-    (flag) => props.flagStates[flag.id]?.status === "addressed",
-  );
-  const open = props.model.flags.filter(
-    (flag) => (props.flagStates[flag.id]?.status ?? "open") === "open",
-  );
-
-  return (
-    <>
-      <button
-        aria-label="Close receipt"
-        className={props.open ? "scrim show" : "scrim"}
-        type="button"
-        onClick={props.close}
-      />
-      <aside className={props.open ? "receipt show" : "receipt"}>
-        <div className="receipt-inner">
-          <div className="receipt-title">
-            <h2>
-              {props.reviewMode === "author"
-                ? "Self-review summary"
-                : "Verification receipt"}
-            </h2>
-            <span className="tag">not an approval</span>
-          </div>
-          <div className="receipt-sub">
-            {props.reviewMode === "author"
-              ? "Author-side preview · catches unresolved risk before requesting review"
-              : "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours"}
-          </div>
-          <pre className="receipt-body">{`Reviewed by @you (human) · ${props.brief.pr.repo} #${props.brief.pr.number} @ ${props.brief.pr.sha.slice(0, 7)}
-Tool verification receipt — mechanical claims only
-
-  ${totals.reviewed >= totals.chunkTotal ? "✓" : "•"} chunks read: ${totals.reviewed}/${totals.chunkTotal}
-  ${addressed.length + dismissed.length >= props.model.flags.length ? "✓" : "•"} risk surface: ${addressed.length} addressed · ${dismissed.length} dismissed · ${open.length} open
-  ${props.reviewComments.length > 0 ? "✓" : "•"} inline comments: ${props.reviewComments.length} draft
-${props.reviewComments.map((comment) => `      comment: ${comment.anchor.file}:${comment.anchor.startLine}${comment.anchor.endLine !== comment.anchor.startLine ? `-${comment.anchor.endLine}` : ""} — ${comment.body.split("\n")[0] ?? ""}`).join("\n")}
-${addressed.map((flag) => `      addressed: ${flag.attr} @ ${shortFile(flag.file)} — ${evidenceTextForFlag(flag.id, props.riskEvidence, props.reviewComments, props.brief.chunks)}`).join("\n")}
-${dismissed.map((flag) => `      dismissed: ${flag.attr} @ ${shortFile(flag.file)} — "${props.flagStates[flag.id]?.reason ?? ""}"`).join("\n")}
-${open.map((flag) => `      open: ${flag.attr} @ ${shortFile(flag.file)} — not addressed, not dismissed`).join("\n")}
-${props.reclassifiedGroups.size > 0 ? `\n  ${props.reclassifiedGroups.size} group reclassified by reviewer` : ""}
-
-  not checked: business intent · runtime behavior · performance under load · integration with downstream systems`}</pre>
-          <div className="receipt-actions">
-            <button
-              className="btn primary"
-              type="button"
-              onClick={props.submit}
-            >
-              {props.reviewMode === "author"
-                ? "Mark ready for review"
-                : "Submit review to GitHub"}
-            </button>
-            <button
-              className="btn"
-              type="button"
-              onClick={props.openSummaryPreview}
-            >
-              Preview public summary
-            </button>
-            <button className="btn" type="button" onClick={props.close}>
-              Keep reviewing
-            </button>
-            <span className="receipt-note">
-              Scoped to mechanical claims. The approve / request-changes verdict
-              is yours alone.
-            </span>
-          </div>
-        </div>
-      </aside>
-    </>
-  );
-}
-
 function SummaryPreviewDrawer({
   brief,
   close,
@@ -2216,9 +2129,4 @@ function addressedCommentRange(comment: AddressedReviewComment): string {
     return `:original ${comment.originalStartLine}-${comment.originalLine}`;
   if (comment.originalLine != null) return `:original ${comment.originalLine}`;
   return "";
-}
-
-function shortFile(path: string): string {
-  const parts = path.split("/");
-  return parts.at(-1) ?? path;
 }

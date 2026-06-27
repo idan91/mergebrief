@@ -1,19 +1,17 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { Roles, type Brief } from "../brief/types";
-import { buildBriefViewModel } from "../brief/viewModel";
-import type { SessionSnapshot } from "./session";
+import { Roles, type Brief } from "../../../brief/types";
+import { buildBriefViewModel } from "../../../brief/viewModel";
+import { buildReceipt, type Receipt } from "../../receipt";
+import type { SessionSnapshot } from "../../session";
 import {
-  commentLocation,
-  riskDispositionCounts,
-  riskEvidenceLabel,
   summarySignatureLine,
   type ReviewMode,
   type ReviewOutcome,
-} from "./state";
+} from "../../state";
 
-interface SummaryPreviewProps {
+export interface SummaryPreviewProps {
   brief: Brief;
   snapshot: SessionSnapshot;
   mode?: ReviewMode;
@@ -27,23 +25,13 @@ export function SummaryPreview({
   setOutcome,
 }: SummaryPreviewProps) {
   const model = buildBriefViewModel(brief);
-  const flagIds = model.flags.map((flag) => flag.id);
-  const counts = riskDispositionCounts(snapshot.dispositions, flagIds);
+  const receipt = buildReceipt(snapshot, brief, model);
   const reviewedChunkIds = new Set(snapshot.reviewedChunkIds);
   const carrierChunks = brief.chunks.filter(
     (chunk) => chunk.role === Roles.Carrier,
   );
   const supportingChunks = brief.chunks.filter(
     (chunk) => chunk.role === Roles.Supporting,
-  );
-  const addressed = model.flags.filter(
-    (flag) => snapshot.dispositions[flag.id]?.kind === "addressed",
-  );
-  const dismissed = model.flags.filter(
-    (flag) => snapshot.dispositions[flag.id]?.kind === "dismissed",
-  );
-  const open = model.flags.filter(
-    (flag) => (snapshot.dispositions[flag.id]?.kind ?? "open") === "open",
   );
   const title = mode === "author" ? "Self-review summary" : "Review Summary";
 
@@ -86,8 +74,8 @@ export function SummaryPreview({
           <div className="signature-line">
             {summarySignatureLine({
               reviewedChunks: reviewedChunkIds.size,
-              addressedRisks: counts.addressed,
-              dismissedRisks: counts.dismissed,
+              addressedRisks: receipt.counts.addressed,
+              dismissedRisks: receipt.counts.dismissed,
             })}
           </div>
         </section>
@@ -126,16 +114,19 @@ export function SummaryPreview({
               </div>
             </dl>
             <h3>Inline comments</h3>
-            {snapshot.reviewComments.length === 0 ? (
+            {receipt.comments.length === 0 ? (
               <p className="summary-empty">
                 No draft comments in this preview.
               </p>
             ) : null}
-            {snapshot.reviewComments.map((comment) => (
-              <div className="summary-comment" key={comment.id}>
-                <span>{commentLocation(comment)}</span>
+            {receipt.comments.map((comment) => (
+              <div
+                className="summary-comment"
+                key={`${comment.file}:${comment.startLine}-${comment.endLine}`}
+              >
+                <span>{commentLabel(comment)}</span>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                  {comment.body.split("\n")[0] ?? ""}
+                  {comment.firstLine}
                 </ReactMarkdown>
               </div>
             ))}
@@ -145,32 +136,27 @@ export function SummaryPreview({
             <h2>Risk surface disposition</h2>
             <RiskList
               title="Addressed risks"
-              flags={addressed}
-              renderDetail={(flag) => {
-                const disposition = snapshot.dispositions[flag.id];
-                return disposition?.kind === "addressed" && disposition.evidence
-                  ? riskEvidenceLabel(
-                      disposition.evidence,
-                      snapshot.reviewComments,
-                      brief.chunks,
-                    )
-                  : "no evidence linked";
-              }}
+              items={receipt.addressed.map((flag) => ({
+                attr: flag.attr,
+                file: flag.file,
+                detail: flag.evidenceLabel ?? "no evidence linked",
+              }))}
             />
             <RiskList
               title="Dismissed risks"
-              flags={dismissed}
-              renderDetail={(flag) => {
-                const disposition = snapshot.dispositions[flag.id];
-                return disposition?.kind === "dismissed"
-                  ? disposition.reason
-                  : "";
-              }}
+              items={receipt.dismissed.map((flag) => ({
+                attr: flag.attr,
+                file: flag.file,
+                detail: flag.reason,
+              }))}
             />
             <RiskList
               title="Open risks at submit"
-              flags={open}
-              renderDetail={() => "not addressed, not dismissed"}
+              items={receipt.open.map((flag) => ({
+                attr: flag.attr,
+                file: flag.file,
+                detail: "not addressed, not dismissed",
+              }))}
             />
           </div>
         </section>
@@ -188,33 +174,42 @@ export function SummaryPreview({
   );
 }
 
+function commentLabel(comment: Receipt["comments"][number]): string {
+  const range =
+    comment.startLine === comment.endLine
+      ? `+${comment.startLine}`
+      : `+${comment.startLine}-${comment.endLine}`;
+  return `${comment.file}:${range}`;
+}
+
 function reviewOutcomeLabel(outcome: ReviewOutcome): string {
   if (outcome === "request-changes") return "Request changes";
   if (outcome === "approve") return "Approve";
   return "Comment";
 }
 
-function RiskList({
-  title,
-  flags,
-  renderDetail,
-}: {
+interface RiskListItem {
+  attr: string;
+  file: string;
+  detail: string;
+}
+
+interface RiskListProps {
   title: string;
-  flags: ReturnType<typeof buildBriefViewModel>["flags"];
-  renderDetail: (
-    flag: ReturnType<typeof buildBriefViewModel>["flags"][number],
-  ) => string;
-}) {
+  items: RiskListItem[];
+}
+
+function RiskList({ title, items }: RiskListProps) {
   return (
     <div className="summary-risk-list">
       <h3>{title}</h3>
-      {flags.length === 0 ? <p className="summary-empty">None.</p> : null}
-      {flags.map((flag) => (
-        <div className="summary-risk" key={flag.id}>
+      {items.length === 0 ? <p className="summary-empty">None.</p> : null}
+      {items.map((item) => (
+        <div className="summary-risk" key={`${item.attr}:${item.file}`}>
           <span>
-            {flag.attr} · {flag.file}
+            {item.attr} · {item.file}
           </span>
-          <small>{renderDetail(flag)}</small>
+          <small>{item.detail}</small>
         </div>
       ))}
     </div>
