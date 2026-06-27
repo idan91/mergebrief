@@ -60,7 +60,28 @@ interface RevisionOverlayState {
   delta: Brief | null;
   available: boolean;
   enabled: boolean;
+  /** Total runs across the brief — the jump-nav count. */
+  runCount: number;
   setEnabled: (enabled: boolean) => void;
+}
+
+/**
+ * Move focus to the next/prev rendered revision-change rail relative to the
+ * reading line, wrapping at the ends. DOM-driven so it naturally steps only the
+ * runs that are actually visible; focus carries the rail's accessible name.
+ */
+function jumpToRevisionChange(direction: 1 | -1): void {
+  const rails = [...document.querySelectorAll<HTMLButtonElement>("main .diff .railbtn")];
+  if (rails.length === 0) return;
+  const readingLine = window.scrollY + 160;
+  const top = (rail: HTMLButtonElement): number => rail.getBoundingClientRect().top + window.scrollY;
+  const target =
+    direction === 1
+      ? (rails.find((rail) => top(rail) > readingLine + 1) ?? rails[0])
+      : ([...rails].reverse().find((rail) => top(rail) < readingLine - 1) ?? rails[rails.length - 1]);
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  target.focus();
 }
 
 const REVISION_PREF_KEY = "revision-changes-overlay";
@@ -118,11 +139,17 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
       ...localBriefQueryOptions(revisionDeltaId ?? ""),
       enabled: revisionAvailable && revisionEnabled && Boolean(revisionDeltaId),
     }).data ?? null;
+  const effectiveRevisionChanges = revisionAvailable && revisionEnabled ? revisionChanges : null;
+  const revisionRunCount = useMemo(
+    () => (effectiveRevisionChanges ? brief.chunks.reduce((total, chunk) => total + buildChunkRevisionView(chunk, effectiveRevisionChanges).runs.length, 0) : 0),
+    [brief.chunks, effectiveRevisionChanges],
+  );
   const revision: RevisionOverlayState = {
-    changes: revisionAvailable && revisionEnabled ? revisionChanges : null,
+    changes: effectiveRevisionChanges,
     delta: revisionDelta,
     available: revisionAvailable,
     enabled: revisionEnabled,
+    runCount: revisionRunCount,
     setEnabled: (next) => {
       setRevisionEnabled(next);
       writeRevisionPref(next);
@@ -734,6 +761,19 @@ function StoryView(props: {
             <span className="track" />
             Revision changes
           </label>
+        ) : null}
+        {props.revision.enabled && props.revision.runCount > 0 ? (
+          <span className="revision-jump" role="group" aria-label="Jump between revision changes">
+            <span className="count">
+              {props.revision.runCount} revision change{props.revision.runCount === 1 ? "" : "s"}
+            </span>
+            <button aria-label="Previous revision change" type="button" onClick={() => jumpToRevisionChange(-1)}>
+              ◂
+            </button>
+            <button aria-label="Next revision change" type="button" onClick={() => jumpToRevisionChange(1)}>
+              ▸
+            </button>
+          </span>
         ) : null}
       </div>
       {props.model.groups.map((group) => (

@@ -1250,6 +1250,33 @@ header {
   }
 }
 
+.revision-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  .count {
+    color: var(--blue);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  button {
+    padding: 2px 8px;
+    border: 1px solid var(--line2);
+    border-radius: 6px;
+    background: var(--panel2);
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 12px;
+
+    &:hover {
+      border-color: #3d3d46;
+      color: var(--text);
+    }
+  }
+}
+
 .chunk {
   overflow: clip;
   margin-bottom: 12px;
