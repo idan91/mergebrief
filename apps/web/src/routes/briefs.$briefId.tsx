@@ -1824,6 +1824,8 @@ function DiffTable({
               : undefined;
             const isRevStart =
               revRun !== undefined && revRun.rowIndexes[0] === index;
+            const isRevEnd =
+              revRun !== undefined && revRun.rowIndexes.at(-1) === index;
             const rowComments = comments.filter(
               (comment) => comment.anchor.rowIds.at(-1) === id,
             );
@@ -1862,6 +1864,7 @@ function DiffTable({
                     <RevisionGutterCell
                       run={revRun}
                       isStart={isRevStart}
+                      isEnd={isRevEnd}
                       chunk={chunk}
                       onRailEnter={handleRailEnter}
                       onRailLeave={handleRailLeave}
@@ -1962,11 +1965,13 @@ function RevisionRunCallout({
 function RevisionGutterCell({
   run,
   isStart,
+  isEnd,
   onRailEnter,
   onRailLeave,
 }: {
   run: RevisionRun | undefined;
   isStart: boolean;
+  isEnd: boolean;
   chunk: BriefChunk;
   onRailEnter: (run: RevisionRun, el: HTMLElement) => void;
   onRailLeave: () => void;
@@ -1974,8 +1979,9 @@ function RevisionGutterCell({
   if (!run) return <td className="gut" />;
   const count = run.rowIndexes.length;
   const verb = run.kind === "removed" ? "Removed" : "New";
-  // All cells in the run use the same td-level hover so the entire rail
-  // width is hoverable, not just the 4px button inside the start cell.
+  const railClass = ["rail", isStart && "rail-first", isEnd && "rail-last"]
+    .filter(Boolean)
+    .join(" ");
   return (
     <td
       className={`gut rev ${run.kind}`}
@@ -1983,8 +1989,6 @@ function RevisionGutterCell({
       onMouseLeave={onRailLeave}
     >
       {isStart ? (
-        // Invisible button overlaying the td gives keyboard users a focus
-        // target; the visual rail is the shared .rail span below.
         <button
           className="railbtn-focus"
           type="button"
@@ -1996,7 +2000,7 @@ function RevisionGutterCell({
           }}
         />
       ) : null}
-      <span className="rail" aria-hidden="true" />
+      <span className={railClass} aria-hidden="true" />
     </td>
   );
 }
