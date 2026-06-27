@@ -57,6 +57,15 @@ import {
 } from "../features/brief/viewModel";
 import { SummaryPreview } from "../features/review/SummaryPreview";
 import {
+  DismissModal,
+  type DismissTarget,
+} from "../features/review/components/DismissModal/DismissModal";
+import {
+  EvidenceModal,
+  type EvidenceTarget,
+} from "../features/review/components/EvidenceModal/EvidenceModal";
+import { PreSubmitModal } from "../features/review/components/PreSubmitModal/PreSubmitModal";
+import {
   applyMarkdownWrap,
   buildSuggestionDiffRows,
   commentAnchorLabel,
@@ -91,16 +100,6 @@ import {
 } from "../features/review/state";
 
 type ComposerMode = "write" | "preview";
-
-interface DismissTarget {
-  flagIds: string[];
-  label: string;
-}
-
-interface EvidenceTarget {
-  flagIds: string[];
-  label: string;
-}
 
 interface RevisionOverlayState {
   /** The sidecar to paint, or null when the overlay is unavailable or toggled off. */
@@ -2186,220 +2185,6 @@ function SummaryPreviewDrawer({
   );
 }
 
-function PreSubmitModal({
-  close,
-  continueToReceipt,
-  jumpToItem,
-  mode,
-  open,
-  unresolvedItems,
-}: {
-  close: () => void;
-  continueToReceipt: () => void;
-  jumpToItem: (item: UnresolvedItem) => void;
-  mode: ReviewMode;
-  open: boolean;
-  unresolvedItems: UnresolvedItem[];
-}) {
-  const title =
-    mode === "author" ? "Before requesting review" : "Before the receipt";
-  const primary =
-    mode === "author"
-      ? "Continue to self-review summary"
-      : "Continue to receipt";
-  return (
-    <div className={open ? "modal show" : "modal"}>
-      <div className="modal-box unresolved-box">
-        <h3>{title}</h3>
-        <p className="modal-copy">
-          This is advisory. You can continue, but the summary will show
-          unresolved items exactly as they are.
-        </p>
-        <div className="unresolved-list">
-          {unresolvedItems.length === 0 ? (
-            <div className="empty">No unresolved review items.</div>
-          ) : null}
-          {unresolvedItems.map((item) => (
-            <button
-              className="unresolved-item"
-              key={item.id}
-              type="button"
-              onClick={() => jumpToItem(item)}
-            >
-              <span>{unresolvedKindLabel(item.kind)}</span>
-              <b>{item.label}</b>
-            </button>
-          ))}
-        </div>
-        <div className="modal-actions">
-          <button className="btn" type="button" onClick={close}>
-            Keep reviewing
-          </button>
-          <button
-            className="btn primary"
-            type="button"
-            onClick={continueToReceipt}
-          >
-            {primary}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EvidenceModal({
-  cancel,
-  chunks,
-  comments,
-  confirm,
-  target,
-}: {
-  cancel: () => void;
-  chunks: BriefChunk[];
-  comments: ReviewComment[];
-  confirm: (
-    kind: RiskEvidenceKind,
-    commentId: string | undefined,
-    note: string | undefined,
-  ) => void;
-  target: EvidenceTarget | null;
-}) {
-  const [kind, setKind] = useState<RiskEvidenceKind>("chunk-reviewed");
-  const [commentId, setCommentId] = useState("");
-  const [note, setNote] = useState("");
-
-  useEffect(() => {
-    if (!target) return;
-    setKind(comments.length > 0 ? "linked-comment" : "chunk-reviewed");
-    setCommentId(comments[0]?.id ?? "");
-    setNote("");
-  }, [comments, target]);
-
-  const linkedCommentDisabled = kind === "linked-comment" && !commentId;
-  return (
-    <div className={target ? "modal show" : "modal"}>
-      <div className="modal-box evidence-box">
-        <h3>Address risk with evidence</h3>
-        <div className="mattr">{target?.label}</div>
-        <div className="evidence-options">
-          <label>
-            <input
-              checked={kind === "linked-comment"}
-              disabled={comments.length === 0}
-              name="risk-evidence"
-              type="radio"
-              onChange={() => setKind("linked-comment")}
-            />{" "}
-            Linked comment
-          </label>
-          <label>
-            <input
-              checked={kind === "chunk-reviewed"}
-              name="risk-evidence"
-              type="radio"
-              onChange={() => setKind("chunk-reviewed")}
-            />{" "}
-            Reviewed related chunk
-          </label>
-          <label>
-            <input
-              checked={kind === "manual-note"}
-              name="risk-evidence"
-              type="radio"
-              onChange={() => setKind("manual-note")}
-            />{" "}
-            Manually verified
-          </label>
-        </div>
-        {kind === "linked-comment" ? (
-          <select
-            value={commentId}
-            onChange={(event) => setCommentId(event.target.value)}
-          >
-            {comments.map((comment) => (
-              <option key={comment.id} value={comment.id}>
-                {commentLocation(comment)}
-              </option>
-            ))}
-          </select>
-        ) : null}
-        {kind === "chunk-reviewed" ? (
-          <p className="modal-copy">
-            Each selected risk will link to its related chunk. Reviewed chunks
-            are shown as evidence in the receipt.
-          </p>
-        ) : null}
-        {kind === "manual-note" ? (
-          <textarea
-            placeholder="What did you verify?"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-          />
-        ) : null}
-        <div className="modal-actions">
-          <button className="btn" type="button" onClick={cancel}>
-            Cancel
-          </button>
-          <button
-            className="btn primary"
-            disabled={linkedCommentDisabled}
-            type="button"
-            onClick={() =>
-              confirm(kind, commentId || undefined, note.trim() || undefined)
-            }
-          >
-            Mark addressed
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function DismissModal({
-  target,
-  reason,
-  warned,
-  cancel,
-  confirm,
-  setReason,
-}: {
-  target: DismissTarget | null;
-  reason: string;
-  warned: boolean;
-  cancel: () => void;
-  confirm: () => void;
-  setReason: (reason: string) => void;
-}) {
-  return (
-    <div className={target ? "modal show" : "modal"}>
-      <div className="modal-box">
-        <h3>Dismiss flag</h3>
-        <div className="mattr">{target?.label}</div>
-        <textarea
-          suppressHydrationWarning
-          value={reason}
-          onChange={(event) => setReason(event.target.value)}
-          placeholder="Why is this flag not actionable here? Your reason lands on the receipt, verbatim."
-        />
-        <div className={warned ? "modal-warn show" : "modal-warn"}>
-          Thin reason on a flag — it will appear on the receipt exactly as
-          written. Dismiss anyway?
-        </div>
-        <div className="modal-actions">
-          <button className="btn" type="button" onClick={cancel}>
-            Cancel
-          </button>
-          <button className="btn primary" type="button" onClick={confirm}>
-            {warned ? "Dismiss anyway" : "Dismiss with reason"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function BriefError({ error }: { error: Error }) {
   return (
     <main className="main">
@@ -2409,17 +2194,6 @@ function BriefError({ error }: { error: Error }) {
       </section>
     </main>
   );
-}
-
-function unresolvedKindLabel(kind: UnresolvedItem["kind"]): string {
-  const labels: Record<UnresolvedItem["kind"], string> = {
-    "open-risk": "Open risk",
-    "missing-evidence": "Addressed without evidence",
-    "unreviewed-carrier": "Unreviewed carrier chunk",
-    "draft-comment": "Draft comment",
-    "thin-dismissal": "Thin dismissal reason",
-  };
-  return labels[kind];
 }
 
 function evidenceTextForFlag(
