@@ -1,12 +1,20 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { Markdown } from "../components/Markdown/Markdown";
 import { DeltaCallout } from "../features/brief/components/DeltaCallout/DeltaCallout";
+import { ConcernView } from "../features/brief/components/ConcernView/ConcernView";
+import { DemoControls } from "../features/brief/components/DemoControls/DemoControls";
 import { Footer } from "../features/brief/components/Footer/Footer";
+import { TimelineNavigator } from "../features/brief/components/TimelineNavigator/TimelineNavigator";
+import {
+  Toolbar,
+  type LayoutMode,
+  type ViewMode,
+} from "../features/brief/components/Toolbar/Toolbar";
 import { toggleSet, rangeBetween } from "../lib/collections";
 import {
   localBriefQueryOptions,
@@ -78,8 +86,6 @@ import {
   type UnresolvedItem,
 } from "../features/review/state";
 
-type ViewMode = "story" | "concerns";
-type LayoutMode = "stacked" | "split";
 type CheckBucket = `carrier:${string}` | `support:${string}:${Concern}`;
 type ComposerMode = "write" | "preview";
 
@@ -831,129 +837,6 @@ function Header({
   );
 }
 
-function TimelineNavigator({
-  briefId,
-  timeline,
-}: {
-  briefId: string;
-  timeline: BriefTimeline;
-}) {
-  const navigate = useNavigate();
-  const selected = timeline.selectedPoint;
-  const currentIndex = selected
-    ? timeline.points.findIndex((point) => point.briefId === selected.briefId)
-    : -1;
-  const previous =
-    currentIndex > 0 ? timeline.points[currentIndex - 1] : undefined;
-  const next =
-    currentIndex >= 0 ? timeline.points[currentIndex + 1] : undefined;
-  const deltaId = selected?.deltaId;
-
-  if (!selected) return null;
-  return (
-    <nav className="timeline" aria-label="PR revision timeline">
-      <span aria-live="polite" className="sr-only">
-        Viewing Brief {selected.index} of {timeline.points.length}
-      </span>
-      {previous ? (
-        <Link
-          aria-label={`Previous brief, ${previous.index}`}
-          className="timeline-arrow"
-          params={{ briefId: previous.briefId }}
-          to="/briefs/$briefId"
-        >
-          ←
-        </Link>
-      ) : (
-        <span aria-hidden="true" className="timeline-arrow disabled">
-          ←
-        </span>
-      )}
-      <label className="timeline-picker">
-        <span className="sr-only">Select PR revision</span>
-        <select
-          value={selected.briefId}
-          onChange={(event) =>
-            navigate({
-              to: "/briefs/$briefId",
-              params: { briefId: event.target.value },
-            })
-          }
-        >
-          {timeline.points.map((point) => (
-            <option key={point.briefId} value={point.briefId}>
-              Brief {point.index} · {point.headSha.slice(0, 7)}
-            </option>
-          ))}
-        </select>
-      </label>
-      {next ? (
-        <Link
-          aria-label={`Next brief, ${next.index}`}
-          className="timeline-arrow"
-          params={{ briefId: next.briefId }}
-          to="/briefs/$briefId"
-        >
-          →
-        </Link>
-      ) : (
-        <span aria-hidden="true" className="timeline-arrow disabled">
-          →
-        </span>
-      )}
-      <div className="timeline-lens" role="group" aria-label="Brief lens">
-        <Link
-          className={briefId === selected.briefId ? "active" : ""}
-          params={{ briefId: selected.briefId }}
-          to="/briefs/$briefId"
-        >
-          Full
-        </Link>
-        {deltaId ? (
-          <Link
-            className={briefId === deltaId ? "active" : ""}
-            params={{ briefId: deltaId }}
-            to="/briefs/$briefId"
-          >
-            Delta
-          </Link>
-        ) : (
-          <span
-            aria-disabled="true"
-            title="No local delta is available for this revision"
-          >
-            Delta
-          </span>
-        )}
-      </div>
-      <ol className="timeline-steps">
-        {timeline.points
-          .slice(Math.max(0, currentIndex - 4), currentIndex + 5)
-          .map((point) => (
-            <li key={point.briefId}>
-              <Link
-                aria-current={
-                  point.briefId === selected.briefId ? "step" : undefined
-                }
-                className={
-                  point.briefId === selected.briefId
-                    ? "active"
-                    : point.deltaId
-                      ? "has-delta"
-                      : ""
-                }
-                params={{ briefId: point.briefId }}
-                to="/briefs/$briefId"
-              >
-                <span className="sr-only">Brief {point.index}</span>
-              </Link>
-            </li>
-          ))}
-      </ol>
-    </nav>
-  );
-}
-
 function DeltaContext({ brief }: { brief: Brief }) {
   return (
     <div className="delta-context">
@@ -969,64 +852,6 @@ function DeltaContext({ brief }: { brief: Brief }) {
           <p>{brief.wholePrImpact}</p>
         </section>
       ) : null}
-    </div>
-  );
-}
-
-function DemoControls({
-  reviewMode,
-  setReviewMode,
-}: {
-  reviewMode: ReviewMode;
-  setReviewMode: (mode: ReviewMode) => void;
-}) {
-  return (
-    <div className="demo-controls reveal">
-      <div className="viewbar">
-        <button
-          className={reviewMode === "reviewer" ? "active" : ""}
-          type="button"
-          onClick={() => setReviewMode("reviewer")}
-        >
-          Reviewer review
-        </button>
-        <button
-          className={reviewMode === "author" ? "active" : ""}
-          type="button"
-          onClick={() => setReviewMode("author")}
-        >
-          Author self-review
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Toolbar({
-  viewMode,
-  setViewMode,
-}: {
-  viewMode: ViewMode;
-  setViewMode: (mode: ViewMode) => void;
-}) {
-  return (
-    <div className="toolbar reveal">
-      <div className="viewbar">
-        <button
-          className={viewMode === "story" ? "active" : ""}
-          type="button"
-          onClick={() => setViewMode("story")}
-        >
-          Story
-        </button>
-        <button
-          className={viewMode === "concerns" ? "active" : ""}
-          type="button"
-          onClick={() => setViewMode("concerns")}
-        >
-          Concerns
-        </button>
-      </div>
     </div>
   );
 }
@@ -2315,76 +2140,6 @@ function MarkdownPreview({
         </div>
       ))}
     </div>
-  );
-}
-
-function ConcernView({
-  brief,
-  model,
-  jumpToChunk,
-}: {
-  brief: Brief;
-  model: BriefViewModel;
-  jumpToChunk: (chunkId: string) => void;
-}) {
-  const totalTouched = Math.max(1, model.totalAdded + model.totalDeleted);
-  return (
-    <section className="concern-view">
-      <div className="concern-intro reveal">
-        <div className="eyebrow">Attention split</div>
-        <p>
-          The same {brief.chunks.length} chunks, pivoted by artifact instead of
-          intent.
-        </p>
-      </div>
-      {brief.concernView.map((rollup) => {
-        const chunks = model.concernChunks.get(rollup.concern) ?? [];
-        const pct = ((rollup.added + rollup.deleted) / totalTouched) * 100;
-        return (
-          <article className="concern-bucket reveal" key={rollup.concern}>
-            <div className="cb-head">
-              <span className="cb-name">
-                <span className="dot" />
-                {rollup.concern}
-              </span>
-              <span className="cb-loc">
-                <span className="a">+{rollup.added}</span>{" "}
-                <span className="d">−{rollup.deleted}</span>
-              </span>
-              <span className="cb-count">
-                {chunks.length} chunk{chunks.length === 1 ? "" : "s"}
-              </span>
-            </div>
-            <div className="cb-bar">
-              <i style={{ width: `${Math.max(4, pct)}%` }} />
-            </div>
-            <div className="cb-files">
-              {chunks.map((chunk) => (
-                <button
-                  key={chunk.id}
-                  type="button"
-                  onClick={() => jumpToChunk(chunk.id)}
-                >
-                  {chunk.file}{" "}
-                  <span className="floc2">
-                    · <span className="a">+{chunk.loc.added}</span>{" "}
-                    <span className="d">−{chunk.loc.deleted}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </article>
-        );
-      })}
-      <div className="concern-bucket muted reveal">
-        <div className="cb-head">
-          <span className="cb-name muted-name">empty concerns</span>
-          <span className="cb-count">
-            generated · spec · config may be absent from this local brief
-          </span>
-        </div>
-      </div>
-    </section>
   );
 }
 
