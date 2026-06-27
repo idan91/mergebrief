@@ -1,14 +1,45 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { localBriefQueryOptions, localBriefsQueryOptions } from "../features/brief/queries";
-import { reviewCommentMatchesDiffLine, reviewCommentsForChunk } from "../features/brief/reviewComments";
-import type { AddressedReviewComment, Brief, BriefChunk, Category, Concern, LocalBriefSummary } from "../features/brief/types";
-import { buildBriefTimeline, type BriefTimeline } from "../features/brief/timeline";
-import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
+import { DeltaCallout } from "../features/brief/components/DeltaCallout/DeltaCallout";
+import {
+  localBriefQueryOptions,
+  localBriefsQueryOptions,
+  localRevisionChangesQueryOptions,
+} from "../features/brief/queries";
+import {
+  reviewCommentMatchesDiffLine,
+  reviewCommentsForChunk,
+} from "../features/brief/reviewComments";
+import {
+  bindCallout,
+  buildChunkRevisionView,
+  type ChunkRevisionView,
+  type RevisionRun,
+} from "../features/brief/revisionChanges";
+import type {
+  AddressedReviewComment,
+  Brief,
+  BriefChunk,
+  Category,
+  Concern,
+  LocalBriefSummary,
+  RevisionChanges,
+} from "../features/brief/types";
+import {
+  buildBriefTimeline,
+  type BriefTimeline,
+} from "../features/brief/timeline";
+import {
+  buildBriefViewModel,
+  groupRiskByAttribute,
+  type BriefViewModel,
+  type GroupView,
+  type RiskFlag,
+} from "../features/brief/viewModel";
 import { SummaryPreview } from "../features/review/SummaryPreview";
 import {
   applyMarkdownWrap,
@@ -23,7 +54,10 @@ import {
   type CommentAnchor,
   type ReviewComment,
 } from "../features/review/comments";
-import { useClearDemoReviewSnapshots, useSetDemoReviewSnapshot } from "../features/review/demoState";
+import {
+  useClearDemoReviewSnapshots,
+  useSetDemoReviewSnapshot,
+} from "../features/review/demoState";
 import {
   commentLocation,
   deriveUnresolvedItems,
@@ -52,8 +86,64 @@ interface EvidenceTarget {
   label: string;
 }
 
+interface RevisionOverlayState {
+  /** The sidecar to paint, or null when the overlay is unavailable or toggled off. */
+  changes: RevisionChanges | null;
+  /** The opportunistic (prevHead,head) delta for callout summaries, if loaded. */
+  delta: Brief | null;
+  available: boolean;
+  enabled: boolean;
+  /** Total runs across the brief — the jump-nav count. */
+  runCount: number;
+  setEnabled: (enabled: boolean) => void;
+}
+
+/**
+ * Move focus to the next/prev rendered revision-change rail relative to the
+ * reading line, wrapping at the ends. DOM-driven so it naturally steps only the
+ * runs that are actually visible; focus carries the rail's accessible name.
+ */
+function jumpToRevisionChange(direction: 1 | -1): void {
+  const rails = [
+    ...document.querySelectorAll<HTMLButtonElement>("main .diff .railbtn"),
+  ];
+  if (rails.length === 0) return;
+  const readingLine = window.scrollY + 160;
+  const top = (rail: HTMLButtonElement): number =>
+    rail.getBoundingClientRect().top + window.scrollY;
+  const target =
+    direction === 1
+      ? (rails.find((rail) => top(rail) > readingLine + 1) ?? rails[0])
+      : ([...rails].reverse().find((rail) => top(rail) < readingLine - 1) ??
+        rails[rails.length - 1]);
+  if (!target) return;
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  target.focus();
+}
+
+const REVISION_PREF_KEY = "revision-changes-overlay";
+
+function readRevisionPref(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(REVISION_PREF_KEY) !== "off";
+}
+
+function writeRevisionPref(enabled: boolean): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(REVISION_PREF_KEY, enabled ? "on" : "off");
+}
+
 export const Route = createFileRoute("/briefs/$briefId")({
-  loader: ({ context, params }) => Promise.all([context.queryClient.ensureQueryData(localBriefQueryOptions(params.briefId)), context.queryClient.ensureQueryData(localBriefsQueryOptions())]),
+  loader: ({ context, params }) =>
+    Promise.all([
+      context.queryClient.ensureQueryData(
+        localBriefQueryOptions(params.briefId),
+      ),
+      context.queryClient.ensureQueryData(localBriefsQueryOptions()),
+      context.queryClient.ensureQueryData(
+        localRevisionChangesQueryOptions(params.briefId),
+      ),
+    ]),
   component: BriefRoute,
   errorComponent: BriefError,
 });
@@ -64,46 +154,173 @@ function BriefRoute() {
   return <BriefApp artifacts={artifacts} briefId={briefId} key={briefId} />;
 }
 
-function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; briefId: string }) {
+function BriefApp({
+  artifacts,
+  briefId,
+}: {
+  artifacts: LocalBriefSummary[];
+  briefId: string;
+}) {
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
-  const timeline = useMemo(() => buildBriefTimeline(artifacts, briefId), [artifacts, briefId]);
+  const timeline = useMemo(
+    () => buildBriefTimeline(artifacts, briefId),
+    [artifacts, briefId],
+  );
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
+
+  // Revision-changes overlay (ADR 0021): the shared, per-revision marks for this
+  // full brief, plus the opportunistic (prevHead,head) delta for callout text.
+  const revisionChanges = useSuspenseQuery(
+    localRevisionChangesQueryOptions(briefId),
+  ).data;
+  const revisionAvailable =
+    brief.artifactKind === "brief" &&
+    Boolean(revisionChanges && revisionChanges.files.length > 0);
+  // Default-on; the stored preference is applied after hydration (browser-only).
+  const [revisionEnabled, setRevisionEnabled] = useState(true);
+  useEffect(() => setRevisionEnabled(readRevisionPref()), []);
+  const revisionDeltaId = useMemo(
+    () =>
+      revisionChanges
+        ? artifacts.find(
+            (artifact) =>
+              artifact.artifactKind === "delta" &&
+              artifact.baselineSha === revisionChanges.prevHeadSha &&
+              artifact.headSha === revisionChanges.headSha,
+          )?.id
+        : undefined,
+    [artifacts, revisionChanges],
+  );
+  const revisionDelta =
+    useQuery({
+      ...localBriefQueryOptions(revisionDeltaId ?? ""),
+      enabled: revisionAvailable && revisionEnabled && Boolean(revisionDeltaId),
+    }).data ?? null;
+  const effectiveRevisionChanges =
+    revisionAvailable && revisionEnabled ? revisionChanges : null;
+  const revisionRunCount = useMemo(
+    () =>
+      effectiveRevisionChanges
+        ? brief.chunks.reduce(
+            (total, chunk) =>
+              total +
+              buildChunkRevisionView(chunk, effectiveRevisionChanges).runs
+                .length,
+            0,
+          )
+        : 0,
+    [brief.chunks, effectiveRevisionChanges],
+  );
+  const revision: RevisionOverlayState = {
+    changes: effectiveRevisionChanges,
+    delta: revisionDelta,
+    available: revisionAvailable,
+    enabled: revisionEnabled,
+    runCount: revisionRunCount,
+    setEnabled: (next) => {
+      setRevisionEnabled(next);
+      writeRevisionPref(next);
+    },
+  };
   const setDemoSnapshot = useSetDemoReviewSnapshot();
   const clearDemoSnapshots = useClearDemoReviewSnapshots();
-  const initialDominants = useMemo(() => Object.fromEntries(model.groups.map((group) => [group.id, group.group.dominantCategory])), [model.groups]);
+  const initialDominants = useMemo(
+    () =>
+      Object.fromEntries(
+        model.groups.map((group) => [group.id, group.group.dominantCategory]),
+      ),
+    [model.groups],
+  );
   const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
   const [reviewOutcome, setReviewOutcome] = useState<ReviewOutcome>("comment");
   const [viewMode, setViewMode] = useState<ViewMode>("story");
   const [layoutMode] = useState<LayoutMode>("split");
   const [collapseSupporting, setCollapseSupporting] = useState(true);
-  const [openChunks, setOpenChunks] = useState<Set<string>>(() => new Set(model.groups.flatMap((group) => group.carrierChunks.map((chunk) => chunk.id))));
-  const [reviewedChunks, setReviewedChunks] = useState<Set<string>>(() => new Set());
-  const [checkedItems, setCheckedItems] = useState<Record<CheckBucket, Set<number>>>(() => ({}));
-  const [dominants, setDominants] = useState<Record<string, Category>>(initialDominants);
-  const [reclassifiedGroups, setReclassifiedGroups] = useState<Set<string>>(() => new Set());
-  const [flagStates, setFlagStates] = useState<Record<string, FlagState>>(() => Object.fromEntries(model.flags.map((flag) => [flag.id, { status: "open", reason: "" }])));
-  const [riskEvidence, setRiskEvidence] = useState<Record<string, RiskEvidence>>(() => ({}));
-  const [selectedRiskFlags, setSelectedRiskFlags] = useState<Set<string>>(() => new Set());
+  const [openChunks, setOpenChunks] = useState<Set<string>>(
+    () =>
+      new Set(
+        model.groups.flatMap((group) =>
+          group.carrierChunks.map((chunk) => chunk.id),
+        ),
+      ),
+  );
+  const [reviewedChunks, setReviewedChunks] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [checkedItems, setCheckedItems] = useState<
+    Record<CheckBucket, Set<number>>
+  >(() => ({}));
+  const [dominants, setDominants] =
+    useState<Record<string, Category>>(initialDominants);
+  const [reclassifiedGroups, setReclassifiedGroups] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [flagStates, setFlagStates] = useState<Record<string, FlagState>>(() =>
+    Object.fromEntries(
+      model.flags.map((flag) => [flag.id, { status: "open", reason: "" }]),
+    ),
+  );
+  const [riskEvidence, setRiskEvidence] = useState<
+    Record<string, RiskEvidence>
+  >(() => ({}));
+  const [selectedRiskFlags, setSelectedRiskFlags] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [activeChunkId, setActiveChunkId] = useState<string | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
   const [preSubmitOpen, setPreSubmitOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
-  const [dismissTarget, setDismissTarget] = useState<DismissTarget | null>(null);
-  const [evidenceTarget, setEvidenceTarget] = useState<EvidenceTarget | null>(null);
+  const [dismissTarget, setDismissTarget] = useState<DismissTarget | null>(
+    null,
+  );
+  const [evidenceTarget, setEvidenceTarget] = useState<EvidenceTarget | null>(
+    null,
+  );
   const [dismissReason, setDismissReason] = useState("");
   const [dismissWarned, setDismissWarned] = useState(false);
-  const [reviewComments, setReviewComments] = useState<ReviewComment[]>(() => []);
-  const [activeCommentAnchor, setActiveCommentAnchor] = useState<CommentAnchor | null>(null);
+  const [reviewComments, setReviewComments] = useState<ReviewComment[]>(
+    () => [],
+  );
+  const [activeCommentAnchor, setActiveCommentAnchor] =
+    useState<CommentAnchor | null>(null);
   const [toast, setToast] = useState("");
 
-  const totals = useMemo(() => summarizeProgress(model, checkedItems, reviewedChunks, flagStates, dominants), [checkedItems, dominants, flagStates, model, reviewedChunks]);
+  const totals = useMemo(
+    () =>
+      summarizeProgress(
+        model,
+        checkedItems,
+        reviewedChunks,
+        flagStates,
+        dominants,
+      ),
+    [checkedItems, dominants, flagStates, model, reviewedChunks],
+  );
   const totalWork = model.flags.length + brief.chunks.length;
-  const progress = totalWork === 0 ? 0 : ((totals.reviewed + totals.flagsResolved) / totalWork) * 100;
+  const progress =
+    totalWork === 0
+      ? 0
+      : ((totals.reviewed + totals.flagsResolved) / totalWork) * 100;
   const unresolvedItems = useMemo(
-    () => deriveUnresolvedItems({ chunks: brief.chunks, flags: model.flags, flagStates, riskEvidence, reviewedChunkIds: reviewedChunks, comments: reviewComments }),
-    [brief.chunks, flagStates, model.flags, reviewComments, reviewedChunks, riskEvidence],
+    () =>
+      deriveUnresolvedItems({
+        chunks: brief.chunks,
+        flags: model.flags,
+        flagStates,
+        riskEvidence,
+        reviewedChunkIds: reviewedChunks,
+        comments: reviewComments,
+      }),
+    [
+      brief.chunks,
+      flagStates,
+      model.flags,
+      reviewComments,
+      reviewedChunks,
+      riskEvidence,
+    ],
   );
 
   useEffect(() => {
@@ -116,7 +333,16 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
       reviewedChunkIds: [...reviewedChunks],
       reviewComments,
     });
-  }, [briefId, flagStates, reviewComments, reviewMode, reviewOutcome, reviewedChunks, riskEvidence, setDemoSnapshot]);
+  }, [
+    briefId,
+    flagStates,
+    reviewComments,
+    reviewMode,
+    reviewOutcome,
+    reviewedChunks,
+    riskEvidence,
+    setDemoSnapshot,
+  ]);
 
   useEffect(() => {
     if (!toast) return;
@@ -174,13 +400,22 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
     setViewMode("story");
     setOpenChunks((current) => new Set(current).add(chunkId));
     setActiveChunkId(chunkId);
-    window.setTimeout(() => document.getElementById(chunkId)?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    window.setTimeout(
+      () =>
+        document
+          .getElementById(chunkId)
+          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      0,
+    );
   }
 
   function chooseDominant(groupId: string, category: Category) {
     setDominants((current) => ({ ...current, [groupId]: category }));
     setReclassifiedGroups((current) => new Set(current).add(groupId));
-    setCheckedItems((current) => ({ ...current, [`carrier:${groupId}`]: new Set() }));
+    setCheckedItems((current) => ({
+      ...current,
+      [`carrier:${groupId}`]: new Set(),
+    }));
     setToast(`Dominant category set to ${category} — recorded on the receipt.`);
   }
 
@@ -215,10 +450,18 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
     }
   }
 
-  function addressWithEvidence(flagIds: string[], evidenceForFlag: (flag: RiskFlag) => RiskEvidence) {
-    const flags = flagIds.map((flagId) => model.flags.find((flag) => flag.id === flagId)).filter((flag): flag is RiskFlag => Boolean(flag));
+  function addressWithEvidence(
+    flagIds: string[],
+    evidenceForFlag: (flag: RiskFlag) => RiskEvidence,
+  ) {
+    const flags = flagIds
+      .map((flagId) => model.flags.find((flag) => flag.id === flagId))
+      .filter((flag): flag is RiskFlag => Boolean(flag));
     if (flags.length === 0) return;
-    setFlagStatuses(flags.map((flag) => flag.id), "addressed");
+    setFlagStatuses(
+      flags.map((flag) => flag.id),
+      "addressed",
+    );
     setRiskEvidence((current) => {
       const next = { ...current };
       for (const flag of flags) {
@@ -226,7 +469,11 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
       }
       return next;
     });
-    setToast(flags.length === 1 ? "Risk marked addressed with evidence." : `${flags.length} risks marked addressed with evidence.`);
+    setToast(
+      flags.length === 1
+        ? "Risk marked addressed with evidence."
+        : `${flags.length} risks marked addressed with evidence.`,
+    );
   }
 
   function toggleRiskFlag(flagId: string) {
@@ -235,7 +482,8 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
 
   function toggleRiskGroup(flagIds: string[]) {
     setSelectedRiskFlags((current) => {
-      const allSelected = flagIds.length > 0 && flagIds.every((flagId) => current.has(flagId));
+      const allSelected =
+        flagIds.length > 0 && flagIds.every((flagId) => current.has(flagId));
       const next = new Set(current);
       for (const flagId of flagIds) {
         if (allSelected) next.delete(flagId);
@@ -252,12 +500,20 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
       setDismissWarned(true);
       return;
     }
-    setFlagStatuses(dismissTarget.flagIds, "dismissed", reason || "(no reason given)");
+    setFlagStatuses(
+      dismissTarget.flagIds,
+      "dismissed",
+      reason || "(no reason given)",
+    );
     const dismissedCount = dismissTarget.flagIds.length;
     setDismissTarget(null);
     setDismissReason("");
     setDismissWarned(false);
-    setToast(dismissedCount === 1 ? "Dismissed. Reason recorded verbatim on the receipt." : `${dismissedCount} flags dismissed. Reason recorded verbatim on the receipt.`);
+    setToast(
+      dismissedCount === 1
+        ? "Dismissed. Reason recorded verbatim on the receipt."
+        : `${dismissedCount} flags dismissed. Reason recorded verbatim on the receipt.`,
+    );
   }
 
   function openPreSubmit() {
@@ -290,17 +546,31 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
       setToast("Comment cannot be empty.");
       return;
     }
-    setReviewComments((current) => current.map((comment) => (comment.id === commentId ? { ...comment, body: trimmed, collapsed: false } : comment)));
+    setReviewComments((current) =>
+      current.map((comment) =>
+        comment.id === commentId
+          ? { ...comment, body: trimmed, collapsed: false }
+          : comment,
+      ),
+    );
     setToast("Draft comment updated.");
   }
 
   function deleteReviewComment(commentId: string) {
-    setReviewComments((current) => current.filter((comment) => comment.id !== commentId));
+    setReviewComments((current) =>
+      current.filter((comment) => comment.id !== commentId),
+    );
     setToast("Draft comment deleted.");
   }
 
   function toggleReviewComment(commentId: string) {
-    setReviewComments((current) => current.map((comment) => (comment.id === commentId ? { ...comment, collapsed: !comment.collapsed } : comment)));
+    setReviewComments((current) =>
+      current.map((comment) =>
+        comment.id === commentId
+          ? { ...comment, collapsed: !comment.collapsed }
+          : comment,
+      ),
+    );
   }
 
   return (
@@ -318,18 +588,44 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
         openReceipt={openPreSubmit}
         clearDrafts={clearDemoSnapshots}
       />
-      <main className={layoutMode === "split" && viewMode === "story" ? "main split-main" : "main"} id="brief-content" tabIndex={-1}>
+      <main
+        className={
+          layoutMode === "split" && viewMode === "story"
+            ? "main split-main"
+            : "main"
+        }
+        id="brief-content"
+        tabIndex={-1}
+      >
         <section className="pr-summary reveal">
-          <div className="eyebrow">{brief.artifactKind === "delta" ? "Delta brief" : reviewMode === "author" ? "Author self-review" : "Brief"}</div>
+          <div className="eyebrow">
+            {brief.artifactKind === "delta"
+              ? "Delta brief"
+              : reviewMode === "author"
+                ? "Author self-review"
+                : "Brief"}
+          </div>
           <Markdown content={brief.summary} />
-          {brief.artifactKind === "delta" ? <DeltaContext brief={brief} /> : null}
-          <button className="description-toggle" type="button" onClick={() => setDescriptionOpen(!descriptionOpen)}>
-            {descriptionOpen ? "Hide original PR description" : "Show original PR description"}
+          {brief.artifactKind === "delta" ? (
+            <DeltaContext brief={brief} />
+          ) : null}
+          <button
+            className="description-toggle"
+            type="button"
+            onClick={() => setDescriptionOpen(!descriptionOpen)}
+          >
+            {descriptionOpen
+              ? "Hide original PR description"
+              : "Show original PR description"}
           </button>
           {descriptionOpen ? (
             <div className="pr-description">
               <div className="eyebrow">Original PR description</div>
-              <Markdown content={brief.pr.description || "_No PR description provided._"} />
+              <Markdown
+                content={
+                  brief.pr.description || "_No PR description provided._"
+                }
+              />
             </div>
           ) : null}
         </section>
@@ -342,6 +638,7 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
           <StoryView
             brief={brief}
             model={model}
+            revision={revision}
             activeChunkId={activeChunkId}
             checkedItems={checkedItems}
             collapseSupporting={collapseSupporting}
@@ -399,7 +696,11 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
         openSummaryPreview={() => setSummaryPreviewOpen(true)}
         submit={() => {
           setReceiptOpen(false);
-          setToast(reviewMode === "author" ? "Mockup flow — this would mark the PR ready for review after self-review." : "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.");
+          setToast(
+            reviewMode === "author"
+              ? "Mockup flow — this would mark the PR ready for review after self-review."
+              : "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
+          );
         }}
       />
       <SummaryPreviewDrawer
@@ -448,8 +749,12 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
         confirm={(kind, commentId, note) => {
           if (!evidenceTarget) return;
           addressWithEvidence(evidenceTarget.flagIds, (flag) => {
-            if (kind === "linked-comment") return commentId ? { kind, commentId } : { kind: "chunk-reviewed", chunkId: flag.chunkId };
-            if (kind === "chunk-reviewed") return { kind, chunkId: flag.chunkId };
+            if (kind === "linked-comment")
+              return commentId
+                ? { kind, commentId }
+                : { kind: "chunk-reviewed", chunkId: flag.chunkId };
+            if (kind === "chunk-reviewed")
+              return { kind, chunkId: flag.chunkId };
             return note ? { kind, note } : { kind };
           });
           setEvidenceTarget(null);
@@ -494,71 +799,189 @@ function Header({
         <div className="title">{brief.pr.title}</div>
         <div className="sub">
           <b>{brief.pr.repo}</b> ·{" "}
-          <a className="ghlink" href={brief.pr.url} target="_blank" rel="noreferrer">
+          <a
+            className="ghlink"
+            href={brief.pr.url}
+            target="_blank"
+            rel="noreferrer"
+          >
             #{brief.pr.number} ↗
           </a>{" "}
           · {artifactHeaderLabel(brief)}
         </div>
-        {briefMetaLine(brief) ? <div className="sub faint">{briefMetaLine(brief)}</div> : null}
+        {briefMetaLine(brief) ? (
+          <div className="sub faint">{briefMetaLine(brief)}</div>
+        ) : null}
       </div>
       <TimelineNavigator briefId={briefId} timeline={timeline} />
       <div className="hdr-stats">
-        <button className={locOpen ? "stat loc-badge open" : "stat loc-badge"} type="button" onClick={() => setLocOpen(!locOpen)}>
+        <button
+          className={locOpen ? "stat loc-badge open" : "stat loc-badge"}
+          type="button"
+          onClick={() => setLocOpen(!locOpen)}
+        >
           <span className="statlabel">adjusted lines</span>
           <b>
-            <span className="green">+{model.totalAdded}</span> <span className="faint">/</span> <span className="red">−{model.totalDeleted}</span>
+            <span className="green">+{model.totalAdded}</span>{" "}
+            <span className="faint">/</span>{" "}
+            <span className="red">−{model.totalDeleted}</span>
           </b>
           <span className="loc-pop">
             <b>Adjusted ≈ git for this local brief.</b>
             <br />
-            Move detection is not in the current categorizer output, so moved/generated exclusions are not claimed yet.
+            Move detection is not in the current categorizer output, so
+            moved/generated exclusions are not claimed yet.
           </span>
         </button>
         <div className="stat">
-          chunks<b>{totals.reviewed}/{totals.chunkTotal}</b>
+          chunks
+          <b>
+            {totals.reviewed}/{totals.chunkTotal}
+          </b>
         </div>
         <div className="stat">
-          flags<b>{totals.flagsResolved}/{totals.flagTotal}</b>
+          flags
+          <b>
+            {totals.flagsResolved}/{totals.flagTotal}
+          </b>
         </div>
       </div>
       <button className="btn primary" type="button" onClick={openReceipt}>
         {reviewMode === "author" ? "Ready for review" : "Receipt"}
       </button>
-      <Link className="btn" params={{ briefId }} to="/briefs/$briefId/summary-preview">Summary preview</Link>
-      <button className="clear-drafts" type="button" onClick={clearDrafts}>Clear local drafts</button>
+      <Link
+        className="btn"
+        params={{ briefId }}
+        to="/briefs/$briefId/summary-preview"
+      >
+        Summary preview
+      </Link>
+      <button className="clear-drafts" type="button" onClick={clearDrafts}>
+        Clear local drafts
+      </button>
       <div className="progress-bar" style={{ width: `${progress}%` }} />
     </header>
   );
 }
 
-function TimelineNavigator({ briefId, timeline }: { briefId: string; timeline: BriefTimeline }) {
+function TimelineNavigator({
+  briefId,
+  timeline,
+}: {
+  briefId: string;
+  timeline: BriefTimeline;
+}) {
   const navigate = useNavigate();
   const selected = timeline.selectedPoint;
-  const currentIndex = selected ? timeline.points.findIndex((point) => point.briefId === selected.briefId) : -1;
-  const previous = currentIndex > 0 ? timeline.points[currentIndex - 1] : undefined;
-  const next = currentIndex >= 0 ? timeline.points[currentIndex + 1] : undefined;
+  const currentIndex = selected
+    ? timeline.points.findIndex((point) => point.briefId === selected.briefId)
+    : -1;
+  const previous =
+    currentIndex > 0 ? timeline.points[currentIndex - 1] : undefined;
+  const next =
+    currentIndex >= 0 ? timeline.points[currentIndex + 1] : undefined;
   const deltaId = selected?.deltaId;
 
   if (!selected) return null;
   return (
     <nav className="timeline" aria-label="PR revision timeline">
-      <span aria-live="polite" className="sr-only">Viewing Brief {selected.index} of {timeline.points.length}</span>
-      {previous ? <Link aria-label={`Previous brief, ${previous.index}`} className="timeline-arrow" params={{ briefId: previous.briefId }} to="/briefs/$briefId">←</Link> : <span aria-hidden="true" className="timeline-arrow disabled">←</span>}
+      <span aria-live="polite" className="sr-only">
+        Viewing Brief {selected.index} of {timeline.points.length}
+      </span>
+      {previous ? (
+        <Link
+          aria-label={`Previous brief, ${previous.index}`}
+          className="timeline-arrow"
+          params={{ briefId: previous.briefId }}
+          to="/briefs/$briefId"
+        >
+          ←
+        </Link>
+      ) : (
+        <span aria-hidden="true" className="timeline-arrow disabled">
+          ←
+        </span>
+      )}
       <label className="timeline-picker">
         <span className="sr-only">Select PR revision</span>
-        <select value={selected.briefId} onChange={(event) => navigate({ to: "/briefs/$briefId", params: { briefId: event.target.value } })}>
-          {timeline.points.map((point) => <option key={point.briefId} value={point.briefId}>Brief {point.index} · {point.headSha.slice(0, 7)}</option>)}
+        <select
+          value={selected.briefId}
+          onChange={(event) =>
+            navigate({
+              to: "/briefs/$briefId",
+              params: { briefId: event.target.value },
+            })
+          }
+        >
+          {timeline.points.map((point) => (
+            <option key={point.briefId} value={point.briefId}>
+              Brief {point.index} · {point.headSha.slice(0, 7)}
+            </option>
+          ))}
         </select>
       </label>
-      {next ? <Link aria-label={`Next brief, ${next.index}`} className="timeline-arrow" params={{ briefId: next.briefId }} to="/briefs/$briefId">→</Link> : <span aria-hidden="true" className="timeline-arrow disabled">→</span>}
+      {next ? (
+        <Link
+          aria-label={`Next brief, ${next.index}`}
+          className="timeline-arrow"
+          params={{ briefId: next.briefId }}
+          to="/briefs/$briefId"
+        >
+          →
+        </Link>
+      ) : (
+        <span aria-hidden="true" className="timeline-arrow disabled">
+          →
+        </span>
+      )}
       <div className="timeline-lens" role="group" aria-label="Brief lens">
-        <Link className={briefId === selected.briefId ? "active" : ""} params={{ briefId: selected.briefId }} to="/briefs/$briefId">Full</Link>
-        {deltaId ? <Link className={briefId === deltaId ? "active" : ""} params={{ briefId: deltaId }} to="/briefs/$briefId">Delta</Link> : <span aria-disabled="true" title="No local delta is available for this revision">Delta</span>}
+        <Link
+          className={briefId === selected.briefId ? "active" : ""}
+          params={{ briefId: selected.briefId }}
+          to="/briefs/$briefId"
+        >
+          Full
+        </Link>
+        {deltaId ? (
+          <Link
+            className={briefId === deltaId ? "active" : ""}
+            params={{ briefId: deltaId }}
+            to="/briefs/$briefId"
+          >
+            Delta
+          </Link>
+        ) : (
+          <span
+            aria-disabled="true"
+            title="No local delta is available for this revision"
+          >
+            Delta
+          </span>
+        )}
       </div>
       <ol className="timeline-steps">
-        {timeline.points.slice(Math.max(0, currentIndex - 4), currentIndex + 5).map((point) => (
-          <li key={point.briefId}><Link aria-current={point.briefId === selected.briefId ? "step" : undefined} className={point.briefId === selected.briefId ? "active" : point.deltaId ? "has-delta" : ""} params={{ briefId: point.briefId }} to="/briefs/$briefId"><span className="sr-only">Brief {point.index}</span></Link></li>
-        ))}
+        {timeline.points
+          .slice(Math.max(0, currentIndex - 4), currentIndex + 5)
+          .map((point) => (
+            <li key={point.briefId}>
+              <Link
+                aria-current={
+                  point.briefId === selected.briefId ? "step" : undefined
+                }
+                className={
+                  point.briefId === selected.briefId
+                    ? "active"
+                    : point.deltaId
+                      ? "has-delta"
+                      : ""
+                }
+                params={{ briefId: point.briefId }}
+                to="/briefs/$briefId"
+              >
+                <span className="sr-only">Brief {point.index}</span>
+              </Link>
+            </li>
+          ))}
       </ol>
     </nav>
   );
@@ -593,8 +1016,20 @@ function DemoControls({
   return (
     <div className="demo-controls reveal">
       <div className="viewbar">
-        <button className={reviewMode === "reviewer" ? "active" : ""} type="button" onClick={() => setReviewMode("reviewer")}>Reviewer review</button>
-        <button className={reviewMode === "author" ? "active" : ""} type="button" onClick={() => setReviewMode("author")}>Author self-review</button>
+        <button
+          className={reviewMode === "reviewer" ? "active" : ""}
+          type="button"
+          onClick={() => setReviewMode("reviewer")}
+        >
+          Reviewer review
+        </button>
+        <button
+          className={reviewMode === "author" ? "active" : ""}
+          type="button"
+          onClick={() => setReviewMode("author")}
+        >
+          Author self-review
+        </button>
       </div>
     </div>
   );
@@ -610,10 +1045,18 @@ function Toolbar({
   return (
     <div className="toolbar reveal">
       <div className="viewbar">
-        <button className={viewMode === "story" ? "active" : ""} type="button" onClick={() => setViewMode("story")}>
+        <button
+          className={viewMode === "story" ? "active" : ""}
+          type="button"
+          onClick={() => setViewMode("story")}
+        >
           Story
         </button>
-        <button className={viewMode === "concerns" ? "active" : ""} type="button" onClick={() => setViewMode("concerns")}>
+        <button
+          className={viewMode === "concerns" ? "active" : ""}
+          type="button"
+          onClick={() => setViewMode("concerns")}
+        >
           Concerns
         </button>
       </div>
@@ -624,6 +1067,7 @@ function Toolbar({
 function StoryView(props: {
   brief: Brief;
   model: BriefViewModel;
+  revision: RevisionOverlayState;
   activeChunkId: string | null;
   checkedItems: Record<CheckBucket, Set<number>>;
   collapseSupporting: boolean;
@@ -647,7 +1091,11 @@ function StoryView(props: {
   setDismissTarget: (target: DismissTarget) => void;
   setEvidenceTarget: (target: EvidenceTarget) => void;
   setFlagStatus: (flag: RiskFlag, status: FlagStatus, reason?: string) => void;
-  setFlagStatuses: (flagIds: string[], status: FlagStatus, reason?: string) => void;
+  setFlagStatuses: (
+    flagIds: string[],
+    status: FlagStatus,
+    reason?: string,
+  ) => void;
   setToast: (message: string) => void;
   toggleCheck: (bucket: CheckBucket, index: number) => void;
   toggleChunk: (chunkId: string) => void;
@@ -662,10 +1110,60 @@ function StoryView(props: {
         <span>{props.brief.chunks.length} chunks · grouped by intent</span>
         <span className="rule" />
         <label className="switch">
-          <input checked={props.collapseSupporting} suppressHydrationWarning type="checkbox" onChange={(event) => props.setCollapseSupporting(event.target.checked)} />
+          <input
+            checked={props.collapseSupporting}
+            suppressHydrationWarning
+            type="checkbox"
+            onChange={(event) =>
+              props.setCollapseSupporting(event.target.checked)
+            }
+          />
           <span className="track" />
           Collapse supporting
         </label>
+        {props.revision.available ? (
+          <label
+            className="switch revision-switch"
+            title="Highlight lines new in this revision (since the previous brief)"
+          >
+            <input
+              checked={props.revision.enabled}
+              suppressHydrationWarning
+              type="checkbox"
+              onChange={(event) =>
+                props.revision.setEnabled(event.target.checked)
+              }
+            />
+            <span className="track" />
+            Revision changes
+          </label>
+        ) : null}
+        {props.revision.enabled && props.revision.runCount > 0 ? (
+          <span
+            className="revision-jump"
+            role="group"
+            aria-label="Jump between revision changes"
+          >
+            <span className="count">
+              {props.revision.runCount} revision change
+              {props.revision.runCount === 1 ? "" : "s"}
+            </span>
+            <button
+              aria-label="Previous revision change"
+              type="button"
+              onClick={() => jumpToRevisionChange(-1)}
+            >
+              ◂
+            </button>
+            <button
+              aria-label="Next revision change"
+              type="button"
+              onClick={() => jumpToRevisionChange(1)}
+            >
+              ▸
+            </button>
+          </span>
+        ) : null}
       </div>
       {props.model.groups.map((group) => (
         <section className="story-group reveal" key={group.id}>
@@ -675,13 +1173,24 @@ function StoryView(props: {
                 key={chunk.id}
                 active={props.activeChunkId === chunk.id}
                 chunk={chunk}
-                forceCollapsed={props.collapseSupporting && chunk.role === "supporting" && !props.openChunks.has(chunk.id)}
+                revision={props.revision}
+                forceCollapsed={
+                  props.collapseSupporting &&
+                  chunk.role === "supporting" &&
+                  !props.openChunks.has(chunk.id)
+                }
                 open={props.openChunks.has(chunk.id)}
                 reviewed={props.reviewedChunks.has(chunk.id)}
-                activeCommentAnchor={props.activeCommentAnchor?.chunkId === chunk.id ? props.activeCommentAnchor : null}
+                activeCommentAnchor={
+                  props.activeCommentAnchor?.chunkId === chunk.id
+                    ? props.activeCommentAnchor
+                    : null
+                }
                 addressedReviewComments={props.brief.reviewComments ?? []}
                 cancelCommentComposer={props.cancelCommentComposer}
-                comments={props.reviewComments.filter((comment) => comment.anchor.chunkId === chunk.id)}
+                comments={props.reviewComments.filter(
+                  (comment) => comment.anchor.chunkId === chunk.id,
+                )}
                 deleteReviewComment={props.deleteReviewComment}
                 existingReviewCommentCount={props.reviewComments.length}
                 markReviewed={props.markReviewed}
@@ -737,7 +1246,11 @@ function GroupCard({
   setDismissTarget: (target: DismissTarget) => void;
   setEvidenceTarget: (target: EvidenceTarget) => void;
   setFlagStatus: (flag: RiskFlag, status: FlagStatus, reason?: string) => void;
-  setFlagStatuses: (flagIds: string[], status: FlagStatus, reason?: string) => void;
+  setFlagStatuses: (
+    flagIds: string[],
+    status: FlagStatus,
+    reason?: string,
+  ) => void;
   setToast: (message: string) => void;
   toggleCheck: (bucket: CheckBucket, index: number) => void;
   toggleRiskFlag: (flagId: string) => void;
@@ -751,29 +1264,51 @@ function GroupCard({
     <article className="group-card reveal">
       <div className="group-head">
         <div className="group-eyebrow">
-          <span className="gnum">Change-group {group.index + 1} of {model.groups.length}</span>
+          <span className="gnum">
+            Change-group {group.index + 1} of {model.groups.length}
+          </span>
           <span className="gloc">
-            <span className="green">+{group.added}</span> / <span className="red">−{group.deleted}</span> · {group.carrierChunks.length} carrier · {group.supportingChunks.length} supporting
+            <span className="green">+{group.added}</span> /{" "}
+            <span className="red">−{group.deleted}</span> ·{" "}
+            {group.carrierChunks.length} carrier ·{" "}
+            {group.supportingChunks.length} supporting
           </span>
         </div>
         <h2 className="group-title">{group.group.title}</h2>
         <p className="group-summary">{group.group.summary}</p>
         <div className="cat-row">
-          <span className="chip dominant"><em>dominant</em> {dominant}</span>
+          <span className="chip dominant">
+            <em>dominant</em> {dominant}
+          </span>
           {group.group.secondaryCategories.map((category) => (
-            <span className="chip" key={category}>secondary {category}</span>
+            <span className="chip" key={category}>
+              secondary {category}
+            </span>
           ))}
-          {group.group.uncertain && !isReclassified ? <span className="chip uncertain">uncertain</span> : null}
-          {isReclassified ? <span className="reclass-note">set by you · recorded on receipt</span> : null}
+          {group.group.uncertain && !isReclassified ? (
+            <span className="chip uncertain">uncertain</span>
+          ) : null}
+          {isReclassified ? (
+            <span className="reclass-note">
+              set by you · recorded on receipt
+            </span>
+          ) : null}
         </div>
         {group.group.uncertain && !isReclassified ? (
           <div className="uncertain-panel">
             <span className="q">
-              The categorizer is split on this group’s intent: <b>{group.group.uncertainBetween.join(" vs ")}</b>. Your call; the receipt records the override.
+              The categorizer is split on this group’s intent:{" "}
+              <b>{group.group.uncertainBetween.join(" vs ")}</b>. Your call; the
+              receipt records the override.
             </span>
             <span className="pick">
               {group.group.uncertainBetween.map((category) => (
-                <button className="pickbtn" key={category} type="button" onClick={() => chooseDominant(group.id, category)}>
+                <button
+                  className="pickbtn"
+                  key={category}
+                  type="button"
+                  onClick={() => chooseDominant(group.id, category)}
+                >
                   {category}
                 </button>
               ))}
@@ -784,26 +1319,61 @@ function GroupCard({
       <div className="group-body">
         <div className="flags">
           <div className="label risk-label">
-            <span>Risk surface — {groupFlags.length} flags <span className="count">attributes, not verdicts</span></span>
+            <span>
+              Risk surface — {groupFlags.length} flags{" "}
+              <span className="count">attributes, not verdicts</span>
+            </span>
             <span className="risk-info">
-              <button aria-describedby={`${group.id}-risk-help`} aria-label="Risk surface status meanings" className="info-button" type="button">i</button>
-              <span className="risk-info-popover" id={`${group.id}-risk-help`} role="tooltip">
-                <span><b>Addressed:</b> this risk was reviewed and handled.</span>
-                <span><b>Dismissed:</b> this risk is not applicable, duplicate, or a false positive.</span>
+              <button
+                aria-describedby={`${group.id}-risk-help`}
+                aria-label="Risk surface status meanings"
+                className="info-button"
+                type="button"
+              >
+                i
+              </button>
+              <span
+                className="risk-info-popover"
+                id={`${group.id}-risk-help`}
+                role="tooltip"
+              >
+                <span>
+                  <b>Addressed:</b> this risk was reviewed and handled.
+                </span>
+                <span>
+                  <b>Dismissed:</b> this risk is not applicable, duplicate, or a
+                  false positive.
+                </span>
               </span>
             </span>
           </div>
-          {groupFlags.length === 0 ? <p className="empty">No risk-surface attributes on this group.</p> : null}
+          {groupFlags.length === 0 ? (
+            <p className="empty">No risk-surface attributes on this group.</p>
+          ) : null}
           {groupRiskByAttribute(groupFlags).map((riskGroup) => {
-            const openRiskFlagIds = riskGroup.flags.filter((flag) => (flagStates[flag.id]?.status ?? "open") === "open").map((flag) => flag.id);
-            const selectedCount = openRiskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)).length;
-            const allSelected = openRiskFlagIds.length > 0 && selectedCount === openRiskFlagIds.length;
+            const openRiskFlagIds = riskGroup.flags
+              .filter(
+                (flag) => (flagStates[flag.id]?.status ?? "open") === "open",
+              )
+              .map((flag) => flag.id);
+            const selectedCount = openRiskFlagIds.filter((flagId) =>
+              selectedRiskFlags.has(flagId),
+            ).length;
+            const allSelected =
+              openRiskFlagIds.length > 0 &&
+              selectedCount === openRiskFlagIds.length;
             const hasSelection = selectedCount > 0;
             return (
               <div className="risk-group" key={riskGroup.attr}>
                 <div className="risk-group-head">
                   <label className="risk-check">
-                    <input checked={allSelected} disabled={openRiskFlagIds.length === 0} suppressHydrationWarning type="checkbox" onChange={() => toggleRiskGroup(openRiskFlagIds)} />
+                    <input
+                      checked={allSelected}
+                      disabled={openRiskFlagIds.length === 0}
+                      suppressHydrationWarning
+                      type="checkbox"
+                      onChange={() => toggleRiskGroup(openRiskFlagIds)}
+                    />
                     <span className="risk-group-title">{riskGroup.attr}</span>
                   </label>
                   <div className="risk-bulk-actions">
@@ -814,7 +1384,9 @@ function GroupCard({
                       type="button"
                       onClick={() => {
                         setEvidenceTarget({
-                          flagIds: openRiskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)),
+                          flagIds: openRiskFlagIds.filter((flagId) =>
+                            selectedRiskFlags.has(flagId),
+                          ),
                           label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
                         });
                       }}
@@ -828,7 +1400,9 @@ function GroupCard({
                       type="button"
                       onClick={() => {
                         setDismissTarget({
-                          flagIds: openRiskFlagIds.filter((flagId) => selectedRiskFlags.has(flagId)),
+                          flagIds: openRiskFlagIds.filter((flagId) =>
+                            selectedRiskFlags.has(flagId),
+                          ),
                           label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
                         });
                       }}
@@ -839,35 +1413,82 @@ function GroupCard({
                 </div>
                 <div className="risk-files">
                   {riskGroup.flags.map((flag) => {
-                    const state = flagStates[flag.id] ?? { status: "open", reason: "" };
+                    const state = flagStates[flag.id] ?? {
+                      status: "open",
+                      reason: "",
+                    };
                     const isResolved = state.status !== "open";
                     return (
-                      <div className={`flag ${isResolved ? `resolved ${state.status}` : ""}`} key={flag.id}>
+                      <div
+                        className={`flag ${isResolved ? `resolved ${state.status}` : ""}`}
+                        key={flag.id}
+                      >
                         <div className="frow">
                           <input
                             aria-label={`Select ${flag.attr} flag for ${flag.file}`}
-                            checked={!isResolved && selectedRiskFlags.has(flag.id)}
+                            checked={
+                              !isResolved && selectedRiskFlags.has(flag.id)
+                            }
                             className="flag-check"
                             disabled={isResolved}
                             suppressHydrationWarning
                             type="checkbox"
                             onChange={() => toggleRiskFlag(flag.id)}
                           />
-                          <button className="floc full-path" type="button" onClick={() => jumpToChunk(flag.chunkId)}>{flag.file}</button>
-                          {isResolved ? <span className="fstate compact">{state.status}</span> : null}
+                          <button
+                            className="floc full-path"
+                            type="button"
+                            onClick={() => jumpToChunk(flag.chunkId)}
+                          >
+                            {flag.file}
+                          </button>
+                          {isResolved ? (
+                            <span className="fstate compact">
+                              {state.status}
+                            </span>
+                          ) : null}
                         </div>
                         {!isResolved ? (
                           <>
                             <div className="fdesc">{flag.description}</div>
                             <div className="factions">
-                              <button className="fbtn" title="Mark this risk as reviewed and handled" type="button" onClick={() => {
-                                setEvidenceTarget({ flagIds: [flag.id], label: `${flag.attr} @ ${flag.file}` });
-                              }}>Addressed</button>
-                              <button className="fbtn" title="Mark this risk as not applicable" type="button" onClick={() => setDismissTarget({ flagIds: [flag.id], label: `${flag.attr} @ ${flag.file}` })}>Dismiss…</button>
+                              <button
+                                className="fbtn"
+                                title="Mark this risk as reviewed and handled"
+                                type="button"
+                                onClick={() => {
+                                  setEvidenceTarget({
+                                    flagIds: [flag.id],
+                                    label: `${flag.attr} @ ${flag.file}`,
+                                  });
+                                }}
+                              >
+                                Addressed
+                              </button>
+                              <button
+                                className="fbtn"
+                                title="Mark this risk as not applicable"
+                                type="button"
+                                onClick={() =>
+                                  setDismissTarget({
+                                    flagIds: [flag.id],
+                                    label: `${flag.attr} @ ${flag.file}`,
+                                  })
+                                }
+                              >
+                                Dismiss…
+                              </button>
                             </div>
                           </>
                         ) : state.status === "addressed" ? (
-                          <div className="fstate-detail">{evidenceTextForFlag(flag.id, riskEvidence, reviewComments, brief.chunks)}</div>
+                          <div className="fstate-detail">
+                            {evidenceTextForFlag(
+                              flag.id,
+                              riskEvidence,
+                              reviewComments,
+                              brief.chunks,
+                            )}
+                          </div>
                         ) : null}
                       </div>
                     );
@@ -884,6 +1505,7 @@ function GroupCard({
 
 function ChunkCard({
   chunk,
+  revision,
   active,
   open,
   reviewed,
@@ -902,6 +1524,7 @@ function ChunkCard({
   updateReviewComment,
 }: {
   chunk: BriefChunk;
+  revision: RevisionOverlayState;
   active: boolean;
   open: boolean;
   reviewed: boolean;
@@ -920,34 +1543,101 @@ function ChunkCard({
   updateReviewComment: (commentId: string, body: string) => void;
 }) {
   const expanded = open && !forceCollapsed;
-  const chunkReviewComments = reviewCommentsForChunk(addressedReviewComments, chunk);
+  const revisionView = useMemo(
+    () => buildChunkRevisionView(chunk, revision.changes),
+    [chunk, revision.changes],
+  );
+  const chunkReviewComments = reviewCommentsForChunk(
+    addressedReviewComments,
+    chunk,
+  );
   const hasLinkedAddressedComments = Boolean(chunk.addressesComments?.length);
-  const topReviewComments = hasLinkedAddressedComments ? chunkReviewComments : chunkReviewComments.filter((comment) => comment.outdated || comment.line == null);
-  const inlineReviewComments = hasLinkedAddressedComments ? chunkReviewComments : chunkReviewComments.filter((comment) => !comment.outdated && comment.line != null);
+  const topReviewComments = hasLinkedAddressedComments
+    ? chunkReviewComments
+    : chunkReviewComments.filter(
+        (comment) => comment.outdated || comment.line == null,
+      );
+  const inlineReviewComments = hasLinkedAddressedComments
+    ? chunkReviewComments
+    : chunkReviewComments.filter(
+        (comment) => !comment.outdated && comment.line != null,
+      );
   return (
-    <article className={`chunk ${expanded ? "open" : ""} ${reviewed ? "reviewed" : ""} ${active ? "current" : ""}`} id={chunk.id}>
-      <button className="chunk-head" type="button" onClick={() => toggleChunk(chunk.id)}>
+    <article
+      className={`chunk ${expanded ? "open" : ""} ${reviewed ? "reviewed" : ""} ${active ? "current" : ""}`}
+      id={chunk.id}
+    >
+      <button
+        className="chunk-head"
+        type="button"
+        onClick={() => toggleChunk(chunk.id)}
+      >
         <span className="tw">▶</span>
         <span className="cfile">{chunk.file}</span>
         <span className="cchips">
-          {chunk.riskSurface.map((risk) => <span className="cc risk" key={risk}>{risk}</span>)}
-          <span className={`cc concern-${chunk.concern}`}><span className="dot" />{chunk.concern}{chunk.role === "carrier" ? " · carrier" : ""}</span>
-          {comments.length > 0 ? <span className="cc comments">{comments.length} comment{comments.length === 1 ? "" : "s"}</span> : null}
-          {chunkReviewComments.length > 0 ? <span className="cc comments">{chunkReviewComments.length} {hasLinkedAddressedComments ? "addressed" : "review"}</span> : null}
-          <span className="cc loc"><span className="a">+{chunk.loc.added}</span> <span className="d">−{chunk.loc.deleted}</span></span>
+          {chunk.riskSurface.map((risk) => (
+            <span className="cc risk" key={risk}>
+              {risk}
+            </span>
+          ))}
+          <span className={`cc concern-${chunk.concern}`}>
+            <span className="dot" />
+            {chunk.concern}
+            {chunk.role === "carrier" ? " · carrier" : ""}
+          </span>
+          {comments.length > 0 ? (
+            <span className="cc comments">
+              {comments.length} comment{comments.length === 1 ? "" : "s"}
+            </span>
+          ) : null}
+          {chunkReviewComments.length > 0 ? (
+            <span className="cc comments">
+              {chunkReviewComments.length}{" "}
+              {hasLinkedAddressedComments ? "addressed" : "review"}
+            </span>
+          ) : null}
+          <span className="cc loc">
+            <span className="a">+{chunk.loc.added}</span>{" "}
+            <span className="d">−{chunk.loc.deleted}</span>
+          </span>
         </span>
       </button>
       <div className="chunk-actions">
-        <button className="markbtn" type="button" onClick={() => markReviewed(chunk.id)}>{reviewed ? "Reviewed ✓" : "Mark reviewed"}</button>
+        <button
+          className="markbtn"
+          type="button"
+          onClick={() => markReviewed(chunk.id)}
+        >
+          {reviewed ? "Reviewed ✓" : "Mark reviewed"}
+        </button>
       </div>
-      {!expanded ? <div className="collapse-note">{chunk.role === "supporting" ? "supporting chunk — collapsed" : "collapsed"}{comments.length > 0 ? ` · ${comments.length} draft comment${comments.length === 1 ? "" : "s"}` : ""}</div> : null}
+      {!expanded ? (
+        <div className="collapse-note">
+          {chunk.role === "supporting"
+            ? "supporting chunk — collapsed"
+            : "collapsed"}
+          {comments.length > 0
+            ? ` · ${comments.length} draft comment${comments.length === 1 ? "" : "s"}`
+            : ""}
+        </div>
+      ) : null}
       {expanded ? (
         <div className="chunk-body">
-          {chunk.summary || chunk.addressesComments?.length || topReviewComments.length > 0 ? (
+          {chunk.summary ||
+          chunk.addressesComments?.length ||
+          topReviewComments.length > 0 ? (
             <div className="chunk-delta-summary">
               {chunk.summary ? <p>{chunk.summary}</p> : null}
-              {chunk.addressesComments?.length ? <AddressedComments chunk={chunk} comments={topReviewComments} /> : null}
-              {!chunk.addressesComments?.length && topReviewComments.length > 0 ? <ReviewComments comments={topReviewComments} label="review comment" /> : null}
+              {chunk.addressesComments?.length ? (
+                <AddressedComments chunk={chunk} comments={topReviewComments} />
+              ) : null}
+              {!chunk.addressesComments?.length &&
+              topReviewComments.length > 0 ? (
+                <ReviewComments
+                  comments={topReviewComments}
+                  label="review comment"
+                />
+              ) : null}
             </div>
           ) : null}
           <DiffTable
@@ -955,11 +1645,15 @@ function ChunkCard({
             addressedComments={inlineReviewComments}
             cancelCommentComposer={cancelCommentComposer}
             chunk={chunk}
+            revisionView={revisionView}
+            revisionDelta={revision.delta}
             comments={comments}
             deleteReviewComment={deleteReviewComment}
             existingReviewCommentCount={existingReviewCommentCount}
             openCommentComposer={openCommentComposer}
-            reviewCommentLabel={hasLinkedAddressedComments ? "addressed" : "review comment"}
+            reviewCommentLabel={
+              hasLinkedAddressedComments ? "addressed" : "review comment"
+            }
             saveReviewComment={saveReviewComment}
             toggleReviewComment={toggleReviewComment}
             updateReviewComment={updateReviewComment}
@@ -970,29 +1664,46 @@ function ChunkCard({
   );
 }
 
-function AddressedComments({ chunk, comments }: { chunk: BriefChunk; comments: AddressedReviewComment[] }) {
+function AddressedComments({
+  chunk,
+  comments,
+}: {
+  chunk: BriefChunk;
+  comments: AddressedReviewComment[];
+}) {
   const ids = chunk.addressesComments ?? [];
   if (ids.length === 0) return null;
   if (comments.length === 0) {
     return <span>addresses comments {ids.join(", ")}</span>;
   }
-  return (
-    <ReviewComments comments={comments} label="comment" />
-  );
+  return <ReviewComments comments={comments} label="comment" />;
 }
 
-function ReviewComments({ comments, label }: { comments: AddressedReviewComment[]; label: string }) {
+function ReviewComments({
+  comments,
+  label,
+}: {
+  comments: AddressedReviewComment[];
+  label: string;
+}) {
   return (
     <div className="addressed-comments">
       {comments.map((comment) => (
         <details className="addressed-comment" key={comment.id}>
           <summary>
             <span>@{comment.author}</span>
-            <b>{comment.file}{addressedCommentRange(comment)}</b>
-            <em>{label} {comment.id}</em>
+            <b>
+              {comment.file}
+              {addressedCommentRange(comment)}
+            </b>
+            <em>
+              {label} {comment.id}
+            </em>
           </summary>
           <Markdown content={comment.body} />
-          {comment.inReplyToId ? <div className="reply-note">reply to {comment.inReplyToId}</div> : null}
+          {comment.inReplyToId ? (
+            <div className="reply-note">reply to {comment.inReplyToId}</div>
+          ) : null}
         </details>
       ))}
     </div>
@@ -1001,6 +1712,8 @@ function ReviewComments({ comments, label }: { comments: AddressedReviewComment[
 
 function DiffTable({
   chunk,
+  revisionView,
+  revisionDelta,
   activeCommentAnchor,
   addressedComments,
   cancelCommentComposer,
@@ -1014,6 +1727,8 @@ function DiffTable({
   updateReviewComment,
 }: {
   chunk: BriefChunk;
+  revisionView: ChunkRevisionView;
+  revisionDelta: Brief | null;
   activeCommentAnchor: CommentAnchor | null;
   addressedComments: AddressedReviewComment[];
   cancelCommentComposer: () => void;
@@ -1028,106 +1743,258 @@ function DiffTable({
 }) {
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [dragCurrent, setDragCurrent] = useState<number | null>(null);
+  const [railHover, setRailHover] = useState<{
+    run: RevisionRun;
+    pos: { top: number; left: number };
+  } | null>(null);
+
+  useEffect(() => {
+    if (!railHover) return;
+    const close = () => setRailHover(null);
+    window.addEventListener("scroll", close, { capture: true, passive: true });
+    return () => window.removeEventListener("scroll", close, { capture: true });
+  }, [railHover]);
+
+  const handleRailEnter = (run: RevisionRun, el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    setRailHover({ run, pos: { top: rect.top, left: rect.right + 8 } });
+  };
+  const handleRailLeave = () => setRailHover(null);
 
   if (!chunk.diff || chunk.diff.length === 0) {
     return (
       <div className="metadata-diff">
         <span>diff unavailable</span>
-        <p>The brief loaded, but no matching raw diff was available for this chunk. The durable fix is to emit chunk-level hunk rows from the categorizer.</p>
+        <p>
+          The brief loaded, but no matching raw diff was available for this
+          chunk. The durable fix is to emit chunk-level hunk rows from the
+          categorizer.
+        </p>
       </div>
     );
   }
 
-  const dragIndexes = dragStart === null || dragCurrent === null ? [] : rangeBetween(dragStart, dragCurrent);
+  const dragIndexes =
+    dragStart === null || dragCurrent === null
+      ? []
+      : rangeBetween(dragStart, dragCurrent);
   const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
+  const overlayActive = revisionView.runs.length > 0;
+  const metaColSpan = overlayActive ? 4 : 3;
 
   function finishSelection(rowIndex: number) {
-    const indexes = dragStart === null ? [rowIndex] : rangeBetween(dragStart, rowIndex);
+    const indexes =
+      dragStart === null ? [rowIndex] : rangeBetween(dragStart, rowIndex);
     setDragStart(null);
     setDragCurrent(null);
-    const anchor = createCommentAnchor(chunk.id, chunk.file, chunk.diff ?? [], indexes);
+    const anchor = createCommentAnchor(
+      chunk.id,
+      chunk.file,
+      chunk.diff ?? [],
+      indexes,
+    );
     if (anchor) openCommentComposer(anchor);
   }
 
   return (
-    <table className="diff">
-      <tbody>
-        {chunk.diff.map((line, index) => {
-          if (line.kind === "hunk" || line.kind === "note") {
-            return (
-              <tr className={line.kind} key={`${line.kind}-${index}`}>
-                <td colSpan={3}>{line.content}</td>
-              </tr>
+    <>
+      <table className="diff">
+        <tbody>
+          {chunk.diff.map((line, index) => {
+            if (line.kind === "hunk" || line.kind === "note") {
+              return (
+                <tr className={line.kind} key={`${line.kind}-${index}`}>
+                  <td colSpan={metaColSpan}>{line.content}</td>
+                </tr>
+              );
+            }
+            const sign =
+              line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
+            const id = rowId(chunk.id, index);
+            const revRun = overlayActive
+              ? revisionView.runByRow.get(index)
+              : undefined;
+            const revMark = overlayActive
+              ? revisionView.marks.get(index)
+              : undefined;
+            const isRevStart =
+              revRun !== undefined && revRun.rowIndexes[0] === index;
+            const isRevEnd =
+              revRun !== undefined && revRun.rowIndexes.at(-1) === index;
+            const rowComments = comments.filter(
+              (comment) => comment.anchor.rowIds.at(-1) === id,
             );
-          }
-          const sign = line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
-          const id = rowId(chunk.id, index);
-          const rowComments = comments.filter((comment) => comment.anchor.rowIds.at(-1) === id);
-          const rowAddressedComments = addressedComments.filter((comment) => reviewCommentMatchesDiffLine(comment, chunk.file, line, chunk.diff));
-          const isSelected = dragIndexes.includes(index) || activeRowIds.has(id);
-          const showComposer = activeCommentAnchor?.chunkId === chunk.id && activeCommentAnchor.rowIds.at(-1) === id;
-          return (
-            <Fragment key={`${line.kind}-${index}`}>
-              <tr
-                className={`${line.kind} commentable ${isSelected ? "selected" : ""}`}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") finishSelection(index);
-                }}
-                onMouseDown={(event) => {
-                  event.preventDefault();
-                  setDragStart(index);
-                  setDragCurrent(index);
-                }}
-                onMouseEnter={() => {
-                  if (dragStart !== null) setDragCurrent(index);
-                }}
-                onMouseUp={() => finishSelection(index)}
-                tabIndex={0}
-              >
-                <td className="ln">{line.oldLine ?? ""}</td>
-                <td className="ln">{line.newLine ?? ""}</td>
-                <td className="code"><span className="sign">{sign}</span>{line.content}</td>
-              </tr>
-              {showComposer ? (
-                <tr className="comment-row">
-                  <td colSpan={3}>
-                    <CommentComposer anchor={activeCommentAnchor} cancel={cancelCommentComposer} existingReviewCommentCount={existingReviewCommentCount} save={saveReviewComment} />
+            const rowAddressedComments = addressedComments.filter((comment) =>
+              reviewCommentMatchesDiffLine(
+                comment,
+                chunk.file,
+                line,
+                chunk.diff,
+              ),
+            );
+            const isSelected =
+              dragIndexes.includes(index) || activeRowIds.has(id);
+            const showComposer =
+              activeCommentAnchor?.chunkId === chunk.id &&
+              activeCommentAnchor.rowIds.at(-1) === id;
+            return (
+              <Fragment key={`${line.kind}-${index}`}>
+                <tr
+                  className={`${line.kind} commentable ${isSelected ? "selected" : ""} ${revMark ? `rev-${revMark}` : ""}`}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") finishSelection(index);
+                  }}
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    setDragStart(index);
+                    setDragCurrent(index);
+                  }}
+                  onMouseEnter={() => {
+                    if (dragStart !== null) setDragCurrent(index);
+                  }}
+                  onMouseUp={() => finishSelection(index)}
+                  tabIndex={0}
+                >
+                  {overlayActive ? (
+                    <RevisionGutterCell
+                      run={revRun}
+                      isStart={isRevStart}
+                      isEnd={isRevEnd}
+                      chunk={chunk}
+                      onRailEnter={handleRailEnter}
+                      onRailLeave={handleRailLeave}
+                    />
+                  ) : null}
+                  <td className="ln">{line.oldLine ?? ""}</td>
+                  <td className="ln">{line.newLine ?? ""}</td>
+                  <td className="code">
+                    <span className="sign">{sign}</span>
+                    {line.content}
+                    {isRevStart && revRun ? (
+                      <span className={`newtag ${revRun.kind}`}>
+                        {revRun.kind === "removed" ? "removed" : "new"}
+                      </span>
+                    ) : null}
                   </td>
                 </tr>
-              ) : null}
-              {rowComments.map((comment) => (
-                <tr className="comment-row" key={comment.id}>
-                  <td colSpan={3}>
-                    <CommentThread comment={comment} deleteComment={deleteReviewComment} toggle={toggleReviewComment} update={updateReviewComment} />
-                  </td>
-                </tr>
-              ))}
-              {rowAddressedComments.map((comment) => (
-                <tr className="comment-row" key={`addressed-${comment.id}`}>
-                  <td colSpan={3}>
-                    <AddressedDiffComment comment={comment} label={reviewCommentLabel} />
-                  </td>
-                </tr>
-              ))}
-            </Fragment>
-          );
-        })}
-      </tbody>
-    </table>
+                {showComposer ? (
+                  <tr className="comment-row">
+                    <td colSpan={metaColSpan}>
+                      <CommentComposer
+                        anchor={activeCommentAnchor}
+                        cancel={cancelCommentComposer}
+                        existingReviewCommentCount={existingReviewCommentCount}
+                        save={saveReviewComment}
+                      />
+                    </td>
+                  </tr>
+                ) : null}
+                {rowComments.map((comment) => (
+                  <tr className="comment-row" key={comment.id}>
+                    <td colSpan={metaColSpan}>
+                      <CommentThread
+                        comment={comment}
+                        deleteComment={deleteReviewComment}
+                        toggle={toggleReviewComment}
+                        update={updateReviewComment}
+                      />
+                    </td>
+                  </tr>
+                ))}
+                {rowAddressedComments.map((comment) => (
+                  <tr className="comment-row" key={`addressed-${comment.id}`}>
+                    <td colSpan={metaColSpan}>
+                      <AddressedDiffComment
+                        comment={comment}
+                        label={reviewCommentLabel}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
+      {railHover && (
+        <DeltaCallout
+          pos={railHover.pos}
+          run={railHover.run}
+          chunk={chunk}
+          delta={revisionDelta}
+        />
+      )}
+    </>
   );
 }
 
-function AddressedDiffComment({ comment, label }: { comment: AddressedReviewComment; label: string }) {
+function RevisionGutterCell({
+  run,
+  isStart,
+  isEnd,
+  onRailEnter,
+  onRailLeave,
+}: {
+  run: RevisionRun | undefined;
+  isStart: boolean;
+  isEnd: boolean;
+  chunk: BriefChunk;
+  onRailEnter: (run: RevisionRun, el: HTMLElement) => void;
+  onRailLeave: () => void;
+}) {
+  if (!run) return <td className="gut" />;
+  const count = run.rowIndexes.length;
+  const verb = run.kind === "removed" ? "Removed" : "New";
+  const railClass = ["rail", isStart && "rail-first", isEnd && "rail-last"]
+    .filter(Boolean)
+    .join(" ");
+  return (
+    <td
+      className={`gut rev ${run.kind}`}
+      onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
+      onMouseLeave={onRailLeave}
+    >
+      {isStart ? (
+        <button
+          className="railbtn-focus"
+          type="button"
+          aria-label={`${verb} this revision. ${count} line${count === 1 ? "" : "s"}.`}
+          onFocus={(e) => onRailEnter(run, e.currentTarget)}
+          onBlur={onRailLeave}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") e.currentTarget.blur();
+          }}
+        />
+      ) : null}
+      <span className={railClass} aria-hidden="true" />
+    </td>
+  );
+}
+
+function AddressedDiffComment({
+  comment,
+  label,
+}: {
+  comment: AddressedReviewComment;
+  label: string;
+}) {
   return (
     <details className="comment-thread addressed-diff-comment">
       <summary className="comment-thread-head">
-        <span>@{comment.author} {label}</span>
-        <span>{comment.file}{addressedCommentRange(comment)}</span>
+        <span>
+          @{comment.author} {label}
+        </span>
+        <span>
+          {comment.file}
+          {addressedCommentRange(comment)}
+        </span>
       </summary>
       <div className="comment-preview">
         <Markdown content={comment.body} />
       </div>
-      {comment.inReplyToId ? <div className="reply-note">reply to {comment.inReplyToId}</div> : null}
+      {comment.inReplyToId ? (
+        <div className="reply-note">reply to {comment.inReplyToId}</div>
+      ) : null}
     </details>
   );
 }
@@ -1148,7 +2015,13 @@ function CommentComposer({
   const [error, setError] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  function applyTextEdit(edit: (text: string, start: number, end: number) => { text: string; selectionStart: number; selectionEnd: number }) {
+  function applyTextEdit(
+    edit: (
+      text: string,
+      start: number,
+      end: number,
+    ) => { text: string; selectionStart: number; selectionEnd: number },
+  ) {
     const textarea = textareaRef.current;
     const start = textarea?.selectionStart ?? body.length;
     const end = textarea?.selectionEnd ?? body.length;
@@ -1156,14 +2029,20 @@ function CommentComposer({
     setBody(next.text);
     window.setTimeout(() => {
       textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(next.selectionStart, next.selectionEnd);
+      textareaRef.current?.setSelectionRange(
+        next.selectionStart,
+        next.selectionEnd,
+      );
     }, 0);
   }
 
   function insertLinePrefix(prefix: string) {
     applyTextEdit((text, start, end) => {
       const selected = text.slice(start, end) || "list item";
-      const replacement = selected.split("\n").map((line) => `${prefix}${line}`).join("\n");
+      const replacement = selected
+        .split("\n")
+        .map((line) => `${prefix}${line}`)
+        .join("\n");
       return {
         text: `${text.slice(0, start)}${replacement}${text.slice(end)}`,
         selectionStart: start,
@@ -1185,7 +2064,14 @@ function CommentComposer({
   }
 
   function insertSuggestion() {
-    applyTextEdit((text, start, end) => replaceSelectionWithSuggestion(text, start, end, text.slice(start, end) || anchor.selectedText));
+    applyTextEdit((text, start, end) =>
+      replaceSelectionWithSuggestion(
+        text,
+        start,
+        end,
+        text.slice(start, end) || anchor.selectedText,
+      ),
+    );
   }
 
   function submit() {
@@ -1200,24 +2086,77 @@ function CommentComposer({
     <div className="comment-composer">
       <div className="comment-meta">
         <span>{commentAnchorLabel(anchor)}</span>
-        <span>{anchor.rowIds.length} line{anchor.rowIds.length === 1 ? "" : "s"}</span>
+        <span>
+          {anchor.rowIds.length} line{anchor.rowIds.length === 1 ? "" : "s"}
+        </span>
       </div>
       <div className="comment-tabs">
-        <button className={mode === "write" ? "active" : ""} type="button" onClick={() => setMode("write")}>Write</button>
-        <button className={mode === "preview" ? "active" : ""} type="button" onClick={() => setMode("preview")}>Preview</button>
+        <button
+          className={mode === "write" ? "active" : ""}
+          type="button"
+          onClick={() => setMode("write")}
+        >
+          Write
+        </button>
+        <button
+          className={mode === "preview" ? "active" : ""}
+          type="button"
+          onClick={() => setMode("preview")}
+        >
+          Preview
+        </button>
       </div>
       {mode === "write" ? (
         <>
           <div className="comment-toolbar">
-            <button type="button" onClick={() => applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "**"))}>B</button>
-            <button type="button" onClick={() => applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "_"))}>I</button>
-            <button type="button" onClick={() => applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "`"))}>Code</button>
-            <button type="button" onClick={() => insertLinePrefix("> ")}>Quote</button>
-            <button type="button" onClick={() => insertLinePrefix("- ")}>List</button>
-            <button type="button" onClick={() => insertLinePrefix("1. ")}>1.</button>
-            <button type="button" onClick={() => insertLinePrefix("- [ ] ")}>Task</button>
-            <button type="button" onClick={insertLink}>Link</button>
-            <button type="button" onClick={insertSuggestion}>Suggestion</button>
+            <button
+              type="button"
+              onClick={() =>
+                applyTextEdit((text, start, end) =>
+                  applyMarkdownWrap(text, start, end, "**"),
+                )
+              }
+            >
+              B
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                applyTextEdit((text, start, end) =>
+                  applyMarkdownWrap(text, start, end, "_"),
+                )
+              }
+            >
+              I
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                applyTextEdit((text, start, end) =>
+                  applyMarkdownWrap(text, start, end, "`"),
+                )
+              }
+            >
+              Code
+            </button>
+            <button type="button" onClick={() => insertLinePrefix("> ")}>
+              Quote
+            </button>
+            <button type="button" onClick={() => insertLinePrefix("- ")}>
+              List
+            </button>
+            <button type="button" onClick={() => insertLinePrefix("1. ")}>
+              1.
+            </button>
+            <button type="button" onClick={() => insertLinePrefix("- [ ] ")}>
+              Task
+            </button>
+            <button type="button" onClick={insertLink}>
+              Link
+            </button>
+            <button type="button" onClick={insertSuggestion}>
+              Suggestion
+            </button>
           </div>
           <textarea
             ref={textareaRef}
@@ -1227,15 +2166,28 @@ function CommentComposer({
               setError("");
             }}
             onKeyDown={(event) => {
-              if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
+              if (
+                (event.metaKey || event.ctrlKey) &&
+                event.key.toLowerCase() === "b"
+              ) {
                 event.preventDefault();
-                applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "**"));
+                applyTextEdit((text, start, end) =>
+                  applyMarkdownWrap(text, start, end, "**"),
+                );
               }
-              if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "i") {
+              if (
+                (event.metaKey || event.ctrlKey) &&
+                event.key.toLowerCase() === "i"
+              ) {
                 event.preventDefault();
-                applyTextEdit((text, start, end) => applyMarkdownWrap(text, start, end, "_"));
+                applyTextEdit((text, start, end) =>
+                  applyMarkdownWrap(text, start, end, "_"),
+                );
               }
-              if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+              if (
+                (event.metaKey || event.ctrlKey) &&
+                event.key.toLowerCase() === "k"
+              ) {
                 event.preventDefault();
                 insertLink();
               }
@@ -1250,8 +2202,12 @@ function CommentComposer({
       )}
       {error ? <div className="comment-error">{error}</div> : null}
       <div className="comment-actions">
-        <button className="btn primary" type="button" onClick={submit}>{reviewCommentSubmitLabel(existingReviewCommentCount)}</button>
-        <button className="btn" type="button" onClick={cancel}>Cancel</button>
+        <button className="btn primary" type="button" onClick={submit}>
+          {reviewCommentSubmitLabel(existingReviewCommentCount)}
+        </button>
+        <button className="btn" type="button" onClick={cancel}>
+          Cancel
+        </button>
       </div>
     </div>
   );
@@ -1274,7 +2230,10 @@ function CommentThread({
   if (comment.collapsed) {
     return (
       <div className="comment-thread collapsed">
-        <button type="button" onClick={() => toggle(comment.id)}>Draft comment on {comment.anchor.side === "new" ? "+" : "-"}{comment.anchor.startLine}</button>
+        <button type="button" onClick={() => toggle(comment.id)}>
+          Draft comment on {comment.anchor.side === "new" ? "+" : "-"}
+          {comment.anchor.startLine}
+        </button>
       </div>
     );
   }
@@ -1283,35 +2242,68 @@ function CommentThread({
     <div className="comment-thread">
       <div className="comment-thread-head">
         <span>@you pending</span>
-        <span>{comment.anchor.file}:{comment.anchor.startLine}{comment.anchor.endLine !== comment.anchor.startLine ? `-${comment.anchor.endLine}` : ""}</span>
+        <span>
+          {comment.anchor.file}:{comment.anchor.startLine}
+          {comment.anchor.endLine !== comment.anchor.startLine
+            ? `-${comment.anchor.endLine}`
+            : ""}
+        </span>
       </div>
       {editing ? (
         <>
-          <textarea suppressHydrationWarning value={body} onChange={(event) => setBody(event.target.value)} />
+          <textarea
+            suppressHydrationWarning
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+          />
           <div className="comment-actions">
-            <button className="btn primary" type="button" onClick={() => {
-              update(comment.id, body);
-              setEditing(false);
-            }}>Save</button>
-            <button className="btn" type="button" onClick={() => {
-              setBody(comment.body);
-              setEditing(false);
-            }}>Cancel</button>
+            <button
+              className="btn primary"
+              type="button"
+              onClick={() => {
+                update(comment.id, body);
+                setEditing(false);
+              }}
+            >
+              Save
+            </button>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => {
+                setBody(comment.body);
+                setEditing(false);
+              }}
+            >
+              Cancel
+            </button>
           </div>
         </>
       ) : (
         <MarkdownPreview anchor={comment.anchor} body={comment.body} />
       )}
       <div className="comment-thread-actions">
-        <button type="button" onClick={() => setEditing(true)}>Edit</button>
-        <button type="button" onClick={() => toggle(comment.id)}>Collapse</button>
-        <button type="button" onClick={() => deleteComment(comment.id)}>Delete</button>
+        <button type="button" onClick={() => setEditing(true)}>
+          Edit
+        </button>
+        <button type="button" onClick={() => toggle(comment.id)}>
+          Collapse
+        </button>
+        <button type="button" onClick={() => deleteComment(comment.id)}>
+          Delete
+        </button>
       </div>
     </div>
   );
 }
 
-function MarkdownPreview({ anchor, body }: { anchor: CommentAnchor; body: string }) {
+function MarkdownPreview({
+  anchor,
+  body,
+}: {
+  anchor: CommentAnchor;
+  body: string;
+}) {
   const suggestions = parseSuggestionBlocks(body);
   const markdown = stripSuggestionBlocks(body);
   return (
@@ -1324,39 +2316,59 @@ function MarkdownPreview({ anchor, body }: { anchor: CommentAnchor; body: string
       {suggestions.map((suggestion) => (
         <div className="suggestion-card" key={suggestion.index}>
           <div className="suggestion-title">Suggested change</div>
-          <table className="diff suggestion-diff" aria-label="Suggested change diff">
+          <table
+            className="diff suggestion-diff"
+            aria-label="Suggested change diff"
+          >
             <colgroup>
               <col className="suggestion-line-col" />
               <col className="suggestion-line-col" />
               <col />
             </colgroup>
             <tbody>
-              {buildSuggestionDiffRows(anchor, suggestion.body).map((row, index) => (
-                <tr className={row.kind} key={`${row.kind}-${index}`}>
-                  <td className="ln">{row.oldLine ?? ""}</td>
-                  <td className="ln">{row.newLine ?? ""}</td>
-                  <td className="code">
-                    <span className="sign">{row.kind === "add" ? "+" : "−"}</span>
-                    {row.content}
-                  </td>
-                </tr>
-              ))}
+              {buildSuggestionDiffRows(anchor, suggestion.body).map(
+                (row, index) => (
+                  <tr className={row.kind} key={`${row.kind}-${index}`}>
+                    <td className="ln">{row.oldLine ?? ""}</td>
+                    <td className="ln">{row.newLine ?? ""}</td>
+                    <td className="code">
+                      <span className="sign">
+                        {row.kind === "add" ? "+" : "−"}
+                      </span>
+                      {row.content}
+                    </td>
+                  </tr>
+                ),
+              )}
             </tbody>
           </table>
-          <button disabled type="button">Apply suggestion unavailable in mockup</button>
+          <button disabled type="button">
+            Apply suggestion unavailable in mockup
+          </button>
         </div>
       ))}
     </div>
   );
 }
 
-function ConcernView({ brief, model, jumpToChunk }: { brief: Brief; model: BriefViewModel; jumpToChunk: (chunkId: string) => void }) {
+function ConcernView({
+  brief,
+  model,
+  jumpToChunk,
+}: {
+  brief: Brief;
+  model: BriefViewModel;
+  jumpToChunk: (chunkId: string) => void;
+}) {
   const totalTouched = Math.max(1, model.totalAdded + model.totalDeleted);
   return (
     <section className="concern-view">
       <div className="concern-intro reveal">
         <div className="eyebrow">Attention split</div>
-        <p>The same {brief.chunks.length} chunks, pivoted by artifact instead of intent.</p>
+        <p>
+          The same {brief.chunks.length} chunks, pivoted by artifact instead of
+          intent.
+        </p>
       </div>
       {brief.concernView.map((rollup) => {
         const chunks = model.concernChunks.get(rollup.concern) ?? [];
@@ -1364,15 +2376,33 @@ function ConcernView({ brief, model, jumpToChunk }: { brief: Brief; model: Brief
         return (
           <article className="concern-bucket reveal" key={rollup.concern}>
             <div className="cb-head">
-              <span className="cb-name"><span className="dot" />{rollup.concern}</span>
-              <span className="cb-loc"><span className="a">+{rollup.added}</span> <span className="d">−{rollup.deleted}</span></span>
-              <span className="cb-count">{chunks.length} chunk{chunks.length === 1 ? "" : "s"}</span>
+              <span className="cb-name">
+                <span className="dot" />
+                {rollup.concern}
+              </span>
+              <span className="cb-loc">
+                <span className="a">+{rollup.added}</span>{" "}
+                <span className="d">−{rollup.deleted}</span>
+              </span>
+              <span className="cb-count">
+                {chunks.length} chunk{chunks.length === 1 ? "" : "s"}
+              </span>
             </div>
-            <div className="cb-bar"><i style={{ width: `${Math.max(4, pct)}%` }} /></div>
+            <div className="cb-bar">
+              <i style={{ width: `${Math.max(4, pct)}%` }} />
+            </div>
             <div className="cb-files">
               {chunks.map((chunk) => (
-                <button key={chunk.id} type="button" onClick={() => jumpToChunk(chunk.id)}>
-                  {chunk.file} <span className="floc2">· <span className="a">+{chunk.loc.added}</span> <span className="d">−{chunk.loc.deleted}</span></span>
+                <button
+                  key={chunk.id}
+                  type="button"
+                  onClick={() => jumpToChunk(chunk.id)}
+                >
+                  {chunk.file}{" "}
+                  <span className="floc2">
+                    · <span className="a">+{chunk.loc.added}</span>{" "}
+                    <span className="d">−{chunk.loc.deleted}</span>
+                  </span>
                 </button>
               ))}
             </div>
@@ -1380,7 +2410,12 @@ function ConcernView({ brief, model, jumpToChunk }: { brief: Brief; model: Brief
         );
       })}
       <div className="concern-bucket muted reveal">
-        <div className="cb-head"><span className="cb-name muted-name">empty concerns</span><span className="cb-count">generated · spec · config may be absent from this local brief</span></div>
+        <div className="cb-head">
+          <span className="cb-name muted-name">empty concerns</span>
+          <span className="cb-count">
+            generated · spec · config may be absent from this local brief
+          </span>
+        </div>
       </div>
     </section>
   );
@@ -1402,18 +2437,46 @@ function ReceiptDrawer(props: {
   openSummaryPreview: () => void;
   submit: () => void;
 }) {
-  const totals = summarizeProgress(props.model, props.checkedItems, props.reviewedChunks, props.flagStates, props.dominants);
-  const dismissed = props.model.flags.filter((flag) => props.flagStates[flag.id]?.status === "dismissed");
-  const addressed = props.model.flags.filter((flag) => props.flagStates[flag.id]?.status === "addressed");
-  const open = props.model.flags.filter((flag) => (props.flagStates[flag.id]?.status ?? "open") === "open");
+  const totals = summarizeProgress(
+    props.model,
+    props.checkedItems,
+    props.reviewedChunks,
+    props.flagStates,
+    props.dominants,
+  );
+  const dismissed = props.model.flags.filter(
+    (flag) => props.flagStates[flag.id]?.status === "dismissed",
+  );
+  const addressed = props.model.flags.filter(
+    (flag) => props.flagStates[flag.id]?.status === "addressed",
+  );
+  const open = props.model.flags.filter(
+    (flag) => (props.flagStates[flag.id]?.status ?? "open") === "open",
+  );
 
   return (
     <>
-      <button aria-label="Close receipt" className={props.open ? "scrim show" : "scrim"} type="button" onClick={props.close} />
+      <button
+        aria-label="Close receipt"
+        className={props.open ? "scrim show" : "scrim"}
+        type="button"
+        onClick={props.close}
+      />
       <aside className={props.open ? "receipt show" : "receipt"}>
         <div className="receipt-inner">
-          <div className="receipt-title"><h2>{props.reviewMode === "author" ? "Self-review summary" : "Verification receipt"}</h2><span className="tag">not an approval</span></div>
-          <div className="receipt-sub">{props.reviewMode === "author" ? "Author-side preview · catches unresolved risk before requesting review" : "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours"}</div>
+          <div className="receipt-title">
+            <h2>
+              {props.reviewMode === "author"
+                ? "Self-review summary"
+                : "Verification receipt"}
+            </h2>
+            <span className="tag">not an approval</span>
+          </div>
+          <div className="receipt-sub">
+            {props.reviewMode === "author"
+              ? "Author-side preview · catches unresolved risk before requesting review"
+              : "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours"}
+          </div>
           <pre className="receipt-body">{`Reviewed by @you (human) · ${props.brief.pr.repo} #${props.brief.pr.number} @ ${props.brief.pr.sha.slice(0, 7)}
 Tool verification receipt — mechanical claims only
 
@@ -1428,10 +2491,29 @@ ${props.reclassifiedGroups.size > 0 ? `\n  ${props.reclassifiedGroups.size} grou
 
   not checked: business intent · runtime behavior · performance under load · integration with downstream systems`}</pre>
           <div className="receipt-actions">
-            <button className="btn primary" type="button" onClick={props.submit}>{props.reviewMode === "author" ? "Mark ready for review" : "Submit review to GitHub"}</button>
-            <button className="btn" type="button" onClick={props.openSummaryPreview}>Preview public summary</button>
-            <button className="btn" type="button" onClick={props.close}>Keep reviewing</button>
-            <span className="receipt-note">Scoped to mechanical claims. The approve / request-changes verdict is yours alone.</span>
+            <button
+              className="btn primary"
+              type="button"
+              onClick={props.submit}
+            >
+              {props.reviewMode === "author"
+                ? "Mark ready for review"
+                : "Submit review to GitHub"}
+            </button>
+            <button
+              className="btn"
+              type="button"
+              onClick={props.openSummaryPreview}
+            >
+              Preview public summary
+            </button>
+            <button className="btn" type="button" onClick={props.close}>
+              Keep reviewing
+            </button>
+            <span className="receipt-note">
+              Scoped to mechanical claims. The approve / request-changes verdict
+              is yours alone.
+            </span>
           </div>
         </div>
       </aside>
@@ -1456,9 +2538,22 @@ function SummaryPreviewDrawer({
 }) {
   return (
     <>
-      <button aria-label="Close summary preview" className={open ? "scrim show" : "scrim"} type="button" onClick={close} />
-      <aside className={open ? "receipt summary-drawer show" : "receipt summary-drawer"}>
-        <SummaryPreview brief={brief} snapshot={{ ...snapshot, reviewOutcome }} setOutcome={setOutcome} />
+      <button
+        aria-label="Close summary preview"
+        className={open ? "scrim show" : "scrim"}
+        type="button"
+        onClick={close}
+      />
+      <aside
+        className={
+          open ? "receipt summary-drawer show" : "receipt summary-drawer"
+        }
+      >
+        <SummaryPreview
+          brief={brief}
+          snapshot={{ ...snapshot, reviewOutcome }}
+          setOutcome={setOutcome}
+        />
       </aside>
     </>
   );
@@ -1479,25 +2574,47 @@ function PreSubmitModal({
   open: boolean;
   unresolvedItems: UnresolvedItem[];
 }) {
-  const title = mode === "author" ? "Before requesting review" : "Before the receipt";
-  const primary = mode === "author" ? "Continue to self-review summary" : "Continue to receipt";
+  const title =
+    mode === "author" ? "Before requesting review" : "Before the receipt";
+  const primary =
+    mode === "author"
+      ? "Continue to self-review summary"
+      : "Continue to receipt";
   return (
     <div className={open ? "modal show" : "modal"}>
       <div className="modal-box unresolved-box">
         <h3>{title}</h3>
-        <p className="modal-copy">This is advisory. You can continue, but the summary will show unresolved items exactly as they are.</p>
+        <p className="modal-copy">
+          This is advisory. You can continue, but the summary will show
+          unresolved items exactly as they are.
+        </p>
         <div className="unresolved-list">
-          {unresolvedItems.length === 0 ? <div className="empty">No unresolved review items.</div> : null}
+          {unresolvedItems.length === 0 ? (
+            <div className="empty">No unresolved review items.</div>
+          ) : null}
           {unresolvedItems.map((item) => (
-            <button className="unresolved-item" key={item.id} type="button" onClick={() => jumpToItem(item)}>
+            <button
+              className="unresolved-item"
+              key={item.id}
+              type="button"
+              onClick={() => jumpToItem(item)}
+            >
               <span>{unresolvedKindLabel(item.kind)}</span>
               <b>{item.label}</b>
             </button>
           ))}
         </div>
         <div className="modal-actions">
-          <button className="btn" type="button" onClick={close}>Keep reviewing</button>
-          <button className="btn primary" type="button" onClick={continueToReceipt}>{primary}</button>
+          <button className="btn" type="button" onClick={close}>
+            Keep reviewing
+          </button>
+          <button
+            className="btn primary"
+            type="button"
+            onClick={continueToReceipt}
+          >
+            {primary}
+          </button>
         </div>
       </div>
     </div>
@@ -1514,7 +2631,11 @@ function EvidenceModal({
   cancel: () => void;
   chunks: BriefChunk[];
   comments: ReviewComment[];
-  confirm: (kind: RiskEvidenceKind, commentId: string | undefined, note: string | undefined) => void;
+  confirm: (
+    kind: RiskEvidenceKind,
+    commentId: string | undefined,
+    note: string | undefined,
+  ) => void;
   target: EvidenceTarget | null;
 }) {
   const [kind, setKind] = useState<RiskEvidenceKind>("chunk-reviewed");
@@ -1535,20 +2656,74 @@ function EvidenceModal({
         <h3>Address risk with evidence</h3>
         <div className="mattr">{target?.label}</div>
         <div className="evidence-options">
-          <label><input checked={kind === "linked-comment"} disabled={comments.length === 0} name="risk-evidence" type="radio" onChange={() => setKind("linked-comment")} /> Linked comment</label>
-          <label><input checked={kind === "chunk-reviewed"} name="risk-evidence" type="radio" onChange={() => setKind("chunk-reviewed")} /> Reviewed related chunk</label>
-          <label><input checked={kind === "manual-note"} name="risk-evidence" type="radio" onChange={() => setKind("manual-note")} /> Manually verified</label>
+          <label>
+            <input
+              checked={kind === "linked-comment"}
+              disabled={comments.length === 0}
+              name="risk-evidence"
+              type="radio"
+              onChange={() => setKind("linked-comment")}
+            />{" "}
+            Linked comment
+          </label>
+          <label>
+            <input
+              checked={kind === "chunk-reviewed"}
+              name="risk-evidence"
+              type="radio"
+              onChange={() => setKind("chunk-reviewed")}
+            />{" "}
+            Reviewed related chunk
+          </label>
+          <label>
+            <input
+              checked={kind === "manual-note"}
+              name="risk-evidence"
+              type="radio"
+              onChange={() => setKind("manual-note")}
+            />{" "}
+            Manually verified
+          </label>
         </div>
         {kind === "linked-comment" ? (
-          <select value={commentId} onChange={(event) => setCommentId(event.target.value)}>
-            {comments.map((comment) => <option key={comment.id} value={comment.id}>{commentLocation(comment)}</option>)}
+          <select
+            value={commentId}
+            onChange={(event) => setCommentId(event.target.value)}
+          >
+            {comments.map((comment) => (
+              <option key={comment.id} value={comment.id}>
+                {commentLocation(comment)}
+              </option>
+            ))}
           </select>
         ) : null}
-        {kind === "chunk-reviewed" ? <p className="modal-copy">Each selected risk will link to its related chunk. Reviewed chunks are shown as evidence in the receipt.</p> : null}
-        {kind === "manual-note" ? <textarea placeholder="What did you verify?" value={note} onChange={(event) => setNote(event.target.value)} /> : null}
+        {kind === "chunk-reviewed" ? (
+          <p className="modal-copy">
+            Each selected risk will link to its related chunk. Reviewed chunks
+            are shown as evidence in the receipt.
+          </p>
+        ) : null}
+        {kind === "manual-note" ? (
+          <textarea
+            placeholder="What did you verify?"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
+        ) : null}
         <div className="modal-actions">
-          <button className="btn" type="button" onClick={cancel}>Cancel</button>
-          <button className="btn primary" disabled={linkedCommentDisabled} type="button" onClick={() => confirm(kind, commentId || undefined, note.trim() || undefined)}>Mark addressed</button>
+          <button className="btn" type="button" onClick={cancel}>
+            Cancel
+          </button>
+          <button
+            className="btn primary"
+            disabled={linkedCommentDisabled}
+            type="button"
+            onClick={() =>
+              confirm(kind, commentId || undefined, note.trim() || undefined)
+            }
+          >
+            Mark addressed
+          </button>
         </div>
       </div>
     </div>
@@ -1575,11 +2750,23 @@ function DismissModal({
       <div className="modal-box">
         <h3>Dismiss flag</h3>
         <div className="mattr">{target?.label}</div>
-        <textarea suppressHydrationWarning value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Why is this flag not actionable here? Your reason lands on the receipt, verbatim." />
-        <div className={warned ? "modal-warn show" : "modal-warn"}>Thin reason on a flag — it will appear on the receipt exactly as written. Dismiss anyway?</div>
+        <textarea
+          suppressHydrationWarning
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="Why is this flag not actionable here? Your reason lands on the receipt, verbatim."
+        />
+        <div className={warned ? "modal-warn show" : "modal-warn"}>
+          Thin reason on a flag — it will appear on the receipt exactly as
+          written. Dismiss anyway?
+        </div>
         <div className="modal-actions">
-          <button className="btn" type="button" onClick={cancel}>Cancel</button>
-          <button className="btn primary" type="button" onClick={confirm}>{warned ? "Dismiss anyway" : "Dismiss with reason"}</button>
+          <button className="btn" type="button" onClick={cancel}>
+            Cancel
+          </button>
+          <button className="btn primary" type="button" onClick={confirm}>
+            {warned ? "Dismiss anyway" : "Dismiss with reason"}
+          </button>
         </div>
       </div>
     </div>
@@ -1587,7 +2774,13 @@ function DismissModal({
 }
 
 function Footer() {
-  return <footer>Live TanStack Start rewrite · local brief fetched from tools/categorizer/out. No AI-authored review prose ships from this surface.</footer>;
+  return (
+    <footer>
+      Live TanStack Start rewrite · local brief fetched from
+      tools/categorizer/out. No AI-authored review prose ships from this
+      surface.
+    </footer>
+  );
 }
 
 function Markdown({ content }: { content: string }) {
@@ -1618,16 +2811,27 @@ interface ProgressTotals {
   flagTotal: number;
 }
 
-function summarizeProgress(model: BriefViewModel, checkedItems: Record<CheckBucket, Set<number>>, reviewedChunks: Set<string>, flagStates: Record<string, FlagState>, dominants: Record<string, Category>): ProgressTotals {
+function summarizeProgress(
+  model: BriefViewModel,
+  checkedItems: Record<CheckBucket, Set<number>>,
+  reviewedChunks: Set<string>,
+  flagStates: Record<string, FlagState>,
+  dominants: Record<string, Category>,
+): ProgressTotals {
   void checkedItems;
   void dominants;
-  const flagsResolved = Object.values(flagStates).filter((flag) => flag.status !== "open").length;
+  const flagsResolved = Object.values(flagStates).filter(
+    (flag) => flag.status !== "open",
+  ).length;
 
   return {
     playbookChecked: 0,
     playbookTotal: 0,
     reviewed: reviewedChunks.size,
-    chunkTotal: model.groups.reduce((total, group) => total + group.chunks.length, 0),
+    chunkTotal: model.groups.reduce(
+      (total, group) => total + group.chunks.length,
+      0,
+    ),
     flagsResolved,
     flagTotal: model.flags.length,
   };
@@ -1657,15 +2861,24 @@ function unresolvedKindLabel(kind: UnresolvedItem["kind"]): string {
   return labels[kind];
 }
 
-function evidenceTextForFlag(flagId: string, evidenceByFlag: Record<string, RiskEvidence>, comments: ReviewComment[], chunks: BriefChunk[]): string {
+function evidenceTextForFlag(
+  flagId: string,
+  evidenceByFlag: Record<string, RiskEvidence>,
+  comments: ReviewComment[],
+  chunks: BriefChunk[],
+): string {
   const evidence = evidenceByFlag[flagId];
-  return evidence ? riskEvidenceLabel(evidence, comments, chunks) : "addressed without linked evidence";
+  return evidence
+    ? riskEvidenceLabel(evidence, comments, chunks)
+    : "addressed without linked evidence";
 }
 
 function addressedCommentRange(comment: AddressedReviewComment): string {
-  if (comment.startLine != null && comment.line != null) return `:${comment.startLine}-${comment.line}`;
+  if (comment.startLine != null && comment.line != null)
+    return `:${comment.startLine}-${comment.line}`;
   if (comment.line != null) return `:${comment.line}`;
-  if (comment.originalStartLine != null && comment.originalLine != null) return `:original ${comment.originalStartLine}-${comment.originalLine}`;
+  if (comment.originalStartLine != null && comment.originalLine != null)
+    return `:original ${comment.originalStartLine}-${comment.originalLine}`;
   if (comment.originalLine != null) return `:original ${comment.originalLine}`;
   return "";
 }
@@ -1690,14 +2903,25 @@ function briefMetaLine(brief: Brief): string {
       ? ` · ${brief.commitRange.base.slice(0, 8)}..${brief.commitRange.head.slice(0, 8)}, ${brief.commitRange.commitCount} commit${brief.commitRange.commitCount === 1 ? "" : "s"}`
       : "";
     parts.push(`brief _${brief.index}${range}`);
-  } else if (brief.artifactKind === "delta" && (brief.baselineIndex != null || brief.headIndex != null)) {
-    const b = brief.baselineIndex != null ? `_${brief.baselineIndex}` : (brief.baselineSha?.slice(0, 8) ?? "?");
-    const h = brief.headIndex != null ? `_${brief.headIndex}` : (brief.headSha?.slice(0, 8) ?? "?");
+  } else if (
+    brief.artifactKind === "delta" &&
+    (brief.baselineIndex != null || brief.headIndex != null)
+  ) {
+    const b =
+      brief.baselineIndex != null
+        ? `_${brief.baselineIndex}`
+        : (brief.baselineSha?.slice(0, 8) ?? "?");
+    const h =
+      brief.headIndex != null
+        ? `_${brief.headIndex}`
+        : (brief.headSha?.slice(0, 8) ?? "?");
     parts.push(`${b} → ${h}`);
   }
   if (brief.generation) {
     const g = brief.generation;
-    parts.push(`via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`);
+    parts.push(
+      `via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`,
+    );
   }
   return parts.join(" · ");
 }

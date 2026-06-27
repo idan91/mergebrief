@@ -68,6 +68,23 @@ export interface LineRange {
   end: number;
 }
 
+/** Mechanical prevHead→head changed lines for one file (ADR 0021). */
+export interface RevisionChangeFile {
+  file: string;
+  /** Added/changed lines in head (new-side) coords — joins on a diff row's newLine. */
+  addedRanges: LineRange[];
+  /** Removed lines in prevHead (old-side) coords — joins on a del row's oldLine. */
+  removedRanges: LineRange[];
+}
+
+/** The revision-changes sidecar: what's new in this revision, shared/per-revision. */
+export interface RevisionChanges {
+  headSha: string;
+  prevHeadSha: string;
+  prevIndex: number;
+  files: RevisionChangeFile[];
+}
+
 export type DiffLineKind = "hunk" | "add" | "del" | "ctx" | "note";
 
 export interface DiffLine {

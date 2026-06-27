@@ -1250,6 +1250,33 @@ header {
   }
 }
 
+.revision-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  .count {
+    color: var(--blue);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  button {
+    padding: 2px 8px;
+    border: 1px solid var(--line2);
+    border-radius: 6px;
+    background: var(--panel2);
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 12px;
+
+    &:hover {
+      border-color: #3d3d46;
+      color: var(--text);
+    }
+  }
+}
+
 .chunk {
   overflow: clip;
   margin-bottom: 12px;
@@ -1568,6 +1595,87 @@ table.diff {
   tr.comment-row td {
     padding: 0 14px 12px 98px;
     white-space: normal;
+  }
+}
+
+/* Revision-changes overlay (ADR 0021): gutter rail + soft tint + tag + callout. */
+.diff {
+  .gut {
+    position: relative;
+    width: 26px;
+    min-width: 26px;
+    padding: 0;
+  }
+
+  tr.rev-added .code {
+    background: linear-gradient(
+      90deg,
+      rgba(125, 167, 217, 0.1),
+      rgba(125, 167, 217, 0.015) 60%
+    );
+  }
+
+  .gut.rev {
+    cursor: pointer;
+
+    .rail {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 9px;
+      width: 4px;
+      background: var(--blue);
+      pointer-events: none;
+
+      &.rail-first {
+        border-top-left-radius: 3px;
+        border-top-right-radius: 3px;
+      }
+
+      &.rail-last {
+        border-bottom-left-radius: 3px;
+        border-bottom-right-radius: 3px;
+      }
+    }
+
+    &:hover .rail {
+      background: #9dc0e8;
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+  }
+
+  // Invisible full-cell button for keyboard focus only; visual is .rail above.
+  .railbtn-focus {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    &:focus-visible ~ .rail {
+      background: #9dc0e8;
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+  }
+
+  .newtag {
+    margin-left: 10px;
+    padding: 0 6px;
+    border: 1px solid rgba(125, 167, 217, 0.45);
+    border-radius: 99px;
+    color: var(--blue);
+    font-family: var(--sans);
+    font-size: 9.5px;
+    font-weight: 600;
+    vertical-align: 1px;
+
+    &.removed {
+      border-color: rgba(224, 108, 108, 0.5);
+      color: var(--red);
+    }
   }
 }
 

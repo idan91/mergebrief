@@ -16,13 +16,15 @@ import {
 import { categorize } from "./categorize.js";
 import { AnthropicGenerator, type Generator } from "./generator.js";
 import { splitDiffByFile } from "./diff.js";
-import { assignBriefIndex } from "./manifest.js";
+import { assignBriefIndex, lookupBriefShaByIndex } from "./manifest.js";
+import { buildRevisionChanges } from "./revchanges.js";
 import {
   commentsName,
   diffsName,
   outName,
   prStem,
   printSummary,
+  revChangesName,
 } from "./output.js";
 import type { Brief, CommitRange } from "./types.js";
 
@@ -133,6 +135,21 @@ export async function generateAndWrite(
   log(`wrote ${briefFile}`);
   log(`wrote ${diffsFile} (${fileDiffs.length} files)`);
   log(`wrote ${commentsFile} (${comments.length} comments)`);
+
+  // Revision-changes sidecar (ADR 0021): mechanical prevHead→head changed-line
+  // ranges (no model call), so the full-brief view can mark what is new in this
+  // revision. Absent on the first brief (no previous head). Uses the same
+  // three-dot compare diff as the delta — same documented rebase caveat.
+  if (index > 1) {
+    const prevHeadSha = await lookupBriefShaByIndex(outDir, stem, index - 1);
+    if (prevHeadSha) {
+      const revDiff = await fetchCompareDiff(pr.locator, prevHeadSha, commitRange.head);
+      const revChanges = buildRevisionChanges(commitRange.head, prevHeadSha, index - 1, revDiff);
+      const revFile = join(outDir, revChangesName(brief));
+      await writeFile(revFile, `${JSON.stringify(revChanges, null, 2)}\n`);
+      log(`wrote ${revFile} (${revChanges.files.length} files changed since _${index - 1})`);
+    }
+  }
   return brief;
 }
 

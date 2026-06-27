@@ -72,7 +72,10 @@ jobs:
         shell: bash
         run: |
           mapfile -t lint_files <<< "$LINT_FILES"
-          pnpm --dir apps/web lint -- "${lint_files[@]}"
+          # pnpm script runner passes extra args through sh -c, re-expanding $
+          # in filenames (e.g. briefs.$briefId.tsx → briefs..tsx). Use pnpm exec
+          # instead so bash passes array elements directly to prettier via execve.
+          (cd apps/web && pnpm exec prettier --check "${lint_files[@]}")
 
       - name: Typecheck web app
         if: steps.changes.outputs.web == 'true'

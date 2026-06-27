@@ -3,8 +3,21 @@ import "@tanstack/react-start/server-only";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import type { AddressedReviewComment, Brief, BriefChunk, DiffLine, LineRange, LocalBriefSummary } from "./types";
-import { parseAddressedReviewComments, parseBrief, parseDeltaBrief } from "./validation";
+import type {
+  AddressedReviewComment,
+  Brief,
+  BriefChunk,
+  DiffLine,
+  LineRange,
+  LocalBriefSummary,
+  RevisionChanges,
+} from "./types";
+import {
+  parseAddressedReviewComments,
+  parseBrief,
+  parseDeltaBrief,
+  parseRevisionChanges,
+} from "./validation";
 
 interface FileDiffSidecar {
   file: string;
@@ -29,28 +42,34 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
   const entries = await readdir(OUT_DIR);
   const briefIds = entries
     .flatMap((entry) => {
-      if (entry.endsWith(".brief.json")) return [entry.slice(0, -".brief.json".length)];
-      if (entry.endsWith(".delta.json")) return [entry.slice(0, -".delta.json".length)];
+      if (entry.endsWith(".brief.json"))
+        return [entry.slice(0, -".brief.json".length)];
+      if (entry.endsWith(".delta.json"))
+        return [entry.slice(0, -".delta.json".length)];
       return [];
     })
     .filter(isValidBriefId)
     .sort();
-  return Promise.all(briefIds.map(async (briefId) => {
-    const brief = await readBriefFile(briefId);
-    return {
-      id: briefId,
-      artifactKind: brief.artifactKind,
-      repo: brief.pr.repo,
-      number: brief.pr.number,
-      title: brief.pr.title,
-      sha: brief.pr.sha,
-      ...(brief.index != null ? { index: brief.index } : {}),
-      ...(brief.baselineSha ? { baselineSha: brief.baselineSha } : {}),
-      ...(brief.headSha ? { headSha: brief.headSha } : {}),
-      ...(brief.baselineIndex != null ? { baselineIndex: brief.baselineIndex } : {}),
-      ...(brief.headIndex != null ? { headIndex: brief.headIndex } : {}),
-    } satisfies LocalBriefSummary;
-  }));
+  return Promise.all(
+    briefIds.map(async (briefId) => {
+      const brief = await readBriefFile(briefId);
+      return {
+        id: briefId,
+        artifactKind: brief.artifactKind,
+        repo: brief.pr.repo,
+        number: brief.pr.number,
+        title: brief.pr.title,
+        sha: brief.pr.sha,
+        ...(brief.index != null ? { index: brief.index } : {}),
+        ...(brief.baselineSha ? { baselineSha: brief.baselineSha } : {}),
+        ...(brief.headSha ? { headSha: brief.headSha } : {}),
+        ...(brief.baselineIndex != null
+          ? { baselineIndex: brief.baselineIndex }
+          : {}),
+        ...(brief.headIndex != null ? { headIndex: brief.headIndex } : {}),
+      } satisfies LocalBriefSummary;
+    }),
+  );
 }
 
 export async function readLocalBrief(briefId: string): Promise<Brief> {
@@ -59,10 +78,50 @@ export async function readLocalBrief(briefId: string): Promise<Brief> {
   return attachChunkDiffs(withComments, briefId);
 }
 
+/**
+ * Read the revision-changes sidecar (ADR 0021) for a brief, or `null` when it is
+ * absent (first brief) — never an error: the overlay must never block the brief.
+ * A malformed sidecar fails closed (logged, treated as absent), so a generation
+ * glitch degrades the overlay rather than the whole review.
+ */
+export async function readRevisionChanges(
+  briefId: string,
+): Promise<RevisionChanges | null> {
+  assertValidBriefId(briefId);
+  let raw: string;
+  try {
+    raw = await readFile(
+      resolve(OUT_DIR, `${briefId}.revchanges.json`),
+      "utf8",
+    );
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    const parsed = parseRevisionChanges(JSON.parse(raw));
+    if (!parsed.ok) {
+      console.warn(
+        `Ignoring invalid revision-changes sidecar for ${briefId}: ${parsed.error}`,
+      );
+      return null;
+    }
+    return parsed.value;
+  } catch (error) {
+    console.warn(
+      `Ignoring unreadable revision-changes sidecar for ${briefId}: ${String(error)}`,
+    );
+    return null;
+  }
+}
+
 async function readBriefFile(briefId: string): Promise<Brief> {
   assertValidBriefId(briefId);
   try {
-    const raw = await readFile(resolve(OUT_DIR, `${briefId}.brief.json`), "utf8");
+    const raw = await readFile(
+      resolve(OUT_DIR, `${briefId}.brief.json`),
+      "utf8",
+    );
     const parsedJson: unknown = JSON.parse(raw);
     const parsedBrief = parseBrief(parsedJson);
     if (!parsedBrief.ok) {
@@ -109,7 +168,10 @@ async function attachChunkDiffs(brief: Brief, briefId: string): Promise<Brief> {
   };
 }
 
-async function attachReviewComments(brief: Brief, briefId: string): Promise<Brief> {
+async function attachReviewComments(
+  brief: Brief,
+  briefId: string,
+): Promise<Brief> {
   const reviewComments = await readReviewComments(briefId, brief.artifactKind);
   if (reviewComments === undefined) return brief;
   return {
@@ -118,8 +180,12 @@ async function attachReviewComments(brief: Brief, briefId: string): Promise<Brie
   };
 }
 
-async function readReviewComments(briefId: string, artifactKind: Brief["artifactKind"]): Promise<AddressedReviewComment[] | undefined> {
-  const suffix = artifactKind === "delta" ? ".delta.comments.json" : ".comments.json";
+async function readReviewComments(
+  briefId: string,
+  artifactKind: Brief["artifactKind"],
+): Promise<AddressedReviewComment[] | undefined> {
+  const suffix =
+    artifactKind === "delta" ? ".delta.comments.json" : ".comments.json";
   let raw: string;
   try {
     raw = await readFile(resolve(OUT_DIR, `${briefId}${suffix}`), "utf8");
@@ -135,7 +201,10 @@ async function readReviewComments(briefId: string, artifactKind: Brief["artifact
   return parsedComments.value;
 }
 
-async function readFileDiffs(briefId: string, artifactKind: Brief["artifactKind"]): Promise<Map<string, ParsedFileDiff>> {
+async function readFileDiffs(
+  briefId: string,
+  artifactKind: Brief["artifactKind"],
+): Promise<Map<string, ParsedFileDiff>> {
   const suffix = artifactKind === "delta" ? ".delta.diffs.json" : ".diffs.json";
   const raw = await readFile(resolve(OUT_DIR, `${briefId}${suffix}`), "utf8");
   const parsedJson: unknown = JSON.parse(raw);
@@ -148,13 +217,23 @@ async function readFileDiffs(briefId: string, artifactKind: Brief["artifactKind"
     if (!isFileDiffSidecar(item)) {
       throw new Error("Invalid diffs sidecar: expected file and patch strings");
     }
-    diffs.set(item.file, { file: item.file, rows: parseUnifiedDiffPatch(item.patch) });
+    diffs.set(item.file, {
+      file: item.file,
+      rows: parseUnifiedDiffPatch(item.patch),
+    });
   }
   return diffs;
 }
 
 function isFileDiffSidecar(value: unknown): value is FileDiffSidecar {
-  return typeof value === "object" && value !== null && "file" in value && "patch" in value && typeof value.file === "string" && typeof value.patch === "string";
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "file" in value &&
+    "patch" in value &&
+    typeof value.file === "string" &&
+    typeof value.patch === "string"
+  );
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
@@ -164,7 +243,8 @@ function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 function sliceChunkDiff(rows: DiffLine[], chunk: BriefChunk): DiffLine[] {
   const changedRows = rows.filter((row) => {
     if (row.kind === "add") return lineInRanges(row.newLine, chunk.addedRanges);
-    if (row.kind === "del") return lineInRanges(row.oldLine, chunk.removedRanges);
+    if (row.kind === "del")
+      return lineInRanges(row.oldLine, chunk.removedRanges);
     return false;
   });
   if (changedRows.length === 0) return [];
@@ -182,7 +262,13 @@ function sliceChunkDiff(rows: DiffLine[], chunk: BriefChunk): DiffLine[] {
     }
     for (let offset = -2; offset <= 2; offset += 1) {
       const row = rows[index + offset];
-      if (row && (row.kind === "ctx" || row.kind === "add" || row.kind === "del" || row.kind === "note")) {
+      if (
+        row &&
+        (row.kind === "ctx" ||
+          row.kind === "add" ||
+          row.kind === "del" ||
+          row.kind === "note")
+      ) {
         selected.add(row);
       }
     }
@@ -192,7 +278,10 @@ function sliceChunkDiff(rows: DiffLine[], chunk: BriefChunk): DiffLine[] {
 }
 
 function lineInRanges(line: number | undefined, ranges: LineRange[]): boolean {
-  return typeof line === "number" && ranges.some((range) => line >= range.start && line <= range.end);
+  return (
+    typeof line === "number" &&
+    ranges.some((range) => line >= range.start && line <= range.end)
+  );
 }
 
 function parseUnifiedDiffPatch(patch: string): DiffLine[] {
@@ -201,7 +290,14 @@ function parseUnifiedDiffPatch(patch: string): DiffLine[] {
   let newLine = 0;
 
   for (const line of patch.split("\n")) {
-    if (line.startsWith("diff --git ") || line.startsWith("--- ") || line.startsWith("+++ ") || line.startsWith("index ") || line.startsWith("new file mode ") || line.startsWith("deleted file mode ")) {
+    if (
+      line.startsWith("diff --git ") ||
+      line.startsWith("--- ") ||
+      line.startsWith("+++ ") ||
+      line.startsWith("index ") ||
+      line.startsWith("new file mode ") ||
+      line.startsWith("deleted file mode ")
+    ) {
       continue;
     }
     if (line.startsWith("@@")) {
@@ -225,7 +321,12 @@ function parseUnifiedDiffPatch(patch: string): DiffLine[] {
       oldLine += 1;
       continue;
     }
-    rows.push({ kind: "ctx", content: line.startsWith(" ") ? line.slice(1) : line, oldLine, newLine });
+    rows.push({
+      kind: "ctx",
+      content: line.startsWith(" ") ? line.slice(1) : line,
+      oldLine,
+      newLine,
+    });
     oldLine += 1;
     newLine += 1;
   }
@@ -234,7 +335,8 @@ function parseUnifiedDiffPatch(patch: string): DiffLine[] {
 }
 
 function parseHunkLine(line: string): { oldStart: number; newStart: number } {
-  const match = /^@@ -(?<oldStart>\d+)(?:,\d+)? \+(?<newStart>\d+)(?:,\d+)? @@/.exec(line);
+  const match =
+    /^@@ -(?<oldStart>\d+)(?:,\d+)? \+(?<newStart>\d+)(?:,\d+)? @@/.exec(line);
   return {
     oldStart: Number(match?.groups?.["oldStart"] ?? 0),
     newStart: Number(match?.groups?.["newStart"] ?? 0),
