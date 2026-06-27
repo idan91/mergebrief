@@ -1,20 +1,4 @@
-:root {
-  --bg: #0a0a0c;
-  --panel: #111114;
-  --panel2: #0d0d10;
-  --line: #1f1f24;
-  --line2: #2b2b32;
-  --text: #ececee;
-  --dim: #9a9aa3;
-  --faint: #62626b;
-  --green: #5fc88f;
-  --red: #e06c6c;
-  --amber: #d9a45c;
-  --blue: #7da7d9;
-  --violet: #a98fd1;
-  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
-  --sans: "Instrument Sans", -apple-system, "Helvetica Neue", sans-serif;
-}
+@use "tokens";
 
 * {
   box-sizing: border-box;
