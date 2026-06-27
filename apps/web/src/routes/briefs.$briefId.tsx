@@ -55,9 +55,13 @@ import {
   type ReviewComment,
 } from "../features/review/comments";
 import {
-  useClearDemoReviewSnapshots,
-  useSetDemoReviewSnapshot,
-} from "../features/review/demoState";
+  clearSnapshots,
+  MindMapProvider,
+  serializeSnapshot,
+  useMindMap,
+  useMindMapActions,
+  type SessionSnapshot,
+} from "../features/review/session";
 import {
   commentLocation,
   deriveUnresolvedItems,
@@ -162,11 +166,34 @@ function BriefApp({
   briefId: string;
 }) {
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
+  const model = useMemo(() => buildBriefViewModel(brief), [brief]);
+  return (
+    <MindMapProvider briefId={briefId} model={model}>
+      <BriefScreen
+        artifacts={artifacts}
+        brief={brief}
+        briefId={briefId}
+        model={model}
+      />
+    </MindMapProvider>
+  );
+}
+
+function BriefScreen({
+  artifacts,
+  brief,
+  briefId,
+  model,
+}: {
+  artifacts: LocalBriefSummary[];
+  brief: Brief;
+  briefId: string;
+  model: BriefViewModel;
+}) {
   const timeline = useMemo(
     () => buildBriefTimeline(artifacts, briefId),
     [artifacts, briefId],
   );
-  const model = useMemo(() => buildBriefViewModel(brief), [brief]);
 
   // Revision-changes overlay (ADR 0021): the shared, per-revision marks for this
   // full brief, plus the opportunistic (prevHead,head) delta for callout text.
@@ -222,17 +249,43 @@ function BriefApp({
       writeRevisionPref(next);
     },
   };
-  const setDemoSnapshot = useSetDemoReviewSnapshot();
-  const clearDemoSnapshots = useClearDemoReviewSnapshots();
-  const initialDominants = useMemo(
-    () =>
-      Object.fromEntries(
-        model.groups.map((group) => [group.id, group.group.dominantCategory]),
-      ),
-    [model.groups],
-  );
+  // Session/domain state lives in the per-brief Mind-Map store (ADR 0022).
+  const dispositions = useMindMap((state) => state.dispositions);
+  const dominants = useMindMap((state) => state.dominants);
+  const reclassifiedGroups = useMindMap((state) => state.reclassifiedGroups);
+  const reviewedChunks = useMindMap((state) => state.reviewedChunks);
+  const checkedItems = useMindMap((state) => state.checkedItems);
+  const reviewComments = useMindMap((state) => state.reviewComments);
+  const reviewOutcome = useMindMap((state) => state.reviewOutcome);
+  const actions = useMindMapActions();
+
+  // Legacy projections of the Disposition union back into the flagStates /
+  // riskEvidence shapes the child tree still consumes. These collapse in Slice B
+  // when children read the store via selectors directly.
+  const flagStates = useMemo<Record<string, FlagState>>(() => {
+    const projected: Record<string, FlagState> = {};
+    for (const [flagId, disposition] of Object.entries(dispositions)) {
+      projected[flagId] =
+        disposition.kind === "dismissed"
+          ? { status: "dismissed", reason: disposition.reason }
+          : disposition.kind === "addressed"
+            ? { status: "addressed", reason: "" }
+            : { status: "open", reason: "" };
+    }
+    return projected;
+  }, [dispositions]);
+  const riskEvidence = useMemo<Record<string, RiskEvidence>>(() => {
+    const projected: Record<string, RiskEvidence> = {};
+    for (const [flagId, disposition] of Object.entries(dispositions)) {
+      if (disposition.kind === "addressed" && disposition.evidence) {
+        projected[flagId] = disposition.evidence;
+      }
+    }
+    return projected;
+  }, [dispositions]);
+
+  // Transient UI state stays local and colocated.
   const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
-  const [reviewOutcome, setReviewOutcome] = useState<ReviewOutcome>("comment");
   const [viewMode, setViewMode] = useState<ViewMode>("story");
   const [layoutMode] = useState<LayoutMode>("split");
   const [collapseSupporting, setCollapseSupporting] = useState(true);
@@ -244,25 +297,6 @@ function BriefApp({
         ),
       ),
   );
-  const [reviewedChunks, setReviewedChunks] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [checkedItems, setCheckedItems] = useState<
-    Record<CheckBucket, Set<number>>
-  >(() => ({}));
-  const [dominants, setDominants] =
-    useState<Record<string, Category>>(initialDominants);
-  const [reclassifiedGroups, setReclassifiedGroups] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [flagStates, setFlagStates] = useState<Record<string, FlagState>>(() =>
-    Object.fromEntries(
-      model.flags.map((flag) => [flag.id, { status: "open", reason: "" }]),
-    ),
-  );
-  const [riskEvidence, setRiskEvidence] = useState<
-    Record<string, RiskEvidence>
-  >(() => ({}));
   const [selectedRiskFlags, setSelectedRiskFlags] = useState<Set<string>>(
     () => new Set(),
   );
@@ -280,9 +314,6 @@ function BriefApp({
   );
   const [dismissReason, setDismissReason] = useState("");
   const [dismissWarned, setDismissWarned] = useState(false);
-  const [reviewComments, setReviewComments] = useState<ReviewComment[]>(
-    () => [],
-  );
   const [activeCommentAnchor, setActiveCommentAnchor] =
     useState<CommentAnchor | null>(null);
   const [toast, setToast] = useState("");
@@ -308,41 +339,12 @@ function BriefApp({
       deriveUnresolvedItems({
         chunks: brief.chunks,
         flags: model.flags,
-        flagStates,
-        riskEvidence,
+        dispositions,
         reviewedChunkIds: reviewedChunks,
         comments: reviewComments,
       }),
-    [
-      brief.chunks,
-      flagStates,
-      model.flags,
-      reviewComments,
-      reviewedChunks,
-      riskEvidence,
-    ],
+    [brief.chunks, dispositions, model.flags, reviewComments, reviewedChunks],
   );
-
-  useEffect(() => {
-    setDemoSnapshot(briefId, {
-      briefId,
-      reviewMode,
-      reviewOutcome,
-      flagStates,
-      riskEvidence,
-      reviewedChunkIds: [...reviewedChunks],
-      reviewComments,
-    });
-  }, [
-    briefId,
-    flagStates,
-    reviewComments,
-    reviewMode,
-    reviewOutcome,
-    reviewedChunks,
-    riskEvidence,
-    setDemoSnapshot,
-  ]);
 
   useEffect(() => {
     if (!toast) return;
@@ -372,14 +374,7 @@ function BriefApp({
   }, [brief.chunks, layoutMode, viewMode]);
 
   function toggleCheck(bucket: CheckBucket, index: number) {
-    setCheckedItems((current) => {
-      const next = { ...current };
-      const bucketSet = new Set(next[bucket] ?? []);
-      if (bucketSet.has(index)) bucketSet.delete(index);
-      else bucketSet.add(index);
-      next[bucket] = bucketSet;
-      return next;
-    });
+    actions.checkPlaybookItem(bucket, index);
   }
 
   function toggleChunk(chunkId: string) {
@@ -388,7 +383,9 @@ function BriefApp({
   }
 
   function markReviewed(chunkId: string) {
-    setReviewedChunks((current) => toggleSet(current, chunkId));
+    // reviewChunk is a pure store toggle; the collapse-on-review coupling lives
+    // here because openChunks is local UI — drop the chunk from it explicitly.
+    actions.reviewChunk(chunkId);
     setOpenChunks((current) => {
       const next = new Set(current);
       next.delete(chunkId);
@@ -410,13 +407,17 @@ function BriefApp({
   }
 
   function chooseDominant(groupId: string, category: Category) {
-    setDominants((current) => ({ ...current, [groupId]: category }));
-    setReclassifiedGroups((current) => new Set(current).add(groupId));
-    setCheckedItems((current) => ({
-      ...current,
-      [`carrier:${groupId}`]: new Set(),
-    }));
+    // The store resets carrier:${groupId} checks inside reclassifyGroup.
+    actions.reclassifyGroup(groupId, category);
     setToast(`Dominant category set to ${category} — recorded on the receipt.`);
+  }
+
+  function clearSelection(flagIds: string[]) {
+    setSelectedRiskFlags((current) => {
+      const next = new Set(current);
+      for (const flagId of flagIds) next.delete(flagId);
+      return next;
+    });
   }
 
   function setFlagStatus(flag: RiskFlag, status: FlagStatus, reason = "") {
@@ -425,54 +426,34 @@ function BriefApp({
 
   function setFlagStatuses(flagIds: string[], status: FlagStatus, reason = "") {
     if (flagIds.length === 0) return;
-    setFlagStates((current) => {
-      const next = { ...current };
-      for (const flagId of flagIds) {
-        next[flagId] = { status, reason };
-      }
-      return next;
-    });
-    setSelectedRiskFlags((current) => {
-      const next = new Set(current);
-      for (const flagId of flagIds) {
-        next.delete(flagId);
-      }
-      return next;
-    });
-    if (status !== "addressed") {
-      setRiskEvidence((current) => {
-        const next = { ...current };
-        for (const flagId of flagIds) {
-          delete next[flagId];
-        }
-        return next;
-      });
+    if (status === "addressed") {
+      actions.addressFlags(flagIds, () => ({ kind: "manual-note" }));
+    } else {
+      actions.disposeFlag(
+        flagIds,
+        status === "dismissed"
+          ? { kind: "dismissed", reason }
+          : { kind: "open" },
+      );
     }
+    clearSelection(flagIds);
   }
 
   function addressWithEvidence(
     flagIds: string[],
     evidenceForFlag: (flag: RiskFlag) => RiskEvidence,
   ) {
-    const flags = flagIds
-      .map((flagId) => model.flags.find((flag) => flag.id === flagId))
-      .filter((flag): flag is RiskFlag => Boolean(flag));
-    if (flags.length === 0) return;
-    setFlagStatuses(
-      flags.map((flag) => flag.id),
-      "addressed",
+    const flagsById = new Map(model.flags.map((flag) => [flag.id, flag]));
+    const presentIds = flagIds.filter((flagId) => flagsById.has(flagId));
+    if (presentIds.length === 0) return;
+    actions.addressFlags(presentIds, (flagId) =>
+      evidenceForFlag(flagsById.get(flagId)!),
     );
-    setRiskEvidence((current) => {
-      const next = { ...current };
-      for (const flag of flags) {
-        next[flag.id] = evidenceForFlag(flag);
-      }
-      return next;
-    });
+    clearSelection(presentIds);
     setToast(
-      flags.length === 1
+      presentIds.length === 1
         ? "Risk marked addressed with evidence."
-        : `${flags.length} risks marked addressed with evidence.`,
+        : `${presentIds.length} risks marked addressed with evidence.`,
     );
   }
 
@@ -500,11 +481,11 @@ function BriefApp({
       setDismissWarned(true);
       return;
     }
-    setFlagStatuses(
-      dismissTarget.flagIds,
-      "dismissed",
-      reason || "(no reason given)",
-    );
+    actions.disposeFlag(dismissTarget.flagIds, {
+      kind: "dismissed",
+      reason: reason || "(no reason given)",
+    });
+    clearSelection(dismissTarget.flagIds);
     const dismissedCount = dismissTarget.flagIds.length;
     setDismissTarget(null);
     setDismissReason("");
@@ -526,16 +507,13 @@ function BriefApp({
       setToast("Comment cannot be empty.");
       return;
     }
-    setReviewComments((current) => [
-      ...current,
-      {
-        id: `${anchor.chunkId}-${anchor.side}-${anchor.startLine}-${anchor.endLine}-${current.length + 1}`,
-        anchor,
-        body: trimmed,
-        status: "draft",
-        collapsed: false,
-      },
-    ]);
+    actions.saveComment({
+      id: `${anchor.chunkId}-${anchor.side}-${anchor.startLine}-${anchor.endLine}-${reviewComments.length + 1}`,
+      anchor,
+      body: trimmed,
+      status: "draft",
+      collapsed: false,
+    });
     setActiveCommentAnchor(null);
     setToast("Draft comment added to this review.");
   }
@@ -546,31 +524,17 @@ function BriefApp({
       setToast("Comment cannot be empty.");
       return;
     }
-    setReviewComments((current) =>
-      current.map((comment) =>
-        comment.id === commentId
-          ? { ...comment, body: trimmed, collapsed: false }
-          : comment,
-      ),
-    );
+    actions.updateComment(commentId, trimmed);
     setToast("Draft comment updated.");
   }
 
   function deleteReviewComment(commentId: string) {
-    setReviewComments((current) =>
-      current.filter((comment) => comment.id !== commentId),
-    );
+    actions.deleteComment(commentId);
     setToast("Draft comment deleted.");
   }
 
   function toggleReviewComment(commentId: string) {
-    setReviewComments((current) =>
-      current.map((comment) =>
-        comment.id === commentId
-          ? { ...comment, collapsed: !comment.collapsed }
-          : comment,
-      ),
-    );
+    actions.toggleComment(commentId);
   }
 
   return (
@@ -586,7 +550,7 @@ function BriefApp({
         reviewMode={reviewMode}
         setLocOpen={setLocOpen}
         openReceipt={openPreSubmit}
-        clearDrafts={clearDemoSnapshots}
+        clearDrafts={clearSnapshots}
       />
       <main
         className={
@@ -705,19 +669,19 @@ function BriefApp({
       />
       <SummaryPreviewDrawer
         brief={brief}
+        mode={reviewMode}
         open={summaryPreviewOpen}
-        reviewOutcome={reviewOutcome}
-        snapshot={{
-          briefId,
-          reviewMode,
-          reviewOutcome,
-          flagStates,
-          riskEvidence,
-          reviewedChunkIds: [...reviewedChunks],
+        snapshot={serializeSnapshot(briefId, {
+          dispositions,
+          dominants,
+          reclassifiedGroups,
+          reviewedChunks,
+          checkedItems,
           reviewComments,
-        }}
+          reviewOutcome,
+        })}
         close={() => setSummaryPreviewOpen(false)}
-        setOutcome={setReviewOutcome}
+        setOutcome={actions.setOutcome}
       />
       <PreSubmitModal
         mode={reviewMode}
@@ -2524,17 +2488,17 @@ ${props.reclassifiedGroups.size > 0 ? `\n  ${props.reclassifiedGroups.size} grou
 function SummaryPreviewDrawer({
   brief,
   close,
+  mode,
   open,
-  reviewOutcome,
   setOutcome,
   snapshot,
 }: {
   brief: Brief;
   close: () => void;
+  mode: ReviewMode;
   open: boolean;
-  reviewOutcome: ReviewOutcome;
   setOutcome: (outcome: ReviewOutcome) => void;
-  snapshot: Parameters<typeof SummaryPreview>[0]["snapshot"];
+  snapshot: SessionSnapshot;
 }) {
   return (
     <>
@@ -2551,7 +2515,8 @@ function SummaryPreviewDrawer({
       >
         <SummaryPreview
           brief={brief}
-          snapshot={{ ...snapshot, reviewOutcome }}
+          mode={mode}
+          snapshot={snapshot}
           setOutcome={setOutcome}
         />
       </aside>

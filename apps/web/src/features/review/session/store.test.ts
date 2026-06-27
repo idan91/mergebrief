@@ -114,6 +114,8 @@ describe("comments + outcome", () => {
     expect(store.getState().reviewComments).toHaveLength(1);
     store.getState().actions.updateComment("c1", "second");
     expect(store.getState().reviewComments[0]!.body).toBe("second");
+    store.getState().actions.toggleComment("c1");
+    expect(store.getState().reviewComments[0]!.collapsed).toBe(true);
     store.getState().actions.deleteComment("c1");
     expect(store.getState().reviewComments).toHaveLength(0);
     store.getState().actions.setOutcome("approve");

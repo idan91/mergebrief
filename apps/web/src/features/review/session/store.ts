@@ -38,6 +38,8 @@ export interface MindMapActions {
   saveComment(comment: ReviewComment): void;
   updateComment(id: string, body: string): void;
   deleteComment(id: string): void;
+  /** Toggle a draft comment's collapsed flag (part of its persisted lifecycle). */
+  toggleComment(id: string): void;
   setOutcome(outcome: ReviewOutcome): void;
 }
 
@@ -141,6 +143,15 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
         set((state) => ({
           reviewComments: state.reviewComments.filter(
             (comment) => comment.id !== id,
+          ),
+        }));
+      },
+      toggleComment(id) {
+        set((state) => ({
+          reviewComments: state.reviewComments.map((comment) =>
+            comment.id === id
+              ? { ...comment, collapsed: !comment.collapsed }
+              : comment,
           ),
         }));
       },
