@@ -4,7 +4,10 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { Markdown } from "../components/Markdown/Markdown";
 import { DeltaCallout } from "../features/brief/components/DeltaCallout/DeltaCallout";
+import { Footer } from "../features/brief/components/Footer/Footer";
+import { toggleSet, rangeBetween } from "../lib/collections";
 import {
   localBriefQueryOptions,
   localBriefsQueryOptions,
@@ -2738,24 +2741,6 @@ function DismissModal({
   );
 }
 
-function Footer() {
-  return (
-    <footer>
-      Live TanStack Start rewrite · local brief fetched from
-      tools/categorizer/out. No AI-authored review prose ships from this
-      surface.
-    </footer>
-  );
-}
-
-function Markdown({ content }: { content: string }) {
-  return (
-    <div className="markdown">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-    </div>
-  );
-}
-
 function BriefError({ error }: { error: Error }) {
   return (
     <main className="main">
@@ -2800,19 +2785,6 @@ function summarizeProgress(
     flagsResolved,
     flagTotal: model.flags.length,
   };
-}
-
-function toggleSet(current: Set<string>, value: string): Set<string> {
-  const next = new Set(current);
-  if (next.has(value)) next.delete(value);
-  else next.add(value);
-  return next;
-}
-
-function rangeBetween(start: number, end: number): number[] {
-  const low = Math.min(start, end);
-  const high = Math.max(start, end);
-  return Array.from({ length: high - low + 1 }, (_, index) => low + index);
 }
 
 function unresolvedKindLabel(kind: UnresolvedItem["kind"]): string {
