@@ -19,6 +19,9 @@ import {
   summarizeProgress,
   type CheckBucket,
 } from "../features/brief/progress";
+import { useRevisionNavigation } from "../features/brief/useRevisionNavigation";
+import { useLocalPreference } from "../hooks/useLocalPreference";
+import { useScrollSpy } from "../hooks/useScrollSpy";
 import { toggleSet, rangeBetween } from "../lib/collections";
 import {
   localBriefQueryOptions,
@@ -115,41 +118,6 @@ interface RevisionOverlayState {
   setEnabled: (enabled: boolean) => void;
 }
 
-/**
- * Move focus to the next/prev rendered revision-change rail relative to the
- * reading line, wrapping at the ends. DOM-driven so it naturally steps only the
- * runs that are actually visible; focus carries the rail's accessible name.
- */
-function jumpToRevisionChange(direction: 1 | -1): void {
-  const rails = [
-    ...document.querySelectorAll<HTMLButtonElement>("main .diff .railbtn"),
-  ];
-  if (rails.length === 0) return;
-  const readingLine = window.scrollY + 160;
-  const top = (rail: HTMLButtonElement): number =>
-    rail.getBoundingClientRect().top + window.scrollY;
-  const target =
-    direction === 1
-      ? (rails.find((rail) => top(rail) > readingLine + 1) ?? rails[0])
-      : ([...rails].reverse().find((rail) => top(rail) < readingLine - 1) ??
-        rails[rails.length - 1]);
-  if (!target) return;
-  target.scrollIntoView({ behavior: "smooth", block: "center" });
-  target.focus();
-}
-
-const REVISION_PREF_KEY = "revision-changes-overlay";
-
-function readRevisionPref(): boolean {
-  if (typeof window === "undefined") return true;
-  return window.localStorage.getItem(REVISION_PREF_KEY) !== "off";
-}
-
-function writeRevisionPref(enabled: boolean): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(REVISION_PREF_KEY, enabled ? "on" : "off");
-}
-
 export const Route = createFileRoute("/briefs/$briefId")({
   loader: ({ context, params }) =>
     Promise.all([
@@ -216,9 +184,11 @@ function BriefScreen({
   const revisionAvailable =
     brief.artifactKind === "brief" &&
     Boolean(revisionChanges && revisionChanges.files.length > 0);
-  // Default-on; the stored preference is applied after hydration (browser-only).
-  const [revisionEnabled, setRevisionEnabled] = useState(true);
-  useEffect(() => setRevisionEnabled(readRevisionPref()), []);
+  // Default-on; the stored preference hydrates client-side via useLocalPreference.
+  const [revisionEnabled, setRevisionEnabled] = useLocalPreference(
+    "revision-changes-overlay",
+    true,
+  );
   const revisionDeltaId = useMemo(
     () =>
       revisionChanges
@@ -257,10 +227,7 @@ function BriefScreen({
     available: revisionAvailable,
     enabled: revisionEnabled,
     runCount: revisionRunCount,
-    setEnabled: (next) => {
-      setRevisionEnabled(next);
-      writeRevisionPref(next);
-    },
+    setEnabled: setRevisionEnabled,
   };
   // Session/domain state lives in the per-brief Mind-Map store (ADR 0022).
   const dispositions = useMindMap((state) => state.dispositions);
@@ -396,22 +363,16 @@ function BriefScreen({
     document.getElementById("brief-content")?.focus();
   }, [briefId]);
 
+  // activeChunkId has two write sources: scroll-spy (below) and explicit nav
+  // (toggleChunk/jumpToChunk). Scroll-spy only runs in the split story view.
+  const scrollActiveChunkId = useScrollSpy(
+    viewMode === "story" && layoutMode === "split"
+      ? brief.chunks.map((chunk) => chunk.id)
+      : [],
+  );
   useEffect(() => {
-    if (viewMode !== "story" || layoutMode !== "split") return;
-    const updateActive = () => {
-      const readingLine = 150;
-      const current = brief.chunks.find((chunk) => {
-        const element = document.getElementById(chunk.id);
-        if (!element) return false;
-        const rect = element.getBoundingClientRect();
-        return rect.top <= readingLine && rect.bottom > readingLine;
-      });
-      if (current) setActiveChunkId(current.id);
-    };
-    window.addEventListener("scroll", updateActive, { passive: true });
-    updateActive();
-    return () => window.removeEventListener("scroll", updateActive);
-  }, [brief.chunks, layoutMode, viewMode]);
+    if (scrollActiveChunkId) setActiveChunkId(scrollActiveChunkId);
+  }, [scrollActiveChunkId]);
 
   function toggleCheck(bucket: CheckBucket, index: number) {
     actions.checkPlaybookItem(bucket, index);
@@ -812,6 +773,7 @@ function StoryView(props: {
   toggleReviewComment: (commentId: string) => void;
   updateReviewComment: (commentId: string, body: string) => void;
 }) {
+  const { jumpPrev, jumpNext } = useRevisionNavigation();
   return (
     <div className="story-view">
       <div className="chunks-label reveal">
@@ -859,14 +821,14 @@ function StoryView(props: {
             <button
               aria-label="Previous revision change"
               type="button"
-              onClick={() => jumpToRevisionChange(-1)}
+              onClick={jumpPrev}
             >
               ◂
             </button>
             <button
               aria-label="Next revision change"
               type="button"
-              onClick={() => jumpToRevisionChange(1)}
+              onClick={jumpNext}
             >
               ▸
             </button>
