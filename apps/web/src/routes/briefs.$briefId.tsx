@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -6,7 +6,8 @@ import remarkGfm from "remark-gfm";
 
 import { localBriefQueryOptions, localBriefsQueryOptions, localRevisionChangesQueryOptions } from "../features/brief/queries";
 import { reviewCommentMatchesDiffLine, reviewCommentsForChunk } from "../features/brief/reviewComments";
-import type { AddressedReviewComment, Brief, BriefChunk, Category, Concern, LocalBriefSummary } from "../features/brief/types";
+import { bindCallout, buildChunkRevisionView, type ChunkRevisionView, type RevisionRun } from "../features/brief/revisionChanges";
+import type { AddressedReviewComment, Brief, BriefChunk, Category, Concern, LocalBriefSummary, RevisionChanges } from "../features/brief/types";
 import { buildBriefTimeline, type BriefTimeline } from "../features/brief/timeline";
 import { buildBriefViewModel, groupRiskByAttribute, type BriefViewModel, type GroupView, type RiskFlag } from "../features/brief/viewModel";
 import { SummaryPreview } from "../features/review/SummaryPreview";
@@ -52,6 +53,28 @@ interface EvidenceTarget {
   label: string;
 }
 
+interface RevisionOverlayState {
+  /** The sidecar to paint, or null when the overlay is unavailable or toggled off. */
+  changes: RevisionChanges | null;
+  /** The opportunistic (prevHead,head) delta for callout summaries, if loaded. */
+  delta: Brief | null;
+  available: boolean;
+  enabled: boolean;
+  setEnabled: (enabled: boolean) => void;
+}
+
+const REVISION_PREF_KEY = "revision-changes-overlay";
+
+function readRevisionPref(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.localStorage.getItem(REVISION_PREF_KEY) !== "off";
+}
+
+function writeRevisionPref(enabled: boolean): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(REVISION_PREF_KEY, enabled ? "on" : "off");
+}
+
 export const Route = createFileRoute("/briefs/$briefId")({
   loader: ({ context, params }) =>
     Promise.all([
@@ -73,6 +96,38 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
   const timeline = useMemo(() => buildBriefTimeline(artifacts, briefId), [artifacts, briefId]);
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
+
+  // Revision-changes overlay (ADR 0021): the shared, per-revision marks for this
+  // full brief, plus the opportunistic (prevHead,head) delta for callout text.
+  const revisionChanges = useSuspenseQuery(localRevisionChangesQueryOptions(briefId)).data;
+  const revisionAvailable = brief.artifactKind === "brief" && Boolean(revisionChanges && revisionChanges.files.length > 0);
+  // Default-on; the stored preference is applied after hydration (browser-only).
+  const [revisionEnabled, setRevisionEnabled] = useState(true);
+  useEffect(() => setRevisionEnabled(readRevisionPref()), []);
+  const revisionDeltaId = useMemo(
+    () =>
+      revisionChanges
+        ? artifacts.find(
+            (artifact) => artifact.artifactKind === "delta" && artifact.baselineSha === revisionChanges.prevHeadSha && artifact.headSha === revisionChanges.headSha,
+          )?.id
+        : undefined,
+    [artifacts, revisionChanges],
+  );
+  const revisionDelta =
+    useQuery({
+      ...localBriefQueryOptions(revisionDeltaId ?? ""),
+      enabled: revisionAvailable && revisionEnabled && Boolean(revisionDeltaId),
+    }).data ?? null;
+  const revision: RevisionOverlayState = {
+    changes: revisionAvailable && revisionEnabled ? revisionChanges : null,
+    delta: revisionDelta,
+    available: revisionAvailable,
+    enabled: revisionEnabled,
+    setEnabled: (next) => {
+      setRevisionEnabled(next);
+      writeRevisionPref(next);
+    },
+  };
   const setDemoSnapshot = useSetDemoReviewSnapshot();
   const clearDemoSnapshots = useClearDemoReviewSnapshots();
   const initialDominants = useMemo(() => Object.fromEntries(model.groups.map((group) => [group.id, group.group.dominantCategory])), [model.groups]);
@@ -347,6 +402,7 @@ function BriefApp({ artifacts, briefId }: { artifacts: LocalBriefSummary[]; brie
           <StoryView
             brief={brief}
             model={model}
+            revision={revision}
             activeChunkId={activeChunkId}
             checkedItems={checkedItems}
             collapseSupporting={collapseSupporting}
@@ -629,6 +685,7 @@ function Toolbar({
 function StoryView(props: {
   brief: Brief;
   model: BriefViewModel;
+  revision: RevisionOverlayState;
   activeChunkId: string | null;
   checkedItems: Record<CheckBucket, Set<number>>;
   collapseSupporting: boolean;
@@ -671,6 +728,13 @@ function StoryView(props: {
           <span className="track" />
           Collapse supporting
         </label>
+        {props.revision.available ? (
+          <label className="switch revision-switch" title="Highlight lines new in this revision (since the previous brief)">
+            <input checked={props.revision.enabled} suppressHydrationWarning type="checkbox" onChange={(event) => props.revision.setEnabled(event.target.checked)} />
+            <span className="track" />
+            Revision changes
+          </label>
+        ) : null}
       </div>
       {props.model.groups.map((group) => (
         <section className="story-group reveal" key={group.id}>
@@ -680,6 +744,7 @@ function StoryView(props: {
                 key={chunk.id}
                 active={props.activeChunkId === chunk.id}
                 chunk={chunk}
+                revision={props.revision}
                 forceCollapsed={props.collapseSupporting && chunk.role === "supporting" && !props.openChunks.has(chunk.id)}
                 open={props.openChunks.has(chunk.id)}
                 reviewed={props.reviewedChunks.has(chunk.id)}
@@ -889,6 +954,7 @@ function GroupCard({
 
 function ChunkCard({
   chunk,
+  revision,
   active,
   open,
   reviewed,
@@ -907,6 +973,7 @@ function ChunkCard({
   updateReviewComment,
 }: {
   chunk: BriefChunk;
+  revision: RevisionOverlayState;
   active: boolean;
   open: boolean;
   reviewed: boolean;
@@ -925,6 +992,7 @@ function ChunkCard({
   updateReviewComment: (commentId: string, body: string) => void;
 }) {
   const expanded = open && !forceCollapsed;
+  const revisionView = useMemo(() => buildChunkRevisionView(chunk, revision.changes), [chunk, revision.changes]);
   const chunkReviewComments = reviewCommentsForChunk(addressedReviewComments, chunk);
   const hasLinkedAddressedComments = Boolean(chunk.addressesComments?.length);
   const topReviewComments = hasLinkedAddressedComments ? chunkReviewComments : chunkReviewComments.filter((comment) => comment.outdated || comment.line == null);
@@ -960,6 +1028,8 @@ function ChunkCard({
             addressedComments={inlineReviewComments}
             cancelCommentComposer={cancelCommentComposer}
             chunk={chunk}
+            revisionView={revisionView}
+            revisionDelta={revision.delta}
             comments={comments}
             deleteReviewComment={deleteReviewComment}
             existingReviewCommentCount={existingReviewCommentCount}
@@ -1006,6 +1076,8 @@ function ReviewComments({ comments, label }: { comments: AddressedReviewComment[
 
 function DiffTable({
   chunk,
+  revisionView,
+  revisionDelta,
   activeCommentAnchor,
   addressedComments,
   cancelCommentComposer,
@@ -1019,6 +1091,8 @@ function DiffTable({
   updateReviewComment,
 }: {
   chunk: BriefChunk;
+  revisionView: ChunkRevisionView;
+  revisionDelta: Brief | null;
   activeCommentAnchor: CommentAnchor | null;
   addressedComments: AddressedReviewComment[];
   cancelCommentComposer: () => void;
@@ -1045,6 +1119,8 @@ function DiffTable({
 
   const dragIndexes = dragStart === null || dragCurrent === null ? [] : rangeBetween(dragStart, dragCurrent);
   const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
+  const overlayActive = revisionView.runs.length > 0;
+  const metaColSpan = overlayActive ? 4 : 3;
 
   function finishSelection(rowIndex: number) {
     const indexes = dragStart === null ? [rowIndex] : rangeBetween(dragStart, rowIndex);
@@ -1061,12 +1137,15 @@ function DiffTable({
           if (line.kind === "hunk" || line.kind === "note") {
             return (
               <tr className={line.kind} key={`${line.kind}-${index}`}>
-                <td colSpan={3}>{line.content}</td>
+                <td colSpan={metaColSpan}>{line.content}</td>
               </tr>
             );
           }
           const sign = line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
           const id = rowId(chunk.id, index);
+          const revRun = overlayActive ? revisionView.runByRow.get(index) : undefined;
+          const revMark = overlayActive ? revisionView.marks.get(index) : undefined;
+          const isRevStart = revRun !== undefined && revRun.rowIndexes[0] === index;
           const rowComments = comments.filter((comment) => comment.anchor.rowIds.at(-1) === id);
           const rowAddressedComments = addressedComments.filter((comment) => reviewCommentMatchesDiffLine(comment, chunk.file, line, chunk.diff));
           const isSelected = dragIndexes.includes(index) || activeRowIds.has(id);
@@ -1074,7 +1153,7 @@ function DiffTable({
           return (
             <Fragment key={`${line.kind}-${index}`}>
               <tr
-                className={`${line.kind} commentable ${isSelected ? "selected" : ""}`}
+                className={`${line.kind} commentable ${isSelected ? "selected" : ""} ${revMark ? `rev-${revMark}` : ""}`}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") finishSelection(index);
                 }}
@@ -1089,27 +1168,32 @@ function DiffTable({
                 onMouseUp={() => finishSelection(index)}
                 tabIndex={0}
               >
+                {overlayActive ? <RevisionGutterCell run={revRun} isStart={isRevStart} chunk={chunk} delta={revisionDelta} /> : null}
                 <td className="ln">{line.oldLine ?? ""}</td>
                 <td className="ln">{line.newLine ?? ""}</td>
-                <td className="code"><span className="sign">{sign}</span>{line.content}</td>
+                <td className="code">
+                  <span className="sign">{sign}</span>
+                  {line.content}
+                  {isRevStart && revRun ? <span className={`newtag ${revRun.kind}`}>{revRun.kind === "removed" ? "removed" : "new"}</span> : null}
+                </td>
               </tr>
               {showComposer ? (
                 <tr className="comment-row">
-                  <td colSpan={3}>
+                  <td colSpan={metaColSpan}>
                     <CommentComposer anchor={activeCommentAnchor} cancel={cancelCommentComposer} existingReviewCommentCount={existingReviewCommentCount} save={saveReviewComment} />
                   </td>
                 </tr>
               ) : null}
               {rowComments.map((comment) => (
                 <tr className="comment-row" key={comment.id}>
-                  <td colSpan={3}>
+                  <td colSpan={metaColSpan}>
                     <CommentThread comment={comment} deleteComment={deleteReviewComment} toggle={toggleReviewComment} update={updateReviewComment} />
                   </td>
                 </tr>
               ))}
               {rowAddressedComments.map((comment) => (
                 <tr className="comment-row" key={`addressed-${comment.id}`}>
-                  <td colSpan={3}>
+                  <td colSpan={metaColSpan}>
                     <AddressedDiffComment comment={comment} label={reviewCommentLabel} />
                   </td>
                 </tr>
@@ -1119,6 +1203,46 @@ function DiffTable({
         })}
       </tbody>
     </table>
+  );
+}
+
+function RevisionGutterCell({ run, isStart, chunk, delta }: { run: RevisionRun | undefined; isStart: boolean; chunk: BriefChunk; delta: Brief | null }) {
+  if (!run) return <td className="gut" />;
+  if (!isStart) {
+    return (
+      <td className={`gut rev ${run.kind}`}>
+        <span className="rail" aria-hidden="true" />
+      </td>
+    );
+  }
+  const callout = bindCallout(run, chunk, delta);
+  const count = run.rowIndexes.length;
+  const verb = run.kind === "removed" ? "Removed" : "New";
+  const label = `${verb} this revision${callout.groupTitle ? `: ${callout.groupTitle}` : ""}. ${count} line${count === 1 ? "" : "s"}.`;
+  return (
+    <td className={`gut rev ${run.kind}`}>
+      <span className="railwrap">
+        <button
+          className={`railbtn ${run.kind}`}
+          type="button"
+          aria-label={label}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") event.currentTarget.blur();
+          }}
+        />
+        <span className="callout" role="tooltip">
+          <span className="ey">{verb} this revision</span>
+          {callout.available ? (
+            <>
+              {callout.groupTitle ? <span className="ttl">{callout.groupTitle}</span> : null}
+              {callout.summary ? <span className="sum">{callout.summary}</span> : null}
+            </>
+          ) : (
+            <span className="sum unavailable">Summary unavailable for this span.</span>
+          )}
+        </span>
+      </span>
+    </td>
   );
 }
 

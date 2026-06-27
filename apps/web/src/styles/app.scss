@@ -1571,6 +1571,127 @@ table.diff {
   }
 }
 
+/* Revision-changes overlay (ADR 0021): gutter rail + soft tint + tag + callout. */
+.diff {
+  .gut {
+    position: relative;
+    width: 26px;
+    min-width: 26px;
+    padding: 0;
+  }
+
+  tr.rev-added .code {
+    background: linear-gradient(90deg, rgba(125, 167, 217, 0.1), rgba(125, 167, 217, 0.015) 60%);
+  }
+
+  .gut.rev .rail {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 9px;
+    width: 4px;
+    background: var(--blue);
+  }
+
+  .railwrap {
+    position: absolute;
+    inset: 0;
+  }
+
+  .railbtn {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 9px;
+    width: 4px;
+    padding: 0;
+    border: 0;
+    border-radius: 3px;
+    background: var(--blue);
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      background: #9dc0e8;
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+  }
+
+  .railbtn:hover + .callout,
+  .railbtn:focus + .callout {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+
+  .newtag {
+    margin-left: 10px;
+    padding: 0 6px;
+    border: 1px solid rgba(125, 167, 217, 0.45);
+    border-radius: 99px;
+    color: var(--blue);
+    font-family: var(--sans);
+    font-size: 9.5px;
+    font-weight: 600;
+    vertical-align: 1px;
+
+    &.removed {
+      border-color: rgba(224, 108, 108, 0.5);
+      color: var(--red);
+    }
+  }
+
+  .callout {
+    position: absolute;
+    z-index: 5;
+    top: 0;
+    left: 22px;
+    width: 320px;
+    padding: 12px 14px;
+    border: 1px solid var(--line2);
+    border-radius: 10px;
+    background: #15151a;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+    white-space: normal;
+    font-family: var(--sans);
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: all 0.14s;
+    pointer-events: none;
+
+    .ey {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--blue);
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .ttl {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+
+    .sum {
+      display: block;
+      color: var(--dim);
+      font-size: 12.5px;
+      line-height: 1.5;
+
+      &.unavailable {
+        font-style: italic;
+      }
+    }
+  }
+}
+
 .comment-composer,
 .comment-thread {
   overflow: hidden;
