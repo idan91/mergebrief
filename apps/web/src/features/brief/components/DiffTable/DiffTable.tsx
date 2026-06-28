@@ -122,7 +122,12 @@ export function DiffTable({
 
   return (
     <>
-      <div className={styles["viewport"]}>
+      <div
+        className={styles["viewport"]}
+        // CSS custom property: csstype's CSSProperties has no `--*` index, so a
+        // narrow cast is the standard typed escape hatch here.
+        style={{ "--diff-rows": chunk.diff.length } as React.CSSProperties}
+      >
         <table className={styles["diff"]}>
           <tbody>
             {chunk.diff.map((line, index) => {
