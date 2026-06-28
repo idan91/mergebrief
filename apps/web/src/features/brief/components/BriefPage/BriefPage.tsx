@@ -46,7 +46,6 @@ import { buildBriefViewModel, type RiskFlag } from "../../viewModel";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { DemoControls } from "../DemoControls/DemoControls";
-import { Footer } from "../Footer/Footer";
 import { Header } from "../Header/Header";
 import { StoryView } from "../StoryView/StoryView";
 import { Toolbar, type LayoutMode, type ViewMode } from "../Toolbar/Toolbar";
@@ -534,7 +533,6 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
           <ConcernView brief={brief} model={model} jumpToChunk={jumpToChunk} />
         )}
       </main>
-      <Footer />
       <ReceiptDrawer
         receipt={receipt}
         reviewMode={reviewMode}

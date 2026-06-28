@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { Footer } from "../features/brief/components/Footer/Footer";
 import type { RouterContext } from "../router";
 import appStyles from "../styles/app.scss?url";
 
@@ -37,6 +38,7 @@ function RootComponent() {
   return (
     <RootDocument>
       <Outlet />
+      <Footer />
     </RootDocument>
   );
 }
