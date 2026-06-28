@@ -120,10 +120,7 @@ export function SummaryPreview({
               </p>
             ) : null}
             {receipt.comments.map((comment) => (
-              <div
-                className="summary-comment"
-                key={`${comment.file}:${comment.startLine}-${comment.endLine}`}
-              >
+              <div className="summary-comment" key={comment.id}>
                 <span>{commentLabel(comment)}</span>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {comment.firstLine}
@@ -175,10 +172,11 @@ export function SummaryPreview({
 }
 
 function commentLabel(comment: Receipt["comments"][number]): string {
+  const sign = comment.side === "new" ? "+" : "-";
   const range =
     comment.startLine === comment.endLine
-      ? `+${comment.startLine}`
-      : `+${comment.startLine}-${comment.endLine}`;
+      ? `${sign}${comment.startLine}`
+      : `${sign}${comment.startLine}-${comment.endLine}`;
   return `${comment.file}:${range}`;
 }
 

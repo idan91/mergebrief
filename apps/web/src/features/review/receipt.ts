@@ -1,5 +1,6 @@
 import type { Brief } from "../brief/types";
 import type { BriefViewModel } from "../brief/viewModel";
+import type { CommentSide } from "./comments";
 import type { SessionSnapshot } from "./session";
 import {
   riskDispositionCounts,
@@ -38,7 +39,9 @@ export interface ReceiptOpenFlag {
 }
 
 export interface ReceiptComment {
+  id: string;
   file: string;
+  side: CommentSide;
   startLine: number;
   endLine: number;
   firstLine: string;
@@ -103,7 +106,9 @@ export function buildReceipt(
   }
 
   const comments: ReceiptComment[] = snapshot.reviewComments.map((comment) => ({
+    id: comment.id,
     file: comment.anchor.file,
+    side: comment.anchor.side,
     startLine: comment.anchor.startLine,
     endLine: comment.anchor.endLine,
     firstLine: comment.body.split("\n")[0] ?? "",

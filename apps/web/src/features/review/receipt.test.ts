@@ -132,7 +132,9 @@ describe("buildReceipt", () => {
     expect(receipt.reclassifiedCount).toBe(1);
     expect(receipt.comments).toEqual([
       {
+        id: "c1",
         file: "src/leak.ts",
+        side: "new",
         startLine: 10,
         endLine: 12,
         firstLine: "Please add a test.",
