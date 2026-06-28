@@ -6,11 +6,9 @@ import { CommentThread } from "../../../review/components/CommentThread/CommentT
 import { AddressedDiffComment } from "../../../review/components/AddressedDiffComment/AddressedDiffComment";
 import {
   createCommentAnchor,
-  rowId,
   type CommentAnchor,
   type ReviewComment,
 } from "../../../review/comments";
-import { reviewCommentMatchesDiffLine } from "../../reviewComments";
 import {
   type ChunkRevisionView,
   type RevisionRun,
@@ -18,6 +16,7 @@ import {
 import type { AddressedReviewComment, Brief, BriefChunk } from "../../types";
 import { DeltaCallout } from "../DeltaCallout/DeltaCallout";
 import { RevisionGutterCell } from "../RevisionGutterCell/RevisionGutterCell";
+import { getDiffRowView } from "./diffRowView";
 import styles from "./DiffTable.module.scss";
 
 export interface DiffTableProps {
@@ -142,35 +141,29 @@ export function DiffTable({
                   </tr>
                 );
               }
-              const sign =
-                line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
-              const id = rowId(chunk.id, index);
-              const revRun = overlayActive
-                ? revisionView.runByRow.get(index)
-                : undefined;
-              const revMark = overlayActive
-                ? revisionView.marks.get(index)
-                : undefined;
-              const isRevStart =
-                revRun !== undefined && revRun.rowIndexes[0] === index;
-              const isRevEnd =
-                revRun !== undefined && revRun.rowIndexes.at(-1) === index;
-              const rowComments = comments.filter(
-                (comment) => comment.anchor.rowIds.at(-1) === id,
-              );
-              const rowAddressedComments = addressedComments.filter((comment) =>
-                reviewCommentMatchesDiffLine(
-                  comment,
-                  chunk.file,
-                  line,
-                  chunk.diff,
-                ),
-              );
-              const isSelected =
-                dragIndexes.includes(index) || activeRowIds.has(id);
-              const showComposer =
-                activeCommentAnchor?.chunkId === chunk.id &&
-                activeCommentAnchor.rowIds.at(-1) === id;
+              const {
+                sign,
+                id,
+                revRun,
+                revMark,
+                isRevStart,
+                isRevEnd,
+                rowComments,
+                rowAddressedComments,
+                isSelected,
+                showComposer,
+              } = getDiffRowView({
+                line,
+                index,
+                chunk,
+                overlayActive,
+                revisionView,
+                comments,
+                addressedComments,
+                dragIndexes,
+                activeRowIds,
+                activeCommentAnchor,
+              });
               return (
                 <Fragment key={`${line.kind}-${index}`}>
                   <tr
@@ -222,7 +215,7 @@ export function DiffTable({
                       ) : null}
                     </td>
                   </tr>
-                  {showComposer ? (
+                  {showComposer && activeCommentAnchor ? (
                     <tr className={styles["commentRow"]}>
                       <td colSpan={metaColSpan}>
                         <CommentComposer
