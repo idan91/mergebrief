@@ -1,3 +1,4 @@
+import { Drawer } from "../../../../components/Drawer/Drawer";
 import type { ReviewMode } from "../../state";
 import { RECEIPT_NOT_CHECKED, type Receipt } from "../../receipt";
 
@@ -22,29 +23,27 @@ export function ReceiptDrawer({
   const openFlags = receipt.open;
 
   return (
-    <>
-      <button
-        aria-label="Close receipt"
-        className={open ? "scrim show" : "scrim"}
-        type="button"
-        onClick={close}
-      />
-      <aside className={open ? "receipt show" : "receipt"}>
-        <div className="receipt-inner">
-          <div className="receipt-title">
-            <h2>
-              {reviewMode === "author"
-                ? "Self-review summary"
-                : "Verification receipt"}
-            </h2>
-            <span className="tag">not an approval</span>
-          </div>
-          <div className="receipt-sub">
+    <Drawer
+      open={open}
+      closeLabel="Close receipt"
+      close={close}
+      asideClassName="receipt"
+    >
+      <div className="receipt-inner">
+        <div className="receipt-title">
+          <h2>
             {reviewMode === "author"
-              ? "Author-side preview · catches unresolved risk before requesting review"
-              : "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours"}
-          </div>
-          <pre className="receipt-body">{`Reviewed by @you (human) · ${receipt.subject.repo} #${receipt.subject.number} @ ${receipt.subject.sha.slice(0, 7)}
+              ? "Self-review summary"
+              : "Verification receipt"}
+          </h2>
+          <span className="tag">not an approval</span>
+        </div>
+        <div className="receipt-sub">
+          {reviewMode === "author"
+            ? "Author-side preview · catches unresolved risk before requesting review"
+            : "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours"}
+        </div>
+        <pre className="receipt-body">{`Reviewed by @you (human) · ${receipt.subject.repo} #${receipt.subject.number} @ ${receipt.subject.sha.slice(0, 7)}
 Tool verification receipt — mechanical claims only
 
   ${progress.reviewedChunks >= progress.chunkTotal ? "✓" : "•"} chunks read: ${progress.reviewedChunks}/${progress.chunkTotal}
@@ -57,26 +56,25 @@ ${openFlags.map((flag) => `      open: ${flag.attr} @ ${shortFile(flag.file)} �
 ${receipt.reclassifiedCount > 0 ? `\n  ${receipt.reclassifiedCount} group reclassified by reviewer` : ""}
 
   not checked: ${RECEIPT_NOT_CHECKED.join(" · ")}`}</pre>
-          <div className="receipt-actions">
-            <button className="btn primary" type="button" onClick={submit}>
-              {reviewMode === "author"
-                ? "Mark ready for review"
-                : "Submit review to GitHub"}
-            </button>
-            <button className="btn" type="button" onClick={openSummaryPreview}>
-              Preview public summary
-            </button>
-            <button className="btn" type="button" onClick={close}>
-              Keep reviewing
-            </button>
-            <span className="receipt-note">
-              Scoped to mechanical claims. The approve / request-changes verdict
-              is yours alone.
-            </span>
-          </div>
+        <div className="receipt-actions">
+          <button className="btn primary" type="button" onClick={submit}>
+            {reviewMode === "author"
+              ? "Mark ready for review"
+              : "Submit review to GitHub"}
+          </button>
+          <button className="btn" type="button" onClick={openSummaryPreview}>
+            Preview public summary
+          </button>
+          <button className="btn" type="button" onClick={close}>
+            Keep reviewing
+          </button>
+          <span className="receipt-note">
+            Scoped to mechanical claims. The approve / request-changes verdict
+            is yours alone.
+          </span>
         </div>
-      </aside>
-    </>
+      </div>
+    </Drawer>
   );
 }
 

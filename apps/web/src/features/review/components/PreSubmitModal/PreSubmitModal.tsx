@@ -1,3 +1,4 @@
+import { Modal } from "../../../../components/Modal/Modal";
 import type { ReviewMode, UnresolvedItem } from "../../state";
 
 export interface PreSubmitModalProps {
@@ -24,43 +25,41 @@ export function PreSubmitModal({
       ? "Continue to self-review summary"
       : "Continue to receipt";
   return (
-    <div className={open ? "modal show" : "modal"}>
-      <div className="modal-box unresolved-box">
-        <h3>{title}</h3>
-        <p className="modal-copy">
-          This is advisory. You can continue, but the summary will show
-          unresolved items exactly as they are.
-        </p>
-        <div className="unresolved-list">
-          {unresolvedItems.length === 0 ? (
-            <div className="empty">No unresolved review items.</div>
-          ) : null}
-          {unresolvedItems.map((item) => (
-            <button
-              className="unresolved-item"
-              key={item.id}
-              type="button"
-              onClick={() => jumpToItem(item)}
-            >
-              <span>{unresolvedKindLabel(item.kind)}</span>
-              <b>{item.label}</b>
-            </button>
-          ))}
-        </div>
-        <div className="modal-actions">
-          <button className="btn" type="button" onClick={close}>
-            Keep reviewing
-          </button>
+    <Modal open={open} boxClassName="unresolved-box">
+      <h3>{title}</h3>
+      <p className="modal-copy">
+        This is advisory. You can continue, but the summary will show unresolved
+        items exactly as they are.
+      </p>
+      <div className="unresolved-list">
+        {unresolvedItems.length === 0 ? (
+          <div className="empty">No unresolved review items.</div>
+        ) : null}
+        {unresolvedItems.map((item) => (
           <button
-            className="btn primary"
+            className="unresolved-item"
+            key={item.id}
             type="button"
-            onClick={continueToReceipt}
+            onClick={() => jumpToItem(item)}
           >
-            {primary}
+            <span>{unresolvedKindLabel(item.kind)}</span>
+            <b>{item.label}</b>
           </button>
-        </div>
+        ))}
       </div>
-    </div>
+      <div className="modal-actions">
+        <button className="btn" type="button" onClick={close}>
+          Keep reviewing
+        </button>
+        <button
+          className="btn primary"
+          type="button"
+          onClick={continueToReceipt}
+        >
+          {primary}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

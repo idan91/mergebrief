@@ -2,6 +2,7 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 
+import { Drawer } from "../components/Drawer/Drawer";
 import { Markdown } from "../components/Markdown/Markdown";
 import { ConcernView } from "../features/brief/components/ConcernView/ConcernView";
 import { DeltaContext } from "../features/brief/components/DeltaContext/DeltaContext";
@@ -601,26 +602,19 @@ function SummaryPreviewDrawer({
   snapshot: SessionSnapshot;
 }) {
   return (
-    <>
-      <button
-        aria-label="Close summary preview"
-        className={open ? "scrim show" : "scrim"}
-        type="button"
-        onClick={close}
+    <Drawer
+      open={open}
+      closeLabel="Close summary preview"
+      close={close}
+      asideClassName="receipt summary-drawer"
+    >
+      <SummaryPreview
+        brief={brief}
+        mode={mode}
+        snapshot={snapshot}
+        setOutcome={setOutcome}
       />
-      <aside
-        className={
-          open ? "receipt summary-drawer show" : "receipt summary-drawer"
-        }
-      >
-        <SummaryPreview
-          brief={brief}
-          mode={mode}
-          snapshot={snapshot}
-          setOutcome={setOutcome}
-        />
-      </aside>
-    </>
+    </Drawer>
   );
 }
 
