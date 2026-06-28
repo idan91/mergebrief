@@ -11,6 +11,7 @@ export function useScrollSpy(ids: string[], offset = 150): string | null {
 
   useEffect(() => {
     if (typeof window === "undefined" || ids.length === 0) return;
+    let frame: number | null = null;
     const update = () => {
       const current = ids.find((id) => {
         const element = document.getElementById(id);
@@ -20,9 +21,19 @@ export function useScrollSpy(ids: string[], offset = 150): string | null {
       });
       setActiveId(current ?? null);
     };
-    window.addEventListener("scroll", update, { passive: true });
+    const scheduleUpdate = () => {
+      if (frame !== null) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = null;
+        update();
+      });
+    };
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
     update();
-    return () => window.removeEventListener("scroll", update);
+    return () => {
+      window.removeEventListener("scroll", scheduleUpdate);
+      if (frame !== null) window.cancelAnimationFrame(frame);
+    };
     // `key` captures the id list identity without re-running on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, offset]);

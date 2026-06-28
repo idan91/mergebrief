@@ -1,5 +1,5 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Drawer } from "../../../../components/Drawer/Drawer";
 import { Markdown } from "../../../../components/Markdown/Markdown";
@@ -51,22 +51,6 @@ import { Header } from "../Header/Header";
 import { StoryView } from "../StoryView/StoryView";
 import { Toolbar, type LayoutMode, type ViewMode } from "../Toolbar/Toolbar";
 import styles from "./BriefPage.module.scss";
-
-/**
- * Comment id unique against the current list — probes for a free suffix rather
- * than deriving one from `length` (which collides after a delete) and needs no
- * secure context the way `crypto.randomUUID()` would.
- */
-function getUniqueCommentId(
-  anchor: CommentAnchor,
-  existing: ReviewComment[],
-): string {
-  const base = `${anchor.chunkId}-${anchor.side}-${anchor.startLine}-${anchor.endLine}`;
-  const taken = new Set(existing.map((comment) => comment.id));
-  let n = 1;
-  while (taken.has(`${base}-${n}`)) n += 1;
-  return `${base}-${n}`;
-}
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
@@ -146,14 +130,24 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         : 0,
     [brief.chunks, effectiveRevisionChanges],
   );
-  const revision: RevisionOverlayState = {
-    changes: effectiveRevisionChanges,
-    delta: revisionDelta,
-    available: revisionAvailable,
-    enabled: revisionEnabled,
-    runCount: revisionRunCount,
-    setEnabled: setRevisionEnabled,
-  };
+  const revision: RevisionOverlayState = useMemo(
+    () => ({
+      changes: effectiveRevisionChanges,
+      delta: revisionDelta,
+      available: revisionAvailable,
+      enabled: revisionEnabled,
+      runCount: revisionRunCount,
+      setEnabled: setRevisionEnabled,
+    }),
+    [
+      effectiveRevisionChanges,
+      revisionAvailable,
+      revisionDelta,
+      revisionEnabled,
+      revisionRunCount,
+      setRevisionEnabled,
+    ],
+  );
 
   // Session/domain state lives in the per-brief Mind-Map store (ADR 0022).
   const dispositions = useMindMap((state) => state.dispositions);
@@ -246,6 +240,15 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     () => buildReceipt(snapshot, brief, model),
     [snapshot, brief, model],
   );
+  const commentsByChunk = useMemo(() => {
+    const map = new Map<string, ReviewComment[]>();
+    for (const comment of reviewComments) {
+      const comments = map.get(comment.anchor.chunkId) ?? [];
+      comments.push(comment);
+      map.set(comment.anchor.chunkId, comments);
+    }
+    return map;
+  }, [reviewComments]);
 
   useEffect(() => {
     if (!toast) return;
@@ -268,7 +271,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     if (scrollActiveChunkId) setActiveChunkId(scrollActiveChunkId);
   }, [scrollActiveChunkId]);
 
-  function toggleChunk(chunkId: string) {
+  const toggleChunk = useCallback((chunkId: string) => {
     setOpenChunks((current) => {
       const next = new Set(current);
       if (next.has(chunkId)) next.delete(chunkId);
@@ -276,20 +279,23 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
       return next;
     });
     setActiveChunkId(chunkId);
-  }
+  }, []);
 
-  function markReviewed(chunkId: string) {
-    // reviewChunk is a pure store toggle; the collapse-on-review coupling lives
-    // here because openChunks is local UI — drop the chunk from it explicitly.
-    actions.reviewChunk(chunkId);
-    setOpenChunks((current) => {
-      const next = new Set(current);
-      next.delete(chunkId);
-      return next;
-    });
-  }
+  const markReviewed = useCallback(
+    (chunkId: string) => {
+      // reviewChunk is a pure store toggle; the collapse-on-review coupling lives
+      // here because openChunks is local UI — drop the chunk from it explicitly.
+      actions.reviewChunk(chunkId);
+      setOpenChunks((current) => {
+        const next = new Set(current);
+        next.delete(chunkId);
+        return next;
+      });
+    },
+    [actions],
+  );
 
-  function jumpToChunk(chunkId: string) {
+  const jumpToChunk = useCallback((chunkId: string) => {
     setViewMode("story");
     setOpenChunks((current) => new Set(current).add(chunkId));
     setActiveChunkId(chunkId);
@@ -300,26 +306,26 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
           ?.scrollIntoView({ behavior: "smooth", block: "start" }),
       0,
     );
-  }
+  }, []);
 
-  function clearSelection(flagIds: string[]) {
+  const clearSelection = useCallback((flagIds: string[]) => {
     setSelectedRiskFlags((current) => {
       const next = new Set(current);
       for (const flagId of flagIds) next.delete(flagId);
       return next;
     });
-  }
+  }, []);
 
-  function toggleRiskFlag(flagId: string) {
+  const toggleRiskFlag = useCallback((flagId: string) => {
     setSelectedRiskFlags((current) => {
       const next = new Set(current);
       if (next.has(flagId)) next.delete(flagId);
       else next.add(flagId);
       return next;
     });
-  }
+  }, []);
 
-  function toggleRiskGroup(flagIds: string[]) {
+  const toggleRiskGroup = useCallback((flagIds: string[]) => {
     setSelectedRiskFlags((current) => {
       const allSelected =
         flagIds.length > 0 && flagIds.every((flagId) => current.has(flagId));
@@ -330,25 +336,25 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
       }
       return next;
     });
-  }
+  }, []);
 
-  function addressWithEvidence(
-    flagIds: string[],
-    evidenceForFlag: (flag: RiskFlag) => RiskEvidence,
-  ) {
-    const flagsById = new Map(model.flags.map((flag) => [flag.id, flag]));
-    const presentIds = flagIds.filter((flagId) => flagsById.has(flagId));
-    if (presentIds.length === 0) return;
-    actions.addressFlags(presentIds, (flagId) =>
-      evidenceForFlag(flagsById.get(flagId)!),
-    );
-    clearSelection(presentIds);
-    setToast(
-      presentIds.length === 1
-        ? "Risk marked addressed with evidence."
-        : `${presentIds.length} risks marked addressed with evidence.`,
-    );
-  }
+  const addressWithEvidence = useCallback(
+    (flagIds: string[], evidenceForFlag: (flag: RiskFlag) => RiskEvidence) => {
+      const flagsById = new Map(model.flags.map((flag) => [flag.id, flag]));
+      const presentIds = flagIds.filter((flagId) => flagsById.has(flagId));
+      if (presentIds.length === 0) return;
+      actions.addressFlags(presentIds, (flagId) =>
+        evidenceForFlag(flagsById.get(flagId)!),
+      );
+      clearSelection(presentIds);
+      setToast(
+        presentIds.length === 1
+          ? "Risk marked addressed with evidence."
+          : `${presentIds.length} risks marked addressed with evidence.`,
+      );
+    },
+    [actions, clearSelection, model.flags],
+  );
 
   function confirmDismiss() {
     if (!dismissTarget) return;
@@ -373,37 +379,66 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     );
   }
 
-  function saveReviewComment(anchor: CommentAnchor, body: string) {
-    const trimmed = body.trim();
-    if (!trimmed) {
-      setToast("Comment cannot be empty.");
-      return;
-    }
-    actions.saveComment({
-      id: getUniqueCommentId(anchor, reviewComments),
-      anchor,
-      body: trimmed,
-      status: "draft",
-      collapsed: false,
-    });
+  const saveReviewComment = useCallback(
+    (anchor: CommentAnchor, body: string) => {
+      const trimmed = body.trim();
+      if (!trimmed) {
+        setToast("Comment cannot be empty.");
+        return;
+      }
+      actions.saveComment({
+        anchor,
+        body: trimmed,
+        status: "draft",
+        collapsed: false,
+      });
+      setActiveCommentAnchor(null);
+      setToast("Draft comment added to this review.");
+    },
+    [actions],
+  );
+
+  const updateReviewComment = useCallback(
+    (commentId: string, body: string) => {
+      const trimmed = body.trim();
+      if (!trimmed) {
+        setToast("Comment cannot be empty.");
+        return;
+      }
+      actions.updateComment(commentId, trimmed);
+      setToast("Draft comment updated.");
+    },
+    [actions],
+  );
+
+  const deleteReviewComment = useCallback(
+    (commentId: string) => {
+      actions.deleteComment(commentId);
+      setToast("Draft comment deleted.");
+    },
+    [actions],
+  );
+
+  const openCommentComposer = useCallback((anchor: CommentAnchor) => {
+    setActiveCommentAnchor(anchor);
+  }, []);
+  const cancelCommentComposer = useCallback(() => {
     setActiveCommentAnchor(null);
-    setToast("Draft comment added to this review.");
-  }
-
-  function updateReviewComment(commentId: string, body: string) {
-    const trimmed = body.trim();
-    if (!trimmed) {
-      setToast("Comment cannot be empty.");
-      return;
-    }
-    actions.updateComment(commentId, trimmed);
-    setToast("Draft comment updated.");
-  }
-
-  function deleteReviewComment(commentId: string) {
-    actions.deleteComment(commentId);
-    setToast("Draft comment deleted.");
-  }
+  }, []);
+  const toggleReviewComment = useCallback(
+    (commentId: string) => actions.toggleComment(commentId),
+    [actions],
+  );
+  const openPreSubmit = useCallback(() => setPreSubmitOpen(true), []);
+  const clearDrafts = useCallback(() => {
+    clearSnapshots();
+    actions.reset(deriveInitialState(model));
+  }, [actions, model]);
+  const openDismissTarget = useCallback((target: DismissTarget) => {
+    setDismissTarget(target);
+    setDismissReason("");
+    setDismissWarned(false);
+  }, []);
 
   return (
     <>
@@ -417,11 +452,8 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         locOpen={locOpen}
         reviewMode={reviewMode}
         setLocOpen={setLocOpen}
-        openReceipt={() => setPreSubmitOpen(true)}
-        clearDrafts={() => {
-          clearSnapshots();
-          actions.reset(deriveInitialState(model));
-        }}
+        openReceipt={openPreSubmit}
+        clearDrafts={clearDrafts}
       />
       <main
         className={
@@ -479,24 +511,23 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
             openChunks={openChunks}
             selectedRiskFlags={selectedRiskFlags}
             activeCommentAnchor={activeCommentAnchor}
-            cancelCommentComposer={() => setActiveCommentAnchor(null)}
+            addressedReviewComments={brief.reviewComments}
+            commentsByChunk={commentsByChunk}
+            existingReviewCommentCount={reviewComments.length}
+            cancelCommentComposer={cancelCommentComposer}
             deleteReviewComment={deleteReviewComment}
             jumpToChunk={jumpToChunk}
             markReviewed={markReviewed}
-            openCommentComposer={setActiveCommentAnchor}
+            openCommentComposer={openCommentComposer}
             saveReviewComment={saveReviewComment}
             setCollapseSupporting={setCollapseSupporting}
-            setDismissTarget={(target) => {
-              setDismissTarget(target);
-              setDismissReason("");
-              setDismissWarned(false);
-            }}
+            setDismissTarget={openDismissTarget}
             setEvidenceTarget={setEvidenceTarget}
             setToast={setToast}
             toggleChunk={toggleChunk}
             toggleRiskFlag={toggleRiskFlag}
             toggleRiskGroup={toggleRiskGroup}
-            toggleReviewComment={actions.toggleComment}
+            toggleReviewComment={toggleReviewComment}
             updateReviewComment={updateReviewComment}
           />
         ) : (

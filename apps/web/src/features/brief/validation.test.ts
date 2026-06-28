@@ -49,6 +49,22 @@ describe("parseBrief", () => {
     expect(parsed.value.chunks[0]?.changeGroupId).toBe("g1");
   });
 
+  it("rejects pr urls that are not http(s)", () => {
+    const parsed = parseBrief({
+      pr: { ...pr, url: "javascript:alert(1)" },
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+    });
+
+    expect(parsed).toEqual({
+      ok: false,
+      error:
+        "Expected pr repo, number, title, http(s) url, sha, and description",
+    });
+  });
+
   it("normalizes legacy group chunk-id arrays to chunk changeGroupId membership", () => {
     const parsed = parseBrief({
       pr,

@@ -39,6 +39,7 @@ export function Header({
   const progressStyle: ProgressBarStyle = {
     "--progress-width": `${progress}%`,
   };
+  const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
 
   return (
     <header className={styles["header"]}>
@@ -49,14 +50,18 @@ export function Header({
         <div className={styles["title"]}>{brief.pr.title}</div>
         <div className={styles["sub"]}>
           <b>{brief.pr.repo}</b> ·{" "}
-          <a
-            className={styles["ghlink"]}
-            href={brief.pr.url}
-            target="_blank"
-            rel="noreferrer"
-          >
-            #{brief.pr.number} ↗
-          </a>{" "}
+          {prLink ? (
+            <a
+              className={styles["ghlink"]}
+              href={prLink}
+              target="_blank"
+              rel="noreferrer"
+            >
+              #{brief.pr.number} ↗
+            </a>
+          ) : (
+            <span>#{brief.pr.number}</span>
+          )}{" "}
           · {artifactHeaderLabel(brief)}
         </div>
         {briefMetaLine(brief) ? (
@@ -122,6 +127,16 @@ export function Header({
 
 interface ProgressBarStyle extends CSSProperties {
   "--progress-width": string;
+}
+
+function isHttpUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
 }
 
 function artifactHeaderLabel(brief: Brief): string {

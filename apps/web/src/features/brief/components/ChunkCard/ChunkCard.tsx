@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 import { reviewCommentsForChunk } from "../../reviewComments";
 import { buildChunkRevisionView } from "../../revisionChanges";
@@ -8,7 +8,7 @@ import {
   AddressedComments,
   ReviewComments,
 } from "../../../review/components/AddressedComments/AddressedComments";
-import type { CommentAnchor } from "../../../review/comments";
+import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import { useMindMap } from "../../../review/session";
 import { DiffTable } from "../DiffTable/DiffTable";
 import styles from "./ChunkCard.module.scss";
@@ -21,6 +21,8 @@ export interface ChunkCardProps {
   forceCollapsed: boolean;
   activeCommentAnchor: CommentAnchor | null;
   addressedReviewComments: AddressedReviewComment[];
+  comments: ReviewComment[];
+  existingReviewCommentCount: number;
   cancelCommentComposer: () => void;
   deleteReviewComment: (commentId: string) => void;
   toggleChunk: (chunkId: string) => void;
@@ -31,7 +33,7 @@ export interface ChunkCardProps {
   updateReviewComment: (commentId: string, body: string) => void;
 }
 
-export function ChunkCard({
+export const ChunkCard = memo(function ChunkCard({
   chunk,
   revision,
   active,
@@ -39,6 +41,8 @@ export function ChunkCard({
   forceCollapsed,
   activeCommentAnchor,
   addressedReviewComments,
+  comments,
+  existingReviewCommentCount,
   cancelCommentComposer,
   deleteReviewComment,
   toggleChunk,
@@ -48,12 +52,7 @@ export function ChunkCard({
   toggleReviewComment,
   updateReviewComment,
 }: ChunkCardProps) {
-  const reviewed = useMindMap((state) => state.reviewedChunks).has(chunk.id);
-  const allComments = useMindMap((state) => state.reviewComments);
-  const comments = allComments.filter(
-    (comment) => comment.anchor.chunkId === chunk.id,
-  );
-  const existingReviewCommentCount = allComments.length;
+  const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
 
   const expanded = open && !forceCollapsed;
   const revisionView = useMemo(
@@ -178,4 +177,4 @@ export function ChunkCard({
       ) : null}
     </article>
   );
-}
+});

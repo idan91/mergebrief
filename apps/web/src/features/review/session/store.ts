@@ -2,7 +2,7 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import type { Category, Concern } from "../../brief/types";
 import type { BriefViewModel } from "../../brief/viewModel";
-import type { ReviewComment } from "../comments";
+import type { CommentAnchor, ReviewComment } from "../comments";
 import type { ReviewOutcome, RiskEvidence } from "../state";
 import type { BulkDisposition, Disposition } from "./disposition";
 
@@ -50,7 +50,7 @@ export interface MindMapActions {
    */
   reclassifyGroup(groupId: string, category: Category): void;
   checkPlaybookItem(bucket: CheckBucket, index: number): void;
-  saveComment(comment: ReviewComment): void;
+  saveComment(comment: Omit<ReviewComment, "id">): void;
   updateComment(id: string, body: string): void;
   deleteComment(id: string): void;
   /**
@@ -76,6 +76,22 @@ function toggle<T>(set: ReadonlySet<T>, value: T): Set<T> {
   if (next.has(value)) next.delete(value);
   else next.add(value);
   return next;
+}
+
+/**
+ * Comment id unique against the current list — probes for a free suffix rather
+ * than deriving one from `length` (which collides after a delete) and needs no
+ * secure context the way `crypto.randomUUID()` would.
+ */
+function getUniqueCommentId(
+  anchor: CommentAnchor,
+  existing: ReviewComment[],
+): string {
+  const base = `${anchor.chunkId}-${anchor.side}-${anchor.startLine}-${anchor.endLine}`;
+  const taken = new Set(existing.map((comment) => comment.id));
+  let n = 1;
+  while (taken.has(`${base}-${n}`)) n += 1;
+  return `${base}-${n}`;
 }
 
 /** Initial session state derived from the brief view model (snapshot overrides). */
@@ -149,7 +165,13 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
       },
       saveComment(comment) {
         set((state) => ({
-          reviewComments: [...state.reviewComments, comment],
+          reviewComments: [
+            ...state.reviewComments,
+            {
+              ...comment,
+              id: getUniqueCommentId(comment.anchor, state.reviewComments),
+            },
+          ],
         }));
       },
       updateComment(id, body) {

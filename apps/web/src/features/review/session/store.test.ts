@@ -96,7 +96,6 @@ describe("comments + outcome", () => {
   it("saves, updates, deletes comments and sets outcome", () => {
     const store = freshStore();
     const comment = {
-      id: "c1",
       anchor: {
         chunkId: "chunk-a",
         file: "src/leak.ts",
@@ -112,11 +111,12 @@ describe("comments + outcome", () => {
     };
     store.getState().actions.saveComment(comment);
     expect(store.getState().reviewComments).toHaveLength(1);
-    store.getState().actions.updateComment("c1", "second");
+    expect(store.getState().reviewComments[0]!.id).toBe("chunk-a-new-10-10-1");
+    store.getState().actions.updateComment("chunk-a-new-10-10-1", "second");
     expect(store.getState().reviewComments[0]!.body).toBe("second");
-    store.getState().actions.toggleComment("c1");
+    store.getState().actions.toggleComment("chunk-a-new-10-10-1");
     expect(store.getState().reviewComments[0]!.collapsed).toBe(true);
-    store.getState().actions.deleteComment("c1");
+    store.getState().actions.deleteComment("chunk-a-new-10-10-1");
     expect(store.getState().reviewComments).toHaveLength(0);
     store.getState().actions.setOutcome("approve");
     expect(store.getState().reviewOutcome).toBe("approve");

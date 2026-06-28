@@ -1,13 +1,16 @@
-import type { CommentAnchor } from "../../../review/comments";
+import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import type { DismissTarget } from "../../../review/components/DismissModal/DismissModal";
 import type { EvidenceTarget } from "../../../review/components/EvidenceModal/EvidenceModal";
 import { useRevisionNavigation } from "../../useRevisionNavigation";
 import type { RevisionOverlayState } from "../../revisionOverlay";
-import type { Brief } from "../../types";
+import type { AddressedReviewComment, Brief } from "../../types";
 import type { BriefViewModel } from "../../viewModel";
 import { ChunkCard } from "../ChunkCard/ChunkCard";
 import { GroupCard } from "../GroupCard/GroupCard";
 import styles from "./StoryView.module.scss";
+
+const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
+const EMPTY_REVIEW_COMMENTS: ReviewComment[] = [];
 
 export interface StoryViewProps {
   brief: Brief;
@@ -18,6 +21,9 @@ export interface StoryViewProps {
   openChunks: Set<string>;
   selectedRiskFlags: Set<string>;
   activeCommentAnchor: CommentAnchor | null;
+  addressedReviewComments: AddressedReviewComment[] | undefined;
+  commentsByChunk: Map<string, ReviewComment[]>;
+  existingReviewCommentCount: number;
   cancelCommentComposer: () => void;
   deleteReviewComment: (commentId: string) => void;
   jumpToChunk: (chunkId: string) => void;
@@ -37,6 +43,8 @@ export interface StoryViewProps {
 
 export function StoryView(props: StoryViewProps) {
   const { jumpPrev, jumpNext } = useRevisionNavigation();
+  const addressedReviewComments =
+    props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
   return (
     <div className={styles["storyView"]}>
       <div className={`${styles["chunksLabel"]} reveal`}>
@@ -120,9 +128,13 @@ export function StoryView(props: StoryViewProps) {
                     ? props.activeCommentAnchor
                     : null
                 }
-                addressedReviewComments={props.brief.reviewComments ?? []}
+                addressedReviewComments={addressedReviewComments}
                 cancelCommentComposer={props.cancelCommentComposer}
+                comments={
+                  props.commentsByChunk.get(chunk.id) ?? EMPTY_REVIEW_COMMENTS
+                }
                 deleteReviewComment={props.deleteReviewComment}
+                existingReviewCommentCount={props.existingReviewCommentCount}
                 markReviewed={props.markReviewed}
                 openCommentComposer={props.openCommentComposer}
                 saveReviewComment={props.saveReviewComment}

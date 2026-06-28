@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { ReviewComment } from "../../../review/comments";
 import type { DismissTarget } from "../../../review/components/DismissModal/DismissModal";
 import type { EvidenceTarget } from "../../../review/components/EvidenceModal/EvidenceModal";
@@ -35,7 +37,7 @@ function evidenceText(
     : "addressed without linked evidence";
 }
 
-export function GroupCard({
+export const GroupCard = memo(function GroupCard({
   group,
   brief,
   model,
@@ -309,4 +311,4 @@ export function GroupCard({
       </div>
     </article>
   );
-}
+});
