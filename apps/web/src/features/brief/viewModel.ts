@@ -97,11 +97,11 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
       (chunk) => chunk.changeGroupId === id,
     );
     groupChunks.forEach((chunk) => chunkToGroup.set(chunk.id, id));
-    const carrierChunks = groupChunks.filter(
-      (chunk) => chunk.role === Roles.Carrier,
+    const carrierChunks = sortByConcern(
+      groupChunks.filter((chunk) => chunk.role === Roles.Carrier),
     );
-    const supportingChunks = groupChunks.filter(
-      (chunk) => chunk.role === Roles.Supporting,
+    const supportingChunks = sortByConcern(
+      groupChunks.filter((chunk) => chunk.role === Roles.Supporting),
     );
     const supportConcerns = uniqueConcerns(supportingChunks);
 
@@ -169,6 +169,21 @@ export function groupRiskByAttribute(flags: RiskFlag[]): RiskAttributeGroup[] {
     attr,
     flags: groupedFlags,
   }));
+}
+
+const CONCERN_RANK: Record<Concern, number> = Object.fromEntries(
+  CONCERN_ORDER.map((concern, index) => [concern, index]),
+) as Record<Concern, number>;
+
+/**
+ * @description Stable level-2 sort within a role: implementation, test, doc,
+ * spec, config, generated (CONCERN_ORDER). Native sort is stable, so ties keep
+ * source order.
+ */
+function sortByConcern(chunks: BriefChunk[]): BriefChunk[] {
+  return [...chunks].sort(
+    (a, b) => CONCERN_RANK[a.concern] - CONCERN_RANK[b.concern],
+  );
 }
 
 function sumLoc(chunks: BriefChunk[], key: keyof BriefChunk["loc"]): number {
