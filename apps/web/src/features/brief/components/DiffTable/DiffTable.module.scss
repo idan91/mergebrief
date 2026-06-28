@@ -15,6 +15,13 @@
     }
   }
 
+  .viewport {
+    content-visibility: auto;
+
+    // `auto` remembers real painted size; the estimate only tames first-paint scroll jump
+    contain-intrinsic-block-size: auto calc(var(--diff-rows, 40) * 22px);
+  }
+
   .diff {
     inline-size: 100%;
     border-collapse: collapse;

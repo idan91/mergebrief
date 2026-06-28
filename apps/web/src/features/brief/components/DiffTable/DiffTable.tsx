@@ -122,138 +122,146 @@ export function DiffTable({
 
   return (
     <>
-      <table className={styles["diff"]}>
-        <tbody>
-          {chunk.diff.map((line, index) => {
-            if (line.kind === "hunk" || line.kind === "note") {
-              return (
-                <tr
-                  className={styles["line"]}
-                  data-line-kind={line.kind}
-                  key={`${line.kind}-${index}`}
-                >
-                  <td colSpan={metaColSpan}>{line.content}</td>
-                </tr>
-              );
-            }
-            const sign =
-              line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
-            const id = rowId(chunk.id, index);
-            const revRun = overlayActive
-              ? revisionView.runByRow.get(index)
-              : undefined;
-            const revMark = overlayActive
-              ? revisionView.marks.get(index)
-              : undefined;
-            const isRevStart =
-              revRun !== undefined && revRun.rowIndexes[0] === index;
-            const isRevEnd =
-              revRun !== undefined && revRun.rowIndexes.at(-1) === index;
-            const rowComments = comments.filter(
-              (comment) => comment.anchor.rowIds.at(-1) === id,
-            );
-            const rowAddressedComments = addressedComments.filter((comment) =>
-              reviewCommentMatchesDiffLine(
-                comment,
-                chunk.file,
-                line,
-                chunk.diff,
-              ),
-            );
-            const isSelected =
-              dragIndexes.includes(index) || activeRowIds.has(id);
-            const showComposer =
-              activeCommentAnchor?.chunkId === chunk.id &&
-              activeCommentAnchor.rowIds.at(-1) === id;
-            return (
-              <Fragment key={`${line.kind}-${index}`}>
-                <tr
-                  className={styles["line"]}
-                  data-commentable=""
-                  data-line-kind={line.kind}
-                  data-rev={revMark}
-                  data-selected={isSelected ? "" : undefined}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") finishSelection(index);
-                  }}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    setDragStart(index);
-                    setDragCurrent(index);
-                  }}
-                  onMouseEnter={() => {
-                    if (dragStart !== null) setDragCurrent(index);
-                  }}
-                  onMouseUp={() => finishSelection(index)}
-                  tabIndex={0}
-                >
-                  {overlayActive ? (
-                    <RevisionGutterCell
-                      run={revRun}
-                      isStart={isRevStart}
-                      isEnd={isRevEnd}
-                      chunk={chunk}
-                      onRailEnter={handleRailEnter}
-                      onRailLeave={handleRailLeave}
-                    />
-                  ) : null}
-                  <td className={styles["lineNumber"]}>{line.oldLine ?? ""}</td>
-                  <td className={styles["lineNumber"]}>{line.newLine ?? ""}</td>
-                  <td className={styles["code"]}>
-                    <span className={styles["sign"]}>{sign}</span>
-                    {line.content}
-                    {isRevStart && revRun ? (
-                      <span
-                        className={styles["newTag"]}
-                        data-kind={revRun.kind}
-                      >
-                        {revRun.kind === "removed" ? "removed" : "new"}
-                      </span>
-                    ) : null}
-                  </td>
-                </tr>
-                {showComposer ? (
-                  <tr className={styles["commentRow"]}>
-                    <td colSpan={metaColSpan}>
-                      <CommentComposer
-                        anchor={activeCommentAnchor}
-                        cancel={cancelCommentComposer}
-                        existingReviewCommentCount={existingReviewCommentCount}
-                        save={saveReviewComment}
-                      />
-                    </td>
-                  </tr>
-                ) : null}
-                {rowComments.map((comment) => (
-                  <tr className={styles["commentRow"]} key={comment.id}>
-                    <td colSpan={metaColSpan}>
-                      <CommentThread
-                        comment={comment}
-                        deleteComment={deleteReviewComment}
-                        toggle={toggleReviewComment}
-                        update={updateReviewComment}
-                      />
-                    </td>
-                  </tr>
-                ))}
-                {rowAddressedComments.map((comment) => (
+      <div className={styles["viewport"]}>
+        <table className={styles["diff"]}>
+          <tbody>
+            {chunk.diff.map((line, index) => {
+              if (line.kind === "hunk" || line.kind === "note") {
+                return (
                   <tr
-                    className={styles["commentRow"]}
-                    key={`addressed-${comment.id}`}
+                    className={styles["line"]}
+                    data-line-kind={line.kind}
+                    key={`${line.kind}-${index}`}
                   >
-                    <td colSpan={metaColSpan}>
-                      <AddressedDiffComment
-                        comment={comment}
-                        label={reviewCommentLabel}
+                    <td colSpan={metaColSpan}>{line.content}</td>
+                  </tr>
+                );
+              }
+              const sign =
+                line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
+              const id = rowId(chunk.id, index);
+              const revRun = overlayActive
+                ? revisionView.runByRow.get(index)
+                : undefined;
+              const revMark = overlayActive
+                ? revisionView.marks.get(index)
+                : undefined;
+              const isRevStart =
+                revRun !== undefined && revRun.rowIndexes[0] === index;
+              const isRevEnd =
+                revRun !== undefined && revRun.rowIndexes.at(-1) === index;
+              const rowComments = comments.filter(
+                (comment) => comment.anchor.rowIds.at(-1) === id,
+              );
+              const rowAddressedComments = addressedComments.filter((comment) =>
+                reviewCommentMatchesDiffLine(
+                  comment,
+                  chunk.file,
+                  line,
+                  chunk.diff,
+                ),
+              );
+              const isSelected =
+                dragIndexes.includes(index) || activeRowIds.has(id);
+              const showComposer =
+                activeCommentAnchor?.chunkId === chunk.id &&
+                activeCommentAnchor.rowIds.at(-1) === id;
+              return (
+                <Fragment key={`${line.kind}-${index}`}>
+                  <tr
+                    className={styles["line"]}
+                    data-commentable=""
+                    data-line-kind={line.kind}
+                    data-rev={revMark}
+                    data-selected={isSelected ? "" : undefined}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") finishSelection(index);
+                    }}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      setDragStart(index);
+                      setDragCurrent(index);
+                    }}
+                    onMouseEnter={() => {
+                      if (dragStart !== null) setDragCurrent(index);
+                    }}
+                    onMouseUp={() => finishSelection(index)}
+                    tabIndex={0}
+                  >
+                    {overlayActive ? (
+                      <RevisionGutterCell
+                        run={revRun}
+                        isStart={isRevStart}
+                        isEnd={isRevEnd}
+                        chunk={chunk}
+                        onRailEnter={handleRailEnter}
+                        onRailLeave={handleRailLeave}
                       />
+                    ) : null}
+                    <td className={styles["lineNumber"]}>
+                      {line.oldLine ?? ""}
+                    </td>
+                    <td className={styles["lineNumber"]}>
+                      {line.newLine ?? ""}
+                    </td>
+                    <td className={styles["code"]}>
+                      <span className={styles["sign"]}>{sign}</span>
+                      {line.content}
+                      {isRevStart && revRun ? (
+                        <span
+                          className={styles["newTag"]}
+                          data-kind={revRun.kind}
+                        >
+                          {revRun.kind === "removed" ? "removed" : "new"}
+                        </span>
+                      ) : null}
                     </td>
                   </tr>
-                ))}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
+                  {showComposer ? (
+                    <tr className={styles["commentRow"]}>
+                      <td colSpan={metaColSpan}>
+                        <CommentComposer
+                          anchor={activeCommentAnchor}
+                          cancel={cancelCommentComposer}
+                          existingReviewCommentCount={
+                            existingReviewCommentCount
+                          }
+                          save={saveReviewComment}
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+                  {rowComments.map((comment) => (
+                    <tr className={styles["commentRow"]} key={comment.id}>
+                      <td colSpan={metaColSpan}>
+                        <CommentThread
+                          comment={comment}
+                          deleteComment={deleteReviewComment}
+                          toggle={toggleReviewComment}
+                          update={updateReviewComment}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                  {rowAddressedComments.map((comment) => (
+                    <tr
+                      className={styles["commentRow"]}
+                      key={`addressed-${comment.id}`}
+                    >
+                      <td colSpan={metaColSpan}>
+                        <AddressedDiffComment
+                          comment={comment}
+                          label={reviewCommentLabel}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       {railHover && (
         <DeltaCallout
           pos={railHover.pos}
