@@ -10,6 +10,7 @@ import {
 } from "../../../review/components/AddressedComments/AddressedComments";
 import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import { useMindMap } from "../../../review/session";
+import { RoleBadge } from "../Badge/RoleBadge";
 import { DiffTable } from "../DiffTable/DiffTable";
 import styles from "./ChunkCard.module.scss";
 
@@ -98,8 +99,8 @@ export const ChunkCard = memo(function ChunkCard({
           <span className={styles["chip"]} data-concern={chunk.concern}>
             <span className={styles["dot"]} />
             {chunk.concern}
-            {chunk.role === "carrier" ? " · carrier" : ""}
           </span>
+          <RoleBadge role={chunk.role} />
           {comments.length > 0 ? (
             <span className={styles["chip"]}>
               {comments.length} comment{comments.length === 1 ? "" : "s"}

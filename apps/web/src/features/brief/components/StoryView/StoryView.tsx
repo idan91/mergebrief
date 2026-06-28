@@ -118,9 +118,7 @@ export function StoryView(props: StoryViewProps) {
                 chunk={chunk}
                 revision={props.revision}
                 forceCollapsed={
-                  props.collapseSupporting &&
-                  chunk.role === "supporting" &&
-                  !props.openChunks.has(chunk.id)
+                  props.collapseSupporting && chunk.role === "supporting"
                 }
                 open={props.openChunks.has(chunk.id)}
                 activeCommentAnchor={
