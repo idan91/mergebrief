@@ -1,7 +1,11 @@
-import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import {
+  createRootRouteWithContext,
+  HeadContent,
+  Outlet,
+  Scripts,
+} from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { DemoReviewSnapshotProvider } from "../features/review/demoState";
 import type { RouterContext } from "../router";
 import appStyles from "../styles/app.scss?url";
 
@@ -14,7 +18,11 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap",
@@ -28,9 +36,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootComponent() {
   return (
     <RootDocument>
-      <DemoReviewSnapshotProvider>
-        <Outlet />
-      </DemoReviewSnapshotProvider>
+      <Outlet />
     </RootDocument>
   );
 }

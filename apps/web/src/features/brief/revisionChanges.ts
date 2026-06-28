@@ -21,19 +21,29 @@ export type RevisionRowKind = "added" | "removed";
 export interface RevisionRun {
   chunkId: string;
   file: string;
-  /** Inclusive indexes into `chunk.diff` for this contiguous run. */
+  /**
+   * @description Inclusive indexes into `chunk.diff` for this contiguous run.
+   */
   rowIndexes: number[];
-  /** "added" if the run contains any added/changed row (incl. modifications); */
-  /** "removed" only when the run is a standalone deletion (case B). */
+  /**
+   * @description `added` if the run contains any added/changed row, including modifications.
+   * `removed` only when the run is a standalone deletion (case B).
+   */
   kind: RevisionRowKind;
 }
 
 export interface ChunkRevisionView {
-  /** Per diff-row index → why it is marked (drives tint + tag). */
+  /**
+   * @description Per diff-row index to why it is marked; drives tint and tag.
+   */
   marks: Map<number, RevisionRowKind>;
-  /** Contiguous runs (one focusable rail each). */
+  /**
+   * @description Contiguous runs, one focusable rail each.
+   */
   runs: RevisionRun[];
-  /** diff-row index → its run, for cheap per-row lookup while rendering. */
+  /**
+   * @description Diff-row index to its run, for cheap per-row lookup while rendering.
+   */
   runByRow: Map<number, RevisionRun>;
 }
 

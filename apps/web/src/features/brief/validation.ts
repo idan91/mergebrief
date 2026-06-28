@@ -58,6 +58,16 @@ function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
+function isHttpUrl(value: unknown): value is string {
+  if (!isString(value)) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function isInteger(value: unknown): value is number {
   return Number.isInteger(value);
 }
@@ -124,13 +134,14 @@ function parsePrRef(value: unknown): Result<PrRef> {
     !isString(repo) ||
     !isInteger(number) ||
     !isString(title) ||
-    !isString(url) ||
+    !isHttpUrl(url) ||
     !isString(sha) ||
     !isString(description)
   ) {
     return {
       ok: false,
-      error: "Expected pr repo, number, title, url, sha, and description",
+      error:
+        "Expected pr repo, number, title, http(s) url, sha, and description",
     };
   }
   return {

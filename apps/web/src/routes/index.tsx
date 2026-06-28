@@ -4,6 +4,8 @@ import { useState, type FormEvent } from "react";
 
 import { generateBrief } from "../features/brief/brief.functions";
 import { localBriefsQueryOptions } from "../features/brief/queries";
+import sharedStyles from "./routeShared.module.scss";
+import styles from "./index.module.scss";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) =>
@@ -37,18 +39,18 @@ function BriefPicker() {
   }
 
   return (
-    <main className="picker-main">
-      <section className="brief-picker">
-        <div className="wordmark picker-wordmark">
+    <main className={styles["pickerMain"]}>
+      <section className={styles["picker"]}>
+        <div className={styles["wordmark"]}>
           Brief<span> / review</span>
         </div>
-        <div className="eyebrow">Local categorizer output</div>
+        <div className={styles["eyebrow"]}>Local categorizer output</div>
         <h1>Choose a PR brief</h1>
-        <p className="picker-copy">
+        <p className={styles["copy"]}>
           Each generated output in tools/categorizer/out gets its own route and
           cache key.
         </p>
-        <form className="generate-form" onSubmit={handleGenerate}>
+        <form className={styles["form"]} onSubmit={handleGenerate}>
           <input
             aria-label="GitHub PR URL"
             disabled={pending}
@@ -61,27 +63,28 @@ function BriefPicker() {
             {pending ? "Generating…" : "Generate"}
           </button>
         </form>
-        {error ? <p className="generate-error">{error}</p> : null}
+        {error ? <p className={styles["error"]}>{error}</p> : null}
         {briefs.length === 0 ? (
-          <div className="empty picker-empty">
-            No local brief outputs found.
-          </div>
+          <div className={styles["empty"]}>No local brief outputs found.</div>
         ) : (
-          <div className="brief-list">
+          <div className={styles["list"]}>
             {briefs.map((brief) => (
               <Link
-                className="brief-link"
+                className={styles["link"]}
                 key={brief.id}
                 params={{ briefId: brief.id }}
                 to="/briefs/$briefId"
               >
-                <span className="brief-link-title">
-                  <span className={`artifact-pill ${brief.artifactKind}`}>
+                <span className={styles["linkTitle"]}>
+                  <span
+                    className={styles["artifactPill"]}
+                    data-kind={brief.artifactKind}
+                  >
                     {brief.artifactKind === "delta" ? "delta" : "brief"}
                   </span>
                   {brief.title}
                 </span>
-                <span className="brief-link-meta">
+                <span className={styles["meta"]}>
                   {brief.repo} #{brief.number} · {brief.id} ·{" "}
                   {brief.artifactKind === "delta" &&
                   brief.baselineSha &&
@@ -101,7 +104,7 @@ function BriefPicker() {
 function BriefPickerError({ error }: { error: Error }) {
   return (
     <main className="main">
-      <section className="error-state">
+      <section className={sharedStyles["errorState"]}>
         <h1>Brief list failed to load</h1>
         <p>{error.message}</p>
       </section>

@@ -1,0 +1,28 @@
+@layer components {
+  .context {
+    display: grid;
+    gap: 14px;
+    margin-block: 18px;
+
+    section {
+      padding-block: 16px;
+      padding-inline: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel2);
+    }
+
+    p {
+      color: var(--dim);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+  }
+
+  .eyebrow {
+    margin-block-end: 8px;
+    color: var(--faint);
+    font-size: 12px;
+    font-weight: 500;
+  }
+}

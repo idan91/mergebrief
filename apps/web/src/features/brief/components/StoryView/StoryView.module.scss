@@ -1,0 +1,101 @@
+@layer components {
+  .storyView {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chunksLabel {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-block: 0 14px;
+    color: var(--faint);
+    font-size: 12px;
+  }
+
+  .rule {
+    flex: 1;
+    block-size: 1px;
+    background: var(--line);
+  }
+
+  .switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-block-size: 24px;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 12px;
+    user-select: none;
+  }
+
+  .switchInput {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .track {
+    position: relative;
+    inline-size: 26px;
+    block-size: 15px;
+    border: 1px solid var(--line2);
+    border-radius: 99px;
+    background: #26262d;
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset-block-start: 1.5px;
+      inset-inline-start: 2px;
+      inline-size: 10px;
+      block-size: 10px;
+      border-radius: 50%;
+      background: #6a6a74;
+      transition:
+        background 0.15s,
+        inset-inline-start 0.15s;
+    }
+  }
+
+  .switchInput:checked + .track::after {
+    inset-inline-start: 12px;
+    background: var(--text);
+  }
+
+  .switchInput:focus-visible + .track {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  .revisionJump {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    button {
+      padding-block: 2px;
+      padding-inline: 8px;
+      border: 1px solid var(--line2);
+      border-radius: 6px;
+      background: var(--panel2);
+      color: var(--dim);
+      cursor: pointer;
+      font-size: 12px;
+
+      &:hover {
+        border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+        color: var(--text);
+      }
+    }
+  }
+
+  .count {
+    color: var(--blue);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+}

@@ -1,0 +1,63 @@
+@layer components {
+  .toolbar {
+    position: sticky;
+    inset-block-start: 138px;
+    z-index: 20;
+    display: flex;
+    justify-content: center;
+    margin-block-end: 24px;
+  }
+
+  .viewbar {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel2);
+  }
+
+  .option {
+    position: relative;
+    display: inline-flex;
+    min-block-size: max(24px, 34px);
+    cursor: pointer;
+  }
+
+  .control {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .labelText {
+    display: inline-flex;
+    align-items: center;
+    padding-block: 7px;
+    padding-inline: 18px;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--faint);
+    font-size: 13px;
+    font-weight: 500;
+    transition:
+      background 0.15s,
+      color 0.15s,
+      outline-color 0.15s;
+  }
+
+  .control:checked + .labelText {
+    background: #1e1e24;
+    color: var(--text);
+  }
+
+  .control:not(:checked):hover + .labelText {
+    color: var(--dim);
+  }
+
+  .control:focus-visible + .labelText {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}

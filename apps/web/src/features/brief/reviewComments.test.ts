@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { reviewCommentMatchesDiffLine, reviewCommentsForChunk } from "./reviewComments";
+import {
+  reviewCommentMatchesDiffLine,
+  reviewCommentsForChunk,
+} from "./reviewComments";
 import type { AddressedReviewComment, BriefChunk, DiffLine } from "./types";
 
 const chunk = {
@@ -30,13 +33,26 @@ const comment = {
 
 describe("reviewCommentsForChunk", () => {
   it("falls back to same-file comments when the chunk has no addressed comment ids", () => {
-    const otherFileComment = { ...comment, id: "other", file: "src/other.ts" } satisfies AddressedReviewComment;
+    const otherFileComment = {
+      ...comment,
+      id: "other",
+      file: "src/other.ts",
+    } satisfies AddressedReviewComment;
 
-    expect(reviewCommentsForChunk([comment, otherFileComment], chunk).map((item) => item.id)).toEqual(["3419186366"]);
+    expect(
+      reviewCommentsForChunk([comment, otherFileComment], chunk).map(
+        (item) => item.id,
+      ),
+    ).toEqual(["3419186366"]);
   });
 
   it("associates outdated comments with new-file chunks without making them inline anchors", () => {
-    const outdated = { ...comment, line: null, originalLine: 103, outdated: true } satisfies AddressedReviewComment;
+    const outdated = {
+      ...comment,
+      line: null,
+      originalLine: 103,
+      outdated: true,
+    } satisfies AddressedReviewComment;
     const newFileChunk = {
       ...chunk,
       addedRanges: [{ start: 1, end: 175 }],
@@ -44,39 +60,87 @@ describe("reviewCommentsForChunk", () => {
       diff: [{ kind: "add", newLine: 103, content: "return (" }],
     } satisfies BriefChunk;
 
-    expect(reviewCommentsForChunk([outdated], newFileChunk).map((item) => item.id)).toEqual(["3419186366"]);
+    expect(
+      reviewCommentsForChunk([outdated], newFileChunk).map((item) => item.id),
+    ).toEqual(["3419186366"]);
     const row = newFileChunk.diff[0];
     expect(row).toBeDefined();
     if (!row) return;
-    expect(reviewCommentMatchesDiffLine(outdated, newFileChunk.file, row, newFileChunk.diff)).toBe(false);
+    expect(
+      reviewCommentMatchesDiffLine(
+        outdated,
+        newFileChunk.file,
+        row,
+        newFileChunk.diff,
+      ),
+    ).toBe(false);
   });
 
   it("uses addressed comment ids when the chunk links comments explicitly", () => {
-    const linkedChunk = { ...chunk, addressesComments: ["reply"] } satisfies BriefChunk;
-    const reply = { ...comment, id: "reply", inReplyToId: "3419186366" } satisfies AddressedReviewComment;
+    const linkedChunk = {
+      ...chunk,
+      addressesComments: ["reply"],
+    } satisfies BriefChunk;
+    const reply = {
+      ...comment,
+      id: "reply",
+      inReplyToId: "3419186366",
+    } satisfies AddressedReviewComment;
 
-    expect(reviewCommentsForChunk([comment, reply], linkedChunk).map((item) => item.id)).toEqual(["reply"]);
+    expect(
+      reviewCommentsForChunk([comment, reply], linkedChunk).map(
+        (item) => item.id,
+      ),
+    ).toEqual(["reply"]);
   });
 });
 
 describe("reviewCommentMatchesDiffLine", () => {
   it("matches current comments on the new-side line", () => {
-    const addLine = { kind: "add", newLine: 103, content: "data-state={state}" } satisfies DiffLine;
+    const addLine = {
+      kind: "add",
+      newLine: 103,
+      content: "data-state={state}",
+    } satisfies DiffLine;
 
-    expect(reviewCommentMatchesDiffLine(comment, chunk.file, addLine)).toBe(true);
+    expect(reviewCommentMatchesDiffLine(comment, chunk.file, addLine)).toBe(
+      true,
+    );
   });
 
   it("matches outdated comments on the old-side original line", () => {
-    const outdated = { ...comment, line: null, originalLine: 101, outdated: true } satisfies AddressedReviewComment;
-    const delLine = { kind: "del", oldLine: 101, content: "data-state={open ? 'open' : 'closed'}" } satisfies DiffLine;
+    const outdated = {
+      ...comment,
+      line: null,
+      originalLine: 101,
+      outdated: true,
+    } satisfies AddressedReviewComment;
+    const delLine = {
+      kind: "del",
+      oldLine: 101,
+      content: "data-state={open ? 'open' : 'closed'}",
+    } satisfies DiffLine;
 
-    expect(reviewCommentMatchesDiffLine(outdated, chunk.file, delLine, [delLine])).toBe(true);
+    expect(
+      reviewCommentMatchesDiffLine(outdated, chunk.file, delLine, [delLine]),
+    ).toBe(true);
   });
 
   it("does not match outdated comments on added lines when the chunk has no old-side anchor", () => {
-    const outdated = { ...comment, line: null, originalLine: 103, outdated: true } satisfies AddressedReviewComment;
-    const addLine = { kind: "add", newLine: 103, content: "data-state={state}" } satisfies DiffLine;
+    const outdated = {
+      ...comment,
+      line: null,
+      originalLine: 103,
+      outdated: true,
+    } satisfies AddressedReviewComment;
+    const addLine = {
+      kind: "add",
+      newLine: 103,
+      content: "data-state={state}",
+    } satisfies DiffLine;
 
-    expect(reviewCommentMatchesDiffLine(outdated, chunk.file, addLine, [addLine])).toBe(false);
+    expect(
+      reviewCommentMatchesDiffLine(outdated, chunk.file, addLine, [addLine]),
+    ).toBe(false);
   });
 });

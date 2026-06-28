@@ -1,0 +1,52 @@
+@use "functions" as functions;
+
+@mixin flex(
+  $justify-content: center,
+  $align-items: center,
+  $flex-direction: row,
+  $flex-wrap: wrap,
+  $gap: 0
+) {
+  align-items: $align-items;
+  display: flex;
+  flex-flow: $flex-direction $flex-wrap;
+  gap: $gap;
+  justify-content: $justify-content;
+}
+
+@mixin for-size($size, $limit-type: min, $size-type: width) {
+  @if $size-type == width {
+    @media (#{$limit-type}-width: $size) {
+      @content;
+    }
+  } @else if $size-type == height {
+    @media (#{$limit-type}-height: $size) {
+      @content;
+    }
+  }
+}
+
+@mixin for-mobile() {
+  @include for-size(functions.get-breakpoint("mobile"), max) {
+    @content;
+  }
+}
+
+@mixin focus-visible {
+  &:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+
+    @media (prefers-contrast: more) {
+      outline-width: 3px;
+    }
+  }
+}
+
+@mixin disabled-input {
+  box-shadow: none;
+  color: var(--faint);
+  cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+}

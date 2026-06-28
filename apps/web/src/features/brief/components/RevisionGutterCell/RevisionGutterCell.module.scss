@@ -1,0 +1,52 @@
+@layer components {
+  .gutter {
+    position: relative;
+    inline-size: 26px;
+    min-inline-size: 26px;
+    padding: 0;
+
+    &[data-rev] {
+      cursor: pointer;
+    }
+
+    &:hover .rail {
+      background: #9dc0e8;
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+  }
+
+  .rail {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 9px;
+    inline-size: 4px;
+    background: var(--blue);
+    pointer-events: none;
+
+    &[data-start] {
+      border-start-start-radius: 3px;
+      border-start-end-radius: 3px;
+    }
+
+    &[data-end] {
+      border-end-start-radius: 3px;
+      border-end-end-radius: 3px;
+    }
+  }
+
+  .railButton {
+    position: absolute;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    &:focus-visible ~ .rail {
+      background: #9dc0e8;
+      outline: 2px solid var(--blue);
+      outline-offset: 2px;
+    }
+  }
+}

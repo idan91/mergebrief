@@ -1,7 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "../brief/types";
-import { applyMarkdownWrap, buildSuggestionDiffRows, commentAnchorLabel, createCommentAnchor, parseSuggestionBlocks, replaceSelectionWithSuggestion, reviewCommentSubmitLabel, stripSuggestionBlocks } from "./comments";
+import {
+  applyMarkdownWrap,
+  buildSuggestionDiffRows,
+  commentAnchorLabel,
+  createCommentAnchor,
+  parseSuggestionBlocks,
+  replaceSelectionWithSuggestion,
+  reviewCommentSubmitLabel,
+  stripSuggestionBlocks,
+} from "./comments";
 
 const diffRows: DiffLine[] = [
   { kind: "hunk", content: "@@ -10,4 +10,5 @@" },
@@ -26,17 +35,24 @@ describe("createCommentAnchor", () => {
   });
 
   it("anchors continuous new-side ranges across added and context rows", () => {
-    expect(createCommentAnchor("chunk-1", "src/a.ts", diffRows, [3, 4, 5])).toMatchObject({
+    expect(
+      createCommentAnchor("chunk-1", "src/a.ts", diffRows, [3, 4, 5]),
+    ).toMatchObject({
       side: "new",
       startLine: 11,
       endLine: 13,
-      selectedText: "const label = 'new';\nconst enabled = true;\nexport { label };",
+      selectedText:
+        "const label = 'new';\nconst enabled = true;\nexport { label };",
     });
   });
 
   it("rejects hunk rows and mixed old/new selections", () => {
-    expect(createCommentAnchor("chunk-1", "src/a.ts", diffRows, [0])).toBeNull();
-    expect(createCommentAnchor("chunk-1", "src/a.ts", diffRows, [2, 3])).toBeNull();
+    expect(
+      createCommentAnchor("chunk-1", "src/a.ts", diffRows, [0]),
+    ).toBeNull();
+    expect(
+      createCommentAnchor("chunk-1", "src/a.ts", diffRows, [2, 3]),
+    ).toBeNull();
   });
 });
 
@@ -50,7 +66,9 @@ describe("markdown helpers", () => {
   });
 
   it("replaces a selected range with a suggestion fence", () => {
-    expect(replaceSelectionWithSuggestion("Before\nAfter", 7, 12, "next();")).toEqual({
+    expect(
+      replaceSelectionWithSuggestion("Before\nAfter", 7, 12, "next();"),
+    ).toEqual({
       text: "Before\n```suggestion\nnext();\n```",
       selectionStart: 21,
       selectionEnd: 28,
@@ -60,14 +78,20 @@ describe("markdown helpers", () => {
 
 describe("parseSuggestionBlocks", () => {
   it("extracts every suggestion fence from comment markdown", () => {
-    expect(parseSuggestionBlocks("Looks good\n```suggestion\nreturn next;\n```\nAnd\n```suggestion\nreturn fallback;\n```")).toEqual([
+    expect(
+      parseSuggestionBlocks(
+        "Looks good\n```suggestion\nreturn next;\n```\nAnd\n```suggestion\nreturn fallback;\n```",
+      ),
+    ).toEqual([
       { body: "return next;", index: 0 },
       { body: "return fallback;", index: 1 },
     ]);
   });
 
   it("removes suggestion fences from the regular markdown preview", () => {
-    expect(stripSuggestionBlocks("Before\n```suggestion\nreturn next;\n```\nAfter")).toBe("Before\nAfter");
+    expect(
+      stripSuggestionBlocks("Before\n```suggestion\nreturn next;\n```\nAfter"),
+    ).toBe("Before\nAfter");
   });
 });
 
@@ -104,7 +128,27 @@ describe("reviewCommentSubmitLabel", () => {
 
 describe("commentAnchorLabel", () => {
   it("includes the file and selected line range", () => {
-    expect(commentAnchorLabel({ chunkId: "c1", file: "src/a.ts", side: "new", startLine: 11, endLine: 13, rowIds: [], selectedText: "" })).toBe("src/a.ts · +11-13");
-    expect(commentAnchorLabel({ chunkId: "c1", file: "src/a.ts", side: "old", startLine: 7, endLine: 7, rowIds: [], selectedText: "" })).toBe("src/a.ts · -7");
+    expect(
+      commentAnchorLabel({
+        chunkId: "c1",
+        file: "src/a.ts",
+        side: "new",
+        startLine: 11,
+        endLine: 13,
+        rowIds: [],
+        selectedText: "",
+      }),
+    ).toBe("src/a.ts · +11-13");
+    expect(
+      commentAnchorLabel({
+        chunkId: "c1",
+        file: "src/a.ts",
+        side: "old",
+        startLine: 7,
+        endLine: 7,
+        rowIds: [],
+        selectedText: "",
+      }),
+    ).toBe("src/a.ts · -7");
   });
 });

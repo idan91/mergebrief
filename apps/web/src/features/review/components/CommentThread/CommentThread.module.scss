@@ -1,0 +1,87 @@
+@layer components {
+  .thread {
+    overflow: hidden;
+    margin-block: 8px 4px;
+    border: 1px solid #303038;
+    border-radius: 8px;
+    background: #101014;
+    box-shadow: 0 12px 40px rgb(0 0 0 / 22%);
+    font-family: var(--sans);
+
+    &[data-state="collapsed"] {
+      padding-block: 9px;
+      padding-inline: 12px;
+
+      button {
+        border: 0;
+        background: transparent;
+        color: var(--faint);
+        cursor: pointer;
+        font-size: 12px;
+      }
+    }
+  }
+
+  .head {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding-block: 10px;
+    padding-inline: 12px;
+    border-block-end: 1px solid var(--line);
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .textarea {
+    display: block;
+    inline-size: calc(100% - 20px);
+    min-block-size: 118px;
+    padding: 12px;
+    border: 1px solid var(--line2);
+    border-radius: 7px;
+    margin: 10px;
+    background: #09090b;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    resize: vertical;
+
+    &:focus-visible {
+      outline: 1px solid var(--blue);
+    }
+  }
+
+  .actions,
+  .threadActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-block: 10px 12px;
+    padding-inline: 12px;
+  }
+
+  .actions {
+    justify-content: flex-end;
+  }
+
+  .threadActions {
+    padding-block-start: 0;
+
+    button {
+      border: 0;
+      background: transparent;
+      color: var(--faint);
+      cursor: pointer;
+      font-size: 12px;
+
+      &:hover {
+        color: var(--text);
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+    }
+  }
+}

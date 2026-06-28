@@ -1,0 +1,21 @@
+@use "sass:map";
+@use "sass:math";
+
+$default-font-size: 15px;
+$breakpoints: (
+  "mobile": 880px,
+  "tablet": 1120px,
+  "wide": 1180px,
+);
+
+@function to-rem($px-size, $default-size: $default-font-size) {
+  @return math.div($px-size, $default-size) * 1rem;
+}
+
+@function to-em($px-size, $default-size: $default-font-size) {
+  @return math.div($px-size, $default-size) * 1em;
+}
+
+@function get-breakpoint($name) {
+  @return map.get($breakpoints, $name);
+}

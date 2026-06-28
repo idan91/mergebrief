@@ -119,7 +119,7 @@ describe("bindCallout", () => {
       repo: "o/r",
       number: 1,
       title: "t",
-      url: "u",
+      url: "https://example.com/o/r/pull/1",
       sha: "head",
       description: "",
     },

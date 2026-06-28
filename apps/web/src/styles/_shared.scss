@@ -1,0 +1,12 @@
+%button-reset {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+%panel-border {
+  border: 1px solid var(--line);
+  background: var(--panel);
+}

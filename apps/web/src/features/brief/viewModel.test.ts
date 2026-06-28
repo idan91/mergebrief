@@ -61,9 +61,16 @@ describe("buildBriefViewModel", () => {
 
     const model = buildBriefViewModel(parsed.value);
 
-    expect(model.groups[0]?.chunks.map((chunk) => chunk.id)).toEqual(["c1", "c2"]);
-    expect(model.groups[0]?.carrierChunks.map((chunk) => chunk.id)).toEqual(["c1"]);
-    expect(model.groups[0]?.supportingChunks.map((chunk) => chunk.id)).toEqual(["c2"]);
+    expect(model.groups[0]?.chunks.map((chunk) => chunk.id)).toEqual([
+      "c1",
+      "c2",
+    ]);
+    expect(model.groups[0]?.carrierChunks.map((chunk) => chunk.id)).toEqual([
+      "c1",
+    ]);
+    expect(model.groups[0]?.supportingChunks.map((chunk) => chunk.id)).toEqual([
+      "c2",
+    ]);
     expect(model.chunkToGroup.get("c1")).toBe("g1");
     expect(model.flags[0]?.groupId).toBe("g1");
   });
