@@ -164,7 +164,10 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   const [layoutMode] = useState<LayoutMode>("split");
   const [collapseSupporting, setCollapseSupporting] = useState(false);
   const [openChunks, setOpenChunks] = useState<Set<string>>(
-    () => new Set(model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id))),
+    () =>
+      new Set(
+        model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id)),
+      ),
   );
   const [selectedRiskFlags, setSelectedRiskFlags] = useState<Set<string>>(
     () => new Set(),
