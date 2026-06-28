@@ -1,64 +1,36 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 
 import { Markdown } from "../components/Markdown/Markdown";
-import { DeltaCallout } from "../features/brief/components/DeltaCallout/DeltaCallout";
 import { ConcernView } from "../features/brief/components/ConcernView/ConcernView";
+import { DeltaContext } from "../features/brief/components/DeltaContext/DeltaContext";
 import { DemoControls } from "../features/brief/components/DemoControls/DemoControls";
 import { Footer } from "../features/brief/components/Footer/Footer";
 import { Header } from "../features/brief/components/Header/Header";
+import { StoryView } from "../features/brief/components/StoryView/StoryView";
 import {
   Toolbar,
   type LayoutMode,
   type ViewMode,
 } from "../features/brief/components/Toolbar/Toolbar";
-import {
-  summarizeProgress,
-  type CheckBucket,
-} from "../features/brief/progress";
-import { useRevisionNavigation } from "../features/brief/useRevisionNavigation";
-import { useLocalPreference } from "../hooks/useLocalPreference";
-import { useScrollSpy } from "../hooks/useScrollSpy";
-import { toggleSet, rangeBetween } from "../lib/collections";
+import { summarizeProgress } from "../features/brief/progress";
 import {
   localBriefQueryOptions,
   localBriefsQueryOptions,
   localRevisionChangesQueryOptions,
 } from "../features/brief/queries";
-import {
-  reviewCommentMatchesDiffLine,
-  reviewCommentsForChunk,
-} from "../features/brief/reviewComments";
-import {
-  bindCallout,
-  buildChunkRevisionView,
-  type ChunkRevisionView,
-  type RevisionRun,
-} from "../features/brief/revisionChanges";
-import type {
-  AddressedReviewComment,
-  Brief,
-  BriefChunk,
-  Category,
-  Concern,
-  LocalBriefSummary,
-  RevisionChanges,
-} from "../features/brief/types";
-import {
-  buildBriefTimeline,
-  type BriefTimeline,
-} from "../features/brief/timeline";
+import { buildChunkRevisionView } from "../features/brief/revisionChanges";
+import type { RevisionOverlayState } from "../features/brief/revisionOverlay";
+import { buildBriefTimeline } from "../features/brief/timeline";
+import type { Brief, LocalBriefSummary } from "../features/brief/types";
 import {
   buildBriefViewModel,
-  groupRiskByAttribute,
-  type BriefViewModel,
-  type GroupView,
   type RiskFlag,
 } from "../features/brief/viewModel";
-import { SummaryPreview } from "../features/review/components/SummaryPreview/SummaryPreview";
-import { CommentComposer } from "../features/review/components/CommentComposer/CommentComposer";
-import { CommentThread } from "../features/review/components/CommentThread/CommentThread";
+import { useRevisionNavigation } from "../features/brief/useRevisionNavigation";
+import { useLocalPreference } from "../hooks/useLocalPreference";
+import { useScrollSpy } from "../hooks/useScrollSpy";
 import {
   DismissModal,
   type DismissTarget,
@@ -69,13 +41,9 @@ import {
 } from "../features/review/components/EvidenceModal/EvidenceModal";
 import { PreSubmitModal } from "../features/review/components/PreSubmitModal/PreSubmitModal";
 import { ReceiptDrawer } from "../features/review/components/ReceiptDrawer/ReceiptDrawer";
+import { SummaryPreview } from "../features/review/components/SummaryPreview/SummaryPreview";
+import type { CommentAnchor } from "../features/review/comments";
 import { buildReceipt } from "../features/review/receipt";
-import {
-  createCommentAnchor,
-  rowId,
-  type CommentAnchor,
-  type ReviewComment,
-} from "../features/review/comments";
 import {
   clearSnapshots,
   MindMapProvider,
@@ -85,29 +53,11 @@ import {
   type SessionSnapshot,
 } from "../features/review/session";
 import {
-  commentLocation,
   deriveUnresolvedItems,
-  riskEvidenceLabel,
-  type FlagState,
-  type FlagStatus,
   type ReviewMode,
   type ReviewOutcome,
   type RiskEvidence,
-  type RiskEvidenceKind,
-  type UnresolvedItem,
 } from "../features/review/state";
-
-interface RevisionOverlayState {
-  /** The sidecar to paint, or null when the overlay is unavailable or toggled off. */
-  changes: RevisionChanges | null;
-  /** The opportunistic (prevHead,head) delta for callout summaries, if loaded. */
-  delta: Brief | null;
-  available: boolean;
-  enabled: boolean;
-  /** Total runs across the brief — the jump-nav count. */
-  runCount: number;
-  setEnabled: (enabled: boolean) => void;
-}
 
 export const Route = createFileRoute("/briefs/$briefId")({
   loader: ({ context, params }) =>
@@ -160,22 +110,21 @@ function BriefScreen({
   artifacts: LocalBriefSummary[];
   brief: Brief;
   briefId: string;
-  model: BriefViewModel;
+  model: ReturnType<typeof buildBriefViewModel>;
 }) {
   const timeline = useMemo(
     () => buildBriefTimeline(artifacts, briefId),
     [artifacts, briefId],
   );
 
-  // Revision-changes overlay (ADR 0021): the shared, per-revision marks for this
-  // full brief, plus the opportunistic (prevHead,head) delta for callout text.
+  // Revision-changes overlay (ADR 0021): the shared, per-revision marks plus the
+  // opportunistic (prevHead,head) delta for callout text.
   const revisionChanges = useSuspenseQuery(
     localRevisionChangesQueryOptions(briefId),
   ).data;
   const revisionAvailable =
     brief.artifactKind === "brief" &&
     Boolean(revisionChanges && revisionChanges.files.length > 0);
-  // Default-on; the stored preference hydrates client-side via useLocalPreference.
   const [revisionEnabled, setRevisionEnabled] = useLocalPreference(
     "revision-changes-overlay",
     true,
@@ -220,6 +169,7 @@ function BriefScreen({
     runCount: revisionRunCount,
     setEnabled: setRevisionEnabled,
   };
+
   // Session/domain state lives in the per-brief Mind-Map store (ADR 0022).
   const dispositions = useMindMap((state) => state.dispositions);
   const dominants = useMindMap((state) => state.dominants);
@@ -229,31 +179,6 @@ function BriefScreen({
   const reviewComments = useMindMap((state) => state.reviewComments);
   const reviewOutcome = useMindMap((state) => state.reviewOutcome);
   const actions = useMindMapActions();
-
-  // Legacy projections of the Disposition union back into the flagStates /
-  // riskEvidence shapes the child tree still consumes. These collapse in Slice B
-  // when children read the store via selectors directly.
-  const flagStates = useMemo<Record<string, FlagState>>(() => {
-    const projected: Record<string, FlagState> = {};
-    for (const [flagId, disposition] of Object.entries(dispositions)) {
-      projected[flagId] =
-        disposition.kind === "dismissed"
-          ? { status: "dismissed", reason: disposition.reason }
-          : disposition.kind === "addressed"
-            ? { status: "addressed", reason: "" }
-            : { status: "open", reason: "" };
-    }
-    return projected;
-  }, [dispositions]);
-  const riskEvidence = useMemo<Record<string, RiskEvidence>>(() => {
-    const projected: Record<string, RiskEvidence> = {};
-    for (const [flagId, disposition] of Object.entries(dispositions)) {
-      if (disposition.kind === "addressed" && disposition.evidence) {
-        projected[flagId] = disposition.evidence;
-      }
-    }
-    return projected;
-  }, [dispositions]);
 
   // Transient UI state stays local and colocated.
   const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
@@ -290,15 +215,8 @@ function BriefScreen({
   const [toast, setToast] = useState("");
 
   const totals = useMemo(
-    () =>
-      summarizeProgress(
-        model,
-        checkedItems,
-        reviewedChunks,
-        flagStates,
-        dominants,
-      ),
-    [checkedItems, dominants, flagStates, model, reviewedChunks],
+    () => summarizeProgress(model, reviewedChunks, dispositions),
+    [dispositions, model, reviewedChunks],
   );
   const totalWork = model.flags.length + brief.chunks.length;
   const progress =
@@ -365,12 +283,13 @@ function BriefScreen({
     if (scrollActiveChunkId) setActiveChunkId(scrollActiveChunkId);
   }, [scrollActiveChunkId]);
 
-  function toggleCheck(bucket: CheckBucket, index: number) {
-    actions.checkPlaybookItem(bucket, index);
-  }
-
   function toggleChunk(chunkId: string) {
-    setOpenChunks((current) => toggleSet(current, chunkId));
+    setOpenChunks((current) => {
+      const next = new Set(current);
+      if (next.has(chunkId)) next.delete(chunkId);
+      else next.add(chunkId);
+      return next;
+    });
     setActiveChunkId(chunkId);
   }
 
@@ -398,12 +317,6 @@ function BriefScreen({
     );
   }
 
-  function chooseDominant(groupId: string, category: Category) {
-    // The store resets carrier:${groupId} checks inside reclassifyGroup.
-    actions.reclassifyGroup(groupId, category);
-    setToast(`Dominant category set to ${category} — recorded on the receipt.`);
-  }
-
   function clearSelection(flagIds: string[]) {
     setSelectedRiskFlags((current) => {
       const next = new Set(current);
@@ -412,23 +325,26 @@ function BriefScreen({
     });
   }
 
-  function setFlagStatus(flag: RiskFlag, status: FlagStatus, reason = "") {
-    setFlagStatuses([flag.id], status, reason);
+  function toggleRiskFlag(flagId: string) {
+    setSelectedRiskFlags((current) => {
+      const next = new Set(current);
+      if (next.has(flagId)) next.delete(flagId);
+      else next.add(flagId);
+      return next;
+    });
   }
 
-  function setFlagStatuses(flagIds: string[], status: FlagStatus, reason = "") {
-    if (flagIds.length === 0) return;
-    if (status === "addressed") {
-      actions.addressFlags(flagIds, () => ({ kind: "manual-note" }));
-    } else {
-      actions.disposeFlag(
-        flagIds,
-        status === "dismissed"
-          ? { kind: "dismissed", reason }
-          : { kind: "open" },
-      );
-    }
-    clearSelection(flagIds);
+  function toggleRiskGroup(flagIds: string[]) {
+    setSelectedRiskFlags((current) => {
+      const allSelected =
+        flagIds.length > 0 && flagIds.every((flagId) => current.has(flagId));
+      const next = new Set(current);
+      for (const flagId of flagIds) {
+        if (allSelected) next.delete(flagId);
+        else next.add(flagId);
+      }
+      return next;
+    });
   }
 
   function addressWithEvidence(
@@ -447,23 +363,6 @@ function BriefScreen({
         ? "Risk marked addressed with evidence."
         : `${presentIds.length} risks marked addressed with evidence.`,
     );
-  }
-
-  function toggleRiskFlag(flagId: string) {
-    setSelectedRiskFlags((current) => toggleSet(current, flagId));
-  }
-
-  function toggleRiskGroup(flagIds: string[]) {
-    setSelectedRiskFlags((current) => {
-      const allSelected =
-        flagIds.length > 0 && flagIds.every((flagId) => current.has(flagId));
-      const next = new Set(current);
-      for (const flagId of flagIds) {
-        if (allSelected) next.delete(flagId);
-        else next.add(flagId);
-      }
-      return next;
-    });
   }
 
   function confirmDismiss() {
@@ -487,10 +386,6 @@ function BriefScreen({
         ? "Dismissed. Reason recorded verbatim on the receipt."
         : `${dismissedCount} flags dismissed. Reason recorded verbatim on the receipt.`,
     );
-  }
-
-  function openPreSubmit() {
-    setPreSubmitOpen(true);
   }
 
   function saveReviewComment(anchor: CommentAnchor, body: string) {
@@ -525,10 +420,6 @@ function BriefScreen({
     setToast("Draft comment deleted.");
   }
 
-  function toggleReviewComment(commentId: string) {
-    actions.toggleComment(commentId);
-  }
-
   return (
     <>
       <Header
@@ -541,7 +432,7 @@ function BriefScreen({
         locOpen={locOpen}
         reviewMode={reviewMode}
         setLocOpen={setLocOpen}
-        openReceipt={openPreSubmit}
+        openReceipt={() => setPreSubmitOpen(true)}
         clearDrafts={clearSnapshots}
       />
       <main
@@ -596,19 +487,11 @@ function BriefScreen({
             model={model}
             revision={revision}
             activeChunkId={activeChunkId}
-            checkedItems={checkedItems}
             collapseSupporting={collapseSupporting}
-            dominants={dominants}
-            flagStates={flagStates}
             openChunks={openChunks}
-            reclassifiedGroups={reclassifiedGroups}
-            reviewComments={reviewComments}
-            reviewedChunks={reviewedChunks}
-            riskEvidence={riskEvidence}
             selectedRiskFlags={selectedRiskFlags}
             activeCommentAnchor={activeCommentAnchor}
             cancelCommentComposer={() => setActiveCommentAnchor(null)}
-            chooseDominant={chooseDominant}
             deleteReviewComment={deleteReviewComment}
             jumpToChunk={jumpToChunk}
             markReviewed={markReviewed}
@@ -621,14 +504,11 @@ function BriefScreen({
               setDismissWarned(false);
             }}
             setEvidenceTarget={setEvidenceTarget}
-            setFlagStatus={setFlagStatus}
-            setFlagStatuses={setFlagStatuses}
             setToast={setToast}
-            toggleCheck={toggleCheck}
             toggleChunk={toggleChunk}
             toggleRiskFlag={toggleRiskFlag}
             toggleRiskGroup={toggleRiskGroup}
-            toggleReviewComment={toggleReviewComment}
+            toggleReviewComment={actions.toggleComment}
             updateReviewComment={updateReviewComment}
           />
         ) : (
@@ -705,961 +585,6 @@ function BriefScreen({
   );
 }
 
-function DeltaContext({ brief }: { brief: Brief }) {
-  return (
-    <div className="delta-context">
-      {brief.commentsAddressed ? (
-        <section>
-          <div className="eyebrow">Comments addressed</div>
-          <Markdown content={brief.commentsAddressed} />
-        </section>
-      ) : null}
-      {brief.wholePrImpact ? (
-        <section>
-          <div className="eyebrow">Whole-PR impact</div>
-          <p>{brief.wholePrImpact}</p>
-        </section>
-      ) : null}
-    </div>
-  );
-}
-
-function StoryView(props: {
-  brief: Brief;
-  model: BriefViewModel;
-  revision: RevisionOverlayState;
-  activeChunkId: string | null;
-  checkedItems: Record<CheckBucket, Set<number>>;
-  collapseSupporting: boolean;
-  dominants: Record<string, Category>;
-  flagStates: Record<string, FlagState>;
-  openChunks: Set<string>;
-  reclassifiedGroups: Set<string>;
-  reviewComments: ReviewComment[];
-  reviewedChunks: Set<string>;
-  riskEvidence: Record<string, RiskEvidence>;
-  selectedRiskFlags: Set<string>;
-  activeCommentAnchor: CommentAnchor | null;
-  cancelCommentComposer: () => void;
-  chooseDominant: (groupId: string, category: Category) => void;
-  deleteReviewComment: (commentId: string) => void;
-  jumpToChunk: (chunkId: string) => void;
-  markReviewed: (chunkId: string) => void;
-  openCommentComposer: (anchor: CommentAnchor) => void;
-  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
-  setCollapseSupporting: (value: boolean) => void;
-  setDismissTarget: (target: DismissTarget) => void;
-  setEvidenceTarget: (target: EvidenceTarget) => void;
-  setFlagStatus: (flag: RiskFlag, status: FlagStatus, reason?: string) => void;
-  setFlagStatuses: (
-    flagIds: string[],
-    status: FlagStatus,
-    reason?: string,
-  ) => void;
-  setToast: (message: string) => void;
-  toggleCheck: (bucket: CheckBucket, index: number) => void;
-  toggleChunk: (chunkId: string) => void;
-  toggleRiskFlag: (flagId: string) => void;
-  toggleRiskGroup: (flagIds: string[]) => void;
-  toggleReviewComment: (commentId: string) => void;
-  updateReviewComment: (commentId: string, body: string) => void;
-}) {
-  const { jumpPrev, jumpNext } = useRevisionNavigation();
-  return (
-    <div className="story-view">
-      <div className="chunks-label reveal">
-        <span>{props.brief.chunks.length} chunks · grouped by intent</span>
-        <span className="rule" />
-        <label className="switch">
-          <input
-            checked={props.collapseSupporting}
-            suppressHydrationWarning
-            type="checkbox"
-            onChange={(event) =>
-              props.setCollapseSupporting(event.target.checked)
-            }
-          />
-          <span className="track" />
-          Collapse supporting
-        </label>
-        {props.revision.available ? (
-          <label
-            className="switch revision-switch"
-            title="Highlight lines new in this revision (since the previous brief)"
-          >
-            <input
-              checked={props.revision.enabled}
-              suppressHydrationWarning
-              type="checkbox"
-              onChange={(event) =>
-                props.revision.setEnabled(event.target.checked)
-              }
-            />
-            <span className="track" />
-            Revision changes
-          </label>
-        ) : null}
-        {props.revision.enabled && props.revision.runCount > 0 ? (
-          <span
-            className="revision-jump"
-            role="group"
-            aria-label="Jump between revision changes"
-          >
-            <span className="count">
-              {props.revision.runCount} revision change
-              {props.revision.runCount === 1 ? "" : "s"}
-            </span>
-            <button
-              aria-label="Previous revision change"
-              type="button"
-              onClick={jumpPrev}
-            >
-              ◂
-            </button>
-            <button
-              aria-label="Next revision change"
-              type="button"
-              onClick={jumpNext}
-            >
-              ▸
-            </button>
-          </span>
-        ) : null}
-      </div>
-      {props.model.groups.map((group) => (
-        <section className="story-group reveal" key={group.id}>
-          <div className="group-chunks">
-            {group.chunks.map((chunk) => (
-              <ChunkCard
-                key={chunk.id}
-                active={props.activeChunkId === chunk.id}
-                chunk={chunk}
-                revision={props.revision}
-                forceCollapsed={
-                  props.collapseSupporting &&
-                  chunk.role === "supporting" &&
-                  !props.openChunks.has(chunk.id)
-                }
-                open={props.openChunks.has(chunk.id)}
-                reviewed={props.reviewedChunks.has(chunk.id)}
-                activeCommentAnchor={
-                  props.activeCommentAnchor?.chunkId === chunk.id
-                    ? props.activeCommentAnchor
-                    : null
-                }
-                addressedReviewComments={props.brief.reviewComments ?? []}
-                cancelCommentComposer={props.cancelCommentComposer}
-                comments={props.reviewComments.filter(
-                  (comment) => comment.anchor.chunkId === chunk.id,
-                )}
-                deleteReviewComment={props.deleteReviewComment}
-                existingReviewCommentCount={props.reviewComments.length}
-                markReviewed={props.markReviewed}
-                openCommentComposer={props.openCommentComposer}
-                saveReviewComment={props.saveReviewComment}
-                toggleChunk={props.toggleChunk}
-                toggleReviewComment={props.toggleReviewComment}
-                updateReviewComment={props.updateReviewComment}
-              />
-            ))}
-          </div>
-          <GroupCard {...props} group={group} />
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function GroupCard({
-  group,
-  brief,
-  checkedItems,
-  dominants,
-  flagStates,
-  model,
-  reclassifiedGroups,
-  reviewComments,
-  riskEvidence,
-  selectedRiskFlags,
-  chooseDominant,
-  jumpToChunk,
-  setDismissTarget,
-  setEvidenceTarget,
-  setFlagStatus,
-  setFlagStatuses,
-  setToast,
-  toggleCheck,
-  toggleRiskFlag,
-  toggleRiskGroup,
-}: {
-  group: GroupView;
-  brief: Brief;
-  checkedItems: Record<CheckBucket, Set<number>>;
-  dominants: Record<string, Category>;
-  flagStates: Record<string, FlagState>;
-  model: BriefViewModel;
-  reclassifiedGroups: Set<string>;
-  reviewComments: ReviewComment[];
-  riskEvidence: Record<string, RiskEvidence>;
-  selectedRiskFlags: Set<string>;
-  chooseDominant: (groupId: string, category: Category) => void;
-  jumpToChunk: (chunkId: string) => void;
-  setDismissTarget: (target: DismissTarget) => void;
-  setEvidenceTarget: (target: EvidenceTarget) => void;
-  setFlagStatus: (flag: RiskFlag, status: FlagStatus, reason?: string) => void;
-  setFlagStatuses: (
-    flagIds: string[],
-    status: FlagStatus,
-    reason?: string,
-  ) => void;
-  setToast: (message: string) => void;
-  toggleCheck: (bucket: CheckBucket, index: number) => void;
-  toggleRiskFlag: (flagId: string) => void;
-  toggleRiskGroup: (flagIds: string[]) => void;
-}) {
-  const dominant = dominants[group.id] ?? group.group.dominantCategory;
-  const groupFlags = model.flags.filter((flag) => flag.groupId === group.id);
-  const isReclassified = reclassifiedGroups.has(group.id);
-
-  return (
-    <article className="group-card reveal">
-      <div className="group-head">
-        <div className="group-eyebrow">
-          <span className="gnum">
-            Change-group {group.index + 1} of {model.groups.length}
-          </span>
-          <span className="gloc">
-            <span className="green">+{group.added}</span> /{" "}
-            <span className="red">−{group.deleted}</span> ·{" "}
-            {group.carrierChunks.length} carrier ·{" "}
-            {group.supportingChunks.length} supporting
-          </span>
-        </div>
-        <h2 className="group-title">{group.group.title}</h2>
-        <p className="group-summary">{group.group.summary}</p>
-        <div className="cat-row">
-          <span className="chip dominant">
-            <em>dominant</em> {dominant}
-          </span>
-          {group.group.secondaryCategories.map((category) => (
-            <span className="chip" key={category}>
-              secondary {category}
-            </span>
-          ))}
-          {group.group.uncertain && !isReclassified ? (
-            <span className="chip uncertain">uncertain</span>
-          ) : null}
-          {isReclassified ? (
-            <span className="reclass-note">
-              set by you · recorded on receipt
-            </span>
-          ) : null}
-        </div>
-        {group.group.uncertain && !isReclassified ? (
-          <div className="uncertain-panel">
-            <span className="q">
-              The categorizer is split on this group’s intent:{" "}
-              <b>{group.group.uncertainBetween.join(" vs ")}</b>. Your call; the
-              receipt records the override.
-            </span>
-            <span className="pick">
-              {group.group.uncertainBetween.map((category) => (
-                <button
-                  className="pickbtn"
-                  key={category}
-                  type="button"
-                  onClick={() => chooseDominant(group.id, category)}
-                >
-                  {category}
-                </button>
-              ))}
-            </span>
-          </div>
-        ) : null}
-      </div>
-      <div className="group-body">
-        <div className="flags">
-          <div className="label risk-label">
-            <span>
-              Risk surface — {groupFlags.length} flags{" "}
-              <span className="count">attributes, not verdicts</span>
-            </span>
-            <span className="risk-info">
-              <button
-                aria-describedby={`${group.id}-risk-help`}
-                aria-label="Risk surface status meanings"
-                className="info-button"
-                type="button"
-              >
-                i
-              </button>
-              <span
-                className="risk-info-popover"
-                id={`${group.id}-risk-help`}
-                role="tooltip"
-              >
-                <span>
-                  <b>Addressed:</b> this risk was reviewed and handled.
-                </span>
-                <span>
-                  <b>Dismissed:</b> this risk is not applicable, duplicate, or a
-                  false positive.
-                </span>
-              </span>
-            </span>
-          </div>
-          {groupFlags.length === 0 ? (
-            <p className="empty">No risk-surface attributes on this group.</p>
-          ) : null}
-          {groupRiskByAttribute(groupFlags).map((riskGroup) => {
-            const openRiskFlagIds = riskGroup.flags
-              .filter(
-                (flag) => (flagStates[flag.id]?.status ?? "open") === "open",
-              )
-              .map((flag) => flag.id);
-            const selectedCount = openRiskFlagIds.filter((flagId) =>
-              selectedRiskFlags.has(flagId),
-            ).length;
-            const allSelected =
-              openRiskFlagIds.length > 0 &&
-              selectedCount === openRiskFlagIds.length;
-            const hasSelection = selectedCount > 0;
-            return (
-              <div className="risk-group" key={riskGroup.attr}>
-                <div className="risk-group-head">
-                  <label className="risk-check">
-                    <input
-                      checked={allSelected}
-                      disabled={openRiskFlagIds.length === 0}
-                      suppressHydrationWarning
-                      type="checkbox"
-                      onChange={() => toggleRiskGroup(openRiskFlagIds)}
-                    />
-                    <span className="risk-group-title">{riskGroup.attr}</span>
-                  </label>
-                  <div className="risk-bulk-actions">
-                    <button
-                      className="fbtn"
-                      disabled={!hasSelection}
-                      title="Mark selected risks as reviewed and handled"
-                      type="button"
-                      onClick={() => {
-                        setEvidenceTarget({
-                          flagIds: openRiskFlagIds.filter((flagId) =>
-                            selectedRiskFlags.has(flagId),
-                          ),
-                          label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
-                        });
-                      }}
-                    >
-                      Address selected
-                    </button>
-                    <button
-                      className="fbtn"
-                      disabled={!hasSelection}
-                      title="Mark selected risks as not applicable"
-                      type="button"
-                      onClick={() => {
-                        setDismissTarget({
-                          flagIds: openRiskFlagIds.filter((flagId) =>
-                            selectedRiskFlags.has(flagId),
-                          ),
-                          label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
-                        });
-                      }}
-                    >
-                      Dismiss selected…
-                    </button>
-                  </div>
-                </div>
-                <div className="risk-files">
-                  {riskGroup.flags.map((flag) => {
-                    const state = flagStates[flag.id] ?? {
-                      status: "open",
-                      reason: "",
-                    };
-                    const isResolved = state.status !== "open";
-                    return (
-                      <div
-                        className={`flag ${isResolved ? `resolved ${state.status}` : ""}`}
-                        key={flag.id}
-                      >
-                        <div className="frow">
-                          <input
-                            aria-label={`Select ${flag.attr} flag for ${flag.file}`}
-                            checked={
-                              !isResolved && selectedRiskFlags.has(flag.id)
-                            }
-                            className="flag-check"
-                            disabled={isResolved}
-                            suppressHydrationWarning
-                            type="checkbox"
-                            onChange={() => toggleRiskFlag(flag.id)}
-                          />
-                          <button
-                            className="floc full-path"
-                            type="button"
-                            onClick={() => jumpToChunk(flag.chunkId)}
-                          >
-                            {flag.file}
-                          </button>
-                          {isResolved ? (
-                            <span className="fstate compact">
-                              {state.status}
-                            </span>
-                          ) : null}
-                        </div>
-                        {!isResolved ? (
-                          <>
-                            <div className="fdesc">{flag.description}</div>
-                            <div className="factions">
-                              <button
-                                className="fbtn"
-                                title="Mark this risk as reviewed and handled"
-                                type="button"
-                                onClick={() => {
-                                  setEvidenceTarget({
-                                    flagIds: [flag.id],
-                                    label: `${flag.attr} @ ${flag.file}`,
-                                  });
-                                }}
-                              >
-                                Addressed
-                              </button>
-                              <button
-                                className="fbtn"
-                                title="Mark this risk as not applicable"
-                                type="button"
-                                onClick={() =>
-                                  setDismissTarget({
-                                    flagIds: [flag.id],
-                                    label: `${flag.attr} @ ${flag.file}`,
-                                  })
-                                }
-                              >
-                                Dismiss…
-                              </button>
-                            </div>
-                          </>
-                        ) : state.status === "addressed" ? (
-                          <div className="fstate-detail">
-                            {evidenceTextForFlag(
-                              flag.id,
-                              riskEvidence,
-                              reviewComments,
-                              brief.chunks,
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function ChunkCard({
-  chunk,
-  revision,
-  active,
-  open,
-  reviewed,
-  forceCollapsed,
-  activeCommentAnchor,
-  addressedReviewComments,
-  cancelCommentComposer,
-  comments,
-  deleteReviewComment,
-  existingReviewCommentCount,
-  toggleChunk,
-  markReviewed,
-  openCommentComposer,
-  saveReviewComment,
-  toggleReviewComment,
-  updateReviewComment,
-}: {
-  chunk: BriefChunk;
-  revision: RevisionOverlayState;
-  active: boolean;
-  open: boolean;
-  reviewed: boolean;
-  forceCollapsed: boolean;
-  activeCommentAnchor: CommentAnchor | null;
-  addressedReviewComments: AddressedReviewComment[];
-  cancelCommentComposer: () => void;
-  comments: ReviewComment[];
-  deleteReviewComment: (commentId: string) => void;
-  existingReviewCommentCount: number;
-  toggleChunk: (chunkId: string) => void;
-  markReviewed: (chunkId: string) => void;
-  openCommentComposer: (anchor: CommentAnchor) => void;
-  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
-  toggleReviewComment: (commentId: string) => void;
-  updateReviewComment: (commentId: string, body: string) => void;
-}) {
-  const expanded = open && !forceCollapsed;
-  const revisionView = useMemo(
-    () => buildChunkRevisionView(chunk, revision.changes),
-    [chunk, revision.changes],
-  );
-  const chunkReviewComments = reviewCommentsForChunk(
-    addressedReviewComments,
-    chunk,
-  );
-  const hasLinkedAddressedComments = Boolean(chunk.addressesComments?.length);
-  const topReviewComments = hasLinkedAddressedComments
-    ? chunkReviewComments
-    : chunkReviewComments.filter(
-        (comment) => comment.outdated || comment.line == null,
-      );
-  const inlineReviewComments = hasLinkedAddressedComments
-    ? chunkReviewComments
-    : chunkReviewComments.filter(
-        (comment) => !comment.outdated && comment.line != null,
-      );
-  return (
-    <article
-      className={`chunk ${expanded ? "open" : ""} ${reviewed ? "reviewed" : ""} ${active ? "current" : ""}`}
-      id={chunk.id}
-    >
-      <button
-        className="chunk-head"
-        type="button"
-        onClick={() => toggleChunk(chunk.id)}
-      >
-        <span className="tw">▶</span>
-        <span className="cfile">{chunk.file}</span>
-        <span className="cchips">
-          {chunk.riskSurface.map((risk) => (
-            <span className="cc risk" key={risk}>
-              {risk}
-            </span>
-          ))}
-          <span className={`cc concern-${chunk.concern}`}>
-            <span className="dot" />
-            {chunk.concern}
-            {chunk.role === "carrier" ? " · carrier" : ""}
-          </span>
-          {comments.length > 0 ? (
-            <span className="cc comments">
-              {comments.length} comment{comments.length === 1 ? "" : "s"}
-            </span>
-          ) : null}
-          {chunkReviewComments.length > 0 ? (
-            <span className="cc comments">
-              {chunkReviewComments.length}{" "}
-              {hasLinkedAddressedComments ? "addressed" : "review"}
-            </span>
-          ) : null}
-          <span className="cc loc">
-            <span className="a">+{chunk.loc.added}</span>{" "}
-            <span className="d">−{chunk.loc.deleted}</span>
-          </span>
-        </span>
-      </button>
-      <div className="chunk-actions">
-        <button
-          className="markbtn"
-          type="button"
-          onClick={() => markReviewed(chunk.id)}
-        >
-          {reviewed ? "Reviewed ✓" : "Mark reviewed"}
-        </button>
-      </div>
-      {!expanded ? (
-        <div className="collapse-note">
-          {chunk.role === "supporting"
-            ? "supporting chunk — collapsed"
-            : "collapsed"}
-          {comments.length > 0
-            ? ` · ${comments.length} draft comment${comments.length === 1 ? "" : "s"}`
-            : ""}
-        </div>
-      ) : null}
-      {expanded ? (
-        <div className="chunk-body">
-          {chunk.summary ||
-          chunk.addressesComments?.length ||
-          topReviewComments.length > 0 ? (
-            <div className="chunk-delta-summary">
-              {chunk.summary ? <p>{chunk.summary}</p> : null}
-              {chunk.addressesComments?.length ? (
-                <AddressedComments chunk={chunk} comments={topReviewComments} />
-              ) : null}
-              {!chunk.addressesComments?.length &&
-              topReviewComments.length > 0 ? (
-                <ReviewComments
-                  comments={topReviewComments}
-                  label="review comment"
-                />
-              ) : null}
-            </div>
-          ) : null}
-          <DiffTable
-            activeCommentAnchor={activeCommentAnchor}
-            addressedComments={inlineReviewComments}
-            cancelCommentComposer={cancelCommentComposer}
-            chunk={chunk}
-            revisionView={revisionView}
-            revisionDelta={revision.delta}
-            comments={comments}
-            deleteReviewComment={deleteReviewComment}
-            existingReviewCommentCount={existingReviewCommentCount}
-            openCommentComposer={openCommentComposer}
-            reviewCommentLabel={
-              hasLinkedAddressedComments ? "addressed" : "review comment"
-            }
-            saveReviewComment={saveReviewComment}
-            toggleReviewComment={toggleReviewComment}
-            updateReviewComment={updateReviewComment}
-          />
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-function AddressedComments({
-  chunk,
-  comments,
-}: {
-  chunk: BriefChunk;
-  comments: AddressedReviewComment[];
-}) {
-  const ids = chunk.addressesComments ?? [];
-  if (ids.length === 0) return null;
-  if (comments.length === 0) {
-    return <span>addresses comments {ids.join(", ")}</span>;
-  }
-  return <ReviewComments comments={comments} label="comment" />;
-}
-
-function ReviewComments({
-  comments,
-  label,
-}: {
-  comments: AddressedReviewComment[];
-  label: string;
-}) {
-  return (
-    <div className="addressed-comments">
-      {comments.map((comment) => (
-        <details className="addressed-comment" key={comment.id}>
-          <summary>
-            <span>@{comment.author}</span>
-            <b>
-              {comment.file}
-              {addressedCommentRange(comment)}
-            </b>
-            <em>
-              {label} {comment.id}
-            </em>
-          </summary>
-          <Markdown content={comment.body} />
-          {comment.inReplyToId ? (
-            <div className="reply-note">reply to {comment.inReplyToId}</div>
-          ) : null}
-        </details>
-      ))}
-    </div>
-  );
-}
-
-function DiffTable({
-  chunk,
-  revisionView,
-  revisionDelta,
-  activeCommentAnchor,
-  addressedComments,
-  cancelCommentComposer,
-  comments,
-  deleteReviewComment,
-  existingReviewCommentCount,
-  openCommentComposer,
-  reviewCommentLabel,
-  saveReviewComment,
-  toggleReviewComment,
-  updateReviewComment,
-}: {
-  chunk: BriefChunk;
-  revisionView: ChunkRevisionView;
-  revisionDelta: Brief | null;
-  activeCommentAnchor: CommentAnchor | null;
-  addressedComments: AddressedReviewComment[];
-  cancelCommentComposer: () => void;
-  comments: ReviewComment[];
-  deleteReviewComment: (commentId: string) => void;
-  existingReviewCommentCount: number;
-  openCommentComposer: (anchor: CommentAnchor) => void;
-  reviewCommentLabel: string;
-  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
-  toggleReviewComment: (commentId: string) => void;
-  updateReviewComment: (commentId: string, body: string) => void;
-}) {
-  const [dragStart, setDragStart] = useState<number | null>(null);
-  const [dragCurrent, setDragCurrent] = useState<number | null>(null);
-  const [railHover, setRailHover] = useState<{
-    run: RevisionRun;
-    pos: { top: number; left: number };
-  } | null>(null);
-
-  useEffect(() => {
-    if (!railHover) return;
-    const close = () => setRailHover(null);
-    window.addEventListener("scroll", close, { capture: true, passive: true });
-    return () => window.removeEventListener("scroll", close, { capture: true });
-  }, [railHover]);
-
-  const handleRailEnter = (run: RevisionRun, el: HTMLElement) => {
-    const rect = el.getBoundingClientRect();
-    setRailHover({ run, pos: { top: rect.top, left: rect.right + 8 } });
-  };
-  const handleRailLeave = () => setRailHover(null);
-
-  if (!chunk.diff || chunk.diff.length === 0) {
-    return (
-      <div className="metadata-diff">
-        <span>diff unavailable</span>
-        <p>
-          The brief loaded, but no matching raw diff was available for this
-          chunk. The durable fix is to emit chunk-level hunk rows from the
-          categorizer.
-        </p>
-      </div>
-    );
-  }
-
-  const dragIndexes =
-    dragStart === null || dragCurrent === null
-      ? []
-      : rangeBetween(dragStart, dragCurrent);
-  const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
-  const overlayActive = revisionView.runs.length > 0;
-  const metaColSpan = overlayActive ? 4 : 3;
-
-  function finishSelection(rowIndex: number) {
-    const indexes =
-      dragStart === null ? [rowIndex] : rangeBetween(dragStart, rowIndex);
-    setDragStart(null);
-    setDragCurrent(null);
-    const anchor = createCommentAnchor(
-      chunk.id,
-      chunk.file,
-      chunk.diff ?? [],
-      indexes,
-    );
-    if (anchor) openCommentComposer(anchor);
-  }
-
-  return (
-    <>
-      <table className="diff">
-        <tbody>
-          {chunk.diff.map((line, index) => {
-            if (line.kind === "hunk" || line.kind === "note") {
-              return (
-                <tr className={line.kind} key={`${line.kind}-${index}`}>
-                  <td colSpan={metaColSpan}>{line.content}</td>
-                </tr>
-              );
-            }
-            const sign =
-              line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
-            const id = rowId(chunk.id, index);
-            const revRun = overlayActive
-              ? revisionView.runByRow.get(index)
-              : undefined;
-            const revMark = overlayActive
-              ? revisionView.marks.get(index)
-              : undefined;
-            const isRevStart =
-              revRun !== undefined && revRun.rowIndexes[0] === index;
-            const isRevEnd =
-              revRun !== undefined && revRun.rowIndexes.at(-1) === index;
-            const rowComments = comments.filter(
-              (comment) => comment.anchor.rowIds.at(-1) === id,
-            );
-            const rowAddressedComments = addressedComments.filter((comment) =>
-              reviewCommentMatchesDiffLine(
-                comment,
-                chunk.file,
-                line,
-                chunk.diff,
-              ),
-            );
-            const isSelected =
-              dragIndexes.includes(index) || activeRowIds.has(id);
-            const showComposer =
-              activeCommentAnchor?.chunkId === chunk.id &&
-              activeCommentAnchor.rowIds.at(-1) === id;
-            return (
-              <Fragment key={`${line.kind}-${index}`}>
-                <tr
-                  className={`${line.kind} commentable ${isSelected ? "selected" : ""} ${revMark ? `rev-${revMark}` : ""}`}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") finishSelection(index);
-                  }}
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    setDragStart(index);
-                    setDragCurrent(index);
-                  }}
-                  onMouseEnter={() => {
-                    if (dragStart !== null) setDragCurrent(index);
-                  }}
-                  onMouseUp={() => finishSelection(index)}
-                  tabIndex={0}
-                >
-                  {overlayActive ? (
-                    <RevisionGutterCell
-                      run={revRun}
-                      isStart={isRevStart}
-                      isEnd={isRevEnd}
-                      chunk={chunk}
-                      onRailEnter={handleRailEnter}
-                      onRailLeave={handleRailLeave}
-                    />
-                  ) : null}
-                  <td className="ln">{line.oldLine ?? ""}</td>
-                  <td className="ln">{line.newLine ?? ""}</td>
-                  <td className="code">
-                    <span className="sign">{sign}</span>
-                    {line.content}
-                    {isRevStart && revRun ? (
-                      <span className={`newtag ${revRun.kind}`}>
-                        {revRun.kind === "removed" ? "removed" : "new"}
-                      </span>
-                    ) : null}
-                  </td>
-                </tr>
-                {showComposer ? (
-                  <tr className="comment-row">
-                    <td colSpan={metaColSpan}>
-                      <CommentComposer
-                        anchor={activeCommentAnchor}
-                        cancel={cancelCommentComposer}
-                        existingReviewCommentCount={existingReviewCommentCount}
-                        save={saveReviewComment}
-                      />
-                    </td>
-                  </tr>
-                ) : null}
-                {rowComments.map((comment) => (
-                  <tr className="comment-row" key={comment.id}>
-                    <td colSpan={metaColSpan}>
-                      <CommentThread
-                        comment={comment}
-                        deleteComment={deleteReviewComment}
-                        toggle={toggleReviewComment}
-                        update={updateReviewComment}
-                      />
-                    </td>
-                  </tr>
-                ))}
-                {rowAddressedComments.map((comment) => (
-                  <tr className="comment-row" key={`addressed-${comment.id}`}>
-                    <td colSpan={metaColSpan}>
-                      <AddressedDiffComment
-                        comment={comment}
-                        label={reviewCommentLabel}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-      {railHover && (
-        <DeltaCallout
-          pos={railHover.pos}
-          run={railHover.run}
-          chunk={chunk}
-          delta={revisionDelta}
-        />
-      )}
-    </>
-  );
-}
-
-function RevisionGutterCell({
-  run,
-  isStart,
-  isEnd,
-  onRailEnter,
-  onRailLeave,
-}: {
-  run: RevisionRun | undefined;
-  isStart: boolean;
-  isEnd: boolean;
-  chunk: BriefChunk;
-  onRailEnter: (run: RevisionRun, el: HTMLElement) => void;
-  onRailLeave: () => void;
-}) {
-  if (!run) return <td className="gut" />;
-  const count = run.rowIndexes.length;
-  const verb = run.kind === "removed" ? "Removed" : "New";
-  const railClass = ["rail", isStart && "rail-first", isEnd && "rail-last"]
-    .filter(Boolean)
-    .join(" ");
-  return (
-    <td
-      className={`gut rev ${run.kind}`}
-      onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
-      onMouseLeave={onRailLeave}
-    >
-      {isStart ? (
-        <button
-          className="railbtn-focus"
-          type="button"
-          aria-label={`${verb} this revision. ${count} line${count === 1 ? "" : "s"}.`}
-          onFocus={(e) => onRailEnter(run, e.currentTarget)}
-          onBlur={onRailLeave}
-          onKeyDown={(e) => {
-            if (e.key === "Escape") e.currentTarget.blur();
-          }}
-        />
-      ) : null}
-      <span className={railClass} aria-hidden="true" />
-    </td>
-  );
-}
-
-function AddressedDiffComment({
-  comment,
-  label,
-}: {
-  comment: AddressedReviewComment;
-  label: string;
-}) {
-  return (
-    <details className="comment-thread addressed-diff-comment">
-      <summary className="comment-thread-head">
-        <span>
-          @{comment.author} {label}
-        </span>
-        <span>
-          {comment.file}
-          {addressedCommentRange(comment)}
-        </span>
-      </summary>
-      <div className="comment-preview">
-        <Markdown content={comment.body} />
-      </div>
-      {comment.inReplyToId ? (
-        <div className="reply-note">reply to {comment.inReplyToId}</div>
-      ) : null}
-    </details>
-  );
-}
-
 function SummaryPreviewDrawer({
   brief,
   close,
@@ -1708,26 +633,4 @@ function BriefError({ error }: { error: Error }) {
       </section>
     </main>
   );
-}
-
-function evidenceTextForFlag(
-  flagId: string,
-  evidenceByFlag: Record<string, RiskEvidence>,
-  comments: ReviewComment[],
-  chunks: BriefChunk[],
-): string {
-  const evidence = evidenceByFlag[flagId];
-  return evidence
-    ? riskEvidenceLabel(evidence, comments, chunks)
-    : "addressed without linked evidence";
-}
-
-function addressedCommentRange(comment: AddressedReviewComment): string {
-  if (comment.startLine != null && comment.line != null)
-    return `:${comment.startLine}-${comment.line}`;
-  if (comment.line != null) return `:${comment.line}`;
-  if (comment.originalStartLine != null && comment.originalLine != null)
-    return `:original ${comment.originalStartLine}-${comment.originalLine}`;
-  if (comment.originalLine != null) return `:original ${comment.originalLine}`;
-  return "";
 }

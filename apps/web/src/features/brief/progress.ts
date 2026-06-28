@@ -1,5 +1,5 @@
-import type { FlagState } from "../review/state";
-import type { Category, Concern } from "./types";
+import type { Disposition } from "../review/session";
+import type { Concern } from "./types";
 import type { BriefViewModel } from "./viewModel";
 
 export type CheckBucket = `carrier:${string}` | `support:${string}:${Concern}`;
@@ -15,15 +15,11 @@ export interface ProgressTotals {
 
 export function summarizeProgress(
   model: BriefViewModel,
-  checkedItems: Record<CheckBucket, Set<number>>,
   reviewedChunks: Set<string>,
-  flagStates: Record<string, FlagState>,
-  dominants: Record<string, Category>,
+  dispositions: Record<string, Disposition>,
 ): ProgressTotals {
-  void checkedItems;
-  void dominants;
-  const flagsResolved = Object.values(flagStates).filter(
-    (flag) => flag.status !== "open",
+  const flagsResolved = Object.values(dispositions).filter(
+    (disposition) => disposition.kind !== "open",
   ).length;
 
   return {
