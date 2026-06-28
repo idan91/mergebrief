@@ -1,5 +1,6 @@
 import { Markdown } from "../../../../components/Markdown/Markdown";
 import type { Brief } from "../../types";
+import styles from "./DeltaContext.module.scss";
 
 export interface DeltaContextProps {
   brief: Brief;
@@ -7,16 +8,16 @@ export interface DeltaContextProps {
 
 export function DeltaContext({ brief }: DeltaContextProps) {
   return (
-    <div className="delta-context">
+    <div className={styles["context"]}>
       {brief.commentsAddressed ? (
         <section>
-          <div className="eyebrow">Comments addressed</div>
+          <div className={styles["eyebrow"]}>Comments addressed</div>
           <Markdown content={brief.commentsAddressed} />
         </section>
       ) : null}
       {brief.wholePrImpact ? (
         <section>
-          <div className="eyebrow">Whole-PR impact</div>
+          <div className={styles["eyebrow"]}>Whole-PR impact</div>
           <p>{brief.wholePrImpact}</p>
         </section>
       ) : null}

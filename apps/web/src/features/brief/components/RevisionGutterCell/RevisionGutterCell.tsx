@@ -1,5 +1,6 @@
 import type { BriefChunk } from "../../types";
 import type { RevisionRun } from "../../revisionChanges";
+import styles from "./RevisionGutterCell.module.scss";
 
 export interface RevisionGutterCellProps {
   run: RevisionRun | undefined;
@@ -17,21 +18,19 @@ export function RevisionGutterCell({
   onRailEnter,
   onRailLeave,
 }: RevisionGutterCellProps) {
-  if (!run) return <td className="gut" />;
+  if (!run) return <td className={styles["gutter"]} />;
   const count = run.rowIndexes.length;
   const verb = run.kind === "removed" ? "Removed" : "New";
-  const railClass = ["rail", isStart && "rail-first", isEnd && "rail-last"]
-    .filter(Boolean)
-    .join(" ");
   return (
     <td
-      className={`gut rev ${run.kind}`}
+      className={styles["gutter"]}
+      data-rev={run.kind}
       onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
       onMouseLeave={onRailLeave}
     >
       {isStart ? (
         <button
-          className="railbtn-focus"
+          className={styles["railButton"]}
           type="button"
           aria-label={`${verb} this revision. ${count} line${count === 1 ? "" : "s"}.`}
           onFocus={(e) => onRailEnter(run, e.currentTarget)}
@@ -41,7 +40,12 @@ export function RevisionGutterCell({
           }}
         />
       ) : null}
-      <span className={railClass} aria-hidden="true" />
+      <span
+        className={styles["rail"]}
+        data-end={isEnd ? "" : undefined}
+        data-start={isStart ? "" : undefined}
+        aria-hidden="true"
+      />
     </td>
   );
 }

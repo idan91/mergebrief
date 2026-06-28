@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import styles from "./Markdown.module.scss";
 
 export interface MarkdownProps {
   content: string;
@@ -8,7 +9,7 @@ export interface MarkdownProps {
 /** Generic GFM markdown renderer used across briefs, descriptions, and comments. */
 export function Markdown({ content }: MarkdownProps) {
   return (
-    <div className="markdown">
+    <div className={styles["markdown"]}>
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );

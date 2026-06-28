@@ -1,0 +1,53 @@
+@layer components {
+  .modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgb(0 0 0 / 60%);
+    backdrop-filter: blur(3px);
+
+    &[data-state="open"] {
+      display: flex;
+    }
+  }
+
+  .box {
+    inline-size: 460px;
+    max-inline-size: 92vw;
+    padding-block: 26px;
+    padding-inline: 28px;
+    border: 1px solid var(--line2);
+    border-radius: 12px;
+    background: #131316;
+
+    h3 {
+      margin-block-end: 3px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    textarea {
+      inline-size: 100%;
+      min-block-size: 84px;
+      padding-block: 11px;
+      padding-inline: 13px;
+      border: 1px solid var(--line2);
+      border-radius: 8px;
+      outline: none;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13.5px;
+      line-height: 1.55;
+      resize: vertical;
+
+      &:focus-visible {
+        border-color: #45454f;
+        outline: 2px solid var(--focus-ring);
+        outline-offset: 2px;
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import { Markdown } from "../../../../components/Markdown/Markdown";
 import type { AddressedReviewComment } from "../../../brief/types";
 import { addressedCommentRange } from "../AddressedComments/AddressedComments";
+import styles from "./AddressedDiffComment.module.scss";
 
 export interface AddressedDiffCommentProps {
   comment: AddressedReviewComment;
@@ -12,8 +13,8 @@ export function AddressedDiffComment({
   label,
 }: AddressedDiffCommentProps) {
   return (
-    <details className="comment-thread addressed-diff-comment">
-      <summary className="comment-thread-head">
+    <details className={styles["comment"]}>
+      <summary className={styles["head"]}>
         <span>
           @{comment.author} {label}
         </span>
@@ -22,11 +23,13 @@ export function AddressedDiffComment({
           {addressedCommentRange(comment)}
         </span>
       </summary>
-      <div className="comment-preview">
+      <div className={styles["preview"]}>
         <Markdown content={comment.body} />
       </div>
       {comment.inReplyToId ? (
-        <div className="reply-note">reply to {comment.inReplyToId}</div>
+        <div className={styles["replyNote"]}>
+          reply to {comment.inReplyToId}
+        </div>
       ) : null}
     </details>
   );

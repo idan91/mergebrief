@@ -1,0 +1,233 @@
+@use "tokens";
+@layer tokens, base, layout, components;
+
+@layer tokens {
+  @property --progress-width {
+    inherits: false;
+    initial-value: 0%;
+    syntax: "<percentage>";
+  }
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    color-scheme: dark light;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    min-block-size: 100vh;
+    background: var(--bg);
+    background-image: radial-gradient(
+      1200px 500px at 50% -200px,
+      color-mix(in srgb, var(--panel) 70%, var(--blue)) 0%,
+      var(--bg) 70%
+    );
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: clamp(14px, 0.8rem + 0.2vw, 15px);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button,
+  textarea {
+    font: inherit;
+  }
+
+  button {
+    color: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--text) 18%, transparent);
+    color: light-dark(#111114, #fff);
+  }
+
+  .green,
+  .a {
+    color: var(--green);
+  }
+
+  .red,
+  .d {
+    color: var(--red);
+  }
+
+  .faint {
+    color: var(--faint);
+  }
+
+  .sr-only {
+    position: absolute;
+    overflow: hidden;
+    inline-size: 1px;
+    block-size: 1px;
+    padding: 0;
+    border: 0;
+    margin: -1px;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .btn {
+    padding-block: 8px;
+    padding-inline: 16px;
+    border: 1px solid var(--line2);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+    white-space: nowrap;
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+      background: color-mix(in srgb, var(--panel) 88%, var(--text));
+    }
+
+    &.primary {
+      border-color: var(--text);
+      background: var(--text);
+      color: var(--color-on-primary);
+
+      &:hover {
+        border-color: light-dark(#0a0a0c, #fff);
+        background: light-dark(#0a0a0c, #fff);
+      }
+    }
+  }
+}
+
+@layer layout {
+  .main {
+    max-inline-size: 980px;
+    padding-block: 36px 140px;
+    padding-inline: clamp(18px, 4vw, 28px);
+    margin-inline: auto;
+
+    &.split-main {
+      max-inline-size: 1560px;
+    }
+  }
+
+  .reveal {
+    animation: rise 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  .story-group {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-block-end: 40px;
+
+    .group-chunks {
+      order: 2;
+    }
+  }
+
+  .split-main .story-group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max(520px, 28%);
+    align-items: start;
+    gap: 18px;
+
+    .group-chunks {
+      order: initial;
+      grid-column: 1;
+      min-inline-size: 0;
+    }
+  }
+
+  .split-main .story-group > article {
+    position: sticky;
+    inset-block-start: 132px;
+    order: initial;
+    grid-column: 2;
+  }
+
+  @media (width <= 1180px) {
+    .split-main .story-group {
+      display: flex;
+
+      .group-chunks {
+        order: 2;
+      }
+    }
+
+    .split-main .story-group > article {
+      position: static;
+      order: 1;
+    }
+  }
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    border: 0;
+    background: rgb(0 0 0 / 58%);
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s;
+
+    &[data-state="open"] {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  *,
+  *::before,
+  *::after {
+    border-color: var(--text) !important;
+  }
+}
+
+@media (forced-colors: active) {
+  :focus-visible {
+    outline-color: Highlight;
+  }
+}

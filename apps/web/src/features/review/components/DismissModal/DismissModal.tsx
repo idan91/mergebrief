@@ -1,4 +1,5 @@
 import { Modal } from "../../../../components/Modal/Modal";
+import styles from "../ModalContent.module.scss";
 
 export interface DismissTarget {
   flagIds: string[];
@@ -25,18 +26,21 @@ export function DismissModal({
   return (
     <Modal open={Boolean(target)}>
       <h3>Dismiss flag</h3>
-      <div className="mattr">{target?.label}</div>
+      <div className={styles["target"]}>{target?.label}</div>
       <textarea
         suppressHydrationWarning
         value={reason}
         onChange={(event) => setReason(event.target.value)}
         placeholder="Why is this flag not actionable here? Your reason lands on the receipt, verbatim."
       />
-      <div className={warned ? "modal-warn show" : "modal-warn"}>
+      <div
+        className={styles["warn"]}
+        data-state={warned ? "visible" : "hidden"}
+      >
         Thin reason on a flag — it will appear on the receipt exactly as
         written. Dismiss anyway?
       </div>
-      <div className="modal-actions">
+      <div className={styles["actions"]}>
         <button className="btn" type="button" onClick={cancel}>
           Cancel
         </button>

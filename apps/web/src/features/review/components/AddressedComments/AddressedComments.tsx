@@ -1,5 +1,6 @@
 import { Markdown } from "../../../../components/Markdown/Markdown";
 import type { AddressedReviewComment, BriefChunk } from "../../../brief/types";
+import styles from "./AddressedComments.module.scss";
 
 /** Formats the line range suffix for an addressed (shipped) review comment. */
 export function addressedCommentRange(comment: AddressedReviewComment): string {
@@ -19,9 +20,9 @@ export interface ReviewCommentsProps {
 
 export function ReviewComments({ comments, label }: ReviewCommentsProps) {
   return (
-    <div className="addressed-comments">
+    <div className={styles["comments"]}>
       {comments.map((comment) => (
-        <details className="addressed-comment" key={comment.id}>
+        <details className={styles["comment"]} key={comment.id}>
           <summary>
             <span>@{comment.author}</span>
             <b>
@@ -32,9 +33,13 @@ export function ReviewComments({ comments, label }: ReviewCommentsProps) {
               {label} {comment.id}
             </em>
           </summary>
-          <Markdown content={comment.body} />
+          <div className={styles["body"]}>
+            <Markdown content={comment.body} />
+          </div>
           {comment.inReplyToId ? (
-            <div className="reply-note">reply to {comment.inReplyToId}</div>
+            <div className={styles["replyNote"]}>
+              reply to {comment.inReplyToId}
+            </div>
           ) : null}
         </details>
       ))}

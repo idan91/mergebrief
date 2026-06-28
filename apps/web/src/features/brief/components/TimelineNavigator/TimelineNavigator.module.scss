@@ -1,0 +1,121 @@
+@layer components {
+  .timeline {
+    display: grid;
+    grid-template-columns: auto minmax(128px, 180px) auto;
+    gap: 4px;
+    align-items: center;
+    min-inline-size: 270px;
+    container: timeline / inline-size;
+
+    select,
+    .arrow,
+    .lens a,
+    .lens span {
+      min-block-size: 32px;
+      border: 1px solid var(--line2);
+      border-radius: 6px;
+      background: var(--panel2);
+      color: var(--dim);
+      font: 11px var(--mono);
+    }
+
+    select {
+      inline-size: 100%;
+      padding-inline: 8px;
+    }
+  }
+
+  .arrow {
+    display: grid;
+    inline-size: 32px;
+    color: var(--text);
+    place-items: center;
+    text-decoration: none;
+
+    &[data-state="disabled"] {
+      opacity: 0.35;
+    }
+  }
+
+  .lens {
+    display: flex;
+    grid-column: 1 / -1;
+    gap: 2px;
+
+    a,
+    span {
+      display: grid;
+      flex: 1;
+      place-items: center;
+      text-decoration: none;
+    }
+
+    a[data-state="active"] {
+      border-color: #9abce5;
+      background: var(--blue);
+      box-shadow:
+        inset 0 0 0 1px rgb(255 255 255 / 18%),
+        0 0 0 2px rgb(125 167 217 / 18%);
+      color: #10151d;
+      font-weight: 750;
+    }
+
+    a:hover {
+      border-color: color-mix(in srgb, var(--blue) 42%, var(--line2));
+      background: color-mix(in srgb, var(--panel2) 82%, var(--blue));
+      color: var(--text);
+    }
+
+    a:active {
+      background: color-mix(in srgb, var(--panel2) 70%, var(--blue));
+      transform: translateY(1px);
+    }
+
+    a:focus-visible {
+      color: var(--text);
+    }
+
+    span {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+  }
+
+  .steps {
+    display: flex;
+    grid-column: 1 / -1;
+    justify-content: center;
+    gap: 7px;
+    list-style: none;
+
+    a {
+      display: block;
+      inline-size: 11px;
+      block-size: 11px;
+      border: 1px solid var(--faint);
+      border-radius: 50%;
+
+      &[data-delta] {
+        border-color: var(--blue);
+      }
+
+      &[data-state="active"] {
+        border-color: var(--text);
+        background: var(--text);
+        box-shadow: 0 0 0 3px #30303a;
+      }
+    }
+  }
+
+  @container timeline (max-width: 260px) {
+    .steps {
+      display: none;
+    }
+  }
+
+  @media (width <= 1120px) {
+    .timeline {
+      display: none;
+    }
+  }
+}

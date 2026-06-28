@@ -10,6 +10,7 @@ import {
   type BriefViewModel,
   type GroupView,
 } from "../../viewModel";
+import styles from "./GroupCard.module.scss";
 
 export interface GroupCardProps {
   group: GroupView;
@@ -62,50 +63,52 @@ export function GroupCard({
   }
 
   return (
-    <article className="group-card reveal">
-      <div className="group-head">
-        <div className="group-eyebrow">
-          <span className="gnum">
+    <article className={`${styles["card"]} reveal`}>
+      <div className={styles["head"]}>
+        <div className={styles["eyebrow"]}>
+          <span className={styles["number"]}>
             Change-group {group.index + 1} of {model.groups.length}
           </span>
-          <span className="gloc">
+          <span className={styles["loc"]}>
             <span className="green">+{group.added}</span> /{" "}
             <span className="red">−{group.deleted}</span> ·{" "}
             {group.carrierChunks.length} carrier ·{" "}
             {group.supportingChunks.length} supporting
           </span>
         </div>
-        <h2 className="group-title">{group.group.title}</h2>
-        <p className="group-summary">{group.group.summary}</p>
-        <div className="cat-row">
-          <span className="chip dominant">
+        <h2 className={styles["title"]}>{group.group.title}</h2>
+        <p className={styles["summary"]}>{group.group.summary}</p>
+        <div className={styles["categoryRow"]}>
+          <span className={styles["chip"]} data-kind="dominant">
             <em>dominant</em> {dominant}
           </span>
           {group.group.secondaryCategories.map((category) => (
-            <span className="chip" key={category}>
+            <span className={styles["chip"]} key={category}>
               secondary {category}
             </span>
           ))}
           {group.group.uncertain && !isReclassified ? (
-            <span className="chip uncertain">uncertain</span>
+            <span className={styles["chip"]} data-kind="uncertain">
+              uncertain
+            </span>
           ) : null}
           {isReclassified ? (
-            <span className="reclass-note">
+            <span className={styles["reclassNote"]}>
               set by you · recorded on receipt
             </span>
           ) : null}
         </div>
         {group.group.uncertain && !isReclassified ? (
-          <div className="uncertain-panel">
-            <span className="q">
+          <div className={styles["uncertainPanel"]}>
+            <span className={styles["question"]}>
               The categorizer is split on this group’s intent:{" "}
               <b>{group.group.uncertainBetween.join(" vs ")}</b>. Your call; the
               receipt records the override.
             </span>
-            <span className="pick">
+            <span className={styles["pick"]}>
               {group.group.uncertainBetween.map((category) => (
                 <button
-                  className="pickbtn"
+                  className={styles["pickButton"]}
                   key={category}
                   type="button"
                   onClick={() => chooseDominant(category)}
@@ -117,24 +120,24 @@ export function GroupCard({
           </div>
         ) : null}
       </div>
-      <div className="group-body">
-        <div className="flags">
-          <div className="label risk-label">
+      <div className={styles["body"]}>
+        <div className={styles["flags"]}>
+          <div className={`${styles["label"]} ${styles["riskLabel"]}`}>
             <span>
               Risk surface — {groupFlags.length} flags{" "}
-              <span className="count">attributes, not verdicts</span>
+              <span className={styles["count"]}>attributes, not verdicts</span>
             </span>
-            <span className="risk-info">
+            <span className={styles["riskInfo"]}>
               <button
                 aria-describedby={`${group.id}-risk-help`}
                 aria-label="Risk surface status meanings"
-                className="info-button"
+                className={styles["infoButton"]}
                 type="button"
               >
                 i
               </button>
               <span
-                className="risk-info-popover"
+                className={styles["riskInfoPopover"]}
                 id={`${group.id}-risk-help`}
                 role="tooltip"
               >
@@ -149,7 +152,9 @@ export function GroupCard({
             </span>
           </div>
           {groupFlags.length === 0 ? (
-            <p className="empty">No risk-surface attributes on this group.</p>
+            <p className={styles["empty"]}>
+              No risk-surface attributes on this group.
+            </p>
           ) : null}
           {groupRiskByAttribute(groupFlags).map((riskGroup) => {
             const openRiskFlagIds = riskGroup.flags
@@ -165,21 +170,24 @@ export function GroupCard({
               selectedCount === openRiskFlagIds.length;
             const hasSelection = selectedCount > 0;
             return (
-              <div className="risk-group" key={riskGroup.attr}>
-                <div className="risk-group-head">
-                  <label className="risk-check">
+              <div className={styles["riskGroup"]} key={riskGroup.attr}>
+                <div className={styles["riskGroupHead"]}>
+                  <label className={styles["riskCheck"]}>
                     <input
+                      className={styles["checkbox"]}
                       checked={allSelected}
                       disabled={openRiskFlagIds.length === 0}
                       suppressHydrationWarning
                       type="checkbox"
                       onChange={() => toggleRiskGroup(openRiskFlagIds)}
                     />
-                    <span className="risk-group-title">{riskGroup.attr}</span>
+                    <span className={styles["riskGroupTitle"]}>
+                      {riskGroup.attr}
+                    </span>
                   </label>
-                  <div className="risk-bulk-actions">
+                  <div className={styles["riskBulkActions"]}>
                     <button
-                      className="fbtn"
+                      className={styles["button"]}
                       disabled={!hasSelection}
                       title="Mark selected risks as reviewed and handled"
                       type="button"
@@ -195,7 +203,7 @@ export function GroupCard({
                       Address selected
                     </button>
                     <button
-                      className="fbtn"
+                      className={styles["button"]}
                       disabled={!hasSelection}
                       title="Mark selected risks as not applicable"
                       type="button"
@@ -212,45 +220,49 @@ export function GroupCard({
                     </button>
                   </div>
                 </div>
-                <div className="risk-files">
+                <div className={styles["riskFiles"]}>
                   {riskGroup.flags.map((flag) => {
                     const disposition = dispositions[flag.id];
                     const kind = disposition?.kind ?? "open";
                     const isResolved = kind !== "open";
                     return (
                       <div
-                        className={`flag ${isResolved ? `resolved ${kind}` : ""}`}
+                        className={styles["flag"]}
+                        data-disposition={kind}
+                        data-state={isResolved ? "resolved" : "open"}
                         key={flag.id}
                       >
-                        <div className="frow">
+                        <div className={styles["flagRow"]}>
                           <input
                             aria-label={`Select ${flag.attr} flag for ${flag.file}`}
                             checked={
                               !isResolved && selectedRiskFlags.has(flag.id)
                             }
-                            className="flag-check"
+                            className={styles["checkbox"]}
                             disabled={isResolved}
                             suppressHydrationWarning
                             type="checkbox"
                             onChange={() => toggleRiskFlag(flag.id)}
                           />
                           <button
-                            className="floc full-path"
+                            className={styles["fileButton"]}
                             type="button"
                             onClick={() => jumpToChunk(flag.chunkId)}
                           >
                             {flag.file}
                           </button>
                           {isResolved ? (
-                            <span className="fstate compact">{kind}</span>
+                            <span className={styles["state"]}>{kind}</span>
                           ) : null}
                         </div>
                         {!isResolved ? (
                           <>
-                            <div className="fdesc">{flag.description}</div>
-                            <div className="factions">
+                            <div className={styles["description"]}>
+                              {flag.description}
+                            </div>
+                            <div className={styles["flagActions"]}>
                               <button
-                                className="fbtn"
+                                className={styles["button"]}
                                 title="Mark this risk as reviewed and handled"
                                 type="button"
                                 onClick={() => {
@@ -263,7 +275,7 @@ export function GroupCard({
                                 Addressed
                               </button>
                               <button
-                                className="fbtn"
+                                className={styles["button"]}
                                 title="Mark this risk as not applicable"
                                 type="button"
                                 onClick={() =>
@@ -278,7 +290,7 @@ export function GroupCard({
                             </div>
                           </>
                         ) : kind === "addressed" ? (
-                          <div className="fstate-detail">
+                          <div className={styles["stateDetail"]}>
                             {evidenceText(
                               disposition,
                               reviewComments,

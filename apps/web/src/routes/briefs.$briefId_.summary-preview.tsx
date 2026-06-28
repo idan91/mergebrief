@@ -9,6 +9,7 @@ import { SummaryPreview } from "../features/review/components/SummaryPreview/Sum
 import type { Disposition } from "../features/review/session";
 import { readSnapshot, type SessionSnapshot } from "../features/review/session";
 import type { ReviewMode } from "../features/review/state";
+import styles from "./routeShared.module.scss";
 
 interface SummaryPreviewSearch {
   mode: ReviewMode;
@@ -42,7 +43,11 @@ function SummaryPreviewRoute() {
   return (
     <>
       <SummaryPreview brief={brief} mode={mode} snapshot={snapshot} />
-      <Link className="summary-back" params={{ briefId }} to="/briefs/$briefId">
+      <Link
+        className={styles["summaryBack"]}
+        params={{ briefId }}
+        to="/briefs/$briefId"
+      >
         Back to review
       </Link>
     </>

@@ -1,6 +1,7 @@
 import { Drawer } from "../../../../components/Drawer/Drawer";
 import type { ReviewMode } from "../../state";
 import { RECEIPT_NOT_CHECKED, type Receipt } from "../../receipt";
+import styles from "./ReceiptDrawer.module.scss";
 
 export interface ReceiptDrawerProps {
   receipt: Receipt;
@@ -27,23 +28,25 @@ export function ReceiptDrawer({
       open={open}
       closeLabel="Close receipt"
       close={close}
-      asideClassName="receipt"
+      asideClassName={styles["receipt"]}
     >
-      <div className="receipt-inner">
-        <div className="receipt-title">
+      <div className={styles["inner"]}>
+        <div className={styles["title"]}>
           <h2>
             {reviewMode === "author"
               ? "Self-review summary"
               : "Verification receipt"}
           </h2>
-          <span className="tag">not an approval</span>
+          <span className={styles["tag"]}>not an approval</span>
         </div>
-        <div className="receipt-sub">
+        <div className={styles["sub"]}>
           {reviewMode === "author"
             ? "Author-side preview · catches unresolved risk before requesting review"
             : "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours"}
         </div>
-        <pre className="receipt-body">{`Reviewed by @you (human) · ${receipt.subject.repo} #${receipt.subject.number} @ ${receipt.subject.sha.slice(0, 7)}
+        <pre
+          className={styles["body"]}
+        >{`Reviewed by @you (human) · ${receipt.subject.repo} #${receipt.subject.number} @ ${receipt.subject.sha.slice(0, 7)}
 Tool verification receipt — mechanical claims only
 
   ${progress.reviewedChunks >= progress.chunkTotal ? "✓" : "•"} chunks read: ${progress.reviewedChunks}/${progress.chunkTotal}
@@ -56,7 +59,7 @@ ${openFlags.map((flag) => `      open: ${flag.attr} @ ${shortFile(flag.file)} �
 ${receipt.reclassifiedCount > 0 ? `\n  ${receipt.reclassifiedCount} group reclassified by reviewer` : ""}
 
   not checked: ${RECEIPT_NOT_CHECKED.join(" · ")}`}</pre>
-        <div className="receipt-actions">
+        <div className={styles["actions"]}>
           <button className="btn primary" type="button" onClick={submit}>
             {reviewMode === "author"
               ? "Mark ready for review"
@@ -68,7 +71,7 @@ ${receipt.reclassifiedCount > 0 ? `\n  ${receipt.reclassifiedCount} group reclas
           <button className="btn" type="button" onClick={close}>
             Keep reviewing
           </button>
-          <span className="receipt-note">
+          <span className={styles["note"]}>
             Scoped to mechanical claims. The approve / request-changes verdict
             is yours alone.
           </span>

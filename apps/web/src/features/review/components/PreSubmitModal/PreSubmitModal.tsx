@@ -1,5 +1,6 @@
 import { Modal } from "../../../../components/Modal/Modal";
 import type { ReviewMode, UnresolvedItem } from "../../state";
+import styles from "../ModalContent.module.scss";
 
 export interface PreSubmitModalProps {
   close: () => void;
@@ -25,19 +26,19 @@ export function PreSubmitModal({
       ? "Continue to self-review summary"
       : "Continue to receipt";
   return (
-    <Modal open={open} boxClassName="unresolved-box">
+    <Modal open={open} boxClassName={styles["wideBox"]}>
       <h3>{title}</h3>
-      <p className="modal-copy">
+      <p className={styles["copy"]}>
         This is advisory. You can continue, but the summary will show unresolved
         items exactly as they are.
       </p>
-      <div className="unresolved-list">
+      <div className={styles["unresolvedList"]}>
         {unresolvedItems.length === 0 ? (
-          <div className="empty">No unresolved review items.</div>
+          <div className={styles["empty"]}>No unresolved review items.</div>
         ) : null}
         {unresolvedItems.map((item) => (
           <button
-            className="unresolved-item"
+            className={styles["unresolvedItem"]}
             key={item.id}
             type="button"
             onClick={() => jumpToItem(item)}
@@ -47,7 +48,7 @@ export function PreSubmitModal({
           </button>
         ))}
       </div>
-      <div className="modal-actions">
+      <div className={styles["actions"]}>
         <button className="btn" type="button" onClick={close}>
           Keep reviewing
         </button>

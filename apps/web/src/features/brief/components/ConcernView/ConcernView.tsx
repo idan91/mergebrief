@@ -1,5 +1,6 @@
 import type { Brief } from "../../types";
 import type { BriefViewModel } from "../../viewModel";
+import styles from "./ConcernView.module.scss";
 
 export interface ConcernViewProps {
   brief: Brief;
@@ -10,9 +11,9 @@ export interface ConcernViewProps {
 export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
   const totalTouched = Math.max(1, model.totalAdded + model.totalDeleted);
   return (
-    <section className="concern-view">
-      <div className="concern-intro reveal">
-        <div className="eyebrow">Attention split</div>
+    <section>
+      <div className={`${styles["intro"]} reveal`}>
+        <div className={styles["eyebrow"]}>Attention split</div>
         <p>
           The same {brief.chunks.length} chunks, pivoted by artifact instead of
           intent.
@@ -22,24 +23,27 @@ export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
         const chunks = model.concernChunks.get(rollup.concern) ?? [];
         const pct = ((rollup.added + rollup.deleted) / totalTouched) * 100;
         return (
-          <article className="concern-bucket reveal" key={rollup.concern}>
-            <div className="cb-head">
-              <span className="cb-name">
-                <span className="dot" />
+          <article
+            className={`${styles["bucket"]} reveal`}
+            key={rollup.concern}
+          >
+            <div className={styles["head"]}>
+              <span className={styles["name"]}>
+                <span className={styles["dot"]} />
                 {rollup.concern}
               </span>
-              <span className="cb-loc">
+              <span className={styles["loc"]}>
                 <span className="a">+{rollup.added}</span>{" "}
                 <span className="d">−{rollup.deleted}</span>
               </span>
-              <span className="cb-count">
+              <span className={styles["count"]}>
                 {chunks.length} chunk{chunks.length === 1 ? "" : "s"}
               </span>
             </div>
-            <div className="cb-bar">
+            <div className={styles["bar"]}>
               <i style={{ width: `${Math.max(4, pct)}%` }} />
             </div>
-            <div className="cb-files">
+            <div className={styles["files"]}>
               {chunks.map((chunk) => (
                 <button
                   key={chunk.id}
@@ -47,7 +51,7 @@ export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
                   onClick={() => jumpToChunk(chunk.id)}
                 >
                   {chunk.file}{" "}
-                  <span className="floc2">
+                  <span className={styles["fileLoc"]}>
                     · <span className="a">+{chunk.loc.added}</span>{" "}
                     <span className="d">−{chunk.loc.deleted}</span>
                   </span>
@@ -57,10 +61,12 @@ export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
           </article>
         );
       })}
-      <div className="concern-bucket muted reveal">
-        <div className="cb-head">
-          <span className="cb-name muted-name">empty concerns</span>
-          <span className="cb-count">
+      <div className={`${styles["bucket"]} reveal`} data-muted="">
+        <div className={styles["head"]}>
+          <span className={styles["name"]} data-muted="">
+            empty concerns
+          </span>
+          <span className={styles["count"]}>
             generated · spec · config may be absent from this local brief
           </span>
         </div>

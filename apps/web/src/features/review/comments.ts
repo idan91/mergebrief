@@ -38,13 +38,25 @@ export interface ReviewComment {
   collapsed: boolean;
 }
 
-export function createCommentAnchor(chunkId: string, file: string, rows: DiffLine[], selectedIndexes: number[]): CommentAnchor | null {
-  const orderedIndexes = [...new Set(selectedIndexes)].sort((left, right) => left - right);
+export function createCommentAnchor(
+  chunkId: string,
+  file: string,
+  rows: DiffLine[],
+  selectedIndexes: number[],
+): CommentAnchor | null {
+  const orderedIndexes = [...new Set(selectedIndexes)].sort(
+    (left, right) => left - right,
+  );
   if (orderedIndexes.length === 0) return null;
   if (!isContinuous(orderedIndexes)) return null;
 
   const selectedRows = orderedIndexes.map((index) => rows[index]);
-  if (selectedRows.some((row) => !row || row.kind === "hunk" || row.kind === "note")) return null;
+  if (
+    selectedRows.some(
+      (row) => !row || row.kind === "hunk" || row.kind === "note",
+    )
+  )
+    return null;
 
   const hasAdd = selectedRows.some((row) => row?.kind === "add");
   const hasDel = selectedRows.some((row) => row?.kind === "del");
@@ -54,7 +66,9 @@ export function createCommentAnchor(chunkId: string, file: string, rows: DiffLin
   const lineNumbers = selectedRows.map((row) => lineForSide(row, side));
   if (lineNumbers.some((line) => typeof line !== "number")) return null;
 
-  const concreteLines = lineNumbers.filter((line): line is number => typeof line === "number");
+  const concreteLines = lineNumbers.filter(
+    (line): line is number => typeof line === "number",
+  );
   const startLine = concreteLines[0];
   const endLine = concreteLines.at(-1);
   if (typeof startLine !== "number" || typeof endLine !== "number") return null;
@@ -74,7 +88,12 @@ export function rowId(chunkId: string, rowIndex: number): string {
   return `${chunkId}:${rowIndex}`;
 }
 
-export function applyMarkdownWrap(text: string, selectionStart: number, selectionEnd: number, marker: string): TextEditResult {
+export function applyMarkdownWrap(
+  text: string,
+  selectionStart: number,
+  selectionEnd: number,
+  marker: string,
+): TextEditResult {
   const selected = text.slice(selectionStart, selectionEnd);
   const nextText = `${text.slice(0, selectionStart)}${marker}${selected}${marker}${text.slice(selectionEnd)}`;
   return {
@@ -84,13 +103,19 @@ export function applyMarkdownWrap(text: string, selectionStart: number, selectio
   };
 }
 
-export function replaceSelectionWithSuggestion(text: string, selectionStart: number, selectionEnd: number, replacement: string): TextEditResult {
+export function replaceSelectionWithSuggestion(
+  text: string,
+  selectionStart: number,
+  selectionEnd: number,
+  replacement: string,
+): TextEditResult {
   const block = `\`\`\`suggestion\n${replacement}\n\`\`\``;
   const nextText = `${text.slice(0, selectionStart)}${block}${text.slice(selectionEnd)}`;
   return {
     text: nextText,
     selectionStart: selectionStart + "```suggestion\n".length,
-    selectionEnd: selectionStart + "```suggestion\n".length + replacement.length,
+    selectionEnd:
+      selectionStart + "```suggestion\n".length + replacement.length,
   };
 }
 
@@ -107,13 +132,33 @@ export function parseSuggestionBlocks(markdown: string): SuggestionBlock[] {
 }
 
 export function stripSuggestionBlocks(markdown: string): string {
-  return markdown.replace(/\n?```suggestion\n[\s\S]*?\n```/g, "").replace(/\n{3,}/g, "\n\n").trim();
+  return markdown
+    .replace(/\n?```suggestion\n[\s\S]*?\n```/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
-export function buildSuggestionDiffRows(anchor: CommentAnchor, suggestionText: string): SuggestionDiffRow[] {
+export function buildSuggestionDiffRows(
+  anchor: CommentAnchor,
+  suggestionText: string,
+): SuggestionDiffRow[] {
   return [
-    ...splitDiffText(anchor.selectedText).map((content, index) => ({ kind: "del", ...suggestionLineNumber(anchor, index), content }) satisfies SuggestionDiffRow),
-    ...splitDiffText(suggestionText).map((content, index) => ({ kind: "add", ...suggestionLineNumber(anchor, index), content }) satisfies SuggestionDiffRow),
+    ...splitDiffText(anchor.selectedText).map(
+      (content, index) =>
+        ({
+          kind: "del",
+          ...suggestionLineNumber(anchor, index),
+          content,
+        }) satisfies SuggestionDiffRow,
+    ),
+    ...splitDiffText(suggestionText).map(
+      (content, index) =>
+        ({
+          kind: "add",
+          ...suggestionLineNumber(anchor, index),
+          content,
+        }) satisfies SuggestionDiffRow,
+    ),
   ];
 }
 
@@ -123,20 +168,31 @@ export function reviewCommentSubmitLabel(existingCommentCount: number): string {
 
 export function commentAnchorLabel(anchor: CommentAnchor): string {
   const sign = anchor.side === "new" ? "+" : "-";
-  const range = anchor.startLine === anchor.endLine ? `${sign}${anchor.startLine}` : `${sign}${anchor.startLine}-${anchor.endLine}`;
+  const range =
+    anchor.startLine === anchor.endLine
+      ? `${sign}${anchor.startLine}`
+      : `${sign}${anchor.startLine}-${anchor.endLine}`;
   return `${anchor.file} · ${range}`;
 }
 
-function lineForSide(row: DiffLine | undefined, side: CommentSide): number | undefined {
+function lineForSide(
+  row: DiffLine | undefined,
+  side: CommentSide,
+): number | undefined {
   if (!row) return undefined;
   return side === "old" ? row.oldLine : row.newLine;
 }
 
 function isContinuous(indexes: number[]): boolean {
-  return indexes.every((index, position) => position === 0 || index === indexes[position - 1]! + 1);
+  return indexes.every(
+    (index, position) => position === 0 || index === indexes[position - 1]! + 1,
+  );
 }
 
-function suggestionLineNumber(anchor: CommentAnchor, lineOffset: number): Pick<SuggestionDiffRow, "oldLine" | "newLine"> {
+function suggestionLineNumber(
+  anchor: CommentAnchor,
+  lineOffset: number,
+): Pick<SuggestionDiffRow, "oldLine" | "newLine"> {
   const line = anchor.startLine + lineOffset;
   return anchor.side === "old" ? { oldLine: line } : { newLine: line };
 }

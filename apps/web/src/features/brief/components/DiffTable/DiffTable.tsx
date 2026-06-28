@@ -18,6 +18,7 @@ import {
 import type { AddressedReviewComment, Brief, BriefChunk } from "../../types";
 import { DeltaCallout } from "../DeltaCallout/DeltaCallout";
 import { RevisionGutterCell } from "../RevisionGutterCell/RevisionGutterCell";
+import styles from "./DiffTable.module.scss";
 
 export interface DiffTableProps {
   chunk: BriefChunk;
@@ -74,7 +75,7 @@ export function DiffTable({
 
   if (!chunk.diff || chunk.diff.length === 0) {
     return (
-      <div className="metadata-diff">
+      <div className={styles["metadataDiff"]}>
         <span>diff unavailable</span>
         <p>
           The brief loaded, but no matching raw diff was available for this
@@ -109,12 +110,16 @@ export function DiffTable({
 
   return (
     <>
-      <table className="diff">
+      <table className={styles["diff"]}>
         <tbody>
           {chunk.diff.map((line, index) => {
             if (line.kind === "hunk" || line.kind === "note") {
               return (
-                <tr className={line.kind} key={`${line.kind}-${index}`}>
+                <tr
+                  className={styles["line"]}
+                  data-line-kind={line.kind}
+                  key={`${line.kind}-${index}`}
+                >
                   <td colSpan={metaColSpan}>{line.content}</td>
                 </tr>
               );
@@ -151,7 +156,11 @@ export function DiffTable({
             return (
               <Fragment key={`${line.kind}-${index}`}>
                 <tr
-                  className={`${line.kind} commentable ${isSelected ? "selected" : ""} ${revMark ? `rev-${revMark}` : ""}`}
+                  className={styles["line"]}
+                  data-commentable=""
+                  data-line-kind={line.kind}
+                  data-rev={revMark}
+                  data-selected={isSelected ? "" : undefined}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") finishSelection(index);
                   }}
@@ -176,20 +185,23 @@ export function DiffTable({
                       onRailLeave={handleRailLeave}
                     />
                   ) : null}
-                  <td className="ln">{line.oldLine ?? ""}</td>
-                  <td className="ln">{line.newLine ?? ""}</td>
-                  <td className="code">
-                    <span className="sign">{sign}</span>
+                  <td className={styles["lineNumber"]}>{line.oldLine ?? ""}</td>
+                  <td className={styles["lineNumber"]}>{line.newLine ?? ""}</td>
+                  <td className={styles["code"]}>
+                    <span className={styles["sign"]}>{sign}</span>
                     {line.content}
                     {isRevStart && revRun ? (
-                      <span className={`newtag ${revRun.kind}`}>
+                      <span
+                        className={styles["newTag"]}
+                        data-kind={revRun.kind}
+                      >
                         {revRun.kind === "removed" ? "removed" : "new"}
                       </span>
                     ) : null}
                   </td>
                 </tr>
                 {showComposer ? (
-                  <tr className="comment-row">
+                  <tr className={styles["commentRow"]}>
                     <td colSpan={metaColSpan}>
                       <CommentComposer
                         anchor={activeCommentAnchor}
@@ -201,7 +213,7 @@ export function DiffTable({
                   </tr>
                 ) : null}
                 {rowComments.map((comment) => (
-                  <tr className="comment-row" key={comment.id}>
+                  <tr className={styles["commentRow"]} key={comment.id}>
                     <td colSpan={metaColSpan}>
                       <CommentThread
                         comment={comment}
@@ -213,7 +225,10 @@ export function DiffTable({
                   </tr>
                 ))}
                 {rowAddressedComments.map((comment) => (
-                  <tr className="comment-row" key={`addressed-${comment.id}`}>
+                  <tr
+                    className={styles["commentRow"]}
+                    key={`addressed-${comment.id}`}
+                  >
                     <td colSpan={metaColSpan}>
                       <AddressedDiffComment
                         comment={comment}

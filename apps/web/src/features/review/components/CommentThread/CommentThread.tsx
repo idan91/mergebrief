@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import type { ReviewComment } from "../../comments";
 import { MarkdownPreview } from "../MarkdownPreview/MarkdownPreview";
+import styles from "./CommentThread.module.scss";
 
 export interface CommentThreadProps {
   comment: ReviewComment;
@@ -21,7 +22,7 @@ export function CommentThread({
 
   if (comment.collapsed) {
     return (
-      <div className="comment-thread collapsed">
+      <div className={styles["thread"]} data-state="collapsed">
         <button type="button" onClick={() => toggle(comment.id)}>
           Draft comment on {comment.anchor.side === "new" ? "+" : "-"}
           {comment.anchor.startLine}
@@ -31,8 +32,8 @@ export function CommentThread({
   }
 
   return (
-    <div className="comment-thread">
-      <div className="comment-thread-head">
+    <div className={styles["thread"]}>
+      <div className={styles["head"]}>
         <span>@you pending</span>
         <span>
           {comment.anchor.file}:{comment.anchor.startLine}
@@ -44,11 +45,12 @@ export function CommentThread({
       {editing ? (
         <>
           <textarea
+            className={styles["textarea"]}
             suppressHydrationWarning
             value={body}
             onChange={(event) => setBody(event.target.value)}
           />
-          <div className="comment-actions">
+          <div className={styles["actions"]}>
             <button
               className="btn primary"
               type="button"
@@ -74,7 +76,7 @@ export function CommentThread({
       ) : (
         <MarkdownPreview anchor={comment.anchor} body={comment.body} />
       )}
-      <div className="comment-thread-actions">
+      <div className={styles["threadActions"]}>
         <button type="button" onClick={() => setEditing(true)}>
           Edit
         </button>

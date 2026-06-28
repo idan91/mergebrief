@@ -10,6 +10,7 @@ import {
   type ReviewMode,
   type ReviewOutcome,
 } from "../../state";
+import styles from "./SummaryPreview.module.scss";
 
 export interface SummaryPreviewProps {
   brief: Brief;
@@ -36,10 +37,10 @@ export function SummaryPreview({
   const title = mode === "author" ? "Self-review summary" : "Review Summary";
 
   return (
-    <main className="summary-page">
-      <section className="summary-shell">
-        <div className="summary-kicker">Frozen preview · interview demo</div>
-        <div className="summary-head">
+    <main className={styles["page"]}>
+      <section className={styles["shell"]}>
+        <div className={styles["kicker"]}>Frozen preview · interview demo</div>
+        <div className={styles["head"]}>
           <div>
             <h1>{title}</h1>
             <p>
@@ -47,18 +48,18 @@ export function SummaryPreview({
               {brief.pr.sha.slice(0, 7)}
             </p>
           </div>
-          <span className="summary-badge">Tool receipt, not an approval</span>
+          <span className={styles["badge"]}>Tool receipt, not an approval</span>
         </div>
 
-        <section className="summary-card">
-          <div className="summary-row">
+        <section className={styles["card"]}>
+          <div className={styles["row"]}>
             <span>Review outcome</span>
-            <div className="outcome-pick">
+            <div className={styles["outcomePick"]}>
               {(["comment", "approve", "request-changes"] as const).map(
                 (outcome) => (
                   <button
-                    className={
-                      snapshot.reviewOutcome === outcome ? "active" : ""
+                    data-state={
+                      snapshot.reviewOutcome === outcome ? "active" : undefined
                     }
                     disabled={!setOutcome}
                     key={outcome}
@@ -71,7 +72,7 @@ export function SummaryPreview({
               )}
             </div>
           </div>
-          <div className="signature-line">
+          <div className={styles["signature"]}>
             {summarySignatureLine({
               reviewedChunks: reviewedChunkIds.size,
               addressedRisks: receipt.counts.addressed,
@@ -80,10 +81,10 @@ export function SummaryPreview({
           </div>
         </section>
 
-        <section className="summary-grid">
-          <div className="summary-card">
+        <section className={styles["grid"]}>
+          <div className={styles["card"]}>
             <h2>What the reviewer covered</h2>
-            <dl className="summary-metrics">
+            <dl className={styles["metrics"]}>
               <div>
                 <dt>Chunks reviewed</dt>
                 <dd>
@@ -115,12 +116,12 @@ export function SummaryPreview({
             </dl>
             <h3>Inline comments</h3>
             {receipt.comments.length === 0 ? (
-              <p className="summary-empty">
+              <p className={styles["empty"]}>
                 No draft comments in this preview.
               </p>
             ) : null}
             {receipt.comments.map((comment) => (
-              <div className="summary-comment" key={comment.id}>
+              <div className={styles["comment"]} key={comment.id}>
                 <span>{commentLabel(comment)}</span>
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {comment.firstLine}
@@ -129,7 +130,7 @@ export function SummaryPreview({
             ))}
           </div>
 
-          <div className="summary-card">
+          <div className={styles["card"]}>
             <h2>Risk surface disposition</h2>
             <RiskList
               title="Addressed risks"
@@ -158,7 +159,7 @@ export function SummaryPreview({
           </div>
         </section>
 
-        <section className="summary-card not-checked">
+        <section className={`${styles["card"]} ${styles["notChecked"]}`}>
           <h2>Not checked</h2>
           <span>business intent</span>
           <span>runtime behavior</span>
@@ -199,11 +200,11 @@ interface RiskListProps {
 
 function RiskList({ title, items }: RiskListProps) {
   return (
-    <div className="summary-risk-list">
+    <div>
       <h3>{title}</h3>
-      {items.length === 0 ? <p className="summary-empty">None.</p> : null}
+      {items.length === 0 ? <p className={styles["empty"]}>None.</p> : null}
       {items.map((item) => (
-        <div className="summary-risk" key={`${item.attr}:${item.file}`}>
+        <div className={styles["risk"]} key={`${item.attr}:${item.file}`}>
           <span>
             {item.attr} · {item.file}
           </span>

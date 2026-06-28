@@ -1,16 +1,16 @@
 import type { ReactNode } from "react";
+import styles from "./Drawer.module.scss";
 
 export interface DrawerProps {
   open: boolean;
   /** Accessible label for the scrim close button. */
   closeLabel: string;
   close: () => void;
-  /** Base class on the sliding aside (e.g. "receipt", "receipt summary-drawer"). */
-  asideClassName: string;
+  asideClassName: string | undefined;
   children: ReactNode;
 }
 
-/** Generic right-side drawer: a scrim button + a sliding aside that gets `show`. */
+/** Generic drawer shell: a scrim button + a sliding aside with data-state. */
 export function Drawer({
   open,
   closeLabel,
@@ -22,11 +22,12 @@ export function Drawer({
     <>
       <button
         aria-label={closeLabel}
-        className={open ? "scrim show" : "scrim"}
+        className={styles["scrim"]}
+        data-state={open ? "open" : "closed"}
         type="button"
         onClick={close}
       />
-      <aside className={open ? `${asideClassName} show` : asideClassName}>
+      <aside className={asideClassName} data-state={open ? "open" : "closed"}>
         {children}
       </aside>
     </>

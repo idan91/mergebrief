@@ -7,6 +7,7 @@ import type { Brief } from "../../types";
 import type { BriefViewModel } from "../../viewModel";
 import { ChunkCard } from "../ChunkCard/ChunkCard";
 import { GroupCard } from "../GroupCard/GroupCard";
+import styles from "./StoryView.module.scss";
 
 export interface StoryViewProps {
   brief: Brief;
@@ -37,46 +38,48 @@ export interface StoryViewProps {
 export function StoryView(props: StoryViewProps) {
   const { jumpPrev, jumpNext } = useRevisionNavigation();
   return (
-    <div className="story-view">
-      <div className="chunks-label reveal">
+    <div className={styles["storyView"]}>
+      <div className={`${styles["chunksLabel"]} reveal`}>
         <span>{props.brief.chunks.length} chunks · grouped by intent</span>
-        <span className="rule" />
-        <label className="switch">
+        <span className={styles["rule"]} />
+        <label className={styles["switch"]}>
           <input
             checked={props.collapseSupporting}
+            className={styles["switchInput"]}
             suppressHydrationWarning
             type="checkbox"
             onChange={(event) =>
               props.setCollapseSupporting(event.target.checked)
             }
           />
-          <span className="track" />
+          <span className={styles["track"]} />
           Collapse supporting
         </label>
         {props.revision.available ? (
           <label
-            className="switch revision-switch"
+            className={styles["switch"]}
             title="Highlight lines new in this revision (since the previous brief)"
           >
             <input
               checked={props.revision.enabled}
+              className={styles["switchInput"]}
               suppressHydrationWarning
               type="checkbox"
               onChange={(event) =>
                 props.revision.setEnabled(event.target.checked)
               }
             />
-            <span className="track" />
+            <span className={styles["track"]} />
             Revision changes
           </label>
         ) : null}
         {props.revision.enabled && props.revision.runCount > 0 ? (
           <span
-            className="revision-jump"
+            className={styles["revisionJump"]}
             role="group"
             aria-label="Jump between revision changes"
           >
-            <span className="count">
+            <span className={styles["count"]}>
               {props.revision.runCount} revision change
               {props.revision.runCount === 1 ? "" : "s"}
             </span>

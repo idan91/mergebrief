@@ -1,19 +1,17 @@
 import type { ReactNode } from "react";
+import clsx from "clsx";
+import styles from "./Modal.module.scss";
 
 export interface ModalProps {
   open: boolean;
-  /** Extra class on the inner box (e.g. "evidence-box", "unresolved-box"). */
-  boxClassName?: string;
+  boxClassName?: string | undefined;
   children: ReactNode;
 }
 
-/** Generic centered modal shell; feature modals supply only their content. */
 export function Modal({ open, boxClassName, children }: ModalProps) {
   return (
-    <div className={open ? "modal show" : "modal"}>
-      <div className={boxClassName ? `modal-box ${boxClassName}` : "modal-box"}>
-        {children}
-      </div>
+    <div className={styles["modal"]} data-state={open ? "open" : "closed"}>
+      <div className={clsx(styles["box"], boxClassName)}>{children}</div>
     </div>
   );
 }

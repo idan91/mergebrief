@@ -49,6 +49,7 @@ import { Footer } from "../Footer/Footer";
 import { Header } from "../Header/Header";
 import { StoryView } from "../StoryView/StoryView";
 import { Toolbar, type LayoutMode, type ViewMode } from "../Toolbar/Toolbar";
+import styles from "./BriefPage.module.scss";
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
@@ -411,8 +412,8 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         id="brief-content"
         tabIndex={-1}
       >
-        <section className="pr-summary reveal">
-          <div className="eyebrow">
+        <section className={`${styles["summary"]} reveal`}>
+          <div className={styles["eyebrow"]}>
             {brief.artifactKind === "delta"
               ? "Delta brief"
               : reviewMode === "author"
@@ -424,7 +425,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
             <DeltaContext brief={brief} />
           ) : null}
           <button
-            className="description-toggle"
+            className={styles["descriptionToggle"]}
             type="button"
             onClick={() => setDescriptionOpen(!descriptionOpen)}
           >
@@ -433,8 +434,8 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
               : "Show original PR description"}
           </button>
           {descriptionOpen ? (
-            <div className="pr-description">
-              <div className="eyebrow">Original PR description</div>
+            <div className={styles["description"]}>
+              <div className={styles["eyebrow"]}>Original PR description</div>
               <Markdown
                 content={
                   brief.pr.description || "_No PR description provided._"
@@ -547,7 +548,12 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
           setEvidenceTarget(null);
         }}
       />
-      <div className={toast ? "toast show" : "toast"}>{toast}</div>
+      <div
+        className={styles["toast"]}
+        data-state={toast ? "visible" : "hidden"}
+      >
+        {toast}
+      </div>
     </>
   );
 }
@@ -574,7 +580,7 @@ function SummaryPreviewDrawer({
       open={open}
       closeLabel="Close summary preview"
       close={close}
-      asideClassName="receipt summary-drawer"
+      asideClassName={styles["summaryDrawer"]}
     >
       <SummaryPreview
         brief={brief}

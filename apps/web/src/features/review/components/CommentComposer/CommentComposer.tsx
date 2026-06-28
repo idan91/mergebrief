@@ -5,6 +5,7 @@ import {
 } from "../../comments";
 import { MarkdownPreview } from "../MarkdownPreview/MarkdownPreview";
 import { useCommentComposerFacade } from "./useCommentComposerFacade";
+import styles from "./CommentComposer.module.scss";
 
 export interface CommentComposerProps {
   anchor: CommentAnchor;
@@ -22,23 +23,23 @@ export function CommentComposer({
   const composer = useCommentComposerFacade(anchor, save);
 
   return (
-    <div className="comment-composer">
-      <div className="comment-meta">
+    <div className={styles["composer"]}>
+      <div className={styles["meta"]}>
         <span>{commentAnchorLabel(anchor)}</span>
         <span>
           {anchor.rowIds.length} line{anchor.rowIds.length === 1 ? "" : "s"}
         </span>
       </div>
-      <div className="comment-tabs">
+      <div className={styles["tabs"]}>
         <button
-          className={composer.mode === "write" ? "active" : ""}
+          data-state={composer.mode === "write" ? "active" : undefined}
           type="button"
           onClick={() => composer.setMode("write")}
         >
           Write
         </button>
         <button
-          className={composer.mode === "preview" ? "active" : ""}
+          data-state={composer.mode === "preview" ? "active" : undefined}
           type="button"
           onClick={() => composer.setMode("preview")}
         >
@@ -47,7 +48,7 @@ export function CommentComposer({
       </div>
       {composer.mode === "write" ? (
         <>
-          <div className="comment-toolbar">
+          <div className={styles["toolbar"]}>
             <button type="button" onClick={composer.wrapBold}>
               B
             </button>
@@ -77,6 +78,7 @@ export function CommentComposer({
             </button>
           </div>
           <textarea
+            className={styles["textarea"]}
             ref={composer.textareaRef}
             autoFocus
             onChange={(event) => composer.onBodyChange(event.target.value)}
@@ -90,9 +92,9 @@ export function CommentComposer({
         <MarkdownPreview anchor={anchor} body={composer.body} />
       )}
       {composer.error ? (
-        <div className="comment-error">{composer.error}</div>
+        <div className={styles["error"]}>{composer.error}</div>
       ) : null}
-      <div className="comment-actions">
+      <div className={styles["actions"]}>
         <button className="btn primary" type="button" onClick={composer.submit}>
           {reviewCommentSubmitLabel(existingReviewCommentCount)}
         </button>

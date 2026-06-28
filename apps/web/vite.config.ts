@@ -3,6 +3,13 @@ import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  css: {
+    preprocessorOptions: {
+      scss: {
+        loadPaths: ["src/styles"],
+      },
+    },
+  },
   server: {
     port: 3000,
   },

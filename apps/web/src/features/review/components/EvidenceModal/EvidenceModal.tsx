@@ -4,6 +4,7 @@ import { Modal } from "../../../../components/Modal/Modal";
 import type { BriefChunk } from "../../../brief/types";
 import type { ReviewComment } from "../../comments";
 import { commentLocation, type RiskEvidenceKind } from "../../state";
+import styles from "../ModalContent.module.scss";
 
 export interface EvidenceTarget {
   flagIds: string[];
@@ -42,10 +43,10 @@ export function EvidenceModal({
 
   const linkedCommentDisabled = kind === "linked-comment" && !commentId;
   return (
-    <Modal open={Boolean(target)} boxClassName="evidence-box">
+    <Modal open={Boolean(target)} boxClassName={styles["wideBox"]}>
       <h3>Address risk with evidence</h3>
-      <div className="mattr">{target?.label}</div>
-      <div className="evidence-options">
+      <div className={styles["target"]}>{target?.label}</div>
+      <div className={styles["evidenceOptions"]}>
         <label>
           <input
             checked={kind === "linked-comment"}
@@ -77,6 +78,7 @@ export function EvidenceModal({
       </div>
       {kind === "linked-comment" ? (
         <select
+          className={styles["select"]}
           value={commentId}
           onChange={(event) => setCommentId(event.target.value)}
         >
@@ -88,7 +90,7 @@ export function EvidenceModal({
         </select>
       ) : null}
       {kind === "chunk-reviewed" ? (
-        <p className="modal-copy">
+        <p className={styles["copy"]}>
           Each selected risk will link to its related chunk. Reviewed chunks are
           shown as evidence in the receipt.
         </p>
@@ -100,7 +102,7 @@ export function EvidenceModal({
           onChange={(event) => setNote(event.target.value)}
         />
       ) : null}
-      <div className="modal-actions">
+      <div className={styles["actions"]}>
         <button className="btn" type="button" onClick={cancel}>
           Cancel
         </button>

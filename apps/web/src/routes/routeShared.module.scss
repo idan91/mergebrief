@@ -1,0 +1,32 @@
+@layer components {
+  .errorState {
+    padding: 28px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel2);
+
+    h1 {
+      margin-block-end: 8px;
+      font-size: 20px;
+    }
+
+    p {
+      color: var(--dim);
+    }
+  }
+
+  .summaryBack {
+    position: fixed;
+    inset-inline-end: 24px;
+    inset-block-end: 24px;
+    z-index: 80;
+    padding-block: 10px;
+    padding-inline: 14px;
+    border: 1px solid var(--line2);
+    border-radius: 8px;
+    background: #1c1c22;
+    color: var(--text);
+    font-size: 13px;
+    text-decoration: none;
+  }
+}

@@ -11,6 +11,7 @@ import {
 import type { CommentAnchor } from "../../../review/comments";
 import { useMindMap } from "../../../review/session";
 import { DiffTable } from "../DiffTable/DiffTable";
+import styles from "./ChunkCard.module.scss";
 
 export interface ChunkCardProps {
   chunk: BriefChunk;
@@ -76,47 +77,50 @@ export function ChunkCard({
       );
   return (
     <article
-      className={`chunk ${expanded ? "open" : ""} ${reviewed ? "reviewed" : ""} ${active ? "current" : ""}`}
+      className={styles["chunk"]}
+      data-current={active ? "" : undefined}
+      data-reviewed={reviewed ? "" : undefined}
+      data-state={expanded ? "open" : "collapsed"}
       id={chunk.id}
     >
       <button
-        className="chunk-head"
+        className={styles["head"]}
         type="button"
         onClick={() => toggleChunk(chunk.id)}
       >
-        <span className="tw">▶</span>
-        <span className="cfile">{chunk.file}</span>
-        <span className="cchips">
+        <span className={styles["twist"]}>▶</span>
+        <span className={styles["file"]}>{chunk.file}</span>
+        <span className={styles["chips"]}>
           {chunk.riskSurface.map((risk) => (
-            <span className="cc risk" key={risk}>
+            <span className={`${styles["chip"]} ${styles["risk"]}`} key={risk}>
               {risk}
             </span>
           ))}
-          <span className={`cc concern-${chunk.concern}`}>
-            <span className="dot" />
+          <span className={styles["chip"]} data-concern={chunk.concern}>
+            <span className={styles["dot"]} />
             {chunk.concern}
             {chunk.role === "carrier" ? " · carrier" : ""}
           </span>
           {comments.length > 0 ? (
-            <span className="cc comments">
+            <span className={styles["chip"]}>
               {comments.length} comment{comments.length === 1 ? "" : "s"}
             </span>
           ) : null}
           {chunkReviewComments.length > 0 ? (
-            <span className="cc comments">
+            <span className={styles["chip"]}>
               {chunkReviewComments.length}{" "}
               {hasLinkedAddressedComments ? "addressed" : "review"}
             </span>
           ) : null}
-          <span className="cc loc">
+          <span className={`${styles["chip"]} ${styles["loc"]}`}>
             <span className="a">+{chunk.loc.added}</span>{" "}
             <span className="d">−{chunk.loc.deleted}</span>
           </span>
         </span>
       </button>
-      <div className="chunk-actions">
+      <div className={styles["actions"]}>
         <button
-          className="markbtn"
+          className={styles["markButton"]}
           type="button"
           onClick={() => markReviewed(chunk.id)}
         >
@@ -124,7 +128,7 @@ export function ChunkCard({
         </button>
       </div>
       {!expanded ? (
-        <div className="collapse-note">
+        <div className={styles["collapseNote"]}>
           {chunk.role === "supporting"
             ? "supporting chunk — collapsed"
             : "collapsed"}
@@ -134,11 +138,11 @@ export function ChunkCard({
         </div>
       ) : null}
       {expanded ? (
-        <div className="chunk-body">
+        <div className={styles["body"]}>
           {chunk.summary ||
           chunk.addressesComments?.length ||
           topReviewComments.length > 0 ? (
-            <div className="chunk-delta-summary">
+            <div className={styles["deltaSummary"]}>
               {chunk.summary ? <p>{chunk.summary}</p> : null}
               {chunk.addressesComments?.length ? (
                 <AddressedComments chunk={chunk} comments={topReviewComments} />

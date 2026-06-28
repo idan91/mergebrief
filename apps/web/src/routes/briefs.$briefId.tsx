@@ -7,6 +7,7 @@ import {
   localBriefsQueryOptions,
   localRevisionChangesQueryOptions,
 } from "../features/brief/queries";
+import styles from "./routeShared.module.scss";
 
 export const Route = createFileRoute("/briefs/$briefId")({
   loader: ({ context, params }) =>
@@ -32,7 +33,7 @@ function BriefRoute() {
 function BriefError({ error }: { error: Error }) {
   return (
     <main className="main">
-      <section className="error-state">
+      <section className={styles["errorState"]}>
         <h1>Brief failed to load</h1>
         <p>{error.message}</p>
       </section>

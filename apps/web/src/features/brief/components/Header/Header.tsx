@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import type { CSSProperties } from "react";
 
 import type { ReviewMode } from "../../../review/state";
 import type { ProgressTotals } from "../../progress";
@@ -6,6 +7,7 @@ import type { BriefTimeline } from "../../timeline";
 import type { Brief } from "../../types";
 import type { BriefViewModel } from "../../viewModel";
 import { TimelineNavigator } from "../TimelineNavigator/TimelineNavigator";
+import styles from "./Header.module.scss";
 
 export interface HeaderProps {
   brief: Brief;
@@ -34,17 +36,21 @@ export function Header({
   openReceipt,
   clearDrafts,
 }: HeaderProps) {
+  const progressStyle: ProgressBarStyle = {
+    "--progress-width": `${progress}%`,
+  };
+
   return (
-    <header>
-      <div className="wordmark">
+    <header className={styles["header"]}>
+      <div className={styles["wordmark"]}>
         Brief<span> / review</span>
       </div>
-      <div className="prmeta">
-        <div className="title">{brief.pr.title}</div>
-        <div className="sub">
+      <div className={styles["prmeta"]}>
+        <div className={styles["title"]}>{brief.pr.title}</div>
+        <div className={styles["sub"]}>
           <b>{brief.pr.repo}</b> ·{" "}
           <a
-            className="ghlink"
+            className={styles["ghlink"]}
             href={brief.pr.url}
             target="_blank"
             rel="noreferrer"
@@ -54,36 +60,37 @@ export function Header({
           · {artifactHeaderLabel(brief)}
         </div>
         {briefMetaLine(brief) ? (
-          <div className="sub faint">{briefMetaLine(brief)}</div>
+          <div className={styles["sub"]}>{briefMetaLine(brief)}</div>
         ) : null}
       </div>
       <TimelineNavigator briefId={briefId} timeline={timeline} />
-      <div className="hdr-stats">
+      <div className={styles["stats"]}>
         <button
-          className={locOpen ? "stat loc-badge open" : "stat loc-badge"}
+          className={`stat ${styles["stat"]} ${styles["locBadge"]}`}
+          data-state={locOpen ? "open" : "closed"}
           type="button"
           onClick={() => setLocOpen(!locOpen)}
         >
-          <span className="statlabel">adjusted lines</span>
+          <span>adjusted lines</span>
           <b>
             <span className="green">+{model.totalAdded}</span>{" "}
             <span className="faint">/</span>{" "}
             <span className="red">−{model.totalDeleted}</span>
           </b>
-          <span className="loc-pop">
+          <span className={styles["locPop"]}>
             <b>Adjusted ≈ git for this local brief.</b>
             <br />
             Move detection is not in the current categorizer output, so
             moved/generated exclusions are not claimed yet.
           </span>
         </button>
-        <div className="stat">
+        <div className={`stat ${styles["stat"]}`}>
           chunks
           <b>
             {totals.reviewed}/{totals.chunkTotal}
           </b>
         </div>
-        <div className="stat">
+        <div className={`stat ${styles["stat"]}`}>
           flags
           <b>
             {totals.flagsResolved}/{totals.flagTotal}
@@ -101,12 +108,20 @@ export function Header({
       >
         Summary preview
       </Link>
-      <button className="clear-drafts" type="button" onClick={clearDrafts}>
+      <button
+        className={styles["clearDrafts"]}
+        type="button"
+        onClick={clearDrafts}
+      >
         Clear local drafts
       </button>
-      <div className="progress-bar" style={{ width: `${progress}%` }} />
+      <div className={styles["progressBar"]} style={progressStyle} />
     </header>
   );
+}
+
+interface ProgressBarStyle extends CSSProperties {
+  "--progress-width": string;
 }
 
 function artifactHeaderLabel(brief: Brief): string {
