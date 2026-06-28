@@ -3,7 +3,7 @@ import remarkGfm from "remark-gfm";
 
 import { Roles, type Brief } from "../../../brief/types";
 import { buildBriefViewModel } from "../../../brief/viewModel";
-import { buildReceipt, type Receipt } from "../../receipt";
+import { buildReceipt, RECEIPT_NOT_CHECKED, type Receipt } from "../../receipt";
 import type { SessionSnapshot } from "../../session";
 import {
   summarySignatureLine,
@@ -161,11 +161,9 @@ export function SummaryPreview({
 
         <section className={`${styles["card"]} ${styles["notChecked"]}`}>
           <h2>Not checked</h2>
-          <span>business intent</span>
-          <span>runtime behavior</span>
-          <span>performance under load</span>
-          <span>downstream integration</span>
-          <span>general bug finding</span>
+          {RECEIPT_NOT_CHECKED.map((item) => (
+            <span key={item}>{item}</span>
+          ))}
         </section>
       </section>
     </main>

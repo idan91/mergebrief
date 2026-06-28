@@ -67,6 +67,18 @@ export function DiffTable({
     return () => window.removeEventListener("scroll", close, { capture: true });
   }, [railHover]);
 
+  // Reset the drag when the mouse is released anywhere — without this, releasing
+  // outside a commentable row leaves the selection highlight stuck on.
+  useEffect(() => {
+    if (dragStart === null) return;
+    const reset = () => {
+      setDragStart(null);
+      setDragCurrent(null);
+    };
+    window.addEventListener("mouseup", reset);
+    return () => window.removeEventListener("mouseup", reset);
+  }, [dragStart]);
+
   const handleRailEnter = (run: RevisionRun, el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
     setRailHover({ run, pos: { top: rect.top, left: rect.right + 8 } });

@@ -43,7 +43,11 @@ export function EvidenceModal({
 
   const linkedCommentDisabled = kind === "linked-comment" && !commentId;
   return (
-    <Modal open={Boolean(target)} boxClassName={styles["wideBox"]}>
+    <Modal
+      open={Boolean(target)}
+      boxClassName={styles["wideBox"]}
+      close={cancel}
+    >
       <h3>Address risk with evidence</h3>
       <div className={styles["target"]}>{target?.label}</div>
       <div className={styles["evidenceOptions"]}>

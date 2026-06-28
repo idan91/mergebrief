@@ -26,7 +26,7 @@ export function PreSubmitModal({
       ? "Continue to self-review summary"
       : "Continue to receipt";
   return (
-    <Modal open={open} boxClassName={styles["wideBox"]}>
+    <Modal open={open} boxClassName={styles["wideBox"]} close={close}>
       <h3>{title}</h3>
       <p className={styles["copy"]}>
         This is advisory. You can continue, but the summary will show unresolved

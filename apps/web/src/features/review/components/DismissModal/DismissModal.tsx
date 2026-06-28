@@ -24,7 +24,7 @@ export function DismissModal({
   setReason,
 }: DismissModalProps) {
   return (
-    <Modal open={Boolean(target)}>
+    <Modal open={Boolean(target)} close={cancel}>
       <h3>Dismiss flag</h3>
       <div className={styles["target"]}>{target?.label}</div>
       <textarea

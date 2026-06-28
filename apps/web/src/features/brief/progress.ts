@@ -18,9 +18,13 @@ export function summarizeProgress(
   reviewedChunks: Set<string>,
   dispositions: Record<string, Disposition>,
 ): ProgressTotals {
-  const flagsResolved = Object.values(dispositions).filter(
-    (disposition) => disposition.kind !== "open",
-  ).length;
+  // Key by the brief's current flags (not every disposition in the map) so a
+  // persisted snapshot carrying flags no longer in this brief can't inflate the
+  // count past flagTotal. Mirrors riskDispositionCounts.
+  const flagsResolved = model.flags.filter((flag) => {
+    const disposition = dispositions[flag.id];
+    return disposition != null && disposition.kind !== "open";
+  }).length;
 
   return {
     playbookChecked: 0,

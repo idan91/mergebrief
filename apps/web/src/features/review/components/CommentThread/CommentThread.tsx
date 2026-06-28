@@ -77,7 +77,15 @@ export function CommentThread({
         <MarkdownPreview anchor={comment.anchor} body={comment.body} />
       )}
       <div className={styles["threadActions"]}>
-        <button type="button" onClick={() => setEditing(true)}>
+        <button
+          type="button"
+          onClick={() => {
+            // Seed the editor from the current comment each time, so an edit
+            // never opens on a stale body if it changed since mount.
+            setBody(comment.body);
+            setEditing(true);
+          }}
+        >
           Edit
         </button>
         <button type="button" onClick={() => toggle(comment.id)}>
