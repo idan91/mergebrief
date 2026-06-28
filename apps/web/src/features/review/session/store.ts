@@ -6,12 +6,19 @@ import type { ReviewComment } from "../comments";
 import type { ReviewOutcome, RiskEvidence } from "../state";
 import type { BulkDisposition, Disposition } from "./disposition";
 
-/** Playbook progress bucket: one per carrier group, or per support concern. */
+/**
+ * @description Playbook progress bucket: one per carrier group, or per support concern.
+ */
 export type CheckBucket = `carrier:${string}` | `support:${string}:${Concern}`;
 
-/** Session/domain state of the Mind-Map Space — the shared, persisted half. */
+/**
+ * @description Session/domain state of the Mind-Map Space — the shared, persisted half.
+ */
 export interface MindMapState {
-  /** key = brief-local flag.id — TODO(adr-0022): → region@SHA */
+  /**
+   * @description Keyed by brief-local `flag.id`.
+   * TODO(adr-0022): move to region@SHA.
+   */
   dispositions: Record<string, Disposition>;
   dominants: Record<string, Category>;
   reclassifiedGroups: Set<string>;
@@ -22,23 +29,33 @@ export interface MindMapState {
 }
 
 export interface MindMapActions {
-  /** Toggle chunk membership in the reviewed set (collapse-on-review is wired
-   *  in the component — see briefs route handler). */
+  /**
+   * @description Toggle chunk membership in the reviewed set.
+   * Collapse-on-review is wired in the component; see briefs route handler.
+   */
   reviewChunk(chunkId: string): void;
-  /** open/dismissed share one payload across the batch — genuinely bulk. */
+  /**
+   * @description Open/dismissed dispositions share one payload across the batch.
+   */
   disposeFlag(flagIds: string[], disposition: BulkDisposition): void;
-  /** addressed derives evidence PER flag, so it takes a resolver, not a value. */
+  /**
+   * @description Addressed dispositions derive evidence per flag, so they take a resolver.
+   */
   addressFlags(
     flagIds: string[],
     evidenceFor: (flagId: string) => RiskEvidence,
   ): void;
-  /** Sets the dominant, marks the group reclassified, resets its carrier checks. */
+  /**
+   * @description Sets the dominant category, marks the group reclassified, and resets carrier checks.
+   */
   reclassifyGroup(groupId: string, category: Category): void;
   checkPlaybookItem(bucket: CheckBucket, index: number): void;
   saveComment(comment: ReviewComment): void;
   updateComment(id: string, body: string): void;
   deleteComment(id: string): void;
-  /** Toggle a draft comment's collapsed flag (part of its persisted lifecycle). */
+  /**
+   * @description Toggles a draft comment's collapsed flag as part of its persisted lifecycle.
+   */
   toggleComment(id: string): void;
   setOutcome(outcome: ReviewOutcome): void;
 }

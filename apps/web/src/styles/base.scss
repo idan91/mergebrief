@@ -1,14 +1,3 @@
-@use "tokens";
-@layer tokens, base, layout, components;
-
-@layer tokens {
-  @property --progress-width {
-    inherits: false;
-    initial-value: 0%;
-    syntax: "<percentage>";
-  }
-}
-
 @layer base {
   * {
     box-sizing: border-box;

@@ -29,7 +29,10 @@ const PERSIST_DEBOUNCE_MS = 250;
 interface MindMapProviderProps {
   briefId: string;
   model: BriefViewModel;
-  /** Explicit snapshot injection (tests / summary route); otherwise storage. */
+  /**
+   * @description Explicit snapshot injection for tests and summary routes.
+   * Otherwise, the provider reads from storage.
+   */
   snapshot?: SessionSnapshot;
   children: ReactNode;
 }

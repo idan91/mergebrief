@@ -3,7 +3,9 @@ import styles from "./Drawer.module.scss";
 
 export interface DrawerProps {
   open: boolean;
-  /** Accessible label for the scrim close button. */
+  /**
+   * @description Accessible label for the scrim close button.
+   */
   closeLabel: string;
   close: () => void;
   asideClassName: string | undefined;

@@ -151,7 +151,7 @@
     transition: inline-size 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
-  @container header (max-width: 980px) {
+  @media (width <= 1120px) {
     .header {
       min-block-size: 60px;
       padding-block: 0;
@@ -159,6 +159,22 @@
 
     .progressBar {
       inset-block-start: 60px;
+    }
+  }
+
+  @media (width <= 880px) {
+    .header {
+      align-items: flex-start;
+      min-block-size: 60px;
+      flex-wrap: wrap;
+      padding-block: 12px;
+      padding-inline: 18px;
+    }
+
+    .stats {
+      order: 3;
+      inline-size: 100%;
+      justify-content: space-between;
     }
   }
 }

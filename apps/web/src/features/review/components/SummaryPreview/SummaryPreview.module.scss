@@ -176,4 +176,25 @@
       font-size: 12px;
     }
   }
+
+  @media (width <= 880px) {
+    .head,
+    .row {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .badge {
+      align-self: flex-start;
+    }
+
+    .grid,
+    .metrics {
+      grid-template-columns: 1fr;
+    }
+
+    .outcomePick {
+      flex-wrap: wrap;
+    }
+  }
 }

@@ -20,16 +20,24 @@ import {
 export interface ReceiptAddressedFlag {
   attr: string;
   file: string;
-  /** Resolved per-flag evidence, when present (addressed-pending-evidence omits it). */
+  /**
+   * @description Resolved per-flag evidence, when present.
+   * `addressed-pending-evidence` omits it.
+   */
   evidence?: RiskEvidence;
-  /** Shared human label for the evidence; consumers supply their own empty fallback. */
+  /**
+   * @description Shared human label for the evidence.
+   * Consumers supply their own empty fallback.
+   */
   evidenceLabel?: string;
 }
 
 export interface ReceiptDismissedFlag {
   attr: string;
   file: string;
-  /** The reviewer's reason, verbatim. */
+  /**
+   * @description The reviewer's reason, verbatim.
+   */
   reason: string;
 }
 
