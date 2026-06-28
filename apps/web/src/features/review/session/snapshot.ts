@@ -173,9 +173,16 @@ export function readSnapshot(briefId: string): SessionSnapshot | undefined {
 export function writeSnapshot(snapshot: SessionSnapshot): void {
   if (typeof window === "undefined") return;
   const map = readSnapshotMap();
+  // Re-insert as the newest key (delete-then-set) so eviction is true LRU:
+  // re-writing a brief refreshes its recency instead of leaving it stale.
+  delete map[snapshot.briefId];
   map[snapshot.briefId] = snapshot;
-  const ids = Object.keys(map);
-  if (ids.length > MAX_SNAPSHOTS && ids[0]) delete map[ids[0]];
+  // Evict oldest-first until back under the cap (handles >1 over in one pass).
+  let ids = Object.keys(map);
+  while (ids.length > MAX_SNAPSHOTS && ids[0]) {
+    delete map[ids[0]];
+    ids = Object.keys(map);
+  }
   window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(map));
 }
 

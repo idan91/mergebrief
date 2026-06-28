@@ -58,6 +58,11 @@ export interface MindMapActions {
    */
   toggleComment(id: string): void;
   setOutcome(outcome: ReviewOutcome): void;
+  /**
+   * @description Resets the whole session to a fresh state (the "Clear local
+   * drafts" action), so the live store matches the now-empty storage.
+   */
+  reset(state: MindMapState): void;
 }
 
 export interface MindMapStoreValue extends MindMapState {
@@ -174,6 +179,9 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
       },
       setOutcome(outcome) {
         set({ reviewOutcome: outcome });
+      },
+      reset(next) {
+        set(next);
       },
     },
   }));

@@ -5,7 +5,7 @@ import { Drawer } from "../../../../components/Drawer/Drawer";
 import { Markdown } from "../../../../components/Markdown/Markdown";
 import { useLocalPreference } from "../../../../hooks/useLocalPreference";
 import { useScrollSpy } from "../../../../hooks/useScrollSpy";
-import type { CommentAnchor } from "../../../review/comments";
+import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import {
   DismissModal,
   type DismissTarget,
@@ -20,6 +20,7 @@ import { SummaryPreview } from "../../../review/components/SummaryPreview/Summar
 import { buildReceipt } from "../../../review/receipt";
 import {
   clearSnapshots,
+  deriveInitialState,
   MindMapProvider,
   serializeSnapshot,
   useMindMap,
@@ -50,6 +51,22 @@ import { Header } from "../Header/Header";
 import { StoryView } from "../StoryView/StoryView";
 import { Toolbar, type LayoutMode, type ViewMode } from "../Toolbar/Toolbar";
 import styles from "./BriefPage.module.scss";
+
+/**
+ * Comment id unique against the current list — probes for a free suffix rather
+ * than deriving one from `length` (which collides after a delete) and needs no
+ * secure context the way `crypto.randomUUID()` would.
+ */
+function getUniqueCommentId(
+  anchor: CommentAnchor,
+  existing: ReviewComment[],
+): string {
+  const base = `${anchor.chunkId}-${anchor.side}-${anchor.startLine}-${anchor.endLine}`;
+  const taken = new Set(existing.map((comment) => comment.id));
+  let n = 1;
+  while (taken.has(`${base}-${n}`)) n += 1;
+  return `${base}-${n}`;
+}
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
@@ -363,7 +380,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
       return;
     }
     actions.saveComment({
-      id: `${anchor.chunkId}-${anchor.side}-${anchor.startLine}-${anchor.endLine}-${reviewComments.length + 1}`,
+      id: getUniqueCommentId(anchor, reviewComments),
       anchor,
       body: trimmed,
       status: "draft",
@@ -401,7 +418,10 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         reviewMode={reviewMode}
         setLocOpen={setLocOpen}
         openReceipt={() => setPreSubmitOpen(true)}
-        clearDrafts={clearSnapshots}
+        clearDrafts={() => {
+          clearSnapshots();
+          actions.reset(deriveInitialState(model));
+        }}
       />
       <main
         className={

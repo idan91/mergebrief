@@ -70,7 +70,12 @@ export function MindMapProvider({
       );
     });
     return () => {
-      window.clearTimeout(timer);
+      // Flush a pending debounced write so a last edit just before unmount
+      // (e.g. switching briefs, which remounts the provider) isn't dropped.
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        writeSnapshot(serializeSnapshot(briefId, store.getState()));
+      }
       unsubscribe();
     };
   }, [briefId, store]);

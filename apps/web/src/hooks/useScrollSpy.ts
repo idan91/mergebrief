@@ -18,7 +18,7 @@ export function useScrollSpy(ids: string[], offset = 150): string | null {
         const rect = element.getBoundingClientRect();
         return rect.top <= offset && rect.bottom > offset;
       });
-      if (current) setActiveId(current);
+      setActiveId(current ?? null);
     };
     window.addEventListener("scroll", update, { passive: true });
     update();
