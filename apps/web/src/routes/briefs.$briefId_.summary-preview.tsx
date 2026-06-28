@@ -8,8 +8,19 @@ import { buildBriefViewModel } from "../features/brief/viewModel";
 import { SummaryPreview } from "../features/review/components/SummaryPreview/SummaryPreview";
 import type { Disposition } from "../features/review/session";
 import { readSnapshot, type SessionSnapshot } from "../features/review/session";
+import type { ReviewMode } from "../features/review/state";
+
+interface SummaryPreviewSearch {
+  mode: ReviewMode;
+}
 
 export const Route = createFileRoute("/briefs/$briefId_/summary-preview")({
+  // reviewMode is transient (not persisted); the in-app "Summary preview" link
+  // carries it through as a search param so this cross-route preview keeps the
+  // author-vs-reviewer framing.
+  validateSearch: (search: Record<string, unknown>): SummaryPreviewSearch => ({
+    mode: search["mode"] === "author" ? "author" : "reviewer",
+  }),
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(localBriefQueryOptions(params.briefId)),
   component: SummaryPreviewRoute,
@@ -17,6 +28,7 @@ export const Route = createFileRoute("/briefs/$briefId_/summary-preview")({
 
 function SummaryPreviewRoute() {
   const { briefId } = Route.useParams();
+  const { mode } = Route.useSearch();
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
   // Storage is client-only; start from the empty snapshot (matching SSR) and
   // hydrate the persisted one on mount.
@@ -29,7 +41,7 @@ function SummaryPreviewRoute() {
 
   return (
     <>
-      <SummaryPreview brief={brief} snapshot={snapshot} />
+      <SummaryPreview brief={brief} mode={mode} snapshot={snapshot} />
       <Link className="summary-back" params={{ briefId }} to="/briefs/$briefId">
         Back to review
       </Link>

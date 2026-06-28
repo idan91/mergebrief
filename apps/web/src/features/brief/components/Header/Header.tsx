@@ -96,6 +96,7 @@ export function Header({
       <Link
         className="btn"
         params={{ briefId }}
+        search={{ mode: reviewMode }}
         to="/briefs/$briefId/summary-preview"
       >
         Summary preview
