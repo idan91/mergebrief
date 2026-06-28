@@ -1,5 +1,59 @@
 # TODO
 
+## [ ] Virtualize `DiffTable` row rendering
+
+`DiffTable.tsx` renders every diff line as a `<tr>` (plus extra rows per comment/composer)
+with no windowing. Large chunks / many-file briefs blow up the DOM node count and make
+scroll + initial render janky. No diff library handles this for us (custom row model +
+HTML `<table>`), so virtualization is ours to add.
+
+### Constraints (why this isn't a drop-in)
+- Rows are heterogeneous, variable height: `hunk`/`note` rows, code rows, and dynamically
+  injected comment-thread / composer / addressed-comment rows under a line.
+- Comment anchoring drives selection by row index (`createCommentAnchor`, `rangeBetween`),
+  and drag-select spans rows — virtualization must preserve correct indexes for off-screen
+  rows and not break range selection across the viewport boundary.
+- Revision overlay gutter (`RevisionGutterCell`) + `DeltaCallout` position off
+  `getBoundingClientRect`; need stable measurement under windowing.
+- Semantic `<table>` markup + a11y (keyboard row focus, `tabIndex`) must survive.
+
+### Why not a diff library (`diff2html` / `react-diff-viewer`)
+- `diff2html` (diff2html.com) renders a diff but does **not** support inline comments or the
+  revision overlay — both are the core product here. It also has **no virtualization** and
+  emits one big HTML blob; to window it you'd parse its output back into rows and re-render
+  yourself, i.e. rebuild the row model we already have. Switching buys nothing for perf.
+- The hand-rolled typed row model (`DiffLine[]` + `revisionChanges.ts` row joins +
+  index-based comment anchoring) is the asset. Rendering is the cheap part. Keep it; the
+  virtualization work below is identical regardless of which renderer we'd use.
+
+### Likely approach
+- `@tanstack/react-virtual` (already on TanStack stack) with dynamic row measurement
+  (`measureElement` — heights vary: hunk/note vs code vs comment thread).
+- **Flatten first.** Build one flat array where code rows AND their attached
+  composer/thread/addressed rows are siblings in a single index space. The virtualizer
+  needs one flat list; don't nest. Off-screen rows aren't rendered, so range selection
+  must compute on the data array, not the DOM — `rangeBetween` is already pure; keep
+  anchoring index math off the DOM.
+- **`<table>` is the friction, not the virtualizer.** react-virtual positions rows via
+  `transform`, which `<tbody>` doesn't honor cleanly. Two options:
+  - spacer `<tr>` top + bottom to offset the window — keeps table semantics, mild hack; or
+  - drop the table → CSS grid rows — cleaner end state, but rewrites markup and the a11y
+    row-focus (`tabIndex`) handling. Grid is the less-hacky target if we're touching it.
+- Gate behind a row-count threshold so small diffs stay non-virtualized (simpler, no
+  measurement cost).
+
+> Verdict from review: not wonky/hacky *if* we flatten the row list and accept either
+> spacer-rows or the grid swap. The hard part (heterogeneous rows + index anchoring) is
+> ours either way and unavoidable; no diff lib would save a step.
+
+### Verification
+- Characterization suite (`src/characterization/briefScreen.test.tsx`) stays green.
+- Drag-select across the fold, comment anchoring, and revision overlay positioning all
+  still correct.
+- Perf check: large synthetic diff, compare DOM node count + scroll FPS before/after.
+
+---
+
 ## [ ] Migrate `apps/web` to SCSS modules (global + component layers)
 
 Adopt the SCSS architecture proven in `~/Projects/Code/flexer` (layered global `styles/`
