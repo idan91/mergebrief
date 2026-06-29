@@ -46,6 +46,7 @@ import { buildBriefViewModel, type RiskFlag } from "../../viewModel";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { DemoControls } from "../DemoControls/DemoControls";
+import { GroupTocBar } from "../GroupTocBar/GroupTocBar";
 import { Header, type LayoutMode, type ViewMode } from "../Header/Header";
 import { StoryView } from "../StoryView/StoryView";
 import styles from "./BriefPage.module.scss";
@@ -304,6 +305,21 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     );
   }, []);
 
+  // The TOC bar jumps by Change-group; land on the group's first chunk.
+  const jumpToGroup = useCallback(
+    (groupId: string) => {
+      const group = model.groups.find((candidate) => candidate.id === groupId);
+      const target = group?.chunks[0];
+      if (target) jumpToChunk(target.id);
+    },
+    [jumpToChunk, model.groups],
+  );
+
+  // Active group derived from the active chunk — no second scroll listener.
+  const activeGroupId = activeChunkId
+    ? (model.chunkToGroup.get(activeChunkId) ?? null)
+    : null;
+
   const clearSelection = useCallback((flagIds: string[]) => {
     setSelectedRiskFlags((current) => {
       const next = new Set(current);
@@ -496,6 +512,14 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         </section>
 
         <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
+
+        {viewMode === "story" ? (
+          <GroupTocBar
+            activeGroupId={activeGroupId}
+            groups={model.groups}
+            jumpToGroup={jumpToGroup}
+          />
+        ) : null}
 
         {viewMode === "story" ? (
           <StoryView
