@@ -64,17 +64,6 @@
     }
   }
 
-  .srOnly {
-    position: absolute;
-    inline-size: 1px;
-    block-size: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
   // Compact callout, portalled to body, positioned just left of the bar.
   .callout {
     position: fixed;

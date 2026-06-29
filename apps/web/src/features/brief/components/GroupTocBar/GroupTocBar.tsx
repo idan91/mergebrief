@@ -130,6 +130,7 @@ export function GroupTocBar({
               else lineRefs.current.delete(group.id);
             }}
             aria-current={group.id === activeGroupId ? "true" : undefined}
+            aria-label={name}
             className={styles["line"]}
             data-active={group.id === activeGroupId ? "true" : undefined}
             title={name}
@@ -140,9 +141,7 @@ export function GroupTocBar({
             onPointerEnter={(event) =>
               showCallout(group.id, event.currentTarget)
             }
-          >
-            <span className={styles["srOnly"]}>{name}</span>
-          </button>
+          />
         );
       })}
       {callout && calloutGroup
