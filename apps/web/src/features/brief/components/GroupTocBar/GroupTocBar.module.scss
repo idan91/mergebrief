@@ -30,13 +30,17 @@
   .line {
     --mag: 0;
 
-    inline-size: calc(18px + (var(--mag) * 22px));
+    inline-size: calc(16px + (var(--mag) * 38px));
     block-size: 4px;
     padding: 0;
     border: 0;
     border-radius: 2px;
-    background: var(--faint);
-    opacity: calc(0.4 + (var(--mag) * 0.6));
+    background: color-mix(
+      in srgb,
+      var(--text) calc(var(--mag) * 100%),
+      var(--faint)
+    );
+    opacity: calc(0.3 + (var(--mag) * 0.7));
     cursor: pointer;
     transition:
       inline-size 60ms ease,

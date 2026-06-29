@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { categoryLabel } from "../../viewModel";
@@ -20,7 +20,7 @@ interface CalloutState {
 // Feathered magnification, macOS-dock style: a line's scale falls off with its
 // vertical distance from the pointer. ~36px ≈ a couple of neighbours at the
 // current line spacing. Returned scale is in [0, 1].
-const MAG_SIGMA = 36;
+const MAG_SIGMA = 24;
 
 function magnitudeAt(distance: number): number {
   return Math.exp(-((distance / MAG_SIGMA) ** 2));
@@ -49,7 +49,7 @@ export function GroupTocBar({
   const frameRef = useRef<number | null>(null);
   const [callout, setCallout] = useState<CalloutState | null>(null);
 
-  const setMagFromPointer = useCallback((pointerY: number | null) => {
+  const setMagFromPointer = (pointerY: number | null) => {
     const lines = [...lineRefs.current.values()];
     if (pointerY === null) {
       for (const line of lines) line.style.setProperty("--mag", "0");
@@ -68,38 +68,35 @@ export function GroupTocBar({
         magnitudeAt(Math.abs(center - pointerY)).toFixed(3),
       );
     });
-  }, []);
+  };
 
-  const handlePointerMove = useCallback(
-    (event: React.PointerEvent<HTMLElement>) => {
-      if (prefersReducedMotion()) return;
-      const pointerY = event.clientY;
-      if (frameRef.current !== null) return;
-      frameRef.current = window.requestAnimationFrame(() => {
-        frameRef.current = null;
-        setMagFromPointer(pointerY);
-      });
-    },
-    [setMagFromPointer],
-  );
+  const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (prefersReducedMotion()) return;
+    const pointerY = event.clientY;
+    if (frameRef.current !== null) return;
+    frameRef.current = window.requestAnimationFrame(() => {
+      frameRef.current = null;
+      setMagFromPointer(pointerY);
+    });
+  };
 
-  const handlePointerLeave = useCallback(() => {
+  const handlePointerLeave = () => {
     if (frameRef.current !== null) {
       window.cancelAnimationFrame(frameRef.current);
       frameRef.current = null;
     }
     setMagFromPointer(null);
     setCallout(null);
-  }, [setMagFromPointer]);
+  };
 
-  const showCallout = useCallback((groupId: string, line: HTMLElement) => {
+  const showCallout = (groupId: string, line: HTMLElement) => {
     const rect = line.getBoundingClientRect();
     setCallout({
       groupId,
       top: rect.top + rect.height / 2,
       right: window.innerWidth - rect.left + 12,
     });
-  }, []);
+  };
 
   useEffect(() => {
     return () => {
