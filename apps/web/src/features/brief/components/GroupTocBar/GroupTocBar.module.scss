@@ -10,7 +10,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end; // lines grow leftward into the gutter
-    gap: 9px;
+    gap: 14px;
     padding-block: 14px;
     padding-inline: 14px 10px;
     border-start-start-radius: 12px;
@@ -31,7 +31,7 @@
     --mag: 0;
 
     inline-size: calc(18px + (var(--mag) * 22px));
-    block-size: 2px;
+    block-size: 4px;
     padding: 0;
     border: 0;
     border-radius: 2px;
@@ -39,9 +39,9 @@
     opacity: calc(0.4 + (var(--mag) * 0.6));
     cursor: pointer;
     transition:
-      inline-size 120ms ease,
-      opacity 120ms ease,
-      background-color 120ms ease;
+      inline-size 60ms ease,
+      opacity 60ms ease,
+      background-color 60ms ease;
 
     // Larger invisible hit area without changing the visual line.
     &::before {
