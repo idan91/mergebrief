@@ -1,0 +1,117 @@
+@layer components {
+  // Right-edge TOC bar. Fixed to the viewport gutter, vertically centred.
+  // Frosted-glass fill so it blends into the gutter but stays legible if a
+  // content column ever slides under it.
+  .bar {
+    position: fixed;
+    inset-block-start: 50%;
+    inset-inline-end: 0;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end; // lines grow leftward into the gutter
+    gap: 14px;
+    padding-block: 14px;
+    padding-inline: 14px 10px;
+    border-start-start-radius: 12px;
+    border-end-start-radius: 12px;
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    backdrop-filter: blur(8px);
+    transform: translateY(-50%);
+
+    @media (width <= 1120px) {
+      display: none; // no room beside the narrow layout
+    }
+  }
+
+  // One horizontal line per Change-group. `--mag` (0..1) is written by the
+  // component on pointer-move; width + opacity feather with it. Right-anchored
+  // so growth extends into the gutter.
+  .line {
+    --mag: 0;
+
+    inline-size: calc(16px + (var(--mag) * 38px));
+    block-size: 4px;
+    padding: 0;
+    border: 0;
+    border-radius: 2px;
+    background: color-mix(
+      in srgb,
+      var(--text) calc(var(--mag) * 100%),
+      var(--faint)
+    );
+    opacity: calc(0.3 + (var(--mag) * 0.7));
+    cursor: pointer;
+    transition:
+      inline-size 60ms ease,
+      opacity 60ms ease,
+      background-color 60ms ease;
+
+    // Larger invisible hit area without changing the visual line.
+    &::before {
+      position: absolute;
+      inset-block: -4px;
+      inset-inline: -6px;
+      content: "";
+    }
+
+    position: relative;
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 3px;
+    }
+
+    &[data-active="true"] {
+      background: var(--color-accent);
+      opacity: 1;
+    }
+  }
+
+  // Compact callout, portalled to body, positioned just left of the bar.
+  .callout {
+    position: fixed;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    max-inline-size: 280px;
+    padding: 8px 11px;
+    border: 1px solid var(--line2);
+    border-radius: 9px;
+    background: #15151a;
+    box-shadow: 0 12px 32px rgb(0 0 0 / 50%);
+    font-family: var(--sans);
+    pointer-events: none;
+    transform: translateY(-50%);
+  }
+
+  .calloutEyebrow {
+    color: var(--blue);
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .calloutName {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .line {
+      inline-size: 18px; // ignore --mag; static lines
+      opacity: 0.55;
+      transition: none;
+
+      &[data-active="true"] {
+        opacity: 1;
+      }
+    }
+  }
+}
