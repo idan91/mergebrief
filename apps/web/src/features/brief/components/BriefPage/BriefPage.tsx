@@ -46,9 +46,8 @@ import { buildBriefViewModel, type RiskFlag } from "../../viewModel";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { DemoControls } from "../DemoControls/DemoControls";
-import { Header } from "../Header/Header";
+import { Header, type LayoutMode, type ViewMode } from "../Header/Header";
 import { StoryView } from "../StoryView/StoryView";
-import { Toolbar, type LayoutMode, type ViewMode } from "../Toolbar/Toolbar";
 import styles from "./BriefPage.module.scss";
 
 export interface BriefPageProps {
@@ -448,6 +447,8 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         progress={progress}
         locOpen={locOpen}
         reviewMode={reviewMode}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
         setLocOpen={setLocOpen}
         openReceipt={openPreSubmit}
         clearDrafts={clearDrafts}
@@ -495,8 +496,6 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         </section>
 
         <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
-
-        <Toolbar viewMode={viewMode} setViewMode={setViewMode} />
 
         {viewMode === "story" ? (
           <StoryView

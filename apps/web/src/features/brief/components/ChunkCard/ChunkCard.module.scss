@@ -5,7 +5,6 @@
     border: 1px solid var(--line);
     border-radius: 10px;
     background: var(--panel2);
-    container: chunk-card / inline-size;
 
     &[data-current] {
       border-color: #41414c;
@@ -27,7 +26,7 @@
 
   .head {
     position: sticky;
-    inset-block-start: 60px;
+    inset-block-start: var(--top-bar-h);
     z-index: 10;
     display: flex;
     inline-size: 100%;
@@ -162,7 +161,7 @@
     }
   }
 
-  @container chunk-card (max-width: 720px) {
+  @media (width <= 760px) {
     .head {
       align-items: flex-start;
     }

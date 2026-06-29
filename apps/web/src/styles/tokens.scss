@@ -43,6 +43,15 @@
     --color-on-primary: #0a0a0c;
     --focus-ring: var(--blue);
 
+    // Height of the sticky page header; sticky chunk headers pin just below it.
+    --top-bar-h: 116px;
+
     color-scheme: dark light;
+  }
+
+  @media (width <= 1120px) {
+    :root {
+      --top-bar-h: 60px;
+    }
   }
 }

@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 
 import type { ReviewMode } from "../../../review/state";
 import type { ProgressTotals } from "../../progress";
@@ -8,6 +8,9 @@ import type { Brief } from "../../types";
 import type { BriefViewModel } from "../../viewModel";
 import { TimelineNavigator } from "../TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
+
+export type ViewMode = "story" | "concerns";
+export type LayoutMode = "stacked" | "split";
 
 export interface HeaderProps {
   brief: Brief;
@@ -18,6 +21,8 @@ export interface HeaderProps {
   progress: number;
   locOpen: boolean;
   reviewMode: ReviewMode;
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
   setLocOpen: (value: boolean) => void;
   openReceipt: () => void;
   clearDrafts: () => void;
@@ -32,17 +37,37 @@ export function Header({
   progress,
   locOpen,
   reviewMode,
+  viewMode,
+  setViewMode,
   setLocOpen,
   openReceipt,
   clearDrafts,
 }: HeaderProps) {
+  const headerRef = useRef<HTMLElement>(null);
+  // The header height is content-driven (title length, meta lines, viewport),
+  // so publish the measured height as --top-bar-h. Sticky chunk headers and the
+  // progress bar pin to that, staying flush with the header's bottom edge.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const apply = () =>
+      document.documentElement.style.setProperty(
+        "--top-bar-h",
+        `${el.offsetHeight}px`,
+      );
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   const progressStyle: ProgressBarStyle = {
     "--progress-width": `${progress}%`,
   };
   const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
 
   return (
-    <header className={styles["header"]}>
+    <header className={styles["header"]} ref={headerRef}>
       <div className={styles["wordmark"]}>
         Brief<span> / review</span>
       </div>
@@ -69,6 +94,31 @@ export function Header({
         ) : null}
       </div>
       <TimelineNavigator briefId={briefId} timeline={timeline} />
+      <fieldset className={styles["viewbar"]}>
+        <legend className="sr-only">Review view</legend>
+        <label className={styles["viewOption"]}>
+          <input
+            checked={viewMode === "story"}
+            className={styles["viewControl"]}
+            name="review-view"
+            type="radio"
+            value="story"
+            onChange={() => setViewMode("story")}
+          />
+          <span className={styles["viewLabel"]}>Story</span>
+        </label>
+        <label className={styles["viewOption"]}>
+          <input
+            checked={viewMode === "concerns"}
+            className={styles["viewControl"]}
+            name="review-view"
+            type="radio"
+            value="concerns"
+            onChange={() => setViewMode("concerns")}
+          />
+          <span className={styles["viewLabel"]}>Concerns</span>
+        </label>
+      </fieldset>
       <div className={styles["stats"]}>
         <button
           className={`stat ${styles["stat"]} ${styles["locBadge"]}`}
