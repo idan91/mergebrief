@@ -95,7 +95,10 @@ export const ChunkCard = memo(function ChunkCard({
           <span className={styles["file"]}>{chunk.file}</span>
           <span className={styles["chips"]}>
             {chunk.riskSurface.map((risk) => (
-              <span className={`${styles["chip"]} ${styles["risk"]}`} key={risk}>
+              <span
+                className={`${styles["chip"]} ${styles["risk"]}`}
+                key={risk}
+              >
                 {risk}
               </span>
             ))}
