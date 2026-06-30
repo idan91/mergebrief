@@ -49,36 +49,69 @@ tokens / routes / `BriefPage` / `Header` / base styles. Rubrics: `impeccable` cr
 
 Tags: `[copy]` `[design]` `[a11y]` `[brand]` `[kbd]`. A11y items cite the WCAG criterion.
 
-- [ ] **1. Rewrite the front-door copy** `[copy]` — kill author-facing jargon ("Local
-  categorizer output", "Each generated output in tools/categorizer/out gets its own route and
-  cache key"). Lead with what the tool *is* + the taxonomy/playbook edge. *Biggest single P1
-  miss: the front door currently talks to the author, not a visitor.*
-- [ ] **2. Hero / "what is this" framing + real empty state** `[design]` — one-line value prop;
-  a no-key "look at a demo brief" CTA so a stranger sees value with zero setup. Today `/` is a
-  bare file-picker that assumes you know what a "brief" is.
-- [ ] **3. Fix `--faint` text contrast** `[a11y]` WCAG 1.4.3 AA — `#62626b` on `#0a0a0c` ≈
-  **3.28:1**, fails 4.5:1 for normal text. Used for the front-door copy paragraph + eyebrow +
-  meta lines (`.faint` class is systemic). Lighten the token (or restrict `--faint` to
-  large/non-text use). `--dim #9a9aa3` ≈ 7:1 already passes — fine.
-- [ ] **4. Skip-to-content link** `[a11y]` WCAG 2.4.1 — none exists; the dense header makes
-  keyboard users tab forever. First focusable, on both routes. (`<main id="brief-content">` is
-  focused on mount but there is no visible skip control.)
-- [ ] **5. Toast → live region** `[a11y]` WCAG 4.1.3 — the toast is a plain `<div data-state>`
-  (`BriefPage.tsx`); status messages ("Dismissed.", "Draft comment added.") are silent to
-  screen readers. Add `role="status"` / `role="alert"` + `aria-live` (see `web-accessibility`
-  Toast pattern). The empty `aria-live` span in `TimelineNavigator` should also actually carry text.
-- [ ] **6. Brief page needs an `<h1>`** `[a11y]` WCAG 1.3.1 — the PR title is a `<div>`
-  (`Header.tsx`); the page's first heading is `h2` ("Overview"). Promote the PR title to the
-  single page `h1`.
-- [ ] **7. Favicon + `<title>` / OG meta** `[brand]` — favicon 404s today; shared links need an
-  OG card + favicon (the README/demo link is "the thing people share").
-- [ ] **8. Keyboard nav + focus mode** `[kbd]` `[a11y]` — `J`/`K` next/prev chunk (and groups
-  once P2 lands), `Z` focus/zen mode isolating the current unit, `?` shortcuts hint. Reuse the
-  existing scroll-spy / active-id machinery + group TOC. Respect `prefers-reduced-motion`; don't
-  hijack keys while a comment composer / input is focused. (Apply `web-accessibility` at build.)
-- [ ] **9. P2 scope-check (read-only)** — confirm whether any explicit reasoned-sequence
-  ordering of groups exists (current order is likely structural). Output feeds the demo framing;
-  no build here. (Pulled forward from P2.)
+- [x] **1. Rewrite the front-door copy** `[copy]` — **done 2026-06-30.** Picker (`routes/index.tsx`)
+  now leads with "Turn a PR into a Brief", exact `CONTEXT.md` vocabulary (Change-group, Playbook,
+  Risk Surface, "facts worth a closer look, never a verdict"), and three differentiator pillars
+  (taxonomy, BYOK/no-telemetry, open Playbooks). Killed the author-facing jargon.
+- [x] **2. Hero / "what is this" framing + real empty state** `[design]` — **done 2026-06-30.**
+  Eyebrow + h1 + value-prop paragraph + pillars above the form; empty state (`briefs.length === 0`)
+  rewritten as a real onboarding callout (paste-a-URL or `pnpm categorize` CLI fallback) instead of
+  "No local brief outputs found." *(No in-app "demo brief" CTA — see item 11's resolution: the
+  no-key look-before-install path is the external static demo, not a flag on local data.)*
+- [x] **3. Fix `--faint` text contrast** `[a11y]` WCAG 1.4.3 AA — **done 2026-06-30.** `--faint`
+  relit from `#62626b` (3.28:1, fails AA) to `#8a8a93` (~5.8:1, passes with margin for the top
+  radial glow). `styles/tokens.scss`.
+- [x] **4. Skip-to-content link** `[a11y]` WCAG 2.4.1 — **done 2026-06-30.** First focusable
+  element in `__root.tsx`, targets a shared `#main-content` id now used by both the picker and
+  brief `<main>` landmarks.
+- [x] **5. Toast → live region** `[a11y]` WCAG 4.1.3 — **done 2026-06-30.** `BriefPage` toast got
+  `role="status"` + `aria-live="polite"` + `aria-atomic`.
+- [x] **6. Brief page needs an `<h1>`** `[a11y]` WCAG 1.3.1 — **done 2026-06-30.** PR title
+  promoted from `<div>` to `<h1>` in `Header.tsx`; `.title`'s own `font-size` rule means no visual
+  change.
+- [x] **7. Favicon + `<title>` / OG meta** `[brand]` — **done 2026-06-30.** SVG favicon
+  (`public/favicon.svg`) + description/OG/twitter-card meta in `__root.tsx`.
+- [x] **8. Keyboard nav + focus mode** `[kbd]` `[a11y]` — **done 2026-06-30.** `J`/`K` step
+  through `brief.chunks` document order via `jumpToChunk`; `Z` toggles focus mode (`data-zen` on
+  `StoryView` + a `:has()`-based CSS rule in `base.scss` isolating the group/chunk carrying
+  `data-current`); `?` opens a `ShortcutsModal`; `Esc` closes the modal first, then exits focus
+  mode. Stands down while typing or while any drawer/modal/composer holds state. Respects
+  `prefers-reduced-motion` (instant scroll). Verified live via Playwright (J/J, Z, ?, Esc×2).
+- [x] **9. P2 scope-check (read-only)** — **done 2026-06-30. Result: ordering is structural,
+  not narrative.** `buildBriefViewModel` renders groups in `brief.changeGroups` emission order;
+  within a group, chunks sort by role (carrier→supporting) then `CONCERN_ORDER`
+  (impl→test→doc→spec→config→generated). No dependency / reasoned-reading-order sequence across
+  groups exists — confirms P2's premise. **Framing rule:** copy may claim taxonomy + risk-as-facts
+  + playbooks (built); it must NOT claim "reasoned reading order / walkthrough" (that is P2).
+- [x] **10. Top-tier README** `[brand]` — **done 2026-06-30.** New root `README.md`: leads with
+  the taxonomy/Playbook/Risk-Surface story (per item 9's framing rule), the "why not CodeRabbit"
+  differentiator list, BYOK/self-host/no-telemetry pitch, a self-host quickstart, and the
+  AI-authored-code positioning line. **Flag for Idan: no `LICENSE` file exists in the repo; the
+  README's License section says "TBD".** This is a real decision (which OSS license) that needs
+  your call — not something to pick silently. MIT is the common default for this kind of project
+  if you want a recommendation.
+- [x] **11. Hosted static-demo link** `[brand]` — **resolved 2026-06-30, scope narrowed.**
+  Surfaced a conflict with the 2026-06-22 build-in-private decision (no peer/hosting exposure
+  yet). Clarified the artifact is a frozen, non-interactive snapshot (not the live usable app);
+  Idan's call: **build the static export only, do not deploy.** `pnpm build` verified healthy
+  (confirms all P1 changes compile into production output: `dist/client` + `dist/server`).
+  **Not done:** an actual static (no-server) prerender of a single `/briefs/$briefId` route.
+  TanStack Start's prerender path wasn't wired up this session — speculative new build config
+  without a deploy target to verify against risked a half-finished result. **Next step, when
+  ready to publish:** either configure `tanstackStart()`'s prerender option for one route, or
+  mirror the rendered HTML from a running `pnpm dev` instance for one baked brief; deploy to
+  GitHub Pages/Vercel/Netlify; then add the link to the README's (currently absent) demo section.
+
+## Build order
+
+All of P1 ships as one push; this is just the build sequence (only one hard dependency).
+
+1. **Item 9 scope-check** — done. Gated the copy's framing. ✅
+2. **Mechanical a11y/brand batch** — items **3, 4, 5, 6, 7**. No design decisions, characterization
+   suite guards them, lifts Audit A11y 2→3+. Do as one batch.
+3. **Keyboard nav** — item **8** (`J`/`K`/`Z`/`?`). Small self-contained feature; can run parallel to the batch.
+4. **Creative core** — items **1, 2, 10, 11** (copy, hero/empty-state, README, demo). Design
+   iteration via `impeccable shape`→`craft`; depends on item 9's framing rule (done).
 
 ## Deferred — with explicit triggers
 
@@ -103,13 +136,19 @@ Each item is real; the trigger says *when* it earns its slot so we don't lose it
   `type=url`, not a real defect. Verify once, then ignore.
 - **Deeper ARIA on the diff table** — already a real `<table>` with row/cell semantics. Leave it.
 
-## Done when
+## Status: 10 of 11 items done (2026-06-30)
 
-Front-door copy reads to a stranger; a no-key demo brief is one click from `/`; `--faint`
-contrast, skip-link, toast live-region, and the brief `h1` all pass; favicon + OG present;
-keyboard nav (`J`/`K`/`Z`/`?`) works; the P2 scope-check answer is recorded. Re-run the
-`impeccable` audit/critique and `web-accessibility` checklist to confirm A11y and Responsive
-move off their weak scores.
+Items 1–10 shipped on `feature/p1-front-door` and verified (`pnpm typecheck` / `pnpm test` (79
+passing) / `pnpm lint` / `pnpm build` all green; keyboard nav and the new picker copy verified
+live via Playwright). Item 11 (hosted demo) deliberately scoped down to "build only, don't
+deploy" — see its entry above for the concrete next step.
+
+**Two things need Idan's decision before this can be called fully closed:**
+1. **License** — README currently says "TBD" (item 10).
+2. **When to actually publish the static demo** — item 11's deploy step, parked on purpose.
+
+Re-run the `impeccable` audit/critique and `web-accessibility` checklist after merge to confirm
+the Audit A11y (was 2/4) and Design Help/docs (was 1/4) scores move.
 
 ## Links
 
