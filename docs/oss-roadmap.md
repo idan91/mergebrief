@@ -113,6 +113,45 @@ P1 (sharpens the demo) and naturally pairs with P2's walkthrough nav.
   hint (`?`). Don't hijack keys when a comment composer / input is focused.
 - *(Surfaced 2026-06-30 from the CodeRabbit Atlas gap inventory — see Progress log.)*
 
+### Candidate — AI-authored-code review lens (thesis differentiator)  ·  status: [ ] candidate
+
+The one big code-review problem **neither we nor CodeRabbit address at the product level**:
+nobody reviews code *as AI-authored code*. Our whole premise is review in an AI-authored
+world, yet the current feature set treats the diff generically (categorize / group / summarize).
+AI-generated code fails in *characteristically different places*, and the tool should orient
+the reviewer to them — **"look harder here," never "this is a bug"** (no-verdict holds).
+
+**The failure modes (where AI specifically breaks):**
+- **Hallucinated surface** — calls an API / import / flag absent from the repo or its deps.
+- **New dependency / new abstraction** — pulls in a package or invents a layer for a small task.
+- **Convention drift** — solves it unlike how *this* codebase (sibling files) does it.
+- **Silent scope creep** — did more than the task asked.
+- **Plausible-but-wrong** — reads fluently, logic subtly off.
+- **Lying comments** — docstring/comment contradicts the code.
+
+**Why it fits us (mostly a reframe, not net-new infra):**
+- Extends existing machinery: **Intent check** already catches "done-but-unstated" (= scope
+  creep); **Risk Surface** is the natural home for new *factual* attributes
+  (`unresolved-import`, `new-dependency`, `new-abstraction`, `diverges-from-sibling-pattern`,
+  `comment-contradicts-code`).
+- The factual signals are **deterministic / static** (does this import resolve? is this dep
+  new?) — no LLM-confidence needed, stays clean of bug-bot territory.
+- **Brand line CodeRabbit can't say** without abandoning their bug-bot positioning: "built for
+  the reality that a machine wrote the code." (They *market* the AI-code problem; their product
+  still reviews generically + ships severity labels.)
+
+**Should this be v1? — Partially. Split it:**
+- **v1 (the signature factual slice):** the cheaply-detectable, deterministic attributes above
+  surfaced through Risk Surface. Low build risk, no-verdict by construction, and it's the brand
+  story — worth carrying into the first public release. Sequence it **after P1/P2** (front door
+  + comprehension edge come first), as the depth layer that rewards a closer look.
+- **post-v1 (the judgment slice):** plausible-but-wrong and over-engineering as *gentle
+  attention-routing* only. Needs careful no-verdict framing and is harder to do reliably.
+
+**Grill before building:** "AI failure modes as factual risk-surface attributes without sliding
+into bug-bot" is a real design decision — run `grill-with-docs` on it (touches Risk Surface +
+Intent check vocabulary in `CONTEXT.md`, possibly a new ADR) before any code.
+
 ### P3 — Playbook library as community commons  ·  status: [ ] not started
 
 The OSS-native hook CodeRabbit structurally can't match (closed).
@@ -132,6 +171,20 @@ Not "build a SaaS." See `docs/plans/product-backend-epic.md` workstreams 1–3 (
 
 *Implication:* necessary for it to be a living tool on real repos, but only compelling **after**
 P1/P2 make people want it. Don't lead with it.
+
+### Future — Cross-PR / temporal awareness  ·  status: [ ] future (infra-gated)
+
+Another problem **nobody addresses well**: review in isolation, blind to history. Surface the
+*temporal* context of a change — "this area changed 3× this month," "conflicts with open PR #X,"
+"reverts / re-touches the fix from #Y," "this file is a recurring churn hotspot." Comprehension-
+aligned, factual, no-verdict.
+
+- **Why it's ours to win:** the **stable taxonomy** makes cross-PR history *queryable* in a way
+  Atlas's PR-local cohorts can't ("every `schema-change` to this module this quarter").
+- **Why it's future, not v1:** needs **persistence + multi-PR state** (depends on the P4
+  backend) — not solo-cheap, and only pays off once several PRs of history exist.
+- Pairs with the moved-but-not-dead "cross-PR repo history" idea (see `archive/`), reframed as
+  comprehension, not moat.
 
 ### P5 — Deferred / dropped  ·  status: n/a
 
@@ -153,3 +206,9 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   summary rail (folds into P2), generated diagrams (post-P2 candidate, scope to ER/schema via
   taxonomy), code peek (heavier, deferred). Deliberate non-gaps (reject): severity labels,
   one-click AI fixes, AI-authored comments, code-graph/LanceDB scale.
+- 2026-06-30 — Motivation reset: going forward on **design-led craft** as a real differentiator
+  (Idan would use the tool; dislikes Atlas's look). Added two product ideas neither tool does:
+  **AI-authored-code review lens** (candidate; factual slice recommended *partially v1*, after
+  P1/P2; grill before building) and **cross-PR / temporal awareness** (future, gated on the P4
+  backend). "Ripoff" concern resolved → OSS "open alternative to X" is a respected positioning;
+  own the comparison.
