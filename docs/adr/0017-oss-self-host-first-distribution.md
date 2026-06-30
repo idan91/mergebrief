@@ -1,5 +1,11 @@
 # OSS Self-Host-First Distribution (Open-Core)
 
+> **Superseded in part by [ADR 0023](./0023-oss-only-no-hosted-arm.md) (2026-06-30).** The
+> **hosted offering** described below as "deferred, not forbidden" is now **not pursued** —
+> the project is OSS-only. Everything else here (OSS self-host first, static demo, BYOK
+> default, Postgres-only, per-instance App) stands. Read this ADR as: drop the "hosted" run
+> mode and the "decide packaging later" hedging; keep the self-host substance.
+
 The product ships **open-source, self-hosted first**, open-core: one codebase runs as a **static demo**, a **self-hosted instance**, or a **hosted offering** — the last deferred behind validation and legal headroom, not forbidden. This is the foundational distribution decision the rest of the architecture (ADR 0015 runtime/store, ADR 0016 trust/tenancy) is shaped around.
 
 ## Context

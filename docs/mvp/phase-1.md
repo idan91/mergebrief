@@ -1,5 +1,12 @@
 # Phase 1 — Dogfood the Real Tool (Reviewer-Behavior Validation)
 
+> **⚠ Retired 2026-06-30 (OSS-only pivot — [ADR 0023](../adr/0023-oss-only-no-hosted-arm.md)).**
+> Phase 1 as a *gated validation experiment* (reviewer recruiting, behavior scoring, pass/fail
+> on signal) is no longer the operating model. The useful instinct here — **dogfood the real
+> tool**, with the delta re-review as the sharpest demo — carries forward into the front-door
+> and narrative work in [`../oss-roadmap.md`](../oss-roadmap.md); the experiment scaffolding
+> does not. Kept for history.
+
 > **Rewritten 2026-06 — supersedes the Wizard-of-Oz Treatment-vs-B′ design (retained in git history).** The original plan isolated the **playbook** layer (Treatment = grouping + taxonomy + playbooks + risk-surface vs Baseline B′ = grouping only). Both of its premises are now gone: the 2026-06 reshape **demoted the playbook** (no layer left to isolate), and the **categorizer is built and gold-checked** (no need to hand-label an artifact the tool can generate). This plan validates the *new* center of gravity — **does story + risk-surface + delta change reviewer behavior** — by dogfooding the real tool, with the **delta re-review** as the primary test and **peer usage** as the kill criterion.
 
 ## What this tests

@@ -17,7 +17,17 @@ positioning. See `DiffTable.tsx` / `DiffTable.module.scss`.
 
 ---
 
-## [ ] Migrate `apps/web` to SCSS modules (global + component layers)
+## [x] Migrate `apps/web` to SCSS modules (global + component layers)
+
+Done (merged to `main`). `app.scss` reduced to a 43-byte tokens/base import; 29 colocated
+`*.module.scss`; global layer split into `tokens.scss`, `base.scss`, `_layers.scss`
+(`@layer tokens, base, layout, components`), `_functions.scss`, `_mixins.scss`, `_shared.scss`.
+Modernization requirements applied (data-attribute variants, `color-mix()`, cascade layers,
+etc.). Landed alongside the FE architecture refactor (PR #7). Original plan below for reference.
+
+---
+
+## Migrate `apps/web` to SCSS modules (global + component layers) — original plan
 
 Adopt the SCSS architecture proven in `~/Projects/Code/flexer` (layered global `styles/`
 partials via `@use` + colocated `components/X/styles.module.scss`), adapted to this repo's

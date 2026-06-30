@@ -1,5 +1,13 @@
 # Center of Gravity (2026-06-13 reshape)
 
+> **⚠ Amended 2026-06-30 (OSS-only pivot — [ADR 0023](../adr/0023-oss-only-no-hosted-arm.md)).**
+> The *product* reshape below still holds — what is headline (story + risk-surface + delta) vs
+> engine (taxonomy) vs demoted (playbook → community commons; mind-map → persistence). What is
+> **dead** is the *go-to-market* framing: "velocity-without-the-stability-tax" as a sell, org-
+> primary / individual-door positioning, and the comment-to-rule loop as a *moat*. Read this for
+> product priority, not strategy. Current strategy: [`../vision.md`](../vision.md) /
+> [`../oss-roadmap.md`](../oss-roadmap.md).
+
 > Single source of truth for the product's reshaped direction. Amends the emphasis in `initial-scope.md` (it does not delete it — the reviewer-side mechanics there still hold; what changed is which layers are headline vs engine vs demoted). Driven by the discovery interviews (`docs/interviews/synthesis.md`), most sharply by **D** — a senior who challenged the playbook layer directly.
 >
 > **Evidence base:** external N=3 (peer-network) + 1 founder self-capture + 1 skeptic (D). Thin for a reshape. Two things make it acceptable: most of the reshape **narrows and simplifies** (cutting on thin evidence is far lower-risk than building on it), and the one piece that *expands* scope — promoting the author side into v1 — is explicitly held loosely and gated on its own grilling pass.

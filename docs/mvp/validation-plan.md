@@ -1,5 +1,10 @@
 # Validation Plan
 
+> **⚠ Retired 2026-06-30 (OSS-only pivot — [ADR 0023](../adr/0023-oss-only-no-hosted-arm.md)).**
+> The formal phased validation track (kill-on-signal before committing to architecture) is no
+> longer the operating model: we build because the tool is useful to peers, not gated on an
+> experiment. Kept for history. Active work: [`../oss-roadmap.md`](../oss-roadmap.md).
+
 Phased plan to validate the product hypothesis before committing to architecture. Each phase costs more than the last and is gated on signal from the previous.
 
 The rule: **spend in proportion to remaining risk**.

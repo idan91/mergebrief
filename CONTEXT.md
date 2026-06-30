@@ -4,6 +4,13 @@ Comprehension scaffolding for human reviewers of pull requests. Not another revi
 
 > This file defines the *meaning* of each term. For the authoritative closed list of valid labeling **tokens** (the current Category / Concern / Role / Risk-Surface values + quick rules), see `docs/mvp/labeling-schema.md` — the controlled vocabulary. A token is not valid unless registered there.
 
+> **Direction note (2026-06-30, OSS-only — `docs/vision.md` / ADR 0023):** the *terms* below
+> are all still valid; the project is now **OSS-only** (no hosted/commercial arm, no moat).
+> Vocabulary is unchanged — what's gone is the commercial scaffolding once built around it
+> (archived in `docs/archive/`). Some entries still carry hosted/headless/multi-reviewer
+> phrasing (e.g. **Trigger**, **Delta Brief**, agent-via-API consumption); read those as
+> *design concepts that survive*, not as a go-to-market plan.
+
 > **Emphasis note (2026-06-13 reshape):** the *terms* below are still valid, but their product weight changed — see `docs/mvp/center-of-gravity.md` for the current center of gravity (story + risk-surface + delta; velocity-through-quality). In short: **Playbook** is demoted (agent-facing + optional junior UI, not a human headline); **Mind-Map Space** shrinks to persistence only (the "thinking space" framing is cut); the **Analysis Layer** is the engine, not the moat. This file describes vocabulary, not priority.
 
 ## Language
@@ -115,7 +122,7 @@ A static, tool-hosted snapshot page produced when a reviewer submits, linked fro
 _Avoid_: report, dashboard, public mind-map
 
 **Analysis Layer**:
-The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surface, Concern split, LoC. Consumed by the human **Engagement Layer** (v1) and, later, by AI-agent reviewers via API (v1.5+ headless lead-in). The product core and wedge — not yet a moat: taxonomy + playbooks are reproducible by incumbents once proven; durable defensibility must be earned later (see "Moat Honesty" in `docs/next-steps.md`).
+The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surface, Concern split, LoC. Consumed by the human **Engagement Layer** (v1); the same analysis could later be consumed by an org's own AI agent through a clean internal API (engineering, not a go-to-market lever). The product core. Defensibility is **not** the game (the project is OSS-only — see `docs/vision.md` / ADR 0023): taxonomy + playbooks are deliberately open and reproducible, distributed as a community markdown commons rather than guarded as a moat.
 _Avoid_: engine, backend, core (informal)
 
 **Engagement Layer**:
