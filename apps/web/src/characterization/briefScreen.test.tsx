@@ -12,7 +12,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   localBriefQueryOptions,
@@ -86,6 +86,75 @@ describe("brief screen characterization", () => {
       ).toBeTruthy(),
     );
     expect(document.querySelector("article[data-current]")).toBeTruthy();
+  });
+
+  it("shows collapsible change-group context in focus mode", async () => {
+    await renderBriefScreen();
+
+    fireEvent.keyDown(window, { key: "z" });
+
+    const rail = await screen.findByRole("complementary", {
+      name: "Focused change-group context",
+    });
+    expect(rail.textContent).toContain(briefFixture.changeGroups[0]!.title);
+    expect(rail.textContent).toContain(briefFixture.changeGroups[0]!.summary);
+    expect(rail.textContent).toContain("Active chunk risks");
+    expect(rail.textContent).toContain("no-tests");
+
+    const toggle = screen.getByRole("button", {
+      name: "Collapse group context",
+    });
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(toggle);
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(rail.textContent).toContain("Group 1");
+    expect(rail.textContent).not.toContain(
+      briefFixture.changeGroups[0]!.summary,
+    );
+  });
+
+  it("top-aligns the next chunk when using J in focus mode", async () => {
+    await renderBriefScreen();
+    const scrollTo = vi
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 900,
+    });
+
+    fireEvent.keyDown(window, { key: "z" });
+    await screen.findByRole("complementary", {
+      name: "Focused change-group context",
+    });
+
+    const nextChunk = document.getElementById("chunk-b");
+    expect(nextChunk).toBeTruthy();
+    nextChunk!.getBoundingClientRect = () =>
+      ({
+        top: 360,
+        bottom: 1200,
+        left: 0,
+        right: 800,
+        width: 800,
+        height: 840,
+        x: 0,
+        y: 360,
+        toJSON: () => undefined,
+      }) as DOMRect;
+
+    fireEvent.keyDown(window, { key: "j" });
+
+    await waitFor(() =>
+      expect(scrollTo).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: "auto", top: expect.any(Number) }),
+      ),
+    );
+    expect((scrollTo.mock.lastCall?.[0] as ScrollToOptions).top).toBeLessThan(
+      1260,
+    );
   });
 
   it("marking a carrier chunk reviewed advances the chunks progress stat", async () => {

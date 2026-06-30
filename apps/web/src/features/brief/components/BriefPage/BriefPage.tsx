@@ -60,6 +60,35 @@ function prefersReducedMotion(): boolean {
   );
 }
 
+function numericCssVar(name: string): number {
+  if (typeof window === "undefined") return 0;
+  const value = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(name);
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function focusScrollOffset(): number {
+  const topBarHeight = numericCssVar("--top-bar-h");
+  const focusBannerHeight =
+    document
+      .querySelector<HTMLElement>("[data-focus-banner]")
+      ?.getBoundingClientRect().height ?? 0;
+  return topBarHeight + focusBannerHeight + 40;
+}
+
+function scrollElementToTop(
+  element: HTMLElement,
+  behavior: ScrollBehavior,
+): void {
+  const top = Math.max(
+    0,
+    window.scrollY + element.getBoundingClientRect().top - focusScrollOffset(),
+  );
+  window.scrollTo({ behavior, top });
+}
+
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
   briefId: string;
@@ -304,23 +333,41 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   );
 
   const jumpToChunk = useCallback(
-    (chunkId: string, behavior: ScrollBehavior = "smooth") => {
+    (
+      chunkId: string,
+      behavior: ScrollBehavior = "smooth",
+      align: "native" | "top" = "native",
+    ) => {
       setViewMode("story");
       setOpenChunks((current) => new Set(current).add(chunkId));
       setActiveChunkId(chunkId);
-      window.setTimeout(
-        () =>
-          document.getElementById(chunkId)?.scrollIntoView({
-            behavior: prefersReducedMotion() ? "auto" : behavior,
-            block: "start",
-          }),
-        0,
-      );
+      window.setTimeout(() => {
+        const resolvedBehavior = prefersReducedMotion() ? "auto" : behavior;
+        if (align === "top") {
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+              const element = document.getElementById(chunkId);
+              if (element) scrollElementToTop(element, resolvedBehavior);
+            });
+          });
+          return;
+        }
+        const element = document.getElementById(chunkId);
+        if (!element) return;
+        element.scrollIntoView({
+          behavior: resolvedBehavior,
+          block: "start",
+        });
+      }, 0);
     },
     [],
   );
   const jumpToChunkFromShortcut = useCallback(
-    (chunkId: string) => jumpToChunk(chunkId, "auto"),
+    (chunkId: string) => {
+      const focusActive =
+        document.getElementById("main-content")?.dataset["zen"] === "on";
+      jumpToChunk(chunkId, "auto", focusActive ? "top" : "native");
+    },
     [jumpToChunk],
   );
 
@@ -553,7 +600,11 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         {/* Focus mode (Z) strips the page chrome and centers a single chunk in
             a narrow reading column — the visible payoff of "focus". */}
         {focusMode ? (
-          <div className={styles["focusBanner"]} role="status">
+          <div
+            className={styles["focusBanner"]}
+            data-focus-banner=""
+            role="status"
+          >
             <span>
               <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
               <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.

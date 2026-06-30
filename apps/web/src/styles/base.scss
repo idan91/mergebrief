@@ -219,15 +219,42 @@
   // reading column, so entering focus visibly transforms the page even when the
   // focused chunk was already at the top of the viewport.
   [data-zen="on"] .story-group {
-    display: block;
-    max-inline-size: 880px;
+    display: grid;
+    grid-template-columns: minmax(0, 880px) minmax(54px, 280px);
+    align-items: start;
+    gap: 14px;
+    max-inline-size: 1188px;
     margin-inline: auto;
   }
 
-  [data-zen="on"] .story-group > article {
-    position: static;
-    inset-block-start: auto;
-    margin-block-start: 16px;
+  [data-zen="on"] .story-group[data-focus-rail="collapsed"] {
+    grid-template-columns: minmax(0, 880px) 54px;
+  }
+
+  [data-zen="on"] .group-chunks {
+    grid-column: 1;
+  }
+
+  [data-zen="on"] .focus-group-rail {
+    grid-column: 2;
+  }
+
+  @media (width <= 1180px) {
+    [data-zen="on"] .story-group,
+    [data-zen="on"] .story-group[data-focus-rail="collapsed"] {
+      display: flex;
+      max-inline-size: 880px;
+      flex-direction: column;
+    }
+
+    [data-zen="on"] .group-chunks {
+      order: 2;
+    }
+
+    [data-zen="on"] .focus-group-rail {
+      order: 1;
+      inline-size: 100%;
+    }
   }
 
   .scrim {

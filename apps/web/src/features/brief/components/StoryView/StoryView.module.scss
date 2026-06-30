@@ -98,4 +98,247 @@
     font-family: var(--mono);
     font-size: 11px;
   }
+
+  .focusRail {
+    position: sticky;
+    inset-block-start: calc(var(--top-bar-h) + 72px);
+    display: grid;
+    gap: 8px;
+    min-inline-size: 0;
+  }
+
+  .railToggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-block-size: 40px;
+    padding-block: 8px;
+    padding-inline: 10px;
+    border: 1px solid var(--line2);
+    border-radius: 8px;
+    background: var(--panel2);
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+      color: var(--text);
+    }
+  }
+
+  .railToggleText {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .railToggleMark {
+    display: grid;
+    inline-size: 18px;
+    block-size: 18px;
+    flex: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1;
+    place-items: center;
+  }
+
+  .railCollapsed {
+    display: grid;
+    gap: 10px;
+    min-block-size: 220px;
+    padding-block: 12px;
+    padding-inline: 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--panel) 74%, var(--bg));
+    color: var(--faint);
+    font-size: 11px;
+    justify-items: center;
+    text-align: center;
+
+    strong {
+      overflow: hidden;
+      max-block-size: 154px;
+      color: var(--dim);
+      font-size: 12px;
+      font-weight: 600;
+      line-height: 1.35;
+      text-overflow: ellipsis;
+      writing-mode: vertical-rl;
+    }
+  }
+
+  .railPanel {
+    padding-block: 14px;
+    padding-inline: 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--panel) 82%, var(--bg));
+    box-shadow: 0 16px 44px rgb(0 0 0 / 24%);
+  }
+
+  .railMeta,
+  .railLabel {
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .railTitle {
+    margin-block-start: 8px;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: 0;
+    line-height: 1.35;
+  }
+
+  .railSummary {
+    margin-block-start: 8px;
+    color: var(--dim);
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+
+  .railChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-block-start: 12px;
+  }
+
+  .railChip {
+    display: inline-flex;
+    align-items: center;
+    padding-block: 3px;
+    padding-inline: 8px;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    color: var(--dim);
+    font-size: 11px;
+    font-weight: 600;
+
+    &[data-kind="dominant"] {
+      background: #1e1e24;
+      color: var(--text);
+    }
+
+    &[data-kind="uncertain"] {
+      border-color: color-mix(in srgb, var(--amber) 35%, transparent);
+      color: var(--amber);
+    }
+  }
+
+  .railStats {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding-block: 10px;
+    border-block: 1px solid var(--line);
+    margin-block-start: 12px;
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .railRiskFacts {
+    display: grid;
+    gap: 8px;
+    padding-block-end: 12px;
+    border-block-end: 1px solid var(--line);
+    margin-block-start: 12px;
+  }
+
+  .railRiskChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .railRiskChip {
+    padding-block: 3px;
+    padding-inline: 8px;
+    border: 1px solid color-mix(in srgb, var(--amber) 28%, var(--line2));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--amber) 8%, transparent);
+    color: var(--amber);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .railNoRisks {
+    color: var(--faint);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .railChunkList {
+    display: grid;
+    gap: 7px;
+    margin-block-start: 12px;
+  }
+
+  .railChunkButton {
+    display: grid;
+    gap: 3px;
+    min-inline-size: 0;
+    padding-block: 8px;
+    padding-inline: 9px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    text-align: start;
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+      background: #16161b;
+      color: var(--text);
+    }
+
+    &[data-current] {
+      border-color: color-mix(in srgb, var(--blue) 45%, var(--line2));
+      background: color-mix(in srgb, var(--blue) 10%, transparent);
+      color: var(--text);
+    }
+  }
+
+  .railChunkFile {
+    overflow-wrap: anywhere;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+
+  .railChunkMeta {
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 10.5px;
+  }
+
+  @media (width <= 1180px) {
+    .focusRail {
+      position: static;
+      inline-size: calc(100vw - 36px);
+      max-inline-size: 100%;
+      align-self: flex-start;
+    }
+
+    .focusRail[data-state="collapsed"] {
+      .railCollapsed {
+        display: none;
+      }
+    }
+  }
 }
