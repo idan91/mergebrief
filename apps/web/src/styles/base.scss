@@ -203,9 +203,11 @@
   }
 
   // Focus mode (Z, BriefPage): isolate the group holding the active chunk, and
-  // within it the active chunk only. data-current is set on the active
-  // ChunkCard's <article> (ChunkCard.tsx); data-zen on StoryView's root.
-  [data-zen="on"] .story-group:not(:has(article[data-current])) {
+  // within it the active chunk only. data-active-group is set by StoryView on
+  // the active group (only in focus mode); data-current on the active chunk's
+  // ChunkCard <article>. No :has() — it would re-run on every scroll-spy
+  // data-current toggle and tank scroll performance.
+  [data-zen="on"] .story-group:not([data-active-group]) {
     display: none;
   }
 

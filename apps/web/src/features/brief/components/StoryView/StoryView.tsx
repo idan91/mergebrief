@@ -113,7 +113,20 @@ export function StoryView(props: StoryViewProps) {
         ) : null}
       </div>
       {props.model.groups.map((group) => (
-        <section className="story-group reveal" key={group.id}>
+        <section
+          className="story-group reveal"
+          key={group.id}
+          // Marks the group holding the active chunk so focus mode can isolate
+          // it with a plain attribute selector — set only in focus mode to keep
+          // it off the scroll-spy hot path. Avoids a :has() selector, which
+          // re-evaluates on every data-current toggle during scroll.
+          data-active-group={
+            props.focusMode &&
+            group.chunks.some((chunk) => chunk.id === props.activeChunkId)
+              ? ""
+              : undefined
+          }
+        >
           <div className="group-chunks">
             {group.chunks.map((chunk) => (
               <ChunkCard
