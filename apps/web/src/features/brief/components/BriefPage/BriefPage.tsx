@@ -318,13 +318,23 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   }, []);
 
   const toggleFocusMode = useCallback(() => {
-    setFocusMode((current) => {
-      if (!current && !activeChunkId && brief.chunks[0]) {
-        jumpToChunk(brief.chunks[0].id);
-      }
-      return !current;
-    });
-  }, [activeChunkId, brief.chunks, jumpToChunk]);
+    const entering = !focusMode;
+    setFocusMode(entering);
+    if (!entering) return;
+    // Re-anchor onto the chunk being focused so entering focus mode is always
+    // visible, even when that chunk was already at the top of the viewport.
+    const target = activeChunkId ?? brief.chunks[0]?.id ?? null;
+    if (!target) return;
+    if (target !== activeChunkId) setActiveChunkId(target);
+    window.setTimeout(
+      () =>
+        document.getElementById(target)?.scrollIntoView({
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+          block: "start",
+        }),
+      0,
+    );
+  }, [activeChunkId, brief.chunks, focusMode]);
   const toggleShortcuts = useCallback(
     () => setShortcutsOpen((current) => !current),
     [],
@@ -340,9 +350,13 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     dismissTarget !== null ||
     evidenceTarget !== null ||
     activeCommentAnchor !== null;
+  // Walk chunks in the rendered (grouped) order, not raw brief order — the
+  // StoryView lays chunks out by group, so J/K must follow the same sequence or
+  // it appears to jump backward and forward. Matches the openChunks seeding.
   const chunkIds = useMemo(
-    () => brief.chunks.map((chunk) => chunk.id),
-    [brief.chunks],
+    () =>
+      model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id)),
+    [model.groups],
   );
   useKeyboardShortcuts({
     chunkIds,
@@ -526,43 +540,61 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         }
         id="main-content"
         tabIndex={-1}
+        data-zen={focusMode ? "on" : undefined}
       >
-        <section className={`${styles["summary"]} reveal`}>
-          <div className={styles["eyebrow"]}>
-            {brief.artifactKind === "delta"
-              ? "Delta brief"
-              : reviewMode === "author"
-                ? "Author self-review"
-                : "Brief"}
+        {/* Focus mode (Z) strips the page chrome and centers a single chunk in
+            a narrow reading column — the visible payoff of "focus". */}
+        {focusMode ? (
+          <div className={styles["focusBanner"]} role="status">
+            <span>
+              <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
+              <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
+            </span>
+            <button className="btn" type="button" onClick={toggleFocusMode}>
+              Exit focus
+            </button>
           </div>
-          <Markdown content={brief.summary} />
-          {brief.artifactKind === "delta" ? (
-            <DeltaContext brief={brief} />
-          ) : null}
-          <button
-            className={styles["descriptionToggle"]}
-            type="button"
-            onClick={() => setDescriptionOpen(!descriptionOpen)}
-          >
-            {descriptionOpen
-              ? "Hide original PR description"
-              : "Show original PR description"}
-          </button>
-          {descriptionOpen ? (
-            <div className={styles["description"]}>
-              <div className={styles["eyebrow"]}>Original PR description</div>
-              <Markdown
-                content={
-                  brief.pr.description || "_No PR description provided._"
-                }
-              />
+        ) : null}
+        {focusMode ? null : (
+          <section className={`${styles["summary"]} reveal`}>
+            <div className={styles["eyebrow"]}>
+              {brief.artifactKind === "delta"
+                ? "Delta brief"
+                : reviewMode === "author"
+                  ? "Author self-review"
+                  : "Brief"}
             </div>
-          ) : null}
-        </section>
+            <Markdown content={brief.summary} />
+            {brief.artifactKind === "delta" ? (
+              <DeltaContext brief={brief} />
+            ) : null}
+            <button
+              className={styles["descriptionToggle"]}
+              type="button"
+              onClick={() => setDescriptionOpen(!descriptionOpen)}
+            >
+              {descriptionOpen
+                ? "Hide original PR description"
+                : "Show original PR description"}
+            </button>
+            {descriptionOpen ? (
+              <div className={styles["description"]}>
+                <div className={styles["eyebrow"]}>Original PR description</div>
+                <Markdown
+                  content={
+                    brief.pr.description || "_No PR description provided._"
+                  }
+                />
+              </div>
+            ) : null}
+          </section>
+        )}
 
-        <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
+        {focusMode ? null : (
+          <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
+        )}
 
-        {viewMode === "story" ? (
+        {viewMode === "story" && !focusMode ? (
           <GroupTocBar
             activeGroupId={activeGroupId}
             groups={model.groups}

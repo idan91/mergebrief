@@ -213,6 +213,21 @@
     display: none;
   }
 
+  // The surviving group collapses from the split grid to a single centered
+  // reading column, so entering focus visibly transforms the page even when the
+  // focused chunk was already at the top of the viewport.
+  [data-zen="on"] .story-group {
+    display: block;
+    max-inline-size: 880px;
+    margin-inline: auto;
+  }
+
+  [data-zen="on"] .story-group > article {
+    position: static;
+    inset-block-start: auto;
+    margin-block-start: 16px;
+  }
+
   .scrim {
     position: fixed;
     inset: 0;
