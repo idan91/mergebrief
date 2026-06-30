@@ -72,7 +72,7 @@ export function Header({
         Brief<span> / review</span>
       </div>
       <div className={styles["prmeta"]}>
-        <div className={styles["title"]}>{brief.pr.title}</div>
+        <h1 className={styles["title"]}>{brief.pr.title}</h1>
         <div className={styles["sub"]}>
           <b>{brief.pr.repo}</b> ·{" "}
           {prLink ? (
