@@ -10,6 +10,7 @@ import {
 } from "../../../review/components/AddressedComments/AddressedComments";
 import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import { useMindMap } from "../../../review/session";
+import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
 import { RoleBadge } from "../Badge/RoleBadge";
 import { DiffTable } from "../DiffTable/DiffTable";
 import styles from "./ChunkCard.module.scss";
@@ -83,60 +84,54 @@ export const ChunkCard = memo(function ChunkCard({
       data-state={expanded ? "open" : "collapsed"}
       id={chunk.id}
     >
-      <button
-        className={styles["head"]}
-        type="button"
-        onClick={() => toggleChunk(chunk.id)}
-      >
-        <span className={styles["twist"]}>▶</span>
-        <span className={styles["file"]}>{chunk.file}</span>
-        <span className={styles["chips"]}>
-          {chunk.riskSurface.map((risk) => (
-            <span className={`${styles["chip"]} ${styles["risk"]}`} key={risk}>
-              {risk}
-            </span>
-          ))}
-          <span className={styles["chip"]} data-concern={chunk.concern}>
-            <span className={styles["dot"]} />
-            {chunk.concern}
-          </span>
-          <RoleBadge role={chunk.role} />
-          {comments.length > 0 ? (
-            <span className={styles["chip"]}>
-              {comments.length} comment{comments.length === 1 ? "" : "s"}
-            </span>
-          ) : null}
-          {chunkReviewComments.length > 0 ? (
-            <span className={styles["chip"]}>
-              {chunkReviewComments.length}{" "}
-              {hasLinkedAddressedComments ? "addressed" : "review"}
-            </span>
-          ) : null}
-          <span className={`${styles["chip"]} ${styles["loc"]}`}>
-            <span className="a">+{chunk.loc.added}</span>{" "}
-            <span className="d">−{chunk.loc.deleted}</span>
-          </span>
-        </span>
-      </button>
-      <div className={styles["actions"]}>
+      <div className={styles["head"]}>
         <button
-          className={styles["markButton"]}
+          className={styles["toggle"]}
           type="button"
-          onClick={() => markReviewed(chunk.id)}
+          aria-expanded={expanded}
+          onClick={() => toggleChunk(chunk.id)}
         >
-          {reviewed ? "Reviewed ✓" : "Mark reviewed"}
+          <span className={styles["twist"]}>▶</span>
+          <span className={styles["file"]}>{chunk.file}</span>
+          <span className={styles["chips"]}>
+            {chunk.riskSurface.map((risk) => (
+              <span className={`${styles["chip"]} ${styles["risk"]}`} key={risk}>
+                {risk}
+              </span>
+            ))}
+            <span className={styles["chip"]} data-concern={chunk.concern}>
+              <span className={styles["dot"]} />
+              {chunk.concern}
+            </span>
+            <RoleBadge role={chunk.role} />
+            {comments.length > 0 ? (
+              <span className={styles["chip"]}>
+                {comments.length} draft{comments.length === 1 ? "" : "s"}
+              </span>
+            ) : null}
+            {chunkReviewComments.length > 0 ? (
+              <span className={styles["chip"]}>
+                {chunkReviewComments.length}{" "}
+                {hasLinkedAddressedComments ? "addressed" : "review"}
+              </span>
+            ) : null}
+            <span className={`${styles["chip"]} ${styles["loc"]}`}>
+              <span className="a">+{chunk.loc.added}</span>{" "}
+              <span className="d">−{chunk.loc.deleted}</span>
+            </span>
+          </span>
         </button>
+        <label className={styles["reviewToggle"]}>
+          <input
+            type="checkbox"
+            checked={reviewed}
+            onChange={() => markReviewed(chunk.id)}
+          />
+          <span>Viewed</span>
+          <ScreenReaderOnly>{` ${chunk.file}`}</ScreenReaderOnly>
+        </label>
       </div>
-      {!expanded ? (
-        <div className={styles["collapseNote"]}>
-          {chunk.role === "supporting"
-            ? "supporting chunk — collapsed"
-            : "collapsed"}
-          {comments.length > 0
-            ? ` · ${comments.length} draft comment${comments.length === 1 ? "" : "s"}`
-            : ""}
-        </div>
-      ) : null}
+      {!expanded ? <ScreenReaderOnly>Collapsed</ScreenReaderOnly> : null}
       {expanded ? (
         <div className={styles["body"]}>
           {chunk.summary ||

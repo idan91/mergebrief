@@ -76,7 +76,7 @@ describe("brief screen characterization", () => {
       screen.getByText("chunks").closest(".stat")!.querySelector("b")!
         .textContent;
     expect(stat()).toBe("0/2");
-    fireEvent.click(screen.getAllByText("Mark reviewed")[0]!);
+    fireEvent.click(screen.getAllByRole("checkbox", { name: /Viewed/i })[0]!);
     await waitFor(() => expect(stat()).toBe("1/2"));
   });
 

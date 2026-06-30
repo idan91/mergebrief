@@ -31,12 +31,22 @@
     display: flex;
     inline-size: 100%;
     align-items: center;
-    gap: 12px;
+    gap: 16px;
     padding-block: 11px;
     padding-inline: 16px;
-    border: 0;
     background: color-mix(in srgb, var(--panel) 92%, transparent);
     backdrop-filter: blur(10px);
+  }
+
+  .toggle {
+    display: flex;
+    flex: 1;
+    min-inline-size: 0;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    border: 0;
+    background: transparent;
     cursor: pointer;
     text-align: start;
   }
@@ -102,37 +112,25 @@
     background: var(--violet);
   }
 
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    padding-block: 8px;
-    padding-inline: 16px;
-    border-block-start: 1px solid var(--line);
-  }
-
-  .markButton {
-    padding-block: 4px;
-    padding-inline: 12px;
-    border: 1px solid var(--line2);
-    border-radius: 6px;
-    background: transparent;
+  .reviewToggle {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
     color: var(--faint);
     cursor: pointer;
     font-size: 12px;
     font-weight: 500;
+    user-select: none;
+
+    input {
+      cursor: pointer;
+      accent-color: var(--blue);
+    }
 
     &:hover {
-      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
       color: var(--text);
     }
-  }
-
-  .collapseNote {
-    padding-block: 0 11px;
-    padding-inline: 16px;
-    margin-block-start: -3px;
-    color: var(--faint);
-    font-size: 12px;
   }
 
   .body {
@@ -163,6 +161,10 @@
 
   @media (width <= 760px) {
     .head {
+      align-items: flex-start;
+    }
+
+    .toggle {
       align-items: flex-start;
     }
 
