@@ -271,7 +271,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   // activeChunkId has two write sources: scroll-spy (below) and explicit nav
   // (toggleChunk/jumpToChunk). Scroll-spy only runs in the split story view.
   const scrollActiveChunkId = useScrollSpy(
-    viewMode === "story" && layoutMode === "split"
+    viewMode === "story" && layoutMode === "split" && !focusMode
       ? brief.chunks.map((chunk) => chunk.id)
       : [],
   );
@@ -303,24 +303,32 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     [actions],
   );
 
-  const jumpToChunk = useCallback((chunkId: string) => {
-    setViewMode("story");
-    setOpenChunks((current) => new Set(current).add(chunkId));
-    setActiveChunkId(chunkId);
-    window.setTimeout(
-      () =>
-        document.getElementById(chunkId)?.scrollIntoView({
-          behavior: prefersReducedMotion() ? "auto" : "smooth",
-          block: "start",
-        }),
-      0,
-    );
-  }, []);
+  const jumpToChunk = useCallback(
+    (chunkId: string, behavior: ScrollBehavior = "smooth") => {
+      setViewMode("story");
+      setOpenChunks((current) => new Set(current).add(chunkId));
+      setActiveChunkId(chunkId);
+      window.setTimeout(
+        () =>
+          document.getElementById(chunkId)?.scrollIntoView({
+            behavior: prefersReducedMotion() ? "auto" : behavior,
+            block: "start",
+          }),
+        0,
+      );
+    },
+    [],
+  );
+  const jumpToChunkFromShortcut = useCallback(
+    (chunkId: string) => jumpToChunk(chunkId, "auto"),
+    [jumpToChunk],
+  );
 
   const toggleFocusMode = useCallback(() => {
     const entering = !focusMode;
     setFocusMode(entering);
     if (!entering) return;
+    setViewMode("story");
     // Re-anchor onto the chunk being focused so entering focus mode is always
     // visible, even when that chunk was already at the top of the viewport.
     const target = activeChunkId ?? brief.chunks[0]?.id ?? null;
@@ -363,7 +371,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     activeChunkId,
     disabled: shortcutsDisabled,
     focusModeActive: focusMode,
-    jumpToChunk,
+    jumpToChunk: jumpToChunkFromShortcut,
     toggleFocusMode,
     toggleHelp: toggleShortcuts,
   });

@@ -54,7 +54,9 @@ export function resolveShortcut(
   event: ShortcutEvent,
   state: ShortcutState,
 ): ShortcutAction | null {
-  if (event.key === "Escape") {
+  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+
+  if (key === "Escape") {
     return state.focusModeActive && !state.disabled
       ? { type: "toggleFocus" }
       : null;
@@ -63,20 +65,20 @@ export function resolveShortcut(
   if (event.metaKey || event.ctrlKey || event.altKey) return null;
   if (event.isTyping) return null;
 
-  if (event.key === "j" || event.key === "k") {
+  if (key === "j" || key === "k") {
     const { chunkIds, activeChunkId } = state;
     if (chunkIds.length === 0) return null;
     const index = activeChunkId ? chunkIds.indexOf(activeChunkId) : -1;
     const next =
-      event.key === "j"
+      key === "j"
         ? chunkIds[Math.min(index + 1, chunkIds.length - 1)]
         : chunkIds[Math.max(index - 1, 0)];
     if (!next || next === activeChunkId) return null;
     return { type: "jump", chunkId: next };
   }
 
-  if (event.key === "z") return { type: "toggleFocus" };
-  if (event.key === "?") return { type: "toggleHelp" };
+  if (key === "z") return { type: "toggleFocus" };
+  if (key === "?") return { type: "toggleHelp" };
   return null;
 }
 

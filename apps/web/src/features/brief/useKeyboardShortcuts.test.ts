@@ -61,6 +61,18 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("z"), state())).toEqual({ type: "toggleFocus" });
   });
 
+  it("accepts uppercase reading shortcuts from shifted or caps-lock keys", () => {
+    expect(resolveShortcut(key("J"), state({ activeChunkId: "a" }))).toEqual({
+      type: "jump",
+      chunkId: "b",
+    });
+    expect(resolveShortcut(key("K"), state({ activeChunkId: "c" }))).toEqual({
+      type: "jump",
+      chunkId: "b",
+    });
+    expect(resolveShortcut(key("Z"), state())).toEqual({ type: "toggleFocus" });
+  });
+
   it("? toggles the help modal", () => {
     expect(resolveShortcut(key("?"), state())).toEqual({ type: "toggleHelp" });
   });

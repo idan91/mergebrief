@@ -70,6 +70,24 @@ describe("brief screen characterization", () => {
     expect(screen.getByText(briefFixture.changeGroups[0]!.title)).toBeTruthy();
   });
 
+  it("enters story focus mode with a visible active chunk from concerns view", async () => {
+    await renderBriefScreen();
+    fireEvent.click(screen.getByRole("radio", { name: "Concerns" }));
+
+    fireEvent.keyDown(window, { key: "z" });
+
+    expect(
+      (screen.getByRole("radio", { name: "Story" }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    await waitFor(() =>
+      expect(
+        document.querySelector(".story-group[data-active-group]"),
+      ).toBeTruthy(),
+    );
+    expect(document.querySelector("article[data-current]")).toBeTruthy();
+  });
+
   it("marking a carrier chunk reviewed advances the chunks progress stat", async () => {
     await renderBriefScreen();
     const stat = () =>
