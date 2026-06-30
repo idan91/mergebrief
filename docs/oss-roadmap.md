@@ -49,6 +49,8 @@ Sequence: **P0 → P1 → P2 → P3 → P4**. (P5 = deferred/dropped.)
 
 ### P0 — Reframe docs to OSS-only  ·  status: [x] done (2026-06-30)
 
+**Needs grilling:** No (done). · **Docs:** [`vision.md`](./vision.md) · [ADR 0023](./adr/0023-oss-only-no-hosted-arm.md) · [ADR 0017](./adr/0017-oss-self-host-first-distribution.md)
+
 Highest leverage, ~half a session. Stops every future session re-deriving dead commercial
 strategy.
 
@@ -66,6 +68,8 @@ strategy.
 
 ### P1 — Nail the front door (brand surface)  ·  status: [ ] not started
 
+**Needs grilling:** No — design iteration, not a decision-tree (use the `frontend-design` / `impeccable` skills + the flexer reference). · **Docs:** [`vision.md`](./vision.md) · [`plans/web-generate-from-url.md`](./plans/web-generate-from-url.md) (the paste-URL flow)
+
 The stranger's first impression — for an unknown OSS project this drives word-of-mouth far
 more than the backend.
 
@@ -77,6 +81,8 @@ more than the backend.
 daemon nobody has discovered.
 
 ### P2 — Narrative-on-top-of-taxonomy (marquee comprehension feature)  ·  status: [ ] not started
+
+**Needs grilling:** Yes — the ordering rule, terminology vs Atlas's "layers/cohorts", and how narrative relates to Change-groups all touch the domain model. · **Docs:** [`../CONTEXT.md`](../CONTEXT.md) (Change-group / Summary / Category) · [ADR 0005](./adr/0005-intent-on-change-group-two-view-projection.md) · [`competitive-analysis.md`](./competitive-analysis.md) (narrative vs taxonomic axes) · [`next-steps.md`](./next-steps.md) (deferred narrative note)
 
 The v2-parked narrative layer, promoted because it's the most *visible* gap vs Atlas and it's
 where our taxonomy substrate becomes a real edge.
@@ -100,6 +106,8 @@ demonstrable advantage over Atlas.
 
 ### Cheap win — Keyboard navigation + focus mode  ·  status: [ ] not started
 
+**Needs grilling:** No — established UX pattern (apply the `web-accessibility` skill at build time). · **Docs:** none (reuses existing scroll-spy / group-TOC machinery).
+
 Small, high-polish, demo-impressive. Independent of the rest; ships opportunistically alongside
 P1 (sharpens the demo) and naturally pairs with P2's walkthrough nav.
 
@@ -114,6 +122,8 @@ P1 (sharpens the demo) and naturally pairs with P2's walkthrough nav.
 - *(Surfaced 2026-06-30 from the CodeRabbit Atlas gap inventory — see Progress log.)*
 
 ### Candidate — AI-authored-code review lens (thesis differentiator)  ·  status: [ ] candidate
+
+**Needs grilling:** Yes (before any code) — the "factual no-verdict attributes vs bug-bot" boundary, the new Risk-Surface attribute set, and likely a new ADR. · **Docs:** [`../CONTEXT.md`](../CONTEXT.md) (Risk Surface / Intent check / Flag) · [ADR 0014](./adr/0014-external-context-and-ai-review-boundary.md) (AI-review boundary, cited-only) · [ADR 0003](./adr/0003-category-scoped-bug-hunt-not-general.md) (no-bug-bot)
 
 The one big code-review problem **neither we nor CodeRabbit address at the product level**:
 nobody reviews code *as AI-authored code*. Our whole premise is review in an AI-authored
@@ -154,6 +164,8 @@ Intent check vocabulary in `CONTEXT.md`, possibly a new ADR) before any code.
 
 ### P3 — Playbook library as community commons  ·  status: [ ] not started
 
+**Needs grilling:** No for the commons itself (schema + `CONTRIBUTING` is execution); the *contribution governance* (who may add/approve items) is a separate later grill. · **Docs:** [`mvp/playbooks.md`](./mvp/playbooks.md) · [`mvp/labeling-schema.md`](./mvp/labeling-schema.md) · [`../CONTEXT.md`](../CONTEXT.md) (Playbook)
+
 The OSS-native hook CodeRabbit structurally can't match (closed).
 
 - Document the **taxonomy + playbook schema**; add a `CONTRIBUTING` for playbooks with
@@ -164,6 +176,8 @@ playbook standard."
 
 ### P4 — M1 self-host backend, rescoped as "make self-hosting real"  ·  status: [ ] not started
 
+**Needs grilling:** No — the decisions are already locked in ADRs; this is execution (drop only the hosted/multi-tenant scope per ADR 0023). · **Docs:** [`plans/product-backend-epic.md`](./plans/product-backend-epic.md) · [ADR 0015](./adr/0015-self-hosted-runtime-postgres-single-dependency.md) · [ADR 0016](./adr/0016-github-app-auth-and-trust-tenancy-boundary.md) · [ADR 0018](./adr/0018-m1-postgres-schema.md) · [ADR 0020](./adr/0020-brief-trigger-and-activation-model.md) (also 0006/0008/0013)
+
 Not "build a SaaS." See `docs/plans/product-backend-epic.md` workstreams 1–3 (reframed).
 
 - Postgres-only persistence (ADR 0018) + GitHub App + background worker (wraps the existing
@@ -173,6 +187,8 @@ Not "build a SaaS." See `docs/plans/product-backend-epic.md` workstreams 1–3 (
 P1/P2 make people want it. Don't lead with it.
 
 ### Future — Cross-PR / temporal awareness  ·  status: [ ] future (infra-gated)
+
+**Needs grilling:** Yes (when un-parked) — the signal set and how to surface history without it reading as a verdict. · **Docs:** [ADR 0008](./adr/0008-brief-delta-persistence-and-fetching.md) (persistence/fetching) · [`archive/commercial-strategy.md`](./archive/commercial-strategy.md) (the "cross-PR repo history" note, reframed as comprehension)
 
 Another problem **nobody addresses well**: review in isolation, blind to history. Surface the
 *temporal* context of a change — "this area changed 3× this month," "conflicts with open PR #X,"
@@ -187,6 +203,8 @@ aligned, factual, no-verdict.
   comprehension, not moat.
 
 ### P5 — Deferred / dropped  ·  status: n/a
+
+**Needs grilling:** n/a (no build; if any item is ever revived, grill it then). · **Docs:** [ADR 0010](./adr/0010-tiered-generation-triage.md) (triage) · [ADR 0007](./adr/0007-delta-comment-anchoring-and-flag-carry-over.md) (carry-over) · [`archive/`](./archive/) (dropped commercial items)
 
 Notes only, no build: triage cascade, per-reviewer carry-over, org-learned playbooks / digest,
 hosted arm, headless API, semantic/code-graph + diagram arms race.
