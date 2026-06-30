@@ -11,8 +11,11 @@ import {
   groupRiskByAttribute,
   type BriefViewModel,
   type GroupView,
+  type RiskFlag,
 } from "../../viewModel";
 import styles from "./GroupCard.module.scss";
+
+const EMPTY_RISK_FLAGS: RiskFlag[] = [];
 
 export interface GroupCardProps {
   group: GroupView;
@@ -56,7 +59,7 @@ export const GroupCard = memo(function GroupCard({
   const actions = useMindMapActions();
 
   const dominant = dominants[group.id] ?? group.group.dominantCategory;
-  const groupFlags = model.flags.filter((flag) => flag.groupId === group.id);
+  const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
   const isReclassified = reclassifiedGroups.has(group.id);
 
   function chooseDominant(category: Category) {

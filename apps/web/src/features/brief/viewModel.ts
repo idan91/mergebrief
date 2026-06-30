@@ -34,6 +34,7 @@ export interface RiskFlag {
 export interface BriefViewModel {
   groups: GroupView[];
   flags: RiskFlag[];
+  flagsByGroup: Map<string, RiskFlag[]>;
   totalAdded: number;
   totalDeleted: number;
   concernChunks: Map<Concern, BriefChunk[]>;
@@ -126,21 +127,30 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
     );
   }
 
-  const flags = brief.chunks.flatMap((chunk) => {
+  const flags: RiskFlag[] = [];
+  const flagsByGroup = new Map<string, RiskFlag[]>();
+  for (const chunk of brief.chunks) {
     const groupId = chunkToGroup.get(chunk.id) ?? "g1";
-    return chunk.riskSurface.map((attr, index) => ({
-      id: `${chunk.id}-${attr}-${index}`,
-      attr,
-      chunkId: chunk.id,
-      file: chunk.file,
-      groupId,
-      description: RISK_DESCRIPTIONS[attr],
-    }));
-  });
+    for (const [index, attr] of chunk.riskSurface.entries()) {
+      const flag = {
+        id: `${chunk.id}-${attr}-${index}`,
+        attr,
+        chunkId: chunk.id,
+        file: chunk.file,
+        groupId,
+        description: RISK_DESCRIPTIONS[attr],
+      } satisfies RiskFlag;
+      flags.push(flag);
+      const groupFlags = flagsByGroup.get(groupId);
+      if (groupFlags) groupFlags.push(flag);
+      else flagsByGroup.set(groupId, [flag]);
+    }
+  }
 
   return {
     groups,
     flags,
+    flagsByGroup,
     totalAdded: sumLoc(brief.chunks, "added"),
     totalDeleted: sumLoc(brief.chunks, "deleted"),
     concernChunks,
@@ -163,7 +173,9 @@ export function categoryLabel(category: Category): string {
 export function groupRiskByAttribute(flags: RiskFlag[]): RiskAttributeGroup[] {
   const groups = new Map<RiskSurfaceAttribute, RiskFlag[]>();
   for (const flag of flags) {
-    groups.set(flag.attr, [...(groups.get(flag.attr) ?? []), flag]);
+    const groupedFlags = groups.get(flag.attr);
+    if (groupedFlags) groupedFlags.push(flag);
+    else groups.set(flag.attr, [flag]);
   }
   return [...groups.entries()].map(([attr, groupedFlags]) => ({
     attr,
@@ -171,9 +183,15 @@ export function groupRiskByAttribute(flags: RiskFlag[]): RiskAttributeGroup[] {
   }));
 }
 
-const CONCERN_RANK: Record<Concern, number> = Object.fromEntries(
-  CONCERN_ORDER.map((concern, index) => [concern, index]),
-) as Record<Concern, number>;
+function buildConcernRank(): Map<Concern, number> {
+  const rank = new Map<Concern, number>();
+  for (const [index, concern] of CONCERN_ORDER.entries()) {
+    rank.set(concern, index);
+  }
+  return rank;
+}
+
+const CONCERN_RANK = buildConcernRank();
 
 /**
  * @description Stable level-2 sort within a role: implementation, test, doc,
@@ -182,7 +200,8 @@ const CONCERN_RANK: Record<Concern, number> = Object.fromEntries(
  */
 function sortByConcern(chunks: BriefChunk[]): BriefChunk[] {
   return [...chunks].sort(
-    (a, b) => CONCERN_RANK[a.concern] - CONCERN_RANK[b.concern],
+    (a, b) =>
+      (CONCERN_RANK.get(a.concern) ?? 0) - (CONCERN_RANK.get(b.concern) ?? 0),
   );
 }
 

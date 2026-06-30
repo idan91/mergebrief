@@ -6,13 +6,14 @@ import type { EvidenceTarget } from "../../../review/components/EvidenceModal/Ev
 import { useRevisionNavigation } from "../../useRevisionNavigation";
 import type { RevisionOverlayState } from "../../revisionOverlay";
 import type { AddressedReviewComment, Brief } from "../../types";
-import type { BriefViewModel } from "../../viewModel";
+import type { BriefViewModel, RiskFlag } from "../../viewModel";
 import { ChunkCard } from "../ChunkCard/ChunkCard";
 import { GroupCard } from "../GroupCard/GroupCard";
 import styles from "./StoryView.module.scss";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
 const EMPTY_REVIEW_COMMENTS: ReviewComment[] = [];
+const EMPTY_RISK_FLAGS: RiskFlag[] = [];
 
 export interface StoryViewProps {
   brief: Brief;
@@ -214,7 +215,7 @@ function FocusGroupRail({
   jumpToChunk,
 }: FocusGroupRailProps) {
   const panelId = useId();
-  const groupFlags = model.flags.filter((flag) => flag.groupId === group.id);
+  const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
   const dominant = group.group.dominantCategory;
   const activeChunk =
     group.chunks.find((chunk) => chunk.id === activeChunkId) ??

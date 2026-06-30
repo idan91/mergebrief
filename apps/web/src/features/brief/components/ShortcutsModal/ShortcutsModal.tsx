@@ -6,7 +6,12 @@ export interface ShortcutsModalProps {
   close: () => void;
 }
 
-const SHORTCUTS: { key: string; description: string }[] = [
+interface ShortcutDefinition {
+  key: string;
+  description: string;
+}
+
+const SHORTCUTS: ShortcutDefinition[] = [
   { key: "J", description: "Next chunk" },
   { key: "K", description: "Previous chunk" },
   { key: "Z", description: "Focus mode — isolate the current chunk" },
