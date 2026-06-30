@@ -42,14 +42,23 @@ import { buildChunkRevisionView } from "../../revisionChanges";
 import type { RevisionOverlayState } from "../../revisionOverlay";
 import { buildBriefTimeline } from "../../timeline";
 import type { Brief, LocalBriefSummary } from "../../types";
+import { useKeyboardShortcuts } from "../../useKeyboardShortcuts";
 import { buildBriefViewModel, type RiskFlag } from "../../viewModel";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { DemoControls } from "../DemoControls/DemoControls";
 import { GroupTocBar } from "../GroupTocBar/GroupTocBar";
 import { Header, type LayoutMode, type ViewMode } from "../Header/Header";
+import { ShortcutsModal } from "../ShortcutsModal/ShortcutsModal";
 import { StoryView } from "../StoryView/StoryView";
 import styles from "./BriefPage.module.scss";
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
@@ -189,6 +198,8 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   const [activeCommentAnchor, setActiveCommentAnchor] =
     useState<CommentAnchor | null>(null);
   const [toast, setToast] = useState("");
+  const [focusMode, setFocusMode] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const totals = useMemo(
     () => summarizeProgress(model, reviewedChunks, dispositions),
@@ -254,7 +265,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   }, [toast]);
 
   useEffect(() => {
-    document.getElementById("brief-content")?.focus();
+    document.getElementById("main-content")?.focus();
   }, [briefId]);
 
   // activeChunkId has two write sources: scroll-spy (below) and explicit nav
@@ -298,12 +309,50 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     setActiveChunkId(chunkId);
     window.setTimeout(
       () =>
-        document
-          .getElementById(chunkId)
-          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        document.getElementById(chunkId)?.scrollIntoView({
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+          block: "start",
+        }),
       0,
     );
   }, []);
+
+  const toggleFocusMode = useCallback(() => {
+    setFocusMode((current) => {
+      if (!current && !activeChunkId && brief.chunks[0]) {
+        jumpToChunk(brief.chunks[0].id);
+      }
+      return !current;
+    });
+  }, [activeChunkId, brief.chunks, jumpToChunk]);
+  const toggleShortcuts = useCallback(
+    () => setShortcutsOpen((current) => !current),
+    [],
+  );
+
+  // Shortcuts stand down whenever an overlay holds focus (drawers/modals use
+  // `inert`, which doesn't stop a window-level keydown listener on its own).
+  const shortcutsDisabled =
+    receiptOpen ||
+    summaryPreviewOpen ||
+    preSubmitOpen ||
+    shortcutsOpen ||
+    dismissTarget !== null ||
+    evidenceTarget !== null ||
+    activeCommentAnchor !== null;
+  const chunkIds = useMemo(
+    () => brief.chunks.map((chunk) => chunk.id),
+    [brief.chunks],
+  );
+  useKeyboardShortcuts({
+    chunkIds,
+    activeChunkId,
+    disabled: shortcutsDisabled,
+    focusModeActive: focusMode,
+    jumpToChunk,
+    toggleFocusMode,
+    toggleHelp: toggleShortcuts,
+  });
 
   // The TOC bar jumps by Change-group; land on the group's first chunk.
   const jumpToGroup = useCallback(
@@ -475,7 +524,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
             ? "main split-main"
             : "main"
         }
-        id="brief-content"
+        id="main-content"
         tabIndex={-1}
       >
         <section className={`${styles["summary"]} reveal`}>
@@ -528,6 +577,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
             revision={revision}
             activeChunkId={activeChunkId}
             collapseSupporting={collapseSupporting}
+            focusMode={focusMode}
             openChunks={openChunks}
             selectedRiskFlags={selectedRiskFlags}
             activeCommentAnchor={activeCommentAnchor}
@@ -618,9 +668,31 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
           setEvidenceTarget(null);
         }}
       />
+      <ShortcutsModal
+        open={shortcutsOpen}
+        close={() => setShortcutsOpen(false)}
+      />
+      <div className={styles["kbdHint"]}>
+        {focusMode ? (
+          <button className="btn" type="button" onClick={toggleFocusMode}>
+            Exit focus (Z)
+          </button>
+        ) : null}
+        <button
+          aria-label="Keyboard shortcuts"
+          className={styles["shortcutsTrigger"]}
+          type="button"
+          onClick={toggleShortcuts}
+        >
+          ?
+        </button>
+      </div>
       <div
         className={styles["toast"]}
         data-state={toast ? "visible" : "hidden"}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
       >
         {toast}
       </div>

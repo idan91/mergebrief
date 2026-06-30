@@ -70,6 +70,30 @@
     white-space: nowrap;
   }
 
+  .skip-link {
+    position: fixed;
+    z-index: 200;
+    inset-block-start: 8px;
+    inset-inline-start: 8px;
+    padding-block: 8px;
+    padding-inline: 14px;
+    border: 1px solid var(--line2);
+    border-radius: 7px;
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+
+    // Off-screen until focused; reduced-motion media query zeroes the transition.
+    transform: translateY(-150%);
+    transition: transform 0.15s;
+
+    &:focus-visible {
+      transform: none;
+    }
+  }
+
   .btn {
     padding-block: 8px;
     padding-inline: 16px;
@@ -176,6 +200,17 @@
       opacity: 1;
       transform: none;
     }
+  }
+
+  // Focus mode (Z, BriefPage): isolate the group holding the active chunk, and
+  // within it the active chunk only. data-current is set on the active
+  // ChunkCard's <article> (ChunkCard.tsx); data-zen on StoryView's root.
+  [data-zen="on"] .story-group:not(:has(article[data-current])) {
+    display: none;
+  }
+
+  [data-zen="on"] .group-chunks article:not([data-current]) {
+    display: none;
   }
 
   .scrim {

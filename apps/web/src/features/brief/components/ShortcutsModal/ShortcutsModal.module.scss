@@ -1,0 +1,32 @@
+@layer components {
+  .list {
+    display: grid;
+    gap: 10px;
+    margin-block: 14px 4px;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--dim);
+    font-size: 13px;
+  }
+
+  .key {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 28px;
+    padding-block: 3px;
+    padding-inline: 8px;
+    border: 1px solid var(--line2);
+    border-radius: 6px;
+    background: var(--panel2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+  }
+}

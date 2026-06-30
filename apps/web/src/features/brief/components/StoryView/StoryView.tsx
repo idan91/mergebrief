@@ -18,6 +18,7 @@ export interface StoryViewProps {
   revision: RevisionOverlayState;
   activeChunkId: string | null;
   collapseSupporting: boolean;
+  focusMode: boolean;
   openChunks: Set<string>;
   selectedRiskFlags: Set<string>;
   activeCommentAnchor: CommentAnchor | null;
@@ -46,7 +47,10 @@ export function StoryView(props: StoryViewProps) {
   const addressedReviewComments =
     props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
   return (
-    <div className={styles["storyView"]}>
+    <div
+      className={styles["storyView"]}
+      data-zen={props.focusMode ? "on" : undefined}
+    >
       <div className={`${styles["chunksLabel"]} reveal`}>
         <span>{props.brief.chunks.length} chunks · grouped by intent</span>
         <span className={styles["rule"]} />
