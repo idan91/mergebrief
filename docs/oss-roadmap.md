@@ -98,6 +98,21 @@ where our taxonomy substrate becomes a real edge.
 *Implication:* highest-visibility comprehension feature; turns the taxonomy substrate into a
 demonstrable advantage over Atlas.
 
+### Cheap win — Keyboard navigation + focus mode  ·  status: [ ] not started
+
+Small, high-polish, demo-impressive. Independent of the rest; ships opportunistically alongside
+P1 (sharpens the demo) and naturally pairs with P2's walkthrough nav.
+
+- **What it is:** keyboard-driven movement through the brief — next/prev across chunks (and,
+  once P2 lands, across groups/layers) plus a **focus mode** that isolates the current
+  unit. Modeled on Atlas's `J` / `K` (advance / back) and `Z` (focus).
+- **Why:** it's the kind of detail that makes a tool feel made-with-care on first run — high
+  perceived quality per hour of work, and exactly the polish an OSS project gets judged on.
+- **Scope:** frontend-only. Reuse the existing scroll-spy / active-id machinery and the group
+  TOC; add a keymap + a focus/zen toggle. Respect `prefers-reduced-motion`; show a shortcuts
+  hint (`?`). Don't hijack keys when a comment composer / input is focused.
+- *(Surfaced 2026-06-30 from the CodeRabbit Atlas gap inventory — see Progress log.)*
+
 ### P3 — Playbook library as community commons  ·  status: [ ] not started
 
 The OSS-native hook CodeRabbit structurally can't match (closed).
@@ -133,3 +148,8 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   validation track under `docs/archive/`; banner'd `next-steps.md`, ADR 0017, and the `mvp/`
   validation docs; de-moated `CONTEXT.md`. Branch `docs/oss-only-reframe`. **Next: P1
   (front-door polish)** — pending go.
+- 2026-06-30 — Studied CodeRabbit Atlas (blog + demo video) for gaps. Logged **Keyboard
+  navigation + focus mode** as a cheap-win item. Other gaps noted but not logged: per-layer
+  summary rail (folds into P2), generated diagrams (post-P2 candidate, scope to ER/schema via
+  taxonomy), code peek (heavier, deferred). Deliberate non-gaps (reject): severity labels,
+  one-click AI fixes, AI-authored comments, code-graph/LanceDB scale.
