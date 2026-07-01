@@ -134,6 +134,21 @@
     }
   }
 
+  .changesOnlyPlaceholder {
+    margin-block-end: 20px;
+    padding-block: 12px;
+    padding-inline: 18px;
+    border: 1px dashed color-mix(in srgb, var(--blue) 40%, var(--line2));
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--blue) 8%, var(--panel2));
+    color: var(--dim);
+    font-size: 13px;
+
+    b {
+      color: var(--text);
+    }
+  }
+
   .shortcutsTrigger {
     inline-size: 34px;
     block-size: 34px;

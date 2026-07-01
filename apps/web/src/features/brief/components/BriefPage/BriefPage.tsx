@@ -42,6 +42,11 @@ import {
   type RiskEvidence,
   type UnresolvedItem,
 } from "../../../review/state";
+import {
+  comparisonAvailability,
+  resolveBriefSearch,
+  type BriefSearchParams,
+} from "../../compareState";
 import { summarizeProgress } from "../../progress";
 import {
   localBriefQueryOptions,
@@ -181,10 +186,17 @@ function useChunkScroller(): (
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
   briefId: string;
+  /** Raw View/Compare URL params (ADR 0024 plan step 6); undefined keys mean
+   * "nothing chosen yet", resolved against comparison availability below. */
+  searchParams: BriefSearchParams;
 }
 
 /** Per-brief page: mounts the Mind-Map store provider around the review screen. */
-export function BriefPage({ artifacts, briefId }: BriefPageProps) {
+export function BriefPage({
+  artifacts,
+  briefId,
+  searchParams,
+}: BriefPageProps) {
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
   return (
@@ -194,6 +206,7 @@ export function BriefPage({ artifacts, briefId }: BriefPageProps) {
         brief={brief}
         briefId={briefId}
         model={model}
+        searchParams={searchParams}
       />
     </MindMapProvider>
   );
@@ -204,12 +217,31 @@ interface BriefScreenProps {
   brief: Brief;
   briefId: string;
   model: ReturnType<typeof buildBriefViewModel>;
+  searchParams: BriefSearchParams;
 }
 
-function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
+function BriefScreen({
+  artifacts,
+  brief,
+  briefId,
+  model,
+  searchParams,
+}: BriefScreenProps) {
   const timeline = useMemo(
     () => buildBriefTimeline(artifacts, briefId),
     [artifacts, briefId],
+  );
+  const availability = useMemo(
+    () => comparisonAvailability(timeline.selectedPoint),
+    [timeline.selectedPoint],
+  );
+  // View/Compare (ADR 0024 plan step 6): resolved, normalized state for the
+  // selected timeline point. Overlay rendering for compare != off and the
+  // Changes Only content are Stage 3 — this stage only wires the controls to
+  // route state and keeps every existing rendering path working unchanged.
+  const compareState = useMemo(
+    () => resolveBriefSearch(searchParams, availability),
+    [availability, searchParams],
   );
 
   // Revision-changes overlay (ADR 0021): the shared, per-revision marks plus the
@@ -706,6 +738,8 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         setLocOpen={setLocOpen}
         openReceipt={openPreSubmit}
         clearDrafts={clearDrafts}
+        availability={availability}
+        compareState={compareState}
       />
       <main
         className={
@@ -772,6 +806,23 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         {focusMode ? null : (
           <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
         )}
+
+        {compareState.view === "changes" ? (
+          // Changes Only has no renderer yet (Stage 3 of the comparison-overlay
+          // plan). Rather than break, show a clearly-marked placeholder and keep
+          // rendering the existing full Brief underneath it unchanged.
+          <div
+            className={styles["changesOnlyPlaceholder"]}
+            data-testid="changes-only-placeholder"
+            role="status"
+          >
+            <b>Changes Only</b> —{" "}
+            {compareState.compare === "previous-brief"
+              ? "Previous Brief"
+              : "Your last review"}{" "}
+            comparison view is coming soon. Showing the full Brief below.
+          </div>
+        ) : null}
 
         {viewMode === "story" && !focusMode ? (
           <GroupTocBar

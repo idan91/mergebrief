@@ -10,7 +10,7 @@
     select,
     .arrow,
     .lens a,
-    .lens span {
+    .lens button {
       min-block-size: 32px;
       border: 1px solid var(--line2);
       border-radius: 6px;
@@ -41,16 +41,21 @@
     display: flex;
     grid-column: 1 / -1;
     gap: 2px;
+    border: 0;
+    margin: 0;
+    padding: 0;
 
     a,
-    span {
+    button {
       display: grid;
       flex: 1;
       place-items: center;
       text-decoration: none;
+      cursor: pointer;
     }
 
-    a[data-state="active"] {
+    a[data-state="active"],
+    button[data-state="active"] {
       border-color: #9abce5;
       background: var(--blue);
       box-shadow:
@@ -60,22 +65,25 @@
       font-weight: 750;
     }
 
-    a:hover {
+    a:hover,
+    button:not(:disabled):hover {
       border-color: color-mix(in srgb, var(--blue) 42%, var(--line2));
       background: color-mix(in srgb, var(--panel2) 82%, var(--blue));
       color: var(--text);
     }
 
-    a:active {
+    a:active,
+    button:not(:disabled):active {
       background: color-mix(in srgb, var(--panel2) 70%, var(--blue));
       transform: translateY(1px);
     }
 
-    a:focus-visible {
+    a:focus-visible,
+    button:focus-visible {
       color: var(--text);
     }
 
-    span {
+    button:disabled {
       cursor: not-allowed;
       opacity: 0.45;
     }
@@ -95,7 +103,7 @@
       border: 1px solid var(--faint);
       border-radius: 50%;
 
-      &[data-delta] {
+      &[data-comparable] {
         border-color: var(--blue);
       }
 
