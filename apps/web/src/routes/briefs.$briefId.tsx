@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { BriefPage } from "../features/brief/components/BriefPage/BriefPage";
 import {
@@ -7,6 +7,7 @@ import {
   parseViewParam,
   type BriefSearchParams,
 } from "../features/brief/compareState";
+import { resolveLegacyDeltaRedirect } from "../features/brief/legacyRedirect";
 import {
   localBriefQueryOptions,
   localBriefsQueryOptions,
@@ -26,6 +27,23 @@ export const Route = createFileRoute("/briefs/$briefId")({
       ...(view !== undefined ? { view } : {}),
       ...(compare !== undefined ? { compare } : {}),
     };
+  },
+  // Migration (ADR 0024 plan step 10): a direct link to a Delta artifact's own
+  // id used to render that Delta in place — Delta is no longer a route target,
+  // it's Changes Only + Your last review on its head Brief. Redirect before
+  // the loader runs so the old URL never renders the pre-ADR-0024 shape.
+  beforeLoad: async ({ context, params }) => {
+    const artifacts = await context.queryClient.ensureQueryData(
+      localBriefsQueryOptions(),
+    );
+    const legacy = resolveLegacyDeltaRedirect(artifacts, params.briefId);
+    if (legacy) {
+      throw redirect({
+        to: "/briefs/$briefId",
+        params: { briefId: legacy.briefId },
+        search: legacy.search,
+      });
+    }
   },
   loader: ({ context, params }) =>
     Promise.all([
