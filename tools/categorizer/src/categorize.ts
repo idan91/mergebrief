@@ -1,18 +1,24 @@
 import {
   BriefGenerationSchema,
   DeltaBriefGenerationSchema,
+  RevisionNarrativeGenerationSchema,
   type Brief,
   type CommitRange,
   type DeltaBrief,
   type Effort,
+  type RevisionNarrative,
 } from "./types.js";
 import {
   AnthropicGenerator,
   type Generator,
   type Logger,
 } from "./generator.js";
-import { buildSystemPrompt, buildDeltaSystemPrompt } from "./prompt.js";
-import { validatePartition } from "./validate.js";
+import {
+  buildSystemPrompt,
+  buildDeltaSystemPrompt,
+  buildRevisionNarrativeSystemPrompt,
+} from "./prompt.js";
+import { validatePartition, validateNarrativeGroups } from "./validate.js";
 import type {
   FetchedPr,
   LinkedContext,
@@ -96,9 +102,10 @@ export async function categorize(
   return brief;
 }
 
-function warnIssues(issues: string[], log: Logger): void {
+/** Log-and-continue for warn-only validation issues (never a throw). */
+export function warnIssues(issues: string[], log: Logger, label = "partition"): void {
   if (issues.length > 0) {
-    log(`⚠ partition issues: ${issues.join("; ")}`);
+    log(`⚠ ${label} issues: ${issues.join("; ")}`);
   }
 }
 
@@ -203,4 +210,108 @@ export async function categorizeDelta(
   };
   warnIssues(validatePartition(delta.changedGroups, delta.chunks), log);
   return delta;
+}
+
+// --- Revision narrative (ADR 0024) -----------------------------------------
+
+export interface RevisionNarrativeInput {
+  locator: PrLocator;
+  meta: PrMetadata;
+  prevHeadSha: string;
+  headSha: string;
+  /** Brief index of each end (both are always briefed — a narrative only
+   * exists between two briefed heads). */
+  prevIndex: number;
+  headIndex: number;
+  /** The prevHead→head incremental unified diff. */
+  incrementalDiff: string;
+  links?: LinkedContext[];
+  /** The current full Brief, trimmed to alignment context by `renderBriefContext`. */
+  brief: Brief;
+}
+
+/**
+ * Trim the current full Brief to the alignment context the narrative needs
+ * (ADR 0024): change-group id/title/summary/categories and chunk
+ * file/ranges/group-id — never risk surface, LoC, or the brief's other
+ * fields, which would just invite the model to re-describe them.
+ */
+function renderBriefContext(brief: Brief): string {
+  const groups =
+    brief.changeGroups
+      .map((g) => {
+        const categories = [g.dominantCategory, ...g.secondaryCategories].join(", ");
+        return `- ${g.id} [${categories}] ${g.title} — ${g.summary}`;
+      })
+      .join("\n") || "(none)";
+  const chunks =
+    brief.chunks
+      .map((c) => {
+        const added = c.addedRanges.map((r) => `+${r.start}-${r.end}`).join(",") || "none";
+        const removed = c.removedRanges.map((r) => `-${r.start}-${r.end}`).join(",") || "none";
+        return `- ${c.id} (group ${c.changeGroupId}) ${c.file} added:${added} removed:${removed}`;
+      })
+      .join("\n") || "(none)";
+  return `### Change-groups\n${groups}\n\n### Chunks\n${chunks}`;
+}
+
+function renderRevisionNarrativeUser(input: RevisionNarrativeInput): string {
+  return `PR: ${input.meta.url}
+Repo: ${input.locator.owner}/${input.locator.repo}
+Number: ${input.locator.number}
+Title: ${input.meta.title}
+Previous head SHA: ${input.prevHeadSha} (brief _${input.prevIndex})
+Head SHA: ${input.headSha} (brief _${input.headIndex})
+
+## Description
+${input.meta.body.trim() || "(no description)"}
+
+## Linked context
+${renderLinked(input.links ?? [])}
+
+## Current full Brief — alignment context (attach chunks to these groups; never invent a group id)
+${renderBriefContext(input.brief)}
+
+## Incremental diff (previous head → head)
+${input.incrementalDiff}`;
+}
+
+export async function categorizeRevisionNarrative(
+  input: RevisionNarrativeInput,
+  generator: Generator = new AnthropicGenerator(),
+  log: Logger = () => {},
+): Promise<RevisionNarrative> {
+  // The model produces overview + chunks only; the rest is CLI-owned metadata
+  // it cannot know (ADR 0012/0013), filled in here.
+  const generated = await generator.generate({
+    schema: RevisionNarrativeGenerationSchema,
+    system: buildRevisionNarrativeSystemPrompt(),
+    user: renderRevisionNarrativeUser(input),
+    effort: EFFORT,
+    label: "revision narrative",
+    log,
+  });
+  const narrative: RevisionNarrative = {
+    artifactKind: "revisionNarrative",
+    ...generated,
+    pr: {
+      repo: `${input.locator.owner}/${input.locator.repo}`,
+      number: input.locator.number,
+      title: input.meta.title,
+      url: input.meta.url,
+      sha: input.headSha,
+      description: input.meta.body,
+    },
+    prevHeadSha: input.prevHeadSha,
+    headSha: input.headSha,
+    prevIndex: input.prevIndex,
+    headIndex: input.headIndex,
+    generation: generator.provenance(EFFORT),
+  };
+  warnIssues(
+    validateNarrativeGroups(narrative.chunks, input.brief.changeGroups),
+    log,
+    "revision narrative",
+  );
+  return narrative;
 }

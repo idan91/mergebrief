@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BriefSchema, DeltaBriefSchema } from "../src/types.js";
+import { BriefSchema, DeltaBriefSchema, RevisionNarrativeSchema } from "../src/types.js";
 
 const validBrief = {
   pr: {
@@ -119,6 +119,51 @@ describe("DeltaBriefSchema", () => {
     const bad = structuredClone(validDelta) as Partial<typeof validDelta>;
     delete bad.wholePrImpact;
     expect(DeltaBriefSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
+const validRevisionNarrative = {
+  artifactKind: "revisionNarrative",
+  pr: {
+    repo: "o/r",
+    number: 1,
+    title: "t",
+    url: "https://github.com/o/r/pull/1",
+    sha: "head0000",
+    description: "d",
+  },
+  prevHeadSha: "prev00000",
+  headSha: "head0000",
+  prevIndex: 1,
+  headIndex: 2,
+  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
+  overview: "This revision tightens error handling around the new module.",
+  chunks: [
+    {
+      id: "rc1",
+      briefChangeGroupId: "g1",
+      file: "a.ts",
+      addedRanges: [{ start: 5, end: 6 }],
+      removedRanges: [],
+      summary: "Adds a guard clause for the empty-input case.",
+    },
+  ],
+};
+
+describe("RevisionNarrativeSchema", () => {
+  it("accepts a well-formed revision narrative", () => {
+    expect(RevisionNarrativeSchema.safeParse(validRevisionNarrative).success).toBe(true);
+  });
+
+  it("rejects an invented top-level field (e.g. the excluded Delta-only wholePrImpact)", () => {
+    const bad = { ...structuredClone(validRevisionNarrative), wholePrImpact: "sneaked in" };
+    expect(RevisionNarrativeSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a narrative missing overview", () => {
+    const bad = structuredClone(validRevisionNarrative) as Partial<typeof validRevisionNarrative>;
+    delete bad.overview;
+    expect(RevisionNarrativeSchema.safeParse(bad).success).toBe(false);
   });
 });
 

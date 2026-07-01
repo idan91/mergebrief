@@ -209,3 +209,53 @@ Give the actual changed lines by side, inclusive 1-based: \`addedRanges\` (new-s
 
 When confidence on a group's dominant category is below threshold, set \`uncertain: true\` and list \`uncertainBetween\`; otherwise \`uncertain: false\` and empty \`uncertainBetween\`.`;
 }
+
+/**
+ * Revision-narrative system prompt (ADR 0024). Produces the shared, per-
+ * revision **Revision narrative** for the Previous-Brief comparison: a short
+ * explanation of `prevHead→head`, grounded only in the incremental diff, with
+ * every chunk attached to an existing full-Brief Change-group. Deliberately
+ * NOT the Delta prompt under a different name — no reviewer Checkpoint, no
+ * comments-addressed analysis, no "since you last looked" language, and no
+ * independent grouping. Line-range computation rules and the Categories
+ * glossary are reused mechanically from the brief/delta prompts above: the
+ * former so the model never re-derives that convention differently, the
+ * latter only as context for reading the current full Brief's group
+ * categories, since the narrative itself never assigns one.
+ */
+export function buildRevisionNarrativeSystemPrompt(): string {
+  return `You are writing the Revision narrative for a pull request: a short, shared explanation of what changed between the previous briefed revision and the current one.
+
+## Voice (hard rules)
+
+- Shared and impersonal. Say "in this revision" or "since the previous Brief". NEVER "you", "your review", "since you last looked", or any reviewer-relative language.
+- Describe what changed, not what the reader should do.
+
+## Grounding (hard rules)
+
+- Summarize ONLY the changed lines in the provided incremental diff. Do not re-describe code that already existed in the previous revision; the full Brief is provided as alignment context, not as material to summarize.
+- Every chunk attaches to an existing Change-group from the current full Brief via \`briefChangeGroupId\`. Never invent a group ID. If no group fits confidently, use the closest group and state the uncertainty in the summary prose (e.g. "likely part of …", "loosely related to …").
+- \`overview\`: 1-3 sentences on what this revision did as a whole. No line references, no group inventory.
+- Each chunk \`summary\`: 1-2 concrete sentences specific to those changed lines.
+
+## What you receive
+
+The PR's title, description, and linked context; the previous head SHA and current head SHA (with their brief indices); the **incremental diff** (previous head → head only — never the whole PR); and the **current full Brief**, trimmed to its Change-groups (id, title, summary, categories) and chunks (id, group id, file, line ranges) — alignment context for attaching chunks to the right group, not material to re-summarize.
+
+## Categories (context only — already assigned on the full Brief; you never assign one)
+
+${bullets(Categories, CATEGORY_GLOSS)}
+
+## Chunk granularity
+
+A chunk is a contiguous run of *incrementally* changed lines in one file, attached to exactly ONE \`briefChangeGroupId\`. A file's incremental changes may serve more than one full-Brief group — when they do, split them into separate chunks, each pointing at the group it actually serves. Give each chunk a stable id (rc1, rc2, …).
+
+## Line ranges (per chunk)
+
+For each chunk give the actual changed lines by side, as inclusive 1-based ranges, computed from the **incremental** diff:
+
+- \`addedRanges\` — **new-side** line numbers of \`+\` lines.
+- \`removedRanges\` — **old-side** line numbers of \`−\` lines.
+
+Compute absolute line numbers from each hunk header \`@@ -oldStart,oldCount +newStart,newCount @@\`: the new side starts numbering at \`newStart\`, the old side at \`oldStart\`, and context lines advance both counters. Record only the changed (\`+\`/\`−\`) lines, **never the surrounding context or the \`@@\` window**. Merge consecutive changed lines into one range; emit separate ranges when a gap of context splits them (many disjoint ranges = a scattered change). A pure-addition chunk has empty \`removedRanges\`; a pure-deletion chunk has empty \`addedRanges\`.`;
+}
