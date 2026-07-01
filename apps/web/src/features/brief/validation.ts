@@ -11,6 +11,8 @@ import {
   type CommitRange,
   type Concern,
   type ConcernRollup,
+  type ComparisonBaselineLabel,
+  type ComparisonMarksSummary,
   type Generation,
   type LineRange,
   type PrRef,
@@ -285,6 +287,48 @@ export function parseRevisionChanges(value: unknown): Result<RevisionChanges> {
   return {
     ok: true,
     value: { headSha, prevHeadSha, prevIndex, files: files.value },
+  };
+}
+
+const ComparisonBaselineLabels = {
+  PreviousBrief: "previous-brief",
+  Checkpoint: "checkpoint",
+} as const;
+
+/**
+ * Parse the header fields of a `.comparison.json` marks sidecar (ADR 0024)
+ * needed for comparison availability — deliberately ignores `files`, which
+ * availability scanning never needs.
+ */
+export function parseComparisonMarksSummary(
+  value: unknown,
+): Result<ComparisonMarksSummary> {
+  if (!isRecord(value))
+    return { ok: false, error: "Expected comparison marks to be an object" };
+  const baselineSha = value["baselineSha"];
+  const headSha = value["headSha"];
+  const baselineLabel = value["baselineLabel"];
+  const baselineIndex = value["baselineIndex"] ?? null;
+  if (
+    !isString(baselineSha) ||
+    !isString(headSha) ||
+    !oneOf(ComparisonBaselineLabels, baselineLabel) ||
+    !isNullableInteger(baselineIndex)
+  ) {
+    return {
+      ok: false,
+      error:
+        "Expected comparison marks baselineSha, headSha, baselineLabel, and baselineIndex",
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      baselineSha,
+      headSha,
+      baselineLabel: baselineLabel as ComparisonBaselineLabel,
+      baselineIndex,
+    },
   };
 }
 

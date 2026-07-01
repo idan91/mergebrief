@@ -7,6 +7,8 @@ import type {
   AddressedReviewComment,
   Brief,
   BriefChunk,
+  ComparisonAvailability,
+  ComparisonMarksSummary,
   DiffLine,
   LineRange,
   LocalBriefSummary,
@@ -15,6 +17,7 @@ import type {
 import {
   parseAddressedReviewComments,
   parseBrief,
+  parseComparisonMarksSummary,
   parseDeltaBrief,
   parseRevisionChanges,
 } from "./validation";
@@ -38,6 +41,14 @@ export async function listLocalBriefs(): Promise<LocalBriefSummary[]> {
   return localBriefSummaries;
 }
 
+const COMPARISON_MARKS_SUFFIX = ".comparison.json";
+const REVISION_NARRATIVE_SUFFIX = ".revision-narrative.json";
+
+interface LocalComparisonMarksEntry extends ComparisonMarksSummary {
+  /** Sidecar filename minus `.comparison.json` — the marks artifact id. */
+  id: string;
+}
+
 async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
   const entries = await readdir(OUT_DIR);
   const briefIds = entries
@@ -50,7 +61,8 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
     })
     .filter(isValidBriefId)
     .sort();
-  return Promise.all(
+
+  const summaries = await Promise.all(
     briefIds.map(async (briefId) => {
       const brief = await readBriefFile(briefId);
       return {
@@ -70,6 +82,135 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
       } satisfies LocalBriefSummary;
     }),
   );
+
+  const marks = await readLocalComparisonMarksEntries(entries);
+  const narrativeIds = new Set(
+    entries
+      .filter((entry) => entry.endsWith(REVISION_NARRATIVE_SUFFIX))
+      .map((entry) => entry.slice(0, -REVISION_NARRATIVE_SUFFIX.length)),
+  );
+
+  return summaries.map((summary) => {
+    if (summary.artifactKind !== "brief") return summary;
+    const comparisons = buildComparisonAvailability(
+      summary,
+      summaries,
+      marks,
+      narrativeIds,
+    );
+    return comparisons ? { ...summary, comparisons } : summary;
+  });
+}
+
+/**
+ * Read and validate every `.comparison.json` sidecar's header fields (ADR
+ * 0024). A malformed sidecar is skipped, not fatal — same fail-closed
+ * discipline as `readRevisionChanges`: a marks-scanning glitch degrades
+ * comparison availability rather than the whole listing.
+ */
+async function readLocalComparisonMarksEntries(
+  entries: string[],
+): Promise<LocalComparisonMarksEntry[]> {
+  const marksFiles = entries.filter((entry) =>
+    entry.endsWith(COMPARISON_MARKS_SUFFIX),
+  );
+  const parsed = await Promise.all(
+    marksFiles.map(async (entry) => {
+      const id = entry.slice(0, -COMPARISON_MARKS_SUFFIX.length);
+      let raw: string;
+      try {
+        raw = await readFile(resolve(OUT_DIR, entry), "utf8");
+      } catch (error) {
+        console.warn(
+          `Ignoring unreadable comparison marks ${entry}: ${String(error)}`,
+        );
+        return null;
+      }
+      const result = parseComparisonMarksSummary(JSON.parse(raw));
+      if (!result.ok) {
+        console.warn(
+          `Ignoring invalid comparison marks ${entry}: ${result.error}`,
+        );
+        return null;
+      }
+      return { id, ...result.value } satisfies LocalComparisonMarksEntry;
+    }),
+  );
+  return parsed.filter(
+    (entry): entry is LocalComparisonMarksEntry => entry !== null,
+  );
+}
+
+/**
+ * Derive the PR-stem prefix (`<owner>-<repo>-<number>`) a brief's marks/
+ * narrative sidecars are named under, from its own id — `briefId(stem, index,
+ * head)` in the categorizer is `${stem}_${index}_${head8}`, so stripping that
+ * known suffix recovers `stem` without re-deriving it from `repo`/`number`
+ * (repo names can themselves contain hyphens, which would make that
+ * reconstruction ambiguous).
+ */
+function briefStemFromSummary(summary: LocalBriefSummary): string | undefined {
+  if (summary.index == null) return undefined;
+  const suffix = `_${summary.index}_${summary.sha.slice(0, 8)}`;
+  return summary.id.endsWith(suffix)
+    ? summary.id.slice(0, -suffix.length)
+    : undefined;
+}
+
+/**
+ * Comparison availability for one full-Brief summary (plan step 5): the
+ * mechanical marks are the source of truth for availability; a narrative or
+ * Delta artifact is optional extra context. `stem_` prefix matching (not just
+ * a headSha match) guards against a same-headSha collision across PRs.
+ */
+function buildComparisonAvailability(
+  summary: LocalBriefSummary,
+  allSummaries: LocalBriefSummary[],
+  marks: LocalComparisonMarksEntry[],
+  narrativeIds: Set<string>,
+): ComparisonAvailability | undefined {
+  const stem = briefStemFromSummary(summary);
+  if (!stem) return undefined;
+  const prefix = `${stem}_`;
+  const marksForHead = marks.filter(
+    (mark) => mark.headSha === summary.sha && mark.id.startsWith(prefix),
+  );
+
+  const comparisons: ComparisonAvailability = {};
+
+  const previousBriefMarks = marksForHead.find(
+    (mark) => mark.baselineLabel === "previous-brief",
+  );
+  if (previousBriefMarks && previousBriefMarks.baselineIndex != null) {
+    comparisons.previousBrief = {
+      marksId: previousBriefMarks.id,
+      ...(narrativeIds.has(summary.id) ? { narrativeId: summary.id } : {}),
+      baselineSha: previousBriefMarks.baselineSha,
+      baselineIndex: previousBriefMarks.baselineIndex,
+    };
+  }
+
+  const checkpointMarks = marksForHead.find(
+    (mark) => mark.baselineLabel === "checkpoint",
+  );
+  if (checkpointMarks) {
+    const matchingDelta = allSummaries.find(
+      (artifact) =>
+        artifact.artifactKind === "delta" &&
+        artifact.headSha === summary.sha &&
+        artifact.baselineSha === checkpointMarks.baselineSha,
+    );
+    comparisons.lastReview = {
+      marksId: checkpointMarks.id,
+      ...(matchingDelta ? { deltaId: matchingDelta.id } : {}),
+      baselineSha: checkpointMarks.baselineSha,
+      baselineIndex: checkpointMarks.baselineIndex,
+    };
+  }
+
+  return comparisons.previousBrief || comparisons.lastReview
+    ? comparisons
+    : undefined;
 }
 
 export async function readLocalBrief(briefId: string): Promise<Brief> {

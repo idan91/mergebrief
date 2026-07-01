@@ -179,6 +179,59 @@ export interface Brief {
   wholePrImpact?: string;
 }
 
+/** Which comparison baseline a mechanical marks sidecar is relative to (ADR 0024). */
+export type ComparisonBaselineLabel = "previous-brief" | "checkpoint";
+
+/**
+ * @description Top-level fields of a `.comparison.json` marks sidecar (ADR 0024)
+ * needed to determine comparison availability. `files` is intentionally omitted
+ * here — availability only needs the header; readers that need per-line marks
+ * fetch the full sidecar separately.
+ */
+export interface ComparisonMarksSummary {
+  baselineSha: string;
+  headSha: string;
+  baselineLabel: ComparisonBaselineLabel;
+  baselineIndex: number | null;
+}
+
+/**
+ * @description Availability of the shared Previous-Brief comparison for one
+ * Brief head: the mechanical marks exist (source of truth), and — when
+ * generated — the matching Revision narrative sidecar id (real narrative or
+ * skip stub; callers discriminate on `artifactKind` after fetching).
+ */
+export interface PreviousBriefComparisonAvailability {
+  marksId: string;
+  narrativeId?: string;
+  baselineSha: string;
+  baselineIndex: number;
+}
+
+/**
+ * @description Availability of the personal "Your last review" comparison for
+ * one Brief head, approximated locally from available Delta artifacts.
+ * `deltaId` is optional: `delta-cli` writes checkpoint marks before the Delta
+ * LLM call, so marks can exist without a Delta (ADR 0024 marks-emission rule).
+ * A marks-only baseline is still "available" — the marks are the comparison.
+ */
+export interface LastReviewComparisonAvailability {
+  marksId: string;
+  deltaId?: string;
+  baselineSha: string;
+  baselineIndex: number | null;
+}
+
+/**
+ * @description Comparison availability for one Brief head (ADR 0024). Absent
+ * keys mean that baseline has no mechanical marks for this head — the FE
+ * disables the corresponding Compare option.
+ */
+export interface ComparisonAvailability {
+  previousBrief?: PreviousBriefComparisonAvailability;
+  lastReview?: LastReviewComparisonAvailability;
+}
+
 export interface LocalBriefSummary {
   id: string;
   artifactKind: "brief" | "delta";
@@ -191,4 +244,6 @@ export interface LocalBriefSummary {
   headSha?: string;
   baselineIndex?: number | null;
   headIndex?: number | null;
+  /** Only populated for `artifactKind: "brief"` entries (ADR 0024, plan step 5). */
+  comparisons?: ComparisonAvailability;
 }
