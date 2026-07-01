@@ -19,9 +19,9 @@ ADR 0019 (timeline navigation), ADR 0021 (revision-changes overlay), and ADR 002
 Read these before implementation; they define the boundaries this plan relies on:
 
 | ADR | Role | Why it matters here |
-| --- | --- |
+| --- | --- | --- |
 | [ADR 0024 — Comparison Baselines and Generated Revision Narratives](../adr/0024-generated-revision-narrative.md) | **Main / controlling** | The controlling decision for this plan: View + Compare, generated Revision narrative, mechanical marks for selectable comparison spans, and replacement of the `Full / Delta` lens. |
-| [ADR 0021 — Revision-Changes Overlay on the Full Brief](../adr/0021-revision-changes-overlay-on-full-brief.md) | **Main / inherited** | Defines the mechanical previous-brief line marks and full-Brief overlay rendering model. ADR 0024 supersedes only the opportunistic-callout generation piece. |
+| [ADR 0021 — Revision-Changes Overlay on the Full Brief](../adr/0021-revision-changes-overlay-on-full-brief.md) | **Main / inherited** | Defines the mechanical previous-brief line marks and full-Brief overlay rendering model. ADR 0024 supersedes the opportunistic-callout generation piece and the decision-5 toggle (default + persistence). |
 | [ADR 0019 — Brief Timeline Navigation](../adr/0019-brief-timeline-navigation.md) | Supporting | Keeps timeline points as full Brief heads; superseded only where ADR 0024 replaces the `Full / Delta` lens. |
 | [ADR 0006 — Delta Brief: Per-Reviewer Generation, Caching, and State Model](../adr/0006-delta-brief-generation-and-state-model.md) | Supporting | Defines **Checkpoint -> head** Delta Briefs, pre-warming, huge-span fallback, and why personal deltas are per reviewer. |
 | [ADR 0007 — Delta Comment Anchoring and Flag Carry-Over](../adr/0007-delta-comment-anchoring-and-flag-carry-over.md) | Supporting | Owns the personal carry-over semantics that remain part of `Compare: Your last review`. |
@@ -69,12 +69,32 @@ Invalid state:
   while Compare is Off, select the product default comparison. If no comparison is
   available, disable Changes Only.
 
+Product default comparison — one precedence rule wherever the product picks a
+comparison on the user's behalf (defaults, `changes + off` normalization):
+
+- **`Your last review` if available, else `Previous Brief`.** The personal baseline
+  is strictly more relevant when it exists.
+- Availability means the mechanical marks exist. A marks-only `Your last review`
+  (Delta narrative failed) still wins — the marks are the comparison; falling back
+  to `Previous Brief` would silently switch the user's baseline, worse than a
+  missing summary.
+
 Defaults:
 
 - Returning reviewer with an older Checkpoint: `View: Changes Only`,
   `Compare: Your last review` when arriving for re-review; preserve user choice within
   the session after they change it.
 - First-time reviewer: `View: Full Brief`, `Compare: Off` by default.
+
+Persistence model (View and Compare, decided during grilling): **session-only**.
+
+- Selected state always lives in URL params — shareable and refresh-stable.
+- Within a visit, the user's choice sticks across timeline navigation.
+- No cross-session persistence (no localStorage): each arrival recomputes the
+  product-aware default. Unlike ADR 0021's per-user toggle (a stable taste
+  preference), Compare is lifecycle-dependent — persisting `Off` from a first read
+  would suppress the `Your last review` default exactly on the return visit where
+  it matters most. Revisit only if users report reset fatigue.
 - First-time reviewer on a non-first Brief may select `Previous Brief`; do not force it
   as the default unless user research says latest-revision highlighting is less noisy
   than the clean full Brief.
@@ -128,6 +148,19 @@ Notes:
 - `Revision changes` remains the domain name for the shared `Previous Brief` case.
 - Do not derive highlights from generated narrative chunks or Delta chunks.
 - FE matching still joins on head-side added/context rows and old-side deletion rows.
+
+Marks emission rule — **whoever fetches a compare diff for a baseline also writes
+the mechanical marks sidecar for that `(baselineSha, headSha)` pair**:
+
+- The main generation path (step 4) writes `previous-brief` marks for
+  `prevHead -> head`.
+- `delta-cli` writes `checkpoint` marks from the incremental diff it already
+  fetches, **before** the Delta LLM call. A failed Delta generation still leaves
+  marks on disk; the FE shows highlights with the honest "summary unavailable"
+  state. No reuse trick keyed on the delta baseline coinciding with `prevHead` —
+  that is the coincidence dependency ADR 0021's local-first consequence forbids.
+- Production Checkpoint pre-warming follows the same invariant: marks before
+  narrative.
 
 ### 2. Add Revision Narrative Schema
 
@@ -217,14 +250,42 @@ Failure behavior:
 - Revision narrative failure should not fail the full Brief. Write logs clearly and
   allow FE to show "summary unavailable" for callouts.
 
+Huge-span fallback (mirrors ADR 0006):
+
+- Reuse ADR 0006's size-fallback threshold — one shared per-repo knob, not a second
+  narrative-specific one. Both fallbacks answer "is this span too big to summarize
+  incrementally?"; two knobs invite unprincipled drift.
+- Past the cap: skip the narrative LLM call, still write mechanical marks (diff
+  parsing is cheap and ungated), and write an explicit stub artifact recording
+  `skipped: span too large` so the FE can distinguish "deliberately skipped, retry
+  won't help" from "generation failed, retry might help".
+
+Config gate (BYOK cost control, per ADR 0023):
+
+- Per-repo YAML namespace, default on:
+
+  ```yaml
+  revisionNarrative:
+    enabled: true
+  ```
+
+- Namespace, not a bare boolean, so future cost knobs (e.g. push-frequency gating)
+  extend it without a breaking config change. Frequency gating itself is deferred:
+  ADR 0020's debounce is the existing per-push cost lever, and skipping narratives
+  leaves permanent holes in the `prevHead -> head` chain (skipped means gone, not
+  deferred), so the knob's shape should come from real OSS-user demand.
+- When disabled: marks still generated; narrative stub records
+  `skipped: disabled by config`.
+
 Output naming:
 
 - Keep `.revchanges.json` during migration for compatibility.
 - Add a new sidecar, e.g.
   `<stem>_<index>_<head8>.revision-narrative.json`.
 - If comparison marks are generalized immediately, prefer
-  `<stem>-<base8>..<head8>.comparison.json` for span-keyed marks and keep the old
-  filename as an alias for previous-brief spans.
+  `<stem>_<base8>-<head8>.comparison.json` for span-keyed marks (no `..` in
+  filenames — hostile to globbing) and keep the old filename as an alias for
+  previous-brief spans.
 
 ### 5. Represent Comparison Availability in the Local Read Model
 
@@ -252,7 +313,8 @@ interface BriefTimelinePoint {
     };
     lastReview?: {
       marksId: string;
-      deltaId: string;
+      /** Absent when Delta generation failed; marks still render. */
+      deltaId?: string;
       baselineSha: string;
       baselineIndex: number | null;
     };
@@ -280,9 +342,13 @@ Change:
   - `View`: `Full Brief`, `Changes Only`
   - `Compare`: `Your last review`, `Previous Brief`, `Off`
 - Store state in URL search params, not path artifact IDs:
-  - `/briefs/$briefId?view=full&compare=previous`
+  - `/briefs/$briefId?view=full&compare=previous-brief`
   - `/briefs/$briefId?view=changes&compare=last-review`
   - `/briefs/$briefId?view=full&compare=off`
+
+  Canonical `compare` param values: `previous-brief` | `last-review` | `off`
+  (`previous-brief` matches the marks artifact's `baselineLabel`; `last-review`
+  is the user-facing name for the `checkpoint` baseline).
 - Invalid URL states normalize:
   - `view=changes&compare=off` -> choose default active comparison.
   - unavailable comparison -> fallback to `compare=off` in Full Brief, or the other
@@ -352,6 +418,11 @@ Categorizer:
 - `generateAndWrite` writes Revision narrative for non-first Briefs and skips it for
   first Briefs.
 - Revision narrative generation failure does not fail full Brief generation.
+- `delta-cli` writes checkpoint marks before the Delta LLM call; a failed Delta run
+  still leaves the marks sidecar, and the FE renders highlights with the
+  summary-unavailable state.
+- Over-threshold `prevHead -> head` span skips the narrative call, writes marks and
+  the `skipped: span too large` stub; FE surfaces the skip reason.
 
 FE unit tests:
 

@@ -11,7 +11,7 @@ The product ships **open-source, self-hosted first**, open-core: one codebase ru
 ## Context
 
 - **No technical moat yet** — `CONTEXT.md` records taxonomy + playbooks as reproducible. We are at validation stage; the kill criterion is **peer reuse, not scale** (`docs/mvp/`).
-- **Founder constraints** (rationale, not the sole driver): on a UK Skilled Worker visa, a business is permitted only as ≤20 hr/wk *supplementary* self-employment; *hosting* additionally means personally holding other orgs' source code (data-liability), unbounded LLM cost, and oncall against the 20 hr cap; and an employer **IP clause** gates building/publishing because IP vests *on creation* — a written waiver must precede public work. (Details in project memory.)
+- **Founder constraints** (rationale, not the sole driver): side-project hours are strictly capped; *hosting* additionally means personally holding other orgs' source code (data-liability), unbounded LLM cost, and oncall against that cap; and contractual **IP constraints** gate building/publishing — written clearance must precede public work. (Details in private project notes.)
 - **Our friction floor is structurally higher than the OSS field's.** Stateless reviewers (PR-Agent, OpenReview) avoid setup friction by being stateless; the **Delta Brief requires persistent state**, so we cannot be a pure GitHub Action. This is a fact to accept and soften, not fight.
 
 ## Considered Options
@@ -25,11 +25,11 @@ The product ships **open-source, self-hosted first**, open-core: one codebase ru
 1. **OSS self-host first, open-core.** One codebase, three run modes:
    - **Static demo** — the FE replaying pre-generated briefs (today's `apps/web` reading `tools/categorizer/out`). No backend, no LLM calls, free. The zero-friction "see the value" funnel.
    - **Self-host** — `docker compose up`; `instance = tenant`; **code and model keys never leave the adopter**.
-   - **Hosted** — *deferred, not forbidden*; same core + multi-tenancy + central auth + BYOK key handling, built only after validation and with legal/visa headroom.
+   - **Hosted** — *deferred, not forbidden*; same core + multi-tenancy + central auth + BYOK key handling, built only after validation and with legal headroom.
 2. **BYOK default** — the adopter brings and pays the model key.
 3. **Build one core; decide packaging later.** Do not build hosted-only machinery (multi-tenancy density, billing, central key vault) until validation passes; ADR 0016's seams (tenant scoping, auth gate, audit log) keep it additive.
 4. **Friction is a growth-stage problem, not a validation-stage one.** For a few design-partner orgs the setup is an afternoon; soften with the app-manifest flow + a one-command deploy + the static demo — don't over-invest now.
-5. **Gate:** the employer IP waiver precedes building/publishing under the author's name.
+5. **Gate:** contractual IP clearance precedes building/publishing under the author's name.
 
 ## Why This Way
 

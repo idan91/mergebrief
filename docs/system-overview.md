@@ -12,11 +12,11 @@ Status: **distribution + topology locked**; gating decisions Q2–Q7 in progress
 
 - **Static demo** — the FE replaying pre-generated briefs (today's `apps/web` reading `tools/categorizer/out/*.json`). No live backend, no LLM calls. Free on Vercel. The zero-friction "see the value" funnel.
 - **Self-host** — `docker compose up` (or a Railway/Render blueprint). The adopter runs it in their own infra; **code and model keys never leave them**. `instance = tenant` (one installation per instance) — defers multi-tenancy entirely.
-- **Hosted** — *deferred, not forbidden.* Same core + multi-tenancy + central auth + BYOK key handling, built **only after validation** and with legal/visa headroom.
+- **Hosted** — *deferred, not forbidden.* Same core + multi-tenancy + central auth + BYOK key handling, built **only after validation** and with legal headroom.
 
-**Rationale (compressed):** no technical moat yet (taxonomy/playbooks reproducible — `CONTEXT.md`); founder constraints make a hosted SaaS the heaviest path — UK Skilled Worker visa permits a business only as ≤20hr/wk supplementary work, and *hosting* means personally holding other orgs' source code (data-liability) + unbounded LLM cost + oncall against the 20hr cap. Validation stage needs **peer reuse, not scale** (kill criterion), so self-host friction is tolerable now. The OSS field's stateless reviewers (PR-Agent, OpenReview) avoid this friction by being stateless — we can't, because the **Delta Brief requires persistent state**, so our friction floor is structurally higher by design.
+**Rationale (compressed):** no technical moat yet (taxonomy/playbooks reproducible — `CONTEXT.md`); founder constraints make a hosted SaaS the heaviest path — side-project hours are strictly capped, and *hosting* means personally holding other orgs' source code (data-liability) + unbounded LLM cost + oncall against that cap. Validation stage needs **peer reuse, not scale** (kill criterion), so self-host friction is tolerable now. The OSS field's stateless reviewers (PR-Agent, OpenReview) avoid this friction by being stateless — we can't, because the **Delta Brief requires persistent state**, so our friction floor is structurally higher by design.
 
-**Defaults:** **BYOK** (adopter brings + pays the model key). **Gate:** employer IP waiver before building/publishing (IP vests on creation).
+**Defaults:** **BYOK** (adopter brings + pays the model key). **Gate:** contractual IP clearance before building/publishing.
 
 ## 2. Deployment topology — LOCKED
 

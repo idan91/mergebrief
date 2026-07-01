@@ -18,11 +18,11 @@ static-demo funnel from 0017 all stand; only the latent hosted arm is removed.
   Competing for the *same commercial buyers* is no longer viable.
   - <https://www.coderabbit.ai/blog/introducing-atlas-the-first-ai-native-code-review-interface>
   - <https://www.coderabbit.ai/blog/coderabbit-review-reads-a-pr-how-author-would-explain-it>
-- **Founder/legal constraints make hosting the wrong shape anyway.** On a UK Skilled Worker
-  visa, hosting means personally holding other orgs' source code (data-liability), unbounded
-  LLM cost, and oncall against a 20 hr/wk supplementary cap; an employer IP clause further
-  gates commercial publishing. A non-hosted OSS side project is the safe, sustainable form.
-  (Details in project memory — not load-bearing on the architecture.)
+- **Founder constraints make hosting the wrong shape anyway.** Hosting means personally
+  holding other orgs' source code (data-liability), unbounded LLM cost, and oncall beyond
+  sustainable side-project hours; separate contractual constraints gate commercial
+  publishing. A non-hosted OSS side project is the safe, sustainable form. (Details in
+  private project notes — not load-bearing on the architecture.)
 - **No moat, and now no reason to chase one.** `CONTEXT.md` already records taxonomy +
   playbooks as reproducible. The prior docs tried to *earn* a moat (data exhaust, org-learned
   playbooks, switching costs) for an eventual hosted business. With no business, moat-building

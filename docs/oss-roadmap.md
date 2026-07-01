@@ -7,8 +7,9 @@
 
 The project is now **OSS-only** — no hosted product, no commercial/SaaS arm. Two drivers:
 
-1. **Visa constraints.** UK Skilled Worker status: hosted data-liability and the employer IP
-   clause are the real blockers (a non-hosted OSS side project is the safe shape).
+1. **Founder constraints.** Hosted data-liability and contractual publishing constraints are
+   the real blockers (a non-hosted OSS side project is the safe shape; details in private
+   project notes).
 2. **CodeRabbit shipped our wedge.** "CodeRabbit Review" (a.k.a. **Atlas**, "the first
    AI-native code review interface") reorganizes a PR into semantic **cohorts** + dependency-
    ordered **layers** with per-range AI summaries, diagrams, snapshot/out-of-date deltas, no

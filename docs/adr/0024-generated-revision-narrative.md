@@ -46,5 +46,5 @@ The Revision narrative is its own lean artifact and prompt, not the existing Del
 
 - Non-first Brief generation now performs an additional LLM call after the full Brief and mechanical Revision changes are available.
 - The Revision narrative can fail independently: the full Brief and mechanical Revision changes still render, with unavailable summaries.
-- ADR 0021's rendering and mechanical-marking model still stands; only its "do not generate solely for the overlay" decision is superseded.
+- ADR 0021's rendering and mechanical-marking model still stands. Superseded pieces: its "do not generate solely for the overlay" decision, and its decision 5 toggle (on-by-default, persisted per user) — replaced by the **Compare** control, whose defaults are product-aware (first-time reviewers get `Off`) and whose state is session-only (URL + in-session stickiness; defaults recompute per arrival, no per-user persistence).
 - FE and generation now share the same comparison-baseline vocabulary, reducing the global-versus-personal delta confusion.
