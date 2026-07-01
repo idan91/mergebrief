@@ -117,16 +117,17 @@ async function readLocalComparisonMarksEntries(
   const parsed = await Promise.all(
     marksFiles.map(async (entry) => {
       const id = entry.slice(0, -COMPARISON_MARKS_SUFFIX.length);
-      let raw: string;
+      let parsedJson: unknown;
       try {
-        raw = await readFile(resolve(OUT_DIR, entry), "utf8");
+        const raw = await readFile(resolve(OUT_DIR, entry), "utf8");
+        parsedJson = JSON.parse(raw);
       } catch (error) {
         console.warn(
           `Ignoring unreadable comparison marks ${entry}: ${String(error)}`,
         );
         return null;
       }
-      const result = parseComparisonMarksSummary(JSON.parse(raw));
+      const result = parseComparisonMarksSummary(parsedJson);
       if (!result.ok) {
         console.warn(
           `Ignoring invalid comparison marks ${entry}: ${result.error}`,

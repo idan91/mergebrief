@@ -32,7 +32,14 @@ export interface BriefSearchParams {
   compare?: CompareParam;
 }
 
-export interface ComparisonAvailability {
+/**
+ * @description Which Compare options are selectable at the current timeline
+ * point — plain booleans for the control/normalization logic. Distinct from
+ * `ComparisonAvailability` in `types.ts`, which carries the underlying
+ * artifact ids (marksId/narrativeId/deltaId) these flags are derived from
+ * via `comparisonAvailability`.
+ */
+export interface CompareOptionFlags {
   previousBrief: boolean;
   lastReview: boolean;
 }
@@ -57,7 +64,7 @@ export function parseCompareParam(value: unknown): CompareParam | undefined {
 /** Comparison availability for a timeline point's Compare control. */
 export function comparisonAvailability(
   point: BriefTimelinePoint | undefined,
-): ComparisonAvailability {
+): CompareOptionFlags {
   return {
     previousBrief: Boolean(point?.comparisons.previousBrief),
     lastReview: Boolean(point?.comparisons.lastReview),
@@ -73,7 +80,7 @@ export function comparisonAvailability(
  * below.
  */
 export function defaultComparison(
-  availability: ComparisonAvailability,
+  availability: CompareOptionFlags,
 ): CompareParam {
   if (availability.lastReview) return "last-review";
   if (availability.previousBrief) return "previous-brief";
@@ -82,7 +89,7 @@ export function defaultComparison(
 
 function isAvailable(
   compare: CompareParam,
-  availability: ComparisonAvailability,
+  availability: CompareOptionFlags,
 ): boolean {
   if (compare === "off") return true;
   if (compare === "previous-brief") return availability.previousBrief;
@@ -103,7 +110,7 @@ function isAvailable(
  */
 export function normalizeBriefSearch(
   search: BriefSearch,
-  availability: ComparisonAvailability,
+  availability: CompareOptionFlags,
 ): BriefSearch {
   const compare = isAvailable(search.compare, availability)
     ? search.compare
@@ -135,7 +142,7 @@ export function normalizeBriefSearch(
  */
 export function resolveBriefSearch(
   params: BriefSearchParams,
-  availability: ComparisonAvailability,
+  availability: CompareOptionFlags,
 ): BriefSearch {
   if (params.view === undefined && params.compare === undefined) {
     return availability.lastReview
@@ -152,7 +159,7 @@ export function resolveBriefSearch(
 export function withView(
   current: BriefSearch,
   view: ViewParam,
-  availability: ComparisonAvailability,
+  availability: CompareOptionFlags,
 ): BriefSearch {
   return normalizeBriefSearch({ view, compare: current.compare }, availability);
 }
@@ -161,7 +168,7 @@ export function withView(
 export function withCompare(
   current: BriefSearch,
   compare: CompareParam,
-  availability: ComparisonAvailability,
+  availability: CompareOptionFlags,
 ): BriefSearch {
   return normalizeBriefSearch({ view: current.view, compare }, availability);
 }
@@ -169,7 +176,7 @@ export function withCompare(
 /** Whether a Compare option is selectable for the current availability. */
 export function isCompareAvailable(
   compare: CompareParam,
-  availability: ComparisonAvailability,
+  availability: CompareOptionFlags,
 ): boolean {
   return isAvailable(compare, availability);
 }

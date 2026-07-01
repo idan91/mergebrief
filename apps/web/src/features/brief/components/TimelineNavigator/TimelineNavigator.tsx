@@ -7,7 +7,7 @@ import {
   withView,
   type BriefSearch,
   type CompareParam,
-  type ComparisonAvailability,
+  type CompareOptionFlags,
   type ViewParam,
 } from "../../compareState";
 import type { BriefTimeline } from "../../timeline";
@@ -15,7 +15,7 @@ import styles from "./TimelineNavigator.module.scss";
 
 export interface TimelineNavigatorProps {
   /** Compare availability at the selected timeline point (ADR 0024). */
-  availability: ComparisonAvailability;
+  availability: CompareOptionFlags;
   briefId: string;
   /** Resolved, normalized View/Compare state (ADR 0024 plan step 6). */
   compareState: BriefSearch;

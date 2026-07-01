@@ -203,6 +203,14 @@ export interface ComparisonMarksSummary {
  */
 export interface PreviousBriefComparisonAvailability {
   marksId: string;
+  /**
+   * @description Present whenever a `.revision-narrative.json` sidecar exists —
+   * INCLUDING skip stubs (`artifactKind: "revisionNarrativeSkipped"`, written
+   * for huge spans or when disabled by config). narrativeId-present means
+   * "there is a narrative artifact to fetch", NOT "a summary is available":
+   * readers must discriminate on the fetched file's `artifactKind` and treat
+   * a stub as narrative-unavailable with a knowable skip reason (ADR 0024).
+   */
   narrativeId?: string;
   baselineSha: string;
   baselineIndex: number;

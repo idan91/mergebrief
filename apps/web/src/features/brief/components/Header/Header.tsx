@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, type CSSProperties } from "react";
 
 import type { ReviewMode } from "../../../review/state";
-import type { BriefSearch, ComparisonAvailability } from "../../compareState";
+import type { BriefSearch, CompareOptionFlags } from "../../compareState";
 import type { ProgressTotals } from "../../progress";
 import type { BriefTimeline } from "../../timeline";
 import type { Brief } from "../../types";
@@ -28,7 +28,7 @@ export interface HeaderProps {
   openReceipt: () => void;
   clearDrafts: () => void;
   /** Compare availability at the selected timeline point (ADR 0024). */
-  availability: ComparisonAvailability;
+  availability: CompareOptionFlags;
   /** Resolved, normalized View/Compare state (ADR 0024 plan step 6). */
   compareState: BriefSearch;
 }

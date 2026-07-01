@@ -9,19 +9,19 @@ import {
   resolveBriefSearch,
   withCompare,
   withView,
-  type ComparisonAvailability,
+  type CompareOptionFlags,
 } from "./compareState";
 
-const both: ComparisonAvailability = { previousBrief: true, lastReview: true };
-const onlyPreviousBrief: ComparisonAvailability = {
+const both: CompareOptionFlags = { previousBrief: true, lastReview: true };
+const onlyPreviousBrief: CompareOptionFlags = {
   previousBrief: true,
   lastReview: false,
 };
-const onlyLastReview: ComparisonAvailability = {
+const onlyLastReview: CompareOptionFlags = {
   previousBrief: false,
   lastReview: true,
 };
-const none: ComparisonAvailability = {
+const none: CompareOptionFlags = {
   previousBrief: false,
   lastReview: false,
 };
