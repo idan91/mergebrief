@@ -31,6 +31,10 @@ export function RevisionGutterCell({
       {isStart ? (
         <button
           className={styles["railButton"]}
+          // CSS-module classnames are hashed at build time, so jump-nav
+          // (`useRevisionNavigation`) targets this stable data attribute
+          // instead of a class selector.
+          data-jump-target=""
           type="button"
           aria-label={`${verb} this revision. ${count} line${count === 1 ? "" : "s"}.`}
           onFocus={(e) => onRailEnter(run, e.currentTarget)}

@@ -127,6 +127,7 @@ export function TimelineNavigator({
       <fieldset className={styles["lens"]}>
         <legend className="sr-only">View</legend>
         <button
+          aria-pressed={compareState.view === "full"}
           data-state={compareState.view === "full" ? "active" : undefined}
           type="button"
           onClick={() => selectView("full")}
@@ -134,6 +135,7 @@ export function TimelineNavigator({
           Full Brief
         </button>
         <button
+          aria-pressed={compareState.view === "changes"}
           data-state={compareState.view === "changes" ? "active" : undefined}
           type="button"
           onClick={() => selectView("changes")}
@@ -144,6 +146,7 @@ export function TimelineNavigator({
       <fieldset className={styles["lens"]}>
         <legend className="sr-only">Compare</legend>
         <button
+          aria-pressed={compareState.compare === "last-review"}
           data-state={
             compareState.compare === "last-review" ? "active" : undefined
           }
@@ -159,6 +162,7 @@ export function TimelineNavigator({
           Your last review
         </button>
         <button
+          aria-pressed={compareState.compare === "previous-brief"}
           data-state={
             compareState.compare === "previous-brief" ? "active" : undefined
           }
@@ -174,6 +178,7 @@ export function TimelineNavigator({
           Previous Brief
         </button>
         <button
+          aria-pressed={compareState.compare === "off"}
           data-state={compareState.compare === "off" ? "active" : undefined}
           disabled={compareState.view === "changes"}
           title={
