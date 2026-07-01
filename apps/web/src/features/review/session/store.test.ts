@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "../../brief/fixtures";
 import { buildBriefViewModel } from "../../brief/viewModel";
+import type { ReviewComment } from "../comments";
 import type { RiskEvidence } from "../state";
 import {
   createMindMapStore,
@@ -11,7 +12,9 @@ import {
 import { serializeSnapshot, snapshotToState } from "./snapshot";
 
 const model = buildBriefViewModel(briefFixture);
-const flagId = model.flags[0]!.id;
+const firstFlag = model.flags[0];
+if (!firstFlag) throw new Error("Expected brief fixture to include risk flags");
+const flagId = firstFlag.id;
 
 function freshStore() {
   return createMindMapStore(deriveInitialState(model));
@@ -42,10 +45,17 @@ describe("disposeFlag", () => {
 
   it("reopens a flag (open carries no evidence by construction)", () => {
     const store = freshStore();
-    store.getState().actions.addressFlags([flagId], () => ({
-      kind: "chunk-reviewed",
-      chunkId: "chunk-a",
-    }));
+    store.getState().actions.addressFlags(
+      new Map([
+        [
+          flagId,
+          {
+            kind: "chunk-reviewed",
+            chunkId: "chunk-a",
+          },
+        ],
+      ]),
+    );
     store.getState().actions.disposeFlag([flagId], { kind: "open" });
     expect(store.getState().dispositions[flagId]).toEqual({ kind: "open" });
   });
@@ -62,7 +72,7 @@ describe("addressFlags", () => {
   it("resolves evidence per flag", () => {
     const store = freshStore();
     const evidence: RiskEvidence = { kind: "manual-note", note: "checked" };
-    store.getState().actions.addressFlags([flagId], () => evidence);
+    store.getState().actions.addressFlags(new Map([[flagId, evidence]]));
     expect(store.getState().dispositions[flagId]).toEqual({
       kind: "addressed",
       evidence,
@@ -95,28 +105,29 @@ describe("reviewChunk", () => {
 describe("comments + outcome", () => {
   it("saves, updates, deletes comments and sets outcome", () => {
     const store = freshStore();
-    const comment = {
+    const comment: Omit<ReviewComment, "id"> = {
       anchor: {
         chunkId: "chunk-a",
         file: "src/leak.ts",
-        side: "new" as const,
+        side: "new",
         startLine: 10,
         endLine: 10,
         rowIds: ["chunk-a:1"],
         selectedText: "validate(a);",
       },
       body: "first",
-      status: "draft" as const,
+      status: "draft",
       collapsed: false,
     };
+    const commentId = "chunk-a-new-10-10-1";
     store.getState().actions.saveComment(comment);
     expect(store.getState().reviewComments).toHaveLength(1);
-    expect(store.getState().reviewComments[0]!.id).toBe("chunk-a-new-10-10-1");
-    store.getState().actions.updateComment("chunk-a-new-10-10-1", "second");
-    expect(store.getState().reviewComments[0]!.body).toBe("second");
-    store.getState().actions.toggleComment("chunk-a-new-10-10-1");
-    expect(store.getState().reviewComments[0]!.collapsed).toBe(true);
-    store.getState().actions.deleteComment("chunk-a-new-10-10-1");
+    expect(store.getState().reviewComments[0]?.id).toBe(commentId);
+    store.getState().actions.updateComment(commentId, "second");
+    expect(store.getState().reviewComments[0]?.body).toBe("second");
+    store.getState().actions.toggleComment(commentId);
+    expect(store.getState().reviewComments[0]?.collapsed).toBe(true);
+    store.getState().actions.deleteComment(commentId);
     expect(store.getState().reviewComments).toHaveLength(0);
     store.getState().actions.setOutcome("approve");
     expect(store.getState().reviewOutcome).toBe("approve");

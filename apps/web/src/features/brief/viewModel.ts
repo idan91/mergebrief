@@ -34,6 +34,7 @@ export interface RiskFlag {
 export interface BriefViewModel {
   groups: GroupView[];
   flags: RiskFlag[];
+  flagsById: Map<string, RiskFlag>;
   flagsByGroup: Map<string, RiskFlag[]>;
   totalAdded: number;
   totalDeleted: number;
@@ -128,6 +129,7 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
   }
 
   const flags: RiskFlag[] = [];
+  const flagsById = new Map<string, RiskFlag>();
   const flagsByGroup = new Map<string, RiskFlag[]>();
   for (const chunk of brief.chunks) {
     const groupId = chunkToGroup.get(chunk.id) ?? "g1";
@@ -141,6 +143,7 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
         description: RISK_DESCRIPTIONS[attr],
       } satisfies RiskFlag;
       flags.push(flag);
+      flagsById.set(flag.id, flag);
       const groupFlags = flagsByGroup.get(groupId);
       if (groupFlags) groupFlags.push(flag);
       else flagsByGroup.set(groupId, [flag]);
@@ -150,6 +153,7 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
   return {
     groups,
     flags,
+    flagsById,
     flagsByGroup,
     totalAdded: sumLoc(brief.chunks, "added"),
     totalDeleted: sumLoc(brief.chunks, "deleted"),
