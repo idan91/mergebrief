@@ -39,12 +39,10 @@ export interface MindMapActions {
    */
   disposeFlag(flagIds: string[], disposition: BulkDisposition): void;
   /**
-   * @description Addressed dispositions derive evidence per flag, so they take a resolver.
+   * @description Addressed dispositions are resolved before mutation, keyed by
+   * brief-local flag id.
    */
-  addressFlags(
-    flagIds: string[],
-    evidenceFor: (flagId: string) => RiskEvidence,
-  ): void;
+  addressFlags(evidenceByFlagId: ReadonlyMap<string, RiskEvidence>): void;
   /**
    * @description Sets the dominant category, marks the group reclassified, and resets carrier checks.
    */
@@ -135,12 +133,12 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
           return { dispositions };
         });
       },
-      addressFlags(flagIds, evidenceFor) {
-        if (flagIds.length === 0) return;
+      addressFlags(evidenceByFlagId) {
+        if (evidenceByFlagId.size === 0) return;
         set((state) => {
           const dispositions = { ...state.dispositions };
-          for (const id of flagIds) {
-            dispositions[id] = { kind: "addressed", evidence: evidenceFor(id) };
+          for (const [id, evidence] of evidenceByFlagId) {
+            dispositions[id] = { kind: "addressed", evidence };
           }
           return { dispositions };
         });

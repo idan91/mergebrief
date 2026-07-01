@@ -1,5 +1,12 @@
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 import { Drawer } from "../../../../components/Drawer/Drawer";
 import { Markdown } from "../../../../components/Markdown/Markdown";
@@ -29,9 +36,11 @@ import {
 } from "../../../review/session";
 import {
   deriveUnresolvedItems,
+  type RiskEvidenceKind,
   type ReviewMode,
   type ReviewOutcome,
   type RiskEvidence,
+  type UnresolvedItem,
 } from "../../../review/state";
 import { summarizeProgress } from "../../progress";
 import {
@@ -42,14 +51,132 @@ import { buildChunkRevisionView } from "../../revisionChanges";
 import type { RevisionOverlayState } from "../../revisionOverlay";
 import { buildBriefTimeline } from "../../timeline";
 import type { Brief, LocalBriefSummary } from "../../types";
+import { useKeyboardShortcuts } from "../../useKeyboardShortcuts";
 import { buildBriefViewModel, type RiskFlag } from "../../viewModel";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { DemoControls } from "../DemoControls/DemoControls";
 import { GroupTocBar } from "../GroupTocBar/GroupTocBar";
 import { Header, type LayoutMode, type ViewMode } from "../Header/Header";
+import { ShortcutsModal } from "../ShortcutsModal/ShortcutsModal";
 import { StoryView } from "../StoryView/StoryView";
 import styles from "./BriefPage.module.scss";
+
+const EMPTY_CHUNK_IDS: string[] = [];
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+function numericCssVar(name: string): number {
+  if (typeof window === "undefined") return 0;
+  const value = window
+    .getComputedStyle(document.documentElement)
+    .getPropertyValue(name);
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function focusScrollOffset(): number {
+  const topBarHeight = numericCssVar("--top-bar-h");
+  const focusBannerHeight =
+    document
+      .querySelector<HTMLElement>("[data-focus-banner]")
+      ?.getBoundingClientRect().height ?? 0;
+  return topBarHeight + focusBannerHeight + 40;
+}
+
+function scrollElementToTop(
+  element: HTMLElement,
+  behavior: ScrollBehavior,
+): void {
+  const top = Math.max(
+    0,
+    window.scrollY + element.getBoundingClientRect().top - focusScrollOffset(),
+  );
+  window.scrollTo({ behavior, top });
+}
+
+type ChunkScrollAlign = "native" | "top";
+
+interface PendingChunkScroll {
+  timeout: number | null;
+  firstFrame: number | null;
+  secondFrame: number | null;
+}
+
+function useLatestRef<T>(value: T): RefObject<T> {
+  const ref = useRef(value);
+  useEffect(() => {
+    ref.current = value;
+  });
+  return ref;
+}
+
+function useChunkScroller(): (
+  chunkId: string,
+  behavior?: ScrollBehavior,
+  align?: ChunkScrollAlign,
+) => void {
+  const pending = useRef<PendingChunkScroll>({
+    timeout: null,
+    firstFrame: null,
+    secondFrame: null,
+  });
+
+  const cancelPendingScroll = useCallback(() => {
+    const current = pending.current;
+    if (current.timeout !== null) {
+      window.clearTimeout(current.timeout);
+      current.timeout = null;
+    }
+    if (current.firstFrame !== null) {
+      window.cancelAnimationFrame(current.firstFrame);
+      current.firstFrame = null;
+    }
+    if (current.secondFrame !== null) {
+      window.cancelAnimationFrame(current.secondFrame);
+      current.secondFrame = null;
+    }
+  }, []);
+
+  useEffect(() => cancelPendingScroll, [cancelPendingScroll]);
+
+  return useCallback(
+    (
+      chunkId: string,
+      behavior: ScrollBehavior = "smooth",
+      align: ChunkScrollAlign = "native",
+    ) => {
+      cancelPendingScroll();
+      pending.current.timeout = window.setTimeout(() => {
+        pending.current.timeout = null;
+        const resolvedBehavior = prefersReducedMotion() ? "auto" : behavior;
+        if (align === "top") {
+          pending.current.firstFrame = window.requestAnimationFrame(() => {
+            pending.current.firstFrame = null;
+            pending.current.secondFrame = window.requestAnimationFrame(() => {
+              pending.current.secondFrame = null;
+              const element = document.getElementById(chunkId);
+              if (element) scrollElementToTop(element, resolvedBehavior);
+            });
+          });
+          return;
+        }
+        const element = document.getElementById(chunkId);
+        if (!element) return;
+        element.scrollIntoView({
+          behavior: resolvedBehavior,
+          block: "start",
+        });
+      }, 0);
+    },
+    [cancelPendingScroll],
+  );
+}
 
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
@@ -157,6 +284,15 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   const reviewComments = useMindMap((state) => state.reviewComments);
   const reviewOutcome = useMindMap((state) => state.reviewOutcome);
   const actions = useMindMapActions();
+  const scrollToChunk = useChunkScroller();
+  // Walk chunks in the rendered (grouped) order, not raw brief order — the
+  // StoryView lays chunks out by group, so J/K must follow the same sequence or
+  // it appears to jump backward and forward. Matches the openChunks seeding.
+  const chunkIds = useMemo(
+    () =>
+      model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id)),
+    [model.groups],
+  );
 
   // Transient UI state stays local and colocated.
   const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
@@ -164,10 +300,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   const [layoutMode] = useState<LayoutMode>("split");
   const [collapseSupporting, setCollapseSupporting] = useState(false);
   const [openChunks, setOpenChunks] = useState<Set<string>>(
-    () =>
-      new Set(
-        model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id)),
-      ),
+    () => new Set(chunkIds),
   );
   const [selectedRiskFlags, setSelectedRiskFlags] = useState<Set<string>>(
     () => new Set(),
@@ -189,6 +322,11 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   const [activeCommentAnchor, setActiveCommentAnchor] =
     useState<CommentAnchor | null>(null);
   const [toast, setToast] = useState("");
+  const [focusMode, setFocusMode] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const activeChunkIdRef = useLatestRef(activeChunkId);
+  const focusModeRef = useLatestRef(focusMode);
+  const firstChunkId = chunkIds[0] ?? null;
 
   const totals = useMemo(
     () => summarizeProgress(model, reviewedChunks, dispositions),
@@ -254,15 +392,15 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   }, [toast]);
 
   useEffect(() => {
-    document.getElementById("brief-content")?.focus();
+    document.getElementById("main-content")?.focus();
   }, [briefId]);
 
   // activeChunkId has two write sources: scroll-spy (below) and explicit nav
   // (toggleChunk/jumpToChunk). Scroll-spy only runs in the split story view.
   const scrollActiveChunkId = useScrollSpy(
-    viewMode === "story" && layoutMode === "split"
-      ? brief.chunks.map((chunk) => chunk.id)
-      : [],
+    viewMode === "story" && layoutMode === "split" && !focusMode
+      ? chunkIds
+      : EMPTY_CHUNK_IDS,
   );
   useEffect(() => {
     if (scrollActiveChunkId) setActiveChunkId(scrollActiveChunkId);
@@ -292,18 +430,64 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     [actions],
   );
 
-  const jumpToChunk = useCallback((chunkId: string) => {
+  const jumpToChunk = useCallback(
+    (
+      chunkId: string,
+      behavior: ScrollBehavior = "smooth",
+      align: ChunkScrollAlign = "native",
+    ) => {
+      setViewMode("story");
+      setOpenChunks((current) => new Set(current).add(chunkId));
+      setActiveChunkId(chunkId);
+      scrollToChunk(chunkId, behavior, align);
+    },
+    [scrollToChunk],
+  );
+  const jumpToChunkFromShortcut = useCallback(
+    (chunkId: string) => {
+      const focusActive =
+        document.getElementById("main-content")?.dataset["zen"] === "on";
+      jumpToChunk(chunkId, "auto", focusActive ? "top" : "native");
+    },
+    [jumpToChunk],
+  );
+
+  const toggleFocusMode = useCallback(() => {
+    const entering = !focusModeRef.current;
+    setFocusMode(entering);
+    if (!entering) return;
     setViewMode("story");
-    setOpenChunks((current) => new Set(current).add(chunkId));
-    setActiveChunkId(chunkId);
-    window.setTimeout(
-      () =>
-        document
-          .getElementById(chunkId)
-          ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      0,
-    );
-  }, []);
+    // Re-anchor onto the chunk being focused so entering focus mode is always
+    // visible, even when that chunk was already at the top of the viewport.
+    const target = activeChunkIdRef.current ?? firstChunkId;
+    if (!target) return;
+    setActiveChunkId(target);
+    scrollToChunk(target);
+  }, [activeChunkIdRef, firstChunkId, focusModeRef, scrollToChunk]);
+  const toggleShortcuts = useCallback(
+    () => setShortcutsOpen((current) => !current),
+    [],
+  );
+
+  // Shortcuts stand down whenever an overlay holds focus (drawers/modals use
+  // `inert`, which doesn't stop a window-level keydown listener on its own).
+  const shortcutsDisabled =
+    receiptOpen ||
+    summaryPreviewOpen ||
+    preSubmitOpen ||
+    shortcutsOpen ||
+    dismissTarget !== null ||
+    evidenceTarget !== null ||
+    activeCommentAnchor !== null;
+  useKeyboardShortcuts({
+    chunkIds,
+    activeChunkId,
+    disabled: shortcutsDisabled,
+    focusModeActive: focusMode,
+    jumpToChunk: jumpToChunkFromShortcut,
+    toggleFocusMode,
+    toggleHelp: toggleShortcuts,
+  });
 
   // The TOC bar jumps by Change-group; land on the group's first chunk.
   const jumpToGroup = useCallback(
@@ -352,23 +536,25 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
 
   const addressWithEvidence = useCallback(
     (flagIds: string[], evidenceForFlag: (flag: RiskFlag) => RiskEvidence) => {
-      const flagsById = new Map(model.flags.map((flag) => [flag.id, flag]));
-      const presentIds = flagIds.filter((flagId) => flagsById.has(flagId));
-      if (presentIds.length === 0) return;
-      actions.addressFlags(presentIds, (flagId) =>
-        evidenceForFlag(flagsById.get(flagId)!),
-      );
-      clearSelection(presentIds);
+      const evidenceByFlagId = new Map<string, RiskEvidence>();
+      for (const flagId of flagIds) {
+        const flag = model.flagsById.get(flagId);
+        if (flag) evidenceByFlagId.set(flag.id, evidenceForFlag(flag));
+      }
+      if (evidenceByFlagId.size === 0) return;
+      actions.addressFlags(evidenceByFlagId);
+      const addressedIds = [...evidenceByFlagId.keys()];
+      clearSelection(addressedIds);
       setToast(
-        presentIds.length === 1
+        addressedIds.length === 1
           ? "Risk marked addressed with evidence."
-          : `${presentIds.length} risks marked addressed with evidence.`,
+          : `${addressedIds.length} risks marked addressed with evidence.`,
       );
     },
-    [actions, clearSelection, model.flags],
+    [actions, clearSelection, model.flagsById],
   );
 
-  function confirmDismiss() {
+  const confirmDismiss = useCallback(() => {
     if (!dismissTarget) return;
     const reason = dismissReason.trim();
     if (reason.length < 12 && !dismissWarned) {
@@ -389,7 +575,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         ? "Dismissed. Reason recorded verbatim on the receipt."
         : `${dismissedCount} flags dismissed. Reason recorded verbatim on the receipt.`,
     );
-  }
+  }, [actions, clearSelection, dismissReason, dismissTarget, dismissWarned]);
 
   const saveReviewComment = useCallback(
     (anchor: CommentAnchor, body: string) => {
@@ -442,6 +628,33 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     [actions],
   );
   const openPreSubmit = useCallback(() => setPreSubmitOpen(true), []);
+  const closeReceipt = useCallback(() => setReceiptOpen(false), []);
+  const openSummaryPreview = useCallback(() => setSummaryPreviewOpen(true), []);
+  const submitReceipt = useCallback(() => {
+    setReceiptOpen(false);
+    setToast(
+      reviewMode === "author"
+        ? "Mockup flow — this would mark the PR ready for review after self-review."
+        : "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
+    );
+  }, [reviewMode]);
+  const closeSummaryPreview = useCallback(
+    () => setSummaryPreviewOpen(false),
+    [],
+  );
+  const closePreSubmit = useCallback(() => setPreSubmitOpen(false), []);
+  const continuePreSubmitToReceipt = useCallback(() => {
+    setPreSubmitOpen(false);
+    setReceiptOpen(true);
+  }, []);
+  const jumpToPreSubmitItem = useCallback(
+    (item: UnresolvedItem) => {
+      setPreSubmitOpen(false);
+      jumpToChunk(item.targetId);
+    },
+    [jumpToChunk],
+  );
+  const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);
   const clearDrafts = useCallback(() => {
     clearSnapshots();
     actions.reset(deriveInitialState(model));
@@ -451,6 +664,31 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
     setDismissReason("");
     setDismissWarned(false);
   }, []);
+  const toggleDescription = useCallback(
+    () => setDescriptionOpen((current) => !current),
+    [],
+  );
+  const cancelDismiss = useCallback(() => setDismissTarget(null), []);
+  const cancelEvidence = useCallback(() => setEvidenceTarget(null), []);
+  const confirmEvidence = useCallback(
+    (
+      kind: RiskEvidenceKind,
+      commentId: string | undefined,
+      note: string | undefined,
+    ) => {
+      if (!evidenceTarget) return;
+      addressWithEvidence(evidenceTarget.flagIds, (flag) => {
+        if (kind === "linked-comment")
+          return commentId
+            ? { kind, commentId }
+            : { kind: "chunk-reviewed", chunkId: flag.chunkId };
+        if (kind === "chunk-reviewed") return { kind, chunkId: flag.chunkId };
+        return note ? { kind, note } : { kind };
+      });
+      setEvidenceTarget(null);
+    },
+    [addressWithEvidence, evidenceTarget],
+  );
 
   return (
     <>
@@ -475,45 +713,67 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
             ? "main split-main"
             : "main"
         }
-        id="brief-content"
+        id="main-content"
         tabIndex={-1}
+        data-zen={focusMode ? "on" : undefined}
       >
-        <section className={`${styles["summary"]} reveal`}>
-          <div className={styles["eyebrow"]}>
-            {brief.artifactKind === "delta"
-              ? "Delta brief"
-              : reviewMode === "author"
-                ? "Author self-review"
-                : "Brief"}
-          </div>
-          <Markdown content={brief.summary} />
-          {brief.artifactKind === "delta" ? (
-            <DeltaContext brief={brief} />
-          ) : null}
-          <button
-            className={styles["descriptionToggle"]}
-            type="button"
-            onClick={() => setDescriptionOpen(!descriptionOpen)}
+        {/* Focus mode (Z) strips the page chrome and centers a single chunk in
+            a narrow reading column — the visible payoff of "focus". */}
+        {focusMode ? (
+          <div
+            className={styles["focusBanner"]}
+            data-focus-banner=""
+            role="status"
           >
-            {descriptionOpen
-              ? "Hide original PR description"
-              : "Show original PR description"}
-          </button>
-          {descriptionOpen ? (
-            <div className={styles["description"]}>
-              <div className={styles["eyebrow"]}>Original PR description</div>
-              <Markdown
-                content={
-                  brief.pr.description || "_No PR description provided._"
-                }
-              />
+            <span>
+              <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
+              <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
+            </span>
+            <button className="btn" type="button" onClick={toggleFocusMode}>
+              Exit focus
+            </button>
+          </div>
+        ) : null}
+        {focusMode ? null : (
+          <section className={`${styles["summary"]} reveal`}>
+            <div className={styles["eyebrow"]}>
+              {brief.artifactKind === "delta"
+                ? "Delta brief"
+                : reviewMode === "author"
+                  ? "Author self-review"
+                  : "Brief"}
             </div>
-          ) : null}
-        </section>
+            <Markdown content={brief.summary} />
+            {brief.artifactKind === "delta" ? (
+              <DeltaContext brief={brief} />
+            ) : null}
+            <button
+              className={styles["descriptionToggle"]}
+              type="button"
+              onClick={toggleDescription}
+            >
+              {descriptionOpen
+                ? "Hide original PR description"
+                : "Show original PR description"}
+            </button>
+            {descriptionOpen ? (
+              <div className={styles["description"]}>
+                <div className={styles["eyebrow"]}>Original PR description</div>
+                <Markdown
+                  content={
+                    brief.pr.description || "_No PR description provided._"
+                  }
+                />
+              </div>
+            ) : null}
+          </section>
+        )}
 
-        <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
+        {focusMode ? null : (
+          <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
+        )}
 
-        {viewMode === "story" ? (
+        {viewMode === "story" && !focusMode ? (
           <GroupTocBar
             activeGroupId={activeGroupId}
             groups={model.groups}
@@ -528,6 +788,7 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
             revision={revision}
             activeChunkId={activeChunkId}
             collapseSupporting={collapseSupporting}
+            focusMode={focusMode}
             openChunks={openChunks}
             selectedRiskFlags={selectedRiskFlags}
             activeCommentAnchor={activeCommentAnchor}
@@ -558,44 +819,31 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         receipt={receipt}
         reviewMode={reviewMode}
         open={receiptOpen}
-        close={() => setReceiptOpen(false)}
-        openSummaryPreview={() => setSummaryPreviewOpen(true)}
-        submit={() => {
-          setReceiptOpen(false);
-          setToast(
-            reviewMode === "author"
-              ? "Mockup flow — this would mark the PR ready for review after self-review."
-              : "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
-          );
-        }}
+        close={closeReceipt}
+        openSummaryPreview={openSummaryPreview}
+        submit={submitReceipt}
       />
       <SummaryPreviewDrawer
         brief={brief}
         mode={reviewMode}
         open={summaryPreviewOpen}
         snapshot={snapshot}
-        close={() => setSummaryPreviewOpen(false)}
+        close={closeSummaryPreview}
         setOutcome={actions.setOutcome}
       />
       <PreSubmitModal
         mode={reviewMode}
         open={preSubmitOpen}
         unresolvedItems={unresolvedItems}
-        close={() => setPreSubmitOpen(false)}
-        continueToReceipt={() => {
-          setPreSubmitOpen(false);
-          setReceiptOpen(true);
-        }}
-        jumpToItem={(item) => {
-          setPreSubmitOpen(false);
-          jumpToChunk(item.targetId);
-        }}
+        close={closePreSubmit}
+        continueToReceipt={continuePreSubmitToReceipt}
+        jumpToItem={jumpToPreSubmitItem}
       />
       <DismissModal
         target={dismissTarget}
         reason={dismissReason}
         warned={dismissWarned}
-        cancel={() => setDismissTarget(null)}
+        cancel={cancelDismiss}
         confirm={confirmDismiss}
         setReason={setDismissReason}
       />
@@ -603,24 +851,31 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         chunks={brief.chunks}
         comments={reviewComments}
         target={evidenceTarget}
-        cancel={() => setEvidenceTarget(null)}
-        confirm={(kind, commentId, note) => {
-          if (!evidenceTarget) return;
-          addressWithEvidence(evidenceTarget.flagIds, (flag) => {
-            if (kind === "linked-comment")
-              return commentId
-                ? { kind, commentId }
-                : { kind: "chunk-reviewed", chunkId: flag.chunkId };
-            if (kind === "chunk-reviewed")
-              return { kind, chunkId: flag.chunkId };
-            return note ? { kind, note } : { kind };
-          });
-          setEvidenceTarget(null);
-        }}
+        cancel={cancelEvidence}
+        confirm={confirmEvidence}
       />
+      <ShortcutsModal open={shortcutsOpen} close={closeShortcuts} />
+      <div className={styles["kbdHint"]}>
+        {focusMode ? (
+          <button className="btn" type="button" onClick={toggleFocusMode}>
+            Exit focus (Z)
+          </button>
+        ) : null}
+        <button
+          aria-label="Keyboard shortcuts"
+          className={styles["shortcutsTrigger"]}
+          type="button"
+          onClick={toggleShortcuts}
+        >
+          ?
+        </button>
+      </div>
       <div
         className={styles["toast"]}
         data-state={toast ? "visible" : "hidden"}
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
       >
         {toast}
       </div>

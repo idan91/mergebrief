@@ -68,7 +68,7 @@ strategy.
 
 ### P1 — Nail the front door (brand surface)  ·  status: [ ] not started
 
-**Needs grilling:** No — design iteration, not a decision-tree (use the `frontend-design` / `impeccable` skills + the flexer reference). · **Docs:** [`vision.md`](./vision.md) · [`plans/web-generate-from-url.md`](./plans/web-generate-from-url.md) (the paste-URL flow)
+**Needs grilling:** No — design iteration, not a decision-tree (use the `frontend-design` / `impeccable` skills + the flexer reference). · **Docs:** [`plans/p1-front-door.md`](./plans/p1-front-door.md) (**detailed scope + design/a11y checklist + deferred-with-triggers**) · [`vision.md`](./vision.md) · [`plans/web-generate-from-url.md`](./plans/web-generate-from-url.md) (the paste-URL flow)
 
 The stranger's first impression — for an unknown OSS project this drives word-of-mouth far
 more than the backend.
@@ -76,9 +76,19 @@ more than the backend.
 - Polish the existing **paste-a-PR-URL** / `npx <pr-url>` flow + the **static demo** into a
   no-signup, no-key, genuinely impressive experience (baked demo brief; no key required to look).
 - Hosted **static demo link** + a top-tier **README** (the thing people actually share).
+- **Taxonomy-led framing** (locked 2026-06-30): demo + README lead with the *built*
+  differentiator (stable taxonomy + playbooks + risk-as-facts), **not** the parity features
+  Atlas also ships. The README may stake the AI-authored-code positioning in copy now.
+- **Fold in the important design + a11y fixes** from the 2026-06-30 assessment — front-door
+  copy de-jargon, hero/empty-state, `--faint` contrast (fails AA at 3.28:1), skip-link, toast
+  live-region, brief `h1`, favicon/OG, **keyboard nav (`J`/`K`/`Z`/`?`)**. Full checklist +
+  baseline scores (Design 26/40, Audit 14/20) in [`plans/p1-front-door.md`](./plans/p1-front-door.md).
+- **P2 scope-check pulled forward** into P1 (read-only; it's grilling-free) so the demo framing
+  knows what narrative slice it can show.
 
 *Implication:* do this before the backend (P4). First-run experience and clarity > a webhook
-daemon nobody has discovered.
+daemon nobody has discovered. Deferred design/a11y items (mobile header, header declutter, SR
+pass, touch targets…) each carry an explicit *when-to-do* trigger in the plan doc.
 
 ### P2 — Narrative-on-top-of-taxonomy (marquee comprehension feature)  ·  status: [ ] not started
 
@@ -104,12 +114,12 @@ where our taxonomy substrate becomes a real edge.
 *Implication:* highest-visibility comprehension feature; turns the taxonomy substrate into a
 demonstrable advantage over Atlas.
 
-### Cheap win — Keyboard navigation + focus mode  ·  status: [ ] not started
+### Cheap win — Keyboard navigation + focus mode  ·  status: [ ] folded into P1 (2026-06-30)
 
-**Needs grilling:** No — established UX pattern (apply the `web-accessibility` skill at build time). · **Docs:** none (reuses existing scroll-spy / group-TOC machinery).
+**Needs grilling:** No — established UX pattern (apply the `web-accessibility` skill at build time). · **Docs:** [`plans/p1-front-door.md`](./plans/p1-front-door.md) (item 8) · reuses existing scroll-spy / group-TOC machinery.
 
-Small, high-polish, demo-impressive. Independent of the rest; ships opportunistically alongside
-P1 (sharpens the demo) and naturally pairs with P2's walkthrough nav.
+Small, high-polish, demo-impressive. **Now in-scope for P1** (resolved 2026-06-30): ships with
+the front-door work since it sharpens the demo, and naturally extends to P2's walkthrough nav.
 
 - **What it is:** keyboard-driven movement through the brief — next/prev across chunks (and,
   once P2 lands, across groups/layers) plus a **focus mode** that isolates the current
@@ -230,3 +240,12 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   P1/P2; grill before building) and **cross-PR / temporal awareness** (future, gated on the P4
   backend). "Ripoff" concern resolved → OSS "open alternative to X" is a respected positioning;
   own the comparison.
+- 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
+  mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
+  design is genuinely good (slop scan near-clean; strong token system + real diff tables +
+  taxonomy UI); gaps are **front-door framing** (author-facing jargon, no value prop) and a few
+  concrete a11y misses (`--faint` contrast 3.28:1 fails AA, no skip-link, silent toast, no brief
+  `h1`). Baseline: Design 26/40, Audit 14/20 (A11y + Responsive the weak dims). Bucketed every
+  finding into **In-P1 / Deferred-with-triggers / Won't-do**; full record in
+  [`plans/p1-front-door.md`](./plans/p1-front-door.md). **Resolved:** keyboard nav (`J`/`K`/`Z`/`?`)
+  folded into P1; mobile brief header deferred (demo is desktop-framed) with a pull-forward trigger.

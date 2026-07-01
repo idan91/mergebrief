@@ -41,6 +41,9 @@ out/
 *.orig
 coverage/
 
+# Local tooling artifacts
+.playwright-cli/
+
 node_modules
 
 .pnpm-store

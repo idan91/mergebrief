@@ -22,7 +22,10 @@
     --line2: #2b2b32;
     --text: #ececee;
     --dim: #9a9aa3;
-    --faint: #62626b;
+
+    // Faint text tier. Lightened from the raw gray-500 (#62626b, ~3.3:1 — fails
+    // WCAG AA) to ~5.8:1 on --bg, with margin to survive the top radial glow.
+    --faint: #8a8a93;
     --green: #5fc88f;
     --red: #e06c6c;
     --amber: #d9a45c;

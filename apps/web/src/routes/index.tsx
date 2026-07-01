@@ -39,17 +39,26 @@ function BriefPicker() {
   }
 
   return (
-    <main className={styles["pickerMain"]}>
+    <main className={styles["pickerMain"]} id="main-content" tabIndex={-1}>
       <section className={styles["picker"]}>
         <div className={styles["wordmark"]}>
           Brief<span> / review</span>
         </div>
-        <div className={styles["eyebrow"]}>Local categorizer output</div>
-        <h1>Choose a PR brief</h1>
+        <div className={styles["eyebrow"]}>
+          Open-source · self-hosted · BYOK
+        </div>
+        <h1>Turn a PR into a Brief</h1>
         <p className={styles["copy"]}>
-          Each generated output in tools/categorizer/out gets its own route and
-          cache key.
+          A Brief re-unitizes a pull request into Change-groups, each with a
+          plain-language summary, a Playbook of the known checks for that kind
+          of change, and Risk Surface attributes: facts worth a closer look,
+          never a verdict.
         </p>
+        <ul className={styles["pillars"]}>
+          <li>Stable taxonomy, queryable across every PR you review</li>
+          <li>Your model key, your infrastructure, nothing phones home</li>
+          <li>Plain-markdown Playbooks you can read, fork, and extend</li>
+        </ul>
         <form className={styles["form"]} onSubmit={handleGenerate}>
           <input
             aria-label="GitHub PR URL"
@@ -65,9 +74,17 @@ function BriefPicker() {
         </form>
         {error ? <p className={styles["error"]}>{error}</p> : null}
         {briefs.length === 0 ? (
-          <div className={styles["empty"]}>No local brief outputs found.</div>
+          <div className={styles["empty"]}>
+            <p>No Briefs yet. Paste a GitHub PR URL above to generate one.</p>
+            <p>
+              Working from the CLI instead? Run{" "}
+              <code>pnpm categorize &lt;pr-url&gt;</code> from the repo root;
+              outputs land here automatically.
+            </p>
+          </div>
         ) : (
           <div className={styles["list"]}>
+            <div className={styles["listLabel"]}>Local Briefs</div>
             {briefs.map((brief) => (
               <Link
                 className={styles["link"]}

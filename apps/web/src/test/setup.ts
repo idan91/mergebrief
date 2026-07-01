@@ -7,6 +7,31 @@ class ResizeObserverStub implements ResizeObserver {
   disconnect(): void {}
 }
 
+class MediaQueryListStub extends EventTarget implements MediaQueryList {
+  readonly matches = false;
+  onchange:
+    | ((this: MediaQueryList, ev: MediaQueryListEvent) => unknown)
+    | null = null;
+
+  constructor(readonly media: string) {
+    super();
+  }
+
+  addListener(): void {}
+  removeListener(): void {}
+}
+
 if (typeof globalThis.ResizeObserver === "undefined") {
   globalThis.ResizeObserver = ResizeObserverStub;
+}
+
+if (typeof globalThis.matchMedia === "undefined") {
+  globalThis.matchMedia = (query: string) => new MediaQueryListStub(query);
+}
+
+if (
+  typeof Element !== "undefined" &&
+  typeof Element.prototype.scrollIntoView === "undefined"
+) {
+  Element.prototype.scrollIntoView = () => {};
 }

@@ -16,8 +16,25 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Brief / review" },
+      {
+        name: "description",
+        content:
+          "Open-source, self-hostable comprehension layer for code review. Turns a PR into a Brief: categorized change-groups with plain-language summaries, per-category playbooks, and risk-surface attributes. BYOK, no telemetry.",
+      },
+      {
+        property: "og:title",
+        content: "Brief / review — a comprehension layer for code review",
+      },
+      {
+        property: "og:description",
+        content:
+          "Turns a pull request into a Brief: categorized change-groups, plain-language summaries, playbooks, and risk-as-facts. Open-source, self-hostable, BYOK.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
     links: [
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       {
         rel: "preconnect",
@@ -50,6 +67,9 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
         <HeadContent />
       </head>
       <body suppressHydrationWarning>
+        <a className="skip-link" href="#main-content">
+          Skip to content
+        </a>
         {children}
         <Scripts />
       </body>
