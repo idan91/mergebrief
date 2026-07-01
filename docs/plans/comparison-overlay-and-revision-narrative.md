@@ -514,9 +514,12 @@ Git workflow (locked via git-eng):
       normalization)
 - [x] Stage 3: steps 7-8 (comparison overlay generalization, Changes Only
       rendering)
-- [ ] Stage 4: steps 9-10 (migration redirects, characterization/browser checks,
+- [x] Stage 4: steps 9-10 (migration redirects, characterization/browser checks,
       keyboard access) + carried-in items below
-- [ ] Handoff document only if Stage 4 splits into its own session
+- [x] Verify: manual browser pass against real local demo artifacts
+      (`playwright-cli`) — legacy-alias Brief, jump-nav, Changes Only, old
+      Delta-URL redirect; typecheck + full suite green
+- [x] ~~Handoff document~~ — not needed: Stage 4 ran in the same session
 
 **Accepted deviations (Stage 2, reviewed):**
 
@@ -549,6 +552,50 @@ Git workflow (locked via git-eng):
   alias (see Stage 3 deviation above).
 - Fix pre-existing jump-nav no-op: `useRevisionNavigation` queries
   `main .diff .railbtn-focus`, which CSS-module hashing never emits.
+
+**Accepted deviations (Stage 4, reviewed):**
+
+- Legacy alias is a read-time mapping, not a migration script: when no
+  `.comparison.json` exists for a head, `readComparisonMarks` falls back to
+  the brief's own `.revchanges.json` and remaps its header
+  (`prevHeadSha`/`prevIndex` -> `baselineSha`/`baselineIndex`,
+  `baselineLabel: "previous-brief"` implied) — `RevisionChanges.files` and
+  `ComparisonMarks.files` are already the same shape. The availability
+  builder hands out the brief's own id as `marksId` only for this alias path;
+  no `narrativeId` ever accompanies it (legacy sidecars never had a
+  narrative).
+- `readLocalBriefSummaries` was hardened to fail-closed per-Brief (skip and
+  warn) instead of throwing for the whole listing when one artifact is
+  transiently unreadable/malformed — matches the fail-closed discipline
+  already used for marks/narrative scanning in the same function. Found while
+  adding the legacy-alias characterization test, which made an existing
+  cross-test-file race (parallel test files writing/deleting fixtures in the
+  shared `tools/categorizer/out` directory) visible; the hardening makes the
+  listing itself robust regardless of the test-only trigger.
+- `useRevisionNavigation`'s DOM query moved to `main [data-jump-target]`
+  (`RevisionGutterCell`'s rail button), and the direction-picking logic was
+  extracted into a pure, unit-tested `findJumpTarget` helper; the DOM-coupled
+  measuring stays in the hook.
+- Old Delta-artifact redirect implemented as a route `beforeLoad` (throws
+  `redirect()`) rather than a loader-time check, so it runs before any Brief
+  data fetch and the pre-ADR-0024 shape never renders even momentarily. Falls
+  through to normal rendering (not an error) when the Delta's head Brief
+  can't be found locally, rather than dead-ending the link.
+- Small a11y fix folded into this stage (not scope creep — directly asked
+  for): TimelineNavigator's View/Compare buttons only conveyed selected state
+  via `data-state`/visual styling; added `aria-pressed` so the state is
+  programmatically determinable (WCAG 2.2 4.1.2). Visible focus (global
+  `:focus-visible` outline) and Esc-dismiss on the comparison rail/callout
+  were already correct and are unchanged.
+- Gap found, not fixed (pre-existing, unrelated to this stage): manual
+  browser check surfaced a React duplicate-key console error
+  (`widely-imported:src/index.ts`) specific to `Changes Only + Your last
+  review` on one real local Delta artifact
+  (`Idan91-components-4-35788079..a01bcf1d`), sourced in
+  `buildBriefViewModel`'s risk-flag id construction (`viewModel.ts`), not in
+  any Stage 4 code. Reachable before this stage too (via manual Compare
+  selection); the redirect just routes an old URL to an already-existing
+  view. Flagged for a separate fix, not expanded into this stage's scope.
 
 ## Suggested Commit Chunks
 
