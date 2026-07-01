@@ -91,6 +91,25 @@ export function parseChangedRanges(diff: string): RevisionChangeFile[] {
   });
 }
 
+function rangeLength(range: LineRange): number {
+  return range.end - range.start + 1;
+}
+
+/**
+ * Total changed lines (added + removed, both sides) across a whole unified
+ * diff — the cheap size signal the huge-span fallback compares an incremental
+ * span against the whole-PR span with (ADR 0006 #7 / ADR 0024).
+ */
+export function countChangedLines(diff: string): number {
+  return parseChangedRanges(diff).reduce(
+    (sum, file) =>
+      sum +
+      file.addedRanges.reduce((s, r) => s + rangeLength(r), 0) +
+      file.removedRanges.reduce((s, r) => s + rangeLength(r), 0),
+    0,
+  );
+}
+
 export function buildRevisionChanges(
   headSha: string,
   prevHeadSha: string,

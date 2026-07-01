@@ -13,20 +13,26 @@ import {
   type FetchedPr,
   type ReviewComment,
 } from "./github.js";
-import { categorize } from "./categorize.js";
+import { categorize, categorizeRevisionNarrative, warnIssues } from "./categorize.js";
 import { AnthropicGenerator, type Generator } from "./generator.js";
 import { splitDiffByFile } from "./diff.js";
 import { assignBriefIndex, lookupBriefShaByIndex } from "./manifest.js";
-import { buildRevisionChanges } from "./revchanges.js";
+import { buildRevisionChanges, countChangedLines } from "./revchanges.js";
+import { buildComparisonMarks } from "./comparison.js";
+import { isHugeSpan } from "./huge-span.js";
+import { revisionNarrativeConfig } from "./config.js";
+import { validateNarrativeMarksOverlap } from "./validate.js";
 import {
   commentsName,
+  comparisonMarksName,
   diffsName,
   outName,
   prStem,
   printSummary,
   revChangesName,
+  revisionNarrativeName,
 } from "./output.js";
-import type { Brief, CommitRange } from "./types.js";
+import type { Brief, CommitRange, RevisionNarrativeSkipped } from "./types.js";
 
 const OUT_DIR = "out";
 
@@ -136,21 +142,126 @@ export async function generateAndWrite(
   log(`wrote ${diffsFile} (${fileDiffs.length} files)`);
   log(`wrote ${commentsFile} (${comments.length} comments)`);
 
-  // Revision-changes sidecar (ADR 0021): mechanical prevHead→head changed-line
-  // ranges (no model call), so the full-brief view can mark what is new in this
-  // revision. Absent on the first brief (no previous head). Uses the same
-  // three-dot compare diff as the delta — same documented rebase caveat.
+  // Comparison marks + Revision narrative (ADR 0021/0024). Absent on the first
+  // brief (no previous head). Marks use the same three-dot compare diff as the
+  // delta — same documented rebase caveat.
   if (index > 1) {
     const prevHeadSha = await lookupBriefShaByIndex(outDir, stem, index - 1);
     if (prevHeadSha) {
       const revDiff = await fetchCompareDiff(pr.locator, prevHeadSha, commitRange.head);
+
+      // Mechanical comparison marks: always written first, and never caught —
+      // per the plan, a marks failure means comparison data is unavailable and
+      // must surface loudly (unlike a narrative failure below, which must not
+      // fail the full Brief).
+      const marks = buildComparisonMarks(
+        commitRange.head,
+        prevHeadSha,
+        "previous-brief",
+        index - 1,
+        revDiff,
+      );
+      const marksFile = join(outDir, comparisonMarksName(stem, marks));
+      await writeFile(marksFile, `${JSON.stringify(marks, null, 2)}\n`);
+      log(`wrote ${marksFile} (${marks.files.length} files changed since _${index - 1})`);
+
+      // Back-compat alias: identical shape/content to the pre-generalization
+      // sidecar, kept while the FE migrates off `.revchanges.json` (ADR 0021).
       const revChanges = buildRevisionChanges(commitRange.head, prevHeadSha, index - 1, revDiff);
       const revFile = join(outDir, revChangesName(brief));
       await writeFile(revFile, `${JSON.stringify(revChanges, null, 2)}\n`);
-      log(`wrote ${revFile} (${revChanges.files.length} files changed since _${index - 1})`);
+      log(`wrote ${revFile} (compat alias)`);
+
+      await generateAndWriteRevisionNarrative({
+        outDir,
+        pr,
+        brief,
+        prevHeadSha,
+        prevIndex: index - 1,
+        incrementalDiff: revDiff,
+        marksFiles: marks.files,
+        generator,
+        log,
+      });
     }
   }
   return brief;
+}
+
+/**
+ * Generate and write the Revision narrative for a non-first Brief, or a skip
+ * stub when config-disabled or the incremental span is huge-span-fallback
+ * territory (ADR 0006 #7 / ADR 0024). Never throws — a narrative failure must
+ * not fail the full Brief, whose artifacts are already written by the time
+ * this runs.
+ */
+async function generateAndWriteRevisionNarrative(args: {
+  outDir: string;
+  pr: FetchedPr;
+  brief: Brief;
+  prevHeadSha: string;
+  prevIndex: number;
+  incrementalDiff: string;
+  marksFiles: ReturnType<typeof buildComparisonMarks>["files"];
+  generator: Generator;
+  log: (msg: string) => void;
+}): Promise<void> {
+  const { outDir, pr, brief, prevHeadSha, prevIndex, incrementalDiff, marksFiles, generator, log } =
+    args;
+  const narrativeFile = join(outDir, revisionNarrativeName(brief));
+  const skipStub = (skipped: RevisionNarrativeSkipped["skipped"]): RevisionNarrativeSkipped => ({
+    artifactKind: "revisionNarrativeSkipped",
+    pr: brief.pr,
+    prevHeadSha,
+    headSha: brief.commitRange.head,
+    prevIndex,
+    headIndex: brief.index,
+    skipped,
+  });
+
+  const config = revisionNarrativeConfig();
+  if (!config.enabled) {
+    await writeFile(narrativeFile, `${JSON.stringify(skipStub("disabled by config"), null, 2)}\n`);
+    log(`revision narrative disabled by config; wrote skip stub ${narrativeFile}`);
+    return;
+  }
+
+  if (isHugeSpan(countChangedLines(incrementalDiff), countChangedLines(pr.diff))) {
+    await writeFile(narrativeFile, `${JSON.stringify(skipStub("span too large"), null, 2)}\n`);
+    log(`revision span too large; wrote skip stub ${narrativeFile}`);
+    return;
+  }
+
+  try {
+    const narrative = await categorizeRevisionNarrative(
+      {
+        locator: pr.locator,
+        meta: pr.meta,
+        prevHeadSha,
+        headSha: brief.commitRange.head,
+        prevIndex,
+        headIndex: brief.index,
+        incrementalDiff,
+        links: pr.links,
+        brief,
+      },
+      generator,
+      log,
+    );
+    warnIssues(
+      validateNarrativeMarksOverlap(narrative.chunks, marksFiles),
+      log,
+      "revision narrative marks overlap",
+    );
+    await writeFile(narrativeFile, `${JSON.stringify(narrative, null, 2)}\n`);
+    log(`wrote ${narrativeFile}`);
+  } catch (error) {
+    log(
+      `⚠ revision narrative generation failed (full Brief unaffected): ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 }
 
 /** CLI wrapper: generate one brief into the CLI's fixed OUT_DIR, tagged log lines. */

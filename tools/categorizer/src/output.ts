@@ -1,3 +1,4 @@
+import type { ComparisonMarks } from "./comparison.js";
 import type { Brief, DeltaBrief } from "./types.js";
 
 /** First 8 chars of a SHA, for filenames and summaries. */
@@ -41,6 +42,31 @@ export function commentsName(brief: Brief): string {
 /** Sidecar filename for revision changes: `<stem>_<index>_<head8>.revchanges.json` (ADR 0021). */
 export function revChangesName(brief: Brief): string {
   return `${briefStem(brief)}.revchanges.json`;
+}
+
+/**
+ * Generalized comparison-marks filename (ADR 0024):
+ * `<stem>_<base8>-<head8>.comparison.json`. Span-keyed rather than
+ * brief-keyed so the same naming works for both the shared `previous-brief`
+ * marks and the per-reviewer `checkpoint` marks — no ".." (hostile to
+ * globbing), a single "-" separator instead. `revChangesName` above remains a
+ * back-compat alias, written alongside this for `previous-brief` spans only.
+ */
+export function comparisonMarksName(
+  stem: string,
+  marks: Pick<ComparisonMarks, "baselineSha" | "headSha">,
+): string {
+  return `${stem}_${shortSha(marks.baselineSha)}-${shortSha(marks.headSha)}.comparison.json`;
+}
+
+/**
+ * Sidecar filename for a Revision narrative (or its skip stub):
+ * `<stem>_<index>_<head8>.revision-narrative.json`. Named off the current
+ * (head) brief, mirroring `outName` — `artifactKind` inside the file
+ * discriminates a real narrative from a skip stub.
+ */
+export function revisionNarrativeName(brief: Brief): string {
+  return `${briefStem(brief)}.revision-narrative.json`;
 }
 
 /** Render a brief into the lines printed to stdout for human eyeballing. */

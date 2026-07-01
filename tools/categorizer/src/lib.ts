@@ -5,16 +5,40 @@
  * the CLI itself.
  */
 export { parsePrUrl, fetchPr, fetchPrMetadata, type PrLocator } from "./github.js";
-export { categorize } from "./categorize.js";
+export { categorize, categorizeRevisionNarrative } from "./categorize.js";
 export { AnthropicGenerator, type Generator } from "./generator.js";
 export { splitDiffByFile } from "./diff.js";
 export { assignBriefIndex, lookupBriefIndex, lookupBriefShaByIndex } from "./manifest.js";
-export { prStem, briefId, outName, diffsName, commentsName, revChangesName } from "./output.js";
+export {
+  prStem,
+  briefId,
+  outName,
+  diffsName,
+  commentsName,
+  revChangesName,
+  comparisonMarksName,
+  revisionNarrativeName,
+} from "./output.js";
 export {
   buildRevisionChanges,
   parseChangedRanges,
+  countChangedLines,
   type RevisionChanges,
   type RevisionChangeFile,
 } from "./revchanges.js";
+export {
+  buildComparisonMarks,
+  type ComparisonMarks,
+  type ComparisonMarksFile,
+  type ComparisonBaselineLabel,
+} from "./comparison.js";
+export { isHugeSpan, hugeSpanRatio } from "./huge-span.js";
+export { revisionNarrativeConfig, type RevisionNarrativeConfig } from "./config.js";
 export { generateAndWrite, type Range } from "./index.js";
-export type { Brief, CommitRange } from "./types.js";
+export type {
+  Brief,
+  CommitRange,
+  RevisionNarrative,
+  RevisionNarrativeChunk,
+  RevisionNarrativeSkipped,
+} from "./types.js";
