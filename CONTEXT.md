@@ -31,9 +31,25 @@ _Avoid_: baseline (informal), last-seen, watermark
 The SHA a reviewer is *currently viewing* in an in-progress review, before they submit. A follow-up commit that lands mid-review is shown **in-tool** relative to this session baseline ("what changed since you opened") via the same delta machinery — **not** relative to the durable **Checkpoint**, which advances only on submit. Transient and per-session; the **Fast-lane** or full **Delta Brief** of a mid-review follow-up anchors here, and carry-over runs against the reviewer's *draft* comments rather than Settled flags.
 _Avoid_: working SHA (informal), draft checkpoint
 
+**Comparison baseline**:
+The earlier PR state the current **Brief** is compared against when comparison is enabled: either the shared **Previous Brief** or the reviewer's personal **Checkpoint**.
+_Avoid_: baseline (bare), delta baseline
+
+**Comparison overlay**:
+The full-**Brief** view that marks and explains lines changed between the selected **Comparison baseline** and the current head; absent when comparison is off.
+_Avoid_: delta overlay, blue diff
+
+**Previous Brief**:
+The immediately preceding full **Brief** for the same PR, used as the shared **Comparison baseline** for "what changed in the latest briefed revision."
+_Avoid_: prior run, last brief (ambiguous with personal last review)
+
 **Revision changes**:
-The shared, per-revision marking on a full **Brief** that highlights which lines are new in *this* revision versus the immediately previous briefed head (prevHead→head). Computed mechanically from the two head trees — never the per-reviewer **Delta Brief**, never reviewer-relative: every reviewer of a given head sees the same marking. Surfaced as an on-by-default toggle on the **Story view**; hovering/focusing a marked run *may* surface the matching **Change-group** summary when a shared delta narrative for that span already exists, but the marking itself needs no generation. Answers "what moved in this push" — distinct from the **Delta Brief**'s "what changed since *I* last looked", and absent on the first **Brief** (no previous head).
+The shared, per-revision **Comparison overlay** on a full **Brief** that highlights which lines changed versus the **Previous Brief** (prevHead→head). Computed mechanically from the two head trees — never the per-reviewer **Delta Brief**, never reviewer-relative: every reviewer of a given head sees the same marking. Answers "what moved in this push" — distinct from the **Delta Brief**'s "what changed since *I* last looked", and absent on the first **Brief** (no previous head).
 _Avoid_: delta (reserved for the per-reviewer artifact), delta overlay, blue diff, revision delta
+
+**Revision narrative**:
+The shared, generated explanation of what changed between a **Brief** and the immediately previous **Brief** for the same PR (prevHead→head), used to summarize **Revision changes** on a full **Brief** without any reviewer-specific **Checkpoint** or carry-over state.
+_Avoid_: Delta Brief, reviewer delta, update summary
 
 **Carry-over status**:
 How a prior **Flag** is classified in a **Delta Brief** relative to this reviewer's **Checkpoint**. One of: **New** (not present at the Checkpoint); **Reopened** (the reviewer had addressed or dismissed it and its region was touched in the span — so the prior decision must be re-made); **Settled** (addressed/dismissed and its region untouched — the prior decision still holds; FE may gloss as "still holds"); **Dropped** (the attribute no longer fires at head — the risk condition is gone, independent of any reviewer action). Decision order: Dropped → Reopened → Settled → New. Reopen is purely positional — *any* change to the flagged region reopens; meaningfulness is never inferred. On ambiguity, classify as Reopened, never Settled.
@@ -186,6 +202,8 @@ _Avoid_: send, post, finish (informal)
 - A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (carrier/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (+added/−deleted).
 - The brief is read through two pivots over the same chunk set: the **Story view** (by Change-group) and the **Concern view** (by Concern). LoC rolls up under both.
 - A full **Brief** at a given SHA is shared across all reviewers of that SHA. A **Delta Brief** spans the *reviewer's* last-reviewed SHA → current head, so two reviewers at different checkpoints receive different Delta Briefs over different commit spans. The full Brief is the shared, per-SHA artifact; the Delta Brief is selected per reviewer by their baseline. New pushes (debounced) move the head, after which a fresh full Brief and new Delta Briefs become available.
+- A **Comparison overlay** applies one **Comparison baseline** to the current **Brief**; **Previous Brief** uses shared **Revision changes** + **Revision narrative**, while **Checkpoint** uses the reviewer's personal **Delta Brief** and matching changed-line marks.
+- **Revision changes** and a **Revision narrative** both span the shared **Previous Brief** → current-head revision; the former marks lines mechanically, while the latter explains those marked changes.
 - Each (PR × Reviewer) pairing has one private **Mind-Map Space**.
 - A **Comment** belongs to a reviewer and ships to the PR. A **Seed** belongs to a chunk in the brief and never ships.
 - A reviewer records a **Disposition** on a **Flag**: **addressed** (a **Comment** targets it) or **dismissed** (with reason). Dispositions are frozen into the **Receipt** on **Submit**.

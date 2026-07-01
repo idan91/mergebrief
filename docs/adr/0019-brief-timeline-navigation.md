@@ -1,5 +1,7 @@
 # Brief Timeline Navigation
 
+> Superseded in part by ADR 0024: timeline points remain full Brief heads, but the `Full / Delta` lens is replaced by **View** (`Full Brief` / `Changes Only`) plus **Compare** (`Your last review` / `Previous Brief` / `Off`).
+
 The Brief page exposes a discrete, accessible timeline of a PR's distinct head states. A timeline point is a full **Brief** at one head; a **Delta Brief** is a selectable lens on that same point when it is available for the selected reviewer baseline.
 
 ## Context

@@ -1,5 +1,7 @@
 # Revision-Changes Overlay on the Full Brief
 
+> Superseded in part by ADR 0024: the mechanical **Revision changes** overlay still works as described here, but generated callout summaries are no longer merely opportunistic; non-first Briefs now get a shared **Revision narrative** for `prevHead→head`.
+
 The full **Brief** gains an on-by-default **Revision changes** overlay: a *shared*, *per-revision* (`prevHead→head`) marking of which lines are new in this revision, computed **mechanically** from a tree diff — not the per-reviewer **Delta Brief**. The marks are always available from a cheap new sidecar; a richer hover/focus callout (change-group + summary) is **opportunistic**, shown only when a shared `(prevHead, head)` Delta core already exists, and degrades to "summary unavailable" otherwise. It is additive to ADR 0019: the separate per-reviewer Delta lens is untouched.
 
 ## Context
