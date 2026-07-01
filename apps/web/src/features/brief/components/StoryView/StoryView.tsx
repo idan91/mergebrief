@@ -4,7 +4,7 @@ import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import type { DismissTarget } from "../../../review/components/DismissModal/DismissModal";
 import type { EvidenceTarget } from "../../../review/components/EvidenceModal/EvidenceModal";
 import { useRevisionNavigation } from "../../useRevisionNavigation";
-import type { RevisionOverlayState } from "../../revisionOverlay";
+import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import type { AddressedReviewComment, Brief } from "../../types";
 import type { BriefViewModel, RiskFlag } from "../../viewModel";
 import { ChunkCard } from "../ChunkCard/ChunkCard";
@@ -18,7 +18,7 @@ const EMPTY_RISK_FLAGS: RiskFlag[] = [];
 export interface StoryViewProps {
   brief: Brief;
   model: BriefViewModel;
-  revision: RevisionOverlayState;
+  comparison: ComparisonOverlayState;
   activeChunkId: string | null;
   collapseSupporting: boolean;
   focusMode: boolean;
@@ -71,46 +71,31 @@ export function StoryView(props: StoryViewProps) {
           <span className={styles["track"]} />
           Collapse supporting
         </label>
-        {props.revision.available ? (
-          <label
-            className={styles["switch"]}
-            title="Highlight lines new in this revision (since the previous brief)"
-          >
-            <input
-              checked={props.revision.enabled}
-              className={styles["switchInput"]}
-              suppressHydrationWarning
-              type="checkbox"
-              onChange={(event) =>
-                props.revision.setEnabled(event.target.checked)
-              }
-            />
-            <span className={styles["track"]} />
-            Revision changes
-          </label>
-        ) : null}
-        {props.revision.enabled && props.revision.runCount > 0 ? (
+        {/* The Compare control (Header) selects the baseline; when it's active
+            and marks land, surface the run count + jump-nav here. The overlay
+            itself is on whenever a comparison is selected — no local toggle. */}
+        {props.comparison.available && props.comparison.runCount > 0 ? (
           <span
             className={styles["revisionJump"]}
             role="group"
-            aria-label="Jump between revision changes"
+            aria-label={
+              props.comparison.compare === "last-review"
+                ? "Jump between changes since your last review"
+                : "Jump between changes in this revision"
+            }
           >
             <span className={styles["count"]}>
-              {props.revision.runCount} revision change
-              {props.revision.runCount === 1 ? "" : "s"}
+              {props.comparison.runCount} change
+              {props.comparison.runCount === 1 ? "" : "s"}
             </span>
             <button
-              aria-label="Previous revision change"
+              aria-label="Previous change"
               type="button"
               onClick={jumpPrev}
             >
               ◂
             </button>
-            <button
-              aria-label="Next revision change"
-              type="button"
-              onClick={jumpNext}
-            >
+            <button aria-label="Next change" type="button" onClick={jumpNext}>
               ▸
             </button>
           </span>
@@ -139,7 +124,7 @@ export function StoryView(props: StoryViewProps) {
                   key={chunk.id}
                   active={props.activeChunkId === chunk.id}
                   chunk={chunk}
-                  revision={props.revision}
+                  comparison={props.comparison}
                   forceCollapsed={
                     props.collapseSupporting && chunk.role === "supporting"
                   }

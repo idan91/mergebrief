@@ -1,0 +1,57 @@
+import { Callout } from "../../../../components/Callout";
+import {
+  bindComparisonCallout,
+  type ComparisonRun,
+  type ComparisonSource,
+} from "../../comparison";
+import type { BriefChunk, RevisionNarrativeSkipReason } from "../../types";
+
+import styles from "./ComparisonCallout.module.scss";
+
+export interface ComparisonCalloutProps {
+  pos: { top: number; left: number };
+  run: ComparisonRun;
+  chunk: BriefChunk;
+  source: ComparisonSource;
+  /**
+   * When the Previous-Brief narrative was deliberately skipped, the reason —
+   * conveyed as a distinct "skipped" state, not a failure (ADR 0024).
+   */
+  skipReason: RevisionNarrativeSkipReason | null;
+}
+
+export function ComparisonCallout({
+  pos,
+  run,
+  chunk,
+  source,
+  skipReason,
+}: ComparisonCalloutProps) {
+  const callout = bindComparisonCallout(run, chunk, source);
+  const verb = run.kind === "removed" ? "Removed" : "New";
+  const eyebrow =
+    source.kind === "last-review"
+      ? `${verb} since your last review`
+      : `${verb} this revision`;
+  return (
+    <Callout pos={pos}>
+      <Callout.Eyebrow>{eyebrow}</Callout.Eyebrow>
+      {callout.available ? (
+        <>
+          {callout.groupTitle && (
+            <Callout.Title>{callout.groupTitle}</Callout.Title>
+          )}
+          {callout.summary && <Callout.Body>{callout.summary}</Callout.Body>}
+        </>
+      ) : (
+        <Callout.Body>
+          <span className={styles["unavailable"]}>
+            {skipReason
+              ? `Summary skipped — ${skipReason}.`
+              : "Summary unavailable for this span."}
+          </span>
+        </Callout.Body>
+      )}
+    </Callout>
+  );
+}

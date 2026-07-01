@@ -196,6 +196,80 @@ export interface ComparisonMarksSummary {
 }
 
 /**
+ * @description Full `.comparison.json` marks sidecar (ADR 0024): the header
+ * fields plus the per-file mechanical changed-line ranges. Structurally the
+ * same `files` shape as `RevisionChanges`, so both feed the same FE mark-join.
+ * These marks are the *sole* source of truth for which lines are highlighted —
+ * narrative/Delta summaries never decide marks (ADR 0021/0024).
+ */
+export interface ComparisonMarks extends ComparisonMarksSummary {
+  files: RevisionChangeFile[];
+}
+
+/**
+ * @description A revision-narrative chunk (ADR 0024): an incremental
+ * `prevHead→head` change attached to an existing full-Brief Change-group via
+ * `briefChangeGroupId`. `addedRanges`/`removedRanges` are head/old-side coords,
+ * same join semantics as the mechanical marks. FE mirror of the categorizer's
+ * `RevisionNarrativeChunk`.
+ */
+export interface RevisionNarrativeChunk {
+  id: string;
+  briefChangeGroupId: string;
+  file: string;
+  addedRanges: LineRange[];
+  removedRanges: LineRange[];
+  summary: string;
+}
+
+/**
+ * @description The shared, per-revision "what changed" narrative for the
+ * Previous-Brief comparison (ADR 0024). Every chunk attaches to a full-Brief
+ * Change-group; it carries no reviewer Checkpoint or `wholePrImpact`.
+ */
+export interface RevisionNarrative {
+  artifactKind: "revisionNarrative";
+  pr: PrRef;
+  prevHeadSha: string;
+  headSha: string;
+  prevIndex: number;
+  headIndex: number;
+  generation: Generation;
+  overview: string;
+  chunks: RevisionNarrativeChunk[];
+}
+
+/** Why a Previous-Brief narrative was deliberately not generated (ADR 0024). */
+export type RevisionNarrativeSkipReason =
+  | "span too large"
+  | "disabled by config";
+
+/**
+ * @description Explicit skip stub written when a Previous-Brief span never got
+ * a generated narrative (huge span or config-disabled). Distinct from an absent
+ * file (generation failed): a stub means "deliberately skipped, retry won't
+ * help" and the FE surfaces the reason rather than a failure state (ADR 0024).
+ */
+export interface RevisionNarrativeSkipped {
+  artifactKind: "revisionNarrativeSkipped";
+  pr: PrRef;
+  prevHeadSha: string;
+  headSha: string;
+  prevIndex: number;
+  headIndex: number;
+  skipped: RevisionNarrativeSkipReason;
+}
+
+/**
+ * @description A fetched `.revision-narrative.json`: either a real narrative or
+ * a skip stub. `narrativeId`-present in availability only means "an artifact
+ * exists to fetch"; callers discriminate on `artifactKind` after fetching.
+ */
+export type RevisionNarrativeArtifact =
+  | RevisionNarrative
+  | RevisionNarrativeSkipped;
+
+/**
  * @description Availability of the shared Previous-Brief comparison for one
  * Brief head: the mechanical marks exist (source of truth), and — when
  * generated — the matching Revision narrative sidecar id (real narrative or

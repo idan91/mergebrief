@@ -8,18 +8,22 @@ import type {
   Brief,
   BriefChunk,
   ComparisonAvailability,
+  ComparisonMarks,
   ComparisonMarksSummary,
   DiffLine,
   LineRange,
   LocalBriefSummary,
   RevisionChanges,
+  RevisionNarrativeArtifact,
 } from "./types";
 import {
   parseAddressedReviewComments,
   parseBrief,
+  parseComparisonMarks,
   parseComparisonMarksSummary,
   parseDeltaBrief,
   parseRevisionChanges,
+  parseRevisionNarrativeArtifact,
 } from "./validation";
 
 interface FileDiffSidecar {
@@ -252,6 +256,81 @@ export async function readRevisionChanges(
   } catch (error) {
     console.warn(
       `Ignoring unreadable revision-changes sidecar for ${briefId}: ${String(error)}`,
+    );
+    return null;
+  }
+}
+
+/**
+ * Read a full `.comparison.json` marks sidecar (ADR 0024) by its marks id, or
+ * `null` when absent/malformed. Fail-closed like `readRevisionChanges`: a
+ * generation glitch degrades the overlay, never the review. The id is the
+ * sidecar filename minus `.comparison.json` (label-keyed, so checkpoint and
+ * previous-brief marks never collide).
+ */
+export async function readComparisonMarks(
+  marksId: string,
+): Promise<ComparisonMarks | null> {
+  assertValidBriefId(marksId);
+  let raw: string;
+  try {
+    raw = await readFile(
+      resolve(OUT_DIR, `${marksId}${COMPARISON_MARKS_SUFFIX}`),
+      "utf8",
+    );
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    const parsed = parseComparisonMarks(JSON.parse(raw));
+    if (!parsed.ok) {
+      console.warn(
+        `Ignoring invalid comparison marks for ${marksId}: ${parsed.error}`,
+      );
+      return null;
+    }
+    return parsed.value;
+  } catch (error) {
+    console.warn(
+      `Ignoring unreadable comparison marks for ${marksId}: ${String(error)}`,
+    );
+    return null;
+  }
+}
+
+/**
+ * Read a `.revision-narrative.json` artifact (ADR 0024) by its narrative id —
+ * a real narrative or a skip stub, discriminated by `artifactKind`. `null` when
+ * absent (generation failed: marks still render with "summary unavailable") or
+ * malformed. The id is the sidecar filename minus `.revision-narrative.json`.
+ */
+export async function readRevisionNarrative(
+  narrativeId: string,
+): Promise<RevisionNarrativeArtifact | null> {
+  assertValidBriefId(narrativeId);
+  let raw: string;
+  try {
+    raw = await readFile(
+      resolve(OUT_DIR, `${narrativeId}${REVISION_NARRATIVE_SUFFIX}`),
+      "utf8",
+    );
+  } catch (error) {
+    if (isNodeError(error) && error.code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    const parsed = parseRevisionNarrativeArtifact(JSON.parse(raw));
+    if (!parsed.ok) {
+      console.warn(
+        `Ignoring invalid revision narrative for ${narrativeId}: ${parsed.error}`,
+      );
+      return null;
+    }
+    return parsed.value;
+  } catch (error) {
+    console.warn(
+      `Ignoring unreadable revision narrative for ${narrativeId}: ${String(error)}`,
     );
     return null;
   }

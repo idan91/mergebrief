@@ -1,0 +1,286 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  bindComparisonCallout,
+  bindDeltaCallout,
+  bindRevisionNarrativeCallout,
+  buildChunkComparisonView,
+  groupComparisonRuns,
+  markComparisonRows,
+} from "./comparison";
+import type {
+  Brief,
+  BriefChunk,
+  DiffLine,
+  RevisionChanges,
+  RevisionNarrative,
+} from "./types";
+
+function chunk(file: string, diff: DiffLine[]): BriefChunk {
+  return {
+    id: "c1",
+    changeGroupId: "g1",
+    file,
+    concern: "implementation",
+    role: "carrier",
+    loc: { added: 0, deleted: 0 },
+    addedRanges: [],
+    removedRanges: [],
+    riskSurface: [],
+    diff,
+  };
+}
+
+// hunk, ctx@10, add@11, add@12, ctx@13, del(old12), ctx@14
+const scenario = chunk("src/a.ts", [
+  { kind: "hunk", content: "@@" },
+  { kind: "ctx", content: "ctx", oldLine: 10, newLine: 10 },
+  { kind: "add", content: "added 11", newLine: 11 },
+  { kind: "add", content: "added 12", newLine: 12 },
+  { kind: "ctx", content: "ctx", oldLine: 11, newLine: 13 },
+  { kind: "del", content: "gone", oldLine: 12 },
+  { kind: "ctx", content: "ctx", oldLine: 13, newLine: 14 },
+]);
+
+const marks: RevisionChanges = {
+  headSha: "head",
+  prevHeadSha: "prev",
+  prevIndex: 1,
+  files: [
+    {
+      file: "src/a.ts",
+      addedRanges: [{ start: 11, end: 12 }],
+      removedRanges: [{ start: 12, end: 12 }],
+    },
+  ],
+};
+
+function firstRun() {
+  const run = groupComparisonRuns(
+    scenario,
+    markComparisonRows(scenario, marks),
+  )[0];
+  if (!run) throw new Error("expected a run");
+  return run;
+}
+
+describe("markComparisonRows", () => {
+  it("marks add rows by head line and del rows by old line", () => {
+    const rows = markComparisonRows(scenario, marks);
+    expect(rows.get(2)).toBe("added");
+    expect(rows.get(3)).toBe("added");
+    expect(rows.get(5)).toBe("removed");
+    expect(rows.has(1)).toBe(false); // ctx@10 not in any range
+    expect(rows.has(4)).toBe(false); // ctx@13 not in any range
+  });
+
+  it("marks a context row whose head line changed for this baseline", () => {
+    const ctxChunk = chunk("src/a.ts", [
+      { kind: "ctx", content: "x", oldLine: 11, newLine: 11 },
+    ]);
+    expect(markComparisonRows(ctxChunk, marks).get(0)).toBe("added");
+  });
+
+  it("returns no marks when marks are absent or the file is untouched", () => {
+    expect(markComparisonRows(scenario, null).size).toBe(0);
+    expect(
+      markComparisonRows(chunk("src/other.ts", scenario.diff ?? []), marks)
+        .size,
+    ).toBe(0);
+  });
+});
+
+describe("groupComparisonRuns", () => {
+  it("groups contiguous adds into one run and a standalone deletion into another", () => {
+    const runs = groupComparisonRuns(
+      scenario,
+      markComparisonRows(scenario, marks),
+    );
+    expect(runs).toHaveLength(2);
+    expect(runs[0]).toMatchObject({ rowIndexes: [2, 3], kind: "added" });
+    expect(runs[1]).toMatchObject({ rowIndexes: [5], kind: "removed" });
+  });
+
+  it("reads a modification (del+add pair) as a single 'added' run", () => {
+    const mod = chunk("src/a.ts", [
+      { kind: "del", content: "old", oldLine: 20 },
+      { kind: "add", content: "new", newLine: 20 },
+    ]);
+    const modMarks: RevisionChanges = {
+      headSha: "head",
+      prevHeadSha: "prev",
+      prevIndex: 1,
+      files: [
+        {
+          file: "src/a.ts",
+          addedRanges: [{ start: 20, end: 20 }],
+          removedRanges: [{ start: 20, end: 20 }],
+        },
+      ],
+    };
+    const runs = groupComparisonRuns(mod, markComparisonRows(mod, modMarks));
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({ rowIndexes: [0, 1], kind: "added" });
+  });
+});
+
+describe("buildChunkComparisonView", () => {
+  it("maps each marked row index to its run", () => {
+    const view = buildChunkComparisonView(scenario, marks);
+    expect(view.runByRow.get(2)?.kind).toBe("added");
+    expect(view.runByRow.get(5)?.kind).toBe("removed");
+    expect(view.runByRow.has(1)).toBe(false);
+  });
+});
+
+const delta: Brief = {
+  artifactKind: "delta",
+  pr: {
+    repo: "o/r",
+    number: 1,
+    title: "t",
+    url: "https://example.com/o/r/pull/1",
+    sha: "head",
+    description: "",
+  },
+  summary: "s",
+  changeGroups: [
+    {
+      id: "g1",
+      title: "Typed state",
+      summary: "group summary",
+      dominantCategory: "logic-refactor",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [
+    {
+      id: "d1",
+      changeGroupId: "g1",
+      file: "src/a.ts",
+      concern: "implementation",
+      role: "carrier",
+      loc: { added: 2, deleted: 0 },
+      addedRanges: [{ start: 11, end: 12 }],
+      removedRanges: [],
+      riskSurface: [],
+      summary: "chunk summary",
+    },
+  ],
+  concernView: [],
+};
+
+describe("bindDeltaCallout", () => {
+  it("resolves the delta change-group for an added run when a delta is loaded", () => {
+    expect(bindDeltaCallout(firstRun(), scenario, delta)).toEqual({
+      available: true,
+      groupTitle: "Typed state",
+      summary: "chunk summary",
+    });
+  });
+
+  it("is unavailable with no delta or no matching delta chunk", () => {
+    expect(bindDeltaCallout(firstRun(), scenario, null)).toEqual({
+      available: false,
+    });
+    const otherFileRun = { ...firstRun(), file: "src/missing.ts" };
+    expect(
+      bindDeltaCallout(
+        otherFileRun,
+        chunk("src/missing.ts", scenario.diff ?? []),
+        delta,
+      ),
+    ).toEqual({ available: false });
+  });
+});
+
+const fullBrief: Brief = {
+  artifactKind: "brief",
+  pr: delta.pr,
+  summary: "s",
+  changeGroups: [
+    {
+      id: "g2",
+      title: "Extract scroller hook",
+      summary: "group summary",
+      dominantCategory: "logic-refactor",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [],
+  concernView: [],
+};
+
+const narrative: RevisionNarrative = {
+  artifactKind: "revisionNarrative",
+  pr: delta.pr,
+  prevHeadSha: "prev",
+  headSha: "head",
+  prevIndex: 1,
+  headIndex: 2,
+  generation: { provider: "anthropic", model: "m", effort: null },
+  overview: "This revision extracts a hook.",
+  chunks: [
+    {
+      id: "rc1",
+      briefChangeGroupId: "g2",
+      file: "src/a.ts",
+      addedRanges: [{ start: 11, end: 12 }],
+      removedRanges: [],
+      summary: "Adds the scroller hook.",
+    },
+  ],
+};
+
+describe("bindRevisionNarrativeCallout", () => {
+  it("titles from the full Brief group and bodies from the narrative chunk", () => {
+    expect(
+      bindRevisionNarrativeCallout(firstRun(), scenario, fullBrief, narrative),
+    ).toEqual({
+      available: true,
+      groupTitle: "Extract scroller hook",
+      summary: "Adds the scroller hook.",
+    });
+  });
+
+  it("drops the callout when the narrative chunk's group is not on the Brief", () => {
+    const orphan: RevisionNarrative = {
+      ...narrative,
+      chunks: [{ ...narrative.chunks[0]!, briefChangeGroupId: "missing" }],
+    };
+    expect(
+      bindRevisionNarrativeCallout(firstRun(), scenario, fullBrief, orphan),
+    ).toEqual({ available: false });
+  });
+
+  it("is unavailable when the narrative is absent (marks still render upstream)", () => {
+    expect(
+      bindRevisionNarrativeCallout(firstRun(), scenario, fullBrief, null),
+    ).toEqual({ available: false });
+  });
+});
+
+describe("bindComparisonCallout", () => {
+  it("dispatches to the narrative adapter for previous-brief", () => {
+    expect(
+      bindComparisonCallout(firstRun(), scenario, {
+        kind: "previous-brief",
+        brief: fullBrief,
+        narrative,
+      }),
+    ).toMatchObject({ available: true, groupTitle: "Extract scroller hook" });
+  });
+
+  it("dispatches to the delta adapter for last-review", () => {
+    expect(
+      bindComparisonCallout(firstRun(), scenario, {
+        kind: "last-review",
+        delta,
+      }),
+    ).toMatchObject({ available: true, groupTitle: "Typed state" });
+  });
+});

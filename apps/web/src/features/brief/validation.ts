@@ -12,6 +12,7 @@ import {
   type Concern,
   type ConcernRollup,
   type ComparisonBaselineLabel,
+  type ComparisonMarks,
   type ComparisonMarksSummary,
   type Generation,
   type LineRange,
@@ -19,6 +20,9 @@ import {
   type AddressedReviewComment,
   type RevisionChangeFile,
   type RevisionChanges,
+  type RevisionNarrativeArtifact,
+  type RevisionNarrativeChunk,
+  type RevisionNarrativeSkipReason,
   type RiskSurfaceAttribute,
   type Role,
   type ValueOf,
@@ -328,6 +332,154 @@ export function parseComparisonMarksSummary(
       headSha,
       baselineLabel: baselineLabel as ComparisonBaselineLabel,
       baselineIndex,
+    },
+  };
+}
+
+/**
+ * Parse a full `.comparison.json` marks sidecar (ADR 0024): the header fields
+ * (via `parseComparisonMarksSummary`) plus the per-file changed-line ranges
+ * (reusing the revision-change file parser — identical `files` shape).
+ */
+export function parseComparisonMarks(value: unknown): Result<ComparisonMarks> {
+  const summary = parseComparisonMarksSummary(value);
+  if (!summary.ok) return summary;
+  if (!isRecord(value))
+    return { ok: false, error: "Expected comparison marks to be an object" };
+  const files = parseArray(value["files"], parseRevisionChangeFile, "files");
+  if (!files.ok) return files;
+  return { ok: true, value: { ...summary.value, files: files.value } };
+}
+
+function parseRevisionNarrativeChunk(
+  value: unknown,
+): Result<RevisionNarrativeChunk> {
+  if (!isRecord(value))
+    return { ok: false, error: "Expected narrative chunk to be an object" };
+  const id = value["id"];
+  const briefChangeGroupId = value["briefChangeGroupId"];
+  const file = value["file"];
+  const summary = value["summary"];
+  const addedRanges = parseArray(
+    value["addedRanges"],
+    parseLineRange,
+    "addedRanges",
+  );
+  if (!addedRanges.ok) return addedRanges;
+  const removedRanges = parseArray(
+    value["removedRanges"],
+    parseLineRange,
+    "removedRanges",
+  );
+  if (!removedRanges.ok) return removedRanges;
+  if (
+    !isString(id) ||
+    !isString(briefChangeGroupId) ||
+    !isString(file) ||
+    !isString(summary)
+  ) {
+    return {
+      ok: false,
+      error:
+        "Expected narrative chunk id, briefChangeGroupId, file, and summary",
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      id,
+      briefChangeGroupId,
+      file,
+      addedRanges: addedRanges.value,
+      removedRanges: removedRanges.value,
+      summary,
+    },
+  };
+}
+
+const RevisionNarrativeSkipReasons = {
+  SpanTooLarge: "span too large",
+  DisabledByConfig: "disabled by config",
+} as const;
+
+/**
+ * Parse a fetched `.revision-narrative.json`, discriminating on `artifactKind`
+ * (ADR 0024): a real `revisionNarrative` or a `revisionNarrativeSkipped` stub.
+ * The stub's `skipped` reason must be one of the two known values.
+ */
+export function parseRevisionNarrativeArtifact(
+  value: unknown,
+): Result<RevisionNarrativeArtifact> {
+  if (!isRecord(value))
+    return { ok: false, error: "Expected narrative artifact to be an object" };
+  const artifactKind = value["artifactKind"];
+  const pr = parsePrRef(value["pr"]);
+  if (!pr.ok) return pr;
+  const prevHeadSha = value["prevHeadSha"];
+  const headSha = value["headSha"];
+  const prevIndex = value["prevIndex"];
+  const headIndex = value["headIndex"];
+  if (
+    !isString(prevHeadSha) ||
+    !isString(headSha) ||
+    !isInteger(prevIndex) ||
+    !isInteger(headIndex)
+  ) {
+    return {
+      ok: false,
+      error:
+        "Expected narrative prevHeadSha, headSha, prevIndex, and headIndex",
+    };
+  }
+
+  if (artifactKind === "revisionNarrativeSkipped") {
+    const skipped = value["skipped"];
+    if (!oneOf(RevisionNarrativeSkipReasons, skipped)) {
+      return {
+        ok: false,
+        error: "Expected narrative skipped reason to be a known value",
+      };
+    }
+    return {
+      ok: true,
+      value: {
+        artifactKind: "revisionNarrativeSkipped",
+        pr: pr.value,
+        prevHeadSha,
+        headSha,
+        prevIndex,
+        headIndex,
+        skipped: skipped as RevisionNarrativeSkipReason,
+      },
+    };
+  }
+
+  if (artifactKind !== "revisionNarrative") {
+    return { ok: false, error: "Unknown narrative artifactKind" };
+  }
+  const overview = value["overview"];
+  const generation = parseGeneration(value["generation"]);
+  if (!isString(overview) || !generation) {
+    return { ok: false, error: "Expected narrative overview and generation" };
+  }
+  const chunks = parseArray(
+    value["chunks"],
+    parseRevisionNarrativeChunk,
+    "chunks",
+  );
+  if (!chunks.ok) return chunks;
+  return {
+    ok: true,
+    value: {
+      artifactKind: "revisionNarrative",
+      pr: pr.value,
+      prevHeadSha,
+      headSha,
+      prevIndex,
+      headIndex,
+      generation,
+      overview,
+      chunks: chunks.value,
     },
   };
 }

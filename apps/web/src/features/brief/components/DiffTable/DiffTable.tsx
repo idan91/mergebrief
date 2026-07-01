@@ -10,19 +10,25 @@ import {
   type ReviewComment,
 } from "../../../review/comments";
 import {
-  type ChunkRevisionView,
-  type RevisionRun,
-} from "../../revisionChanges";
-import type { AddressedReviewComment, Brief, BriefChunk } from "../../types";
-import { DeltaCallout } from "../DeltaCallout/DeltaCallout";
+  type ChunkComparisonView,
+  type ComparisonRun,
+  type ComparisonSource,
+} from "../../comparison";
+import type {
+  AddressedReviewComment,
+  BriefChunk,
+  RevisionNarrativeSkipReason,
+} from "../../types";
+import { ComparisonCallout } from "../ComparisonCallout/ComparisonCallout";
 import { RevisionGutterCell } from "../RevisionGutterCell/RevisionGutterCell";
 import { getDiffRowView } from "./diffRowView";
 import styles from "./DiffTable.module.scss";
 
 export interface DiffTableProps {
   chunk: BriefChunk;
-  revisionView: ChunkRevisionView;
-  revisionDelta: Brief | null;
+  comparisonView: ChunkComparisonView;
+  comparisonSource: ComparisonSource;
+  comparisonSkipReason: RevisionNarrativeSkipReason | null;
   activeCommentAnchor: CommentAnchor | null;
   addressedComments: AddressedReviewComment[];
   cancelCommentComposer: () => void;
@@ -38,8 +44,9 @@ export interface DiffTableProps {
 
 export function DiffTable({
   chunk,
-  revisionView,
-  revisionDelta,
+  comparisonView,
+  comparisonSource,
+  comparisonSkipReason,
   activeCommentAnchor,
   addressedComments,
   cancelCommentComposer,
@@ -55,7 +62,7 @@ export function DiffTable({
   const [dragStart, setDragStart] = useState<number | null>(null);
   const [dragCurrent, setDragCurrent] = useState<number | null>(null);
   const [railHover, setRailHover] = useState<{
-    run: RevisionRun;
+    run: ComparisonRun;
     pos: { top: number; left: number };
   } | null>(null);
 
@@ -78,7 +85,7 @@ export function DiffTable({
     return () => window.removeEventListener("mouseup", reset);
   }, [dragStart]);
 
-  const handleRailEnter = (run: RevisionRun, el: HTMLElement) => {
+  const handleRailEnter = (run: ComparisonRun, el: HTMLElement) => {
     const rect = el.getBoundingClientRect();
     setRailHover({ run, pos: { top: rect.top, left: rect.right + 8 } });
   };
@@ -102,7 +109,7 @@ export function DiffTable({
       ? []
       : rangeBetween(dragStart, dragCurrent);
   const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
-  const overlayActive = revisionView.runs.length > 0;
+  const overlayActive = comparisonView.runs.length > 0;
   const metaColSpan = overlayActive ? 4 : 3;
 
   function finishSelection(rowIndex: number) {
@@ -157,7 +164,7 @@ export function DiffTable({
                 index,
                 chunk,
                 overlayActive,
-                revisionView,
+                comparisonView,
                 comments,
                 addressedComments,
                 dragIndexes,
@@ -261,11 +268,12 @@ export function DiffTable({
         </table>
       </div>
       {railHover && (
-        <DeltaCallout
+        <ComparisonCallout
           pos={railHover.pos}
           run={railHover.run}
           chunk={chunk}
-          delta={revisionDelta}
+          source={comparisonSource}
+          skipReason={comparisonSkipReason}
         />
       )}
     </>

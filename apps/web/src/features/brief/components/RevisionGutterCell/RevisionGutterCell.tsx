@@ -1,13 +1,13 @@
 import type { BriefChunk } from "../../types";
-import type { RevisionRun } from "../../revisionChanges";
+import type { ComparisonRun } from "../../comparison";
 import styles from "./RevisionGutterCell.module.scss";
 
 export interface RevisionGutterCellProps {
-  run: RevisionRun | undefined;
+  run: ComparisonRun | undefined;
   isStart: boolean;
   isEnd: boolean;
   chunk: BriefChunk;
-  onRailEnter: (run: RevisionRun, el: HTMLElement) => void;
+  onRailEnter: (run: ComparisonRun, el: HTMLElement) => void;
   onRailLeave: () => void;
 }
 
