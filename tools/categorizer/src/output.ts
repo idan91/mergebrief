@@ -1,5 +1,9 @@
-import type { ComparisonMarks } from "./comparison.js";
 import type { Brief, DeltaBrief } from "./types.js";
+
+// Marks naming lives with the marks artifact (comparison.ts) to keep the
+// output→comparison dependency one-directional; re-exported here so all
+// artifact names remain importable from one module.
+export { comparisonMarksName } from "./comparison.js";
 
 /** First 8 chars of a SHA, for filenames and summaries. */
 function shortSha(sha: string): string {
@@ -42,21 +46,6 @@ export function commentsName(brief: Brief): string {
 /** Sidecar filename for revision changes: `<stem>_<index>_<head8>.revchanges.json` (ADR 0021). */
 export function revChangesName(brief: Brief): string {
   return `${briefStem(brief)}.revchanges.json`;
-}
-
-/**
- * Generalized comparison-marks filename (ADR 0024):
- * `<stem>_<base8>-<head8>.comparison.json`. Span-keyed rather than
- * brief-keyed so the same naming works for both the shared `previous-brief`
- * marks and the per-reviewer `checkpoint` marks — no ".." (hostile to
- * globbing), a single "-" separator instead. `revChangesName` above remains a
- * back-compat alias, written alongside this for `previous-brief` spans only.
- */
-export function comparisonMarksName(
-  stem: string,
-  marks: Pick<ComparisonMarks, "baselineSha" | "headSha">,
-): string {
-  return `${stem}_${shortSha(marks.baselineSha)}-${shortSha(marks.headSha)}.comparison.json`;
 }
 
 /**

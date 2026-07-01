@@ -22,12 +22,14 @@ export {
 export {
   buildRevisionChanges,
   parseChangedRanges,
+  changedRangesFromFileDiffs,
   countChangedLines,
   type RevisionChanges,
   type RevisionChangeFile,
 } from "./revchanges.js";
 export {
   buildComparisonMarks,
+  writeComparisonMarks,
   type ComparisonMarks,
   type ComparisonMarksFile,
   type ComparisonBaselineLabel,

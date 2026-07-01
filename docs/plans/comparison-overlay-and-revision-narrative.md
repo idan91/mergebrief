@@ -283,9 +283,10 @@ Output naming:
 - Add a new sidecar, e.g.
   `<stem>_<index>_<head8>.revision-narrative.json`.
 - If comparison marks are generalized immediately, prefer
-  `<stem>_<base8>-<head8>.comparison.json` for span-keyed marks (no `..` in
-  filenames — hostile to globbing) and keep the old filename as an alias for
-  previous-brief spans.
+  `<stem>_<baselineLabel>_<base8>-<head8>.comparison.json` for span-keyed marks
+  (no `..` in filenames — hostile to globbing; label-keyed so checkpoint marks
+  never clobber previous-brief marks when a checkpoint equals prevHead) and
+  keep the old filename as an alias for previous-brief spans.
 
 ### 5. Represent Comparison Availability in the Local Read Model
 
@@ -491,6 +492,20 @@ Git workflow (locked via git-eng):
 - [ ] Verify: generate against a real PR, eyeball narrative + marks JSON
 - [ ] Handoff document for Session B (artifact shapes, filenames, any deviations
       from this plan)
+
+**Accepted deviations (Stage 1, reviewed):**
+
+- Huge-span threshold did not exist in code (ADR 0006 documented it; the Delta
+  path never implemented it). The one shared knob now lives in `huge-span.ts`
+  (ratio 0.65, `HUGE_SPAN_RATIO` env override) wired into the narrative path
+  only. **Follow-up (pre-existing debt, not this plan):** wire it into the
+  Delta path too.
+- Config gate is env-based (`REVISION_NARRATIVE_ENABLED`, default on), not
+  per-repo YAML — no YAML loader exists anywhere yet (ADR 0013 defers it). The
+  namespace-shaped `RevisionNarrativeConfig` interface lets a YAML loader slot
+  in without caller changes.
+- `delta-cli.ts` `main()` extracted into testable `generateAndWriteDelta`,
+  mirroring `index.ts`'s existing pattern.
 
 **Session B — FE**
 

@@ -17,14 +17,13 @@ import { categorize, categorizeRevisionNarrative, warnIssues } from "./categoriz
 import { AnthropicGenerator, type Generator } from "./generator.js";
 import { splitDiffByFile } from "./diff.js";
 import { assignBriefIndex, lookupBriefShaByIndex } from "./manifest.js";
-import { buildRevisionChanges, countChangedLines } from "./revchanges.js";
-import { buildComparisonMarks } from "./comparison.js";
+import { countChangedLines, type RevisionChanges } from "./revchanges.js";
+import { buildComparisonMarks, writeComparisonMarks } from "./comparison.js";
 import { isHugeSpan } from "./huge-span.js";
 import { revisionNarrativeConfig } from "./config.js";
 import { validateNarrativeMarksOverlap } from "./validate.js";
 import {
   commentsName,
-  comparisonMarksName,
   diffsName,
   outName,
   prStem,
@@ -161,13 +160,18 @@ export async function generateAndWrite(
         index - 1,
         revDiff,
       );
-      const marksFile = join(outDir, comparisonMarksName(stem, marks));
-      await writeFile(marksFile, `${JSON.stringify(marks, null, 2)}\n`);
-      log(`wrote ${marksFile} (${marks.files.length} files changed since _${index - 1})`);
+      await writeComparisonMarks(outDir, stem, marks, log);
 
       // Back-compat alias: identical shape/content to the pre-generalization
       // sidecar, kept while the FE migrates off `.revchanges.json` (ADR 0021).
-      const revChanges = buildRevisionChanges(commitRange.head, prevHeadSha, index - 1, revDiff);
+      // Derived from the marks already parsed above — the diff is never
+      // scanned twice.
+      const revChanges: RevisionChanges = {
+        headSha: commitRange.head,
+        prevHeadSha,
+        prevIndex: index - 1,
+        files: marks.files,
+      };
       const revFile = join(outDir, revChangesName(brief));
       await writeFile(revFile, `${JSON.stringify(revChanges, null, 2)}\n`);
       log(`wrote ${revFile} (compat alias)`);
@@ -226,7 +230,15 @@ async function generateAndWriteRevisionNarrative(args: {
     return;
   }
 
-  if (isHugeSpan(countChangedLines(incrementalDiff), countChangedLines(pr.diff))) {
+  // Whole-PR denominator from PR metadata (per-file additions+deletions), NOT
+  // from `pr.diff`: in range mode the fetched diff covers only the explicit
+  // base..head span, which would skew the ratio — the metadata file list is
+  // whole-PR regardless of how the brief's diff was fetched.
+  const wholePrChangedLines = pr.meta.files.reduce(
+    (sum, f) => sum + f.additions + f.deletions,
+    0,
+  );
+  if (isHugeSpan(countChangedLines(incrementalDiff), wholePrChangedLines)) {
     await writeFile(narrativeFile, `${JSON.stringify(skipStub("span too large"), null, 2)}\n`);
     log(`revision span too large; wrote skip stub ${narrativeFile}`);
     return;

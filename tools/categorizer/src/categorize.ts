@@ -6,6 +6,7 @@ import {
   type CommitRange,
   type DeltaBrief,
   type Effort,
+  type PrRef,
   type RevisionNarrative,
 } from "./types.js";
 import {
@@ -31,6 +32,22 @@ export type { Logger };
 
 /** Normalized reasoning effort the categorizer requests (each adapter maps it). */
 const EFFORT: Effort = "medium";
+
+/**
+ * The CLI-owned `pr` metadata block every artifact carries (ADR 0012). `sha`
+ * varies by artifact: the brief's commit-range head, the delta's PR head, the
+ * narrative's current head.
+ */
+function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
+  return {
+    repo: `${locator.owner}/${locator.repo}`,
+    number: locator.number,
+    title: meta.title,
+    url: meta.url,
+    sha,
+    description: meta.body,
+  };
+}
 
 /** Render the untrusted linked-context section, fenced so it reads as data. */
 function renderLinked(links: LinkedContext[]): string {
@@ -86,14 +103,7 @@ export async function categorize(
   });
   const brief: Brief = {
     ...generated,
-    pr: {
-      repo: `${pr.locator.owner}/${pr.locator.repo}`,
-      number: pr.locator.number,
-      title: pr.meta.title,
-      url: pr.meta.url,
-      sha: commitRange.head,
-      description: pr.meta.body,
-    },
+    pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
     index,
     commitRange,
     generation: generator.provenance(EFFORT),
@@ -194,14 +204,7 @@ export async function categorizeDelta(
   });
   const delta: DeltaBrief = {
     ...generated,
-    pr: {
-      repo: `${input.locator.owner}/${input.locator.repo}`,
-      number: input.locator.number,
-      title: input.meta.title,
-      url: input.meta.url,
-      sha: input.meta.sha,
-      description: input.meta.body,
-    },
+    pr: buildPrRef(input.locator, input.meta, input.meta.sha),
     baselineSha: input.baselineSha,
     headSha: input.headSha,
     baselineIndex: input.baselineIndex ?? null,
@@ -294,14 +297,7 @@ export async function categorizeRevisionNarrative(
   const narrative: RevisionNarrative = {
     artifactKind: "revisionNarrative",
     ...generated,
-    pr: {
-      repo: `${input.locator.owner}/${input.locator.repo}`,
-      number: input.locator.number,
-      title: input.meta.title,
-      url: input.meta.url,
-      sha: input.headSha,
-      description: input.meta.body,
-    },
+    pr: buildPrRef(input.locator, input.meta, input.headSha),
     prevHeadSha: input.prevHeadSha,
     headSha: input.headSha,
     prevIndex: input.prevIndex,

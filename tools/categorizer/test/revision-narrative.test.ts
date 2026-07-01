@@ -291,7 +291,7 @@ describe("generateAndWrite comparison artifacts", () => {
 
     expect(generator.labels).toEqual(["brief", "brief", "revision narrative"]);
 
-    const marksFile = join(dir, "o-r-1_aaaa1111-bbbb2222.comparison.json");
+    const marksFile = join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json");
     const marks = (await readJson(marksFile)) as Record<string, unknown>;
     expect(marks["baselineLabel"]).toBe("previous-brief");
     expect(marks["baselineSha"]).toBe(HEAD_1);
@@ -322,7 +322,7 @@ describe("generateAndWrite comparison artifacts", () => {
 
     expect(brief.index).toBe(2);
     expect(existsSync(join(dir, "o-r-1_2_bbbb2222.brief.json"))).toBe(true);
-    expect(existsSync(join(dir, "o-r-1_aaaa1111-bbbb2222.comparison.json"))).toBe(true);
+    expect(existsSync(join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"))).toBe(true);
     expect(existsSync(join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"))).toBe(false);
     expect(logs.some((l) => l.includes("revision narrative generation failed"))).toBe(true);
   });
@@ -335,7 +335,7 @@ describe("generateAndWrite comparison artifacts", () => {
     await generateAndWrite(dir, URL, undefined, generator, () => {});
 
     expect(generator.labels).toEqual(["brief", "brief"]); // no narrative call
-    expect(existsSync(join(dir, "o-r-1_aaaa1111-bbbb2222.comparison.json"))).toBe(true);
+    expect(existsSync(join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"))).toBe(true);
     const stub = (await readJson(
       join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
     )) as Record<string, unknown>;
@@ -351,7 +351,7 @@ describe("generateAndWrite comparison artifacts", () => {
     await generateAndWrite(dir, URL, undefined, generator, () => {});
 
     expect(generator.labels).toEqual(["brief", "brief"]); // no narrative call
-    expect(existsSync(join(dir, "o-r-1_aaaa1111-bbbb2222.comparison.json"))).toBe(true);
+    expect(existsSync(join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"))).toBe(true);
     const stub = (await readJson(
       join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
     )) as Record<string, unknown>;
@@ -373,7 +373,7 @@ describe("generateAndWriteDelta checkpoint marks", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  const marksFile = (): string => join(dir, "o-r-1_cccc3333-bbbb2222.comparison.json");
+  const marksFile = (): string => join(dir, "o-r-1_checkpoint_cccc3333-bbbb2222.comparison.json");
 
   it("writes checkpoint marks BEFORE the delta LLM call", async () => {
     let marksExistedAtLlmCall = false;

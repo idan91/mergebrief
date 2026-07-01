@@ -5,7 +5,7 @@
  * mark what is new in *this* revision (shared, per-revision, never the
  * per-reviewer Delta Brief). Absent on the first brief (no previous head).
  */
-import { splitDiffByFile } from "./diff.js";
+import { splitDiffByFile, type FileDiff } from "./diff.js";
 import type { LineRange } from "./types.js";
 
 export interface RevisionChangeFile {
@@ -76,9 +76,14 @@ function parsePatch(patch: string): { added: number[]; removed: number[] } {
   return { added, removed };
 }
 
-/** Per-file added/removed ranges for a unified diff; files with no change drop out. */
-export function parseChangedRanges(diff: string): RevisionChangeFile[] {
-  return splitDiffByFile(diff).flatMap((fileDiff) => {
+/**
+ * Per-file added/removed ranges from already-split per-file patches; files
+ * with no change drop out. Callers that have run `splitDiffByFile` for
+ * another sidecar (e.g. the delta per-file diffs) feed the split here rather
+ * than re-scanning the raw diff text.
+ */
+export function changedRangesFromFileDiffs(fileDiffs: FileDiff[]): RevisionChangeFile[] {
+  return fileDiffs.flatMap((fileDiff) => {
     const { added, removed } = parsePatch(fileDiff.patch);
     if (added.length === 0 && removed.length === 0) return [];
     return [
@@ -89,6 +94,11 @@ export function parseChangedRanges(diff: string): RevisionChangeFile[] {
       },
     ];
   });
+}
+
+/** Per-file added/removed ranges for a unified diff; files with no change drop out. */
+export function parseChangedRanges(diff: string): RevisionChangeFile[] {
+  return changedRangesFromFileDiffs(splitDiffByFile(diff));
 }
 
 function rangeLength(range: LineRange): number {

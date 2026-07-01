@@ -12,9 +12,8 @@ import { categorizeDelta } from "./categorize.js";
 import { AnthropicGenerator, type Generator } from "./generator.js";
 import { splitDiffByFile } from "./diff.js";
 import { lookupBriefIndex } from "./manifest.js";
-import { buildComparisonMarks } from "./comparison.js";
+import { buildComparisonMarks, writeComparisonMarks } from "./comparison.js";
 import {
-  comparisonMarksName,
   deltaCommentsName,
   deltaDiffsName,
   deltaOutName,
@@ -70,11 +69,13 @@ export async function generateAndWriteDelta(
     lookupBriefIndex(outDir, stem, headSha),
   ]);
 
+  // Split the incremental diff once: the marks parse and the per-file diffs
+  // sidecar below share the same per-file patches.
+  const fileDiffs = splitDiffByFile(incrementalDiff);
+
   await mkdir(outDir, { recursive: true });
-  const marks = buildComparisonMarks(headSha, baselineSha, "checkpoint", baselineIndex, incrementalDiff);
-  const marksFile = join(outDir, comparisonMarksName(stem, marks));
-  await writeFile(marksFile, `${JSON.stringify(marks, null, 2)}\n`);
-  log(`wrote ${marksFile} (${marks.files.length} files changed since checkpoint)`);
+  const marks = buildComparisonMarks(headSha, baselineSha, "checkpoint", baselineIndex, fileDiffs);
+  await writeComparisonMarks(outDir, stem, marks, log);
 
   log(
     `fetched ${links.length} linked refs, ${comments.length} review comments; generating delta…`,
@@ -99,7 +100,6 @@ export async function generateAndWriteDelta(
   const file = join(outDir, deltaOutName(delta));
   await writeFile(file, `${JSON.stringify(delta, null, 2)}\n`);
   const diffsFile = join(outDir, deltaDiffsName(delta));
-  const fileDiffs = splitDiffByFile(incrementalDiff);
   await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
   // Review comments sidecar (display data, +outdated) — ADR 0012; matches brief.
   const commentsFile = join(outDir, deltaCommentsName(delta));
