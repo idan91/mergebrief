@@ -236,7 +236,7 @@ export function buildRevisionNarrativeSystemPrompt(): string {
 - Summarize ONLY the changed lines in the provided incremental diff. Do not re-describe code that already existed in the previous revision; the full Brief is provided as alignment context, not as material to summarize.
 - Every chunk attaches to an existing Change-group from the current full Brief via \`briefChangeGroupId\`. Never invent a group ID. If no group fits confidently, use the closest group and state the uncertainty in the summary prose (e.g. "likely part of …", "loosely related to …").
 - \`overview\`: 1-3 sentences on what this revision did as a whole. No line references, no group inventory.
-- Each chunk \`summary\`: 1-2 concrete sentences specific to those changed lines.
+- Each chunk \`summary\`: 1-2 concrete sentences specific to those changed lines. These render in a small hover callout — prefer ONE sentence, at most ~25 words, scannable at a glance; use a second sentence only when one genuinely cannot carry the change, and stay under ~25 words total even then. Drop mechanical detail the marked lines already show (exact signatures, parameter lists) in favor of what changed and why it matters.
 
 ## What you receive
 
