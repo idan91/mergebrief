@@ -487,11 +487,12 @@ Git workflow (locked via git-eng):
 
 **Session A — Categorizer artifacts**
 
-- [ ] Stage 1: steps 1-4 + categorizer tests (marks generalization, narrative
+- [x] Stage 1: steps 1-4 + categorizer tests (marks generalization, narrative
       schema/prompt/wiring, delta-cli marks-first, huge-span stub, config gate)
-- [ ] Verify: generate against a real PR, eyeball narrative + marks JSON
-- [ ] Handoff document for Session B (artifact shapes, filenames, any deviations
-      from this plan)
+- [x] Verify: generate against a real PR, eyeball narrative + marks JSON
+      (approved; summary-length guidance tightened to ~25-word budget)
+- [x] ~~Handoff document~~ — not needed: stages run orchestrated in one
+      session; as-built context travels in stage-prompt amendments
 
 **Accepted deviations (Stage 1, reviewed):**
 
@@ -509,13 +510,45 @@ Git workflow (locked via git-eng):
 
 **Session B — FE**
 
-- [ ] Stage 2: steps 5-6 (timeline comparisons, View + Compare controls, URL
+- [x] Stage 2: steps 5-6 (timeline comparisons, View + Compare controls, URL
       normalization)
-- [ ] Stage 3: steps 7-8 (comparison overlay generalization, Changes Only
+- [x] Stage 3: steps 7-8 (comparison overlay generalization, Changes Only
       rendering)
 - [ ] Stage 4: steps 9-10 (migration redirects, characterization/browser checks,
-      keyboard access)
+      keyboard access) + carried-in items below
 - [ ] Handoff document only if Stage 4 splits into its own session
+
+**Accepted deviations (Stage 2, reviewed):**
+
+- `BriefTimelinePoint` drops the top-level `deltaId` (only the nested
+  `comparisons.lastReview.deltaId` remains).
+- Default precedence split in two: `defaultComparison` (last-review, else
+  previous-brief) backs `changes + off` normalization; the fresh-arrival
+  default checks only `lastReview` — reconciling the precedence rule with
+  "never force Previous Brief on first-timers".
+- View/Compare render as native buttons driving `navigate` (same-route state,
+  not links); URL stays the source of truth.
+- `narrativeId` in availability means "artifact exists to fetch" — it may be a
+  skip stub; readers discriminate on `artifactKind`.
+
+**Accepted deviations (Stage 3, reviewed):**
+
+- Changes Only + Previous Brief renders head-side rows within each narrative
+  chunk's `addedRanges` plus a "−N lines removed" note — the FE holds base→head
+  chunk diffs, not the prevHead→head incremental diff. Faithful subset, no
+  fabricated rows. **Optional follow-up:** emit a prevHead→head per-file diffs
+  sidecar from the categorizer for true incremental slices.
+- Legacy `.revchanges.json` is not consumed by the overlay (availability is
+  built purely from `.comparison.json`); wiring it as a previous-brief alias is
+  step 10 — carried into Stage 4. Until then, briefs with only legacy sidecars
+  show no Previous Brief comparison locally.
+
+**Carried into Stage 4:**
+
+- Step 10 migration: read legacy `.revchanges.json` as previous-brief marks
+  alias (see Stage 3 deviation above).
+- Fix pre-existing jump-nav no-op: `useRevisionNavigation` queries
+  `main .diff .railbtn-focus`, which CSS-module hashing never emits.
 
 ## Suggested Commit Chunks
 
