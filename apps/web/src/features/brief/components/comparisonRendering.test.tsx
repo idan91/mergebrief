@@ -1,0 +1,248 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+
+import { buildChunkComparisonView, type ComparisonSource } from "../comparison";
+import type {
+  Brief,
+  BriefChunk,
+  ComparisonMarks,
+  RevisionNarrative,
+} from "../types";
+import { buildBriefViewModel } from "../viewModel";
+import { ChangesOnlyView } from "./ChangesOnlyView/ChangesOnlyView";
+import { ComparisonCallout } from "./ComparisonCallout/ComparisonCallout";
+
+const PR = {
+  repo: "acme/widgets",
+  number: 7,
+  title: "t",
+  url: "https://example.com/pr/7",
+  sha: "head1234",
+  description: "",
+};
+
+const chunkA: BriefChunk = {
+  id: "chunk-a",
+  changeGroupId: "g1",
+  file: "src/a.ts",
+  concern: "implementation",
+  role: "carrier",
+  loc: { added: 1, deleted: 0 },
+  addedRanges: [{ start: 11, end: 11 }],
+  removedRanges: [],
+  riskSurface: [],
+  summary: "Carrier chunk.",
+  diff: [
+    { kind: "hunk", content: "@@ -10,1 +10,2 @@" },
+    { kind: "ctx", content: "const a = 1;", oldLine: 10, newLine: 10 },
+    { kind: "add", content: "validate(a);", newLine: 11 },
+  ],
+};
+
+const fullBrief: Brief = {
+  artifactKind: "brief",
+  pr: PR,
+  summary: "Full brief summary.",
+  index: 3,
+  changeGroups: [
+    {
+      id: "g1",
+      title: "Tighten validation",
+      summary: "Adds a validation guard.",
+      dominantCategory: "bugfix",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [chunkA],
+  concernView: [],
+};
+
+const previousBriefMarks: ComparisonMarks = {
+  baselineSha: "prev1234",
+  headSha: "head1234",
+  baselineLabel: "previous-brief",
+  baselineIndex: 2,
+  files: [
+    {
+      file: "src/a.ts",
+      addedRanges: [{ start: 11, end: 11 }],
+      removedRanges: [],
+    },
+  ],
+};
+
+const checkpointMarks: ComparisonMarks = {
+  baselineSha: "chk1234",
+  headSha: "head1234",
+  baselineLabel: "checkpoint",
+  baselineIndex: 1,
+  files: [
+    {
+      file: "src/a.ts",
+      addedRanges: [{ start: 11, end: 11 }],
+      removedRanges: [],
+    },
+  ],
+};
+
+const narrative: RevisionNarrative = {
+  artifactKind: "revisionNarrative",
+  pr: PR,
+  prevHeadSha: "prev1234",
+  headSha: "head1234",
+  prevIndex: 2,
+  headIndex: 3,
+  generation: { provider: "anthropic", model: "m", effort: null },
+  overview: "This revision adds a validation guard.",
+  chunks: [
+    {
+      id: "rc1",
+      briefChangeGroupId: "g1",
+      file: "src/a.ts",
+      addedRanges: [{ start: 11, end: 11 }],
+      removedRanges: [],
+      summary: "Adds the validate(a) guard on the shared path.",
+    },
+  ],
+};
+
+const delta: Brief = {
+  artifactKind: "delta",
+  pr: PR,
+  summary: "Delta since your checkpoint.",
+  baselineSha: "chk1234",
+  headSha: "head1234",
+  changeGroups: [
+    {
+      id: "dg1",
+      title: "Guarded shared path",
+      summary: "Adds validation since you last looked.",
+      dominantCategory: "bugfix",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [
+    {
+      id: "dchunk-a",
+      changeGroupId: "dg1",
+      file: "src/a.ts",
+      concern: "implementation",
+      role: "carrier",
+      loc: { added: 1, deleted: 0 },
+      addedRanges: [{ start: 11, end: 11 }],
+      removedRanges: [],
+      riskSurface: [],
+      summary: "Delta chunk: adds the guard.",
+      diff: [{ kind: "add", content: "validate(a);", newLine: 11 }],
+    },
+  ],
+  concernView: [],
+};
+
+afterEach(() => cleanup());
+
+describe("Full Brief comparison overlay (step 7)", () => {
+  it("Previous Brief uses previous-brief marks and Revision narrative callouts", () => {
+    // Highlights are mechanical — derived from the previous-brief marks only.
+    const view = buildChunkComparisonView(chunkA, previousBriefMarks);
+    const run = view.runs[0];
+    expect(run).toBeDefined();
+    expect(run?.kind).toBe("added");
+
+    // The callout body comes from the Revision narrative chunk; the title from
+    // the full Brief's Change-group.
+    const source: ComparisonSource = {
+      kind: "previous-brief",
+      brief: fullBrief,
+      narrative,
+    };
+    render(
+      <ComparisonCallout
+        pos={{ top: 0, left: 0 }}
+        run={run!}
+        chunk={chunkA}
+        source={source}
+        skipReason={null}
+      />,
+    );
+    expect(screen.getByText("New this revision")).toBeTruthy();
+    expect(screen.getByText("Tighten validation")).toBeTruthy();
+    expect(
+      screen.getByText("Adds the validate(a) guard on the shared path."),
+    ).toBeTruthy();
+  });
+
+  it("Your last review uses checkpoint marks and Delta callouts", () => {
+    const view = buildChunkComparisonView(chunkA, checkpointMarks);
+    const run = view.runs[0];
+    expect(run).toBeDefined();
+
+    const source: ComparisonSource = { kind: "last-review", delta };
+    render(
+      <ComparisonCallout
+        pos={{ top: 0, left: 0 }}
+        run={run!}
+        chunk={chunkA}
+        source={source}
+        skipReason={null}
+      />,
+    );
+    expect(screen.getByText("New since your last review")).toBeTruthy();
+    expect(screen.getByText("Guarded shared path")).toBeTruthy();
+    expect(screen.getByText("Delta chunk: adds the guard.")).toBeTruthy();
+  });
+});
+
+describe("Changes Only rendering (step 8)", () => {
+  it("Previous Brief groups narrative chunks under full Brief groups", () => {
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={fullBrief}
+        model={buildBriefViewModel(fullBrief)}
+        narrative={narrative}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(
+      screen.getByText("This revision adds a validation guard."),
+    ).toBeTruthy();
+    // Header is the full Brief group's title/category, not a narrative taxonomy.
+    const heading = screen.getByRole("heading", { name: "Tighten validation" });
+    expect(heading).toBeTruthy();
+    const group = heading.closest("section");
+    expect(group?.textContent).toContain(
+      "Adds the validate(a) guard on the shared path.",
+    );
+  });
+
+  it("Your last review renders the Delta artifact under Changes Only copy", () => {
+    render(
+      <ChangesOnlyView
+        compare="last-review"
+        brief={fullBrief}
+        model={buildBriefViewModel(fullBrief)}
+        narrative={null}
+        marks={null}
+        skipReason={null}
+        delta={delta}
+      />,
+    );
+    expect(
+      screen.getByText(/Changes Only · since your last review/),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("heading", { name: "Guarded shared path" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Delta chunk: adds the guard.")).toBeTruthy();
+    // "Delta" is internal — never a primary visible label.
+    expect(screen.queryByText("Delta brief")).toBeNull();
+  });
+});

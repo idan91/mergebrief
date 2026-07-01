@@ -65,6 +65,7 @@ import type {
 } from "../../types";
 import { useKeyboardShortcuts } from "../../useKeyboardShortcuts";
 import { buildBriefViewModel, type RiskFlag } from "../../viewModel";
+import { ChangesOnlyView } from "../ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { DemoControls } from "../DemoControls/DemoControls";
@@ -844,61 +845,65 @@ function BriefScreen({
         )}
 
         {compareState.view === "changes" ? (
-          // Changes Only rendering lands in the next commit (plan step 8); until
-          // then show a clearly-marked placeholder and keep the full Brief below.
-          <div
-            className={styles["changesOnlyPlaceholder"]}
-            data-testid="changes-only-placeholder"
-            role="status"
-          >
-            <b>Changes Only</b> —{" "}
-            {compareState.compare === "previous-brief"
-              ? "Previous Brief"
-              : "Your last review"}{" "}
-            comparison view is coming soon. Showing the full Brief below.
-          </div>
-        ) : null}
-
-        {viewMode === "story" && !focusMode ? (
-          <GroupTocBar
-            activeGroupId={activeGroupId}
-            groups={model.groups}
-            jumpToGroup={jumpToGroup}
-          />
-        ) : null}
-
-        {viewMode === "story" ? (
-          <StoryView
+          <ChangesOnlyView
+            compare={
+              activeCompare === "last-review" ? "last-review" : "previous-brief"
+            }
             brief={brief}
             model={model}
-            comparison={comparison}
-            activeChunkId={activeChunkId}
-            collapseSupporting={collapseSupporting}
-            focusMode={focusMode}
-            openChunks={openChunks}
-            selectedRiskFlags={selectedRiskFlags}
-            activeCommentAnchor={activeCommentAnchor}
-            addressedReviewComments={brief.reviewComments}
-            commentsByChunk={commentsByChunk}
-            existingReviewCommentCount={reviewComments.length}
-            cancelCommentComposer={cancelCommentComposer}
-            deleteReviewComment={deleteReviewComment}
-            jumpToChunk={jumpToChunk}
-            markReviewed={markReviewed}
-            openCommentComposer={openCommentComposer}
-            saveReviewComment={saveReviewComment}
-            setCollapseSupporting={setCollapseSupporting}
-            setDismissTarget={openDismissTarget}
-            setEvidenceTarget={setEvidenceTarget}
-            setToast={setToast}
-            toggleChunk={toggleChunk}
-            toggleRiskFlag={toggleRiskFlag}
-            toggleRiskGroup={toggleRiskGroup}
-            toggleReviewComment={toggleReviewComment}
-            updateReviewComment={updateReviewComment}
+            narrative={narrative}
+            marks={marks}
+            skipReason={skipReason}
+            delta={delta}
           />
         ) : (
-          <ConcernView brief={brief} model={model} jumpToChunk={jumpToChunk} />
+          <>
+            {viewMode === "story" && !focusMode ? (
+              <GroupTocBar
+                activeGroupId={activeGroupId}
+                groups={model.groups}
+                jumpToGroup={jumpToGroup}
+              />
+            ) : null}
+
+            {viewMode === "story" ? (
+              <StoryView
+                brief={brief}
+                model={model}
+                comparison={comparison}
+                activeChunkId={activeChunkId}
+                collapseSupporting={collapseSupporting}
+                focusMode={focusMode}
+                openChunks={openChunks}
+                selectedRiskFlags={selectedRiskFlags}
+                activeCommentAnchor={activeCommentAnchor}
+                addressedReviewComments={brief.reviewComments}
+                commentsByChunk={commentsByChunk}
+                existingReviewCommentCount={reviewComments.length}
+                cancelCommentComposer={cancelCommentComposer}
+                deleteReviewComment={deleteReviewComment}
+                jumpToChunk={jumpToChunk}
+                markReviewed={markReviewed}
+                openCommentComposer={openCommentComposer}
+                saveReviewComment={saveReviewComment}
+                setCollapseSupporting={setCollapseSupporting}
+                setDismissTarget={openDismissTarget}
+                setEvidenceTarget={setEvidenceTarget}
+                setToast={setToast}
+                toggleChunk={toggleChunk}
+                toggleRiskFlag={toggleRiskFlag}
+                toggleRiskGroup={toggleRiskGroup}
+                toggleReviewComment={toggleReviewComment}
+                updateReviewComment={updateReviewComment}
+              />
+            ) : (
+              <ConcernView
+                brief={brief}
+                model={model}
+                jumpToChunk={jumpToChunk}
+              />
+            )}
+          </>
         )}
       </main>
       <ReceiptDrawer
