@@ -465,6 +465,43 @@ Characterization / browser checks:
 - **Route churn.** Changing Delta from a path artifact to a `view=changes` state needs
   redirect compatibility so old demo URLs do not break.
 
+## Execution Tracking
+
+Orchestrated as 4 sequential subagent stages with review gates between them.
+Check items off as they land.
+
+Git workflow (locked via git-eng):
+
+- Branch: **`feature/comparison-overlay`** off `main` — all stage commits land here.
+- Commit strategy: the Suggested Commit Chunks below, committed per stage. No
+  Co-Authored-By trailers, no AI attribution.
+- Pre-commit review agents: none — the orchestrator reviews each stage's diff at
+  the gates instead.
+- End state: push branch + open a **ready** PR to `main` after Stage 4 and the
+  manual browser pass.
+- Human gates: narrative-quality eyeball after Stage 1 (live generation against a
+  real PR); browser/keyboard pass after Stage 4.
+- Stage agents follow the `git-eng` commit rules and `typescript-eng` code
+  standards.
+
+**Session A — Categorizer artifacts**
+
+- [ ] Stage 1: steps 1-4 + categorizer tests (marks generalization, narrative
+      schema/prompt/wiring, delta-cli marks-first, huge-span stub, config gate)
+- [ ] Verify: generate against a real PR, eyeball narrative + marks JSON
+- [ ] Handoff document for Session B (artifact shapes, filenames, any deviations
+      from this plan)
+
+**Session B — FE**
+
+- [ ] Stage 2: steps 5-6 (timeline comparisons, View + Compare controls, URL
+      normalization)
+- [ ] Stage 3: steps 7-8 (comparison overlay generalization, Changes Only
+      rendering)
+- [ ] Stage 4: steps 9-10 (migration redirects, characterization/browser checks,
+      keyboard access)
+- [ ] Handoff document only if Stage 4 splits into its own session
+
 ## Suggested Commit Chunks
 
 1. `docs`: ADR/context already captured; add this plan.
