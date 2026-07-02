@@ -44,7 +44,9 @@ describe("buildReceipt", () => {
   it("counts dispositions and lists an open flag by default", () => {
     const receipt = buildReceipt(snapshot(), briefFixture, model);
     expect(receipt.counts).toEqual({ addressed: 0, dismissed: 0, open: 1 });
-    expect(receipt.open).toEqual([{ attr: "no-tests", file: "src/leak.ts" }]);
+    expect(receipt.open).toEqual([
+      { id: flagId, attr: "no-tests", file: "src/leak.ts" },
+    ]);
   });
 
   it("carries a dismissal reason verbatim", () => {
@@ -63,6 +65,7 @@ describe("buildReceipt", () => {
     expect(receipt.counts.dismissed).toBe(1);
     expect(receipt.dismissed).toEqual([
       {
+        id: flagId,
         attr: "no-tests",
         file: "src/leak.ts",
         reason: "Covered by integration suite.",
@@ -85,6 +88,7 @@ describe("buildReceipt", () => {
     );
     expect(receipt.addressed).toEqual([
       {
+        id: flagId,
         attr: "no-tests",
         file: "src/leak.ts",
         evidence: { kind: "chunk-reviewed", chunkId: "chunk-a" },
@@ -100,7 +104,7 @@ describe("buildReceipt", () => {
       model,
     );
     expect(receipt.addressed).toEqual([
-      { attr: "no-tests", file: "src/leak.ts" },
+      { id: flagId, attr: "no-tests", file: "src/leak.ts" },
     ]);
   });
 
