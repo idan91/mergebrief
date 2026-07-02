@@ -190,7 +190,8 @@ Checklist:
     `characterization/` suite's fixtures never set `readingOrder`, so it
     already exercises "Brief without readingOrder renders exactly as
     today" and stayed green unmodified.
-- [ ] Push + ready PR to main
+- [x] Push + ready PR to main — PR #16 (2026-07-02). Human gates (Stage 1
+      eyeball, browser pass) deferred to PR review at user's request.
 
 ## Session Bootstrap (context for a fresh session)
 
