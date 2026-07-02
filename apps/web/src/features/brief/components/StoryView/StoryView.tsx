@@ -241,16 +241,6 @@ function FocusGroupRail({
           {open ? "−" : "+"}
         </span>
       </button>
-      {!open ? (
-        <div className={styles["railCollapsed"]} aria-hidden="true">
-          <span>
-            {group.readingOrderStep !== undefined
-              ? `Step ${group.readingOrderStep}`
-              : `Group ${group.index + 1}`}
-          </span>
-          <strong>{group.group.title}</strong>
-        </div>
-      ) : null}
       {open ? (
         <div className={styles["railPanel"]} id={panelId}>
           <div className={styles["railMeta"]}>

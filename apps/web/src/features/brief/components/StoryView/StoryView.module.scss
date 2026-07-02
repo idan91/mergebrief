@@ -175,8 +175,9 @@
     place-items: center;
   }
 
-  // Crossfade the panel/collapsed swap so it doesn't pop while the rail
-  // column's width transition (base.scss, [data-focus-rail]) is running.
+  // Fade the panel in so it doesn't pop while the rail column's width
+  // transition (base.scss, [data-focus-rail]) is running. Collapsed state
+  // renders nothing below the toggle — no placeholder box.
   @keyframes rail-swap {
     from {
       opacity: 0;
@@ -187,30 +188,16 @@
     }
   }
 
-  .railCollapsed {
-    display: grid;
-    gap: 10px;
-    min-block-size: 220px;
-    animation: rail-swap 0.25s ease;
-    padding-block: 12px;
-    padding-inline: 10px;
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--panel) 74%, var(--bg));
-    color: var(--faint);
-    font-size: 11px;
-    justify-items: center;
-    text-align: center;
+  // Collapsed: the toggle compacts to a centered "+" pill; its label lives in
+  // aria-label, so no truncated "St…" text at the 54px rail width.
+  .focusRail[data-state="collapsed"] {
+    .railToggle {
+      justify-content: center;
+      padding-inline: 8px;
+    }
 
-    strong {
-      overflow: hidden;
-      max-block-size: 154px;
-      color: var(--dim);
-      font-size: 12px;
-      font-weight: 600;
-      line-height: 1.35;
-      text-overflow: ellipsis;
-      writing-mode: vertical-rl;
+    .railToggleText {
+      display: none;
     }
   }
 
@@ -382,9 +369,14 @@
       align-self: flex-start;
     }
 
+    // Mobile column layout has room for the full label — undo the compact pill.
     .focusRail[data-state="collapsed"] {
-      .railCollapsed {
-        display: none;
+      .railToggle {
+        justify-content: space-between;
+      }
+
+      .railToggleText {
+        display: block;
       }
     }
   }
