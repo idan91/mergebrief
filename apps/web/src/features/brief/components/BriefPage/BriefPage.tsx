@@ -920,6 +920,9 @@ function BriefScreen({
                 toggleRiskGroup={toggleRiskGroup}
                 toggleReviewComment={toggleReviewComment}
                 updateReviewComment={updateReviewComment}
+                {...(compareState.view === "full" && chunkIds.length > 0
+                  ? { startReadThrough }
+                  : {})}
               />
             ) : (
               <ConcernView
@@ -975,12 +978,6 @@ function BriefScreen({
         {focusMode ? (
           <button className="btn" type="button" onClick={toggleFocusMode}>
             Exit focus (Z)
-          </button>
-        ) : viewMode === "story" &&
-          compareState.view === "full" &&
-          chunkIds.length > 0 ? (
-          <button className="btn" type="button" onClick={startReadThrough}>
-            Start read-through
           </button>
         ) : null}
         <button

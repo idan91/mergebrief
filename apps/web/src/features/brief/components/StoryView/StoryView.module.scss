@@ -19,6 +19,29 @@
     background: var(--line);
   }
 
+  // Read-through entry point: solid surface (never transparent over diff
+  // content), compact to sit inside the chunks label bar.
+  .readThrough {
+    flex: none;
+    padding-block: 5px;
+    padding-inline: 12px;
+    border: 1px solid var(--line2);
+    border-radius: 7px;
+    background: var(--panel2);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--line2) 50%, var(--text));
+      background: var(--panel);
+    }
+  }
+
   .switch {
     position: relative;
     display: inline-flex;
@@ -152,10 +175,23 @@
     place-items: center;
   }
 
+  // Crossfade the panel/collapsed swap so it doesn't pop while the rail
+  // column's width transition (base.scss, [data-focus-rail]) is running.
+  @keyframes rail-swap {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
   .railCollapsed {
     display: grid;
     gap: 10px;
     min-block-size: 220px;
+    animation: rail-swap 0.25s ease;
     padding-block: 12px;
     padding-inline: 10px;
     border: 1px solid var(--line);
@@ -181,6 +217,7 @@
   .railPanel {
     padding-block: 14px;
     padding-inline: 14px;
+    animation: rail-swap 0.25s ease;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: color-mix(in srgb, var(--panel) 82%, var(--bg));

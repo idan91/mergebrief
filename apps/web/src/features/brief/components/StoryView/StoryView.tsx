@@ -31,6 +31,8 @@ export interface StoryViewProps {
   cancelCommentComposer: () => void;
   deleteReviewComment: (commentId: string) => void;
   jumpToChunk: (chunkId: string) => void;
+  /** Enters Read-through at step 1; absent when unavailable (comparing, no chunks). */
+  startReadThrough?: () => void;
   markReviewed: (chunkId: string) => void;
   openCommentComposer: (anchor: CommentAnchor) => void;
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
@@ -71,6 +73,15 @@ export function StoryView(props: StoryViewProps) {
           <span className={styles["track"]} />
           Collapse supporting
         </label>
+        {props.startReadThrough && !props.focusMode ? (
+          <button
+            className={styles["readThrough"]}
+            type="button"
+            onClick={props.startReadThrough}
+          >
+            Start read-through
+          </button>
+        ) : null}
         {/* The Compare control (Header) selects the baseline; when it's active
             and marks land, surface the run count + jump-nav here. The overlay
             itself is on whenever a comparison is selected — no local toggle. */}
