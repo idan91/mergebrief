@@ -1,0 +1,58 @@
+@layer components {
+  .progress {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    inline-size: 100%;
+    max-inline-size: 220px;
+  }
+
+  .segment {
+    position: relative;
+    flex: 1;
+    inline-size: 100%;
+    block-size: 6px;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--line2);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--panel) 60%, var(--bg));
+    cursor: pointer;
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+    }
+
+    // Current segment: not color-only — also taller and squared corners, so
+    // it reads distinctly under color-blindness / monochrome rendering.
+    &[data-current] {
+      block-size: 9px;
+      border-color: var(--text);
+      border-radius: 1px;
+    }
+  }
+
+  .fill {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: 0;
+    display: block;
+    background: var(--line2);
+    transition: inline-size 0.15s ease;
+  }
+
+  .segment[data-past] .fill {
+    background: var(--dim);
+  }
+
+  .segment[data-current] .fill {
+    background: var(--text);
+  }
+
+  // Subtle, optional "read-through complete" cue: no color implying
+  // good/bad, just a slightly brighter, evenly-filled bar.
+  .progress[data-complete] .segment {
+    border-color: var(--text);
+  }
+}

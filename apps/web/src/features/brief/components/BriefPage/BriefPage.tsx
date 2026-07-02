@@ -71,6 +71,7 @@ import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { DemoControls } from "../DemoControls/DemoControls";
 import { GroupTocBar } from "../GroupTocBar/GroupTocBar";
 import { Header, type LayoutMode, type ViewMode } from "../Header/Header";
+import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress";
 import { ShortcutsModal } from "../ShortcutsModal/ShortcutsModal";
 import { StoryView } from "../StoryView/StoryView";
 import styles from "./BriefPage.module.scss";
@@ -832,6 +833,11 @@ function BriefScreen({
               <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
               <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
             </span>
+            <ReadThroughProgress
+              activeChunkId={activeChunkId}
+              groups={model.groups}
+              jumpToChunk={jumpToChunk}
+            />
             <button className="btn" type="button" onClick={toggleFocusMode}>
               Exit focus
             </button>
