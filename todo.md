@@ -1,5 +1,28 @@
 # TODO
 
+## [ ] Add a JS/TS linter to `apps/web` (oxlint)
+
+Web lint today is prettier + stylelint only — no JS/TS linting, so nothing guards
+`react-hooks/exhaustive-deps`, unused vars, or the usual correctness rules. Surfaced during
+PR #16 review (reading order): the hook-deps audit had to be done by hand.
+
+**Choice: oxlint** (oxc project, Rust). Lint-only, so it composes with the existing
+prettier + stylelint instead of replacing them (Biome would push toward swapping out
+prettier — separate, bigger decision). Ships the `eslint-plugin-react-hooks` port including
+`exhaustive-deps`, plus the typescript/unicorn/import rule bulk, near-zero config, and is
+fast enough to run on every commit without thinking about it.
+
+- Add `oxlint` (pinned) to `apps/web`, wire into the `lint` script alongside prettier +
+  stylelint, enable `react`/`react-hooks` plugin rules (`exhaustive-deps` as error).
+- Fix or explicitly-disable whatever it flags in the existing code (expect a small batch).
+- Consider repo root / `tools/categorizer` coverage in the same pass (categorizer currently
+  has no lint script at all).
+- Escape hatch: if mature type-aware rules (`no-floating-promises` etc.) become wanted before
+  oxlint's type-aware mode (tsgolint) stabilizes, revisit eslint + typescript-eslint for that
+  slice only.
+
+---
+
 ## [x] Skip off-screen `DiffTable` render with `content-visibility`
 
 Done. The real bottleneck was the **aggregate layout/paint of many simultaneously-expanded
