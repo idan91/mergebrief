@@ -331,6 +331,29 @@ export function isCommitish(ref: string): boolean {
 }
 
 /**
+ * Resolve a possibly-abbreviated commit SHA to the full 40-char SHA via the
+ * commits API. Artifacts must be keyed by full SHAs: the FE joins comparison
+ * marks and Delta artifacts onto brief heads by exact SHA equality, so a
+ * short SHA passed on the CLI would produce artifacts that silently never
+ * match. Already-full SHAs return as-is without a network call.
+ */
+export async function resolveFullSha(
+  loc: PrLocator,
+  ref: string,
+): Promise<string> {
+  if (!isCommitish(ref)) {
+    throw new Error(`expected a hex commit SHA (7-40 chars); got "${ref}"`);
+  }
+  if (ref.length === 40) return ref.toLowerCase();
+  const { stdout } = await execFileAsync(
+    "gh",
+    ["api", `repos/${loc.owner}/${loc.repo}/commits/${ref}`, "--jq", ".sha"],
+    { maxBuffer: MAX_BUFFER },
+  );
+  return stdout.trim();
+}
+
+/**
  * Incremental unified diff between two commits of a PR's repo, via the GitHub
  * compare API (`base...head`). NOTE: the compare endpoint is **three-dot
  * (merge-base) semantics** — identical to a true tree diff when head descends

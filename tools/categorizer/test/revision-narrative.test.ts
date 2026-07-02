@@ -27,6 +27,8 @@ vi.mock("../src/github.js", async (importOriginal) => {
     fetchCompareCommitCount: vi.fn(async () => 1),
     fetchReviewComments: vi.fn(async () => []),
     fetchLinkedContext: vi.fn(async () => []),
+    // Fixture SHAs are 16-char; pass them through instead of hitting `gh`.
+    resolveFullSha: vi.fn(async (_loc: unknown, ref: string) => ref),
   };
 });
 

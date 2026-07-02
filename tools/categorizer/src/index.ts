@@ -10,6 +10,7 @@ import {
   fetchReviewComments,
   isCommitish,
   parsePrUrl,
+  resolveFullSha,
   type FetchedPr,
   type ReviewComment,
 } from "./github.js";
@@ -72,6 +73,15 @@ async function buildInputs(
   log: (msg: string) => void,
 ): Promise<{ pr: FetchedPr; comments: ReviewComment[]; commitRange: CommitRange }> {
   const locator = parsePrUrl(url);
+  // Range SHAs may arrive abbreviated from the CLI; artifacts must be keyed
+  // by full SHAs or the FE's exact-equality joins silently never match.
+  if (range) {
+    const [base, head] = await Promise.all([
+      resolveFullSha(locator, range.base),
+      resolveFullSha(locator, range.head),
+    ]);
+    range = { base, head };
+  }
   const meta = await fetchPrMetadata(locator);
   const [diff, comments, commitRange] = await Promise.all([
     range

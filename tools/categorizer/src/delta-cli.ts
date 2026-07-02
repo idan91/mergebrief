@@ -7,6 +7,7 @@ import {
   fetchPrMetadata,
   fetchReviewComments,
   parsePrUrl,
+  resolveFullSha,
 } from "./github.js";
 import { categorizeDelta } from "./categorize.js";
 import { AnthropicGenerator, type Generator } from "./generator.js";
@@ -54,6 +55,14 @@ export async function generateAndWriteDelta(
   log: (msg: string) => void,
 ): Promise<DeltaBrief> {
   const locator = parsePrUrl(url);
+
+  // CLI SHAs may arrive abbreviated; artifacts must carry full SHAs or the
+  // FE's exact-equality joins (marks -> brief head, delta -> checkpoint
+  // marks) silently never match.
+  [baselineSha, headSha] = await Promise.all([
+    resolveFullSha(locator, baselineSha),
+    resolveFullSha(locator, headSha),
+  ]);
 
   log(`fetching metadata + compare ${baselineSha.slice(0, 8)}..${headSha.slice(0, 8)}…`);
   const [meta, incrementalDiff, comments] = await Promise.all([
