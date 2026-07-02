@@ -1,6 +1,6 @@
 # TODO
 
-## [ ] Focus-mode / Read-through follow-ups (one PR, branch off `main` after PR #16 merges)
+## [ ] Focus-mode / Read-through follow-ups — in review, PR #17 (all six items implemented; browser pass pending)
 
 From the PR #16 browser pass (2026-07-02). Items 1–3 are pre-existing focus-mode bugs that
 Read-through promotes to main-path breakage; 4–6 are Read-through session mechanics. One
