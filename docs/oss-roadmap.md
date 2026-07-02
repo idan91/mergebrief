@@ -67,7 +67,7 @@ strategy.
 
 *Implication:* cheap, clarifying, unblocks honest decisions downstream.
 
-### P1 — Nail the front door (brand surface)  ·  status: [ ] not started
+### P1 — Nail the front door (brand surface)  ·  status: [x] done (2026-07-01, PR #13)
 
 **Needs grilling:** No — design iteration, not a decision-tree (use the `frontend-design` / `impeccable` skills + the flexer reference). · **Docs:** [`plans/p1-front-door.md`](./plans/p1-front-door.md) (**detailed scope + design/a11y checklist + deferred-with-triggers**) · [`vision.md`](./vision.md) · [`plans/web-generate-from-url.md`](./plans/web-generate-from-url.md) (the paste-URL flow)
 
@@ -115,7 +115,7 @@ where our taxonomy substrate becomes a real edge.
 *Implication:* highest-visibility comprehension feature; turns the taxonomy substrate into a
 demonstrable advantage over Atlas.
 
-### Cheap win — Keyboard navigation + focus mode  ·  status: [ ] folded into P1 (2026-06-30)
+### Cheap win — Keyboard navigation + focus mode  ·  status: [x] shipped with P1 (2026-07-01)
 
 **Needs grilling:** No — established UX pattern (apply the `web-accessibility` skill at build time). · **Docs:** [`plans/p1-front-door.md`](./plans/p1-front-door.md) (item 8) · reuses existing scroll-spy / group-TOC machinery.
 
@@ -241,6 +241,20 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   P1/P2; grill before building) and **cross-PR / temporal awareness** (future, gated on the P4
   backend). "Ripoff" concern resolved → OSS "open alternative to X" is a respected positioning;
   own the comparison.
+- 2026-07-01 — **P1 done** (PR #13, `feature/p1-front-door`). Front-door polish +
+  in-scope a11y fixes landed, including keyboard nav (`J`/`K`/`Z`/`?`). Mobile brief
+  header stays deferred with its pull-forward trigger (scope record in
+  [`plans/p1-front-door.md`](./plans/p1-front-door.md)).
+- 2026-07-02 — **Comparison overlay + Revision narrative shipped** (PR #14, ADR 0024;
+  not a roadmap P-item — grew out of ADR 0021's overlay). Timeline + View/Compare
+  model replaces the Full/Delta lens; non-first Briefs get a generated shared
+  Revision narrative; mechanical marks drive highlights for both baselines. Legal
+  detail sanitized from ADRs 0017/0023 + system-overview/oss-roadmap ahead of going
+  public. Follow-ups recorded in
+  [`plans/comparison-overlay-and-revision-narrative.md`](./plans/comparison-overlay-and-revision-narrative.md)
+  (Delta-path huge-span wiring, incremental diffs sidecar, YAML config loader).
+  Pre-existing duplicate-key bug in the summary preview found during the browser
+  pass → PR #15.
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +
