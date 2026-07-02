@@ -1,5 +1,11 @@
 import type { RevisionChangeFile } from "./revchanges.js";
-import type { ChangeGroup, Chunk, LineRange, RevisionNarrativeChunk } from "./types.js";
+import type {
+  ChangeGroup,
+  Chunk,
+  LineRange,
+  ReadingOrderStep,
+  RevisionNarrativeChunk,
+} from "./types.js";
 
 /**
  * Validate the chunk↔group partition. With group membership on the chunk
@@ -55,6 +61,43 @@ export function validateNarrativeGroups(
       );
     }
   }
+  return issues;
+}
+
+/**
+ * Validate a Brief's optional Reading order (ADR 0025): when present, it must
+ * be an exact permutation of the Brief's change-group ids — each group
+ * exactly once, no missing, no extra, no duplicates. Like `validatePartition`,
+ * this is a warn-and-drop check, not a hard failure: an invalid or absent
+ * order simply degrades to the Brief's structural (emission) order.
+ */
+export function validateReadingOrder(
+  readingOrder: Pick<ReadingOrderStep, "groupId">[] | undefined,
+  groups: Pick<ChangeGroup, "id">[],
+): string[] {
+  if (readingOrder === undefined) return [];
+
+  const issues: string[] = [];
+  const groupIds = new Set(groups.map((g) => g.id));
+  const stepIds = readingOrder.map((s) => s.groupId);
+  const seen = new Set<string>();
+
+  for (const id of stepIds) {
+    if (!groupIds.has(id)) {
+      issues.push(`readingOrder references unknown group "${id}"`);
+    }
+    if (seen.has(id)) {
+      issues.push(`readingOrder references group "${id}" more than once`);
+    }
+    seen.add(id);
+  }
+
+  for (const id of groupIds) {
+    if (!seen.has(id)) {
+      issues.push(`readingOrder is missing group "${id}"`);
+    }
+  }
+
   return issues;
 }
 

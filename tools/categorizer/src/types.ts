@@ -178,6 +178,22 @@ export const ChangeGroupSchema = z.object({
     ),
 });
 
+/**
+ * One step of a Brief's Reading order (ADR 0025): a change-group id plus a
+ * one-line, comprehension-language reason it comes next. `why` is never a
+ * verdict — no importance/priority/severity words, no scores.
+ */
+export const ReadingOrderStepSchema = z.object({
+  groupId: z
+    .string()
+    .describe("id of a change-group in this brief's changeGroups"),
+  why: z
+    .string()
+    .describe(
+      "one comprehension-language line, at most ~15 words, on why this group comes next (e.g. 'establishes the schema the rest builds on'). Never importance/priority/severity language, never a score.",
+    ),
+});
+
 export const ConcernRollupSchema = z.object({
   concern: concernEnum,
   added: z.number().int().describe("total git lines added for this concern"),
@@ -281,6 +297,12 @@ export const BriefSchema = z.object({
   concernView: z
     .array(ConcernRollupSchema)
     .describe("LoC rollup per concern (one entry per concern present)"),
+  readingOrder: z
+    .array(ReadingOrderStepSchema)
+    .optional()
+    .describe(
+      "optional reading order over changeGroups (ADR 0025): a strict permutation of their ids — each group exactly once, no revisits — in foundation-first order (schema/types → logic → call sites/wiring), falling back to context-first/churn-last for independent groups. Omit when no clear order applies. Mechanically validated post-parse as a permutation of the emitted group ids; dropped with a warning (not a hard failure) if it isn't.",
+    ),
 });
 
 /**
@@ -473,6 +495,7 @@ export type PrRef = z.infer<typeof PrRefSchema>;
 export type LineRange = z.infer<typeof LineRangeSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
+export type ReadingOrderStep = z.infer<typeof ReadingOrderStepSchema>;
 export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;
 export type CommitRange = z.infer<typeof CommitRangeSchema>;
 export type Generation = z.infer<typeof GenerationSchema>;
