@@ -218,13 +218,18 @@
   // The surviving group collapses from the split grid to a single centered
   // reading column, so entering focus visibly transforms the page even when the
   // focused chunk was already at the top of the viewport.
+  // Fixed track lengths (not minmax) so the collapse animates:
+  // grid-template-columns only interpolates between structurally identical
+  // track lists of plain lengths. Reduced-motion zeroes the transition
+  // globally (see the prefers-reduced-motion block below).
   [data-zen="on"] .story-group {
     display: grid;
-    grid-template-columns: minmax(0, 880px) minmax(54px, 280px);
+    grid-template-columns: minmax(0, 880px) 280px;
     align-items: start;
     gap: 14px;
     max-inline-size: 1188px;
     margin-inline: auto;
+    transition: grid-template-columns 0.25s ease;
   }
 
   [data-zen="on"] .story-group[data-focus-rail="collapsed"] {

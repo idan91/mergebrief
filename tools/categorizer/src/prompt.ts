@@ -84,6 +84,7 @@ You will receive a PR's title, description, file list, and unified diff — and,
 - **chunks[]**: a chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group — it is **sub-file**. One file commonly yields several chunks: the same file can split across multiple hunks, multiple concerns, or multiple change-groups, and each such run is its own chunk with its own stable id (c1, c2, …). **Do not assume one file = one chunk or one group.** A single file's changed lines may serve different intents — when they do, split them into separate chunks and attach each chunk to the change-group it actually serves, so a file's hunks can be distributed across several groups. **Each chunk belongs to exactly ONE change-group — set its \`changeGroupId\` to that group's id. A file appears in multiple groups only via *different* chunks, so a reviewer never reviews the same lines twice.** Record each chunk's \`changeGroupId\`, file, concern, role (carrier/supporting), git LoC (added/deleted), **line ranges** (see below), and risk-surface attributes.
 - **changeGroups[]**: one group = the largest chunk set expressible as ONE title + ONE summary + ONE dominant category. Give each a stable **id** (g1, g2, …) and a one-line **title**. The group does **not** list chunk ids — each chunk attaches to it via its \`changeGroupId\`. Every group must have at least one carrier chunk.
 - **concernView[]**: LoC rollup per concern present in the PR.
+- **readingOrder[]** (optional): a reasoned reading sequence over \`changeGroups\` — see "Reading order" below.
 
 ## Linked context (best-effort)
 
@@ -124,6 +125,14 @@ ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
 - **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if a set of changes has no intent-holder of its own, those chunks are *supporting* chunks of the group whose intent they serve, not a group.
 - **Export / barrel / re-export chunks (e.g. \`index.ts\`) are supporting** — attach each to the group whose feature it exports, never a catch-all "exports" group. If one file re-exports several features, split it into separate chunks (one per feature), each attached to its group.
 - **A standalone change with its own intent (e.g. dropping a CSS rule, a config tweak) is its own group with that chunk as the carrier** — don't fold it into an unrelated group.
+
+## Reading order (optional, over changeGroups)
+
+When a sensible order exists, emit \`readingOrder\`: a strict permutation of the \`changeGroups\` ids you just produced — each group exactly once, no revisits, no invented ids. Omit the field entirely when no clear order applies (e.g. a single group, or fully unrelated groups with no useful sequence).
+
+- **Rule**: foundation-first — a group another group builds on (schema/types, shared model) comes before the group(s) that build on it (logic, then call sites/wiring). Where groups are genuinely independent, fall back to context-first / churn-last: groups whose \`dominantCategory\` is mechanical (\`pure-move\`, \`lib-bump\`, \`dependency-update\`, or generated churn) go last.
+- **\`why\`**: one line, at most ~15 words, in comprehension language — it explains why this group comes next, e.g. "establishes the schema the rest builds on" or "mechanical rename — read last." **Never** importance/priority/severity words ("critical", "important", "minor") and never a score or rank number. This is not a verdict.
+- This never changes group membership, categories, or any other field — it is purely a sequence over the groups you already formed.
 
 ## Honest uncertainty (load-bearing)
 

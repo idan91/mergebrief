@@ -19,7 +19,11 @@ import {
   buildDeltaSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
 } from "./prompt.js";
-import { validatePartition, validateNarrativeGroups } from "./validate.js";
+import {
+  validatePartition,
+  validateNarrativeGroups,
+  validateReadingOrder,
+} from "./validate.js";
 import type {
   FetchedPr,
   LinkedContext,
@@ -101,8 +105,14 @@ export async function categorize(
     label: "brief",
     log,
   });
+  const { readingOrder, ...rest } = generated;
+  const readingOrderIssues = validateReadingOrder(readingOrder, generated.changeGroups);
+  warnIssues(readingOrderIssues, log, "reading order");
+  const keepReadingOrder = readingOrder !== undefined && readingOrderIssues.length === 0;
+
   const brief: Brief = {
-    ...generated,
+    ...rest,
+    ...(keepReadingOrder ? { readingOrder } : {}),
     pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
     index,
     commitRange,

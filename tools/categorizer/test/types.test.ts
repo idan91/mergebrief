@@ -57,6 +57,36 @@ describe("BriefSchema", () => {
     bad.chunks[0]!.riskSurface = ["scary"];
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
+
+  it("accepts a well-formed readingOrder", () => {
+    const withOrder = {
+      ...structuredClone(validBrief),
+      readingOrder: [{ groupId: "g1", why: "establishes the schema the rest builds on" }],
+    };
+    expect(BriefSchema.safeParse(withOrder).success).toBe(true);
+  });
+
+  it("accepts the absence of readingOrder", () => {
+    const withoutOrder = structuredClone(validBrief) as Partial<typeof validBrief>;
+    expect("readingOrder" in withoutOrder).toBe(false);
+    expect(BriefSchema.safeParse(withoutOrder).success).toBe(true);
+  });
+
+  it("rejects a malformed readingOrder step (missing why)", () => {
+    const bad = {
+      ...structuredClone(validBrief),
+      readingOrder: [{ groupId: "g1" }],
+    };
+    expect(BriefSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a readingOrder step with an unexpected field shape (why not a string)", () => {
+    const bad = {
+      ...structuredClone(validBrief),
+      readingOrder: [{ groupId: "g1", why: 123 }],
+    };
+    expect(BriefSchema.safeParse(bad).success).toBe(false);
+  });
 });
 
 const validDelta = {

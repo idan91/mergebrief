@@ -147,13 +147,51 @@ Git workflow (locked via git-eng, 2026-07-02):
 
 Checklist:
 
-- [ ] Stage 1: categorizer schema + prompt + validation + tests
-- [ ] Gate: inline review; live generation eyeball (order quality, why-line
-      tone, no dilution of group quality)
-- [ ] Stage 2: FE story-view order + Read-through + tests
-- [ ] Gate: inline review; browser pass (Read-through flow, Shift+J/K,
-      degrade path, caption copy)
-- [ ] Push + ready PR to main
+- [x] Stage 1: categorizer schema + prompt + validation + tests
+      (commits `baccef9`, `76ace79`)
+- [ ] Gate: inline review DONE (2026-07-02); live generation eyeball (order
+      quality, why-line tone, no dilution of group quality) pending — user's.
+
+  Accepted deviations (Stage 1, keep verdicts):
+  - Prompt: added a one-line `readingOrder[]` bullet to the "What a brief
+    contains" inventory list beyond the dedicated section — keeps the field
+    inventory self-consistent.
+  - Tests: new `test/categorize.test.ts` instead of extending
+    `revision-narrative.test.ts` — `categorize()` takes `FetchedPr` directly,
+    needs no github mock; smaller mock surface, same conventions.
+- [x] Stage 2: FE story-view order + Read-through + tests
+      (commits `8d4ce0f`, `8c0c930`)
+- [ ] Gate: inline review DONE (2026-07-02); browser pass (Read-through flow,
+      Shift+J/K, degrade path, caption copy) pending — user's.
+
+  Accepted deviations (Stage 2, keep verdicts):
+  - `GroupView` carries `readingOrderStep`/`readingOrderWhy` as fields
+    distinct from the existing `index` (display position); `index` is
+    reassigned to match Reading-order position when one is active, so
+    "Change-group N of M" stays consistent with the rendered order. Keeps
+    the degrade path exactly today's code path (no readingOrder → `index`
+    untouched, new fields simply absent).
+  - `viewModel.ts` re-verifies the permutation defensively (not just
+    trusting the boundary parser) before reordering — covers a `Brief`
+    built outside `parseBrief` (fixtures, tests, future callers).
+  - Shift+J/Shift+K reuse the existing `{ type: "jump" }` action (same
+    effect as J/K, different target) rather than a new `ShortcutAction`
+    variant — no new branch needed in the DOM handler.
+  - Group navigation is driven by a `groupBoundaries: number[]` (indices
+    into `chunkIds` where each group starts) rather than a per-chunk
+    group-id map — smaller, directly mirrors how `chunkIds` itself is
+    built from `model.groups`, and keeps `resolveShortcut` a pure
+    array-index function like the existing J/K code.
+  - "Start read-through" always jumps to step 1 regardless of current
+    scroll position (a small, deliberate duplication of `toggleFocusMode`'s
+    entry logic) — distinct semantics from Z, which re-anchors on whatever
+    chunk is already active.
+  - No new characterization test added for the degrade path: the existing
+    `characterization/` suite's fixtures never set `readingOrder`, so it
+    already exercises "Brief without readingOrder renders exactly as
+    today" and stayed green unmodified.
+- [x] Push + ready PR to main — PR #16 (2026-07-02). Human gates (Stage 1
+      eyeball, browser pass) deferred to PR review at user's request.
 
 ## Session Bootstrap (context for a fresh session)
 

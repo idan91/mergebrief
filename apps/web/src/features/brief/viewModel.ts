@@ -7,6 +7,7 @@ import {
   type Category,
   type ChangeGroup,
   type Concern,
+  type ReadingOrderStep,
   type RiskSurfaceAttribute,
 } from "./types";
 
@@ -20,6 +21,10 @@ export interface GroupView {
   added: number;
   deleted: number;
   supportConcerns: Concern[];
+  /** 1-based position in the Brief's Reading order; unset without a valid one. */
+  readingOrderStep?: number;
+  /** The Reading-order step's why-line; unset without a valid Reading order. */
+  readingOrderWhy?: string;
 }
 
 export interface RiskFlag {
@@ -93,7 +98,7 @@ const CONCERN_ORDER: Concern[] = [
 
 export function buildBriefViewModel(brief: Brief): BriefViewModel {
   const chunkToGroup = new Map<string, string>();
-  const groups = brief.changeGroups.map((group, index) => {
+  const sourceOrderGroups = brief.changeGroups.map((group, index) => {
     const id = group.id;
     const groupChunks = brief.chunks.filter(
       (chunk) => chunk.changeGroupId === id,
@@ -119,6 +124,11 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
       supportConcerns,
     } satisfies GroupView;
   });
+
+  const groups = orderGroupsByReadingOrder(
+    sourceOrderGroups,
+    brief.readingOrder,
+  );
 
   const concernChunks = new Map<Concern, BriefChunk[]>();
   for (const concern of CONCERN_ORDER) {
@@ -207,6 +217,44 @@ function sortByConcern(chunks: BriefChunk[]): BriefChunk[] {
     (a, b) =>
       (CONCERN_RANK.get(a.concern) ?? 0) - (CONCERN_RANK.get(b.concern) ?? 0),
   );
+}
+
+/**
+ * @description Orders `groups` by the Brief's Reading order (ADR 0025) when
+ * one is present and valid, attaching each group's step index + why-line;
+ * otherwise preserves today's source order untouched (the degrade path —
+ * `readingOrder` absent or invalid renders exactly as before this feature).
+ * Re-verifies the permutation defensively: the FE boundary parser
+ * (`validation.ts`) already drops an invalid `readingOrder`, but callers can
+ * hand a `Brief` built outside that parser (fixtures, tests).
+ */
+function orderGroupsByReadingOrder(
+  groups: GroupView[],
+  readingOrder: ReadingOrderStep[] | undefined,
+): GroupView[] {
+  if (!readingOrder || readingOrder.length === 0) return groups;
+  const byId = new Map(groups.map((group) => [group.id, group]));
+  const stepGroupIds = readingOrder.map((step) => step.groupId);
+  const isPermutation =
+    stepGroupIds.length === groups.length &&
+    new Set(stepGroupIds).size === stepGroupIds.length &&
+    stepGroupIds.every((id) => byId.has(id));
+  if (!isPermutation) return groups;
+  const ordered = readingOrder
+    .map((step, index): GroupView | undefined => {
+      const group = byId.get(step.groupId);
+      if (!group) return undefined;
+      return {
+        ...group,
+        index,
+        readingOrderStep: index + 1,
+        readingOrderWhy: step.why,
+      };
+    })
+    .filter((group): group is GroupView => group !== undefined);
+  // isPermutation guarantees every step resolves; this is a defensive
+  // fallback in case that invariant is ever violated.
+  return ordered.length === groups.length ? ordered : groups;
 }
 
 function sumLoc(chunks: BriefChunk[], key: keyof BriefChunk["loc"]): number {

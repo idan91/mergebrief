@@ -3,6 +3,7 @@ import {
   validatePartition,
   validateNarrativeGroups,
   validateNarrativeMarksOverlap,
+  validateReadingOrder,
 } from "../src/validate.js";
 
 const groups = [{ id: "g1" }, { id: "g2" }];
@@ -60,6 +61,42 @@ describe("validateNarrativeGroups", () => {
     const chunks = [{ id: "rc1", briefChangeGroupId: "g9" }];
     const issues = validateNarrativeGroups(chunks, groups);
     expect(issues.some((i) => i.includes("rc1") && i.includes("g9"))).toBe(true);
+  });
+});
+
+describe("validateReadingOrder", () => {
+  const threeGroups = [{ id: "g1" }, { id: "g2" }, { id: "g3" }];
+
+  it("returns no issues when absent", () => {
+    expect(validateReadingOrder(undefined, groups)).toEqual([]);
+  });
+
+  it("returns no issues for a valid permutation", () => {
+    const order = [{ groupId: "g2" }, { groupId: "g1" }];
+    expect(validateReadingOrder(order, groups)).toEqual([]);
+  });
+
+  it("flags a missing group", () => {
+    const order = [{ groupId: "g1" }];
+    const issues = validateReadingOrder(order, groups);
+    expect(issues.some((i) => i.includes("missing") && i.includes("g2"))).toBe(true);
+  });
+
+  it("flags an extra (unknown) group id", () => {
+    const order = [{ groupId: "g1" }, { groupId: "g2" }, { groupId: "g9" }];
+    const issues = validateReadingOrder(order, groups);
+    expect(issues.some((i) => i.includes("unknown") && i.includes("g9"))).toBe(true);
+  });
+
+  it("flags a duplicate group id", () => {
+    const order = [{ groupId: "g1" }, { groupId: "g1" }, { groupId: "g2" }];
+    const issues = validateReadingOrder(order, threeGroups.slice(0, 2));
+    expect(issues.some((i) => i.includes("more than once") && i.includes("g1"))).toBe(true);
+  });
+
+  it("keeps a valid three-group permutation", () => {
+    const order = [{ groupId: "g3" }, { groupId: "g1" }, { groupId: "g2" }];
+    expect(validateReadingOrder(order, threeGroups)).toEqual([]);
   });
 });
 

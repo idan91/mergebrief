@@ -48,6 +48,18 @@
     line-height: 1.6;
   }
 
+  // Explains order, never rank: kept visually subordinate to .title/.summary
+  // (smaller, muted, no chip/badge treatment) so it can't be misread as a
+  // priority label.
+  .readingOrder {
+    max-inline-size: 46em;
+    margin-block-start: 6px;
+    color: var(--faint);
+    font-size: 12px;
+    font-style: italic;
+    line-height: 1.5;
+  }
+
   .categoryRow {
     display: flex;
     flex-wrap: wrap;

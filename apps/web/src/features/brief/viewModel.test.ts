@@ -1,7 +1,68 @@
 import { describe, expect, it } from "vitest";
 
+import type { Brief } from "./types";
 import { parseBrief } from "./validation";
 import { buildBriefViewModel } from "./viewModel";
+
+function twoGroupBrief(readingOrder?: unknown) {
+  return {
+    pr: {
+      repo: "Idan91/components",
+      number: 5,
+      title: "feat: Add schema and call sites",
+      url: "https://github.com/Idan91/components/pull/5",
+      sha: "b02bcf1db649b18404dddc9d61b9dd1b3cc75dfd",
+      description: "Adds schema and wires it up.",
+    },
+    summary: "Adds schema and wires it up.",
+    changeGroups: [
+      {
+        id: "g1",
+        title: "Call sites",
+        summary: "Wires the new schema into call sites.",
+        dominantCategory: "logic-refactor",
+        secondaryCategories: [],
+        uncertain: false,
+        uncertainBetween: [],
+      },
+      {
+        id: "g2",
+        title: "Schema",
+        summary: "Adds the schema types.",
+        dominantCategory: "schema-change",
+        secondaryCategories: [],
+        uncertain: false,
+        uncertainBetween: [],
+      },
+    ],
+    chunks: [
+      {
+        id: "c1",
+        changeGroupId: "g1",
+        file: "src/consumer.ts",
+        concern: "implementation",
+        role: "carrier",
+        loc: { added: 4, deleted: 1 },
+        addedRanges: [{ start: 1, end: 4 }],
+        removedRanges: [{ start: 1, end: 1 }],
+        riskSurface: [],
+      },
+      {
+        id: "c2",
+        changeGroupId: "g2",
+        file: "src/schema.ts",
+        concern: "implementation",
+        role: "carrier",
+        loc: { added: 6, deleted: 0 },
+        addedRanges: [{ start: 1, end: 6 }],
+        removedRanges: [],
+        riskSurface: [],
+      },
+    ],
+    concernView: [{ concern: "implementation", added: 10, deleted: 1 }],
+    ...(readingOrder !== undefined ? { readingOrder } : {}),
+  };
+}
 
 describe("buildBriefViewModel", () => {
   it("groups chunks by chunk.changeGroupId and derives carrier/supporting buckets", () => {
@@ -73,5 +134,59 @@ describe("buildBriefViewModel", () => {
     ]);
     expect(model.chunkToGroup.get("c1")).toBe("g1");
     expect(model.flags[0]?.groupId).toBe("g1");
+  });
+
+  it("falls back to source order when the Brief has no readingOrder", () => {
+    const parsed = parseBrief(twoGroupBrief());
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const model = buildBriefViewModel(parsed.value);
+
+    expect(model.groups.map((group) => group.id)).toEqual(["g1", "g2"]);
+    expect(model.groups.map((group) => group.readingOrderStep)).toEqual([
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("orders groups by a valid readingOrder and attaches step index + why-line", () => {
+    const parsed = parseBrief(
+      twoGroupBrief([
+        { groupId: "g2", why: "establishes the schema the rest builds on" },
+        { groupId: "g1", why: "wires the schema into call sites" },
+      ]),
+    );
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const model = buildBriefViewModel(parsed.value);
+
+    expect(model.groups.map((group) => group.id)).toEqual(["g2", "g1"]);
+    expect(model.groups.map((group) => group.readingOrderStep)).toEqual([1, 2]);
+    expect(model.groups.map((group) => group.readingOrderWhy)).toEqual([
+      "establishes the schema the rest builds on",
+      "wires the schema into call sites",
+    ]);
+    expect(model.groups.map((group) => group.index)).toEqual([0, 1]);
+  });
+
+  it("falls back to source order when readingOrder is not a valid permutation, even bypassing the parser", () => {
+    // Exercises the viewModel's own defensive re-check (validation.ts already
+    // drops an invalid readingOrder at the parse boundary — this covers a
+    // Brief constructed outside that parser, e.g. fixtures or partial mocks).
+    const invalid: Brief = {
+      ...(parseBrief(twoGroupBrief()) as { ok: true; value: Brief }).value,
+      readingOrder: [
+        { groupId: "g2", why: "only one step, not a permutation" },
+      ],
+    };
+
+    const model = buildBriefViewModel(invalid);
+
+    expect(model.groups.map((group) => group.id)).toEqual(["g1", "g2"]);
+    expect(
+      model.groups.every((group) => group.readingOrderStep === undefined),
+    ).toBe(true);
   });
 });
