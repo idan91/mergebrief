@@ -24,12 +24,11 @@
       border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
     }
 
-    // Current segment: not color-only — also taller and squared corners, so
-    // it reads distinctly under color-blindness / monochrome rendering.
+    // Current segment: not color-only — also taller, so it reads distinctly
+    // under color-blindness / monochrome rendering.
     &[data-current] {
       block-size: 9px;
       border-color: var(--text);
-      border-radius: 1px;
     }
   }
 
