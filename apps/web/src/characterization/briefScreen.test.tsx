@@ -185,6 +185,41 @@ describe("brief screen characterization", () => {
     );
   });
 
+  it("keeps J/K/Z working after leaving a comment composer via Escape", async () => {
+    await renderBriefScreen();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+
+    fireEvent.keyDown(window, { key: "z" });
+    await screen.findByRole("complementary", {
+      name: "Focused change-group context",
+    });
+
+    // Open the composer on a commentable diff row, then leave it via Escape
+    // — not the Cancel button. Regression: CommentComposer never wired
+    // Escape to its own dismiss handler (unlike Modal, which does this for
+    // every other overlay in the app), so Escape did nothing while it was
+    // open; `activeCommentAnchor` never cleared, `shortcutsDisabled` stayed
+    // true, and J/K/Z stayed dead until the reviewer noticed they had to
+    // click Cancel/save explicitly.
+    const row = document.querySelector("[data-commentable]");
+    expect(row).toBeTruthy();
+    fireEvent.mouseDown(row!);
+    fireEvent.mouseUp(row!);
+    await screen.findByPlaceholderText("Leave a comment");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByPlaceholderText("Leave a comment")).toBeNull(),
+    );
+
+    fireEvent.keyDown(window, { key: "j" });
+    await waitFor(() =>
+      expect(document.querySelector("article[data-current]")?.id).toBe(
+        "chunk-b",
+      ),
+    );
+  });
+
   it("marking a carrier chunk reviewed advances the chunks progress stat", async () => {
     await renderBriefScreen();
     const stat = () =>
