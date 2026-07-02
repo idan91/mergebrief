@@ -51,6 +51,14 @@ _Avoid_: delta (reserved for the per-reviewer artifact), delta overlay, blue dif
 The shared, generated explanation of what changed between a **Brief** and the immediately previous **Brief** for the same PR (prevHead→head), used to summarize **Revision changes** on a full **Brief** without any reviewer-specific **Checkpoint** or carry-over state.
 _Avoid_: Delta Brief, reviewer delta, update summary
 
+**Reading order**:
+The reasoned sequence over a **Brief**'s **Change-groups** — a strict permutation (each group appears exactly once, no revisits), each step carrying a one-line *why-this-next* rationale. The rule: **foundation-first** (groups whose changes other groups build on come first: schema/types → core logic → call sites/wiring), falling back to **context-first, churn-last** for independent groups (dominant-intent groups first; mechanically-known low-signal Categories such as `pure-move`, `lib-bump`, `dependency-update` last — keyed on Category, never a free-floating importance judgment). Orders the *existing* groups; it is never a new grouping and never exposes a score or rank label (no-verdict holds). Within-group order stays structural (carrier → supporting, Concern order).
+_Avoid_: narrative (reserved for generated prose), story, layers/cohorts (Atlas's terms), walkthrough (CodeRabbit's term), importance/priority/severity (verdict language)
+
+**Read-through**:
+The experience of following the **Reading order**: stepping through **Change-groups** in sequence (keyboard next/prev, focus on the current group), end to end, once. The theatre sense — a first sequential pass through the whole piece. The Read-through follows the Reading order; it never reorders or filters it.
+_Avoid_: walkthrough (CodeRabbit's term), tour (onboarding connotation), guided review
+
 **Carry-over status**:
 How a prior **Flag** is classified in a **Delta Brief** relative to this reviewer's **Checkpoint**. One of: **New** (not present at the Checkpoint); **Reopened** (the reviewer had addressed or dismissed it and its region was touched in the span — so the prior decision must be re-made); **Settled** (addressed/dismissed and its region untouched — the prior decision still holds; FE may gloss as "still holds"); **Dropped** (the attribute no longer fires at head — the risk condition is gone, independent of any reviewer action). Decision order: Dropped → Reopened → Settled → New. Reopen is purely positional — *any* change to the flagged region reopens; meaningfulness is never inferred. On ambiguity, classify as Reopened, never Settled.
 _Avoid_: still-resolved, cleared, gone, stale, resolved (as state names)
