@@ -849,23 +849,30 @@ function BriefScreen({
         {/* Focus mode (Z) strips the page chrome and centers a single chunk in
             a narrow reading column — the visible payoff of "focus". */}
         {focusMode ? (
+          // The full-width wrap carries the sticky position and an opaque-ish
+          // blurred backdrop (same treatment as the top bar), so content
+          // scrolling past reads as sliding under a solid band instead of
+          // colliding with a floating box. data-focus-banner sits here too:
+          // focusScrollOffset() must measure the full strip, padding included.
           <div
-            className={styles["focusBanner"]}
+            className={styles["focusBannerWrap"]}
             data-focus-banner=""
             role="status"
           >
-            <span>
-              <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
-              <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
-            </span>
-            <ReadThroughProgress
-              activeChunkId={activeChunkId}
-              groups={model.groups}
-              jumpToChunk={jumpToChunk}
-            />
-            <button className="btn" type="button" onClick={toggleFocusMode}>
-              Exit focus
-            </button>
+            <div className={styles["focusBanner"]}>
+              <span>
+                <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
+                <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
+              </span>
+              <ReadThroughProgress
+                activeChunkId={activeChunkId}
+                groups={model.groups}
+                jumpToChunk={jumpToChunk}
+              />
+              <button className="btn" type="button" onClick={toggleFocusMode}>
+                Exit focus
+              </button>
+            </div>
           </div>
         ) : null}
         {focusMode ? null : (
