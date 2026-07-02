@@ -305,7 +305,10 @@ describe("Read-through progress + auto-advance", () => {
     await waitFor(() => expect(activeChunkId()).toBe("chunk-4"));
   });
 
-  it("does not auto-advance in plain focus mode entered via Z", async () => {
+  it("auto-advances in focus mode entered via Z, same as Start read-through", async () => {
+    // Z-focus and Start-read-through are visually identical; gating advance
+    // on the entry path read as broken (found in the PR #17 browser pass).
+    // Viewed advances in ANY focus mode.
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
@@ -316,12 +319,10 @@ describe("Read-through progress + auto-advance", () => {
     expect(activeChunkId()).toBe("chunk-1");
 
     fireEvent.click(viewedCheckboxFor("chunk-1"));
-    // No next-chunk navigation outside read-through — the checkbox toggles,
-    // nothing else moves.
     await waitFor(() =>
       expect(viewedCheckboxFor("chunk-1").checked).toBe(true),
     );
-    expect(activeChunkId()).toBe("chunk-1");
+    await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
   });
 
   it("does not auto-advance outside focus mode entirely", async () => {
@@ -337,12 +338,14 @@ describe("Read-through progress + auto-advance", () => {
     expect(viewedCheckboxFor("chunk-2").checked).toBe(false);
   });
 
-  it("Z-exiting read-through clears auto-advance (re-entering focus is plain)", async () => {
+  it("exiting focus mode restores normal viewed toggling (no advance, uncheck works)", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
     fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
+    fireEvent.click(viewedCheckboxFor("chunk-1"));
+    await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
 
     fireEvent.keyDown(window, { key: "Escape" });
     await waitFor(() =>
@@ -353,15 +356,11 @@ describe("Read-through progress + auto-advance", () => {
       ).toBeNull(),
     );
 
-    fireEvent.keyDown(window, { key: "z" });
-    await screen.findByRole("complementary", {
-      name: "Focused change-group context",
-    });
-
+    // Outside focus mode, clicking a viewed chunk's checkbox un-checks it —
+    // the confirm-and-advance semantics apply to focus mode only.
     fireEvent.click(viewedCheckboxFor("chunk-1"));
     await waitFor(() =>
-      expect(viewedCheckboxFor("chunk-1").checked).toBe(true),
+      expect(viewedCheckboxFor("chunk-1").checked).toBe(false),
     );
-    expect(activeChunkId()).toBe("chunk-1");
   });
 });

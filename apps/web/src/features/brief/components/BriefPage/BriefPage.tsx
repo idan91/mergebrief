@@ -402,11 +402,6 @@ function BriefScreen({
     useState<CommentAnchor | null>(null);
   const [toast, setToast] = useState("");
   const [focusMode, setFocusMode] = useState(false);
-  // Read-through is a distinct sub-state of focus mode: only "Start
-  // read-through" turns it on (auto-advance-on-viewed applies); plain Z/Esc
-  // focus mode never does. Cleared whenever Z toggles focus mode, whether
-  // that's entering plain focus or exiting either mode.
-  const [readThroughActive, setReadThroughActive] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const activeChunkIdRef = useLatestRef(activeChunkId);
   const focusModeRef = useLatestRef(focusMode);
@@ -528,18 +523,18 @@ function BriefScreen({
   const markReviewed = useCallback(
     (chunkId: string) => {
       const alreadyReviewed = reviewedChunks.has(chunkId);
-      // Read-through: the Viewed control means "confirmed viewed → next", so
-      // it must never stall the flow. An already-viewed chunk (viewed earlier
-      // in the session — snapshots persist across reloads — or revisited via
-      // K) is re-affirmed and advanced past, NOT un-checked; gating the
-      // advance on the viewed-on edge made those clicks silent unchecks that
-      // read as "auto-advance broken". Un-viewing stays available outside
-      // read-through. Advance is the strict next chunk in `chunkIds`;
-      // crossing a group boundary needs no special handling — FocusGroupRail
-      // renders for whichever group holds activeChunkId, so a plain chunk
-      // advance lands the reader on the next group's rail too. Never wraps
-      // past the last chunk.
-      if (readThroughActive) {
+      // In ANY focus mode (Z or Start read-through — the two are visually
+      // identical, so gating on how it was entered read as broken), the
+      // Viewed control means "confirmed viewed → next": it must never stall
+      // the flow. An already-viewed chunk (viewed earlier in the session —
+      // snapshots persist across reloads — or revisited via K) is re-affirmed
+      // and advanced past, NOT un-checked; un-viewing stays available in the
+      // normal scrolling view, where bulk-marking happens. Advance is the
+      // strict next chunk in `chunkIds`; crossing a group boundary needs no
+      // special handling — FocusGroupRail renders for whichever group holds
+      // activeChunkId, so a plain chunk advance lands the reader on the next
+      // group's rail too. Never wraps past the last chunk.
+      if (focusModeRef.current) {
         if (!alreadyReviewed) {
           actions.reviewChunk(chunkId);
           setOpenChunks((current) => {
@@ -565,7 +560,7 @@ function BriefScreen({
         return next;
       });
     },
-    [actions, chunkIds, readThroughActive, reviewedChunks, scrollToChunk],
+    [actions, chunkIds, focusModeRef, reviewedChunks, scrollToChunk],
   );
 
   const jumpToChunk = useCallback(
@@ -593,10 +588,6 @@ function BriefScreen({
   const toggleFocusMode = useCallback(() => {
     const entering = !focusModeRef.current;
     setFocusMode(entering);
-    // Z always yields plain focus mode (no auto-advance), whether entering
-    // fresh or re-toggled out of Read-through; Esc exiting Read-through must
-    // clear it too, since Esc routes through this same toggle.
-    setReadThroughActive(false);
     if (!entering) return;
     setViewMode("story");
     // Re-anchor onto the chunk being focused so entering focus mode is always
@@ -624,7 +615,6 @@ function BriefScreen({
     if (!firstChunkId) return;
     setViewMode("story");
     setFocusMode(true);
-    setReadThroughActive(true);
     setActiveChunkId(firstChunkId);
     // See toggleFocusMode: align="top" reserves the focus banner's height so
     // it doesn't overlap the chunk we just entered focus mode on.
