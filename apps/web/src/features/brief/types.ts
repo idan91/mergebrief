@@ -129,6 +129,16 @@ export interface ChangeGroup {
   uncertainBetween: Category[];
 }
 
+/**
+ * @description One step of a Brief's Reading order (ADR 0025): `groupId`
+ * references a `ChangeGroup.id`; `why` is a short comprehension-language line
+ * on why this group comes next (never importance/priority/severity language).
+ */
+export interface ReadingOrderStep {
+  groupId: string;
+  why: string;
+}
+
 export interface ConcernRollup {
   concern: Concern;
   added: number;
@@ -177,6 +187,14 @@ export interface Brief {
   commentsAddressed?: string;
   reviewComments?: AddressedReviewComment[];
   wholePrImpact?: string;
+  /**
+   * @description Reading order over `changeGroups` (ADR 0025), full Brief
+   * only — never present on a Delta Brief. Boundary-parsed defensively: a
+   * present-but-invalid permutation is dropped client-side (`validation.ts`),
+   * so by the time a `Brief` reaches the rest of the app this is either a
+   * verified permutation of `changeGroups` ids or `undefined`.
+   */
+  readingOrder?: ReadingOrderStep[];
 }
 
 /** Which comparison baseline a mechanical marks sidecar is relative to (ADR 0024). */

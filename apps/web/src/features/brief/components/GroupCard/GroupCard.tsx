@@ -83,6 +83,12 @@ export const GroupCard = memo(function GroupCard({
         </div>
         <h2 className={styles["title"]}>{group.group.title}</h2>
         <p className={styles["summary"]}>{group.group.summary}</p>
+        {group.readingOrderStep !== undefined ? (
+          <p className={styles["readingOrder"]}>
+            Step {group.readingOrderStep} of {model.groups.length}
+            {group.readingOrderWhy ? ` — ${group.readingOrderWhy}` : ""}
+          </p>
+        ) : null}
         <div className={styles["categoryRow"]}>
           <span className={styles["chip"]} data-kind="dominant">
             <em>dominant</em> {dominant}

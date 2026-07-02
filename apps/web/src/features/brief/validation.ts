@@ -18,6 +18,7 @@ import {
   type LineRange,
   type PrRef,
   type AddressedReviewComment,
+  type ReadingOrderStep,
   type RevisionChangeFile,
   type RevisionChanges,
   type RevisionNarrativeArtifact,
@@ -602,6 +603,68 @@ function parseChangeGroup(value: unknown): Result<ParsedChangeGroup> {
   };
 }
 
+function parseReadingOrderStep(value: unknown): Result<ReadingOrderStep> {
+  if (!isRecord(value))
+    return { ok: false, error: "Expected reading-order step to be an object" };
+  const groupId = value["groupId"];
+  const why = value["why"];
+  if (!isString(groupId) || !isString(why)) {
+    return {
+      ok: false,
+      error: "Expected reading-order step groupId and why",
+    };
+  }
+  return { ok: true, value: { groupId, why } };
+}
+
+/**
+ * Mirrors the categorizer's `validateReadingOrder` warn-and-drop posture
+ * (ADR 0025) at the FE boundary: a `readingOrder` must be an exact
+ * permutation of the parsed Brief's `changeGroups` ids (no missing, no
+ * extra, no duplicates) to survive. Artifacts can drift after the server
+ * validated them — old artifacts, hand-edited demos, partial regeneration —
+ * so the FE re-checks rather than trusting the field on sight.
+ */
+function isReadingOrderPermutation(
+  stepGroupIds: string[],
+  groupIds: string[],
+): boolean {
+  if (stepGroupIds.length !== groupIds.length) return false;
+  const knownIds = new Set(groupIds);
+  const seen = new Set<string>();
+  for (const id of stepGroupIds) {
+    if (!knownIds.has(id) || seen.has(id)) return false;
+    seen.add(id);
+  }
+  return true;
+}
+
+/**
+ * Parses an optional `readingOrder`, dropping it (with a console warning,
+ * never a hard failure) when malformed or when it isn't a permutation of
+ * `groupIds`. Full Brief only — callers must not wire this into Delta
+ * parsing (ADR 0025: Reading order is out of scope for Delta Briefs).
+ */
+function parseReadingOrder(
+  value: unknown,
+  groupIds: string[],
+): ReadingOrderStep[] | undefined {
+  if (value === undefined) return undefined;
+  const parsed = parseArray(value, parseReadingOrderStep, "readingOrder");
+  if (!parsed.ok) {
+    console.warn(`parseBrief: dropping readingOrder — ${parsed.error}`);
+    return undefined;
+  }
+  const stepGroupIds = parsed.value.map((step) => step.groupId);
+  if (!isReadingOrderPermutation(stepGroupIds, groupIds)) {
+    console.warn(
+      "parseBrief: dropping readingOrder — not a permutation of changeGroups ids",
+    );
+    return undefined;
+  }
+  return parsed.value;
+}
+
 function parseConcernRollup(value: unknown): Result<ConcernRollup> {
   if (!isRecord(value)) {
     return {
@@ -686,6 +749,10 @@ export function parseBrief(value: unknown): Result<Brief> {
   const index = value["index"];
   const commitRange = parseCommitRange(value["commitRange"]);
   const generation = parseGeneration(value["generation"]);
+  const readingOrder = parseReadingOrder(
+    value["readingOrder"],
+    normalized.value.changeGroups.map((group) => group.id),
+  );
   return {
     ok: true,
     value: {
@@ -695,6 +762,7 @@ export function parseBrief(value: unknown): Result<Brief> {
       ...(isInteger(index) ? { index } : {}),
       ...(commitRange ? { commitRange } : {}),
       ...(generation ? { generation } : {}),
+      ...(readingOrder ? { readingOrder } : {}),
       changeGroups: normalized.value.changeGroups,
       chunks: normalized.value.chunks,
       concernView: concernView.value,

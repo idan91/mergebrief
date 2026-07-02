@@ -86,6 +86,101 @@ describe("parseBrief", () => {
     expect(parsed.value.changeGroups[0]?.id).toBe("g1");
     expect(parsed.value.chunks[0]?.changeGroupId).toBe("g1");
   });
+
+  const secondGroup = {
+    ...newShapeGroup,
+    id: "g2",
+    title: "Second group",
+  };
+  const secondChunk = {
+    ...newShapeChunk,
+    id: "c2",
+    changeGroupId: "g2",
+  };
+  const twoGroupBriefInput = {
+    pr,
+    summary: "Adds accordion and collapsible components.",
+    changeGroups: [newShapeGroup, secondGroup],
+    chunks: [newShapeChunk, secondChunk],
+    concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+  };
+
+  it("keeps a readingOrder that is a valid permutation of the emitted group ids", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      readingOrder: [
+        { groupId: "g2", why: "establishes the schema the rest builds on" },
+        { groupId: "g1", why: "wires the schema into call sites" },
+      ],
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.readingOrder).toEqual([
+      { groupId: "g2", why: "establishes the schema the rest builds on" },
+      { groupId: "g1", why: "wires the schema into call sites" },
+    ]);
+  });
+
+  it("drops a readingOrder missing a group (Brief stays valid)", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      readingOrder: [
+        { groupId: "g1", why: "wires the schema into call sites" },
+      ],
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.readingOrder).toBeUndefined();
+  });
+
+  it("drops a readingOrder referencing an unknown group id (Brief stays valid)", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      readingOrder: [
+        { groupId: "g1", why: "wires the schema into call sites" },
+        { groupId: "g-stale", why: "leftover from a prior regeneration" },
+      ],
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.readingOrder).toBeUndefined();
+  });
+
+  it("drops a readingOrder with a duplicated group id (Brief stays valid)", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      readingOrder: [
+        { groupId: "g1", why: "wires the schema into call sites" },
+        { groupId: "g1", why: "duplicate" },
+      ],
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.readingOrder).toBeUndefined();
+  });
+
+  it("drops a malformed readingOrder step (Brief stays valid)", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      readingOrder: [{ groupId: "g1" }, { groupId: "g2", why: "next" }],
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.readingOrder).toBeUndefined();
+  });
+
+  it("omits readingOrder from the parsed value when the field is absent", () => {
+    const parsed = parseBrief(twoGroupBriefInput);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.readingOrder).toBeUndefined();
+  });
 });
 
 describe("parseDeltaBrief", () => {
