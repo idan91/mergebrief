@@ -232,6 +232,44 @@ describe("Read-through progress + auto-advance", () => {
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
   });
 
+  it("advances past an already-viewed chunk without un-viewing it (last-of-group stall regression)", async () => {
+    await renderReadThroughScreen();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+
+    // Mark the last chunk of group 1 viewed in normal mode first — this is
+    // how a chunk viewed earlier in the session (snapshots persist) looks.
+    fireEvent.click(viewedCheckboxFor("chunk-2"));
+    await waitFor(() =>
+      expect(viewedCheckboxFor("chunk-2").checked).toBe(true),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
+    fireEvent.click(viewedCheckboxFor("chunk-1"));
+    await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
+
+    // Regression: this click used to be a silent uncheck (viewed-on-edge
+    // gating), stalling read-through on the group's last chunk. It must
+    // advance across the boundary and keep the chunk viewed.
+    fireEvent.click(viewedCheckboxFor("chunk-2"));
+    await waitFor(() => expect(activeChunkId()).toBe("chunk-3"));
+    expect(viewedCheckboxFor("chunk-2").checked).toBe(true);
+  });
+
+  it("still un-views an already-viewed chunk outside read-through", async () => {
+    await renderReadThroughScreen();
+
+    fireEvent.click(viewedCheckboxFor("chunk-1"));
+    await waitFor(() =>
+      expect(viewedCheckboxFor("chunk-1").checked).toBe(true),
+    );
+
+    fireEvent.click(viewedCheckboxFor("chunk-1"));
+    await waitFor(() =>
+      expect(viewedCheckboxFor("chunk-1").checked).toBe(false),
+    );
+  });
+
   it("auto-advance across a group boundary lands on the next group's rail", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);

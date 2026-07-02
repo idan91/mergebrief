@@ -505,29 +505,43 @@ function BriefScreen({
 
   const markReviewed = useCallback(
     (chunkId: string) => {
-      // reviewChunk is a pure store toggle; the collapse-on-review coupling lives
-      // here because openChunks is local UI — drop the chunk from it explicitly.
-      const becomingReviewed = !reviewedChunks.has(chunkId);
-      actions.reviewChunk(chunkId);
-      setOpenChunks((current) => {
-        const next = new Set(current);
-        next.delete(chunkId);
-        return next;
-      });
-      // Read-through only, and only on the viewed-on edge (not un-checking):
-      // advance to the strict next chunk in sequence. Crossing a group
-      // boundary needs no special handling — FocusGroupRail already renders
-      // for whichever group holds activeChunkId, so a plain chunk advance
-      // lands the reader on the next group's rail too. Never wraps past the
-      // last chunk.
-      if (becomingReviewed && readThroughActive) {
+      const alreadyReviewed = reviewedChunks.has(chunkId);
+      // Read-through: the Viewed control means "confirmed viewed → next", so
+      // it must never stall the flow. An already-viewed chunk (viewed earlier
+      // in the session — snapshots persist across reloads — or revisited via
+      // K) is re-affirmed and advanced past, NOT un-checked; gating the
+      // advance on the viewed-on edge made those clicks silent unchecks that
+      // read as "auto-advance broken". Un-viewing stays available outside
+      // read-through. Advance is the strict next chunk in `chunkIds`;
+      // crossing a group boundary needs no special handling — FocusGroupRail
+      // renders for whichever group holds activeChunkId, so a plain chunk
+      // advance lands the reader on the next group's rail too. Never wraps
+      // past the last chunk.
+      if (readThroughActive) {
+        if (!alreadyReviewed) {
+          actions.reviewChunk(chunkId);
+          setOpenChunks((current) => {
+            const next = new Set(current);
+            next.delete(chunkId);
+            return next;
+          });
+        }
         const index = chunkIds.indexOf(chunkId);
         const next = index >= 0 ? chunkIds[index + 1] : undefined;
         if (next) {
           setActiveChunkId(next);
           scrollToChunk(next, "smooth", "top");
         }
+        return;
       }
+      // reviewChunk is a pure store toggle; the collapse-on-review coupling lives
+      // here because openChunks is local UI — drop the chunk from it explicitly.
+      actions.reviewChunk(chunkId);
+      setOpenChunks((current) => {
+        const next = new Set(current);
+        next.delete(chunkId);
+        return next;
+      });
     },
     [actions, chunkIds, readThroughActive, reviewedChunks, scrollToChunk],
   );
