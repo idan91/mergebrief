@@ -127,7 +127,24 @@
     inset-block-start: calc(var(--top-bar-h) + 72px);
     display: grid;
     gap: 8px;
+    max-block-size: calc(100vh - (var(--top-bar-h) + 72px) - 24px);
     min-inline-size: 0;
+    overflow-y: auto;
+    scrollbar-color: var(--line2) transparent;
+    scrollbar-width: thin;
+
+    &::-webkit-scrollbar {
+      inline-size: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      border-radius: 999px;
+      background: var(--line2);
+    }
   }
 
   .railToggle {
@@ -366,6 +383,8 @@
       position: static;
       inline-size: calc(100vw - 36px);
       max-inline-size: 100%;
+      max-block-size: none;
+      overflow-y: visible;
       align-self: flex-start;
     }
 

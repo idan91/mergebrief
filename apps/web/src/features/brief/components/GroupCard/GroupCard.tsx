@@ -68,7 +68,11 @@ export const GroupCard = memo(function GroupCard({
   }
 
   return (
-    <article className={`${styles["card"]} reveal`}>
+    <article
+      aria-label={`${group.group.title} — change-group context`}
+      className={`${styles["card"]} reveal`}
+      tabIndex={0}
+    >
       <div className={styles["head"]}>
         <div className={styles["eyebrow"]}>
           <span className={styles["number"]}>

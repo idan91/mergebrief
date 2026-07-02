@@ -223,6 +223,7 @@ function FocusGroupRail({
       aria-label="Focused change-group context"
       className={`${styles["focusRail"]} focus-group-rail`}
       data-state={open ? "open" : "collapsed"}
+      tabIndex={0}
     >
       <button
         aria-controls={panelId}
