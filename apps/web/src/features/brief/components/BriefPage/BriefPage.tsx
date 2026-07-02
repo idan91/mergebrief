@@ -540,10 +540,15 @@ function BriefScreen({
     setViewMode("story");
     // Re-anchor onto the chunk being focused so entering focus mode is always
     // visible, even when that chunk was already at the top of the viewport.
+    // align="top" is required here (not the default "native" scrollIntoView):
+    // the focus banner only mounts once `focusMode` flips true, so the scroll
+    // that lands us on the chunk must already reserve its height via
+    // focusScrollOffset() — otherwise the banner renders on top of the chunk
+    // we just scrolled to.
     const target = activeChunkIdRef.current ?? firstChunkId;
     if (!target) return;
     setActiveChunkId(target);
-    scrollToChunk(target);
+    scrollToChunk(target, "smooth", "top");
   }, [activeChunkIdRef, firstChunkId, focusModeRef, scrollToChunk]);
   const toggleShortcuts = useCallback(
     () => setShortcutsOpen((current) => !current),
@@ -559,7 +564,9 @@ function BriefScreen({
     setViewMode("story");
     setFocusMode(true);
     setActiveChunkId(firstChunkId);
-    scrollToChunk(firstChunkId);
+    // See toggleFocusMode: align="top" reserves the focus banner's height so
+    // it doesn't overlap the chunk we just entered focus mode on.
+    scrollToChunk(firstChunkId, "smooth", "top");
   }, [firstChunkId, scrollToChunk]);
 
   // Shortcuts stand down whenever an overlay holds focus (drawers/modals use

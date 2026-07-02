@@ -157,6 +157,34 @@ describe("brief screen characterization", () => {
     );
   });
 
+  it("entering focus mode scrolls the active chunk clear of the focus banner", async () => {
+    await renderBriefScreen();
+    const scrollTo = vi
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+    scrollTo.mockClear();
+
+    fireEvent.keyDown(window, { key: "z" });
+    await screen.findByRole("complementary", {
+      name: "Focused change-group context",
+    });
+
+    // Regression: toggleFocusMode/startReadThrough used to scroll with the
+    // default "native" alignment (plain scrollIntoView), which doesn't
+    // reserve space for the focus banner that only mounts once focus mode is
+    // active — the banner then rendered on top of the chunk just scrolled
+    // to. Entering focus mode must use the offset-aware "top" alignment,
+    // same as J/K navigation while focus mode is already active.
+    await waitFor(() =>
+      expect(scrollTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          behavior: "smooth",
+          top: expect.any(Number),
+        }),
+      ),
+    );
+  });
+
   it("marking a carrier chunk reviewed advances the chunks progress stat", async () => {
     await renderBriefScreen();
     const stat = () =>
