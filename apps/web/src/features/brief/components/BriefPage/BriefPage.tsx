@@ -410,6 +410,28 @@ function BriefScreen({
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const activeChunkIdRef = useLatestRef(activeChunkId);
   const focusModeRef = useLatestRef(focusMode);
+  // Mirror of Header's --top-bar-h: publish the focus banner strip's measured
+  // height so sticky chunk headers (ChunkCard .head) and the focus rail can
+  // stack below the strip instead of pinning behind it. 0px whenever focus
+  // mode is off (the strip is unmounted).
+  const focusBannerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const setBannerHeight = (value: string) =>
+      document.documentElement.style.setProperty("--focus-banner-h", value);
+    const el = focusBannerRef.current;
+    if (!focusMode || !el) {
+      setBannerHeight("0px");
+      return;
+    }
+    const apply = () => setBannerHeight(`${el.offsetHeight}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      setBannerHeight("0px");
+    };
+  }, [focusMode]);
   const firstChunkId = chunkIds[0] ?? null;
 
   const totals = useMemo(
@@ -850,6 +872,35 @@ function BriefScreen({
         availability={availability}
         compareState={compareState}
       />
+      {/* Focus mode (Z) strips the page chrome and centers a single chunk in
+          a narrow reading column — the visible payoff of "focus". The banner
+          is a sibling of <main> (not inside it) so it is a true full-bleed
+          strip like the top bar; sticky chunk headers stack below it via the
+          measured --focus-banner-h. data-focus-banner sits on the strip:
+          focusScrollOffset() must measure it whole, padding included. */}
+      {focusMode ? (
+        <div
+          className={styles["focusBannerWrap"]}
+          data-focus-banner=""
+          ref={focusBannerRef}
+          role="status"
+        >
+          <div className={styles["focusBanner"]}>
+            <span>
+              <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
+              <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
+            </span>
+            <ReadThroughProgress
+              activeChunkId={activeChunkId}
+              groups={model.groups}
+              jumpToChunk={jumpToChunk}
+            />
+            <button className="btn" type="button" onClick={toggleFocusMode}>
+              Exit focus
+            </button>
+          </div>
+        </div>
+      ) : null}
       <main
         className={
           layoutMode === "split" && viewMode === "story"
@@ -860,35 +911,6 @@ function BriefScreen({
         tabIndex={-1}
         data-zen={focusMode ? "on" : undefined}
       >
-        {/* Focus mode (Z) strips the page chrome and centers a single chunk in
-            a narrow reading column — the visible payoff of "focus". */}
-        {focusMode ? (
-          // The full-width wrap carries the sticky position and an opaque-ish
-          // blurred backdrop (same treatment as the top bar), so content
-          // scrolling past reads as sliding under a solid band instead of
-          // colliding with a floating box. data-focus-banner sits here too:
-          // focusScrollOffset() must measure the full strip, padding included.
-          <div
-            className={styles["focusBannerWrap"]}
-            data-focus-banner=""
-            role="status"
-          >
-            <div className={styles["focusBanner"]}>
-              <span>
-                <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
-                <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
-              </span>
-              <ReadThroughProgress
-                activeChunkId={activeChunkId}
-                groups={model.groups}
-                jumpToChunk={jumpToChunk}
-              />
-              <button className="btn" type="button" onClick={toggleFocusMode}>
-                Exit focus
-              </button>
-            </div>
-          </div>
-        ) : null}
         {focusMode ? null : (
           <section className={`${styles["summary"]} reveal`}>
             <div className={styles["eyebrow"]}>

@@ -26,7 +26,11 @@
 
   .head {
     position: sticky;
-    inset-block-start: var(--top-bar-h);
+
+    // Stacks below the focus banner strip in focus mode (--focus-banner-h is
+    // 0px outside it), so the chunk header pins to the strip's bottom edge
+    // instead of sliding behind it.
+    inset-block-start: calc(var(--top-bar-h) + var(--focus-banner-h, 0px));
     z-index: 10;
     display: flex;
     inline-size: 100%;

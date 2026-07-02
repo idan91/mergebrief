@@ -129,11 +129,18 @@
   // toggle + step/meta header stays fixed while details scroll under it.
   .focusRail {
     position: sticky;
-    inset-block-start: calc(var(--top-bar-h) + 72px);
+
+    // Sits just below the focus banner strip (measured --focus-banner-h),
+    // same stacking rule as the sticky chunk headers.
+    inset-block-start: calc(
+      var(--top-bar-h) + var(--focus-banner-h, 0px) + 12px
+    );
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-block-size: calc(100vh - (var(--top-bar-h) + 72px) - 24px);
+    max-block-size: calc(
+      100vh - (var(--top-bar-h) + var(--focus-banner-h, 0px) + 12px) - 24px
+    );
     min-inline-size: 0;
   }
 
