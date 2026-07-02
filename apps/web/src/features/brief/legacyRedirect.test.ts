@@ -11,6 +11,14 @@ const headBrief: LocalBriefSummary = {
   title: "Fixture",
   sha: "head1234full",
   index: 2,
+  comparisons: {
+    lastReview: {
+      marksId: "acme-widgets-1_checkpoint_checkpoi-head1234",
+      deltaId: "acme-widgets-1-checkpoint..head1234",
+      baselineSha: "checkpoint1234",
+      baselineIndex: null,
+    },
+  },
 };
 
 const delta: LocalBriefSummary = {
@@ -60,6 +68,30 @@ describe("resolveLegacyDeltaRedirect", () => {
     };
     expect(
       resolveLegacyDeltaRedirect([orphanDelta], orphanDelta.id),
+    ).toBeNull();
+  });
+
+  it("returns null when the head Brief has no lastReview availability (pre-branch artifact set)", () => {
+    const { comparisons: _comparisons, ...bareHeadBrief } = headBrief;
+    expect(
+      resolveLegacyDeltaRedirect([bareHeadBrief, delta], delta.id),
+    ).toBeNull();
+  });
+
+  it("returns null when lastReview availability binds a different delta", () => {
+    const otherDeltaHead: LocalBriefSummary = {
+      ...headBrief,
+      comparisons: {
+        lastReview: {
+          marksId: "acme-widgets-1_checkpoint_othercpk-head1234",
+          deltaId: "acme-widgets-1-othercheckpoint..head1234",
+          baselineSha: "othercheckpoint",
+          baselineIndex: null,
+        },
+      },
+    };
+    expect(
+      resolveLegacyDeltaRedirect([otherDeltaHead, delta], delta.id),
     ).toBeNull();
   });
 });

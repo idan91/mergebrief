@@ -15,9 +15,13 @@ export interface LegacyDeltaRedirect {
  * renders the same content (`ChangesOnlyView`'s "Your last review" path).
  *
  * `null` when `briefId` isn't a Delta artifact (nothing to redirect — Brief
- * artifact links default via `resolveBriefSearch`'s fresh-arrival logic) or
- * when its head Brief can't be found locally (fall through to the existing
- * direct-render behavior rather than dead-ending the link).
+ * artifact links default via `resolveBriefSearch`'s fresh-arrival logic), when
+ * its head Brief can't be found locally, or when the head Brief's `lastReview`
+ * availability doesn't bind THIS delta (a pre-branch artifact set with a
+ * `.delta.json` but no checkpoint `.comparison.json`, or checkpoint marks for
+ * a different baseline). In all three cases we fall through to the existing
+ * direct-render behavior rather than redirecting to a page whose
+ * normalization would silently swap the baseline away from the delta.
  */
 export function resolveLegacyDeltaRedirect(
   artifacts: LocalBriefSummary[],
@@ -35,7 +39,7 @@ export function resolveLegacyDeltaRedirect(
       artifact.number === delta.number &&
       artifact.sha === delta.headSha,
   );
-  if (!headBrief) return null;
+  if (headBrief?.comparisons?.lastReview?.deltaId !== delta.id) return null;
 
   return {
     briefId: headBrief.id,
