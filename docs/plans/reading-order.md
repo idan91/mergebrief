@@ -147,9 +147,18 @@ Git workflow (locked via git-eng, 2026-07-02):
 
 Checklist:
 
-- [ ] Stage 1: categorizer schema + prompt + validation + tests
-- [ ] Gate: inline review; live generation eyeball (order quality, why-line
-      tone, no dilution of group quality)
+- [x] Stage 1: categorizer schema + prompt + validation + tests
+      (commits `baccef9`, `76ace79`)
+- [ ] Gate: inline review DONE (2026-07-02); live generation eyeball (order
+      quality, why-line tone, no dilution of group quality) pending — user's.
+
+  Accepted deviations (Stage 1, keep verdicts):
+  - Prompt: added a one-line `readingOrder[]` bullet to the "What a brief
+    contains" inventory list beyond the dedicated section — keeps the field
+    inventory self-consistent.
+  - Tests: new `test/categorize.test.ts` instead of extending
+    `revision-narrative.test.ts` — `categorize()` takes `FetchedPr` directly,
+    needs no github mock; smaller mock surface, same conventions.
 - [ ] Stage 2: FE story-view order + Read-through + tests
 - [ ] Gate: inline review; browser pass (Read-through flow, Shift+J/K,
       degrade path, caption copy)
