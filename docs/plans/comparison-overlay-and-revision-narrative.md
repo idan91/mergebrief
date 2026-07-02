@@ -545,6 +545,14 @@ Git workflow (locked via git-eng):
   built purely from `.comparison.json`); wiring it as a previous-brief alias is
   step 10 — carried into Stage 4. Until then, briefs with only legacy sidecars
   show no Previous Brief comparison locally.
+- `Changes Only + Your last review` renders a purpose-built **compact read-only
+  digest** (delta summary + context + groups with read-only diff slices), not
+  the old full-page Delta rendering the step 8 text implied. Accepted after the
+  fact (initially unflagged): ADR 0024 defines the View axis as density — the
+  same View setting must produce the same page shape for both baselines — and
+  the interactive work surface (comments, flags, mind-map) deliberately
+  consolidates on `Full Brief + Your last review` with the overlay. The old
+  full delta view survives only via legacy direct URLs that cannot redirect.
 
 **Carried into Stage 4:**
 
