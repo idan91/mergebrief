@@ -402,6 +402,11 @@ function BriefScreen({
     useState<CommentAnchor | null>(null);
   const [toast, setToast] = useState("");
   const [focusMode, setFocusMode] = useState(false);
+  // Read-through is a distinct sub-state of focus mode: only "Start
+  // read-through" turns it on (auto-advance-on-viewed applies); plain Z/Esc
+  // focus mode never does. Cleared whenever Z toggles focus mode, whether
+  // that's entering plain focus or exiting either mode.
+  const [readThroughActive, setReadThroughActive] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const activeChunkIdRef = useLatestRef(activeChunkId);
   const focusModeRef = useLatestRef(focusMode);
@@ -502,14 +507,29 @@ function BriefScreen({
     (chunkId: string) => {
       // reviewChunk is a pure store toggle; the collapse-on-review coupling lives
       // here because openChunks is local UI — drop the chunk from it explicitly.
+      const becomingReviewed = !reviewedChunks.has(chunkId);
       actions.reviewChunk(chunkId);
       setOpenChunks((current) => {
         const next = new Set(current);
         next.delete(chunkId);
         return next;
       });
+      // Read-through only, and only on the viewed-on edge (not un-checking):
+      // advance to the strict next chunk in sequence. Crossing a group
+      // boundary needs no special handling — FocusGroupRail already renders
+      // for whichever group holds activeChunkId, so a plain chunk advance
+      // lands the reader on the next group's rail too. Never wraps past the
+      // last chunk.
+      if (becomingReviewed && readThroughActive) {
+        const index = chunkIds.indexOf(chunkId);
+        const next = index >= 0 ? chunkIds[index + 1] : undefined;
+        if (next) {
+          setActiveChunkId(next);
+          scrollToChunk(next, "smooth", "top");
+        }
+      }
     },
-    [actions],
+    [actions, chunkIds, readThroughActive, reviewedChunks, scrollToChunk],
   );
 
   const jumpToChunk = useCallback(
@@ -537,6 +557,10 @@ function BriefScreen({
   const toggleFocusMode = useCallback(() => {
     const entering = !focusModeRef.current;
     setFocusMode(entering);
+    // Z always yields plain focus mode (no auto-advance), whether entering
+    // fresh or re-toggled out of Read-through; Esc exiting Read-through must
+    // clear it too, since Esc routes through this same toggle.
+    setReadThroughActive(false);
     if (!entering) return;
     setViewMode("story");
     // Re-anchor onto the chunk being focused so entering focus mode is always
@@ -564,6 +588,7 @@ function BriefScreen({
     if (!firstChunkId) return;
     setViewMode("story");
     setFocusMode(true);
+    setReadThroughActive(true);
     setActiveChunkId(firstChunkId);
     // See toggleFocusMode: align="top" reserves the focus banner's height so
     // it doesn't overlap the chunk we just entered focus mode on.
