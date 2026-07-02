@@ -155,6 +155,66 @@ Checklist:
       degrade path, caption copy)
 - [ ] Push + ready PR to main
 
+## Session Bootstrap (context for a fresh session)
+
+Everything a new session needs that isn't obvious from the repo:
+
+**Where this came from.** Grilled 2026-07-02 (same session as the plan); all
+decisions are captured in ADR 0025 and the table above — do not re-litigate
+them. `CONTEXT.md` already has the **Reading order** / **Read-through**
+entries with avoid-lists. Roadmap item: `docs/oss-roadmap.md` P2 (update its
+status + progress log when this ships).
+
+**Execution process (proven on the comparison-overlay feature, PR #14).**
+Orchestrator dispatches one subagent per stage (Sonnet is sufficient for both
+stages here — the plan is fully specified; Opus was only needed for judgment-
+heavy refactor work). Stage prompts must carry: the branch + commit rules
+above, "invoke `typescript-eng` before writing TS", the relevant plan stage
+verbatim, and as-built amendments from the previous stage. Gate after each
+stage = orchestrator reruns typecheck/tests, reads the diff inline focused on
+that stage's risk spots (NO multi-agent review fan-out), audits flagged AND
+unflagged deviations with keep/fix verdicts, records accepted deviations in
+this plan, and sends fixes back to the same agent via its live context.
+
+**Patterns to mirror (all on `main`, from the comparison-overlay work):**
+
+- Warn-and-drop validation posture: `validatePartition` /
+  `validateNarrativeGroups` in `tools/categorizer/src/validate.ts`.
+- Categorizer test conventions: mocked `Generator` + mocked github module,
+  fixtures parsed through the request's own schema —
+  `tools/categorizer/test/revision-narrative.test.ts`.
+- Prompt tone precedent: the Revision-narrative prompt's ~25-word summary
+  budget and comprehension-language rules (`prompt.ts`,
+  `buildRevisionNarrativeSystemPrompt`) — the why-line rules here are the
+  same idea at ~15 words.
+- FE boundary validation: `apps/web/src/features/brief/validation.ts`
+  (Result-shaped parsers, fail-closed to null/drop).
+- Characterization suite is the FE regression guard:
+  `apps/web/src/characterization/` — must stay green; extend it for the
+  degrade path.
+- Keyboard nav: `apps/web/src/features/brief/useKeyboardShortcuts.ts` takes a
+  caller-supplied `chunkIds` list — Read-through is a list change + one new
+  key pair, not a new system. Query DOM by data attributes, never by CSS-module
+  class names (hashing made `.railbtn-focus` a silent no-op once; fixed with
+  `data-jump-target`).
+
+**Known gotchas:**
+
+- CLI SHAs get resolved to full via `resolveFullSha` (github.ts) — artifacts
+  are keyed by full SHAs; FE joins are exact-equality.
+- The Brief's group order today IS the LLM emission order — nothing else
+  depends on it, which is why Story view can adopt the Reading order with no
+  compat work beyond the absent-field degrade path.
+- `pnpm typecheck` / `pnpm test` at repo root fan out to workspaces; the
+  categorizer package has no lint script (typecheck + test only).
+
+**User preferences that bind here** (also in memory): terse direct
+communication; never rubber-stamp — re-derive and push back; recommendation +
+open question over multiple-choice when designing; no emojis; no
+Co-Authored-By/AI attribution anywhere; confirm before irreversible actions;
+human gates (generation eyeball, browser pass) are the user's — never skip
+or automate them.
+
 ## Suggested Commit Chunks
 
 1. `feat(categorizer): add reading order schema and validation`
