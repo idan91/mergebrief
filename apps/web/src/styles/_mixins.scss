@@ -50,3 +50,47 @@
   opacity: 0.5;
   pointer-events: none;
 }
+
+// Vertical scroll region inside a sticky rail. Horizontal scrolling is hard-
+// disabled (the styled classic scrollbar consumes inline space, which would
+// otherwise trip overflow-x: auto into a horizontal bar). The always-visible
+// thin scrollbar plus scroll-shadows make cut-off content read as "more
+// below": the shadows sit at the viewport edges (background-attachment:
+// scroll) while solid covers scroll with the content (attachment: local), so
+// each shadow only shows once content has actually moved past that edge.
+// The caller must set --scroller-bg to the surface the scroller sits on —
+// the covers paint over it.
+@mixin rail-scroller {
+  min-block-size: 0;
+  overflow: hidden auto;
+  background:
+    linear-gradient(var(--scroller-bg) 30%, transparent) center top / 100% 36px,
+    linear-gradient(transparent, var(--scroller-bg) 70%) center bottom / 100%
+      36px,
+    radial-gradient(farthest-side at 50% 0, rgb(0 0 0 / 60%), rgb(0 0 0 / 0%))
+      center top / 100% 12px,
+    radial-gradient(
+        farthest-side at 50% 100%,
+        rgb(0 0 0 / 60%),
+        rgb(0 0 0 / 0%)
+      )
+      center bottom / 100% 12px;
+  background-attachment: local, local, scroll, scroll;
+  background-color: var(--scroller-bg);
+  background-repeat: no-repeat;
+  scrollbar-color: var(--line2) transparent;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    inline-size: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: var(--line2);
+  }
+}

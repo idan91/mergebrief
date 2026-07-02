@@ -168,28 +168,17 @@
     }
   }
 
+  // Sticky, viewport-capped column; the card is a flex column so its body
+  // (GroupCard .body) can be the inner scroll region while the head stays
+  // fixed — the card itself never scrolls.
   .split-main .story-group > article {
     position: sticky;
     inset-block-start: 132px;
+    display: flex;
+    flex-direction: column;
     order: initial;
     grid-column: 2;
     max-block-size: calc(100vh - 132px - 24px);
-    overflow-y: auto;
-    scrollbar-color: var(--line2) transparent;
-    scrollbar-width: thin;
-
-    &::-webkit-scrollbar {
-      inline-size: 8px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      border-radius: 999px;
-      background: var(--line2);
-    }
   }
 
   @media (width <= 1180px) {
@@ -205,7 +194,6 @@
       position: static;
       order: 1;
       max-block-size: none;
-      overflow-y: visible;
     }
   }
 
