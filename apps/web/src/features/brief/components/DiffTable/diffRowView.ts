@@ -5,10 +5,10 @@ import {
 } from "../../../review/comments";
 import { reviewCommentMatchesDiffLine } from "../../reviewComments";
 import {
-  type ChunkRevisionView,
-  type RevisionRowKind,
-  type RevisionRun,
-} from "../../revisionChanges";
+  type ChunkComparisonView,
+  type ComparisonRowKind,
+  type ComparisonRun,
+} from "../../comparison";
 import type { AddressedReviewComment, BriefChunk, DiffLine } from "../../types";
 
 export interface DiffRowViewParams {
@@ -16,7 +16,7 @@ export interface DiffRowViewParams {
   index: number;
   chunk: BriefChunk;
   overlayActive: boolean;
-  revisionView: ChunkRevisionView;
+  comparisonView: ChunkComparisonView;
   comments: ReviewComment[];
   addressedComments: AddressedReviewComment[];
   dragIndexes: number[];
@@ -27,8 +27,8 @@ export interface DiffRowViewParams {
 export interface DiffRowView {
   sign: string;
   id: string;
-  revRun: RevisionRun | undefined;
-  revMark: RevisionRowKind | undefined;
+  revRun: ComparisonRun | undefined;
+  revMark: ComparisonRowKind | undefined;
   isRevStart: boolean;
   isRevEnd: boolean;
   rowComments: ReviewComment[];
@@ -48,7 +48,7 @@ export function getDiffRowView({
   index,
   chunk,
   overlayActive,
-  revisionView,
+  comparisonView,
   comments,
   addressedComments,
   dragIndexes,
@@ -57,8 +57,8 @@ export function getDiffRowView({
 }: DiffRowViewParams): DiffRowView {
   const sign = line.kind === "add" ? "+" : line.kind === "del" ? "−" : " ";
   const id = rowId(chunk.id, index);
-  const revRun = overlayActive ? revisionView.runByRow.get(index) : undefined;
-  const revMark = overlayActive ? revisionView.marks.get(index) : undefined;
+  const revRun = overlayActive ? comparisonView.runByRow.get(index) : undefined;
+  const revMark = overlayActive ? comparisonView.marks.get(index) : undefined;
   const isRevStart = revRun !== undefined && revRun.rowIndexes[0] === index;
   const isRevEnd = revRun !== undefined && revRun.rowIndexes.at(-1) === index;
   const rowComments = comments.filter(

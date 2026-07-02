@@ -283,9 +283,10 @@ Output naming:
 - Add a new sidecar, e.g.
   `<stem>_<index>_<head8>.revision-narrative.json`.
 - If comparison marks are generalized immediately, prefer
-  `<stem>_<base8>-<head8>.comparison.json` for span-keyed marks (no `..` in
-  filenames — hostile to globbing) and keep the old filename as an alias for
-  previous-brief spans.
+  `<stem>_<baselineLabel>_<base8>-<head8>.comparison.json` for span-keyed marks
+  (no `..` in filenames — hostile to globbing; label-keyed so checkpoint marks
+  never clobber previous-brief marks when a checkpoint equals prevHead) and
+  keep the old filename as an alias for previous-brief spans.
 
 ### 5. Represent Comparison Availability in the Local Read Model
 
@@ -464,6 +465,145 @@ Characterization / browser checks:
   artifacts until production has real Checkpoints.
 - **Route churn.** Changing Delta from a path artifact to a `view=changes` state needs
   redirect compatibility so old demo URLs do not break.
+
+## Execution Tracking
+
+Orchestrated as 4 sequential subagent stages with review gates between them.
+Check items off as they land.
+
+Git workflow (locked via git-eng):
+
+- Branch: **`feature/comparison-overlay`** off `main` — all stage commits land here.
+- Commit strategy: the Suggested Commit Chunks below, committed per stage. No
+  Co-Authored-By trailers, no AI attribution.
+- Pre-commit review agents: none — the orchestrator reviews each stage's diff at
+  the gates instead.
+- End state: push branch + open a **ready** PR to `main` after Stage 4 and the
+  manual browser pass.
+- Human gates: narrative-quality eyeball after Stage 1 (live generation against a
+  real PR); browser/keyboard pass after Stage 4.
+- Stage agents follow the `git-eng` commit rules and `typescript-eng` code
+  standards.
+
+**Session A — Categorizer artifacts**
+
+- [x] Stage 1: steps 1-4 + categorizer tests (marks generalization, narrative
+      schema/prompt/wiring, delta-cli marks-first, huge-span stub, config gate)
+- [x] Verify: generate against a real PR, eyeball narrative + marks JSON
+      (approved; summary-length guidance tightened to ~25-word budget)
+- [x] ~~Handoff document~~ — not needed: stages run orchestrated in one
+      session; as-built context travels in stage-prompt amendments
+
+**Accepted deviations (Stage 1, reviewed):**
+
+- Huge-span threshold did not exist in code (ADR 0006 documented it; the Delta
+  path never implemented it). The one shared knob now lives in `huge-span.ts`
+  (ratio 0.65, `HUGE_SPAN_RATIO` env override) wired into the narrative path
+  only. **Follow-up (pre-existing debt, not this plan):** wire it into the
+  Delta path too.
+- Config gate is env-based (`REVISION_NARRATIVE_ENABLED`, default on), not
+  per-repo YAML — no YAML loader exists anywhere yet (ADR 0013 defers it). The
+  namespace-shaped `RevisionNarrativeConfig` interface lets a YAML loader slot
+  in without caller changes.
+- `delta-cli.ts` `main()` extracted into testable `generateAndWriteDelta`,
+  mirroring `index.ts`'s existing pattern.
+
+**Session B — FE**
+
+- [x] Stage 2: steps 5-6 (timeline comparisons, View + Compare controls, URL
+      normalization)
+- [x] Stage 3: steps 7-8 (comparison overlay generalization, Changes Only
+      rendering)
+- [x] Stage 4: steps 9-10 (migration redirects, characterization/browser checks,
+      keyboard access) + carried-in items below
+- [x] Verify: manual browser pass against real local demo artifacts
+      (`playwright-cli`) — legacy-alias Brief, jump-nav, Changes Only, old
+      Delta-URL redirect; typecheck + full suite green
+- [x] ~~Handoff document~~ — not needed: Stage 4 ran in the same session
+
+**Accepted deviations (Stage 2, reviewed):**
+
+- `BriefTimelinePoint` drops the top-level `deltaId` (only the nested
+  `comparisons.lastReview.deltaId` remains).
+- Default precedence split in two: `defaultComparison` (last-review, else
+  previous-brief) backs `changes + off` normalization; the fresh-arrival
+  default checks only `lastReview` — reconciling the precedence rule with
+  "never force Previous Brief on first-timers".
+- View/Compare render as native buttons driving `navigate` (same-route state,
+  not links); URL stays the source of truth.
+- `narrativeId` in availability means "artifact exists to fetch" — it may be a
+  skip stub; readers discriminate on `artifactKind`.
+
+**Accepted deviations (Stage 3, reviewed):**
+
+- Changes Only + Previous Brief renders head-side rows within each narrative
+  chunk's `addedRanges` plus a "−N lines removed" note — the FE holds base→head
+  chunk diffs, not the prevHead→head incremental diff. Faithful subset, no
+  fabricated rows. **Optional follow-up:** emit a prevHead→head per-file diffs
+  sidecar from the categorizer for true incremental slices.
+- Legacy `.revchanges.json` is not consumed by the overlay (availability is
+  built purely from `.comparison.json`); wiring it as a previous-brief alias is
+  step 10 — carried into Stage 4. Until then, briefs with only legacy sidecars
+  show no Previous Brief comparison locally.
+- `Changes Only + Your last review` renders a purpose-built **compact read-only
+  digest** (delta summary + context + groups with read-only diff slices), not
+  the old full-page Delta rendering the step 8 text implied. Accepted after the
+  fact (initially unflagged): ADR 0024 defines the View axis as density — the
+  same View setting must produce the same page shape for both baselines — and
+  the interactive work surface (comments, flags, mind-map) deliberately
+  consolidates on `Full Brief + Your last review` with the overlay. The old
+  full delta view survives only via legacy direct URLs that cannot redirect.
+
+**Carried into Stage 4:**
+
+- Step 10 migration: read legacy `.revchanges.json` as previous-brief marks
+  alias (see Stage 3 deviation above).
+- Fix pre-existing jump-nav no-op: `useRevisionNavigation` queries
+  `main .diff .railbtn-focus`, which CSS-module hashing never emits.
+
+**Accepted deviations (Stage 4, reviewed):**
+
+- Legacy alias is a read-time mapping, not a migration script: when no
+  `.comparison.json` exists for a head, `readComparisonMarks` falls back to
+  the brief's own `.revchanges.json` and remaps its header
+  (`prevHeadSha`/`prevIndex` -> `baselineSha`/`baselineIndex`,
+  `baselineLabel: "previous-brief"` implied) — `RevisionChanges.files` and
+  `ComparisonMarks.files` are already the same shape. The availability
+  builder hands out the brief's own id as `marksId` only for this alias path;
+  no `narrativeId` ever accompanies it (legacy sidecars never had a
+  narrative).
+- `readLocalBriefSummaries` was hardened to fail-closed per-Brief (skip and
+  warn) instead of throwing for the whole listing when one artifact is
+  transiently unreadable/malformed — matches the fail-closed discipline
+  already used for marks/narrative scanning in the same function. Found while
+  adding the legacy-alias characterization test, which made an existing
+  cross-test-file race (parallel test files writing/deleting fixtures in the
+  shared `tools/categorizer/out` directory) visible; the hardening makes the
+  listing itself robust regardless of the test-only trigger.
+- `useRevisionNavigation`'s DOM query moved to `main [data-jump-target]`
+  (`RevisionGutterCell`'s rail button), and the direction-picking logic was
+  extracted into a pure, unit-tested `findJumpTarget` helper; the DOM-coupled
+  measuring stays in the hook.
+- Old Delta-artifact redirect implemented as a route `beforeLoad` (throws
+  `redirect()`) rather than a loader-time check, so it runs before any Brief
+  data fetch and the pre-ADR-0024 shape never renders even momentarily. Falls
+  through to normal rendering (not an error) when the Delta's head Brief
+  can't be found locally, rather than dead-ending the link.
+- Small a11y fix folded into this stage (not scope creep — directly asked
+  for): TimelineNavigator's View/Compare buttons only conveyed selected state
+  via `data-state`/visual styling; added `aria-pressed` so the state is
+  programmatically determinable (WCAG 2.2 4.1.2). Visible focus (global
+  `:focus-visible` outline) and Esc-dismiss on the comparison rail/callout
+  were already correct and are unchanged.
+- Gap found, not fixed (pre-existing, unrelated to this stage): manual
+  browser check surfaced a React duplicate-key console error
+  (`widely-imported:src/index.ts`) specific to `Changes Only + Your last
+  review` on one real local Delta artifact
+  (`Idan91-components-4-35788079..a01bcf1d`), sourced in
+  `buildBriefViewModel`'s risk-flag id construction (`viewModel.ts`), not in
+  any Stage 4 code. Reachable before this stage too (via manual Compare
+  selection); the redirect just routes an old URL to an already-existing
+  view. Flagged for a separate fix, not expanded into this stage's scope.
 
 ## Suggested Commit Chunks
 

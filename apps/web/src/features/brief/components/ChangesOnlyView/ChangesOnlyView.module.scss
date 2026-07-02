@@ -1,0 +1,127 @@
+@layer components {
+  .changesOnly {
+    display: grid;
+    gap: 18px;
+  }
+
+  .eyebrow {
+    color: var(--faint);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .overview {
+    color: var(--dim);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .group {
+    padding-block: 16px;
+    padding-inline: 18px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel2);
+  }
+
+  .groupHead {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    margin-block-end: 12px;
+  }
+
+  .groupTitle {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .groupCategory {
+    padding-block: 2px;
+    padding-inline: 8px;
+    border-radius: 999px;
+    background: var(--panel);
+    color: var(--dim);
+    font-size: 11px;
+  }
+
+  .chunk {
+    display: grid;
+    gap: 8px;
+    padding-block: 12px;
+    border-block-start: 1px solid var(--line2);
+
+    &:first-of-type {
+      border-block-start: 0;
+      padding-block-start: 0;
+    }
+  }
+
+  .chunkFile {
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .chunkSummary {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .diff {
+    margin: 0;
+    overflow-x: auto;
+    border: 1px solid var(--line2);
+    border-radius: 8px;
+    background: var(--panel);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 8px;
+    padding-inline: 10px;
+    white-space: pre-wrap;
+
+    &[data-kind="add"] {
+      background: color-mix(in srgb, var(--green, #3fb950) 12%, transparent);
+    }
+
+    &[data-kind="del"] {
+      background: color-mix(in srgb, var(--red, #f85149) 12%, transparent);
+    }
+  }
+
+  .lineNo {
+    color: var(--faint);
+    text-align: end;
+  }
+
+  .removedNote {
+    color: var(--faint);
+    font-size: 12px;
+  }
+
+  .empty {
+    padding-block: 20px;
+    padding-inline: 18px;
+    border: 1px dashed var(--line2);
+    border-radius: 10px;
+    background: var(--panel2);
+    color: var(--dim);
+    font-size: 14px;
+    line-height: 1.6;
+
+    b {
+      color: var(--text);
+    }
+  }
+}

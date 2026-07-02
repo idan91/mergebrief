@@ -10,7 +10,6 @@ import {
 
 import { Drawer } from "../../../../components/Drawer/Drawer";
 import { Markdown } from "../../../../components/Markdown/Markdown";
-import { useLocalPreference } from "../../../../hooks/useLocalPreference";
 import { useScrollSpy } from "../../../../hooks/useScrollSpy";
 import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import {
@@ -42,17 +41,31 @@ import {
   type RiskEvidence,
   type UnresolvedItem,
 } from "../../../review/state";
+import {
+  comparisonAvailability,
+  resolveBriefSearch,
+  type BriefSearchParams,
+} from "../../compareState";
 import { summarizeProgress } from "../../progress";
 import {
   localBriefQueryOptions,
-  localRevisionChangesQueryOptions,
+  localComparisonMarksQueryOptions,
+  localRevisionNarrativeQueryOptions,
 } from "../../queries";
-import { buildChunkRevisionView } from "../../revisionChanges";
-import type { RevisionOverlayState } from "../../revisionOverlay";
+import {
+  buildChunkComparisonView,
+  type ComparisonSource,
+} from "../../comparison";
+import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import { buildBriefTimeline } from "../../timeline";
-import type { Brief, LocalBriefSummary } from "../../types";
+import type {
+  Brief,
+  LocalBriefSummary,
+  RevisionNarrativeArtifact,
+} from "../../types";
 import { useKeyboardShortcuts } from "../../useKeyboardShortcuts";
 import { buildBriefViewModel, type RiskFlag } from "../../viewModel";
+import { ChangesOnlyView } from "../ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { DemoControls } from "../DemoControls/DemoControls";
@@ -181,10 +194,17 @@ function useChunkScroller(): (
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
   briefId: string;
+  /** Raw View/Compare URL params (ADR 0024 plan step 6); undefined keys mean
+   * "nothing chosen yet", resolved against comparison availability below. */
+  searchParams: BriefSearchParams;
 }
 
 /** Per-brief page: mounts the Mind-Map store provider around the review screen. */
-export function BriefPage({ artifacts, briefId }: BriefPageProps) {
+export function BriefPage({
+  artifacts,
+  briefId,
+  searchParams,
+}: BriefPageProps) {
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
   return (
@@ -194,6 +214,7 @@ export function BriefPage({ artifacts, briefId }: BriefPageProps) {
         brief={brief}
         briefId={briefId}
         model={model}
+        searchParams={searchParams}
       />
     </MindMapProvider>
   );
@@ -204,76 +225,121 @@ interface BriefScreenProps {
   brief: Brief;
   briefId: string;
   model: ReturnType<typeof buildBriefViewModel>;
+  searchParams: BriefSearchParams;
 }
 
-function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
+function BriefScreen({
+  artifacts,
+  brief,
+  briefId,
+  model,
+  searchParams,
+}: BriefScreenProps) {
   const timeline = useMemo(
     () => buildBriefTimeline(artifacts, briefId),
     [artifacts, briefId],
   );
+  const availability = useMemo(
+    () => comparisonAvailability(timeline.selectedPoint),
+    [timeline.selectedPoint],
+  );
+  // View/Compare (ADR 0024 plan step 6): resolved, normalized state for the
+  // selected timeline point. Overlay rendering for compare != off and the
+  // Changes Only content are Stage 3 — this stage only wires the controls to
+  // route state and keeps every existing rendering path working unchanged.
+  const compareState = useMemo(
+    () => resolveBriefSearch(searchParams, availability),
+    [availability, searchParams],
+  );
 
-  // Revision-changes overlay (ADR 0021): the shared, per-revision marks plus the
-  // opportunistic (prevHead,head) delta for callout text.
-  const revisionChanges = useSuspenseQuery(
-    localRevisionChangesQueryOptions(briefId),
-  ).data;
-  const revisionAvailable =
-    brief.artifactKind === "brief" &&
-    Boolean(revisionChanges && revisionChanges.files.length > 0);
-  const [revisionEnabled, setRevisionEnabled] = useLocalPreference(
-    "revision-changes-overlay",
-    true,
-  );
-  const revisionDeltaId = useMemo(
-    () =>
-      revisionChanges
-        ? artifacts.find(
-            (artifact) =>
-              artifact.artifactKind === "delta" &&
-              artifact.baselineSha === revisionChanges.prevHeadSha &&
-              artifact.headSha === revisionChanges.headSha,
-          )?.id
-        : undefined,
-    [artifacts, revisionChanges],
-  );
-  const revisionDelta =
+  // Comparison overlay (ADR 0024): the active Compare baseline drives both the
+  // Full Brief highlights and the Changes Only content. Marks are mechanical —
+  // the sole source of truth for highlights; the narrative/Delta only supplies
+  // callout text and the changed-only summaries (highlights never derive from
+  // them). One state machine parameterized by baseline, not two.
+  const comparisons = timeline.selectedPoint?.comparisons;
+  const activeCompare = compareState.compare;
+  const previousBriefComparison = comparisons?.previousBrief;
+  const lastReviewComparison = comparisons?.lastReview;
+
+  const marksId =
+    activeCompare === "previous-brief"
+      ? previousBriefComparison?.marksId
+      : activeCompare === "last-review"
+        ? lastReviewComparison?.marksId
+        : undefined;
+  const narrativeId =
+    activeCompare === "previous-brief"
+      ? previousBriefComparison?.narrativeId
+      : undefined;
+  const deltaId =
+    activeCompare === "last-review" ? lastReviewComparison?.deltaId : undefined;
+
+  const marks =
     useQuery({
-      ...localBriefQueryOptions(revisionDeltaId ?? ""),
-      enabled: revisionAvailable && revisionEnabled && Boolean(revisionDeltaId),
+      ...localComparisonMarksQueryOptions(marksId ?? ""),
+      enabled: Boolean(marksId),
     }).data ?? null;
-  const effectiveRevisionChanges =
-    revisionAvailable && revisionEnabled ? revisionChanges : null;
-  const revisionRunCount = useMemo(
+  const narrativeArtifact: RevisionNarrativeArtifact | null =
+    useQuery({
+      ...localRevisionNarrativeQueryOptions(narrativeId ?? ""),
+      enabled: Boolean(narrativeId),
+    }).data ?? null;
+  const delta =
+    useQuery({
+      ...localBriefQueryOptions(deltaId ?? ""),
+      enabled: Boolean(deltaId),
+    }).data ?? null;
+
+  // narrativeId-present only means "an artifact exists"; discriminate on the
+  // fetched kind — a skip stub is narrative-unavailable with a knowable reason.
+  const narrative =
+    narrativeArtifact !== null &&
+    narrativeArtifact.artifactKind === "revisionNarrative"
+      ? narrativeArtifact
+      : null;
+  const skipReason =
+    narrativeArtifact !== null &&
+    narrativeArtifact.artifactKind === "revisionNarrativeSkipped"
+      ? narrativeArtifact.skipped
+      : null;
+
+  const comparisonSource: ComparisonSource = useMemo(
     () =>
-      effectiveRevisionChanges
-        ? brief.chunks.reduce(
-            (total, chunk) =>
-              total +
-              buildChunkRevisionView(chunk, effectiveRevisionChanges).runs
-                .length,
-            0,
-          )
-        : 0,
-    [brief.chunks, effectiveRevisionChanges],
+      activeCompare === "last-review"
+        ? { kind: "last-review", delta }
+        : { kind: "previous-brief", brief, narrative },
+    [activeCompare, brief, delta, narrative],
   );
-  const revision: RevisionOverlayState = useMemo(
-    () => ({
-      changes: effectiveRevisionChanges,
-      delta: revisionDelta,
-      available: revisionAvailable,
-      enabled: revisionEnabled,
-      runCount: revisionRunCount,
-      setEnabled: setRevisionEnabled,
-    }),
-    [
-      effectiveRevisionChanges,
-      revisionAvailable,
-      revisionDelta,
-      revisionEnabled,
-      revisionRunCount,
-      setRevisionEnabled,
-    ],
-  );
+
+  const comparison: ComparisonOverlayState = useMemo(() => {
+    // The overlay only paints in Full Brief; Changes Only renders its own view.
+    const available =
+      compareState.view === "full" && activeCompare !== "off" && Boolean(marks);
+    const effectiveMarks = available ? marks : null;
+    const runCount = effectiveMarks
+      ? brief.chunks.reduce(
+          (total, chunk) =>
+            total + buildChunkComparisonView(chunk, effectiveMarks).runs.length,
+          0,
+        )
+      : 0;
+    return {
+      compare: activeCompare,
+      marks: effectiveMarks,
+      source: comparisonSource,
+      skipReason,
+      available,
+      runCount,
+    };
+  }, [
+    activeCompare,
+    brief.chunks,
+    compareState.view,
+    comparisonSource,
+    marks,
+    skipReason,
+  ]);
 
   // Session/domain state lives in the per-brief Mind-Map store (ADR 0022).
   const dispositions = useMindMap((state) => state.dispositions);
@@ -398,7 +464,10 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
   // activeChunkId has two write sources: scroll-spy (below) and explicit nav
   // (toggleChunk/jumpToChunk). Scroll-spy only runs in the split story view.
   const scrollActiveChunkId = useScrollSpy(
-    viewMode === "story" && layoutMode === "split" && !focusMode
+    viewMode === "story" &&
+      layoutMode === "split" &&
+      !focusMode &&
+      compareState.view === "full"
       ? chunkIds
       : EMPTY_CHUNK_IDS,
   );
@@ -706,6 +775,8 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
         setLocOpen={setLocOpen}
         openReceipt={openPreSubmit}
         clearDrafts={clearDrafts}
+        availability={availability}
+        compareState={compareState}
       />
       <main
         className={
@@ -773,46 +844,66 @@ function BriefScreen({ artifacts, brief, briefId, model }: BriefScreenProps) {
           <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
         )}
 
-        {viewMode === "story" && !focusMode ? (
-          <GroupTocBar
-            activeGroupId={activeGroupId}
-            groups={model.groups}
-            jumpToGroup={jumpToGroup}
-          />
-        ) : null}
-
-        {viewMode === "story" ? (
-          <StoryView
+        {compareState.view === "changes" ? (
+          <ChangesOnlyView
+            compare={
+              activeCompare === "last-review" ? "last-review" : "previous-brief"
+            }
             brief={brief}
             model={model}
-            revision={revision}
-            activeChunkId={activeChunkId}
-            collapseSupporting={collapseSupporting}
-            focusMode={focusMode}
-            openChunks={openChunks}
-            selectedRiskFlags={selectedRiskFlags}
-            activeCommentAnchor={activeCommentAnchor}
-            addressedReviewComments={brief.reviewComments}
-            commentsByChunk={commentsByChunk}
-            existingReviewCommentCount={reviewComments.length}
-            cancelCommentComposer={cancelCommentComposer}
-            deleteReviewComment={deleteReviewComment}
-            jumpToChunk={jumpToChunk}
-            markReviewed={markReviewed}
-            openCommentComposer={openCommentComposer}
-            saveReviewComment={saveReviewComment}
-            setCollapseSupporting={setCollapseSupporting}
-            setDismissTarget={openDismissTarget}
-            setEvidenceTarget={setEvidenceTarget}
-            setToast={setToast}
-            toggleChunk={toggleChunk}
-            toggleRiskFlag={toggleRiskFlag}
-            toggleRiskGroup={toggleRiskGroup}
-            toggleReviewComment={toggleReviewComment}
-            updateReviewComment={updateReviewComment}
+            narrative={narrative}
+            marks={marks}
+            skipReason={skipReason}
+            delta={delta}
           />
         ) : (
-          <ConcernView brief={brief} model={model} jumpToChunk={jumpToChunk} />
+          <>
+            {viewMode === "story" && !focusMode ? (
+              <GroupTocBar
+                activeGroupId={activeGroupId}
+                groups={model.groups}
+                jumpToGroup={jumpToGroup}
+              />
+            ) : null}
+
+            {viewMode === "story" ? (
+              <StoryView
+                brief={brief}
+                model={model}
+                comparison={comparison}
+                activeChunkId={activeChunkId}
+                collapseSupporting={collapseSupporting}
+                focusMode={focusMode}
+                openChunks={openChunks}
+                selectedRiskFlags={selectedRiskFlags}
+                activeCommentAnchor={activeCommentAnchor}
+                addressedReviewComments={brief.reviewComments}
+                commentsByChunk={commentsByChunk}
+                existingReviewCommentCount={reviewComments.length}
+                cancelCommentComposer={cancelCommentComposer}
+                deleteReviewComment={deleteReviewComment}
+                jumpToChunk={jumpToChunk}
+                markReviewed={markReviewed}
+                openCommentComposer={openCommentComposer}
+                saveReviewComment={saveReviewComment}
+                setCollapseSupporting={setCollapseSupporting}
+                setDismissTarget={openDismissTarget}
+                setEvidenceTarget={setEvidenceTarget}
+                setToast={setToast}
+                toggleChunk={toggleChunk}
+                toggleRiskFlag={toggleRiskFlag}
+                toggleRiskGroup={toggleRiskGroup}
+                toggleReviewComment={toggleReviewComment}
+                updateReviewComment={updateReviewComment}
+              />
+            ) : (
+              <ConcernView
+                brief={brief}
+                model={model}
+                jumpToChunk={jumpToChunk}
+              />
+            )}
+          </>
         )}
       </main>
       <ReceiptDrawer

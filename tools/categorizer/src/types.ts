@@ -375,6 +375,100 @@ export const DeltaBriefGenerationSchema = DeltaBriefSchema.omit({
   generation: true,
 });
 
+/**
+ * Revision-narrative chunk — attaches an incremental (prevHead→head) change to
+ * an existing full-Brief Change-group via `briefChangeGroupId`. Deliberately
+ * lean vs. `Chunk`/`DeltaChunk`: no concern/role/loc/riskSurface — the full
+ * Brief already owns that taxonomy for the same lines' prior state, and the
+ * narrative only explains what is new (ADR 0024).
+ */
+export const RevisionNarrativeChunkSchema = z.object({
+  id: z.string().describe("stable chunk id, e.g. rc1, rc2, …"),
+  briefChangeGroupId: z
+    .string()
+    .describe(
+      "id of an existing change-group on the CURRENT FULL BRIEF this chunk explains. Never invent an id — if no group fits confidently, use the closest one and note the uncertainty in `summary` prose instead.",
+    ),
+  file: z.string().describe("file path the chunk lives in"),
+  addedRanges: z
+    .array(LineRangeSchema)
+    .describe(
+      "new-side (+) line-number ranges of the actual ADDED lines in the incremental diff for this chunk — changed lines only, NOT the @@ hunk window.",
+    ),
+  removedRanges: z
+    .array(LineRangeSchema)
+    .describe(
+      "old-side (−) line-number ranges of the actual REMOVED lines in the incremental diff for this chunk.",
+    ),
+  summary: z
+    .string()
+    .describe(
+      "1-2 concrete sentences specific to these changed lines (what changed, not why; shared/impersonal voice)",
+    ),
+});
+
+/**
+ * Revision narrative — the shared, per-revision "what changed" explanation for
+ * the Previous-Brief comparison (ADR 0024). Distinct from `DeltaBrief`: no
+ * reviewer Checkpoint, no `commentsAddressed`/`addressesComments`, no
+ * `wholePrImpact` verdict, and no independent `changedGroups` — every chunk
+ * attaches to an existing full-Brief Change-group. `.strict()` so the schema
+ * itself enforces that exclusion (an invented field like `wholePrImpact` fails
+ * validation, not just documentation).
+ */
+export const RevisionNarrativeSchema = z
+  .object({
+    artifactKind: z.literal("revisionNarrative"),
+    pr: PrRefSchema,
+    prevHeadSha: z.string().describe("the previous briefed head SHA"),
+    headSha: z.string().describe("the current head SHA"),
+    prevIndex: z.number().int().describe("brief index of the previous head"),
+    headIndex: z.number().int().describe("brief index of the current head"),
+    generation: GenerationSchema.describe(
+      "which provider/model/effort produced this narrative. CLI-assigned.",
+    ),
+    overview: z
+      .string()
+      .describe(
+        "1-3 sentences on what this revision did as a whole. No line references, no group inventory.",
+      ),
+    chunks: z.array(RevisionNarrativeChunkSchema),
+  })
+  .strict();
+
+/**
+ * What the model generates for a revision narrative: RevisionNarrativeSchema
+ * minus the CLI-owned metadata (`artifactKind`, `pr`, `prevHeadSha`, `headSha`,
+ * `prevIndex`, `headIndex`, `generation`), filled in after generation — same
+ * discipline as the brief and delta (ADR 0012/0013).
+ */
+export const RevisionNarrativeGenerationSchema = RevisionNarrativeSchema.omit({
+  artifactKind: true,
+  pr: true,
+  prevHeadSha: true,
+  headSha: true,
+  prevIndex: true,
+  headIndex: true,
+  generation: true,
+});
+
+/**
+ * Explicit skip stub for a Previous-Brief comparison span that never got a
+ * generated narrative — huge-span fallback or config gate (ADR 0024, ADR 0006
+ * huge-span threshold). Lets the FE distinguish "deliberately skipped, retry
+ * won't help" from "generation failed, retry might help" (an absent
+ * narrative file with marks present).
+ */
+export interface RevisionNarrativeSkipped {
+  artifactKind: "revisionNarrativeSkipped";
+  pr: PrRef;
+  prevHeadSha: string;
+  headSha: string;
+  prevIndex: number;
+  headIndex: number;
+  skipped: "span too large" | "disabled by config";
+}
+
 export type PrRef = z.infer<typeof PrRefSchema>;
 export type LineRange = z.infer<typeof LineRangeSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;
@@ -386,3 +480,5 @@ export type ReviewComment = z.infer<typeof ReviewCommentSchema>;
 export type Brief = z.infer<typeof BriefSchema>;
 export type DeltaChunk = z.infer<typeof DeltaChunkSchema>;
 export type DeltaBrief = z.infer<typeof DeltaBriefSchema>;
+export type RevisionNarrativeChunk = z.infer<typeof RevisionNarrativeChunkSchema>;
+export type RevisionNarrative = z.infer<typeof RevisionNarrativeSchema>;

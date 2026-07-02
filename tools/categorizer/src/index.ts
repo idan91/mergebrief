@@ -10,14 +10,19 @@ import {
   fetchReviewComments,
   isCommitish,
   parsePrUrl,
+  resolveFullSha,
   type FetchedPr,
   type ReviewComment,
 } from "./github.js";
-import { categorize } from "./categorize.js";
+import { categorize, categorizeRevisionNarrative, warnIssues } from "./categorize.js";
 import { AnthropicGenerator, type Generator } from "./generator.js";
 import { splitDiffByFile } from "./diff.js";
 import { assignBriefIndex, lookupBriefShaByIndex } from "./manifest.js";
-import { buildRevisionChanges } from "./revchanges.js";
+import { countChangedLines, type RevisionChanges } from "./revchanges.js";
+import { buildComparisonMarks, writeComparisonMarks } from "./comparison.js";
+import { isHugeSpan } from "./huge-span.js";
+import { revisionNarrativeConfig } from "./config.js";
+import { validateNarrativeMarksOverlap } from "./validate.js";
 import {
   commentsName,
   diffsName,
@@ -25,8 +30,9 @@ import {
   prStem,
   printSummary,
   revChangesName,
+  revisionNarrativeName,
 } from "./output.js";
-import type { Brief, CommitRange } from "./types.js";
+import type { Brief, CommitRange, RevisionNarrativeSkipped } from "./types.js";
 
 const OUT_DIR = "out";
 
@@ -67,6 +73,15 @@ async function buildInputs(
   log: (msg: string) => void,
 ): Promise<{ pr: FetchedPr; comments: ReviewComment[]; commitRange: CommitRange }> {
   const locator = parsePrUrl(url);
+  // Range SHAs may arrive abbreviated from the CLI; artifacts must be keyed
+  // by full SHAs or the FE's exact-equality joins silently never match.
+  if (range) {
+    const [base, head] = await Promise.all([
+      resolveFullSha(locator, range.base),
+      resolveFullSha(locator, range.head),
+    ]);
+    range = { base, head };
+  }
   const meta = await fetchPrMetadata(locator);
   const [diff, comments, commitRange] = await Promise.all([
     range
@@ -136,21 +151,139 @@ export async function generateAndWrite(
   log(`wrote ${diffsFile} (${fileDiffs.length} files)`);
   log(`wrote ${commentsFile} (${comments.length} comments)`);
 
-  // Revision-changes sidecar (ADR 0021): mechanical prevHead→head changed-line
-  // ranges (no model call), so the full-brief view can mark what is new in this
-  // revision. Absent on the first brief (no previous head). Uses the same
-  // three-dot compare diff as the delta — same documented rebase caveat.
+  // Comparison marks + Revision narrative (ADR 0021/0024). Absent on the first
+  // brief (no previous head). Marks use the same three-dot compare diff as the
+  // delta — same documented rebase caveat.
   if (index > 1) {
     const prevHeadSha = await lookupBriefShaByIndex(outDir, stem, index - 1);
     if (prevHeadSha) {
       const revDiff = await fetchCompareDiff(pr.locator, prevHeadSha, commitRange.head);
-      const revChanges = buildRevisionChanges(commitRange.head, prevHeadSha, index - 1, revDiff);
+
+      // Mechanical comparison marks: always written first, and never caught —
+      // per the plan, a marks failure means comparison data is unavailable and
+      // must surface loudly (unlike a narrative failure below, which must not
+      // fail the full Brief).
+      const marks = buildComparisonMarks(
+        commitRange.head,
+        prevHeadSha,
+        "previous-brief",
+        index - 1,
+        revDiff,
+      );
+      await writeComparisonMarks(outDir, stem, marks, log);
+
+      // Back-compat alias: identical shape/content to the pre-generalization
+      // sidecar, kept while the FE migrates off `.revchanges.json` (ADR 0021).
+      // Derived from the marks already parsed above — the diff is never
+      // scanned twice.
+      const revChanges: RevisionChanges = {
+        headSha: commitRange.head,
+        prevHeadSha,
+        prevIndex: index - 1,
+        files: marks.files,
+      };
       const revFile = join(outDir, revChangesName(brief));
       await writeFile(revFile, `${JSON.stringify(revChanges, null, 2)}\n`);
-      log(`wrote ${revFile} (${revChanges.files.length} files changed since _${index - 1})`);
+      log(`wrote ${revFile} (compat alias)`);
+
+      await generateAndWriteRevisionNarrative({
+        outDir,
+        pr,
+        brief,
+        prevHeadSha,
+        prevIndex: index - 1,
+        incrementalDiff: revDiff,
+        marksFiles: marks.files,
+        generator,
+        log,
+      });
     }
   }
   return brief;
+}
+
+/**
+ * Generate and write the Revision narrative for a non-first Brief, or a skip
+ * stub when config-disabled or the incremental span is huge-span-fallback
+ * territory (ADR 0006 #7 / ADR 0024). Never throws — a narrative failure must
+ * not fail the full Brief, whose artifacts are already written by the time
+ * this runs.
+ */
+async function generateAndWriteRevisionNarrative(args: {
+  outDir: string;
+  pr: FetchedPr;
+  brief: Brief;
+  prevHeadSha: string;
+  prevIndex: number;
+  incrementalDiff: string;
+  marksFiles: ReturnType<typeof buildComparisonMarks>["files"];
+  generator: Generator;
+  log: (msg: string) => void;
+}): Promise<void> {
+  const { outDir, pr, brief, prevHeadSha, prevIndex, incrementalDiff, marksFiles, generator, log } =
+    args;
+  const narrativeFile = join(outDir, revisionNarrativeName(brief));
+  const skipStub = (skipped: RevisionNarrativeSkipped["skipped"]): RevisionNarrativeSkipped => ({
+    artifactKind: "revisionNarrativeSkipped",
+    pr: brief.pr,
+    prevHeadSha,
+    headSha: brief.commitRange.head,
+    prevIndex,
+    headIndex: brief.index,
+    skipped,
+  });
+
+  const config = revisionNarrativeConfig();
+  if (!config.enabled) {
+    await writeFile(narrativeFile, `${JSON.stringify(skipStub("disabled by config"), null, 2)}\n`);
+    log(`revision narrative disabled by config; wrote skip stub ${narrativeFile}`);
+    return;
+  }
+
+  // Whole-PR denominator from PR metadata (per-file additions+deletions), NOT
+  // from `pr.diff`: in range mode the fetched diff covers only the explicit
+  // base..head span, which would skew the ratio — the metadata file list is
+  // whole-PR regardless of how the brief's diff was fetched.
+  const wholePrChangedLines = pr.meta.files.reduce(
+    (sum, f) => sum + f.additions + f.deletions,
+    0,
+  );
+  if (isHugeSpan(countChangedLines(incrementalDiff), wholePrChangedLines)) {
+    await writeFile(narrativeFile, `${JSON.stringify(skipStub("span too large"), null, 2)}\n`);
+    log(`revision span too large; wrote skip stub ${narrativeFile}`);
+    return;
+  }
+
+  try {
+    const narrative = await categorizeRevisionNarrative(
+      {
+        locator: pr.locator,
+        meta: pr.meta,
+        prevHeadSha,
+        headSha: brief.commitRange.head,
+        prevIndex,
+        headIndex: brief.index,
+        incrementalDiff,
+        links: pr.links,
+        brief,
+      },
+      generator,
+      log,
+    );
+    warnIssues(
+      validateNarrativeMarksOverlap(narrative.chunks, marksFiles),
+      log,
+      "revision narrative marks overlap",
+    );
+    await writeFile(narrativeFile, `${JSON.stringify(narrative, null, 2)}\n`);
+    log(`wrote ${narrativeFile}`);
+  } catch (error) {
+    log(
+      `⚠ revision narrative generation failed (full Brief unaffected): ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 }
 
 /** CLI wrapper: generate one brief into the CLI's fixed OUT_DIR, tagged log lines. */

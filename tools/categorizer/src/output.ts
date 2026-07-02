@@ -1,5 +1,10 @@
 import type { Brief, DeltaBrief } from "./types.js";
 
+// Marks naming lives with the marks artifact (comparison.ts) to keep the
+// output→comparison dependency one-directional; re-exported here so all
+// artifact names remain importable from one module.
+export { comparisonMarksName } from "./comparison.js";
+
 /** First 8 chars of a SHA, for filenames and summaries. */
 function shortSha(sha: string): string {
   return sha.slice(0, 8);
@@ -41,6 +46,16 @@ export function commentsName(brief: Brief): string {
 /** Sidecar filename for revision changes: `<stem>_<index>_<head8>.revchanges.json` (ADR 0021). */
 export function revChangesName(brief: Brief): string {
   return `${briefStem(brief)}.revchanges.json`;
+}
+
+/**
+ * Sidecar filename for a Revision narrative (or its skip stub):
+ * `<stem>_<index>_<head8>.revision-narrative.json`. Named off the current
+ * (head) brief, mirroring `outName` — `artifactKind` inside the file
+ * discriminates a real narrative from a skip stub.
+ */
+export function revisionNarrativeName(brief: Brief): string {
+  return `${briefStem(brief)}.revision-narrative.json`;
 }
 
 /** Render a brief into the lines printed to stdout for human eyeballing. */

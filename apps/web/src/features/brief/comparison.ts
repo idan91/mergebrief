@@ -1,0 +1,262 @@
+import type {
+  Brief,
+  BriefChunk,
+  DiffLine,
+  LineRange,
+  RevisionChangeFile,
+  RevisionNarrative,
+} from "./types";
+
+/**
+ * The full-Brief comparison overlay (ADR 0021/0024): join a baseline's shared,
+ * mechanical changed-line set onto a chunk's base→head diff rows by head line
+ * number (added/context) or old line number (deletions), group the marked rows
+ * into contiguous runs, and bind a run to its callout content behind a
+ * per-baseline adapter (Previous Brief → Revision narrative; Your last review →
+ * Delta Brief).
+ *
+ * Pure; highlighting comes ONLY from the mechanical marks — a run's callout is
+ * additive and never decides which lines are marked (ADR 0024).
+ */
+
+export type ComparisonRowKind = "added" | "removed";
+
+/**
+ * @description The minimal mechanical-marks shape the row-join needs: per-file
+ * changed ranges. Both `ComparisonMarks` (`.comparison.json`, either baseline)
+ * and the legacy `RevisionChanges` sidecar satisfy it, so one join serves both.
+ */
+export interface ComparisonMarkFiles {
+  files: RevisionChangeFile[];
+}
+
+export interface ComparisonRun {
+  chunkId: string;
+  file: string;
+  /**
+   * @description Inclusive indexes into `chunk.diff` for this contiguous run.
+   */
+  rowIndexes: number[];
+  /**
+   * @description `added` if the run contains any added/changed row, including modifications.
+   * `removed` only when the run is a standalone deletion (case B).
+   */
+  kind: ComparisonRowKind;
+}
+
+export interface ChunkComparisonView {
+  /**
+   * @description Per diff-row index to why it is marked; drives tint and tag.
+   */
+  marks: Map<number, ComparisonRowKind>;
+  /**
+   * @description Contiguous runs, one focusable rail each.
+   */
+  runs: ComparisonRun[];
+  /**
+   * @description Diff-row index to its run, for cheap per-row lookup while rendering.
+   */
+  runByRow: Map<number, ComparisonRun>;
+}
+
+export interface ComparisonCalloutContent {
+  available: boolean;
+  groupTitle?: string;
+  summary?: string;
+}
+
+/**
+ * @description The narrative source a run's callout binds against, discriminated
+ * by the active Compare baseline (ADR 0024). `previous-brief` resolves the title
+ * from the *full Brief's* Change-group (the taxonomy owner) and the body from the
+ * Revision narrative chunk; `last-review` reuses the existing Delta matching
+ * logic behind an adapter — deliberately not unified, to keep the Delta seam
+ * honest until a cleaner adapter exists (plan step 7).
+ */
+export type ComparisonSource =
+  | {
+      kind: "previous-brief";
+      brief: Brief;
+      narrative: RevisionNarrative | null;
+    }
+  | { kind: "last-review"; delta: Brief | null };
+
+function lineInRanges(line: number | undefined, ranges: LineRange[]): boolean {
+  return (
+    typeof line === "number" &&
+    ranges.some((range) => line >= range.start && line <= range.end)
+  );
+}
+
+/**
+ * Mark each diff row of a chunk that changed for the selected baseline: add/
+ * context rows by head line (`newLine` ∈ addedRanges), del rows by old line
+ * (`oldLine` ∈ removedRanges). Returns an empty map when there are no marks or
+ * the file is untouched for this baseline.
+ */
+export function markComparisonRows(
+  chunk: BriefChunk,
+  marks: ComparisonMarkFiles | null,
+): Map<number, ComparisonRowKind> {
+  const rows = new Map<number, ComparisonRowKind>();
+  if (!marks || !chunk.diff) return rows;
+  const file = marks.files.find((entry) => entry.file === chunk.file);
+  if (!file) return rows;
+  chunk.diff.forEach((row, index) => {
+    if (
+      (row.kind === "add" || row.kind === "ctx") &&
+      lineInRanges(row.newLine, file.addedRanges)
+    ) {
+      rows.set(index, "added");
+    } else if (
+      row.kind === "del" &&
+      lineInRanges(row.oldLine, file.removedRanges)
+    ) {
+      rows.set(index, "removed");
+    }
+  });
+  return rows;
+}
+
+/**
+ * Collapse marked rows into contiguous runs (one rail per run). A run that
+ * contains any added row reads as "added" (covers a modification's del+add
+ * pair — the new side carries it); a run of only removed rows is a standalone
+ * deletion ("removed", case B).
+ */
+export function groupComparisonRuns(
+  chunk: BriefChunk,
+  marks: Map<number, ComparisonRowKind>,
+): ComparisonRun[] {
+  if (!chunk.diff || marks.size === 0) return [];
+  const runs: ComparisonRun[] = [];
+  let current: { rowIndexes: number[]; hasAdded: boolean; end: number } | null =
+    null;
+  for (let index = 0; index < chunk.diff.length; index += 1) {
+    const kind = marks.get(index);
+    if (kind === undefined) {
+      current = null;
+      continue;
+    }
+    if (current && index === current.end + 1) {
+      current.rowIndexes.push(index);
+      current.end = index;
+      current.hasAdded ||= kind === "added";
+    } else {
+      current = { rowIndexes: [index], hasAdded: kind === "added", end: index };
+      runs.push({
+        chunkId: chunk.id,
+        file: chunk.file,
+        rowIndexes: current.rowIndexes,
+        kind: kind,
+      });
+    }
+    const run = runs.at(-1);
+    if (run) run.kind = current.hasAdded ? "added" : "removed";
+  }
+  return runs;
+}
+
+export function buildChunkComparisonView(
+  chunk: BriefChunk,
+  marks: ComparisonMarkFiles | null,
+): ChunkComparisonView {
+  const rowMarks = markComparisonRows(chunk, marks);
+  const runs = groupComparisonRuns(chunk, rowMarks);
+  const runByRow = new Map<number, ComparisonRun>();
+  for (const run of runs) {
+    for (const index of run.rowIndexes) runByRow.set(index, run);
+  }
+  return { marks: rowMarks, runs, runByRow };
+}
+
+function runLines(
+  run: ComparisonRun,
+  chunk: BriefChunk,
+): { headLines: number[]; oldLines: number[] } {
+  const rows = run.rowIndexes
+    .map((index) => chunk.diff?.[index])
+    .filter((row): row is DiffLine => row !== undefined);
+  const headLines = rows
+    .map((row) => row.newLine)
+    .filter((line): line is number => typeof line === "number");
+  const oldLines = rows
+    .map((row) => row.oldLine)
+    .filter((line): line is number => typeof line === "number");
+  return { headLines, oldLines };
+}
+
+/**
+ * Previous-Brief callout: title from the full Brief's Change-group, body from
+ * the matching Revision narrative chunk summary (ADR 0024). Degrades honestly —
+ * no narrative (null / failed) or no matching chunk → unavailable; a narrative
+ * chunk whose `briefChangeGroupId` is not in the rendered Brief → drop the
+ * callout gracefully (the rail still renders, marks never depend on this).
+ */
+export function bindRevisionNarrativeCallout(
+  run: ComparisonRun,
+  chunk: BriefChunk,
+  brief: Brief,
+  narrative: RevisionNarrative | null,
+): ComparisonCalloutContent {
+  if (!narrative || !chunk.diff) return { available: false };
+  const { headLines, oldLines } = runLines(run, chunk);
+  const narrativeChunk = narrative.chunks.find(
+    (candidate) =>
+      candidate.file === run.file &&
+      (headLines.some((line) => lineInRanges(line, candidate.addedRanges)) ||
+        oldLines.some((line) => lineInRanges(line, candidate.removedRanges))),
+  );
+  if (!narrativeChunk) return { available: false };
+  const group = brief.changeGroups.find(
+    (candidate) => candidate.id === narrativeChunk.briefChangeGroupId,
+  );
+  if (!group) return { available: false };
+  return {
+    available: true,
+    groupTitle: group.title,
+    summary: narrativeChunk.summary,
+  };
+}
+
+/**
+ * Your-last-review callout: the existing Delta matching logic (ADR 0021),
+ * preserved behind this adapter rather than rewritten (plan step 7 — "until a
+ * cleaner adapter is introduced"). Added runs match a Delta chunk on head line;
+ * removed runs on old line. Absent Delta or no match → unavailable.
+ */
+export function bindDeltaCallout(
+  run: ComparisonRun,
+  chunk: BriefChunk,
+  delta: Brief | null,
+): ComparisonCalloutContent {
+  if (!delta || !chunk.diff) return { available: false };
+  const { headLines, oldLines } = runLines(run, chunk);
+  const deltaChunk = delta.chunks.find(
+    (candidate) =>
+      candidate.file === run.file &&
+      (headLines.some((line) => lineInRanges(line, candidate.addedRanges)) ||
+        oldLines.some((line) => lineInRanges(line, candidate.removedRanges))),
+  );
+  if (!deltaChunk) return { available: false };
+  const group = delta.changeGroups.find(
+    (candidate) => candidate.id === deltaChunk.changeGroupId,
+  );
+  if (!group) return { available: false };
+  return {
+    available: true,
+    groupTitle: group.title,
+    summary: deltaChunk.summary ?? group.summary,
+  };
+}
+
+/** Resolve a run's callout content from the active narrative source (adapter). */
+export function bindComparisonCallout(
+  run: ComparisonRun,
+  chunk: BriefChunk,
+  source: ComparisonSource,
+): ComparisonCalloutContent {
+  return source.kind === "previous-brief"
+    ? bindRevisionNarrativeCallout(run, chunk, source.brief, source.narrative)
+    : bindDeltaCallout(run, chunk, source.delta);
+}

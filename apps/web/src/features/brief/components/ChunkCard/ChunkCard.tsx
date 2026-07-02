@@ -1,9 +1,9 @@
 import { memo, useMemo } from "react";
 
 import { reviewCommentsForChunk } from "../../reviewComments";
-import { buildChunkRevisionView } from "../../revisionChanges";
+import { buildChunkComparisonView } from "../../comparison";
 import type { AddressedReviewComment, BriefChunk } from "../../types";
-import type { RevisionOverlayState } from "../../revisionOverlay";
+import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import {
   AddressedComments,
   ReviewComments,
@@ -17,7 +17,7 @@ import styles from "./ChunkCard.module.scss";
 
 export interface ChunkCardProps {
   chunk: BriefChunk;
-  revision: RevisionOverlayState;
+  comparison: ComparisonOverlayState;
   active: boolean;
   open: boolean;
   forceCollapsed: boolean;
@@ -37,7 +37,7 @@ export interface ChunkCardProps {
 
 export const ChunkCard = memo(function ChunkCard({
   chunk,
-  revision,
+  comparison,
   active,
   open,
   forceCollapsed,
@@ -57,9 +57,9 @@ export const ChunkCard = memo(function ChunkCard({
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
 
   const expanded = open && !forceCollapsed;
-  const revisionView = useMemo(
-    () => buildChunkRevisionView(chunk, revision.changes),
-    [chunk, revision.changes],
+  const comparisonView = useMemo(
+    () => buildChunkComparisonView(chunk, comparison.marks),
+    [chunk, comparison.marks],
   );
   const chunkReviewComments = reviewCommentsForChunk(
     addressedReviewComments,
@@ -159,8 +159,9 @@ export const ChunkCard = memo(function ChunkCard({
             addressedComments={inlineReviewComments}
             cancelCommentComposer={cancelCommentComposer}
             chunk={chunk}
-            revisionView={revisionView}
-            revisionDelta={revision.delta}
+            comparisonView={comparisonView}
+            comparisonSource={comparison.source}
+            comparisonSkipReason={comparison.skipReason}
             comments={comments}
             deleteReviewComment={deleteReviewComment}
             existingReviewCommentCount={existingReviewCommentCount}

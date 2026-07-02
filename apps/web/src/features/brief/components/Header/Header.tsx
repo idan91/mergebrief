@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, type CSSProperties } from "react";
 
 import type { ReviewMode } from "../../../review/state";
+import type { BriefSearch, CompareOptionFlags } from "../../compareState";
 import type { ProgressTotals } from "../../progress";
 import type { BriefTimeline } from "../../timeline";
 import type { Brief } from "../../types";
@@ -26,6 +27,10 @@ export interface HeaderProps {
   setLocOpen: (value: boolean) => void;
   openReceipt: () => void;
   clearDrafts: () => void;
+  /** Compare availability at the selected timeline point (ADR 0024). */
+  availability: CompareOptionFlags;
+  /** Resolved, normalized View/Compare state (ADR 0024 plan step 6). */
+  compareState: BriefSearch;
 }
 
 export function Header({
@@ -42,6 +47,8 @@ export function Header({
   setLocOpen,
   openReceipt,
   clearDrafts,
+  availability,
+  compareState,
 }: HeaderProps) {
   const headerRef = useRef<HTMLElement>(null);
   // The header height is content-driven (title length, meta lines, viewport),
@@ -93,7 +100,12 @@ export function Header({
           <div className={styles["sub"]}>{briefMetaLine(brief)}</div>
         ) : null}
       </div>
-      <TimelineNavigator briefId={briefId} timeline={timeline} />
+      <TimelineNavigator
+        availability={availability}
+        briefId={briefId}
+        compareState={compareState}
+        timeline={timeline}
+      />
       <fieldset className={styles["viewbar"]}>
         <legend className="sr-only">Review view</legend>
         <label className={styles["viewOption"]}>
