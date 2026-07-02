@@ -1,5 +1,36 @@
 # TODO
 
+## [ ] Focus-mode / Read-through follow-ups (one PR, branch off `main` after PR #16 merges)
+
+From the PR #16 browser pass (2026-07-02). Items 1–3 are pre-existing focus-mode bugs that
+Read-through promotes to main-path breakage; 4–6 are Read-through session mechanics. One
+branch (`fix/focus-mode-follow-ups` or similar), one PR.
+
+1. **Shortcuts dead after commenting** (worst): after opening/closing a comment composer in
+   focus/read-through mode, J/K/Z stop working. `shortcutsDisabled` derives from
+   overlay/composer state in `BriefPage` — something (`activeCommentAnchor`? composer-open
+   flag?) isn't clearing on close. Fix + regression test.
+2. **Focus banner overlaps diff chunks** — likely `focusScrollOffset` measurement or sticky
+   stacking context.
+3. **Comment composer clipped inside the focus-mode diff box** — overflow/containment on the
+   narrower focus layout; check interaction with `DiffTable`'s `content-visibility`/
+   `contain: paint` (DeltaCallout portals to body for exactly this reason — composer may
+   need the same or an overflow fix).
+4. **Group rail not scrollable** (focus and non-focus): rail content (risk factors, chunks)
+   overflows with no scroll until the diff block ends. Direction: sticky rail with
+   independent `overflow-y: auto`, max-height from viewport minus banner; a11y — focusable
+   scroll region (`tabindex="0"` + aria-label). Open: scrollbar always-visible vs on-hover.
+5. **Read-through progress indicator**: segmented bar in the focus banner — one segment per
+   Reading-order step, fill = within-group chunk position. Distinct from the top review-
+   completion bar (position-in-sequence, not completion — keep the no-verdict framing).
+   Segments double as click-to-jump navigation.
+6. **Auto-advance on "viewed"** — decided (2026-07-02): in read-through mode only, marking a
+   chunk viewed advances to the next chunk in sequence (strict next, not next-unviewed);
+   crossing a group boundary lands on the next group's rail/header so the why-line is seen.
+   Plain focus mode keeps manual navigation.
+
+---
+
 ## [ ] Add a JS/TS linter to `apps/web` (oxlint)
 
 Web lint today is prettier + stylelint only — no JS/TS linting, so nothing guards
