@@ -359,6 +359,18 @@ function BriefScreen({
       model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id)),
     [model.groups],
   );
+  // Index into `chunkIds` where each group starts, in the same order — feeds
+  // Shift+J/Shift+K (Read-through: jump to the next/prev group's first chunk
+  // in Reading order, or source order when no Reading order is present).
+  const groupBoundaries = useMemo(() => {
+    let offset = 0;
+    const boundaries: number[] = [];
+    for (const group of model.groups) {
+      boundaries.push(offset);
+      offset += group.chunks.length;
+    }
+    return boundaries;
+  }, [model.groups]);
 
   // Transient UI state stays local and colocated.
   const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
@@ -538,6 +550,18 @@ function BriefScreen({
     [],
   );
 
+  // Read-through entry point: always starts at step 1 (the first chunk of
+  // the first group in Reading order — or source order without one),
+  // regardless of where the reader currently is. Distinct from Z/toggleFocus,
+  // which re-anchors focus mode onto whatever chunk is already active.
+  const startReadThrough = useCallback(() => {
+    if (!firstChunkId) return;
+    setViewMode("story");
+    setFocusMode(true);
+    setActiveChunkId(firstChunkId);
+    scrollToChunk(firstChunkId);
+  }, [firstChunkId, scrollToChunk]);
+
   // Shortcuts stand down whenever an overlay holds focus (drawers/modals use
   // `inert`, which doesn't stop a window-level keydown listener on its own).
   const shortcutsDisabled =
@@ -550,6 +574,7 @@ function BriefScreen({
     activeCommentAnchor !== null;
   useKeyboardShortcuts({
     chunkIds,
+    groupBoundaries,
     activeChunkId,
     disabled: shortcutsDisabled,
     focusModeActive: focusMode,
@@ -950,6 +975,12 @@ function BriefScreen({
         {focusMode ? (
           <button className="btn" type="button" onClick={toggleFocusMode}>
             Exit focus (Z)
+          </button>
+        ) : viewMode === "story" &&
+          compareState.view === "full" &&
+          chunkIds.length > 0 ? (
+          <button className="btn" type="button" onClick={startReadThrough}>
+            Start read-through
           </button>
         ) : null}
         <button

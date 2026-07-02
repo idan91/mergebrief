@@ -1,8 +1,14 @@
 import { useEffect, useRef } from "react";
 
 export interface KeyboardShortcutsOptions {
-  /** Document-order chunk ids; J/K step through this list. */
+  /** Reading-ordered-groups × within-group chunk ids; J/K step through this list. */
   chunkIds: string[];
+  /**
+   * Indices into `chunkIds` where each group starts, in the same (Reading)
+   * order as `chunkIds` — e.g. `[0, 3, 5]` for groups of 3, 2, and N chunks.
+   * Shift+J/Shift+K jump to the next/prev group's first chunk via this list.
+   */
+  groupBoundaries: number[];
   activeChunkId: string | null;
   /** True while a modal/drawer/composer holds focus — shortcuts stand down. */
   disabled: boolean;
@@ -18,12 +24,14 @@ export interface ShortcutEvent {
   metaKey: boolean;
   ctrlKey: boolean;
   altKey: boolean;
+  shiftKey: boolean;
   /** Whether the event originated from a text-input-like element. */
   isTyping: boolean;
 }
 
 export interface ShortcutState {
   chunkIds: string[];
+  groupBoundaries: number[];
   activeChunkId: string | null;
   disabled: boolean;
   focusModeActive: boolean;
@@ -66,7 +74,26 @@ export function resolveShortcut(
   if (event.isTyping) return null;
 
   if (key === "j" || key === "k") {
-    const { chunkIds, activeChunkId } = state;
+    const { chunkIds, groupBoundaries, activeChunkId } = state;
+    // Shift+J/Shift+K: same "jump" action, targeting the next/prev group's
+    // first chunk in Reading order instead of the next/prev chunk.
+    if (event.shiftKey) {
+      if (groupBoundaries.length === 0) return null;
+      const activeIndex = activeChunkId ? chunkIds.indexOf(activeChunkId) : -1;
+      let currentGroup = -1;
+      for (const [groupIndex, boundary] of groupBoundaries.entries()) {
+        if (activeIndex >= boundary) currentGroup = groupIndex;
+      }
+      const nextGroup =
+        key === "j"
+          ? Math.min(currentGroup + 1, groupBoundaries.length - 1)
+          : Math.max(currentGroup - 1, 0);
+      const targetIndex = groupBoundaries[nextGroup];
+      const next =
+        targetIndex === undefined ? undefined : chunkIds[targetIndex];
+      if (!next || next === activeChunkId) return null;
+      return { type: "jump", chunkId: next };
+    }
     if (chunkIds.length === 0) return null;
     const index = activeChunkId ? chunkIds.indexOf(activeChunkId) : -1;
     const next =
@@ -83,8 +110,9 @@ export function resolveShortcut(
 }
 
 /**
- * Global J/K (next/prev chunk), Z (focus mode), ? (shortcuts hint), Esc (exit
- * focus mode). Modeled on Atlas's reading shortcuts. Stands down while typing or
+ * Global J/K (next/prev chunk), Shift+J/Shift+K (next/prev group in Reading
+ * order — Read-through), Z (focus mode), ? (shortcuts hint), Esc (exit focus
+ * mode). Modeled on Atlas's reading shortcuts. Stands down while typing or
  * while an overlay (drawer/modal/composer) holds focus, so it never steals keys
  * mid-edit.
  *
@@ -107,10 +135,12 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
           metaKey: event.metaKey,
           ctrlKey: event.ctrlKey,
           altKey: event.altKey,
+          shiftKey: event.shiftKey,
           isTyping: isTypingTarget(event.target),
         },
         {
           chunkIds: o.chunkIds,
+          groupBoundaries: o.groupBoundaries,
           activeChunkId: o.activeChunkId,
           disabled: o.disabled,
           focusModeActive: o.focusModeActive,

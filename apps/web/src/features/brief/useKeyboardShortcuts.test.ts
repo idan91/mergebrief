@@ -11,17 +11,27 @@ const key = (k: string, over: Partial<ShortcutEvent> = {}): ShortcutEvent => ({
   metaKey: false,
   ctrlKey: false,
   altKey: false,
+  shiftKey: false,
   isTyping: false,
   ...over,
 });
 
 const state = (over: Partial<ShortcutState> = {}): ShortcutState => ({
   chunkIds: ["a", "b", "c"],
+  groupBoundaries: [],
   activeChunkId: "b",
   disabled: false,
   focusModeActive: false,
   ...over,
 });
+
+// Three groups over five chunks, in Reading order: [a, b] [c, d] [e].
+const groupedState = (over: Partial<ShortcutState> = {}): ShortcutState =>
+  state({
+    chunkIds: ["a", "b", "c", "d", "e"],
+    groupBoundaries: [0, 2, 4],
+    ...over,
+  });
 
 describe("resolveShortcut", () => {
   it("j advances to the next chunk", () => {
@@ -114,5 +124,72 @@ describe("resolveShortcut", () => {
 
   it("ignores unmapped keys", () => {
     expect(resolveShortcut(key("x"), state())).toBeNull();
+  });
+
+  it("Shift+J jumps to the next group's first chunk in Reading order", () => {
+    expect(
+      resolveShortcut(
+        key("j", { shiftKey: true }),
+        groupedState({ activeChunkId: "a" }),
+      ),
+    ).toEqual({ type: "jump", chunkId: "c" });
+  });
+
+  it("Shift+K jumps to the previous group's first chunk in Reading order", () => {
+    expect(
+      resolveShortcut(
+        key("k", { shiftKey: true }),
+        groupedState({ activeChunkId: "d" }),
+      ),
+    ).toEqual({ type: "jump", chunkId: "a" });
+  });
+
+  it("Shift+J from the middle of a group jumps forward, not to the group's own start", () => {
+    expect(
+      resolveShortcut(
+        key("j", { shiftKey: true }),
+        groupedState({ activeChunkId: "d" }),
+      ),
+    ).toEqual({ type: "jump", chunkId: "e" });
+  });
+
+  it("Shift+J clamps at the last group (no jump)", () => {
+    expect(
+      resolveShortcut(
+        key("j", { shiftKey: true }),
+        groupedState({ activeChunkId: "e" }),
+      ),
+    ).toBeNull();
+  });
+
+  it("Shift+K clamps at the first group (no jump)", () => {
+    expect(
+      resolveShortcut(
+        key("k", { shiftKey: true }),
+        groupedState({ activeChunkId: "a" }),
+      ),
+    ).toBeNull();
+  });
+
+  it("Shift+J with no active chunk starts at the first group", () => {
+    expect(
+      resolveShortcut(
+        key("j", { shiftKey: true }),
+        groupedState({ activeChunkId: null }),
+      ),
+    ).toEqual({ type: "jump", chunkId: "a" });
+  });
+
+  it("Shift+J does nothing without group boundaries", () => {
+    expect(resolveShortcut(key("j", { shiftKey: true }), state())).toBeNull();
+  });
+
+  it("plain J/K ignore shiftKey-less chords exactly as before, unaffected by groupBoundaries", () => {
+    expect(
+      resolveShortcut(key("j"), groupedState({ activeChunkId: "a" })),
+    ).toEqual({ type: "jump", chunkId: "b" });
+    expect(
+      resolveShortcut(key("k"), groupedState({ activeChunkId: "d" })),
+    ).toEqual({ type: "jump", chunkId: "c" });
   });
 });

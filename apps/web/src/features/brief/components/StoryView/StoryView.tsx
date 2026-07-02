@@ -222,7 +222,9 @@ function FocusGroupRail({
         onClick={() => setOpen(!open)}
       >
         <span className={styles["railToggleText"]}>
-          Group {group.index + 1}
+          {group.readingOrderStep !== undefined
+            ? `Step ${group.readingOrderStep}`
+            : `Group ${group.index + 1}`}
         </span>
         <span aria-hidden="true" className={styles["railToggleMark"]}>
           {open ? "−" : "+"}
@@ -230,17 +232,26 @@ function FocusGroupRail({
       </button>
       {!open ? (
         <div className={styles["railCollapsed"]} aria-hidden="true">
-          <span>Group {group.index + 1}</span>
+          <span>
+            {group.readingOrderStep !== undefined
+              ? `Step ${group.readingOrderStep}`
+              : `Group ${group.index + 1}`}
+          </span>
           <strong>{group.group.title}</strong>
         </div>
       ) : null}
       {open ? (
         <div className={styles["railPanel"]} id={panelId}>
           <div className={styles["railMeta"]}>
-            Change-group {group.index + 1} of {model.groups.length}
+            {group.readingOrderStep !== undefined
+              ? `Step ${group.readingOrderStep} of ${model.groups.length}`
+              : `Change-group ${group.index + 1} of ${model.groups.length}`}
           </div>
           <h2 className={styles["railTitle"]}>{group.group.title}</h2>
           <p className={styles["railSummary"]}>{group.group.summary}</p>
+          {group.readingOrderWhy ? (
+            <p className={styles["railWhy"]}>{group.readingOrderWhy}</p>
+          ) : null}
           <div className={styles["railChips"]}>
             <span className={styles["railChip"]} data-kind="dominant">
               dominant {dominant}

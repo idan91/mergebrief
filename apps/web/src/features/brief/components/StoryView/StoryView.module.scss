@@ -210,6 +210,16 @@
     line-height: 1.55;
   }
 
+  // Explains order, never rank — kept smaller/more muted than .railSummary,
+  // no chip/badge treatment (see .readingOrder in GroupCard.module.scss).
+  .railWhy {
+    margin-block-start: 6px;
+    color: var(--faint);
+    font-size: 11.5px;
+    font-style: italic;
+    line-height: 1.5;
+  }
+
   .railChips {
     display: flex;
     flex-wrap: wrap;

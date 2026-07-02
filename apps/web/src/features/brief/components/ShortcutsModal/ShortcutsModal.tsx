@@ -14,6 +14,14 @@ interface ShortcutDefinition {
 const SHORTCUTS: ShortcutDefinition[] = [
   { key: "J", description: "Next chunk" },
   { key: "K", description: "Previous chunk" },
+  {
+    key: "Shift+J",
+    description: "Next group — Read-through, in Reading order",
+  },
+  {
+    key: "Shift+K",
+    description: "Previous group — Read-through, in Reading order",
+  },
   { key: "Z", description: "Focus mode — isolate the current chunk" },
   { key: "?", description: "Toggle this shortcuts list" },
   { key: "Esc", description: "Close focus mode or a dialog" },
