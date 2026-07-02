@@ -18,6 +18,8 @@ import {
  * verified" buckets — only data that actually exists (defer-don't-fake).
  */
 export interface ReceiptAddressedFlag {
+  /** The source RiskFlag's id — the stable per-flag key. */
+  id: string;
   attr: string;
   file: string;
   /**
@@ -33,6 +35,8 @@ export interface ReceiptAddressedFlag {
 }
 
 export interface ReceiptDismissedFlag {
+  /** The source RiskFlag's id — the stable per-flag key. */
+  id: string;
   attr: string;
   file: string;
   /**
@@ -42,6 +46,8 @@ export interface ReceiptDismissedFlag {
 }
 
 export interface ReceiptOpenFlag {
+  /** The source RiskFlag's id — the stable per-flag key. */
+  id: string;
   attr: string;
   file: string;
 }
@@ -91,6 +97,7 @@ export function buildReceipt(
       addressed.push(
         disposition.evidence
           ? {
+              id: flag.id,
               attr: flag.attr,
               file: flag.file,
               evidence: disposition.evidence,
@@ -100,16 +107,17 @@ export function buildReceipt(
                 brief.chunks,
               ),
             }
-          : { attr: flag.attr, file: flag.file },
+          : { id: flag.id, attr: flag.attr, file: flag.file },
       );
     } else if (disposition.kind === "dismissed") {
       dismissed.push({
+        id: flag.id,
         attr: flag.attr,
         file: flag.file,
         reason: disposition.reason,
       });
     } else {
-      open.push({ attr: flag.attr, file: flag.file });
+      open.push({ id: flag.id, attr: flag.attr, file: flag.file });
     }
   }
 

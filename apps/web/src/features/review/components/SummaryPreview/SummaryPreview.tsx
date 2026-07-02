@@ -135,6 +135,7 @@ export function SummaryPreview({
             <RiskList
               title="Addressed risks"
               items={receipt.addressed.map((flag) => ({
+                id: flag.id,
                 attr: flag.attr,
                 file: flag.file,
                 detail: flag.evidenceLabel ?? "no evidence linked",
@@ -143,6 +144,7 @@ export function SummaryPreview({
             <RiskList
               title="Dismissed risks"
               items={receipt.dismissed.map((flag) => ({
+                id: flag.id,
                 attr: flag.attr,
                 file: flag.file,
                 detail: flag.reason,
@@ -151,6 +153,7 @@ export function SummaryPreview({
             <RiskList
               title="Open risks at submit"
               items={receipt.open.map((flag) => ({
+                id: flag.id,
                 attr: flag.attr,
                 file: flag.file,
                 detail: "not addressed, not dismissed",
@@ -186,6 +189,8 @@ function reviewOutcomeLabel(outcome: ReviewOutcome): string {
 }
 
 interface RiskListItem {
+  /** The flag's own id — (attr, file) pairs repeat when two chunks in one file carry the same attribute. */
+  id: string;
   attr: string;
   file: string;
   detail: string;
@@ -202,7 +207,7 @@ function RiskList({ title, items }: RiskListProps) {
       <h3>{title}</h3>
       {items.length === 0 ? <p className={styles["empty"]}>None.</p> : null}
       {items.map((item) => (
-        <div className={styles["risk"]} key={`${item.attr}:${item.file}`}>
+        <div className={styles["risk"]} key={item.id}>
           <span>
             {item.attr} · {item.file}
           </span>
