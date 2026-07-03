@@ -42,7 +42,7 @@ export function buildBriefTimeline(
           comparisons: artifact.comparisons ?? EMPTY_COMPARISONS,
         }) satisfies BriefTimelinePoint,
     )
-    .sort((a, b) => a.index - b.index);
+    .toSorted((a, b) => a.index - b.index);
   const selectedHead =
     selected.artifactKind === "delta" ? selected.headSha : selected.sha;
   return {

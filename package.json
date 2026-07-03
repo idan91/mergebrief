@@ -6,7 +6,12 @@
     "dev": "pnpm -C apps/web dev",
     "build": "pnpm -C apps/web build",
     "typecheck": "pnpm -C apps/web typecheck",
-    "test": "pnpm -C tools/categorizer test"
+    "test": "pnpm -C tools/categorizer test",
+    "lint": "oxlint --type-aware && pnpm -C apps/web lint"
   },
-  "packageManager": "pnpm@10.0.0"
+  "packageManager": "pnpm@10.0.0",
+  "devDependencies": {
+    "oxlint": "1.72.0",
+    "oxlint-tsgolint": "0.24.0"
+  }
 }

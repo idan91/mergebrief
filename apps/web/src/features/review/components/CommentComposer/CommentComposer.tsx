@@ -1,3 +1,7 @@
+/* eslint-disable jsx-a11y/no-autofocus --
+   Single deliberate use: the composer mounts in response to an explicit
+   click on a diff line, so moving focus into the textarea is the expected
+   next action — not a page-load focus steal. */
 import { useEffect } from "react";
 
 import {

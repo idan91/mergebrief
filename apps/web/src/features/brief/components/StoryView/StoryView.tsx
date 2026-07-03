@@ -277,6 +277,7 @@ function FocusGroupRail({
           <div
             aria-label="Change-group details"
             className={styles["railScroller"]}
+            role="region"
             tabIndex={0}
           >
             <div className={styles["railStats"]}>

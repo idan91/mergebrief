@@ -48,13 +48,13 @@ describe("BriefSchema", () => {
 
   it("rejects an out-of-vocabulary category", () => {
     const bad = structuredClone(validBrief);
-    bad.changeGroups[0]!.dominantCategory = "refactor-everything";
+    bad.changeGroups[0].dominantCategory = "refactor-everything";
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
 
   it("rejects an out-of-vocabulary risk-surface attribute", () => {
     const bad = structuredClone(validBrief);
-    bad.chunks[0]!.riskSurface = ["scary"];
+    bad.chunks[0].riskSurface = ["scary"];
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
 
@@ -141,7 +141,7 @@ describe("DeltaBriefSchema", () => {
 
   it("rejects an out-of-vocabulary category in a changed group", () => {
     const bad = structuredClone(validDelta);
-    bad.changedGroups[0]!.dominantCategory = "refactor-everything";
+    bad.changedGroups[0].dominantCategory = "refactor-everything";
     expect(DeltaBriefSchema.safeParse(bad).success).toBe(false);
   });
 

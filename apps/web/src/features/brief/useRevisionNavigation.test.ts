@@ -35,24 +35,24 @@ describe("findJumpTarget", () => {
  * real DOM query end-to-end — it would have failed (no focus change) against
  * the old class selector.
  */
+function renderRails(): HTMLButtonElement[] {
+  document.body.innerHTML = `
+    <main>
+      <table class="diff">
+        <button data-jump-target aria-label="first"></button>
+        <button data-jump-target aria-label="second"></button>
+      </table>
+    </main>
+  `;
+  return [
+    ...document.querySelectorAll<HTMLButtonElement>("[data-jump-target]"),
+  ];
+}
+
 describe("useRevisionNavigation", () => {
   afterEach(() => {
     document.body.innerHTML = "";
   });
-
-  function renderRails(): HTMLButtonElement[] {
-    document.body.innerHTML = `
-      <main>
-        <table class="diff">
-          <button data-jump-target aria-label="first"></button>
-          <button data-jump-target aria-label="second"></button>
-        </table>
-      </main>
-    `;
-    return [
-      ...document.querySelectorAll<HTMLButtonElement>("[data-jump-target]"),
-    ];
-  }
 
   it("jumpNext focuses a rendered rail via the data attribute", () => {
     const rails = renderRails();

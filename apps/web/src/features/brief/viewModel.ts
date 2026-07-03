@@ -213,7 +213,7 @@ const CONCERN_RANK = buildConcernRank();
  * source order.
  */
 function sortByConcern(chunks: BriefChunk[]): BriefChunk[] {
-  return [...chunks].sort(
+  return chunks.toSorted(
     (a, b) =>
       (CONCERN_RANK.get(a.concern) ?? 0) - (CONCERN_RANK.get(b.concern) ?? 0),
   );

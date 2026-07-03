@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type CSSProperties } from "react";
 
 import { rangeBetween } from "../../../../lib/collections";
 import { CommentComposer } from "../../../review/components/CommentComposer/CommentComposer";
@@ -23,6 +23,12 @@ import { ComparisonCallout } from "../ComparisonCallout/ComparisonCallout";
 import { RevisionGutterCell } from "../RevisionGutterCell/RevisionGutterCell";
 import { getDiffRowView } from "./diffRowView";
 import styles from "./DiffTable.module.scss";
+
+// csstype's CSSProperties has no `--*` index; a typed extension (same
+// pattern as Header's ProgressBarStyle) keeps the custom property cast-free.
+interface DiffViewportStyle extends CSSProperties {
+  "--diff-rows": number;
+}
 
 export interface DiffTableProps {
   chunk: BriefChunk;
@@ -126,14 +132,12 @@ export function DiffTable({
     if (anchor) openCommentComposer(anchor);
   }
 
+  const viewportStyle: DiffViewportStyle = {
+    "--diff-rows": chunk.diff.length,
+  };
   return (
     <>
-      <div
-        className={styles["viewport"]}
-        // CSS custom property: csstype's CSSProperties has no `--*` index, so a
-        // narrow cast is the standard typed escape hatch here.
-        style={{ "--diff-rows": chunk.diff.length } as React.CSSProperties}
-      >
+      <div className={styles["viewport"]} style={viewportStyle}>
         <table className={styles["diff"]}>
           <tbody>
             {chunk.diff.map((line, index) => {
@@ -150,7 +154,6 @@ export function DiffTable({
               }
               const {
                 sign,
-                id,
                 revRun,
                 revMark,
                 isRevStart,

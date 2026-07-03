@@ -1019,7 +1019,7 @@ function BriefScreen({
         open={summaryPreviewOpen}
         snapshot={snapshot}
         close={closeSummaryPreview}
-        setOutcome={actions.setOutcome}
+        setOutcome={(outcome) => actions.setOutcome(outcome)}
       />
       <PreSubmitModal
         mode={reviewMode}
@@ -1038,7 +1038,6 @@ function BriefScreen({
         setReason={setDismissReason}
       />
       <EvidenceModal
-        chunks={brief.chunks}
         comments={reviewComments}
         target={evidenceTarget}
         cancel={cancelEvidence}

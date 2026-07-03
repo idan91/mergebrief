@@ -1,0 +1,168 @@
+name: CI
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect lintable changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
+          lint_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/|tools/|\.oxlintrc\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)' || true)"
+
+          if [ -n "$lint_files" ]; then
+            echo "lint=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "lint=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up pnpm
+        if: steps.changes.outputs.lint == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.lint == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Full workspace install: --type-aware needs each package's tsconfig
+      # and dependency types, not just the oxlint binary.
+      - name: Install dependencies
+        if: steps.changes.outputs.lint == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint
+        if: steps.changes.outputs.lint == 'true'
+        run: pnpm lint
+
+      - name: Skip lint
+        if: steps.changes.outputs.lint != 'true'
+        run: echo "No lintable files changed; skipping lint."
+
+  webapp-checks:
+    name: Web app ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [test, typecheck, build]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect web app changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
+          web_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/web/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+
+          if [ -n "$web_files" ]; then
+            echo "web=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "web=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up pnpm
+        if: steps.changes.outputs.web == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.web == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install web app dependencies
+        if: steps.changes.outputs.web == 'true'
+        run: pnpm --filter @code-review/web... install --frozen-lockfile
+
+      - name: Run web app ${{ matrix.check }}
+        if: steps.changes.outputs.web == 'true'
+        run: pnpm --dir apps/web ${{ matrix.check }}
+
+      - name: Skip web app checks
+        if: steps.changes.outputs.web != 'true'
+        run: echo "No web app files changed; skipping web app checks."
+
+  categorizer-checks:
+    name: Categorizer ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [typecheck, test]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect categorizer changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
+          categorizer_files="$(printf '%s\n' "$changed_files" | grep -E '^(tools/categorizer/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+
+          if [ -n "$categorizer_files" ]; then
+            echo "categorizer=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "categorizer=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up pnpm
+        if: steps.changes.outputs.categorizer == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.categorizer == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install categorizer dependencies
+        if: steps.changes.outputs.categorizer == 'true'
+        run: pnpm --filter categorizer... install --frozen-lockfile
+
+      - name: Run categorizer ${{ matrix.check }}
+        if: steps.changes.outputs.categorizer == 'true'
+        run: pnpm --dir tools/categorizer ${{ matrix.check }}
+
+      - name: Skip categorizer checks
+        if: steps.changes.outputs.categorizer != 'true'
+        run: echo "No categorizer files changed; skipping categorizer checks."

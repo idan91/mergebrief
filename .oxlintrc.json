@@ -1,0 +1,97 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  // react-perf is deliberately absent: its inline-prop rules contradict the
+  // house style (no memoization by default — inline handlers to non-memoized
+  // children are idiomatic and free).
+  "plugins": [
+    "typescript",
+    "unicorn",
+    "oxc",
+    "import",
+    "react",
+    "jsx-a11y",
+    "promise",
+    "vitest"
+  ],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2024": true
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "error",
+    "perf": "warn"
+  },
+  "rules": {
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": "error",
+    // Vite uses the automatic JSX runtime — no React import needed for JSX.
+    "react/react-in-jsx-scope": "off",
+    // div[role=status] is the standard WAI-ARIA live-region idiom; <output>
+    // is form-associated (label/value semantics) and not a drop-in.
+    "jsx-a11y/prefer-tag-over-role": "off",
+    // Labelled region + tabindex=0 is the required pattern for keyboard-
+    // reachable scroll containers (axe: scrollable-region-focusable).
+    "jsx-a11y/no-noninteractive-tabindex": ["error", { "roles": ["region"] }],
+    "typescript/no-explicit-any": "error",
+    "typescript/consistent-type-imports": "error",
+    "typescript/no-non-null-assertion": "error",
+    "import/no-cycle": "error",
+    // Side-effect imports are how Vite loads global styles and server
+    // entrypoints register themselves.
+    "import/no-unassigned-import": [
+      "error",
+      {
+        "allow": ["**/*.css", "**/*.scss", "@tanstack/react-start/server-only"]
+      }
+    ],
+    "no-console": ["error", { "allow": ["warn", "error", "info"] }],
+    // Effects legitimately mix early `return;` with `return cleanup` — the
+    // conditional-cleanup idiom React documents; tsc checks the return type.
+    "typescript/consistent-return": "off",
+    // Spread-in-map is the codebase's deliberate immutable-update idiom;
+    // the rule's suggested in-place mutation would alias parsed objects.
+    "oxc/no-map-spread": "off",
+    // The only index-keyed lists (diff lines, markdown segments) are
+    // immutable and never reorder within a render lifetime, and have no
+    // natural ids — index keys are stable there by construction.
+    "react/no-array-index-key": "off"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/out/**",
+    "**/.playwright-cli/**",
+    "**/routeTree.gen.ts"
+  ],
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/test/**"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off",
+        // Sequential awaits in tests are usually the point (step-by-step UI
+        // flows where each action depends on the previous one settling).
+        "no-await-in-loop": "off",
+        // expect(mock.method).toHaveBeenCalled — the standard vitest pattern
+        // the rule can't distinguish from a real unbound `this` hazard.
+        "typescript/unbound-method": "off",
+        // Narrowing getByRole/getElementById results is routine in tests;
+        // tsgolint's preview verdicts on these are inconsistent (identical
+        // casts flagged unsafe at one site, unnecessary at another).
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
+        // Mocks here pass implementations (vi.fn(async () => fixture)), which
+        // already fully type them — explicit type parameters would be
+        // redundant annotations, not added safety.
+        "vitest/require-mock-type-parameters": "off"
+      }
+    },
+    {
+      // The categorizer is a CLI: stdout printing is its interface.
+      "files": ["tools/categorizer/src/**"],
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ]
+}
