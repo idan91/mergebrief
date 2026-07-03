@@ -34,6 +34,8 @@ export interface RiskFlag {
   file: string;
   groupId: string;
   description: string;
+  /** Chunk-specific factual evidence from the chunk's `riskNotes` (ADR 0026). */
+  note?: string;
 }
 
 export interface BriefViewModel {
@@ -73,6 +75,12 @@ const RISK_DESCRIPTIONS: Record<RiskSurfaceAttribute, string> = {
     "Error handling became broader or quieter; verify correctness bugs cannot be hidden.",
   "adds-feature-flag":
     "Feature-flag behavior changed; check defaults, rollout plan, and cleanup obligation.",
+  "new-dependency":
+    "A new direct dependency entered a manifest; verify it earns its place — stdlib or an existing dep may cover it.",
+  "new-abstraction":
+    "A new named abstraction was introduced; check whether an existing pattern or utility already covers it.",
+  "comment-contradicts-code":
+    "A comment and its adjacent code appear to disagree; read both and resolve which side is right.",
   "external-io":
     "Chunk reaches outside the process; verify timeout, retry, idempotency, and outage behavior.",
   "cross-service":
@@ -144,6 +152,7 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
   for (const chunk of brief.chunks) {
     const groupId = chunkToGroup.get(chunk.id) ?? "g1";
     for (const [index, attr] of chunk.riskSurface.entries()) {
+      const note = chunk.riskNotes?.find((n) => n.attr === attr)?.note;
       const flag = {
         id: `${chunk.id}-${attr}-${index}`,
         attr,
@@ -151,6 +160,7 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
         file: chunk.file,
         groupId,
         description: RISK_DESCRIPTIONS[attr],
+        ...(note !== undefined ? { note } : {}),
       } satisfies RiskFlag;
       flags.push(flag);
       flagsById.set(flag.id, flag);

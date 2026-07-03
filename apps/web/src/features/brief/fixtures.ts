@@ -44,7 +44,13 @@ export const briefFixture: Brief = {
       loc: { added: 4, deleted: 1 },
       addedRanges: [{ start: 10, end: 13 }],
       removedRanges: [],
-      riskSurface: ["no-tests"],
+      riskSurface: ["no-tests", "comment-contradicts-code"],
+      riskNotes: [
+        {
+          attr: "comment-contradicts-code",
+          note: "comment says the param is optional (L10), code throws when absent (L12)",
+        },
+      ],
       summary: "Carrier chunk for the fix.",
       diff: [
         { kind: "hunk", content: "@@ -9,2 +9,5 @@" },

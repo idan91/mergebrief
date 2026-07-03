@@ -7,6 +7,7 @@ import type { SessionSnapshot } from "./session";
 
 const model = buildBriefViewModel(briefFixture);
 const flagId = model.flags[0]!.id;
+const secondFlag = model.flags[1]!;
 
 function snapshot(overrides: Partial<SessionSnapshot> = {}): SessionSnapshot {
   return {
@@ -37,15 +38,20 @@ describe("buildReceipt", () => {
     expect(receipt.progress).toEqual({
       reviewedChunks: 1,
       chunkTotal: 2,
-      flagTotal: 1,
+      flagTotal: 2,
     });
   });
 
   it("counts dispositions and lists an open flag by default", () => {
     const receipt = buildReceipt(snapshot(), briefFixture, model);
-    expect(receipt.counts).toEqual({ addressed: 0, dismissed: 0, open: 1 });
+    expect(receipt.counts).toEqual({ addressed: 0, dismissed: 0, open: 2 });
     expect(receipt.open).toEqual([
       { id: flagId, attr: "no-tests", file: "src/leak.ts" },
+      {
+        id: secondFlag.id,
+        attr: "comment-contradicts-code",
+        file: "src/leak.ts",
+      },
     ]);
   });
 
