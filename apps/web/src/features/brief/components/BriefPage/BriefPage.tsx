@@ -1038,7 +1038,6 @@ function BriefScreen({
         setReason={setDismissReason}
       />
       <EvidenceModal
-        chunks={brief.chunks}
         comments={reviewComments}
         target={evidenceTarget}
         cancel={cancelEvidence}

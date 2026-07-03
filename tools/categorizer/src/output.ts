@@ -72,15 +72,17 @@ export function summaryLines(brief: Brief): string[] {
   lines.push("");
 
   lines.push(`Change groups (${brief.changeGroups.length}):`);
-  for (const g of brief.changeGroups) {
-    const secondary = g.secondaryCategories.length
-      ? ` (+${g.secondaryCategories.join(", ")})`
+  for (const group of brief.changeGroups) {
+    const secondary = group.secondaryCategories.length
+      ? ` (+${group.secondaryCategories.join(", ")})`
       : "";
-    const uncertain = g.uncertain
-      ? `  ⚠ uncertain: ${g.uncertainBetween.join(" vs ")}`
+    const uncertain = group.uncertain
+      ? `  ⚠ uncertain: ${group.uncertainBetween.join(" vs ")}`
       : "";
-    lines.push(`  • [${g.dominantCategory}]${secondary} ${g.title}${uncertain}`);
-    const members = brief.chunks.filter((c) => c.changeGroupId === g.id);
+    lines.push(
+      `  • [${group.dominantCategory}]${secondary} ${group.title}${uncertain}`,
+    );
+    const members = brief.chunks.filter((c) => c.changeGroupId === group.id);
     const carriers = members.filter((c) => c.role === "carrier").map((c) => c.id);
     const supporting = members
       .filter((c) => c.role === "supporting")
@@ -144,14 +146,16 @@ export function deltaSummaryLines(delta: DeltaBrief): string[] {
   lines.push("");
 
   lines.push(`Changed groups (${delta.changedGroups.length}):`);
-  for (const g of delta.changedGroups) {
-    const secondary = g.secondaryCategories.length
-      ? ` (+${g.secondaryCategories.join(", ")})`
+  for (const group of delta.changedGroups) {
+    const secondary = group.secondaryCategories.length
+      ? ` (+${group.secondaryCategories.join(", ")})`
       : "";
-    const uncertain = g.uncertain
-      ? `  ⚠ ${g.uncertainBetween.join(" vs ")}`
+    const uncertain = group.uncertain
+      ? `  ⚠ ${group.uncertainBetween.join(" vs ")}`
       : "";
-    lines.push(`  • [${g.dominantCategory}]${secondary} ${g.title}${uncertain}`);
+    lines.push(
+      `  • [${group.dominantCategory}]${secondary} ${group.title}${uncertain}`,
+    );
   }
   lines.push("");
 

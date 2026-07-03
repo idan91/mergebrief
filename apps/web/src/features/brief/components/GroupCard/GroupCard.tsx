@@ -136,6 +136,7 @@ export const GroupCard = memo(function GroupCard({
       <div
         aria-label={`${group.group.title} — risk surface`}
         className={styles["body"]}
+        role="region"
         tabIndex={0}
       >
         <div className={styles["flags"]}>

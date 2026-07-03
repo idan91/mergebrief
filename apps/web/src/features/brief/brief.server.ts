@@ -65,7 +65,7 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
       return [];
     })
     .filter(isValidBriefId)
-    .sort();
+    .toSorted();
 
   const parsedSummaries = await Promise.all(
     briefIds.map(async (briefId): Promise<LocalBriefSummary | null> => {

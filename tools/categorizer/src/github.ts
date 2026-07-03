@@ -60,7 +60,7 @@ const MAX_LINK_CHARS = 20_000;
 const MAX_LINKS = 5;
 const LINK_TIMEOUT_MS = 10_000;
 
-const URL_IN_TEXT = /https?:\/\/[^\s<>()\[\]"']+/g;
+const URL_IN_TEXT = /https?:\/\/[^\s<>()[\]"']+/g;
 
 const PRIVATE_IPV4 = [
   /^0\./, // "this network" / unspecified

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { z } from "zod/v4";
+import type { z } from "zod/v4";
 import type { Effort, Generation } from "./types.js";
 
 /** Progress sink — defaults to no-op so callers stay usable in tests. */

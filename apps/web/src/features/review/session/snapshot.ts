@@ -72,6 +72,8 @@ const REVIEW_OUTCOMES: readonly string[] = [
   "approve",
   "request-changes",
 ] satisfies readonly ReviewOutcome[];
+// 3 elements; `includes` keeps the readonly-array type-guard idiom.
+// eslint-disable-next-line unicorn/prefer-set-has
 const RISK_EVIDENCE_KINDS: readonly string[] = [
   "linked-comment",
   "chunk-reviewed",

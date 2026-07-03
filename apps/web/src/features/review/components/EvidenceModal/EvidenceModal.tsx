@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
 import { Modal } from "../../../../components/Modal/Modal";
-import type { BriefChunk } from "../../../brief/types";
 import type { ReviewComment } from "../../comments";
 import { commentLocation, type RiskEvidenceKind } from "../../state";
 import styles from "../ModalContent.module.scss";
@@ -13,7 +12,6 @@ export interface EvidenceTarget {
 
 export interface EvidenceModalProps {
   cancel: () => void;
-  chunks: BriefChunk[];
   comments: ReviewComment[];
   confirm: (
     kind: RiskEvidenceKind,
@@ -25,7 +23,6 @@ export interface EvidenceModalProps {
 
 export function EvidenceModal({
   cancel,
-  chunks,
   comments,
   confirm,
   target,

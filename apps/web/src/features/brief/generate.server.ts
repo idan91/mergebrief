@@ -106,6 +106,7 @@ export async function generateBriefFromUrl(
     console.error("generateBriefFromUrl: failed to fetch PR metadata", error);
     throw new Error(
       "Couldn't fetch this PR — is it public, and are you `gh auth login`'d?",
+      { cause: error },
     );
   }
 
@@ -122,6 +123,7 @@ export async function generateBriefFromUrl(
       console.error("generateBriefFromUrl: generation failed", error);
       throw new Error(
         "Couldn't generate the brief for this PR — check the server logs and try again.",
+        { cause: error },
       );
     }
     return briefId(

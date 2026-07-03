@@ -150,7 +150,6 @@ export function DiffTable({
               }
               const {
                 sign,
-                id,
                 revRun,
                 revMark,
                 isRevStart,

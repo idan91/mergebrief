@@ -3,6 +3,9 @@ import { describe, expect, it } from "vitest";
 import { buildBriefTimeline } from "./timeline";
 import type { LocalBriefSummary } from "./types";
 
+const headSequence = (points: { headSha: string; index: number }[]) =>
+  points.map((point) => ({ headSha: point.headSha, index: point.index }));
+
 describe("buildBriefTimeline", () => {
   it("groups a delta with its full-brief head instead of making it a separate point", () => {
     const timeline = buildBriefTimeline(
@@ -164,9 +167,6 @@ describe("buildBriefTimeline", () => {
       artifacts.map(({ comparisons: _comparisons, ...artifact }) => artifact),
       "brief-2",
     );
-
-    const headSequence = (points: { headSha: string; index: number }[]) =>
-      points.map((point) => ({ headSha: point.headSha, index: point.index }));
 
     expect(headSequence(withComparisons.points)).toEqual(
       headSequence(withoutComparisons.points),

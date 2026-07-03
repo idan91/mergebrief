@@ -62,6 +62,11 @@ async function renderBriefScreen() {
  * pre-split BriefApp so they stay green through the Slice A→D refactor. Asserts
  * behaviour observable through the rendered screen, not store internals.
  */
+function statText(label: string): string | null {
+  const stat = screen.getByText(label).closest(".stat");
+  return stat?.querySelector("b")?.textContent ?? null;
+}
+
 describe("brief screen characterization", () => {
   afterEach(() => cleanup());
 
@@ -152,9 +157,15 @@ describe("brief screen characterization", () => {
         expect.objectContaining({ behavior: "auto", top: expect.any(Number) }),
       ),
     );
-    expect((scrollTo.mock.lastCall?.[0] as ScrollToOptions).top).toBeLessThan(
-      1260,
-    );
+    const lastArg: unknown = scrollTo.mock.lastCall?.[0];
+    if (
+      typeof lastArg !== "object" ||
+      lastArg === null ||
+      !("top" in lastArg)
+    ) {
+      throw new Error("expected scrollTo to be called with options");
+    }
+    expect(lastArg.top).toBeLessThan(1260);
   });
 
   it("entering focus mode scrolls the active chunk clear of the focus banner", async () => {
@@ -222,9 +233,7 @@ describe("brief screen characterization", () => {
 
   it("marking a carrier chunk reviewed advances the chunks progress stat", async () => {
     await renderBriefScreen();
-    const stat = () =>
-      screen.getByText("chunks").closest(".stat")!.querySelector("b")!
-        .textContent;
+    const stat = () => statText("chunks");
     expect(stat()).toBe("0/2");
     fireEvent.click(screen.getAllByRole("checkbox", { name: /Viewed/i })[0]!);
     await waitFor(() => expect(stat()).toBe("1/2"));
@@ -232,9 +241,7 @@ describe("brief screen characterization", () => {
 
   it("dismissing a flag advances the flags progress stat", async () => {
     await renderBriefScreen();
-    const stat = () =>
-      screen.getByText("flags").closest(".stat")!.querySelector("b")!
-        .textContent;
+    const stat = () => statText("flags");
     expect(stat()).toBe("0/1");
     fireEvent.click(screen.getByText("Dismiss…"));
     const reason = await screen.findByPlaceholderText(/Your reason lands/);

@@ -50,7 +50,7 @@ describe("parsePrUrl", () => {
     "https://gitlab.com/owner/repo/pull/1", // wrong host
     "https://github.com/owner/repo/issues/1", // issue, not PR
   ])("rejects %s", (url) => {
-    expect(() => parsePrUrl(url)).toThrow();
+    expect(() => parsePrUrl(url)).toThrow(/PR URL/);
   });
 });
 

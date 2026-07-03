@@ -44,7 +44,7 @@ export function createCommentAnchor(
   rows: DiffLine[],
   selectedIndexes: number[],
 ): CommentAnchor | null {
-  const orderedIndexes = [...new Set(selectedIndexes)].sort(
+  const orderedIndexes = [...new Set(selectedIndexes)].toSorted(
     (left, right) => left - right,
   );
   if (orderedIndexes.length === 0) return null;
@@ -184,9 +184,11 @@ function lineForSide(
 }
 
 function isContinuous(indexes: number[]): boolean {
-  return indexes.every(
-    (index, position) => position === 0 || index === indexes[position - 1]! + 1,
-  );
+  return indexes.every((index, position) => {
+    if (position === 0) return true;
+    const previous = indexes[position - 1];
+    return previous !== undefined && index === previous + 1;
+  });
 }
 
 function suggestionLineNumber(

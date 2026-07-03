@@ -143,17 +143,14 @@ export function riskDispositionCounts(
   dispositions: Record<string, Disposition>,
   flagIds: string[],
 ): RiskDispositionCounts {
-  return flagIds.reduce<RiskDispositionCounts>(
-    (counts, flagId) => {
-      const kind = dispositions[flagId]?.kind ?? "open";
-      if (kind === "addressed")
-        return { ...counts, addressed: counts.addressed + 1 };
-      if (kind === "dismissed")
-        return { ...counts, dismissed: counts.dismissed + 1 };
-      return { ...counts, open: counts.open + 1 };
-    },
-    { addressed: 0, dismissed: 0, open: 0 },
-  );
+  const counts: RiskDispositionCounts = { addressed: 0, dismissed: 0, open: 0 };
+  for (const flagId of flagIds) {
+    const kind = dispositions[flagId]?.kind ?? "open";
+    if (kind === "addressed") counts.addressed += 1;
+    else if (kind === "dismissed") counts.dismissed += 1;
+    else counts.open += 1;
+  }
+  return counts;
 }
 
 export function isThinReason(reason: string): boolean {

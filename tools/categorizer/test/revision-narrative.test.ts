@@ -7,6 +7,7 @@ import type { z } from "zod/v4";
 import { categorizeRevisionNarrative } from "../src/categorize.js";
 import type { GenerateRequest, Generator } from "../src/generator.js";
 import type { Brief, Effort, Generation } from "../src/types.js";
+import type * as GithubModule from "../src/github.js";
 import type { PrMetadata } from "../src/github.js";
 
 // Mock the github module so generateAndWrite / generateAndWriteDelta never
@@ -18,7 +19,7 @@ const fetched = vi.hoisted(() => ({
   compareDiff: "",
 }));
 vi.mock("../src/github.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/github.js")>();
+  const actual = await importOriginal<typeof GithubModule>();
   return {
     ...actual,
     fetchPrMetadata: vi.fn(async () => fetched.meta),

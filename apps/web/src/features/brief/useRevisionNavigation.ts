@@ -34,7 +34,7 @@ export function findJumpTarget<T>(
     );
   }
   return (
-    [...indexed].reverse().find((entry) => entry.top < readingLine - 1)?.rail ??
+    indexed.findLast((entry) => entry.top < readingLine - 1)?.rail ??
     rails[rails.length - 1]
   );
 }
