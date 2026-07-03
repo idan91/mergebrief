@@ -4,7 +4,9 @@ import {
   validateNarrativeGroups,
   validateNarrativeMarksOverlap,
   validateReadingOrder,
+  validateRiskAttrTrio,
 } from "../src/validate.js";
+import type { Chunk, RiskSurfaceAttribute } from "../src/types.js";
 
 const groups = [{ id: "g1" }, { id: "g2" }];
 
@@ -97,6 +99,127 @@ describe("validateReadingOrder", () => {
   it("keeps a valid three-group permutation", () => {
     const order = [{ groupId: "g3" }, { groupId: "g1" }, { groupId: "g2" }];
     expect(validateReadingOrder(order, threeGroups)).toEqual([]);
+  });
+});
+
+function trioChunk(overrides: Partial<Chunk> & { riskSurface: RiskSurfaceAttribute[] }): Chunk {
+  return {
+    id: "c1",
+    changeGroupId: "g1",
+    file: "src/a.ts",
+    concern: "implementation",
+    role: "carrier",
+    loc: { added: 1, deleted: 0 },
+    addedRanges: [{ start: 1, end: 1 }],
+    removedRanges: [],
+    ...overrides,
+  };
+}
+
+describe("validateRiskAttrTrio", () => {
+  it("keeps comment-contradicts-code when a riskNotes citation is present", () => {
+    const chunks = [
+      trioChunk({
+        riskSurface: ["comment-contradicts-code"],
+        riskNotes: [
+          {
+            attr: "comment-contradicts-code",
+            note: "comment says retries 3 times (L12), code retries once (L15)",
+          },
+        ],
+      }),
+    ];
+    const result = validateRiskAttrTrio(chunks, []);
+    expect(result.issues).toEqual([]);
+    expect(result.chunks[0].riskSurface).toContain("comment-contradicts-code");
+  });
+
+  it("drops comment-contradicts-code without a note and warns; the chunk survives", () => {
+    const chunks = [trioChunk({ riskSurface: ["comment-contradicts-code", "no-tests"] })];
+    const result = validateRiskAttrTrio(chunks, []);
+    expect(result.chunks).toHaveLength(1);
+    expect(result.chunks[0].riskSurface).toEqual(["no-tests"]);
+    expect(
+      result.issues.some((i) => i.includes("c1") && i.includes("comment-contradicts-code")),
+    ).toBe(true);
+    // pure: input untouched
+    expect(chunks[0].riskSurface).toContain("comment-contradicts-code");
+  });
+
+  it("keeps new-dependency when a manifest diff adds a new dependency key", () => {
+    const chunks = [trioChunk({ file: "package.json", riskSurface: ["new-dependency"] })];
+    const patch = [
+      "diff --git a/package.json b/package.json",
+      "--- a/package.json",
+      "+++ b/package.json",
+      "@@ -10,2 +10,3 @@",
+      '   "zod": "^3.25.0",',
+      '+  "left-pad": "^1.3.0",',
+    ].join("\n");
+    const result = validateRiskAttrTrio(chunks, [{ file: "package.json", patch }]);
+    expect(result.issues).toEqual([]);
+    expect(result.chunks[0].riskSurface).toEqual(["new-dependency"]);
+  });
+
+  it("drops new-dependency for a version bump (same key added and removed)", () => {
+    const chunks = [trioChunk({ file: "package.json", riskSurface: ["new-dependency"] })];
+    const patch = [
+      "diff --git a/package.json b/package.json",
+      "@@ -10,1 +10,1 @@",
+      '-  "zod": "^3.24.0",',
+      '+  "zod": "^3.25.0",',
+    ].join("\n");
+    const result = validateRiskAttrTrio(chunks, [{ file: "package.json", patch }]);
+    expect(result.chunks[0].riskSurface).toEqual([]);
+    expect(result.issues.some((i) => i.includes("new-dependency"))).toBe(true);
+  });
+
+  it("drops new-dependency on a non-manifest file", () => {
+    const chunks = [trioChunk({ file: "src/a.ts", riskSurface: ["new-dependency"] })];
+    const result = validateRiskAttrTrio(chunks, [
+      { file: "src/a.ts", patch: '+import leftPad from "left-pad";' },
+    ]);
+    expect(result.chunks[0].riskSurface).toEqual([]);
+    expect(result.issues.some((i) => i.includes("not a package manifest"))).toBe(true);
+  });
+
+  it("confirms new-dependency across non-JSON manifest formats", () => {
+    const cases = [
+      { file: "requirements.txt", patch: "+left-pad==1.3.0" },
+      { file: "go.mod", patch: "+require github.com/pkg/errors v0.9.1" },
+      { file: "Gemfile", patch: '+gem "left_pad", "~> 1.0"' },
+      { file: "Cargo.toml", patch: '+serde = "1.0"' },
+    ];
+    for (const { file, patch } of cases) {
+      const result = validateRiskAttrTrio(
+        [trioChunk({ file, riskSurface: ["new-dependency"] })],
+        [{ file, patch }],
+      );
+      expect(result.chunks[0].riskSurface).toEqual(["new-dependency"]);
+    }
+  });
+
+  it("passes other attributes with notes through untouched and drops a removed attribute's note", () => {
+    const chunks = [
+      trioChunk({
+        riskSurface: ["comment-contradicts-code", "new-abstraction"],
+        riskNotes: [{ attr: "new-abstraction", note: "introduces RetryPolicy class" }],
+      }),
+    ];
+    const result = validateRiskAttrTrio(chunks, []);
+    expect(result.chunks[0].riskSurface).toEqual(["new-abstraction"]);
+    expect(result.chunks[0].riskNotes).toEqual([
+      { attr: "new-abstraction", note: "introduces RetryPolicy class" },
+    ]);
+  });
+
+  it("never drops the chunk itself", () => {
+    const chunks = [
+      trioChunk({ id: "c1", riskSurface: ["comment-contradicts-code"] }),
+      trioChunk({ id: "c2", file: "src/b.ts", riskSurface: ["new-dependency"] }),
+    ];
+    const result = validateRiskAttrTrio(chunks, []);
+    expect(result.chunks.map((c) => c.id)).toEqual(["c1", "c2"]);
   });
 });
 
