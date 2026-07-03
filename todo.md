@@ -42,9 +42,17 @@ short viewports (pre-existing class of issue; fix if it starts to bother).
 
 ---
 
-## [ ] Add a JS/TS linter to `apps/web` (oxlint)
+## [x] Add a JS/TS linter to `apps/web` (oxlint) — done, PR #18 (merged 2026-07-03)
 
-Web lint today is prettier + stylelint only — no JS/TS linting, so nothing guards
+Shipped beyond the original scope: oxlint (pinned) wired into `apps/web` lint alongside
+prettier + stylelint with `react`/`react-hooks` rules (`exhaustive-deps` as error) **and**
+type-aware rules enabled; `tools/categorizer` covered too (lint + typecheck + tests). CI runs
+web and categorizer checks as parallel matrix jobs. Existing flags fixed or explicitly
+disabled in the same PR.
+
+Original rationale below for reference.
+
+Web lint before this was prettier + stylelint only — no JS/TS linting, so nothing guarded
 `react-hooks/exhaustive-deps`, unused vars, or the usual correctness rules. Surfaced during
 PR #16 review (reading order): the hook-deps audit had to be done by hand.
 

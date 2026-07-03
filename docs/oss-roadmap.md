@@ -265,6 +265,12 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   CodeRabbit's walkthrough. Browser-pass follow-ups (focus-mode overlay bugs, rail
   scrolling, segmented read-through progress, auto-advance on viewed) recorded in the
   root `todo.md` for one follow-up PR.
+- 2026-07-03 — **Read-through follow-ups + lint tooling merged.** PR #17: the six PR #16
+  browser-pass items (shortcuts-dead-after-commenting, focus banner overlap, composer
+  clipping, scrollable rail, segmented progress, auto-advance — the last generalized to any
+  focus mode, `readThroughActive` removed). PR #18: oxlint (type-aware, `react-hooks`
+  rules) across `apps/web` + `tools/categorizer`, wired into CI as parallel matrix jobs.
+  **Next: grill the AI-authored-code review lens** (P1/P2 gate now open), then P3.
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +
