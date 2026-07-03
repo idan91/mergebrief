@@ -52,6 +52,12 @@ const RISK_GLOSS: Record<RiskSurfaceAttribute, string> = {
   "widens-error-handling":
     "broadens a catch / swallows more errors / errors→warnings or no-ops",
   "adds-feature-flag": "introduces or modifies a feature-flag check",
+  "new-dependency":
+    "adds a new DIRECT dependency to a package manifest (never a version-only bump)",
+  "new-abstraction":
+    "introduces a new named abstraction (class, interface, service, wrapper, layer) that did not exist before",
+  "comment-contradicts-code":
+    "a comment/docstring in the diff appears to disagree with the adjacent code",
   // about the BLAST RADIUS
   "external-io":
     "calls external services, network, filesystem, OS, or third-party APIs",
@@ -116,6 +122,14 @@ Type, context, and CSS/style files are not automatically supporting. They are \`
 Severity is NOT your job — it emerges later from combinations. Attach an attribute only when the diff or repo context supports it. **Be consistent with your own prose: if you note a risk in the summary (a widened public API → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it — never describe a risk in prose without flagging it on a chunk.**
 
 ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
+
+Firing discipline for the observational trio (all three are about the change itself — never about who or what authored it):
+
+- \`new-dependency\`: fires only when a package manifest gains a new direct dependency. A version-only bump is NOT this attribute — that is the \`lib-bump\` / \`dependency-update\` Category.
+- \`new-abstraction\`: fires on the *existence* of a new named abstraction only — never on relocated code (\`pure-move\` / \`move-with-edits\` groups don't fire it), and it never judges whether the abstraction is warranted.
+- \`comment-contradicts-code\`: fires only when BOTH the comment and the code it disagrees with are visible in the diff; if either side is outside the visible context, stay silent. When it fires, the chunk MUST carry a \`riskNotes\` entry citing both sides.
+
+**riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute. For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.
 
 ## Change-group boundary
 
@@ -199,6 +213,10 @@ Type, context, and CSS/style files are not automatically supporting. They are \`
 Attach an attribute only when the incremental diff supports it — and **be consistent with your own prose: if you note a risk in the summary or \`wholePrImpact\` (a widened public API → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it. Never describe a risk without flagging it on a chunk.**
 
 ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
+
+Firing discipline for the observational trio (about the change itself — never about who or what authored it): \`new-dependency\` fires only when a manifest gains a new direct dependency (a version-only bump is the \`lib-bump\` / \`dependency-update\` Category, not this attribute); \`new-abstraction\` fires on the *existence* of a new named abstraction only, never on relocations (\`pure-move\` / \`move-with-edits\`); \`comment-contradicts-code\` fires only when BOTH the comment and the code are visible in the incremental diff — else stay silent.
+
+**riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute. For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.
 
 ## Chunks are sub-file
 

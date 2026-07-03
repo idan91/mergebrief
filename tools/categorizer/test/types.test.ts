@@ -58,6 +58,39 @@ describe("BriefSchema", () => {
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
 
+  it("accepts the trio attributes with a riskNotes entry", () => {
+    const withNotes = structuredClone(validBrief);
+    withNotes.chunks[0].riskSurface = [
+      "new-dependency",
+      "new-abstraction",
+      "comment-contradicts-code",
+    ];
+    Object.assign(withNotes.chunks[0], {
+      riskNotes: [
+        {
+          attr: "comment-contradicts-code",
+          note: "comment says retries 3 times (L12), code retries once (L15)",
+        },
+      ],
+    });
+    expect(BriefSchema.safeParse(withNotes).success).toBe(true);
+  });
+
+  it("accepts a chunk without riskNotes (field optional; old artifacts parse)", () => {
+    const parsed = BriefSchema.safeParse(structuredClone(validBrief));
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.chunks[0].riskNotes).toBeUndefined();
+  });
+
+  it("rejects a riskNotes entry with an out-of-vocabulary attr", () => {
+    const bad = structuredClone(validBrief);
+    Object.assign(bad.chunks[0], {
+      riskNotes: [{ attr: "scary", note: "n" }],
+    });
+    expect(BriefSchema.safeParse(bad).success).toBe(false);
+  });
+
   it("accepts a well-formed readingOrder", () => {
     const withOrder = {
       ...structuredClone(validBrief),
