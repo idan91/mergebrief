@@ -71,6 +71,7 @@ import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { DemoControls } from "../DemoControls/DemoControls";
 import { GroupTocBar } from "../GroupTocBar/GroupTocBar";
 import { Header, type LayoutMode, type ViewMode } from "../Header/Header";
+import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress";
 import { ShortcutsModal } from "../ShortcutsModal/ShortcutsModal";
 import { StoryView } from "../StoryView/StoryView";
 import styles from "./BriefPage.module.scss";
@@ -404,6 +405,28 @@ function BriefScreen({
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const activeChunkIdRef = useLatestRef(activeChunkId);
   const focusModeRef = useLatestRef(focusMode);
+  // Mirror of Header's --top-bar-h: publish the focus banner strip's measured
+  // height so sticky chunk headers (ChunkCard .head) and the focus rail can
+  // stack below the strip instead of pinning behind it. 0px whenever focus
+  // mode is off (the strip is unmounted).
+  const focusBannerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const setBannerHeight = (value: string) =>
+      document.documentElement.style.setProperty("--focus-banner-h", value);
+    const el = focusBannerRef.current;
+    if (!focusMode || !el) {
+      setBannerHeight("0px");
+      return;
+    }
+    const apply = () => setBannerHeight(`${el.offsetHeight}px`);
+    apply();
+    const observer = new ResizeObserver(apply);
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      setBannerHeight("0px");
+    };
+  }, [focusMode]);
   const firstChunkId = chunkIds[0] ?? null;
 
   const totals = useMemo(
@@ -499,6 +522,35 @@ function BriefScreen({
 
   const markReviewed = useCallback(
     (chunkId: string) => {
+      const alreadyReviewed = reviewedChunks.has(chunkId);
+      // In ANY focus mode (Z or Start read-through — the two are visually
+      // identical, so gating on how it was entered read as broken), the
+      // Viewed control means "confirmed viewed → next": it must never stall
+      // the flow. An already-viewed chunk (viewed earlier in the session —
+      // snapshots persist across reloads — or revisited via K) is re-affirmed
+      // and advanced past, NOT un-checked; un-viewing stays available in the
+      // normal scrolling view, where bulk-marking happens. Advance is the
+      // strict next chunk in `chunkIds`; crossing a group boundary needs no
+      // special handling — FocusGroupRail renders for whichever group holds
+      // activeChunkId, so a plain chunk advance lands the reader on the next
+      // group's rail too. Never wraps past the last chunk.
+      if (focusModeRef.current) {
+        if (!alreadyReviewed) {
+          actions.reviewChunk(chunkId);
+          setOpenChunks((current) => {
+            const next = new Set(current);
+            next.delete(chunkId);
+            return next;
+          });
+        }
+        const index = chunkIds.indexOf(chunkId);
+        const next = index >= 0 ? chunkIds[index + 1] : undefined;
+        if (next) {
+          setActiveChunkId(next);
+          scrollToChunk(next, "smooth", "top");
+        }
+        return;
+      }
       // reviewChunk is a pure store toggle; the collapse-on-review coupling lives
       // here because openChunks is local UI — drop the chunk from it explicitly.
       actions.reviewChunk(chunkId);
@@ -508,7 +560,7 @@ function BriefScreen({
         return next;
       });
     },
-    [actions],
+    [actions, chunkIds, focusModeRef, reviewedChunks, scrollToChunk],
   );
 
   const jumpToChunk = useCallback(
@@ -540,10 +592,15 @@ function BriefScreen({
     setViewMode("story");
     // Re-anchor onto the chunk being focused so entering focus mode is always
     // visible, even when that chunk was already at the top of the viewport.
+    // align="top" is required here (not the default "native" scrollIntoView):
+    // the focus banner only mounts once `focusMode` flips true, so the scroll
+    // that lands us on the chunk must already reserve its height via
+    // focusScrollOffset() — otherwise the banner renders on top of the chunk
+    // we just scrolled to.
     const target = activeChunkIdRef.current ?? firstChunkId;
     if (!target) return;
     setActiveChunkId(target);
-    scrollToChunk(target);
+    scrollToChunk(target, "smooth", "top");
   }, [activeChunkIdRef, firstChunkId, focusModeRef, scrollToChunk]);
   const toggleShortcuts = useCallback(
     () => setShortcutsOpen((current) => !current),
@@ -559,7 +616,9 @@ function BriefScreen({
     setViewMode("story");
     setFocusMode(true);
     setActiveChunkId(firstChunkId);
-    scrollToChunk(firstChunkId);
+    // See toggleFocusMode: align="top" reserves the focus banner's height so
+    // it doesn't overlap the chunk we just entered focus mode on.
+    scrollToChunk(firstChunkId, "smooth", "top");
   }, [firstChunkId, scrollToChunk]);
 
   // Shortcuts stand down whenever an overlay holds focus (drawers/modals use
@@ -803,6 +862,35 @@ function BriefScreen({
         availability={availability}
         compareState={compareState}
       />
+      {/* Focus mode (Z) strips the page chrome and centers a single chunk in
+          a narrow reading column — the visible payoff of "focus". The banner
+          is a sibling of <main> (not inside it) so it is a true full-bleed
+          strip like the top bar; sticky chunk headers stack below it via the
+          measured --focus-banner-h. data-focus-banner sits on the strip:
+          focusScrollOffset() must measure it whole, padding included. */}
+      {focusMode ? (
+        <div
+          className={styles["focusBannerWrap"]}
+          data-focus-banner=""
+          ref={focusBannerRef}
+          role="status"
+        >
+          <div className={styles["focusBanner"]}>
+            <span>
+              <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
+              <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
+            </span>
+            <ReadThroughProgress
+              activeChunkId={activeChunkId}
+              groups={model.groups}
+              jumpToChunk={jumpToChunk}
+            />
+            <button className="btn" type="button" onClick={toggleFocusMode}>
+              Exit focus
+            </button>
+          </div>
+        </div>
+      ) : null}
       <main
         className={
           layoutMode === "split" && viewMode === "story"
@@ -813,23 +901,6 @@ function BriefScreen({
         tabIndex={-1}
         data-zen={focusMode ? "on" : undefined}
       >
-        {/* Focus mode (Z) strips the page chrome and centers a single chunk in
-            a narrow reading column — the visible payoff of "focus". */}
-        {focusMode ? (
-          <div
-            className={styles["focusBanner"]}
-            data-focus-banner=""
-            role="status"
-          >
-            <span>
-              <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
-              <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
-            </span>
-            <button className="btn" type="button" onClick={toggleFocusMode}>
-              Exit focus
-            </button>
-          </div>
-        ) : null}
         {focusMode ? null : (
           <section className={`${styles["summary"]} reveal`}>
             <div className={styles["eyebrow"]}>

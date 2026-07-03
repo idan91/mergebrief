@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .card {
     margin-block-end: 40px;
@@ -6,10 +8,16 @@
     background: linear-gradient(180deg, #121216 0%, #0e0e11 100%);
   }
 
+  // Normally content-sized and fixed; on very short viewports it shrinks
+  // last — after .body hits its floor — and scrolls internally instead of
+  // collapsing the flags region to nothing.
   .head {
+    min-block-size: 0;
+    flex: 0 1 auto;
     padding-block: 26px 24px;
     padding-inline: 30px;
     border-block-end: 1px solid var(--line);
+    overflow: hidden auto;
   }
 
   .eyebrow {
@@ -151,8 +159,20 @@
     font-size: 12.5px;
   }
 
+  // The scroll region under the fixed head (base.scss makes the sticky card
+  // a viewport-capped flex column). Bottom corners follow the card's radius
+  // so the scroller doesn't poke square corners out of the rounded card.
   .body {
-    display: block;
+    --scroller-bg: #0f0f12;
+
+    @include mixins.rail-scroller;
+
+    // Shrinks before .head (huge flex-shrink) but never below a usable floor,
+    // so the scroll region can't collapse to zero height.
+    min-block-size: 96px;
+    flex: 0 999 auto;
+    border-end-end-radius: 11px;
+    border-end-start-radius: 11px;
   }
 
   .flags {
@@ -273,6 +293,7 @@
     font-family: var(--mono);
     font-size: 12px;
     font-weight: 500;
+    overflow-wrap: anywhere;
   }
 
   .riskBulkActions {

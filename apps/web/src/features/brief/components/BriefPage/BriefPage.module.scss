@@ -95,16 +95,31 @@
     gap: 8px;
   }
 
-  .focusBanner {
+  // Sticky strip behind the focus banner: spans the full content column with
+  // the same translucent-blur backdrop as the top bar (Header.module.scss), so
+  // diff content scrolling past slides under a solid-reading band — the
+  // rounded banner box alone left visible gaps above and beside it.
+  // Sibling of <main>, not inside it: a true full-bleed strip under the top
+  // bar. Publishes its measured height as --focus-banner-h (BriefPage) so
+  // sticky chunk headers and the focus rail stack below it.
+  .focusBannerWrap {
     position: sticky;
-    inset-block-start: calc(var(--top-bar-h) + 8px);
+    inset-block-start: var(--top-bar-h);
     z-index: 90;
+    margin-block-end: 20px;
+    padding-block: 8px 10px;
+    padding-inline: 20px;
+    border-block-end: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
+    backdrop-filter: blur(12px);
+  }
+
+  .focusBanner {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     max-inline-size: 880px;
-    margin-block-end: 20px;
     margin-inline: auto;
     padding-block: 12px;
     padding-inline: 18px;

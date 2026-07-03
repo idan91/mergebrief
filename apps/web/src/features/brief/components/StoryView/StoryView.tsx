@@ -243,76 +243,88 @@ function FocusGroupRail({
       </button>
       {open ? (
         <div className={styles["railPanel"]} id={panelId}>
-          <div className={styles["railMeta"]}>
-            {group.readingOrderStep !== undefined
-              ? `Step ${group.readingOrderStep} of ${model.groups.length}`
-              : `Change-group ${group.index + 1} of ${model.groups.length}`}
-          </div>
-          <h2 className={styles["railTitle"]}>{group.group.title}</h2>
-          <p className={styles["railSummary"]}>{group.group.summary}</p>
-          {group.readingOrderWhy ? (
-            <p className={styles["railWhy"]}>{group.readingOrderWhy}</p>
-          ) : null}
-          <div className={styles["railChips"]}>
-            <span className={styles["railChip"]} data-kind="dominant">
-              dominant {dominant}
-            </span>
-            {group.group.secondaryCategories.map((category) => (
-              <span className={styles["railChip"]} key={category}>
-                secondary {category}
-              </span>
-            ))}
-            {group.group.uncertain ? (
-              <span className={styles["railChip"]} data-kind="uncertain">
-                uncertain
-              </span>
-            ) : null}
-          </div>
-          <div className={styles["railStats"]}>
-            <span>
-              <span className="green">+{group.added}</span> /{" "}
-              <span className="red">−{group.deleted}</span>
-            </span>
-            <span>
-              {groupFlags.length} flag{groupFlags.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          {activeChunk ? (
-            <div className={styles["railRiskFacts"]}>
-              <div className={styles["railLabel"]}>Active chunk risks</div>
-              {activeChunk.riskSurface.length > 0 ? (
-                <div className={styles["railRiskChips"]}>
-                  {activeChunk.riskSurface.map((risk) => (
-                    <span className={styles["railRiskChip"]} key={risk}>
-                      {risk}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className={styles["railNoRisks"]}>
-                  No risk-surface attributes on this chunk.
-                </p>
-              )}
+          {/* Fixed header: everything above the stats divider stays put;
+              only the detail region below it scrolls. */}
+          <div className={styles["railHead"]}>
+            <div className={styles["railMeta"]}>
+              {group.readingOrderStep !== undefined
+                ? `Step ${group.readingOrderStep} of ${model.groups.length}`
+                : `Change-group ${group.index + 1} of ${model.groups.length}`}
             </div>
-          ) : null}
-          <div className={styles["railChunkList"]}>
-            <div className={styles["railLabel"]}>Chunks</div>
-            {group.chunks.map((chunk) => (
-              <button
-                className={styles["railChunkButton"]}
-                data-current={chunk.id === activeChunkId ? "" : undefined}
-                key={chunk.id}
-                type="button"
-                onClick={() => jumpToChunk(chunk.id)}
-              >
-                <span className={styles["railChunkFile"]}>{chunk.file}</span>
-                <span className={styles["railChunkMeta"]}>
-                  {chunk.role} ·{" "}
-                  <span className="green">+{chunk.loc.added}</span> /{" "}
-                  <span className="red">−{chunk.loc.deleted}</span>
+            <h2 className={styles["railTitle"]}>{group.group.title}</h2>
+            <p className={styles["railSummary"]}>{group.group.summary}</p>
+            {group.readingOrderWhy ? (
+              <p className={styles["railWhy"]}>{group.readingOrderWhy}</p>
+            ) : null}
+            <div className={styles["railChips"]}>
+              <span className={styles["railChip"]} data-kind="dominant">
+                dominant {dominant}
+              </span>
+              {group.group.secondaryCategories.map((category) => (
+                <span className={styles["railChip"]} key={category}>
+                  secondary {category}
                 </span>
-              </button>
-            ))}
+              ))}
+              {group.group.uncertain ? (
+                <span className={styles["railChip"]} data-kind="uncertain">
+                  uncertain
+                </span>
+              ) : null}
+            </div>
+          </div>
+          {/* The keyboard-reachable scroll region: tabindex + label live here,
+              on the element that actually scrolls, so they coincide. */}
+          <div
+            aria-label="Change-group details"
+            className={styles["railScroller"]}
+            tabIndex={0}
+          >
+            <div className={styles["railStats"]}>
+              <span>
+                <span className="green">+{group.added}</span> /{" "}
+                <span className="red">−{group.deleted}</span>
+              </span>
+              <span>
+                {groupFlags.length} flag{groupFlags.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            {activeChunk ? (
+              <div className={styles["railRiskFacts"]}>
+                <div className={styles["railLabel"]}>Active chunk risks</div>
+                {activeChunk.riskSurface.length > 0 ? (
+                  <div className={styles["railRiskChips"]}>
+                    {activeChunk.riskSurface.map((risk) => (
+                      <span className={styles["railRiskChip"]} key={risk}>
+                        {risk}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className={styles["railNoRisks"]}>
+                    No risk-surface attributes on this chunk.
+                  </p>
+                )}
+              </div>
+            ) : null}
+            <div className={styles["railChunkList"]}>
+              <div className={styles["railLabel"]}>Chunks</div>
+              {group.chunks.map((chunk) => (
+                <button
+                  className={styles["railChunkButton"]}
+                  data-current={chunk.id === activeChunkId ? "" : undefined}
+                  key={chunk.id}
+                  type="button"
+                  onClick={() => jumpToChunk(chunk.id)}
+                >
+                  <span className={styles["railChunkFile"]}>{chunk.file}</span>
+                  <span className={styles["railChunkMeta"]}>
+                    {chunk.role} ·{" "}
+                    <span className="green">+{chunk.loc.added}</span> /{" "}
+                    <span className="red">−{chunk.loc.deleted}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ) : null}

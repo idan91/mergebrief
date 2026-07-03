@@ -131,7 +131,13 @@ export const GroupCard = memo(function GroupCard({
           </div>
         ) : null}
       </div>
-      <div className={styles["body"]}>
+      {/* The scrollable region under the fixed head; keyboard-reachable with
+          the label on the element that scrolls, so they coincide. */}
+      <div
+        aria-label={`${group.group.title} — risk surface`}
+        className={styles["body"]}
+        tabIndex={0}
+      >
         <div className={styles["flags"]}>
           <div className={`${styles["label"]} ${styles["riskLabel"]}`}>
             <span>

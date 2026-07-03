@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .storyView {
     display: flex;
@@ -122,16 +124,29 @@
     font-size: 11px;
   }
 
+  // Sticky column capped to the viewport; the rail itself never scrolls —
+  // only .railScroller (the region below the stats divider) does, so the
+  // toggle + step/meta header stays fixed while details scroll under it.
   .focusRail {
     position: sticky;
-    inset-block-start: calc(var(--top-bar-h) + 72px);
-    display: grid;
+
+    // Sits just below the focus banner strip (measured --focus-banner-h),
+    // same stacking rule as the sticky chunk headers.
+    inset-block-start: calc(
+      var(--top-bar-h) + var(--focus-banner-h, 0px) + 12px
+    );
+    display: flex;
+    flex-direction: column;
     gap: 8px;
+    max-block-size: calc(
+      100vh - (var(--top-bar-h) + var(--focus-banner-h, 0px) + 12px) - 24px
+    );
     min-inline-size: 0;
   }
 
   .railToggle {
     display: flex;
+    flex: none;
     align-items: center;
     justify-content: space-between;
     min-block-size: 40px;
@@ -202,13 +217,43 @@
   }
 
   .railPanel {
+    --scroller-bg: color-mix(in srgb, var(--panel) 82%, var(--bg));
+
+    display: flex;
+    min-block-size: 0;
+    flex-direction: column;
     padding-block: 14px;
     padding-inline: 14px;
     animation: rail-swap 0.25s ease;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: color-mix(in srgb, var(--panel) 82%, var(--bg));
+    background: var(--scroller-bg);
     box-shadow: 0 16px 44px rgb(0 0 0 / 24%);
+  }
+
+  // Normally content-sized and fixed; on very short viewports (where the
+  // head alone would eat the whole panel and collapse the scroller to
+  // nothing) it shrinks last — after the scroller hits its floor — and
+  // scrolls internally rather than swallowing the details region.
+  .railHead {
+    min-block-size: 0;
+    flex: 0 1 auto;
+    overflow: hidden auto;
+  }
+
+  // The scrollable detail region (stats + risks + chunk list). Its top border
+  // is the fixed/scrolling divider; the scroll-shadows and always-visible
+  // thin scrollbar (mixins.rail-scroller) make cut-off content read as
+  // "more below" rather than a clipped box.
+  .railScroller {
+    @include mixins.rail-scroller;
+
+    // Shrinks before .railHead (huge flex-shrink) but never below a usable
+    // floor, so the scroll region can't collapse to zero height.
+    min-block-size: 96px;
+    flex: 0 999 auto;
+    border-block-start: 1px solid var(--line);
+    margin-block-start: 12px;
   }
 
   .railMeta,
@@ -253,6 +298,7 @@
 
   .railChip {
     display: inline-flex;
+    min-inline-size: 0;
     align-items: center;
     padding-block: 3px;
     padding-inline: 8px;
@@ -261,6 +307,7 @@
     color: var(--dim);
     font-size: 11px;
     font-weight: 600;
+    overflow-wrap: anywhere;
 
     &[data-kind="dominant"] {
       background: #1e1e24;
@@ -278,8 +325,7 @@
     justify-content: space-between;
     gap: 10px;
     padding-block: 10px;
-    border-block: 1px solid var(--line);
-    margin-block-start: 12px;
+    border-block-end: 1px solid var(--line);
     color: var(--faint);
     font-family: var(--mono);
     font-size: 11px;
@@ -300,6 +346,7 @@
   }
 
   .railRiskChip {
+    min-inline-size: 0;
     padding-block: 3px;
     padding-inline: 8px;
     border: 1px solid color-mix(in srgb, var(--amber) 28%, var(--line2));
@@ -308,6 +355,7 @@
     color: var(--amber);
     font-size: 11px;
     font-weight: 600;
+    overflow-wrap: anywhere;
   }
 
   .railNoRisks {
@@ -362,10 +410,13 @@
   }
 
   @media (width <= 1180px) {
+    // Static column layout: no height cap, so .railScroller never overflows
+    // and its scrollbar/shadows stay dormant.
     .focusRail {
       position: static;
       inline-size: calc(100vw - 36px);
       max-inline-size: 100%;
+      max-block-size: none;
       align-self: flex-start;
     }
 

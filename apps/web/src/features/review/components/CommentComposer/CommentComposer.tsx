@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 import {
   commentAnchorLabel,
   reviewCommentSubmitLabel,
@@ -21,6 +23,22 @@ export function CommentComposer({
   save,
 }: CommentComposerProps) {
   const composer = useCommentComposerFacade(anchor, save);
+
+  // Escape-to-close, mirroring Modal's convention: the composer is an overlay
+  // that holds `shortcutsDisabled` while open (BriefPage), but — unlike
+  // Modal — it never wired Escape to its own dismiss handler. Without this,
+  // Escape does nothing while the composer is open (the global J/K/Z listener
+  // stands down because `disabled` is true, and there is no other close path
+  // for Escape), so the composer never unmounts, `activeCommentAnchor` never
+  // clears, and J/K/Z stay dead until the reviewer notices they must click
+  // Cancel/save explicitly.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") cancel();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [cancel]);
 
   return (
     <div className={styles["composer"]}>

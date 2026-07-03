@@ -20,6 +20,17 @@
 
     // `auto` remembers real painted size; the estimate only tames first-paint scroll jump
     contain-intrinsic-block-size: auto calc(var(--diff-rows, 40) * 22px);
+
+    // `content-visibility: auto` always applies paint containment (not just
+    // while off-screen), which clips any descendant that paints outside this
+    // box. The diff table can be wider than `.viewport` — `white-space: pre`
+    // code cells force the table to its widest line, most visibly in the
+    // narrower focus-mode column — so without this, that overflow (including
+    // the comment composer, which spans the same table-driven width via its
+    // colSpan cell) was silently clipped and unreachable instead of visible.
+    // `overflow-x: auto` turns the same overflow into a normal horizontal
+    // scroll region, matching typical diff-viewer UX for long lines.
+    overflow-x: auto;
   }
 
   .diff {

@@ -91,7 +91,7 @@ more than the backend.
 daemon nobody has discovered. Deferred design/a11y items (mobile header, header declutter, SR
 pass, touch targets…) each carry an explicit *when-to-do* trigger in the plan doc.
 
-### P2 — Narrative-on-top-of-taxonomy (marquee comprehension feature)  ·  status: [ ] not started
+### P2 — Narrative-on-top-of-taxonomy (marquee comprehension feature)  ·  status: [x] done (2026-07-02, PR #16)
 
 **Needs grilling:** Yes — the ordering rule, terminology vs Atlas's "layers/cohorts", and how narrative relates to Change-groups all touch the domain model. · **Docs:** [`../CONTEXT.md`](../CONTEXT.md) (Change-group / Summary / Category) · [ADR 0005](./adr/0005-intent-on-change-group-two-view-projection.md) · [`competitive-analysis.md`](./competitive-analysis.md) (narrative vs taxonomic axes) · [`next-steps.md`](./next-steps.md) (deferred narrative note)
 
@@ -255,6 +255,16 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   (Delta-path huge-span wiring, incremental diffs sidecar, YAML config loader).
   Pre-existing duplicate-key bug in the summary preview found during the browser
   pass → PR #15.
+- 2026-07-02 — **P2 done** (PR #16, `feature/reading-order`; ADR 0025, plan in
+  [`plans/reading-order.md`](./plans/reading-order.md)). Every full Brief can carry a
+  **Reading order** — a strict, foundation-first permutation over its Change-groups with
+  no-verdict why-lines — emitted in the Brief's own call, validated warn-and-drop on both
+  sides, degrading to structural order. FE ships the **Read-through** experience: Story
+  view adopts the order (step captions), `Shift+J`/`Shift+K` group navigation, "Start
+  read-through" affordance. Terminology deliberately avoids Atlas's layers/cohorts and
+  CodeRabbit's walkthrough. Browser-pass follow-ups (focus-mode overlay bugs, rail
+  scrolling, segmented read-through progress, auto-advance on viewed) recorded in the
+  root `todo.md` for one follow-up PR.
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +
