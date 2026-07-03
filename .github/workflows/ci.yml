@@ -1,4 +1,4 @@
-name: Web App CI
+name: CI
 
 on:
   pull_request:
@@ -116,3 +116,57 @@ jobs:
       - name: Skip web app checks
         if: steps.changes.outputs.web != 'true'
         run: echo "No web app files changed; skipping web app checks."
+
+  categorizer-checks:
+    name: Categorizer checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect categorizer changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
+          categorizer_files="$(printf '%s\n' "$changed_files" | grep -E '^(tools/categorizer/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+
+          if [ -n "$categorizer_files" ]; then
+            echo "categorizer=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "categorizer=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up pnpm
+        if: steps.changes.outputs.categorizer == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.categorizer == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install categorizer dependencies
+        if: steps.changes.outputs.categorizer == 'true'
+        run: pnpm --filter categorizer... install --frozen-lockfile
+
+      - name: Typecheck categorizer
+        if: steps.changes.outputs.categorizer == 'true'
+        run: pnpm --dir tools/categorizer typecheck
+
+      - name: Run categorizer tests
+        if: steps.changes.outputs.categorizer == 'true'
+        run: pnpm --dir tools/categorizer test
+
+      - name: Skip categorizer checks
+        if: steps.changes.outputs.categorizer != 'true'
+        run: echo "No categorizer files changed; skipping categorizer checks."
