@@ -1,10 +1,21 @@
 # TODO
 
-## [ ] Focus-mode / Read-through follow-ups — in review, PR #17 (all six items implemented; browser pass pending)
+## [x] Focus-mode / Read-through follow-ups — done, PR #17 (merged 2026-07-03)
 
-From the PR #16 browser pass (2026-07-02). Items 1–3 are pre-existing focus-mode bugs that
-Read-through promotes to main-path breakage; 4–6 are Read-through session mechanics. One
-branch (`fix/focus-mode-follow-ups` or similar), one PR.
+From the PR #16 browser pass (2026-07-02). Items 1–3 were pre-existing focus-mode bugs that
+Read-through promoted to main-path breakage; 4–6 are Read-through session mechanics. All six
+shipped in PR #17, plus browser-pass fixes: full-bleed focus banner strip (`--focus-banner-h`
+measured, chunk headers stack below it), rail header-fixed/body-scroll split with scroll
+shadows, no horizontal scroll in rails, progress-segment polish.
+
+**Item 6 decision superseded (2026-07-03):** auto-advance on viewed applies in ANY focus
+mode, not read-through-only — Z-focus and read-through are visually identical, so gating on
+entry path read as broken (even to its designer). `readThroughActive` state was removed;
+`focusMode` is the only flag. In focus mode, Viewed = confirm-and-advance (never un-checks);
+un-checking lives in the normal scrolling view.
+
+Known small leftover: the risk-info popover can clip against the rail's scroll region on
+short viewports (pre-existing class of issue; fix if it starts to bother).
 
 1. **Shortcuts dead after commenting** (worst): after opening/closing a comment composer in
    focus/read-through mode, J/K/Z stop working. `shortcutsDisabled` derives from
