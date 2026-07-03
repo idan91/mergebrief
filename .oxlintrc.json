@@ -34,10 +34,6 @@
     // Labelled region + tabindex=0 is the required pattern for keyboard-
     // reachable scroll containers (axe: scrollable-region-focusable).
     "jsx-a11y/no-noninteractive-tabindex": ["error", { "roles": ["region"] }],
-    // Single deliberate use: the comment composer opens from an explicit
-    // click on a diff line — moving focus into it is the expected behavior,
-    // not a page-load focus steal.
-    "jsx-a11y/no-autofocus": "off",
     "typescript/no-explicit-any": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-non-null-assertion": "error",
@@ -51,6 +47,9 @@
       }
     ],
     "no-console": ["error", { "allow": ["warn", "error", "info"] }],
+    // Effects legitimately mix early `return;` with `return cleanup` — the
+    // conditional-cleanup idiom React documents; tsc checks the return type.
+    "typescript/consistent-return": "off",
     // Spread-in-map is the codebase's deliberate immutable-update idiom;
     // the rule's suggested in-place mutation would alias parsed objects.
     "oxc/no-map-spread": "off",
@@ -73,6 +72,14 @@
         // Sequential awaits in tests are usually the point (step-by-step UI
         // flows where each action depends on the previous one settling).
         "no-await-in-loop": "off",
+        // expect(mock.method).toHaveBeenCalled — the standard vitest pattern
+        // the rule can't distinguish from a real unbound `this` hazard.
+        "typescript/unbound-method": "off",
+        // Narrowing getByRole/getElementById results is routine in tests;
+        // tsgolint's preview verdicts on these are inconsistent (identical
+        // casts flagged unsafe at one site, unnecessary at another).
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
         // Mocks here pass implementations (vi.fn(async () => fixture)), which
         // already fully type them — explicit type parameters would be
         // redundant annotations, not added safety.

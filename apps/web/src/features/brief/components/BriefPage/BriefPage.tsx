@@ -1019,7 +1019,7 @@ function BriefScreen({
         open={summaryPreviewOpen}
         snapshot={snapshot}
         close={closeSummaryPreview}
-        setOutcome={actions.setOutcome}
+        setOutcome={(outcome) => actions.setOutcome(outcome)}
       />
       <PreSubmitModal
         mode={reviewMode}

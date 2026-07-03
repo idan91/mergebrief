@@ -11,7 +11,6 @@ import {
   type CommitRange,
   type Concern,
   type ConcernRollup,
-  type ComparisonBaselineLabel,
   type ComparisonMarks,
   type ComparisonMarksSummary,
   type Generation,
@@ -25,7 +24,6 @@ import {
   type RevisionNarrativeChunk,
   type RevisionNarrativeSkipReason,
   type RiskSurfaceAttribute,
-  type Role,
   type ValueOf,
 } from "./types";
 
@@ -331,7 +329,7 @@ export function parseComparisonMarksSummary(
     value: {
       baselineSha,
       headSha,
-      baselineLabel: baselineLabel as ComparisonBaselineLabel,
+      baselineLabel,
       baselineIndex,
     },
   };
@@ -536,8 +534,8 @@ function parseChunk(value: unknown): Result<ParsedChunk> {
       id,
       ...(isString(changeGroupId) ? { changeGroupId } : {}),
       file,
-      concern: concern as Concern,
-      role: role as Role,
+      concern,
+      role,
       loc: loc.value,
       addedRanges: addedRanges.value,
       removedRanges: removedRanges.value,
@@ -593,7 +591,7 @@ function parseChangeGroup(value: unknown): Result<ParsedChangeGroup> {
       ...(isString(id) ? { id } : {}),
       title,
       summary,
-      dominantCategory: dominantCategory as Category,
+      dominantCategory,
       secondaryCategories: secondaryCategories.value,
       uncertain,
       uncertainBetween: uncertainBetween.value,
@@ -684,7 +682,7 @@ function parseConcernRollup(value: unknown): Result<ConcernRollup> {
   return {
     ok: true,
     value: {
-      concern: concern as Concern,
+      concern,
       added,
       deleted,
     },
