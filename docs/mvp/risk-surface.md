@@ -70,6 +70,38 @@ The diff introduces or modifies a feature-flag check.
 - **Detect:** new flag-client calls, new constants in a flags config file.
 - **Playbook implication:** reviewer must verify the flag's default state, rollout plan, and cleanup obligation (a flag added without a removal plan becomes permanent debt).
 
+### `new-dependency`
+The diff adds a new **direct** dependency to a package manifest.
+- **Detect:** a manifest diff (`package.json` dependencies/devDependencies, `requirements.txt`,
+  `Cargo.toml`, `go.mod`, …) gains a package that was not there before. Version-only bumps do
+  **not** fire (those are the `lib-bump` / `dependency-update` Categories). Mechanically
+  confirmable from the diff — the validator drops the attribute (warn-and-drop) if no manifest
+  line actually adds a new package.
+- **Playbook implication:** reviewer verifies the dependency earns its place — stdlib or an
+  existing dep couldn't do the job; license, maintenance, and footprint acceptable. Most
+  informative when the group's Dominant Category is *not* dep-related: a package appearing
+  incidentally inside a `new-feature`/`bugfix` group is the attention signal (combination
+  reading, as always — no verdict).
+
+### `new-abstraction`
+The diff introduces a new named abstraction — class, interface, service, wrapper, layer of
+indirection — that did not exist before.
+- **Detect:** new abstraction definitions in the diff (not relocations — `pure-move` /
+  `move-with-edits` groups don't fire this). Observational only: fires on *existence*, never
+  judges whether the abstraction is warranted.
+- **Playbook implication:** reviewer asks whether the abstraction earns its place — does an
+  existing pattern or utility already cover it; is one call site enough to justify a layer.
+
+### `comment-contradicts-code`
+A comment or docstring in the diff appears to disagree with what the adjacent code does.
+- **Detect:** model-observed — compare docstrings/comments against the implementation in the
+  same chunk; when firing, cite both sides (the comment line and the code line). If either
+  side is outside the diff's visible context, stay silent. Expected to carry `uncertain` more
+  often than other attributes; first-to-drop under the deprecation rule if it proves noisy.
+- **Playbook implication:** reviewer reads both and resolves which side is right — fix the
+  code or fix the comment. Checkable in seconds; the flag routes attention, never asserts
+  which side is wrong.
+
 ---
 
 ## Bucket 3 — About the BLAST RADIUS
@@ -117,6 +149,24 @@ Single attributes are factual descriptions. Combinations are signals:
 - `removes-validation` + `cross-service` → tightening a contract someone else relies on. Migration plan required.
 
 The brief shows attributes as a flat list per chunk; the reviewer reads the combination and makes the judgment. No verdict is asserted by the tool.
+
+---
+
+## Parked candidates (do not label with these)
+
+Registered here so labelers don't reinvent them; not valid tokens until unblocked. See ADR 0026.
+
+- **`unresolved-reference`** — a string-keyed reference (feature-flag name, env var,
+  translation key, route string, queue name) that doesn't resolve against the repo's
+  registries. The genuinely un-linted hallucinated surface: compilers catch unresolved
+  *imports* pre-review, nothing catches these. Needs per-repo registry knowledge + repo
+  context — parked until the `ContextSource` seam exists (ADR 0014). Note: plain
+  `unresolved-import` was **rejected**, not parked — compilers/CI own that lane (ADR 0026).
+- **`diverges-from-sibling-pattern`** — solves the task unlike sibling files do. Needs
+  sibling *selection* (a judgment with bad FP shape: accusing the author of inconsistency
+  based on our sampling choice) plus repo file fetching (`ContextSource`, escalation-tier per
+  ADR 0010/0014), and intentional divergence is routine in refactors. Deferred on evidence +
+  FP-shape grounds.
 
 ---
 

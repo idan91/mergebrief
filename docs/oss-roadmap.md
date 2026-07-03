@@ -132,9 +132,21 @@ the front-door work since it sharpens the demo, and naturally extends to P2's wa
   hint (`?`). Don't hijack keys when a comment composer / input is focused.
 - *(Surfaced 2026-06-30 from the CodeRabbit Atlas gap inventory — see Progress log.)*
 
-### Candidate — AI-authored-code review lens (thesis differentiator)  ·  status: [ ] candidate
+### Candidate — AI-authored-code review lens (thesis differentiator)  ·  status: [x] grilled → build-ready (2026-07-03, ADR 0026)
 
-**Needs grilling:** Yes (before any code) — the "factual no-verdict attributes vs bug-bot" boundary, the new Risk-Surface attribute set, and likely a new ADR. · **Docs:** [`../CONTEXT.md`](../CONTEXT.md) (Risk Surface / Intent check / Flag) · [ADR 0014](./adr/0014-external-context-and-ai-review-boundary.md) (AI-review boundary, cited-only) · [ADR 0003](./adr/0003-category-scoped-bug-hunt-not-general.md) (no-bug-bot)
+**Grilled 2026-07-03 — scope locked in [ADR 0026](./adr/0026-ai-authorship-risk-attributes.md).**
+Outcome (supersedes the "deterministic factual slice" framing below): v1 = **three
+model-observed Risk-Surface attributes** (`new-dependency`, `new-abstraction`,
+`comment-contradicts-code`) emitted by the existing categorization pass + validator
+confirmation for `new-dependency`. **Cut:** `unresolved-import` (compilers/CI own that lane —
+redundant pre-review in the target audience's repos). **Parked** behind ADR 0014's
+`ContextSource` seam: `diverges-from-sibling-pattern`, `unresolved-reference` (the truly
+un-linted hallucinated surface: flag/env/i18n/route string keys). **Positioning-only:** no
+in-product "AI signals" grouping — attributes stay authorship-agnostic; the lens lives in
+README/demo copy. No new infra: prompt + schema + validator + FE chips. Original candidate
+write-up kept below for history.
+
+**Needs grilling:** ~~Yes (before any code)~~ Done — see above. · **Docs:** [ADR 0026](./adr/0026-ai-authorship-risk-attributes.md) · [`../CONTEXT.md`](../CONTEXT.md) (Risk Surface / Intent check / Flag) · [ADR 0014](./adr/0014-external-context-and-ai-review-boundary.md) (AI-review boundary, cited-only) · [ADR 0003](./adr/0003-category-scoped-bug-hunt-not-general.md) (no-bug-bot)
 
 The one big code-review problem **neither we nor CodeRabbit address at the product level**:
 nobody reviews code *as AI-authored code*. Our whole premise is review in an AI-authored
@@ -265,6 +277,14 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   CodeRabbit's walkthrough. Browser-pass follow-ups (focus-mode overlay bugs, rail
   scrolling, segmented read-through progress, auto-advance on viewed) recorded in the
   root `todo.md` for one follow-up PR.
+- 2026-07-03 — **AI-authorship lens grilled → ADR 0026.** The "deterministic factual slice"
+  framing didn't survive audit (only 2 of 5 attributes were deterministic; one needed repo
+  access the pipeline doesn't have and is compiler-redundant anyway). Landed scope: three
+  model-observed attributes (`new-dependency` + validator confirm, `new-abstraction`,
+  `comment-contradicts-code`), positioning-only (no in-product AI grouping),
+  `unresolved-import` rejected, sibling-pattern + `unresolved-reference` parked behind
+  ContextSource (ADR 0014). Tokens registered in `labeling-schema.md` / `risk-surface.md`;
+  CONTEXT.md ambiguity recorded. **Next: implement the trio (small PR), then P3.**
 - 2026-07-03 — **Read-through follow-ups + lint tooling merged.** PR #17: the six PR #16
   browser-pass items (shortcuts-dead-after-commenting, focus banner overlap, composer
   clipping, scrollable rail, segmented progress, auto-advance — the last generalized to any

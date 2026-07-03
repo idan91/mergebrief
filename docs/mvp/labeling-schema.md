@@ -74,8 +74,13 @@ Default from Concern (`implementation` → carrier, else → supporting). **Flip
 Three buckets. Full detail in `risk-surface.md`. Factual only — never verdicts; severity emerges from *combinations*.
 
 - **About the code:** `no-tests`, `no-types`, `legacy-area`, `dense-logic`
-- **About the change:** `touches-auth`, `mutates-state`, `removes-validation`, `relaxes-permissions`, `widens-error-handling`, `adds-feature-flag`
+- **About the change:** `touches-auth`, `mutates-state`, `removes-validation`, `relaxes-permissions`, `widens-error-handling`, `adds-feature-flag`, `new-dependency`, `new-abstraction`, `comment-contradicts-code`
 - **About the blast radius:** `external-io`, `cross-service`, `schema-adjacent`, `hot-path`, `widely-imported`, `release-imminent`
+
+The last three change-bucket attributes (`new-dependency`, `new-abstraction`,
+`comment-contradicts-code`) are the AI-authorship trio (ADR 0026) — registered 2026-07-03.
+They are ordinary authorship-agnostic attributes in-product; the AI-failure-mode framing is
+positioning copy only.
 
 ---
 
