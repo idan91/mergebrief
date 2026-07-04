@@ -24,6 +24,96 @@ export type InstallationId = Brand<bigint, "InstallationId">;
 export type RepoId = Brand<bigint, "RepoId">;
 export type ReviewerId = Brand<bigint, "ReviewerId">;
 export type PullRequestRowId = Brand<bigint, "PullRequestRowId">;
+export type BriefRowId = Brand<bigint, "BriefRowId">;
+
+/**
+ * Type guards for branding raw bigints at boundaries (webhook payloads,
+ * job payloads, test fixtures). GitHub numeric ids and identity-column
+ * values are always positive; the guard is the sanctioned way to brand —
+ * never `as`.
+ */
+function isPositiveBigInt(value: bigint): boolean {
+  return value > 0n;
+}
+export function isInstallationId(value: bigint): value is InstallationId {
+  return isPositiveBigInt(value);
+}
+export function isRepoId(value: bigint): value is RepoId {
+  return isPositiveBigInt(value);
+}
+export function isReviewerId(value: bigint): value is ReviewerId {
+  return isPositiveBigInt(value);
+}
+export function isPullRequestRowId(value: bigint): value is PullRequestRowId {
+  return isPositiveBigInt(value);
+}
+export function isBriefRowId(value: bigint): value is BriefRowId {
+  return isPositiveBigInt(value);
+}
+
+/**
+ * Closed vocabularies (ADR 0018). Stored as plain `text` columns — no
+ * `pgEnum` — so adding a value is a code change, not a migration. The
+ * `as const` map + `ValueOf` union is the compile-time contract.
+ */
+
+/** `pull_request.state` (D5). */
+export const PrState = {
+  open: "open",
+  closed: "closed",
+  merged: "merged",
+} as const;
+export type PrState = ValueOf<typeof PrState>;
+
+/** `disposition.decision` (D7). */
+export const DispositionDecision = {
+  addressed: "addressed",
+  dismissed: "dismissed",
+} as const;
+export type DispositionDecision = ValueOf<typeof DispositionDecision>;
+
+/** `generation.kind` (D10, extended by D12 with `revision-narrative`). */
+export const GenerationKind = {
+  brief: "brief",
+  delta: "delta",
+  revisionNarrative: "revision-narrative",
+} as const;
+export type GenerationKind = ValueOf<typeof GenerationKind>;
+
+/** `generation.status` (D10). */
+export const GenerationStatus = {
+  queued: "queued",
+  running: "running",
+  succeeded: "succeeded",
+  failed: "failed",
+} as const;
+export type GenerationStatus = ValueOf<typeof GenerationStatus>;
+
+/** `generation.phase` (D10; optional determinate-progress detail). */
+export const GenerationPhase = {
+  fetching: "fetching",
+  redacting: "redacting",
+  generating: "generating",
+  writing: "writing",
+} as const;
+export type GenerationPhase = ValueOf<typeof GenerationPhase>;
+
+/** `audit_log.actor_type` (D9). */
+export const AuditActorType = {
+  reviewer: "reviewer",
+  app: "app",
+  system: "system",
+} as const;
+export type AuditActorType = ValueOf<typeof AuditActorType>;
+
+/** `audit_log.action` (D9; `view` may join later — code change only). */
+export const AuditAction = {
+  generate: "generate",
+  delete: "delete",
+  config: "config",
+  auth: "auth",
+} as const;
+export type AuditAction = ValueOf<typeof AuditAction>;
 
 /**
  * Discriminated union for expected failures (purge target missing, decrypt
