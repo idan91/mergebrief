@@ -72,11 +72,25 @@ writes and `generation` transitions. Shared Drizzle column groups: `tenant`
 (`id` identity + `installation_id`), `stamps` (`created_at` timestamptz), artifact trio
 (`body` TEXT + `byte_size` + `created_at`).
 
-## Stages (= commit chunks)
+## Stages (= commit chunks), with model routing
 
-1. **Package scaffold** — workspace entry, package.json, tsconfig, oxlint pickup, vitest
-   config, `docker-compose.yml` postgres, drizzle.config scoped to app schema. Empty schema
-   compiles; `pnpm -C packages/persistence typecheck` green.
+Each stage is one commit and one dispatchable unit of work. Model/effort routing keeps the
+expensive model where ADR-interpretation judgment matters and cheaper models where the spec
+is mechanical.
+
+| # | Stage | Model | Effort | Rationale |
+|---|---|---|---|---|
+| 1 | Package scaffold | Sonnet | low | mechanical; conventions copied from `tools/categorizer` |
+| 2 | Schema + first migration | **Fable** | high | the load-bearing stage — encodes every ADR decision; errors ripple |
+| 3 | Tenant repository | Opus | high | design-sensitive API surface; invariant crisply specified (D2b) |
+| 4 | ArtifactStore + write paths | Opus | medium | subtle `ON CONFLICT` semantics, well-trodden patterns |
+| 5 | Purge + retention | Opus | high | deletion correctness; ADR enumerates survivors, tests prove it |
+| 6 | Token crypto helper | Opus | medium | standard AES-GCM behind the key seam; security gate is the real check |
+
+1. **Package scaffold** — workspace entry, package.json (incl. `migrate` script →
+   `drizzle-kit migrate`), tsconfig, oxlint pickup, vitest config, `docker-compose.yml`
+   postgres, drizzle.config scoped to app schema. Empty schema compiles;
+   `pnpm -C packages/persistence typecheck` green.
 2. **Schema + first migration** — all 11 tables + shared column groups + raw-SQL migration
    items; `drizzle-kit generate` output checked in; migration applies clean to a fresh
    compose Postgres.
@@ -87,6 +101,12 @@ writes and `generation` transitions. Shared Drizzle column groups: `tenant`
 4. **ArtifactStore + write paths** — D6 seam over the typed tables; idempotent
    content-addressed writes (`ON CONFLICT DO UPDATE`); `generation` projection helpers
    (D10 transitions); `audit(...)` emit (D9: generate | delete | config | auth-denial).
+   **`comparison_marks` body rule:** persist only `{baselineSha, headSha, files[]}` from the
+   CLI's `ComparisonMarks` shape — `baselineLabel` and `baselineIndex` are read-time context
+   (the FE knows which compare family it requested; the index resolves from `brief`) and
+   MUST NOT enter `body`: the marks content is a pure function of the SHA pair, and the
+   checkpoint-equals-prevHead re-review case would otherwise demand two rows the span-only
+   unique key forbids.
 5. **Purge + retention routines** — PR/repo/installation purge (cascade off `pull_request`
    + explicit `reviewer_session` delete, audit retained per D5/D9); `purge_after` sweep
    query; TTL sweep for sessions.
@@ -95,6 +115,8 @@ writes and `generation` transitions. Shared Drizzle column groups: `tenant`
    envelope). Table consumers arrive in BRIEF-2.
 
 Each stage ends with: typecheck + vitest + lint green, security-review gate, commit.
+Stage handoffs carry no conversational context — each stage's brief is this plan + ADR 0018
+(amended) + the D-refs named above, so cheaper-model stages stay on rails.
 
 ## Testing
 
