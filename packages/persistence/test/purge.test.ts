@@ -422,11 +422,18 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
   it("sets purge_after = closedAt + grace and stamps closed_at", async () => {
     const { raw, handle } = await freshPair();
     const closedAt = new Date("2026-07-01T00:00:00Z");
-    const prId = await insertPr(raw, { installationId: TENANT_A, state: PrState.CLOSED, closedAt });
+    // Seeded OPEN: setRetention itself performs the terminal transition.
+    const prId = await insertPr(raw, { installationId: TENANT_A });
 
-    const result = await purgeRoutines(handle, CTX_A).setRetention(prId, closedAt, 7);
+    const result = await purgeRoutines(handle, CTX_A).setRetention(
+      prId,
+      PrState.CLOSED,
+      closedAt,
+      7,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected success");
+    expect(result.value.state).toBe(PrState.CLOSED);
     expect(result.value.closedAt?.getTime()).toBe(closedAt.getTime());
     const expected = closedAt.getTime() + 7 * 24 * 60 * 60 * 1000;
     expect(result.value.purgeAfter?.getTime()).toBe(expected);
@@ -439,7 +446,7 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
     const closedAt = new Date("2026-07-01T00:00:00Z");
 
     for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
-      const result = await routines.setRetention(prId, closedAt, bad);
+      const result = await routines.setRetention(prId, PrState.CLOSED, closedAt, bad);
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("expected failure");
       expect(result.error.code).toBe(PurgeErrorCode.INVALID_GRACE);
@@ -452,13 +459,14 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
   it("null grace disables retention — the row is never swept", async () => {
     const { raw, handle } = await freshPair();
     const routines = purgeRoutines(handle, CTX_A);
-    const prId = await insertPr(raw, {
-      installationId: TENANT_A,
-      state: PrState.CLOSED,
-      closedAt: new Date("2026-07-01T00:00:00Z"),
-    });
+    const prId = await insertPr(raw, { installationId: TENANT_A });
 
-    const result = await routines.setRetention(prId, new Date("2026-07-01T00:00:00Z"), null);
+    const result = await routines.setRetention(
+      prId,
+      PrState.MERGED,
+      new Date("2026-07-01T00:00:00Z"),
+      null,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected success");
     expect(result.value.purgeAfter).toBeNull();
@@ -474,6 +482,7 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
     const prId = await insertPr(raw, { installationId: TENANT_A });
     const result = await purgeRoutines(handle, { installationId: TENANT_B }).setRetention(
       prId,
+      PrState.CLOSED,
       new Date(),
       3,
     );

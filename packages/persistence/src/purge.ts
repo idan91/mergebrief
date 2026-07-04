@@ -34,6 +34,7 @@ import type { PullRequestRow, TenantContext } from "./tenant";
 import {
   AuditAction,
   AuditActorType,
+  type PrState,
   type PullRequestRowId,
   type RepoId,
   type Result,
@@ -103,12 +104,17 @@ export interface PurgeRoutines {
    */
   purgeInstallation(): Promise<InstallationPurgeCounts>;
   /**
-   * Set `purge_after = closedAt + graceDays`, or NULL when `graceDays` is null
-   * (retention disabled / "never" — the row is never swept, D5). Also stamps
-   * `closed_at`. Tenant-verified: `notFound` if the PR is not in ctx.
+   * The close-time retention seam (D5): atomically records the terminal
+   * `state` and sets `purge_after = closedAt + graceDays`, or NULL when
+   * `graceDays` is null (retention disabled / "never" — the row is never
+   * swept). Carrying the terminal state in the signature keeps this API
+   * aligned with the `pull_request_open_retention_shape` CHECK — an open PR
+   * can never be armed, by construction rather than by DB error.
+   * Tenant-verified: `notFound` if the PR is not in ctx.
    */
   setRetention(
     prRowId: PullRequestRowId,
+    state: typeof PrState.CLOSED | typeof PrState.MERGED,
     closedAt: Date,
     graceDays: number | null,
   ): Promise<Result<PullRequestRow, PurgeError>>;
@@ -214,7 +220,7 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
       });
     },
 
-    async setRetention(prRowId, closedAt, graceDays) {
+    async setRetention(prRowId, state, closedAt, graceDays) {
       // Guard the primitive itself: a negative/NaN grace would silently make
       // the row instantly sweepable — a data-loss footgun no upstream
       // validation should be trusted to catch (D5).
@@ -225,7 +231,7 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
         graceDays === null ? null : new Date(closedAt.getTime() + graceDays * MS_PER_DAY);
       const rows = await db
         .update(pullRequest)
-        .set({ closedAt, purgeAfter, updatedAt: new Date() })
+        .set({ state, closedAt, purgeAfter, updatedAt: new Date() })
         .where(and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, prRowId)))
         .returning();
       const row = rows[0];
