@@ -1,7 +1,20 @@
-// Purge + retention routines (ADR 0018 D5 / D9 / D11) — the deletion seam,
-// tenant-ctx-bound like every other DB surface in this package. Built over the
-// opaque `AppDatabase`, unwrapped in-package with `internal()` (never
-// re-exported), so consumers still cannot reach a raw query handle (D2b).
+// Purge + retention: everything that DELETES data, in one place.
+//
+// In plain terms — this module makes the tool forget. Everything in this DB
+// is either a derived copy of the adopter's code (briefs, diffs) or personal
+// data (reviewer ids, sessions); both turn into liability once their purpose
+// passes. GitHub remains the source of truth, so forgetting is always safe.
+// Nobody clicks these from a UI: the close webhook arms retention
+// (`setRetention`), a scheduled worker job runs the sweeps, the app-uninstall
+// webhook triggers `purgeInstallation`, and an operator can purge a single
+// PR/repo directly (leaked secret, compliance request). Forgetting is a
+// CAPABILITY, not a mandate — retention "never" (null grace) keeps everything.
+// See README "Your data" for the product-level story.
+//
+// Design (ADR 0018 D5 / D9 / D11) — the deletion seam, tenant-ctx-bound like
+// every other DB surface in this package. Built over the opaque `AppDatabase`,
+// unwrapped in-package with `internal()` (never re-exported), so consumers
+// still cannot reach a raw query handle (D2b).
 //
 // Erasure completeness is the DB's job, not ours: every per-PR child table
 // (`brief`, `delta`, `diff_snapshot`, `revision_narrative`, `comparison_marks`,
