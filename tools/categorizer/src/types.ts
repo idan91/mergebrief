@@ -4,7 +4,7 @@ import { z } from "zod/v4";
  * Brief schema — the heart of the categorizer.
  *
  * Mirrors the controlled vocabulary in `docs/mvp/labeling-schema.md` (the
- * authoritative closed token list) and `docs/mvp/risk-surface.md` (the 16
+ * authoritative closed token list) and `docs/mvp/risk-surface.md` (the 19
  * factual attributes). If a token is not registered there, it is not valid
  * here — keep these enums in lockstep with those files.
  *

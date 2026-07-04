@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import type { z } from "zod/v4";
+import { enumPreservingOutputFormat } from "./outputFormat.js";
 import { salvageDroppableEnums } from "./salvage.js";
 import type { Effort, Generation } from "./types.js";
 
@@ -19,11 +19,13 @@ export interface GenerateRequest<S extends z.ZodType> {
   label: string;
   /**
    * Array fields whose invalid elements may be dropped (warn-and-drop) when
-   * strict parsing fails. Anthropic structured output doesn't enforce `enum`
-   * server-side (the SDK demotes it to description prose), so the model can
-   * emit an out-of-vocabulary token; for supplementary fields that's not
-   * worth killing a whole generation over. Structural failures and fields
-   * not named here still hard-fail (after one retry).
+   * strict parsing fails. Closed vocabularies are now enforced server-side via
+   * the hand-built enum-preserving schema (`enumPreservingOutputFormat`), so an
+   * out-of-vocabulary token can no longer be decoded in the first place. Salvage
+   * stays as defense-in-depth for what enforcement doesn't cover — structural
+   * failures, refusals, and any residual slip — dropping bad elements of
+   * supplementary fields rather than killing a whole generation. Structural
+   * failures and fields not named here still hard-fail (after one retry).
    */
   salvageFields?: readonly string[];
   log?: Logger;
@@ -161,7 +163,10 @@ export class AnthropicGenerator implements Generator {
       model: MODEL,
       max_tokens: MAX_TOKENS,
       thinking: { type: "adaptive" },
-      output_config: { format: zodOutputFormat(req.schema), effort: req.effort },
+      output_config: {
+        format: enumPreservingOutputFormat(req.schema),
+        effort: req.effort,
+      },
       system: [
         { type: "text", text: req.system, cache_control: { type: "ephemeral" } },
       ],
