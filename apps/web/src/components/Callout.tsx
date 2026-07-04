@@ -10,6 +10,7 @@ import {
   useFloating,
   useHover,
   useInteractions,
+  useTransitionStyles,
   type Placement,
 } from "@floating-ui/react";
 import { useRef, type ReactNode } from "react";
@@ -38,9 +39,17 @@ export interface CalloutProps {
  * and points at it with an arrow. Mounted = open; the parent owns the
  * open state and gets `onClose` when hover leaves.
  */
+/** How far the callout slides in from, toward its anchor. */
+const ENTER_SLIDE: Record<string, string> = {
+  top: "translateY(4px)",
+  bottom: "translateY(-4px)",
+  left: "translateX(4px)",
+  right: "translateX(-4px)",
+};
+
 function CalloutRoot({
   anchor,
-  placement = "bottom",
+  placement = "top",
   fit = false,
   onClose,
   children,
@@ -53,6 +62,9 @@ function CalloutRoot({
     },
     placement,
     elements: { reference: anchor },
+    // Position via top/left so the enter transition can own `transform`
+    // without fighting the positioning transform.
+    transform: false,
     whileElementsMounted: autoUpdate,
     middleware: [
       offset(10),
@@ -63,6 +75,17 @@ function CalloutRoot({
   });
   const hover = useHover(context, { handleClose: safePolygon() });
   const { getFloatingProps } = useInteractions([hover]);
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const { styles: transitionStyles } = useTransitionStyles(context, {
+    duration: reduceMotion ? 0 : 140,
+    common: { transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" },
+    initial: ({ side }) => ({
+      opacity: 0,
+      transform: ENTER_SLIDE[side],
+    }),
+  });
   return (
     <FloatingPortal>
       <span
@@ -70,7 +93,7 @@ function CalloutRoot({
         data-fit={fit ? "" : undefined}
         ref={refs.setFloating}
         role="tooltip"
-        style={floatingStyles}
+        style={{ ...floatingStyles, ...transitionStyles }}
         {...getFloatingProps()}
       >
         <FloatingArrow
