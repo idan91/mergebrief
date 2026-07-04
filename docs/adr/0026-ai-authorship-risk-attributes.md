@@ -1,5 +1,15 @@
 # AI-Authorship Risk Attributes — Model-Observed, Positioning-Only
 
+> **Amended 2026-07-04 — positioning clause withdrawn.** Writing the README copy showed the
+> AI-failure-mode framing doesn't survive scrutiny: every failure mode the trio targets
+> (needless dependency, premature abstraction, born-false comments) is authorship-independent,
+> so the copy either over-claimed or immediately conceded its own headline. Positioning is now
+> **authorship-neutral**: a clearer, story-first review experience for author and reviewer,
+> fewer review iterations. Decision points 1–4 and 6 stand unchanged; point 5's product half
+> (authorship-agnostic attributes, no in-product AI grouping) stands and is now simpler — no
+> copy asserts what the product refuses to assert. Only "the lens lives in README/demo copy"
+> is dropped.
+
 The AI-authored-code review lens ships in v1 as **three model-observed Risk-Surface
 attributes** — `new-dependency`, `new-abstraction`, `comment-contradicts-code` — emitted by
 the existing categorization pass, with mechanical validator confirmation for

@@ -5,9 +5,10 @@ from a flat file-list into a **Brief**: changes re-unitized into categorized **C
 each with a plain-language summary, a per-category **Playbook** (the known checklist for that
 kind of change), and **Risk Surface** attributes — facts worth a closer look, never a verdict.
 
-Built for the reality that a machine wrote a lot of this code. Brief doesn't try to spot bugs;
-it routes attention to the places AI-authored diffs characteristically need a closer look, and
-gives a reviewer a structured way to see what actually changed and why.
+Brief doesn't try to spot bugs. It organizes the review itself: the author hands over a change
+with its story already told, the reviewer follows that story instead of reconstructing it from
+the diff, attention lands where it's needed, and it takes fewer review iterations to reach a
+confident merge.
 
 ## Why this, and not [CodeRabbit](https://www.coderabbit.ai/) or another AI review bot?
 
@@ -22,8 +23,9 @@ recognizable across every PR you ever review, and a Playbook can attach to it re
   send nothing back to us, by design.
 - **Hackable.** The taxonomy and Playbooks are plain markdown — read them, extend them,
   contribute to them. An ESLint-rules-style commons, not a black box.
-- **Facts, never verdicts.** Risk Surface attributes are deterministic and factual
-  (`no-tests`, `mutates-state`, `external-io`, …). The tool never scores, approves, or rejects —
+- **Facts, never verdicts.** Risk Surface attributes are factual observations a reviewer can
+  check in seconds (`no-tests`, `mutates-state`, `external-io`, …), mechanically confirmed
+  against the diff where that's possible. The tool never scores, approves, or rejects —
   it produces a **Receipt** of what it checked, and the human makes the call.
 
 See [`docs/vision.md`](./docs/vision.md) for the full charter, including what this project
@@ -59,7 +61,7 @@ see [`tools/categorizer/README.md`](./tools/categorizer/README.md).
 |---|---|
 | **Story view** | The Brief grouped by Change-group: what changed, why, and the Playbook for that category |
 | **Concern view** | The same diff pivoted by artifact (implementation vs test vs doc vs config) — how much of the PR is real change vs scaffolding |
-| **Risk Surface** | Factual, deterministic attributes per chunk (`no-tests`, `touches-auth`, `widely-imported`, …) — never a severity score |
+| **Risk Surface** | Factual attributes per chunk (`no-tests`, `touches-auth`, `comment-contradicts-code`, …), each checkable in seconds — never a severity score |
 | **Receipt** | What the tool verified and what it didn't, plus the disposition of every flag (addressed / dismissed with reason). Never an approval |
 
 ## Project layout

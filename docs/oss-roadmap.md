@@ -307,6 +307,17 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   **Next: ADR 0026 positioning copy pass (README/demo — the lens is positioning-only by
   design, so it's invisible until the copy stakes it), then P3.** Follow-up filed in PR #20:
   spike hand-built `json_schema` with `enum` intact for server-side enforcement.
+- 2026-07-04 — **Positioning copy pass done — and the AI-authorship angle killed.**
+  Drafting the README section surfaced that the framing doesn't hold: every failure mode
+  the trio targets is authorship-independent (humans write born-false comments too), so
+  the copy either over-claimed or immediately conceded its own headline. Direction locked
+  (Idan): the main idea is a **clearer, more organized review experience for author and
+  reviewer** — follow the story of a change, route attention, cut review iterations. The
+  AI era stays world-context in `vision.md`, never the product's identity. README
+  rewritten authorship-neutral; stale "deterministic" Risk-Surface claims corrected to
+  observation-language; ADR 0026 amended (positioning clause withdrawn; the three
+  attributes + authorship-agnostic product decisions stand). **Next: P3 (playbook
+  commons).**
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +
