@@ -13,7 +13,7 @@
 // no update/delete helpers — append-only by convention (the
 // `REVOKE UPDATE/DELETE` is the hosted hardening step).
 import { z } from "zod";
-import { type AppDatabase, internal } from "./db.js";
+import { type AppDatabase, type AppDrizzle, internal } from "./db.js";
 import { auditLog } from "./schema/audit-log.js";
 import type { AuditAction, AuditActorType, InstallationId, ValueOf } from "./types.js";
 
@@ -91,15 +91,17 @@ export interface AuditEntry {
 }
 
 /**
- * Emit one append-only audit row. Validates `metadata` against the non-PII
- * scalar schema (Zod boundary) — malformed metadata is a programmer error and
- * throws. Accepts the opaque `AppDatabase`; unwrapped in-package so no raw
- * handle escapes (D2b).
+ * Emit one append-only audit row on the given drizzle executor. In-package
+ * seam (NOT re-exported from `lib.ts`): a transaction `tx` is assignable to
+ * `AppDrizzle`, so a purge routine can append its `delete` entry in the SAME
+ * transaction as the deletes it records (D5/D9 — the ledger survives because
+ * `audit_log` has no FK, and the emit commits atomically with the cascade).
+ * Validates `metadata` against the non-PII scalar schema (Zod boundary) —
+ * malformed metadata is a programmer error and throws.
  */
-export async function audit(handle: AppDatabase, entry: AuditEntry): Promise<AuditLogRow> {
-  const db = internal(handle);
+export async function insertAudit(executor: AppDrizzle, entry: AuditEntry): Promise<AuditLogRow> {
   const metadata = entry.metadata === undefined ? null : AuditMetadataSchema.parse(entry.metadata);
-  const rows = await db
+  const rows = await executor
     .insert(auditLog)
     .values({
       installationId: entry.installationId,
@@ -116,4 +118,13 @@ export async function audit(handle: AppDatabase, entry: AuditEntry): Promise<Aud
     throw new Error("audit_log insert returned no row");
   }
   return row;
+}
+
+/**
+ * Emit one append-only audit row. Accepts the opaque `AppDatabase`; unwrapped
+ * in-package so no raw handle escapes (D2b). Convenience over `insertAudit` for
+ * single-shot, non-transactional emits (`generate` / `config` / auth-denial).
+ */
+export async function audit(handle: AppDatabase, entry: AuditEntry): Promise<AuditLogRow> {
+  return insertAudit(internal(handle), entry);
 }
