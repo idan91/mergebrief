@@ -1,8 +1,13 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 
+import { Callout } from "../../../../components/Callout";
 import { reviewCommentsForChunk } from "../../reviewComments";
 import { buildChunkComparisonView } from "../../comparison";
-import type { AddressedReviewComment, BriefChunk } from "../../types";
+import type {
+  AddressedReviewComment,
+  BriefChunk,
+  RiskSurfaceAttribute,
+} from "../../types";
 import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import {
   AddressedComments,
@@ -35,6 +40,60 @@ export interface ChunkCardProps {
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
   toggleReviewComment: (commentId: string) => void;
   updateReviewComment: (commentId: string, body: string) => void;
+}
+
+interface OverflowTip {
+  top: number;
+  left: number;
+  arrowX: number;
+}
+
+/**
+ * The "+N" chip for risk attributes beyond the header's two-chip budget.
+ * Its callout is portal-rendered at a fixed position: the card clips its
+ * overflow and the sticky header's backdrop-filter creates a containing
+ * block, so an in-place popover (or the native title) cannot escape the
+ * header. Hover-only for sighted users; screen readers get the full list
+ * inline via the visually-hidden span.
+ */
+function OverflowRiskChip({ attrs }: { attrs: RiskSurfaceAttribute[] }) {
+  const [tip, setTip] = useState<OverflowTip | null>(null);
+  return (
+    <span
+      onMouseEnter={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        // Clamp to the viewport (320px max callout width, 8px margin) and
+        // keep the arrow on the chip even when the callout shifts.
+        const left = Math.max(
+          8,
+          Math.min(centerX - 18, window.innerWidth - 328),
+        );
+        setTip({ top: rect.bottom + 8, left, arrowX: centerX - left });
+      }}
+      onMouseLeave={() => setTip(null)}
+    >
+      <Badge className={styles["riskChip"]} color={BadgeColors.AMBER}>
+        +{attrs.length}
+        <ScreenReaderOnly>{` ${attrs.join(", ")}`}</ScreenReaderOnly>
+      </Badge>
+      {tip ? (
+        <Callout arrowX={tip.arrowX} fit pos={tip}>
+          <span className={styles["tipChips"]}>
+            {attrs.map((attr) => (
+              <Badge
+                className={styles["riskChip"]}
+                color={BadgeColors.AMBER}
+                key={attr}
+              >
+                {attr}
+              </Badge>
+            ))}
+          </span>
+        </Callout>
+      ) : null}
+    </span>
+  );
 }
 
 export const ChunkCard = memo(function ChunkCard({
@@ -97,23 +156,21 @@ export const ChunkCard = memo(function ChunkCard({
           <span className={styles["twist"]}>▶</span>
           <span className={styles["file"]}>{chunk.file}</span>
           <span className={styles["chips"]}>
-            {riskChips.shown.map((risk) => (
-              <Badge
-                className={styles["riskChip"]}
-                color={BadgeColors.AMBER}
-                key={risk}
-              >
-                {risk}
-              </Badge>
-            ))}
-            {riskChips.overflow.length > 0 ? (
-              <Badge
-                className={styles["riskChip"]}
-                color={BadgeColors.AMBER}
-                title={riskChips.overflow.join(", ")}
-              >
-                +{riskChips.overflow.length}
-              </Badge>
+            {riskChips.shown.length > 0 ? (
+              <span className={styles["riskLane"]}>
+                {riskChips.shown.map((risk) => (
+                  <Badge
+                    className={styles["riskChip"]}
+                    color={BadgeColors.AMBER}
+                    key={risk}
+                  >
+                    {risk}
+                  </Badge>
+                ))}
+                {riskChips.overflow.length > 0 ? (
+                  <OverflowRiskChip attrs={riskChips.overflow} />
+                ) : null}
+              </span>
             ) : null}
             <span className={styles["chip"]} data-concern={chunk.concern}>
               <span className={styles["dot"]} />

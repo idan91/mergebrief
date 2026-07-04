@@ -69,6 +69,12 @@
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    // Truncate from the start: the tail of a path (filename) is the part
+    // that identifies the chunk. RTL flips the ellipsis side; the latin
+    // path itself stays one LTR run, so glyph order is unchanged.
+    direction: rtl;
+    text-align: start;
   }
 
   .chips {
@@ -80,11 +86,29 @@
     font-size: 12px;
   }
 
+  // Risk chips sit shoulder to shoulder; a tighter gap than the metadata
+  // lane reads them as one group.
+  .riskLane {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
   // Risk tokens are taxonomy identifiers — keep them lowercase-kebab as
-  // written (the Badge default uppercases role tags like CARRIER).
+  // written (the Badge default uppercases role tags like CARRIER). The
+  // border recedes so the token — same amber as the rail's risk groups —
+  // carries the weight.
   .riskChip {
     text-transform: none;
     letter-spacing: 0;
+    border-color: color-mix(in srgb, var(--amber) 38%, transparent);
+    color: var(--amber);
+  }
+
+  .tipChips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .chip {

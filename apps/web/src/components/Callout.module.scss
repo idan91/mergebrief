@@ -11,6 +11,26 @@
   pointer-events: none;
 }
 
+.callout[data-fit] {
+  width: max-content;
+  max-width: 320px;
+}
+
+// Anchoring arrow on the top edge: a rotated square sharing the callout's
+// background, with only its exposed (top/left) sides borrowed as borders.
+.callout[data-arrow]::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -4.5px;
+  inset-inline-start: var(--callout-arrow-x, 18px);
+  inline-size: 8px;
+  block-size: 8px;
+  border-block-start: 1px solid var(--line2);
+  border-inline-start: 1px solid var(--line2);
+  background: #15151a;
+  transform: translateX(-50%) rotate(45deg);
+}
+
 .eyebrow {
   display: block;
   margin-bottom: 5px;
