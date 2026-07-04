@@ -42,16 +42,20 @@
     margin-block-start: 16px;
   }
 
+  // Two 1.25 hierarchy steps below the summary's "## Changelog" h2
+  // (23.25px → 18.6 → ~15px), so the section reads as an h4-level sibling
+  // of the summary's own headings.
   .summaryRiskHeading {
-    margin: 0 0 8px;
-    color: var(--faint);
-    font-size: 12px;
-    font-weight: 500;
+    margin-block: 0 8px;
+    color: var(--text);
+    font-size: 15px;
+    font-weight: 600;
   }
 
+  // The trailing note reads as body copy, not part of the heading.
   .summaryRiskNote {
+    color: var(--dim);
     font-weight: 400;
-    color: var(--faint);
   }
 
   .summaryRiskChips {
