@@ -8,6 +8,11 @@ ADR 0008's logical persistence model realized as the physical M1 schema on vanil
 
 Decisions D1–D11 below cover all six ADR 0008 entities plus the tenant scoping, retention + deletion seam, append-only audit log, the graphile-worker boundary, the `generation` status projection, and reviewer-token storage. The table inventory and the entity→table mapping are in **Consequences**.
 
+> **Amended 2026-07-04** (pre-build validation against ADRs 0020/0021/0024): `activated_at`
+> dropped from D5 (the lazy Activation gate it encoded was retired by ADR 0020); **D12**
+> (`revision_narrative`) and **D13** (`comparison_marks`) added for the artifacts ADR 0024
+> introduced after this schema was grilled.
+
 ## Decisions
 
 ### D1 — Identity columns
@@ -68,7 +73,6 @@ pull_request
   pr_number       int    not null
   repo_slug       text              -- purgeable display (D1), refreshed on webhook
   state           text not null     -- open | closed | merged
-  activated_at    timestamptz       -- null until first deep-link click (Activation gate)
   closed_at       timestamptz
   purge_after     timestamptz       -- nullable; the sweep target
   created_at / updated_at
@@ -79,7 +83,8 @@ pull_request
 - **Simplifies child keys:** children carry `installation_id` (tenant filter, no join) + a `pull_request_id` FK, replacing the loose `(repo_id, pr_number)`. Brief key → `(installation_id, pull_request_id, base_sha, head_sha)`.
 - **No `repo` table in M1** — `repo_id`/`repo_slug` are columns here; a real `repo` table waits for per-repo config (M3).
 - **Deletion seam (ADR 0015 #6 / 0016 #11):** per-PR children FK `pull_request.id` **`ON DELETE CASCADE`**. Purge by PR = delete one row; by repo / installation = scoped predicate-delete on `pull_request` (cascades) + explicit deletes for the non-PR tables (reviewer sessions; audit retained — numeric-only). The DB guarantees erasure completeness (no forgotten child table). **No `installation→repo→pull_request` hierarchy in M1** — `instance = tenant` means one installation, so the small explicit purge routine is cheaper than a hierarchy we don't use.
-- **Retention:** `purge_after` is **nullable** — null while the PR is open *and* when retention is disabled / set to "never" (the row is never swept). Set to `closed_at + grace` at close per config. Sweep = `WHERE purge_after IS NOT NULL AND purge_after < now()`, backed by a partial index on `purge_after`. `activated_at` gates compute (Activation).
+- **Retention:** `purge_after` is **nullable** — null while the PR is open *and* when retention is disabled / set to "never" (the row is never swept). Set to `closed_at + grace` at close per config. Sweep = `WHERE purge_after IS NOT NULL AND purge_after < now()`, backed by a partial index on `purge_after`.
+- ~~`activated_at` gates compute (Activation).~~ **Dropped (2026-07-04, ADR 0020):** the lazy compute-on-first-click gate is retired — Trigger is eager-on-push, the deep-link click is pure Entry, so there is no gating state to store. Re-adding a `first_entered_at` later (e.g. if ADR 0020's `on-first-view` escape hatch is ever exercised) is an additive migration; first-entry *analytics* belong in the purgeable web access log (D9), never here.
 
 ### D6 — Artifact storage: inline `TEXT` + a code-level `ArtifactStore` seam
 
@@ -214,6 +219,77 @@ reviewer_session   -- the self-host default adapter; the ONE secret-bearing tabl
 - **Not FK'd to `pull_request`** (per `(installation, reviewer)`). Cleared by: TTL sweep (`expires_at`), logout, and the installation-purge routine (D5).
 - **Behind an identity-provider seam** (same pattern as the key provider #7 and Generator port 0013) so the hosted arm can swap in a managed provider. **Clerk is cloud-only → cannot be a self-host dependency**; it stays a hosted-arm option, not used in M1.
 
+### D12 — Revision narrative (added 2026-07-04, from ADR 0024)
+
+ADR 0024 introduced the **Revision narrative** after this schema was grilled: a lean, shared,
+generated explanation of the `prevHead→head` span, produced for every **non-first** Brief in an
+additional LLM call, explicitly *not* the Delta Brief schema (no Checkpoint, no carry-over, no
+"since you last looked"), attaching narrative chunks to the full Brief's Change-group IDs, and
+able to fail independently of the Brief.
+
+```
+revision_narrative
+  id              bigint identity   PK
+  installation_id bigint not null
+  pull_request_id bigint not null   FK → pull_request(id) ON DELETE CASCADE
+  brief_id        bigint not null   FK → brief(id)        ON DELETE CASCADE
+  prev_head_sha   text   not null   -- the previously briefed head (a THIRD SHA role — neither
+                                    --   Brief base nor Checkpoint baseline; own column name)
+  head_sha        text   not null
+  provider / model / effort         -- LLM provenance (D6), surfaced on the Receipt
+  body text, byte_size, created_at  -- passthrough, inline (D6)
+  UNIQUE (installation_id, pull_request_id, prev_head_sha, head_sha)
+```
+
+- **Own table, not a `delta.kind` discriminator** — packing two artifacts whose lower-bound SHA
+  means different things (`baseline_sha` = checkpoint vs `prev_head_sha` = prior briefed head)
+  into one table re-blurs exactly the SHA-role distinction D3 exists to keep apart, and ADR 0024
+  rejected Delta-Brief reuse at the concept level. Not embedded in the `brief` body either — the
+  narrative is a separate call that can fail/arrive independently; embedding would delay the
+  Brief write or make `brief` rows mutable (D5).
+- **`brief_id` FK = the anchoring rule.** The narrative points into brief-local Change-group IDs,
+  which dangle on regeneration (same hazard D7 guards against). The FK makes the coupling
+  explicit: **1:1 with a specific `brief` row, optional** (first Brief has none; failed call =
+  row absent, UI shows "summary unavailable"). A narrative **never spans Briefs** and is never
+  re-anchored forward — a new head gets a new Brief with its own narrative; a regenerated Brief
+  cascades the old narrative away and regenerates it against the new group IDs.
+- `generation.kind` (D10) gains `revision-narrative` so the wait UX can reflect the extra call;
+  single-flight rides the same per-PR `job_key` (it runs inside the Brief generation job).
+
+### D13 — Comparison marks (added 2026-07-04, from ADR 0024)
+
+ADR 0024: "every selectable comparison span gets a mechanical changed-line sidecar keyed by
+`(baselineSha, headSha)`" — the **source of truth for FE highlighting**, LLM-independent.
+Two span families consume it: `prevHead→head` (Previous Brief compare) and `checkpoint→head`
+(Your-last-review compare); the marks themselves are a pure tree-diff of two SHAs, so one table
+serves both.
+
+```
+comparison_marks
+  id              bigint identity   PK
+  installation_id bigint not null
+  pull_request_id bigint not null   FK → pull_request(id) ON DELETE CASCADE
+  baseline_sha    text   not null   -- span lower bound: a prevHead OR a checkpoint SHA
+  head_sha        text   not null
+  body text, byte_size, created_at  -- marks payload, passthrough, inline (D6)
+  UNIQUE (installation_id, pull_request_id, baseline_sha, head_sha)
+```
+
+- **Persisted, not recomputed on demand** — the same GC argument that justified `diff_snapshot`
+  (D4): a comparison span's *lower* bound is exactly the kind of SHA force-push GC makes
+  unreachable; on-demand recompute would silently kill the Previous-Brief compare on older
+  timeline points. Written by the worker at generation/pre-warm time (ADR 0024 §Generation).
+- **Coordinates-only, unconditional — NOT code-bearing.** A mark is `file + side + line-range +
+  change kind`, never line *content*. That keeps it outside D4's "no raw code in the DB" rule —
+  no `persist_baseline_snapshot` gate needed, and `diff_snapshot` remains the **single**
+  persisted-code exception. The FE paints marks onto diff content fetched live (D4's ephemeral
+  path); removed-at-head content on a GC'd span degrades to an honest "content unavailable" —
+  same degradation family as delta→full-Brief.
+- **No provenance columns** — mechanical output, not LLM output (same rule as `diff_snapshot`).
+- Reviewer-agnostic by construction (SHA-pair key, no `reviewer_id`) — a returning reviewer's
+  `checkpoint→head` marks are shareable by any reviewer at the same checkpoint, mirroring the
+  delta-core/overlay split (D8).
+
 ## Consequences
 
 **Table inventory (M1, materialized):**
@@ -224,6 +300,8 @@ reviewer_session   -- the self-host default adapter; the ONE secret-bearing tabl
 | `brief` | immutable artifact (inline `body`) | key `(installation_id, pull_request_id, base_sha, head_sha)` + provenance + `head_index`/`commit_count` |
 | `delta` | immutable artifact (inline `body`) | key `(…, baseline_sha, head_sha)`, reviewer-agnostic core |
 | `diff_snapshot` | immutable artifact (inline `body`) | the configurable baseline snapshot; key `(…, sha)` |
+| `revision_narrative` | immutable artifact (inline `body`) | 1:1-optional with a `brief` row (FK, cascades); key `(…, prev_head_sha, head_sha)` (D12) |
+| `comparison_marks` | immutable artifact (inline `body`) | mechanical, coordinates-only, no provenance; key `(…, baseline_sha, head_sha)` (D13) |
 | `checkpoint` | per-reviewer position | `last_submitted_sha`; webhook-driven |
 | `disposition` | anchored decision | table in M1, **rows written M2** |
 | `generation` | mutable CQRS status projection | poll target; not a domain entity |
@@ -234,7 +312,7 @@ reviewer_session   -- the self-host default adapter; the ONE secret-bearing tabl
 
 **Deferred (additive migrations, zero rewrite):** `delta_overlay` (carry-over overlay → M2), a `repo` table (per-repo config → M3).
 
-**Entity → table (anchored to ADR 0008 / CONTEXT):** Brief→`brief`, Delta core→`delta`, Carry-over overlay→`delta_overlay` (M2 seam), DiffSnapshot→`diff_snapshot`, Checkpoint→`checkpoint`, Disposition→`disposition`.
+**Entity → table (anchored to ADR 0008 / CONTEXT):** Brief→`brief`, Delta core→`delta`, Carry-over overlay→`delta_overlay` (M2 seam), DiffSnapshot→`diff_snapshot`, Checkpoint→`checkpoint`, Disposition→`disposition`, Revision narrative→`revision_narrative` (ADR 0024), Revision changes / comparison marks→`comparison_marks` (ADR 0024).
 
 **Confirmations (per the task):**
 - **No raw diffs persisted.** Current-head diffs are fetched **on-demand by token**, ephemeral per-session cache, never in the DB (D4). The *only* persisted code is the configurable baseline snapshot.
@@ -263,6 +341,8 @@ Collected here so the model terms live next to the schema; `CONTEXT.md` stays pr
 - **Span artifact** — a Brief or Delta identified by two SHA endpoints `[lower, head]`.
 - **Brief base** (`base_sha`) — the PR-base endpoint; a Brief covers the whole PR, `base→head`.
 - **Checkpoint baseline** (`baseline_sha`) — a Delta's lower endpoint = the reviewer's **Checkpoint** (a prior head). Distinct from the Brief base.
+- **Prior briefed head** (`prev_head_sha`) — a Revision narrative's lower endpoint = the head of the immediately previous Brief. The third SHA role; neither Brief base nor Checkpoint baseline (D12).
+- **Comparison marks** — the mechanical, coordinates-only changed-line sidecar for a comparison span `(baseline_sha, head_sha)`; source of truth for FE highlighting; table `comparison_marks` (D13). Not code-bearing; not an LLM artifact.
 - **Delta core** — the shared, reviewer-agnostic code-change narrative for a span (the expensive LLM part); table `delta`.
 - **Carry-over overlay** — the per-reviewer layer (flag carry-over + comment anchoring) on top of the core; `Rendered Delta = core + overlay`; table `delta_overlay` (M2).
 - **DiffSnapshot / baseline snapshot** — the persisted `base→checkpoint` diff at a Checkpoint; config-gated; lets a Delta survive force-push GC; table `diff_snapshot`.
