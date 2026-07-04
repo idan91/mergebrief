@@ -11,7 +11,8 @@
     "categorize": "tsx src/index.ts",
     "delta": "tsx src/delta-cli.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "probe:enum": "tsx scripts/probe-enum-enforcement.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
