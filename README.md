@@ -79,6 +79,12 @@ developed OSS project, not a finished product. The domain model is documented in
 [`CONTEXT.md`](./CONTEXT.md); architectural decisions are recorded as ADRs under
 [`docs/adr/`](./docs/adr/).
 
+## Contributing
+
+The taxonomy and Playbooks are the contribution surface — an ESLint-rules-style commons of
+review knowledge, kept in plain markdown. Adding a failure mode to a Playbook or proposing a
+Risk-Surface attribute needs no code at all. See [`CONTRIBUTING.md`](./CONTRIBUTING.md).
+
 ## License
 
 TBD.

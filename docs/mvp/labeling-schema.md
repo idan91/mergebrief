@@ -32,10 +32,10 @@ Closed set; expand deliberately. "Playbook" = status in `playbooks.md`.
 | `logic-refactor` | behavior-preserving restructure of logic | ✓ |
 | `move-with-edits` | relocation of code with edits inside the move | ✓ |
 | `lib-bump` | dependency version change *with* API/behavior impact | ✓ |
-| `pure-move` | relocation only, bytes identical, no edits | pending |
+| `pure-move` | relocation only, bytes identical, no edits | ✓ |
 | `new-feature` | adds a new capability | ✓ |
-| `dependency-update` | dep version bump with no API/behavior impact | pending |
-| `schema-change` | data-model / migration change | pending |
+| `dependency-update` | dep version bump with no API/behavior impact | ✓ |
+| `schema-change` | data-model / migration change | ✓ |
 
 Not Categories (common mistakes): `test-only`, `config-only`, `generated-code` → these are **Concerns**, not intents.
 
@@ -124,5 +124,6 @@ This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diff
 ## Status
 
 - Stable axes: Concern, Role, Risk Surface (starter set), LoC rules, boundary rule.
-- Category: 5 of 8 have playbooks; the rest draft opportunistically on first use (expected during Phase 1 labeling).
-- Concern checks beyond `test` and `doc` (`spec`/`config`/`generated`) drafted opportunistically.
+- Category: all 8 have playbooks (backfilled 2026-07-04 to match the shipped FE set).
+- Concern checks: all 5 supporting Concerns covered (`test`, `doc`, `spec`, `config`, `generated`).
+- Contribution rules for tokens, playbooks, and risk attributes: repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).

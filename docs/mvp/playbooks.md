@@ -10,7 +10,9 @@ This file is the source of truth. A Change-group's dominant **Category** pulls i
 - **Specific** — a Category playbook does not belong to another Category; a Concern check does not belong to another Concern.
 - **Failure-mode-grounded** — each item encodes something that historically goes wrong with this change type.
 
-**Status:** Category playbooks for `bugfix`, `logic-refactor`, `lib-bump`, `move-with-edits`, and opportunistic `new-feature` draft + the `test` and `doc` Concern checks. Remaining Categories (`pure-move`, `schema-change`, `dependency-update`) and Concern checks (`spec`, `config`, `generated`) drafted opportunistically as PR labeling hits them. Note: `test-only`/`config-only`/`generated-code` are NOT Categories — they are Concerns; their checks live in the Concern-checks section.
+**Status:** all 8 Categories and all 5 supporting Concerns have entries (backfilled 2026-07-04 to match the shipped FE set in `apps/web/src/features/brief/playbooks.ts`; this file remains the source of truth — edit here first, then sync the FE constant). Note: `test-only`/`config-only`/`generated-code` are NOT Categories — they are Concerns; their checks live in the Concern-checks section.
+
+Contribution rules for this file live in the repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
 
 ---
 
@@ -105,6 +107,49 @@ Items:
 
 ---
 
+## `pure-move`
+
+Failure modes this playbook is designed to catch:
+- "Pure move" claim hides edits — the bytes are not actually identical between locations.
+- References to the old location (imports, re-exports, tests, docs, build config) left pointing at the old path.
+- A package entry point or barrel file still exports from the old location, so both paths resolve and drift apart later.
+
+Items:
+- [ ] Confirm moved bytes are identical between old and new locations — any difference reclassifies the group as `move-with-edits`.
+- [ ] Verify imports and exports were updated everywhere the moved code is referenced.
+- [ ] Confirm tests, docs, and build config point at the new location (no dangling references to the old path).
+
+---
+
+## `dependency-update`
+
+Failure modes this playbook is designed to catch:
+- The "no behavior impact" claim is wrong — the version range's changelog documents API or behavior changes (the group is actually a `lib-bump`).
+- Partial update leaves the lockfile graph inconsistent (duplicate majors, transitive pins at incompatible versions).
+- Migration work smuggled in as "incidental" call-site touches.
+
+Items:
+- [ ] Confirm the dependency update has no documented API or behavior impact — if the changelog lists any, reclassify as `lib-bump` and apply that playbook instead.
+- [ ] Check the lockfile for a consistent dependency graph (no duplicate majors, no transitive pins left at incompatible versions).
+- [ ] Verify touched call sites are incidental rather than migration work — migration edits mean behavior impact.
+
+---
+
+## `schema-change`
+
+Failure modes this playbook is designed to catch:
+- The diff changes more contracts than the PR description mentions (a column rename that also changes a serialized shape).
+- Migration ships without backfill or rollback expectations, so a failed deploy strands data mid-shape.
+- The deploy window where old code reads the new schema (or vice versa) is not survivable.
+- Downstream consumers of the persisted shape (readers, ETL, other services) are incompatible with the new shape.
+
+Items:
+- [ ] Identify every schema contract changed by the diff — tables, columns, serialized shapes, message payloads — including ones the PR description does not mention.
+- [ ] Confirm migration, backfill, and rollback expectations are explicit (what runs, in what order, what happens on failure — including the deploy window where old code and new schema coexist).
+- [ ] Check downstream consumers of the persisted shape for compatibility with the new shape.
+
+---
+
 ## Concern checks
 
 These are NOT Category playbooks. They apply to **supporting** chunks based on their **Concern**. A bugfix group with test chunks pulls the `bugfix` Category playbook (for the carrier) plus the `test` Concern check below (for the supporting test chunks).
@@ -136,3 +181,31 @@ Items:
 - [ ] Confirm the doc/update accurately describes the behavior introduced by the carrier chunks.
 - [ ] Check that names, package scopes, version notes, and public API references match the implementation exactly.
 - [ ] Verify the doc/update does not promise behavior that is not covered by implementation or tests.
+
+### `spec` Concern check
+
+Failure modes this check is designed to catch:
+- The spec document drifts from the implementation it describes — the carrier changed a contract the spec still states the old way.
+- Examples or terminology in the spec no longer match the changed code, so the spec teaches the wrong usage.
+
+Items:
+- [ ] Confirm the spec describes the same contract the implementation now enforces.
+- [ ] Check that examples and terminology match the changed code.
+
+### `config` Concern check
+
+Failure modes this check is designed to catch:
+- Configuration edits ride along that have nothing to do with the group's intent (a timeout tweak inside a bugfix).
+- Environments diverge — the change works locally but CI or production receives a different or missing default.
+
+Items:
+- [ ] Confirm configuration changes are scoped to this PR's intent.
+- [ ] Check local and CI environments receive compatible defaults.
+
+### `generated` Concern check
+
+Failure modes this check is designed to catch:
+- Generated output was hand-edited, or regenerated from a source change that isn't in the diff — the next regeneration silently reverts it.
+
+Items:
+- [ ] Confirm generated output corresponds to an intentional source change in the same PR.

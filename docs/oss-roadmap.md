@@ -185,7 +185,7 @@ the reviewer to them — **"look harder here," never "this is a bug"** (no-verdi
 into bug-bot" is a real design decision — run `grill-with-docs` on it (touches Risk Surface +
 Intent check vocabulary in `CONTEXT.md`, possibly a new ADR) before any code.
 
-### P3 — Playbook library as community commons  ·  status: [ ] not started
+### P3 — Playbook library as community commons  ·  status: [x] done (2026-07-04)
 
 **Needs grilling:** No for the commons itself (schema + `CONTRIBUTING` is execution); the *contribution governance* (who may add/approve items) is a separate later grill. · **Docs:** [`mvp/playbooks.md`](./mvp/playbooks.md) · [`mvp/labeling-schema.md`](./mvp/labeling-schema.md) · [`../CONTEXT.md`](../CONTEXT.md) (Playbook)
 
@@ -318,6 +318,20 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   observation-language; ADR 0026 amended (positioning clause withdrawn; the three
   attributes + authorship-agnostic product decisions stand). **Next: P3 (playbook
   commons).**
+- 2026-07-04 — **P3 done** (docs-only, straight to main). Root `CONTRIBUTING.md` frames the
+  taxonomy + playbook library as the contribution surface ("ESLint-rules for code-review
+  comprehension"): the three axes + attach points, playbook item format (action-shaped /
+  mechanically checkable / specific / failure-mode-grounded), risk-attribute entry format,
+  add + deprecate protocol (register-first in `labeling-schema.md`), and the doc→code
+  lockstep checklist (`types.ts`, `prompt.ts`, FE `types.ts` + `playbooks.ts`). Contribution
+  *governance* deliberately deferred per plan (separate later grill). En route: found docs
+  lagging code — FE `playbooks.ts` shipped all 8 Category playbooks + 5 Concern checks while
+  `playbooks.md` (source of truth) had 5 + 2; backfilled `pure-move` / `dependency-update` /
+  `schema-change` + `spec`/`config`/`generated` checks with failure-mode lists, synced
+  `labeling-schema.md` statuses. README gained a Contributing section. Prose kept
+  authorship-neutral per the 2026-07-04 positioning lock. Leftover (code, trivial): stale
+  "16 factual attributes" comment in `tools/categorizer/src/types.ts` header (actual: 19).
+  **Next: P4 (self-host backend) or the PR #20 `json_schema` enum spike.**
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +
