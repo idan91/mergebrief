@@ -38,6 +38,10 @@ plan: `docs/plans/brief-1-persistence-layer.md`.
   `envKeyProvider()`), matching Drizzle's own `bigint()`/`text()` register.
 - Strict TS everywhere: no `any`, no bare `as` (branded ids are constructed via type
   guards), interfaces for shapes, named exports, Zod at boundaries.
+- **Extensionless relative imports** (`from "./tenant"`, never `"./tenant.js"`) — this
+  package is bundler-resolved end to end (`moduleResolution: "bundler"`; vitest/tsx/
+  drizzle-kit). Extensions only where genuinely required (non-TS assets). The categorizer's
+  `.js` style is its own convention; don't import it here.
 - DB identifiers stay snake_case (Postgres convention); TS property names camelCase.
 
 ## Verification

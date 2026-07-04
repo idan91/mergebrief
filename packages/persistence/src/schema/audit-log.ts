@@ -8,7 +8,7 @@
 // `target_type` is intentionally NOT a closed vocabulary — D9 leaves it
 // open-ended ("pull_request | brief | delta | installation | ...").
 import { bigint, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import type { AuditAction, AuditActorType, InstallationId } from "../types.js";
+import type { AuditAction, AuditActorType, InstallationId } from "../types";
 
 export const auditLog = pgTable("audit_log", {
   id: bigint("id", { mode: "bigint" }).generatedAlwaysAsIdentity().primaryKey(),

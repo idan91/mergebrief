@@ -16,7 +16,7 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
-import { type AppDatabase, fromDrizzle } from "../src/db.js";
+import { type AppDatabase, fromDrizzle } from "../src/db";
 import {
   auditLog,
   brief,
@@ -29,10 +29,10 @@ import {
   pullRequest,
   reviewerSession,
   revisionNarrative,
-} from "../src/schema/index.js";
-import * as schema from "../src/schema/index.js";
-import { PurgeErrorCode, purgeRoutines } from "../src/purge.js";
-import type { TenantContext } from "../src/tenant.js";
+} from "../src/schema/index";
+import * as schema from "../src/schema/index";
+import { PurgeErrorCode, purgeRoutines } from "../src/purge";
+import type { TenantContext } from "../src/tenant";
 import {
   AuditAction,
   DispositionDecision,
@@ -46,8 +46,8 @@ import {
   type PullRequestRowId,
   type RepoId,
   type ReviewerId,
-} from "../src/types.js";
-import { brandWith } from "./helpers.js";
+} from "../src/types";
+import { brandWith } from "./helpers";
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
 

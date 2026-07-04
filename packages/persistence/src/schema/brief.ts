@@ -4,9 +4,9 @@
 // by design. Provenance columns surface on the Receipt (D6); `head_index` +
 // `commit_count` back ADR 0012's display label (`index + head8`).
 import { bigint, integer, pgTable, text, unique } from "drizzle-orm/pg-core";
-import type { BriefRowId, PullRequestRowId } from "../types.js";
-import { artifactColumns, tenantColumns } from "./columns.js";
-import { pullRequest } from "./pull-request.js";
+import type { BriefRowId, PullRequestRowId } from "../types";
+import { artifactColumns, tenantColumns } from "./columns";
+import { pullRequest } from "./pull-request";
 
 export const brief = pgTable(
   "brief",

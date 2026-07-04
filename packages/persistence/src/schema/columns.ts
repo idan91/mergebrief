@@ -11,7 +11,7 @@
 // in builder/DSL position are nouns; anything that acts or has effects is
 // verb-first (`loadConfig`, `encryptToken`, `sanitizeGenerationError`).
 import { bigint, integer, text, timestamp } from "drizzle-orm/pg-core";
-import type { InstallationId } from "../types.js";
+import type { InstallationId } from "../types";
 
 /**
  * Tenant group (D2a/D2b): surrogate `bigint generated always as identity`

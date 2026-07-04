@@ -5,8 +5,8 @@
 // (`AppDrizzle`) nor the `internal()` unwrap. A consumer can therefore build a
 // connection and hand it to `forTenant`, yet cannot run an unscoped query: the
 // only queryable surface is the ctx-bound repository.
-export * from "./schema/index.js";
-export * from "./types.js";
+export * from "./schema/index";
+export * from "./types";
 
 // The tenant-scoped repository + the context boundary (web + worker validate
 // into `TenantContext` with the exported Zod schema / parse functions).
@@ -16,7 +16,7 @@ export {
   safeParseTenantContext,
   TenantContextSchema,
   RepositoryErrorCode,
-} from "./tenant.js";
+} from "./tenant";
 export type {
   TenantContext,
   TenantRepository,
@@ -31,17 +31,17 @@ export type {
   PullRequestStatePatch,
   CheckpointSubmitInput,
   SessionCreateInput,
-} from "./tenant.js";
+} from "./tenant";
 
 // The opaque handle + its lifecycle. `AppDatabase` exposes no queryable shape;
 // `AppDrizzle` and `internal()` are intentionally absent from this surface.
-export { createDb, closeDb } from "./db.js";
-export type { AppDatabase, AppSchema } from "./db.js";
+export { createDb, closeDb } from "./db";
+export type { AppDatabase, AppSchema } from "./db";
 
 // The ArtifactStore seam (D6) — ctx-bound typed writes/reads for the five
 // artifact families. Same containment: built over the opaque handle, no raw
 // surface exposed.
-export { artifactStore, ArtifactErrorCode, ComparisonMarksBodySchema } from "./artifact-store.js";
+export { artifactStore, ArtifactErrorCode, ComparisonMarksBodySchema } from "./artifact-store";
 export type {
   ArtifactStore,
   ArtifactError,
@@ -62,31 +62,31 @@ export type {
   DiffSnapshotRow,
   RevisionNarrativeRow,
   ComparisonMarksRow,
-} from "./artifact-store.js";
+} from "./artifact-store";
 
 // The `generation` status-projection write helpers (D10).
-export { generationProjection, GenerationErrorCode, sanitizeGenerationError } from "./generation.js";
+export { generationProjection, GenerationErrorCode, sanitizeGenerationError } from "./generation";
 export type {
   GenerationProjection,
   GenerationError,
   GenerationTarget,
   GenerationRow,
-} from "./generation.js";
+} from "./generation";
 
 // The append-only audit emit (D9). `AuditMetadataKey` is the closed
 // metadata-key allowlist — the PII enforcement for the un-erasable ledger.
 // `insertAudit` (the tx-capable variant) stays in-package — not re-exported.
-export { audit, AuditMetadataKey, AuditMetadataSchema } from "./audit.js";
-export type { AuditEntry, AuditMetadata, AuditLogRow } from "./audit.js";
+export { audit, AuditMetadataKey, AuditMetadataSchema } from "./audit";
+export type { AuditEntry, AuditMetadata, AuditLogRow } from "./audit";
 
 // Purge + retention routines (D5/D9/D11) — the tenant-scoped deletion seam.
-export { purgeRoutines, PurgeErrorCode } from "./purge.js";
-export type { PurgeRoutines, PurgeError, InstallationPurgeCounts } from "./purge.js";
+export { purgeRoutines, PurgeErrorCode } from "./purge";
+export type { PurgeRoutines, PurgeError, InstallationPurgeCounts } from "./purge";
 
 // GitHub OAuth token crypto (D11) — AES-256-GCM behind the key-provider seam.
-export { encryptToken, decryptToken, envKeyProvider, KeyErrorCode, CryptoErrorCode } from "./crypto.js";
-export type { KeyProvider, KeyError, CryptoError } from "./crypto.js";
+export { encryptToken, decryptToken, envKeyProvider, KeyErrorCode, CryptoErrorCode } from "./crypto";
+export type { KeyProvider, KeyError, CryptoError } from "./crypto";
 
 // Persistence env config (Zod-parsed; injectable env — never reads process.env).
-export { loadConfig, ConfigErrorCode } from "./config.js";
-export type { PersistenceConfig, ConfigError } from "./config.js";
+export { loadConfig, ConfigErrorCode } from "./config";
+export type { PersistenceConfig, ConfigError } from "./config";

@@ -10,7 +10,7 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
-import * as schema from "./schema/index.js";
+import * as schema from "./schema/index";
 
 /** The app's full schema (the 11 M1 tables). */
 export type AppSchema = typeof schema;

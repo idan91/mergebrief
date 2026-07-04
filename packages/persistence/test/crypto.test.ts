@@ -12,8 +12,8 @@ import {
   envKeyProvider,
   type CryptoError,
   type KeyProvider,
-} from "../src/crypto.js";
-import type { Result } from "../src/types.js";
+} from "../src/crypto";
+import type { Result } from "../src/types";
 
 const KEY_REF = "SESSION_KEY_V1";
 const OTHER_KEY_REF = "SESSION_KEY_V2";

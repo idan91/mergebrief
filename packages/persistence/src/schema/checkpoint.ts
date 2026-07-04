@@ -2,9 +2,9 @@
 // (`pull_request_review`), never an in-app write in M1. One row per
 // (reviewer, PR); `last_submitted_sha` advances on submit, never on view.
 import { bigint, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
-import type { PullRequestRowId, ReviewerId } from "../types.js";
-import { tenantColumns } from "./columns.js";
-import { pullRequest } from "./pull-request.js";
+import type { PullRequestRowId, ReviewerId } from "../types";
+import { tenantColumns } from "./columns";
+import { pullRequest } from "./pull-request";
 
 export const checkpoint = pgTable(
   "checkpoint",

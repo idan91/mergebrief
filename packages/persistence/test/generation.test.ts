@@ -9,7 +9,7 @@ import {
   GenerationErrorCode,
   sanitizeGenerationError,
   type TenantContext,
-} from "../src/lib.js";
+} from "../src/lib";
 import {
   GenerationKind,
   GenerationPhase,
@@ -19,8 +19,8 @@ import {
   PrState,
   type InstallationId,
   type RepoId,
-} from "../src/types.js";
-import { brandWith, freshDatabase } from "./helpers.js";
+} from "../src/types";
+import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);

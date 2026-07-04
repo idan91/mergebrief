@@ -3,8 +3,8 @@
 // (dropped 2026-07-04, ADR 0020). The partial index on `purge_after`
 // (sweep target) is raw SQL in the hardening migration.
 import { bigint, integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
-import type { PrState, PullRequestRowId, RepoId } from "../types.js";
-import { tenantColumns } from "./columns.js";
+import type { PrState, PullRequestRowId, RepoId } from "../types";
+import { tenantColumns } from "./columns";
 
 export const pullRequest = pgTable(
   "pull_request",

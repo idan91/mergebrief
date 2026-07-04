@@ -3,9 +3,9 @@
 // D3's SHA-role separation). Deliberately NO `reviewer_id`: the per-reviewer
 // layer is the M2 `delta_overlay` seam (D8).
 import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
-import type { PullRequestRowId } from "../types.js";
-import { artifactColumns, tenantColumns } from "./columns.js";
-import { pullRequest } from "./pull-request.js";
+import type { PullRequestRowId } from "../types";
+import { artifactColumns, tenantColumns } from "./columns";
+import { pullRequest } from "./pull-request";
 
 export const delta = pgTable(
   "delta",

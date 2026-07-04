@@ -26,11 +26,11 @@
 // (`sweepExpired`) is `system`. `sweepExpiredSessions` emits NO audit entry —
 // see its doc comment.
 import { and, eq, isNotNull, lt } from "drizzle-orm";
-import { insertAudit } from "./audit.js";
-import { type AppDatabase, internal } from "./db.js";
-import { pullRequest } from "./schema/pull-request.js";
-import { reviewerSession } from "./schema/reviewer-session.js";
-import type { PullRequestRow, TenantContext } from "./tenant.js";
+import { insertAudit } from "./audit";
+import { type AppDatabase, internal } from "./db";
+import { pullRequest } from "./schema/pull-request";
+import { reviewerSession } from "./schema/reviewer-session";
+import type { PullRequestRow, TenantContext } from "./tenant";
 import {
   AuditAction,
   AuditActorType,
@@ -38,7 +38,7 @@ import {
   type RepoId,
   type Result,
   type ValueOf,
-} from "./types.js";
+} from "./types";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

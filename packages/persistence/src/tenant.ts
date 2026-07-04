@@ -15,10 +15,10 @@
 //       guarantees a child's own `installation_id` matches its parent's.
 import { and, eq, lt } from "drizzle-orm";
 import { z } from "zod";
-import { type AppDatabase, internal } from "./db.js";
-import { checkpoint } from "./schema/checkpoint.js";
-import { pullRequest } from "./schema/pull-request.js";
-import { reviewerSession } from "./schema/reviewer-session.js";
+import { type AppDatabase, internal } from "./db";
+import { checkpoint } from "./schema/checkpoint";
+import { pullRequest } from "./schema/pull-request";
+import { reviewerSession } from "./schema/reviewer-session";
 import {
   type InstallationId,
   isInstallationId,
@@ -28,7 +28,7 @@ import {
   type ReviewerId,
   type RepoId,
   type ValueOf,
-} from "./types.js";
+} from "./types";
 
 // ---------------------------------------------------------------------------
 // Tenant context — the shape shared by the web (authz middleware) and worker

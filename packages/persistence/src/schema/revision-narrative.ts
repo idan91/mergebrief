@@ -4,10 +4,10 @@
 // is the anchoring rule: the narrative points into brief-local Change-group
 // IDs, so a regenerated Brief cascades the old narrative away.
 import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
-import type { BriefRowId, PullRequestRowId } from "../types.js";
-import { artifactColumns, tenantColumns } from "./columns.js";
-import { brief } from "./brief.js";
-import { pullRequest } from "./pull-request.js";
+import type { BriefRowId, PullRequestRowId } from "../types";
+import { artifactColumns, tenantColumns } from "./columns";
+import { brief } from "./brief";
+import { pullRequest } from "./pull-request";
 
 export const revisionNarrative = pgTable(
   "revision_narrative",

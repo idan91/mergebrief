@@ -5,9 +5,9 @@
 // region-anchored flags (region NOT NULL); playbook-item dispositions
 // (nullable region + flag_kind) are deferred to M2.
 import { bigint, integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
-import type { DispositionDecision, PullRequestRowId, ReviewerId } from "../types.js";
-import { tenantColumns } from "./columns.js";
-import { pullRequest } from "./pull-request.js";
+import type { DispositionDecision, PullRequestRowId, ReviewerId } from "../types";
+import { tenantColumns } from "./columns";
+import { pullRequest } from "./pull-request";
 
 export const disposition = pgTable(
   "disposition",

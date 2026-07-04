@@ -14,7 +14,7 @@ import {
   type PullRequestRow,
   type TenantContext,
   type TenantRepository,
-} from "../src/lib.js";
+} from "../src/lib";
 import {
   isInstallationId,
   isRepoId,
@@ -23,8 +23,8 @@ import {
   type InstallationId,
   type RepoId,
   type ReviewerId,
-} from "../src/types.js";
-import { brandWith, freshDatabase } from "./helpers.js";
+} from "../src/types";
+import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);

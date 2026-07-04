@@ -25,7 +25,7 @@
 // message ever contains plaintext or key material — an auth-tag mismatch,
 // malformed input, or unknown version all return opaque, safe-to-log errors.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import type { Result, ValueOf } from "./types.js";
+import type { Result, ValueOf } from "./types";
 
 // ---------------------------------------------------------------------------
 // Constants — AES-256-GCM parameters. All lengths are in bytes.

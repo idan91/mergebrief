@@ -23,20 +23,20 @@
 // `comparison_marks` are mechanical, not LLM output (D6/D13).
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
-import { type AppDatabase, type AppDrizzle, internal } from "./db.js";
-import { brief } from "./schema/brief.js";
-import { comparisonMarks } from "./schema/comparison-marks.js";
-import { delta } from "./schema/delta.js";
-import { diffSnapshot } from "./schema/diff-snapshot.js";
-import { pullRequest } from "./schema/pull-request.js";
-import { revisionNarrative } from "./schema/revision-narrative.js";
-import type { TenantContext } from "./tenant.js";
+import { type AppDatabase, type AppDrizzle, internal } from "./db";
+import { brief } from "./schema/brief";
+import { comparisonMarks } from "./schema/comparison-marks";
+import { delta } from "./schema/delta";
+import { diffSnapshot } from "./schema/diff-snapshot";
+import { pullRequest } from "./schema/pull-request";
+import { revisionNarrative } from "./schema/revision-narrative";
+import type { TenantContext } from "./tenant";
 import {
   type BriefRowId,
   type PullRequestRowId,
   type Result,
   type ValueOf,
-} from "./types.js";
+} from "./types";
 
 // ---------------------------------------------------------------------------
 // Errors — expected failures. Programmer errors still `throw`.

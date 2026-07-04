@@ -3,9 +3,9 @@
 // exception to "no raw code in the DB". `sha` is a checkpoint SHA. No
 // provenance columns — a fetched diff, not LLM output (D6).
 import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
-import type { PullRequestRowId } from "../types.js";
-import { artifactColumns, tenantColumns } from "./columns.js";
-import { pullRequest } from "./pull-request.js";
+import type { PullRequestRowId } from "../types";
+import { artifactColumns, tenantColumns } from "./columns";
+import { pullRequest } from "./pull-request";
 
 export const diffSnapshot = pgTable(
   "diff_snapshot",

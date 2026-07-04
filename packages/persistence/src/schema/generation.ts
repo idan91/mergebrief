@@ -11,9 +11,9 @@ import type {
   GenerationPhase,
   GenerationStatus,
   PullRequestRowId,
-} from "../types.js";
-import { tenantColumns } from "./columns.js";
-import { pullRequest } from "./pull-request.js";
+} from "../types";
+import { tenantColumns } from "./columns";
+import { pullRequest } from "./pull-request";
 
 export const generation = pgTable(
   "generation",

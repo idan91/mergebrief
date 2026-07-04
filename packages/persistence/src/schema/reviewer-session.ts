@@ -3,8 +3,8 @@
 // (installation, reviewer) — deliberately NOT FK'd to `pull_request`.
 // Cleared by TTL sweep, logout, and the installation-purge routine (D5).
 import { bigint, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import type { ReviewerId } from "../types.js";
-import { stampColumns, tenantColumns } from "./columns.js";
+import type { ReviewerId } from "../types";
+import { stampColumns, tenantColumns } from "./columns";
 
 export const reviewerSession = pgTable(
   "reviewer_session",

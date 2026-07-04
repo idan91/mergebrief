@@ -4,9 +4,9 @@
 // output). Reviewer-agnostic by construction: `baseline_sha` may be a
 // prevHead OR a checkpoint SHA; the marks are a pure function of the pair.
 import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
-import type { PullRequestRowId } from "../types.js";
-import { artifactColumns, tenantColumns } from "./columns.js";
-import { pullRequest } from "./pull-request.js";
+import type { PullRequestRowId } from "../types";
+import { artifactColumns, tenantColumns } from "./columns";
+import { pullRequest } from "./pull-request";
 
 export const comparisonMarks = pgTable(
   "comparison_marks",

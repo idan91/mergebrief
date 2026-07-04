@@ -20,8 +20,8 @@ import {
   pullRequest,
   reviewerSession,
   revisionNarrative,
-} from "../src/schema/index.js";
-import type { InstallationId, PullRequestRowId, RepoId, ReviewerId } from "../src/types.js";
+} from "../src/schema/index";
+import type { InstallationId, PullRequestRowId, RepoId, ReviewerId } from "../src/types";
 import {
   AuditAction,
   AuditActorType,
@@ -32,7 +32,7 @@ import {
   isInstallationId,
   isRepoId,
   isReviewerId,
-} from "../src/types.js";
+} from "../src/types";
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
 
