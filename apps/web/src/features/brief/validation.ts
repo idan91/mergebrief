@@ -23,6 +23,7 @@ import {
   type RevisionNarrativeArtifact,
   type RevisionNarrativeChunk,
   type RevisionNarrativeSkipReason,
+  type RiskNote,
   type RiskSurfaceAttribute,
   type ValueOf,
 } from "./types";
@@ -124,6 +125,20 @@ function riskSurfaceArray(value: unknown): Result<RiskSurfaceAttribute[]> {
     };
   }
   return { ok: true, value: parsed.value };
+}
+
+function parseRiskNote(value: unknown): Result<RiskNote> {
+  if (!isRecord(value))
+    return { ok: false, error: "Expected risk note to be an object" };
+  const attr = value["attr"];
+  const note = value["note"];
+  if (!oneOf(RiskSurfaceAttributes, attr) || !isString(note)) {
+    return {
+      ok: false,
+      error: "Expected risk note attr (known attribute) and note string",
+    };
+  }
+  return { ok: true, value: { attr, note } };
 }
 
 function parsePrRef(value: unknown): Result<PrRef> {
@@ -509,6 +524,12 @@ function parseChunk(value: unknown): Result<ParsedChunk> {
   if (!removedRanges.ok) return removedRanges;
   const risks = riskSurfaceArray(value["riskSurface"]);
   if (!risks.ok) return risks;
+  const riskNotes = value["riskNotes"];
+  const parsedRiskNotes =
+    riskNotes === undefined
+      ? ({ ok: true, value: [] } satisfies Result<RiskNote[]>)
+      : parseArray(riskNotes, parseRiskNote, "riskNotes");
+  if (!parsedRiskNotes.ok) return parsedRiskNotes;
   const parsedAddressesComments =
     addressesComments === undefined
       ? ({ ok: true, value: [] } satisfies Result<string[]>)
@@ -540,6 +561,7 @@ function parseChunk(value: unknown): Result<ParsedChunk> {
       addedRanges: addedRanges.value,
       removedRanges: removedRanges.value,
       riskSurface: risks.value,
+      ...(riskNotes !== undefined ? { riskNotes: parsedRiskNotes.value } : {}),
       ...(isString(summary) ? { summary } : {}),
       ...(addressesComments !== undefined
         ? { addressesComments: parsedAddressesComments.value }

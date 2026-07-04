@@ -1,0 +1,7 @@
+@layer components {
+  .risk {
+    text-transform: none;
+    letter-spacing: 0;
+    border-color: color-mix(in srgb, var(--amber) 38%, transparent);
+  }
+}

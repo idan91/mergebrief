@@ -51,7 +51,7 @@ export const Roles = [
 export const Efforts = ["low", "medium", "high"] as const;
 
 /**
- * Risk surface — 16 factual attributes (never verdicts). Attaches to a chunk.
+ * Risk surface — 19 factual attributes (never verdicts). Attaches to a chunk.
  * Three buckets: about the code / about the change / about the blast radius.
  */
 export const RiskSurfaceAttributes = [
@@ -67,6 +67,9 @@ export const RiskSurfaceAttributes = [
   "relaxes-permissions",
   "widens-error-handling",
   "adds-feature-flag",
+  "new-dependency",
+  "new-abstraction",
+  "comment-contradicts-code",
   // about the BLAST RADIUS
   "external-io",
   "cross-service",
@@ -111,6 +114,23 @@ export const LineRangeSchema = z.object({
     .describe("last line number (inclusive); equals start for a single line"),
 });
 
+/**
+ * One short factual note attached to a chunk's risk-surface attribute — the
+ * cite-or-stay-silent evidence home (ADR 0026). An array of {attr, note}
+ * objects, not a record: record keys compile to `additionalProperties` in
+ * JSON schema, which strict structured-output modes reject.
+ */
+export const RiskNoteSchema = z.object({
+  attr: riskSurfaceEnum.describe(
+    "the risk-surface attribute this note evidences (must also be in the chunk's riskSurface)",
+  ),
+  note: z
+    .string()
+    .describe(
+      "one short factual note. For `comment-contradicts-code` it MUST cite both sides: the comment line and the code line, e.g. \"comment says X (L12), code does Y (L15)\".",
+    ),
+});
+
 export const ChunkSchema = z.object({
   id: z.string().describe("stable chunk id, e.g. c1, c2, …"),
   changeGroupId: z
@@ -147,6 +167,12 @@ export const ChunkSchema = z.object({
     .array(riskSurfaceEnum)
     .describe(
       "factual attributes that apply to this chunk (empty if none). Never verdicts — severity emerges from combinations.",
+    ),
+  riskNotes: z
+    .array(RiskNoteSchema)
+    .optional()
+    .describe(
+      "optional short factual notes, one per risk-surface attribute on this chunk that needs evidence. REQUIRED for `comment-contradicts-code`: the note must cite both sides — the comment line and the code line, e.g. \"comment says X (L12), code does Y (L15)\". Omit entirely when no attribute needs a note.",
     ),
 });
 
@@ -493,6 +519,7 @@ export interface RevisionNarrativeSkipped {
 
 export type PrRef = z.infer<typeof PrRefSchema>;
 export type LineRange = z.infer<typeof LineRangeSchema>;
+export type RiskNote = z.infer<typeof RiskNoteSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;
 export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
 export type ReadingOrderStep = z.infer<typeof ReadingOrderStepSchema>;

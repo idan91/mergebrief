@@ -34,6 +34,9 @@ export const RiskSurfaceAttributes = {
   RelaxesPermissions: "relaxes-permissions",
   WidensErrorHandling: "widens-error-handling",
   AddsFeatureFlag: "adds-feature-flag",
+  NewDependency: "new-dependency",
+  NewAbstraction: "new-abstraction",
+  CommentContradictsCode: "comment-contradicts-code",
   ExternalIo: "external-io",
   CrossService: "cross-service",
   SchemaAdjacent: "schema-adjacent",
@@ -104,6 +107,16 @@ export interface DiffLine {
   newLine?: number;
 }
 
+/**
+ * @description One short factual note evidencing a risk-surface attribute on
+ * a chunk (ADR 0026) — e.g. the both-sides citation required for
+ * `comment-contradicts-code`.
+ */
+export interface RiskNote {
+  attr: RiskSurfaceAttribute;
+  note: string;
+}
+
 export interface BriefChunk {
   id: string;
   changeGroupId: string;
@@ -114,6 +127,7 @@ export interface BriefChunk {
   addedRanges: LineRange[];
   removedRanges: LineRange[];
   riskSurface: RiskSurfaceAttribute[];
+  riskNotes?: RiskNote[];
   summary?: string;
   addressesComments?: string[];
   diff?: DiffLine[];

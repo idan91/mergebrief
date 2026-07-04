@@ -278,6 +278,14 @@ export const GroupCard = memo(function GroupCard({
                             <div className={styles["description"]}>
                               {flag.description}
                             </div>
+                            {flag.note ? (
+                              <div
+                                className={styles["description"]}
+                                data-kind="risk-note"
+                              >
+                                {flag.note}
+                              </div>
+                            ) : null}
                             <div className={styles["flagActions"]}>
                               <button
                                 className={styles["button"]}

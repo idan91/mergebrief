@@ -31,6 +31,10 @@
     // `overflow-x: auto` turns the same overflow into a normal horizontal
     // scroll region, matching typical diff-viewer UX for long lines.
     overflow-x: auto;
+
+    // Named container so the comment composer below can size itself to this
+    // scrollport's visible width (100cqw) instead of the table's full width.
+    container-type: inline-size;
   }
 
   .diff {
@@ -151,5 +155,16 @@
     padding-block: 0 12px;
     padding-inline: 98px 14px;
     white-space: normal;
+
+    // The colSpan cell is as wide as the table (long `pre` code lines can
+    // push it far past the scrollport), so the composer pins to the visible
+    // scroll width instead of stretching with it: sticky on the inline axis,
+    // capped at the scrollport width (100cqw from `.viewport`) minus this
+    // cell's own padding.
+    > * {
+      position: sticky;
+      inset-inline-start: 98px;
+      max-inline-size: calc(100cqw - 112px);
+    }
   }
 }

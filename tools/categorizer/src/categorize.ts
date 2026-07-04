@@ -19,10 +19,12 @@ import {
   buildDeltaSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
 } from "./prompt.js";
+import { splitDiffByFile } from "./diff.js";
 import {
   validatePartition,
   validateNarrativeGroups,
   validateReadingOrder,
+  validateRiskAttributes,
 } from "./validate.js";
 import type {
   FetchedPr,
@@ -110,8 +112,12 @@ export async function categorize(
   warnIssues(readingOrderIssues, log, "reading order");
   const keepReadingOrder = readingOrder !== undefined && readingOrderIssues.length === 0;
 
+  const trio = validateRiskAttributes(generated.chunks, splitDiffByFile(pr.diff));
+  warnIssues(trio.issues, log, "risk attrs");
+
   const brief: Brief = {
     ...rest,
+    chunks: trio.chunks,
     ...(keepReadingOrder ? { readingOrder } : {}),
     pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
     index,
@@ -212,8 +218,15 @@ export async function categorizeDelta(
     label: "delta",
     log,
   });
+  const trio = validateRiskAttributes(
+    generated.chunks,
+    splitDiffByFile(input.incrementalDiff),
+  );
+  warnIssues(trio.issues, log, "risk attrs");
+
   const delta: DeltaBrief = {
     ...generated,
+    chunks: trio.chunks,
     pr: buildPrRef(input.locator, input.meta, input.meta.sha),
     baselineSha: input.baselineSha,
     headSha: input.headSha,

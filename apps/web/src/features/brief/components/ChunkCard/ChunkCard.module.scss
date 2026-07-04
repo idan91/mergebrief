@@ -69,15 +69,35 @@
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    // Truncate from the start: the tail of a path (filename) is the part
+    // that identifies the chunk. RTL flips the ellipsis side; the latin
+    // path itself stays one LTR run, so glyph order is unchanged.
+    direction: rtl;
+    text-align: start;
   }
 
   .chips {
     display: flex;
     flex: none;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
     margin-inline-start: auto;
     font-size: 12px;
+  }
+
+  // Risk chips sit shoulder to shoulder; a tighter gap than the metadata
+  // lane reads them as one group.
+  .riskLane {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tipChips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .chip {
@@ -86,10 +106,6 @@
     gap: 6px;
     color: var(--faint);
     white-space: nowrap;
-  }
-
-  .risk {
-    color: var(--amber);
   }
 
   .loc {

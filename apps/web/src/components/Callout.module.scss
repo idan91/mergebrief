@@ -1,5 +1,6 @@
 .callout {
   z-index: 1000;
+  display: block;
   width: 320px;
   padding: 12px 14px;
   border: 1px solid var(--line2);
@@ -8,7 +9,21 @@
   box-shadow: 0 14px 40px rgb(0 0 0 / 55%);
   white-space: normal;
   font-family: var(--sans);
-  pointer-events: none;
+
+  // The pointer may travel into the callout — to copy text today, to
+  // interact tomorrow (safePolygon keeps it open on the way in).
+  user-select: text;
+}
+
+.callout[data-fit] {
+  width: max-content;
+  max-width: 320px;
+}
+
+// floating-ui arrow (SVG): same surface as the callout; hairline via the
+// component's stroke prop.
+.arrow {
+  fill: #15151a;
 }
 
 .eyebrow {

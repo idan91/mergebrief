@@ -163,7 +163,8 @@ describe("Full Brief comparison overlay (step 7)", () => {
     };
     render(
       <ComparisonCallout
-        pos={{ top: 0, left: 0 }}
+        anchor={document.body}
+        onClose={() => {}}
         run={run!}
         chunk={chunkA}
         source={source}
@@ -185,7 +186,8 @@ describe("Full Brief comparison overlay (step 7)", () => {
     const source: ComparisonSource = { kind: "last-review", delta };
     render(
       <ComparisonCallout
-        pos={{ top: 0, left: 0 }}
+        anchor={document.body}
+        onClose={() => {}}
         run={run!}
         chunk={chunkA}
         source={source}

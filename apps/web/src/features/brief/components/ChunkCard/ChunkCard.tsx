@@ -1,8 +1,13 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 
+import { Callout } from "../../../../components/Callout";
 import { reviewCommentsForChunk } from "../../reviewComments";
 import { buildChunkComparisonView } from "../../comparison";
-import type { AddressedReviewComment, BriefChunk } from "../../types";
+import type {
+  AddressedReviewComment,
+  BriefChunk,
+  RiskSurfaceAttribute,
+} from "../../types";
 import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import {
   AddressedComments,
@@ -10,7 +15,9 @@ import {
 } from "../../../review/components/AddressedComments/AddressedComments";
 import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import { useMindMap } from "../../../review/session";
+import { riskChipView } from "../../viewModel";
 import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
+import { RiskBadge } from "../Badge/RiskBadge";
 import { RoleBadge } from "../Badge/RoleBadge";
 import { DiffTable } from "../DiffTable/DiffTable";
 import styles from "./ChunkCard.module.scss";
@@ -35,6 +42,34 @@ export interface ChunkCardProps {
   updateReviewComment: (commentId: string, body: string) => void;
 }
 
+/**
+ * The "+N" chip for risk attributes beyond the header's two-chip budget.
+ * The full list opens in the shared anchored Callout (portal-rendered, so
+ * the card's overflow clip and the sticky header's backdrop-filter
+ * containing block can't swallow it) and stays open while the pointer is
+ * inside it. Screen readers get the list inline via the hidden span.
+ */
+function OverflowRiskChip({ attrs }: { attrs: RiskSurfaceAttribute[] }) {
+  const [anchor, setAnchor] = useState<Element | null>(null);
+  return (
+    <span onMouseEnter={(event) => setAnchor(event.currentTarget)}>
+      <RiskBadge>
+        +{attrs.length}
+        <ScreenReaderOnly>{` ${attrs.join(", ")}`}</ScreenReaderOnly>
+      </RiskBadge>
+      {anchor ? (
+        <Callout anchor={anchor} fit onClose={() => setAnchor(null)}>
+          <span className={styles["tipChips"]}>
+            {attrs.map((attr) => (
+              <RiskBadge key={attr}>{attr}</RiskBadge>
+            ))}
+          </span>
+        </Callout>
+      ) : null}
+    </span>
+  );
+}
+
 export const ChunkCard = memo(function ChunkCard({
   chunk,
   comparison,
@@ -56,6 +91,7 @@ export const ChunkCard = memo(function ChunkCard({
 }: ChunkCardProps) {
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
 
+  const riskChips = riskChipView(chunk.riskSurface);
   const expanded = open && !forceCollapsed;
   const comparisonView = useMemo(
     () => buildChunkComparisonView(chunk, comparison.marks),
@@ -94,14 +130,16 @@ export const ChunkCard = memo(function ChunkCard({
           <span className={styles["twist"]}>▶</span>
           <span className={styles["file"]}>{chunk.file}</span>
           <span className={styles["chips"]}>
-            {chunk.riskSurface.map((risk) => (
-              <span
-                className={`${styles["chip"]} ${styles["risk"]}`}
-                key={risk}
-              >
-                {risk}
+            {riskChips.shown.length > 0 ? (
+              <span className={styles["riskLane"]}>
+                {riskChips.shown.map((risk) => (
+                  <RiskBadge key={risk}>{risk}</RiskBadge>
+                ))}
+                {riskChips.overflow.length > 0 ? (
+                  <OverflowRiskChip attrs={riskChips.overflow} />
+                ) : null}
               </span>
-            ))}
+            ) : null}
             <span className={styles["chip"]} data-concern={chunk.concern}>
               <span className={styles["dot"]} />
               {chunk.concern}

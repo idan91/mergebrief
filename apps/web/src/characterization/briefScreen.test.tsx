@@ -242,14 +242,31 @@ describe("brief screen characterization", () => {
   it("dismissing a flag advances the flags progress stat", async () => {
     await renderBriefScreen();
     const stat = () => statText("flags");
-    expect(stat()).toBe("0/1");
-    fireEvent.click(screen.getByText("Dismiss…"));
+    expect(stat()).toBe("0/2");
+    fireEvent.click(screen.getAllByText("Dismiss…")[0]!);
     const reason = await screen.findByPlaceholderText(/Your reason lands/);
     fireEvent.change(reason, {
       target: { value: "Not applicable in this local fixture." },
     });
     fireEvent.click(screen.getByText("Dismiss with reason"));
-    await waitFor(() => expect(stat()).toBe("1/1"));
+    await waitFor(() => expect(stat()).toBe("1/2"));
+  });
+
+  it("lists unique risk-attribute names under the brief summary", async () => {
+    await renderBriefScreen();
+    const section = document.querySelector("[data-summary-risk]");
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain("no-tests");
+    expect(section?.textContent).toContain("comment-contradicts-code");
+  });
+
+  it("renders a flag's riskNotes evidence as a secondary line in the rail", async () => {
+    await renderBriefScreen();
+    expect(
+      screen.getByText(
+        "comment says the param is optional (L10), code throws when absent (L12)",
+      ),
+    ).toBeTruthy();
   });
 
   it("reclassifying an uncertain group records the override on the card", async () => {

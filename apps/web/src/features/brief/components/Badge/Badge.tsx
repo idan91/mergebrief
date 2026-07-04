@@ -18,7 +18,7 @@ export interface BadgeProps {
   children: ReactNode;
   color?: BadgeColor;
   fill?: boolean;
-  className?: string;
+  className?: string | undefined;
 }
 
 /**

@@ -53,6 +53,10 @@ The diff modifies code that writes to persistent state — DB writes, file write
 ### `removes-validation`
 The diff weakens a check, guard, type narrowing, schema validator, or assertion.
 - **Detect:** lines deleted that contained `if (!...)`, `throw`, `assert`, `zod`/`yup` schema constraints, type guards, range checks.
+  Mechanically gated (warn-and-drop): the validator drops the attribute when the chunk deletes
+  no lines — a purely additive chunk (e.g. a parser accepting a new optional field) is not
+  weakened validation. Deliberate trade: an added early-return can weaken a guard without
+  deleting lines; that rare shape is sacrificed to kill the observed false-positive class.
 - **Playbook implication:** weakening a check requires explicit justification. Reviewer must confirm the input space that was previously rejected is now safe to accept (or is rejected elsewhere).
 
 ### `relaxes-permissions`

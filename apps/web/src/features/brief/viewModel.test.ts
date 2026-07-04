@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Brief } from "./types";
 import { parseBrief } from "./validation";
-import { buildBriefViewModel } from "./viewModel";
+import { buildBriefViewModel, riskChipView } from "./viewModel";
 
 function twoGroupBrief(readingOrder?: unknown) {
   return {
@@ -63,6 +63,34 @@ function twoGroupBrief(readingOrder?: unknown) {
     ...(readingOrder !== undefined ? { readingOrder } : {}),
   };
 }
+
+describe("riskChipView", () => {
+  it("shows all attributes as chips when there are two or fewer", () => {
+    expect(riskChipView([])).toEqual({ shown: [], overflow: [] });
+    expect(riskChipView(["no-tests"])).toEqual({
+      shown: ["no-tests"],
+      overflow: [],
+    });
+    expect(riskChipView(["no-tests", "dense-logic"])).toEqual({
+      shown: ["no-tests", "dense-logic"],
+      overflow: [],
+    });
+  });
+
+  it("folds attributes beyond the second into the overflow chip", () => {
+    expect(
+      riskChipView([
+        "dense-logic",
+        "mutates-state",
+        "comment-contradicts-code",
+        "new-abstraction",
+      ]),
+    ).toEqual({
+      shown: ["dense-logic", "mutates-state"],
+      overflow: ["comment-contradicts-code", "new-abstraction"],
+    });
+  });
+});
 
 describe("buildBriefViewModel", () => {
   it("groups chunks by chunk.changeGroupId and derives carrier/supporting buckets", () => {
@@ -169,6 +197,58 @@ describe("buildBriefViewModel", () => {
       "wires the schema into call sites",
     ]);
     expect(model.groups.map((group) => group.index)).toEqual([0, 1]);
+  });
+
+  it("threads a chunk's riskNotes entry onto the matching flag", () => {
+    const base = twoGroupBrief();
+    const parsed = parseBrief({
+      ...base,
+      chunks: [
+        {
+          ...base.chunks[0],
+          riskSurface: ["comment-contradicts-code", "no-tests"],
+          riskNotes: [
+            {
+              attr: "comment-contradicts-code",
+              note: "comment says X (L12), code does Y (L15)",
+            },
+          ],
+        },
+        base.chunks[1],
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const model = buildBriefViewModel(parsed.value);
+
+    const withNote = model.flags.find(
+      (flag) => flag.attr === "comment-contradicts-code",
+    );
+    expect(withNote?.note).toBe("comment says X (L12), code does Y (L15)");
+    const withoutNote = model.flags.find((flag) => flag.attr === "no-tests");
+    expect(withoutNote).toBeDefined();
+    expect(withoutNote?.note).toBeUndefined();
+  });
+
+  it("builds a note-less flag for a trio attribute without riskNotes", () => {
+    const base = twoGroupBrief();
+    const parsed = parseBrief({
+      ...base,
+      chunks: [
+        base.chunks[0],
+        { ...base.chunks[1], riskSurface: ["new-abstraction"] },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const model = buildBriefViewModel(parsed.value);
+
+    const flag = model.flags.find((f) => f.attr === "new-abstraction");
+    expect(flag).toBeDefined();
+    expect(flag?.note).toBeUndefined();
+    expect(flag?.description.length).toBeGreaterThan(0);
   });
 
   it("falls back to source order when readingOrder is not a valid permutation, even bypassing the parser", () => {
