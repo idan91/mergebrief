@@ -65,13 +65,22 @@ function fail(code: ArtifactErrorCode, message: string): Result<never, ArtifactE
 // comparison_marks body — coordinates-only, strict (D13).
 // ---------------------------------------------------------------------------
 
-/** A contiguous inclusive line run — mirrors the CLI's `LineRange`. */
+/**
+ * A contiguous inclusive line run — mirrors the CLI's `LineRange`: 1-based,
+ * inclusive, `start <= end`. Enforced so malformed marks (zero/negative
+ * lines, inverted ranges) are rejected at the write boundary instead of
+ * pushing cleanup into every reader.
+ */
 const lineRangeSchema = z
   .object({
-    start: z.number().int(),
-    end: z.number().int(),
+    start: z.number().int().positive(),
+    end: z.number().int().positive(),
   })
-  .strict();
+  .strict()
+  .refine((range) => range.end >= range.start, {
+    message: "line range end must be >= start",
+    path: ["end"],
+  });
 
 /** Per-file marks — coordinates only, never line content. */
 const marksFileSchema = z

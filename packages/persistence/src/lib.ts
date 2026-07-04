@@ -77,7 +77,7 @@ export type {
 // The append-only audit emit (D9). `AuditMetadataKey` is the closed
 // metadata-key allowlist — the PII enforcement for the un-erasable ledger.
 // `insertAudit` (the tx-capable variant) stays in-package — not re-exported.
-export { audit, AuditMetadataKey, AuditMetadataSchema } from "./audit";
+export { audit, AuditMetadataKey, AuditMetadataSchema, AuditTargetTypeSchema } from "./audit";
 export type { AuditEntry, AuditMetadata, AuditLogRow } from "./audit";
 
 // Purge + retention routines (D5/D9/D11) — the tenant-scoped deletion seam.

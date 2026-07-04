@@ -284,6 +284,32 @@ describe("artifactStore.comparisonMarks — D13 coordinates-only guard", () => {
     expect(result.error.code).toBe(ArtifactErrorCode.INVALID_BODY);
   });
 
+  it("rejects impossible line ranges (inverted, zero, negative)", async () => {
+    const handle = await freshDatabase();
+    const a = forTenant(handle, CTX_A);
+    const store = artifactStore(handle, CTX_A);
+    const pr = await a.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+
+    const bodies = [
+      { start: 20, end: 3 }, // inverted
+      { start: 0, end: 0 }, // 0 is not a line (1-based)
+      { start: -1, end: 5 }, // negative
+    ];
+    for (const range of bodies) {
+      const result = await store.comparisonMarks.write({
+        pullRequestId: pr.id,
+        marks: {
+          baselineSha: "base",
+          headSha: "head",
+          files: [{ file: "src/a.ts", addedRanges: [range], removedRanges: [] }],
+        },
+      });
+      expect(result.ok).toBe(false);
+      if (result.ok) throw new Error("expected rejection");
+      expect(result.error.code).toBe(ArtifactErrorCode.INVALID_BODY);
+    }
+  });
+
   it("accepts a valid coordinates-only body and stores exactly the SHA-pair body", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);

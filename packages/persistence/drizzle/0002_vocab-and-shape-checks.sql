@@ -65,3 +65,11 @@ CHECK ("actor_type" IN ('reviewer', 'app', 'system'));
 ALTER TABLE "audit_log"
 ADD CONSTRAINT "audit_log_action_check"
 CHECK ("action" IN ('generate', 'delete', 'config', 'auth'));
+--> statement-breakpoint
+
+-- target_type is an open-ended CLASS token (D9), not open text: shape-check
+-- it so route/slug/email-like strings can't enter the never-purged ledger
+-- through the one non-closed string column. Mirrors AuditTargetTypeSchema.
+ALTER TABLE "audit_log"
+ADD CONSTRAINT "audit_log_target_type_shape"
+CHECK ("target_type" IS NULL OR "target_type" ~ '^[a-z][a-z0-9_]{0,63}$');

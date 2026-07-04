@@ -1,7 +1,7 @@
 // Stage 4 audit-emit tests (PGlite). Prove the D9 append-only emit inserts with
 // dangling (non-FK) targets and validates metadata.
 import { describe, expect, it } from "vitest";
-import { audit, AuditMetadataSchema, type AuditEntry } from "../src/lib";
+import { audit, AuditMetadataSchema, AuditTargetTypeSchema, type AuditEntry } from "../src/lib";
 import { AuditAction, AuditActorType, isInstallationId, type InstallationId } from "../src/types";
 import { brandWith, freshDatabase } from "./helpers";
 
@@ -58,5 +58,32 @@ describe("audit — append-only emit (D9)", () => {
     expect(AuditMetadataSchema.safeParse({ kind: "na\u00efve" }).success).toBe(false);
     // Nested objects still rejected.
     expect(AuditMetadataSchema.safeParse({ decision: { nested: true } }).success).toBe(false);
+  });
+
+  it("rejects non-finite numbers (JSON would silently null them in jsonb)", () => {
+    expect(AuditMetadataSchema.safeParse({ count: Infinity }).success).toBe(false);
+    expect(AuditMetadataSchema.safeParse({ count: -Infinity }).success).toBe(false);
+    expect(AuditMetadataSchema.safeParse({ count: Number.NaN }).success).toBe(false);
+    expect(AuditMetadataSchema.safeParse({ count: 42 }).success).toBe(true);
+  });
+
+  it("targetType must be a class token, never identifying text", async () => {
+    expect(AuditTargetTypeSchema.safeParse("pull_request").success).toBe(true);
+    expect(AuditTargetTypeSchema.safeParse("revision_narrative2").success).toBe(true);
+    expect(AuditTargetTypeSchema.safeParse("acme/widgets").success).toBe(false);
+    expect(AuditTargetTypeSchema.safeParse("user@example.com").success).toBe(false);
+    expect(AuditTargetTypeSchema.safeParse("PullRequest").success).toBe(false);
+    expect(AuditTargetTypeSchema.safeParse("a".repeat(65)).success).toBe(false);
+
+    // audit() enforces it (throws — programmer error, same as metadata).
+    const handle = await freshDatabase();
+    const entry: AuditEntry = {
+      installationId: TENANT,
+      actorType: AuditActorType.SYSTEM,
+      action: AuditAction.DELETE,
+      targetType: "repos/acme/widgets",
+      targetId: 1n,
+    };
+    await expect(audit(handle, entry)).rejects.toThrow(/class token/);
   });
 });

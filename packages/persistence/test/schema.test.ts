@@ -401,6 +401,16 @@ describe("closed-vocabulary + shape CHECK constraints (PR #23 review)", () => {
     );
   });
 
+  it("rejects a route/slug-shaped audit_log.target_type at the DB", async () => {
+    const db = await freshDb();
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into audit_log (installation_id, actor_type, action, target_type) values (1000, 'system', 'delete', 'repos/acme/widgets')`,
+      ),
+      "audit_log_target_type_shape",
+    );
+  });
+
   it("rejects out-of-vocabulary generation.status and audit_log.action", async () => {
     const db = await freshDb();
     const prId = await insertPullRequest(db);

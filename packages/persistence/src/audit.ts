@@ -60,10 +60,26 @@ const metadataStringSchema = z
  * not a convention; values are constrained scalars, never nested objects
  * that could smuggle identifying transport detail into an un-erasable table.
  */
+/** Finite only: `Infinity` survives `z.number()` but JSON-serializes to `null`
+ * in the jsonb column, silently corrupting a count. */
+const metadataNumberSchema = z.number().finite();
+
 export const AuditMetadataSchema = z.record(
   metadataKeySchema,
-  z.union([metadataStringSchema, z.number(), z.boolean()]),
+  z.union([metadataStringSchema, metadataNumberSchema, z.boolean()]),
 );
+
+/**
+ * `targetType` is deliberately open-ended (D9: `pull_request | brief | … `),
+ * but "open-ended" means open CLASS of target, not open TEXT: a class token
+ * is lowercase snake_case, ≤64 chars — never a route, slug, email, or any
+ * other identifying string. Shape-validated here and CHECK-backstopped in
+ * migration 0002 so caller discipline isn't the enforcement.
+ */
+export const AuditTargetTypeSchema = z
+  .string()
+  .max(64)
+  .regex(/^[a-z][a-z0-9_]*$/, "targetType must be a lowercase snake_case class token");
 /**
  * Declared as a partial record (any subset of the allowlisted keys) — zod v3's
  * `z.record` with a literal key schema would infer every key as required,
@@ -101,6 +117,8 @@ export interface AuditEntry {
  */
 export async function insertAudit(executor: AppDrizzle, entry: AuditEntry): Promise<AuditLogRow> {
   const metadata = entry.metadata === undefined ? null : AuditMetadataSchema.parse(entry.metadata);
+  const targetType =
+    entry.targetType === undefined ? undefined : AuditTargetTypeSchema.parse(entry.targetType);
   const rows = await executor
     .insert(auditLog)
     .values({
@@ -108,7 +126,7 @@ export async function insertAudit(executor: AppDrizzle, entry: AuditEntry): Prom
       actorType: entry.actorType,
       actorId: entry.actorId,
       action: entry.action,
-      targetType: entry.targetType,
+      targetType,
       targetId: entry.targetId,
       metadata,
     })
