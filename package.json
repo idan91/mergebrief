@@ -7,6 +7,8 @@
     "build": "pnpm -C apps/web build",
     "typecheck": "pnpm -C apps/web typecheck",
     "test": "pnpm -C tools/categorizer test",
+    "typecheck:persistence": "pnpm -C packages/persistence typecheck",
+    "test:persistence": "pnpm -C packages/persistence test",
     "lint": "oxlint --type-aware && pnpm -C apps/web lint"
   },
   "packageManager": "pnpm@10.0.0",

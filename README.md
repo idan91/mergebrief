@@ -67,10 +67,33 @@ see [`tools/categorizer/README.md`](./tools/categorizer/README.md).
 ## Project layout
 
 ```
-apps/web/            the web app (picker, Brief renderer, review session)
+apps/web/             the web app (picker, Brief renderer, review session)
 tools/categorizer/    the engine: PR diff → categorized Brief (CLI + library)
+packages/persistence/ the self-host backend's data layer (Postgres, in progress)
 docs/                 vision, ADRs, domain model (CONTEXT.md), roadmap
 ```
+
+## Your data (what's stored, and how forgetting works)
+
+The self-host backend (in progress) keeps everything in **your own Postgres, on your own
+infrastructure, with your own API key** — nothing leaves your network, and there is no
+telemetry. What it stores is deliberately minimal:
+
+- **Stored:** generated Briefs and revision summaries (descriptions *of* your code), review
+  positions (which commit each reviewer last reviewed), and encrypted login sessions.
+- **Not stored:** your code. Diffs are fetched live from GitHub per session and thrown away —
+  with one documented, configurable exception (a baseline diff snapshot that keeps
+  re-review comparisons working after a force-push; `PERSIST_BASELINE_SNAPSHOT`, on by
+  default for self-host, off if you want strictly nothing code-shaped at rest).
+- **Also not stored:** comment text (comments live on GitHub), emails, or IP addresses.
+
+**Forgetting is built in, and it's your policy, not ours.** GitHub stays the source of truth,
+so stored artifacts are safe to expire: a per-repo retention setting sweeps a PR's artifacts
+after it closes (or keeps them forever — retention "never" is a first-class setting).
+Uninstalling the GitHub App erases the installation's data completely. Erasure is enforced by
+the database itself (every artifact cascades from its PR — no forgotten table), and each
+deletion appends one anonymous, numbers-only entry to an audit ledger, so you can prove *that*
+something was erased without retaining *what*.
 
 ## Status
 
