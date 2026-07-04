@@ -1,5 +1,6 @@
 .callout {
   z-index: 1000;
+  display: block;
   width: 320px;
   padding: 12px 14px;
   border: 1px solid var(--line2);
@@ -8,7 +9,10 @@
   box-shadow: 0 14px 40px rgb(0 0 0 / 55%);
   white-space: normal;
   font-family: var(--sans);
-  pointer-events: none;
+
+  // The pointer may travel into the callout — to copy text today, to
+  // interact tomorrow (safePolygon keeps it open on the way in).
+  user-select: text;
 }
 
 .callout[data-fit] {
@@ -16,19 +20,10 @@
   max-width: 320px;
 }
 
-// Anchoring arrow on the top edge: a rotated square sharing the callout's
-// background, with only its exposed (top/left) sides borrowed as borders.
-.callout[data-arrow]::before {
-  content: "";
-  position: absolute;
-  inset-block-start: -4.5px;
-  inset-inline-start: var(--callout-arrow-x, 18px);
-  inline-size: 8px;
-  block-size: 8px;
-  border-block-start: 1px solid var(--line2);
-  border-inline-start: 1px solid var(--line2);
-  background: #15151a;
-  transform: translateX(-50%) rotate(45deg);
+// floating-ui arrow (SVG): same surface as the callout; hairline via the
+// component's stroke prop.
+.arrow {
+  fill: #15151a;
 }
 
 .eyebrow {

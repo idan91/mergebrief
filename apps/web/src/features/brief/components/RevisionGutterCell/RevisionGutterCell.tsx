@@ -26,11 +26,13 @@ export function RevisionGutterCell({
   const count = run.rowIndexes.length;
   const verb = run.kind === "removed" ? "Removed" : "New";
   return (
+    // Mouse-leave is deliberately absent: the ComparisonCallout's hover
+    // system (safePolygon) owns closing, so the pointer can travel into the
+    // callout. `onRailLeave` remains the keyboard close path (blur below).
     <td
       className={styles["gutter"]}
       data-rev={run.kind}
       onMouseEnter={(e) => onRailEnter(run, e.currentTarget)}
-      onMouseLeave={onRailLeave}
     >
       {isStart ? (
         <button

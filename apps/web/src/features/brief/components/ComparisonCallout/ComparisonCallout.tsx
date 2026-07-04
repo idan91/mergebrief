@@ -9,7 +9,10 @@ import type { BriefChunk, RevisionNarrativeSkipReason } from "../../types";
 import styles from "./ComparisonCallout.module.scss";
 
 export interface ComparisonCalloutProps {
-  pos: { top: number; left: number };
+  /** The rail element the callout anchors to. */
+  anchor: Element;
+  /** Hover left the rail + callout system; the parent unmounts. */
+  onClose: () => void;
   run: ComparisonRun;
   chunk: BriefChunk;
   source: ComparisonSource;
@@ -21,7 +24,8 @@ export interface ComparisonCalloutProps {
 }
 
 export function ComparisonCallout({
-  pos,
+  anchor,
+  onClose,
   run,
   chunk,
   source,
@@ -34,7 +38,7 @@ export function ComparisonCallout({
       ? `${verb} since your last review`
       : `${verb} this revision`;
   return (
-    <Callout pos={pos}>
+    <Callout anchor={anchor} onClose={onClose} placement="right-start">
       <Callout.Eyebrow>{eyebrow}</Callout.Eyebrow>
       {callout.available ? (
         <>

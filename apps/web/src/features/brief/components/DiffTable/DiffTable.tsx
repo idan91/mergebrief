@@ -69,7 +69,7 @@ export function DiffTable({
   const [dragCurrent, setDragCurrent] = useState<number | null>(null);
   const [railHover, setRailHover] = useState<{
     run: ComparisonRun;
-    pos: { top: number; left: number };
+    el: HTMLElement;
   } | null>(null);
 
   useEffect(() => {
@@ -92,9 +92,10 @@ export function DiffTable({
   }, [dragStart]);
 
   const handleRailEnter = (run: ComparisonRun, el: HTMLElement) => {
-    const rect = el.getBoundingClientRect();
-    setRailHover({ run, pos: { top: rect.top, left: rect.right + 8 } });
+    setRailHover({ run, el });
   };
+  // Mouse-leave is owned by the Callout's hover system (safePolygon), so the
+  // pointer can travel into the callout; this closes the keyboard path (blur).
   const handleRailLeave = () => setRailHover(null);
 
   if (!chunk.diff || chunk.diff.length === 0) {
@@ -272,7 +273,8 @@ export function DiffTable({
       </div>
       {railHover && (
         <ComparisonCallout
-          pos={railHover.pos}
+          anchor={railHover.el}
+          onClose={handleRailLeave}
           run={railHover.run}
           chunk={chunk}
           source={comparisonSource}

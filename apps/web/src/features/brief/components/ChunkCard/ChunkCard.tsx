@@ -42,43 +42,23 @@ export interface ChunkCardProps {
   updateReviewComment: (commentId: string, body: string) => void;
 }
 
-interface OverflowTip {
-  top: number;
-  left: number;
-  arrowX: number;
-}
-
 /**
  * The "+N" chip for risk attributes beyond the header's two-chip budget.
- * Its callout is portal-rendered at a fixed position: the card clips its
- * overflow and the sticky header's backdrop-filter creates a containing
- * block, so an in-place popover (or the native title) cannot escape the
- * header. Hover-only for sighted users; screen readers get the full list
- * inline via the visually-hidden span.
+ * The full list opens in the shared anchored Callout (portal-rendered, so
+ * the card's overflow clip and the sticky header's backdrop-filter
+ * containing block can't swallow it) and stays open while the pointer is
+ * inside it. Screen readers get the list inline via the hidden span.
  */
 function OverflowRiskChip({ attrs }: { attrs: RiskSurfaceAttribute[] }) {
-  const [tip, setTip] = useState<OverflowTip | null>(null);
+  const [anchor, setAnchor] = useState<Element | null>(null);
   return (
-    <span
-      onMouseEnter={(event) => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        const centerX = rect.left + rect.width / 2;
-        // Clamp to the viewport (320px max callout width, 8px margin) and
-        // keep the arrow on the chip even when the callout shifts.
-        const left = Math.max(
-          8,
-          Math.min(centerX - 18, window.innerWidth - 328),
-        );
-        setTip({ top: rect.bottom + 8, left, arrowX: centerX - left });
-      }}
-      onMouseLeave={() => setTip(null)}
-    >
+    <span onMouseEnter={(event) => setAnchor(event.currentTarget)}>
       <Badge className={styles["riskChip"]} color={BadgeColors.AMBER}>
         +{attrs.length}
         <ScreenReaderOnly>{` ${attrs.join(", ")}`}</ScreenReaderOnly>
       </Badge>
-      {tip ? (
-        <Callout arrowX={tip.arrowX} fit pos={tip}>
+      {anchor ? (
+        <Callout anchor={anchor} fit onClose={() => setAnchor(null)}>
           <span className={styles["tipChips"]}>
             {attrs.map((attr) => (
               <Badge
