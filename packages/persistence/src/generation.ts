@@ -1,0 +1,233 @@
+// The `generation` status-projection write helpers (ADR 0018 D10). `generation`
+// is a mutable CQRS mirror of a worker job — NOT a queue, NOT a lock, NOT a
+// domain entity: graphile-worker deletes succeeded jobs, so the web tier polls
+// this. These helpers only REFLECT state (queued→running→succeeded/failed);
+// single-flight, retries, and the dead-letter live in graphile, never here.
+//
+// The natural key is `(installation_id, pull_request_id, kind, head_sha,
+// baseline_sha)` with NULLS NOT DISTINCT — `baseline_sha` is null for briefs,
+// so without it every brief upsert would insert a second row instead of
+// conflicting. `attempts` is incremented on re-queue; `updated_at` is bumped on
+// every mutation. Like the artifact writes, `upsertQueued` verifies the parent
+// `pull_request` belongs to ctx in-transaction (stage-3 invariant (a)).
+import { and, eq, isNull, sql } from "drizzle-orm";
+import { type AppDatabase, internal } from "./db.js";
+import { generation } from "./schema/generation.js";
+import { pullRequest } from "./schema/pull-request.js";
+import type { TenantContext } from "./tenant.js";
+import {
+  GenerationStatus,
+  type GenerationKind,
+  type GenerationPhase,
+  type PullRequestRowId,
+  type Result,
+  type ValueOf,
+} from "./types.js";
+
+export type GenerationRow = typeof generation.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Error sanitization — the boundary is enforced HERE, not by the caller.
+// ---------------------------------------------------------------------------
+
+const URL_SHAPED = /\w+:\/\/\S+/g;
+const MAX_ERROR_LENGTH = 300;
+
+/**
+ * Sanitize a raw error message for the `generation.error` column. Applied
+ * unconditionally inside `markFailed` so callers cannot bypass it:
+ * (a) first line only — drops stack traces;
+ * (b) URL-shaped substrings redacted — a connection string with credentials
+ *     (`postgres://user:pass@host/db`) is the realistic leak;
+ * (c) capped at 300 chars.
+ * Exported so callers can preview what will be stored.
+ */
+export function sanitizeGenerationError(raw: string): string {
+  const firstLine = raw.split("\n", 1)[0] ?? "";
+  const redacted = firstLine.replace(URL_SHAPED, "[redacted-url]");
+  return redacted.slice(0, MAX_ERROR_LENGTH);
+}
+
+// ---------------------------------------------------------------------------
+// Errors — expected failures. Programmer errors still `throw`.
+// ---------------------------------------------------------------------------
+
+export const GenerationErrorCode = {
+  /** `upsertQueued` named a `pull_request` that is not in ctx's tenant. */
+  parentNotInTenant: "parent_not_in_tenant",
+  /** A transition targeted a projection row absent from ctx's tenant. */
+  notFound: "not_found",
+} as const;
+export type GenerationErrorCode = ValueOf<typeof GenerationErrorCode>;
+
+export interface GenerationError {
+  readonly code: GenerationErrorCode;
+  readonly message: string;
+}
+
+function fail(code: GenerationErrorCode, message: string): Result<never, GenerationError> {
+  return { ok: false, error: { code, message } };
+}
+
+// ---------------------------------------------------------------------------
+// The projection natural key (minus the ctx-supplied installation_id).
+// ---------------------------------------------------------------------------
+
+export interface GenerationTarget {
+  readonly pullRequestId: PullRequestRowId;
+  readonly kind: GenerationKind;
+  readonly headSha: string;
+  /** Null for `brief`/`revision-narrative`; checkpoint SHA for `delta`. */
+  readonly baselineSha: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Surface.
+// ---------------------------------------------------------------------------
+
+export interface GenerationProjection {
+  readonly ctx: TenantContext;
+  /**
+   * Project a job as `queued`. First call inserts (`attempts = 0`); a re-queue
+   * of the same key conflicts (NULLS NOT DISTINCT) and increments `attempts`,
+   * resetting `phase`/`error`. Verifies the parent PR is in ctx's tenant.
+   */
+  upsertQueued(target: GenerationTarget): Promise<Result<GenerationRow, GenerationError>>;
+  /** Reflect `running`, optionally with a determinate `phase`. */
+  markRunning(
+    target: GenerationTarget,
+    phase?: GenerationPhase,
+  ): Promise<Result<GenerationRow, GenerationError>>;
+  /** Reflect `succeeded`; clears `error`. */
+  markSucceeded(target: GenerationTarget): Promise<Result<GenerationRow, GenerationError>>;
+  /**
+   * Reflect `failed`. The raw error is passed as-is; `markFailed` applies
+   * `sanitizeGenerationError` itself (first line, URLs redacted, 300-char
+   * cap), so callers cannot store an unsanitized reason.
+   */
+  markFailed(
+    target: GenerationTarget,
+    error: string,
+  ): Promise<Result<GenerationRow, GenerationError>>;
+  /** Tenant-scoped read of the projection row; absence is `undefined`. */
+  get(target: GenerationTarget): Promise<GenerationRow | undefined>;
+}
+
+// ---------------------------------------------------------------------------
+// Factory.
+// ---------------------------------------------------------------------------
+
+/** Build a tenant-scoped `generation` projection over the opaque handle. */
+export function generationProjection(handle: AppDatabase, ctx: TenantContext): GenerationProjection {
+  const db = internal(handle);
+  const { installationId } = ctx;
+
+  /** Full natural-key predicate; `baseline_sha` matched with IS NULL when null. */
+  function keyWhere(target: GenerationTarget) {
+    return and(
+      eq(generation.installationId, installationId),
+      eq(generation.pullRequestId, target.pullRequestId),
+      eq(generation.kind, target.kind),
+      eq(generation.headSha, target.headSha),
+      target.baselineSha === null
+        ? isNull(generation.baselineSha)
+        : eq(generation.baselineSha, target.baselineSha),
+    );
+  }
+
+  async function transition(
+    target: GenerationTarget,
+    set: Partial<typeof generation.$inferInsert>,
+  ): Promise<Result<GenerationRow, GenerationError>> {
+    const rows = await db
+      .update(generation)
+      .set({ ...set, updatedAt: new Date() })
+      .where(keyWhere(target))
+      .returning();
+    const row = rows[0];
+    if (row === undefined) {
+      return fail(
+        GenerationErrorCode.notFound,
+        `generation ${target.kind}@${target.headSha} not found in tenant ${installationId}`,
+      );
+    }
+    return { ok: true, value: row };
+  }
+
+  return {
+    ctx,
+
+    async upsertQueued(target) {
+      return db.transaction(async (tx) => {
+        const parents = await tx
+          .select({ id: pullRequest.id })
+          .from(pullRequest)
+          .where(
+            and(
+              eq(pullRequest.installationId, installationId),
+              eq(pullRequest.id, target.pullRequestId),
+            ),
+          )
+          .limit(1);
+        if (parents[0] === undefined) {
+          return fail(
+            GenerationErrorCode.parentNotInTenant,
+            `pull_request ${target.pullRequestId} not in tenant ${installationId}`,
+          );
+        }
+        const rows = await tx
+          .insert(generation)
+          .values({
+            installationId,
+            pullRequestId: target.pullRequestId,
+            kind: target.kind,
+            headSha: target.headSha,
+            baselineSha: target.baselineSha,
+            status: GenerationStatus.queued,
+          })
+          .onConflictDoUpdate({
+            target: [
+              generation.installationId,
+              generation.pullRequestId,
+              generation.kind,
+              generation.headSha,
+              generation.baselineSha,
+            ],
+            set: {
+              status: GenerationStatus.queued,
+              attempts: sql`${generation.attempts} + 1`,
+              phase: null,
+              error: null,
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+        const row = rows[0];
+        if (row === undefined) {
+          throw new Error("generation upsertQueued returned no row");
+        }
+        return { ok: true, value: row };
+      });
+    },
+
+    async markRunning(target, phase) {
+      return transition(target, { status: GenerationStatus.running, phase: phase ?? null });
+    },
+
+    async markSucceeded(target) {
+      return transition(target, { status: GenerationStatus.succeeded, error: null });
+    },
+
+    async markFailed(target, error) {
+      return transition(target, {
+        status: GenerationStatus.failed,
+        error: sanitizeGenerationError(error),
+      });
+    },
+
+    async get(target) {
+      const rows = await db.select().from(generation).where(keyWhere(target)).limit(1);
+      return rows[0];
+    },
+  };
+}
