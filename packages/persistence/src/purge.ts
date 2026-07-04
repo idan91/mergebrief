@@ -53,9 +53,9 @@ const AUDIT_TARGET_INSTALLATION = "installation";
 
 export const PurgeErrorCode = {
   /** A tenant-scoped purge/retention op named a `pull_request` not in ctx. */
-  notFound: "not_found",
+  NOT_FOUND: "not-found",
   /** `graceDays` was negative, fractional-invalid (NaN/Infinity), or absurd. */
-  invalidGrace: "invalid_grace",
+  INVALID_GRACE: "invalid-grace",
 } as const;
 export type PurgeErrorCode = ValueOf<typeof PurgeErrorCode>;
 
@@ -152,7 +152,7 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
           .limit(1);
         if (parents[0] === undefined) {
           return fail(
-            PurgeErrorCode.notFound,
+            PurgeErrorCode.NOT_FOUND,
             `pull_request ${prRowId} not found in tenant ${installationId}`,
           );
         }
@@ -160,8 +160,8 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
         // cascade it records (audit_log has no FK to pull_request).
         await insertAudit(tx, {
           installationId,
-          actorType: AuditActorType.app,
-          action: AuditAction.delete,
+          actorType: AuditActorType.APP,
+          action: AuditAction.DELETE,
           targetType: AUDIT_TARGET_PULL_REQUEST,
           targetId: prRowId,
         });
@@ -182,8 +182,8 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
         const count = deleted.length;
         await insertAudit(tx, {
           installationId,
-          actorType: AuditActorType.app,
-          action: AuditAction.delete,
+          actorType: AuditActorType.APP,
+          action: AuditAction.DELETE,
           targetType: AUDIT_TARGET_REPO,
           targetId: repoId,
           metadata: { count },
@@ -204,8 +204,8 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
           .returning({ id: reviewerSession.id });
         await insertAudit(tx, {
           installationId,
-          actorType: AuditActorType.app,
-          action: AuditAction.delete,
+          actorType: AuditActorType.APP,
+          action: AuditAction.DELETE,
           targetType: AUDIT_TARGET_INSTALLATION,
           targetId: installationId,
           metadata: { count: purgedPrs.length },
@@ -219,7 +219,7 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
       // the row instantly sweepable — a data-loss footgun no upstream
       // validation should be trusted to catch (D5).
       if (graceDays !== null && (!Number.isFinite(graceDays) || graceDays < 0)) {
-        return fail(PurgeErrorCode.invalidGrace, `graceDays must be a non-negative finite number, got ${graceDays}`);
+        return fail(PurgeErrorCode.INVALID_GRACE, `graceDays must be a non-negative finite number, got ${graceDays}`);
       }
       const purgeAfter =
         graceDays === null ? null : new Date(closedAt.getTime() + graceDays * MS_PER_DAY);
@@ -231,7 +231,7 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
       const row = rows[0];
       if (row === undefined) {
         return fail(
-          PurgeErrorCode.notFound,
+          PurgeErrorCode.NOT_FOUND,
           `pull_request ${prRowId} not found in tenant ${installationId}`,
         );
       }
@@ -256,8 +256,8 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
         if (count > 0) {
           await insertAudit(tx, {
             installationId,
-            actorType: AuditActorType.system,
-            action: AuditAction.delete,
+            actorType: AuditActorType.SYSTEM,
+            action: AuditAction.DELETE,
             targetType: AUDIT_TARGET_PULL_REQUEST,
             metadata: { count },
           });

@@ -109,9 +109,9 @@ export function safeParseTenantContext(input: unknown): Result<TenantContext, st
 
 export const RepositoryErrorCode = {
   /** A per-PR write named a `pull_request` that is not in ctx's tenant. */
-  parentNotInTenant: "parent_not_in_tenant",
+  PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A scoped mutation matched no row in ctx's tenant. */
-  notFound: "not_found",
+  NOT_FOUND: "not-found",
 } as const;
 export type RepositoryErrorCode = ValueOf<typeof RepositoryErrorCode>;
 
@@ -280,7 +280,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
       const row = rows[0];
       if (row === undefined) {
         return fail(
-          RepositoryErrorCode.notFound,
+          RepositoryErrorCode.NOT_FOUND,
           `pull_request ${pullRequestId} not found in tenant ${installationId}`,
         );
       }
@@ -305,7 +305,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
         if (parents[0] === undefined) {
           // Nothing written; the (empty) tx commits cleanly.
           return fail(
-            RepositoryErrorCode.parentNotInTenant,
+            RepositoryErrorCode.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
           );
         }

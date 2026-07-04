@@ -1,8 +1,8 @@
 /**
  * Union of a mapped type's value types. Used instead of `enum` for closed
  * vocabularies: pair with an `as const` object map, e.g.
- *   const GenerationStatus = { pending: "pending", done: "done" } as const;
- *   type GenerationStatus = ValueOf<typeof GenerationStatus>;
+ *   const Status = { PENDING: "pending", NOT_STARTED: "not-started" } as const;
+ *   type Status = ValueOf<typeof Status>;
  */
 export type ValueOf<T> = T[keyof T];
 
@@ -59,59 +59,59 @@ export function isBriefRowId(value: bigint): value is BriefRowId {
 
 /** `pull_request.state` (D5). */
 export const PrState = {
-  open: "open",
-  closed: "closed",
-  merged: "merged",
+  OPEN: "open",
+  CLOSED: "closed",
+  MERGED: "merged",
 } as const;
 export type PrState = ValueOf<typeof PrState>;
 
 /** `disposition.decision` (D7). */
 export const DispositionDecision = {
-  addressed: "addressed",
-  dismissed: "dismissed",
+  ADDRESSED: "addressed",
+  DISMISSED: "dismissed",
 } as const;
 export type DispositionDecision = ValueOf<typeof DispositionDecision>;
 
 /** `generation.kind` (D10, extended by D12 with `revision-narrative`). */
 export const GenerationKind = {
-  brief: "brief",
-  delta: "delta",
-  revisionNarrative: "revision-narrative",
+  BRIEF: "brief",
+  DELTA: "delta",
+  REVISION_NARRATIVE: "revision-narrative",
 } as const;
 export type GenerationKind = ValueOf<typeof GenerationKind>;
 
 /** `generation.status` (D10). */
 export const GenerationStatus = {
-  queued: "queued",
-  running: "running",
-  succeeded: "succeeded",
-  failed: "failed",
+  QUEUED: "queued",
+  RUNNING: "running",
+  SUCCEEDED: "succeeded",
+  FAILED: "failed",
 } as const;
 export type GenerationStatus = ValueOf<typeof GenerationStatus>;
 
 /** `generation.phase` (D10; optional determinate-progress detail). */
 export const GenerationPhase = {
-  fetching: "fetching",
-  redacting: "redacting",
-  generating: "generating",
-  writing: "writing",
+  FETCHING: "fetching",
+  REDACTING: "redacting",
+  GENERATING: "generating",
+  WRITING: "writing",
 } as const;
 export type GenerationPhase = ValueOf<typeof GenerationPhase>;
 
 /** `audit_log.actor_type` (D9). */
 export const AuditActorType = {
-  reviewer: "reviewer",
-  app: "app",
-  system: "system",
+  REVIEWER: "reviewer",
+  APP: "app",
+  SYSTEM: "system",
 } as const;
 export type AuditActorType = ValueOf<typeof AuditActorType>;
 
 /** `audit_log.action` (D9; `view` may join later — code change only). */
 export const AuditAction = {
-  generate: "generate",
-  delete: "delete",
-  config: "config",
-  auth: "auth",
+  GENERATE: "generate",
+  DELETE: "delete",
+  CONFIG: "config",
+  AUTH: "auth",
 } as const;
 export type AuditAction = ValueOf<typeof AuditAction>;
 

@@ -104,7 +104,7 @@ async function insertPr(db: Db, seed: PrSeed): Promise<PullRequestRowId> {
       repoId: seed.repoId ?? REPO,
       prNumber: seed.prNumber ?? 7,
       repoSlug: "acme/widgets",
-      state: seed.state ?? PrState.open,
+      state: seed.state ?? PrState.OPEN,
       closedAt: seed.closedAt,
       purgeAfter: seed.purgeAfter,
     })
@@ -187,23 +187,23 @@ async function seedFullGraph(
     regionStart: 10,
     regionEnd: 20,
     decidedAtSha: HEAD_SHA,
-    decision: DispositionDecision.dismissed,
+    decision: DispositionDecision.DISMISSED,
     reason: "false positive",
     decidedAt: new Date(),
   });
   await db.insert(generation).values({
     installationId,
     pullRequestId,
-    kind: GenerationKind.brief,
+    kind: GenerationKind.BRIEF,
     headSha: HEAD_SHA,
     baselineSha: null,
-    status: GenerationStatus.succeeded,
+    status: GenerationStatus.SUCCEEDED,
   });
   // A pre-existing (non-delete) audit row — proves audit_log is retained.
   await db.insert(auditLog).values({
     installationId,
     actorType: "app",
-    action: AuditAction.generate,
+    action: AuditAction.GENERATE,
     targetType: "pull_request",
     targetId: pullRequestId,
     metadata: { kind: "brief" },
@@ -244,7 +244,7 @@ async function deleteAudits(db: Db, installationId: InstallationId) {
   return db
     .select({ id: auditLog.id, targetType: auditLog.targetType, targetId: auditLog.targetId })
     .from(auditLog)
-    .where(and(eq(auditLog.installationId, installationId), eq(auditLog.action, AuditAction.delete)));
+    .where(and(eq(auditLog.installationId, installationId), eq(auditLog.action, AuditAction.DELETE)));
 }
 
 describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival (D5/D9)", () => {
@@ -289,7 +289,7 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival (D5/
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
-    expect(result.error.code).toBe(PurgeErrorCode.notFound);
+    expect(result.error.code).toBe(PurgeErrorCode.NOT_FOUND);
 
     // Nothing deleted, and no spurious audit entry under either tenant.
     expect(await countChildTables(pair.raw, prId)).toBe(8);
@@ -439,7 +439,7 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
       const result = await routines.setRetention(prId, closedAt, bad);
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("expected failure");
-      expect(result.error.code).toBe(PurgeErrorCode.invalidGrace);
+      expect(result.error.code).toBe(PurgeErrorCode.INVALID_GRACE);
     }
     const rows = await raw.select().from(pullRequest).where(eq(pullRequest.id, prId));
     expect(rows[0]?.purgeAfter).toBeNull();
@@ -472,7 +472,7 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
-    expect(result.error.code).toBe(PurgeErrorCode.notFound);
+    expect(result.error.code).toBe(PurgeErrorCode.NOT_FOUND);
   });
 });
 

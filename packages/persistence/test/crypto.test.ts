@@ -65,14 +65,14 @@ describe("crypto — key provider (envKeyProvider)", () => {
     const result = await providerWith({}).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected missing");
-    expect(result.error.code).toBe(KeyErrorCode.missing);
+    expect(result.error.code).toBe(KeyErrorCode.MISSING);
   });
 
   it("empty env var → missing error", async () => {
     const result = await providerWith({ [KEY_REF]: "" }).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected missing");
-    expect(result.error.code).toBe(KeyErrorCode.missing);
+    expect(result.error.code).toBe(KeyErrorCode.MISSING);
   });
 
   it("non-base64 env var → malformed error", async () => {
@@ -81,7 +81,7 @@ describe("crypto — key provider (envKeyProvider)", () => {
     }).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected malformed");
-    expect(result.error.code).toBe(KeyErrorCode.malformed);
+    expect(result.error.code).toBe(KeyErrorCode.MALFORMED);
   });
 
   it("short (non-32-byte) key → wrongLength error", async () => {
@@ -89,7 +89,7 @@ describe("crypto — key provider (envKeyProvider)", () => {
     const result = await providerWith({ [KEY_REF]: short }).resolveKey(KEY_REF);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected wrongLength");
-    expect(result.error.code).toBe(KeyErrorCode.wrongLength);
+    expect(result.error.code).toBe(KeyErrorCode.WRONG_LENGTH);
   });
 
   it("no error message contains the key value", async () => {
@@ -140,7 +140,7 @@ describe("crypto — decrypt failure modes (Result, no throw, no leak)", () => {
     const tampered = [v, iv, ctBytes.toString("base64"), tag].join(".");
 
     const error = decryptError(await decryptToken(provider, KEY_REF, tampered));
-    expect(error.code).toBe(CryptoErrorCode.authenticationFailed);
+    expect(error.code).toBe(CryptoErrorCode.AUTHENTICATION_FAILED);
     expect(error.message).not.toContain(TOKEN);
   });
 
@@ -153,7 +153,7 @@ describe("crypto — decrypt failure modes (Result, no throw, no leak)", () => {
     const tampered = [v, iv, ct, tagBytes.toString("base64")].join(".");
 
     const error = decryptError(await decryptToken(provider, KEY_REF, tampered));
-    expect(error.code).toBe(CryptoErrorCode.authenticationFailed);
+    expect(error.code).toBe(CryptoErrorCode.AUTHENTICATION_FAILED);
   });
 
   it("wrong key fails authentication", async () => {
@@ -167,7 +167,7 @@ describe("crypto — decrypt failure modes (Result, no throw, no leak)", () => {
     const error = decryptError(
       await decryptToken(decProvider, KEY_REF, sealed),
     );
-    expect(error.code).toBe(CryptoErrorCode.authenticationFailed);
+    expect(error.code).toBe(CryptoErrorCode.AUTHENTICATION_FAILED);
   });
 
   it("unknown version prefix is rejected", async () => {
@@ -175,14 +175,14 @@ describe("crypto — decrypt failure modes (Result, no throw, no leak)", () => {
     const sealed = await seal(provider, KEY_REF, TOKEN);
     const withV2 = sealed.replace(/^v1\./, "v2.");
     const error = decryptError(await decryptToken(provider, KEY_REF, withV2));
-    expect(error.code).toBe(CryptoErrorCode.unknownVersion);
+    expect(error.code).toBe(CryptoErrorCode.UNKNOWN_VERSION);
   });
 
   it("structurally malformed input is rejected", async () => {
     const provider = providerWith({ [KEY_REF]: freshKeyB64() });
     const accepted = [
-      CryptoErrorCode.malformedCiphertext,
-      CryptoErrorCode.unknownVersion,
+      CryptoErrorCode.MALFORMED_CIPHERTEXT,
+      CryptoErrorCode.UNKNOWN_VERSION,
     ];
     for (const bad of [
       "",
@@ -206,8 +206,8 @@ describe("crypto — decrypt failure modes (Result, no throw, no leak)", () => {
     const error = decryptError(
       await decryptToken(providerWith({}), KEY_REF, sealed),
     );
-    expect(error.code).toBe(CryptoErrorCode.keyUnavailable);
-    expect(error.cause?.code).toBe(KeyErrorCode.missing);
+    expect(error.code).toBe(CryptoErrorCode.KEY_UNAVAILABLE);
+    expect(error.cause?.code).toBe(KeyErrorCode.MISSING);
   });
 
   it("key rotation: a v2 keyRef decrypts its own ciphertext, not v1's", async () => {
@@ -227,6 +227,6 @@ describe("crypto — decrypt failure modes (Result, no throw, no leak)", () => {
     const error = decryptError(
       await decryptToken(provider, OTHER_KEY_REF, sealedV1),
     );
-    expect(error.code).toBe(CryptoErrorCode.authenticationFailed);
+    expect(error.code).toBe(CryptoErrorCode.AUTHENTICATION_FAILED);
   });
 });

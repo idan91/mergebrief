@@ -44,11 +44,11 @@ import {
 
 export const ArtifactErrorCode = {
   /** A write named a `pull_request` that is not in ctx's tenant. */
-  parentNotInTenant: "parent_not_in_tenant",
+  PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A `revision_narrative` write named a `brief` not in (ctx, same PR). */
-  briefNotAnchored: "brief_not_anchored",
+  BRIEF_NOT_ANCHORED: "brief-not-anchored",
   /** A `comparison_marks` body failed the coordinates-only Zod schema. */
-  invalidBody: "invalid_body",
+  INVALID_BODY: "invalid-body",
 } as const;
 export type ArtifactErrorCode = ValueOf<typeof ArtifactErrorCode>;
 
@@ -250,7 +250,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.parentNotInTenant,
+            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
           );
         }
@@ -312,7 +312,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.parentNotInTenant,
+            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
           );
         }
@@ -370,7 +370,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.parentNotInTenant,
+            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
           );
         }
@@ -420,7 +420,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.parentNotInTenant,
+            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
           );
         }
@@ -438,7 +438,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
           .limit(1);
         if (anchors[0] === undefined) {
           return fail(
-            ArtifactErrorCode.briefNotAnchored,
+            ArtifactErrorCode.BRIEF_NOT_ANCHORED,
             `brief ${input.briefId} not in tenant ${installationId} on pull_request ${input.pullRequestId}`,
           );
         }
@@ -502,7 +502,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
     async write(input) {
       const parsed = ComparisonMarksBodySchema.safeParse(input.marks);
       if (!parsed.success) {
-        return fail(ArtifactErrorCode.invalidBody, parsed.error.message);
+        return fail(ArtifactErrorCode.INVALID_BODY, parsed.error.message);
       }
       const marks = parsed.data;
       // The natural-key SHAs ARE the body's SHA pair (D13 pure-function rule).
@@ -510,7 +510,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
           return fail(
-            ArtifactErrorCode.parentNotInTenant,
+            ArtifactErrorCode.PARENT_NOT_IN_TENANT,
             `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
           );
         }

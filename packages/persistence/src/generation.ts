@@ -54,9 +54,9 @@ export function sanitizeGenerationError(raw: string): string {
 
 export const GenerationErrorCode = {
   /** `upsertQueued` named a `pull_request` that is not in ctx's tenant. */
-  parentNotInTenant: "parent_not_in_tenant",
+  PARENT_NOT_IN_TENANT: "parent-not-in-tenant",
   /** A transition targeted a projection row absent from ctx's tenant. */
-  notFound: "not_found",
+  NOT_FOUND: "not-found",
 } as const;
 export type GenerationErrorCode = ValueOf<typeof GenerationErrorCode>;
 
@@ -147,7 +147,7 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
     const row = rows[0];
     if (row === undefined) {
       return fail(
-        GenerationErrorCode.notFound,
+        GenerationErrorCode.NOT_FOUND,
         `generation ${target.kind}@${target.headSha} not found in tenant ${installationId}`,
       );
     }
@@ -171,7 +171,7 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
           .limit(1);
         if (parents[0] === undefined) {
           return fail(
-            GenerationErrorCode.parentNotInTenant,
+            GenerationErrorCode.PARENT_NOT_IN_TENANT,
             `pull_request ${target.pullRequestId} not in tenant ${installationId}`,
           );
         }
@@ -183,7 +183,7 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
             kind: target.kind,
             headSha: target.headSha,
             baselineSha: target.baselineSha,
-            status: GenerationStatus.queued,
+            status: GenerationStatus.QUEUED,
           })
           .onConflictDoUpdate({
             target: [
@@ -194,7 +194,7 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
               generation.baselineSha,
             ],
             set: {
-              status: GenerationStatus.queued,
+              status: GenerationStatus.QUEUED,
               attempts: sql`${generation.attempts} + 1`,
               phase: null,
               error: null,
@@ -211,16 +211,16 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
     },
 
     async markRunning(target, phase) {
-      return transition(target, { status: GenerationStatus.running, phase: phase ?? null });
+      return transition(target, { status: GenerationStatus.RUNNING, phase: phase ?? null });
     },
 
     async markSucceeded(target) {
-      return transition(target, { status: GenerationStatus.succeeded, error: null });
+      return transition(target, { status: GenerationStatus.SUCCEEDED, error: null });
     },
 
     async markFailed(target, error) {
       return transition(target, {
-        status: GenerationStatus.failed,
+        status: GenerationStatus.FAILED,
         error: sanitizeGenerationError(error),
       });
     },

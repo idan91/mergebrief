@@ -32,7 +32,7 @@ export interface PersistenceConfig {
 // ---------------------------------------------------------------------------
 
 export const ConfigErrorCode = {
-  invalid: "invalid",
+  INVALID: "invalid",
 } as const;
 export type ConfigErrorCode = ValueOf<typeof ConfigErrorCode>;
 
@@ -125,7 +125,7 @@ export function loadConfig(
     return {
       ok: false,
       error: {
-        code: ConfigErrorCode.invalid,
+        code: ConfigErrorCode.INVALID,
         message: "invalid persistence configuration",
         issues,
       },

@@ -12,8 +12,8 @@ describe("audit — append-only emit (D9)", () => {
     const handle = await freshDatabase();
     const entry: AuditEntry = {
       installationId: TENANT,
-      actorType: AuditActorType.app,
-      action: AuditAction.generate,
+      actorType: AuditActorType.APP,
+      action: AuditAction.GENERATE,
       targetType: "brief",
       targetId: 424242n, // no such brief row — audit has NO outbound FK
       metadata: { kind: "brief" },
@@ -21,7 +21,7 @@ describe("audit — append-only emit (D9)", () => {
 
     const row = await audit(handle, entry);
     expect(row.installationId).toBe(TENANT);
-    expect(row.action).toBe(AuditAction.generate);
+    expect(row.action).toBe(AuditAction.GENERATE);
     expect(row.targetId).toBe(424242n);
     expect(row.occurredAt).toBeInstanceOf(Date);
   });
@@ -30,12 +30,12 @@ describe("audit — append-only emit (D9)", () => {
     const handle = await freshDatabase();
     const row = await audit(handle, {
       installationId: TENANT,
-      actorType: AuditActorType.reviewer,
+      actorType: AuditActorType.REVIEWER,
       actorId: 31337n,
-      action: AuditAction.auth,
+      action: AuditAction.AUTH,
       metadata: { decision: "403" },
     });
-    expect(row.action).toBe(AuditAction.auth);
+    expect(row.action).toBe(AuditAction.AUTH);
     expect(row.metadata).toEqual({ decision: "403" });
     expect(row.targetType).toBeNull();
   });
@@ -50,7 +50,7 @@ describe("audit — append-only emit (D9)", () => {
 
   it("rejects values that could carry PII into the un-erasable ledger", () => {
     // "@" guard — no legitimate value in a numeric-id ledger contains an email.
-    expect(AuditMetadataSchema.safeParse({ reason_code: "user@example.com" }).success).toBe(false);
+    expect(AuditMetadataSchema.safeParse({ "reason-code": "user@example.com" }).success).toBe(false);
     // Over-long values rejected (max 64).
     expect(AuditMetadataSchema.safeParse({ kind: "x".repeat(65) }).success).toBe(false);
     // Non-printable-ASCII rejected (control chars, non-ASCII).

@@ -34,7 +34,7 @@ const REVIEWER: ReviewerId = brandWith(isReviewerId, 31337n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
-function upsertInput(prNumber: number, state: PrState = PrState.open) {
+function upsertInput(prNumber: number, state: PrState = PrState.OPEN) {
   return { repoId: REPO, prNumber, repoSlug: "acme/widgets", state };
 }
 
@@ -58,11 +58,11 @@ describe("forTenant — tenant isolation on reads", () => {
     const a = forTenant(handle, CTX_A);
     const b = forTenant(handle, CTX_B);
 
-    await a.pullRequests.upsert(upsertInput(7, PrState.open));
-    await b.pullRequests.upsert(upsertInput(7, PrState.merged));
+    await a.pullRequests.upsert(upsertInput(7, PrState.OPEN));
+    await b.pullRequests.upsert(upsertInput(7, PrState.MERGED));
 
-    expect((await a.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.open);
-    expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.merged);
+    expect((await a.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.OPEN);
+    expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.MERGED);
   });
 
   it("A cannot read a checkpoint written under B", async () => {
@@ -105,7 +105,7 @@ describe("forTenant — cross-tenant child writes are rejected without a DB writ
     if (result.ok) {
       throw new Error("expected a rejection");
     }
-    expect(result.error.code).toBe(RepositoryErrorCode.parentNotInTenant);
+    expect(result.error.code).toBe(RepositoryErrorCode.PARENT_NOT_IN_TENANT);
 
     // No row was written under EITHER tenant.
     expect(await a.checkpoints.get(bPr.id, REVIEWER)).toBeUndefined();
@@ -119,16 +119,16 @@ describe("forTenant — cross-tenant child writes are rejected without a DB writ
 
     const bPr = await b.pullRequests.upsert(upsertInput(7));
     const result = await a.pullRequests.setState(bPr.id, {
-      state: PrState.closed,
+      state: PrState.CLOSED,
     });
 
     expect(result.ok).toBe(false);
     if (result.ok) {
       throw new Error("expected a rejection");
     }
-    expect(result.error.code).toBe(RepositoryErrorCode.notFound);
+    expect(result.error.code).toBe(RepositoryErrorCode.NOT_FOUND);
     // B's PR is untouched.
-    expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.open);
+    expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.OPEN);
   });
 });
 
@@ -137,11 +137,11 @@ describe("forTenant — idempotent upserts", () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
 
-    const first = await a.pullRequests.upsert(upsertInput(7, PrState.open));
-    const second = await a.pullRequests.upsert(upsertInput(7, PrState.merged));
+    const first = await a.pullRequests.upsert(upsertInput(7, PrState.OPEN));
+    const second = await a.pullRequests.upsert(upsertInput(7, PrState.MERGED));
 
     expect(second.id).toBe(first.id); // same row
-    expect(second.state).toBe(PrState.merged); // updated in place
+    expect(second.state).toBe(PrState.MERGED); // updated in place
   });
 
   it("checkpoint upsertOnSubmit is idempotent and advances the sha", async () => {

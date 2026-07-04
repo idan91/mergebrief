@@ -25,22 +25,22 @@ export type AuditLogRow = typeof auditLog.$inferSelect;
  * against the numeric-only rule, never a runtime decision.
  */
 export const AuditMetadataKey = {
-  decision: "decision",
-  kind: "kind",
-  reasonCode: "reason_code",
-  count: "count",
-  configKey: "config_key",
-  targetKind: "target_kind",
+  DECISION: "decision",
+  KIND: "kind",
+  REASON_CODE: "reason-code",
+  COUNT: "count",
+  CONFIG_KEY: "config-key",
+  TARGET_KIND: "target-kind",
 } as const;
 export type AuditMetadataKey = ValueOf<typeof AuditMetadataKey>;
 
 const metadataKeySchema = z.union([
-  z.literal(AuditMetadataKey.decision),
-  z.literal(AuditMetadataKey.kind),
-  z.literal(AuditMetadataKey.reasonCode),
-  z.literal(AuditMetadataKey.count),
-  z.literal(AuditMetadataKey.configKey),
-  z.literal(AuditMetadataKey.targetKind),
+  z.literal(AuditMetadataKey.DECISION),
+  z.literal(AuditMetadataKey.KIND),
+  z.literal(AuditMetadataKey.REASON_CODE),
+  z.literal(AuditMetadataKey.COUNT),
+  z.literal(AuditMetadataKey.CONFIG_KEY),
+  z.literal(AuditMetadataKey.TARGET_KIND),
 ]);
 
 /**

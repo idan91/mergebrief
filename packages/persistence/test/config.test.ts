@@ -44,7 +44,7 @@ describe("config — loadConfig", () => {
 
   it("rejects a missing DATABASE_URL", () => {
     const error = err(loadConfig({}));
-    expect(error.code).toBe(ConfigErrorCode.invalid);
+    expect(error.code).toBe(ConfigErrorCode.INVALID);
     expect(error.issues.some((i) => i.startsWith("DATABASE_URL"))).toBe(true);
   });
 

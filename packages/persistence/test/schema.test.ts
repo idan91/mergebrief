@@ -85,7 +85,7 @@ async function insertPullRequest(db: Db): Promise<PullRequestRowId> {
       repoId: REPO,
       prNumber: 7,
       repoSlug: "acme/widgets",
-      state: PrState.open,
+      state: PrState.OPEN,
     })
     .returning({ id: pullRequest.id });
   const row = rows[0];
@@ -178,7 +178,7 @@ async function seedFullGraph(db: Db, pullRequestId: PullRequestRowId): Promise<v
     regionStart: 10,
     regionEnd: 20,
     decidedAtSha: HEAD_SHA,
-    decision: DispositionDecision.dismissed,
+    decision: DispositionDecision.DISMISSED,
     reason: "false positive",
     decidedAt: new Date(),
   });
@@ -186,16 +186,16 @@ async function seedFullGraph(db: Db, pullRequestId: PullRequestRowId): Promise<v
   await db.insert(generation).values({
     installationId: INSTALLATION,
     pullRequestId,
-    kind: GenerationKind.brief,
+    kind: GenerationKind.BRIEF,
     headSha: HEAD_SHA,
     baselineSha: null,
-    status: GenerationStatus.succeeded,
+    status: GenerationStatus.SUCCEEDED,
   });
 
   await db.insert(auditLog).values({
     installationId: INSTALLATION,
-    actorType: AuditActorType.app,
-    action: AuditAction.generate,
+    actorType: AuditActorType.APP,
+    action: AuditAction.GENERATE,
     targetType: "pull_request",
     targetId: pullRequestId,
     metadata: { kind: "brief" },
@@ -320,8 +320,8 @@ describe("M1 schema migrations", () => {
     const db = await freshDb();
     await db.insert(auditLog).values({
       installationId: INSTALLATION,
-      actorType: AuditActorType.system,
-      action: AuditAction.delete,
+      actorType: AuditActorType.SYSTEM,
+      action: AuditAction.DELETE,
       targetType: "pull_request",
       targetId: 999_999_999n,
       metadata: { reason: "retention sweep" },

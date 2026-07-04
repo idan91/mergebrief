@@ -33,11 +33,11 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.open });
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
 
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.delta,
+      kind: GenerationKind.DELTA,
       headSha: "head",
       baselineSha: "checkpoint",
     };
@@ -45,20 +45,20 @@ describe("generationProjection — D10 transitions", () => {
     const queued = await gen.upsertQueued(target);
     expect(queued.ok).toBe(true);
     if (!queued.ok) throw new Error("queue failed");
-    expect(queued.value.status).toBe(GenerationStatus.queued);
+    expect(queued.value.status).toBe(GenerationStatus.QUEUED);
     expect(queued.value.attempts).toBe(0);
 
-    const running = await gen.markRunning(target, GenerationPhase.generating);
+    const running = await gen.markRunning(target, GenerationPhase.GENERATING);
     if (!running.ok) throw new Error("markRunning failed");
-    expect(running.value.status).toBe(GenerationStatus.running);
-    expect(running.value.phase).toBe(GenerationPhase.generating);
+    expect(running.value.status).toBe(GenerationStatus.RUNNING);
+    expect(running.value.phase).toBe(GenerationPhase.GENERATING);
     expect(running.value.updatedAt.getTime()).toBeGreaterThanOrEqual(
       queued.value.updatedAt.getTime(),
     );
 
     const done = await gen.markSucceeded(target);
     if (!done.ok) throw new Error("markSucceeded failed");
-    expect(done.value.status).toBe(GenerationStatus.succeeded);
+    expect(done.value.status).toBe(GenerationStatus.SUCCEEDED);
     expect(done.value.id).toBe(queued.value.id); // one row throughout
   });
 
@@ -66,10 +66,10 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.open });
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.delta,
+      kind: GenerationKind.DELTA,
       headSha: "head",
       baselineSha: "checkpoint",
     };
@@ -81,7 +81,7 @@ describe("generationProjection — D10 transitions", () => {
     if (!first.ok || !requeued.ok) throw new Error("queue failed");
     expect(requeued.value.id).toBe(first.value.id);
     expect(requeued.value.attempts).toBe(1);
-    expect(requeued.value.status).toBe(GenerationStatus.queued);
+    expect(requeued.value.status).toBe(GenerationStatus.QUEUED);
     expect(requeued.value.error).toBeNull();
   });
 
@@ -89,10 +89,10 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.open });
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.brief,
+      kind: GenerationKind.BRIEF,
       headSha: "head",
       baselineSha: null,
     };
@@ -111,27 +111,27 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const b = forTenant(handle, CTX_B);
     const genA = generationProjection(handle, CTX_A);
-    const bPr = await b.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.open });
+    const bPr = await b.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
 
     const result = await genA.upsertQueued({
       pullRequestId: bPr.id,
-      kind: GenerationKind.brief,
+      kind: GenerationKind.BRIEF,
       headSha: "head",
       baselineSha: null,
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
-    expect(result.error.code).toBe(GenerationErrorCode.parentNotInTenant);
+    expect(result.error.code).toBe(GenerationErrorCode.PARENT_NOT_IN_TENANT);
   });
 
   it("markFailed sanitizes the stored error: first line, URLs redacted, capped", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.open });
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
     const target = {
       pullRequestId: pr.id,
-      kind: GenerationKind.brief,
+      kind: GenerationKind.BRIEF,
       headSha: "head",
       baselineSha: null,
     };
@@ -161,16 +161,16 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.open });
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
 
     const result = await gen.markRunning({
       pullRequestId: pr.id,
-      kind: GenerationKind.brief,
+      kind: GenerationKind.BRIEF,
       headSha: "never-queued",
       baselineSha: null,
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
-    expect(result.error.code).toBe(GenerationErrorCode.notFound);
+    expect(result.error.code).toBe(GenerationErrorCode.NOT_FOUND);
   });
 });
