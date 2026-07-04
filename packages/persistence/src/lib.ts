@@ -82,3 +82,11 @@ export type { AuditEntry, AuditMetadata, AuditLogRow } from "./audit.js";
 // Purge + retention routines (D5/D9/D11) — the tenant-scoped deletion seam.
 export { purgeRoutines, PurgeErrorCode } from "./purge.js";
 export type { PurgeRoutines, PurgeError, InstallationPurgeCounts } from "./purge.js";
+
+// GitHub OAuth token crypto (D11) — AES-256-GCM behind the key-provider seam.
+export { encryptToken, decryptToken, envKeyProvider, KeyErrorCode, CryptoErrorCode } from "./crypto.js";
+export type { KeyProvider, KeyError, CryptoError } from "./crypto.js";
+
+// Persistence env config (Zod-parsed; injectable env — never reads process.env).
+export { loadConfig, ConfigErrorCode } from "./config.js";
+export type { PersistenceConfig, ConfigError } from "./config.js";
