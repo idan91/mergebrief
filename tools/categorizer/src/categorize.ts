@@ -40,6 +40,20 @@ export type { Logger };
 const EFFORT: Effort = "medium";
 
 /**
+ * Array fields where an out-of-vocabulary token may be dropped (warn) instead
+ * of failing the whole generation — the supplementary enum arrays, matching
+ * the pipeline's warn-and-drop posture. Never `dominantCategory` or any
+ * structural field: those stay hard failures (with one feedback retry).
+ */
+const SALVAGE_FIELDS = [
+  "secondaryCategories",
+  "uncertainBetween",
+  "riskSurface",
+  "riskNotes",
+  "concernView",
+] as const;
+
+/**
  * The CLI-owned `pr` metadata block every artifact carries (ADR 0012). `sha`
  * varies by artifact: the brief's commit-range head, the delta's PR head, the
  * narrative's current head.
@@ -105,6 +119,7 @@ export async function categorize(
     user: renderUser(pr),
     effort: EFFORT,
     label: "brief",
+    salvageFields: SALVAGE_FIELDS,
     log,
   });
   const { readingOrder, ...rest } = generated;
@@ -216,6 +231,7 @@ export async function categorizeDelta(
     user: renderDeltaUser(input),
     effort: EFFORT,
     label: "delta",
+    salvageFields: SALVAGE_FIELDS,
     log,
   });
   const trio = validateRiskAttributes(
