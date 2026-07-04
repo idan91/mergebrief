@@ -3,6 +3,13 @@
 // artifact trio (body + byte_size + created_at) so every table is uniform.
 // Each helper returns FRESH builders — Drizzle column builders are stateful
 // and must not be shared across tables.
+//
+// Naming: these are noun factories, not verb-first functions, on purpose.
+// They sit in Drizzle's DSL register (`bigint()`, `text()`, `timestamp()`)
+// and read as column groups at the spread site (`...tenantColumns()`).
+// The package-wide rule (see ../../AGENTS.md): pure returns-a-thing factories
+// in builder/DSL position are nouns; anything that acts or has effects is
+// verb-first (`loadConfig`, `encryptToken`, `sanitizeGenerationError`).
 import { bigint, integer, text, timestamp } from "drizzle-orm/pg-core";
 import type { InstallationId } from "../types.js";
 
