@@ -65,6 +65,7 @@ import type {
 } from "../../types";
 import { useKeyboardShortcuts } from "../../useKeyboardShortcuts";
 import { buildBriefViewModel, type RiskFlag } from "../../viewModel";
+import { RiskBadge } from "../Badge/RiskBadge";
 import { ChangesOnlyView } from "../ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
@@ -911,6 +912,23 @@ function BriefScreen({
                   : "Brief"}
             </div>
             <Markdown content={brief.summary} />
+            {model.flags.length > 0 ? (
+              <div className={styles["summaryRisk"]} data-summary-risk="">
+                <h4 className={styles["summaryRiskHeading"]}>
+                  Risk surface{" "}
+                  <span className={styles["summaryRiskNote"]}>
+                    attributes, not verdicts
+                  </span>
+                </h4>
+                <div className={styles["summaryRiskChips"]}>
+                  {[...new Set(model.flags.map((flag) => flag.attr))].map(
+                    (attr) => (
+                      <RiskBadge key={attr}>{attr}</RiskBadge>
+                    ),
+                  )}
+                </div>
+              </div>
+            ) : null}
             {brief.artifactKind === "delta" ? (
               <DeltaContext brief={brief} />
             ) : null}

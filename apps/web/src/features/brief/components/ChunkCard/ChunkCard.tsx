@@ -17,7 +17,7 @@ import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import { useMindMap } from "../../../review/session";
 import { riskChipView } from "../../viewModel";
 import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
-import { Badge, BadgeColors } from "../Badge/Badge";
+import { RiskBadge } from "../Badge/RiskBadge";
 import { RoleBadge } from "../Badge/RoleBadge";
 import { DiffTable } from "../DiffTable/DiffTable";
 import styles from "./ChunkCard.module.scss";
@@ -53,21 +53,15 @@ function OverflowRiskChip({ attrs }: { attrs: RiskSurfaceAttribute[] }) {
   const [anchor, setAnchor] = useState<Element | null>(null);
   return (
     <span onMouseEnter={(event) => setAnchor(event.currentTarget)}>
-      <Badge className={styles["riskChip"]} color={BadgeColors.AMBER}>
+      <RiskBadge>
         +{attrs.length}
         <ScreenReaderOnly>{` ${attrs.join(", ")}`}</ScreenReaderOnly>
-      </Badge>
+      </RiskBadge>
       {anchor ? (
         <Callout anchor={anchor} fit onClose={() => setAnchor(null)}>
           <span className={styles["tipChips"]}>
             {attrs.map((attr) => (
-              <Badge
-                className={styles["riskChip"]}
-                color={BadgeColors.AMBER}
-                key={attr}
-              >
-                {attr}
-              </Badge>
+              <RiskBadge key={attr}>{attr}</RiskBadge>
             ))}
           </span>
         </Callout>
@@ -139,13 +133,7 @@ export const ChunkCard = memo(function ChunkCard({
             {riskChips.shown.length > 0 ? (
               <span className={styles["riskLane"]}>
                 {riskChips.shown.map((risk) => (
-                  <Badge
-                    className={styles["riskChip"]}
-                    color={BadgeColors.AMBER}
-                    key={risk}
-                  >
-                    {risk}
-                  </Badge>
+                  <RiskBadge key={risk}>{risk}</RiskBadge>
                 ))}
                 {riskChips.overflow.length > 0 ? (
                   <OverflowRiskChip attrs={riskChips.overflow} />

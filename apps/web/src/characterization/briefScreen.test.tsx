@@ -252,6 +252,14 @@ describe("brief screen characterization", () => {
     await waitFor(() => expect(stat()).toBe("1/2"));
   });
 
+  it("lists unique risk-attribute names under the brief summary", async () => {
+    await renderBriefScreen();
+    const section = document.querySelector("[data-summary-risk]");
+    expect(section).not.toBeNull();
+    expect(section?.textContent).toContain("no-tests");
+    expect(section?.textContent).toContain("comment-contradicts-code");
+  });
+
   it("renders a flag's riskNotes evidence as a secondary line in the rail", async () => {
     await renderBriefScreen();
     expect(

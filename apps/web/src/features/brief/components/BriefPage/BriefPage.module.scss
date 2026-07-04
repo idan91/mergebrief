@@ -36,6 +36,30 @@
     font-weight: 500;
   }
 
+  .summaryRisk {
+    display: grid;
+    gap: 2px;
+    margin-block-start: 16px;
+  }
+
+  .summaryRiskHeading {
+    margin: 0 0 8px;
+    color: var(--faint);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .summaryRiskNote {
+    font-weight: 400;
+    color: var(--faint);
+  }
+
+  .summaryRiskChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
   .descriptionToggle {
     margin-block-start: 4px;
     border: 0;
