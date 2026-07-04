@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { PERSISTENCE_PACKAGE_NAME } from "../src/lib.js";
+import { createDb, forTenant, parseTenantContext } from "../src/lib.js";
 
-describe("persistence package", () => {
-  it("imports and exposes its placeholder export", () => {
-    expect(PERSISTENCE_PACKAGE_NAME).toBe("persistence");
+describe("persistence package surface", () => {
+  it("exposes the tenant repository factory and context boundary", () => {
+    expect(typeof forTenant).toBe("function");
+    expect(typeof createDb).toBe("function");
+    expect(typeof parseTenantContext).toBe("function");
   });
 });
