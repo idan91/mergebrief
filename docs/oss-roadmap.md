@@ -291,6 +291,22 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   focus mode, `readThroughActive` removed). PR #18: oxlint (type-aware, `react-hooks`
   rules) across `apps/web` + `tools/categorizer`, wired into CI as parallel matrix jobs.
   **Next: grill the AI-authored-code review lens** (P1/P2 gate now open), then P3.
+- 2026-07-04 — **ADR 0026 trio shipped** (PR #19, `feature/risk-attr-trio`; plan in
+  [`plans/ai-authorship-attributes.md`](./plans/ai-authorship-attributes.md)). The three
+  model-observed attributes land end to end: schema + prompt discipline + warn-and-drop
+  validation (`comment-contradicts-code` citation gate, `new-dependency` section-aware +
+  chunk-scoped manifest confirm, plus a `removes-validation` additive-chunk gate added after
+  a live FP) and FE rendering (bounded header chips with a floating-ui Callout, riskNotes
+  evidence lines in the rail, risk-name summary under the changelog). Review-driven
+  follow-ups landed in-PR; a diff-viewport composer clipping bug got fixed en route.
+  Regenerating PR #19's own brief then surfaced that Anthropic structured output doesn't
+  enforce `enum` server-side (SDK demotes it to description prose) → **PR #20**: salvage
+  (warn-and-drop for supplementary enum arrays) + one feedback retry + raw-output failure
+  dumps. Live BYOK regen verified: trio fires, `new-dependency` confirmed on the
+  floating-ui manifest chunk, `removes-validation` FP dropped at generation time.
+  **Next: ADR 0026 positioning copy pass (README/demo — the lens is positioning-only by
+  design, so it's invisible until the copy stakes it), then P3.** Follow-up filed in PR #20:
+  spike hand-built `json_schema` with `enum` intact for server-side enforcement.
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +
