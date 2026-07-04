@@ -1,5 +1,32 @@
 # TODO
 
+## [ ] Spread the Brief summary section across multiple columns
+
+Logged 2026-07-04 (during PR #19 review; deliberately NOT part of that PR). The summary
+section has grown tall — overview paragraph, what-it-does prose, "## Changelog" bullet
+list, and now the Risk-surface name subsection — and on wide viewports it burns a full
+screen of vertical scroll in a single ~68ch column (`.summary { max-inline-size: 68ch }`)
+before the reviewer reaches the first chunk.
+
+Direction: multi-column layout on wide viewports.
+
+- Candidate shapes: (a) CSS `columns`/`column-width` over the markdown body — cheap but
+  breaks mid-list and rag-balances poorly with headings; (b) grid with explicit regions —
+  overview + what-it-does in the first column, changelog + risk surface in the second;
+  (c) demote the changelog into a collapsible like "Show original PR description".
+  Leaning (b): the summary's parts are structurally known (Markdown output + FE-owned risk
+  subsection), so a grid can place them without relying on column balancing.
+- Use a container query on the summary section (the split/focus layouts change effective
+  width independently of the viewport; `DiffTable.viewport` already sets the
+  `container-type: inline-size` precedent).
+- Keep the ~68ch cap per column (readability), not on the section.
+- Mind the reading order for screen readers / keyboard: DOM order stays
+  overview → what-it-does → changelog → risk surface regardless of visual placement.
+- Characterization suite + before/after screenshots (wide, split, focus, mobile) as the
+  gate, same as the SCSS migration.
+
+---
+
 ## [x] Focus-mode / Read-through follow-ups — done, PR #17 (merged 2026-07-03)
 
 From the PR #16 browser pass (2026-07-02). Items 1–3 were pre-existing focus-mode bugs that
