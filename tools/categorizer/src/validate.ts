@@ -361,24 +361,30 @@ function confirmsNewDependency(
 }
 
 /**
- * Validate the model-observed risk-attribute trio (ADR 0026) — warn-and-drop,
- * mirroring `validateReadingOrder`'s posture: drop the *attribute*, never the
- * chunk; each drop is a warn issue. Pure — returns sanitized copies, never
- * mutates the input.
+ * Validate model-observed risk attributes — warn-and-drop, mirroring
+ * `validateReadingOrder`'s posture: drop the *attribute*, never the chunk;
+ * each drop is a warn issue. Pure — returns sanitized copies, never mutates
+ * the input.
  *
  * - `comment-contradicts-code` must carry a matching `riskNotes` citation
- *   (cite-or-stay-silent) → dropped without one.
+ *   (cite-or-stay-silent, ADR 0026) → dropped without one.
  * - `new-dependency` must be mechanically confirmable from the chunk's own
  *   added lines: a package manifest whose patch adds a dependency entry
  *   (section-aware — metadata fields don't count) inside this chunk's
  *   `addedRanges`, with a key no removed line also carries → dropped
  *   otherwise.
+ * - `removes-validation` requires the chunk to actually remove lines: a
+ *   purely additive chunk (empty `removedRanges`) can't have deleted a
+ *   check. Deliberate trade: an added early-return CAN weaken a guard
+ *   without deleting lines, but that shape is rare and this drops the
+ *   observed FP class ("parser accepts a new optional field" ≠ weakened
+ *   validation).
  * - `new-abstraction` has no mechanical confirm (model-observed only).
  *
  * A dropped attribute's `riskNotes` entries go with it; everything else
  * passes through untouched.
  */
-export function validateRiskAttrTrio<C extends Chunk>(
+export function validateRiskAttributes<C extends Chunk>(
   chunks: C[],
   fileDiffs: Pick<FileDiff, "file" | "patch">[],
 ): { chunks: C[]; issues: string[] } {
@@ -398,6 +404,16 @@ export function validateRiskAttrTrio<C extends Chunk>(
           `chunk ${chunk.id} (${chunk.file}): dropped comment-contradicts-code — no riskNotes citation`,
         );
       }
+    }
+
+    if (
+      chunk.riskSurface.includes("removes-validation") &&
+      chunk.removedRanges.length === 0
+    ) {
+      drops.add("removes-validation");
+      issues.push(
+        `chunk ${chunk.id} (${chunk.file}): dropped removes-validation — chunk removes no lines`,
+      );
     }
 
     if (chunk.riskSurface.includes("new-dependency")) {

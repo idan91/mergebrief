@@ -24,7 +24,7 @@ import {
   validatePartition,
   validateNarrativeGroups,
   validateReadingOrder,
-  validateRiskAttrTrio,
+  validateRiskAttributes,
 } from "./validate.js";
 import type {
   FetchedPr,
@@ -112,7 +112,7 @@ export async function categorize(
   warnIssues(readingOrderIssues, log, "reading order");
   const keepReadingOrder = readingOrder !== undefined && readingOrderIssues.length === 0;
 
-  const trio = validateRiskAttrTrio(generated.chunks, splitDiffByFile(pr.diff));
+  const trio = validateRiskAttributes(generated.chunks, splitDiffByFile(pr.diff));
   warnIssues(trio.issues, log, "risk attrs");
 
   const brief: Brief = {
@@ -218,7 +218,7 @@ export async function categorizeDelta(
     label: "delta",
     log,
   });
-  const trio = validateRiskAttrTrio(
+  const trio = validateRiskAttributes(
     generated.chunks,
     splitDiffByFile(input.incrementalDiff),
   );

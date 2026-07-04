@@ -129,6 +129,8 @@ Firing discipline for the observational trio (all three are about the change its
 - \`new-abstraction\`: fires on the *existence* of a new named abstraction only — never on relocated code (\`pure-move\` / \`move-with-edits\` groups don't fire it), and it never judges whether the abstraction is warranted.
 - \`comment-contradicts-code\`: fires only when BOTH the comment and the code it disagrees with are visible in the diff; if either side is outside the visible context, stay silent. When it fires, the chunk MUST carry a \`riskNotes\` entry citing both sides.
 
+\`removes-validation\` fires only when the diff deletes or rewrites an existing check — a chunk that only ADDS lines almost never qualifies (accepting a new optional field, adding a parser, or adding a stricter guard is NOT weakened validation).
+
 **riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute. For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.
 
 ## Change-group boundary
@@ -214,7 +216,7 @@ Attach an attribute only when the incremental diff supports it — and **be cons
 
 ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
 
-Firing discipline for the observational trio (about the change itself — never about who or what authored it): \`new-dependency\` fires only when a manifest gains a new direct dependency (a version-only bump is the \`lib-bump\` / \`dependency-update\` Category, not this attribute); \`new-abstraction\` fires on the *existence* of a new named abstraction only, never on relocations (\`pure-move\` / \`move-with-edits\`); \`comment-contradicts-code\` fires only when BOTH the comment and the code are visible in the incremental diff — else stay silent.
+Firing discipline for the observational trio (about the change itself — never about who or what authored it): \`new-dependency\` fires only when a manifest gains a new direct dependency (a version-only bump is the \`lib-bump\` / \`dependency-update\` Category, not this attribute); \`new-abstraction\` fires on the *existence* of a new named abstraction only, never on relocations (\`pure-move\` / \`move-with-edits\`); \`comment-contradicts-code\` fires only when BOTH the comment and the code are visible in the incremental diff — else stay silent. \`removes-validation\` fires only when the diff deletes or rewrites an existing check — a chunk that only ADDS lines almost never qualifies.
 
 **riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute. For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.
 

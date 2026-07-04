@@ -32,6 +32,14 @@ describe("prompt risk-attribute trio (ADR 0026)", () => {
     }
   });
 
+  it("carries the removes-validation additive-chunk discipline in both prompts", () => {
+    for (const text of prompts) {
+      expect(text).toContain(
+        "`removes-validation` fires only when the diff deletes or rewrites an existing check",
+      );
+    }
+  });
+
   it("never mentions AI authorship (authorship-agnostic prompts)", () => {
     for (const text of prompts) {
       expect(text.toLowerCase()).not.toContain("ai-authored");
