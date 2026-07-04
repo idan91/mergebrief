@@ -10,7 +10,9 @@ import {
 } from "../../../review/components/AddressedComments/AddressedComments";
 import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import { useMindMap } from "../../../review/session";
+import { riskChipView } from "../../viewModel";
 import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
+import { Badge, BadgeColors } from "../Badge/Badge";
 import { RoleBadge } from "../Badge/RoleBadge";
 import { DiffTable } from "../DiffTable/DiffTable";
 import styles from "./ChunkCard.module.scss";
@@ -56,6 +58,7 @@ export const ChunkCard = memo(function ChunkCard({
 }: ChunkCardProps) {
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
 
+  const riskChips = riskChipView(chunk.riskSurface);
   const expanded = open && !forceCollapsed;
   const comparisonView = useMemo(
     () => buildChunkComparisonView(chunk, comparison.marks),
@@ -94,14 +97,24 @@ export const ChunkCard = memo(function ChunkCard({
           <span className={styles["twist"]}>▶</span>
           <span className={styles["file"]}>{chunk.file}</span>
           <span className={styles["chips"]}>
-            {chunk.riskSurface.map((risk) => (
-              <span
-                className={`${styles["chip"]} ${styles["risk"]}`}
+            {riskChips.shown.map((risk) => (
+              <Badge
+                className={styles["riskChip"]}
+                color={BadgeColors.AMBER}
                 key={risk}
               >
                 {risk}
-              </span>
+              </Badge>
             ))}
+            {riskChips.overflow.length > 0 ? (
+              <Badge
+                className={styles["riskChip"]}
+                color={BadgeColors.AMBER}
+                title={riskChips.overflow.join(", ")}
+              >
+                +{riskChips.overflow.length}
+              </Badge>
+            ) : null}
             <span className={styles["chip"]} data-concern={chunk.concern}>
               <span className={styles["dot"]} />
               {chunk.concern}

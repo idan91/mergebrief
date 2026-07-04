@@ -194,6 +194,31 @@ export function categoryLabel(category: Category): string {
   return category.replace("-", " ");
 }
 
+/** How many risk chips a chunk header shows before collapsing into "+N". */
+const MAX_HEADER_RISK_CHIPS = 2;
+
+export interface RiskChipView {
+  /** Attributes rendered as individual chips (at most MAX_HEADER_RISK_CHIPS). */
+  shown: RiskSurfaceAttribute[];
+  /** Attributes folded into the "+N" overflow chip (empty when all fit). */
+  overflow: RiskSurfaceAttribute[];
+}
+
+/**
+ * @description Bounds the chunk header's risk lane: up to two attribute chips,
+ * the rest fold into a "+N" chip (full list in its tooltip). The rail stays
+ * the canonical risk surface; the header only routes attention.
+ */
+export function riskChipView(risks: RiskSurfaceAttribute[]): RiskChipView {
+  if (risks.length <= MAX_HEADER_RISK_CHIPS) {
+    return { shown: risks, overflow: [] };
+  }
+  return {
+    shown: risks.slice(0, MAX_HEADER_RISK_CHIPS),
+    overflow: risks.slice(MAX_HEADER_RISK_CHIPS),
+  };
+}
+
 export function groupRiskByAttribute(flags: RiskFlag[]): RiskAttributeGroup[] {
   const groups = new Map<RiskSurfaceAttribute, RiskFlag[]>();
   for (const flag of flags) {

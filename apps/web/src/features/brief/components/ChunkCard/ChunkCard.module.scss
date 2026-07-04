@@ -75,9 +75,16 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
     margin-inline-start: auto;
     font-size: 12px;
+  }
+
+  // Risk tokens are taxonomy identifiers — keep them lowercase-kebab as
+  // written (the Badge default uppercases role tags like CARRIER).
+  .riskChip {
+    text-transform: none;
+    letter-spacing: 0;
   }
 
   .chip {
@@ -86,10 +93,6 @@
     gap: 6px;
     color: var(--faint);
     white-space: nowrap;
-  }
-
-  .risk {
-    color: var(--amber);
   }
 
   .loc {

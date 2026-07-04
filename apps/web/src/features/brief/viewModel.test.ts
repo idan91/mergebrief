@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Brief } from "./types";
 import { parseBrief } from "./validation";
-import { buildBriefViewModel } from "./viewModel";
+import { buildBriefViewModel, riskChipView } from "./viewModel";
 
 function twoGroupBrief(readingOrder?: unknown) {
   return {
@@ -63,6 +63,34 @@ function twoGroupBrief(readingOrder?: unknown) {
     ...(readingOrder !== undefined ? { readingOrder } : {}),
   };
 }
+
+describe("riskChipView", () => {
+  it("shows all attributes as chips when there are two or fewer", () => {
+    expect(riskChipView([])).toEqual({ shown: [], overflow: [] });
+    expect(riskChipView(["no-tests"])).toEqual({
+      shown: ["no-tests"],
+      overflow: [],
+    });
+    expect(riskChipView(["no-tests", "dense-logic"])).toEqual({
+      shown: ["no-tests", "dense-logic"],
+      overflow: [],
+    });
+  });
+
+  it("folds attributes beyond the second into the overflow chip", () => {
+    expect(
+      riskChipView([
+        "dense-logic",
+        "mutates-state",
+        "comment-contradicts-code",
+        "new-abstraction",
+      ]),
+    ).toEqual({
+      shown: ["dense-logic", "mutates-state"],
+      overflow: ["comment-contradicts-code", "new-abstraction"],
+    });
+  });
+});
 
 describe("buildBriefViewModel", () => {
   it("groups chunks by chunk.changeGroupId and derives carrier/supporting buckets", () => {

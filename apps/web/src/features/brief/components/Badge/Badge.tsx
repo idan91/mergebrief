@@ -19,6 +19,8 @@ export interface BadgeProps {
   color?: BadgeColor;
   fill?: boolean;
   className?: string;
+  /** Native tooltip (also announced by screen readers). */
+  title?: string;
 }
 
 /**
@@ -31,12 +33,14 @@ export function Badge({
   color = BadgeColors.NEUTRAL,
   fill = false,
   className,
+  title,
 }: BadgeProps) {
   return (
     <span
       className={clsx(styles["badge"], className)}
       data-color={color}
       data-fill={fill ? "" : undefined}
+      title={title}
     >
       {children}
     </span>
