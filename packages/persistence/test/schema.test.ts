@@ -329,3 +329,92 @@ describe("M1 schema migrations", () => {
     expect(await db.select({ id: auditLog.id }).from(auditLog)).toHaveLength(1);
   });
 });
+
+/** Walk the `cause` chain for a Postgres error naming the given constraint. */
+async function expectCheckViolation(run: Promise<unknown>, constraint: string): Promise<void> {
+  let thrown: unknown;
+  try {
+    await run;
+  } catch (error) {
+    thrown = error;
+  }
+  expect(thrown, `expected a rejection naming ${constraint}`).toBeDefined();
+  let current: unknown = thrown;
+  let found = false;
+  while (current instanceof Error) {
+    if (current.message.includes(constraint)) {
+      found = true;
+      break;
+    }
+    current = current.cause;
+  }
+  expect(found, `no error in the cause chain names ${constraint}`).toBe(true);
+}
+
+describe("closed-vocabulary + shape CHECK constraints (PR #23 review)", () => {
+  it("rejects an out-of-vocabulary pull_request.state at the DB", async () => {
+    const db = await freshDb();
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into pull_request (installation_id, repo_id, pr_number, state) values (1000, 777, 1, 'reopened')`,
+      ),
+      "pull_request_state_check",
+    );
+  });
+
+  it("rejects an open pull_request armed for the sweep (lifecycle shape)", async () => {
+    const db = await freshDb();
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into pull_request (installation_id, repo_id, pr_number, state, purge_after) values (1000, 777, 1, 'open', now())`,
+      ),
+      "pull_request_open_retention_shape",
+    );
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into pull_request (installation_id, repo_id, pr_number, state, closed_at) values (1000, 777, 1, 'open', now())`,
+      ),
+      "pull_request_open_retention_shape",
+    );
+  });
+
+  it("rejects a generation row whose kind/baseline shape is invalid", async () => {
+    const db = await freshDb();
+    const prId = await insertPullRequest(db);
+    // delta without a baseline: forbidden.
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into generation (installation_id, pull_request_id, kind, head_sha, status) values (1000, ${prId}, 'delta', 'head', 'queued')`,
+      ),
+      "generation_kind_baseline_shape",
+    );
+    // brief WITH a baseline: forbidden.
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into generation (installation_id, pull_request_id, kind, head_sha, baseline_sha, status) values (1000, ${prId}, 'brief', 'head', 'chk', 'queued')`,
+      ),
+      "generation_kind_baseline_shape",
+    );
+    // revision-narrative WITH its prevHead baseline: allowed.
+    await db.execute(
+      sql`insert into generation (installation_id, pull_request_id, kind, head_sha, baseline_sha, status) values (1000, ${prId}, 'revision-narrative', 'head', 'prev', 'queued')`,
+    );
+  });
+
+  it("rejects out-of-vocabulary generation.status and audit_log.action", async () => {
+    const db = await freshDb();
+    const prId = await insertPullRequest(db);
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into generation (installation_id, pull_request_id, kind, head_sha, status) values (1000, ${prId}, 'brief', 'head', 'cancelled')`,
+      ),
+      "generation_status_check",
+    );
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into audit_log (installation_id, actor_type, action) values (1000, 'system', 'view')`,
+      ),
+      "audit_log_action_check",
+    );
+  });
+});

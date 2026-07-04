@@ -73,13 +73,31 @@ function fail(code: GenerationErrorCode, message: string): Result<never, Generat
 // The projection natural key (minus the ctx-supplied installation_id).
 // ---------------------------------------------------------------------------
 
-export interface GenerationTarget {
+interface BaseGenerationTarget {
   readonly pullRequestId: PullRequestRowId;
-  readonly kind: GenerationKind;
   readonly headSha: string;
-  /** Null for `brief`/`revision-narrative`; checkpoint SHA for `delta`. */
-  readonly baselineSha: string | null;
 }
+
+/** A Brief spans the whole PR — no lower-bound SHA in the projection key. */
+interface BriefGenerationTarget extends BaseGenerationTarget {
+  readonly kind: typeof GenerationKind.BRIEF;
+  readonly baselineSha: null;
+}
+
+/**
+ * Span-keyed kinds carry their lower bound: the reviewer's checkpoint SHA
+ * for `delta`, the prior briefed head for `revision-narrative` — mirroring
+ * each artifact's own natural key (`delta.baseline_sha`,
+ * `revision_narrative.prev_head_sha`), so two narratives for the same head
+ * but different prevHeads project as distinct rows, exactly like their
+ * artifacts.
+ */
+interface SpanGenerationTarget extends BaseGenerationTarget {
+  readonly kind: typeof GenerationKind.DELTA | typeof GenerationKind.REVISION_NARRATIVE;
+  readonly baselineSha: string;
+}
+
+export type GenerationTarget = BriefGenerationTarget | SpanGenerationTarget;
 
 // ---------------------------------------------------------------------------
 // Surface.

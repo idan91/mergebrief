@@ -15,6 +15,13 @@
       "when": 1783194928672,
       "tag": "0001_raw-sql-hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783202704313,
+      "tag": "0002_vocab-and-shape-checks",
+      "breakpoints": true
     }
   ]
 }

@@ -28,6 +28,7 @@ export type {
   CheckpointRow,
   ReviewerSessionRow,
   PullRequestUpsertInput,
+  PullRequestLifecycle,
   PullRequestStatePatch,
   CheckpointSubmitInput,
   SessionCreateInput,

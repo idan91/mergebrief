@@ -22,7 +22,7 @@ import { reviewerSession } from "./schema/reviewer-session";
 import {
   type InstallationId,
   isInstallationId,
-  type PrState,
+  PrState,
   type PullRequestRowId,
   type Result,
   type ReviewerId,
@@ -132,19 +132,52 @@ export type PullRequestRow = typeof pullRequest.$inferSelect;
 export type CheckpointRow = typeof checkpoint.$inferSelect;
 export type ReviewerSessionRow = typeof reviewerSession.$inferSelect;
 
-export interface PullRequestUpsertInput {
+/**
+ * Lifecycle trio, discriminated on `state` so the type system forbids stale
+ * retention fields: an OPEN patch must explicitly null `closed_at` and
+ * `purge_after` (a reopened PR must never stay armed for the sweep), and a
+ * terminal patch must carry `closedAt`. `purgeAfter` stays caller-supplied
+ * here; grace math lives in `purgeRoutines.setRetention`.
+ */
+interface OpenLifecycle {
+  readonly state: typeof PrState.OPEN;
+  /** Optional-but-null-only: a Date cannot be smuggled onto an open PR. */
+  readonly closedAt?: null;
+  readonly purgeAfter?: null;
+}
+
+interface TerminalLifecycle {
+  readonly state: typeof PrState.CLOSED | typeof PrState.MERGED;
+  readonly closedAt: Date;
+  readonly purgeAfter: Date | null;
+}
+
+export type PullRequestLifecycle = OpenLifecycle | TerminalLifecycle;
+
+interface BasePullRequestUpsertInput {
   readonly repoId: RepoId;
   readonly prNumber: number;
   readonly repoSlug?: string;
-  readonly state: PrState;
-  readonly closedAt?: Date;
-  readonly purgeAfter?: Date;
 }
 
-export interface PullRequestStatePatch {
-  readonly state: PrState;
-  readonly closedAt?: Date;
-  readonly purgeAfter?: Date;
+export type PullRequestUpsertInput = BasePullRequestUpsertInput & PullRequestLifecycle;
+
+export type PullRequestStatePatch = PullRequestLifecycle;
+
+/**
+ * Normalize a lifecycle to explicit column values from the discriminant:
+ * OPEN always writes NULLs (drizzle skips `undefined`, and a reopened PR
+ * must disarm the retention sweep), terminal states write what they carry.
+ */
+function lifecycleColumns(lc: PullRequestLifecycle): {
+  state: PrState;
+  closedAt: Date | null;
+  purgeAfter: Date | null;
+} {
+  if (lc.state === PrState.OPEN) {
+    return { state: lc.state, closedAt: null, purgeAfter: null };
+  }
+  return { state: lc.state, closedAt: lc.closedAt, purgeAfter: lc.purgeAfter };
 }
 
 export interface CheckpointSubmitInput {
@@ -219,6 +252,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
 
   const pullRequests: PullRequestRepository = {
     async upsert(input) {
+      const lifecycle = lifecycleColumns(input);
       const rows = await db
         .insert(pullRequest)
         .values({
@@ -226,18 +260,14 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           repoId: input.repoId,
           prNumber: input.prNumber,
           repoSlug: input.repoSlug,
-          state: input.state,
-          closedAt: input.closedAt,
-          purgeAfter: input.purgeAfter,
+          ...lifecycle,
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
           target: [pullRequest.installationId, pullRequest.repoId, pullRequest.prNumber],
           set: {
-            state: input.state,
             repoSlug: input.repoSlug,
-            closedAt: input.closedAt,
-            purgeAfter: input.purgeAfter,
+            ...lifecycle,
             updatedAt: new Date(),
           },
         })
@@ -268,9 +298,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
       const rows = await db
         .update(pullRequest)
         .set({
-          state: patch.state,
-          closedAt: patch.closedAt,
-          purgeAfter: patch.purgeAfter,
+          ...lifecycleColumns(patch),
           updatedAt: new Date(),
         })
         .where(

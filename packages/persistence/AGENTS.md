@@ -31,7 +31,9 @@ plan: `docs/plans/brief-1-persistence-layer.md`.
 
 - **No `enum`:** `as const` maps + `ValueOf<T>`. **Keys SHOUT_CASE, string values
   kebab-case** (`PurgeErrorCode.NOT_FOUND` → `"not-found"`). The doc example in
-  `src/types.ts` demonstrates it.
+  `src/types.ts` demonstrates it. DB-stored vocabularies (state, kind, status, phase,
+  decision, actor_type, action) are also CHECK-constrained (migration 0002) — **adding a
+  value needs a code change AND a migration**, in lockstep.
 - **Naming grammar:** verb-first for anything that acts or has effects (`loadConfig`,
   `encryptToken`, `resolveKey`); noun factories for pure returns-a-thing constructors in
   builder/DSL position (`tenantColumns()`, `artifactStore()`, `purgeRoutines()`,

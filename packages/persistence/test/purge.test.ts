@@ -97,6 +97,9 @@ interface PrSeed {
 }
 
 async function insertPr(db: Db, seed: PrSeed): Promise<PullRequestRowId> {
+  // Lifecycle-consistent defaults: a seed armed for the sweep must be a
+  // closed PR (the 0002 open-retention-shape CHECK forbids open+armed).
+  const armed = seed.purgeAfter !== undefined || seed.closedAt !== undefined;
   const rows = await db
     .insert(pullRequest)
     .values({
@@ -104,8 +107,8 @@ async function insertPr(db: Db, seed: PrSeed): Promise<PullRequestRowId> {
       repoId: seed.repoId ?? REPO,
       prNumber: seed.prNumber ?? 7,
       repoSlug: "acme/widgets",
-      state: seed.state ?? PrState.OPEN,
-      closedAt: seed.closedAt,
+      state: seed.state ?? (armed ? PrState.CLOSED : PrState.OPEN),
+      closedAt: seed.closedAt ?? (armed ? new Date("2026-07-01T00:00:00Z") : undefined),
       purgeAfter: seed.purgeAfter,
     })
     .returning({ id: pullRequest.id });
@@ -418,8 +421,8 @@ describe("purgeRoutines.sweepExpired — retention sweep (D5)", () => {
 describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
   it("sets purge_after = closedAt + grace and stamps closed_at", async () => {
     const { raw, handle } = await freshPair();
-    const prId = await insertPr(raw, { installationId: TENANT_A });
     const closedAt = new Date("2026-07-01T00:00:00Z");
+    const prId = await insertPr(raw, { installationId: TENANT_A, state: PrState.CLOSED, closedAt });
 
     const result = await purgeRoutines(handle, CTX_A).setRetention(prId, closedAt, 7);
     expect(result.ok).toBe(true);
@@ -449,7 +452,11 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
   it("null grace disables retention — the row is never swept", async () => {
     const { raw, handle } = await freshPair();
     const routines = purgeRoutines(handle, CTX_A);
-    const prId = await insertPr(raw, { installationId: TENANT_A });
+    const prId = await insertPr(raw, {
+      installationId: TENANT_A,
+      state: PrState.CLOSED,
+      closedAt: new Date("2026-07-01T00:00:00Z"),
+    });
 
     const result = await routines.setRetention(prId, new Date("2026-07-01T00:00:00Z"), null);
     expect(result.ok).toBe(true);
