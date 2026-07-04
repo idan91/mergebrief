@@ -170,16 +170,16 @@ describe("enumPreservingOutputFormat — parse", () => {
       f: "n",
       g: "n",
     });
+    let message = "";
     try {
       parse(bad);
-      throw new Error("expected parse to throw");
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      expect(message).toContain("Validation issues:");
-      expect(message).toMatch(/\.\.\. and 2 more issue\(s\)/);
-      // Exactly 5 issue bullets before the truncation suffix.
-      expect(message.match(/^ {2}- /gm)?.length).toBe(5);
+      message = error instanceof Error ? error.message : String(error);
     }
+    expect(message).toContain("Validation issues:");
+    expect(message).toMatch(/\.\.\. and 2 more issue\(s\)/);
+    // Exactly 5 issue bullets before the truncation suffix.
+    expect(message.match(/^ {2}- /gm)?.length).toBe(5);
   });
 });
 

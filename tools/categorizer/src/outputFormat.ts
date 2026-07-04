@@ -203,6 +203,7 @@ export function enumPreservingOutputFormat<S extends z.ZodType>(
       } catch (error) {
         throw new Error(
           `Failed to parse structured output as JSON: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
         );
       }
       const output = zodSchema.safeParse(parsed);

@@ -69,15 +69,15 @@ interface RunReport {
 }
 
 function reportRun(label: string, report: RunReport): void {
-  console.log(`\n=== ${label} ===`);
-  console.log(`stop_reason: ${report.stopReason}`);
-  console.log(`ProbeSchema.safeParse passes: ${report.parses}`);
-  console.log(
+  console.info(`\n=== ${label} ===`);
+  console.info(`stop_reason: ${report.stopReason}`);
+  console.info(`ProbeSchema.safeParse passes: ${report.parses}`);
+  console.info(
     `out-of-vocab tokens present: ${
       report.outOfVocabPresent.length ? report.outOfVocabPresent.join(", ") : "(none)"
     }`,
   );
-  console.log(`raw output:\n${report.raw}`);
+  console.info(`raw output:\n${report.raw}`);
 }
 
 function analyze(content: Anthropic.ContentBlock[], stopReason: string | null): RunReport {
@@ -104,8 +104,8 @@ async function main(): Promise<number> {
 
   // Visual check: the treatment schema must carry `enum` arrays.
   const treatmentFormat = enumPreservingOutputFormat(ProbeSchema);
-  console.log("Outgoing TREATMENT schema (enum arrays should be present):");
-  console.log(JSON.stringify(treatmentFormat.schema, null, 2));
+  console.info("Outgoing TREATMENT schema (enum arrays should be present):");
+  console.info(JSON.stringify(treatmentFormat.schema, null, 2));
 
   // Control run — SDK path, enum stripped.
   const controlResp = await client.messages.create({
@@ -136,7 +136,7 @@ async function main(): Promise<number> {
   reportRun("TREATMENT (enumPreservingOutputFormat, enum kept)", treatmentReport);
 
   const confirmed = treatmentReport.outOfVocabPresent.length === 0 && treatmentReport.parses;
-  console.log(
+  console.info(
     `\nVERDICT: ${
       confirmed
         ? "CONFIRMED — server-side enum enforcement blocked the out-of-vocab tokens."
