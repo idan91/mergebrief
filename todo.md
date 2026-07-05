@@ -1,5 +1,28 @@
 # TODO
 
+## [ ] M1 backend system-design doc (after BRIEF-3 lands)
+
+Logged 2026-07-05 (BRIEF-2 grill wrap-up). The M1 backend's runtime design is currently
+spread across ADRs (0006/0015/0016/0018/0020/0024, several amended in place), two plan docs,
+and grill outcomes on Notion tickets. Once BRIEF-2 + BRIEF-3 ship, consolidate into **one
+coherent system-design doc** (likely `docs/system-overview.md` §3 rewritten, or a sibling
+`docs/self-host/architecture.md`):
+
+- End-to-end event flow: webhook → verify → tenant writes → single `generate:{pr}` job
+  (job-key replacement = trailing debounce) → worker derives the artifact bundle from state
+  (brief + marks + narrative + delta core per distinct checkpoint SHA; huge-span skip) →
+  Entry comment (delete+repost, `entry_comment_id`) → FE poll.
+- Cancellation semantics (mid-call abort, `superseded` status, no human-awaiting exception).
+- Auth: OAuth via `@octokit/oauth-app`, expiring + rotating tokens (both encrypted),
+  serialized lazy refresh, redirect degradation; per-read authz gate + the two in-memory
+  caches (authz 5-min positives, per-session diff cache).
+- Topology: Hono app in `packages/api` mounted into `apps/web` (one origin, lift-out seam);
+  `packages/github`; worker.
+- Documented-not-built knobs: `on-first-view`, `max-checkpoints-per-bundle`, refresh-token
+  session cap.
+
+Diagrams welcome. The ADRs stay the decision record; this doc is the *reader's* runtime map.
+
 ## [ ] Spread the Brief summary section across multiple columns
 
 Logged 2026-07-04 (during PR #19 review; deliberately NOT part of that PR). The summary

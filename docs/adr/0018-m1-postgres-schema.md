@@ -12,6 +12,11 @@ Decisions D1–D11 below cover all six ADR 0008 entities plus the tenant scoping
 > dropped from D5 (the lazy Activation gate it encoded was retired by ADR 0020); **D12**
 > (`revision_narrative`) and **D13** (`comparison_marks`) added for the artifacts ADR 0024
 > introduced after this schema was grilled.
+>
+> **Amended 2026-07-05** (BRIEF-2 pre-build grill): D5 gains `entry_comment_id`; D10's
+> per-kind job keys superseded by one `generate:{pr}` job (bundle model) + a `superseded`
+> generation status; D11 gains `gh_refresh_token_ciphertext` (expiring user tokens + rotating
+> refresh via `@octokit/oauth-app`). All three land as BRIEF-2 migrations.
 
 ## Decisions
 
@@ -73,6 +78,8 @@ pull_request
   pr_number       int    not null
   repo_slug       text              -- purgeable display (D1), refreshed on webhook
   state           text not null     -- open | closed | merged
+  entry_comment_id bigint           -- branded Entry comment id (2026-07-05; delete+repost per
+                                    --   ADR 0016 #3; dangling id self-heals by posting fresh)
   closed_at       timestamptz
   purge_after     timestamptz       -- nullable; the sweep target
   created_at / updated_at
@@ -194,7 +201,7 @@ generation
 - Justified because graphile **deletes succeeded jobs** (so "job gone" can't mean "done") and is internal/untenanted. The web tier polls `generation`: `succeeded` → fetch the immutable artifact; `failed` → error + retry; `running`+`phase` → determinate progress (ADR 0006 #10). Mutable process state; the `brief`/`delta` rows stay immutable results.
 - **No new locks, no DLQ.** Single-flight + the global concurrency cap live in graphile (`job_key` + advisory lock + worker `concurrency`); retries + the de-facto dead-letter are graphile's persisted failed jobs (`last_error`). `generation` only *reflects* — using it as a lock would be a second source of truth.
 
-**Concurrency policy:** Brief = one in-flight **per PR** (shared artifact; `job_key = pull_request_id`); Delta = one **per `(PR, reviewer)`** (`job_key = delta:{pr}:{reviewer}`); a **global cap** (graphile `concurrency` + an Anthropic rate-limit budget) bounds total parallel generations. A Brief and a Delta may run concurrently. Enforced by `job_key`, **not** `generation`.
+**Concurrency policy:** ~~Brief = one in-flight **per PR** (shared artifact; `job_key = pull_request_id`); Delta = one **per `(PR, reviewer)`** (`job_key = delta:{pr}:{reviewer}`)~~ **Superseded (2026-07-05, BRIEF-2 grill):** there is **one job kind, `generate`, `job_key = generate:{pull_request_id}`** — every generation-relevant webhook event enqueues it (with `run_at = now + debounce`; job-key replacement of the pending job IS the trailing debounce), and the **worker derives the artifact bundle from state at execution time** (brief + marks + narrative + one delta core per distinct checkpoint SHA, huge-span rule per span). Per-kind delta job keys predate the core/overlay hardening and are retired. A **global cap** (graphile `concurrency` + a provider rate-limit budget) still bounds total parallel generations; single-flight per PR enforced by `job_key`, **not** `generation`. `generation.status` gains a terminal **`superseded`** value (mid-call abort on head advance — ADR 0006 #6 as amended); web enqueue writes the one row it can know (`kind: brief`, queued), the worker upserts rows for the artifacts it derives.
 
 ### D11 — Reviewer auth: GitHub OAuth via a library, behind an identity-provider seam
 
@@ -208,11 +215,22 @@ reviewer_session   -- the self-host default adapter; the ONE secret-bearing tabl
   reviewer_id         bigint not null
   reviewer_login      text                   -- purgeable display (D1)
   gh_token_ciphertext text not null          -- the GitHub OAuth token, encrypted at rest
+  gh_refresh_token_ciphertext text not null  -- rotating refresh token, encrypted (2026-07-05)
   key_ref             text not null          -- key resolved via the provider interface (env→KMS, ADR 0016 #7)
   expires_at          timestamptz not null   -- short-lived; deleted on expiry/logout
   created_at
   INDEX (installation_id, reviewer_id)
 ```
+
+> **Amended 2026-07-05 (BRIEF-2 grill) — library + token model resolved.** Library =
+> **`@octokit/oauth-app`** (GitHub-official; we are GitHub-only, so its native handling of
+> **expiring user access tokens (~8h) + rotating refresh tokens (~6mo)** beats a generic
+> OAuth lib; Arctic stays the fallback, Better Auth rejected — wants to own session tables).
+> Both tokens stored, both encrypted (`encryptToken`, own columns). Refresh is **lazy at
+> next use and serialized per session** (`SELECT … FOR UPDATE` — GitHub refresh tokens are
+> single-use, concurrent requests must not race the exchange); any refresh failure → delete
+> session → redirect re-login (the degradation path). Session ceiling = GitHub's rotation
+> limit + the TTL sweep; no extra cap.
 
 - **The one dynamic secret in the DB.** Every static secret stays in env (ADR 0016 #7).
 - **Encryption = direct, provider-resolved key + `key_ref`** — *not* a per-row envelope DEK: tokens are short-lived and deleted on expiry, so KEK rotation rides on natural token churn. Full envelope is the documented hardening reserved for any future *long-lived* secret.
