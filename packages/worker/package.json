@@ -1,0 +1,27 @@
+{
+  "name": "worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The long-lived background worker (BRIEF-3, ADR 0015): drains graphile-worker's `generate` jobs and runs brief/delta generation off the human path.",
+  "exports": {
+    ".": "./src/lib.ts"
+  },
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "graphile-worker": "^0.16.6",
+    "persistence": "workspace:*",
+    "types": "workspace:*",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

@@ -9,6 +9,8 @@
     "test": "pnpm -C tools/categorizer test",
     "typecheck:persistence": "pnpm -C packages/persistence typecheck",
     "test:persistence": "pnpm -C packages/persistence test",
+    "typecheck:worker": "pnpm -C packages/worker typecheck",
+    "test:worker": "pnpm -C packages/worker test",
     "lint": "oxlint --type-aware && pnpm -C apps/web lint"
   },
   "packageManager": "pnpm@10.0.0",
