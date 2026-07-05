@@ -60,13 +60,18 @@ answer: it's code, not this form.
   localhost; a tunnel service gives you a public URL that forwards to your local port. So when
   registering now with no receiver, just leave the webhook **inactive** rather than trying a
   localhost URL.
-- When developing BRIEF-2: start a tunnel that exposes localhost on a public URL — **ngrok**
-  (`ngrok http PORT`), smee.io, or `gh webhook forward --repo=<owner/repo>
-  --events=pull_request,pull_request_review --url=http://localhost:PORT/webhooks`. Set the
-  App's **Webhook URL** to the public URL and set a **Webhook secret** (`openssl rand -hex 32`).
-  Free tunnel URLs are ephemeral (they change on restart), so expect to re-paste. Bonus: with
-  no receiver yet, ngrok's local inspector (`http://127.0.0.1:4040`) still shows the raw
-  webhook payloads — useful for designing BRIEF-2's handlers.
+- When developing BRIEF-2: **ngrok is the recommended tunnel** (`ngrok http PORT`). Set both
+  the App's **Webhook URL** and the OAuth callback to the ngrok public URL, and set a
+  **Webhook secret** (`openssl rand -hex 32`).
+  - Why ngrok over `gh webhook forward`: BRIEF-2 needs *two* endpoints publicly reachable —
+    the webhook receiver **and** the OAuth callback (GitHub redirects the browser there, so it
+    can't be localhost). One ngrok tunnel serves both; `gh webhook forward` covers webhooks
+    only, so you'd need a tunnel anyway.
+  - Bonus: ngrok's local inspector (`http://127.0.0.1:4040`) shows — and **replays** — every
+    webhook payload, so you can re-fire one real event at your handler while debugging instead
+    of opening PRs repeatedly. Works even before a receiver exists.
+  - Free tunnel URLs are ephemeral (they change on restart), so expect to re-paste; a paid
+    static domain avoids that for sustained work.
 
 ## Identity / secrets (all env, never the DB or repo — ADR 0016 #7)
 
