@@ -24,7 +24,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          lint_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/|tools/|\.oxlintrc\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)' || true)"
+          lint_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/|tools/|packages/|\.oxlintrc\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)' || true)"
 
           if [ -n "$lint_files" ]; then
             echo "lint=true" >> "$GITHUB_OUTPUT"
@@ -166,3 +166,57 @@ jobs:
       - name: Skip categorizer checks
         if: steps.changes.outputs.categorizer != 'true'
         run: echo "No categorizer files changed; skipping categorizer checks."
+
+  persistence-checks:
+    name: Persistence ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [typecheck, test]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect persistence changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
+          persistence_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/persistence/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+
+          if [ -n "$persistence_files" ]; then
+            echo "persistence=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "persistence=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up pnpm
+        if: steps.changes.outputs.persistence == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.persistence == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install persistence dependencies
+        if: steps.changes.outputs.persistence == 'true'
+        run: pnpm --filter persistence... install --frozen-lockfile
+
+      - name: Run persistence ${{ matrix.check }}
+        if: steps.changes.outputs.persistence == 'true'
+        run: pnpm --dir packages/persistence ${{ matrix.check }}
+
+      - name: Skip persistence checks
+        if: steps.changes.outputs.persistence != 'true'
+        run: echo "No persistence files changed; skipping persistence checks."
