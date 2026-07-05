@@ -1,0 +1,27 @@
+{
+  "name": "github",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GitHub App client: JWT + installation-token auth (BRIEF-2 stage 1); webhook verify, event parsing, comment ops, and diff/PR fetch land in stage 2.",
+  "exports": {
+    ".": "./src/lib.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@octokit/webhooks": "^13.9.1",
+    "@octokit/webhooks-methods": "^5.1.1",
+    "octokit": "^4.1.4",
+    "persistence": "workspace:*",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@octokit/webhooks-examples": "^7.6.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

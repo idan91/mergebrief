@@ -1,0 +1,20 @@
+{
+  "action": "added",
+  "installation": {
+    "id": 957387
+  },
+  "repository_selection": "selected",
+  "repositories_added": [
+    {
+      "id": 186853007,
+      "name": "Space",
+      "full_name": "Codertocat/Space"
+    }
+  ],
+  "repositories_removed": [],
+  "sender": {
+    "id": 21031067,
+    "login": "Codertocat",
+    "type": "User"
+  }
+}
