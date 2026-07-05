@@ -37,10 +37,9 @@ import {
   SessionAuthErrorCode,
   type AppDatabase,
   type KeyProvider,
-  type Result,
   type ReviewerSessionRow,
 } from "persistence";
-import type { ValueOf } from "types";
+import type { Result, ValueOf } from "types";
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------

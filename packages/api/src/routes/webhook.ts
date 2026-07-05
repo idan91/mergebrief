@@ -18,6 +18,7 @@
 //   200 — handled or deliberately ignored
 //   500 — unexpected throw (sanitized body; internals stay in the log)
 import { Hono } from "hono";
+import type { Result } from "types";
 import {
   InstallationAction,
   InstallationRepositoriesAction,
@@ -50,9 +51,8 @@ export interface WebhookRouteDeps {
 /** Hard cap for public webhook bodies: enough for GitHub JSON, bounded for DoS. */
 const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
 
-type RawBodyResult =
-  | { readonly ok: true; readonly value: string }
-  | { readonly ok: false };
+/** Raw-body read outcome; the only expected failure is the size cap. */
+type RawBodyResult = Result<string, "body-too-large">;
 
 /**
  * The `pull_request` actions that (re)queue a generation (plan decision #1).
@@ -192,7 +192,7 @@ async function readRawBodyWithinLimit(request: Request): Promise<RawBodyResult> 
   if (contentLength !== null) {
     const parsedLength = Number(contentLength);
     if (Number.isFinite(parsedLength) && parsedLength > MAX_WEBHOOK_BODY_BYTES) {
-      return { ok: false };
+      return { ok: false, error: "body-too-large" };
     }
   }
 
@@ -215,7 +215,7 @@ async function readRawBodyWithinLimit(request: Request): Promise<RawBodyResult> 
       bytesRead += value.byteLength;
       if (bytesRead > MAX_WEBHOOK_BODY_BYTES) {
         await reader.cancel();
-        return { ok: false };
+        return { ok: false, error: "body-too-large" };
       }
       chunks.push(decoder.decode(value, { stream: true }));
     }
