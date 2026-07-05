@@ -113,6 +113,14 @@ export type ComparisonMarksBody = z.infer<typeof ComparisonMarksBodySchema>;
 // ---------------------------------------------------------------------------
 
 export type BriefRow = typeof brief.$inferSelect;
+
+/** Lean brief listing row — span/index metadata only, never the body. */
+export interface BriefSpanRow {
+  readonly id: BriefRowId;
+  readonly baseSha: string;
+  readonly headSha: string;
+  readonly headIndex: number;
+}
 export type DeltaRow = typeof delta.$inferSelect;
 export type DiffSnapshotRow = typeof diffSnapshot.$inferSelect;
 export type RevisionNarrativeRow = typeof revisionNarrative.$inferSelect;
@@ -182,6 +190,14 @@ export interface BriefStore {
     baseSha: string,
     headSha: string,
   ): Promise<BriefRow | undefined>;
+  /**
+   * All briefs on a PR, ordered by `headIndex` ascending — the worker's
+   * DB-mode stand-in for the CLI manifest: next index = max + 1, previous
+   * briefed head = the highest-index row whose head differs. Deliberately a
+   * LEAN projection (key/index columns only, never `body`): the caller wants
+   * span metadata, and a long-lived PR can hold many multi-hundred-KB bodies.
+   */
+  listForPullRequest(pullRequestId: PullRequestRowId): Promise<BriefSpanRow[]>;
 }
 
 export interface DeltaStore {
@@ -313,6 +329,21 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         )
         .limit(1);
       return rows[0];
+    },
+
+    async listForPullRequest(pullRequestId) {
+      return db
+        .select({
+          id: brief.id,
+          baseSha: brief.baseSha,
+          headSha: brief.headSha,
+          headIndex: brief.headIndex,
+        })
+        .from(brief)
+        .where(
+          and(eq(brief.installationId, installationId), eq(brief.pullRequestId, pullRequestId)),
+        )
+        .orderBy(brief.headIndex);
     },
   };
 

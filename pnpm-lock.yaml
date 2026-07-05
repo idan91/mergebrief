@@ -228,6 +228,15 @@ importers:
 
   packages/worker:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.104.1
+        version: 0.104.1(zod@3.25.76)
+      categorizer:
+        specifier: workspace:^
+        version: link:../../tools/categorizer
+      github:
+        specifier: workspace:^
+        version: link:../github
       graphile-worker:
         specifier: ^0.16.6
         version: 0.16.6(typescript@5.9.3)
@@ -241,6 +250,9 @@ importers:
         specifier: ^3.25.0
         version: 3.25.76
     devDependencies:
+      '@electric-sql/pglite':
+        specifier: ^0.5.4
+        version: 0.5.4
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.21

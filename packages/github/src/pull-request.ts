@@ -31,9 +31,25 @@ export interface PullRequestInfo {
   readonly state: string;
   readonly draft: boolean;
   readonly title: string;
+  /** PR description body; GitHub sends null for an empty description. */
+  readonly body: string;
+  /** The PR's html page URL (generation metadata — never fetched from). */
+  readonly htmlUrl: string;
+  /** Number of commits on the PR at this head. */
+  readonly commitCount: number;
 }
 
-/** Fetch the minimal PR fields BRIEF-2 needs (head/base SHA, state, draft, title). */
+/** One changed file's path + churn, as the generation inputs need it. */
+export interface PullRequestFile {
+  readonly path: string;
+  readonly additions: number;
+  readonly deletions: number;
+}
+
+/**
+ * Fetch the PR fields the webhook mapping (BRIEF-2) and the worker's
+ * generation inputs (BRIEF-3) need: SHAs, state, title/body/url, commit count.
+ */
 export async function fetchPullRequest(
   octokit: Octokit,
   ref: PullRequestRef,
@@ -53,10 +69,42 @@ export async function fetchPullRequest(
         state: data.state,
         draft: data.draft ?? false,
         title: data.title,
+        body: data.body ?? "",
+        htmlUrl: data.html_url,
+        commitCount: data.commits,
       },
     };
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "fetch pull request") };
+  }
+}
+
+/**
+ * List a PR's changed files (path + additions/deletions) via the paginated
+ * `pulls.listFiles` endpoint — the worker's per-file generation input and the
+ * whole-PR churn denominator for the huge-span heuristic (ADR 0006 #7).
+ */
+export async function fetchPullRequestFiles(
+  octokit: Octokit,
+  ref: PullRequestRef,
+): Promise<Result<PullRequestFile[], GitHubApiError>> {
+  try {
+    const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
+      owner: ref.owner,
+      repo: ref.repo,
+      pull_number: ref.prNumber,
+      per_page: 100,
+    });
+    return {
+      ok: true,
+      value: files.map((file) => ({
+        path: file.filename,
+        additions: file.additions,
+        deletions: file.deletions,
+      })),
+    };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "list pull request files") };
   }
 }
 

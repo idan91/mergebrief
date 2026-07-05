@@ -3,13 +3,17 @@
 // library modules stay env-INJECTED (same posture as
 // `apps/web/src/server/webhookApp.ts`). A misconfigured worker must fail
 // LOUDLY at boot, never limp into draining jobs it cannot complete.
-//
-// Part 1 scope: boot → migrate (app + queue schema, idempotent) → run →
-// graceful signal-driven shutdown. The `generate` task registers here in
-// Part 2; until then the runner starts with an empty task list and drains
-// nothing (enqueued jobs simply wait).
+import Anthropic from "@anthropic-ai/sdk";
+import { AnthropicGenerator } from "categorizer";
+import { createAppClient, loadConfig as loadGitHubConfig } from "github";
+import { closeDb, createDb } from "persistence";
 import { loadConfig } from "./config";
+import { appGitHubPort } from "./github-port";
+import { createGenerateTask } from "./generate";
 import { startWorker } from "./runner";
+
+/** Where failed-generation raw outputs are dumped for debugging (ephemeral). */
+const FAILURE_DUMP_DIR = "out";
 
 /**
  * Load `packages/worker/.env` if present, then return the ambient env.
@@ -25,22 +29,47 @@ function readEnv(): NodeJS.ProcessEnv {
 }
 
 async function main(): Promise<void> {
-  const config = loadConfig(readEnv());
+  const env = readEnv();
+
+  const config = loadConfig(env);
   if (!config.ok) {
     throw new Error(
       `worker composition: invalid configuration — ${config.error.issues.join("; ")}`,
     );
   }
+  // The worker authenticates to GitHub as the App (installation tokens) to
+  // fetch PR data — same credential set the web tier already requires.
+  const githubConfig = loadGitHubConfig(env);
+  if (!githubConfig.ok) {
+    throw new Error(
+      `worker composition: invalid GitHub configuration — ${githubConfig.error.issues.join("; ")}`,
+    );
+  }
+
+  const handle = createDb(config.value.databaseUrl);
+  const generate = createGenerateTask({
+    handle,
+    generator: new AnthropicGenerator(
+      new Anthropic({ apiKey: config.value.providerApiKey }),
+      FAILURE_DUMP_DIR,
+    ),
+    github: appGitHubPort(createAppClient(githubConfig.value)),
+    log: (message) => console.error(`[worker] ${message}`),
+  });
 
   const runner = await startWorker({
     databaseUrl: config.value.databaseUrl,
-    taskList: {},
+    taskList: { generate: (payload) => generate(payload) },
   });
   console.error("worker: listening for generate jobs");
 
-  // Runs until a signal stops it; graphile owns the graceful part (stop
-  // claiming, abort in-flight via helpers.abortSignal, release its pool).
-  await runner.promise;
+  try {
+    // Runs until a signal stops it; graphile owns the graceful part (stop
+    // claiming, abort in-flight via helpers.abortSignal, release its pool).
+    await runner.promise;
+  } finally {
+    await closeDb(handle);
+  }
   console.error("worker: stopped");
 }
 

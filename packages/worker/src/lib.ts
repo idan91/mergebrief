@@ -12,3 +12,15 @@ export type { WorkerConfig, ConfigError } from "./config";
 // long-lived graphile-worker runner.
 export { startWorker } from "./runner";
 export type { StartWorkerOptions } from "./runner";
+
+// The `generate` task — the drain side of the ingest→queue→worker pipeline.
+export { createGenerateTask } from "./generate";
+export type { GenerateTaskDeps, Logger } from "./generate";
+
+// Job-payload boundary (the shared `GenerateJobPayload` handshake).
+export { parseGeneratePayload } from "./payload";
+export type { ParsedGeneratePayload } from "./payload";
+
+// The GitHub seam: installation-scoped PR reads behind a testable port.
+export { appGitHubPort, splitRepoSlug } from "./github-port";
+export type { GitHubPort, PullRequestSource } from "./github-port";

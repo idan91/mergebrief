@@ -41,3 +41,18 @@ export type Brand<K, T> = K & { readonly __brand: T };
  * later) while callers simply `await` either.
  */
 export type MaybePromise<T> = T | Promise<T>;
+
+/**
+ * The `generate` job payload — the ONE handshake between the enqueue side
+ * (`persistence/src/ingest.ts`, which serializes this into
+ * `graphile_worker.add_job`) and the drain side (`worker`, which Zod-validates
+ * the job payload back into branded ids). Snake_case because it crosses as
+ * JSON in a Postgres row, and STRING ids because JSON cannot carry bigint —
+ * the worker re-brands via `TenantContextSchema` / the id guards. Change this
+ * shape only with BOTH sides (and their contract tests) in the same commit.
+ */
+export interface GenerateJobPayload {
+  readonly installation_id: string;
+  readonly pull_request_id: string;
+  readonly head_sha: string;
+}

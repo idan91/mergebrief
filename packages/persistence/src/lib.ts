@@ -59,6 +59,7 @@ export type {
   ComparisonMarksWriteInput,
   ComparisonMarksBody,
   BriefRow,
+  BriefSpanRow,
   DeltaRow,
   DiffSnapshotRow,
   RevisionNarrativeRow,

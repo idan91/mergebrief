@@ -4,9 +4,25 @@
  * same fetch→categorize→write pipeline the CLI runs, without shelling out to
  * the CLI itself.
  */
-export { parsePrUrl, fetchPr, fetchPrMetadata, type PrLocator } from "./github";
-export { categorize, categorizeRevisionNarrative } from "./categorize";
-export { AnthropicGenerator, type Generator } from "./generator";
+export {
+  parsePrUrl,
+  fetchPr,
+  fetchPrMetadata,
+  fetchLinkedContext,
+  type PrLocator,
+  type PrFile,
+  type PrMetadata,
+  type FetchedPr,
+  type LinkedContext,
+} from "./github";
+export {
+  categorize,
+  categorizeDelta,
+  categorizeRevisionNarrative,
+  type DeltaInput,
+  type RevisionNarrativeInput,
+} from "./categorize";
+export { AnthropicGenerator, type Generator, type GenerateRequest } from "./generator";
 export { splitDiffByFile } from "./diff";
 export { assignBriefIndex, lookupBriefIndex, lookupBriefShaByIndex } from "./manifest";
 export {
@@ -40,6 +56,7 @@ export { generateAndWrite, type Range } from "./index";
 export type {
   Brief,
   CommitRange,
+  Effort,
   RevisionNarrative,
   RevisionNarrativeChunk,
   RevisionNarrativeSkipped,

@@ -13,12 +13,16 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "categorizer": "workspace:^",
+    "github": "workspace:^",
     "graphile-worker": "^0.16.6",
     "persistence": "workspace:*",
     "types": "workspace:*",
     "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",

@@ -6,7 +6,7 @@ import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { deleteComment, postEntryComment } from "../src/comments";
 import { GitHubApiErrorCode } from "../src/errors";
-import { fetchPullRequest, fetchDiff, fetchCompareDiff } from "../src/pull-request";
+import { fetchPullRequest, fetchPullRequestFiles, fetchDiff, fetchCompareDiff } from "../src/pull-request";
 import { fetchRepositoryById } from "../src/repo";
 import { isRepoId } from "../src/ids";
 
@@ -42,9 +42,11 @@ function mockOctokit(overrides: {
   pullsGet?: ReturnType<typeof vi.fn>;
   compareBasehead?: ReturnType<typeof vi.fn>;
   request?: ReturnType<typeof vi.fn>;
+  paginate?: ReturnType<typeof vi.fn>;
 }): Octokit {
   const stub = {
     request: overrides.request ?? vi.fn(),
+    paginate: overrides.paginate ?? vi.fn(),
     rest: {
       issues: {
         createComment: overrides.createComment ?? vi.fn(),
@@ -52,6 +54,7 @@ function mockOctokit(overrides: {
       },
       pulls: {
         get: overrides.pullsGet ?? vi.fn(),
+        listFiles: vi.fn(),
       },
       repos: {
         compareCommitsWithBasehead: overrides.compareBasehead ?? vi.fn(),
@@ -246,6 +249,9 @@ describe("fetchPullRequest / fetchDiff", () => {
         state: "open",
         draft: false,
         title: "A PR",
+        body: "does a thing",
+        html_url: "https://github.com/o/r/pull/3",
+        commits: 4,
       },
     });
     const octokit = mockOctokit({ pullsGet });
@@ -262,7 +268,60 @@ describe("fetchPullRequest / fetchDiff", () => {
       state: "open",
       draft: false,
       title: "A PR",
+      body: "does a thing",
+      htmlUrl: "https://github.com/o/r/pull/3",
+      commitCount: 4,
     });
+  });
+
+  it("normalizes a null PR body to the empty string", async () => {
+    const pullsGet = vi.fn().mockResolvedValue({
+      data: {
+        head: { sha: "head-sha" },
+        base: { sha: "base-sha" },
+        state: "open",
+        draft: false,
+        title: "A PR",
+        body: null,
+        html_url: "https://github.com/o/r/pull/3",
+        commits: 1,
+      },
+    });
+    const octokit = mockOctokit({ pullsGet });
+    const result = await fetchPullRequest(octokit, { owner: "o", repo: "r", prNumber: 3 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.body).toBe("");
+  });
+
+  it("lists changed files via pagination, mapping path + churn", async () => {
+    const paginate = vi
+      .fn()
+      .mockResolvedValue([
+        { filename: "src/a.ts", additions: 3, deletions: 1, status: "modified" },
+        { filename: "src/b.ts", additions: 10, deletions: 0, status: "added" },
+      ]);
+    const octokit = mockOctokit({ paginate });
+    const result = await fetchPullRequestFiles(octokit, { owner: "o", repo: "r", prNumber: 3 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toEqual([
+      { path: "src/a.ts", additions: 3, deletions: 1 },
+      { path: "src/b.ts", additions: 10, deletions: 0 },
+    ]);
+    expect(paginate).toHaveBeenCalledWith(
+      octokit.rest.pulls.listFiles,
+      expect.objectContaining({ owner: "o", repo: "r", pull_number: 3, per_page: 100 }),
+    );
+  });
+
+  it("sanitizes a listFiles failure", async () => {
+    const paginate = vi.fn().mockRejectedValue(requestError(404));
+    const octokit = mockOctokit({ paginate });
+    const result = await fetchPullRequestFiles(octokit, { owner: "o", repo: "r", prNumber: 3 });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
   });
 
   it("returns the raw diff string", async () => {

@@ -32,6 +32,7 @@ import {
   type PullRequestUpsertInput,
   type TenantContext,
 } from "./tenant";
+import type { GenerateJobPayload } from "types";
 import { GenerationKind, GenerationStatus, PrState, type Result, type ValueOf } from "./types";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
@@ -228,11 +229,12 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
         // matter). Ids cross as STRINGS — JSON cannot carry bigint; the
         // BRIEF-3 worker re-brands them through `TenantContextSchema`.
         const jobKey = `generate:${prRow.id}`;
-        const payloadJson = JSON.stringify({
+        const payload = {
           installation_id: String(installationId),
           pull_request_id: String(prRow.id),
           head_sha: input.headSha,
-        });
+        } satisfies GenerateJobPayload;
+        const payloadJson = JSON.stringify(payload);
         await tx.execute(sql`
           select graphile_worker.add_job(
             ${GENERATE_TASK_IDENTIFIER},
