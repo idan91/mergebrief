@@ -197,7 +197,7 @@ The OSS-native hook CodeRabbit structurally can't match (closed).
 *Implication:* identity + community; turns "another review tool" into "the open taxonomy /
 playbook standard."
 
-### P4 — M1 self-host backend, rescoped as "make self-hosting real"  ·  status: [ ] not started
+### P4 — M1 self-host backend, rescoped as "make self-hosting real"  ·  status: [~] in progress (WS1 done 2026-07-05, PR #23)
 
 **Needs grilling:** No — the decisions are already locked in ADRs; this is execution (drop only the hosted/multi-tenant scope per ADR 0023). · **Docs:** [`plans/product-backend-epic.md`](./plans/product-backend-epic.md) · [ADR 0015](./adr/0015-self-hosted-runtime-postgres-single-dependency.md) · [ADR 0016](./adr/0016-github-app-auth-and-trust-tenancy-boundary.md) · [ADR 0018](./adr/0018-m1-postgres-schema.md) · [ADR 0020](./adr/0020-brief-trigger-and-activation-model.md) (also 0006/0008/0013)
 
@@ -332,6 +332,17 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   authorship-neutral per the 2026-07-04 positioning lock. Leftover (code, trivial): stale
   "16 factual attributes" comment in `tools/categorizer/src/types.ts` header (actual: 19).
   **Next: P4 (self-host backend) or the PR #20 `json_schema` enum spike.**
+- 2026-07-05 — **P4 WS1 done (BRIEF-1, PR #23).** `packages/persistence`: the 11-table M1
+  schema (ADR 0018 as amended 2026-07-04 — `activated_at` dropped per ADR 0020;
+  `revision_narrative` + `comparison_marks` added per ADR 0024), tenant repo behind an opaque
+  handle (D2b), ArtifactStore with idempotent span writes, generation projection, audit emit
+  (closed metadata allowlist + shaped `target_type`), purge/retention routines, session-token
+  crypto, docker-compose Postgres. 85 PGlite tests against the checked-in migrations; review
+  hardening added vocab/shape CHECK constraints (vocab additions now need code + migration in
+  lockstep). Work tracked as BRIEF-x tickets on the Notion board (link in
+  `packages/persistence/AGENTS.md`). README gained the "Your data" section. **Known gap: CI
+  does not yet cover `packages/persistence` (web + categorizer matrix jobs only) — wire it
+  before or at the start of BRIEF-2.** **Next: BRIEF-2 (GitHub App + webhooks, WS2).**
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +
