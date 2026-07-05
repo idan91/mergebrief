@@ -1,18 +1,9 @@
-/**
- * Union of a mapped type's value types. Used instead of `enum` for closed
- * vocabularies: pair with an `as const` object map, e.g.
- *   const Status = { PENDING: "pending", NOT_STARTED: "not-started" } as const;
- *   type Status = ValueOf<typeof Status>;
- */
-export type ValueOf<T> = T[keyof T];
+// Shared utility types live in `types` (types-only, zero runtime);
+// re-exported here so this package's public contract (`lib.ts` re-exports
+// `Result`/`ValueOf` to consumers) is unchanged.
+import type { Brand, ValueOf } from "types";
 
-/**
- * Nominal-typing helper: brands a primitive type `K` with a unique tag `T`
- * so structurally identical ids (e.g. two branded bigints) are not
- * interchangeable at compile time. There is no runtime representation —
- * `Brand` only exists in the type system.
- */
-export type Brand<K, T> = K & { readonly __brand: T };
+export type { Brand, MaybePromise, Result, ValueOf } from "types";
 
 /**
  * Branded identifiers for the id families ADR 0018 (D1) makes load-bearing.
@@ -120,8 +111,3 @@ export const AuditAction = {
 } as const;
 export type AuditAction = ValueOf<typeof AuditAction>;
 
-/**
- * Discriminated union for expected failures (purge target missing, decrypt
- * failure, artifact absent, ...). Reserve `throw` for programmer errors.
- */
-export type Result<T, E> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: E };

@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          web_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/web/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          web_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/web/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$web_files" ]; then
             echo "web=true" >> "$GITHUB_OUTPUT"
@@ -188,7 +188,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          persistence_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/persistence/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          persistence_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/persistence/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$persistence_files" ]; then
             echo "persistence=true" >> "$GITHUB_OUTPUT"
@@ -242,7 +242,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          github_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/github/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          github_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/github/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$github_files" ]; then
             echo "github=true" >> "$GITHUB_OUTPUT"
@@ -296,7 +296,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          api_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/api/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          api_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/api/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$api_files" ]; then
             echo "api=true" >> "$GITHUB_OUTPUT"

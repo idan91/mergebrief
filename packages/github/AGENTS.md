@@ -19,10 +19,11 @@ OAuth flow (PR C).
   query surface from `persistence` at runtime. The sole exception is
   **type-only** imports of branded ids (e.g. `InstallationId`) — `import
   type { InstallationId } from "persistence"` — used to keep id types
-  aligned across packages without pulling in the DB layer. `persistence`'s
-  `Result`/`ValueOf` are NOT imported this way: this package defines its own
-  local copies in `src/types.ts` so it has zero runtime coupling to
-  `persistence`.
+  aligned across packages without pulling in the DB layer. `Result`/`ValueOf`
+  come from the shared `types` package (types-only, zero runtime, zero
+  dependencies — see `packages/types/AGENTS.md`), re-exported via
+  `src/types.ts`; that zero-runtime guarantee is what keeps this compatible
+  with the no-DB-imports rule.
 - **Env is injected, never `process.env`.** `loadConfig(env)` takes an
   explicit env map; nothing in this package reads `process.env` implicitly
   at import time. Composition roots (web app, worker) decide when and what
