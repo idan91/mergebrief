@@ -16,6 +16,14 @@ export interface PullRequestRef {
   readonly prNumber: number;
 }
 
+export interface CompareDiffRef {
+  readonly owner: string;
+  readonly repo: string;
+  /** The span endpoints — any two refs (SHAs/branches) GitHub can compare. */
+  readonly base: string;
+  readonly head: string;
+}
+
 export interface PullRequestInfo {
   readonly headSha: string;
   readonly baseSha: string;
@@ -75,5 +83,32 @@ export async function fetchDiff(
     return { ok: true, value: body };
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "fetch diff") };
+  }
+}
+
+/**
+ * Fetch the unified diff for an explicit `base...head` span via the compare
+ * endpoint (`GET /repos/{owner}/{repo}/compare/{base}...{head}`) with the diff
+ * media type, so the response is exactly the requested range rather than the
+ * whole-PR diff. Same string-narrowing and sanitization as `fetchDiff`.
+ */
+export async function fetchCompareDiff(
+  octokit: Octokit,
+  ref: CompareDiffRef,
+): Promise<Result<string, GitHubApiError>> {
+  try {
+    const response = await octokit.rest.repos.compareCommitsWithBasehead({
+      owner: ref.owner,
+      repo: ref.repo,
+      basehead: `${ref.base}...${ref.head}`,
+      mediaType: { format: "diff" },
+    });
+    const body: unknown = response.data;
+    if (typeof body !== "string") {
+      return { ok: false, error: unexpectedResponseError("fetch compare diff") };
+    }
+    return { ok: true, value: body };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "fetch compare diff") };
   }
 }

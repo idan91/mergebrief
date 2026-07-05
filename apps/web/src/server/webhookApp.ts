@@ -8,7 +8,14 @@ import "@tanstack/react-start/server-only";
 
 import { createApp, migrateQueue } from "api";
 import { loadConfig as loadGitHubConfig } from "github";
-import { createDb, loadConfig as loadPersistenceConfig } from "persistence";
+import {
+  createDb,
+  envKeyProvider,
+  loadConfig as loadPersistenceConfig,
+} from "persistence";
+
+/** The env var name the reviewer session tokens seal under (ADR 0018 D11). */
+const SESSION_KEY_REF = "SESSION_KEY_V1";
 
 /** The built Hono app (inferred so `apps/web` needs no direct `hono` dep). */
 type WebhookApp = ReturnType<typeof createApp>;
@@ -50,6 +57,30 @@ async function buildWebhookApp(): Promise<WebhookApp> {
     );
   }
 
+  // The public origin the OAuth callback URL is built from (must match the
+  // App's registered callback). Required for the reviewer-auth routes (PR C);
+  // fail loudly if absent, same posture as the config parses above.
+  const publicBaseUrl = env["PUBLIC_BASE_URL"];
+  if (publicBaseUrl === undefined || publicBaseUrl.length === 0) {
+    throw new Error(
+      "webhook composition: PUBLIC_BASE_URL is required for reviewer auth",
+    );
+  }
+
+  // Eagerly validate the session-sealing key, same fail-loudly posture as the
+  // config parses: a missing/malformed SESSION_KEY_V1 must fail HERE, not on
+  // the first token seal — and, worse, a key changed post-deploy would make
+  // every stored ciphertext undecryptable, which the authz gate treats as a
+  // burned session (mass logout). The resolved bytes are discarded; the
+  // provider re-resolves per seal (the KMS-seam contract).
+  const keyProvider = envKeyProvider(env);
+  const sessionKey = await keyProvider.resolveKey(SESSION_KEY_REF);
+  if (!sessionKey.ok) {
+    throw new Error(
+      `webhook composition: ${SESSION_KEY_REF} is missing or invalid — ${sessionKey.error.code}`,
+    );
+  }
+
   const { databaseUrl } = persistenceConfig.value;
   const handle = createDb(databaseUrl);
   // Enqueue-side schema install (idempotent). The worker that drains the jobs
@@ -59,6 +90,17 @@ async function buildWebhookApp(): Promise<WebhookApp> {
   return createApp({
     handle,
     webhookSecret: githubConfig.value.webhookSecret,
+    // Reviewer-auth bundle (PR C): OAuth creds from the GitHub config, the
+    // env-backed key provider for token sealing (validated eagerly above), and
+    // the cookie/redirect policy.
+    auth: {
+      oauthClientId: githubConfig.value.oauthClientId,
+      oauthClientSecret: githubConfig.value.oauthClientSecret,
+      keyProvider,
+      sessionKeyRef: SESSION_KEY_REF,
+      publicBaseUrl,
+      cookieSecure: true,
+    },
   });
 }
 

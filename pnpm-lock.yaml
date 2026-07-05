@@ -142,6 +142,9 @@ importers:
 
   packages/github:
     dependencies:
+      '@octokit/oauth-app':
+        specifier: ^7.1.6
+        version: 7.1.6
       '@octokit/webhooks':
         specifier: ^13.9.1
         version: 13.9.1
