@@ -1,0 +1,221 @@
+// The reviewer authorization gate (BRIEF-2 stage 7, PR C — ADR 0016 #5's
+// SINGLE enforcement point, plan decision #4). One middleware sits in front of
+// every read route under `/api/repos/:repoId/*` and, per request:
+//   1. resolves the reviewer's session from the opaque cookie (no cookie /
+//      unknown session → 401 — never a hint that the repo exists);
+//   2. verifies the viewer actually has GitHub access to the target repo by its
+//      NUMERIC id (`GET /repositories/{id}` with the viewer's own token —
+//      rename-proof); any non-2xx collapses to 404 (no existence leak) and
+//      emits the D9 `auth` denial audit row;
+//   3. shapes the request context (`ctx`, `session`, `accessToken`, `repoId`)
+//      for the read handlers and calls `next()`.
+//
+// CACHING (D9, plan decision #4): a POSITIVE cache keyed `(sessionHash, repoId)`
+// with a ~5min TTL skips the GitHub round-trip on repeat authorized reads.
+// NEGATIVES ARE NEVER CACHED — a revoked grant must re-deny on the very next
+// request. The cache is a closure Map created ONCE per app instance (not a
+// module global), so tests get a fresh cache per `createApp`.
+//
+// REFRESH (D11): a 401 from GitHub means the viewer's ~8h access token expired;
+// the middleware runs the serialized `refreshSessionToken` orchestrator and
+// retries the access check ONCE with the rotated token. A refresh failure has
+// already deleted the session, so it is a clean 401 → re-login.
+//
+// LOGGING (D9): each request emits ONE structured stdout access line
+// (method/path/status/latency + numeric repo/reviewer ids) — the purgeable web
+// access log, NOT the never-purged audit ledger, and NEVER any token/cookie/PII.
+import type { MiddlewareHandler } from "hono";
+import { getCookie } from "hono/cookie";
+import { createUserOctokit, fetchRepositoryById } from "github";
+import {
+  audit,
+  AuditAction,
+  AuditActorType,
+  AuditMetadataKey,
+  decryptToken,
+  isRepoId,
+  sessionAuth,
+  type RepoId,
+  type ReviewerSessionRow,
+  type TenantContext,
+} from "persistence";
+import {
+  refreshSessionToken,
+  SESSION_COOKIE,
+  sha256Hex,
+  type AuthRouteDeps,
+} from "./auth";
+import { createTtlCache } from "./ttl-cache";
+
+// ---------------------------------------------------------------------------
+// Typed Hono context vars. Handlers read these safely (no `any`): `ctx`/
+// `session`/`repoId` are always set once the gate passes; `accessToken` is set
+// only on the GitHub-verified path (a positive-cache hit skips the decrypt, so
+// the diff route decrypts lazily from `session` when it is absent).
+// ---------------------------------------------------------------------------
+
+export interface AuthzVariables {
+  readonly ctx: TenantContext;
+  readonly session: ReviewerSessionRow;
+  readonly repoId: RepoId;
+  readonly accessToken?: string;
+}
+
+export interface AuthzEnv {
+  readonly Variables: AuthzVariables;
+}
+
+/** Positive-cache TTL — short enough that a revoked grant self-heals fast. */
+const POSITIVE_CACHE_TTL_MS = 5 * 60 * 1000;
+/**
+ * Hard cap on live positive-cache entries (one per session×repo). Bounds memory
+ * regardless of process uptime — session hashes are one-time-random, so keys are
+ * never reused and would otherwise accumulate forever. Generous for M1 self-host
+ * (a handful of reviewers × repos); the oldest entry is evicted past the cap.
+ */
+const POSITIVE_CACHE_MAX_ENTRIES = 50_000;
+
+/** The access-check decision, as it appears in the stdout access log. */
+type AccessDecision = "200" | "401" | "404";
+
+function positiveCacheKey(sessionTokenHash: string, repoId: RepoId): string {
+  return `${sessionTokenHash}:${String(repoId)}`;
+}
+
+/** Brand a `:repoId` path segment; `undefined` when it isn't a positive int. */
+function parseRepoId(raw: string | undefined): RepoId | undefined {
+  if (raw === undefined || !/^\d+$/.test(raw)) {
+    return undefined;
+  }
+  const value = BigInt(raw);
+  return isRepoId(value) ? value : undefined;
+}
+
+/**
+ * Build the authorization middleware over injected deps. The positive cache is
+ * created HERE — once per `createApp` — so it is scoped to the app instance,
+ * never shared across tests or tenants.
+ */
+export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
+  // key `${sessionTokenHash}:${repoId}` → true, until expiry. Positive only,
+  // bounded (never-reused keys can't be allowed to grow unbounded).
+  const positiveCache = createTtlCache<true>(POSITIVE_CACHE_MAX_ENTRIES);
+
+  return async (c, next) => {
+    const startedAt = Date.now();
+
+    /** One purgeable stdout access line — numeric ids only, never a token. */
+    const logAccess = (
+      decision: AccessDecision,
+      fields: { repoId?: RepoId; reviewerId?: bigint },
+    ): void => {
+      const line: Record<string, string | number> = {
+        evt: "read",
+        method: c.req.method,
+        path: c.req.path,
+        status: Number(decision),
+        durationMs: Date.now() - startedAt,
+        decision,
+      };
+      if (fields.repoId !== undefined) {
+        line["repoId"] = String(fields.repoId);
+      }
+      if (fields.reviewerId !== undefined) {
+        line["reviewerId"] = String(fields.reviewerId);
+      }
+      console.info(JSON.stringify(line));
+    };
+
+    // 1. Resolve the session from the opaque cookie. No cookie / unknown
+    //    session both → 401 with no GitHub call and no repo-existence hint.
+    const cookie = getCookie(c, SESSION_COOKIE);
+    if (cookie === undefined) {
+      logAccess("401", {});
+      return c.json({ error: "unauthorized" }, 401);
+    }
+    const sessionTokenHash = sha256Hex(cookie);
+    const session = await sessionAuth(deps.handle).findSession(sessionTokenHash);
+    if (session === undefined) {
+      logAccess("401", {});
+      return c.json({ error: "unauthorized" }, 401);
+    }
+
+    // 2. Tenant is the session's installation; parse+brand the repo id. An
+    //    ill-shaped id is a 404 (never 400 — no shape leak either).
+    const ctx: TenantContext = { installationId: session.installationId };
+    const repoId = parseRepoId(c.req.param("repoId"));
+    if (repoId === undefined) {
+      logAccess("404", { reviewerId: session.reviewerId });
+      return c.json({ error: "not found" }, 404);
+    }
+
+    // 3. Positive-cache hit → already authorized within the TTL; skip GitHub
+    //    entirely. The diff route decrypts the session token lazily if it needs
+    //    it, so no access token is set here.
+    const cacheKey = positiveCacheKey(sessionTokenHash, repoId);
+    if (positiveCache.get(cacheKey, startedAt) !== undefined) {
+      c.set("ctx", ctx);
+      c.set("session", session);
+      c.set("repoId", repoId);
+      logAccess("200", { repoId, reviewerId: session.reviewerId });
+      return next();
+    }
+
+    // 4. Cache miss → verify GitHub access with the viewer's token. Decrypt the
+    //    stored access token first; an unreadable token burns the session (401).
+    const decrypted = await decryptToken(
+      deps.auth.keyProvider,
+      session.keyRef,
+      session.ghTokenCiphertext,
+    );
+    if (!decrypted.ok) {
+      await sessionAuth(deps.handle).deleteSession(sessionTokenHash);
+      logAccess("401", { repoId, reviewerId: session.reviewerId });
+      return c.json({ error: "unauthorized" }, 401);
+    }
+
+    // The session/token we carry forward — updated if a refresh rotates them.
+    let currentSession = session;
+    let accessToken = decrypted.value;
+    let repo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
+
+    // 401 from GitHub → the ~8h access token expired. Refresh (serialized) and
+    // retry the access check ONCE with the rotated token.
+    if (!repo.ok && repo.error.status === 401) {
+      const refreshed = await refreshSessionToken(deps, currentSession);
+      if (!refreshed.ok) {
+        // The orchestrator already deleted the session on a hard failure.
+        logAccess("401", { repoId, reviewerId: currentSession.reviewerId });
+        return c.json({ error: "unauthorized" }, 401);
+      }
+      currentSession = refreshed.value.session;
+      accessToken = refreshed.value.accessToken;
+      repo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
+    }
+
+    // Any other non-2xx (403/404/5xx), or a retry that is still non-2xx →
+    // collapse to 404 (no existence leak) AND emit the D9 denial. Never cached.
+    if (!repo.ok) {
+      await audit(deps.handle, {
+        installationId: ctx.installationId,
+        actorType: AuditActorType.REVIEWER,
+        actorId: currentSession.reviewerId,
+        action: AuditAction.AUTH,
+        targetType: "repo",
+        targetId: repoId,
+        metadata: { [AuditMetadataKey.DECISION]: "404" },
+      });
+      logAccess("404", { repoId, reviewerId: currentSession.reviewerId });
+      return c.json({ error: "not found" }, 404);
+    }
+
+    // 2xx → authorized. Cache the positive result, hand the token to the route.
+    positiveCache.set(cacheKey, true, Date.now() + POSITIVE_CACHE_TTL_MS);
+    c.set("ctx", ctx);
+    c.set("session", currentSession);
+    c.set("repoId", repoId);
+    c.set("accessToken", accessToken);
+    logAccess("200", { repoId, reviewerId: currentSession.reviewerId });
+    return next();
+  };
+}

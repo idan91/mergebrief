@@ -5,11 +5,12 @@
 // `process.env` and never constructs a DB — same injection discipline as
 // `loadConfig`.
 //
-// Routes here: the webhook trust boundary (stage 4) and the reviewer OAuth
-// routes (stage 6). The authenticated read API is stage 7.
+// Routes here: the webhook trust boundary (stage 4), the reviewer OAuth routes
+// (stage 6), and the authz-gated read API (stage 7).
 import { Hono } from "hono";
 import type { AppDatabase } from "persistence";
 import { authRoute, type AuthDeps } from "./routes/auth";
+import { readsRoute } from "./routes/reads";
 import { webhookRoute } from "./routes/webhook";
 
 export type { AuthDeps } from "./routes/auth";
@@ -26,5 +27,6 @@ export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
   app.route("/", webhookRoute(deps));
   app.route("/", authRoute(deps));
+  app.route("/", readsRoute(deps));
   return app;
 }

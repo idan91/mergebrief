@@ -75,14 +75,22 @@ export interface AuthRouteDeps {
 // ---------------------------------------------------------------------------
 
 const STATE_COOKIE = "rs_oauth_state";
-const SESSION_COOKIE = "rs_session";
+/**
+ * The session cookie name. Exported so the stage-7 authz middleware reads the
+ * SAME cookie this route sets, rather than re-declaring the string.
+ */
+export const SESSION_COOKIE = "rs_session";
 /** Entropy for the CSRF state nonce and the session token (bytes). */
 const STATE_BYTES = 32;
 const SESSION_TOKEN_BYTES = 32;
 /** The state cookie is short-lived — it only has to survive the round-trip. */
 const STATE_TTL_SECONDS = 600;
 
-function sha256Hex(value: string): string {
+/**
+ * SHA-256 hex of a cookie token — the globally-unique DB key for a session.
+ * Exported so the authz middleware hashes the incoming cookie identically.
+ */
+export function sha256Hex(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
