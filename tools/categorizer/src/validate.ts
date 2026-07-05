@@ -1,12 +1,12 @@
-import type { FileDiff } from "./diff.js";
-import type { RevisionChangeFile } from "./revchanges.js";
+import type { FileDiff } from "./diff";
+import type { RevisionChangeFile } from "./revchanges";
 import type {
   ChangeGroup,
   Chunk,
   LineRange,
   ReadingOrderStep,
   RevisionNarrativeChunk,
-} from "./types.js";
+} from "./types";
 
 /**
  * Validate the chunk↔group partition. With group membership on the chunk

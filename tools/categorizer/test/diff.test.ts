@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { splitDiffByFile } from "../src/diff.js";
+import { splitDiffByFile } from "../src/diff";
 
 const sample = `diff --git a/src/a.ts b/src/a.ts
 index 111..222 100644

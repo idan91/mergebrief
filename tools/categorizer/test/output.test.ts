@@ -7,8 +7,8 @@ import {
   diffsName,
   outName,
   summaryLines,
-} from "../src/output.js";
-import type { Brief, DeltaBrief } from "../src/types.js";
+} from "../src/output";
+import type { Brief, DeltaBrief } from "../src/types";
 
 const brief: Brief = {
   pr: {

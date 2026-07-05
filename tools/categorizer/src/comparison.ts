@@ -11,12 +11,12 @@
  */
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { FileDiff } from "./diff.js";
+import type { FileDiff } from "./diff";
 import {
   changedRangesFromFileDiffs,
   parseChangedRanges,
   type RevisionChangeFile,
-} from "./revchanges.js";
+} from "./revchanges";
 
 /** Which comparison baseline these marks are relative to. */
 export type ComparisonBaselineLabel = "previous-brief" | "checkpoint";

@@ -5,7 +5,7 @@ import {
   type Category,
   type Concern,
   type RiskSurfaceAttribute,
-} from "./types.js";
+} from "./types";
 
 /**
  * System prompt builder. The closed vocabularies are interpolated from

@@ -3,8 +3,8 @@ import { z } from "zod/v4";
 import {
   enumPreservingOutputFormat,
   toStrictJsonSchema,
-} from "../src/outputFormat.js";
-import { BriefGenerationSchema, RiskSurfaceAttributes } from "../src/types.js";
+} from "../src/outputFormat";
+import { BriefGenerationSchema, RiskSurfaceAttributes } from "../src/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

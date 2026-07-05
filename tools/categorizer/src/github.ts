@@ -5,7 +5,7 @@ import { lookup as dnsLookup, type LookupAddress } from "node:dns";
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { z } from "zod/v4";
-import { type ReviewComment } from "./types.js";
+import { type ReviewComment } from "./types";
 
 export type { ReviewComment };
 

@@ -4,11 +4,11 @@
  * same fetch→categorize→write pipeline the CLI runs, without shelling out to
  * the CLI itself.
  */
-export { parsePrUrl, fetchPr, fetchPrMetadata, type PrLocator } from "./github.js";
-export { categorize, categorizeRevisionNarrative } from "./categorize.js";
-export { AnthropicGenerator, type Generator } from "./generator.js";
-export { splitDiffByFile } from "./diff.js";
-export { assignBriefIndex, lookupBriefIndex, lookupBriefShaByIndex } from "./manifest.js";
+export { parsePrUrl, fetchPr, fetchPrMetadata, type PrLocator } from "./github";
+export { categorize, categorizeRevisionNarrative } from "./categorize";
+export { AnthropicGenerator, type Generator } from "./generator";
+export { splitDiffByFile } from "./diff";
+export { assignBriefIndex, lookupBriefIndex, lookupBriefShaByIndex } from "./manifest";
 export {
   prStem,
   briefId,
@@ -18,7 +18,7 @@ export {
   revChangesName,
   comparisonMarksName,
   revisionNarrativeName,
-} from "./output.js";
+} from "./output";
 export {
   buildRevisionChanges,
   parseChangedRanges,
@@ -26,21 +26,21 @@ export {
   countChangedLines,
   type RevisionChanges,
   type RevisionChangeFile,
-} from "./revchanges.js";
+} from "./revchanges";
 export {
   buildComparisonMarks,
   writeComparisonMarks,
   type ComparisonMarks,
   type ComparisonMarksFile,
   type ComparisonBaselineLabel,
-} from "./comparison.js";
-export { isHugeSpan, hugeSpanRatio } from "./huge-span.js";
-export { revisionNarrativeConfig, type RevisionNarrativeConfig } from "./config.js";
-export { generateAndWrite, type Range } from "./index.js";
+} from "./comparison";
+export { isHugeSpan, hugeSpanRatio } from "./huge-span";
+export { revisionNarrativeConfig, type RevisionNarrativeConfig } from "./config";
+export { generateAndWrite, type Range } from "./index";
 export type {
   Brief,
   CommitRange,
   RevisionNarrative,
   RevisionNarrativeChunk,
   RevisionNarrativeSkipped,
-} from "./types.js";
+} from "./types";

@@ -2,9 +2,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
-import { enumPreservingOutputFormat } from "./outputFormat.js";
-import { salvageDroppableEnums } from "./salvage.js";
-import type { Effort, Generation } from "./types.js";
+import { enumPreservingOutputFormat } from "./outputFormat";
+import { salvageDroppableEnums } from "./salvage";
+import type { Effort, Generation } from "./types";
 
 /** Progress sink — defaults to no-op so callers stay usable in tests. */
 export type Logger = (message: string) => void;

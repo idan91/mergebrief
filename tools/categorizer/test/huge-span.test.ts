@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { hugeSpanRatio, isHugeSpan } from "../src/huge-span.js";
+import { hugeSpanRatio, isHugeSpan } from "../src/huge-span";
 
 const ENV_KEY = "HUGE_SPAN_RATIO";
 

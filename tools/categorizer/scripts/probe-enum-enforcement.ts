@@ -18,7 +18,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod/v4";
-import { enumPreservingOutputFormat } from "../src/outputFormat.js";
+import { enumPreservingOutputFormat } from "../src/outputFormat";
 
 const MODEL = "claude-opus-4-8";
 

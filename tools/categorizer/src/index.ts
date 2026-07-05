@@ -13,16 +13,16 @@ import {
   resolveFullSha,
   type FetchedPr,
   type ReviewComment,
-} from "./github.js";
-import { categorize, categorizeRevisionNarrative, warnIssues } from "./categorize.js";
-import { AnthropicGenerator, type Generator } from "./generator.js";
-import { splitDiffByFile } from "./diff.js";
-import { assignBriefIndex, lookupBriefShaByIndex } from "./manifest.js";
-import { countChangedLines, type RevisionChanges } from "./revchanges.js";
-import { buildComparisonMarks, writeComparisonMarks } from "./comparison.js";
-import { isHugeSpan } from "./huge-span.js";
-import { revisionNarrativeConfig } from "./config.js";
-import { validateNarrativeMarksOverlap } from "./validate.js";
+} from "./github";
+import { categorize, categorizeRevisionNarrative, warnIssues } from "./categorize";
+import { AnthropicGenerator, type Generator } from "./generator";
+import { splitDiffByFile } from "./diff";
+import { assignBriefIndex, lookupBriefShaByIndex } from "./manifest";
+import { countChangedLines, type RevisionChanges } from "./revchanges";
+import { buildComparisonMarks, writeComparisonMarks } from "./comparison";
+import { isHugeSpan } from "./huge-span";
+import { revisionNarrativeConfig } from "./config";
+import { validateNarrativeMarksOverlap } from "./validate";
 import {
   commentsName,
   diffsName,
@@ -31,8 +31,8 @@ import {
   printSummary,
   revChangesName,
   revisionNarrativeName,
-} from "./output.js";
-import type { Brief, CommitRange, RevisionNarrativeSkipped } from "./types.js";
+} from "./output";
+import type { Brief, CommitRange, RevisionNarrativeSkipped } from "./types";
 
 const OUT_DIR = "out";
 

@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod/v4";
-import { categorizeRevisionNarrative } from "../src/categorize.js";
-import type { GenerateRequest, Generator } from "../src/generator.js";
-import type { Brief, Effort, Generation } from "../src/types.js";
-import type * as GithubModule from "../src/github.js";
-import type { PrMetadata } from "../src/github.js";
+import { categorizeRevisionNarrative } from "../src/categorize";
+import type { GenerateRequest, Generator } from "../src/generator";
+import type { Brief, Effort, Generation } from "../src/types";
+import type * as GithubModule from "../src/github";
+import type { PrMetadata } from "../src/github";
 
 // Mock the github module so generateAndWrite / generateAndWriteDelta never
 // shell out to `gh` — same fixtures serve both the whole-PR and incremental

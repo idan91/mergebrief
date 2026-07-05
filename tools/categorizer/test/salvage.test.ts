@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { salvageDroppableEnums } from "../src/salvage.js";
-import { BriefGenerationSchema } from "../src/types.js";
+import { salvageDroppableEnums } from "../src/salvage";
+import { BriefGenerationSchema } from "../src/types";
 
 const DROPPABLE = new Set([
   "secondaryCategories",

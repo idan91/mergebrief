@@ -6,7 +6,7 @@ import {
   isPublicUrl,
   normalizeReviewComment,
   parsePrUrl,
-} from "../src/github.js";
+} from "../src/github";
 
 describe("parsePrUrl", () => {
   it("parses a canonical PR URL", () => {

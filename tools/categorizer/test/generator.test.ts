@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import type Anthropic from "@anthropic-ai/sdk";
-import { AnthropicGenerator } from "../src/generator.js";
+import { AnthropicGenerator } from "../src/generator";
 
 /**
  * Exercises the parse-failure path of AnthropicGenerator (salvage → feedback

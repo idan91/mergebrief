@@ -1,9 +1,9 @@
-import type { Brief, DeltaBrief } from "./types.js";
+import type { Brief, DeltaBrief } from "./types";
 
 // Marks naming lives with the marks artifact (comparison.ts) to keep the
 // output→comparison dependency one-directional; re-exported here so all
 // artifact names remain importable from one module.
-export { comparisonMarksName } from "./comparison.js";
+export { comparisonMarksName } from "./comparison";
 
 /** First 8 chars of a SHA, for filenames and summaries. */
 function shortSha(sha: string): string {

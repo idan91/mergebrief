@@ -8,20 +8,20 @@ import {
   fetchReviewComments,
   parsePrUrl,
   resolveFullSha,
-} from "./github.js";
-import { categorizeDelta } from "./categorize.js";
-import { AnthropicGenerator, type Generator } from "./generator.js";
-import { splitDiffByFile } from "./diff.js";
-import { lookupBriefIndex } from "./manifest.js";
-import { buildComparisonMarks, writeComparisonMarks } from "./comparison.js";
+} from "./github";
+import { categorizeDelta } from "./categorize";
+import { AnthropicGenerator, type Generator } from "./generator";
+import { splitDiffByFile } from "./diff";
+import { lookupBriefIndex } from "./manifest";
+import { buildComparisonMarks, writeComparisonMarks } from "./comparison";
 import {
   deltaCommentsName,
   deltaDiffsName,
   deltaOutName,
   prStem,
   printDeltaSummary,
-} from "./output.js";
-import type { DeltaBrief } from "./types.js";
+} from "./output";
+import type { DeltaBrief } from "./types";
 
 const OUT_DIR = "out";
 
