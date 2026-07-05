@@ -233,6 +233,21 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
   });
 
+  it("oversized body → 413 before signature verification work", async () => {
+    const res = await app.request("/api/webhooks/github", {
+      method: "POST",
+      headers: {
+        "x-github-event": "pull_request",
+        "x-hub-signature-256": "sha256=bogus",
+        "content-type": "application/json",
+      },
+      body: "x".repeat(1_048_577),
+    });
+    expect(res.status).toBe(413);
+    expect(await countRows(harness, "pull_request")).toBe(0);
+    expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
+  });
+
   it("missing signature → 401 and NOTHING written", async () => {
     const body = JSON.stringify(pullRequestPayload({ action: "opened" }));
     const res = await app.request("/api/webhooks/github", {

@@ -14,6 +14,7 @@
 // Status contract:
 //   401 — missing/invalid signature (nothing read, nothing written)
 //   400 — signed but unparseable (bad JSON / malformed handled payload)
+//   413 — body exceeds the webhook size cap (nothing read past the cap)
 //   200 — handled or deliberately ignored
 //   500 — unexpected throw (sanitized body; internals stay in the log)
 import { Hono } from "hono";
@@ -45,6 +46,13 @@ export interface WebhookRouteDeps {
   /** `GITHUB_WEBHOOK_SECRET` — injected by the composition root (stage 5). */
   readonly webhookSecret: string;
 }
+
+/** Hard cap for public webhook bodies: enough for GitHub JSON, bounded for DoS. */
+const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
+
+type RawBodyResult =
+  | { readonly ok: true; readonly value: string }
+  | { readonly ok: false };
 
 /**
  * The `pull_request` actions that (re)queue a generation (plan decision #1).
@@ -179,6 +187,43 @@ async function dispatch(handle: AppDatabase, event: ParsedWebhookEvent): Promise
   }
 }
 
+async function readRawBodyWithinLimit(request: Request): Promise<RawBodyResult> {
+  const contentLength = request.headers.get("content-length");
+  if (contentLength !== null) {
+    const parsedLength = Number(contentLength);
+    if (Number.isFinite(parsedLength) && parsedLength > MAX_WEBHOOK_BODY_BYTES) {
+      return { ok: false };
+    }
+  }
+
+  if (request.body === null) {
+    return { ok: true, value: "" };
+  }
+
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  const chunks: string[] = [];
+  let bytesRead = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        chunks.push(decoder.decode());
+        return { ok: true, value: chunks.join("") };
+      }
+      bytesRead += value.byteLength;
+      if (bytesRead > MAX_WEBHOOK_BODY_BYTES) {
+        await reader.cancel();
+        return { ok: false };
+      }
+      chunks.push(decoder.decode(value, { stream: true }));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+}
+
 /** Mountable webhook route; deps injected so tests pass a PGlite handle. */
 export function webhookRoute(deps: WebhookRouteDeps): Hono {
   const app = new Hono();
@@ -186,7 +231,11 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono {
   app.post("/api/webhooks/github", async (c) => {
     // 1–3. Verify the HMAC over the RAW body BEFORE any parsing — the exact
     // bytes GitHub signed, never a JSON re-encode.
-    const raw = await c.req.text();
+    const rawBody = await readRawBodyWithinLimit(c.req.raw);
+    if (!rawBody.ok) {
+      return c.json({ error: "request body too large" }, 413);
+    }
+    const raw = rawBody.value;
     const signature = c.req.header("x-hub-signature-256");
     const eventName = c.req.header("x-github-event") ?? "";
 
