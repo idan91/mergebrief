@@ -19,7 +19,7 @@
 // PR / artifact is a 404; GitHub fetch failures are sanitized to 404/502. No
 // upstream error text, token, or header ever reaches a response body.
 import { Hono, type Context } from "hono";
-import { createUserOctokit, fetchDiff, GitHubApiErrorCode } from "github";
+import { createUserOctokit, fetchCompareDiff, GitHubApiErrorCode } from "github";
 import {
   artifactStore,
   decryptToken,
@@ -30,7 +30,7 @@ import {
 } from "persistence";
 import { z } from "zod";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
-import type { AuthRouteDeps } from "./auth";
+import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { createTtlCache } from "./ttl-cache";
 
 // ---------------------------------------------------------------------------
@@ -43,7 +43,17 @@ const shaSchema = z.string().min(1);
 const briefQuerySchema = z.object({ base: shaSchema, head: shaSchema });
 const marksQuerySchema = z.object({ baseline: shaSchema, head: shaSchema });
 const narrativeQuerySchema = z.object({ prevHead: shaSchema, head: shaSchema });
-const diffQuerySchema = z.object({ base: shaSchema, head: shaSchema });
+/**
+ * Diff span endpoints. Beyond a non-empty SHA, these must NOT contain a `:` —
+ * GitHub's compare endpoint reads `owner:ref` as a CROSS-REPO selector, which
+ * would let a caller redirect the diff proxy at a fork outside the `repoId` the
+ * authz gate approved. Rejecting `:` confines the compare to the resolved PR's
+ * own repo (defense-in-depth; the fetch already runs under the viewer's token).
+ */
+const diffRefSchema = shaSchema.refine((value) => !value.includes(":"), {
+  message: "diff ref must not select a cross-repo owner:ref span",
+});
+const diffQuerySchema = z.object({ base: diffRefSchema, head: diffRefSchema });
 
 /** Per-session diff cache TTL — short; the diff is live, this only debounces. */
 const DIFF_CACHE_TTL_MS = 60 * 1000;
@@ -54,6 +64,13 @@ const DIFF_CACHE_TTL_MS = 60 * 1000;
  * tighter cap; oldest is evicted past it (ADR 0016 #10 — never persisted).
  */
 const DIFF_CACHE_MAX_ENTRIES = 2_000;
+/**
+ * Per-entry byte cap. The entry-count cap alone doesn't bound bytes — a run of
+ * large-PR diffs could still balloon the map — so an oversized diff (rare, and
+ * cheap to re-proxy) is served but NOT cached. This bounds worst-case cache
+ * memory to `MAX_ENTRIES × MAX_ENTRY_BYTES` without byte-accounting in the cache.
+ */
+const DIFF_CACHE_MAX_ENTRY_BYTES = 1_000_000;
 
 /**
  * Split a `owner/repo` slug into its parts. `repoSlug` is nullable and could in
@@ -180,8 +197,9 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     return artifactJson(c, row.body);
   });
 
-  // GET diff — LIVE proxy of GitHub's unified diff with the viewer's token,
-  // cached per session (~60s). Never persisted (ADR 0016 #10).
+  // GET diff — LIVE proxy of the requested `base...head` span diff (GitHub's
+  // compare endpoint) with the viewer's token, cached per session (~60s).
+  // Never persisted (ADR 0016 #10).
   app.get("/api/repos/:repoId/pulls/:prNumber/diff", async (c) => {
     const query = diffQuerySchema.safeParse({
       base: c.req.query("base"),
@@ -211,21 +229,37 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
     // The token is set by the gate on the GitHub-verified path; on a
     // positive-cache hit it is absent, so decrypt the session's token lazily.
-    const accessToken = c.get("accessToken") ?? (await resolveSessionToken(deps, session));
+    let currentSession = session;
+    let accessToken = c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
     if (accessToken === undefined) {
       return c.json({ error: "unauthorized" }, 401);
     }
 
-    const diff = await fetchDiff(createUserOctokit(accessToken), {
-      owner: target.owner,
-      repo: target.repo,
-      prNumber: resolved.pr.prNumber,
-    });
+    // Fetch the diff for the REQUESTED span (base...head), not the whole PR.
+    const span = { owner: target.owner, repo: target.repo, base: query.data.base, head: query.data.head };
+    let diff = await fetchCompareDiff(createUserOctokit(accessToken), span);
+
+    // A positive-cache hit skips the gate's GitHub check, so the lazily-decrypted
+    // token may be an expired ~8h access token → GitHub 401. Refresh once and
+    // retry (mirrors the gate's verified path) before surfacing a failure.
+    if (!diff.ok && diff.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+      const refreshed = await refreshSessionToken(deps, currentSession);
+      if (!refreshed.ok) {
+        return c.json({ error: "unauthorized" }, 401);
+      }
+      currentSession = refreshed.value.session;
+      accessToken = refreshed.value.accessToken;
+      diff = await fetchCompareDiff(createUserOctokit(accessToken), span);
+    }
     if (!diff.ok) {
       const status = diff.error.code === GitHubApiErrorCode.NOT_FOUND ? 404 : 502;
       return c.json({ error: status === 404 ? "not found" : "upstream error" }, status);
     }
-    diffCache.set(cacheKey, diff.value, now + DIFF_CACHE_TTL_MS, now);
+    // Serve always; cache only when small enough (oversized diffs are rare and
+    // cheap to re-proxy) so the map can't grow past its byte budget.
+    if (diff.value.length <= DIFF_CACHE_MAX_ENTRY_BYTES) {
+      diffCache.set(cacheKey, diff.value, now + DIFF_CACHE_TTL_MS, now);
+    }
     return c.body(diff.value, 200, diffHeaders());
   });
 

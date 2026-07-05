@@ -2,9 +2,9 @@
 // against `createApp` over the persistence PGlite harness, with GitHub mocked at
 // the HTTP seam via a stubbed global `fetch` (no live network, no new mock libs)
 // — the same pattern as `auth.test.ts`. The stub answers the endpoints the gate
-// and the diff proxy touch: `GET /repositories/{id}` (the access check), the PR
-// diff (`GET /repos/{owner}/{repo}/pulls/{n}`), and the OAuth token endpoint
-// (refresh). Call counts assert the positive cache + per-session diff cache.
+// and the diff proxy touch: `GET /repositories/{id}` (the access check), the
+// span diff (`GET /repos/{owner}/{repo}/compare/{base}...{head}`), and the OAuth
+// token endpoint (refresh). Call counts assert the positive cache + diff cache.
 //
 // Covers the DoD: 401 (no cookie / unknown session, no GitHub call); 404 on no
 // repo access (+ the `auth`/`repo`/`decision="404"` audit row, negative NOT
@@ -132,6 +132,9 @@ function diffOk(text = DIFF_TEXT): Response {
     },
   });
 }
+function diffStatus(status: number): Response {
+  return jsonResponse({ message: "diff denied" }, status);
+}
 
 interface StubConfig {
   readonly repositories?: (call: number) => Response;
@@ -142,12 +145,15 @@ interface StubCounts {
   repositories: number;
   diff: number;
   token: number;
+  /** Every fetched URL, in order — lets a test assert the requested diff span. */
+  readonly urls: string[];
 }
 
 function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = { repositories: 0, diff: 0, token: 0 };
+  const counts: StubCounts = { repositories: 0, diff: 0, token: 0, urls: [] };
   const fetchFn = vi.fn(async (input: string | URL | Request): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    counts.urls.push(url);
     if (url.includes("/login/oauth/access_token")) {
       const i = counts.token++;
       return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
@@ -156,7 +162,7 @@ function stubGitHub(cfg: StubConfig): StubCounts {
       const i = counts.repositories++;
       return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
     }
-    if (url.includes("/pulls/")) {
+    if (url.includes("/compare/")) {
       const i = counts.diff++;
       return cfg.diff ? cfg.diff(i) : jsonResponse({ message: "not found" }, 404);
     }
@@ -383,6 +389,99 @@ describe("reviewer read API + authz gate", () => {
     expect(res.status).toBe(401);
     const rows = await harness.raw("select count(*)::int as n from reviewer_session");
     expect(rows[0]?.["n"]).toBe(0);
+  });
+
+  it("401 and deletes the session when it has expired (dead refresh token)", async () => {
+    const counts = stubGitHub({ repositories: () => repoOk() });
+    const { cookie } = await seedSession(harness.handle, kp, {
+      expiresAt: new Date(Date.now() - 1000),
+    });
+    await seedPullRequest(harness.handle);
+
+    const res = await app.request(briefPath("b", "h"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(res.status).toBe(401);
+    // Rejected before the access check — no GitHub call at all.
+    expect(counts.repositories).toBe(0);
+    // The dead session is burned.
+    const rows = await harness.raw("select count(*)::int as n from reviewer_session");
+    expect(rows[0]?.["n"]).toBe(0);
+  });
+
+  it("400 on a diff ref that selects a cross-repo owner:ref span (no GitHub call)", async () => {
+    const counts = stubGitHub({ repositories: () => repoOk(), diff: () => diffOk() });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+
+    const res = await app.request(diffPath("otherowner:sha", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(res.status).toBe(400);
+    // Rejected at the Zod boundary — the compare endpoint is never reached.
+    expect(counts.diff).toBe(0);
+  });
+
+  it("diff proxy fetches the REQUESTED base...head span (not the whole PR)", async () => {
+    const counts = stubGitHub({ repositories: () => repoOk(), diff: () => diffOk() });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+
+    const res = await app.request(diffPath("base1", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(res.status).toBe(200);
+    // The compare request carried the exact requested span.
+    expect(counts.urls.some((u) => u.includes("/compare/base1...head1"))).toBe(true);
+  });
+
+  it("diff proxy on a cached-authz hit refreshes an expired token and retries", async () => {
+    // span1: diff ok (warms authz + diff cache). span2: diff 401 → refresh → ok.
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      diff: (call) => (call === 1 ? diffStatus(401) : diffOk()),
+      token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
+    });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+
+    const a = await app.request(diffPath("base1", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(a.status).toBe(200);
+    expect(counts.repositories).toBe(1);
+
+    // Different span → authz-cache hit (no new access check), but the lazily
+    // decrypted token 401s the compare fetch → the route refreshes and retries.
+    const b = await app.request(diffPath("base2", "head2"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(b.status).toBe(200);
+    expect(await b.text()).toBe(DIFF_TEXT);
+    expect(counts.repositories).toBe(1); // still cached — no second access check
+    expect(counts.token).toBe(1); // diff-route refresh fired
+    expect(counts.diff).toBe(3); // span1 ok, span2 401 + retry ok
+  });
+
+  it("serves but does NOT cache an oversized diff (re-fetched on repeat)", async () => {
+    const big = "x".repeat(1_000_001); // just over the 1 MB per-entry cap
+    const counts = stubGitHub({ repositories: () => repoOk(), diff: () => diffOk(big) });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+
+    const first = await app.request(diffPath("b", "h"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(first.status).toBe(200);
+    expect((await first.text()).length).toBe(big.length);
+    expect(counts.diff).toBe(1);
+
+    const second = await app.request(diffPath("b", "h"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(second.status).toBe(200);
+    // Not cached (too large) → GitHub was hit again.
+    expect(counts.diff).toBe(2);
   });
 
   it("diff proxy: fetches once, then serves the per-session cache on a repeat read", async () => {

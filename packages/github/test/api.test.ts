@@ -6,7 +6,7 @@ import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { deleteComment, postEntryComment } from "../src/comments";
 import { GitHubApiErrorCode } from "../src/errors";
-import { fetchPullRequest, fetchDiff } from "../src/pull-request";
+import { fetchPullRequest, fetchDiff, fetchCompareDiff } from "../src/pull-request";
 import { fetchRepositoryById } from "../src/repo";
 import { isRepoId } from "../src/ids";
 
@@ -40,6 +40,7 @@ function mockOctokit(overrides: {
   createComment?: ReturnType<typeof vi.fn>;
   deleteComment?: ReturnType<typeof vi.fn>;
   pullsGet?: ReturnType<typeof vi.fn>;
+  compareBasehead?: ReturnType<typeof vi.fn>;
   request?: ReturnType<typeof vi.fn>;
 }): Octokit {
   const stub = {
@@ -51,6 +52,9 @@ function mockOctokit(overrides: {
       },
       pulls: {
         get: overrides.pullsGet ?? vi.fn(),
+      },
+      repos: {
+        compareCommitsWithBasehead: overrides.compareBasehead ?? vi.fn(),
       },
     },
   };
@@ -279,6 +283,42 @@ describe("fetchPullRequest / fetchDiff", () => {
       pull_number: 3,
       mediaType: { format: "diff" },
     });
+  });
+
+  it("fetches the compare diff for an explicit base...head span", async () => {
+    const diff = "diff --git a/f b/f\n@@ -1 +1 @@\n-a\n+b\n";
+    const compareBasehead = vi.fn().mockResolvedValue({ data: diff });
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareDiff(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "base-sha",
+      head: "head-sha",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toBe(diff);
+    expect(compareBasehead).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      basehead: "base-sha...head-sha",
+      mediaType: { format: "diff" },
+    });
+  });
+
+  it("maps a compare diff failure to a sanitized error", async () => {
+    const compareBasehead = vi.fn().mockRejectedValue(requestError(404));
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareDiff(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "b",
+      head: "h",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 
   it("maps a diff fetch failure to a sanitized error", async () => {

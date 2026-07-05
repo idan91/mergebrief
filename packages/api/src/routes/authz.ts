@@ -139,6 +139,17 @@ export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<Au
       logAccess("401", {});
       return c.json({ error: "unauthorized" }, 401);
     }
+    // `findSession` is a plain resolver (it doesn't filter on expiry), so expiry
+    // is enforced HERE, at the auth decision point. `expires_at` tracks the ~6mo
+    // refresh-token lifetime: once it's past, the refresh token itself is dead,
+    // so there is no recovery — burn the row and force a fresh login. (An expired
+    // ~8h ACCESS token is different — it still flows through the 401→refresh path
+    // below.)
+    if (session.expiresAt.getTime() <= startedAt) {
+      await sessionAuth(deps.handle).deleteSession(sessionTokenHash);
+      logAccess("401", { reviewerId: session.reviewerId });
+      return c.json({ error: "unauthorized" }, 401);
+    }
 
     // 2. Tenant is the session's installation; parse+brand the repo id. An
     //    ill-shaped id is a 404 (never 400 — no shape leak either).
