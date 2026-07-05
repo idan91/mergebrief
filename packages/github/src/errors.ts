@@ -29,6 +29,24 @@ export interface GitHubApiError {
   readonly message: string;
 }
 
+/**
+ * GitHub signals throttling with a 403 (NOT 429) plus rate-limit headers:
+ * `x-ratelimit-remaining: 0` for the primary limit, or a `retry-after` header
+ * for a secondary/abuse limit. Reading these headers (never the body) lets us
+ * classify throttling distinctly from a genuine permission denial without
+ * leaking any secret — the sanitized message still carries only the status.
+ */
+function isRateLimited403(error: RequestError): boolean {
+  const headers = error.response?.headers;
+  if (headers === undefined) {
+    return false;
+  }
+  if (headers["x-ratelimit-remaining"] === "0") {
+    return true;
+  }
+  return headers["retry-after"] !== undefined;
+}
+
 function codeForStatus(status: number): GitHubApiErrorCode {
   switch (status) {
     case 401: {
@@ -57,8 +75,12 @@ function codeForStatus(status: number): GitHubApiErrorCode {
  */
 export function mapRequestError(error: unknown, context: string): GitHubApiError {
   if (error instanceof RequestError) {
+    const code =
+      error.status === 403 && isRateLimited403(error)
+        ? GitHubApiErrorCode.RATE_LIMITED
+        : codeForStatus(error.status);
     return {
-      code: codeForStatus(error.status),
+      code,
       status: error.status,
       message: `failed to ${context}: GitHub API returned status ${error.status}`,
     };

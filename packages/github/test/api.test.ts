@@ -14,7 +14,10 @@ import { isRepoId } from "../src/ids";
 // one in the thrown RequestError's request options and assert it never escapes.
 const LEAKED_TOKEN = "ghs_PLANTED_INSTALLATION_TOKEN";
 
-function requestError(status: number): RequestError {
+function requestError(
+  status: number,
+  responseHeaders: Record<string, string> = {},
+): RequestError {
   return new RequestError(`HTTP ${status}`, status, {
     request: {
       method: "GET",
@@ -24,7 +27,7 @@ function requestError(status: number): RequestError {
     response: {
       status,
       url: "https://api.github.com/repositories/1",
-      headers: {},
+      headers: responseHeaders,
       data: { message: "Not Found", token: LEAKED_TOKEN },
     },
   });
@@ -176,6 +179,43 @@ describe("fetchRepositoryById", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+  });
+});
+
+describe("mapRequestError — rate-limit classification", () => {
+  it("classifies a 403 with an exhausted primary limit as rate-limited", async () => {
+    const request = vi
+      .fn()
+      .mockRejectedValue(requestError(403, { "x-ratelimit-remaining": "0" }));
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.RATE_LIMITED);
+    expect(result.error.status).toBe(403);
+    expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
+  });
+
+  it("classifies a 403 carrying retry-after (secondary limit) as rate-limited", async () => {
+    const request = vi
+      .fn()
+      .mockRejectedValue(requestError(403, { "retry-after": "60" }));
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.RATE_LIMITED);
+  });
+
+  it("keeps a plain 403 (with remaining budget) as forbidden", async () => {
+    const request = vi
+      .fn()
+      .mockRejectedValue(requestError(403, { "x-ratelimit-remaining": "42" }));
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
   });
 });
 

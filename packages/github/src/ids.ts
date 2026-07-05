@@ -44,6 +44,16 @@ function brandedIdSchema<B extends bigint>(
     .number({ invalid_type_error: `${label} must be a number` })
     .int(`${label} must be an integer`)
     .transform((value, ctx) => {
+      // `JSON.parse` rounds integers above 2^53 to the nearest double BEFORE we
+      // see them, so a raw number that large is already lossy — reject it rather
+      // than brand a silently-rounded id. (`.int()` does not guard precision.)
+      if (!Number.isSafeInteger(value)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `${label} exceeds the safe integer range`,
+        });
+        return z.NEVER;
+      }
       const asBigInt = BigInt(value);
       if (!guard(asBigInt)) {
         ctx.addIssue({
@@ -75,6 +85,14 @@ export const positiveBigIntSchema = z
   .number({ invalid_type_error: "id must be a number" })
   .int("id must be an integer")
   .transform((value, ctx) => {
+    // See `brandedIdSchema`: an integer past 2^53 is already lossy post-parse.
+    if (!Number.isSafeInteger(value)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "id exceeds the safe integer range",
+      });
+      return z.NEVER;
+    }
     const asBigInt = BigInt(value);
     if (asBigInt <= 0n) {
       ctx.addIssue({

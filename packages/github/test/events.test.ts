@@ -180,6 +180,30 @@ describe("parseWebhookEvent — pull_request", () => {
     );
     expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
   });
+
+  it("errors on an id past the safe-integer range (rounded by JSON.parse)", () => {
+    // 2^53 is the first integer JS can no longer represent exactly, so a raw id
+    // this large is already lossy — the branded schema must reject it, not brand
+    // a silently-rounded value.
+    const error = expectErr(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: {
+          action: "opened",
+          number: 2,
+          installation: { id: 9007199254740992 },
+          repository: { id: 1, full_name: "a/b" },
+          pull_request: {
+            head: { sha: "x" },
+            base: { sha: "y" },
+            draft: false,
+          },
+        },
+      }),
+    );
+    expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
+    expect(error.issues?.some((i) => i.startsWith("installation"))).toBe(true);
+  });
 });
 
 describe("parseWebhookEvent — pull_request_review", () => {
