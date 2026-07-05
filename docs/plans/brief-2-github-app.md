@@ -61,7 +61,8 @@ packaging, and the FE switch from static JSON to the live API. No FE work in BRI
 
 Each PR independently green (typecheck, tests, lint, CI); B depends on A, C on B. CI: add
 `github` and `api` packages to the persistence-style matrix jobs in the PR that creates each
-package.
+package. PR titles derive from the branch names (`[BRIEF-2] feat: GitHub Client` /
+`Webhook Ingest` / `Reviewer Auth`) — mind the brand casing: **GitHub**, not "Github".
 
 ## Stages (= commits within the PRs), with model routing
 
