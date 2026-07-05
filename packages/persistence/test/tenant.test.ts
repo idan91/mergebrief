@@ -216,13 +216,17 @@ describe("forTenant — idempotent upserts", () => {
       sessionTokenHash: "hash-a",
       reviewerId: REVIEWER,
       ghTokenCiphertext: "cipher",
+      ghRefreshTokenCiphertext: "refresh-cipher",
       keyRef: "env:K1",
       expiresAt: new Date(Date.now() + 3_600_000),
     });
 
     // B cannot see A's session even by its token hash.
     expect(await b.sessions.getByTokenHash("hash-a")).toBeUndefined();
-    expect(await a.sessions.getByTokenHash("hash-a")).toBeDefined();
+    const aRow = await a.sessions.getByTokenHash("hash-a");
+    expect(aRow).toBeDefined();
+    // The rotating refresh token (D11) round-trips through create → select.
+    expect(aRow?.ghRefreshTokenCiphertext).toBe("refresh-cipher");
 
     // B's delete-by-reviewer does not touch A's row.
     expect(await b.sessions.deleteByReviewer(REVIEWER)).toBe(0);

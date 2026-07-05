@@ -207,6 +207,7 @@ async function seedFullGraph(db: Db, pullRequestId: PullRequestRowId): Promise<v
     reviewerId: REVIEWER,
     reviewerLogin: "octocat",
     ghTokenCiphertext: "ciphertext",
+    ghRefreshTokenCiphertext: "refresh-ciphertext",
     keyRef: "env:SESSION_KEY_V1",
     expiresAt: new Date(Date.now() + 3_600_000),
   });
@@ -425,6 +426,40 @@ describe("closed-vocabulary + shape CHECK constraints (PR #23 review)", () => {
         sql`insert into audit_log (installation_id, actor_type, action) values (1000, 'system', 'view')`,
       ),
       "audit_log_action_check",
+    );
+  });
+
+  it("accepts generation.status 'superseded' after the 0003 vocab swap", async () => {
+    const db = await freshDb();
+    const prId = await insertPullRequest(db);
+    // In-vocab (BRIEF-2) — the migration-0003 CHECK swap admits it.
+    await db.execute(
+      sql`insert into generation (installation_id, pull_request_id, kind, head_sha, status) values (1000, ${prId}, 'brief', 'head', 'superseded')`,
+    );
+    const rows = await db.select({ status: generation.status }).from(generation);
+    expect(rows[0]?.status).toBe(GenerationStatus.SUPERSEDED);
+  });
+});
+
+describe("BRIEF-2 schema additions (migration 0003)", () => {
+  it("pull_request.entry_comment_id is selectable and defaults to null (no writer)", async () => {
+    const db = await freshDb();
+    const prId = await insertPullRequest(db);
+    const rows = await db
+      .select({ entryCommentId: pullRequest.entryCommentId })
+      .from(pullRequest)
+      .where(eq(pullRequest.id, prId));
+    expect(rows[0]).toBeDefined();
+    expect(rows[0]?.entryCommentId).toBeNull();
+  });
+
+  it("rejects a reviewer_session insert omitting gh_refresh_token_ciphertext (NOT NULL)", async () => {
+    const db = await freshDb();
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into reviewer_session (installation_id, session_token_hash, reviewer_id, gh_token_ciphertext, key_ref, expires_at) values (1000, 'h', 31337, 'ct', 'env:K', now())`,
+      ),
+      "gh_refresh_token_ciphertext",
     );
   });
 });

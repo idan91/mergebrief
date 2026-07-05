@@ -119,6 +119,13 @@ export interface GenerationProjection {
   /** Reflect `succeeded`; clears `error`. */
   markSucceeded(target: GenerationTarget): Promise<Result<GenerationRow, GenerationError>>;
   /**
+   * Reflect `superseded` — a terminal mid-call abort because the PR head
+   * advanced (ADR 0006 #6). An abort is NOT a failure: it leaves `attempts`
+   * untouched (unlike a re-queue) and clears `error` (like `markSucceeded`),
+   * so a superseded job never consumes a retry.
+   */
+  markSuperseded(target: GenerationTarget): Promise<Result<GenerationRow, GenerationError>>;
+  /**
    * Reflect `failed`. The raw error is passed as-is; `markFailed` applies
    * `sanitizeGenerationError` itself (first line, URLs redacted, 300-char
    * cap), so callers cannot store an unsanitized reason.
@@ -234,6 +241,12 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
 
     async markSucceeded(target) {
       return transition(target, { status: GenerationStatus.SUCCEEDED, error: null });
+    },
+
+    async markSuperseded(target) {
+      // Abort-on-supersession (ADR 0006 #6): not a failure, so `attempts` is
+      // deliberately left untouched and `error` is cleared.
+      return transition(target, { status: GenerationStatus.SUPERSEDED, error: null });
     },
 
     async markFailed(target, error) {

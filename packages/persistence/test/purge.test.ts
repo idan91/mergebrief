@@ -218,6 +218,7 @@ async function seedFullGraph(
     reviewerId: REVIEWER,
     reviewerLogin: "octocat",
     ghTokenCiphertext: "ciphertext",
+    ghRefreshTokenCiphertext: "refresh-ciphertext",
     keyRef: "env:SESSION_KEY_V1",
     expiresAt: new Date(Date.now() + 3_600_000),
   });
@@ -509,6 +510,7 @@ describe("purgeRoutines.sweepExpiredSessions — TTL sweep (D11)", () => {
         sessionTokenHash: token,
         reviewerId: REVIEWER,
         ghTokenCiphertext: "ciphertext",
+        ghRefreshTokenCiphertext: "refresh-ciphertext",
         keyRef: "env:SESSION_KEY_V1",
         expiresAt,
       });

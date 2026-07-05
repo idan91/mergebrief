@@ -193,6 +193,7 @@ export interface SessionCreateInput {
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin?: string;
   readonly ghTokenCiphertext: string;
+  readonly ghRefreshTokenCiphertext: string;
   readonly keyRef: string;
   readonly expiresAt: Date;
 }
@@ -390,6 +391,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           reviewerId: input.reviewerId,
           reviewerLogin: input.reviewerLogin,
           ghTokenCiphertext: input.ghTokenCiphertext,
+          ghRefreshTokenCiphertext: input.ghRefreshTokenCiphertext,
           keyRef: input.keyRef,
           expiresAt: input.expiresAt,
         })

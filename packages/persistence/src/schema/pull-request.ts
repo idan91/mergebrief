@@ -15,6 +15,12 @@ export const pullRequest = pgTable(
     /** Purgeable display label (D1), refreshed on webhook. */
     repoSlug: text("repo_slug"),
     state: text("state").$type<PrState>().notNull(),
+    /**
+     * The branded Entry comment id (D5). Nullable: no writer in BRIEF-2, and
+     * the delete+repost flow (ADR 0016 #3) self-heals a dangling id. It is a
+     * GitHub comment id — a plain `bigint`, no branded CommentId type.
+     */
+    entryCommentId: bigint("entry_comment_id", { mode: "bigint" }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /** Nullable: null while open or when retention is "never" (D5). */
     purgeAfter: timestamp("purge_after", { withTimezone: true }),
