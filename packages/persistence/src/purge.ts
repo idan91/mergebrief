@@ -38,7 +38,7 @@
 // `purgeRepo`, `purgeInstallation`) are `app`; the automated retention sweep
 // (`sweepExpired`) is `system`. `sweepExpiredSessions` emits NO audit entry —
 // see its doc comment.
-import { and, eq, isNotNull, lt } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { insertAudit } from "./audit";
 import { type AppDatabase, internal } from "./db";
 import { pullRequest } from "./schema/pull-request";
@@ -108,6 +108,18 @@ export interface PurgeRoutines {
    * number of PRs purged (0 if the repo held none).
    */
   purgeRepo(repoId: RepoId): Promise<number>;
+  /**
+   * Set-based sibling of `purgeRepo` for the `installation_repositories`
+   * `removed` webhook: purge every `pull_request` for `(ctx, repoId ∈ repoIds)`
+   * in ONE transaction — a single `repo_id = ANY(...)` delete (children
+   * cascade) plus one `delete` audit entry PER repo (count grouped from the
+   * deleted rows; a repo that held none still gets a count-0 entry, matching
+   * `purgeRepo`). This is the deliberate shape vs. a per-repo `Promise.all` of
+   * `purgeRepo`, which would open N concurrent pool connections and could
+   * exhaust the pool on a large deselection — starving the webhook's own fast
+   * 200. Returns the total number of PRs purged. Empty `repoIds` → 0, no tx.
+   */
+  purgeRepos(repoIds: readonly RepoId[]): Promise<number>;
   /**
    * Offboard the whole tenant: predicate-delete ALL `pull_request` rows for ctx
    * (children cascade) + explicit delete of the tenant's `reviewer_session`
@@ -208,6 +220,48 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
           metadata: { count },
         });
         return count;
+      });
+    },
+
+    async purgeRepos(repoIds) {
+      // Dedupe (a payload may repeat) and skip an empty set — an empty
+      // `inArray` is a degenerate query and there is nothing to audit.
+      const uniqueRepoIds = [...new Set(repoIds)];
+      if (uniqueRepoIds.length === 0) {
+        return 0;
+      }
+      return db.transaction(async (tx) => {
+        // One set-based delete (one pool connection, one round trip); children
+        // cascade off `pull_request`. `returning` carries `repoId` so the
+        // per-repo audit counts are grouped without a second query.
+        const deleted = await tx
+          .delete(pullRequest)
+          .where(
+            and(
+              eq(pullRequest.installationId, installationId),
+              inArray(pullRequest.repoId, uniqueRepoIds),
+            ),
+          )
+          .returning({ id: pullRequest.id, repoId: pullRequest.repoId });
+        const countByRepo = new Map<RepoId, number>();
+        for (const repoId of uniqueRepoIds) {
+          countByRepo.set(repoId, 0);
+        }
+        for (const row of deleted) {
+          countByRepo.set(row.repoId, (countByRepo.get(row.repoId) ?? 0) + 1);
+        }
+        // One `delete` audit entry per repo (D9 boundary event), same tx.
+        for (const [repoId, count] of countByRepo) {
+          await insertAudit(tx, {
+            installationId,
+            actorType: AuditActorType.APP,
+            action: AuditAction.DELETE,
+            targetType: AUDIT_TARGET_REPO,
+            targetId: repoId,
+            metadata: { count },
+          });
+        }
+        return deleted.length;
       });
     },
 

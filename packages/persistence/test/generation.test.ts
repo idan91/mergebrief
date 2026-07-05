@@ -157,6 +157,33 @@ describe("generationProjection — D10 transitions", () => {
     expect(sanitizeGenerationError("x".repeat(1000)).length).toBe(300);
   });
 
+  it("markSuperseded is terminal, leaves attempts, clears error (ADR 0006 #6)", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const gen = generationProjection(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const target = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.DELTA,
+      headSha: "head",
+      baselineSha: "checkpoint",
+    };
+
+    await gen.upsertQueued(target);
+    // A prior failure sets attempts/error; supersession must not disturb either.
+    const requeued = await gen.upsertQueued(target); // attempts → 1 (already ran once)
+    await gen.markFailed(target, "boom");
+    if (!requeued.ok) throw new Error("requeue failed");
+    const attemptsBefore = requeued.value.attempts;
+
+    const superseded = await gen.markSuperseded(target);
+    if (!superseded.ok) throw new Error("markSuperseded failed");
+    expect(superseded.value.status).toBe(GenerationStatus.SUPERSEDED);
+    // An abort is NOT a failure: attempts untouched, error cleared.
+    expect(superseded.value.attempts).toBe(attemptsBefore);
+    expect(superseded.value.error).toBeNull();
+  });
+
   it("a transition on a missing projection row returns notFound", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);

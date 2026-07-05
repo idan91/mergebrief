@@ -274,3 +274,57 @@ jobs:
       - name: Skip github package checks
         if: steps.changes.outputs.github != 'true'
         run: echo "No github package files changed; skipping github package checks."
+
+  api-checks:
+    name: API ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [typecheck, test]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect api package changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
+          api_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/api/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+
+          if [ -n "$api_files" ]; then
+            echo "api=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "api=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up pnpm
+        if: steps.changes.outputs.api == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.api == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install api package dependencies
+        if: steps.changes.outputs.api == 'true'
+        run: pnpm --filter api... install --frozen-lockfile
+
+      - name: Run api package ${{ matrix.check }}
+        if: steps.changes.outputs.api == 'true'
+        run: pnpm --dir packages/api ${{ matrix.check }}
+
+      - name: Skip api package checks
+        if: steps.changes.outputs.api != 'true'
+        run: echo "No api package files changed; skipping api package checks."

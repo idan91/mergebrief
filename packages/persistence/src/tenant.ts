@@ -168,8 +168,10 @@ export type PullRequestStatePatch = PullRequestLifecycle;
  * Normalize a lifecycle to explicit column values from the discriminant:
  * OPEN always writes NULLs (drizzle skips `undefined`, and a reopened PR
  * must disarm the retention sweep), terminal states write what they carry.
+ * Exported for IN-PACKAGE reuse only (`ingest.ts` replicates the upsert
+ * inside its transaction); `lib.ts` never re-exports it.
  */
-function lifecycleColumns(lc: PullRequestLifecycle): {
+export function lifecycleColumns(lc: PullRequestLifecycle): {
   state: PrState;
   closedAt: Date | null;
   purgeAfter: Date | null;
@@ -193,6 +195,7 @@ export interface SessionCreateInput {
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin?: string;
   readonly ghTokenCiphertext: string;
+  readonly ghRefreshTokenCiphertext: string;
   readonly keyRef: string;
   readonly expiresAt: Date;
 }
@@ -390,6 +393,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           reviewerId: input.reviewerId,
           reviewerLogin: input.reviewerLogin,
           ghTokenCiphertext: input.ghTokenCiphertext,
+          ghRefreshTokenCiphertext: input.ghRefreshTokenCiphertext,
           keyRef: input.keyRef,
           expiresAt: input.expiresAt,
         })

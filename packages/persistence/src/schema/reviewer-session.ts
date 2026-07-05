@@ -17,6 +17,8 @@ export const reviewerSession = pgTable(
     reviewerLogin: text("reviewer_login"),
     /** The GitHub OAuth token, encrypted at rest. */
     ghTokenCiphertext: text("gh_token_ciphertext").notNull(),
+    /** Rotating refresh token (D11), encrypted at rest. */
+    ghRefreshTokenCiphertext: text("gh_refresh_token_ciphertext").notNull(),
     /** Key resolved via the provider interface (env→KMS, ADR 0016 #7). */
     keyRef: text("key_ref").notNull(),
     /** Short-lived; deleted on expiry/logout. */
