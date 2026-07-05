@@ -76,7 +76,95 @@ export interface GenerateTaskDeps {
   readonly handle: AppDatabase;
   readonly generator: Generator;
   readonly github: GitHubPort;
+  /** Head-poll cadence during streaming (ADR 0006 #6); default ~20s. */
+  readonly headPollIntervalMs?: number;
   readonly log?: Logger;
+}
+
+const DEFAULT_HEAD_POLL_INTERVAL_MS = 20_000;
+
+/**
+ * The cooperative-cancellation supervisor (ADR 0006 #6, amended 2026-07-05).
+ * Two mechanisms share one AbortController:
+ *   - `assertCurrent()` — the cheap head check run BEFORE each artifact call;
+ *   - `startPolling()` — a ~20s head-poll DURING streaming, so a superseding
+ *     push aborts the in-flight SDK call (stopping output-token spend)
+ *     instead of waiting minutes for the stream to finish.
+ * A poll fetch failure never aborts (best-effort); only a confirmed head
+ * mismatch does.
+ */
+interface SupersessionWatch {
+  readonly signal: AbortSignal;
+  /** Throws `SupersededSignal` (after aborting) when the head moved. */
+  assertCurrent(): Promise<void>;
+  startPolling(): void;
+  stop(): void;
+}
+
+function createSupersessionWatch(
+  source: PullRequestSource,
+  headSha: string,
+  intervalMs: number,
+): SupersessionWatch {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setInterval> | undefined;
+  let polling = false;
+
+  async function headMoved(): Promise<boolean> {
+    const info = await source.fetchPullRequest();
+    return info.ok && info.value.headSha !== headSha;
+  }
+
+  async function pollOnce(): Promise<void> {
+    try {
+      if (await headMoved()) {
+        controller.abort();
+      }
+    } catch {
+      // Poll failures are ignored — the pre-call checks still stand.
+    } finally {
+      polling = false;
+    }
+  }
+
+  return {
+    signal: controller.signal,
+    async assertCurrent() {
+      let moved = false;
+      try {
+        moved = await headMoved();
+      } catch {
+        // Best-effort check; a fetch failure is not a supersession.
+      }
+      if (moved) {
+        controller.abort();
+        throw new SupersededSignal("head advanced (pre-call check)");
+      }
+    },
+    startPolling() {
+      timer ??= setInterval(() => {
+        if (polling || controller.signal.aborted) {
+          return;
+        }
+        polling = true;
+        void pollOnce();
+      }, intervalMs);
+    },
+    stop() {
+      if (timer !== undefined) {
+        clearInterval(timer);
+        timer = undefined;
+      }
+    },
+  };
+}
+
+/** Wrap a Generator so every request carries the watch's abort signal. */
+function withAbortSignal(generator: Generator, signal: AbortSignal): Generator {
+  return {
+    generate: (req) => generator.generate({ ...req, signal }),
+    provenance: (effort) => generator.provenance(effort),
+  };
 }
 
 /**
@@ -202,7 +290,7 @@ async function runGeneration(
   target: GenerationTarget,
   log: Logger,
 ): Promise<void> {
-  const { handle, generator, github } = deps;
+  const { handle, github } = deps;
   const { ctx, pullRequestId, headSha } = payload;
   const repo = forTenant(handle, ctx);
   const projection = generationProjection(handle, ctx);
@@ -222,6 +310,8 @@ async function runGeneration(
   if (pr.repoSlug == null || splitRepoSlug(pr.repoSlug) === undefined) {
     throw new PermanentJobError("pull_request row has no usable repo slug");
   }
+  // Re-bind post-guard so the narrowing survives into the inner closure.
+  const prRow: PullRequestRow = pr;
 
   await projection.markRunning(target, GenerationPhase.FETCHING);
 
@@ -236,10 +326,37 @@ async function runGeneration(
     throw new SupersededSignal(`pull_request ${pr.prNumber} is ${info.state} on GitHub`);
   }
 
+  // Cooperative cancellation from here on: the watch's signal is threaded
+  // into every generator call, its poller aborts mid-stream on a superseding
+  // push, and `assertCurrent()` gates each subsequent artifact call. The
+  // abort surfaces as `SupersededSignal` in the catch below — never as a job
+  // failure (no retry, `attempts` untouched).
+  const watch = createSupersessionWatch(
+    source,
+    headSha,
+    deps.headPollIntervalMs ?? DEFAULT_HEAD_POLL_INTERVAL_MS,
+  );
+  const generator = withAbortSignal(deps.generator, watch.signal);
+  try {
+    await generateArtifacts();
+  } catch (error) {
+    if (watch.signal.aborted && !(error instanceof SupersededSignal)) {
+      // The poller aborted an in-flight SDK call; its rejection (an
+      // APIUserAbortError) is the abort, not a failure.
+      throw new SupersededSignal("head advanced mid-call (streaming poll)");
+    }
+    throw error;
+  } finally {
+    watch.stop();
+  }
+  return;
+
+  async function generateArtifacts(): Promise<void> {
+  watch.startPolling();
   const files = unwrapGitHub(await source.fetchPullRequestFiles());
   const diff = unwrapGitHub(await source.fetchDiff());
 
-  const locator: PrLocator = locatorFor(pr);
+  const locator: PrLocator = locatorFor(prRow);
   const meta: PrMetadata = {
     title: info.title,
     body: info.body,
@@ -310,7 +427,7 @@ async function runGeneration(
   if (prevBrief !== undefined) {
     const revDiff = unwrapGitHub(await source.fetchCompareDiff(prevBrief.headSha, headSha));
     prevSpan = { baselineSha: prevBrief.headSha, diff: revDiff, marksWritten: true };
-    await writeRevisionArtifacts(deps, payload, {
+    await writeRevisionArtifacts(payload, {
       store,
       locator,
       meta,
@@ -318,6 +435,8 @@ async function runGeneration(
       prevBrief,
       briefRef,
       generatedBrief,
+      generator,
+      watch,
       wholePrChangedLines: churn(files),
       links,
       log,
@@ -325,7 +444,7 @@ async function runGeneration(
   }
 
   // ---- Delta cores: one per distinct checkpoint SHA (ADR 0006 #4) ---------
-  const deltaCount = await warmDeltaCores(deps, payload, {
+  const deltaCount = await warmDeltaCores(payload, {
     store,
     repo,
     locator,
@@ -333,6 +452,8 @@ async function runGeneration(
     source,
     priorBriefs,
     prevSpan,
+    generator,
+    watch,
     briefHeadIndex: briefRef.headIndex,
     wholePrChangedLines: churn(files),
     links,
@@ -353,7 +474,8 @@ async function runGeneration(
   }
 
   await projection.markSucceeded(target);
-  log(`generate: succeeded for ${pr.prNumber}@${headSha.slice(0, 8)}`);
+  log(`generate: succeeded for ${prRow.prNumber}@${headSha.slice(0, 8)}`);
+  }
 }
 
 /** Whole-PR churn — the huge-span denominator (metadata, not span diff). */
@@ -399,6 +521,9 @@ interface RevisionArtifactInputs {
   readonly briefRef: { readonly id: BriefRowId; readonly headIndex: number };
   /** Present only when THIS run generated the brief (narrative needs it). */
   readonly generatedBrief: Brief | undefined;
+  /** Signal-wrapped generator + the supersession watch gating its calls. */
+  readonly generator: Generator;
+  readonly watch: SupersessionWatch;
   readonly wholePrChangedLines: number;
   readonly links: LinkedContext[];
   readonly log: Logger;
@@ -411,7 +536,6 @@ interface RevisionArtifactInputs {
  * failed narrative still leaves highlights available (ADR 0021/0024).
  */
 async function writeRevisionArtifacts(
-  deps: GenerateTaskDeps,
   payload: ParsedGeneratePayload,
   inputs: RevisionArtifactInputs,
 ): Promise<void> {
@@ -474,6 +598,10 @@ async function writeRevisionArtifacts(
     return;
   }
 
+  // Supersession gate BEFORE spending on the narrative call (ADR 0006 #6);
+  // deliberately outside the try — a supersession must propagate, never be
+  // swallowed as a narrative failure.
+  await inputs.watch.assertCurrent();
   try {
     const narrative = await categorizeRevisionNarrative(
       {
@@ -487,11 +615,15 @@ async function writeRevisionArtifacts(
         links,
         brief: generatedBrief,
       },
-      deps.generator,
+      inputs.generator,
       log,
     );
     await writeNarrative(JSON.stringify(narrative), narrative.generation);
   } catch (error) {
+    if (inputs.watch.signal.aborted) {
+      // A mid-stream abort is a supersession, not a narrative failure.
+      throw error;
+    }
     log(
       `generate: revision narrative failed (Brief unaffected): ${
         error instanceof Error ? error.message : String(error)
@@ -509,6 +641,9 @@ interface DeltaWarmInputs {
   readonly priorBriefs: readonly BriefSpanRow[];
   /** The prevHead...head span already fetched (and marks written) this run. */
   readonly prevSpan: PrefetchedSpan | undefined;
+  /** Signal-wrapped generator + the supersession watch gating its calls. */
+  readonly generator: Generator;
+  readonly watch: SupersessionWatch;
   readonly briefHeadIndex: number;
   readonly wholePrChangedLines: number;
   readonly links: LinkedContext[];
@@ -524,7 +659,6 @@ interface DeltaWarmInputs {
  * completed spans are stored, so a retry resumes where it stopped.
  */
 async function warmDeltaCores(
-  deps: GenerateTaskDeps,
   payload: ParsedGeneratePayload,
   inputs: DeltaWarmInputs,
 ): Promise<number> {
@@ -596,8 +730,11 @@ async function warmDeltaCores(
       incrementalDiff,
       links: inputs.links,
     };
+    // Supersession gate BEFORE each delta spend (ADR 0006 #6).
     // eslint-disable-next-line no-await-in-loop
-    const delta = await runGenerator(() => categorizeDelta(deltaInput, deps.generator, log));
+    await inputs.watch.assertCurrent();
+    // eslint-disable-next-line no-await-in-loop
+    const delta = await runGenerator(() => categorizeDelta(deltaInput, inputs.generator, log));
     // eslint-disable-next-line no-await-in-loop
     const written = await store.deltas.write({
       pullRequestId,

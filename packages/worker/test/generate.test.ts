@@ -124,6 +124,8 @@ interface StubGitHub extends GitHubPort {
   diff: string;
   /** Keyed `${base}...${head}`; missing spans fall back to SMALL_DIFF. */
   compareDiffs: Map<string, string>;
+  /** Scripted head SHAs consumed per fetchPullRequest call; then info.headSha. */
+  nextHeads: string[];
   fetchPullRequestError?: GitHubApiError;
 }
 
@@ -146,12 +148,16 @@ function stubGitHub(headSha: string): StubGitHub {
     files: [{ path: "a.ts", additions: 8, deletions: 2 }],
     diff: SMALL_DIFF,
     compareDiffs: new Map(),
+    nextHeads: [],
     async forPullRequest() {
       return {
-        fetchPullRequest: async () =>
-          stub.fetchPullRequestError
-            ? { ok: false, error: stub.fetchPullRequestError }
-            : ok(stub.info),
+        fetchPullRequest: async () => {
+          if (stub.fetchPullRequestError) {
+            return { ok: false, error: stub.fetchPullRequestError };
+          }
+          const scripted = stub.nextHeads.shift();
+          return ok(scripted === undefined ? stub.info : { ...stub.info, headSha: scripted });
+        },
         fetchPullRequestFiles: async () => ok(stub.files),
         fetchDiff: async () => ok(stub.diff),
         fetchCompareDiff: async (base: string, head: string) =>
@@ -434,6 +440,75 @@ describe("generate task", () => {
 
     const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
     expect(row?.status).toBe(GenerationStatus.FAILED);
+  });
+
+  it("aborts a mid-stream generation on a superseding push: superseded, no retry, attempts untouched", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    // Initial pre-flight check sees the job's head; every poll after sees the
+    // superseding push.
+    github.nextHeads = [HEAD_1];
+    github.info = { ...github.info, headSha: HEAD_2 };
+
+    // The brief call hangs until the threaded signal aborts — the SDK-abort
+    // shape (APIUserAbortError) the worker must map to superseded.
+    const calls: string[] = [];
+    const hangingGenerator: Generator = {
+      async generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>> {
+        calls.push(req.label);
+        return new Promise<never>((_, reject) => {
+          req.signal?.addEventListener("abort", () => {
+            reject(Object.assign(new Error("Request was aborted."), { name: "APIUserAbortError" }));
+          });
+        });
+      },
+      provenance: (effort: Effort) => ({ provider: "stub", model: "stub-model", effort }),
+    };
+
+    const task = createGenerateTask({
+      handle: harness.handle,
+      generator: hangingGenerator,
+      github,
+      headPollIntervalMs: 5,
+    });
+
+    const projection = generationProjection(harness.handle, ctx);
+    const before = await projection.get(target(pr, HEAD_1));
+
+    await expect(task(payload)).resolves.toBeUndefined(); // abort is NOT a job failure
+
+    const after = await projection.get(target(pr, HEAD_1));
+    expect(after?.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(after?.attempts).toBe(before?.attempts);
+    expect(after?.error).toBeNull();
+    expect(await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1)).toBeUndefined();
+  });
+
+  it("supersedes before a delta spend when the head moves between artifact calls", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const written = await forTenant(harness.handle, ctx).checkpoints.upsertOnSubmit({
+      pullRequestId: pr.id,
+      reviewerId: reviewerIdOf(100n),
+      lastSubmittedSha: "d".repeat(40),
+      submittedAt: new Date(),
+    });
+    expect(written.ok).toBe(true);
+
+    const github = stubGitHub(HEAD_1);
+    // Pre-flight check passes; the pre-delta assertCurrent sees the new head.
+    github.nextHeads = [HEAD_1];
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const generator = stubGenerator();
+    const task = createGenerateTask({ handle: harness.handle, generator, github });
+
+    await expect(task(payload)).resolves.toBeUndefined();
+
+    // The brief (already generated and written) survives; the delta was
+    // never spent; the projection ends superseded.
+    expect(await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1)).toBeDefined();
+    expect(generator.calls).toEqual(["brief"]);
+    const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatus.SUPERSEDED);
   });
 
   it("marks a transient generation error failed and rethrows; a deterministic one does not rethrow", async () => {

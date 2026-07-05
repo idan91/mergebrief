@@ -22,14 +22,21 @@ const Schema = z.object({
 interface FakeTurn {
   /** Raw text the "model" produced this turn. */
   raw: string;
+  /** When set, `finalMessage()` rejects with this instead of resolving. */
+  rejectWith?: unknown;
 }
 
 function fakeClient(turns: FakeTurn[]) {
   const requests: { messages: { role: string; content: unknown }[] }[] = [];
+  const streamOptions: (undefined | { signal?: AbortSignal })[] = [];
   const client = {
     messages: {
-      stream(params: { messages: { role: string; content: unknown }[] }) {
+      stream(
+        params: { messages: { role: string; content: unknown }[] },
+        options?: { signal?: AbortSignal },
+      ) {
         requests.push(params);
+        streamOptions.push(options);
         const turn = turns[requests.length - 1];
         if (!turn) throw new Error("fakeClient: no scripted turn left");
         const response = {
@@ -49,13 +56,14 @@ function fakeClient(turns: FakeTurn[]) {
         return {
           on() {},
           async finalMessage() {
+            if (turn.rejectWith !== undefined) throw turn.rejectWith;
             return response;
           },
         };
       },
     },
   };
-  return { client: client as unknown as Anthropic, requests };
+  return { client: client as unknown as Anthropic, requests, streamOptions };
 }
 
 function generateWith(turns: FakeTurn[], failureDir: string) {
@@ -125,5 +133,53 @@ describe("AnthropicGenerator parse-failure handling", () => {
     const dumped = JSON.parse(readFileSync(join(dir, dumps[0]), "utf8"));
     expect(dumped.raw).toBe(bad);
     expect(dumped.error).toContain("Failed to parse structured output");
+  });
+});
+
+describe("AnthropicGenerator cooperative cancellation (ADR 0006 #6)", () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "generator-abort-test-"));
+  });
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("threads the request signal into the SDK stream options", async () => {
+    const { client, streamOptions } = fakeClient([
+      { raw: JSON.stringify({ title: "t", tags: ["bugfix"] }) },
+    ]);
+    const controller = new AbortController();
+    const generator = new AnthropicGenerator(client, dir);
+    await generator.generate({
+      schema: Schema,
+      system: "sys",
+      user: "usr",
+      effort: "medium",
+      label: "brief",
+      signal: controller.signal,
+    });
+    expect(streamOptions[0]?.signal).toBe(controller.signal);
+  });
+
+  it("propagates an abort rejection untouched: no feedback retry, no failure dump", async () => {
+    const abortError = Object.assign(new Error("Request was aborted."), {
+      name: "APIUserAbortError",
+    });
+    const { client, requests } = fakeClient([{ raw: "", rejectWith: abortError }]);
+    const controller = new AbortController();
+    const generator = new AnthropicGenerator(client, dir);
+    await expect(
+      generator.generate({
+        schema: Schema,
+        system: "sys",
+        user: "usr",
+        effort: "medium",
+        label: "brief",
+        signal: controller.signal,
+      }),
+    ).rejects.toBe(abortError);
+    expect(requests).toHaveLength(1); // no feedback retry
+    expect(readdirSync(dir)).toHaveLength(0); // no *.failed.json dump
   });
 });
