@@ -28,10 +28,15 @@ own account/org, wired to your own deployment. There is no shared hosted App.
 
 ## Events to subscribe to
 
+On the registration "what events would you like to subscribe to?" screen, check only:
+
 - **Pull request** — the trigger for brief generation (open + every push/synchronize).
 - **Pull request review** — a reviewer submitting → advances their Checkpoint.
-- **Installation** — install/uninstall lifecycle (uninstall drives data erasure).
-- **Installation repositories** — repos added to / removed from the installation.
+
+**`installation` and `installation_repositories` are NOT on that list — and don't need to
+be.** GitHub delivers those to every App automatically (install/uninstall, repos added or
+removed), regardless of subscription. The checkbox list only covers optional per-resource
+events. So two checkboxes is the complete set.
 
 ## Reviewer OAuth (a separate axis — not on the App registration page)
 
