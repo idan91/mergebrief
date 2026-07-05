@@ -99,6 +99,12 @@ importers:
 
   packages/github:
     dependencies:
+      '@octokit/webhooks':
+        specifier: ^13.9.1
+        version: 13.9.1
+      '@octokit/webhooks-methods':
+        specifier: ^5.1.1
+        version: 5.1.1
       octokit:
         specifier: ^4.1.4
         version: 4.1.4
@@ -109,6 +115,9 @@ importers:
         specifier: ^3.25.0
         version: 3.25.76
     devDependencies:
+      '@octokit/webhooks-examples':
+        specifier: ^7.6.1
+        version: 7.6.1
       '@types/node':
         specifier: ^22.10.0
         version: 22.19.21
@@ -980,9 +989,15 @@ packages:
   '@octokit/types@14.1.0':
     resolution: {integrity: sha512-1y6DgTy8Jomcpu33N+p5w58l6xyt55Ar2I91RPiIA0xCJBXyUAhXCcmZaDWSANiha7R9a6qJJ2CRomGPZ6f46g==}
 
+  '@octokit/webhooks-examples@7.6.1':
+    resolution: {integrity: sha512-De6U3XB6O3DtCa7bKgCMzTHdeopqqZ6SNivMYJnK65ierKL1AnNIA0tkRYCRS7lwGT792d+Ps1WbfHlso6MynQ==}
+
   '@octokit/webhooks-methods@5.1.1':
     resolution: {integrity: sha512-NGlEHZDseJTCj8TMMFehzwa9g7On4KJMPVHDSrHxCQumL6uSQR8wIkP/qesv52fXqV1BPf4pTxwtS31ldAt9Xg==}
     engines: {node: '>= 18'}
+
+  '@octokit/webhooks-types@7.6.1':
+    resolution: {integrity: sha512-S8u2cJzklBC0FgTwWVLaM8tMrDuDMVE4xiTK4EYXM9GntyvrdbSoxqDQa+Fh57CCNApyIpyeqPhhFEmHPfrXgw==}
 
   '@octokit/webhooks@13.9.1':
     resolution: {integrity: sha512-Nss2b4Jyn4wB3EAqAPJypGuCJFalz/ZujKBQQ5934To7Xw9xjf4hkr/EAByxQY7hp7MKd790bWGz7XYSTsHmaw==}
@@ -3787,7 +3802,13 @@ snapshots:
     dependencies:
       '@octokit/openapi-types': 25.1.0
 
+  '@octokit/webhooks-examples@7.6.1':
+    dependencies:
+      '@octokit/webhooks-types': 7.6.1
+
   '@octokit/webhooks-methods@5.1.1': {}
+
+  '@octokit/webhooks-types@7.6.1': {}
 
   '@octokit/webhooks@13.9.1':
     dependencies:

@@ -17,3 +17,43 @@ export type { GitHubConfig, ConfigError } from "./config";
 // octokit's `App` class, not hand-rolled here.
 export { createAppClient, getInstallationClient } from "./app-auth";
 export type { AppClient } from "./app-auth";
+
+// Webhook HMAC verification (constant-time, via `@octokit/webhooks-methods` —
+// not hand-rolled). Verifies the RAW body against `x-hub-signature-256`.
+export { verifyWebhookSignature, WebhookVerifyErrorCode } from "./webhook";
+export type {
+  VerifyWebhookSignatureInput,
+  WebhookVerifyError,
+} from "./webhook";
+
+// Webhook event parsing: Zod-validated, branded, discriminated `ParsedWebhookEvent`.
+export {
+  parseWebhookEvent,
+  ParsedWebhookEventKind,
+  PullRequestAction,
+  InstallationAction,
+  InstallationRepositoriesAction,
+  EventParseErrorCode,
+} from "./events";
+export type {
+  ParseWebhookEventInput,
+  ParsedWebhookEvent,
+  ParsedPullRequestEvent,
+  ParsedPullRequestReviewEvent,
+  ParsedInstallationEvent,
+  ParsedInstallationRepositoriesEvent,
+  IgnoredWebhookEvent,
+  EventParseError,
+} from "./events";
+
+// GitHub REST primitives: Entry-comment ops, repo lookup, PR + diff fetch.
+export { postEntryComment, deleteComment } from "./comments";
+export type { PostEntryCommentInput, DeleteCommentInput } from "./comments";
+export { fetchRepositoryById } from "./repo";
+export type { RepositoryInfo } from "./repo";
+export { fetchPullRequest, fetchDiff } from "./pull-request";
+export type { PullRequestRef, PullRequestInfo } from "./pull-request";
+
+// Shared sanitized API-error shape (single sanitization chokepoint).
+export { GitHubApiErrorCode } from "./errors";
+export type { GitHubApiError } from "./errors";

@@ -1,12 +1,17 @@
 # packages/github — agent notes
 
-The GitHub client package for BRIEF-2 (PR A/B/C). Stage 1 (this stage, this
-PR) ships the package scaffold, a Zod-parsed env config module, and GitHub
-App authentication — App-JWT client construction + minting
-installation-scoped Octokit clients via `octokit`'s `App` class. Landing in
-later stages, not here: webhook HMAC verification, Zod-validated webhook
-event schemas, comment operations, diff/PR fetch, repo-access checks, and the
-reviewer OAuth flow.
+The GitHub client package for BRIEF-2 (PR A/B/C). This PR (PR A) ships, across
+stages: the package scaffold + Zod-parsed env config + GitHub App
+authentication (App-JWT client construction and installation-scoped Octokit
+minting via `octokit`'s `App` class); and, in stage 2, the typed webhook +
+REST **primitives** — webhook HMAC verification, Zod-validated webhook event
+parsing (a branded, discriminated `ParsedWebhookEvent`), Entry-comment
+post/delete ops, and repo/PR/diff fetch. All API failures funnel through the
+single sanitization chokepoint in `src/errors.ts` (`mapRequestError`).
+
+Deliberately NOT here: the event→state mapping / enqueue / tenant writes
+(stage 4, a different package composes these primitives) and the reviewer
+OAuth flow (PR C).
 
 ## Invariants (enforced, don't weaken)
 
@@ -46,6 +51,14 @@ reviewer OAuth flow.
 - **Extensionless relative imports** (`from "./config"`, never `.js"`) —
   bundler-resolved end to end (`moduleResolution: "bundler"`).
 - Named exports only.
+
+## Test fixtures
+
+`test/fixtures/*.json` are sanitized, trimmed webhook payloads sourced from
+`@octokit/webhooks-examples` (GitHub's documented example payloads) — the
+recorded-fixture DoD. They are copied in, not imported at test time
+(`@octokit/webhooks-examples` is a build-only devDependency). PR B's live smoke
+re-verifies parsing against real ngrok-captured deliveries.
 
 ## Verification
 
