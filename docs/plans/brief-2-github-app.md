@@ -89,13 +89,77 @@ failures (verify failure, refresh failure, authz denial); named exports; extensi
 relative imports; noun factories / verb-first actions; oxlint + prettier per repo convention.
 Each new package gets `AGENTS.md` + one-line `CLAUDE.md` (`@AGENTS.md`), persistence-style.
 
-## Requirements — Git (locked)
+## Requirements — Git (locked via git-eng, 2026-07-05)
 
-Branches per the PR table; conventional-commit chunks per stage table; **never**
-`Co-Authored-By` or AI attribution; PR titles `[BRIEF-2] feat: …` (ready-for-review, base
-`main` — A/B/C stack via retarget after merge or rebase-on-merge, whichever keeps diffs
-clean); security gate before every commit. Notion: BRIEF-2 → In progress at stage 1; → Done
-when PR C merges.
+- **Invoke the `git-eng` skill** for git operations in every implementation session; these
+  answers pre-resolve its strategy questions — do not re-ask.
+- **Sequential PR flow:** merge A before cutting B from `main`; merge B before C. One PR open
+  at a time; every diff is against `main`; no stacking/retargeting.
+- Branches per the PR table; conventional-commit chunks per the stage table.
+- **Pre-commit gate (changed from BRIEF-1): `security-reviewer` AND `performance-reviewer`
+  in parallel** on staged changes before **every** commit; findings ≥ 80 confidence → fix,
+  re-stage, re-run both until clean. Performance hotspots to point the reviewer at: the
+  authz/diff caches, the serialized refresh path, webhook handler latency (must 200 fast).
+- PRs ready-for-review (not draft), base `main`, titles `[BRIEF-2] feat: …` per branch
+  parsing; Overview/Changelog body; **never** `Co-Authored-By` or AI attribution anywhere.
+- Notion: BRIEF-2 → In progress at stage 1; → Done when PR C merges.
+
+## Skills mandate (implementation sessions)
+
+- **`git-eng`** — all git/PR workflow (pre-answered above).
+- **`typescript-eng`** — invoke when writing/reviewing TS (all three PRs are TS); its
+  patterns are already reflected in the Requirements sections; on conflict, repo
+  conventions (AGENTS.md files, casing memory) win.
+
+## Fresh-session bootstrap (read this, skip the archaeology)
+
+A session executing a PR needs exactly this, in order — **do not** re-read the whole grill
+history or prior session transcripts:
+
+1. This plan, top to bottom.
+2. The amended ADR sections only: ADR 0018 banner + D5/D10/D11/D2b; ADR 0006 #4/#6 (as
+   amended); ADR 0016 #2/#3/#5/#7; ADR 0020 §Decision. Rationale beyond that lives on the
+   BRIEF-2 Notion ticket — consult only if a decision seems wrong (then stop and surface,
+   don't improvise).
+3. `packages/persistence/AGENTS.md` (conventions + invariants — new packages copy this
+   pattern) and `packages/persistence/src/lib.ts` (the surface you compose with).
+4. `docs/self-host/github-app.md` (App registration facts; the dev App exists, creds in
+   Idan's 1Password — ask him to place them in a local `.env` when a stage needs live calls;
+   never commit them).
+
+**Execution protocol** (BRIEF-1-proven): work the stage table in order; dispatch each stage
+to a subagent with the listed model, `run_in_background: false`; the orchestrator reviews the
+stage diff inline, runs the two review gates on staged changes, commits, then dispatches the
+next stage. Stage prompts must be self-contained (this plan + named files/D-refs — subagents
+get no conversation history).
+
+**Definition of done, per PR:**
+- **A** — `pnpm -C packages/github typecheck && test` green on fixtures alone; no network,
+  no DB import anywhere in the package.
+- **B** — compose Postgres + ngrok + the dev App: open a real PR on the installed repo →
+  `pull_request` row + `graphile_worker.jobs` row (`generate:{pr}`, `run_at ≈ +60s`) +
+  `generation` queued row, all tenant-scoped; redelivery idempotent; migration 0003 smoke on
+  a fresh volume.
+- **C** — browser login via ngrok → session row with both ciphertexts; curl reads → 401
+  (no cookie) / 404 (no repo access) / 200 (authorized); second read inside TTL makes no
+  GitHub call (assert via injected client); forced-expiry refresh race test green.
+
+## Environment & endpoints (pin once, reuse everywhere)
+
+- Env (Zod-parsed in `packages/github`'s config module, BRIEF-1 `loadConfig` style; names
+  final): `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY` (PEM contents) **or**
+  `GITHUB_APP_PRIVATE_KEY_PATH`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_OAUTH_CLIENT_ID`,
+  `GITHUB_OAUTH_CLIENT_SECRET`, plus persistence's existing `DATABASE_URL` /
+  `SESSION_KEY_V1`.
+- Routes (must match the App's registration; one ngrok origin serves all):
+  `POST /api/webhooks/github` · `GET /auth/github` (login) · `GET /auth/github/callback` ·
+  `POST /auth/logout` · reads under `/api/…`.
+- Packages: `octokit` core + `@octokit/oauth-app` (auth) + `@octokit/webhooks` (HMAC verify
+  + event types — use its types, hand-write nothing).
+- **Fixture capture is a pre-step of PR A stage 2:** ngrok + the dev App's webhook inspector
+  (`127.0.0.1:4040`), one throwaway PR exercising open/synchronize/ready_for_review/
+  review_requested/review-submit/close/reopen + install/uninstall; save sanitized payloads
+  under `packages/github/test/fixtures/`.
 
 ## Testing
 
