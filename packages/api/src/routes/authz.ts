@@ -58,6 +58,14 @@ export interface AuthzVariables {
   readonly ctx: TenantContext;
   readonly session: ReviewerSessionRow;
   readonly repoId: RepoId;
+  /**
+   * The repo's `owner/name` as GITHUB verified it during the access check
+   * (cached with the positive entry, so ≤5min stale). Routes that call GitHub
+   * by name (the diff proxy) MUST use this, never the row's stored `repo_slug`:
+   * a rename + name-reuse could otherwise point the stored slug at a DIFFERENT
+   * repo than the numeric id the gate authorized.
+   */
+  readonly repoFullName: string;
   readonly accessToken?: string;
 }
 
@@ -97,14 +105,23 @@ function parseRepoId(raw: string | undefined): RepoId | undefined {
  * never shared across tests or tenants.
  */
 export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
-  // key `${sessionTokenHash}:${repoId}` → true, until expiry. Positive only,
-  // bounded (never-reused keys can't be allowed to grow unbounded).
-  const positiveCache = createTtlCache<true>(POSITIVE_CACHE_MAX_ENTRIES);
+  // key `${sessionTokenHash}:${repoId}` → the GitHub-verified `owner/name`,
+  // until expiry. Positive only, bounded (never-reused keys can't be allowed
+  // to grow unbounded). Storing the verified full name (not just `true`) lets
+  // name-addressed GitHub calls downstream reuse the authz check's result
+  // instead of trusting the row's possibly-stale `repo_slug`.
+  const positiveCache = createTtlCache<string>(POSITIVE_CACHE_MAX_ENTRIES);
 
   return async (c, next) => {
     const startedAt = Date.now();
 
-    /** One purgeable stdout access line — numeric ids only, never a token. */
+    /**
+     * One purgeable stdout access line — numeric ids only, never a token.
+     * `decision` is the GATE's outcome; `status` is the RESPONSE status. On
+     * deny paths they coincide; on the allowed path this is called AFTER
+     * `next()`, so `status` reflects what the handler actually returned and
+     * `durationMs` includes handler time (the D9 log contract).
+     */
     const logAccess = (
       decision: AccessDecision,
       fields: { repoId?: RepoId; reviewerId?: bigint },
@@ -113,7 +130,7 @@ export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<Au
         evt: "read",
         method: c.req.method,
         path: c.req.path,
-        status: Number(decision),
+        status: decision === "200" ? c.res.status : Number(decision),
         durationMs: Date.now() - startedAt,
         decision,
       };
@@ -162,14 +179,18 @@ export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<Au
 
     // 3. Positive-cache hit → already authorized within the TTL; skip GitHub
     //    entirely. The diff route decrypts the session token lazily if it needs
-    //    it, so no access token is set here.
+    //    it, so no access token is set here. The cached value IS the verified
+    //    full name from the check that populated the entry (≤5min old).
     const cacheKey = positiveCacheKey(sessionTokenHash, repoId);
-    if (positiveCache.get(cacheKey, startedAt) !== undefined) {
+    const cachedFullName = positiveCache.get(cacheKey, startedAt);
+    if (cachedFullName !== undefined) {
       c.set("ctx", ctx);
       c.set("session", session);
       c.set("repoId", repoId);
+      c.set("repoFullName", cachedFullName);
+      await next();
       logAccess("200", { repoId, reviewerId: session.reviewerId });
-      return next();
+      return;
     }
 
     // 4. Cache miss → verify GitHub access with the viewer's token. Decrypt the
@@ -220,13 +241,15 @@ export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<Au
       return c.json({ error: "not found" }, 404);
     }
 
-    // 2xx → authorized. Cache the positive result, hand the token to the route.
-    positiveCache.set(cacheKey, true, Date.now() + POSITIVE_CACHE_TTL_MS);
+    // 2xx → authorized. Cache the verified full name, hand the token to the
+    // route, and log AFTER the handler so status/duration reflect it.
+    positiveCache.set(cacheKey, repo.value.fullName, Date.now() + POSITIVE_CACHE_TTL_MS);
     c.set("ctx", ctx);
     c.set("session", currentSession);
     c.set("repoId", repoId);
+    c.set("repoFullName", repo.value.fullName);
     c.set("accessToken", accessToken);
+    await next();
     logAccess("200", { repoId, reviewerId: currentSession.reviewerId });
-    return next();
   };
 }

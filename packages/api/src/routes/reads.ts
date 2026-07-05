@@ -73,13 +73,11 @@ const DIFF_CACHE_MAX_ENTRIES = 2_000;
 const DIFF_CACHE_MAX_ENTRY_BYTES = 1_000_000;
 
 /**
- * Split a `owner/repo` slug into its parts. `repoSlug` is nullable and could in
- * principle carry an unexpected shape, so this validates rather than trusting.
+ * Split a GitHub-verified `owner/repo` full name into its parts. Defensive
+ * validation only — the value comes from the authz gate's access check, but a
+ * malformed shape must still never reach a GitHub call.
  */
-function splitRepoSlug(slug: string | null): { owner: string; repo: string } | undefined {
-  if (slug === null) {
-    return undefined;
-  }
+function splitRepoSlug(slug: string): { owner: string; repo: string } | undefined {
   const parts = slug.split("/");
   const [owner, repo] = parts;
   if (parts.length !== 2 || owner === undefined || repo === undefined || owner === "" || repo === "") {
@@ -214,7 +212,11 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (!resolved.ok) {
       return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
     }
-    const target = splitRepoSlug(resolved.pr.repoSlug);
+    // Fetch by the AUTHZ-VERIFIED full name (set by the gate from its GitHub
+    // access check / positive cache), never the row's stored repo_slug — a
+    // rename + name-reuse could point the stored slug at a different repo than
+    // the numeric id the gate authorized.
+    const target = splitRepoSlug(c.get("repoFullName"));
     if (target === undefined) {
       return c.json({ error: "not found" }, 404);
     }
@@ -252,6 +254,12 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       diff = await fetchCompareDiff(createUserOctokit(accessToken), span);
     }
     if (!diff.ok) {
+      // 406 = GitHub refuses to render the diff (too large: >300 files/20k
+      // lines) — a PERMANENT condition for this span, so surface it as 413
+      // rather than a retryable-looking 502.
+      if (diff.error.status === 406) {
+        return c.json({ error: "diff too large to render" }, 413);
+      }
       const status = diff.error.code === GitHubApiErrorCode.NOT_FOUND ? 404 : 502;
       return c.json({ error: status === 404 ? "not found" : "upstream error" }, status);
     }

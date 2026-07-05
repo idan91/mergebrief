@@ -463,6 +463,37 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.diff).toBe(3); // span1 ok, span2 401 + retry ok
   });
 
+  // Long timeout: octokit's retry plugin retries a 406 (not in its doNotRetry
+  // list) with backoff before the sanitized error surfaces.
+  it("maps GitHub's 406 (diff too large to render) to a 413, not a 502", { timeout: 20_000 }, async () => {
+    stubGitHub({ repositories: () => repoOk(), diff: () => diffStatus(406) });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+
+    const res = await app.request(diffPath("b", "h"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(res.status).toBe(413);
+  });
+
+  it("diff proxy targets the GitHub-verified repo name, not the stored slug", async () => {
+    // The access check reports the repo under a NEW name (renamed since our
+    // last webhook write). The compare call must follow the verified name.
+    const counts = stubGitHub({
+      repositories: () => jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
+      diff: () => diffOk(),
+    });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle); // stored slug: octo/hello
+
+    const res = await app.request(diffPath("base1", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(res.status).toBe(200);
+    expect(counts.urls.some((u) => u.includes("/repos/octo/renamed/compare/"))).toBe(true);
+    expect(counts.urls.some((u) => u.includes("/repos/octo/hello/"))).toBe(false);
+  });
+
   it("serves but does NOT cache an oversized diff (re-fetched on repeat)", async () => {
     const big = "x".repeat(1_000_001); // just over the 1 MB per-entry cap
     const counts = stubGitHub({ repositories: () => repoOk(), diff: () => diffOk(big) });
