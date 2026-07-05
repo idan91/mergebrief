@@ -27,6 +27,14 @@ function unwrap<T, E>(result: Result<T, E>): T {
   return result.value;
 }
 
+/** Narrow the now-optional generation (absent only on a terminal-preserved trigger). */
+function expectGeneration(outcome: IngestOutcome): NonNullable<IngestOutcome["generation"]> {
+  if (outcome.generation === undefined) {
+    throw new Error("expected a generation row on this trigger");
+  }
+  return outcome.generation;
+}
+
 /** Coerce a raw timestamptz cell (Date on PGlite) to epoch milliseconds. */
 function epochMs(cell: unknown): number {
   if (cell instanceof Date) {
@@ -91,12 +99,13 @@ describe("ingestRoutines.triggerGeneration", () => {
     expect(outcome.pullRequest.state).toBe(PrState.OPEN);
 
     // The returned generation row: kind brief, queued, baseline null.
-    expect(outcome.generation.pullRequestId).toBe(outcome.pullRequest.id);
-    expect(outcome.generation.kind).toBe(GenerationKind.BRIEF);
-    expect(outcome.generation.status).toBe(GenerationStatus.QUEUED);
-    expect(outcome.generation.headSha).toBe(HEAD_SHA);
-    expect(outcome.generation.baselineSha).toBeNull();
-    expect(outcome.generation.attempts).toBe(0);
+    const generation = expectGeneration(outcome);
+    expect(generation.pullRequestId).toBe(outcome.pullRequest.id);
+    expect(generation.kind).toBe(GenerationKind.BRIEF);
+    expect(generation.status).toBe(GenerationStatus.QUEUED);
+    expect(generation.headSha).toBe(HEAD_SHA);
+    expect(generation.baselineSha).toBeNull();
+    expect(generation.attempts).toBe(0);
 
     // All three rows landed.
     const prs = await harness.raw("select * from pull_request");
@@ -134,9 +143,9 @@ describe("ingestRoutines.triggerGeneration", () => {
 
     // Same aggregate root, projection re-queued with attempts bumped.
     expect(second.pullRequest.id).toBe(first.pullRequest.id);
-    expect(second.generation.id).toBe(first.generation.id);
-    expect(second.generation.attempts).toBe(1);
-    expect(second.generation.status).toBe(GenerationStatus.QUEUED);
+    expect(expectGeneration(second).id).toBe(expectGeneration(first).id);
+    expect(expectGeneration(second).attempts).toBe(1);
+    expect(expectGeneration(second).status).toBe(GenerationStatus.QUEUED);
 
     const prs = await harness.raw("select id from pull_request");
     const generations = await harness.raw("select id from generation");
@@ -150,20 +159,32 @@ describe("ingestRoutines.triggerGeneration", () => {
     expect(epochMs(jobs[0]?.["run_at"])).toBeGreaterThan(firstRunAt);
   });
 
-  it("does NOT resurrect a closed PR on a stale (non-reopen) trigger", async () => {
+  it("does NOT resurrect a closed PR on a stale (non-reopen) trigger, and skips the enqueue", async () => {
     unwrap(await trigger());
+    const jobsBefore = await harness.raw("select run_at from graphile_worker.jobs");
     await closePr();
 
     // A redelivered synchronize / a review on the now-closed PR: writes
-    // state:open too, but must leave the terminal lifecycle intact.
+    // state:open too, but must leave the terminal lifecycle intact AND queue
+    // nothing (no forever-queued generation row, no dead job).
     const outcome = unwrap(await trigger());
     expect(outcome.pullRequest.state).toBe(PrState.CLOSED);
     expect(outcome.pullRequest.closedAt).not.toBeNull();
+    expect(outcome.generation).toBeUndefined();
 
     const prs = await harness.raw("select state, closed_at from pull_request");
     expect(prs).toHaveLength(1);
     expect(prs[0]?.["state"]).toBe(PrState.CLOSED);
     expect(prs[0]?.["closed_at"]).not.toBeNull();
+
+    // The pre-close generation row is untouched (no attempts bump) and the
+    // pre-close job was not replaced (run_at unchanged).
+    const generations = await harness.raw("select attempts from generation");
+    expect(generations).toHaveLength(1);
+    expect(generations[0]?.["attempts"]).toBe(0);
+    const jobsAfter = await harness.raw("select run_at from graphile_worker.jobs");
+    expect(jobsAfter).toHaveLength(1);
+    expect(epochMs(jobsAfter[0]?.["run_at"])).toBe(epochMs(jobsBefore[0]?.["run_at"]));
   });
 
   it("transitions a closed PR back to open on an explicit reopen", async () => {

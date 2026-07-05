@@ -207,12 +207,21 @@ describe("POST /api/webhooks/github", () => {
     expect(epochMs(jobs[0]?.["run_at"])).toBeGreaterThan(firstRunAt);
   });
 
-  it("pull_request_review submitted → 200 + queued generation (gap-filler)", async () => {
+  it("pull_request_review submitted on a KNOWN PR → 200 + queued generation (gap-filler)", async () => {
+    await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const res = await deliver(app, "pull_request_review", pullRequestReviewPayload());
     expect(res.status).toBe(200);
     expect(await countRows(harness, "pull_request")).toBe(1);
     expect(await countRows(harness, "generation")).toBe(1);
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+  });
+
+  it("pull_request_review on an UNKNOWN PR → 200 no-op (no phantom open row)", async () => {
+    const res = await deliver(app, "pull_request_review", pullRequestReviewPayload());
+    expect(res.status).toBe(200);
+    expect(await countRows(harness, "pull_request")).toBe(0);
+    expect(await countRows(harness, "generation")).toBe(0);
+    expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
   });
 
   it("invalid signature → 401 and NOTHING written", async () => {

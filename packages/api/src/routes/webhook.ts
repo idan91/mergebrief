@@ -90,9 +90,19 @@ async function handlePullRequestReview(
   event: ParsedPullRequestReviewEvent,
 ): Promise<void> {
   // Generation gap-filler (plan decision #1): a submitted review re-queues
-  // the brief for the current head. A review implies an open PR, so `open`
-  // is written; on the rare review against an already-closed PR the next
-  // `pull_request` event corrects the state.
+  // the brief for the current head — but only for a PR we have already
+  // ingested. A review on an UNKNOWN PR would take the INSERT path and mint a
+  // phantom `open` row (the PR may well be closed; reviews can be submitted on
+  // closed PRs), so it is skipped: if we missed the PR's own events, the next
+  // `pull_request` delivery ingests it properly. On a KNOWN terminal PR the
+  // ingest guard preserves the lifecycle and skips the enqueue.
+  const known = await forTenant(handle, ctx).pullRequests.getByNumber(
+    event.repoId,
+    event.prNumber,
+  );
+  if (known === undefined) {
+    return;
+  }
   await triggerGeneration(handle, ctx, event);
 }
 

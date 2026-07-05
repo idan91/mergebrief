@@ -86,7 +86,12 @@ export interface TriggerGenerationInput {
 
 export interface IngestOutcome {
   readonly pullRequest: PullRequestRow;
-  readonly generation: GenerationRow;
+  /**
+   * Absent when the trigger landed on a PR whose terminal lifecycle was
+   * preserved (stale/late trigger on a closed/merged PR): nothing is queued
+   * and no job is enqueued — a brief for a terminal PR would never be read.
+   */
+  readonly generation?: GenerationRow;
 }
 
 export interface IngestRoutines {
@@ -168,6 +173,17 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
         const prRow = prRows[0];
         if (prRow === undefined) {
           throw new Error("pull_request upsert returned no row");
+        }
+
+        // Terminal preserved → the trigger was stale. Stop here: projecting a
+        // `queued` generation row and scheduling the job for a closed/merged PR
+        // would leave a forever-queued row and dead work (there is nothing to
+        // generate for). The PR upsert above still refreshed repo_slug.
+        if (
+          preserveTerminal &&
+          (prRow.state === PrState.CLOSED || prRow.state === PrState.MERGED)
+        ) {
+          return { ok: true, value: { pullRequest: prRow } };
         }
 
         // 2. Project the brief generation as `queued` — replicates
