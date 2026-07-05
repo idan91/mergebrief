@@ -83,6 +83,20 @@ describe("postEntryComment", () => {
     });
   });
 
+  it("rejects a comment id past the safe-integer range (rounded by JSON.parse)", async () => {
+    const createComment = vi.fn().mockResolvedValue({ data: { id: 9007199254740992 } });
+    const octokit = mockOctokit({ createComment });
+    const result = await postEntryComment(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 7,
+      body: "brief ready",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+  });
+
   it("maps an API failure to a sanitized error", async () => {
     const createComment = vi.fn().mockRejectedValue(requestError(403));
     const octokit = mockOctokit({ createComment });

@@ -7,7 +7,7 @@
 // headers/bodies leak).
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
-import { mapRequestError, type GitHubApiError } from "./errors";
+import { mapRequestError, unexpectedResponseError, type GitHubApiError } from "./errors";
 import type { Result } from "./types";
 
 export interface PostEntryCommentInput {
@@ -40,6 +40,12 @@ export async function postEntryComment(
       issue_number: input.prNumber,
       body: input.body,
     });
+    // Same precision guard as `ids.ts`: JSON.parse rounds ints past 2^53 before
+    // we see them, and a lossy comment id would silently break the later
+    // delete-and-repost cycle (deleteComment maps the wrong-id 404 to ok).
+    if (!Number.isSafeInteger(response.data.id)) {
+      return { ok: false, error: unexpectedResponseError("post entry comment") };
+    }
     return { ok: true, value: { commentId: BigInt(response.data.id) } };
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "post entry comment") };
