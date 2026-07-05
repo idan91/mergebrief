@@ -25,7 +25,7 @@
 // message ever contains plaintext or key material — an auth-tag mismatch,
 // malformed input, or unknown version all return opaque, safe-to-log errors.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
-import type { Result, ValueOf } from "./types";
+import type { MaybePromise, Result, ValueOf } from "./types";
 
 // ---------------------------------------------------------------------------
 // Constants — AES-256-GCM parameters. All lengths are in bytes.
@@ -43,7 +43,6 @@ const VERSION = "v1";
 /** Field delimiter. Safe: base64 never contains ".". */
 const SEPARATOR = ".";
 
-type MaybePromise<T> = T | Promise<T>;
 
 // ---------------------------------------------------------------------------
 // Key provider seam + its M1 env implementation.

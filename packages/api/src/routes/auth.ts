@@ -37,9 +37,9 @@ import {
   SessionAuthErrorCode,
   type AppDatabase,
   type KeyProvider,
-  type Result,
   type ReviewerSessionRow,
 } from "persistence";
+import type { Result, ValueOf } from "types";
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------
@@ -105,7 +105,7 @@ export const RefreshErrorCode = {
   /** Refresh could not complete — the session was deleted; re-login required. */
   REFRESH_FAILED: "refresh-failed",
 } as const;
-export type RefreshErrorCode = (typeof RefreshErrorCode)[keyof typeof RefreshErrorCode];
+export type RefreshErrorCode = ValueOf<typeof RefreshErrorCode>;
 
 export interface RefreshError {
   readonly code: RefreshErrorCode;

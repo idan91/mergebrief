@@ -28,17 +28,10 @@ import {
   type ValueOf,
 } from "./types";
 
-interface ValidationResult<T> {
-  ok: true;
-  value: T;
-}
+import type { Result as SharedResult } from "types";
 
-interface ValidationError {
-  ok: false;
-  error: string;
-}
-
-type Result<T> = ValidationResult<T> | ValidationError;
+/** Shared `Result` with this module's fixed error type (a message string). */
+type Result<T> = SharedResult<T, string>;
 
 interface ParsedChangeGroup {
   id?: string;

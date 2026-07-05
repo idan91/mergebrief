@@ -45,7 +45,10 @@ export const RiskSurfaceAttributes = {
   ReleaseImminent: "release-imminent",
 } as const;
 
-export type ValueOf<T> = T[keyof T];
+// Re-exported from the shared types-only package; kept on this module so
+// existing `import { type ValueOf } from "./types"` sites stay valid.
+export type { ValueOf } from "types";
+import type { ValueOf } from "types";
 
 export type Category = ValueOf<typeof Categories>;
 export type Concern = ValueOf<typeof Concerns>;

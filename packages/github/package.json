@@ -17,6 +17,7 @@
     "@octokit/webhooks-methods": "^5.1.1",
     "octokit": "^4.1.4",
     "persistence": "workspace:*",
+    "types": "workspace:*",
     "zod": "^3.25.0"
   },
   "devDependencies": {
