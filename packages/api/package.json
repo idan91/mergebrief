@@ -1,0 +1,27 @@
+{
+  "name": "api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Hono HTTP surface (BRIEF-2): webhook ingest route (stage 4); OAuth + read routes land in PR C. Composes github (primitives) with persistence (tenant-scoped writes).",
+  "exports": {
+    ".": "./src/lib.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "github": "workspace:*",
+    "hono": "^4.9.10",
+    "persistence": "workspace:*",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
+    "@octokit/webhooks-methods": "^5.1.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

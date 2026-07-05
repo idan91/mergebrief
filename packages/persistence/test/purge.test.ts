@@ -330,6 +330,44 @@ describe("purgeRoutines.purgeRepo — scoped predicate-delete (D5)", () => {
   });
 });
 
+describe("purgeRoutines.purgeRepos — set-based multi-repo purge (D5)", () => {
+  it("purges every named repo in one tx, one audit entry per repo, count-0 included", async () => {
+    const { raw, handle } = await freshPair();
+    const a1 = await insertPr(raw, { installationId: TENANT_A, repoId: REPO, prNumber: 1 });
+    const a2 = await insertPr(raw, { installationId: TENANT_A, repoId: REPO, prNumber: 2 });
+    const other = await insertPr(raw, {
+      installationId: TENANT_A,
+      repoId: REPO_OTHER,
+      prNumber: 3,
+    });
+    await seedFullGraph(raw, TENANT_A, a1);
+
+    // REPO holds two PRs; a third repo (never seeded) contributes a count-0
+    // audit entry, matching purgeRepo's emit-even-on-zero behavior.
+    const emptyRepo: RepoId = brandWith(isRepoId, 999n);
+    const count = await purgeRoutines(handle, CTX_A).purgeRepos([REPO, emptyRepo, REPO]);
+    expect(count).toBe(2);
+
+    // Only REPO_OTHER's PR survives; REPO's children cascaded.
+    const remaining = await raw.select({ id: pullRequest.id }).from(pullRequest);
+    expect(remaining.map((r) => r.id)).toEqual([other]);
+    expect(await countChildTables(raw, a1)).toBe(0);
+    void a2;
+
+    // One delete audit per unique requested repo (REPO count 2, emptyRepo 0).
+    const deletes = await deleteAudits(raw, TENANT_A);
+    expect(deletes).toHaveLength(2);
+    expect(deletes.every((d) => d.targetType === "repo")).toBe(true);
+  });
+
+  it("empty repo list is a no-op with no transaction and no audit", async () => {
+    const { raw, handle } = await freshPair();
+    const count = await purgeRoutines(handle, CTX_A).purgeRepos([]);
+    expect(count).toBe(0);
+    expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);
+  });
+});
+
 describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D11)", () => {
   it("removes tenant A's PRs + sessions only; B untouched; audit_log retained", async () => {
     const { raw, handle } = await freshPair();

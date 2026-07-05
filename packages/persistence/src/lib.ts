@@ -80,6 +80,18 @@ export type {
 export { audit, AuditMetadataKey, AuditMetadataSchema, AuditTargetTypeSchema } from "./audit";
 export type { AuditEntry, AuditMetadata, AuditLogRow } from "./audit";
 
+// The transactional ingest seam (BRIEF-2 stage 4): webhook trigger → PR
+// upsert + queued `generation` projection + debounced graphile `generate`
+// job, in ONE transaction. Calls `graphile_worker.add_job` by name — no
+// graphile-worker npm dependency here.
+export { ingestRoutines, IngestErrorCode } from "./ingest";
+export type {
+  IngestRoutines,
+  IngestError,
+  IngestOutcome,
+  TriggerGenerationInput,
+} from "./ingest";
+
 // Purge + retention routines (D5/D9/D11) — the tenant-scoped deletion seam.
 export { purgeRoutines, PurgeErrorCode } from "./purge";
 export type { PurgeRoutines, PurgeError, InstallationPurgeCounts } from "./purge";

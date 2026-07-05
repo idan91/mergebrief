@@ -168,8 +168,10 @@ export type PullRequestStatePatch = PullRequestLifecycle;
  * Normalize a lifecycle to explicit column values from the discriminant:
  * OPEN always writes NULLs (drizzle skips `undefined`, and a reopened PR
  * must disarm the retention sweep), terminal states write what they carry.
+ * Exported for IN-PACKAGE reuse only (`ingest.ts` replicates the upsert
+ * inside its transaction); `lib.ts` never re-exports it.
  */
-function lifecycleColumns(lc: PullRequestLifecycle): {
+export function lifecycleColumns(lc: PullRequestLifecycle): {
   state: PrState;
   closedAt: Date | null;
   purgeAfter: Date | null;

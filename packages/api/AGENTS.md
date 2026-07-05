@@ -1,0 +1,61 @@
+# packages/api — agent notes
+
+The Hono HTTP surface for BRIEF-2 (P4/M1 workstream 2). This PR (PR B, stage
+4) ships the **webhook trust boundary**: `POST /api/webhooks/github` verifies
+the HMAC over the raw body, parses the event through `github`'s Zod boundary,
+and maps it — transactionally — to `persistence`'s tenant-scoped writes plus
+one debounced graphile `generate` job (`ingestRoutines`). Plan:
+`docs/plans/brief-2-github-app.md` (decision #1); grounding ADRs 0016/0020,
+0006 + 0018 as amended.
+
+Deliberately NOT here: OAuth login/callback/logout, the authz middleware, and
+the read API (PR C); the `apps/web` catch-all mount and the real-Postgres/
+graphile composition root (stage 5); any worker/LLM code (BRIEF-3).
+
+## Invariants (enforced, don't weaken)
+
+- **Verify before parse.** The HMAC is checked against the RAW request body
+  (the exact bytes GitHub signed) before `JSON.parse`, before Zod, before any
+  DB touch. Invalid/missing signature → 401 and NOTHING is written.
+- **Tenant from the signed payload.** `TenantContext` derives from the
+  payload's `installation.id` (branded by `github`'s parser, revalidated via
+  `parseTenantContext`) — never from a spoofable header. All writes go
+  through persistence's ctx-bound seams (`forTenant`, `ingestRoutines`,
+  `purgeRoutines`); this package never sees a raw DB handle (D2b).
+- **Fast 200, no compute.** The webhook handler only upserts rows and
+  enqueues one job — no LLM calls, no GitHub API calls, no generation.
+  Handled and ignored events alike return 200 quickly.
+- **Idempotency is inherent, not bolted on.** Natural-key upserts +
+  `job_key = generate:{pull_request_id}` with replace semantics make
+  redelivery safe; do not add dedup state here.
+- **Deps are injected.** `createApp({ handle, webhookSecret })` — nothing in
+  this package reads `process.env` or constructs a database; composition
+  roots do.
+- **Errors:** expected failures return early with sanitized status bodies
+  (401/400); unexpected throws map to a sanitized 500 (internals go to the
+  log, never the response). No secrets/tokens in messages or responses.
+
+## Conventions
+
+Mirrors `packages/persistence/AGENTS.md`: no `enum` (`as const` +
+`ValueOf`, SHOUT_CASE keys / kebab-case values); strict TS, no `any`, no bare
+`as` (Zod/guards at boundaries); named exports; extensionless relative
+imports (`moduleResolution: "bundler"`); verb-first actions, noun factories.
+
+## Tests
+
+`test/webhook.test.ts` = integration via `app.request()` against
+`persistence/testing`'s PGlite harness (real migrations + a `graphile_worker`
+stub standing in for the real worker schema — tests only; the stage-5 compose
+smoke uses real graphile). Payloads are built inline (shapes cribbed from
+`packages/github/test/fixtures/*.json`, not imported) and signed with
+`@octokit/webhooks-methods` `sign`. Zero network, zero LLM calls.
+
+## Verification
+
+```sh
+pnpm install                  # from repo root, to link workspace packages
+pnpm -C packages/api typecheck
+pnpm -C packages/api test
+pnpm lint                     # repo-root oxlint --type-aware picks this package up
+```
