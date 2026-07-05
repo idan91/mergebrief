@@ -100,6 +100,17 @@ export type { PurgeRoutines, PurgeError, InstallationPurgeCounts } from "./purge
 export { encryptToken, decryptToken, envKeyProvider, KeyErrorCode, CryptoErrorCode } from "./crypto";
 export type { KeyProvider, KeyError, CryptoError } from "./crypto";
 
+// The reviewer-session auth seam (BRIEF-2 stage 6, D11) — the PRE-TENANT,
+// token-hash-keyed session resolver (find / delete / serialized refresh). NOT
+// ctx-bound: it PRODUCES the tenant, so it precedes `forTenant` scoping.
+export { sessionAuth, SessionAuthErrorCode } from "./session";
+export type {
+  SessionAuth,
+  SessionAuthError,
+  SessionRefreshPatch,
+  SessionRefreshRejection,
+} from "./session";
+
 // Persistence env config (Zod-parsed; injectable env — never reads process.env).
 export { loadConfig, ConfigErrorCode } from "./config";
 export type { PersistenceConfig, ConfigError } from "./config";

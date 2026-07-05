@@ -8,7 +8,14 @@ import "@tanstack/react-start/server-only";
 
 import { createApp, migrateQueue } from "api";
 import { loadConfig as loadGitHubConfig } from "github";
-import { createDb, loadConfig as loadPersistenceConfig } from "persistence";
+import {
+  createDb,
+  envKeyProvider,
+  loadConfig as loadPersistenceConfig,
+} from "persistence";
+
+/** The env var name the reviewer session tokens seal under (ADR 0018 D11). */
+const SESSION_KEY_REF = "SESSION_KEY_V1";
 
 /** The built Hono app (inferred so `apps/web` needs no direct `hono` dep). */
 type WebhookApp = ReturnType<typeof createApp>;
@@ -50,6 +57,16 @@ async function buildWebhookApp(): Promise<WebhookApp> {
     );
   }
 
+  // The public origin the OAuth callback URL is built from (must match the
+  // App's registered callback). Required for the reviewer-auth routes (PR C);
+  // fail loudly if absent, same posture as the config parses above.
+  const publicBaseUrl = env["PUBLIC_BASE_URL"];
+  if (publicBaseUrl === undefined || publicBaseUrl.length === 0) {
+    throw new Error(
+      "webhook composition: PUBLIC_BASE_URL is required for reviewer auth",
+    );
+  }
+
   const { databaseUrl } = persistenceConfig.value;
   const handle = createDb(databaseUrl);
   // Enqueue-side schema install (idempotent). The worker that drains the jobs
@@ -59,6 +76,17 @@ async function buildWebhookApp(): Promise<WebhookApp> {
   return createApp({
     handle,
     webhookSecret: githubConfig.value.webhookSecret,
+    // Reviewer-auth bundle (PR C): OAuth creds from the GitHub config, the
+    // env-backed key provider for token sealing, and the cookie/redirect policy.
+    // `SESSION_KEY_V1` must hold base64 32 bytes (checked lazily on first seal).
+    auth: {
+      oauthClientId: githubConfig.value.oauthClientId,
+      oauthClientSecret: githubConfig.value.oauthClientSecret,
+      keyProvider: envKeyProvider(env),
+      sessionKeyRef: SESSION_KEY_REF,
+      publicBaseUrl,
+      cookieSecure: true,
+    },
   });
 }
 

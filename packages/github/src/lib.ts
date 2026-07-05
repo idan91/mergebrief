@@ -54,6 +54,21 @@ export type { RepositoryInfo } from "./repo";
 export { fetchPullRequest, fetchDiff } from "./pull-request";
 export type { PullRequestRef, PullRequestInfo } from "./pull-request";
 
+// Reviewer OAuth (user-to-server) helpers (BRIEF-2 stage 6, PR C): web-flow
+// URL, code exchange, token refresh, and the two user-token REST reads the
+// callback needs to resolve the tenant. Sanitized `Result`s throughout.
+export {
+  createOAuthApp,
+  buildAuthorizationUrl,
+  exchangeWebFlowCode,
+  refreshUserToken,
+  fetchAuthenticatedUser,
+  listAppInstallationsForUser,
+  createUserOctokit,
+  OAuthErrorCode,
+} from "./oauth";
+export type { GitHubOAuthApp, OAuthTokens, OAuthError } from "./oauth";
+
 // Shared sanitized API-error shape (single sanitization chokepoint).
 export { GitHubApiErrorCode } from "./errors";
 export type { GitHubApiError } from "./errors";

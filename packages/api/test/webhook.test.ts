@@ -6,12 +6,32 @@
 // no LLM, no real Postgres.
 import { sign } from "@octokit/webhooks-methods";
 import type { Hono } from "hono";
-import { forTenant, isRepoId, parseTenantContext, PrState, type RepoId } from "persistence";
+import {
+  envKeyProvider,
+  forTenant,
+  isRepoId,
+  parseTenantContext,
+  PrState,
+  type RepoId,
+} from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { AuthDeps } from "../src/lib";
 import { createApp } from "../src/lib";
 
 const SECRET = "test-webhook-secret";
+
+// Dummy auth deps: the webhook tests never exercise the OAuth/session routes,
+// but `createApp` now requires the bundle. A throwaway 32-byte key keeps the
+// crypto seam constructible; nothing here triggers a token seal.
+const DUMMY_AUTH: AuthDeps = {
+  oauthClientId: "test-client-id",
+  oauthClientSecret: "test-client-secret",
+  keyProvider: envKeyProvider({ SESSION_KEY_V1: Buffer.alloc(32).toString("base64") }),
+  sessionKeyRef: "SESSION_KEY_V1",
+  publicBaseUrl: "http://localhost:3000",
+  cookieSecure: false,
+};
 const INSTALLATION_ID = 987654;
 const REPO_ID = 186853002;
 const OTHER_REPO_ID = 186853003;
@@ -150,7 +170,7 @@ describe("POST /api/webhooks/github", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    app = createApp({ handle: harness.handle, webhookSecret: SECRET });
+    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: DUMMY_AUTH });
   });
 
   afterEach(async () => {
