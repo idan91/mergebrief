@@ -72,6 +72,10 @@ answer: it's code, not this form.
     of opening PRs repeatedly. Works even before a receiver exists.
   - Free tunnel URLs are ephemeral (they change on restart), so expect to re-paste; a paid
     static domain avoids that for sustained work.
+- **Running the loop end-to-end (BRIEF-2):** see [`../dev/webhook-loop.md`](../dev/webhook-loop.md)
+  for the full local recipe — `docker compose up -d postgres`, the `apps/web/.env` vars, `pnpm dev`,
+  the ngrok URL to set, and how to verify the `pull_requests` + `graphile_worker.jobs` rows. That's
+  also the fixture-capture step for PR A's parser tests.
 
 ## Identity / secrets (all env, never the DB or repo — ADR 0016 #7)
 
