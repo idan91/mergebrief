@@ -32,9 +32,17 @@ import {
   type PullRequestUpsertInput,
   type TenantContext,
 } from "./tenant";
-import { GenerationKind, GenerationStatus, type Result, type ValueOf } from "./types";
+import { GenerationKind, GenerationStatus, PrState, type Result, type ValueOf } from "./types";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
+
+/**
+ * SQL predicate (for use in an `ON CONFLICT DO UPDATE`): the EXISTING
+ * `pull_request` row is already in a terminal (`closed`/`merged`) state.
+ */
+function existingPrIsTerminal() {
+  return sql`${pullRequest.state} in (${PrState.CLOSED}, ${PrState.MERGED})`;
+}
 
 /** The one BRIEF-2 job kind (plan decision #1); the worker lands in BRIEF-3. */
 const GENERATE_TASK_IDENTIFIER = "generate";
@@ -65,6 +73,15 @@ export interface TriggerGenerationInput {
   readonly headSha: string;
   /** Trailing-debounce window; defaults to 60s (plan decision #1). */
   readonly debounceSeconds?: number;
+  /**
+   * True ONLY for a `reopened` event, which deliberately transitions a
+   * closed/merged PR back to open. Every other trigger (`opened`,
+   * `synchronize`, `ready_for_review`, `review_requested`, a submitted review)
+   * merely IMPLIES the PR is open: if the stored row is already terminal — a
+   * stale redelivery, or a review on a since-closed PR — the upsert must NOT
+   * resurrect it. Defaults to false (preserve a terminal lifecycle).
+   */
+  readonly reopen?: boolean;
 }
 
 export interface IngestOutcome {
@@ -114,6 +131,13 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
         // shape as `tenant.ts#pullRequests.upsert`, installation stamped from
         // ctx (D2b).
         const lifecycle = lifecycleColumns(input.pullRequest);
+        // Preserve a terminal lifecycle unless this is an explicit `reopened`.
+        // A stale/late generation trigger (redelivery, or a review on an
+        // already-closed PR) writes `state: open` too, and must not resurrect a
+        // closed/merged PR — so on conflict we keep the stored terminal
+        // state/closed_at/purge_after via a CASE keyed on the EXISTING row's
+        // state. `reopened` bypasses the guard and applies the open lifecycle.
+        const preserveTerminal = input.reopen !== true;
         const prRows = await tx
           .insert(pullRequest)
           .values({
@@ -128,7 +152,15 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
             target: [pullRequest.installationId, pullRequest.repoId, pullRequest.prNumber],
             set: {
               repoSlug: input.pullRequest.repoSlug,
-              ...lifecycle,
+              state: preserveTerminal
+                ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.state} else ${lifecycle.state} end`
+                : lifecycle.state,
+              closedAt: preserveTerminal
+                ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.closedAt} else ${lifecycle.closedAt} end`
+                : lifecycle.closedAt,
+              purgeAfter: preserveTerminal
+                ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.purgeAfter} else ${lifecycle.purgeAfter} end`
+                : lifecycle.purgeAfter,
               updatedAt: new Date(),
             },
           })

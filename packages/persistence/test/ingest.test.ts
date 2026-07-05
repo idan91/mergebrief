@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { IngestOutcome } from "../src/ingest";
 import { ingestRoutines } from "../src/ingest";
-import { parseTenantContext } from "../src/tenant";
+import { forTenant, parseTenantContext } from "../src/tenant";
 import { createPgliteHarness, type PgliteHarness } from "../src/testing";
 import {
   GenerationKind,
@@ -49,9 +49,10 @@ describe("ingestRoutines.triggerGeneration", () => {
     await harness.close();
   });
 
-  async function trigger(overrides?: { debounceSeconds?: number }): Promise<
-    Result<IngestOutcome, { code: string; message: string }>
-  > {
+  async function trigger(overrides?: {
+    debounceSeconds?: number;
+    reopen?: boolean;
+  }): Promise<Result<IngestOutcome, { code: string; message: string }>> {
     return ingestRoutines(harness.handle, CTX).triggerGeneration({
       pullRequest: {
         repoId: REPO_ID,
@@ -63,6 +64,19 @@ describe("ingestRoutines.triggerGeneration", () => {
       ...(overrides?.debounceSeconds === undefined
         ? {}
         : { debounceSeconds: overrides.debounceSeconds }),
+      ...(overrides?.reopen === undefined ? {} : { reopen: overrides.reopen }),
+    });
+  }
+
+  /** Close the PR out-of-band, as the `pull_request.closed` handler would. */
+  async function closePr(): Promise<void> {
+    await forTenant(harness.handle, CTX).pullRequests.upsert({
+      repoId: REPO_ID,
+      prNumber: 7,
+      repoSlug: "acme/widgets",
+      state: PrState.CLOSED,
+      closedAt: new Date(),
+      purgeAfter: null,
     });
   }
 
@@ -134,6 +148,32 @@ describe("ingestRoutines.triggerGeneration", () => {
     // job_key replace = trailing debounce: the single job's run_at advanced.
     expect(jobs[0]?.["job_key"]).toBe(`generate:${first.pullRequest.id}`);
     expect(epochMs(jobs[0]?.["run_at"])).toBeGreaterThan(firstRunAt);
+  });
+
+  it("does NOT resurrect a closed PR on a stale (non-reopen) trigger", async () => {
+    unwrap(await trigger());
+    await closePr();
+
+    // A redelivered synchronize / a review on the now-closed PR: writes
+    // state:open too, but must leave the terminal lifecycle intact.
+    const outcome = unwrap(await trigger());
+    expect(outcome.pullRequest.state).toBe(PrState.CLOSED);
+    expect(outcome.pullRequest.closedAt).not.toBeNull();
+
+    const prs = await harness.raw("select state, closed_at from pull_request");
+    expect(prs).toHaveLength(1);
+    expect(prs[0]?.["state"]).toBe(PrState.CLOSED);
+    expect(prs[0]?.["closed_at"]).not.toBeNull();
+  });
+
+  it("transitions a closed PR back to open on an explicit reopen", async () => {
+    unwrap(await trigger());
+    await closePr();
+
+    const outcome = unwrap(await trigger({ reopen: true }));
+    expect(outcome.pullRequest.state).toBe(PrState.OPEN);
+    expect(outcome.pullRequest.closedAt).toBeNull();
+    expect(outcome.pullRequest.purgeAfter).toBeNull();
   });
 
   it("rolls the whole transaction back when the enqueue fails (atomicity)", async () => {

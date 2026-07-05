@@ -258,6 +258,42 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
   });
 
+  it("a stale synchronize redelivered after close does NOT reopen the PR", async () => {
+    // opened → closed → a late/redelivered synchronize (a generation trigger
+    // that writes state:open). The terminal lifecycle must survive.
+    expect(
+      (await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }))).status,
+    ).toBe(200);
+    expect(
+      (await deliver(app, "pull_request", pullRequestPayload({ action: "closed" }))).status,
+    ).toBe(200);
+    expect(
+      (await deliver(app, "pull_request", pullRequestPayload({ action: "synchronize" }))).status,
+    ).toBe(200);
+
+    const prs = await harness.raw("select state, closed_at from pull_request");
+    expect(prs).toHaveLength(1);
+    expect(prs[0]?.["state"]).toBe("closed");
+    expect(prs[0]?.["closed_at"]).not.toBeNull();
+  });
+
+  it("an explicit reopened event transitions a closed PR back to open", async () => {
+    expect(
+      (await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }))).status,
+    ).toBe(200);
+    expect(
+      (await deliver(app, "pull_request", pullRequestPayload({ action: "closed" }))).status,
+    ).toBe(200);
+    expect(
+      (await deliver(app, "pull_request", pullRequestPayload({ action: "reopened" }))).status,
+    ).toBe(200);
+
+    const prs = await harness.raw("select state, closed_at, purge_after from pull_request");
+    expect(prs[0]?.["state"]).toBe("open");
+    expect(prs[0]?.["closed_at"]).toBeNull();
+    expect(prs[0]?.["purge_after"]).toBeNull();
+  });
+
   it("pull_request closed with merged=true → merged state", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const res = await deliver(

@@ -101,6 +101,10 @@ async function triggerGeneration(
   ctx: TenantContext,
   event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
 ): Promise<void> {
+  // Only a `reopened` pull_request event may transition a terminal PR back to
+  // open; a review or any other trigger merely implies the PR is open and must
+  // not resurrect a since-closed PR (a review CAN be submitted on a closed one).
+  const reopen = "action" in event && event.action === PullRequestAction.REOPENED;
   const result = await ingestRoutines(handle, ctx).triggerGeneration({
     pullRequest: {
       repoId: event.repoId,
@@ -109,6 +113,7 @@ async function triggerGeneration(
       state: PrState.OPEN,
     },
     headSha: event.headSha,
+    reopen,
   });
   if (!result.ok) {
     // No debounce override is passed above, so an error here is a programmer
