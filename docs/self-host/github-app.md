@@ -55,10 +55,13 @@ answer: it's code, not this form.
   localhost; a tunnel service gives you a public URL that forwards to your local port. So when
   registering now with no receiver, just leave the webhook **inactive** rather than trying a
   localhost URL.
-- When developing BRIEF-2: start a tunnel to localhost
-  (`gh webhook forward --repo=<owner/repo> --events=pull_request,pull_request_review --url=http://localhost:PORT/webhooks`,
-  or smee.io), set the App's **Webhook URL** to it, and set a **Webhook secret**
-  (`openssl rand -hex 32`).
+- When developing BRIEF-2: start a tunnel that exposes localhost on a public URL — **ngrok**
+  (`ngrok http PORT`), smee.io, or `gh webhook forward --repo=<owner/repo>
+  --events=pull_request,pull_request_review --url=http://localhost:PORT/webhooks`. Set the
+  App's **Webhook URL** to the public URL and set a **Webhook secret** (`openssl rand -hex 32`).
+  Free tunnel URLs are ephemeral (they change on restart), so expect to re-paste. Bonus: with
+  no receiver yet, ngrok's local inspector (`http://127.0.0.1:4040`) still shows the raw
+  webhook payloads — useful for designing BRIEF-2's handlers.
 
 ## Identity / secrets (all env, never the DB or repo — ADR 0016 #7)
 
