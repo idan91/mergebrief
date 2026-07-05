@@ -212,10 +212,9 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (!resolved.ok) {
       return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
     }
-    // Fetch by the AUTHZ-VERIFIED full name (set by the gate from its GitHub
-    // access check / positive cache), never the row's stored repo_slug — a
-    // rename + name-reuse could point the stored slug at a different repo than
-    // the numeric id the gate authorized.
+    // Fetch by the AUTHZ-VERIFIED full name from this request's access check,
+    // never the row's stored repo_slug — a rename + name-reuse could point the
+    // stored slug at a different repo than the numeric id the gate authorized.
     const target = splitRepoSlug(c.get("repoFullName"));
     if (target === undefined) {
       return c.json({ error: "not found" }, 404);

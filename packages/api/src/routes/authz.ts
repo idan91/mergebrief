@@ -10,12 +10,6 @@
 //   3. shapes the request context (`ctx`, `session`, `accessToken`, `repoId`)
 //      for the read handlers and calls `next()`.
 //
-// CACHING (D9, plan decision #4): a POSITIVE cache keyed `(sessionHash, repoId)`
-// with a ~5min TTL skips the GitHub round-trip on repeat authorized reads.
-// NEGATIVES ARE NEVER CACHED — a revoked grant must re-deny on the very next
-// request. The cache is a closure Map created ONCE per app instance (not a
-// module global), so tests get a fresh cache per `createApp`.
-//
 // REFRESH (D11): a 401 from GitHub means the viewer's ~8h access token expired;
 // the middleware runs the serialized `refreshSessionToken` orchestrator and
 // retries the access check ONCE with the rotated token. A refresh failure has
@@ -45,13 +39,11 @@ import {
   sha256Hex,
   type AuthRouteDeps,
 } from "./auth";
-import { createTtlCache } from "./ttl-cache";
 
 // ---------------------------------------------------------------------------
 // Typed Hono context vars. Handlers read these safely (no `any`): `ctx`/
 // `session`/`repoId` are always set once the gate passes; `accessToken` is set
-// only on the GitHub-verified path (a positive-cache hit skips the decrypt, so
-// the diff route decrypts lazily from `session` when it is absent).
+// after the GitHub access check succeeds.
 // ---------------------------------------------------------------------------
 
 export interface AuthzVariables {
@@ -60,10 +52,10 @@ export interface AuthzVariables {
   readonly repoId: RepoId;
   /**
    * The repo's `owner/name` as GITHUB verified it during the access check
-   * (cached with the positive entry, so ≤5min stale). Routes that call GitHub
-   * by name (the diff proxy) MUST use this, never the row's stored `repo_slug`:
-   * a rename + name-reuse could otherwise point the stored slug at a DIFFERENT
-   * repo than the numeric id the gate authorized.
+   * for this request. Routes that call GitHub by name (the diff proxy) MUST use
+   * this, never the row's stored `repo_slug`: a rename + name-reuse could
+   * otherwise point the stored slug at a DIFFERENT repo than the numeric id the
+   * gate authorized.
    */
   readonly repoFullName: string;
   readonly accessToken?: string;
@@ -73,22 +65,8 @@ export interface AuthzEnv {
   readonly Variables: AuthzVariables;
 }
 
-/** Positive-cache TTL — short enough that a revoked grant self-heals fast. */
-const POSITIVE_CACHE_TTL_MS = 5 * 60 * 1000;
-/**
- * Hard cap on live positive-cache entries (one per session×repo). Bounds memory
- * regardless of process uptime — session hashes are one-time-random, so keys are
- * never reused and would otherwise accumulate forever. Generous for M1 self-host
- * (a handful of reviewers × repos); the oldest entry is evicted past the cap.
- */
-const POSITIVE_CACHE_MAX_ENTRIES = 50_000;
-
 /** The access-check decision, as it appears in the stdout access log. */
 type AccessDecision = "200" | "401" | "404";
-
-function positiveCacheKey(sessionTokenHash: string, repoId: RepoId): string {
-  return `${sessionTokenHash}:${String(repoId)}`;
-}
 
 /** Brand a `:repoId` path segment; `undefined` when it isn't a positive int. */
 function parseRepoId(raw: string | undefined): RepoId | undefined {
@@ -100,18 +78,9 @@ function parseRepoId(raw: string | undefined): RepoId | undefined {
 }
 
 /**
- * Build the authorization middleware over injected deps. The positive cache is
- * created HERE — once per `createApp` — so it is scoped to the app instance,
- * never shared across tests or tenants.
+ * Build the authorization middleware over injected deps.
  */
 export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
-  // key `${sessionTokenHash}:${repoId}` → the GitHub-verified `owner/name`,
-  // until expiry. Positive only, bounded (never-reused keys can't be allowed
-  // to grow unbounded). Storing the verified full name (not just `true`) lets
-  // name-addressed GitHub calls downstream reuse the authz check's result
-  // instead of trusting the row's possibly-stale `repo_slug`.
-  const positiveCache = createTtlCache<string>(POSITIVE_CACHE_MAX_ENTRIES);
-
   return async (c, next) => {
     const startedAt = Date.now();
 
@@ -177,23 +146,7 @@ export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<Au
       return c.json({ error: "not found" }, 404);
     }
 
-    // 3. Positive-cache hit → already authorized within the TTL; skip GitHub
-    //    entirely. The diff route decrypts the session token lazily if it needs
-    //    it, so no access token is set here. The cached value IS the verified
-    //    full name from the check that populated the entry (≤5min old).
-    const cacheKey = positiveCacheKey(sessionTokenHash, repoId);
-    const cachedFullName = positiveCache.get(cacheKey, startedAt);
-    if (cachedFullName !== undefined) {
-      c.set("ctx", ctx);
-      c.set("session", session);
-      c.set("repoId", repoId);
-      c.set("repoFullName", cachedFullName);
-      await next();
-      logAccess("200", { repoId, reviewerId: session.reviewerId });
-      return;
-    }
-
-    // 4. Cache miss → verify GitHub access with the viewer's token. Decrypt the
+    // 3. Verify GitHub access with the viewer's token on every read. Decrypt the
     //    stored access token first; an unreadable token burns the session (401).
     const decrypted = await decryptToken(
       deps.auth.keyProvider,
@@ -241,9 +194,8 @@ export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<Au
       return c.json({ error: "not found" }, 404);
     }
 
-    // 2xx → authorized. Cache the verified full name, hand the token to the
-    // route, and log AFTER the handler so status/duration reflect it.
-    positiveCache.set(cacheKey, repo.value.fullName, Date.now() + POSITIVE_CACHE_TTL_MS);
+    // 2xx → authorized. Hand the verified full name + token to the route and log
+    // AFTER the handler so status/duration reflect it.
     c.set("ctx", ctx);
     c.set("session", currentSession);
     c.set("repoId", repoId);
