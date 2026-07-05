@@ -61,3 +61,6 @@ docker compose up -d postgres
 DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review \
   pnpm -C packages/persistence migrate
 ```
+
+## Task board (Notion)
+https://app.notion.com/p/Make-Text-Selectable-3935e9400eeb80f7a6aed324f422a18a?source=copy_link#3935e9400eeb80248b23e0f76778c3db
