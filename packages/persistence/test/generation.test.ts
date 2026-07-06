@@ -59,6 +59,8 @@ describe("generationProjection — D10 transitions", () => {
     const done = await gen.markSucceeded(target);
     if (!done.ok) throw new Error("markSucceeded failed");
     expect(done.value.status).toBe(GenerationStatus.SUCCEEDED);
+    // A terminal row must not advertise the phase it was mid-way through.
+    expect(done.value.phase).toBeNull();
     expect(done.value.id).toBe(queued.value.id); // one row throughout
   });
 
@@ -172,6 +174,7 @@ describe("generationProjection — D10 transitions", () => {
     await gen.upsertQueued(target);
     // A prior failure sets attempts/error; supersession must not disturb either.
     const requeued = await gen.upsertQueued(target); // attempts → 1 (already ran once)
+    await gen.markRunning(target, GenerationPhase.GENERATING); // mid-run abort — phase is set
     await gen.markFailed(target, "boom");
     if (!requeued.ok) throw new Error("requeue failed");
     const attemptsBefore = requeued.value.attempts;
@@ -179,9 +182,44 @@ describe("generationProjection — D10 transitions", () => {
     const superseded = await gen.markSuperseded(target);
     if (!superseded.ok) throw new Error("markSuperseded failed");
     expect(superseded.value.status).toBe(GenerationStatus.SUPERSEDED);
-    // An abort is NOT a failure: attempts untouched, error cleared.
+    // An abort is NOT a failure: attempts untouched, error cleared — and the
+    // mid-run phase must not survive into the terminal row.
     expect(superseded.value.attempts).toBe(attemptsBefore);
     expect(superseded.value.error).toBeNull();
+    expect(superseded.value.phase).toBeNull();
+  });
+
+  it("supersedeStaleBriefs terminalizes stale non-terminal briefs and clears their phase", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const gen = generationProjection(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const stale = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "old-head",
+      baselineSha: null,
+    } as const;
+    const current = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "new-head",
+      baselineSha: null,
+    } as const;
+
+    await gen.upsertQueued(stale);
+    await gen.markRunning(stale, GenerationPhase.GENERATING); // sweep catches it mid-run
+    await gen.upsertQueued(current);
+    await gen.markSucceeded(current);
+
+    const swept = await gen.supersedeStaleBriefs(pr.id, "new-head");
+    expect(swept).toBe(1);
+    const staleRow = await gen.get(stale);
+    expect(staleRow?.status).toBe(GenerationStatus.SUPERSEDED);
+    expect(staleRow?.phase).toBeNull();
+    expect(staleRow?.error).toBeNull();
+    // The current head's row is untouched.
+    expect((await gen.get(current))?.status).toBe(GenerationStatus.SUCCEEDED);
   });
 
   it("a transition on a missing projection row returns notFound", async () => {

@@ -116,13 +116,13 @@ export interface GenerationProjection {
     target: GenerationTarget,
     phase?: GenerationPhase,
   ): Promise<Result<GenerationRow, GenerationError>>;
-  /** Reflect `succeeded`; clears `error`. */
+  /** Reflect `succeeded`; clears `phase` and `error` (terminal rows carry neither). */
   markSucceeded(target: GenerationTarget): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * Reflect `superseded` — a terminal mid-call abort because the PR head
    * advanced (ADR 0006 #6). An abort is NOT a failure: it leaves `attempts`
-   * untouched (unlike a re-queue) and clears `error` (like `markSucceeded`),
-   * so a superseded job never consumes a retry.
+   * untouched (unlike a re-queue) and clears `phase`/`error` (like
+   * `markSucceeded`), so a superseded job never consumes a retry.
    */
   markSuperseded(target: GenerationTarget): Promise<Result<GenerationRow, GenerationError>>;
   /**
@@ -143,7 +143,7 @@ export interface GenerationProjection {
    * case — push B inside the debounce window swaps the job's payload
    * (`job_key_mode => 'replace'`), so no worker run ever carries head A and
    * its queued row would otherwise sit non-terminal forever. Same abort
-   * semantics as `markSuperseded` (attempts untouched, error cleared).
+   * semantics as `markSuperseded` (attempts untouched, phase/error cleared).
    * Returns the number of rows swept.
    */
   supersedeStaleBriefs(
@@ -254,13 +254,15 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
     },
 
     async markSucceeded(target) {
-      return transition(target, { status: GenerationStatus.SUCCEEDED, error: null });
+      // Terminal rows carry no `phase` — a determinate phase only describes a
+      // RUNNING job; leaving the last mid-run value would misreport the row.
+      return transition(target, { status: GenerationStatus.SUCCEEDED, phase: null, error: null });
     },
 
     async markSuperseded(target) {
       // Abort-on-supersession (ADR 0006 #6): not a failure, so `attempts` is
-      // deliberately left untouched and `error` is cleared.
-      return transition(target, { status: GenerationStatus.SUPERSEDED, error: null });
+      // deliberately left untouched and `error` is cleared. Terminal → no phase.
+      return transition(target, { status: GenerationStatus.SUPERSEDED, phase: null, error: null });
     },
 
     async markFailed(target, error) {
@@ -280,6 +282,7 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
         .update(generation)
         .set({
           status: GenerationStatus.SUPERSEDED,
+          phase: null,
           error: null,
           updatedAt: new Date(),
         })
