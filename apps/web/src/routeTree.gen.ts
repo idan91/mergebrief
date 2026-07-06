@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BriefsBriefIdRouteImport } from './routes/briefs.$briefId'
 import { Route as BriefsBriefIdSummaryPreviewRouteImport } from './routes/briefs.$briefId_.summary-preview'
+import { Route as ReposRepoIdPullsPrNumberRouteImport } from './routes/repos.$repoId.pulls.$prNumber'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,39 +30,58 @@ const BriefsBriefIdSummaryPreviewRoute =
     path: '/briefs/$briefId/summary-preview',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ReposRepoIdPullsPrNumberRoute =
+  ReposRepoIdPullsPrNumberRouteImport.update({
+    id: '/repos/$repoId/pulls/$prNumber',
+    path: '/repos/$repoId/pulls/$prNumber',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/briefs/$briefId': typeof BriefsBriefIdRoute
   '/briefs/$briefId/summary-preview': typeof BriefsBriefIdSummaryPreviewRoute
+  '/repos/$repoId/pulls/$prNumber': typeof ReposRepoIdPullsPrNumberRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/briefs/$briefId': typeof BriefsBriefIdRoute
   '/briefs/$briefId/summary-preview': typeof BriefsBriefIdSummaryPreviewRoute
+  '/repos/$repoId/pulls/$prNumber': typeof ReposRepoIdPullsPrNumberRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/briefs/$briefId': typeof BriefsBriefIdRoute
   '/briefs/$briefId_/summary-preview': typeof BriefsBriefIdSummaryPreviewRoute
+  '/repos/$repoId/pulls/$prNumber': typeof ReposRepoIdPullsPrNumberRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/briefs/$briefId' | '/briefs/$briefId/summary-preview'
+  fullPaths:
+    | '/'
+    | '/briefs/$briefId'
+    | '/briefs/$briefId/summary-preview'
+    | '/repos/$repoId/pulls/$prNumber'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/briefs/$briefId' | '/briefs/$briefId/summary-preview'
+  to:
+    | '/'
+    | '/briefs/$briefId'
+    | '/briefs/$briefId/summary-preview'
+    | '/repos/$repoId/pulls/$prNumber'
   id:
     | '__root__'
     | '/'
     | '/briefs/$briefId'
     | '/briefs/$briefId_/summary-preview'
+    | '/repos/$repoId/pulls/$prNumber'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   BriefsBriefIdRoute: typeof BriefsBriefIdRoute
   BriefsBriefIdSummaryPreviewRoute: typeof BriefsBriefIdSummaryPreviewRoute
+  ReposRepoIdPullsPrNumberRoute: typeof ReposRepoIdPullsPrNumberRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -87,6 +107,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BriefsBriefIdSummaryPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/repos/$repoId/pulls/$prNumber': {
+      id: '/repos/$repoId/pulls/$prNumber'
+      path: '/repos/$repoId/pulls/$prNumber'
+      fullPath: '/repos/$repoId/pulls/$prNumber'
+      preLoaderRoute: typeof ReposRepoIdPullsPrNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -94,6 +121,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BriefsBriefIdRoute: BriefsBriefIdRoute,
   BriefsBriefIdSummaryPreviewRoute: BriefsBriefIdSummaryPreviewRoute,
+  ReposRepoIdPullsPrNumberRoute: ReposRepoIdPullsPrNumberRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -47,3 +47,5 @@ coverage/
 node_modules
 
 .pnpm-store
+# TanStack Start dev artifacts
+apps/web/.tanstack/
