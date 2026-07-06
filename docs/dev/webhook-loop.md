@@ -1,7 +1,7 @@
 # Local webhook loop (BRIEF-2)
 
 How to run the webhook receiver end-to-end on your machine and watch a real GitHub
-`pull_request` event turn into a `pull_requests` row + a queued `generate` job. This is also
+`pull_request` event turn into a `pull_request` row + a queued `generate` job. This is also
 the **fixture-capture** step: the real payloads you replay here are the ones PR A re-verifies
 its parser against, so grab a few while you have the tunnel open.
 
@@ -82,14 +82,19 @@ enqueues one debounced `generate` job — all fast, before returning 200.
 
 ```sh
 docker compose exec postgres psql -U code_review -d code_review \
-  -c 'select repo_slug, pr_number, state from pull_requests order by updated_at desc limit 5;' \
+  -c 'select repo_slug, pr_number, state from pull_request order by updated_at desc limit 5;' \
   -c 'select task_identifier, key, payload from graphile_worker.jobs order by created_at desc limit 5;'
 ```
 
-Expect a `pull_requests` row for your PR and a `graphile_worker.jobs` row with
-`task_identifier = generate` and `key = generate:<pull_request_id>`. (BRIEF-2 only **enqueues**
-the job — nothing drains it yet. The worker that runs the generation is BRIEF-3, so the row
-sits in the queue; that's correct.)
+Expect a `pull_request` row for your PR and a `graphile_worker.jobs` row with
+`task_identifier = generate` and `key = generate:<pull_request_id>`.
+
+Since BRIEF-3, the queue also **drains**: run the worker (`pnpm -C packages/worker start`
+with the same env, or the compose `worker` service — see
+[`../self-host/compose.md`](../self-host/compose.md)) and the job disappears after the
+debounce, the `generation` row walks `queued → running → succeeded`, and the Brief lands in
+the `brief` table. Without a worker running, the row sits in the queue — still correct for
+webhook-only debugging.
 
 ## 7. Inspect / replay deliveries
 
