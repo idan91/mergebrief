@@ -17,6 +17,7 @@ import type { ValueOf } from "types";
 export const ApiErrorKind = {
   BAD_REQUEST: "bad-request",
   UNAUTHORIZED: "unauthorized",
+  FORBIDDEN: "forbidden",
   NOT_FOUND: "not-found",
   TOO_LARGE: "too-large",
   UPSTREAM: "upstream",
@@ -45,6 +46,8 @@ function kindForStatus(status: number): ApiErrorKind {
       return ApiErrorKind.BAD_REQUEST;
     case 401:
       return ApiErrorKind.UNAUTHORIZED;
+    case 403:
+      return ApiErrorKind.FORBIDDEN;
     case 404:
       return ApiErrorKind.NOT_FOUND;
     case 413:

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 
 import { generateBrief } from "../features/brief/brief.functions";
 import { localBriefsQueryOptions } from "../features/brief/queries";
+import { OrgSwitcher } from "../features/installations/components/OrgSwitcher";
 import { PullsSection } from "../features/pulls/components/PullsSection";
 import { pullsSessionQueryOptions } from "../features/pulls/queries";
 import sharedStyles from "./routeShared.module.scss";
@@ -81,6 +82,7 @@ function BriefPicker() {
           </button>
         </form>
         {error ? <p className={styles["error"]}>{error}</p> : null}
+        <OrgSwitcher enabled={session.kind === "ready"} />
         <PullsSection session={session} />
         {briefs.length === 0 ? (
           <div className={styles["empty"]}>
