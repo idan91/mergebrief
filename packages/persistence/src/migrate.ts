@@ -12,12 +12,32 @@
 // `packages/api/src/queue.ts`). Scoped to the app schema only: the
 // `graphile_worker` schema is graphile-owned and migrated by graphile's own
 // `runMigrations`, never here (see AGENTS.md — drizzle must not manage it).
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 
-const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
+/**
+ * Locate the checked-in `drizzle/` folder at RUNTIME. Two cases:
+ * (a) this module runs from package source (worker via tsx, tests) —
+ *     `import.meta.url` sits in `src/`, so `../drizzle` is right;
+ * (b) this module was BUNDLED into a consumer's server build (the web app's
+ *     vite SSR bundle), where `import.meta.url` points into the consumer's
+ *     dist — then resolve the package itself through node's resolver and
+ *     take `drizzle/` beside its entry (`src/lib.ts`).
+ */
+function migrationsFolder(): string {
+  const fromModule = fileURLToPath(new URL("../drizzle", import.meta.url));
+  if (existsSync(join(fromModule, "meta"))) {
+    return fromModule;
+  }
+  const require = createRequire(import.meta.url);
+  const entry = require.resolve("persistence");
+  return join(dirname(entry), "..", "drizzle");
+}
 
 /**
  * Idempotently apply the checked-in app-schema migrations to the target
@@ -27,7 +47,7 @@ const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
 export async function migrateApp(databaseUrl: string): Promise<void> {
   const pool = new Pool({ connectionString: databaseUrl, max: 1 });
   try {
-    await migrate(drizzle(pool), { migrationsFolder: MIGRATIONS_FOLDER });
+    await migrate(drizzle(pool), { migrationsFolder: migrationsFolder() });
   } finally {
     await pool.end();
   }
