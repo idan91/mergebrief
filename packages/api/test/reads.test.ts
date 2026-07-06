@@ -4,11 +4,12 @@
 // — the same pattern as `auth.test.ts`. The stub answers the endpoints the gate
 // and the diff proxy touch: `GET /repositories/{id}` (the access check), the
 // span diff (`GET /repos/{owner}/{repo}/compare/{base}...{head}`), and the OAuth
-// token endpoint (refresh). Call counts assert authz rechecks + diff cache.
+// token endpoint (refresh). Call counts assert the positive cache + diff cache.
 //
 // Covers the DoD: 401 (no cookie / unknown session, no GitHub call); 404 on no
-// repo access (+ the `auth`/`repo`/`decision="404"` audit row); 200 authorized
-// brief (+ 404 on a non-existent span); immediate revocation on repeat reads;
+// repo access (+ the `auth`/`repo`/`decision="404"` audit row, negative NOT
+// cached); 200 authorized brief (+ 404 on a non-existent span); positive cache
+// (access check fires once inside the 60s TTL, re-checks past it);
 // 401→refresh→retry (success and a refresh failure that deletes the session);
 // and the diff proxy per-session cache.
 import { createHash, randomBytes } from "node:crypto";
@@ -237,12 +238,23 @@ function diffPath(base: string, head: string): string {
 // Suite.
 // ---------------------------------------------------------------------------
 
+// Virtual clock: `Date.now` = real time + a FORWARD-ONLY offset, installed for
+// every test. The TTL test advances the offset instead of freezing time —
+// octokit's throttling plugin keeps MODULE-GLOBAL Bottleneck groups whose
+// limiters record `Date.now` timestamps, so a frozen/rewound clock (fake
+// timers, a scoped spy that restores) poisons every later GitHub-calling test
+// in the file with a phantom ~61s throttle wait. A monotonic offset that never
+// rewinds keeps those shared limiters consistent.
+const realNow = Date.now.bind(Date);
+let clockOffsetMs = 0;
+
 describe("reviewer read API + authz gate", () => {
   let harness: PgliteHarness;
   let app: Hono;
   let kp: KeyProvider;
 
   beforeEach(async () => {
+    vi.spyOn(Date, "now").mockImplementation(() => realNow() + clockOffsetMs);
     harness = await createPgliteHarness();
     kp = keyProvider();
     app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp) });
@@ -250,6 +262,7 @@ describe("reviewer read API + authz gate", () => {
 
   afterEach(async () => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     await harness.close();
   });
 
@@ -331,7 +344,20 @@ describe("reviewer read API + authz gate", () => {
     expect(res.status).toBe(400);
   });
 
-  it("rechecks repo access on repeat reads so revocation takes effect immediately", async () => {
+  it("positive cache: two authorized reads within the TTL fire the access check once", async () => {
+    const counts = stubGitHub({ repositories: () => repoOk() });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+    await seedBrief(harness.handle, "base1", "head1");
+
+    const a = await app.request(briefPath("base1", "head1"), { headers: { Cookie: `rs_session=${cookie}` } });
+    const b = await app.request(briefPath("base1", "head1"), { headers: { Cookie: `rs_session=${cookie}` } });
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    expect(counts.repositories).toBe(1);
+  });
+
+  it("a grant revoked at GitHub denies once the 60s positive-cache TTL passes", async () => {
     const counts = stubGitHub({
       repositories: (call) => (call === 0 ? repoOk() : repoStatus(404)),
     });
@@ -340,8 +366,12 @@ describe("reviewer read API + authz gate", () => {
     await seedBrief(harness.handle, "base1", "head1");
 
     const a = await app.request(briefPath("base1", "head1"), { headers: { Cookie: `rs_session=${cookie}` } });
-    const b = await app.request(briefPath("base1", "head1"), { headers: { Cookie: `rs_session=${cookie}` } });
     expect(a.status).toBe(200);
+
+    // Advance the virtual clock past the TTL (forward-only — see the offset
+    // note above). The gate re-checks GitHub, which now denies → 404.
+    clockOffsetMs += 61_000;
+    const b = await app.request(briefPath("base1", "head1"), { headers: { Cookie: `rs_session=${cookie}` } });
     expect(b.status).toBe(404);
     expect(counts.repositories).toBe(2);
   });
@@ -437,11 +467,11 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.urls.some((u) => u.includes("/compare/base1...head1"))).toBe(true);
   });
 
-  it("diff proxy rechecks authz and refreshes an expired token before fetching the next span", async () => {
-    // span1: repo ok + diff ok. span2: repo 401 → refresh → repo ok + diff ok.
+  it("diff proxy on a cached-authz hit refreshes an expired token and retries", async () => {
+    // span1: diff ok (warms authz + diff cache). span2: diff 401 → refresh → ok.
     const counts = stubGitHub({
-      repositories: (call) => (call === 1 ? repoStatus(401) : repoOk()),
-      diff: () => diffOk(),
+      repositories: () => repoOk(),
+      diff: (call) => (call === 1 ? diffStatus(401) : diffOk()),
       token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
     });
     const { cookie } = await seedSession(harness.handle, kp);
@@ -453,16 +483,16 @@ describe("reviewer read API + authz gate", () => {
     expect(a.status).toBe(200);
     expect(counts.repositories).toBe(1);
 
-    // Different span → authz is checked again; the expired access token refreshes
-    // before the compare request is made.
+    // Different span → authz-cache hit (no new access check), but the lazily
+    // decrypted token 401s the compare fetch → the route refreshes and retries.
     const b = await app.request(diffPath("base2", "head2"), {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(b.status).toBe(200);
     expect(await b.text()).toBe(DIFF_TEXT);
-    expect(counts.repositories).toBe(3); // span1 ok, span2 401 + retry ok
-    expect(counts.token).toBe(1);
-    expect(counts.diff).toBe(2);
+    expect(counts.repositories).toBe(1); // still cached — no second access check
+    expect(counts.token).toBe(1); // diff-route refresh fired
+    expect(counts.diff).toBe(3); // span1 ok, span2 401 + retry ok
   });
 
   // Long timeout: octokit's retry plugin retries a 406 (not in its doNotRetry
