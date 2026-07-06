@@ -95,11 +95,12 @@ handle these three — tracked as a board ticket, deliberate defaults until then
    while 5432 binds loopback-only; change them (and the `DATABASE_URL`
    overrides) if you ever publish the port, share the host, or back the
    volume up off-machine.
-2. **Host-header validation is off** for the web tier
-   (`preview.allowedHosts: true` in `apps/web/vite.config.ts`): the app
-   itself grants nothing based on Host (auth = webhook HMAC + `Secure`
-   session cookies), but it relies on YOUR reverse proxy to filter hosts.
-   Terminate TLS and pin the expected hostname at the proxy.
+2. **Host-header validation is pinned to `PUBLIC_BASE_URL`** for the web
+   tier (`apps/web/vite.config.ts` derives the preview allow-list from it;
+   localhost and IP literals stay allowed). Keep `PUBLIC_BASE_URL` accurate
+   — a Host the instance doesn't recognize is 403'd. Still terminate TLS at
+   your proxy; the app grants nothing based on Host either way (auth =
+   webhook HMAC + `Secure` session cookies).
 3. **A tunnel is production exposure.** While ngrok (or any tunnel) is up,
    the instance is internet-reachable: keep `GITHUB_WEBHOOK_SECRET` strong
    (it is the only gate on the webhook route), kill tunnels when not

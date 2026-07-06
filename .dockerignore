@@ -1,13 +1,20 @@
 # Keep build contexts lean and deterministic: dependencies are installed
-# inside the image from the lockfile, never copied from the host.
+# inside the image from the lockfile, never copied from the host — and no
+# locally generated artifact may enter a layer. `out` matters beyond size:
+# generation outputs and the worker's failed-generation dumps (cwd-relative
+# `out/`, e.g. packages/worker/out) carry private PR/code context.
 .git
 node_modules
 **/node_modules
 **/dist
 **/.output
 **/tsconfig.tsbuildinfo
-tools/categorizer/out
-apps/web/out
+out
+**/out
+build
+**/build
+coverage
+**/coverage
 docs
 # Mirror .gitignore's secret patterns — nothing credential-shaped may enter
 # an image layer (COPY . . would otherwise bake it in).
