@@ -84,6 +84,27 @@ docker compose exec postgres psql -U code_review -d code_review \
   permanent conditions (e.g. GitHub's "diff too large" 406) are recorded as
   `failed` without retry.
 
+## Hardening before real exposure
+
+The compose defaults are tuned for a loopback-only, single-operator machine.
+Before pointing a domain (or leaving a tunnel up long-term) at an instance,
+handle these three — tracked as a board ticket, deliberate defaults until then:
+
+1. **Postgres credentials** are the well-known dev pair
+   (`code_review`/`code_review`), hardcoded in `docker-compose.yml`. Safe
+   while 5432 binds loopback-only; change them (and the `DATABASE_URL`
+   overrides) if you ever publish the port, share the host, or back the
+   volume up off-machine.
+2. **Host-header validation is off** for the web tier
+   (`preview.allowedHosts: true` in `apps/web/vite.config.ts`): the app
+   itself grants nothing based on Host (auth = webhook HMAC + `Secure`
+   session cookies), but it relies on YOUR reverse proxy to filter hosts.
+   Terminate TLS and pin the expected hostname at the proxy.
+3. **A tunnel is production exposure.** While ngrok (or any tunnel) is up,
+   the instance is internet-reachable: keep `GITHUB_WEBHOOK_SECRET` strong
+   (it is the only gate on the webhook route), kill tunnels when not
+   testing, and prefer a fixed domain + proxy over a long-lived tunnel.
+
 ## Dev loop against compose
 
 The [ngrok webhook loop](../dev/webhook-loop.md) works unchanged with
