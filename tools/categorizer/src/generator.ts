@@ -2,9 +2,9 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
-import { enumPreservingOutputFormat } from "./outputFormat.js";
-import { salvageDroppableEnums } from "./salvage.js";
-import type { Effort, Generation } from "./types.js";
+import { enumPreservingOutputFormat } from "./outputFormat";
+import { salvageDroppableEnums } from "./salvage";
+import type { Effort, Generation } from "./types";
 
 /** Progress sink — defaults to no-op so callers stay usable in tests. */
 export type Logger = (message: string) => void;
@@ -28,6 +28,13 @@ export interface GenerateRequest<S extends z.ZodType> {
    * failures and fields not named here still hard-fail (after one retry).
    */
   salvageFields?: readonly string[];
+  /**
+   * Cooperative cancellation (ADR 0006 #6): aborting stops the underlying
+   * stream (and output-token billing) mid-call. The abort rejection
+   * propagates to the caller UNTOUCHED — no salvage, no feedback retry, no
+   * failure dump: an abort is not a generation failure.
+   */
+  signal?: AbortSignal;
   log?: Logger;
 }
 
@@ -159,19 +166,24 @@ export class AnthropicGenerator implements Generator {
     messages: Anthropic.MessageParam[],
     log: Logger,
   ) {
-    const stream = this.client.messages.stream({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      thinking: { type: "adaptive" },
-      output_config: {
-        format: enumPreservingOutputFormat(req.schema),
-        effort: req.effort,
+    // The request options' `signal` aborts the HTTP stream itself — the SDK
+    // rejects with APIUserAbortError and no further output tokens are billed.
+    const stream = this.client.messages.stream(
+      {
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        thinking: { type: "adaptive" },
+        output_config: {
+          format: enumPreservingOutputFormat(req.schema),
+          effort: req.effort,
+        },
+        system: [
+          { type: "text", text: req.system, cache_control: { type: "ephemeral" } },
+        ],
+        messages,
       },
-      system: [
-        { type: "text", text: req.system, cache_control: { type: "ephemeral" } },
-      ],
-      messages,
-    });
+      req.signal ? { signal: req.signal } : undefined,
+    );
 
     // Live progress: phase + elapsed + output size. A heartbeat covers the long
     // silent stretches (e.g. extended thinking) where no deltas arrive.

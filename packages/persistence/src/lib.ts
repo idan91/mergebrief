@@ -59,6 +59,7 @@ export type {
   ComparisonMarksWriteInput,
   ComparisonMarksBody,
   BriefRow,
+  BriefSpanRow,
   DeltaRow,
   DiffSnapshotRow,
   RevisionNarrativeRow,
@@ -110,6 +111,10 @@ export type {
   SessionRefreshPatch,
   SessionRefreshRejection,
 } from "./session";
+
+// Programmatic, idempotent app-schema migration for composition roots
+// (worker/compose boot). The graphile_worker schema stays graphile-owned.
+export { migrateApp } from "./migrate";
 
 // Persistence env config (Zod-parsed; injectable env — never reads process.env).
 export { loadConfig, ConfigErrorCode } from "./config";

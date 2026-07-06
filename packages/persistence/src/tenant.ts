@@ -209,6 +209,8 @@ export interface PullRequestRepository {
   upsert(input: PullRequestUpsertInput): Promise<PullRequestRow>;
   /** Tenant-scoped read by (repo, number). Absence is a normal `undefined`. */
   getByNumber(repoId: RepoId, prNumber: number): Promise<PullRequestRow | undefined>;
+  /** Tenant-scoped read by row id (the worker's job-payload entry point). */
+  getById(pullRequestId: PullRequestRowId): Promise<PullRequestRow | undefined>;
   /** Scoped lifecycle mutation; `notFound` if no row in ctx's tenant. */
   setState(
     pullRequestId: PullRequestRowId,
@@ -225,6 +227,11 @@ export interface CheckpointRepository {
   upsertOnSubmit(input: CheckpointSubmitInput): Promise<Result<CheckpointRow, RepositoryError>>;
   /** Tenant-scoped read; absence is a normal `undefined`. */
   get(pullRequestId: PullRequestRowId, reviewerId: ReviewerId): Promise<CheckpointRow | undefined>;
+  /**
+   * All checkpoints on a PR (the worker derives the DISTINCT checkpoint SHAs
+   * to pre-warm delta cores for — ADR 0006 #4 as amended).
+   */
+  listForPullRequest(pullRequestId: PullRequestRowId): Promise<CheckpointRow[]>;
 }
 
 export interface SessionRepository {
@@ -292,6 +299,17 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
             eq(pullRequest.repoId, repoId),
             eq(pullRequest.prNumber, prNumber),
           ),
+        )
+        .limit(1);
+      return rows[0];
+    },
+
+    async getById(pullRequestId) {
+      const rows = await db
+        .select()
+        .from(pullRequest)
+        .where(
+          and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)),
         )
         .limit(1);
       return rows[0];
@@ -380,6 +398,18 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
         )
         .limit(1);
       return rows[0];
+    },
+
+    async listForPullRequest(pullRequestId) {
+      return db
+        .select()
+        .from(checkpoint)
+        .where(
+          and(
+            eq(checkpoint.installationId, installationId),
+            eq(checkpoint.pullRequestId, pullRequestId),
+          ),
+        );
     },
   };
 

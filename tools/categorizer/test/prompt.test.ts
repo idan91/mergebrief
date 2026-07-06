@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDeltaSystemPrompt, buildSystemPrompt } from "../src/prompt.js";
+import { buildDeltaSystemPrompt, buildSystemPrompt } from "../src/prompt";
 
 describe("prompt role guidance", () => {
   it("does not classify types, context, or CSS as supporting by file kind alone", () => {

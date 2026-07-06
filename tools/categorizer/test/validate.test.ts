@@ -5,8 +5,8 @@ import {
   validateNarrativeMarksOverlap,
   validateReadingOrder,
   validateRiskAttributes,
-} from "../src/validate.js";
-import type { Chunk, RiskSurfaceAttribute } from "../src/types.js";
+} from "../src/validate";
+import type { Chunk, RiskSurfaceAttribute } from "../src/types";
 
 const groups = [{ id: "g1" }, { id: "g2" }];
 

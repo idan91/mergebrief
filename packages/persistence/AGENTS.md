@@ -42,8 +42,8 @@ plan: `docs/plans/brief-1-persistence-layer.md`.
   guards), interfaces for shapes, named exports, Zod at boundaries.
 - **Extensionless relative imports** (`from "./tenant"`, never `"./tenant.js"`) — this
   package is bundler-resolved end to end (`moduleResolution: "bundler"`; vitest/tsx/
-  drizzle-kit). Extensions only where genuinely required (non-TS assets). The categorizer's
-  `.js` style is its own convention; don't import it here.
+  drizzle-kit). Extensions only where genuinely required (non-TS assets). This is now a
+  repo-wide rule (root `CLAUDE.md`) — the categorizer was converted too.
 - DB identifiers stay snake_case (Postgres convention); TS property names camelCase.
 
 ## Verification

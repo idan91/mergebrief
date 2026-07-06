@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { z } from "zod/v4";
-import { categorize } from "../src/categorize.js";
-import type { GenerateRequest, Generator } from "../src/generator.js";
-import type { Effort, Generation } from "../src/types.js";
-import type { FetchedPr } from "../src/github.js";
+import { categorize } from "../src/categorize";
+import type { GenerateRequest, Generator } from "../src/generator";
+import type { Effort, Generation } from "../src/types";
+import type { FetchedPr } from "../src/github";
 
 /**
  * Mocked Generator (no API key, no network): parses the fixture through the

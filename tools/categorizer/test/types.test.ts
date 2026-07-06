@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BriefSchema, DeltaBriefSchema, RevisionNarrativeSchema } from "../src/types.js";
+import { BriefSchema, DeltaBriefSchema, RevisionNarrativeSchema } from "../src/types";
 
 const validBrief = {
   pr: {

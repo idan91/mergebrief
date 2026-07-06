@@ -8,31 +8,31 @@ import {
   type Effort,
   type PrRef,
   type RevisionNarrative,
-} from "./types.js";
+} from "./types";
 import {
   AnthropicGenerator,
   type Generator,
   type Logger,
-} from "./generator.js";
+} from "./generator";
 import {
   buildSystemPrompt,
   buildDeltaSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
-} from "./prompt.js";
-import { splitDiffByFile } from "./diff.js";
+} from "./prompt";
+import { splitDiffByFile } from "./diff";
 import {
   validatePartition,
   validateNarrativeGroups,
   validateReadingOrder,
   validateRiskAttributes,
-} from "./validate.js";
+} from "./validate";
 import type {
   FetchedPr,
   LinkedContext,
   PrLocator,
   PrMetadata,
   ReviewComment,
-} from "./github.js";
+} from "./github";
 
 export type { Logger };
 

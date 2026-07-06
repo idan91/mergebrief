@@ -2,9 +2,10 @@
 // and installation-scoped Octokit minting. Built entirely on octokit's `App`
 // class, which owns JWT signing and installation-token minting/caching
 // internally — this module never hand-rolls either.
-import { App, type Octokit } from "octokit";
+import { App, Octokit } from "octokit";
 import type { InstallationId } from "persistence";
 import type { GitHubConfig } from "./config";
+import { retryOptions } from "./retry";
 
 /**
  * A single App-JWT authenticated client, built from `GitHubConfig`. `oauth`
@@ -31,6 +32,9 @@ export function createAppClient(config: GitHubConfig): AppClient {
     webhooks: {
       secret: config.webhookSecret,
     },
+    // Every installation client minted by this App skips retrying permanent
+    // statuses — notably 406 (diff too large; see `retry.ts`).
+    Octokit: Octokit.defaults({ retry: retryOptions() }),
   });
 }
 

@@ -5,8 +5,8 @@
  * mark what is new in *this* revision (shared, per-revision, never the
  * per-reviewer Delta Brief). Absent on the first brief (no previous head).
  */
-import { splitDiffByFile, type FileDiff } from "./diff.js";
-import type { LineRange } from "./types.js";
+import { splitDiffByFile, type FileDiff } from "./diff";
+import type { LineRange } from "./types";
 
 export interface RevisionChangeFile {
   file: string;

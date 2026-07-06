@@ -51,8 +51,18 @@ export { postEntryComment, deleteComment } from "./comments";
 export type { PostEntryCommentInput, DeleteCommentInput } from "./comments";
 export { fetchRepositoryById } from "./repo";
 export type { RepositoryInfo } from "./repo";
-export { fetchPullRequest, fetchDiff, fetchCompareDiff } from "./pull-request";
-export type { PullRequestRef, PullRequestInfo, CompareDiffRef } from "./pull-request";
+export {
+  fetchPullRequest,
+  fetchPullRequestFiles,
+  fetchDiff,
+  fetchCompareDiff,
+} from "./pull-request";
+export type {
+  PullRequestRef,
+  PullRequestInfo,
+  PullRequestFile,
+  CompareDiffRef,
+} from "./pull-request";
 
 // Reviewer OAuth (user-to-server) helpers (BRIEF-2 stage 6, PR C): web-flow
 // URL, code exchange, token refresh, and the two user-token REST reads the

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildComparisonMarks, comparisonMarksName } from "../src/comparison.js";
-import { splitDiffByFile } from "../src/diff.js";
+import { buildComparisonMarks, comparisonMarksName } from "../src/comparison";
+import { splitDiffByFile } from "../src/diff";
 
 const sample = `diff --git a/src/a.ts b/src/a.ts
 index 111..222 100644
