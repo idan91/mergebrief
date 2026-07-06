@@ -949,6 +949,11 @@ function BriefScreen({
         clearDrafts={clearDrafts}
         availability={availability}
         compareState={compareState}
+        /* DB path (plan present): the standalone preview route only resolves
+           LOCAL brief ids — open the in-page drawer instead. */
+        openSummaryPreviewDrawer={
+          comparisonPlan === undefined ? undefined : openSummaryPreview
+        }
       />
       {/* Focus mode (Z) strips the page chrome and centers a single chunk in
           a narrow reading column — the visible payoff of "focus". The banner

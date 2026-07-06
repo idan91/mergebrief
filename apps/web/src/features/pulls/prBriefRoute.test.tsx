@@ -8,7 +8,13 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { briefFixture } from "../brief/fixtures";
@@ -239,6 +245,25 @@ describe("DB brief route", () => {
     expect((button as HTMLButtonElement).disabled).toBe(false);
     expect(button.getAttribute("aria-pressed")).toBe("true");
     void queryClient;
+  });
+
+  it("Summary preview opens the in-page drawer (the standalone route can't resolve db: ids)", async () => {
+    await renderRoute(
+      meta({}),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    // A BUTTON, not the local cross-route link.
+    const trigger = screen.getByRole("button", { name: /^summary preview$/i });
+    expect(trigger.getAttribute("href")).toBeNull();
+    fireEvent.click(trigger);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: /close summary preview/i }),
+      ).toBeTruthy(),
+    );
   });
 
   it("offers head-advance navigation when pinned to an older span", async () => {

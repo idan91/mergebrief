@@ -31,6 +31,13 @@ export interface HeaderProps {
   availability: CompareOptionFlags;
   /** Resolved, normalized View/Compare state (ADR 0024 plan step 6). */
   compareState: BriefSearch;
+  /**
+   * DB-backed briefs (BRIEF-19) open the summary preview as the IN-PAGE
+   * drawer via this callback: the standalone `/briefs/:id/summary-preview`
+   * route loads through the local file store and cannot resolve a `db:` id.
+   * Absent → the local cross-route link renders as before.
+   */
+  openSummaryPreviewDrawer?: (() => void) | undefined;
 }
 
 export function Header({
@@ -49,6 +56,7 @@ export function Header({
   clearDrafts,
   availability,
   compareState,
+  openSummaryPreviewDrawer,
 }: HeaderProps) {
   const headerRef = useRef<HTMLElement>(null);
   // The header height is content-driven (title length, meta lines, viewport),
@@ -167,14 +175,24 @@ export function Header({
       <button className="btn primary" type="button" onClick={openReceipt}>
         {reviewMode === "author" ? "Ready for review" : "Receipt"}
       </button>
-      <Link
-        className="btn"
-        params={{ briefId }}
-        search={{ mode: reviewMode }}
-        to="/briefs/$briefId/summary-preview"
-      >
-        Summary preview
-      </Link>
+      {openSummaryPreviewDrawer === undefined ? (
+        <Link
+          className="btn"
+          params={{ briefId }}
+          search={{ mode: reviewMode }}
+          to="/briefs/$briefId/summary-preview"
+        >
+          Summary preview
+        </Link>
+      ) : (
+        <button
+          className="btn"
+          type="button"
+          onClick={openSummaryPreviewDrawer}
+        >
+          Summary preview
+        </button>
+      )}
       <button
         className={styles["clearDrafts"]}
         type="button"
