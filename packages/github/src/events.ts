@@ -102,6 +102,8 @@ export interface ParsedPullRequestEvent {
   readonly repoId: RepoId;
   readonly repoFullName: string;
   readonly prNumber: number;
+  /** The PR title — a purgeable display label, refreshed on every event. */
+  readonly title: string;
   readonly headSha: string;
   readonly baseSha: string;
   readonly draft: boolean;
@@ -193,6 +195,7 @@ const pullRequestEventSchema = z.object({
   installation: installationRefSchema,
   repository: repositoryRefSchema,
   pull_request: z.object({
+    title: z.string(),
     head: shaRefSchema,
     base: shaRefSchema,
     draft: z.boolean(),
@@ -281,6 +284,7 @@ function parsePullRequest(
     repoId: data.repository.id,
     repoFullName: data.repository.full_name,
     prNumber: data.number,
+    title: data.pull_request.title,
     headSha: data.pull_request.head.sha,
     baseSha: data.pull_request.base.sha,
     draft: data.pull_request.draft,

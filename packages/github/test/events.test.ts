@@ -74,6 +74,9 @@ describe("parseWebhookEvent — pull_request", () => {
       );
       expect(event.draft).toBe(false);
       expect(typeof event.installationId).toBe("bigint");
+      // The title rides every handled pull_request payload — persisted as the
+      // picker's display label (BRIEF-19 list endpoint).
+      expect(event.title).toBe("Update the README with new information.");
     });
   }
 

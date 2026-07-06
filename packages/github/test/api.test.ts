@@ -7,8 +7,8 @@ import { describe, expect, it, vi } from "vitest";
 import { deleteComment, postEntryComment } from "../src/comments";
 import { GitHubApiErrorCode } from "../src/errors";
 import { fetchPullRequest, fetchPullRequestFiles, fetchDiff, fetchCompareDiff } from "../src/pull-request";
-import { fetchRepositoryById } from "../src/repo";
-import { isRepoId } from "../src/ids";
+import { fetchRepositoryById, listInstallationRepositoriesForUser } from "../src/repo";
+import { isInstallationId, isRepoId } from "../src/ids";
 
 // A leaked auth header/token must never surface in a sanitized error. We plant
 // one in the thrown RequestError's request options and assert it never escapes.
@@ -66,6 +66,11 @@ function mockOctokit(overrides: {
 
 function toRepoId(value: bigint) {
   if (!isRepoId(value)) throw new Error("expected a positive repo id");
+  return value;
+}
+
+function toInstallationId(value: bigint) {
+  if (!isInstallationId(value)) throw new Error("expected a positive installation id");
   return value;
 }
 
@@ -197,6 +202,68 @@ describe("fetchRepositoryById", () => {
     const request = vi.fn().mockResolvedValue({ data: { id: 1 } });
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+  });
+});
+
+describe("listInstallationRepositoriesForUser", () => {
+  const INSTALLATION = toInstallationId(987654n);
+
+  function repositoriesResponse(
+    repos: ReadonlyArray<{ id: number; full_name: string }>,
+    totalCount = repos.length,
+  ) {
+    return { status: 200, data: { total_count: totalCount, repositories: repos } };
+  }
+
+  it("returns the numeric repo-id → verified-name map, capped per_page request", async () => {
+    const request = vi.fn().mockResolvedValue(
+      repositoriesResponse([
+        { id: 101, full_name: "octo/alpha" },
+        { id: 202, full_name: "octo/beta" },
+      ]),
+    );
+    const octokit = mockOctokit({ request });
+    const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.size).toBe(2);
+    expect(result.value.get(toRepoId(101n))).toBe("octo/alpha");
+    expect(result.value.get(toRepoId(202n))).toBe("octo/beta");
+    // One request, viewer-scoped endpoint, capped at the 100-repo page.
+    expect(request).toHaveBeenCalledTimes(1);
+    const [route, params] = request.mock.calls[0] ?? [];
+    expect(String(route)).toContain("/user/installations/{installation_id}/repositories");
+    expect(params).toMatchObject({ installation_id: 987654, per_page: 100 });
+  });
+
+  it("maps a 401 to a sanitized unauthorized error (refresh trigger)", async () => {
+    const request = vi.fn().mockRejectedValue(requestError(401));
+    const octokit = mockOctokit({ request });
+    const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.UNAUTHORIZED);
+    expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
+  });
+
+  it("maps an unexpected 2xx body to a request-failed error", async () => {
+    const request = vi.fn().mockResolvedValue({ status: 200, data: { nope: true } });
+    const octokit = mockOctokit({ request });
+    const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+  });
+
+  it("rejects a repo id past the safe-integer range", async () => {
+    const request = vi.fn().mockResolvedValue(
+      repositoriesResponse([{ id: Number.MAX_SAFE_INTEGER + 2, full_name: "octo/huge" }]),
+    );
+    const octokit = mockOctokit({ request });
+    const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
