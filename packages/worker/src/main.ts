@@ -54,6 +54,7 @@ async function main(): Promise<void> {
       FAILURE_DUMP_DIR,
     ),
     github: appGitHubPort(createAppClient(githubConfig.value)),
+    publicBaseUrl: config.value.publicBaseUrl,
     log: (message) => console.error(`[worker] ${message}`),
   });
 

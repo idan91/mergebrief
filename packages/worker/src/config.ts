@@ -10,6 +10,9 @@
 //                            — the key never lives in DB or repo config).
 //                            Defaults to ANTHROPIC_API_KEY. The named var must
 //                            be set and non-empty.
+//   PUBLIC_BASE_URL          required; the web deployment's public origin —
+//                            the Entry comment's deep-link base (ADR 0016 #3).
+//                            Same variable the web tier already requires.
 import { loadConfig as loadPersistenceConfig } from "persistence";
 import { z } from "zod";
 import type { Result, ValueOf } from "types";
@@ -28,6 +31,8 @@ export interface WorkerConfig {
   readonly providerApiKeyEnv: string;
   /** The resolved provider API key. Never log, never echo in errors. */
   readonly providerApiKey: string;
+  /** The web deployment's public origin — the Entry comment's deep-link base. */
+  readonly publicBaseUrl: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -53,6 +58,10 @@ const keyEnvNameSchema = z
   .string()
   .min(1, "GENERATOR_API_KEY_ENV must not be empty")
   .optional();
+
+const publicBaseUrlSchema = z
+  .string({ required_error: "required (the Entry comment's deep-link base)" })
+  .url("must be a valid URL");
 
 // ---------------------------------------------------------------------------
 // Loader.
@@ -94,7 +103,14 @@ export function loadConfig(
     }
   }
 
-  if (!persistence.ok || providerApiKey === undefined) {
+  const baseUrlParsed = publicBaseUrlSchema.safeParse(env["PUBLIC_BASE_URL"]);
+  if (!baseUrlParsed.success) {
+    // The value may be misconfigured but is not a secret; still, only the
+    // reason is echoed — consistent with the rest of this surface.
+    issues.push(...baseUrlParsed.error.issues.map((issue) => `PUBLIC_BASE_URL: ${issue.message}`));
+  }
+
+  if (!persistence.ok || providerApiKey === undefined || !baseUrlParsed.success) {
     return {
       ok: false,
       error: {
@@ -111,6 +127,7 @@ export function loadConfig(
       databaseUrl: persistence.value.databaseUrl,
       providerApiKeyEnv,
       providerApiKey,
+      publicBaseUrl: baseUrlParsed.data,
     },
   };
 }

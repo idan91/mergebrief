@@ -61,6 +61,8 @@ services:
         required: false
     environment:
       DATABASE_URL: postgres://code_review:code_review@postgres:5432/code_review
+      # The Entry comment's deep-link base — same value the web tier uses.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
     # No HTTP surface to probe; liveness = the runner process itself.
     # Restart on crash so a transient boot race (e.g. Postgres restarting)
     # self-heals without an operator.

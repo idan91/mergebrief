@@ -138,6 +138,45 @@ describe("forTenant — cross-tenant child writes are rejected without a DB writ
     // B's PR is untouched.
     expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.OPEN);
   });
+
+  it("setEntryComment on a PR outside the tenant returns notFound", async () => {
+    const handle = await freshDatabase();
+    const a = forTenant(handle, CTX_A);
+    const b = forTenant(handle, CTX_B);
+
+    const bPr = await b.pullRequests.upsert(upsertInput(7));
+    const result = await a.pullRequests.setEntryComment(bPr.id, 9001n);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error("expected a rejection");
+    }
+    expect(result.error.code).toBe(RepositoryErrorCode.NOT_FOUND);
+    // B's PR is untouched.
+    expect((await b.pullRequests.getByNumber(REPO, 7))?.entryCommentId).toBeNull();
+  });
+});
+
+describe("forTenant — entry comment rotation (ADR 0016 #3 delete+repost)", () => {
+  it("setEntryComment stores and rotates the comment id", async () => {
+    const handle = await freshDatabase();
+    const a = forTenant(handle, CTX_A);
+
+    const pr = await a.pullRequests.upsert(upsertInput(7));
+    expect(pr.entryCommentId).toBeNull();
+
+    const first = await a.pullRequests.setEntryComment(pr.id, 9001n);
+    expect(first.ok).toBe(true);
+    if (!first.ok) throw new Error("expected success");
+    expect(first.value.entryCommentId).toBe(9001n);
+
+    // Rotation: a repost replaces the stored id in place.
+    const second = await a.pullRequests.setEntryComment(pr.id, 9002n);
+    expect(second.ok).toBe(true);
+    if (!second.ok) throw new Error("expected success");
+    expect(second.value.entryCommentId).toBe(9002n);
+    expect((await a.pullRequests.getById(pr.id))?.entryCommentId).toBe(9002n);
+  });
 });
 
 describe("forTenant — idempotent upserts", () => {

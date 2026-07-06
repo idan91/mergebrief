@@ -42,7 +42,7 @@ doesn't apply — several loaders distinguish unset from empty.
 | `GITHUB_WEBHOOK_SECRET` | web | HMAC for inbound deliveries |
 | `GITHUB_OAUTH_CLIENT_ID` / `_SECRET` | web | reviewer login |
 | `SESSION_KEY_V1` | web | `openssl rand -base64 32` |
-| `PUBLIC_BASE_URL` | web | must match the App's OAuth callback origin |
+| `PUBLIC_BASE_URL` | web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it |
 | `ANTHROPIC_API_KEY` | worker | your model key (BYOK — your spend) |
 | `GENERATOR_API_KEY_ENV` | worker | optional; NAME of the key var (default `ANTHROPIC_API_KEY`) |
 | `DATABASE_URL` | — | ignored in compose (overridden to the in-network DSN) |

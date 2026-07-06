@@ -44,6 +44,7 @@ import type {
 const HEAD_1 = "a".repeat(40);
 const HEAD_2 = "b".repeat(40);
 const BASE = "c".repeat(40);
+const PUBLIC_URL = "https://brief.example";
 
 const SMALL_DIFF = `diff --git a/a.ts b/a.ts
 --- a/a.ts
@@ -128,6 +129,14 @@ interface StubGitHub extends GitHubPort {
   /** Scripted head SHAs consumed per fetchPullRequest call; then info.headSha. */
   nextHeads: string[];
   fetchPullRequestError?: GitHubApiError;
+  /** Live Entry comments by id (the delete+repost cycle's observable state). */
+  comments: Map<bigint, string>;
+  /** Every comment op in order: `post:<id>` / `delete:<id>`. */
+  commentCalls: string[];
+  postEntryCommentError?: GitHubApiError;
+  deleteCommentError?: GitHubApiError;
+  /** Test hook run after a successful post, before it returns (interleaving). */
+  onPostEntryComment?: () => Promise<void>;
 }
 
 function ok<T>(value: T): Result<T, GitHubApiError> {
@@ -150,6 +159,8 @@ function stubGitHub(headSha: string): StubGitHub {
     diff: SMALL_DIFF,
     compareDiffs: new Map(),
     nextHeads: [],
+    comments: new Map(),
+    commentCalls: [],
     async forPullRequest() {
       return {
         fetchPullRequest: async () => {
@@ -163,6 +174,25 @@ function stubGitHub(headSha: string): StubGitHub {
         fetchDiff: async () => ok(stub.diff),
         fetchCompareDiff: async (base: string, head: string) =>
           ok(stub.compareDiffs.get(`${base}...${head}`) ?? SMALL_DIFF),
+        postEntryComment: async (body: string) => {
+          if (stub.postEntryCommentError) {
+            return { ok: false, error: stub.postEntryCommentError };
+          }
+          const commentId = BigInt(9000 + stub.comments.size + stub.commentCalls.length);
+          stub.comments.set(commentId, body);
+          stub.commentCalls.push(`post:${commentId}`);
+          await stub.onPostEntryComment?.();
+          return ok({ commentId });
+        },
+        deleteComment: async (commentId: bigint) => {
+          if (stub.deleteCommentError) {
+            return { ok: false, error: stub.deleteCommentError };
+          }
+          // Mirrors the real adapter: a 404 (unknown id) maps to ok.
+          stub.comments.delete(commentId);
+          stub.commentCalls.push(`delete:${commentId}`);
+          return ok(undefined);
+        },
       };
     },
   };
@@ -218,7 +248,7 @@ describe("generate task", () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
 
     await task(payload);
 
@@ -237,11 +267,217 @@ describe("generate task", () => {
     expect(generator.calls).toEqual(["brief"]);
   });
 
+  it("posts the Entry comment with the exact-span deep link and stores its id", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    expect(github.comments.size).toBe(1);
+    const [commentId, body] = [...github.comments.entries()][0] ?? [];
+    expect(body).toContain(`${PUBLIC_URL}/repos/7/pulls/7?base=${BASE}&head=${HEAD_1}`);
+
+    const row = await forTenant(harness.handle, ctx).pullRequests.getById(pr.id);
+    expect(row?.entryCommentId).toBe(commentId);
+  });
+
+  it("posts a generating comment while the brief is produced, replaced on ready (delete+repost)", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    const inner = stubGenerator();
+    // Capture the live comment at the moment the model call runs.
+    let bodyDuringGeneration: string | undefined;
+    const generator: Generator = {
+      async generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>> {
+        if (req.label === "brief") {
+          bodyDuringGeneration = [...github.comments.values()][0];
+        }
+        return inner.generate(req);
+      },
+      provenance: (effort: Effort) => inner.provenance(effort),
+    };
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    // While generating: the branded comment was already live, deep-linking the
+    // wait screen for this exact span.
+    expect(bodyDuringGeneration).toContain("generating");
+    expect(bodyDuringGeneration).toContain(`${PUBLIC_URL}/repos/7/pulls/7?base=${BASE}&head=${HEAD_1}`);
+
+    // On ready: delete+repost — exactly one comment left, the ready body.
+    expect(github.comments.size).toBe(1);
+    const [readyId, readyBody] = [...github.comments.entries()][0] ?? [];
+    expect(readyBody).toContain("Read the Brief");
+    expect(readyBody).not.toContain("generating");
+    const row = await forTenant(harness.handle, ctx).pullRequests.getById(pr.id);
+    expect(row?.entryCommentId).toBe(readyId);
+
+    // Exact cycle: post generating → delete generating → post ready. The
+    // delete must target the GENERATING comment's id (the in-run rotation),
+    // never the stale pre-run stored id.
+    const genId = github.commentCalls[0]?.slice("post:".length);
+    expect(github.commentCalls).toEqual([`post:${genId}`, `delete:${genId}`, `post:${readyId}`]);
+  });
+
+  it("a rerun for an already-briefed head posts no generating comment", async () => {
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    const first = await trigger(HEAD_1);
+    await task(first.payload);
+    const afterFirstRun = github.commentCalls.length;
+    const [readyId] = [...github.comments.entries()][0] ?? [];
+
+    // Same head re-queued (review-submitted gap-filler / redelivery): the
+    // brief is already stored, so no generation and no generating comment —
+    // only the ready refresh.
+    const second = await trigger(HEAD_1);
+    await task(second.payload);
+
+    const rerunCalls = github.commentCalls.slice(afterFirstRun);
+    const [newReadyId] = [...github.comments.entries()][0] ?? [];
+    expect(rerunCalls).toEqual([`delete:${readyId}`, `post:${newReadyId}`]);
+    expect([...github.comments.values()][0]).toContain("Read the Brief");
+  });
+
+  it("second push replaces the Entry comment: old deleted, new posted, stored id rotated", async () => {
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    const first = await trigger(HEAD_1);
+    await task(first.payload);
+    const firstId = [...github.comments.keys()][0];
+    expect(firstId).toBeDefined();
+
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+
+    // Never two comments; the survivor is the new one.
+    expect(github.comments.size).toBe(1);
+    const [secondId, body] = [...github.comments.entries()][0] ?? [];
+    expect(secondId).not.toBe(firstId);
+    expect(body).toContain(`head=${HEAD_2}`);
+    expect(github.commentCalls).toContain(`delete:${firstId}`);
+
+    const row = await forTenant(harness.handle, ctx).pullRequests.getById(second.pr.id);
+    expect(row?.entryCommentId).toBe(secondId);
+  });
+
+  it("a superseded run posts nothing", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_2); // head advanced past the job's
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+    });
+
+    await task(payload);
+
+    expect(github.comments.size).toBe(0);
+    expect(github.commentCalls).toEqual([]);
+  });
+
+  it("an Entry comment post failure logs and does not fail the job", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.postEntryCommentError = {
+      code: "request-failed",
+      status: 502,
+      message: "failed to post entry comment: GitHub API returned status 502",
+    };
+    const logs: string[] = [];
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      log: (message) => logs.push(message),
+    });
+
+    await task(payload);
+
+    const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+    expect((await forTenant(harness.handle, ctx).pullRequests.getById(pr.id))?.entryCommentId).toBeNull();
+    expect(logs.some((line) => line.includes("entry comment post failed"))).toBe(true);
+  });
+
+  it("best-effort deletes the posted comment when storing its id fails (no untracked orphan)", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    // Interleave: the PR row vanishes between the READY post and its
+    // setEntryComment (purge race) — the only way the id-store can fail. The
+    // first post is the generating comment; the row must survive it (the
+    // brief write needs the parent).
+    let posts = 0;
+    github.onPostEntryComment = async () => {
+      posts += 1;
+      if (posts === 2) {
+        await harness.raw(`delete from pull_request where id = ${pr.id}`);
+      }
+    };
+    const logs: string[] = [];
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      log: (message) => logs.push(message),
+    });
+
+    await task(payload);
+
+    // The untracked comment was cleaned up — no orphan survives for a later
+    // run to post past.
+    expect(github.comments.size).toBe(0);
+    const lastPost = github.commentCalls.filter((call) => call.startsWith("post:")).at(-1);
+    expect(lastPost).toBeDefined();
+    const orphanId = lastPost?.slice("post:".length);
+    // The cleanup delete follows the failed store — the run's final call.
+    expect(github.commentCalls.at(-1)).toBe(`delete:${orphanId}`);
+    expect(logs.some((line) => line.includes("entry comment id not stored"))).toBe(true);
+  });
+
+  it("an Entry comment delete failure skips the repost (never two comments) and keeps the stored id", async () => {
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    const first = await trigger(HEAD_1);
+    await task(first.payload);
+    const firstId = [...github.comments.keys()][0];
+
+    github.info = { ...github.info, headSha: HEAD_2 };
+    github.deleteCommentError = {
+      code: "forbidden",
+      status: 403,
+      message: "failed to delete comment: GitHub API returned status 403",
+    };
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+
+    // The old comment survives alone; no second comment was posted past it.
+    expect([...github.comments.keys()]).toEqual([firstId]);
+    const row = await forTenant(harness.handle, ctx).pullRequests.getById(second.pr.id);
+    expect(row?.entryCommentId).toBe(firstId);
+    // The job itself still succeeded.
+    const projection = await generationProjection(harness.handle, ctx).get(target(second.pr, HEAD_2));
+    expect(projection?.status).toBe(GenerationStatus.SUCCEEDED);
+  });
+
   it("marks superseded (attempts untouched, no generator call) when the head advanced", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_2); // GitHub's head moved past the job's
-    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
 
     const projection = generationProjection(harness.handle, ctx);
     const before = await projection.get(target(pr, HEAD_1));
@@ -264,7 +500,7 @@ describe("generate task", () => {
     expect(setState.ok).toBe(true);
     const generator = stubGenerator();
     const task = createGenerateTask({
-      handle: harness.handle,
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
       generator,
       github: stubGitHub(HEAD_1),
     });
@@ -280,7 +516,7 @@ describe("generate task", () => {
     const { payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
 
     await task(payload);
     await task(payload); // retry / redelivery
@@ -292,7 +528,7 @@ describe("generate task", () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
     await task(first.payload);
 
     github.info = { ...github.info, headSha: HEAD_2 };
@@ -324,7 +560,7 @@ describe("generate task", () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
     await task(first.payload);
 
     // Two reviewers sharing one checkpoint SHA → ONE delta core.
@@ -366,7 +602,7 @@ describe("generate task", () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
     await task(first.payload);
 
     const written = await forTenant(harness.handle, ctx).checkpoints.upsertOnSubmit({
@@ -392,7 +628,7 @@ describe("generate task", () => {
   it("drops a malformed payload without touching the database", async () => {
     const generator = stubGenerator();
     const task = createGenerateTask({
-      handle: harness.handle,
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
       generator,
       github: stubGitHub(HEAD_1),
     });
@@ -411,7 +647,7 @@ describe("generate task", () => {
       message: "failed to fetch pull request: GitHub API returned status 404",
     };
     const task = createGenerateTask({
-      handle: harness.handle,
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
       generator: stubGenerator(),
       github,
     });
@@ -432,7 +668,7 @@ describe("generate task", () => {
       message: "failed to fetch pull request: GitHub API returned status 502",
     };
     const task = createGenerateTask({
-      handle: harness.handle,
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
       generator: stubGenerator(),
       github,
     });
@@ -467,7 +703,7 @@ describe("generate task", () => {
     };
 
     const task = createGenerateTask({
-      handle: harness.handle,
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
       generator: hangingGenerator,
       github,
       headPollIntervalMs: 5,
@@ -500,7 +736,7 @@ describe("generate task", () => {
     github.nextHeads = [HEAD_1];
     github.info = { ...github.info, headSha: HEAD_2 };
     const generator = stubGenerator();
-    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
 
     await expect(task(payload)).resolves.toBeUndefined();
 
@@ -516,7 +752,7 @@ describe("generate task", () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const task = createGenerateTask({
-      handle: harness.handle,
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
       generator,
       github: stubGitHub(HEAD_1),
     });
@@ -548,7 +784,7 @@ describe("generate task", () => {
       provenance: (effort: Effort) => ({ provider: "stub", model: "stub-model", effort }),
     };
     const task = createGenerateTask({
-      handle: harness.handle,
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
       generator: hangingGenerator,
       github: stubGitHub(HEAD_1),
     });
@@ -565,7 +801,7 @@ describe("generate task", () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
     await task(first.payload);
 
     github.info = { ...github.info, headSha: HEAD_2 };
@@ -607,7 +843,7 @@ describe("generate task", () => {
 
     const generator = stubGenerator();
     const task = createGenerateTask({
-      handle: harness.handle,
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
       generator,
       github: stubGitHub(HEAD_2),
     });
@@ -624,7 +860,7 @@ describe("generate task", () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
 
     const overloaded = Object.assign(new Error("Overloaded"), { status: 529 });
     generator.failNextWith = overloaded;

@@ -225,6 +225,15 @@ export interface PullRequestRepository {
     pullRequestId: PullRequestRowId,
     patch: PullRequestStatePatch,
   ): Promise<Result<PullRequestRow, RepositoryError>>;
+  /**
+   * Store/rotate the Entry comment id after a delete+repost cycle (ADR 0016
+   * #3). A plain GitHub comment id (no branded type — D5); `notFound` if no
+   * row in ctx's tenant.
+   */
+  setEntryComment(
+    pullRequestId: PullRequestRowId,
+    entryCommentId: bigint,
+  ): Promise<Result<PullRequestRow, RepositoryError>>;
 }
 
 export interface CheckpointRepository {
@@ -352,6 +361,24 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           ...lifecycleColumns(patch),
           updatedAt: new Date(),
         })
+        .where(
+          and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)),
+        )
+        .returning();
+      const row = rows[0];
+      if (row === undefined) {
+        return fail(
+          RepositoryErrorCode.NOT_FOUND,
+          `pull_request ${pullRequestId} not found in tenant ${installationId}`,
+        );
+      }
+      return { ok: true, value: row };
+    },
+
+    async setEntryComment(pullRequestId, entryCommentId) {
+      const rows = await db
+        .update(pullRequest)
+        .set({ entryCommentId, updatedAt: new Date() })
         .where(
           and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)),
         )

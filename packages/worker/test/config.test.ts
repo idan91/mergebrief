@@ -4,6 +4,7 @@ import { ConfigErrorCode, loadConfig } from "../src/config";
 const VALID_ENV = {
   DATABASE_URL: "postgres://user:pass@localhost:5432/db",
   ANTHROPIC_API_KEY: "sk-ant-test",
+  PUBLIC_BASE_URL: "https://brief.example",
 };
 
 describe("loadConfig", () => {
@@ -14,11 +15,28 @@ describe("loadConfig", () => {
     expect(result.value.databaseUrl).toBe(VALID_ENV.DATABASE_URL);
     expect(result.value.providerApiKeyEnv).toBe("ANTHROPIC_API_KEY");
     expect(result.value.providerApiKey).toBe("sk-ant-test");
+    expect(result.value.publicBaseUrl).toBe("https://brief.example");
+  });
+
+  it("rejects a missing PUBLIC_BASE_URL (the Entry comment's deep-link base)", () => {
+    const { PUBLIC_BASE_URL: _omitted, ...withoutBaseUrl } = VALID_ENV;
+    const result = loadConfig(withoutBaseUrl);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join(";")).toContain("PUBLIC_BASE_URL");
+  });
+
+  it("rejects a non-URL PUBLIC_BASE_URL", () => {
+    const result = loadConfig({ ...VALID_ENV, PUBLIC_BASE_URL: "not a url" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join(";")).toContain("PUBLIC_BASE_URL");
   });
 
   it("resolves the key from a custom env-var name (BYOK by env-name)", () => {
     const result = loadConfig({
       DATABASE_URL: VALID_ENV.DATABASE_URL,
+      PUBLIC_BASE_URL: VALID_ENV.PUBLIC_BASE_URL,
       GENERATOR_API_KEY_ENV: "MY_PROVIDER_KEY",
       MY_PROVIDER_KEY: "byok-key",
     });

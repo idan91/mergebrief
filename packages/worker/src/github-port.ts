@@ -4,11 +4,13 @@
 // via `github`'s App auth (ADR 0016 trust boundary — the worker acts as the
 // App, never as a user); tests substitute an in-memory port.
 import {
+  deleteComment,
   fetchCompareDiff,
   fetchDiff,
   fetchPullRequest,
   fetchPullRequestFiles,
   getInstallationClient,
+  postEntryComment,
   type AppClient,
   type GitHubApiError,
   type PullRequestFile,
@@ -19,7 +21,7 @@ import type { Result } from "types";
 
 export type { GitHubApiError, PullRequestFile, PullRequestInfo };
 
-/** The reads a generate job performs, bound to one (installation, repo, PR). */
+/** The GitHub calls a generate job performs, bound to one (installation, repo, PR). */
 export interface PullRequestSource {
   fetchPullRequest(): Promise<Result<PullRequestInfo, GitHubApiError>>;
   fetchPullRequestFiles(): Promise<Result<PullRequestFile[], GitHubApiError>>;
@@ -27,6 +29,10 @@ export interface PullRequestSource {
   fetchDiff(): Promise<Result<string, GitHubApiError>>;
   /** The `base...head` span diff (narrative/marks/delta inputs). */
   fetchCompareDiff(base: string, head: string): Promise<Result<string, GitHubApiError>>;
+  /** Post the branded Entry comment (ADR 0016 #3); returns the comment id. */
+  postEntryComment(body: string): Promise<Result<{ readonly commentId: bigint }, GitHubApiError>>;
+  /** Delete a prior Entry comment; a 404 (already gone) maps to ok. */
+  deleteComment(commentId: bigint): Promise<Result<void, GitHubApiError>>;
 }
 
 export interface GitHubPort {
@@ -68,6 +74,10 @@ export function appGitHubPort(app: AppClient): GitHubPort {
         fetchDiff: () => fetchDiff(octokit, ref),
         fetchCompareDiff: (base, head) =>
           fetchCompareDiff(octokit, { owner: ref.owner, repo: ref.repo, base, head }),
+        postEntryComment: (body) =>
+          postEntryComment(octokit, { owner: ref.owner, repo: ref.repo, prNumber, body }),
+        deleteComment: (commentId) =>
+          deleteComment(octokit, { owner: ref.owner, repo: ref.repo, commentId }),
       };
     },
   };
