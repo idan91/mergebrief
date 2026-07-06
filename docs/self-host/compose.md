@@ -73,8 +73,13 @@ docker compose exec postgres psql -U code_review -d code_review \
 
 - `generation.status` walks `queued → running → succeeded` (or `superseded`
   after a superseding push; `failed` carries a sanitized reason).
-- A misconfigured service **fails loudly at boot** — `docker compose logs
-  web worker` shows exactly which env var the config loader rejected.
+- Misconfiguration surfaces differently per service: the **worker fails
+  loudly at boot** (`docker compose logs worker` names the rejected env
+  var), while the **web tier composes lazily on the first `/api`/`/auth`
+  request** — it boots and reports healthy on bad env, then 503s the first
+  webhook delivery or login with the config error in `docker compose logs
+  web`. After `up`, hit `curl -i localhost:3000/api/repos/0/pulls/0/brief`
+  once: a 401 means the web env parsed; a 503 means check the logs.
 - The worker retries transient failures with backoff (graphile-owned);
   permanent conditions (e.g. GitHub's "diff too large" 406) are recorded as
   `failed` without retry.

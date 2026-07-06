@@ -9,5 +9,13 @@ node_modules
 tools/categorizer/out
 apps/web/out
 docs
+# Mirror .gitignore's secret patterns — nothing credential-shaped may enter
+# an image layer (COPY . . would otherwise bake it in).
 .env
 **/.env
+.env.*
+**/.env.*
+!.env.example
+**/*.pem
+**/*.key
+secrets
