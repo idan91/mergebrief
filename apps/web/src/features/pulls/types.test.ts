@@ -68,6 +68,45 @@ describe("parsePrSummary", () => {
   });
 });
 
+describe("parsePrSummary comparisons (PR-meta only)", () => {
+  it("accepts an absent comparisons key (list rows) and an empty envelope", () => {
+    expect(parsePrSummary(ROW).ok).toBe(true);
+    const empty = parsePrSummary({ ...ROW, comparisons: {} });
+    expect(empty.ok).toBe(true);
+    if (!empty.ok) throw new Error("unreachable");
+    expect(empty.value.comparisons?.previousBrief).toBeUndefined();
+  });
+
+  it("parses previousBrief availability", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      comparisons: {
+        previousBrief: {
+          baselineSha: "head-0",
+          baselineIndex: 1,
+          narrativeAvailable: true,
+        },
+      },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.comparisons?.previousBrief).toEqual({
+      baselineSha: "head-0",
+      baselineIndex: 1,
+      narrativeAvailable: true,
+    });
+  });
+
+  it("rejects a malformed previousBrief", () => {
+    expect(
+      parsePrSummary({
+        ...ROW,
+        comparisons: { previousBrief: { baselineSha: 5 } },
+      }).ok,
+    ).toBe(false);
+  });
+});
+
 describe("parsePullsList", () => {
   it("accepts { pulls: [...] } and rejects a bare array", () => {
     const ok = parsePullsList({ pulls: [ROW] });

@@ -15,6 +15,7 @@ import { briefFixture } from "../brief/fixtures";
 import { routeTree } from "../../routeTree.gen";
 import {
   dbBriefQueryOptions,
+  dbComparisonMarksQueryOptions,
   prDiffQueryOptions,
   prMetaQueryOptions,
 } from "./queries";
@@ -75,6 +76,48 @@ async function renderRoute(metaValue: PrSummary, path: string) {
     </QueryClientProvider>,
   );
   return router;
+}
+
+/** Like renderRoute, but also seeds the previous-brief marks artifact. */
+async function renderRouteWithMarks(metaValue: PrSummary, path: string) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  queryClient.setQueryData(
+    prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+    metaValue,
+  );
+  queryClient.setQueryData(
+    dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    briefFixture,
+  );
+  queryClient.setQueryData(
+    prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+    "",
+  );
+  queryClient.setQueryData(
+    dbComparisonMarksQueryOptions(REPO_ID, PR_NUMBER, "head-0", SPAN.head, 1)
+      .queryKey,
+    {
+      baselineSha: "head-0",
+      headSha: SPAN.head,
+      baselineLabel: "previous-brief",
+      baselineIndex: 1,
+      files: [],
+    },
+  );
+  const router = createRouter({
+    routeTree,
+    context: { queryClient },
+    history: createMemoryHistory({ initialEntries: [path] }),
+  });
+  await router.load();
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  return queryClient;
 }
 
 describe("DB brief route", () => {
@@ -158,6 +201,44 @@ describe("DB brief route", () => {
       expect(search.base).toBe(SPAN.base);
       expect(search.head).toBe(SPAN.head);
     });
+  });
+
+  it("Compare is disabled when the meta offers no previous-brief baseline", async () => {
+    await renderRoute(
+      meta({}),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    const button = screen.getByRole("button", { name: /^previous brief$/i });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(button.getAttribute("title")).toMatch(/no previous brief/i);
+  });
+
+  it("Compare previous-brief activates from the URL when the meta offers it", async () => {
+    const queryClient = await (async () => {
+      const withComparison = meta({
+        comparisons: {
+          previousBrief: {
+            baselineSha: "head-0",
+            baselineIndex: 1,
+            narrativeAvailable: false,
+          },
+        },
+      });
+      return renderRouteWithMarks(
+        withComparison,
+        `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}&compare=previous-brief&view=full`,
+      );
+    })();
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    const button = screen.getByRole("button", { name: /^previous brief$/i });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    void queryClient;
   });
 
   it("offers head-advance navigation when pinned to an older span", async () => {

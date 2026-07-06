@@ -1,4 +1,9 @@
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useQuery,
+  useSuspenseQuery,
+  type QueryKey,
+  type UseQueryOptions,
+} from "@tanstack/react-query";
 import {
   useCallback,
   useEffect,
@@ -60,6 +65,7 @@ import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import { buildBriefTimeline } from "../../timeline";
 import type {
   Brief,
+  ComparisonMarks,
   LocalBriefSummary,
   RevisionNarrativeArtifact,
 } from "../../types";
@@ -218,9 +224,35 @@ export function BriefPage({
   );
 }
 
+/** A ready-to-run react-query descriptor supplied by the comparison plan. */
+type ComparisonQuery<T> = UseQueryOptions<T> & { readonly queryKey: QueryKey };
+
+/** Typed placeholder for a plan slot that is absent — always `enabled: false`. */
+function disabledComparisonQuery<T>(slot: string): ComparisonQuery<T> {
+  return {
+    queryKey: ["comparison-plan-disabled", slot],
+    queryFn: () => Promise.reject(new Error("comparison query disabled")),
+  };
+}
+
+/**
+ * Injected comparison data source (BRIEF-19 4.1 — the DB path). When present
+ * it REPLACES the local timeline derivation entirely: availability comes from
+ * the plan, marks/narrative fetch through its descriptors, and last-review
+ * stays unavailable (BRIEF-21). Absent → the local sidecar flow is unchanged.
+ */
+export interface BriefComparisonPlan {
+  readonly previousBrief?: {
+    readonly marks: ComparisonQuery<ComparisonMarks>;
+    /** Present when a narrative artifact exists to fetch (may be a skip stub). */
+    readonly narrative?: ComparisonQuery<RevisionNarrativeArtifact>;
+  };
+}
+
 export interface BriefViewProps extends BriefPageProps {
   /** The already-fetched Brief to render (DB path: assembled client-side). */
   brief: Brief;
+  comparisonPlan?: BriefComparisonPlan;
 }
 
 /**
@@ -233,6 +265,7 @@ export function BriefView({
   artifacts,
   brief,
   briefId,
+  comparisonPlan,
   searchParams,
 }: BriefViewProps) {
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
@@ -242,6 +275,7 @@ export function BriefView({
         artifacts={artifacts}
         brief={brief}
         briefId={briefId}
+        comparisonPlan={comparisonPlan}
         model={model}
         searchParams={searchParams}
       />
@@ -253,6 +287,7 @@ interface BriefScreenProps {
   artifacts: LocalBriefSummary[];
   brief: Brief;
   briefId: string;
+  comparisonPlan?: BriefComparisonPlan | undefined;
   model: ReturnType<typeof buildBriefViewModel>;
   searchParams: BriefSearchParams;
 }
@@ -261,6 +296,7 @@ function BriefScreen({
   artifacts,
   brief,
   briefId,
+  comparisonPlan,
   model,
   searchParams,
 }: BriefScreenProps) {
@@ -269,8 +305,14 @@ function BriefScreen({
     [artifacts, briefId],
   );
   const availability = useMemo(
-    () => comparisonAvailability(timeline.selectedPoint),
-    [timeline.selectedPoint],
+    () =>
+      comparisonPlan === undefined
+        ? comparisonAvailability(timeline.selectedPoint)
+        : {
+            previousBrief: comparisonPlan.previousBrief !== undefined,
+            lastReview: false,
+          },
+    [comparisonPlan, timeline.selectedPoint],
   );
   // View/Compare (ADR 0024 plan step 6): resolved, normalized state for the
   // selected timeline point. Overlay rendering for compare != off and the
@@ -304,16 +346,34 @@ function BriefScreen({
   const deltaId =
     activeCompare === "last-review" ? lastReviewComparison?.deltaId : undefined;
 
+  // Marks/narrative resolve from ONE source: the injected plan (DB path) or
+  // the local sidecar ids. Both query pairs exist as hooks; `enabled` picks.
+  const planPrevious = comparisonPlan?.previousBrief;
+  const planActive =
+    planPrevious !== undefined && activeCompare === "previous-brief";
+  const localMarks = useQuery({
+    ...localComparisonMarksQueryOptions(marksId ?? ""),
+    enabled: comparisonPlan === undefined && Boolean(marksId),
+  });
+  const planMarks = useQuery({
+    ...(planPrevious?.marks ??
+      disabledComparisonQuery<ComparisonMarks>("marks")),
+    enabled: planActive,
+  });
   const marks =
-    useQuery({
-      ...localComparisonMarksQueryOptions(marksId ?? ""),
-      enabled: Boolean(marksId),
-    }).data ?? null;
+    (comparisonPlan === undefined ? localMarks.data : planMarks.data) ?? null;
+  const localNarrative = useQuery({
+    ...localRevisionNarrativeQueryOptions(narrativeId ?? ""),
+    enabled: comparisonPlan === undefined && Boolean(narrativeId),
+  });
+  const planNarrative = useQuery({
+    ...(planPrevious?.narrative ??
+      disabledComparisonQuery<RevisionNarrativeArtifact>("narrative")),
+    enabled: planActive && planPrevious?.narrative !== undefined,
+  });
   const narrativeArtifact: RevisionNarrativeArtifact | null =
-    useQuery({
-      ...localRevisionNarrativeQueryOptions(narrativeId ?? ""),
-      enabled: Boolean(narrativeId),
-    }).data ?? null;
+    (comparisonPlan === undefined ? localNarrative.data : planNarrative.data) ??
+    null;
   const delta =
     useQuery({
       ...localBriefQueryOptions(deltaId ?? ""),

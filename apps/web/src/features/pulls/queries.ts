@@ -3,7 +3,7 @@
 // client refetches through the same gate. Artifact bodies are immutable per
 // span (natural-key upserts) → Infinity staleTime; the list and PR-meta are
 // live projections → short staleTime (PR-meta is the 3.2 poll target).
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryKey } from "@tanstack/react-query";
 
 import {
   ApiError,
@@ -13,8 +13,16 @@ import {
   apiFetchText,
   apiJsonFromResponse,
 } from "../../data/apiFetch";
-import { parseBrief } from "../brief/validation";
-import type { Brief } from "../brief/types";
+import {
+  parseBrief,
+  parseComparisonMarks,
+  parseRevisionNarrativeArtifact,
+} from "../brief/validation";
+import type {
+  Brief,
+  ComparisonMarks,
+  RevisionNarrativeArtifact,
+} from "../brief/types";
 import {
   parsePrSummary,
   parsePullsList,
@@ -91,6 +99,89 @@ export function dbBriefQueryOptions(
       const path = `${prPath(repoId, prNumber)}/brief?${spanQuery(base, head)}`;
       const body = await apiFetchJson(path);
       const parsed = parseBrief(body);
+      if (!parsed.ok) {
+        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+      }
+      return parsed.value;
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/**
+ * Comparison marks for a (baseline, head) span — immutable once written.
+ * The key is deliberately widened to `QueryKey`: these descriptors cross the
+ * `BriefComparisonPlan` seam typed as plain `UseQueryOptions`, and a narrower
+ * inferred key breaks that assignment (queryFn context contravariance).
+ *
+ * The DB body is D13 coordinates-only (`{ baselineSha, headSha, files }` —
+ * persistence REJECTS `baselineLabel`/`baselineIndex` at write time), while
+ * the renderer's `ComparisonMarks` carries both summary fields. They are
+ * synthesized here from what the caller already knows: this query IS the
+ * previous-brief comparison, and the index comes from PR-meta's availability.
+ */
+export function dbComparisonMarksQueryOptions(
+  repoId: string,
+  prNumber: number,
+  baselineSha: string,
+  headSha: string,
+  baselineIndex: number,
+) {
+  const queryKey: QueryKey = [
+    "comparisonMarks",
+    "db",
+    repoId,
+    prNumber,
+    baselineSha,
+    headSha,
+  ];
+  return queryOptions({
+    queryKey,
+    queryFn: async (): Promise<ComparisonMarks> => {
+      const path = `${prPath(repoId, prNumber)}/marks?baseline=${encodeURIComponent(baselineSha)}&head=${encodeURIComponent(headSha)}`;
+      const body = await apiFetchJson(path);
+      if (typeof body !== "object" || body === null) {
+        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+      }
+      const parsed = parseComparisonMarks({
+        ...body,
+        baselineLabel: "previous-brief",
+        baselineIndex,
+      });
+      if (!parsed.ok) {
+        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+      }
+      return parsed.value;
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/** Revision narrative for (prevHead, head) — real narrative or a skip stub. */
+export function dbRevisionNarrativeQueryOptions(
+  repoId: string,
+  prNumber: number,
+  prevHeadSha: string,
+  headSha: string,
+) {
+  const queryKey: QueryKey = [
+    "revisionNarrative",
+    "db",
+    repoId,
+    prNumber,
+    prevHeadSha,
+    headSha,
+  ];
+  return queryOptions({
+    queryKey,
+    queryFn: async (): Promise<RevisionNarrativeArtifact> => {
+      const path = `${prPath(repoId, prNumber)}/narrative?prevHead=${encodeURIComponent(prevHeadSha)}&head=${encodeURIComponent(headSha)}`;
+      const body = await apiFetchJson(path);
+      const parsed = parseRevisionNarrativeArtifact(body);
       if (!parsed.ok) {
         throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
       }

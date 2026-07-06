@@ -31,6 +31,18 @@ export interface GenerationSummary {
   readonly updatedAt: string;
 }
 
+/** Previous-brief comparison availability on PR meta (BRIEF-19 4.1). */
+export interface PreviousBriefComparison {
+  readonly baselineSha: string;
+  readonly baselineIndex: number;
+  readonly narrativeAvailable: boolean;
+}
+
+/** Comparison availability envelope — additive (BRIEF-21 adds lastReview). */
+export interface PrComparisons {
+  readonly previousBrief?: PreviousBriefComparison;
+}
+
 /** One PR as the list and PR-meta endpoints return it. */
 export interface PrSummary {
   readonly repoId: string;
@@ -45,6 +57,8 @@ export interface PrSummary {
   readonly briefAvailable: boolean;
   readonly generation: GenerationSummary | null;
   readonly updatedAt: string;
+  /** Present on PR-meta responses only; absent on list rows. */
+  readonly comparisons?: PrComparisons;
 }
 
 /**
@@ -126,6 +140,39 @@ function parseGenerationSummary(
   };
 }
 
+function parseComparisons(value: unknown): Result<PrComparisons | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (!isRecord(value))
+    return { ok: false, error: "comparisons must be an object" };
+  const previous = value["previousBrief"];
+  if (previous === undefined) return { ok: true, value: {} };
+  if (!isRecord(previous)) {
+    return { ok: false, error: "comparisons.previousBrief must be an object" };
+  }
+  if (typeof previous["baselineSha"] !== "string") {
+    return { ok: false, error: "previousBrief.baselineSha must be a string" };
+  }
+  if (typeof previous["baselineIndex"] !== "number") {
+    return { ok: false, error: "previousBrief.baselineIndex must be a number" };
+  }
+  if (typeof previous["narrativeAvailable"] !== "boolean") {
+    return {
+      ok: false,
+      error: "previousBrief.narrativeAvailable must be a boolean",
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      previousBrief: {
+        baselineSha: previous["baselineSha"],
+        baselineIndex: previous["baselineIndex"],
+        narrativeAvailable: previous["narrativeAvailable"],
+      },
+    },
+  };
+}
+
 export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (!isRecord(value))
     return { ok: false, error: "PR summary must be an object" };
@@ -155,6 +202,8 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (typeof value["updatedAt"] !== "string") {
     return { ok: false, error: "updatedAt must be a string" };
   }
+  const comparisons = parseComparisons(value["comparisons"]);
+  if (!comparisons.ok) return comparisons;
   return {
     ok: true,
     value: {
@@ -168,6 +217,9 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
       briefAvailable: value["briefAvailable"],
       generation: generation.value,
       updatedAt: value["updatedAt"],
+      ...(comparisons.value === undefined
+        ? {}
+        : { comparisons: comparisons.value }),
     },
   };
 }

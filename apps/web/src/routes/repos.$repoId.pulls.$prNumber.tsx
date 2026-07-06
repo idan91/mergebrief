@@ -9,7 +9,18 @@ import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 
 import { ApiError, ApiErrorKind } from "../data/apiFetch";
-import { BriefView } from "../features/brief/components/BriefPage/BriefPage";
+import {
+  parseCompareParam,
+  parseViewParam,
+  resolveBriefSearch,
+  type BriefSearch,
+  type BriefSearchParams,
+  type CompareOptionFlags,
+} from "../features/brief/compareState";
+import {
+  BriefView,
+  type BriefComparisonPlan,
+} from "../features/brief/components/BriefPage/BriefPage";
 import {
   comparisonsWarming,
   deriveBriefRouteState,
@@ -26,9 +37,12 @@ import {
   WarmingChip,
   waitLabel,
 } from "../features/pulls/components/PrBriefStates";
+import { DbCompareBar } from "../features/pulls/components/DbCompareBar";
 import { attachLiveDiffs } from "../features/pulls/liveDiff";
 import {
   dbBriefQueryOptions,
+  dbComparisonMarksQueryOptions,
+  dbRevisionNarrativeQueryOptions,
   prDiffQueryOptions,
   prMetaQueryOptions,
 } from "../features/pulls/queries";
@@ -38,7 +52,7 @@ import styles from "./routeShared.module.scss";
 /** 3–5s window per the plan; one lightweight PR-meta read per tick. */
 const META_POLL_MS = 4000;
 
-interface PrBriefSearch {
+interface PrBriefSearch extends BriefSearchParams {
   base?: string;
   head?: string;
 }
@@ -89,7 +103,14 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     // then behaves exactly like a span-less deep link and pins the resolved
     // span into the URL, rather than 404ing a sloppy-but-recoverable link.
     const spanComplete = nonEmpty(base) && nonEmpty(head);
-    return spanComplete ? { base, head } : {};
+    // View/Compare (ADR 0024) share the local route's parse-or-omit posture.
+    const view = parseViewParam(search["view"]);
+    const compare = parseCompareParam(search["compare"]);
+    return {
+      ...(spanComplete ? { base, head } : {}),
+      ...(view !== undefined ? { view } : {}),
+      ...(compare !== undefined ? { compare } : {}),
+    };
   },
   loaderDeps: ({ search }) => ({
     ...(search.base === undefined ? {} : { base: search.base }),
@@ -160,7 +181,11 @@ function PrBriefRoute() {
   useEffect(() => {
     if (explicit === undefined && state.kind === "render") {
       void navigate({
-        search: { base: state.span.base, head: state.span.head },
+        search: (current) => ({
+          ...current,
+          base: state.span.base,
+          head: state.span.head,
+        }),
         replace: true,
       });
     }
@@ -191,8 +216,18 @@ function PrBriefRoute() {
       ) : null}
       <PrBriefBody
         meta={meta}
+        onNavigateSearch={(next) => {
+          void navigate({
+            search: (current) => ({ ...current, ...next }),
+            replace: false,
+          });
+        }}
         prNumber={prNumber}
         repoId={repoId}
+        searchParams={{
+          ...(search.view !== undefined ? { view: search.view } : {}),
+          ...(search.compare !== undefined ? { compare: search.compare } : {}),
+        }}
         state={state}
       />
     </>
@@ -224,16 +259,27 @@ interface PrBriefBodyProps {
   prNumber: number;
   meta: PrSummary;
   state: ReturnType<typeof deriveBriefRouteState>;
+  searchParams: BriefSearchParams;
+  onNavigateSearch: (next: BriefSearch) => void;
 }
 
-function PrBriefBody({ repoId, prNumber, meta, state }: PrBriefBodyProps) {
+function PrBriefBody({
+  repoId,
+  prNumber,
+  meta,
+  state,
+  searchParams,
+  onNavigateSearch,
+}: PrBriefBodyProps) {
   switch (state.kind) {
     case "render":
       return (
         <DbBrief
           meta={meta}
+          onNavigateSearch={onNavigateSearch}
           prNumber={prNumber}
           repoId={repoId}
+          searchParams={searchParams}
           span={state.span}
         />
       );
@@ -275,9 +321,18 @@ interface DbBriefProps {
   prNumber: number;
   span: Span;
   meta: PrSummary;
+  searchParams: BriefSearchParams;
+  onNavigateSearch: (next: BriefSearch) => void;
 }
 
-function DbBrief({ repoId, prNumber, span, meta }: DbBriefProps) {
+function DbBrief({
+  repoId,
+  prNumber,
+  span,
+  meta,
+  searchParams,
+  onNavigateSearch,
+}: DbBriefProps) {
   const brief = useSuspenseQuery(
     dbBriefQueryOptions(repoId, prNumber, span.base, span.head),
   ).data;
@@ -290,17 +345,58 @@ function DbBrief({ repoId, prNumber, span, meta }: DbBriefProps) {
     () => (diff.data === undefined ? brief : attachLiveDiffs(brief, diff.data)),
     [brief, diff.data],
   );
+  // Previous-brief comparison (BRIEF-19 4.1): offered exactly when the meta
+  // says its marks exist AND the comparison targets the RENDERED span's head
+  // (a pinned older span must not borrow the current head's baseline).
+  const previous = meta.comparisons?.previousBrief;
+  const comparisonPlan = useMemo<BriefComparisonPlan>(() => {
+    if (previous === undefined || meta.headSha !== span.head) {
+      return {};
+    }
+    return {
+      previousBrief: {
+        marks: dbComparisonMarksQueryOptions(
+          repoId,
+          prNumber,
+          previous.baselineSha,
+          span.head,
+          previous.baselineIndex,
+        ),
+        ...(previous.narrativeAvailable
+          ? {
+              narrative: dbRevisionNarrativeQueryOptions(
+                repoId,
+                prNumber,
+                previous.baselineSha,
+                span.head,
+              ),
+            }
+          : {}),
+      },
+    };
+  }, [meta.headSha, prNumber, previous, repoId, span.head]);
+  const availability: CompareOptionFlags = {
+    previousBrief: comparisonPlan.previousBrief !== undefined,
+    lastReview: false,
+  };
+  const compareState = resolveBriefSearch(searchParams, availability);
   // Keys the per-brief Mind-Map session store, exactly like a local brief id.
   const briefId = `db:${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
   return (
     <>
       {comparisonsWarming(meta) ? <WarmingChip /> : null}
+      <DbCompareBar
+        availability={availability}
+        compareState={compareState}
+        onNavigate={onNavigateSearch}
+      />
       <BriefView
         artifacts={[]}
         brief={assembled}
         briefId={briefId}
+        comparisonPlan={comparisonPlan}
         key={briefId}
-        searchParams={{}}
+        searchParams={searchParams}
       />
     </>
   );
