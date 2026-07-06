@@ -369,6 +369,18 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   `docs/self-host/compose.md`. Compose smoke verified boot→seed→drain→projection against real
   Postgres/graphile with structural creds; real-key end-to-end pending Idan's `.env`. **P4/M1
   complete — self-hosting is real: `docker compose up` → webhook → brief in Postgres — verified end-to-end with live credentials (Idan91/flexer#65).**
+- 2026-07-06 — **BRIEF-19 done (PRs #31–#41 stack + #42 smoke fix, merged 2026-07-06).** FE over
+  the read API — a reviewer logs in, picks a PR, and reads the DB-backed Brief in the real UI.
+  Read path hardened: 60s positive authz cache reinstated, gate split into session + repo-authz
+  layers, list + PR-meta discovery endpoints. Multi-org sessions: `user_settings` (ADR 0018 D14),
+  default-installation binding, validated switch endpoint + org switcher on the picker. FE:
+  isomorphic `apiFetch` seam (SSR = in-process dispatch of the same Hono app, cookie forwarded —
+  single authz path), loader-prefetched brief route, client-side diff slicing, diff-first wait UX
+  with generation-status poll, previous-brief comparison over the read API. Smoke-tested per
+  `docs/dev/brief-19-smoke.md` (org-switcher case parked — needs a second installation). Delta
+  view + timeline navigation split to BRIEF-21 (must follow ticket 23 — consumes its checkpoints).
+  **Next: ticket 22 (wire Entry comment posting) → 23 (review submit, reviewer's token — grill
+  first) → 21.**
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +

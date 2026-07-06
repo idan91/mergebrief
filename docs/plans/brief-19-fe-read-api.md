@@ -1,6 +1,7 @@
 # Plan — BRIEF-19: FE over the read API — render DB-backed Briefs (post-M1 · close the loop)
 
-> Status: **planned 2026-07-06** — awaiting go. Ticket: Notion BRIEF-19.
+> Status: **shipped 2026-07-06** — PRs #31–#41 + smoke fix #42, all merged;
+> smoke-tested per `docs/dev/brief-19-smoke.md`. Ticket: Notion BRIEF-19.
 > Grill resolved 2026-07-06 (decisions on the ticket); ADR 0016 #4/#5 and
 > ADR 0018 D14 amended accordingly (commit `6018ab8`). Delta view + timeline
 > navigation split to BRIEF-21. Execution only — no open design questions.
