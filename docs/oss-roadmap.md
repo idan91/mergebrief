@@ -197,7 +197,7 @@ The OSS-native hook CodeRabbit structurally can't match (closed).
 *Implication:* identity + community; turns "another review tool" into "the open taxonomy /
 playbook standard."
 
-### P4 — M1 self-host backend, rescoped as "make self-hosting real"  ·  status: [~] in progress (WS1 done 2026-07-05, PR #23)
+### P4 — M1 self-host backend, rescoped as "make self-hosting real"  ·  status: [x] done (WS1–WS3 shipped; BRIEF-3 PRs in review)
 
 **Needs grilling:** No — the decisions are already locked in ADRs; this is execution (drop only the hosted/multi-tenant scope per ADR 0023). · **Docs:** [`plans/product-backend-epic.md`](./plans/product-backend-epic.md) · [ADR 0015](./adr/0015-self-hosted-runtime-postgres-single-dependency.md) · [ADR 0016](./adr/0016-github-app-auth-and-trust-tenancy-boundary.md) · [ADR 0018](./adr/0018-m1-postgres-schema.md) · [ADR 0020](./adr/0020-brief-trigger-and-activation-model.md) (also 0006/0008/0013)
 
@@ -340,9 +340,35 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   crypto, docker-compose Postgres. 85 PGlite tests against the checked-in migrations; review
   hardening added vocab/shape CHECK constraints (vocab additions now need code + migration in
   lockstep). Work tracked as BRIEF-x tickets on the Notion board (link in
-  `packages/persistence/AGENTS.md`). README gained the "Your data" section. **Known gap: CI
-  does not yet cover `packages/persistence` (web + categorizer matrix jobs only) — wire it
-  before or at the start of BRIEF-2.** **Next: BRIEF-2 (GitHub App + webhooks, WS2).**
+  `packages/persistence/AGENTS.md`). README gained the "Your data" section. Known gap (CI not
+  covering `packages/persistence`) closed by PR #24. **Next: BRIEF-2 (GitHub App + webhooks, WS2).**
+- 2026-07-05 — **P4 WS2 done (BRIEF-2, PRs #25/#26/#27).** GitHub App + webhook ingest + reviewer
+  read path land end to end: `packages/github` (App auth, webhook verify + event parsing, comment +
+  fetch ops, unsafe-integer id guards, rate-limit 403 classification, added to CI matrix — PR #25);
+  webhook trust boundary as a Hono route with transactional enqueue, mounted on the web origin,
+  body-size cap, terminal-PR state preserved against stale generation triggers, no phantom rows
+  from reviews, migration 0003 (`entry_comment_id`, refresh token, superseded) — PR #26; reviewer
+  OAuth login + serialized token refresh + authz gate + reviewer read API (brief/marks/narrative/
+  diff), session-expiry enforcement, eager key validation, verified repo name, 406→413, recheck
+  reviewer repo access — PR #27. Retry-policy discovery from PR #27 review carried onto the BRIEF-3
+  card (add 406 to octokit `doNotRetry` — permanent oversized-diff condition, retrying is waste).
+- 2026-07-05 — **Shared types package (PR #28, pre-BRIEF-3 cleanup).** `@code-review/types`:
+  types-only, zero runtime/deps; deduplicated `ValueOf`/`Result`/`Brand` across the monorepo,
+  closed remaining duplicate `Result` shapes, silenced `no-await-in-loop` false positives in the
+  stream reader. **Next: BRIEF-3 (background worker + one-command docker-compose, WS3) — last of
+  P4/M1.**
+- 2026-07-06 — **P4 WS3 done (BRIEF-3, PRs #29 + #30, merged 2026-07-06).** `packages/worker`: the
+  long-lived graphile-worker runner draining the BRIEF-2 queue — payload contract pinned via
+  the shared `GenerateJobPayload` type, brief + marks + revision narrative + delta cores
+  pre-warmed per distinct checkpoint SHA (huge-span skip), projection transitions
+  queued→running→succeeded/failed/superseded, cooperative mid-call cancellation (AbortSignal
+  through the SDK stream + ~20s head-poll; abort = terminal `superseded`, never a retry), and
+  permanent-vs-transient failure classification (406 joins octokit's doNotRetry). Packaging:
+  Dockerfiles for web (Start preview server) + worker (tsx), compose `web`/`worker` services
+  beside Postgres, idempotent boot migrations in both composition roots, `.env.example`,
+  `docs/self-host/compose.md`. Compose smoke verified boot→seed→drain→projection against real
+  Postgres/graphile with structural creds; real-key end-to-end pending Idan's `.env`. **P4/M1
+  complete — self-hosting is real: `docker compose up` → webhook → brief in Postgres — verified end-to-end with live credentials (Idan91/flexer#65).**
 - 2026-06-30 — **P1 design + a11y assessment.** Inspected the live app (Playwright, desktop +
   mobile, picker + brief) + code via the `impeccable` and `web-accessibility` skills. Verdict:
   design is genuinely good (slop scan near-clean; strong token system + real diff tables +
