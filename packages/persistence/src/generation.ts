@@ -291,8 +291,15 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
       if (pullRequestIds.length === 0) {
         return new Map();
       }
-      // DISTINCT ON (pull_request_id) + updated_at DESC (id DESC tiebreak for
-      // same-millisecond writes) → one newest brief-kind row per PR.
+      // DISTINCT ON (pull_request_id), superseded rows LAST, then updated_at
+      // DESC (id DESC tiebreak for same-millisecond writes) → one newest
+      // LIVE brief-kind row per PR. Superseded must never shadow a live row:
+      // `supersedeStaleBriefs` stamps swept STALE rows with a fresher
+      // updated_at than the current head's success, and a drained abort's
+      // markSuperseded likewise postdates the superseding push's queued row.
+      // Ordering by recency alone reported those stale rows as "the current
+      // push" — permanently, for the sweep case. All-superseded (e.g. a
+      // closed PR) still falls through to the newest superseded row.
       const rows = await db
         .selectDistinctOn([generation.pullRequestId])
         .from(generation)
@@ -303,7 +310,12 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
             inArray(generation.pullRequestId, [...pullRequestIds]),
           ),
         )
-        .orderBy(asc(generation.pullRequestId), desc(generation.updatedAt), desc(generation.id));
+        .orderBy(
+          asc(generation.pullRequestId),
+          asc(sql`(${generation.status} = ${GenerationStatus.SUPERSEDED})`),
+          desc(generation.updatedAt),
+          desc(generation.id),
+        );
       return new Map(rows.map((row) => [row.pullRequestId, row]));
     },
 

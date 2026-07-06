@@ -222,6 +222,42 @@ describe("generationProjection — D10 transitions", () => {
     expect((await gen.get(current))?.status).toBe(GenerationStatus.SUCCEEDED);
   });
 
+  it("a swept stale brief never shadows the current head in latestBriefForPullRequests", async () => {
+    // Live repro (Idan91/components#5, 2026-07-06): two rapid pushes — the
+    // old head's queued row is swept AFTER the new head succeeds, stamping
+    // the STALE row with the newest updated_at. "Latest" must still be the
+    // current head, or PR-meta reports superseded forever and the wait UX
+    // spins on a push that will never finish.
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const gen = generationProjection(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const stale = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "old-head",
+      baselineSha: null,
+    } as const;
+    const current = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "new-head",
+      baselineSha: null,
+    } as const;
+
+    await gen.upsertQueued(stale);
+    await gen.upsertQueued(current);
+    await gen.markRunning(current, GenerationPhase.GENERATING);
+    await gen.markSucceeded(current);
+    // The sweep's updated_at must be strictly newer than the success's.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    expect(await gen.supersedeStaleBriefs(pr.id, "new-head")).toBe(1);
+
+    const latest = (await gen.latestBriefForPullRequests([pr.id])).get(pr.id);
+    expect(latest?.headSha).toBe("new-head");
+    expect(latest?.status).toBe(GenerationStatus.SUCCEEDED);
+  });
+
   it("a transition on a missing projection row returns notFound", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
