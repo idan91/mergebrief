@@ -17,6 +17,10 @@ Decisions D1–D11 below cover all six ADR 0008 entities plus the tenant scoping
 > per-kind job keys superseded by one `generate:{pr}` job (bundle model) + a `superseded`
 > generation status; D11 gains `gh_refresh_token_ciphertext` (expiring user tokens + rotating
 > refresh via `@octokit/oauth-app`). All three land as BRIEF-2 migrations.
+>
+> **Amended 2026-07-06** (BRIEF-19 grill): **D14** (`user_settings`) added — the first
+> deliberately NON-tenant-scoped row kind besides `audit_log`, keyed by GitHub user id, so a
+> reviewer's default installation survives across sessions. Lands as a BRIEF-19 migration.
 
 ## Decisions
 
@@ -308,6 +312,33 @@ comparison_marks
   `checkpoint→head` marks are shareable by any reviewer at the same checkpoint, mirroring the
   delta-core/overlay split (D8).
 
+### D14 — `user_settings` (added 2026-07-06, from BRIEF-19 grill)
+
+Per-GitHub-user settings that must survive across sessions and installations. First (and so
+far only) column: `default_installation_id` — the installation a multi-org reviewer's login
+binds to when it is still in their accessible set (BRIEF-19; ADR 0016 #4 as amended).
+
+```
+user_settings
+  gh_user_id              bigint  PK      -- GitHub's numeric user id (same id sessions carry)
+  default_installation_id bigint  null
+  created_at / updated_at timestamptz
+```
+
+- **Deliberately NOT tenant-scoped** — the D2b exception, second after `audit_log`. A person
+  spans installations (reviewer in one org, author in another; same human either way), so the
+  row cannot carry `installation_id` as its key. Reads/writes go through a dedicated
+  `userSettings` seam, not `forTenant` — the type-level containment tests must treat it like
+  `audit`, not like a tenant table.
+- **Typed columns, never a JSON blob.** Every new setting is a column + migration, same
+  closed-vocabulary discipline as the CHECK-constrained enums — the table must not rot into a
+  preferences dump.
+- **Dangling defaults degrade, never bind.** Login binds the default only when it appears in
+  the viewer's live accessible-installations set (`GET /user/installations`); otherwise falls
+  back to the first accessible one. Installation purge (D5/ADR 0015) may leave a stale
+  `default_installation_id` — harmless by construction, and overwritten on next switch.
+- No FK to any tenant table (same isolation rationale as `audit_log`'s no-FK rule).
+
 ## Consequences
 
 **Table inventory (M1, materialized):**
@@ -324,6 +355,7 @@ comparison_marks
 | `disposition` | anchored decision | table in M1, **rows written M2** |
 | `generation` | mutable CQRS status projection | poll target; not a domain entity |
 | `audit_log` | append-only seam | numeric-only, no FKs, never purged |
+| `user_settings` | per-user settings | NON-tenant-scoped (D14); keyed `gh_user_id`; typed columns only |
 | `reviewer_session` | secret-bearing | the only encrypted-token table |
 
 `graphile_worker.*` is owned and migrated by graphile-worker — not ours.
