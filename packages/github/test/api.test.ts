@@ -208,40 +208,34 @@ describe("fetchRepositoryById", () => {
   });
 });
 
-function repositoriesResponse(
-  repos: ReadonlyArray<{ id: number; full_name: string }>,
-  totalCount = repos.length,
-) {
-  return { status: 200, data: { total_count: totalCount, repositories: repos } };
-}
-
 describe("listInstallationRepositoriesForUser", () => {
   const INSTALLATION = toInstallationId(987654n);
 
-  it("returns the numeric repo-id → verified-name map, capped per_page request", async () => {
-    const request = vi.fn().mockResolvedValue(
-      repositoriesResponse([
-        { id: 101, full_name: "octo/alpha" },
-        { id: 202, full_name: "octo/beta" },
-      ]),
-    );
-    const octokit = mockOctokit({ request });
+  it("returns the FULL paginated repo-id → verified-name map (exhausts pages)", async () => {
+    // `octokit.paginate` follows Link headers to exhaustion and returns the
+    // flattened item array — the mock returns what an >100-repo installation
+    // would produce across two pages.
+    const paginate = vi.fn().mockResolvedValue([
+      { id: 101, full_name: "octo/alpha" },
+      { id: 202, full_name: "octo/beta" },
+      { id: 303, full_name: "octo/page-two" },
+    ]);
+    const octokit = mockOctokit({ paginate });
     const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.size).toBe(2);
+    expect(result.value.size).toBe(3);
     expect(result.value.get(toRepoId(101n))).toBe("octo/alpha");
-    expect(result.value.get(toRepoId(202n))).toBe("octo/beta");
-    // One request, viewer-scoped endpoint, capped at the 100-repo page.
-    expect(request).toHaveBeenCalledTimes(1);
-    const [route, params] = request.mock.calls[0] ?? [];
+    expect(result.value.get(toRepoId(303n))).toBe("octo/page-two");
+    expect(paginate).toHaveBeenCalledTimes(1);
+    const [route, params] = paginate.mock.calls[0] ?? [];
     expect(String(route)).toContain("/user/installations/{installation_id}/repositories");
     expect(params).toMatchObject({ installation_id: 987654, per_page: 100 });
   });
 
   it("maps a 401 to a sanitized unauthorized error (refresh trigger)", async () => {
-    const request = vi.fn().mockRejectedValue(requestError(401));
-    const octokit = mockOctokit({ request });
+    const paginate = vi.fn().mockRejectedValue(requestError(401));
+    const octokit = mockOctokit({ paginate });
     const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -250,8 +244,8 @@ describe("listInstallationRepositoriesForUser", () => {
   });
 
   it("maps an unexpected 2xx body to a request-failed error", async () => {
-    const request = vi.fn().mockResolvedValue({ status: 200, data: { nope: true } });
-    const octokit = mockOctokit({ request });
+    const paginate = vi.fn().mockResolvedValue([{ nope: true }]);
+    const octokit = mockOctokit({ paginate });
     const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -259,10 +253,10 @@ describe("listInstallationRepositoriesForUser", () => {
   });
 
   it("rejects a repo id past the safe-integer range", async () => {
-    const request = vi.fn().mockResolvedValue(
-      repositoriesResponse([{ id: Number.MAX_SAFE_INTEGER + 2, full_name: "octo/huge" }]),
-    );
-    const octokit = mockOctokit({ request });
+    const paginate = vi.fn().mockResolvedValue([
+      { id: Number.MAX_SAFE_INTEGER + 2, full_name: "octo/huge" },
+    ]);
+    const octokit = mockOctokit({ paginate });
     const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
