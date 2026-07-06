@@ -59,7 +59,10 @@ async function main(): Promise<void> {
 
   const runner = await startWorker({
     databaseUrl: config.value.databaseUrl,
-    taskList: { generate: (payload) => generate(payload) },
+    // helpers.abortSignal is graphile's graceful-shutdown signal — threading
+    // it through lets SIGTERM abort an in-flight stream (job back to queue)
+    // instead of riding out the kill grace into a stuck job lock.
+    taskList: { generate: (payload, helpers) => generate(payload, helpers) },
   });
   console.error("worker: listening for generate jobs");
 

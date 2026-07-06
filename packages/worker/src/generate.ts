@@ -24,6 +24,7 @@
 // its (checkpoint, head) row exists; marks/narrative writes are
 // content-addressed upserts. A retry therefore only pays for what a prior
 // attempt didn't finish.
+import { APIConnectionError } from "@anthropic-ai/sdk";
 import {
   categorize,
   categorizeDelta,
@@ -198,12 +199,17 @@ function unwrapGitHub<T>(result: Result<T, GitHubApiError>): T {
 
 /**
  * Classify a thrown generation error. The Anthropic SDK's transient failures
- * (429/5xx/408, connection drops) carry a numeric `status` or an
- * APIConnectionError name; anything else (refusal, schema failure after the
+ * are HTTP 429/5xx/408 (numeric `status`) or a connection-level
+ * `APIConnectionError` (whose `status` is undefined and whose `name` stays
+ * plain "Error" — an instanceof check is the only reliable detector, hence
+ * the SDK import here). Anything else (refusal, schema failure after the
  * built-in feedback retry) is deterministic enough that a graphile retry
  * would re-spend tokens for the same outcome.
  */
 function isTransientGenerationError(error: unknown): boolean {
+  if (error instanceof APIConnectionError) {
+    return true;
+  }
   if (typeof error !== "object" || error === null) {
     return false;
   }
@@ -211,7 +217,7 @@ function isTransientGenerationError(error: unknown): boolean {
   if (typeof status === "number") {
     return status === 408 || status === 429 || status >= 500;
   }
-  return error instanceof Error && error.name.includes("APIConnectionError");
+  return false;
 }
 
 /**
@@ -242,13 +248,27 @@ function briefTarget(payload: ParsedGeneratePayload): GenerationTarget {
 }
 
 /**
- * Build the generate task. The returned function is graphile's `Task` shape
- * (it ignores helpers); tests call it directly with a payload.
+ * The slice of graphile's task helpers this task consumes: the GRACEFUL-
+ * SHUTDOWN abort signal (fired on SIGTERM/SIGINT so a minutes-long stream
+ * stops instead of riding out compose's kill grace into a ~4h-locked job).
  */
-export function createGenerateTask(deps: GenerateTaskDeps): (payload: unknown) => Promise<void> {
+export interface GenerateTaskHelpers {
+  readonly abortSignal?: AbortSignal;
+}
+
+/**
+ * Build the generate task. The returned function is graphile's `Task` shape;
+ * tests call it directly with a payload (helpers optional).
+ */
+export function createGenerateTask(
+  deps: GenerateTaskDeps,
+): (payload: unknown, helpers?: GenerateTaskHelpers) => Promise<void> {
   const log = deps.log ?? (() => {});
 
-  return async function generate(rawPayload: unknown): Promise<void> {
+  return async function generate(
+    rawPayload: unknown,
+    helpers?: GenerateTaskHelpers,
+  ): Promise<void> {
     const parsed = parseGeneratePayload(rawPayload);
     if (!parsed.ok) {
       // Poisoned/foreign job: no projection row is addressable — drop it.
@@ -260,13 +280,21 @@ export function createGenerateTask(deps: GenerateTaskDeps): (payload: unknown) =
     const target = briefTarget(payload);
 
     try {
-      await runGeneration(deps, payload, target, log);
+      await runGeneration(deps, payload, target, helpers?.abortSignal, log);
     } catch (error) {
       if (error instanceof SupersededSignal) {
         // Not a failure: terminal `superseded`, attempts untouched, no retry.
         await projection.markSuperseded(target);
         log(`generate: superseded (${error.message})`);
         return;
+      }
+      if (helpers?.abortSignal?.aborted === true) {
+        // Graceful shutdown aborted the in-flight work. NOT a supersession
+        // (the head didn't move) and NOT a failure (nothing is wrong with the
+        // job): leave the projection as-is and rethrow so graphile returns
+        // the job to the queue for the next worker.
+        log("generate: aborted by shutdown — job returns to the queue");
+        throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
       await projection.markFailed(target, message);
@@ -288,6 +316,7 @@ async function runGeneration(
   deps: GenerateTaskDeps,
   payload: ParsedGeneratePayload,
   target: GenerationTarget,
+  shutdownSignal: AbortSignal | undefined,
   log: Logger,
 ): Promise<void> {
   const { handle, github } = deps;
@@ -336,7 +365,14 @@ async function runGeneration(
     headSha,
     deps.headPollIntervalMs ?? DEFAULT_HEAD_POLL_INTERVAL_MS,
   );
-  const generator = withAbortSignal(deps.generator, watch.signal);
+  // The generator aborts on EITHER trigger: a superseding push (the watch) or
+  // graceful shutdown (graphile's helpers.abortSignal). The two are told
+  // apart in `createGenerateTask`'s catch — superseded vs back-to-queue.
+  const generatorSignal =
+    shutdownSignal === undefined
+      ? watch.signal
+      : AbortSignal.any([watch.signal, shutdownSignal]);
+  const generator = withAbortSignal(deps.generator, generatorSignal);
   try {
     await generateArtifacts();
   } catch (error) {
@@ -417,6 +453,21 @@ async function runGeneration(
   } else {
     log(`generate: brief for ${headSha.slice(0, 8)} already stored — skipping generation`);
     briefRef = { id: existing.id, headIndex: existing.headIndex };
+    // Retry-resume: if a prior attempt wrote the brief but died before the
+    // narrative, recover the Brief object from the stored body so the
+    // narrative isn't permanently lost (marks alone would render the honest
+    // "summary unavailable" state forever).
+    if (prevBrief !== undefined) {
+      const storedNarrative = await store.revisionNarratives.get(
+        pullRequestId,
+        prevBrief.headSha,
+        headSha,
+      );
+      if (storedNarrative === undefined) {
+        const fullRow = await store.briefs.get(pullRequestId, info.baseSha, headSha);
+        generatedBrief = fullRow === undefined ? undefined : recoverBrief(fullRow.body, log);
+      }
+    }
   }
 
   // ---- Marks + revision narrative vs the previous briefed head ------------
@@ -474,7 +525,50 @@ async function runGeneration(
   }
 
   await projection.markSucceeded(target);
+  // Sweep projections of heads this one replaced pre-drain (debounce
+  // replacement means no worker run ever carried them — ADR 0006 #6's
+  // terminal-superseded applies to them the same as to a drained abort).
+  const swept = await projection.supersedeStaleBriefs(pullRequestId, headSha);
+  if (swept > 0) {
+    log(`generate: swept ${swept} stale queued brief projection(s)`);
+  }
   log(`generate: succeeded for ${prRow.prNumber}@${headSha.slice(0, 8)}`);
+  }
+}
+
+/**
+ * Structural guard for a stored brief body. The body was schema-validated at
+ * generation time and written by us, so this only defends against the row
+ * predating a shape change — checked structurally (never a bare cast).
+ */
+function isBrief(value: unknown): value is Brief {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const candidate: Record<string, unknown> = { ...value };
+  return (
+    typeof candidate["summary"] === "string" &&
+    Array.isArray(candidate["changeGroups"]) &&
+    Array.isArray(candidate["chunks"]) &&
+    typeof candidate["pr"] === "object" &&
+    candidate["pr"] !== null &&
+    typeof candidate["generation"] === "object" &&
+    candidate["generation"] !== null
+  );
+}
+
+/** Parse a stored brief body back into a `Brief`, or undefined (logged). */
+function recoverBrief(body: string, log: Logger): Brief | undefined {
+  try {
+    const parsed: unknown = JSON.parse(body);
+    if (isBrief(parsed)) {
+      return parsed;
+    }
+    log("generate: stored brief body has an unexpected shape — narrative skipped");
+    return undefined;
+  } catch {
+    log("generate: stored brief body is not valid JSON — narrative skipped");
+    return undefined;
   }
 }
 
@@ -558,9 +652,9 @@ async function writeRevisionArtifacts(
   }
 
   if (generatedBrief === undefined) {
-    // Brief was reused from a prior attempt; without the parsed Brief object
-    // the narrative's alignment context is unavailable. Marks (above) are
-    // idempotently refreshed; an already-written narrative row is kept.
+    // Either the narrative for this span is already stored (retry after a
+    // fully-successful revision pass) or the stored brief body couldn't be
+    // recovered — marks (above) are idempotently refreshed either way.
     return;
   }
 

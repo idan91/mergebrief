@@ -10,14 +10,14 @@
 // conflicting. `attempts` is incremented on re-queue; `updated_at` is bumped on
 // every mutation. Like the artifact writes, `upsertQueued` verifies the parent
 // `pull_request` belongs to ctx in-transaction (stage-3 invariant (a)).
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { type AppDatabase, internal } from "./db";
 import { generation } from "./schema/generation";
 import { pullRequest } from "./schema/pull-request";
 import type { TenantContext } from "./tenant";
 import {
+  GenerationKind,
   GenerationStatus,
-  type GenerationKind,
   type GenerationPhase,
   type PullRequestRowId,
   type Result,
@@ -136,6 +136,20 @@ export interface GenerationProjection {
   ): Promise<Result<GenerationRow, GenerationError>>;
   /** Tenant-scoped read of the projection row; absence is `undefined`. */
   get(target: GenerationTarget): Promise<GenerationRow | undefined>;
+  /**
+   * Terminalize STALE brief projections after a newer head succeeded: any
+   * brief-kind row on the PR whose head differs and is still non-terminal
+   * (`queued`/`running`) becomes `superseded`. Covers the pre-drain replace
+   * case — push B inside the debounce window swaps the job's payload
+   * (`job_key_mode => 'replace'`), so no worker run ever carries head A and
+   * its queued row would otherwise sit non-terminal forever. Same abort
+   * semantics as `markSuperseded` (attempts untouched, error cleared).
+   * Returns the number of rows swept.
+   */
+  supersedeStaleBriefs(
+    pullRequestId: PullRequestRowId,
+    currentHeadSha: string,
+  ): Promise<number>;
 }
 
 // ---------------------------------------------------------------------------
@@ -259,6 +273,27 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
     async get(target) {
       const rows = await db.select().from(generation).where(keyWhere(target)).limit(1);
       return rows[0];
+    },
+
+    async supersedeStaleBriefs(pullRequestId, currentHeadSha) {
+      const rows = await db
+        .update(generation)
+        .set({
+          status: GenerationStatus.SUPERSEDED,
+          error: null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(generation.installationId, installationId),
+            eq(generation.pullRequestId, pullRequestId),
+            eq(generation.kind, GenerationKind.BRIEF),
+            ne(generation.headSha, currentHeadSha),
+            inArray(generation.status, [GenerationStatus.QUEUED, GenerationStatus.RUNNING]),
+          ),
+        )
+        .returning({ id: generation.id });
+      return rows.length;
     },
   };
 }

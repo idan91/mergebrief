@@ -25,6 +25,7 @@ import {
   type TenantContext,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import { APIConnectionError } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "categorizer";
 import type { Result } from "types";
@@ -509,6 +510,114 @@ describe("generate task", () => {
     expect(generator.calls).toEqual(["brief"]);
     const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
     expect(row?.status).toBe(GenerationStatus.SUPERSEDED);
+  });
+
+  it("classifies an SDK APIConnectionError as transient (rethrow for graphile retry)", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      generator,
+      github: stubGitHub(HEAD_1),
+    });
+
+    // The SDK's connection error carries NO status and name "Error" — only
+    // an instanceof check can catch it (PR #29 review finding).
+    generator.failNextWith = new APIConnectionError({});
+    await expect(task(payload)).rejects.toThrow("Connection error");
+
+    const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatus.FAILED);
+  });
+
+  it("returns the job to the queue on graceful shutdown: no failed/superseded projection", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const shutdown = new AbortController();
+    const calls: string[] = [];
+    const hangingGenerator: Generator = {
+      async generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>> {
+        calls.push(req.label);
+        // Abort the "worker process" once the stream is in flight.
+        queueMicrotask(() => shutdown.abort());
+        return new Promise<never>((_, reject) => {
+          req.signal?.addEventListener("abort", () => {
+            reject(Object.assign(new Error("Request was aborted."), { name: "APIUserAbortError" }));
+          });
+        });
+      },
+      provenance: (effort: Effort) => ({ provider: "stub", model: "stub-model", effort }),
+    };
+    const task = createGenerateTask({
+      handle: harness.handle,
+      generator: hangingGenerator,
+      github: stubGitHub(HEAD_1),
+    });
+
+    // Rethrows (graphile requeues) but writes NO terminal/failed status.
+    await expect(task(payload, { abortSignal: shutdown.signal })).rejects.toThrow("aborted");
+
+    const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatus.RUNNING);
+    expect(row?.error).toBeNull();
+  });
+
+  it("recovers the revision narrative on a retry that reuses the stored brief", async () => {
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, generator, github });
+    await task(first.payload);
+
+    github.info = { ...github.info, headSha: HEAD_2 };
+    const second = await trigger(HEAD_2);
+    // First attempt: brief written, narrative call dies (non-fatal).
+    const originalGenerate = generator.generate.bind(generator);
+    let narrativeAttempts = 0;
+    generator.generate = async (req) => {
+      if (req.label === "revision narrative" && narrativeAttempts++ === 0) {
+        throw new Error("Model refused to produce the revision narrative.");
+      }
+      return originalGenerate(req);
+    };
+    await task(second.payload);
+
+    const store = artifactStore(harness.handle, ctx);
+    expect(await store.revisionNarratives.get(second.pr.id, HEAD_1, HEAD_2)).toBeUndefined();
+
+    // Retry: brief is reused, the Brief object is recovered from the stored
+    // body, and the narrative is generated this time.
+    await task(second.payload);
+    const narrative = await store.revisionNarratives.get(second.pr.id, HEAD_1, HEAD_2);
+    expect(narrative).toBeDefined();
+    expect(JSON.parse(narrative?.body ?? "{}")).toMatchObject({
+      artifactKind: "revisionNarrative",
+    });
+    // And a further retry does NOT re-spend on the narrative.
+    const narrativeCallsBefore = generator.calls.filter((l) => l === "revision narrative").length;
+    await task(second.payload);
+    expect(generator.calls.filter((l) => l === "revision narrative")).toHaveLength(
+      narrativeCallsBefore,
+    );
+  });
+
+  it("sweeps a pre-drain-replaced head's projection to superseded after the newer head succeeds", async () => {
+    const first = await trigger(HEAD_1); // queued row for head 1; job replaced below
+    const second = await trigger(HEAD_2); // same job_key — payload now carries head 2
+    expect(second.pr.id).toBe(first.pr.id);
+
+    const generator = stubGenerator();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      generator,
+      github: stubGitHub(HEAD_2),
+    });
+    await task(second.payload);
+
+    const projection = generationProjection(harness.handle, ctx);
+    const stale = await projection.get(target(first.pr, HEAD_1));
+    expect(stale?.status).toBe(GenerationStatus.SUPERSEDED);
+    const current = await projection.get(target(second.pr, HEAD_2));
+    expect(current?.status).toBe(GenerationStatus.SUCCEEDED);
   });
 
   it("marks a transient generation error failed and rethrows; a deterministic one does not rethrow", async () => {
