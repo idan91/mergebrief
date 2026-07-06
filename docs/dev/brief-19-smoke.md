@@ -123,11 +123,13 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
 
 ## 6. Deep link + SSR
 
-1. The App's Entry comment is **not wired yet** (primitives exist, no writer —
-   see the "Wire Entry comment posting" board ticket), so build the deep link
-   by hand: copy the pinned brief URL. Open it in a **fresh private window**
-   (no session): **expect** an immediate redirect to GitHub login
-   (`/auth/github`), and after auth, the brief.
+1. Entry comment posting ships in BRIEF-22 (PR #43): after a settled push,
+   **expect exactly one** branded App comment at the bottom of the PR thread,
+   deep-linking the exact span — use it as the deep link for this step. (For
+   a brief generated before #43, build the link by hand: copy the pinned
+   brief URL.) Open it in a **fresh private window** (no session): **expect**
+   an immediate redirect to GitHub login (`/auth/github`), and after auth,
+   the brief.
 2. In the signed-in window, copy the pinned URL
    (`/repos/<repoId>/pulls/<N>?base=...&head=...`) into a new tab:
    **expect** brief content in the first paint (View Source shows the group
@@ -141,6 +143,9 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
 ## 7. Second revision → previous-brief comparison
 
 1. Push another commit to the same PR; wait for the new brief (step 5 repeats).
+   With BRIEF-22 merged, also **expect** the Entry comment REPLACED (old one
+   deleted, new one at the bottom of the thread, linking the new head) —
+   never two comments.
 2. On the new brief, **expect** the compare bar under the banner area:
    `Full Brief / Changes Only` + `Your last review / Previous Brief`.
    - `Previous Brief` **enabled** (the old head's marks exist),
