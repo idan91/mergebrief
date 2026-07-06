@@ -12,6 +12,7 @@ import {
   createDb,
   envKeyProvider,
   loadConfig as loadPersistenceConfig,
+  migrateApp,
 } from "persistence";
 
 /** The env var name the reviewer session tokens seal under (ADR 0018 D11). */
@@ -82,10 +83,12 @@ async function buildWebhookApp(): Promise<WebhookApp> {
   }
 
   const { databaseUrl } = persistenceConfig.value;
-  const handle = createDb(databaseUrl);
-  // Enqueue-side schema install (idempotent). The worker that drains the jobs
-  // is BRIEF-3; here we only guarantee `graphile_worker.add_job` exists.
+  // Boot migrations, both idempotent (BRIEF-3: every composition root may run
+  // them; whoever boots first applies, the rest no-op): the app schema the
+  // webhook writes to, then the graphile_worker schema `add_job` needs.
+  await migrateApp(databaseUrl);
   await migrateQueue(databaseUrl);
+  const handle = createDb(databaseUrl);
 
   return createApp({
     handle,

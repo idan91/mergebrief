@@ -1,0 +1,13 @@
+# Keep build contexts lean and deterministic: dependencies are installed
+# inside the image from the lockfile, never copied from the host.
+.git
+node_modules
+**/node_modules
+**/dist
+**/.output
+**/tsconfig.tsbuildinfo
+tools/categorizer/out
+apps/web/out
+docs
+.env
+**/.env
