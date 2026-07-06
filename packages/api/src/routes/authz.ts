@@ -298,3 +298,25 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
 export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
   return every(sessionLayer(deps), repoAuthzLayer(deps));
 }
+
+/**
+ * Success/deny access line for a session-only composition (the list endpoint):
+ * `sessionLayer` logs its own 401s BEFORE the handler; this layer, mounted
+ * after it, emits the one D9 line for everything that reached the handler —
+ * decision = the response status the handler actually returned.
+ */
+export function accessLogLayer(): MiddlewareHandler<AuthzEnv> {
+  return async (c, next) => {
+    await next();
+    const line: Record<string, string | number> = {
+      evt: "read",
+      method: c.req.method,
+      path: c.req.path,
+      status: c.res.status,
+      durationMs: Date.now() - c.get("gateStartedAt"),
+      decision: String(c.res.status),
+      reviewerId: String(c.get("session").reviewerId),
+    };
+    console.info(JSON.stringify(line));
+  };
+}

@@ -24,6 +24,7 @@ import {
   artifactStore,
   decryptToken,
   forTenant,
+  generationProjection,
   type PullRequestRow,
   type RepoId,
   type TenantContext,
@@ -31,6 +32,7 @@ import {
 import { z } from "zod";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
 import { refreshSessionToken, type AuthRouteDeps } from "./auth";
+import { buildPrView } from "./pr-view";
 import { createTtlCache } from "./ttl-cache";
 
 // ---------------------------------------------------------------------------
@@ -122,6 +124,29 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     }
     return { ok: true, pr };
   }
+
+  // GET PR meta — the PR row + current-span derivation + latest brief-kind
+  // generation summary. The FE's single poll target (BRIEF-19): render when
+  // `briefAvailable`, drive the wait UX from `generation`.
+  app.get("/api/repos/:repoId/pulls/:prNumber", async (c) => {
+    const ctx = c.get("ctx");
+    const resolved = await resolvePr(ctx, c.get("repoId"), c.req.param("prNumber"));
+    if (!resolved.ok) {
+      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
+    }
+    const ids = [resolved.pr.id];
+    const [latestBriefs, latestGenerations] = await Promise.all([
+      artifactStore(deps.handle, ctx).briefs.latestForPullRequests(ids),
+      generationProjection(deps.handle, ctx).latestBriefForPullRequests(ids),
+    ]);
+    const view = buildPrView(
+      resolved.pr,
+      latestBriefs.get(resolved.pr.id),
+      latestGenerations.get(resolved.pr.id),
+      c.get("repoFullName"),
+    );
+    return c.json(view, 200, { "cache-control": "no-store" });
+  });
 
   // GET brief — the whole-PR span artifact for (base, head).
   app.get("/api/repos/:repoId/pulls/:prNumber/brief", async (c) => {

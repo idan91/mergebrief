@@ -10,6 +10,7 @@
 import { Hono } from "hono";
 import type { AppDatabase } from "persistence";
 import { authRoute, type AuthDeps } from "./routes/auth";
+import { pullsRoute } from "./routes/pulls";
 import { readsRoute } from "./routes/reads";
 import { webhookRoute } from "./routes/webhook";
 
@@ -27,6 +28,7 @@ export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
   app.route("/", webhookRoute(deps));
   app.route("/", authRoute(deps));
+  app.route("/", pullsRoute(deps));
   app.route("/", readsRoute(deps));
   return app;
 }
