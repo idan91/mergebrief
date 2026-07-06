@@ -81,6 +81,9 @@ pull_request
   repo_id         bigint not null
   pr_number       int    not null
   repo_slug       text              -- purgeable display (D1), refreshed on webhook
+  title           text              -- purgeable display (D1), refreshed on webhook
+                                    --   (2026-07-06, BRIEF-19: the picker list's label;
+                                    --   nullable — pre-column rows backfill on next event)
   state           text not null     -- open | closed | merged
   entry_comment_id bigint           -- branded Entry comment id (2026-07-05; delete+repost per
                                     --   ADR 0016 #3; dangling id self-heals by posting fresh)

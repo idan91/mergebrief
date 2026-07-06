@@ -21,7 +21,7 @@
 // Provenance columns (`provider`/`model`/`effort`) are written for
 // `brief`/`delta`/`revision_narrative` only — `diff_snapshot` and
 // `comparison_marks` are mechanical, not LLM output (D6/D13).
-import { and, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "./db";
 import { brief } from "./schema/brief";
@@ -198,6 +198,14 @@ export interface BriefStore {
    * span metadata, and a long-lived PR can hold many multi-hundred-KB bodies.
    */
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<BriefSpanRow[]>;
+  /**
+   * The LATEST brief (highest `head_index`) per PR, batched for the BRIEF-19
+   * list/PR-meta endpoints' "current span" derivation. Lean rows (never
+   * `body`); PRs with no brief are simply absent from the map.
+   */
+  latestForPullRequests(
+    pullRequestIds: readonly PullRequestRowId[],
+  ): Promise<ReadonlyMap<PullRequestRowId, BriefSpanRow>>;
 }
 
 export interface DeltaStore {
@@ -344,6 +352,36 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
           and(eq(brief.installationId, installationId), eq(brief.pullRequestId, pullRequestId)),
         )
         .orderBy(brief.headIndex);
+    },
+
+    async latestForPullRequests(pullRequestIds) {
+      if (pullRequestIds.length === 0) {
+        return new Map();
+      }
+      // DISTINCT ON (pull_request_id) + head_index DESC → one newest-brief row
+      // per PR in a single query (never the body).
+      const rows = await db
+        .selectDistinctOn([brief.pullRequestId], {
+          pullRequestId: brief.pullRequestId,
+          id: brief.id,
+          baseSha: brief.baseSha,
+          headSha: brief.headSha,
+          headIndex: brief.headIndex,
+        })
+        .from(brief)
+        .where(
+          and(
+            eq(brief.installationId, installationId),
+            inArray(brief.pullRequestId, [...pullRequestIds]),
+          ),
+        )
+        .orderBy(asc(brief.pullRequestId), desc(brief.headIndex));
+      return new Map(
+        rows.map((row) => [
+          row.pullRequestId,
+          { id: row.id, baseSha: row.baseSha, headSha: row.headSha, headIndex: row.headIndex },
+        ]),
+      );
     },
   };
 

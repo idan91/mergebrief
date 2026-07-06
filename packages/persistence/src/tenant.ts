@@ -13,7 +13,7 @@
 //   (b) every READ filters by ctx.installationId on the queried table's own
 //       column (one-index read, D2a), which is safe precisely because (a)
 //       guarantees a child's own `installation_id` matches its parent's.
-import { and, eq, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { z } from "zod";
 import { type AppDatabase, internal } from "./db";
 import { checkpoint } from "./schema/checkpoint";
@@ -158,6 +158,8 @@ interface BasePullRequestUpsertInput {
   readonly repoId: RepoId;
   readonly prNumber: number;
   readonly repoSlug?: string;
+  /** Purgeable display label (D5 as amended), refreshed on every webhook. */
+  readonly title?: string;
 }
 
 export type PullRequestUpsertInput = BasePullRequestUpsertInput & PullRequestLifecycle;
@@ -209,6 +211,13 @@ export interface PullRequestRepository {
   upsert(input: PullRequestUpsertInput): Promise<PullRequestRow>;
   /** Tenant-scoped read by (repo, number). Absence is a normal `undefined`. */
   getByNumber(repoId: RepoId, prNumber: number): Promise<PullRequestRow | undefined>;
+  /**
+   * The tenant's PRs across an ALLOWED repo set (the viewer's GitHub-derived
+   * installation∩user intersection — ADR 0016 #5b), newest `updated_at` first,
+   * capped at `limit`. An empty allowed set returns no rows (fail closed) —
+   * the caller must never fall back to an unfiltered tenant listing.
+   */
+  listForRepos(repoIds: readonly RepoId[], limit: number): Promise<PullRequestRow[]>;
   /** Tenant-scoped read by row id (the worker's job-payload entry point). */
   getById(pullRequestId: PullRequestRowId): Promise<PullRequestRow | undefined>;
   /** Scoped lifecycle mutation; `notFound` if no row in ctx's tenant. */
@@ -270,6 +279,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           repoId: input.repoId,
           prNumber: input.prNumber,
           repoSlug: input.repoSlug,
+          title: input.title,
           ...lifecycle,
           updatedAt: new Date(),
         })
@@ -277,6 +287,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           target: [pullRequest.installationId, pullRequest.repoId, pullRequest.prNumber],
           set: {
             repoSlug: input.repoSlug,
+            title: input.title,
             ...lifecycle,
             updatedAt: new Date(),
           },
@@ -302,6 +313,25 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
         )
         .limit(1);
       return rows[0];
+    },
+
+    async listForRepos(repoIds, limit) {
+      // `inArray` with an empty list is invalid SQL — and an empty ALLOWED set
+      // must return nothing, never "everything" (fail closed).
+      if (repoIds.length === 0) {
+        return [];
+      }
+      return db
+        .select()
+        .from(pullRequest)
+        .where(
+          and(
+            eq(pullRequest.installationId, installationId),
+            inArray(pullRequest.repoId, [...repoIds]),
+          ),
+        )
+        .orderBy(desc(pullRequest.updatedAt), desc(pullRequest.id))
+        .limit(limit);
     },
 
     async getById(pullRequestId) {

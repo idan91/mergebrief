@@ -49,7 +49,7 @@ export type {
 // GitHub REST primitives: Entry-comment ops, repo lookup, PR + diff fetch.
 export { postEntryComment, deleteComment } from "./comments";
 export type { PostEntryCommentInput, DeleteCommentInput } from "./comments";
-export { fetchRepositoryById } from "./repo";
+export { fetchRepositoryById, listInstallationRepositoriesForUser } from "./repo";
 export type { RepositoryInfo } from "./repo";
 export {
   fetchPullRequest,

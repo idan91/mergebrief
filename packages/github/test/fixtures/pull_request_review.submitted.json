@@ -16,6 +16,7 @@
   },
   "pull_request": {
     "number": 2,
+    "title": "Update the README with new information.",
     "state": "open",
     "head": {
       "ref": "changes",
