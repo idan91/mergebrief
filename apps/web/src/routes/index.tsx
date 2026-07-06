@@ -4,18 +4,26 @@ import { useState, type FormEvent } from "react";
 
 import { generateBrief } from "../features/brief/brief.functions";
 import { localBriefsQueryOptions } from "../features/brief/queries";
+import { PullsSection } from "../features/pulls/components/PullsSection";
+import { pullsSessionQueryOptions } from "../features/pulls/queries";
 import sharedStyles from "./routeShared.module.scss";
 import styles from "./index.module.scss";
 
 export const Route = createFileRoute("/")({
+  // Both lists prefetch in parallel — the session list SSRs through the
+  // in-process apiFetch seam (same authz gate), never a client waterfall.
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData(localBriefsQueryOptions()),
+    Promise.all([
+      context.queryClient.ensureQueryData(localBriefsQueryOptions()),
+      context.queryClient.ensureQueryData(pullsSessionQueryOptions()),
+    ]),
   component: BriefPicker,
   errorComponent: BriefPickerError,
 });
 
 function BriefPicker() {
   const briefs = useSuspenseQuery(localBriefsQueryOptions()).data;
+  const session = useSuspenseQuery(pullsSessionQueryOptions()).data;
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);
@@ -73,6 +81,7 @@ function BriefPicker() {
           </button>
         </form>
         {error ? <p className={styles["error"]}>{error}</p> : null}
+        <PullsSection session={session} />
         {briefs.length === 0 ? (
           <div className={styles["empty"]}>
             <p>No Briefs yet. Paste a GitHub PR URL above to generate one.</p>

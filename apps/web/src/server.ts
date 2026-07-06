@@ -25,6 +25,26 @@ function isHonoPath(pathname: string): boolean {
   return pathname.startsWith("/api/") || pathname.startsWith("/auth/");
 }
 
+/**
+ * Stamp `cache-control: no-store` on SSR'd HTML documents (BRIEF-19, ADR 0016
+ * #5c): loader-prefetched pages embed authz-gated, per-viewer data in the
+ * HTML, which must never land in a shared proxy/CDN cache. Static assets
+ * (non-HTML) keep their own caching.
+ */
+function withNoStoreForDocuments(response: Response): Response {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/html")) {
+    return response;
+  }
+  const headers = new Headers(response.headers);
+  headers.set("cache-control", "no-store");
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 const serverEntry: ServerEntry = {
   async fetch(request, requestOpts) {
     const { pathname } = new URL(request.url);
@@ -45,7 +65,9 @@ const serverEntry: ServerEntry = {
       // webhook route's HMAC check unmodified (no re-encode, no RPC wrapper).
       return app.fetch(request);
     }
-    return handleStartRequest(request, requestOpts);
+    return withNoStoreForDocuments(
+      await handleStartRequest(request, requestOpts),
+    );
   },
 };
 
