@@ -14,6 +14,12 @@ export const pullRequest = pgTable(
     prNumber: integer("pr_number").notNull(),
     /** Purgeable display label (D1), refreshed on webhook. */
     repoSlug: text("repo_slug"),
+    /**
+     * PR title — same purgeable-display-label class as `repo_slug` (D5 as
+     * amended for BRIEF-19), refreshed on every webhook. Nullable: rows
+     * ingested before the column existed backfill on their next event.
+     */
+    title: text("title"),
     state: text("state").$type<PrState>().notNull(),
     /**
      * The branded Entry comment id (D5). Nullable: no writer in BRIEF-2, and

@@ -1,0 +1,1 @@
+ALTER TABLE "pull_request" ADD COLUMN "title" text;

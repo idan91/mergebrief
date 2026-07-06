@@ -10,7 +10,7 @@
 // conflicting. `attempts` is incremented on re-queue; `updated_at` is bumped on
 // every mutation. Like the artifact writes, `upsertQueued` verifies the parent
 // `pull_request` belongs to ctx in-transaction (stage-3 invariant (a)).
-import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { type AppDatabase, internal } from "./db";
 import { generation } from "./schema/generation";
 import { pullRequest } from "./schema/pull-request";
@@ -136,6 +136,16 @@ export interface GenerationProjection {
   ): Promise<Result<GenerationRow, GenerationError>>;
   /** Tenant-scoped read of the projection row; absence is `undefined`. */
   get(target: GenerationTarget): Promise<GenerationRow | undefined>;
+  /**
+   * The NEWEST brief-kind projection per PR (by `updated_at`), batched for
+   * the BRIEF-19 list/PR-meta endpoints: its `head_sha` IS the current push,
+   * its status drives the wait UX. Span kinds (`delta`,
+   * `revision-narrative`) never shadow it; PRs with no brief-kind row are
+   * absent from the map.
+   */
+  latestBriefForPullRequests(
+    pullRequestIds: readonly PullRequestRowId[],
+  ): Promise<ReadonlyMap<PullRequestRowId, GenerationRow>>;
   /**
    * Terminalize STALE brief projections after a newer head succeeded: any
    * brief-kind row on the PR whose head differs and is still non-terminal
@@ -275,6 +285,26 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
     async get(target) {
       const rows = await db.select().from(generation).where(keyWhere(target)).limit(1);
       return rows[0];
+    },
+
+    async latestBriefForPullRequests(pullRequestIds) {
+      if (pullRequestIds.length === 0) {
+        return new Map();
+      }
+      // DISTINCT ON (pull_request_id) + updated_at DESC (id DESC tiebreak for
+      // same-millisecond writes) → one newest brief-kind row per PR.
+      const rows = await db
+        .selectDistinctOn([generation.pullRequestId])
+        .from(generation)
+        .where(
+          and(
+            eq(generation.installationId, installationId),
+            eq(generation.kind, GenerationKind.BRIEF),
+            inArray(generation.pullRequestId, [...pullRequestIds]),
+          ),
+        )
+        .orderBy(asc(generation.pullRequestId), desc(generation.updatedAt), desc(generation.id));
+      return new Map(rows.map((row) => [row.pullRequestId, row]));
     },
 
     async supersedeStaleBriefs(pullRequestId, currentHeadSha) {

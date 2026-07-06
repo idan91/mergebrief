@@ -151,6 +151,7 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
             repoId: input.pullRequest.repoId,
             prNumber: input.pullRequest.prNumber,
             repoSlug: input.pullRequest.repoSlug,
+            title: input.pullRequest.title,
             ...lifecycle,
             updatedAt: new Date(),
           })
@@ -158,6 +159,7 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
             target: [pullRequest.installationId, pullRequest.repoId, pullRequest.prNumber],
             set: {
               repoSlug: input.pullRequest.repoSlug,
+              title: input.pullRequest.title,
               state: preserveTerminal
                 ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.state} else ${lifecycle.state} end`
                 : lifecycle.state,

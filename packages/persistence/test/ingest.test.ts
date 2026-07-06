@@ -66,6 +66,7 @@ describe("ingestRoutines.triggerGeneration", () => {
         repoId: REPO_ID,
         prNumber: 7,
         repoSlug: "acme/widgets",
+        title: "feat: add widgets",
         state: PrState.OPEN,
       },
       headSha: HEAD_SHA,
@@ -96,6 +97,7 @@ describe("ingestRoutines.triggerGeneration", () => {
     expect(outcome.pullRequest.installationId).toBe(CTX.installationId);
     expect(outcome.pullRequest.repoId).toBe(REPO_ID);
     expect(outcome.pullRequest.prNumber).toBe(7);
+    expect(outcome.pullRequest.title).toBe("feat: add widgets");
     expect(outcome.pullRequest.state).toBe(PrState.OPEN);
 
     // The returned generation row: kind brief, queued, baseline null.
