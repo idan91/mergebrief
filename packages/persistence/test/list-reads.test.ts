@@ -118,6 +118,60 @@ describe("briefs.latestForPullRequests", () => {
   });
 });
 
+describe("comparison existence seams (BRIEF-19 4.1)", () => {
+  it("comparisonMarks.existsForSpan / revisionNarratives.existsForSpan reflect writes, lean", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const store = artifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({ repoId: REPO_1, prNumber: 1, state: PrState.OPEN });
+    const brief = await store.briefs.write({
+      pullRequestId: pr.id, baseSha: "base", headSha: "head-2", headIndex: 2,
+      commitCount: 2, body: "{}", ...PROVENANCE,
+    });
+    if (!brief.ok) throw new Error("brief write failed");
+
+    expect(await store.comparisonMarks.existsForSpan(pr.id, "head-1", "head-2")).toBe(false);
+    const marks = await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: {
+        baselineSha: "head-1",
+        headSha: "head-2",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    if (!marks.ok) throw new Error("marks write failed");
+    expect(await store.comparisonMarks.existsForSpan(pr.id, "head-1", "head-2")).toBe(true);
+
+    expect(await store.revisionNarratives.existsForSpan(pr.id, "head-1", "head-2")).toBe(false);
+    const narrative = await store.revisionNarratives.write({
+      pullRequestId: pr.id, briefId: brief.value.id, prevHeadSha: "head-1", headSha: "head-2",
+      body: "{}", ...PROVENANCE,
+    });
+    if (!narrative.ok) throw new Error("narrative write failed");
+    expect(await store.revisionNarratives.existsForSpan(pr.id, "head-1", "head-2")).toBe(true);
+  });
+
+  it("never sees another tenant's marks/narratives", async () => {
+    const handle = await freshDatabase();
+    const b = forTenant(handle, CTX_B);
+    const bStore = artifactStore(handle, CTX_B);
+    const bPr = await b.pullRequests.upsert({ repoId: REPO_1, prNumber: 1, state: PrState.OPEN });
+    const marks = await bStore.comparisonMarks.write({
+      pullRequestId: bPr.id,
+      marks: {
+        baselineSha: "head-1",
+        headSha: "head-2",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    if (!marks.ok) throw new Error("marks write failed");
+
+    const aStore = artifactStore(handle, CTX_A);
+    expect(await aStore.comparisonMarks.existsForSpan(bPr.id, "head-1", "head-2")).toBe(false);
+    expect(await aStore.revisionNarratives.existsForSpan(bPr.id, "head-1", "head-2")).toBe(false);
+  });
+});
+
 describe("generation.latestBriefForPullRequests", () => {
   it("returns the newest brief-kind projection per PR, ignoring span kinds", async () => {
     const handle = await freshDatabase();

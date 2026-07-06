@@ -390,4 +390,58 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       generation: { status: GenerationStatus.SUCCEEDED, phase: null },
     });
   });
+
+  it("meta: previous-brief comparison availability derives from marks + narrative rows", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    const store = artifactStore(harness.handle, CTX);
+    const write = async (head: string, index: number) => {
+      const result = await store.briefs.write({
+        pullRequestId: pr.id, baseSha: "base", headSha: head, headIndex: index,
+        commitCount: index, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+      });
+      if (!result.ok) throw new Error("brief write failed");
+      return result.value;
+    };
+    await write("head-1", 1);
+    const currentBrief = await write("head-2", 2);
+
+    // No marks yet → previousBrief absent (fail closed).
+    const before = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    const beforeBody = (await before.json()) as { comparisons?: { previousBrief?: unknown } };
+    expect(beforeBody.comparisons?.previousBrief).toBeUndefined();
+
+    // Marks for the previous-brief span → available, narrative not yet.
+    const marks = await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: {
+        baselineSha: "head-1",
+        headSha: "head-2",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    if (!marks.ok) throw new Error("marks write failed");
+    const marked = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    const markedBody = (await marked.json()) as { comparisons?: { previousBrief?: unknown } };
+    expect(markedBody.comparisons?.previousBrief).toEqual({
+      baselineSha: "head-1",
+      baselineIndex: 1,
+      narrativeAvailable: false,
+    });
+
+    // Narrative lands → narrativeAvailable flips.
+    const narrative = await store.revisionNarratives.write({
+      pullRequestId: pr.id, briefId: currentBrief.id, prevHeadSha: "head-1", headSha: "head-2",
+      body: "{}", provider: "anthropic", model: "claude", effort: "high",
+    });
+    if (!narrative.ok) throw new Error("narrative write failed");
+    const full = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    const fullBody = (await full.json()) as { comparisons?: { previousBrief?: unknown } };
+    expect(fullBody.comparisons?.previousBrief).toEqual({
+      baselineSha: "head-1",
+      baselineIndex: 1,
+      narrativeAvailable: true,
+    });
+  });
 });

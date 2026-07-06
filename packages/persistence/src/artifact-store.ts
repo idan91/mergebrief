@@ -229,6 +229,12 @@ export interface RevisionNarrativeStore {
     prevHeadSha: string,
     headSha: string,
   ): Promise<RevisionNarrativeRow | undefined>;
+  /** Lean availability probe (BRIEF-19 4.1) — never loads the body. */
+  existsForSpan(
+    pullRequestId: PullRequestRowId,
+    prevHeadSha: string,
+    headSha: string,
+  ): Promise<boolean>;
 }
 
 export interface ComparisonMarksStore {
@@ -238,6 +244,12 @@ export interface ComparisonMarksStore {
     baselineSha: string,
     headSha: string,
   ): Promise<ComparisonMarksRow | undefined>;
+  /** Lean availability probe (BRIEF-19 4.1) — never loads the body. */
+  existsForSpan(
+    pullRequestId: PullRequestRowId,
+    baselineSha: string,
+    headSha: string,
+  ): Promise<boolean>;
 }
 
 export interface ArtifactStore {
@@ -574,6 +586,22 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         .limit(1);
       return rows[0];
     },
+
+    async existsForSpan(pullRequestId, prevHeadSha, headSha) {
+      const rows = await db
+        .select({ id: revisionNarrative.id })
+        .from(revisionNarrative)
+        .where(
+          and(
+            eq(revisionNarrative.installationId, installationId),
+            eq(revisionNarrative.pullRequestId, pullRequestId),
+            eq(revisionNarrative.prevHeadSha, prevHeadSha),
+            eq(revisionNarrative.headSha, headSha),
+          ),
+        )
+        .limit(1);
+      return rows.length > 0;
+    },
   };
 
   const comparisonMarksStore: ComparisonMarksStore = {
@@ -637,6 +665,22 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         )
         .limit(1);
       return rows[0];
+    },
+
+    async existsForSpan(pullRequestId, baselineSha, headSha) {
+      const rows = await db
+        .select({ id: comparisonMarks.id })
+        .from(comparisonMarks)
+        .where(
+          and(
+            eq(comparisonMarks.installationId, installationId),
+            eq(comparisonMarks.pullRequestId, pullRequestId),
+            eq(comparisonMarks.baselineSha, baselineSha),
+            eq(comparisonMarks.headSha, headSha),
+          ),
+        )
+        .limit(1);
+      return rows.length > 0;
     },
   };
 

@@ -126,17 +126,20 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   }
 
   // GET PR meta — the PR row + current-span derivation + latest brief-kind
-  // generation summary. The FE's single poll target (BRIEF-19): render when
-  // `briefAvailable`, drive the wait UX from `generation`.
+  // generation summary, plus previous-brief comparison availability (BRIEF-19
+  // 4.1). The FE's single poll target: render when `briefAvailable`, drive
+  // the wait UX from `generation`, offer Compare only when `comparisons`
+  // carries a baseline (fail closed — absent means not offered).
   app.get("/api/repos/:repoId/pulls/:prNumber", async (c) => {
     const ctx = c.get("ctx");
     const resolved = await resolvePr(ctx, c.get("repoId"), c.req.param("prNumber"));
     if (!resolved.ok) {
       return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
     }
+    const store = artifactStore(deps.handle, ctx);
     const ids = [resolved.pr.id];
     const [latestBriefs, latestGenerations] = await Promise.all([
-      artifactStore(deps.handle, ctx).briefs.latestForPullRequests(ids),
+      store.briefs.latestForPullRequests(ids),
       generationProjection(deps.handle, ctx).latestBriefForPullRequests(ids),
     ]);
     const view = buildPrView(
@@ -145,7 +148,10 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       latestGenerations.get(resolved.pr.id),
       c.get("repoFullName"),
     );
-    return c.json(view, 200, { "cache-control": "no-store" });
+    const previousBrief = await derivePreviousBriefComparison(store, resolved.pr.id, view);
+    // `comparisons` is additive and leaves room for BRIEF-21's `lastReview`.
+    const comparisons = previousBrief === undefined ? {} : { previousBrief };
+    return c.json({ ...view, comparisons }, 200, { "cache-control": "no-store" });
   });
 
   // GET brief — the whole-PR span artifact for (base, head).
@@ -302,6 +308,53 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 // ---------------------------------------------------------------------------
 // Helpers.
 // ---------------------------------------------------------------------------
+
+/** The PR-meta `comparisons.previousBrief` payload (BRIEF-19 4.1). */
+interface PreviousBriefComparisonView {
+  readonly baselineSha: string;
+  readonly baselineIndex: number;
+  readonly narrativeAvailable: boolean;
+}
+
+/**
+ * Previous-brief comparison availability for the CURRENT span: the previous
+ * briefed head is the highest-index brief whose head differs (the worker's
+ * own baseline rule), offered only when its mechanical marks row exists —
+ * marks are the sole source of highlight truth (ADR 0024); the narrative only
+ * adds callout text, so its absence downgrades rather than disables.
+ */
+async function derivePreviousBriefComparison(
+  store: ReturnType<typeof artifactStore>,
+  pullRequestId: PullRequestRow["id"],
+  view: { readonly briefAvailable: boolean; readonly headSha: string | null },
+): Promise<PreviousBriefComparisonView | undefined> {
+  if (!view.briefAvailable || view.headSha === null) {
+    return undefined;
+  }
+  const briefs = await store.briefs.listForPullRequest(pullRequestId);
+  const previous = briefs.toReversed().find((row) => row.headSha !== view.headSha);
+  if (previous === undefined) {
+    return undefined;
+  }
+  const marksExist = await store.comparisonMarks.existsForSpan(
+    pullRequestId,
+    previous.headSha,
+    view.headSha,
+  );
+  if (!marksExist) {
+    return undefined;
+  }
+  const narrativeAvailable = await store.revisionNarratives.existsForSpan(
+    pullRequestId,
+    previous.headSha,
+    view.headSha,
+  );
+  return {
+    baselineSha: previous.headSha,
+    baselineIndex: previous.headIndex,
+    narrativeAvailable,
+  };
+}
 
 /**
  * Return a stored artifact `body` verbatim as JSON. The body is ALREADY a JSON
