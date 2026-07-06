@@ -55,7 +55,17 @@ interface LocalComparisonMarksEntry extends ComparisonMarksSummary {
 }
 
 async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
-  const entries = await readdir(OUT_DIR);
+  let entries: string[];
+  try {
+    entries = await readdir(OUT_DIR);
+  } catch (error) {
+    // No out dir yet — a fresh checkout/container that never ran the local
+    // generator (BRIEF-3 compose smoke). Zero local briefs, not a 500.
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
   const briefIds = entries
     .flatMap((entry) => {
       if (entry.endsWith(".brief.json"))

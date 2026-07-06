@@ -31,7 +31,24 @@ recognizable across every PR you ever review, and a Playbook can attach to it re
 See [`docs/vision.md`](./docs/vision.md) for the full charter, including what this project
 deliberately refuses to be (no hosted SaaS, no moat-building, no AI-authored review comments).
 
-## Quickstart (self-hosted, local loop)
+## Self-host (one command)
+
+With Docker installed:
+
+```bash
+git clone https://github.com/Idan91/code-review.git
+cd code-review
+cp .env.example .env    # GitHub App creds + your Anthropic key
+docker compose up -d
+```
+
+That's the whole product running: Postgres, the web app on
+http://localhost:3000, and a background worker that generates a Brief for
+**every push to every PR** on the repos your GitHub App is installed on —
+no manual step. Setup details (App registration, env table, verification):
+[`docs/self-host/compose.md`](./docs/self-host/compose.md).
+
+## Quickstart (local dev loop, no Docker)
 
 Requires Node 20.6+, [`pnpm`](https://pnpm.io), and an authenticated [`gh`](https://cli.github.com)
 CLI (used to fetch PR diffs — no separate GitHub token setup).

@@ -1,3 +1,13 @@
+# One-command self-host (BRIEF-3, ADR 0015): `docker compose up` brings up
+# Postgres (the single stateful dependency), the web/API tier, and the
+# long-lived generation worker. Credentials come from a repo-root `.env`
+# (copy `.env.example`; compose reads it automatically for ${...}
+# interpolation AND both services load it via env_file, so a var you leave
+# out of .env is genuinely ABSENT in the container — the config loaders
+# treat empty-string and unset differently, e.g. the private-key one-of).
+#
+# All published ports bind loopback-only: dev/self-host credentials must not
+# be reachable from the LAN. Put a reverse proxy in front for real exposure.
 services:
   postgres:
     image: postgres:17-alpine
@@ -15,6 +25,46 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # In-network DSN overrides any host-oriented value from .env.
+      DATABASE_URL: postgres://code_review:code_review@postgres:5432/code_review
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  worker:
+    build:
+      context: .
+      dockerfile: packages/worker/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgres://code_review:code_review@postgres:5432/code_review
+    # No HTTP surface to probe; liveness = the runner process itself.
+    # Restart on crash so a transient boot race (e.g. Postgres restarting)
+    # self-heals without an operator.
+    restart: unless-stopped
 
 volumes:
   postgres_data:
