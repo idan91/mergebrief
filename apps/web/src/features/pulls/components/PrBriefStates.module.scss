@@ -1,0 +1,151 @@
+@layer components {
+  .card {
+    display: grid;
+    justify-items: start;
+    gap: 14px;
+    max-inline-size: 860px;
+    margin-inline: auto;
+    margin-block: 64px;
+    padding-block: 28px;
+    padding-inline: 28px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel2);
+  }
+
+  .heading {
+    margin: 0;
+    color: var(--text);
+    font-size: 20px;
+    line-height: 1.35;
+  }
+
+  .copy {
+    margin: 0;
+    color: var(--dim);
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  .meta {
+    margin: 0;
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .spinner {
+    inline-size: 18px;
+    block-size: 18px;
+    border: 2px solid var(--line2);
+    border-block-start-color: var(--blue);
+    border-radius: 50%;
+    animation: pr-brief-spin 0.9s linear infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+      border-block-start-color: var(--line2);
+    }
+  }
+
+  .banner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    max-inline-size: 860px;
+    margin-inline: auto;
+    margin-block: 16px 0;
+    padding-block: 10px;
+    padding-inline: 16px;
+    border: 1px solid color-mix(in srgb, var(--blue) 35%, transparent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--blue) 8%, transparent);
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .warmingChip {
+    position: fixed;
+    inset-block-end: 16px;
+    inset-inline-end: 16px;
+    z-index: 30;
+    padding-block: 4px;
+    padding-inline: 10px;
+    border: 1px solid var(--line2);
+    border-radius: 999px;
+    background: var(--panel2);
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .diff {
+    display: grid;
+    gap: 8px;
+    inline-size: 100%;
+  }
+
+  .diffFile {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #101014;
+
+    summary {
+      padding-block: 8px;
+      padding-inline: 12px;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+
+      &:focus-visible {
+        outline: 2px solid var(--focus-ring);
+        outline-offset: -2px;
+      }
+    }
+  }
+
+  .diffTable {
+    inline-size: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+
+    tr[data-kind="add"] {
+      background: color-mix(in srgb, #2ea043 12%, transparent);
+    }
+
+    tr[data-kind="del"] {
+      background: color-mix(in srgb, #f85149 10%, transparent);
+    }
+
+    tr[data-kind="hunk"] {
+      color: var(--faint);
+      background: var(--panel2);
+    }
+  }
+
+  .lineNo {
+    inline-size: 44px;
+    padding-inline: 8px;
+    color: var(--faint);
+    text-align: end;
+    user-select: none;
+  }
+
+  .lineContent {
+    padding-inline: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--dim);
+  }
+}
+
+@keyframes pr-brief-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

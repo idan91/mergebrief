@@ -201,13 +201,40 @@ export interface BriefPageProps {
   searchParams: BriefSearchParams;
 }
 
-/** Per-brief page: mounts the Mind-Map store provider around the review screen. */
+/** Per-brief page over the LOCAL file-backed store: fetch, then render. */
 export function BriefPage({
   artifacts,
   briefId,
   searchParams,
 }: BriefPageProps) {
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
+  return (
+    <BriefView
+      artifacts={artifacts}
+      brief={brief}
+      briefId={briefId}
+      searchParams={searchParams}
+    />
+  );
+}
+
+export interface BriefViewProps extends BriefPageProps {
+  /** The already-fetched Brief to render (DB path: assembled client-side). */
+  brief: Brief;
+}
+
+/**
+ * Source-agnostic review screen (BRIEF-19 PR 3.2): the caller supplies the
+ * Brief — local file store or the DB read API. `briefId` keys the per-brief
+ * Mind-Map session store; `artifacts` feeds the LOCAL timeline/comparisons
+ * and may be empty (every comparison affordance then self-disables).
+ */
+export function BriefView({
+  artifacts,
+  brief,
+  briefId,
+  searchParams,
+}: BriefViewProps) {
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
   return (
     <MindMapProvider briefId={briefId} model={model}>
