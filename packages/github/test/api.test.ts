@@ -208,15 +208,15 @@ describe("fetchRepositoryById", () => {
   });
 });
 
+function repositoriesResponse(
+  repos: ReadonlyArray<{ id: number; full_name: string }>,
+  totalCount = repos.length,
+) {
+  return { status: 200, data: { total_count: totalCount, repositories: repos } };
+}
+
 describe("listInstallationRepositoriesForUser", () => {
   const INSTALLATION = toInstallationId(987654n);
-
-  function repositoriesResponse(
-    repos: ReadonlyArray<{ id: number; full_name: string }>,
-    totalCount = repos.length,
-  ) {
-    return { status: 200, data: { total_count: totalCount, repositories: repos } };
-  }
 
   it("returns the numeric repo-id → verified-name map, capped per_page request", async () => {
     const request = vi.fn().mockResolvedValue(

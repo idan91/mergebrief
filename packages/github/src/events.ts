@@ -121,6 +121,8 @@ export interface ParsedPullRequestReviewEvent {
   readonly repoId: RepoId;
   readonly repoFullName: string;
   readonly prNumber: number;
+  /** The PR title — a purgeable display label, refreshed on every event. */
+  readonly title: string;
   readonly headSha: string;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin: string;
@@ -208,6 +210,7 @@ const pullRequestReviewEventSchema = z.object({
   repository: repositoryRefSchema,
   pull_request: z.object({
     number: z.number().int(),
+    title: z.string(),
     head: shaRefSchema,
   }),
   review: z.object({
@@ -314,6 +317,7 @@ function parsePullRequestReview(
       repoId: data.repository.id,
       repoFullName: data.repository.full_name,
       prNumber: data.pull_request.number,
+      title: data.pull_request.title,
       headSha: data.pull_request.head.sha,
       reviewerId: data.review.user.id,
       reviewerLogin: data.review.user.login,

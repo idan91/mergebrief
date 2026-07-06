@@ -98,6 +98,7 @@ function pullRequestPayload(input: {
     installation: { id: INSTALLATION_ID },
     repository: { id: input.repoId ?? REPO_ID, full_name: "acme/widgets" },
     pull_request: {
+      title: "Update the README with new information.",
       head: { sha: HEAD_SHA },
       base: { sha: "f95f852bd8fca8fcc58a9a2d6c842781e32a215e" },
       draft: false,
@@ -111,7 +112,11 @@ function pullRequestReviewPayload(): Record<string, unknown> {
     action: "submitted",
     installation: { id: INSTALLATION_ID },
     repository: { id: REPO_ID, full_name: "acme/widgets" },
-    pull_request: { number: 2, head: { sha: HEAD_SHA } },
+    pull_request: {
+      number: 2,
+      title: "Update the README with new information.",
+      head: { sha: HEAD_SHA },
+    },
     review: { state: "approved", user: { id: 21031067, login: "reviewer" } },
   };
 }
