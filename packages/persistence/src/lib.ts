@@ -112,6 +112,12 @@ export type {
   SessionRefreshRejection,
 } from "./session";
 
+// The per-user settings seam (BRIEF-19, D14) — the SECOND non-tenant surface
+// after `audit`. Keyed by GitHub user id (a person spans installations), so it
+// is NOT ctx-bound and NOT reachable through `forTenant`.
+export { userSettingsStore } from "./user-settings";
+export type { UserSettingsStore, UserSettingsRow } from "./user-settings";
+
 // Programmatic, idempotent app-schema migration for composition roots
 // (worker/compose boot). The graphile_worker schema stays graphile-owned.
 export { migrateApp } from "./migrate";

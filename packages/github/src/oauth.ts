@@ -285,6 +285,61 @@ export async function listAppInstallationsForUser(
 }
 
 /**
+ * One app installation reachable to the authenticated user: its numeric id
+ * (branded) plus the login of the account it is installed on (org or user) —
+ * the display label the multi-org picker shows. Numeric id is rename-proof;
+ * the login serves display, mirroring the per-repo gate's `repoFullName`.
+ */
+export interface UserInstallation {
+  readonly installationId: InstallationId;
+  readonly accountLogin: string;
+}
+
+const userInstallationsResponseSchema = z.object({
+  installations: z.array(
+    z.object({
+      id: z.number().int(),
+      // `account` is the org/user the app is installed on; both carry `login`.
+      account: z.object({ login: z.string().min(1) }),
+    }),
+  ),
+});
+
+/**
+ * List the app installations reachable to the user WITH their account logins
+ * (`GET /user/installations`, VIEWER token — user-to-server). This is the
+ * richer sibling of `listAppInstallationsForUser` (ids only): the BRIEF-19
+ * multi-org endpoints need the account login for display AND re-derive this
+ * live accessible set to validate a switch target (NEVER trusting the caller's
+ * id). A non-2xx (including the 401 that triggers the caller's token refresh)
+ * becomes a sanitized `GitHubApiError`; an ill-shaped id fails the parse rather
+ * than being force-cast.
+ */
+export async function listUserInstallations(
+  accessToken: string,
+): Promise<Result<UserInstallation[], GitHubApiError>> {
+  const octokit = new Octokit({ auth: accessToken });
+  try {
+    const response = await octokit.request("GET /user/installations");
+    const parsed = userInstallationsResponseSchema.safeParse(response.data);
+    if (!parsed.success) {
+      return { ok: false, error: unexpectedResponseError("list user installations") };
+    }
+    const result: UserInstallation[] = [];
+    for (const installation of parsed.data.installations) {
+      const id = BigInt(installation.id);
+      if (!isInstallationId(id)) {
+        return { ok: false, error: unexpectedResponseError("list user installations") };
+      }
+      result.push({ installationId: id, accountLogin: installation.account.login });
+    }
+    return { ok: true, value: result };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "list user installations") };
+  }
+}
+
+/**
  * A thin user-scoped `Octokit` for an access token. The stage-7 authorization
  * gate uses it for the viewer's repo-access check; exposed here so that seam
  * reuses the same construction (and the same default global `fetch`).

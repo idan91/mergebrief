@@ -5,13 +5,15 @@
 // `OAuthTokens` (ISO strings → Date); a missing refresh token (App without
 // token expiration) is a clear `EXPIRATION_NOT_ENABLED`; and a thrown exchange/
 // refresh error never leaks the code/token/secret it carried.
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   exchangeWebFlowCode,
+  listUserInstallations,
   refreshUserToken,
   OAuthErrorCode,
   type GitHubOAuthApp,
 } from "../src/oauth";
+import { GitHubApiErrorCode } from "../src/errors";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_VALUE";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_VALUE";
@@ -129,5 +131,57 @@ describe("refreshUserToken", () => {
     const serialized = JSON.stringify(result.error);
     expect(serialized).not.toContain(REFRESH_TOKEN);
     expect(serialized).not.toContain("SECRET_VALUE");
+  });
+});
+
+// `listUserInstallations` builds its own user-scoped Octokit, which reads the
+// global `fetch` at call time — so it is stubbed at the HTTP seam (no new mock
+// libraries), mirroring the api-package integration tests.
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+  });
+}
+
+describe("listUserInstallations", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("maps GET /user/installations to branded ids + account logins", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        expect(url).toContain("/user/installations");
+        return jsonResponse({
+          total_count: 2,
+          installations: [
+            { id: 1000, account: { login: "acme" } },
+            { id: 2000, account: { login: "octocat" } },
+          ],
+        });
+      }),
+    );
+
+    const result = await listUserInstallations("ghu_ACCESS");
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toEqual([
+      { installationId: 1000n, accountLogin: "acme" },
+      { installationId: 2000n, accountLogin: "octocat" },
+    ]);
+  });
+
+  it("maps a 401 to a sanitized UNAUTHORIZED (drives the caller's refresh)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ message: "Bad credentials" }, 401)),
+    );
+    const result = await listUserInstallations("ghu_EXPIRED");
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.UNAUTHORIZED);
   });
 });

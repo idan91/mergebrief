@@ -23,6 +23,7 @@ import {
   isInstallationId,
   isReviewerId,
   sessionAuth,
+  userSettingsStore,
   type AppDatabase,
   type InstallationId,
   type KeyProvider,
@@ -39,6 +40,7 @@ import { createApp, refreshSessionToken, type AuthDeps } from "../src/lib";
 const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
+const OTHER_INSTALLATION_ID = 111222;
 const REVIEWER_ID = 555;
 
 // GitHub token plaintexts the stub hands back — asserted ABSENT from responses.
@@ -246,6 +248,51 @@ describe("reviewer auth routes", () => {
     });
     expect(res.status).toBe(403);
     expect(await countRows(harness, "reviewer_session")).toBe(0);
+  });
+
+  // Default-binding fallback matrix (D14): the callback binds the session to the
+  // user's default installation ONLY when it is in the live accessible set,
+  // otherwise the first accessible one. `user_settings` is seeded before login.
+  async function runCallbackAndReadInstallation(): Promise<string> {
+    const state = "matching-state-nonce";
+    const res = await app.request(`/auth/github/callback?code=thecode&state=${state}`, {
+      headers: { Cookie: `rs_oauth_state=${state}` },
+    });
+    expect(res.status).toBe(302);
+    const rows = await harness.raw("select installation_id from reviewer_session limit 1");
+    return String(rows[0]?.["installation_id"]);
+  }
+
+  it("binds the default installation when it is in the accessible set", async () => {
+    stubGitHub({
+      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+      installations: [{ id: INSTALLATION_ID }, { id: OTHER_INSTALLATION_ID }],
+    });
+    await userSettingsStore(harness.handle).setDefaultInstallation(
+      brandReviewer(BigInt(REVIEWER_ID)),
+      brandInstallation(BigInt(OTHER_INSTALLATION_ID)),
+    );
+    expect(await runCallbackAndReadInstallation()).toBe(String(OTHER_INSTALLATION_ID));
+  });
+
+  it("falls back to the first accessible installation when the default is not accessible", async () => {
+    stubGitHub({
+      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+      installations: [{ id: INSTALLATION_ID }], // OTHER not in the live set
+    });
+    await userSettingsStore(harness.handle).setDefaultInstallation(
+      brandReviewer(BigInt(REVIEWER_ID)),
+      brandInstallation(BigInt(OTHER_INSTALLATION_ID)),
+    );
+    expect(await runCallbackAndReadInstallation()).toBe(String(INSTALLATION_ID));
+  });
+
+  it("binds the first accessible installation when no default is set", async () => {
+    stubGitHub({
+      token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN),
+      installations: [{ id: OTHER_INSTALLATION_ID }, { id: INSTALLATION_ID }],
+    });
+    expect(await runCallbackAndReadInstallation()).toBe(String(OTHER_INSTALLATION_ID));
   });
 
   it("POST /auth/logout deletes the session and clears the cookie", async () => {

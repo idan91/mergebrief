@@ -225,10 +225,11 @@ const M1_TABLES = [
   "pull_request",
   "reviewer_session",
   "revision_narrative",
+  "user_settings",
 ] as const;
 
 describe("M1 schema migrations", () => {
-  it("creates all 11 M1 tables", async () => {
+  it("creates all 12 M1 tables", async () => {
     const db = await freshDb();
     const result = await db.execute(
       sql`select table_name from information_schema.tables where table_schema = 'public' order by table_name`,

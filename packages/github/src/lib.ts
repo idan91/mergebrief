@@ -74,10 +74,11 @@ export {
   refreshUserToken,
   fetchAuthenticatedUser,
   listAppInstallationsForUser,
+  listUserInstallations,
   createUserOctokit,
   OAuthErrorCode,
 } from "./oauth";
-export type { GitHubOAuthApp, OAuthTokens, OAuthError } from "./oauth";
+export type { GitHubOAuthApp, OAuthTokens, OAuthError, UserInstallation } from "./oauth";
 
 // Shared sanitized API-error shape (single sanitization chokepoint).
 export { GitHubApiErrorCode } from "./errors";

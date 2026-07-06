@@ -62,7 +62,11 @@ export function pullsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     const ctx = c.get("ctx");
 
     // Resolve the viewer's allowed-repo set (cache → GitHub w/ refresh-once).
-    let allowed = allowedRepoCache.get(session.sessionTokenHash);
+    // Key includes the installation: an org switch rebinds the session row
+    // without rotating the cookie, and the pre-switch allowed set must never
+    // serve the new tenant (stale-empty at best).
+    const cacheKey = `${session.sessionTokenHash}:${String(session.installationId)}`;
+    let allowed = allowedRepoCache.get(cacheKey);
     if (allowed === undefined) {
       const decrypted = await decryptToken(
         deps.auth.keyProvider,
@@ -99,7 +103,7 @@ export function pullsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
         return c.json({ error: status === 401 ? "unauthorized" : "upstream error" }, status);
       }
       allowed = repos.value;
-      allowedRepoCache.set(session.sessionTokenHash, allowed, Date.now() + AUTHZ_CACHE_TTL_MS);
+      allowedRepoCache.set(cacheKey, allowed, Date.now() + AUTHZ_CACHE_TTL_MS);
     }
 
     const tenant = forTenant(deps.handle, ctx);

@@ -44,6 +44,7 @@ import {
   decryptToken,
   isRepoId,
   sessionAuth,
+  type InstallationId,
   type RepoId,
   type ReviewerSessionRow,
   type TenantContext,
@@ -106,8 +107,18 @@ const POSITIVE_CACHE_MAX_ENTRIES = 50_000;
 /** The access-check decision, as it appears in the stdout access log. */
 type AccessDecision = "200" | "401" | "404";
 
-function positiveCacheKey(sessionTokenHash: string, repoId: RepoId): string {
-  return `${sessionTokenHash}:${String(repoId)}`;
+/**
+ * Keyed by session AND installation: an org switch rebinds the session row's
+ * installation without rotating the cookie, so the hash alone would let a
+ * pre-switch grant (or its verified name) be reused under the new tenant for
+ * up to the TTL.
+ */
+function positiveCacheKey(
+  sessionTokenHash: string,
+  installationId: InstallationId,
+  repoId: RepoId,
+): string {
+  return `${sessionTokenHash}:${String(installationId)}:${String(repoId)}`;
 }
 
 /** Brand a `:repoId` path segment; `undefined` when it isn't a positive int. */
@@ -221,7 +232,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     // entirely. The diff route decrypts the session token lazily if it needs
     // it, so no access token is set here. The cached value IS the verified
     // full name from the check that populated the entry (≤60s old).
-    const cacheKey = positiveCacheKey(session.sessionTokenHash, repoId);
+    const cacheKey = positiveCacheKey(session.sessionTokenHash, session.installationId, repoId);
     const cachedFullName = positiveCache.get(cacheKey);
     if (cachedFullName !== undefined) {
       c.set("repoId", repoId);

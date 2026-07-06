@@ -35,6 +35,7 @@ import {
   forTenant,
   sessionAuth,
   SessionAuthErrorCode,
+  userSettingsStore,
   type AppDatabase,
   type KeyProvider,
   type ReviewerSessionRow,
@@ -314,13 +315,25 @@ export function authRoute(deps: AuthRouteDeps): Hono {
     if (!installations.ok) {
       return c.json({ error: "could not resolve app installations" }, 502);
     }
-    const installationId = installations.value[0];
-    if (installationId === undefined) {
+    const accessible = installations.value;
+    const firstAccessible = accessible[0];
+    if (firstAccessible === undefined) {
       // No accessible installation → the app isn't installed where this
       // reviewer can reach it, so they aren't authorized to log in.
       return c.json({ error: "the app is not installed for this account" }, 403);
     }
-    // M1: multi-install selection deferred — take the first accessible install.
+    // BRIEF-19 (D14): bind the session to the user's DEFAULT installation when
+    // it is still in their LIVE accessible set, else the first accessible one.
+    // The default is a cross-session per-user setting (user_settings), and it
+    // is NEVER trusted as an id on its own — a dangling default (installation
+    // purged/uninstalled since it was set) degrades to the first accessible
+    // installation rather than binding to something GitHub no longer grants.
+    const settings = await userSettingsStore(deps.handle).get(user.value.reviewerId);
+    const preferredDefault = settings?.defaultInstallationId ?? undefined;
+    const installationId =
+      preferredDefault !== undefined && accessible.some((id) => id === preferredDefault)
+        ? preferredDefault
+        : firstAccessible;
 
     const sessionToken = randomBytes(SESSION_TOKEN_BYTES).toString("base64url");
     const sessionTokenHash = sha256Hex(sessionToken);

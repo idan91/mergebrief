@@ -16,7 +16,7 @@ import { and, eq } from "drizzle-orm";
 import { type AppDatabase, internal } from "./db";
 import { reviewerSession } from "./schema/reviewer-session";
 import type { ReviewerSessionRow } from "./tenant";
-import type { Result, ValueOf } from "./types";
+import type { InstallationId, Result, ValueOf } from "./types";
 
 // ---------------------------------------------------------------------------
 // Refresh patch + rejection — the caller-driven refresh callback's contract.
@@ -107,6 +107,20 @@ export interface SessionAuth {
       locked: ReviewerSessionRow,
     ) => Promise<Result<SessionRefreshPatch, SessionRefreshRejection>>,
   ): Promise<Result<ReviewerSessionRow, SessionAuthError>>;
+  /**
+   * Rebind the session to a DIFFERENT installation (BRIEF-19 multi-org switch —
+   * D14). The session row's `installation_id` IS the tenant stamp, so the switch
+   * endpoint validates the target is in the viewer's LIVE accessible set (never
+   * trusting the caller) BEFORE calling this — this seam only persists a
+   * pre-validated rebinding. Atomic, ctx-safe: `SELECT … FOR UPDATE` the row by
+   * its hash, then UPDATE its `installation_id` scoped by the locked row's OWN
+   * current `installation_id` + `id` (the gate value comes from the row, never
+   * from an unscoped caller argument). A vanished row → `NOT_FOUND`.
+   */
+  rebindInstallation(
+    sessionTokenHash: string,
+    installationId: InstallationId,
+  ): Promise<Result<ReviewerSessionRow, SessionAuthError>>;
 }
 
 /**
@@ -186,6 +200,45 @@ export function sessionAuth(handle: AppDatabase): SessionAuth {
         const updatedRow = updated[0];
         if (updatedRow === undefined) {
           throw new Error("reviewer_session refresh update returned no row");
+        }
+        return { ok: true, value: updatedRow };
+      });
+    },
+
+    async rebindInstallation(sessionTokenHash, installationId) {
+      return db.transaction(async (tx) => {
+        // FOR UPDATE: serialize a rebinding against a concurrent refresh/rebind
+        // of THIS session (both mutate the one row).
+        const locked = await tx
+          .select()
+          .from(reviewerSession)
+          .where(eq(reviewerSession.sessionTokenHash, sessionTokenHash))
+          .for("update")
+          .limit(1);
+        const row = locked[0];
+        if (row === undefined) {
+          return fail(
+            SessionAuthErrorCode.NOT_FOUND,
+            "reviewer_session not found for the given token hash",
+          );
+        }
+
+        // The UPDATE is gated by the locked row's OWN current installation_id
+        // (+ id) — never by an unscoped caller argument, so a rebinding can only
+        // move the tenant stamp of the row it already resolved.
+        const updated = await tx
+          .update(reviewerSession)
+          .set({ installationId })
+          .where(
+            and(
+              eq(reviewerSession.installationId, row.installationId),
+              eq(reviewerSession.id, row.id),
+            ),
+          )
+          .returning();
+        const updatedRow = updated[0];
+        if (updatedRow === undefined) {
+          throw new Error("reviewer_session rebind update returned no row");
         }
         return { ok: true, value: updatedRow };
       });

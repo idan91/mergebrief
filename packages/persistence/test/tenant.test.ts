@@ -16,6 +16,7 @@ import {
   type PullRequestUpsertInput,
   type TenantContext,
   type TenantRepository,
+  type UserSettingsStore,
 } from "../src/lib";
 import {
   isInstallationId,
@@ -278,5 +279,17 @@ describe("compile-time containment (D2b)", () => {
     expectTypeOf<TenantRepository>().not.toHaveProperty("update");
     expectTypeOf<TenantRepository>().not.toHaveProperty("delete");
     expectTypeOf<TenantRepository>().not.toHaveProperty("transaction");
+  });
+
+  it("the non-tenant userSettings seam (D14) leaks no query surface either", () => {
+    // Treated like `audit`/`sessionAuth`: a NON-tenant surface that takes the
+    // opaque handle and unwraps in-package — never a raw drizzle handle. It is
+    // NOT reachable through TenantRepository (it is keyed by user id, not ctx).
+    expectTypeOf<TenantRepository>().not.toHaveProperty("userSettings");
+    expectTypeOf<UserSettingsStore>().not.toHaveProperty("insert");
+    expectTypeOf<UserSettingsStore>().not.toHaveProperty("select");
+    expectTypeOf<UserSettingsStore>().not.toHaveProperty("update");
+    expectTypeOf<UserSettingsStore>().not.toHaveProperty("delete");
+    expectTypeOf<UserSettingsStore>().not.toHaveProperty("transaction");
   });
 });
