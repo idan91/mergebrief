@@ -21,6 +21,7 @@
 // session.
 import { Octokit } from "octokit";
 import { OAuthApp, type Options } from "@octokit/oauth-app";
+import { retryOptions } from "./retry";
 import type { InstallationId, ReviewerId } from "persistence";
 import { z } from "zod";
 import {
@@ -289,5 +290,8 @@ export async function listAppInstallationsForUser(
  * reuses the same construction (and the same default global `fetch`).
  */
 export function createUserOctokit(accessToken: string): Octokit {
-  return new Octokit({ auth: accessToken });
+  // Same permanent-status retry tuning as the App's installation clients —
+  // notably 406 (diff too large; see `retry.ts`): the read API's diff proxy
+  // must fail fast to its 413 mapping, not retry an unrenderable span.
+  return new Octokit({ auth: accessToken, retry: retryOptions() });
 }
