@@ -39,6 +39,45 @@ describe("dispatchInProcess", () => {
     expect(res.status).toBe(401);
   });
 
+  it("forwards method, body, and content-type for a mutation (BRIEF-23)", async () => {
+    const app = fakeApp((request) => {
+      expect(request.method).toBe("POST");
+      expect(request.headers.get("content-type")).toBe("application/json");
+      expect(request.headers.get("cookie")).toBe("rs_session=abc");
+      return new Response('{"ok":true}', { status: 201 });
+    });
+    const res = await dispatchInProcess(
+      "/api/repos/1/pulls/7/review",
+      "rs_session=abc",
+      async () => app,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: '{"outcome":"comment"}',
+      },
+    );
+    expect(res.status).toBe(201);
+    const sent = app.fetch.mock.calls[0]?.[0];
+    if (sent === undefined) throw new Error("expected a dispatched request");
+    expect(await sent.text()).toBe('{"outcome":"comment"}');
+  });
+
+  it("the viewer cookie wins over a case-variant Cookie init header", async () => {
+    // Headers are case-insensitive: a caller-supplied `Cookie` must not merge
+    // with (and shadow or pollute) the forwarded viewer cookie.
+    const app = fakeApp((request) => {
+      expect(request.headers.get("cookie")).toBe("rs_session=real");
+      return new Response("{}", { status: 200 });
+    });
+    const res = await dispatchInProcess(
+      "/api/pulls",
+      "rs_session=real",
+      async () => app,
+      { headers: { Cookie: "rs_session=stale" } },
+    );
+    expect(res.status).toBe(200);
+  });
+
   it("maps a composition failure to the sanitized 503, never a throw", async () => {
     const res = await dispatchInProcess("/api/pulls", undefined, async () => {
       throw new Error("postgres://user:secret@host/db is down");

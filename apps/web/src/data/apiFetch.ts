@@ -65,14 +65,27 @@ interface DispatchableApp {
 }
 
 /**
+ * The narrow request-init surface this seam forwards (BRIEF-23 adds the
+ * submit mutation). Typed explicitly — not `RequestInit` — so the SSR branch
+ * provably forwards every field it accepts.
+ */
+export interface ApiFetchInit {
+  readonly method?: "GET" | "POST";
+  readonly headers?: Readonly<Record<string, string>>;
+  readonly body?: string;
+}
+
+/**
  * SSR dispatch, factored for tests: synthesize a Request against the
- * in-process app with the viewer's cookie forwarded verbatim. A composition
- * failure becomes the sanitized 503 (mirrors `src/server.ts`).
+ * in-process app with the viewer's cookie forwarded verbatim (plus any
+ * mutation method/body). A composition failure becomes the sanitized 503
+ * (mirrors `src/server.ts`).
  */
 export async function dispatchInProcess(
   path: string,
   cookie: string | undefined,
   getApp: () => Promise<DispatchableApp>,
+  init?: ApiFetchInit,
 ): Promise<Response> {
   let app: DispatchableApp;
   try {
@@ -84,26 +97,44 @@ export async function dispatchInProcess(
       headers: { "content-type": "application/json" },
     });
   }
+  // Header names are case-insensitive: build a real Headers object and set
+  // the forwarded viewer cookie LAST, after deleting any caller-supplied
+  // `Cookie`/`cookie` — a plain object spread would keep both variants and
+  // let a stale caller cookie merge ahead of the real one.
+  const headers = new Headers(init?.headers ?? {});
+  headers.delete("cookie");
+  if (cookie !== undefined) {
+    headers.set("cookie", cookie);
+  }
   return app.fetch(
     new Request(`http://internal${path}`, {
-      headers: cookie === undefined ? {} : { cookie },
+      method: init?.method ?? "GET",
+      headers,
+      ...(init?.body === undefined ? {} : { body: init.body }),
     }),
   );
 }
 
 const dispatch = createIsomorphicFn()
-  .client((path: string): Promise<Response> => fetch(path))
-  .server(async (path: string): Promise<Response> => {
+  .client(
+    (path: string, init?: ApiFetchInit): Promise<Response> => fetch(path, init),
+  )
+  .server(async (path: string, init?: ApiFetchInit): Promise<Response> => {
     const [{ getRequestHeader }, { getWebhookApp }] = await Promise.all([
       import("@tanstack/react-start/server"),
       import("../server/webhookApp"),
     ]);
-    return dispatchInProcess(path, getRequestHeader("cookie"), getWebhookApp);
+    return dispatchInProcess(
+      path,
+      getRequestHeader("cookie"),
+      getWebhookApp,
+      init,
+    );
   });
 
-/** Fetch a read-API path on whichever side we are rendering. */
-export function apiFetch(path: string): Promise<Response> {
-  return dispatch(path);
+/** Fetch a read-API path (or POST a mutation) on whichever side we render. */
+export function apiFetch(path: string, init?: ApiFetchInit): Promise<Response> {
+  return dispatch(path, init);
 }
 
 /** Map a response to its parsed JSON body or a typed `ApiError`. */
