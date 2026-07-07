@@ -82,6 +82,7 @@ async function handlePullRequest(
       prNumber: event.prNumber,
       repoSlug: event.repoFullName,
       title: event.title,
+      baseSha: event.baseSha,
       state: event.merged === true ? PrState.MERGED : PrState.CLOSED,
       closedAt: new Date(),
       purgeAfter: null,
@@ -130,6 +131,8 @@ async function triggerGeneration(
       prNumber: event.prNumber,
       repoSlug: event.repoFullName,
       title: event.title,
+      // Review events carry no base SHA; omission preserves the stored one.
+      ...("baseSha" in event ? { baseSha: event.baseSha } : {}),
       state: PrState.OPEN,
     },
     headSha: event.headSha,

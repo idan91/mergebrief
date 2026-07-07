@@ -60,6 +60,7 @@ describe("ingestRoutines.triggerGeneration", () => {
   async function trigger(overrides?: {
     debounceSeconds?: number;
     reopen?: boolean;
+    baseSha?: string;
   }): Promise<Result<IngestOutcome, { code: string; message: string }>> {
     return ingestRoutines(harness.handle, CTX).triggerGeneration({
       pullRequest: {
@@ -67,6 +68,7 @@ describe("ingestRoutines.triggerGeneration", () => {
         prNumber: 7,
         repoSlug: "acme/widgets",
         title: "feat: add widgets",
+        ...(overrides?.baseSha === undefined ? {} : { baseSha: overrides.baseSha }),
         state: PrState.OPEN,
       },
       headSha: HEAD_SHA,
@@ -131,6 +133,18 @@ describe("ingestRoutines.triggerGeneration", () => {
     const runAtDelta = epochMs(job["run_at"]) - before;
     expect(runAtDelta).toBeGreaterThan(55_000);
     expect(runAtDelta).toBeLessThan(65_000);
+  });
+
+  it("persists baseSha and preserves it when a later trigger omits it (BRIEF-21 fold-in)", async () => {
+    const first = unwrap(await trigger({ baseSha: "base-1" }));
+    expect(first.pullRequest.baseSha).toBe("base-1");
+
+    // Review-event trigger (no baseSha) must not null the stored value.
+    const preserved = unwrap(await trigger());
+    expect(preserved.pullRequest.baseSha).toBe("base-1");
+
+    const retargeted = unwrap(await trigger({ baseSha: "base-2" }));
+    expect(retargeted.pullRequest.baseSha).toBe("base-2");
   });
 
   it("is idempotent on redelivery: same PR row, attempts++, ONE job with a pushed run_at", async () => {

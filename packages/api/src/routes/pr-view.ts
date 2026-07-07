@@ -4,8 +4,8 @@
 // is written at ingest, so it exists from the first webhook — before any
 // artifact); `briefAvailable` is true only when the latest brief artifact IS
 // for that head (render trigger = artifact EXISTS, ADR 0006 #10 — status is
-// display-only). `baseSha` comes from the brief row, so it is null exactly
-// while the current span has no brief yet (the FE's "span unknown" signal).
+// display-only). `baseSha` prefers the brief row and falls back to the base
+// SHA persisted at ingest, so the span is known before any brief lands.
 import type {
   BriefSpanRow,
   GenerationPhase,
@@ -32,7 +32,11 @@ export interface PrView {
   readonly prNumber: number;
   readonly title: string | null;
   readonly state: PrState;
-  /** The current span's brief base; null while the span has no brief. */
+  /**
+   * The span's lower bound: the brief's base when one exists, else the base
+   * SHA persisted at ingest (BRIEF-19 follow-up — the span is known before
+   * any brief lands). Null only for rows ingested before `base_sha` existed.
+   */
   readonly baseSha: string | null;
   /** The current push's head; null only when nothing was ever projected. */
   readonly headSha: string | null;
@@ -60,7 +64,7 @@ export function buildPrView(
     prNumber: row.prNumber,
     title: row.title,
     state: row.state,
-    baseSha: briefAvailable ? latestBrief.baseSha : null,
+    baseSha: briefAvailable ? latestBrief.baseSha : row.baseSha,
     headSha,
     briefAvailable,
     generation:

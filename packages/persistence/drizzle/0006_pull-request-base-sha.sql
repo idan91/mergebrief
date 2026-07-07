@@ -1,0 +1,1 @@
+ALTER TABLE "pull_request" ADD COLUMN "base_sha" text;

@@ -160,6 +160,12 @@ interface BasePullRequestUpsertInput {
   readonly repoSlug?: string;
   /** Purgeable display label (D5 as amended), refreshed on every webhook. */
   readonly title?: string;
+  /**
+   * PR-base SHA, refreshed by `pull_request` events. Optional because
+   * `pull_request_review` payloads don't carry it — an omitted value
+   * preserves the stored one instead of nulling it.
+   */
+  readonly baseSha?: string;
 }
 
 export type PullRequestUpsertInput = BasePullRequestUpsertInput & PullRequestLifecycle;
@@ -289,6 +295,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           prNumber: input.prNumber,
           repoSlug: input.repoSlug,
           title: input.title,
+          baseSha: input.baseSha,
           ...lifecycle,
           updatedAt: new Date(),
         })
@@ -297,6 +304,8 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           set: {
             repoSlug: input.repoSlug,
             title: input.title,
+            // Omitted (review events) preserves the stored value.
+            ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
             ...lifecycle,
             updatedAt: new Date(),
           },

@@ -215,6 +215,12 @@ export interface DeltaStore {
     baselineSha: string,
     headSha: string,
   ): Promise<DeltaRow | undefined>;
+  /** Lean availability probe (BRIEF-21 PR-meta) — never loads the body. */
+  existsForSpan(
+    pullRequestId: PullRequestRowId,
+    baselineSha: string,
+    headSha: string,
+  ): Promise<boolean>;
 }
 
 export interface DiffSnapshotStore {
@@ -452,6 +458,22 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         )
         .limit(1);
       return rows[0];
+    },
+
+    async existsForSpan(pullRequestId, baselineSha, headSha) {
+      const rows = await db
+        .select({ id: delta.id })
+        .from(delta)
+        .where(
+          and(
+            eq(delta.installationId, installationId),
+            eq(delta.pullRequestId, pullRequestId),
+            eq(delta.baselineSha, baselineSha),
+            eq(delta.headSha, headSha),
+          ),
+        )
+        .limit(1);
+      return rows.length > 0;
     },
   };
 

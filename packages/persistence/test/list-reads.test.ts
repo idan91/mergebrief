@@ -55,6 +55,30 @@ describe("pull_request title persistence", () => {
   });
 });
 
+describe("pull_request base_sha persistence (BRIEF-21 fold-in)", () => {
+  it("persists baseSha, refreshes it when provided, preserves it when omitted", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+
+    const first = await repo.pullRequests.upsert({
+      repoId: REPO_1, prNumber: 1, baseSha: "base-1", state: PrState.OPEN,
+    });
+    expect(first.baseSha).toBe("base-1");
+
+    // A review-event upsert (no baseSha) must NOT null the stored value.
+    const preserved = await repo.pullRequests.upsert({
+      repoId: REPO_1, prNumber: 1, state: PrState.OPEN,
+    });
+    expect(preserved.baseSha).toBe("base-1");
+
+    // A base-branch retarget refreshes it.
+    const retargeted = await repo.pullRequests.upsert({
+      repoId: REPO_1, prNumber: 1, baseSha: "base-2", state: PrState.OPEN,
+    });
+    expect(retargeted.baseSha).toBe("base-2");
+  });
+});
+
 describe("pullRequests.listForRepos", () => {
   it("returns only ctx-tenant rows in the allowed repo set, newest first, capped", async () => {
     const handle = await freshDatabase();
@@ -151,7 +175,23 @@ describe("comparison existence seams (BRIEF-19 4.1)", () => {
     expect(await store.revisionNarratives.existsForSpan(pr.id, "head-1", "head-2")).toBe(true);
   });
 
-  it("never sees another tenant's marks/narratives", async () => {
+  it("deltas.existsForSpan reflects writes, lean (BRIEF-21)", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const store = artifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({ repoId: REPO_1, prNumber: 1, state: PrState.OPEN });
+
+    expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-2")).toBe(false);
+    const written = await store.deltas.write({
+      pullRequestId: pr.id, baselineSha: "cp-1", headSha: "head-2", body: "{}", ...PROVENANCE,
+    });
+    if (!written.ok) throw new Error("delta write failed");
+    expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-2")).toBe(true);
+    // Span mismatch stays false — the natural key is the whole span.
+    expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-3")).toBe(false);
+  });
+
+  it("never sees another tenant's marks/narratives/deltas", async () => {
     const handle = await freshDatabase();
     const b = forTenant(handle, CTX_B);
     const bStore = artifactStore(handle, CTX_B);
@@ -165,10 +205,15 @@ describe("comparison existence seams (BRIEF-19 4.1)", () => {
       },
     });
     if (!marks.ok) throw new Error("marks write failed");
+    const bDelta = await bStore.deltas.write({
+      pullRequestId: bPr.id, baselineSha: "head-1", headSha: "head-2", body: "{}", ...PROVENANCE,
+    });
+    if (!bDelta.ok) throw new Error("delta write failed");
 
     const aStore = artifactStore(handle, CTX_A);
     expect(await aStore.comparisonMarks.existsForSpan(bPr.id, "head-1", "head-2")).toBe(false);
     expect(await aStore.revisionNarratives.existsForSpan(bPr.id, "head-1", "head-2")).toBe(false);
+    expect(await aStore.deltas.existsForSpan(bPr.id, "head-1", "head-2")).toBe(false);
   });
 });
 

@@ -25,9 +25,15 @@ import {
   decryptToken,
   forTenant,
   generationProjection,
+  GenerationKind,
+  GenerationStatus,
+  type BriefSpanRow,
+  type GenerationRow,
   type PullRequestRow,
   type RepoId,
+  type ReviewerId,
   type TenantContext,
+  type ValueOf,
 } from "persistence";
 import { z } from "zod";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
@@ -56,6 +62,12 @@ const diffRefSchema = shaSchema.refine((value) => !value.includes(":"), {
   message: "diff ref must not select a cross-repo owner:ref span",
 });
 const diffQuerySchema = z.object({ base: diffRefSchema, head: diffRefSchema });
+/**
+ * Delta span query (BRIEF-21). The read never reaches GitHub, but the same
+ * no-`:` rule as the diff route keeps every span-selecting query on this
+ * surface a plain SHA pair (defense-in-depth, one shape to reason about).
+ */
+const deltaQuerySchema = z.object({ baseline: diffRefSchema, head: diffRefSchema });
 
 /** Per-session diff cache TTL — short; the diff is live, this only debounces. */
 const DIFF_CACHE_TTL_MS = 60 * 1000;
@@ -148,9 +160,27 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       latestGenerations.get(resolved.pr.id),
       c.get("repoFullName"),
     );
-    const previousBrief = await derivePreviousBriefComparison(store, resolved.pr.id, view);
-    // `comparisons` is additive and leaves room for BRIEF-21's `lastReview`.
-    const comparisons = previousBrief === undefined ? {} : { previousBrief };
+    // One lean span listing serves both comparison derivations.
+    const briefs = view.briefAvailable && view.headSha !== null
+      ? await store.briefs.listForPullRequest(resolved.pr.id)
+      : [];
+    const [previousBrief, lastReview] = await Promise.all([
+      derivePreviousBriefComparison(store, resolved.pr.id, view, briefs),
+      deriveLastReviewComparison(
+        deps,
+        ctx,
+        store,
+        resolved.pr.id,
+        c.get("session").reviewerId,
+        view,
+        briefs,
+        latestGenerations.get(resolved.pr.id),
+      ),
+    ]);
+    const comparisons = {
+      ...(previousBrief === undefined ? {} : { previousBrief }),
+      ...(lastReview === undefined ? {} : { lastReview }),
+    };
     return c.json({ ...view, comparisons }, 200, { "cache-control": "no-store" });
   });
 
@@ -192,6 +222,32 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
     }
     const row = await artifactStore(deps.handle, c.get("ctx")).comparisonMarks.get(
+      resolved.pr.id,
+      query.data.baseline,
+      query.data.head,
+    );
+    if (row === undefined) {
+      return c.json({ error: "not found" }, 404);
+    }
+    return artifactJson(c, row.body);
+  });
+
+  // GET delta — the pre-warmed reviewer-personal delta core for
+  // (baseline = checkpoint SHA, head). Reviewer-agnostic artifact (D8);
+  // per-reviewer relevance is derived in PR-meta, not here.
+  app.get("/api/repos/:repoId/pulls/:prNumber/delta", async (c) => {
+    const query = deltaQuerySchema.safeParse({
+      baseline: c.req.query("baseline"),
+      head: c.req.query("head"),
+    });
+    if (!query.success) {
+      return c.json({ error: "invalid query parameters" }, 400);
+    }
+    const resolved = await resolvePr(c.get("ctx"), c.get("repoId"), c.req.param("prNumber"));
+    if (!resolved.ok) {
+      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
+    }
+    const row = await artifactStore(deps.handle, c.get("ctx")).deltas.get(
       resolved.pr.id,
       query.data.baseline,
       query.data.head,
@@ -327,11 +383,11 @@ async function derivePreviousBriefComparison(
   store: ReturnType<typeof artifactStore>,
   pullRequestId: PullRequestRow["id"],
   view: { readonly briefAvailable: boolean; readonly headSha: string | null },
+  briefs: readonly BriefSpanRow[],
 ): Promise<PreviousBriefComparisonView | undefined> {
   if (!view.briefAvailable || view.headSha === null) {
     return undefined;
   }
-  const briefs = await store.briefs.listForPullRequest(pullRequestId);
   const previous = briefs.toReversed().find((row) => row.headSha !== view.headSha);
   if (previous === undefined) {
     return undefined;
@@ -353,6 +409,103 @@ async function derivePreviousBriefComparison(
     baselineSha: previous.headSha,
     baselineIndex: previous.headIndex,
     narrativeAvailable,
+  };
+}
+
+function isNonTerminal(status: GenerationStatus): boolean {
+  return status === GenerationStatus.QUEUED || status === GenerationStatus.RUNNING;
+}
+
+/**
+ * Why `lastReview` is unavailable despite a recorded checkpoint (BRIEF-21).
+ * API-response vocabulary only — never stored, so no DB CHECK/migration.
+ */
+export const LastReviewUnavailableReason = {
+  /** No marks and no live generation — GC'd baseline / rewritten history. */
+  BASELINE_UNAVAILABLE: "baseline-unavailable",
+  /** No marks yet, but a delta generation for the span is still non-terminal. */
+  PENDING: "pending",
+} as const;
+export type LastReviewUnavailableReason = ValueOf<typeof LastReviewUnavailableReason>;
+
+/**
+ * The PR-meta `comparisons.lastReview` union (BRIEF-21): the reviewer-personal
+ * "since MY last review" comparison. Marks existence IS the offer (ADR 0024);
+ * the delta core is optional richness (`deltaAvailable` — the worker skips it
+ * on huge spans, "absence is the signal"). Structurally compatible with the
+ * local path's shape (`brief.server.ts` `buildComparisonAvailability`).
+ */
+export type LastReviewComparisonView =
+  | {
+      readonly deltaAvailable: boolean;
+      readonly baselineSha: string;
+      /** The baseline's brief index when the checkpoint SHA was a briefed head. */
+      readonly baselineIndex?: number;
+    }
+  | { readonly unavailable: LastReviewUnavailableReason };
+
+/**
+ * Derive `lastReview` from the REQUESTING reviewer's checkpoint row. Absent
+ * (undefined) when there is nothing to explain: no checkpoint (the reviewer
+ * never submitted), no brief/head yet (same guard as previousBrief), or the
+ * checkpoint IS the current head (empty span — the reviewer is up to date).
+ */
+async function deriveLastReviewComparison(
+  deps: AuthRouteDeps,
+  ctx: TenantContext,
+  store: ReturnType<typeof artifactStore>,
+  pullRequestId: PullRequestRow["id"],
+  reviewerId: ReviewerId,
+  view: { readonly briefAvailable: boolean; readonly headSha: string | null },
+  briefs: readonly BriefSpanRow[],
+  latestBriefGeneration: GenerationRow | undefined,
+): Promise<LastReviewComparisonView | undefined> {
+  if (!view.briefAvailable || view.headSha === null) {
+    return undefined;
+  }
+  const headSha = view.headSha;
+  const checkpoint = await forTenant(deps.handle, ctx).checkpoints.get(pullRequestId, reviewerId);
+  if (checkpoint === undefined || checkpoint.lastSubmittedSha === headSha) {
+    return undefined;
+  }
+  const baselineSha = checkpoint.lastSubmittedSha;
+  const marksExist = await store.comparisonMarks.existsForSpan(pullRequestId, baselineSha, headSha);
+  if (marksExist) {
+    const deltaAvailable = await store.deltas.existsForSpan(pullRequestId, baselineSha, headSha);
+    const baselineIndex = briefs.find((row) => row.headSha === baselineSha)?.headIndex;
+    return {
+      deltaAvailable,
+      baselineSha,
+      ...(baselineIndex === undefined ? {} : { baselineIndex }),
+    };
+  }
+  // No marks: the worker either hasn't warmed this span yet, or never will
+  // (the span diff was unavailable → nothing was written, absence is the
+  // signal). Two pending signals, because production writes NO delta-kind
+  // projection rows today (warmDeltaCores runs inside the brief job — codex
+  // review on PR #45): (a) the current head's BRIEF generation is still
+  // non-terminal — marks land before it succeeds, so its warming window IS
+  // the delta's; (b) a non-terminal delta-kind row for the exact span, kept
+  // for when delta generation gets its own projection.
+  const briefGenPending =
+    latestBriefGeneration !== undefined &&
+    latestBriefGeneration.headSha === headSha &&
+    isNonTerminal(latestBriefGeneration.status);
+  const deltaGeneration = briefGenPending
+    ? undefined
+    : await generationProjection(deps.handle, ctx).get({
+        pullRequestId,
+        kind: GenerationKind.DELTA,
+        headSha,
+        baselineSha,
+      });
+  const pending =
+    briefGenPending ||
+    (deltaGeneration !== undefined && isNonTerminal(deltaGeneration.status));
+  return {
+    unavailable: pending
+      ? LastReviewUnavailableReason.PENDING
+      : LastReviewUnavailableReason.BASELINE_UNAVAILABLE,
   };
 }
 

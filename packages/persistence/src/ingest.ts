@@ -152,6 +152,7 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
             prNumber: input.pullRequest.prNumber,
             repoSlug: input.pullRequest.repoSlug,
             title: input.pullRequest.title,
+            baseSha: input.pullRequest.baseSha,
             ...lifecycle,
             updatedAt: new Date(),
           })
@@ -160,6 +161,10 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
             set: {
               repoSlug: input.pullRequest.repoSlug,
               title: input.pullRequest.title,
+              // Omitted (review events) preserves the stored value.
+              ...(input.pullRequest.baseSha === undefined
+                ? {}
+                : { baseSha: input.pullRequest.baseSha }),
               state: preserveTerminal
                 ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.state} else ${lifecycle.state} end`
                 : lifecycle.state,

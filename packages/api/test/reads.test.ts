@@ -227,6 +227,27 @@ async function seedBrief(handle: AppDatabase, base: string, head: string): Promi
   if (!written.ok) throw new Error(`seedBrief: write failed ${written.error.code}`);
 }
 
+const DELTA_BODY = JSON.stringify({ summary: "the delta", changes: [] });
+
+async function seedDelta(handle: AppDatabase, baseline: string, head: string): Promise<void> {
+  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(brandRepo(BigInt(REPO_ID)), PR_NUMBER);
+  if (pr === undefined) throw new Error("seedDelta: pr missing");
+  const written = await artifactStore(handle, CTX).deltas.write({
+    pullRequestId: pr.id,
+    baselineSha: baseline,
+    headSha: head,
+    provider: "anthropic",
+    model: "claude",
+    effort: "high",
+    body: DELTA_BODY,
+  });
+  if (!written.ok) throw new Error(`seedDelta: write failed ${written.error.code}`);
+}
+
+function deltaPath(baseline: string, head: string): string {
+  return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/delta?baseline=${baseline}&head=${head}`;
+}
+
 function briefPath(base: string, head: string): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief?base=${base}&head=${head}`;
 }
@@ -332,6 +353,45 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(missing.status).toBe(404);
+  });
+
+  it("200 authorized delta read returns the stored body; a missing span is 404 (BRIEF-21)", async () => {
+    const counts = stubGitHub({ repositories: () => repoOk() });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+    await seedDelta(harness.handle, "cp-1", "head-2");
+
+    const res = await app.request(deltaPath("cp-1", "head-2"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.text()).toBe(DELTA_BODY);
+
+    const missing = await app.request(deltaPath("cp-1", "nope"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(missing.status).toBe(404);
+    // Positive authz cache: one access check covered both reads.
+    expect(counts.repositories).toBe(1);
+  });
+
+  it("delta query rejects a cross-repo owner:ref selector and missing params (400)", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+
+    const crossRepo = await app.request(deltaPath("evil:main", "head-2"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(crossRepo.status).toBe(400);
+
+    const missingHead = await app.request(
+      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/delta?baseline=only`,
+      { headers: { Cookie: `rs_session=${cookie}` } },
+    );
+    expect(missingHead.status).toBe(400);
   });
 
   it("400 on a malformed query (missing head)", async () => {

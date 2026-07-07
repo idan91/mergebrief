@@ -20,6 +20,14 @@ export const pullRequest = pgTable(
      * ingested before the column existed backfill on their next event.
      */
     title: text("title"),
+    /**
+     * The PR-base SHA from the last `pull_request` event (BRIEF-19 follow-up,
+     * agreed 2026-07-06): PR-meta's span lower bound regardless of brief
+     * existence. Nullable: rows ingested before the column backfill on their
+     * next event; `pull_request_review` events don't carry it and never
+     * overwrite a stored value.
+     */
+    baseSha: text("base_sha"),
     state: text("state").$type<PrState>().notNull(),
     /**
      * The branded Entry comment id (D5). Nullable: no writer in BRIEF-2, and

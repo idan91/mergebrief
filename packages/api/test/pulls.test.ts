@@ -133,6 +133,7 @@ interface SeedPrInput {
   readonly prNumber: number;
   readonly title?: string;
   readonly slug?: string;
+  readonly baseSha?: string;
 }
 
 async function seedPr(handle: AppDatabase, input: SeedPrInput) {
@@ -142,6 +143,7 @@ async function seedPr(handle: AppDatabase, input: SeedPrInput) {
     prNumber: input.prNumber,
     repoSlug: input.slug ?? "octo/hello",
     title: input.title ?? `PR ${input.prNumber}`,
+    ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
     state: PrState.OPEN,
   });
 }
@@ -355,7 +357,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   it("meta: returns the PR row, current span, briefAvailable, and generation summary", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
-    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, title: "the pr" });
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, title: "the pr", baseSha: "base-1" });
     const gen = generationProjection(harness.handle, CTX);
     await gen.upsertQueued({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-1", baselineSha: null });
 
@@ -370,7 +372,8 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       title: "the pr",
       state: "open",
       headSha: "head-1",
-      baseSha: null,
+      // Persisted at ingest — the span is known before any brief (BRIEF-21).
+      baseSha: "base-1",
       briefAvailable: false,
       generation: { status: GenerationStatus.QUEUED, attempts: 0 },
     });
@@ -443,5 +446,169 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       baselineIndex: 1,
       narrativeAvailable: true,
     });
+  });
+
+  // ------------------------------------------- meta: lastReview (BRIEF-21)
+
+  interface MetaComparisons {
+    comparisons?: { lastReview?: Record<string, unknown> };
+  }
+
+  async function metaLastReview(cookie: string): Promise<Record<string, unknown> | undefined> {
+    const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as MetaComparisons;
+    return body.comparisons?.lastReview;
+  }
+
+  async function seedCheckpoint(
+    pullRequestId: Parameters<ReturnType<typeof forTenant>["checkpoints"]["get"]>[0],
+    reviewerId: number,
+    lastSubmittedSha: string,
+    ctx: TenantContext = CTX,
+  ): Promise<void> {
+    const result = await forTenant(harness.handle, ctx).checkpoints.upsertOnSubmit({
+      pullRequestId,
+      reviewerId: brand(isReviewerId, reviewerId),
+      reviewerLogin: `reviewer-${reviewerId}`,
+      lastSubmittedSha,
+      submittedAt: new Date("2026-07-01T00:00:00Z"),
+    });
+    if (!result.ok) throw new Error("checkpoint seed failed");
+  }
+
+  async function seedBriefs(pr: { id: Parameters<ReturnType<typeof artifactStore>["briefs"]["listForPullRequest"]>[0] }): Promise<void> {
+    const store = artifactStore(harness.handle, CTX);
+    for (const [head, index] of [["head-1", 1], ["head-2", 2]] as const) {
+      const result = await store.briefs.write({
+        pullRequestId: pr.id, baseSha: "base", headSha: head, headIndex: index,
+        commitCount: index, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+      });
+      if (!result.ok) throw new Error("brief write failed");
+    }
+  }
+
+  it("meta: lastReview absent without a checkpoint; another reviewer's checkpoint never drives it", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await seedBriefs(pr);
+
+    expect(await metaLastReview(cookie)).toBeUndefined();
+
+    // A DIFFERENT reviewer submitted — the session reviewer still has nothing.
+    await seedCheckpoint(pr.id, 999, "head-1");
+    expect(await metaLastReview(cookie)).toBeUndefined();
+  });
+
+  it("meta: lastReview available tiers — marks+delta, then marks-only", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await seedBriefs(pr);
+    await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
+    const store = artifactStore(harness.handle, CTX);
+
+    const marks = await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: {
+        baselineSha: "head-1",
+        headSha: "head-2",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    if (!marks.ok) throw new Error("marks write failed");
+
+    // Marks-only: an OFFER with the delta core absent.
+    expect(await metaLastReview(cookie)).toEqual({
+      deltaAvailable: false,
+      baselineSha: "head-1",
+      baselineIndex: 1,
+    });
+
+    const delta = await store.deltas.write({
+      pullRequestId: pr.id, baselineSha: "head-1", headSha: "head-2",
+      provider: "anthropic", model: "claude", effort: "high", body: "{}",
+    });
+    if (!delta.ok) throw new Error("delta write failed");
+
+    expect(await metaLastReview(cookie)).toEqual({
+      deltaAvailable: true,
+      baselineSha: "head-1",
+      baselineIndex: 1,
+    });
+  });
+
+  it("meta: lastReview unavailable reasons — pending vs baseline-unavailable", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await seedBriefs(pr);
+    // Checkpoint SHA that was never briefed (rewritten history) — no marks.
+    await seedCheckpoint(pr.id, REVIEWER_ID, "gone-sha");
+
+    expect(await metaLastReview(cookie)).toEqual({ unavailable: "baseline-unavailable" });
+
+    // A non-terminal delta generation for the exact span flips it to pending.
+    const gen = generationProjection(harness.handle, CTX);
+    const queued = await gen.upsertQueued({
+      pullRequestId: pr.id, kind: GenerationKind.DELTA, headSha: "head-2", baselineSha: "gone-sha",
+    });
+    if (!queued.ok) throw new Error("generation seed failed");
+    expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
+
+    // Terminal failure → back to baseline-unavailable (nothing is coming).
+    const failed = await gen.markFailed(
+      { pullRequestId: pr.id, kind: GenerationKind.DELTA, headSha: "head-2", baselineSha: "gone-sha" },
+      "span diff unavailable",
+    );
+    if (!failed.ok) throw new Error("generation transition failed");
+    expect(await metaLastReview(cookie)).toEqual({ unavailable: "baseline-unavailable" });
+  });
+
+  it("meta: lastReview is pending while the current head's BRIEF generation is warming (codex PR-45 finding)", async () => {
+    // Production writes no delta-kind projection rows (warmDeltaCores runs
+    // inside the brief job): while that job is non-terminal and marks are
+    // absent, the reason must be pending, NOT baseline-unavailable.
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await seedBriefs(pr);
+    await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
+
+    const gen = generationProjection(harness.handle, CTX);
+    const queued = await gen.upsertQueued({
+      pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-2", baselineSha: null,
+    });
+    if (!queued.ok) throw new Error("generation seed failed");
+    expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
+
+    // Brief job finished, still no marks → nothing is coming for this span.
+    const done = await gen.markSucceeded({
+      pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-2", baselineSha: null,
+    });
+    if (!done.ok) throw new Error("generation transition failed");
+    expect(await metaLastReview(cookie)).toEqual({ unavailable: "baseline-unavailable" });
+  });
+
+  it("meta: lastReview absent when the checkpoint IS the current head (empty span)", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await seedBriefs(pr);
+    await seedCheckpoint(pr.id, REVIEWER_ID, "head-2");
+    expect(await metaLastReview(cookie)).toBeUndefined();
+  });
+
+  it("meta: lastReview never leaks a cross-tenant checkpoint", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await seedBriefs(pr);
+    // Same reviewer id, same PR number — but the OTHER tenant's PR row.
+    const otherPr = await seedPr(harness.handle, { ctx: OTHER_CTX, repoId: REPO_A, prNumber: 7 });
+    await seedCheckpoint(otherPr.id, REVIEWER_ID, "head-1", OTHER_CTX);
+
+    expect(await metaLastReview(cookie)).toBeUndefined();
   });
 });
