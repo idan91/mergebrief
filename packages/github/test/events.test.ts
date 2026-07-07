@@ -23,6 +23,21 @@ function jsonFixture(name: string): unknown {
   return JSON.parse(readFileSync(url, "utf8"));
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** The submitted-review fixture with its `review` object mutated in a copy. */
+function reviewFixtureWith(patch: (review: Record<string, unknown>) => void): unknown {
+  const fixture = jsonFixture("pull_request_review.submitted.json");
+  if (!isRecord(fixture) || !isRecord(fixture["review"])) {
+    throw new Error("fixture shape changed");
+  }
+  const review = { ...fixture["review"] };
+  patch(review);
+  return { ...fixture, review };
+}
+
 function expectOk(
   result: Result<ParsedWebhookEvent, EventParseError>,
 ): ParsedWebhookEvent {
@@ -226,6 +241,61 @@ describe("parseWebhookEvent — pull_request_review", () => {
     expect(event.reviewerLogin).toBe("Codertocat");
     expect(event.reviewState).toBe("commented");
     expect(typeof event.installationId).toBe("bigint");
+  });
+
+  it("carries commit_id, reviewer type, and submitted_at (BRIEF-23)", () => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request_review",
+        payload: jsonFixture("pull_request_review.submitted.json"),
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST_REVIEW) {
+      throw new Error(`expected pull-request-review, got ${event.kind}`);
+    }
+    expect(event.commitId).toBe("ec26c3e57ca3a959ca5aad62de7213c562f8c821");
+    expect(event.reviewerType).toBe("User");
+    expect(event.submittedAt).toEqual(new Date("2019-11-17T17:43:43Z"));
+  });
+
+  it("parses a Bot-authored review with reviewerType 'Bot'", () => {
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request_review",
+        payload: jsonFixture("pull_request_review.submitted.bot.json"),
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST_REVIEW) {
+      throw new Error(`expected pull-request-review, got ${event.kind}`);
+    }
+    expect(event.reviewerType).toBe("Bot");
+    expect(event.reviewerLogin).toBe("dependabot[bot]");
+  });
+
+  it("errors on a submitted review missing commit_id", () => {
+    const error = expectErr(
+      parseWebhookEvent({
+        eventName: "pull_request_review",
+        payload: reviewFixtureWith((review) => {
+          delete review["commit_id"];
+        }),
+      }),
+    );
+    expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
+    expect(error.issues?.some((i) => i.startsWith("review.commit_id"))).toBe(true);
+  });
+
+  it("errors on a non-timestamp submitted_at", () => {
+    const error = expectErr(
+      parseWebhookEvent({
+        eventName: "pull_request_review",
+        payload: reviewFixtureWith((review) => {
+          review["submitted_at"] = "yesterday-ish";
+        }),
+      }),
+    );
+    expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
+    expect(error.issues?.some((i) => i.startsWith("review.submitted_at"))).toBe(true);
   });
 
   it("ignores a non-submitted review action", () => {

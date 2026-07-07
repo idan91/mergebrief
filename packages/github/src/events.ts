@@ -126,8 +126,14 @@ export interface ParsedPullRequestReviewEvent {
   readonly headSha: string;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin: string;
+  /** GitHub account type, e.g. `User` / `Bot` — the checkpoint bot filter key. */
+  readonly reviewerType: string;
   /** GitHub review state, e.g. `approved` / `changes_requested` / `commented`. */
   readonly reviewState: string;
+  /** The SHA the review was submitted against — the checkpoint SHA (BRIEF-23). */
+  readonly commitId: string;
+  /** GitHub's `review.submitted_at` — drives newest-submission-wins upserts. */
+  readonly submittedAt: Date;
 }
 
 export interface ParsedInstallationEvent {
@@ -215,7 +221,16 @@ const pullRequestReviewEventSchema = z.object({
   }),
   review: z.object({
     state: z.string().min(1),
-    user: z.object({ id: reviewerIdSchema, login: z.string().min(1) }),
+    commit_id: z.string().min(1),
+    submitted_at: z
+      .string()
+      .datetime({ offset: true })
+      .transform((value) => new Date(value)),
+    user: z.object({
+      id: reviewerIdSchema,
+      login: z.string().min(1),
+      type: z.string().min(1),
+    }),
   }),
 });
 
@@ -321,7 +336,10 @@ function parsePullRequestReview(
       headSha: data.pull_request.head.sha,
       reviewerId: data.review.user.id,
       reviewerLogin: data.review.user.login,
+      reviewerType: data.review.user.type,
       reviewState: data.review.state,
+      commitId: data.review.commit_id,
+      submittedAt: data.review.submitted_at,
     },
   };
 }

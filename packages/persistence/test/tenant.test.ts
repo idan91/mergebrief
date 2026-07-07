@@ -247,6 +247,60 @@ describe("forTenant — idempotent upserts", () => {
     expect(second.value.lastSubmittedSha).toBe("b".repeat(40));
   });
 
+  it("checkpoint upsertOnSubmit is monotonic — an older submitted_at never regresses the row (BRIEF-23)", async () => {
+    const handle = await freshDatabase();
+    const a = forTenant(handle, CTX_A);
+    const pr = await a.pullRequests.upsert(upsertInput(7));
+
+    const newer = await a.checkpoints.upsertOnSubmit({
+      pullRequestId: pr.id,
+      reviewerId: REVIEWER,
+      lastSubmittedSha: "b".repeat(40),
+      submittedAt: new Date("2026-07-07T12:00:00Z"),
+    });
+    expect(newer.ok).toBe(true);
+
+    // An out-of-order (stale) delivery: older submitted_at, different SHA.
+    const stale = await a.checkpoints.upsertOnSubmit({
+      pullRequestId: pr.id,
+      reviewerId: REVIEWER,
+      lastSubmittedSha: "a".repeat(40),
+      submittedAt: new Date("2026-07-07T11:00:00Z"),
+    });
+    expect(stale.ok).toBe(true);
+    if (!stale.ok) throw new Error("expected success");
+    // Newest-submission-wins: the returned row is the CURRENT (newer) state.
+    expect(stale.value.lastSubmittedSha).toBe("b".repeat(40));
+    expect(stale.value.submittedAt).toEqual(new Date("2026-07-07T12:00:00Z"));
+
+    const current = await a.checkpoints.get(pr.id, REVIEWER);
+    expect(current?.lastSubmittedSha).toBe("b".repeat(40));
+  });
+
+  it("checkpoint upsertOnSubmit with an equal submitted_at re-applies (idempotent redelivery)", async () => {
+    const handle = await freshDatabase();
+    const a = forTenant(handle, CTX_A);
+    const pr = await a.pullRequests.upsert(upsertInput(7));
+    const at = new Date("2026-07-07T12:00:00Z");
+
+    const first = await a.checkpoints.upsertOnSubmit({
+      pullRequestId: pr.id,
+      reviewerId: REVIEWER,
+      lastSubmittedSha: "a".repeat(40),
+      submittedAt: at,
+    });
+    const redelivery = await a.checkpoints.upsertOnSubmit({
+      pullRequestId: pr.id,
+      reviewerId: REVIEWER,
+      lastSubmittedSha: "a".repeat(40),
+      submittedAt: at,
+    });
+    expect(first.ok && redelivery.ok).toBe(true);
+    if (!first.ok || !redelivery.ok) throw new Error("expected success");
+    expect(redelivery.value.id).toBe(first.value.id);
+    expect(redelivery.value.lastSubmittedSha).toBe("a".repeat(40));
+  });
+
   it("sessions honour tenant scope on lookup and delete", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);

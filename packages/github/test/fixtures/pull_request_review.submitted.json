@@ -27,9 +27,11 @@
     "id": 237895671,
     "state": "commented",
     "commit_id": "ec26c3e57ca3a959ca5aad62de7213c562f8c821",
+    "submitted_at": "2019-11-17T17:43:43Z",
     "user": {
       "id": 21031067,
-      "login": "Codertocat"
+      "login": "Codertocat",
+      "type": "User"
     }
   },
   "sender": {

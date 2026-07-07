@@ -64,6 +64,20 @@ export type {
   CompareDiffRef,
 } from "./pull-request";
 
+// Review-submit primitive (BRIEF-23): one grouped formal review, pinned to
+// the reviewed commit; 422s carry a best-effort validation class.
+export {
+  createPullRequestReview,
+  ReviewEvent,
+  ReviewCommentSide,
+  ReviewValidationClass,
+} from "./review";
+export type {
+  CreatePullRequestReviewInput,
+  ReviewCommentInput,
+  CreateReviewError,
+} from "./review";
+
 // Reviewer OAuth (user-to-server) helpers (BRIEF-2 stage 6, PR C): web-flow
 // URL, code exchange, token refresh, and the two user-token REST reads the
 // callback needs to resolve the tenant. Sanitized `Result`s throughout.

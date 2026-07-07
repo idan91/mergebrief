@@ -40,6 +40,20 @@ describe("audit — append-only emit (D9)", () => {
     expect(row.targetType).toBeNull();
   });
 
+  it("records a review submit as action=submit against the CHECK vocabulary (BRIEF-23)", async () => {
+    const handle = await freshDatabase();
+    const row = await audit(handle, {
+      installationId: TENANT,
+      actorType: AuditActorType.REVIEWER,
+      actorId: 31337n,
+      action: AuditAction.SUBMIT,
+      targetType: "pull_request",
+      targetId: 7n,
+    });
+    expect(row.action).toBe(AuditAction.SUBMIT);
+    expect(row.action).toBe("submit");
+  });
+
   it("metadata keys are a closed allowlist — unknown key rejected", () => {
     // `audit()` runs this same schema with `.parse()`, so these throw there.
     expect(AuditMetadataSchema.safeParse({ email: "x" }).success).toBe(false);

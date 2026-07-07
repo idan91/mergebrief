@@ -102,12 +102,17 @@ export const AuditActorType = {
 } as const;
 export type AuditActorType = ValueOf<typeof AuditActorType>;
 
-/** `audit_log.action` (D9; `view` may join later — code change only). */
+/**
+ * `audit_log.action` (D9; `view` may join later). CHECK-constrained since
+ * migration 0002 — adding a value needs a code change AND a migration, in
+ * lockstep (`submit` landed with 0007, BRIEF-23).
+ */
 export const AuditAction = {
   GENERATE: "generate",
   DELETE: "delete",
   CONFIG: "config",
   AUTH: "auth",
+  SUBMIT: "submit",
 } as const;
 export type AuditAction = ValueOf<typeof AuditAction>;
 

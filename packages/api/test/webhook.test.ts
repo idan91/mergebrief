@@ -117,7 +117,12 @@ function pullRequestReviewPayload(): Record<string, unknown> {
       title: "Update the README with new information.",
       head: { sha: HEAD_SHA },
     },
-    review: { state: "approved", user: { id: 21031067, login: "reviewer" } },
+    review: {
+      state: "approved",
+      commit_id: HEAD_SHA,
+      submitted_at: "2026-07-07T12:00:00Z",
+      user: { id: 21031067, login: "reviewer", type: "User" },
+    },
   };
 }
 

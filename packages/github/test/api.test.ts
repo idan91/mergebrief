@@ -7,6 +7,12 @@ import { describe, expect, it, vi } from "vitest";
 import { deleteComment, postEntryComment } from "../src/comments";
 import { GitHubApiErrorCode } from "../src/errors";
 import { fetchPullRequest, fetchPullRequestFiles, fetchDiff, fetchCompareDiff } from "../src/pull-request";
+import {
+  createPullRequestReview,
+  ReviewCommentSide,
+  ReviewEvent,
+  ReviewValidationClass,
+} from "../src/review";
 import { fetchRepositoryById, listInstallationRepositoriesForUser } from "../src/repo";
 import { isInstallationId, isRepoId } from "../src/ids";
 
@@ -40,6 +46,7 @@ function mockOctokit(overrides: {
   createComment?: ReturnType<typeof vi.fn>;
   deleteComment?: ReturnType<typeof vi.fn>;
   pullsGet?: ReturnType<typeof vi.fn>;
+  createReview?: ReturnType<typeof vi.fn>;
   compareBasehead?: ReturnType<typeof vi.fn>;
   request?: ReturnType<typeof vi.fn>;
   paginate?: ReturnType<typeof vi.fn>;
@@ -55,6 +62,7 @@ function mockOctokit(overrides: {
       pulls: {
         get: overrides.pullsGet ?? vi.fn(),
         listFiles: vi.fn(),
+        createReview: overrides.createReview ?? vi.fn(),
       },
       repos: {
         compareCommitsWithBasehead: overrides.compareBasehead ?? vi.fn(),
@@ -452,6 +460,188 @@ describe("fetchPullRequest / fetchDiff", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+});
+
+// A 422 as GitHub's create-review endpoint actually shapes it: top-level
+// "Validation Failed" + an `errors` array of strings and/or objects. The body
+// (like every response body) must never surface in the sanitized Result.
+function validation422(errors: unknown): RequestError {
+  return new RequestError("Validation Failed", 422, {
+    request: {
+      method: "POST",
+      url: "https://api.github.com/repos/o/r/pulls/7/reviews",
+      headers: { authorization: `token ${LEAKED_TOKEN}` },
+    },
+    response: {
+      status: 422,
+      url: "https://api.github.com/repos/o/r/pulls/7/reviews",
+      headers: {},
+      data: { message: "Validation Failed", errors, token: LEAKED_TOKEN },
+    },
+  });
+}
+
+describe("createPullRequestReview", () => {
+  const baseInput = {
+    owner: "o",
+    repo: "r",
+    prNumber: 7,
+    commitId: "c".repeat(40),
+    event: ReviewEvent.REQUEST_CHANGES,
+    body: "overall verdict",
+    comments: [
+      {
+        path: "src/a.ts",
+        line: 12,
+        side: ReviewCommentSide.RIGHT,
+        body: "anchored note",
+      },
+      {
+        path: "src/b.ts",
+        line: 30,
+        side: ReviewCommentSide.LEFT,
+        startLine: 25,
+        startSide: ReviewCommentSide.LEFT,
+        body: "multi-line note",
+      },
+    ],
+  };
+
+  it("posts one grouped formal review pinned to commit_id and returns its id", async () => {
+    const createReview = vi.fn().mockResolvedValue({ data: { id: 512 } });
+    const octokit = mockOctokit({ createReview });
+    const result = await createPullRequestReview(octokit, baseInput);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.reviewId).toBe(512n);
+    expect(createReview).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      pull_number: 7,
+      commit_id: "c".repeat(40),
+      event: "REQUEST_CHANGES",
+      body: "overall verdict",
+      comments: [
+        { path: "src/a.ts", line: 12, side: "RIGHT", body: "anchored note" },
+        {
+          path: "src/b.ts",
+          line: 30,
+          side: "LEFT",
+          start_line: 25,
+          start_side: "LEFT",
+          body: "multi-line note",
+        },
+      ],
+    });
+    // A single-line comment must not carry start_line/start_side keys at all —
+    // GitHub 422s a start_line equal to or past line.
+    const sent = createReview.mock.calls[0]?.[0]?.comments?.[0];
+    if (sent === undefined) throw new Error("expected a sent comment");
+    expect("start_line" in sent).toBe(false);
+    expect("start_side" in sent).toBe(false);
+  });
+
+  it("omits body and comments entirely when absent (bare APPROVE)", async () => {
+    const createReview = vi.fn().mockResolvedValue({ data: { id: 513 } });
+    const octokit = mockOctokit({ createReview });
+    const result = await createPullRequestReview(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 7,
+      commitId: "c".repeat(40),
+      event: ReviewEvent.APPROVE,
+    });
+    expect(result.ok).toBe(true);
+    const sent = createReview.mock.calls[0]?.[0];
+    if (sent === undefined) throw new Error("expected a createReview call");
+    expect("body" in sent).toBe(false);
+    expect("comments" in sent).toBe(false);
+  });
+
+  it("rejects a review id past the safe-integer range", async () => {
+    const createReview = vi.fn().mockResolvedValue({ data: { id: 9007199254740992 } });
+    const octokit = mockOctokit({ createReview });
+    const result = await createPullRequestReview(octokit, baseInput);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+  });
+
+  it("classifies a commit_id 422 as unknown-commit without leaking the body", async () => {
+    const createReview = vi.fn().mockRejectedValue(
+      validation422([
+        { resource: "PullRequestReview", code: "invalid", field: "commit_id" },
+      ]),
+    );
+    const octokit = mockOctokit({ createReview });
+    const result = await createPullRequestReview(octokit, baseInput);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.status).toBe(422);
+    expect(result.error.validation).toBe(ReviewValidationClass.UNKNOWN_COMMIT);
+    const serialized = JSON.stringify(result.error);
+    expect(serialized).not.toContain(LEAKED_TOKEN);
+    expect(serialized).not.toContain("Validation Failed");
+    expect(serialized).not.toContain("commit_id");
+  });
+
+  it("classifies an anchoring 422 (string errors) as invalid-comments", async () => {
+    const createReview = vi.fn().mockRejectedValue(
+      validation422(["Pull request review thread line must be part of the diff"]),
+    );
+    const octokit = mockOctokit({ createReview });
+    const result = await createPullRequestReview(octokit, baseInput);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.validation).toBe(ReviewValidationClass.INVALID_COMMENTS);
+    expect(JSON.stringify(result.error)).not.toContain("thread line");
+  });
+
+  it("classifies a 422 whose only signal is the top-level message (empty errors)", async () => {
+    // GitHub sometimes reports an unknown SHA solely in the top-level message,
+    // e.g. { message: "No commit found for SHA: deadbeef", errors: [] }.
+    const createReview = vi.fn().mockRejectedValue(
+      new RequestError("Validation Failed", 422, {
+        request: {
+          method: "POST",
+          url: "https://api.github.com/repos/o/r/pulls/7/reviews",
+          headers: { authorization: `token ${LEAKED_TOKEN}` },
+        },
+        response: {
+          status: 422,
+          url: "https://api.github.com/repos/o/r/pulls/7/reviews",
+          headers: {},
+          data: { message: "No commit found for SHA: deadbeef", errors: [] },
+        },
+      }),
+    );
+    const octokit = mockOctokit({ createReview });
+    const result = await createPullRequestReview(octokit, baseInput);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.validation).toBe(ReviewValidationClass.UNKNOWN_COMMIT);
+    expect(JSON.stringify(result.error)).not.toContain("deadbeef");
+  });
+
+  it("classifies an unrecognizable 422 body as unknown", async () => {
+    const createReview = vi.fn().mockRejectedValue(validation422(undefined));
+    const octokit = mockOctokit({ createReview });
+    const result = await createPullRequestReview(octokit, baseInput);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.validation).toBe(ReviewValidationClass.UNKNOWN);
+  });
+
+  it("maps a non-422 failure through the shared taxonomy with no validation class", async () => {
+    const createReview = vi.fn().mockRejectedValue(requestError(403));
+    const octokit = mockOctokit({ createReview });
+    const result = await createPullRequestReview(octokit, baseInput);
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.validation).toBeUndefined();
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
   });
 });

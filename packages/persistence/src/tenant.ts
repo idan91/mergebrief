@@ -13,7 +13,7 @@
 //   (b) every READ filters by ctx.installationId on the queried table's own
 //       column (one-index read, D2a), which is safe precisely because (a)
 //       guarantees a child's own `installation_id` matches its parent's.
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { type AppDatabase, internal } from "./db";
 import { checkpoint } from "./schema/checkpoint";
@@ -244,9 +244,12 @@ export interface PullRequestRepository {
 
 export interface CheckpointRepository {
   /**
-   * Idempotent upsert of a reviewer's checkpoint. Verifies the parent
-   * `pull_request` belongs to ctx (invariant (a)); returns `parentNotInTenant`
-   * without writing when it does not.
+   * Idempotent, monotonic upsert of a reviewer's checkpoint —
+   * newest-submission-wins (BRIEF-23): an input whose `submittedAt` is older
+   * than the stored row's leaves the row untouched and returns the CURRENT
+   * row (out-of-order webhook deliveries are a success, not an error).
+   * Verifies the parent `pull_request` belongs to ctx (invariant (a));
+   * returns `parentNotInTenant` without writing when it does not.
    */
   upsertOnSubmit(input: CheckpointSubmitInput): Promise<Result<CheckpointRow, RepositoryError>>;
   /** Tenant-scoped read; absence is a normal `undefined`. */
@@ -441,11 +444,33 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
               lastSubmittedSha: input.lastSubmittedSha,
               submittedAt: input.submittedAt,
             },
+            // Monotonic (BRIEF-23): newest-submission-wins. An out-of-order
+            // webhook delivery (older submitted_at) must never regress the
+            // row; equality re-applies, keeping redeliveries idempotent.
+            setWhere: sql`${checkpoint.submittedAt} <= excluded.submitted_at`,
           })
           .returning();
         const row = rows[0];
         if (row === undefined) {
-          throw new Error("checkpoint upsert returned no row");
+          // The conflict update was suppressed by the monotonic guard — the
+          // stored row is newer. Return the current state (a stale delivery
+          // is a success, not an error).
+          const current = await tx
+            .select()
+            .from(checkpoint)
+            .where(
+              and(
+                eq(checkpoint.installationId, installationId),
+                eq(checkpoint.pullRequestId, input.pullRequestId),
+                eq(checkpoint.reviewerId, input.reviewerId),
+              ),
+            )
+            .limit(1);
+          const existing = current[0];
+          if (existing === undefined) {
+            throw new Error("checkpoint upsert returned no row");
+          }
+          return { ok: true, value: existing };
         }
         return { ok: true, value: row };
       });

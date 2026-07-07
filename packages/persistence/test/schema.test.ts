@@ -430,6 +430,15 @@ describe("closed-vocabulary + shape CHECK constraints (PR #23 review)", () => {
     );
   });
 
+  it("accepts audit_log.action 'submit' after the 0007 vocab swap (BRIEF-23)", async () => {
+    const db = await freshDb();
+    await db.execute(
+      sql`insert into audit_log (installation_id, actor_type, action) values (1000, 'reviewer', 'submit')`,
+    );
+    const rows = await db.select({ action: auditLog.action }).from(auditLog);
+    expect(rows[0]?.action).toBe(AuditAction.SUBMIT);
+  });
+
   it("accepts generation.status 'superseded' after the 0003 vocab swap", async () => {
     const db = await freshDb();
     const prId = await insertPullRequest(db);
