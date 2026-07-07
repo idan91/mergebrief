@@ -19,12 +19,17 @@ export function CommentThread({
 }: CommentThreadProps) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(comment.body);
+  // A submitted comment was posted to GitHub — GitHub holds the text now, so
+  // the local record is read-only (an edit here would silently diverge: a
+  // re-submit ships drafts only). BRIEF-23.
+  const submitted = comment.status === "submitted";
 
   if (comment.collapsed) {
     return (
       <div className={styles["thread"]} data-state="collapsed">
         <button type="button" onClick={() => toggle(comment.id)}>
-          Draft comment on {comment.anchor.side === "new" ? "+" : "-"}
+          {submitted ? "Posted" : "Draft"} comment on{" "}
+          {comment.anchor.side === "new" ? "+" : "-"}
           {comment.anchor.startLine}
         </button>
       </div>
@@ -34,7 +39,7 @@ export function CommentThread({
   return (
     <div className={styles["thread"]}>
       <div className={styles["head"]}>
-        <span>@you pending</span>
+        <span>{submitted ? "@you posted to GitHub" : "@you pending"}</span>
         <span>
           {comment.anchor.file}:{comment.anchor.startLine}
           {comment.anchor.endLine !== comment.anchor.startLine
@@ -42,7 +47,9 @@ export function CommentThread({
             : ""}
         </span>
       </div>
-      {editing ? (
+      {/* An open editor dies with the draft: if a submit lands while the
+          textarea is up, the posted record renders read-only regardless. */}
+      {editing && !submitted ? (
         <>
           <textarea
             className={styles["textarea"]}
@@ -77,23 +84,27 @@ export function CommentThread({
         <MarkdownPreview anchor={comment.anchor} body={comment.body} />
       )}
       <div className={styles["threadActions"]}>
-        <button
-          type="button"
-          onClick={() => {
-            // Seed the editor from the current comment each time, so an edit
-            // never opens on a stale body if it changed since mount.
-            setBody(comment.body);
-            setEditing(true);
-          }}
-        >
-          Edit
-        </button>
+        {submitted ? null : (
+          <button
+            type="button"
+            onClick={() => {
+              // Seed the editor from the current comment each time, so an edit
+              // never opens on a stale body if it changed since mount.
+              setBody(comment.body);
+              setEditing(true);
+            }}
+          >
+            Edit
+          </button>
+        )}
         <button type="button" onClick={() => toggle(comment.id)}>
           Collapse
         </button>
-        <button type="button" onClick={() => deleteComment(comment.id)}>
-          Delete
-        </button>
+        {submitted ? null : (
+          <button type="button" onClick={() => deleteComment(comment.id)}>
+            Delete
+          </button>
+        )}
       </div>
     </div>
   );

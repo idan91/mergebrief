@@ -6,7 +6,7 @@
 // (ADR 0006 #10), status only flavors the wait.
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { ApiError, ApiErrorKind } from "../data/apiFetch";
 import {
@@ -48,7 +48,13 @@ import {
   prDiffQueryOptions,
   prMetaQueryOptions,
 } from "../features/pulls/queries";
+import { submitReview } from "../features/pulls/submitReview";
 import type { PrSummary } from "../features/pulls/types";
+import {
+  buildSubmitPayload,
+  type SubmitDraftInput,
+  type SubmitReviewAction,
+} from "../features/review/submit";
 import styles from "./routeShared.module.scss";
 
 /** 3–5s window per the plan; one lightweight PR-meta read per tick. */
@@ -421,6 +427,18 @@ function DbBrief({
       ? lastReviewUnavailableReasonTitle(lastReview.reason)
       : undefined;
   const compareState = resolveBriefSearch(searchParams, availability);
+  // The submit transport (BRIEF-23): anchors were read against THIS span's
+  // head, so the review pins commit_id = span.head — never meta.headSha,
+  // which may have advanced while reading.
+  const submitAction = useCallback<SubmitReviewAction>(
+    (draft: SubmitDraftInput) =>
+      submitReview(
+        repoId,
+        prNumber,
+        buildSubmitPayload({ ...draft, commitId: span.head }),
+      ),
+    [prNumber, repoId, span.head],
+  );
   // Keys the per-brief Mind-Map session store, exactly like a local brief id.
   const briefId = `db:${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
   return (
@@ -439,6 +457,7 @@ function DbBrief({
         comparisonPlan={comparisonPlan}
         key={briefId}
         searchParams={searchParams}
+        submitReview={submitAction}
       />
     </>
   );

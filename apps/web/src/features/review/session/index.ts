@@ -10,6 +10,7 @@ export {
 } from "./store";
 export {
   clearSnapshots,
+  markSnapshotCommentsSubmitted,
   readSnapshot,
   serializeSnapshot,
   snapshotToState,

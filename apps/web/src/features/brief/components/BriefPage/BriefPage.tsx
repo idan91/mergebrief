@@ -29,6 +29,8 @@ import { PreSubmitModal } from "../../../review/components/PreSubmitModal/PreSub
 import { ReceiptDrawer } from "../../../review/components/ReceiptDrawer/ReceiptDrawer";
 import { SummaryPreview } from "../../../review/components/SummaryPreview/SummaryPreview";
 import { buildReceipt } from "../../../review/receipt";
+import type { SubmitReviewAction } from "../../../review/submit";
+import { useReviewSubmit } from "../../../review/useReviewSubmit";
 import {
   clearSnapshots,
   deriveInitialState,
@@ -259,6 +261,11 @@ export interface BriefViewProps extends BriefPageProps {
   /** The already-fetched Brief to render (DB path: assembled client-side). */
   brief: Brief;
   comparisonPlan?: BriefComparisonPlan;
+  /**
+   * The DB route's submit transport (BRIEF-23). Absent on the local file
+   * path — no GitHub identity there, Submit keeps its demo behavior.
+   */
+  submitReview?: SubmitReviewAction;
 }
 
 /**
@@ -273,6 +280,7 @@ export function BriefView({
   briefId,
   comparisonPlan,
   searchParams,
+  submitReview,
 }: BriefViewProps) {
   const model = useMemo(() => buildBriefViewModel(brief), [brief]);
   return (
@@ -284,6 +292,7 @@ export function BriefView({
         comparisonPlan={comparisonPlan}
         model={model}
         searchParams={searchParams}
+        submitReview={submitReview}
       />
     </MindMapProvider>
   );
@@ -296,6 +305,7 @@ interface BriefScreenProps {
   comparisonPlan?: BriefComparisonPlan | undefined;
   model: ReturnType<typeof buildBriefViewModel>;
   searchParams: BriefSearchParams;
+  submitReview?: SubmitReviewAction | undefined;
 }
 
 function BriefScreen({
@@ -305,6 +315,7 @@ function BriefScreen({
   comparisonPlan,
   model,
   searchParams,
+  submitReview,
 }: BriefScreenProps) {
   const timeline = useMemo(
     () => buildBriefTimeline(artifacts, briefId),
@@ -898,14 +909,42 @@ function BriefScreen({
   const openPreSubmit = useCallback(() => setPreSubmitOpen(true), []);
   const closeReceipt = useCallback(() => setReceiptOpen(false), []);
   const openSummaryPreview = useCallback(() => setSummaryPreviewOpen(true), []);
+  // The DB submit flow (BRIEF-23): available only when the route injected a
+  // transport AND the viewer is in reviewer mode — the author mode and the
+  // local demo path keep the mock toast below.
+  //
+  // Announce via clear-then-set (two ticks): an identical repeat message
+  // still produces a DOM change — re-announced by the live region — and
+  // restarts the [toast]-keyed hide timer instead of dying on the first
+  // submit's timeout.
+  const announceSubmit = useCallback((message: string) => {
+    setToast("");
+    window.setTimeout(() => setToast(message), 30);
+  }, []);
+  const submitFlow = useReviewSubmit({
+    action: submitReview,
+    briefId,
+    outcome: reviewOutcome,
+    comments: reviewComments,
+    receipt,
+    markSubmitted: (ids) => actions.markCommentsSubmitted(ids),
+    announce: announceSubmit,
+    closeReceipt,
+    resetOutcome: () => actions.setOutcome("comment"),
+  });
+  const liveSubmit = submitFlow.available && reviewMode === "reviewer";
   const submitReceipt = useCallback(() => {
+    if (liveSubmit) {
+      submitFlow.submit();
+      return;
+    }
     setReceiptOpen(false);
     setToast(
       reviewMode === "author"
         ? "Mockup flow — this would mark the PR ready for review after self-review."
         : "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
     );
-  }, [reviewMode]);
+  }, [liveSubmit, reviewMode, submitFlow]);
   const closeSummaryPreview = useCallback(
     () => setSummaryPreviewOpen(false),
     [],
@@ -1149,6 +1188,10 @@ function BriefScreen({
         close={closeReceipt}
         openSummaryPreview={openSummaryPreview}
         submit={submitReceipt}
+        submitPending={liveSubmit ? submitFlow.pending : false}
+        submitBlockedReason={liveSubmit ? submitFlow.blockedReason : undefined}
+        submitError={liveSubmit ? submitFlow.error : null}
+        submitNote={liveSubmit ? submitFlow.note : null}
       />
       <SummaryPreviewDrawer
         brief={brief}

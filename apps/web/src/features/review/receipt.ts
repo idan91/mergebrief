@@ -59,6 +59,11 @@ export interface ReceiptComment {
   startLine: number;
   endLine: number;
   firstLine: string;
+  /**
+   * @description `draft` ships on the NEXT submit; `submitted` was already
+   * posted to GitHub by an earlier one (BRIEF-23).
+   */
+  status: "draft" | "submitted";
 }
 
 export interface Receipt {
@@ -128,6 +133,7 @@ export function buildReceipt(
     startLine: comment.anchor.startLine,
     endLine: comment.anchor.endLine,
     firstLine: comment.body.split("\n")[0] ?? "",
+    status: comment.status,
   }));
 
   return {

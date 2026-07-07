@@ -10,6 +10,14 @@ export interface ReceiptDrawerProps {
   close: () => void;
   openSummaryPreview: () => void;
   submit: () => void;
+  /** Live submit in flight (BRIEF-23) — the control disables, focusably. */
+  submitPending?: boolean;
+  /** Why Submit is blocked; rendered as reachable text, never hover-only. */
+  submitBlockedReason?: string | undefined;
+  /** The last submit failure — announced assertively. */
+  submitError?: string | null;
+  /** Persistent post-submit note (anchoring degradation). */
+  submitNote?: string | null;
 }
 
 export function ReceiptDrawer({
@@ -19,9 +27,31 @@ export function ReceiptDrawer({
   close,
   openSummaryPreview,
   submit,
+  submitPending = false,
+  submitBlockedReason,
+  submitError = null,
+  submitNote = null,
 }: ReceiptDrawerProps) {
   const { progress, addressed, dismissed, comments } = receipt;
   const openFlags = receipt.open;
+  // The submit-facing split (BRIEF-23): drafts ship on the next submit;
+  // submitted ones were already posted and are listed as the record they are.
+  const draftComments = comments.filter(
+    (comment) => comment.status === "draft",
+  );
+  const postedComments = comments.filter(
+    (comment) => comment.status === "submitted",
+  );
+  // Focusable-disabled (aria-disabled, not the disabled attribute): keyboard
+  // and screen-reader users can reach the control and hear WHY it is off via
+  // the described-by reason text below it.
+  const submitDisabled = submitPending || submitBlockedReason !== undefined;
+  const submitDescribedBy =
+    submitBlockedReason !== undefined
+      ? "receipt-submit-blocked"
+      : submitError !== null
+        ? "receipt-submit-error"
+        : undefined;
 
   return (
     <Drawer
@@ -51,8 +81,9 @@ Tool verification receipt — mechanical claims only
 
   ${progress.reviewedChunks >= progress.chunkTotal ? "✓" : "•"} chunks read: ${progress.reviewedChunks}/${progress.chunkTotal}
   ${addressed.length + dismissed.length >= progress.flagTotal ? "✓" : "•"} risk surface: ${addressed.length} addressed · ${dismissed.length} dismissed · ${openFlags.length} open
-  ${comments.length > 0 ? "✓" : "•"} inline comments: ${comments.length} draft
-${comments.map((comment) => `      comment: ${comment.file}:${comment.startLine}${comment.endLine !== comment.startLine ? `-${comment.endLine}` : ""} — ${comment.firstLine}`).join("\n")}
+  ${comments.length > 0 ? "✓" : "•"} inline comments: ${draftComments.length} draft${postedComments.length > 0 ? ` · ${postedComments.length} posted` : ""}
+${draftComments.map((comment) => `      comment: ${comment.file}:${comment.startLine}${comment.endLine !== comment.startLine ? `-${comment.endLine}` : ""} — ${comment.firstLine}`).join("\n")}
+${postedComments.map((comment) => `      posted: ${comment.file}:${comment.startLine}${comment.endLine !== comment.startLine ? `-${comment.endLine}` : ""} — ${comment.firstLine}`).join("\n")}
 ${addressed.map((flag) => `      addressed: ${flag.attr} @ ${shortFile(flag.file)} — ${flag.evidenceLabel ?? "addressed without linked evidence"}`).join("\n")}
 ${dismissed.map((flag) => `      dismissed: ${flag.attr} @ ${shortFile(flag.file)} — "${flag.reason}"`).join("\n")}
 ${openFlags.map((flag) => `      open: ${flag.attr} @ ${shortFile(flag.file)} — not addressed, not dismissed`).join("\n")}
@@ -60,10 +91,21 @@ ${receipt.reclassifiedCount > 0 ? `\n  ${receipt.reclassifiedCount} group reclas
 
   not checked: ${RECEIPT_NOT_CHECKED.join(" · ")}`}</pre>
         <div className={styles["actions"]}>
-          <button className="btn primary" type="button" onClick={submit}>
-            {reviewMode === "author"
-              ? "Mark ready for review"
-              : "Submit review to GitHub"}
+          <button
+            aria-busy={submitPending || undefined}
+            aria-describedby={submitDescribedBy}
+            aria-disabled={submitDisabled || undefined}
+            className="btn primary"
+            type="button"
+            onClick={() => {
+              if (!submitDisabled) submit();
+            }}
+          >
+            {submitPending
+              ? "Submitting…"
+              : reviewMode === "author"
+                ? "Mark ready for review"
+                : "Submit review to GitHub"}
           </button>
           <button className="btn" type="button" onClick={openSummaryPreview}>
             Preview public summary
@@ -76,6 +118,30 @@ ${receipt.reclassifiedCount > 0 ? `\n  ${receipt.reclassifiedCount} group reclas
             is yours alone.
           </span>
         </div>
+        {submitBlockedReason !== undefined ? (
+          <p className={styles["submitStatus"]} id="receipt-submit-blocked">
+            {submitBlockedReason}
+          </p>
+        ) : null}
+        {submitError !== null ? (
+          <p
+            className={styles["submitStatus"]}
+            data-kind="error"
+            id="receipt-submit-error"
+            role="alert"
+          >
+            {submitError}
+          </p>
+        ) : null}
+        {submitNote !== null && submitError === null ? (
+          <p
+            aria-live="polite"
+            className={styles["submitStatus"]}
+            role="status"
+          >
+            {submitNote}
+          </p>
+        ) : null}
       </div>
     </Drawer>
   );

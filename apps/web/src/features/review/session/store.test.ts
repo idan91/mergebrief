@@ -132,6 +132,64 @@ describe("comments + outcome", () => {
     store.getState().actions.setOutcome("approve");
     expect(store.getState().reviewOutcome).toBe("approve");
   });
+
+  it("submitted comments are immutable — update/delete no-op (BRIEF-23)", () => {
+    const store = freshStore();
+    const comment: Omit<ReviewComment, "id"> = {
+      anchor: {
+        chunkId: "chunk-a",
+        file: "src/leak.ts",
+        side: "new",
+        startLine: 10,
+        endLine: 10,
+        rowIds: ["chunk-a:1"],
+        selectedText: "validate(a);",
+      },
+      body: "posted text",
+      status: "draft",
+      collapsed: false,
+    };
+    store.getState().actions.saveComment(comment);
+    const id = store.getState().reviewComments[0]?.id;
+    if (id === undefined) throw new Error("expected a saved comment");
+    store.getState().actions.markCommentsSubmitted([id]);
+
+    // GitHub is the system of record now: a local edit would silently diverge
+    // from what was posted (a re-submit ships drafts only).
+    store.getState().actions.updateComment(id, "silently changed");
+    expect(store.getState().reviewComments[0]?.body).toBe("posted text");
+    store.getState().actions.deleteComment(id);
+    expect(store.getState().reviewComments).toHaveLength(1);
+  });
+
+  it("markCommentsSubmitted flips exactly the given ids (BRIEF-23)", () => {
+    const store = freshStore();
+    const comment: Omit<ReviewComment, "id"> = {
+      anchor: {
+        chunkId: "chunk-a",
+        file: "src/leak.ts",
+        side: "new",
+        startLine: 10,
+        endLine: 10,
+        rowIds: ["chunk-a:1"],
+        selectedText: "validate(a);",
+      },
+      body: "first",
+      status: "draft",
+      collapsed: false,
+    };
+    store.getState().actions.saveComment(comment);
+    const submittedId = store.getState().reviewComments[0]?.id;
+    if (submittedId === undefined) throw new Error("expected a saved comment");
+
+    // A draft added AFTER the submit was captured (mid-flight edit) must NOT
+    // flip — it was never posted.
+    store.getState().actions.saveComment({ ...comment, body: "mid-flight" });
+    store.getState().actions.markCommentsSubmitted([submittedId]);
+
+    const statuses = store.getState().reviewComments.map((c) => c.status);
+    expect(statuses).toEqual(["submitted", "draft"]);
+  });
 });
 
 describe("snapshot round-trip", () => {

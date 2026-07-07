@@ -79,4 +79,16 @@
     font-size: 12px;
     line-height: 1.5;
   }
+
+  .submitStatus {
+    max-inline-size: 64ch;
+    margin-block-start: 10px;
+    color: var(--faint);
+    font-size: 12.5px;
+    line-height: 1.5;
+
+    &[data-kind="error"] {
+      color: var(--red);
+    }
+  }
 }

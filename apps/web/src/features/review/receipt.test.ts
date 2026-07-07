@@ -114,24 +114,34 @@ describe("buildReceipt", () => {
     ]);
   });
 
-  it("counts reclassified groups and maps comments to first lines", () => {
+  it("counts reclassified groups and maps comments to first lines with status", () => {
+    const anchor = {
+      chunkId: "chunk-a",
+      file: "src/leak.ts",
+      side: "new" as const,
+      startLine: 10,
+      endLine: 12,
+      rowIds: ["chunk-a:1"],
+      selectedText: "validate(a);",
+    };
     const receipt = buildReceipt(
       snapshot({
         reclassifiedGroupIds: ["g1"],
         reviewComments: [
           {
             id: "c1",
-            anchor: {
-              chunkId: "chunk-a",
-              file: "src/leak.ts",
-              side: "new",
-              startLine: 10,
-              endLine: 12,
-              rowIds: ["chunk-a:1"],
-              selectedText: "validate(a);",
-            },
+            anchor,
             body: "Please add a test.\nSecond line.",
             status: "draft",
+            collapsed: false,
+          },
+          {
+            // Posted by an earlier submit — the receipt must distinguish it
+            // from the drafts the NEXT submit will ship (BRIEF-23).
+            id: "c0",
+            anchor,
+            body: "Already posted.",
+            status: "submitted",
             collapsed: false,
           },
         ],
@@ -148,6 +158,16 @@ describe("buildReceipt", () => {
         startLine: 10,
         endLine: 12,
         firstLine: "Please add a test.",
+        status: "draft",
+      },
+      {
+        id: "c0",
+        file: "src/leak.ts",
+        side: "new",
+        startLine: 10,
+        endLine: 12,
+        firstLine: "Already posted.",
+        status: "submitted",
       },
     ]);
   });

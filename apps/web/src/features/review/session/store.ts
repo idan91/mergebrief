@@ -55,6 +55,13 @@ export interface MindMapActions {
    * @description Toggles a draft comment's collapsed flag as part of its persisted lifecycle.
    */
   toggleComment(id: string): void;
+  /**
+   * @description After a successful submit: exactly the POSTED comments flip
+   * to `submitted` (ids captured at click time — a draft added or edited
+   * while the request was in flight stays a draft), so a later re-submit
+   * ships only comments GitHub never saw (BRIEF-23).
+   */
+  markCommentsSubmitted(ids: readonly string[]): void;
   setOutcome(outcome: ReviewOutcome): void;
   /**
    * @description Resets the whole session to a fresh state (the "Clear local
@@ -175,7 +182,9 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
       updateComment(id, body) {
         set((state) => ({
           reviewComments: state.reviewComments.map((comment) =>
-            comment.id === id
+            // Submitted comments are immutable: GitHub holds the posted text,
+            // and a local edit would never ship (re-submits are drafts-only).
+            comment.id === id && comment.status === "draft"
               ? { ...comment, body, collapsed: false }
               : comment,
           ),
@@ -184,7 +193,7 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
       deleteComment(id) {
         set((state) => ({
           reviewComments: state.reviewComments.filter(
-            (comment) => comment.id !== id,
+            (comment) => comment.id !== id || comment.status === "submitted",
           ),
         }));
       },
@@ -193,6 +202,17 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
           reviewComments: state.reviewComments.map((comment) =>
             comment.id === id
               ? { ...comment, collapsed: !comment.collapsed }
+              : comment,
+          ),
+        }));
+      },
+      markCommentsSubmitted(ids) {
+        if (ids.length === 0) return;
+        const flipped = new Set(ids);
+        set((state) => ({
+          reviewComments: state.reviewComments.map((comment) =>
+            flipped.has(comment.id)
+              ? { ...comment, status: "submitted" }
               : comment,
           ),
         }));

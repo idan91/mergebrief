@@ -188,6 +188,34 @@ export function writeSnapshot(snapshot: SessionSnapshot): void {
   window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(map));
 }
 
+/**
+ * Record a successful submit directly in the PERSISTED snapshot (BRIEF-23):
+ * flip the given comment ids to `submitted`, and — when the submit carried a
+ * verdict — reset the outcome to `comment` so a follow-up defaults to a
+ * comment-only review instead of re-posting the same approval. A submit can
+ * resolve after the brief's provider unmounted (its persistence subscriber
+ * is gone by then), so mutating the orphaned store alone would let a reload
+ * re-ship posted comments as drafts and re-arm the delivered verdict. No-op
+ * when nothing is persisted.
+ */
+export function markSnapshotCommentsSubmitted(
+  briefId: string,
+  ids: readonly string[],
+  resetOutcomeToComment = false,
+): void {
+  if (ids.length === 0 && !resetOutcomeToComment) return;
+  const snapshot = readSnapshot(briefId);
+  if (snapshot === undefined) return;
+  const flipped = new Set(ids);
+  writeSnapshot({
+    ...snapshot,
+    reviewComments: snapshot.reviewComments.map((comment) =>
+      flipped.has(comment.id) ? { ...comment, status: "submitted" } : comment,
+    ),
+    ...(resetOutcomeToComment ? { reviewOutcome: "comment" } : {}),
+  });
+}
+
 /** Clear all persisted session snapshots (the "Clear local drafts" action). */
 export function clearSnapshots(): void {
   if (typeof window === "undefined") return;
