@@ -107,7 +107,12 @@ function pullRequestPayload(input: {
   };
 }
 
-function pullRequestReviewPayload(): Record<string, unknown> {
+function pullRequestReviewPayload(review?: {
+  commitId?: string;
+  submittedAt?: string;
+  userType?: string;
+  userId?: number;
+}): Record<string, unknown> {
   return {
     action: "submitted",
     installation: { id: INSTALLATION_ID },
@@ -119,9 +124,13 @@ function pullRequestReviewPayload(): Record<string, unknown> {
     },
     review: {
       state: "approved",
-      commit_id: HEAD_SHA,
-      submitted_at: "2026-07-07T12:00:00Z",
-      user: { id: 21031067, login: "reviewer", type: "User" },
+      commit_id: review?.commitId ?? HEAD_SHA,
+      submitted_at: review?.submittedAt ?? "2026-07-07T12:00:00Z",
+      user: {
+        id: review?.userId ?? 21031067,
+        login: "reviewer",
+        type: review?.userType ?? "User",
+      },
     },
   };
 }
@@ -252,6 +261,74 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "pull_request")).toBe(0);
     expect(await countRows(harness, "generation")).toBe(0);
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
+    // The unknown-PR skip extends to the checkpoint (FK needs the parent).
+    expect(await countRows(harness, "checkpoint")).toBe(0);
+  });
+
+  it("submitted review writes the checkpoint pinned to review.commit_id, not head.sha (BRIEF-23)", async () => {
+    await seedPullRequest(harness, BigInt(REPO_ID), 2);
+    const viewedHead = "1111111111111111111111111111111111111111";
+    // head.sha stays HEAD_SHA (a push landed mid-review) — commit_id must win.
+    const res = await deliver(
+      app,
+      "pull_request_review",
+      pullRequestReviewPayload({ commitId: viewedHead }),
+    );
+    expect(res.status).toBe(200);
+    const rows = await harness.raw(
+      "select reviewer_id, reviewer_login, last_submitted_sha, installation_id from checkpoint",
+    );
+    expect(rows).toHaveLength(1);
+    expect(String(rows[0]?.["last_submitted_sha"])).toBe(viewedHead);
+    expect(Number(rows[0]?.["reviewer_id"])).toBe(21031067);
+    expect(String(rows[0]?.["reviewer_login"])).toBe("reviewer");
+    expect(Number(rows[0]?.["installation_id"])).toBe(INSTALLATION_ID);
+    // The generation gap-filler still runs.
+    expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+  });
+
+  it("Bot-authored review skips the checkpoint but still re-queues generation (BRIEF-23)", async () => {
+    await seedPullRequest(harness, BigInt(REPO_ID), 2);
+    const res = await deliver(
+      app,
+      "pull_request_review",
+      pullRequestReviewPayload({ userType: "Bot", userId: 49699333 }),
+    );
+    expect(res.status).toBe(200);
+    expect(await countRows(harness, "checkpoint")).toBe(0);
+    expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
+  });
+
+  it("out-of-order review deliveries keep the newest submission (BRIEF-23 monotonic)", async () => {
+    await seedPullRequest(harness, BigInt(REPO_ID), 2);
+    const newerSha = "2222222222222222222222222222222222222222";
+    const olderSha = "3333333333333333333333333333333333333333";
+    await deliver(
+      app,
+      "pull_request_review",
+      pullRequestReviewPayload({ commitId: newerSha, submittedAt: "2026-07-07T12:05:00Z" }),
+    );
+    // The older submission arrives late (redelivery / out-of-order).
+    const res = await deliver(
+      app,
+      "pull_request_review",
+      pullRequestReviewPayload({ commitId: olderSha, submittedAt: "2026-07-07T12:00:00Z" }),
+    );
+    expect(res.status).toBe(200);
+    const rows = await harness.raw("select last_submitted_sha from checkpoint");
+    expect(rows).toHaveLength(1);
+    expect(String(rows[0]?.["last_submitted_sha"])).toBe(newerSha);
+  });
+
+  it("review redelivery is idempotent — one checkpoint row, same values (BRIEF-23)", async () => {
+    await seedPullRequest(harness, BigInt(REPO_ID), 2);
+    const payload = pullRequestReviewPayload();
+    await deliver(app, "pull_request_review", payload);
+    const res = await deliver(app, "pull_request_review", payload);
+    expect(res.status).toBe(200);
+    const rows = await harness.raw("select last_submitted_sha from checkpoint");
+    expect(rows).toHaveLength(1);
+    expect(String(rows[0]?.["last_submitted_sha"])).toBe(HEAD_SHA);
   });
 
   it("invalid signature → 401 and NOTHING written", async () => {

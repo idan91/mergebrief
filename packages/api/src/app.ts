@@ -13,6 +13,7 @@ import { authRoute, type AuthDeps } from "./routes/auth";
 import { installationsRoute } from "./routes/installations";
 import { pullsRoute } from "./routes/pulls";
 import { readsRoute } from "./routes/reads";
+import { reviewSubmitRoute } from "./routes/review-submit";
 import { webhookRoute } from "./routes/webhook";
 
 export type { AuthDeps } from "./routes/auth";
@@ -31,6 +32,12 @@ export function createApp(deps: AppDeps): Hono {
   app.route("/", authRoute(deps));
   app.route("/", installationsRoute(deps));
   app.route("/", pullsRoute(deps));
+  // Mounted BEFORE readsRoute: readsRoute guards `/api/repos/:repoId/*` with
+  // its own gate instance, method-agnostic — mounted first, the submit POST
+  // would traverse BOTH gates (two GitHub access checks cold; a transient
+  // failure on the second 404s a just-verified request). Registration order
+  // ensures a submit POST hits exactly one per-repo gate: its own.
+  app.route("/", reviewSubmitRoute(deps));
   app.route("/", readsRoute(deps));
   return app;
 }

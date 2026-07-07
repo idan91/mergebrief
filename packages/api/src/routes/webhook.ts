@@ -106,12 +106,32 @@ async function handlePullRequestReview(
   // closed PRs), so it is skipped: if we missed the PR's own events, the next
   // `pull_request` delivery ingests it properly. On a KNOWN terminal PR the
   // ingest guard preserves the lifecycle and skips the enqueue.
-  const known = await forTenant(handle, ctx).pullRequests.getByNumber(
-    event.repoId,
-    event.prNumber,
-  );
+  const tenant = forTenant(handle, ctx);
+  const known = await tenant.pullRequests.getByNumber(event.repoId, event.prNumber);
   if (known === undefined) {
     return;
+  }
+  // Checkpoint (BRIEF-23, grill-locked): the WEBHOOK is the only checkpoint
+  // writer — including the echo of our own submit route — so one code path
+  // covers in-app and native github.com reviews. Pinned to `review.commit_id`
+  // (the head the reviewer actually saw), never head-at-delivery. Bot-authored
+  // reviews are skipped: a bot checkpoint would pre-warm delta baselines no
+  // human ever opens (LLM spend). Ordered BEFORE the enqueue so the worker's
+  // state derivation sees the new baseline. Redeliveries are safe (idempotent,
+  // monotonic newest-submission-wins upsert).
+  if (event.reviewerType !== "Bot") {
+    const checkpointed = await tenant.checkpoints.upsertOnSubmit({
+      pullRequestId: known.id,
+      reviewerId: event.reviewerId,
+      reviewerLogin: event.reviewerLogin,
+      lastSubmittedSha: event.commitId,
+      submittedAt: event.submittedAt,
+    });
+    if (!checkpointed.ok) {
+      // The parent was verified above inside this tenant, so a failure here is
+      // a programmer/infra error — surface it as the route's 500.
+      throw new Error(`checkpoint upsert failed: ${checkpointed.error.code}`);
+    }
   }
   await triggerGeneration(handle, ctx, event);
 }
