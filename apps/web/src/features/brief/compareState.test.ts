@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   defaultComparison,
   isCompareAvailable,
+  lastReviewUnavailableReasonTitle,
   normalizeBriefSearch,
   parseCompareParam,
   parseViewParam,
@@ -159,5 +160,16 @@ describe("isCompareAvailable", () => {
     expect(isCompareAvailable("previous-brief", onlyLastReview)).toBe(false);
     expect(isCompareAvailable("last-review", onlyLastReview)).toBe(true);
     expect(isCompareAvailable("off", none)).toBe(true);
+  });
+});
+
+describe("lastReviewUnavailableReasonTitle (BRIEF-21)", () => {
+  it("maps each unavailable reason to its honest plan copy", () => {
+    expect(lastReviewUnavailableReasonTitle("pending")).toBe(
+      "Delta still generating",
+    );
+    expect(lastReviewUnavailableReasonTitle("baseline-unavailable")).toBe(
+      "History rewritten since your last review",
+    );
   });
 });

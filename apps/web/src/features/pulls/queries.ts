@@ -16,6 +16,7 @@ import {
 import {
   parseBrief,
   parseComparisonMarks,
+  parseDeltaBrief,
   parseRevisionNarrativeArtifact,
 } from "../brief/validation";
 import type {
@@ -119,21 +120,25 @@ export function dbBriefQueryOptions(
  * The DB body is D13 coordinates-only (`{ baselineSha, headSha, files }` —
  * persistence REJECTS `baselineLabel`/`baselineIndex` at write time), while
  * the renderer's `ComparisonMarks` carries both summary fields. They are
- * synthesized here from what the caller already knows: this query IS the
- * previous-brief comparison, and the index comes from PR-meta's availability.
+ * synthesized here from what the caller already knows: which comparison this
+ * query IS (`previous-brief` or the BRIEF-21 `checkpoint` baseline), and the
+ * index from PR-meta's availability (null when the checkpoint SHA was never
+ * a briefed head).
  */
 export function dbComparisonMarksQueryOptions(
   repoId: string,
   prNumber: number,
   baselineSha: string,
   headSha: string,
-  baselineIndex: number,
+  baselineLabel: "previous-brief" | "checkpoint",
+  baselineIndex: number | null,
 ) {
   const queryKey: QueryKey = [
     "comparisonMarks",
     "db",
     repoId,
     prNumber,
+    baselineLabel,
     baselineSha,
     headSha,
   ];
@@ -147,9 +152,47 @@ export function dbComparisonMarksQueryOptions(
       }
       const parsed = parseComparisonMarks({
         ...body,
-        baselineLabel: "previous-brief",
+        baselineLabel,
         baselineIndex,
       });
+      if (!parsed.ok) {
+        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+      }
+      return parsed.value;
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/**
+ * The pre-warmed delta core for (baseline = checkpoint SHA, head) — immutable
+ * once written (BRIEF-21). The body is the DELTA artifact shape
+ * (`changedGroups`, `baselineSha`, `commentsAddressed` — `parseDeltaBrief`,
+ * NOT `parseBrief`; smoke-found 2026-07-07). The caller only mounts this when
+ * PR-meta said `deltaAvailable`, so a 404 here is a real error, not a tier.
+ */
+export function dbDeltaQueryOptions(
+  repoId: string,
+  prNumber: number,
+  baselineSha: string,
+  headSha: string,
+) {
+  const queryKey: QueryKey = [
+    "delta",
+    "db",
+    repoId,
+    prNumber,
+    baselineSha,
+    headSha,
+  ];
+  return queryOptions({
+    queryKey,
+    queryFn: async (): Promise<Brief> => {
+      const path = `${prPath(repoId, prNumber)}/delta?baseline=${encodeURIComponent(baselineSha)}&head=${encodeURIComponent(headSha)}`;
+      const body = await apiFetchJson(path);
+      const parsed = parseDeltaBrief(body);
       if (!parsed.ok) {
         throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
       }

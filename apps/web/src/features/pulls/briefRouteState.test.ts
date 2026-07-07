@@ -152,6 +152,50 @@ describe("shouldPollMeta", () => {
     ).toBe(false);
   });
 
+  it("polls while lastReview is pending even after the brief generation is terminal (codex PR-46 finding)", () => {
+    expect(
+      shouldPollMeta(
+        meta({
+          briefAvailable: true,
+          generation: generation({ status: "succeeded" }),
+          comparisons: {
+            lastReview: { kind: "unavailable", reason: "pending" },
+          },
+        }),
+      ),
+    ).toBe(true);
+    // Other lastReview states never keep the poll alive on their own.
+    expect(
+      shouldPollMeta(
+        meta({
+          briefAvailable: true,
+          generation: generation({ status: "succeeded" }),
+          comparisons: {
+            lastReview: {
+              kind: "unavailable",
+              reason: "baseline-unavailable",
+            },
+          },
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      shouldPollMeta(
+        meta({
+          briefAvailable: true,
+          generation: generation({ status: "succeeded" }),
+          comparisons: {
+            lastReview: {
+              kind: "available",
+              deltaAvailable: true,
+              baselineSha: "cp-1",
+            },
+          },
+        }),
+      ),
+    ).toBe(false);
+  });
+
   it("off for terminal success/failure and for no generation", () => {
     expect(shouldPollMeta(meta({}))).toBe(false);
     expect(

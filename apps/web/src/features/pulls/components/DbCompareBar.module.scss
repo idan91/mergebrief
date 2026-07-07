@@ -43,4 +43,52 @@
       }
     }
   }
+
+  // Focusable-disabled Compare option + its reason tooltip (BRIEF-21).
+  .tipAnchor {
+    position: relative;
+    display: inline-flex;
+
+    // The brief content below stacks sticky sections at z-index 40–120; the
+    // anchor must rise above them while its tooltip shows, or the tooltip
+    // paints underneath (found in BRIEF-21 smoke). 150 < the top bar's 200,
+    // so nothing global is overlaid.
+    &:hover,
+    &:focus-within {
+      z-index: 150;
+    }
+
+    .disabledOption {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .tip {
+      position: absolute;
+      inset-block-start: calc(100% + 6px);
+      inset-inline-start: 50%;
+      z-index: 150;
+      display: none;
+      max-inline-size: 240px;
+      padding-block: 4px;
+      padding-inline: 8px;
+      border: 1px solid var(--line2);
+      border-radius: 6px;
+      background: var(--panel2);
+      color: var(--text);
+      font-size: 12px;
+      white-space: normal;
+      inline-size: max-content;
+      transform: translateX(-50%);
+    }
+
+    &:hover .tip,
+    &:focus-within .tip {
+      display: block;
+    }
+
+    &[data-tip-dismissed="true"] .tip {
+      display: none;
+    }
+  }
 }

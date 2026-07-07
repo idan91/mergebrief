@@ -96,7 +96,15 @@ export function deriveBriefRouteState(
 export function shouldPollMeta(meta: PrSummary): boolean {
   const status = meta.generation?.status;
   if (status === "queued" || status === "running") return true;
-  return status === "superseded" && !meta.briefAvailable;
+  if (status === "superseded" && !meta.briefAvailable) return true;
+  // A pending lastReview comparison is also in-flight work (its delta may
+  // finish after the brief generation is terminal — codex PR-46 finding):
+  // keep polling so the disabled Compare control flips without a manual
+  // refresh.
+  return (
+    meta.comparisons?.lastReview?.kind === "unavailable" &&
+    meta.comparisons.lastReview.reason === "pending"
+  );
 }
 
 /**

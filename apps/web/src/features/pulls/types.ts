@@ -38,9 +38,40 @@ export interface PreviousBriefComparison {
   readonly narrativeAvailable: boolean;
 }
 
+/** Why lastReview is unavailable despite a recorded checkpoint (BRIEF-21). */
+export const LastReviewUnavailableReasons = {
+  PENDING: "pending",
+  BASELINE_UNAVAILABLE: "baseline-unavailable",
+} as const;
+export type LastReviewUnavailableReason = ValueOf<
+  typeof LastReviewUnavailableReasons
+>;
+
+/**
+ * The per-reviewer "since my last review" comparison on PR meta (BRIEF-21).
+ * The wire union is shape-discriminated (`unavailable` key vs payload); the
+ * parsed form adds `kind` so consumers switch without re-probing keys. The
+ * field being ABSENT from `comparisons` means the reviewer never submitted —
+ * no control at all, nothing to explain.
+ */
+export type LastReviewComparison =
+  | {
+      readonly kind: "available";
+      /** False = marks-only tier: still an offer, the delta core was skipped. */
+      readonly deltaAvailable: boolean;
+      readonly baselineSha: string;
+      /** Present when the checkpoint SHA was a briefed head. */
+      readonly baselineIndex?: number;
+    }
+  | {
+      readonly kind: "unavailable";
+      readonly reason: LastReviewUnavailableReason;
+    };
+
 /** Comparison availability envelope — additive (BRIEF-21 adds lastReview). */
 export interface PrComparisons {
   readonly previousBrief?: PreviousBriefComparison;
+  readonly lastReview?: LastReviewComparison;
 }
 
 /** One PR as the list and PR-meta endpoints return it. */
@@ -140,22 +171,20 @@ function parseGenerationSummary(
   };
 }
 
-function parseComparisons(value: unknown): Result<PrComparisons | undefined> {
+function parsePreviousBrief(
+  value: unknown,
+): Result<PreviousBriefComparison | undefined> {
   if (value === undefined) return { ok: true, value: undefined };
-  if (!isRecord(value))
-    return { ok: false, error: "comparisons must be an object" };
-  const previous = value["previousBrief"];
-  if (previous === undefined) return { ok: true, value: {} };
-  if (!isRecord(previous)) {
+  if (!isRecord(value)) {
     return { ok: false, error: "comparisons.previousBrief must be an object" };
   }
-  if (typeof previous["baselineSha"] !== "string") {
+  if (typeof value["baselineSha"] !== "string") {
     return { ok: false, error: "previousBrief.baselineSha must be a string" };
   }
-  if (typeof previous["baselineIndex"] !== "number") {
+  if (typeof value["baselineIndex"] !== "number") {
     return { ok: false, error: "previousBrief.baselineIndex must be a number" };
   }
-  if (typeof previous["narrativeAvailable"] !== "boolean") {
+  if (typeof value["narrativeAvailable"] !== "boolean") {
     return {
       ok: false,
       error: "previousBrief.narrativeAvailable must be a boolean",
@@ -164,11 +193,85 @@ function parseComparisons(value: unknown): Result<PrComparisons | undefined> {
   return {
     ok: true,
     value: {
-      previousBrief: {
-        baselineSha: previous["baselineSha"],
-        baselineIndex: previous["baselineIndex"],
-        narrativeAvailable: previous["narrativeAvailable"],
-      },
+      baselineSha: value["baselineSha"],
+      baselineIndex: value["baselineIndex"],
+      narrativeAvailable: value["narrativeAvailable"],
+    },
+  };
+}
+
+function isLastReviewUnavailableReason(
+  value: unknown,
+): value is LastReviewUnavailableReason {
+  return (
+    typeof value === "string" &&
+    Object.values(LastReviewUnavailableReasons).some(
+      (reason) => reason === value,
+    )
+  );
+}
+
+function parseLastReview(
+  value: unknown,
+): Result<LastReviewComparison | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (!isRecord(value)) {
+    return { ok: false, error: "comparisons.lastReview must be an object" };
+  }
+  // The wire union discriminates on the `unavailable` key (BRIEF-21).
+  if ("unavailable" in value) {
+    if (!isLastReviewUnavailableReason(value["unavailable"])) {
+      return {
+        ok: false,
+        error: "lastReview.unavailable is not a known reason",
+      };
+    }
+    return {
+      ok: true,
+      value: { kind: "unavailable", reason: value["unavailable"] },
+    };
+  }
+  if (typeof value["deltaAvailable"] !== "boolean") {
+    return { ok: false, error: "lastReview.deltaAvailable must be a boolean" };
+  }
+  if (typeof value["baselineSha"] !== "string") {
+    return { ok: false, error: "lastReview.baselineSha must be a string" };
+  }
+  const baselineIndex = value["baselineIndex"];
+  if (baselineIndex !== undefined && typeof baselineIndex !== "number") {
+    return {
+      ok: false,
+      error: "lastReview.baselineIndex must be a number when present",
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      kind: "available",
+      deltaAvailable: value["deltaAvailable"],
+      baselineSha: value["baselineSha"],
+      ...(baselineIndex === undefined ? {} : { baselineIndex }),
+    },
+  };
+}
+
+function parseComparisons(value: unknown): Result<PrComparisons | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (!isRecord(value))
+    return { ok: false, error: "comparisons must be an object" };
+  const previousBrief = parsePreviousBrief(value["previousBrief"]);
+  if (!previousBrief.ok) return previousBrief;
+  const lastReview = parseLastReview(value["lastReview"]);
+  if (!lastReview.ok) return lastReview;
+  return {
+    ok: true,
+    value: {
+      ...(previousBrief.value === undefined
+        ? {}
+        : { previousBrief: previousBrief.value }),
+      ...(lastReview.value === undefined
+        ? {}
+        : { lastReview: lastReview.value }),
     },
   };
 }

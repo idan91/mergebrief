@@ -238,14 +238,20 @@ function disabledComparisonQuery<T>(slot: string): ComparisonQuery<T> {
 /**
  * Injected comparison data source (BRIEF-19 4.1 — the DB path). When present
  * it REPLACES the local timeline derivation entirely: availability comes from
- * the plan, marks/narrative fetch through its descriptors, and last-review
- * stays unavailable (BRIEF-21). Absent → the local sidecar flow is unchanged.
+ * the plan and marks/narrative/delta fetch through its descriptors. Absent →
+ * the local sidecar flow is unchanged.
  */
 export interface BriefComparisonPlan {
   readonly previousBrief?: {
     readonly marks: ComparisonQuery<ComparisonMarks>;
     /** Present when a narrative artifact exists to fetch (may be a skip stub). */
     readonly narrative?: ComparisonQuery<RevisionNarrativeArtifact>;
+  };
+  /** The personal checkpoint comparison (BRIEF-21) — offered iff marks exist. */
+  readonly lastReview?: {
+    readonly marks: ComparisonQuery<ComparisonMarks>;
+    /** Absent = marks-only tier: the worker skipped the delta core. */
+    readonly delta?: ComparisonQuery<Brief>;
   };
 }
 
@@ -310,7 +316,7 @@ function BriefScreen({
         ? comparisonAvailability(timeline.selectedPoint)
         : {
             previousBrief: comparisonPlan.previousBrief !== undefined,
-            lastReview: false,
+            lastReview: comparisonPlan.lastReview !== undefined,
           },
     [comparisonPlan, timeline.selectedPoint],
   );
@@ -346,17 +352,27 @@ function BriefScreen({
   const deltaId =
     activeCompare === "last-review" ? lastReviewComparison?.deltaId : undefined;
 
-  // Marks/narrative resolve from ONE source: the injected plan (DB path) or
-  // the local sidecar ids. Both query pairs exist as hooks; `enabled` picks.
+  // Marks/narrative/delta resolve from ONE source: the injected plan (DB
+  // path) or the local sidecar ids. Both query sets exist as hooks; `enabled`
+  // picks. The plan's marks descriptor follows the ACTIVE baseline (BRIEF-21
+  // adds last-review); narrative stays previous-brief-only, delta
+  // last-review-only — mirroring the local id derivation above.
   const planPrevious = comparisonPlan?.previousBrief;
+  const planLastReview = comparisonPlan?.lastReview;
+  const activePlanSlot =
+    activeCompare === "previous-brief"
+      ? planPrevious
+      : activeCompare === "last-review"
+        ? planLastReview
+        : undefined;
   const planActive =
-    planPrevious !== undefined && activeCompare === "previous-brief";
+    comparisonPlan !== undefined && activePlanSlot !== undefined;
   const localMarks = useQuery({
     ...localComparisonMarksQueryOptions(marksId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(marksId),
   });
   const planMarks = useQuery({
-    ...(planPrevious?.marks ??
+    ...(activePlanSlot?.marks ??
       disabledComparisonQuery<ComparisonMarks>("marks")),
     enabled: planActive,
   });
@@ -369,16 +385,27 @@ function BriefScreen({
   const planNarrative = useQuery({
     ...(planPrevious?.narrative ??
       disabledComparisonQuery<RevisionNarrativeArtifact>("narrative")),
-    enabled: planActive && planPrevious?.narrative !== undefined,
+    enabled:
+      planActive &&
+      activeCompare === "previous-brief" &&
+      planPrevious?.narrative !== undefined,
   });
   const narrativeArtifact: RevisionNarrativeArtifact | null =
     (comparisonPlan === undefined ? localNarrative.data : planNarrative.data) ??
     null;
+  const localDelta = useQuery({
+    ...localBriefQueryOptions(deltaId ?? ""),
+    enabled: comparisonPlan === undefined && Boolean(deltaId),
+  });
+  const planDelta = useQuery({
+    ...(planLastReview?.delta ?? disabledComparisonQuery<Brief>("delta")),
+    enabled:
+      planActive &&
+      activeCompare === "last-review" &&
+      planLastReview?.delta !== undefined,
+  });
   const delta =
-    useQuery({
-      ...localBriefQueryOptions(deltaId ?? ""),
-      enabled: Boolean(deltaId),
-    }).data ?? null;
+    (comparisonPlan === undefined ? localDelta.data : planDelta.data) ?? null;
 
   // narrativeId-present only means "an artifact exists"; discriminate on the
   // fetched kind — a skip stub is narrative-unavailable with a knowable reason.

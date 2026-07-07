@@ -22,6 +22,7 @@ import { routeTree } from "../../routeTree.gen";
 import {
   dbBriefQueryOptions,
   dbComparisonMarksQueryOptions,
+  dbDeltaQueryOptions,
   prDiffQueryOptions,
   prMetaQueryOptions,
 } from "./queries";
@@ -102,8 +103,14 @@ async function renderRouteWithMarks(metaValue: PrSummary, path: string) {
     "",
   );
   queryClient.setQueryData(
-    dbComparisonMarksQueryOptions(REPO_ID, PR_NUMBER, "head-0", SPAN.head, 1)
-      .queryKey,
+    dbComparisonMarksQueryOptions(
+      REPO_ID,
+      PR_NUMBER,
+      "head-0",
+      SPAN.head,
+      "previous-brief",
+      1,
+    ).queryKey,
     {
       baselineSha: "head-0",
       headSha: SPAN.head,
@@ -217,9 +224,14 @@ describe("DB brief route", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
+    // Disabled options stay focusable (`aria-disabled`) with the reason in a
+    // keyboard-reachable tooltip referenced by aria-describedby (BRIEF-21).
     const button = screen.getByRole("button", { name: /^previous brief$/i });
-    expect((button as HTMLButtonElement).disabled).toBe(true);
-    expect(button.getAttribute("title")).toMatch(/no previous brief/i);
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    const tooltipId = button.getAttribute("aria-describedby");
+    expect(tooltipId).toBeTruthy();
+    const tooltip = document.getElementById(tooltipId ?? "");
+    expect(tooltip?.textContent).toMatch(/no previous brief/i);
   });
 
   it("Compare previous-brief activates from the URL when the meta offers it", async () => {
@@ -245,6 +257,212 @@ describe("DB brief route", () => {
     expect((button as HTMLButtonElement).disabled).toBe(false);
     expect(button.getAttribute("aria-pressed")).toBe("true");
     void queryClient;
+  });
+
+  it("Compare last-review is offered on the marks-only tier and Changes Only degrades honestly (BRIEF-21)", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const withLastReview = meta({
+      comparisons: {
+        lastReview: {
+          kind: "available",
+          deltaAvailable: false,
+          baselineSha: "cp-1",
+        },
+      },
+    });
+    queryClient.setQueryData(
+      prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+      withLastReview,
+    );
+    queryClient.setQueryData(
+      dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+      briefFixture,
+    );
+    queryClient.setQueryData(
+      prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+      "",
+    );
+    queryClient.setQueryData(
+      dbComparisonMarksQueryOptions(
+        REPO_ID,
+        PR_NUMBER,
+        "cp-1",
+        SPAN.head,
+        "checkpoint",
+        null,
+      ).queryKey,
+      {
+        baselineSha: "cp-1",
+        headSha: SPAN.head,
+        baselineLabel: "checkpoint",
+        baselineIndex: null,
+        files: [],
+      },
+    );
+    const router = createRouter({
+      routeTree,
+      context: { queryClient },
+      history: createMemoryHistory({
+        initialEntries: [
+          `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}&compare=last-review&view=changes`,
+        ],
+      }),
+    });
+    await router.load();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    const button = await waitFor(() =>
+      screen.getByRole("button", { name: /^your last review$/i }),
+    );
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    // Marks-only tier: the changes pane degrades — no delta core to render.
+    await waitFor(() =>
+      expect(screen.getByText(/changes summary unavailable/i)).toBeTruthy(),
+    );
+  });
+
+  it("Compare last-review renders the pre-warmed delta core when deltaAvailable (BRIEF-21 happy tier)", async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData(
+      prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+      meta({
+        comparisons: {
+          lastReview: {
+            kind: "available",
+            deltaAvailable: true,
+            baselineSha: "cp-1",
+          },
+        },
+      }),
+    );
+    queryClient.setQueryData(
+      dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+      briefFixture,
+    );
+    queryClient.setQueryData(
+      prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+      "",
+    );
+    queryClient.setQueryData(
+      dbComparisonMarksQueryOptions(
+        REPO_ID,
+        PR_NUMBER,
+        "cp-1",
+        SPAN.head,
+        "checkpoint",
+        null,
+      ).queryKey,
+      {
+        baselineSha: "cp-1",
+        headSha: SPAN.head,
+        baselineLabel: "checkpoint",
+        baselineIndex: null,
+        files: [],
+      },
+    );
+    // The delta core: same Brief shape, artifactKind "delta".
+    queryClient.setQueryData(
+      dbDeltaQueryOptions(REPO_ID, PR_NUMBER, "cp-1", SPAN.head).queryKey,
+      {
+        ...briefFixture,
+        artifactKind: "delta",
+        summary: "Fixture delta summary since your checkpoint.",
+      },
+    );
+    const router = createRouter({
+      routeTree,
+      context: { queryClient },
+      history: createMemoryHistory({
+        initialEntries: [
+          `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}&compare=last-review&view=changes`,
+        ],
+      }),
+    });
+    await router.load();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+    // The changes pane renders the DELTA core, not the degradation state.
+    await waitFor(() =>
+      expect(
+        screen.getByText(/changes only · since your last review/i),
+      ).toBeTruthy(),
+    );
+    expect(
+      screen.getByText(/fixture delta summary since your checkpoint/i),
+    ).toBeTruthy();
+    expect(screen.queryByText(/changes summary unavailable/i)).toBeNull();
+  });
+
+  it("Compare Off is offered in Full Brief so a defaulted comparison can be turned off (codex PR-46 finding)", async () => {
+    // A returning reviewer defaults into changes+last-review; after clicking
+    // Full Brief the compare stays active — Off must exist to reach full+off.
+    await renderRoute(
+      meta({}),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}&view=full&compare=off`,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    const off = screen.getByRole("button", { name: /^off$/i });
+    expect((off as HTMLButtonElement).disabled).toBe(false);
+    expect(off.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("Compare last-review is disabled with the honest reason tooltip per unavailable tier (BRIEF-21)", async () => {
+    const cases = [
+      { reason: "pending", copy: /delta still generating/i },
+      {
+        reason: "baseline-unavailable",
+        copy: /history rewritten since your last review/i,
+      },
+    ] as const;
+    for (const { reason, copy } of cases) {
+      cleanup();
+      await renderRoute(
+        meta({
+          comparisons: { lastReview: { kind: "unavailable", reason } },
+        }),
+        `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+      );
+      await waitFor(() =>
+        expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      );
+      const button = screen.getByRole("button", {
+        name: /^your last review$/i,
+      });
+      expect(button.getAttribute("aria-disabled")).toBe("true");
+      const tooltip = document.getElementById(
+        button.getAttribute("aria-describedby") ?? "",
+      );
+      expect(tooltip?.textContent).toMatch(copy);
+    }
+  });
+
+  it("Compare last-review keeps the generic never-submitted copy when the field is absent (BRIEF-21)", async () => {
+    await renderRoute(
+      meta({}),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    const button = screen.getByRole("button", { name: /^your last review$/i });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    const tooltip = document.getElementById(
+      button.getAttribute("aria-describedby") ?? "",
+    );
+    expect(tooltip?.textContent).toMatch(/no submitted review checkpoint yet/i);
   });
 
   it("Summary preview opens the in-page drawer (the standalone route can't resolve db: ids)", async () => {

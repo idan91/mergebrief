@@ -10,6 +10,7 @@ import { useEffect, useMemo } from "react";
 
 import { ApiError, ApiErrorKind } from "../data/apiFetch";
 import {
+  lastReviewUnavailableReasonTitle,
   parseCompareParam,
   parseViewParam,
   resolveBriefSearch,
@@ -42,6 +43,7 @@ import { attachLiveDiffs } from "../features/pulls/liveDiff";
 import {
   dbBriefQueryOptions,
   dbComparisonMarksQueryOptions,
+  dbDeltaQueryOptions,
   dbRevisionNarrativeQueryOptions,
   prDiffQueryOptions,
   prMetaQueryOptions,
@@ -345,40 +347,79 @@ function DbBrief({
     () => (diff.data === undefined ? brief : attachLiveDiffs(brief, diff.data)),
     [brief, diff.data],
   );
-  // Previous-brief comparison (BRIEF-19 4.1): offered exactly when the meta
-  // says its marks exist AND the comparison targets the RENDERED span's head
-  // (a pinned older span must not borrow the current head's baseline).
+  // Comparisons (BRIEF-19 4.1 + BRIEF-21): offered exactly when the meta says
+  // their marks exist AND the comparison targets the RENDERED span's head (a
+  // pinned older span must not borrow the current head's baselines).
   const previous = meta.comparisons?.previousBrief;
+  const lastReview = meta.comparisons?.lastReview;
+  const currentHead = meta.headSha === span.head;
   const comparisonPlan = useMemo<BriefComparisonPlan>(() => {
-    if (previous === undefined || meta.headSha !== span.head) {
+    if (!currentHead) {
       return {};
     }
     return {
-      previousBrief: {
-        marks: dbComparisonMarksQueryOptions(
-          repoId,
-          prNumber,
-          previous.baselineSha,
-          span.head,
-          previous.baselineIndex,
-        ),
-        ...(previous.narrativeAvailable
-          ? {
-              narrative: dbRevisionNarrativeQueryOptions(
+      ...(previous === undefined
+        ? {}
+        : {
+            previousBrief: {
+              marks: dbComparisonMarksQueryOptions(
                 repoId,
                 prNumber,
                 previous.baselineSha,
                 span.head,
+                "previous-brief",
+                previous.baselineIndex,
               ),
-            }
-          : {}),
-      },
+              ...(previous.narrativeAvailable
+                ? {
+                    narrative: dbRevisionNarrativeQueryOptions(
+                      repoId,
+                      prNumber,
+                      previous.baselineSha,
+                      span.head,
+                    ),
+                  }
+                : {}),
+            },
+          }),
+      ...(lastReview === undefined || lastReview.kind !== "available"
+        ? {}
+        : {
+            lastReview: {
+              marks: dbComparisonMarksQueryOptions(
+                repoId,
+                prNumber,
+                lastReview.baselineSha,
+                span.head,
+                "checkpoint",
+                lastReview.baselineIndex ?? null,
+              ),
+              // Marks-only tier: no delta descriptor — the delta pane
+              // degrades honestly ("absence IS the signal").
+              ...(lastReview.deltaAvailable
+                ? {
+                    delta: dbDeltaQueryOptions(
+                      repoId,
+                      prNumber,
+                      lastReview.baselineSha,
+                      span.head,
+                    ),
+                  }
+                : {}),
+            },
+          }),
     };
-  }, [meta.headSha, prNumber, previous, repoId, span.head]);
+  }, [currentHead, lastReview, prNumber, previous, repoId, span.head]);
   const availability: CompareOptionFlags = {
     previousBrief: comparisonPlan.previousBrief !== undefined,
-    lastReview: false,
+    lastReview: comparisonPlan.lastReview !== undefined,
   };
+  // A checkpoint that EXISTS but cannot be compared gets its honest reason on
+  // the disabled control; an absent field keeps the generic copy.
+  const lastReviewDisabledReason =
+    currentHead && lastReview?.kind === "unavailable"
+      ? lastReviewUnavailableReasonTitle(lastReview.reason)
+      : undefined;
   const compareState = resolveBriefSearch(searchParams, availability);
   // Keys the per-brief Mind-Map session store, exactly like a local brief id.
   const briefId = `db:${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
@@ -388,6 +429,7 @@ function DbBrief({
       <DbCompareBar
         availability={availability}
         compareState={compareState}
+        lastReviewDisabledReason={lastReviewDisabledReason}
         onNavigate={onNavigateSearch}
       />
       <BriefView

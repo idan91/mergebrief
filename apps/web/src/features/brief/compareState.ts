@@ -48,6 +48,23 @@ export const PREVIOUS_BRIEF_UNAVAILABLE_TITLE =
   "No previous Brief for this revision";
 export const LAST_REVIEW_UNAVAILABLE_TITLE =
   "No submitted review checkpoint yet";
+export const LAST_REVIEW_PENDING_TITLE = "Delta still generating";
+export const LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE =
+  "History rewritten since your last review";
+
+/**
+ * Honest reason copy for a checkpoint that EXISTS but cannot be compared
+ * (BRIEF-21 PR-meta `lastReview.unavailable` vocab — exact plan copy).
+ * Distinct from `LAST_REVIEW_UNAVAILABLE_TITLE`, which covers "never
+ * submitted" (the field-absent case).
+ */
+export function lastReviewUnavailableReasonTitle(
+  reason: "pending" | "baseline-unavailable",
+): string {
+  return reason === "pending"
+    ? LAST_REVIEW_PENDING_TITLE
+    : LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE;
+}
 
 export function parseViewParam(value: unknown): ViewParam | undefined {
   return value === "full" || value === "changes" ? value : undefined;

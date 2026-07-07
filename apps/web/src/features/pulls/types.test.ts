@@ -105,6 +105,74 @@ describe("parsePrSummary comparisons (PR-meta only)", () => {
       }).ok,
     ).toBe(false);
   });
+
+  it("parses lastReview available payload, with and without baselineIndex (BRIEF-21)", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      comparisons: {
+        lastReview: {
+          deltaAvailable: true,
+          baselineSha: "cp-1",
+          baselineIndex: 2,
+        },
+      },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.comparisons?.lastReview).toEqual({
+      kind: "available",
+      deltaAvailable: true,
+      baselineSha: "cp-1",
+      baselineIndex: 2,
+    });
+
+    const noIndex = parsePrSummary({
+      ...ROW,
+      comparisons: {
+        lastReview: { deltaAvailable: false, baselineSha: "cp-1" },
+      },
+    });
+    expect(noIndex.ok).toBe(true);
+    if (!noIndex.ok) throw new Error("unreachable");
+    expect(noIndex.value.comparisons?.lastReview).toEqual({
+      kind: "available",
+      deltaAvailable: false,
+      baselineSha: "cp-1",
+    });
+  });
+
+  it("parses lastReview unavailable reasons and rejects unknown ones", () => {
+    for (const reason of ["pending", "baseline-unavailable"]) {
+      const parsed = parsePrSummary({
+        ...ROW,
+        comparisons: { lastReview: { unavailable: reason } },
+      });
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) throw new Error("unreachable");
+      expect(parsed.value.comparisons?.lastReview).toEqual({
+        kind: "unavailable",
+        reason,
+      });
+    }
+    expect(
+      parsePrSummary({
+        ...ROW,
+        comparisons: { lastReview: { unavailable: "exploded" } },
+      }).ok,
+    ).toBe(false);
+  });
+
+  it("rejects a malformed lastReview (neither arm of the union)", () => {
+    expect(
+      parsePrSummary({
+        ...ROW,
+        comparisons: { lastReview: { baselineSha: "cp-1" } },
+      }).ok,
+    ).toBe(false);
+    expect(parsePrSummary({ ...ROW, comparisons: { lastReview: 5 } }).ok).toBe(
+      false,
+    );
+  });
 });
 
 describe("parsePullsList", () => {

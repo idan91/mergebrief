@@ -12,6 +12,7 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
 import { apiFetch, apiFetchJson, ApiError } from "../../data/apiFetch";
 import {
   dbComparisonMarksQueryOptions,
+  dbDeltaQueryOptions,
   pullsSessionQueryOptions,
 } from "./queries";
 
@@ -59,6 +60,7 @@ function runMarks(): Promise<unknown> {
     7,
     "head-0",
     "head-1",
+    "previous-brief",
     3,
   );
   const queryFn = options.queryFn;
@@ -92,5 +94,55 @@ describe("dbComparisonMarksQueryOptions queryFn", () => {
   it("throws typed malformed on a bad body", async () => {
     apiFetchJsonMock.mockResolvedValue({ nope: true });
     await expect(runMarks()).rejects.toMatchObject({ kind: "malformed" });
+  });
+});
+
+function runDelta(): Promise<unknown> {
+  const options = dbDeltaQueryOptions("424242", 7, "cp-1", "head-1");
+  const queryFn = options.queryFn;
+  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  return (queryFn as () => Promise<unknown>)();
+}
+
+describe("dbDeltaQueryOptions queryFn", () => {
+  const prRef = {
+    repo: "octo/hello",
+    number: 7,
+    title: "t",
+    url: "https://github.com/octo/hello/pull/7",
+    sha: "head-1",
+    description: "",
+  };
+
+  it("parses the DELTA artifact shape (changedGroups, not changeGroups - smoke-found)", async () => {
+    // The worker stores `JSON.stringify(delta)` - the delta-CLI shape with
+    // `changedGroups`/`commentsAddressed`/`wholePrImpact`. parseBrief rejects
+    // it, which silently degraded the pane to marks-only.
+    apiFetchJsonMock.mockResolvedValue({
+      pr: prRef,
+      baselineSha: "cp-1",
+      headSha: "head-1",
+      summary: "delta summary",
+      commentsAddressed: "none",
+      wholePrImpact: "small",
+      changedGroups: [],
+      chunks: [],
+    });
+    await expect(runDelta()).resolves.toMatchObject({
+      artifactKind: "delta",
+      baselineSha: "cp-1",
+      summary: "delta summary",
+    });
+  });
+
+  it("throws typed malformed on a WHOLE-BRIEF body (wrong artifact for this endpoint)", async () => {
+    apiFetchJsonMock.mockResolvedValue({
+      pr: prRef,
+      summary: "brief summary",
+      changeGroups: [],
+      chunks: [],
+      concernView: [],
+    });
+    await expect(runDelta()).rejects.toMatchObject({ kind: "malformed" });
   });
 });

@@ -1,8 +1,13 @@
 // View/Compare controls for the DB brief route (BRIEF-19 4.1). The local
 // route's controls live inside TimelineNavigator, which requires a local
-// artifact timeline (deferred to BRIEF-21 for the DB path) — this bar drives
+// artifact timeline (deferred to BRIEF-24 for the DB path) — this bar drives
 // the SAME normalized search-state helpers against the route's own params, so
 // the two surfaces cannot drift semantically.
+//
+// Disabled Compare options stay FOCUSABLE (`aria-disabled`, not `disabled`)
+// so their reason tooltip is keyboard-reachable: shown on hover/focus,
+// referenced via `aria-describedby`, dismissible with Escape (BRIEF-21).
+import { useState } from "react";
 import {
   compareUnavailableTitle,
   isCompareAvailable,
@@ -18,6 +23,12 @@ import styles from "./DbCompareBar.module.scss";
 export interface DbCompareBarProps {
   availability: CompareOptionFlags;
   compareState: BriefSearch;
+  /**
+   * Overrides the generic disabled title for "Your last review" with the
+   * PR-meta reason copy (pending / baseline-unavailable). Only read when the
+   * option is unavailable.
+   */
+  lastReviewDisabledReason?: string | undefined;
   /** Route-owned navigation — receives the next normalized View/Compare state. */
   onNavigate: (next: BriefSearch) => void;
 }
@@ -25,8 +36,12 @@ export interface DbCompareBarProps {
 export function DbCompareBar({
   availability,
   compareState,
+  lastReviewDisabledReason,
   onNavigate,
 }: DbCompareBarProps) {
+  // Escape hides the focused option's tooltip until the pointer/focus leaves
+  // (WAI-ARIA tooltip pattern); re-entry re-arms it.
+  const [dismissedTip, setDismissedTip] = useState<CompareParam | null>(null);
   const selectView = (view: ViewParam) =>
     onNavigate(withView(compareState, view, availability));
   const selectCompare = (compare: CompareParam) =>
@@ -37,17 +52,45 @@ export function DbCompareBar({
     label: string,
   ) => {
     const available = isCompareAvailable(compare, availability);
+    if (available) {
+      return (
+        <button
+          aria-pressed={compareState.compare === compare}
+          data-state={compareState.compare === compare ? "active" : undefined}
+          onClick={() => selectCompare(compare)}
+          type="button"
+        >
+          {label}
+        </button>
+      );
+    }
+    const reason =
+      (compare === "last-review" ? lastReviewDisabledReason : undefined) ??
+      compareUnavailableTitle(compare);
+    const tooltipId = `db-compare-${compare}-reason`;
     return (
-      <button
-        aria-pressed={compareState.compare === compare}
-        data-state={compareState.compare === compare ? "active" : undefined}
-        disabled={!available}
-        onClick={() => selectCompare(compare)}
-        title={available ? undefined : compareUnavailableTitle(compare)}
-        type="button"
+      <span
+        className={styles["tipAnchor"]}
+        data-tip-dismissed={dismissedTip === compare ? "true" : undefined}
       >
-        {label}
-      </button>
+        <button
+          aria-describedby={tooltipId}
+          aria-disabled="true"
+          aria-pressed={false}
+          className={styles["disabledOption"]}
+          onBlur={() => setDismissedTip(null)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setDismissedTip(compare);
+          }}
+          onMouseLeave={() => setDismissedTip(null)}
+          type="button"
+        >
+          {label}
+        </button>
+        <span className={styles["tip"]} id={tooltipId} role="tooltip">
+          {reason}
+        </span>
+      </span>
     );
   };
 
@@ -77,6 +120,20 @@ export function DbCompareBar({
         <legend className="sr-only">Compare</legend>
         {compareButton("last-review", "Your last review")}
         {compareButton("previous-brief", "Previous Brief")}
+        <button
+          aria-pressed={compareState.compare === "off"}
+          data-state={compareState.compare === "off" ? "active" : undefined}
+          disabled={compareState.view === "changes"}
+          onClick={() => selectCompare("off")}
+          title={
+            compareState.view === "changes"
+              ? "Off is only available in Full Brief"
+              : undefined
+          }
+          type="button"
+        >
+          Off
+        </button>
       </fieldset>
     </nav>
   );

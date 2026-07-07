@@ -39,6 +39,15 @@
     outline-offset: 2px;
   }
 
+  // The routes programmatically focus the main region on state swaps to
+  // re-anchor screen readers/keyboard (BRIEF-19). The focus is needed; the
+  // ring is not — it's a reading region, not an interactive control, and
+  // browsers treat programmatic focus on load as focus-visible, painting a
+  // page-wide outline (BRIEF-21 smoke).
+  main:focus-visible {
+    outline: none;
+  }
+
   ::selection {
     background: color-mix(in srgb, var(--text) 18%, transparent);
     color: light-dark(#111114, #fff);
