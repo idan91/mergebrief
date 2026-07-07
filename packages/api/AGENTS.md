@@ -35,6 +35,35 @@ graphile composition root (stage 5); any worker/LLM code (BRIEF-3).
   (401/400); unexpected throws map to a sanitized 500 (internals go to the
   log, never the response). No secrets/tokens in messages or responses.
 
+## Gated-route rules (BRIEF-23 review loop — enforced, don't weaken)
+
+- **One gate per request.** `readsRoute` guards `/api/repos/:repoId/*` with a
+  METHOD-AGNOSTIC `app.use`, so any route module mounted after it in
+  `app.ts` stacks a second authz gate in front of its own (double GitHub
+  access check cold; a transient failure on the second one 404s a
+  just-verified request). Mount new route modules BEFORE `readsRoute`, or
+  scope their middleware by method+path. The submit tests pin the
+  single-gate behavior (`counts.repositories`).
+- **Mutations re-resolve the repo fresh.** The gate's cached `repoFullName`
+  is ≤60s stale — fine for reads, not for outward writes (a rename +
+  name-reuse inside the window would target the wrong repo). A mutating
+  route fetches `GET /repositories/{id}` with the viewer token immediately
+  before the write. Any in-route GitHub denial (403/404) collapses to the
+  gate's 404 posture — no existence leak, no status distinguishable from a
+  cold denial.
+- **`no-store` on every response of a gated route** — error paths included;
+  it is all per-viewer state (`errorJson` in `review-submit.ts`).
+- **One refresh-once budget per REQUEST**, shared across every GitHub call
+  in the handler (`spendRefresh` closure) — the token can expire between
+  calls, and per-call-site refresh logic either misses that or refreshes
+  more than once.
+- **Deterministic 400s are an FE contract.** Anything a route rejects
+  deterministically (caps, shape refines) must be mirrored client-side with
+  recoverable copy — the FE resubmits the same state, so an unmirrored
+  deterministic 400 is an unrecoverable loop (see `apps/web/AGENTS.md`).
+  Corollary: validate that every ACCEPTED payload is representable by its
+  own degradation path (the fold-budget refine).
+
 ## Conventions
 
 Mirrors `packages/persistence/AGENTS.md`: no `enum` (`as const` +

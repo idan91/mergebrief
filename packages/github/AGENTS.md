@@ -53,6 +53,27 @@ OAuth flow (PR C).
   bundler-resolved end to end (`moduleResolution: "bundler"`).
 - Named exports only.
 
+## GitHub wire facts (bitten-by; keep in mind when touching primitives)
+
+- **Create-review is ATOMIC**: one invalid comment 422s the whole review
+  (hence the submit route's all-comments-folded degradation retry, never
+  per-comment salvage). `body` is REQUIRED for the `REQUEST_CHANGES` event
+  (GitHub documents the same for `COMMENT` — whether a comments-only
+  COMMENT is accepted is an open smoke item). Multiple submitted reviews
+  per reviewer per commit are allowed.
+- **422 bodies are unstable**: the discriminating signal sometimes lives
+  ONLY in the top-level `message` with an empty `errors` array — a
+  classifier must scan both (`src/review.ts`), and classification stays
+  best-effort (no stable machine-readable discriminator exists).
+- A force-pushed-away `commit_id` normally still posts, with comments
+  rendered "outdated" (assumed from docs — smoke item).
+- **Octokit throttling is MODULE-GLOBAL**: mutating calls on the
+  `triggersNotification` list (review/comment creation) are spaced ~3s by
+  Bottleneck groups SHARED across every test in a file. In tests, raise the
+  file's `vi.setConfig({ testTimeout })`; never freeze/rewind `Date.now`
+  (fake timers poison the shared limiters for every later GitHub-calling
+  test).
+
 ## Test fixtures
 
 `test/fixtures/*.json` are sanitized, trimmed webhook payloads sourced from

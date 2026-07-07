@@ -1,8 +1,8 @@
 # code-review — repo-wide agent rules
 
 Package-specific conventions and invariants live in each package's
-`AGENTS.md` (persistence, github, api). Rules here apply to the whole
-workspace.
+`AGENTS.md` (persistence, github, api, apps/web). Rules here apply to the
+whole workspace.
 
 - **Extensionless relative imports everywhere** (`from "./tenant"`, never
   `from "./tenant.js"`). Every package is bundler-resolved end to end
@@ -14,3 +14,7 @@ workspace.
 - Expected failures return `Result`; `throw` is for programmer/infra errors.
   Error messages never carry secrets, tokens, or connection strings.
 - Named exports only (default exports only where a framework requires them).
+- **CI is path-filtered per package**: changing a contract another package
+  consumes (parser shapes, route bodies, exported types) does NOT run the
+  dependents' suites in CI — run them locally before pushing. (BRIEF-23: a
+  github parser change broke two api tests under a green CI.)
