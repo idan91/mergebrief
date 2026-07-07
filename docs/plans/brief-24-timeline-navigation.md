@@ -112,16 +112,27 @@ posture on historical heads; raw-span-diff toggle in the Changes Only pane.
 ## Mandates
 
 Same as BRIEF-25 (`docs/plans/brief-25-conversation-display.md`): `git-eng`
-for all git ops, stacked `feature/BRIEF-24/<slug>` branches, Idan merges,
-no AI attribution; pre-commit `security-reviewer` + `performance-reviewer`
-gate; LOC hard gate (ideal < 500, ceiling ~1000); `typescript-eng` + `tdd`
-+ `verify` + `web-accessibility` (PR 2's navigator + disabled controls);
-codex CLI review loop (GPT 5.5 High) per PR to zero new findings; CI green
-before handoff; lint by exit code per branch.
+for all git ops (requirements gathered via the skill 2026-07-07), stacked
+`feature/BRIEF-24/<slug>` branches, PR titles `[BRIEF-24] feat: <Title
+Case>`, Idan merges, no `Co-Authored-By` / AI attribution; chunked commits
+per logical unit with the pre-commit `security-reviewer` +
+`performance-reviewer` gate (both confirmed 2026-07-07); LOC hard gate
+(ideal < 500, ceiling ~1000); specialist skills user-confirmed 2026-07-07:
+`typescript-eng` + `tdd` + `verify` + `web-accessibility` (PR 2's navigator
++ disabled controls); codex CLI review loop (GPT 5.5 High) per PR to zero
+new findings; CI green before handoff; lint by exit code per branch.
 
 ## Subtasks → PRs
 
-Dependency order PR 1 → PR 2 (stacked). Executable without Fable.
+Dependency order PR 1 → PR 2 (stacked). **Invocation: sequential, main
+thread** (PR 2 consumes PR 1's response contract).
+
+**Model + effort per PR:**
+
+| PR | Model / effort | Why |
+|---|---|---|
+| 1 pr-meta-revisions | Opus medium | Mechanical contract growth + in-memory joins; contract regression tests carry the safety |
+| 2 fe-timeline | Opus medium | Port of proven local components + guard wiring; a11y contract pre-specified by ADR 0019 #7 |
 
 ### PR 1 — `feature/BRIEF-24/pr-meta-revisions` (~350–550 LOC)
 

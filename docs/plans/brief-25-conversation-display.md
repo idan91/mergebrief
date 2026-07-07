@@ -158,15 +158,19 @@ threads), reply composer, own-comment reconciliation.
 
 ## Mandates
 
-**Git — `git-eng` skill for ALL git operations:** branch per PR off the
-previous PR's branch (stacked), `feature/BRIEF-25/<slug>`; Idan merges. No
-AI attribution in commits or PR bodies. Chunked commits per logical unit.
+**Git — `git-eng` skill for ALL git operations** (requirements gathered via
+the skill, 2026-07-07): branch per PR off the previous PR's branch
+(stacked), `feature/BRIEF-25/<slug>`; PR titles per git-eng format
+(`[BRIEF-25] feat: <Title Case>`); Idan merges. No `Co-Authored-By`, no AI
+attribution in commits or PR bodies. Chunked commits per logical unit
+(confirmed 2026-07-07).
 Pre-commit review gate: `security-reviewer` + `performance-reviewer` in
 parallel on staged changes before every commit; findings ≥ 80 confidence →
 fix and re-run. **LOC ceiling hard gate:** `git diff --stat` after every
 part; ideal < 500, ceiling ~1000; exceeded → split.
 
-**Specialist skills — mandatory:** `typescript-eng` (all parts),
+**Specialist skills — mandatory (user-confirmed 2026-07-07):**
+`typescript-eng` (all parts),
 `tdd` (github/api parts against existing harnesses — PGlite +
 `app.request()`; FE mapping/digest logic test-first in vitest),
 `verify` before committing each nontrivial part,
@@ -184,8 +188,18 @@ per branch.
 
 ## Subtasks → PRs
 
-Dependency order PR 1 → 2 → 3 → 4 (stacked). Execution model: any strong
-coder (design locked; grills done — Fable not required).
+Dependency order PR 1 → 2 → 3 → 4 (stacked). **Invocation: sequential, main
+thread** — each PR consumes the previous PR's contract; no parallelism
+worth the handoff cost.
+
+**Model + effort per PR:**
+
+| PR | Model / effort | Why |
+|---|---|---|
+| 1 conversation-primitive | Fable high if started before the 2026-07-08 cutoff, else Opus high | Riskiest part: first GraphQL protocol in the package, error taxonomy, Zod boundary |
+| 2 conversation-api | Opus high | Token handling + gate posture are subtle but pattern-following (pulls.ts / review-submit.ts precedents) |
+| 3 fe-conversation-data | Opus high | Anchor inversion + own-comment reconciliation (residual closure) carry the correctness weight |
+| 4 fe-conversation-section | Opus medium | UI assembly over existing components; a11y discipline via `web-accessibility` |
 
 ### PR 1 — `feature/BRIEF-25/conversation-primitive` (~400–600 LOC)
 
