@@ -1,6 +1,9 @@
 # Plan — BRIEF-23: Review submit — post the review to GitHub with the reviewer's token (post-M1 · close the loop)
 
-> Status: **READY — grilled 2026-07-07, not started.** Ticket: Notion BRIEF-23.
+> Status: **DONE — shipped 2026-07-07** (PRs #47–#50 merged, smoke passed;
+> plan's 3 PRs became 4 at the LOC gate). Ticket: Notion BRIEF-23.
+> The accepted sessionStorage residual (PR #50 thread) is closed by design
+> in BRIEF-25 — see ADR 0027 / `brief-25-conversation-display.md`.
 > Comments-display (others' review comments in the Brief + follow-up replies)
 > split to its own ticket at the grill:
 > https://app.notion.com/p/3965e9400eeb81209c02dabf067d0984

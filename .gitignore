@@ -43,6 +43,7 @@ coverage/
 
 # Local tooling artifacts
 .playwright-cli/
+.impeccable/
 
 node_modules
 

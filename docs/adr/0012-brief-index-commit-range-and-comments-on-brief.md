@@ -1,5 +1,11 @@
 # Brief Index, Commit Range, and Comments on the Full Brief
 
+> **Scope note (2026-07-07):** the comments-display half of this ADR is the
+> **local CLI path** design (sidecar snapshot, nulled-`line` outdated). For
+> the product runtime it is superseded by **ADR 0027** (live GraphQL fetch,
+> no snapshot, `isResolved`/`isOutdated` first-class). Index + commit range
+> are unaffected.
+
 The full **Brief** gains three things: a PR-global **index** (the Nth distinct head SHA briefed for the PR), the **commit range** it covers (whole-PR base→head), and the PR's shipped **Comments** (from all reviewers) carried for **display only**, each with GitHub-native **outdated** status. Comments live in a separate `.comments.json` sidecar — for both the brief and the delta — and the per-reviewer focus of comment-resolution stays the **Delta Brief**'s job (ADR 0011), deferred to the product runtime.
 
 ## Context

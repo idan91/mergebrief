@@ -1,6 +1,8 @@
 # Plan — BRIEF-25: PR conversation in the Brief — others' review comments + follow-up replies (post-M1 · close the loop)
 
 > Status: **READY — grilled 2026-07-07, not started.** Ticket: Notion BRIEF-25.
+> ADR: **0027** (live conversation display; supersedes ADR 0012's
+> comments-display half for the product runtime).
 > Grilled with Fable pre-cutoff; design is locked — execution does not require
 > Fable. Design-consult snapshot (impeccable/a11y/TS lenses):
 > `.impeccable/critique/2026-07-07T16-58-04Z__brief-25-conversation-digest-design.md`.
