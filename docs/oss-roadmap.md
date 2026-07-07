@@ -390,3 +390,13 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   finding into **In-P1 / Deferred-with-triggers / Won't-do**; full record in
   [`plans/p1-front-door.md`](./plans/p1-front-door.md). **Resolved:** keyboard nav (`J`/`K`/`Z`/`?`)
   folded into P1; mobile brief header deferred (demo is desktop-framed) with a pull-forward trigger.
+- 2026-07-07 — **BRIEF-21 smoke finding → BRIEF-24 candidate: raw span diff affordance.** Full
+  Brief renders the whole-PR diff; last-review highlights can only mark rows that survive in it.
+  A change that nets out within the PR (line added by an earlier push, removed since the
+  reviewer's checkpoint) leaves NO row to highlight — GitHub's compare view would show it, ours
+  cannot; only the Changes Only narrative covers it (prose). Cheap mechanical complement: a
+  "view raw span diff" affordance in the Changes Only pane rendering
+  `GET /diff?base=<checkpoint-sha>&head=<head>` (the live proxy already serves arbitrary spans
+  behind the same gate) — exactly the GitHub-compare view for the personal span. Slotted to
+  BRIEF-24 (span navigation/views); BRIEF-21 shipped without it. Also add to the Notion
+  BRIEF-24 ticket (agent write was permission-blocked).
