@@ -400,3 +400,17 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   behind the same gate) — exactly the GitHub-compare view for the personal span. Slotted to
   BRIEF-24 (span navigation/views); BRIEF-21 shipped without it. Also add to the Notion
   BRIEF-24 ticket (agent write was permission-blocked).
+- 2026-07-07 — **BRIEF-21 done (PRs #45 + #46, merged 2026-07-07).** Delta view over the read
+  API: delta GET endpoint (same gate/404/no-store posture as the sibling artifact reads),
+  PR-meta `comparisons.lastReview` union derived per-reviewer from the session's checkpoint
+  (available w/ `deltaAvailable` flag · pending · baseline-unavailable · absent), and the FE
+  Compare wiring — pre-warmed delta core renders in Changes Only, marks-only tier degrades
+  honestly, disabled states carry keyboard-reachable reason tooltips (aria-disabled +
+  describedby + Escape). Fold-in: `pull_request.base_sha` (migration 0006) — PR-meta's span is
+  known pre-brief. Codex review loops (GPT-5.5 high, 3 rounds each → zero findings) caught:
+  pending unreachable without brief-generation fallback, missing Off compare option, poll gap
+  on pending. Manual smoke caught what tests+codex missed: tooltip painted under sticky
+  sections (z-index), delta body parsed with the WRONG validator (parseBrief vs parseDeltaBrief
+  — route tests seeding the query cache bypass parsers; queryFn-level tests added), stray focus
+  ring on the main region. **Next: BRIEF-23 (review submit — writes the checkpoints that make
+  lastReview real in production; grill first).**

@@ -1,8 +1,11 @@
 # Plan — BRIEF-21: Delta view over the read API — last-review comparison for DB Briefs (post-M1 · close the loop)
 
-> Status: **ready to implement.** Ticket: Notion BRIEF-21. Grill resolved
-> 2026-07-07 (decisions on the ticket). Timeline navigation split to BRIEF-24.
-> Execution only — no open design questions.
+> Status: **DONE — PRs #45 + #46 merged 2026-07-07.** Ticket: Notion BRIEF-21.
+> Timeline navigation split to BRIEF-24 (which also inherited the
+> raw-span-diff affordance candidate from the smoke session — see the
+> roadmap's 2026-07-07 entries). The optional `base_sha` fold-in shipped in
+> PR #45. Smoke caveat that shaped follow-ups: `lastReview` stays absent in
+> production until BRIEF-23 writes checkpoint rows.
 
 ## What this delivers (product + technical context)
 
