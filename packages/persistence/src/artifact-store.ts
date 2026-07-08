@@ -120,6 +120,27 @@ export interface BriefSpanRow {
   readonly baseSha: string;
   readonly headSha: string;
   readonly headIndex: number;
+  /** Row creation timestamp — the revision's briefed-at moment (BRIEF-24). */
+  readonly createdAt: Date;
+}
+
+/**
+ * Lean comparison-span listing row — the natural-key SHA pair only, never the
+ * body (marks / delta). Feeds the PR-meta per-revision availability join
+ * (BRIEF-24): one listing per kind, existence derived in memory.
+ */
+export interface ComparisonSpanRow {
+  readonly baselineSha: string;
+  readonly headSha: string;
+}
+
+/**
+ * Lean narrative-span listing row — the prevHead/head pair only, never the
+ * body (BRIEF-24 per-revision availability join).
+ */
+export interface NarrativeSpanRow {
+  readonly prevHeadSha: string;
+  readonly headSha: string;
 }
 export type DeltaRow = typeof delta.$inferSelect;
 export type DiffSnapshotRow = typeof diffSnapshot.$inferSelect;
@@ -221,6 +242,12 @@ export interface DeltaStore {
     baselineSha: string,
     headSha: string,
   ): Promise<boolean>;
+  /**
+   * All delta spans on a PR — the SHA pair only, never the body (BRIEF-24).
+   * One query backs the per-revision lastReview join; existence is derived in
+   * memory, never one probe per revision.
+   */
+  listForPullRequest(pullRequestId: PullRequestRowId): Promise<ComparisonSpanRow[]>;
 }
 
 export interface DiffSnapshotStore {
@@ -241,6 +268,11 @@ export interface RevisionNarrativeStore {
     prevHeadSha: string,
     headSha: string,
   ): Promise<boolean>;
+  /**
+   * All narrative spans on a PR — the prevHead/head pair only, never the body
+   * (BRIEF-24). One query backs the per-revision previousBrief narrative join.
+   */
+  listForPullRequest(pullRequestId: PullRequestRowId): Promise<NarrativeSpanRow[]>;
 }
 
 export interface ComparisonMarksStore {
@@ -256,6 +288,12 @@ export interface ComparisonMarksStore {
     baselineSha: string,
     headSha: string,
   ): Promise<boolean>;
+  /**
+   * All marks spans on a PR — the SHA pair only, never the body (BRIEF-24).
+   * One query backs BOTH per-revision joins (previousBrief marks, lastReview
+   * marks); existence is derived in memory, never one probe per revision.
+   */
+  listForPullRequest(pullRequestId: PullRequestRowId): Promise<ComparisonSpanRow[]>;
 }
 
 export interface ArtifactStore {
@@ -364,6 +402,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
           baseSha: brief.baseSha,
           headSha: brief.headSha,
           headIndex: brief.headIndex,
+          createdAt: brief.createdAt,
         })
         .from(brief)
         .where(
@@ -385,6 +424,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
           baseSha: brief.baseSha,
           headSha: brief.headSha,
           headIndex: brief.headIndex,
+          createdAt: brief.createdAt,
         })
         .from(brief)
         .where(
@@ -397,7 +437,13 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
       return new Map(
         rows.map((row) => [
           row.pullRequestId,
-          { id: row.id, baseSha: row.baseSha, headSha: row.headSha, headIndex: row.headIndex },
+          {
+            id: row.id,
+            baseSha: row.baseSha,
+            headSha: row.headSha,
+            headIndex: row.headIndex,
+            createdAt: row.createdAt,
+          },
         ]),
       );
     },
@@ -474,6 +520,15 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         )
         .limit(1);
       return rows.length > 0;
+    },
+
+    async listForPullRequest(pullRequestId) {
+      return db
+        .select({ baselineSha: delta.baselineSha, headSha: delta.headSha })
+        .from(delta)
+        .where(
+          and(eq(delta.installationId, installationId), eq(delta.pullRequestId, pullRequestId)),
+        );
     },
   };
 
@@ -624,6 +679,18 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         .limit(1);
       return rows.length > 0;
     },
+
+    async listForPullRequest(pullRequestId) {
+      return db
+        .select({ prevHeadSha: revisionNarrative.prevHeadSha, headSha: revisionNarrative.headSha })
+        .from(revisionNarrative)
+        .where(
+          and(
+            eq(revisionNarrative.installationId, installationId),
+            eq(revisionNarrative.pullRequestId, pullRequestId),
+          ),
+        );
+    },
   };
 
   const comparisonMarksStore: ComparisonMarksStore = {
@@ -703,6 +770,18 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         )
         .limit(1);
       return rows.length > 0;
+    },
+
+    async listForPullRequest(pullRequestId) {
+      return db
+        .select({ baselineSha: comparisonMarks.baselineSha, headSha: comparisonMarks.headSha })
+        .from(comparisonMarks)
+        .where(
+          and(
+            eq(comparisonMarks.installationId, installationId),
+            eq(comparisonMarks.pullRequestId, pullRequestId),
+          ),
+        );
     },
   };
 

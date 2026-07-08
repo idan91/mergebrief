@@ -28,10 +28,11 @@ import {
   GenerationKind,
   GenerationStatus,
   type BriefSpanRow,
+  type ComparisonSpanRow,
   type GenerationRow,
+  type NarrativeSpanRow,
   type PullRequestRow,
   type RepoId,
-  type ReviewerId,
   type TenantContext,
   type ValueOf,
 } from "persistence";
@@ -160,28 +161,82 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       latestGenerations.get(resolved.pr.id),
       c.get("repoFullName"),
     );
-    // One lean span listing serves both comparison derivations.
-    const briefs = view.briefAvailable && view.headSha !== null
-      ? await store.briefs.listForPullRequest(resolved.pr.id)
-      : [];
-    const [previousBrief, lastReview] = await Promise.all([
-      derivePreviousBriefComparison(store, resolved.pr.id, view, briefs),
-      deriveLastReviewComparison(
+    // Compare availability + the browsable revision timeline (BRIEF-24). Both
+    // are derived from ONE lean listing per artifact kind, joined in memory —
+    // never one existence probe per revision. Only assembled once a brief
+    // exists (`briefAvailable`); otherwise there is no head, no history.
+    //
+    // INVARIANT: `briefAvailable` implies `headSha !== null`. `buildPrView`
+    // sets `briefAvailable = latestBrief !== undefined && latestBrief.headSha
+    // === headSha`, and `brief.head_sha` is NOT NULL — so the null check below
+    // is TypeScript narrowing only and can never skip stored revisions.
+    let comparisons: RevisionComparisons = {};
+    let revisions: RevisionView[] | undefined;
+    if (view.briefAvailable && view.headSha !== null) {
+      const headSha = view.headSha;
+      const pullRequestId = resolved.pr.id;
+      const [briefs, markRows, deltaRows, narrativeRows, checkpoint] = await Promise.all([
+        store.briefs.listForPullRequest(pullRequestId),
+        store.comparisonMarks.listForPullRequest(pullRequestId),
+        store.deltas.listForPullRequest(pullRequestId),
+        store.revisionNarratives.listForPullRequest(pullRequestId),
+        forTenant(deps.handle, ctx).checkpoints.get(pullRequestId, c.get("session").reviewerId),
+      ]);
+      const markSpans = comparisonSpanSet(markRows);
+      const deltaSpans = comparisonSpanSet(deltaRows);
+      const narrativeSpans = narrativeSpanSet(narrativeRows);
+      // The generation-pending refinement (a DB probe) is wired for the
+      // CURRENT head SHA only: history is never actively warming, so an older
+      // head with no marks degrades straight to baseline-unavailable. Gated by
+      // headSha — not row identity — because lastReview is a pure function of
+      // (checkpoint, headSha): duplicate rows sharing the current head (a
+      // retarget re-brief) must report the identical pending/unavailable
+      // state. The probe memoizes per baseline, so duplicates still cost at
+      // most one generation query per request.
+      const latestPendingProbe = makeLatestPendingProbe(
         deps,
         ctx,
-        store,
-        resolved.pr.id,
-        c.get("session").reviewerId,
-        view,
-        briefs,
-        latestGenerations.get(resolved.pr.id),
-      ),
-    ]);
-    const comparisons = {
-      ...(previousBrief === undefined ? {} : { previousBrief }),
-      ...(lastReview === undefined ? {} : { lastReview }),
-    };
-    return c.json({ ...view, comparisons }, 200, { "cache-control": "no-store" });
+        pullRequestId,
+        headSha,
+        latestGenerations.get(pullRequestId),
+      );
+      revisions = await Promise.all(
+        briefs.map(async (entry): Promise<RevisionView> => {
+          const previousBrief = derivePreviousBriefComparison(
+            entry,
+            briefs,
+            markSpans,
+            narrativeSpans,
+          );
+          const lastReview = await deriveLastReviewComparison(
+            entry.headSha,
+            checkpoint,
+            briefs,
+            markSpans,
+            deltaSpans,
+            entry.headSha === headSha ? latestPendingProbe : undefined,
+          );
+          return {
+            headSha: entry.headSha,
+            baseSha: entry.baseSha,
+            headIndex: entry.headIndex,
+            createdAt: entry.createdAt.toISOString(),
+            comparisons: {
+              ...(previousBrief === undefined ? {} : { previousBrief }),
+              ...(lastReview === undefined ? {} : { lastReview }),
+            },
+          };
+        }),
+      );
+      // Top-level `comparisons` stays the CURRENT revision's — byte-compatible
+      // with BRIEF-21 (same derivations, same generation-pending probe).
+      comparisons = revisions.at(-1)?.comparisons ?? {};
+    }
+    return c.json(
+      { ...view, comparisons, ...(revisions === undefined ? {} : { revisions }) },
+      200,
+      { "cache-control": "no-store" },
+    );
   });
 
   // GET brief — the whole-PR span artifact for (base, head).
@@ -372,43 +427,74 @@ interface PreviousBriefComparisonView {
   readonly narrativeAvailable: boolean;
 }
 
+/** One revision's Compare availability envelope (BRIEF-24, mirrors top-level). */
+interface RevisionComparisons {
+  readonly previousBrief?: PreviousBriefComparisonView;
+  readonly lastReview?: LastReviewComparisonView;
+}
+
 /**
- * Previous-brief comparison availability for the CURRENT span: the previous
- * briefed head is the highest-index brief whose head differs (the worker's
- * own baseline rule), offered only when its mechanical marks row exists —
- * marks are the sole source of highlight truth (ADR 0024); the narrative only
- * adds callout text, so its absence downgrades rather than disables.
+ * A browsable Brief revision (BRIEF-24). `baseSha` is PER-ENTRY and
+ * load-bearing: the base drifts across revisions (base-branch advance /
+ * retarget) and the brief GET is an exact `(pr, base, head)` lookup, so a
+ * consumer must never derive base from the top-level view. Ordered by
+ * `headIndex`; present only when a brief exists.
  */
-async function derivePreviousBriefComparison(
-  store: ReturnType<typeof artifactStore>,
-  pullRequestId: PullRequestRow["id"],
-  view: { readonly briefAvailable: boolean; readonly headSha: string | null },
+interface RevisionView {
+  readonly headSha: string;
+  readonly baseSha: string;
+  readonly headIndex: number;
+  readonly createdAt: string;
+  readonly comparisons: RevisionComparisons;
+}
+
+// Span-existence joins. Marks / delta / narrative listings are keyed by their
+// natural SHA pair; a `Set` of packed keys turns per-revision availability into
+// an in-memory lookup (space separator — SHAs are hex, never contain it).
+const SPAN_KEY_SEP = " ";
+function spanKey(baseline: string, head: string): string {
+  return `${baseline}${SPAN_KEY_SEP}${head}`;
+}
+function comparisonSpanSet(rows: readonly ComparisonSpanRow[]): ReadonlySet<string> {
+  return new Set(rows.map((row) => spanKey(row.baselineSha, row.headSha)));
+}
+function narrativeSpanSet(rows: readonly NarrativeSpanRow[]): ReadonlySet<string> {
+  return new Set(rows.map((row) => spanKey(row.prevHeadSha, row.headSha)));
+}
+
+/**
+ * Previous-brief comparison availability for a GIVEN briefed head. The previous
+ * briefed head is the highest-index brief BELOW this one whose head differs
+ * (the worker's own baseline rule) — restricting to a lower index is what makes
+ * this correct for a HISTORICAL head, not only the latest. Offered only when
+ * the mechanical marks row exists (marks are the sole highlight truth, ADR
+ * 0024); the narrative only adds callout text, so its absence downgrades
+ * `narrativeAvailable` rather than withdrawing the offer.
+ */
+function derivePreviousBriefComparison(
+  target: BriefSpanRow,
   briefs: readonly BriefSpanRow[],
-): Promise<PreviousBriefComparisonView | undefined> {
-  if (!view.briefAvailable || view.headSha === null) {
-    return undefined;
+  markSpans: ReadonlySet<string>,
+  narrativeSpans: ReadonlySet<string>,
+): PreviousBriefComparisonView | undefined {
+  // `briefs` is ordered by headIndex ascending → the last lower-index match is
+  // the highest-index previous briefed head.
+  let previous: BriefSpanRow | undefined;
+  for (const row of briefs) {
+    if (row.headIndex < target.headIndex && row.headSha !== target.headSha) {
+      previous = row;
+    }
   }
-  const previous = briefs.toReversed().find((row) => row.headSha !== view.headSha);
   if (previous === undefined) {
     return undefined;
   }
-  const marksExist = await store.comparisonMarks.existsForSpan(
-    pullRequestId,
-    previous.headSha,
-    view.headSha,
-  );
-  if (!marksExist) {
+  if (!markSpans.has(spanKey(previous.headSha, target.headSha))) {
     return undefined;
   }
-  const narrativeAvailable = await store.revisionNarratives.existsForSpan(
-    pullRequestId,
-    previous.headSha,
-    view.headSha,
-  );
   return {
     baselineSha: previous.headSha,
     baselineIndex: previous.headIndex,
-    narrativeAvailable,
+    narrativeAvailable: narrativeSpans.has(spanKey(previous.headSha, target.headSha)),
   };
 }
 
@@ -444,64 +530,94 @@ export type LastReviewComparisonView =
     }
   | { readonly unavailable: LastReviewUnavailableReason };
 
+/** The requesting reviewer's checkpoint slice `deriveLastReviewComparison` needs. */
+interface CheckpointBaseline {
+  readonly lastSubmittedSha: string;
+}
+
 /**
- * Derive `lastReview` from the REQUESTING reviewer's checkpoint row. Absent
- * (undefined) when there is nothing to explain: no checkpoint (the reviewer
- * never submitted), no brief/head yet (same guard as previousBrief), or the
- * checkpoint IS the current head (empty span — the reviewer is up to date).
+ * Probe whether a still-absent `(baseline → head)` marks span is PENDING vs
+ * permanently BASELINE_UNAVAILABLE — the one DB read the `lastReview`
+ * derivation may need. Wired for the LATEST head only (history is never
+ * actively warming) and MEMOIZED per baseline, so at most one generation query
+ * per PR-meta request even when duplicate rows share the current head, never
+ * one per revision. Two pending signals, because production writes NO
+ * delta-kind projection rows today (warmDeltaCores runs inside the brief job —
+ * codex review on PR #45): (a) the current head's BRIEF generation is still
+ * non-terminal — marks land before it succeeds, so its warming window IS the
+ * delta's; (b) a non-terminal delta-kind row for the exact span, kept for when
+ * delta generation gets its own projection.
  */
-async function deriveLastReviewComparison(
+function makeLatestPendingProbe(
   deps: AuthRouteDeps,
   ctx: TenantContext,
-  store: ReturnType<typeof artifactStore>,
   pullRequestId: PullRequestRow["id"],
-  reviewerId: ReviewerId,
-  view: { readonly briefAvailable: boolean; readonly headSha: string | null },
-  briefs: readonly BriefSpanRow[],
+  headSha: string,
   latestBriefGeneration: GenerationRow | undefined,
-): Promise<LastReviewComparisonView | undefined> {
-  if (!view.briefAvailable || view.headSha === null) {
-    return undefined;
-  }
-  const headSha = view.headSha;
-  const checkpoint = await forTenant(deps.handle, ctx).checkpoints.get(pullRequestId, reviewerId);
-  if (checkpoint === undefined || checkpoint.lastSubmittedSha === headSha) {
-    return undefined;
-  }
-  const baselineSha = checkpoint.lastSubmittedSha;
-  const marksExist = await store.comparisonMarks.existsForSpan(pullRequestId, baselineSha, headSha);
-  if (marksExist) {
-    const deltaAvailable = await store.deltas.existsForSpan(pullRequestId, baselineSha, headSha);
-    const baselineIndex = briefs.find((row) => row.headSha === baselineSha)?.headIndex;
-    return {
-      deltaAvailable,
-      baselineSha,
-      ...(baselineIndex === undefined ? {} : { baselineIndex }),
-    };
-  }
-  // No marks: the worker either hasn't warmed this span yet, or never will
-  // (the span diff was unavailable → nothing was written, absence is the
-  // signal). Two pending signals, because production writes NO delta-kind
-  // projection rows today (warmDeltaCores runs inside the brief job — codex
-  // review on PR #45): (a) the current head's BRIEF generation is still
-  // non-terminal — marks land before it succeeds, so its warming window IS
-  // the delta's; (b) a non-terminal delta-kind row for the exact span, kept
-  // for when delta generation gets its own projection.
-  const briefGenPending =
-    latestBriefGeneration !== undefined &&
-    latestBriefGeneration.headSha === headSha &&
-    isNonTerminal(latestBriefGeneration.status);
-  const deltaGeneration = briefGenPending
-    ? undefined
-    : await generationProjection(deps.handle, ctx).get({
+): (baselineSha: string) => Promise<boolean> {
+  const memo = new Map<string, Promise<boolean>>();
+  return (baselineSha) => {
+    const hit = memo.get(baselineSha);
+    if (hit !== undefined) {
+      return hit;
+    }
+    const result = (async (): Promise<boolean> => {
+      const briefGenPending =
+        latestBriefGeneration !== undefined &&
+        latestBriefGeneration.headSha === headSha &&
+        isNonTerminal(latestBriefGeneration.status);
+      if (briefGenPending) {
+        return true;
+      }
+      const deltaGeneration = await generationProjection(deps.handle, ctx).get({
         pullRequestId,
         kind: GenerationKind.DELTA,
         headSha,
         baselineSha,
       });
-  const pending =
-    briefGenPending ||
-    (deltaGeneration !== undefined && isNonTerminal(deltaGeneration.status));
+      return deltaGeneration !== undefined && isNonTerminal(deltaGeneration.status);
+    })();
+    memo.set(baselineSha, result);
+    return result;
+  };
+}
+
+/**
+ * Derive `lastReview` at a GIVEN head from the REQUESTING reviewer's checkpoint.
+ * Absent (undefined) when there is nothing to explain: no checkpoint (the
+ * reviewer never submitted) or the checkpoint IS this head (empty span — up to
+ * date). Marks existence IS the offer (ADR 0024); row existence also encodes
+ * DIRECTION — the worker only warms forward spans, so a checkpoint newer than
+ * this head simply has no marks and offers nothing, no special-casing.
+ *
+ * `pendingProbe` is supplied for the latest head only; for a historical head a
+ * missing marks span is BASELINE_UNAVAILABLE outright (no per-revision query).
+ */
+async function deriveLastReviewComparison(
+  headSha: string,
+  checkpoint: CheckpointBaseline | undefined,
+  briefs: readonly BriefSpanRow[],
+  markSpans: ReadonlySet<string>,
+  deltaSpans: ReadonlySet<string>,
+  pendingProbe: ((baselineSha: string) => Promise<boolean>) | undefined,
+): Promise<LastReviewComparisonView | undefined> {
+  if (checkpoint === undefined || checkpoint.lastSubmittedSha === headSha) {
+    return undefined;
+  }
+  const baselineSha = checkpoint.lastSubmittedSha;
+  if (markSpans.has(spanKey(baselineSha, headSha))) {
+    // Deterministic: `briefs` is headIndex-ascending, so `find` resolves the
+    // LOWEST index when duplicate rows share the checkpoint SHA (a retarget
+    // re-brief) — the same resolution BRIEF-21's top-level derivation used
+    // (byte-compat), and either duplicate labels the same commit.
+    const baselineIndex = briefs.find((row) => row.headSha === baselineSha)?.headIndex;
+    return {
+      deltaAvailable: deltaSpans.has(spanKey(baselineSha, headSha)),
+      baselineSha,
+      ...(baselineIndex === undefined ? {} : { baselineIndex }),
+    };
+  }
+  const pending = pendingProbe !== undefined && (await pendingProbe(baselineSha));
   return {
     unavailable: pending
       ? LastReviewUnavailableReason.PENDING

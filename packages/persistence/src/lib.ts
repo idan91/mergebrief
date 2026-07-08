@@ -60,6 +60,8 @@ export type {
   ComparisonMarksBody,
   BriefRow,
   BriefSpanRow,
+  ComparisonSpanRow,
+  NarrativeSpanRow,
   DeltaRow,
   DiffSnapshotRow,
   RevisionNarrativeRow,

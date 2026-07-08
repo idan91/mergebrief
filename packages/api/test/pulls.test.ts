@@ -158,6 +158,52 @@ const TOKEN_SUCCESS = {
 };
 
 
+// PR-meta `revisions[]` wire shape + runtime guards (BRIEF-24) — the test
+// boundary parses, never casts.
+interface RevisionEntry {
+  readonly headSha: string;
+  readonly baseSha: string;
+  readonly headIndex: number;
+  readonly createdAt: string;
+  readonly comparisons: {
+    readonly previousBrief?: Record<string, unknown>;
+    readonly lastReview?: Record<string, unknown>;
+  };
+}
+
+interface MetaRevisionsBody {
+  readonly briefAvailable: boolean;
+  readonly comparisons?: Record<string, unknown>;
+  readonly revisions?: RevisionEntry[];
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isRevisionEntry(value: unknown): value is RevisionEntry {
+  if (!isPlainRecord(value)) return false;
+  const comparisons = value["comparisons"];
+  return (
+    typeof value["headSha"] === "string" &&
+    typeof value["baseSha"] === "string" &&
+    typeof value["headIndex"] === "number" &&
+    typeof value["createdAt"] === "string" &&
+    isPlainRecord(comparisons)
+  );
+}
+
+function isMetaRevisionsBody(value: unknown): value is MetaRevisionsBody {
+  if (!isPlainRecord(value) || typeof value["briefAvailable"] !== "boolean") return false;
+  const comparisons = value["comparisons"];
+  if (comparisons !== undefined && !isPlainRecord(comparisons)) return false;
+  const revisions = value["revisions"];
+  return (
+    revisions === undefined ||
+    (Array.isArray(revisions) && revisions.every((entry) => isRevisionEntry(entry)))
+  );
+}
+
 // Conversation port stub (BRIEF-25): these tests never exercise the
 // conversation read; a hit here is a test bug.
 const unusedConversationPort = {
@@ -619,5 +665,299 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     await seedCheckpoint(otherPr.id, REVIEWER_ID, "head-1", OTHER_CTX);
 
     expect(await metaLastReview(cookie)).toBeUndefined();
+  });
+
+  // -------------------------------------- meta: revisions[] (BRIEF-24)
+
+  async function metaBody(cookie: string): Promise<MetaRevisionsBody> {
+    const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(res.status).toBe(200);
+    const raw: unknown = await res.json();
+    if (!isMetaRevisionsBody(raw)) throw new Error("PR-meta body failed the revisions shape guard");
+    return raw;
+  }
+
+  /** Write a brief with its OWN base (base drift across revisions). */
+  async function writeBrief(
+    prId: Parameters<ReturnType<typeof artifactStore>["briefs"]["listForPullRequest"]>[0],
+    base: string,
+    head: string,
+    index: number,
+  ): Promise<void> {
+    const result = await artifactStore(harness.handle, CTX).briefs.write({
+      pullRequestId: prId, baseSha: base, headSha: head, headIndex: index,
+      commitCount: index, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+    });
+    if (!result.ok) throw new Error("brief write failed");
+  }
+
+  it("meta: revisions absent until a brief exists, then lists every head in headIndex order", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+
+    // No brief yet → no revisions key at all.
+    const gen = generationProjection(harness.handle, CTX);
+    await gen.upsertQueued({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-1", baselineSha: null });
+    const early = await metaBody(cookie);
+    expect(early.briefAvailable).toBe(false);
+    expect(early.revisions).toBeUndefined();
+
+    // Three briefed heads, each with its OWN drifting base.
+    await writeBrief(pr.id, "base-a", "head-1", 1);
+    await writeBrief(pr.id, "base-b", "head-2", 2);
+    await writeBrief(pr.id, "base-c", "head-3", 3);
+    await gen.upsertQueued({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-3", baselineSha: null });
+
+    const body = await metaBody(cookie);
+    expect(body.revisions?.map((r) => [r.headIndex, r.headSha, r.baseSha])).toEqual([
+      [1, "head-1", "base-a"],
+      [2, "head-2", "base-b"],
+      [3, "head-3", "base-c"],
+    ]);
+    // Each entry carries a serialized createdAt timestamp.
+    for (const rev of body.revisions ?? []) {
+      expect(typeof rev.createdAt).toBe("string");
+      expect(Number.isNaN(Date.parse(rev.createdAt))).toBe(false);
+    }
+  });
+
+  it("meta: per-revision previousBrief joins consecutive briefed pairs only", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    const store = artifactStore(harness.handle, CTX);
+    await writeBrief(pr.id, "base", "head-1", 1);
+    await writeBrief(pr.id, "base", "head-2", 2);
+    await writeBrief(pr.id, "base", "head-3", 3);
+
+    // Marks for the (head-2 → head-3) span only.
+    const marks = await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: {
+        baselineSha: "head-2", headSha: "head-3",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    if (!marks.ok) throw new Error("marks write failed");
+
+    const body = await metaBody(cookie);
+    const byHead = new Map((body.revisions ?? []).map((r) => [r.headSha, r]));
+    // head-1: no previous head → no previousBrief.
+    expect(byHead.get("head-1")?.comparisons.previousBrief).toBeUndefined();
+    // head-2: previous = head-1, but no marks → absent (fail closed).
+    expect(byHead.get("head-2")?.comparisons.previousBrief).toBeUndefined();
+    // head-3: previous = head-2, marks exist → offered, narrative not yet.
+    expect(byHead.get("head-3")?.comparisons.previousBrief).toEqual({
+      baselineSha: "head-2",
+      baselineIndex: 2,
+      narrativeAvailable: false,
+    });
+  });
+
+  it("meta: per-revision lastReview is forward-span only; marks-only tier renders", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    const store = artifactStore(harness.handle, CTX);
+    await writeBrief(pr.id, "base", "head-1", 1);
+    await writeBrief(pr.id, "base", "head-2", 2);
+    await writeBrief(pr.id, "base", "head-3", 3);
+    // The reviewer last submitted at head-2.
+    await seedCheckpoint(pr.id, REVIEWER_ID, "head-2");
+
+    // Forward marks (head-2 → head-3) exist; the backward span never will.
+    const marks = await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: {
+        baselineSha: "head-2", headSha: "head-3",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    if (!marks.ok) throw new Error("marks write failed");
+
+    const body = await metaBody(cookie);
+    const byHead = new Map((body.revisions ?? []).map((r) => [r.headSha, r]));
+    // head-1 is BEFORE the checkpoint (backward span) → no marks → no offer.
+    // Historical head with no marks and no active warming → baseline-unavailable.
+    expect(byHead.get("head-1")?.comparisons.lastReview).toEqual({
+      unavailable: "baseline-unavailable",
+    });
+    // head-2 IS the checkpoint (empty span) → nothing to explain.
+    expect(byHead.get("head-2")?.comparisons.lastReview).toBeUndefined();
+    // head-3: forward span with marks, delta core absent → marks-only offer.
+    expect(byHead.get("head-3")?.comparisons.lastReview).toEqual({
+      deltaAvailable: false,
+      baselineSha: "head-2",
+      baselineIndex: 2,
+    });
+  });
+
+  it("meta: top-level comparisons stays byte-compatible with the latest revision's (BRIEF-21 regression)", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    const store = artifactStore(harness.handle, CTX);
+    await writeBrief(pr.id, "base", "head-1", 1);
+    await writeBrief(pr.id, "base", "head-2", 2);
+    await seedCheckpoint(pr.id, REVIEWER_ID, "head-1");
+
+    // Previous-brief marks + last-review marks both land on the latest span.
+    const marks = await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: {
+        baselineSha: "head-1", headSha: "head-2",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    if (!marks.ok) throw new Error("marks write failed");
+
+    const body = await metaBody(cookie);
+    const latest = (body.revisions ?? []).find((r) => r.headSha === "head-2");
+    // The top-level envelope IS the latest head's — same keys, same values.
+    expect(body.comparisons).toEqual(latest?.comparisons);
+    expect(body.comparisons).toEqual({
+      previousBrief: { baselineSha: "head-1", baselineIndex: 1, narrativeAvailable: false },
+      lastReview: { deltaAvailable: false, baselineSha: "head-1", baselineIndex: 1 },
+    });
+  });
+
+  it("meta: top-level comparisons track the CURRENT revision when the same head is rebriefed under a drifted base (codex round-1 finding)", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    const store = artifactStore(harness.handle, CTX);
+
+    // head-2 briefed (idx 1), head-3 briefed (idx 2), then a base retarget
+    // re-briefs the SAME head-2 under a new base (idx 3) — two revision rows
+    // now share headSha "head-2". The current revision is idx 3.
+    await writeBrief(pr.id, "base-a", "head-2", 1);
+    await writeBrief(pr.id, "base-a", "head-3", 2);
+    await writeBrief(pr.id, "base-b", "head-2", 3);
+
+    // Marks for the current revision's previous-brief span (head-3 → head-2).
+    const marks = await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: {
+        baselineSha: "head-3", headSha: "head-2",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    if (!marks.ok) throw new Error("marks write failed");
+
+    const body = await metaBody(cookie);
+    // Both duplicate-head entries are listed, each with its OWN base.
+    expect(body.revisions?.map((r) => [r.headIndex, r.headSha, r.baseSha])).toEqual([
+      [1, "head-2", "base-a"],
+      [2, "head-3", "base-a"],
+      [3, "head-2", "base-b"],
+    ]);
+    // The stale idx-1 entry has no previous head → no previousBrief.
+    expect(body.revisions?.[0]?.comparisons.previousBrief).toBeUndefined();
+    // The CURRENT (idx 3) entry's previous briefed head is head-3.
+    const current = { baselineSha: "head-3", baselineIndex: 2, narrativeAvailable: false };
+    expect(body.revisions?.[2]?.comparisons.previousBrief).toEqual(current);
+    // Top-level comparisons must be the CURRENT revision's — a headSha-only
+    // match would pick the stale idx-1 duplicate and report no previousBrief.
+    expect(body.comparisons).toEqual({ previousBrief: current });
+  });
+
+  it("meta: duplicate-head revisions share the same lastReview — marks are a pure function of the SHA pair (locked decision, codex round-2)", async () => {
+    // Plan decision #3 (BRIEF-24 grill): lastReview at a head is ROW EXISTENCE
+    // for (checkpointSha -> head), no special-casing. Two revision entries
+    // sharing a headSha (rebriefed under a drifted base) view the SAME commit;
+    // the comparison renders identically at both, so both carry the offer —
+    // even when the baseline's brief index is higher than the earlier
+    // duplicate's own index (accurate metadata, not an error).
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    const store = artifactStore(harness.handle, CTX);
+
+    await writeBrief(pr.id, "base-a", "head-2", 1);
+    await writeBrief(pr.id, "base-a", "head-3", 2);
+    await writeBrief(pr.id, "base-b", "head-2", 3);
+    // The reviewer last submitted at head-3; the worker warmed the forward
+    // span (head-3 -> head-2) for the current (rebriefed) revision.
+    await seedCheckpoint(pr.id, REVIEWER_ID, "head-3");
+    const marks = await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: {
+        baselineSha: "head-3", headSha: "head-2",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    if (!marks.ok) throw new Error("marks write failed");
+
+    const body = await metaBody(cookie);
+    const expected = { deltaAvailable: false, baselineSha: "head-3", baselineIndex: 2 };
+    // Both head-2 entries (idx 1 and idx 3) carry the identical offer.
+    expect(body.revisions?.[0]?.comparisons.lastReview).toEqual(expected);
+    expect(body.revisions?.[2]?.comparisons.lastReview).toEqual(expected);
+    // The head-3 entry IS the checkpoint (empty span) — nothing to explain.
+    expect(body.revisions?.[1]?.comparisons.lastReview).toBeUndefined();
+  });
+
+  it("meta: duplicate-head revisions agree on PENDING while the current head is warming (codex round-3 finding)", async () => {
+    // lastReview is a pure function of (checkpoint, headSha) — including the
+    // pending/unavailable distinction. When the current head also exists as an
+    // OLDER duplicate row (retarget re-brief) and its brief generation is
+    // still non-terminal with no marks yet, BOTH entries must report pending;
+    // a row-identity probe gate would split them.
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+
+    await writeBrief(pr.id, "base-a", "head-2", 1);
+    await writeBrief(pr.id, "base-a", "head-3", 2);
+    await writeBrief(pr.id, "base-b", "head-2", 3);
+    // Checkpoint SHA with no marks anywhere; the current head's BRIEF
+    // generation is still warming (marks land before it succeeds).
+    await seedCheckpoint(pr.id, REVIEWER_ID, "gone-sha");
+    const gen = generationProjection(harness.handle, CTX);
+    const queued = await gen.upsertQueued({
+      pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-2", baselineSha: null,
+    });
+    if (!queued.ok) throw new Error("generation seed failed");
+
+    const warming = await metaBody(cookie);
+    // Both head-2 entries (idx 1 and idx 3): identical pending state.
+    expect(warming.revisions?.[0]?.comparisons.lastReview).toEqual({ unavailable: "pending" });
+    expect(warming.revisions?.[2]?.comparisons.lastReview).toEqual({ unavailable: "pending" });
+    // head-3 is historical (not the current head) — never warming.
+    expect(warming.revisions?.[1]?.comparisons.lastReview).toEqual({
+      unavailable: "baseline-unavailable",
+    });
+
+    // Warming over, still no marks → all head-2 entries agree on unavailable.
+    const done = await gen.markSucceeded({
+      pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-2", baselineSha: null,
+    });
+    if (!done.ok) throw new Error("generation transition failed");
+    const settled = await metaBody(cookie);
+    expect(settled.revisions?.[0]?.comparisons.lastReview).toEqual({
+      unavailable: "baseline-unavailable",
+    });
+    expect(settled.revisions?.[2]?.comparisons.lastReview).toEqual({
+      unavailable: "baseline-unavailable",
+    });
+  });
+
+  it("meta: revisions never leak across tenants", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
+    await writeBrief(pr.id, "base", "head-1", 1);
+
+    // Another tenant's PR (same repo id + number) with its own briefs.
+    const otherPr = await seedPr(harness.handle, { ctx: OTHER_CTX, repoId: REPO_A, prNumber: 7 });
+    const otherWrite = await artifactStore(harness.handle, OTHER_CTX).briefs.write({
+      pullRequestId: otherPr.id, baseSha: "x", headSha: "other-head", headIndex: 9,
+      commitCount: 1, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+    });
+    if (!otherWrite.ok) throw new Error("other brief write failed");
+
+    const body = await metaBody(cookie);
+    expect(body.revisions?.map((r) => r.headSha)).toEqual(["head-1"]);
   });
 });

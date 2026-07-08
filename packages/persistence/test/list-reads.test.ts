@@ -217,6 +217,75 @@ describe("comparison existence seams (BRIEF-19 4.1)", () => {
   });
 });
 
+describe("batched span listings (BRIEF-24 per-revision joins)", () => {
+  it("briefs.listForPullRequest carries createdAt and orders by headIndex, lean", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const store = artifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({ repoId: REPO_1, prNumber: 1, state: PrState.OPEN });
+
+    await store.briefs.write({
+      pullRequestId: pr.id, baseSha: "base-2", headSha: "head-2", headIndex: 2,
+      commitCount: 2, body: "{}", ...PROVENANCE,
+    });
+    await store.briefs.write({
+      pullRequestId: pr.id, baseSha: "base-1", headSha: "head-1", headIndex: 1,
+      commitCount: 1, body: "{}", ...PROVENANCE,
+    });
+
+    const rows = await store.briefs.listForPullRequest(pr.id);
+    expect(rows.map((row) => row.headIndex)).toEqual([1, 2]); // ordered asc
+    // baseSha is per-entry (drift fidelity) — never one shared base.
+    expect(rows.map((row) => row.baseSha)).toEqual(["base-1", "base-2"]);
+    for (const row of rows) {
+      expect(row.createdAt).toBeInstanceOf(Date);
+    }
+  });
+
+  it("marks/deltas/narratives listForPullRequest return lean SHA pairs, tenant-scoped", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const store = artifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({ repoId: REPO_1, prNumber: 1, state: PrState.OPEN });
+    const brief = await store.briefs.write({
+      pullRequestId: pr.id, baseSha: "base", headSha: "head-2", headIndex: 2,
+      commitCount: 2, body: "{}", ...PROVENANCE,
+    });
+    if (!brief.ok) throw new Error("brief write failed");
+
+    await store.comparisonMarks.write({
+      pullRequestId: pr.id,
+      marks: {
+        baselineSha: "head-1", headSha: "head-2",
+        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+      },
+    });
+    await store.deltas.write({
+      pullRequestId: pr.id, baselineSha: "cp-1", headSha: "head-2", body: "{}", ...PROVENANCE,
+    });
+    await store.revisionNarratives.write({
+      pullRequestId: pr.id, briefId: brief.value.id, prevHeadSha: "head-1", headSha: "head-2",
+      body: "{}", ...PROVENANCE,
+    });
+
+    expect(await store.comparisonMarks.listForPullRequest(pr.id)).toEqual([
+      { baselineSha: "head-1", headSha: "head-2" },
+    ]);
+    expect(await store.deltas.listForPullRequest(pr.id)).toEqual([
+      { baselineSha: "cp-1", headSha: "head-2" },
+    ]);
+    expect(await store.revisionNarratives.listForPullRequest(pr.id)).toEqual([
+      { prevHeadSha: "head-1", headSha: "head-2" },
+    ]);
+
+    // Another tenant sees none of these spans.
+    const aStore = artifactStore(handle, CTX_B);
+    expect(await aStore.comparisonMarks.listForPullRequest(pr.id)).toEqual([]);
+    expect(await aStore.deltas.listForPullRequest(pr.id)).toEqual([]);
+    expect(await aStore.revisionNarratives.listForPullRequest(pr.id)).toEqual([]);
+  });
+});
+
 describe("generation.latestBriefForPullRequests", () => {
   it("returns the newest brief-kind projection per PR, ignoring span kinds", async () => {
     const handle = await freshDatabase();
