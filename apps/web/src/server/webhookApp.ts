@@ -6,8 +6,8 @@
 // `/auth/*` to the Hono app this module builds.
 import "@tanstack/react-start/server-only";
 
-import { createApp, migrateQueue } from "api";
-import { loadConfig as loadGitHubConfig } from "github";
+import { appConversationPort, createApp, migrateQueue } from "api";
+import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import {
   createDb,
   envKeyProvider,
@@ -93,6 +93,9 @@ async function buildWebhookApp(): Promise<WebhookApp> {
   return createApp({
     handle,
     webhookSecret: githubConfig.value.webhookSecret,
+    // Conversation reads run as the App on the installation token (ADR 0027):
+    // one rate budget and one cache entry per PR, gate-authorized per viewer.
+    github: appConversationPort(createAppClient(githubConfig.value)),
     // Reviewer-auth bundle (PR C): OAuth creds from the GitHub config, the
     // env-backed key provider for token sealing (validated eagerly above), and
     // the cookie/redirect policy.

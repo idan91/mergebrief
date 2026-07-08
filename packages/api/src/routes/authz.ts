@@ -95,6 +95,10 @@ export interface AuthzEnv {
  * (ADR 0016 #4 as amended: 60s, tightened from the original 5min). PR 1.2's
  * per-session allowed-repo-set cache deliberately shares this constant.
  */
+
+// Gate denials are per-viewer state like every gated-route response — the
+// no-store contract covers middleware 401/404s too (BRIEF-25 codex review).
+const NO_STORE = { "cache-control": "no-store" } as const;
 export const AUTHZ_CACHE_TTL_MS = 60 * 1000;
 /**
  * Hard cap on live positive-cache entries (one per session×repo). Bounds memory
@@ -175,13 +179,13 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     const cookie = getCookie(c, SESSION_COOKIE);
     if (cookie === undefined) {
       logAccess(c, startedAt, "401", {});
-      return c.json({ error: "unauthorized" }, 401);
+      return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
     const sessionTokenHash = sha256Hex(cookie);
     const session = await sessionAuth(deps.handle).findSession(sessionTokenHash);
     if (session === undefined) {
       logAccess(c, startedAt, "401", {});
-      return c.json({ error: "unauthorized" }, 401);
+      return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
     // `findSession` is a plain resolver (it doesn't filter on expiry), so expiry
     // is enforced HERE, at the auth decision point. `expires_at` tracks the ~6mo
@@ -192,7 +196,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     if (session.expiresAt.getTime() <= startedAt) {
       await sessionAuth(deps.handle).deleteSession(sessionTokenHash);
       logAccess(c, startedAt, "401", { reviewerId: session.reviewerId });
-      return c.json({ error: "unauthorized" }, 401);
+      return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
 
     c.set("ctx", { installationId: session.installationId });
@@ -225,7 +229,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     const repoId = parseRepoId(c.req.param("repoId"));
     if (repoId === undefined) {
       logAccess(c, startedAt, "404", { reviewerId: session.reviewerId });
-      return c.json({ error: "not found" }, 404);
+      return c.json({ error: "not found" }, 404, NO_STORE);
     }
 
     // Positive-cache hit → already authorized within the TTL; skip GitHub
@@ -252,7 +256,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     if (!decrypted.ok) {
       await sessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
       logAccess(c, startedAt, "401", { repoId, reviewerId: session.reviewerId });
-      return c.json({ error: "unauthorized" }, 401);
+      return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
 
     // The session/token we carry forward — updated if a refresh rotates them.
@@ -267,7 +271,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
       if (!refreshed.ok) {
         // The orchestrator already deleted the session on a hard failure.
         logAccess(c, startedAt, "401", { repoId, reviewerId: currentSession.reviewerId });
-        return c.json({ error: "unauthorized" }, 401);
+        return c.json({ error: "unauthorized" }, 401, NO_STORE);
       }
       currentSession = refreshed.value.session;
       accessToken = refreshed.value.accessToken;
@@ -287,7 +291,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
         metadata: { [AuditMetadataKey.DECISION]: "404" },
       });
       logAccess(c, startedAt, "404", { repoId, reviewerId: currentSession.reviewerId });
-      return c.json({ error: "not found" }, 404);
+      return c.json({ error: "not found" }, 404, NO_STORE);
     }
 
     // 2xx → authorized. Cache the verified full name, hand the token to the

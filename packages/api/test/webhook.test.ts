@@ -183,13 +183,22 @@ async function countRows(harness: PgliteHarness, table: string): Promise<number>
 // Suite.
 // ---------------------------------------------------------------------------
 
+
+// Conversation port stub (BRIEF-25): these tests never exercise the
+// conversation read; a hit here is a test bug.
+const unusedConversationPort = {
+  fetchPullRequestConversation: async () => {
+    throw new Error("conversation port must not be called in this suite");
+  },
+};
+
 describe("POST /api/webhooks/github", () => {
   let harness: PgliteHarness;
   let app: Hono;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: DUMMY_AUTH });
+    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: DUMMY_AUTH, github: unusedConversationPort });
   });
 
   afterEach(async () => {

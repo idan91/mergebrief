@@ -10,6 +10,7 @@
 import { Hono } from "hono";
 import type { AppDatabase } from "persistence";
 import { authRoute, type AuthDeps } from "./routes/auth";
+import { conversationRoute, type ConversationGitHubPort } from "./routes/conversation";
 import { installationsRoute } from "./routes/installations";
 import { pullsRoute } from "./routes/pulls";
 import { readsRoute } from "./routes/reads";
@@ -23,6 +24,8 @@ export interface AppDeps {
   readonly webhookSecret: string;
   /** Reviewer-auth bundle (OAuth creds, crypto seam, cookie/redirect policy). */
   readonly auth: AuthDeps;
+  /** Installation-octokit seam for the conversation read (BRIEF-25). */
+  readonly github: ConversationGitHubPort;
 }
 
 /** Build the API app over injected deps. */
@@ -38,6 +41,9 @@ export function createApp(deps: AppDeps): Hono {
   // failure on the second 404s a just-verified request). Registration order
   // ensures a submit POST hits exactly one per-repo gate: its own.
   app.route("/", reviewSubmitRoute(deps));
+  // Conversation read (BRIEF-25) — mounted before readsRoute for the same
+  // single-gate reason as the submit route.
+  app.route("/", conversationRoute(deps));
   app.route("/", readsRoute(deps));
   return app;
 }

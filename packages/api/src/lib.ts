@@ -4,6 +4,12 @@
 export { createApp } from "./app";
 export type { AppDeps, AuthDeps } from "./app";
 
+// The conversation surface's installation-octokit seam (BRIEF-25): the
+// composition root wires `appConversationPort` over the App-JWT client;
+// tests substitute the port.
+export { appConversationPort } from "./routes/conversation";
+export type { ConversationGitHubPort } from "./routes/conversation";
+
 // The serialized token-refresh orchestrator (BRIEF-2 stage 6, D11): built +
 // tested here, called by stage 7's authz middleware on a GitHub 401.
 export { refreshSessionToken, RefreshErrorCode } from "./routes/auth";
