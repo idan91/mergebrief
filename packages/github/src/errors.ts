@@ -98,3 +98,69 @@ export function unexpectedResponseError(context: string): GitHubApiError {
     message: `failed to ${context}: unexpected GitHub API response shape`,
   };
 }
+
+// GraphQL failures arrive as `GraphqlResponseError` — HTTP 200 with an
+// `errors` array whose entries carry a `type` discriminator (`NOT_FOUND`,
+// `FORBIDDEN`, `RATE_LIMITED`, …). The octokit umbrella does not export the
+// class, and importing `@octokit/graphql` directly would make `instanceof`
+// hostage to pnpm resolving the same copy octokit uses — so detection is
+// structural: the stable contract is the error name plus the errors array.
+interface GraphqlErrorEntry {
+  readonly type?: string;
+}
+
+function isGraphqlResponseError(
+  error: unknown,
+): error is { readonly name: string; readonly errors: readonly GraphqlErrorEntry[] } {
+  // Fully structural — no `instanceof Error`, which would reject a wrapped or
+  // cross-realm error carrying the same shape (codex round 2).
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  return (
+    "name" in error &&
+    error.name === "GraphqlResponseError" &&
+    "errors" in error &&
+    Array.isArray(error.errors)
+  );
+}
+
+// Rate-limit beats forbidden beats not-found: a throttled query can carry
+// stale-looking secondary errors, and retry guidance differs per class.
+const GRAPHQL_TYPE_PRECEDENCE: ReadonlyArray<{
+  readonly type: string;
+  readonly code: GitHubApiErrorCode;
+}> = [
+  { type: "RATE_LIMITED", code: GitHubApiErrorCode.RATE_LIMITED },
+  { type: "FORBIDDEN", code: GitHubApiErrorCode.FORBIDDEN },
+  { type: "NOT_FOUND", code: GitHubApiErrorCode.NOT_FOUND },
+];
+
+/**
+ * Map any thrown value from an `octokit.graphql` call into a sanitized
+ * `GitHubApiError` — the GraphQL sibling of `mapRequestError`, with the same
+ * contract: `context` is a STATIC verb phrase, and no upstream message,
+ * token, or response text ever reaches the result. HTTP-level failures
+ * (thrown as `RequestError`) delegate to the REST taxonomy.
+ */
+export function mapGraphqlError(error: unknown, context: string): GitHubApiError {
+  if (error instanceof RequestError) {
+    return mapRequestError(error, context);
+  }
+  if (isGraphqlResponseError(error)) {
+    const types = new Set(
+      error.errors.map((entry) =>
+        typeof entry === "object" && entry !== null ? entry.type : undefined,
+      ),
+    );
+    const matched = GRAPHQL_TYPE_PRECEDENCE.find(({ type }) => types.has(type));
+    return {
+      code: matched?.code ?? GitHubApiErrorCode.REQUEST_FAILED,
+      message: `failed to ${context}: GitHub GraphQL query failed`,
+    };
+  }
+  return {
+    code: GitHubApiErrorCode.REQUEST_FAILED,
+    message: `failed to ${context}: GitHub GraphQL request did not complete`,
+  };
+}
