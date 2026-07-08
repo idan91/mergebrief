@@ -13,7 +13,7 @@ server, which mounts the `api` Hono app in-process (`src/server.ts` →
 
 ```sh
 docker compose up -d postgres          # loopback Postgres (matches .env.example URL)
-set -a; source .env; set +a            # root .env: GitHub App/OAuth creds + SESSION_KEY_V1
+set -a; source .env; set +a            # root .env: GitHub App/OAuth creds + SESSION_KEY_V1 (agents: see gotcha below)
 DATABASE_URL=postgres://code_review:code_review@127.0.0.1:5432/code_review \
   pnpm -C apps/web dev                 # port 3000; run in background, log to a file
 ```
@@ -25,7 +25,12 @@ Gotchas:
 - Secrets split: root `.env` has the GitHub/auth vars; `apps/web/.env` has only
   `ANTHROPIC_API_KEY`. The composition root loads cwd `.env` then ambient env,
   so source the root one into the shell.
-- Reading `.env` contents is blocked by policy — `source` it, never print it.
+- Agents cannot read OR `source` `.env` — the `Read(./**/.env)` deny rule blocks
+  both. Don't fight it: generate synthetic parse-only secrets instead. The read
+  path only needs values that PARSE (auth happens via the viewer's `gh` token):
+  a fresh `SESSION_KEY_V1`, a throwaway RSA PEM for the GitHub App key, and
+  placeholder App/OAuth ids. Export those and skip the `source` line entirely
+  (verified working, BRIEF-24 smoke 2026-07-08). Never print real `.env` contents.
 - First request builds the app (runs migrations); a bad env fails loudly on
   that request, not at boot.
 
