@@ -193,3 +193,58 @@ describe("resolveShortcut", () => {
     ).toEqual({ type: "jump", chunkId: "c" });
   });
 });
+
+describe("conversation shortcut", () => {
+  const shortcutState = {
+    chunkIds: ["c1"],
+    groupBoundaries: [0],
+    activeChunkId: null,
+    disabled: false,
+    focusModeActive: false,
+  };
+
+  it("maps C to jump-to-conversation", () => {
+    expect(
+      resolveShortcut(
+        {
+          key: "c",
+          metaKey: false,
+          ctrlKey: false,
+          altKey: false,
+          shiftKey: false,
+          isTyping: false,
+        },
+        shortcutState,
+      ),
+    ).toEqual({ type: "jumpToConversation" });
+  });
+
+  it("stands down while typing or disabled", () => {
+    expect(
+      resolveShortcut(
+        {
+          key: "c",
+          metaKey: false,
+          ctrlKey: false,
+          altKey: false,
+          shiftKey: false,
+          isTyping: true,
+        },
+        shortcutState,
+      ),
+    ).toBeNull();
+    expect(
+      resolveShortcut(
+        {
+          key: "c",
+          metaKey: false,
+          ctrlKey: false,
+          altKey: false,
+          shiftKey: false,
+          isTyping: false,
+        },
+        { ...shortcutState, disabled: true },
+      ),
+    ).toBeNull();
+  });
+});

@@ -23,6 +23,7 @@ const SHORTCUTS: ShortcutDefinition[] = [
     description: "Previous group — Read-through, in Reading order",
   },
   { key: "Z", description: "Focus mode — isolate the current chunk" },
+  { key: "C", description: "Jump to the Conversation section (DB path)" },
   { key: "?", description: "Toggle this shortcuts list" },
   { key: "Esc", description: "Close focus mode or a dialog" },
 ];

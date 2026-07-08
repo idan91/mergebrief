@@ -6,12 +6,15 @@ import { defineConfig } from "vite";
 /** The deployment's own public hostname, from PUBLIC_BASE_URL; undefined
  * (→ vite's rebinding-guard defaults) when unset or unparseable. */
 function previewAllowedHosts(): string[] | undefined {
-  const base = process.env["PUBLIC_BASE_URL"];
-  if (!base) {
+  const base = [process.env["PUBLIC_BASE_URL"], "http://localhost:3000"];
+
+  if (!base || base.length === 0) {
     return undefined;
   }
   try {
-    return [new URL(base).hostname];
+    return base
+      .filter((url): url is string => !!url)
+      .map((url) => new URL(url).hostname);
   } catch {
     return undefined;
   }
@@ -30,6 +33,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    // Same tunnel posture as `preview` below: the webhook dev loop serves
+    // the DEV server through ngrok, so the public hostname (derived from
+    // PUBLIC_BASE_URL) must clear vite's host guard here too.
+    ...(() => {
+      const hosts = previewAllowedHosts();
+      return hosts ? { allowedHosts: hosts } : {};
+    })(),
   },
   preview: {
     // The compose web service serves REAL traffic through `vite preview`

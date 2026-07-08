@@ -11,7 +11,7 @@
 // keyed by thread id in component state, so it survives refetch (visible
 // state, never entry-path memory).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Markdown } from "../../../../components/Markdown/Markdown";
 import type { BriefChunk } from "../../../brief/types";
@@ -49,11 +49,22 @@ export interface ConversationSectionProps {
   chunks: readonly BriefChunk[];
   localComments: readonly ReviewComment[];
   submittedReviewIds: readonly number[];
-  jumpToChunk: (chunkId: string) => void;
+  /**
+   * Jump to a chunk — or, when `target` is given, to a specific thread's
+   * row inside its diff (the row-level rendering is the real destination;
+   * the chunk is just the container).
+   */
+  jumpToChunk: (
+    chunkId: string,
+    target?: { rowId: string; threadId: number },
+  ) => void;
   /** Store flip for drafts the reconciliation proved posted (BRIEF-23 residual). */
   markCommentsSubmitted: (ids: readonly string[]) => void;
   /** Page live region — result surfaces must outlive the disclosure. */
   announce: (message: string) => void;
+  /** Collapsed/expanded state is the PAGE's (the C shortcut expands it). */
+  open: boolean;
+  onToggle: () => void;
   /** Reply drafts per thread root id (session store — survive navigation). */
   replyDrafts: Readonly<Record<string, string>>;
   setReplyDraft: (threadId: number, body: string) => void;
@@ -121,6 +132,11 @@ function ReplyComposer({
   const [local, setLocal] = useState(draft);
   const localRef = useRef(local);
   localRef.current = local;
+  // Only a composer the user actually EDITED may sync outward: with the
+  // same thread rendered inline and in the section, an untouched twin's
+  // unmount/blur must never clobber the draft the edited one saved
+  // (Fable review).
+  const dirtyRef = useRef(false);
   // Mirrors the STORE's current value (not "what this composer last wrote"):
   // comparing against it means an external reset (Clear local drafts) can't
   // silently un-persist text the user still SEES — behavior follows visible
@@ -129,7 +145,7 @@ function ReplyComposer({
   draftRef.current = draft;
   useEffect(() => {
     return () => {
-      if (localRef.current !== draftRef.current) {
+      if (dirtyRef.current && localRef.current !== draftRef.current) {
         setDraftRef.current(threadId, localRef.current);
         // The live-store write can race the provider's debounced
         // sessionStorage flush on full navigation — write durably too
@@ -147,12 +163,15 @@ function ReplyComposer({
   const setDraftRef = useRef(setDraft);
   setDraftRef.current = setDraft;
   const persist = () => {
-    if (local !== draftRef.current) {
+    if (dirtyRef.current && local !== draftRef.current) {
       draftRef.current = local;
       setDraft(threadId, local);
     }
   };
-  const inputId = `reply-${threadId}`;
+  // Instance-scoped id: the same thread can render TWO composers (inline at
+  // its chunk AND in the section) — a thread-derived id would duplicate and
+  // break label/error association (Fable review).
+  const inputId = `${useId()}-reply`;
   const overCap = local.length > MAX_REPLY_LENGTH;
   const blocked = pending || local.trim() === "" || overCap;
 
@@ -186,6 +205,7 @@ function ReplyComposer({
             setLocal("");
             localRef.current = "";
             draftRef.current = "";
+            dirtyRef.current = false;
             setDraft(threadId, "");
             // Success must persist independent of component lifetime
             // (BRIEF-23 rule): the provider may have unmounted while the
@@ -240,7 +260,10 @@ function ReplyComposer({
         rows={3}
         value={local}
         onBlur={persist}
-        onChange={(event) => setLocal(event.target.value)}
+        onChange={(event) => {
+          dirtyRef.current = true;
+          setLocal(event.target.value);
+        }}
       />
       {overCap || error !== null ? (
         <p className={styles["error"]} id={`${inputId}-error`} role="alert">
@@ -268,11 +291,17 @@ function ReplyComposer({
   );
 }
 
-interface ThreadComposerWiring {
+export interface ThreadComposerWiring {
   readonly briefId: string;
   readonly post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   readonly announce: (message: string) => void;
-  readonly drafts: Readonly<Record<string, string>>;
+  /**
+   * Reads the CURRENT store draft for a thread. A function (backed by a ref)
+   * instead of the drafts record keeps this object's identity stable across
+   * draft syncs — a record here would bust every memoized ChunkCard on each
+   * blur (perf review).
+   */
+  readonly getDraft: (threadId: number) => string;
   readonly setDraft: (threadId: number, body: string) => void;
   readonly onPosted: () => void;
 }
@@ -281,10 +310,16 @@ function ThreadDetail({
   row,
   jumpToChunk,
   composer,
+  hideJump = false,
 }: {
   row: DigestThreadRow;
-  jumpToChunk: (chunkId: string) => void;
+  jumpToChunk: (
+    chunkId: string,
+    target?: { rowId: string; threadId: number },
+  ) => void;
   composer: ThreadComposerWiring;
+  /** True when the detail already renders AT its chunk (inline). */
+  hideJump?: boolean;
 }) {
   const { thread, placement } = row;
   return (
@@ -313,13 +348,18 @@ function ThreadDetail({
         <p className={styles["note"]}>Longer thread — the rest is on GitHub.</p>
       ) : null}
       <div className={styles["detailActions"]}>
-        {placement.kind === "chunk" ? (
+        {placement.kind === "chunk" && !hideJump ? (
           <button
             className={styles["action"]}
             type="button"
-            onClick={() => jumpToChunk(placement.chunkId)}
+            onClick={() =>
+              jumpToChunk(placement.chunkId, {
+                rowId: placement.rowId,
+                threadId: thread.rootCommentId,
+              })
+            }
           >
-            Jump to chunk
+            Jump to comment
           </button>
         ) : null}
         <a
@@ -335,7 +375,7 @@ function ThreadDetail({
       <ReplyComposer
         announce={composer.announce}
         briefId={composer.briefId}
-        draft={composer.drafts[String(thread.rootCommentId)] ?? ""}
+        draft={composer.getDraft(thread.rootCommentId)}
         onPosted={composer.onPosted}
         post={composer.post}
         setDraft={composer.setDraft}
@@ -345,18 +385,23 @@ function ThreadDetail({
   );
 }
 
-function ThreadRowView({
+export function ThreadRowView({
   row,
   expanded,
   toggle,
   jumpToChunk,
   composer,
+  hideJump = false,
 }: {
   row: DigestThreadRow;
   expanded: boolean;
   toggle: (threadId: number) => void;
-  jumpToChunk: (chunkId: string) => void;
+  jumpToChunk: (
+    chunkId: string,
+    target?: { rowId: string; threadId: number },
+  ) => void;
   composer: ThreadComposerWiring;
+  hideJump?: boolean;
 }) {
   const { thread } = row;
   const author = thread.comments[0]?.author;
@@ -384,7 +429,12 @@ function ThreadRowView({
         </span>
       </button>
       {expanded ? (
-        <ThreadDetail composer={composer} jumpToChunk={jumpToChunk} row={row} />
+        <ThreadDetail
+          composer={composer}
+          hideJump={hideJump}
+          jumpToChunk={jumpToChunk}
+          row={row}
+        />
       ) : null}
     </li>
   );
@@ -406,7 +456,10 @@ function BotGroupRowView({
   toggleGroup: (key: string) => void;
   expandedThreads: ReadonlySet<number>;
   toggleThread: (threadId: number) => void;
-  jumpToChunk: (chunkId: string) => void;
+  jumpToChunk: (
+    chunkId: string,
+    target?: { rowId: string; threadId: number },
+  ) => void;
   composer: ThreadComposerWiring;
 }) {
   const key = `${groupId}:${row.author}`;
@@ -477,7 +530,10 @@ function DigestGroupView({
   toggleGroup: (key: string) => void;
   shownAll: boolean;
   showAll: (groupId: string) => void;
-  jumpToChunk: (chunkId: string) => void;
+  jumpToChunk: (
+    chunkId: string,
+    target?: { rowId: string; threadId: number },
+  ) => void;
   composer: ThreadComposerWiring;
 }) {
   const rows = shownAll ? group.rows : group.rows.slice(0, GROUP_ROW_CAP);
@@ -601,6 +657,8 @@ export function ConversationSection({
   announce,
   replyDrafts,
   setReplyDraft,
+  open,
+  onToggle,
 }: ConversationSectionProps) {
   const queryClient = useQueryClient();
   const query = useQuery(plan.queryOptions);
@@ -685,11 +743,15 @@ export function ConversationSection({
 
   // Every conversation write evicts server-side; the post-reply refetch
   // makes the reply visible in-section (locked decision 9).
+  // Drafts read through a ref so the wiring object's identity never follows
+  // draft syncs (perf review — see ThreadComposerWiring.getDraft).
+  const replyDraftsRef = useRef(replyDrafts);
+  replyDraftsRef.current = replyDrafts;
   const composer: ThreadComposerWiring = {
     briefId,
     post: plan.postReply,
     announce,
-    drafts: replyDrafts,
+    getDraft: (threadId) => replyDraftsRef.current[String(threadId)] ?? "",
     setDraft: setReplyDraft,
     onPosted: refresh,
   };
@@ -706,102 +768,137 @@ export function ConversationSection({
       data-conversation-section
     >
       <div className={styles["head"]}>
-        <h2 className={styles["heading"]} id="conversation-heading">
-          Conversation
+        {/* The heading IS the disclosure (summary counts stay visible;
+            expanding reveals the digest). Also the C shortcut's focus
+            target — a button is natively focusable (Fable review). */}
+        <h2 className={styles["heading"]}>
+          <button
+            aria-expanded={open}
+            className={styles["headingToggle"]}
+            id="conversation-heading"
+            type="button"
+            onClick={onToggle}
+          >
+            <span
+              aria-hidden
+              className={styles["twist"]}
+              data-open={open || undefined}
+            >
+              ▶
+            </span>
+            Conversation
+            {conversation !== undefined ? (
+              <span className={styles["headSummary"]}>
+                {conversation.threads.length} thread
+                {conversation.threads.length === 1 ? "" : "s"} ·{" "}
+                {
+                  conversation.threads.filter((thread) => !thread.isResolved)
+                    .length
+                }{" "}
+                open
+              </span>
+            ) : null}
+          </button>
         </h2>
-        <button
-          className={styles["action"]}
-          disabled={query.isFetching}
-          type="button"
-          onClick={refresh}
-        >
-          {query.isFetching ? "Refreshing…" : "Refresh"}
-        </button>
+        {open ? (
+          <button
+            className={styles["action"]}
+            disabled={query.isFetching}
+            type="button"
+            onClick={refresh}
+          >
+            {query.isFetching ? "Refreshing…" : "Refresh"}
+          </button>
+        ) : null}
       </div>
-
-      {query.isPending ? (
-        <p className={styles["note"]} role="status">
-          Loading the conversation…
-        </p>
-      ) : null}
-      {query.isError ? (
-        <p className={styles["error"]} role="alert">
-          The conversation could not be read (unexpected response). Refresh to
-          retry.
-        </p>
-      ) : null}
-      {query.data?.kind === "unauthorized" ? (
-        <p className={styles["error"]} role="alert">
-          Your GitHub session expired — sign in again to see the conversation.
-        </p>
-      ) : null}
-      {query.data?.kind === "not-found" ? (
-        <p className={styles["error"]} role="alert">
-          This pull request&apos;s conversation is no longer accessible on
-          GitHub.
-        </p>
-      ) : null}
-      {query.data?.kind === "unavailable" ? (
-        <p className={styles["error"]} role="alert">
-          GitHub (or the backend) is unreachable — the conversation could not be
-          fetched. Refresh to retry.
-        </p>
-      ) : null}
-
-      {conversation !== undefined ? (
+      {open ? (
         <>
-          {verdicts.length > 0 ? (
-            <ul aria-label="Review verdicts" className={styles["verdicts"]}>
-              {verdicts.map((review) => (
-                <li className={styles["verdict"]} key={review.reviewId}>
-                  <span className={styles["author"]}>
-                    @{review.author.login}
-                    {review.author.isBot ? (
-                      <span className={styles["botTag"]}>bot</span>
-                    ) : null}
-                  </span>
-                  <span
-                    className={styles["chip"]}
-                    data-state={VERDICT_LABEL[review.state]}
-                  >
-                    {VERDICT_LABEL[review.state]}
-                  </span>
-                  {review.body.trim() !== "" ? (
-                    <span className={styles["rowLine"]}>{review.body}</span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          {digest.length === 0 && verdicts.length === 0 ? (
-            <p className={styles["note"]}>
-              No conversation yet — comments land here as teammates review.
+          {query.isPending ? (
+            <p className={styles["note"]} role="status">
+              Loading the conversation…
             </p>
           ) : null}
-
-          {digest.map((group) => (
-            <DigestGroupView
-              composer={composer}
-              expandedGroups={expandedGroups}
-              expandedThreads={expandedThreads}
-              group={group}
-              jumpToChunk={jumpToChunk}
-              key={group.id}
-              showAll={showAll}
-              shownAll={shownAllGroups.has(group.id)}
-              toggleGroup={toggleGroup}
-              toggleThread={toggleThread}
-            />
-          ))}
-
-          {conversation.hasMoreThreads ||
-          conversation.hasMoreReviews ||
-          conversation.hasMorePrComments ? (
-            <p className={styles["note"]}>
-              This conversation is unusually large — some items are only on
+          {query.isError ? (
+            <p className={styles["error"]} role="alert">
+              The conversation could not be read (unexpected response). Refresh
+              to retry.
+            </p>
+          ) : null}
+          {query.data?.kind === "unauthorized" ? (
+            <p className={styles["error"]} role="alert">
+              Your GitHub session expired — sign in again to see the
+              conversation.
+            </p>
+          ) : null}
+          {query.data?.kind === "not-found" ? (
+            <p className={styles["error"]} role="alert">
+              This pull request&apos;s conversation is no longer accessible on
               GitHub.
             </p>
+          ) : null}
+          {query.data?.kind === "unavailable" ? (
+            <p className={styles["error"]} role="alert">
+              GitHub (or the backend) is unreachable — the conversation could
+              not be fetched. Refresh to retry.
+            </p>
+          ) : null}
+
+          {conversation !== undefined ? (
+            <>
+              {verdicts.length > 0 ? (
+                <ul aria-label="Review verdicts" className={styles["verdicts"]}>
+                  {verdicts.map((review) => (
+                    <li className={styles["verdict"]} key={review.reviewId}>
+                      <span className={styles["author"]}>
+                        @{review.author.login}
+                        {review.author.isBot ? (
+                          <span className={styles["botTag"]}>bot</span>
+                        ) : null}
+                      </span>
+                      <span
+                        className={styles["chip"]}
+                        data-state={VERDICT_LABEL[review.state]}
+                      >
+                        {VERDICT_LABEL[review.state]}
+                      </span>
+                      {review.body.trim() !== "" ? (
+                        <span className={styles["rowLine"]}>{review.body}</span>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {digest.length === 0 && verdicts.length === 0 ? (
+                <p className={styles["note"]}>
+                  No conversation yet — comments land here as teammates review.
+                </p>
+              ) : null}
+
+              {digest.map((group) => (
+                <DigestGroupView
+                  composer={composer}
+                  expandedGroups={expandedGroups}
+                  expandedThreads={expandedThreads}
+                  group={group}
+                  jumpToChunk={jumpToChunk}
+                  key={group.id}
+                  showAll={showAll}
+                  shownAll={shownAllGroups.has(group.id)}
+                  toggleGroup={toggleGroup}
+                  toggleThread={toggleThread}
+                />
+              ))}
+
+              {conversation.hasMoreThreads ||
+              conversation.hasMoreReviews ||
+              conversation.hasMorePrComments ? (
+                <p className={styles["note"]}>
+                  This conversation is unusually large — some items are only on
+                  GitHub.
+                </p>
+              ) : null}
+            </>
           ) : null}
         </>
       ) : null}

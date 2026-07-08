@@ -1,5 +1,6 @@
 import {
   useQuery,
+  useQueryClient,
   useSuspenseQuery,
   type QueryKey,
   type UseQueryOptions,
@@ -29,7 +30,11 @@ import { PreSubmitModal } from "../../../review/components/PreSubmitModal/PreSub
 import {
   ConversationSection,
   type ConversationPlan,
+  type ThreadComposerWiring,
 } from "../../../conversation/components/ConversationSection/ConversationSection";
+import { buildInlineThreads } from "../../../conversation/digest";
+import { reconcileOwnComments } from "../../../conversation/ownComments";
+import type { ConversationResult } from "../../../conversation/queries";
 import { ReceiptDrawer } from "../../../review/components/ReceiptDrawer/ReceiptDrawer";
 import { SummaryPreview } from "../../../review/components/SummaryPreview/SummaryPreview";
 import { buildReceipt } from "../../../review/receipt";
@@ -502,6 +507,7 @@ function BriefScreen({
     () => model.groups.flatMap((group) => group.chunks),
     [model.groups],
   );
+
   const chunkIds = useMemo(
     () =>
       model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id)),
@@ -782,6 +788,17 @@ function BriefScreen({
     dismissTarget !== null ||
     evidenceTarget !== null ||
     activeCommentAnchor !== null;
+  const jumpToConversation = useCallback(() => {
+    setConversationOpen(true);
+    // The heading exists regardless of expansion; focus + scroll land on it
+    // after the expand renders.
+    window.requestAnimationFrame(() => {
+      const heading = document.getElementById("conversation-heading");
+      if (!(heading instanceof HTMLElement)) return;
+      heading.scrollIntoView({ block: "start" });
+      heading.focus({ preventScroll: true });
+    });
+  }, []);
   useKeyboardShortcuts({
     chunkIds,
     groupBoundaries,
@@ -791,6 +808,8 @@ function BriefScreen({
     jumpToChunk: jumpToChunkFromShortcut,
     toggleFocusMode,
     toggleHelp: toggleShortcuts,
+    jumpToConversation:
+      conversation !== undefined ? jumpToConversation : undefined,
   });
 
   // The TOC bar jumps by Change-group; land on the group's first chunk.
@@ -946,6 +965,140 @@ function BriefScreen({
     setToast("");
     window.setTimeout(() => setToast(message), 30);
   }, []);
+  // The conversation section collapses to its summary header by default —
+  // it sits ABOVE the change groups (Idan, smoke feedback 2026-07-08), so
+  // expanded-by-default would push the Brief down. The C shortcut expands.
+  const [conversationOpen, setConversationOpen] = useState(false);
+  // Inline conversation threads (BRIEF-25): the same query the section runs
+  // (react-query dedupes on the key), disabled on the local path.
+  const queryClient = useQueryClient();
+  const conversationQuery = useQuery({
+    ...(conversation?.queryOptions ??
+      disabledComparisonQuery<ConversationResult>("conversation")),
+    enabled: conversation !== undefined,
+  });
+  const conversationData =
+    conversationQuery.data?.kind === "ready"
+      ? conversationQuery.data.conversation
+      : undefined;
+  const conversationByChunk = useMemo(() => {
+    if (conversationData === undefined) return undefined;
+    // Ownership is the review-id join alone — local comments feed only the
+    // pointer/resurrection outputs, so they stay OUT of these deps: a comment
+    // save/toggle must not rebuild every chunk's inline rows and bust the
+    // ChunkCard memo boundary (perf review).
+    const ownThreadIds = reconcileOwnComments(
+      [],
+      conversationData.threads,
+      submittedReviewIds,
+    ).ownThreadIds;
+    return buildInlineThreads({
+      conversation: conversationData,
+      chunks: readingOrderedChunks,
+      ownThreadIds,
+    });
+  }, [conversationData, readingOrderedChunks, submittedReviewIds]);
+  // Drafts read through a ref: the wiring object's identity stays stable
+  // across draft syncs, so it never busts ChunkCard's memo (perf review).
+  const replyDraftsRef = useRef(replyDrafts);
+  replyDraftsRef.current = replyDrafts;
+  const conversationComposer = useMemo<ThreadComposerWiring | undefined>(
+    () =>
+      conversation === undefined
+        ? undefined
+        : {
+            briefId,
+            post: conversation.postReply,
+            announce: announceSubmit,
+            getDraft: (threadId: number) =>
+              replyDraftsRef.current[String(threadId)] ?? "",
+            setDraft: (threadId: number, body: string) =>
+              actions.setReplyDraft(threadId, body),
+            onPosted: () =>
+              void queryClient.invalidateQueries({
+                queryKey: conversation.queryOptions.queryKey,
+              }),
+          },
+    [actions, announceSubmit, briefId, conversation, queryClient],
+  );
+  // Which groups carry conversation threads — the TocBar's markers.
+  const conversationGroupIds = useMemo(() => {
+    if (conversationByChunk === undefined || conversationByChunk.size === 0)
+      return undefined;
+    const ids = new Set<string>();
+    for (const group of model.groups) {
+      if (group.chunks.some((chunk) => conversationByChunk.has(chunk.id))) {
+        ids.add(group.id);
+      }
+    }
+    return ids;
+  }, [conversationByChunk, model.groups]);
+  // The conversation jump contract (BRIEF-25): move focus WITH the scroll
+  // and flash the target (reduced-motion respected in CSS). When the digest
+  // hands us a row target, land on the thread's OWN row inside the diff —
+  // the chunk top is only the fallback (bot threads aggregate at the chunk;
+  // a resolved bot thread has no row at all).
+  // One live flash timer: a repeat jump inside the window must RESTART the
+  // flash (remove → reflow → re-add; a matching attribute never restarts a
+  // CSS animation) instead of letting the first jump's timer cut it short
+  // (Fable review).
+  const flashTimerRef = useRef<{ el: HTMLElement; timer: number } | null>(null);
+  const flashConversationTarget = useCallback((target: HTMLElement) => {
+    const pending = flashTimerRef.current;
+    if (pending !== null) {
+      window.clearTimeout(pending.timer);
+      pending.el.removeAttribute("data-conversation-flash");
+      flashTimerRef.current = null;
+    }
+    target.removeAttribute("data-conversation-flash");
+    window.requestAnimationFrame(() => {
+      target.setAttribute("data-conversation-flash", "");
+      flashTimerRef.current = {
+        el: target,
+        timer: window.setTimeout(() => {
+          target.removeAttribute("data-conversation-flash");
+          flashTimerRef.current = null;
+        }, 1600),
+      };
+    });
+  }, []);
+  const jumpToChunkFromConversation = useCallback(
+    (chunkId: string, target?: { rowId: string; threadId: number }) => {
+      const landOnChunk = () => {
+        const el = document.getElementById(chunkId);
+        if (!(el instanceof HTMLElement)) return;
+        el.focus({ preventScroll: true });
+        flashConversationTarget(el);
+      };
+      if (target === undefined) {
+        jumpToChunk(chunkId);
+        window.requestAnimationFrame(landOnChunk);
+        return;
+      }
+      // Instant coarse jump (expands the chunk), then settle on the row. The
+      // row renders only once the chunk is open, so poll a few frames before
+      // conceding to the chunk top.
+      jumpToChunk(chunkId, "auto");
+      let attempts = 8;
+      const landOnRow = () => {
+        const row = document.querySelector(
+          `[data-conversation-thread="${target.threadId}"]`,
+        );
+        if (row instanceof HTMLElement) {
+          row.scrollIntoView({ behavior: "smooth", block: "center" });
+          const disclosure = row.querySelector("button");
+          (disclosure ?? row).focus({ preventScroll: true });
+          flashConversationTarget(row);
+          return;
+        }
+        attempts -= 1;
+        if (attempts > 0) window.requestAnimationFrame(landOnRow);
+        else landOnChunk();
+      };
+      window.requestAnimationFrame(landOnRow);
+    },
+    [flashConversationTarget, jumpToChunk],
+  );
   const submitFlow = useReviewSubmit({
     action: submitReview,
     briefId,
@@ -1160,8 +1313,30 @@ function BriefScreen({
             {viewMode === "story" && !focusMode ? (
               <GroupTocBar
                 activeGroupId={activeGroupId}
+                conversationGroupIds={conversationGroupIds}
                 groups={model.groups}
                 jumpToGroup={jumpToGroup}
+              />
+            ) : null}
+
+            {conversation !== undefined ? (
+              <ConversationSection
+                announce={announceSubmit}
+                briefId={briefId}
+                chunks={readingOrderedChunks}
+                jumpToChunk={jumpToChunkFromConversation}
+                localComments={reviewComments}
+                markCommentsSubmitted={(ids) =>
+                  actions.markCommentsSubmitted(ids)
+                }
+                open={conversationOpen}
+                onToggle={() => setConversationOpen((current) => !current)}
+                plan={conversation}
+                replyDrafts={replyDrafts}
+                setReplyDraft={(threadId, body) =>
+                  actions.setReplyDraft(threadId, body)
+                }
+                submittedReviewIds={submittedReviewIds}
               />
             ) : null}
 
@@ -1178,6 +1353,8 @@ function BriefScreen({
                 activeCommentAnchor={activeCommentAnchor}
                 addressedReviewComments={brief.reviewComments}
                 commentsByChunk={commentsByChunk}
+                conversationByChunk={conversationByChunk}
+                conversationComposer={conversationComposer}
                 existingReviewCommentCount={reviewComments.length}
                 cancelCommentComposer={cancelCommentComposer}
                 deleteReviewComment={deleteReviewComment}
@@ -1207,22 +1384,6 @@ function BriefScreen({
             )}
           </>
         )}
-        {conversation !== undefined ? (
-          <ConversationSection
-            announce={announceSubmit}
-            briefId={briefId}
-            chunks={readingOrderedChunks}
-            jumpToChunk={jumpToChunk}
-            localComments={reviewComments}
-            markCommentsSubmitted={(ids) => actions.markCommentsSubmitted(ids)}
-            plan={conversation}
-            replyDrafts={replyDrafts}
-            setReplyDraft={(threadId, body) =>
-              actions.setReplyDraft(threadId, body)
-            }
-            submittedReviewIds={submittedReviewIds}
-          />
-        ) : null}
       </main>
       <ReceiptDrawer
         receipt={receipt}

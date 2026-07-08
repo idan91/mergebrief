@@ -196,3 +196,73 @@ export function buildConversationDigest(
   }
   return groups;
 }
+
+/**
+ * Inline placement (locked decision 6): what renders AT a chunk, as opposed
+ * to the digest. Fresh human threads inline per-thread (resolved ones too —
+ * they collapse visually, they don't hide); bots inline as ONE aggregated
+ * disclosure per bot carrying only their UNRESOLVED threads — resolved and
+ * outdated bot threads are digest-only, and nothing unanchored ever floats
+ * mid-code. Rows reuse the digest's sorted view-model.
+ */
+export function buildInlineThreads(
+  input: BuildConversationDigestInput,
+): Map<string, DigestRow[]> {
+  const groups = buildConversationDigest(input);
+  const byChunk = new Map<string, DigestRow[]>();
+  for (const group of groups) {
+    if (group.kind !== "chunk" || group.chunkId === undefined) continue;
+    const rows: DigestRow[] = [];
+    for (const row of group.rows) {
+      if (row.kind === "thread") {
+        if (!row.thread.isOutdated) rows.push(row);
+        continue;
+      }
+      const openThreads = row.threads.filter(
+        (botThread) =>
+          !botThread.thread.isResolved && !botThread.thread.isOutdated,
+      );
+      if (openThreads.length > 0) {
+        rows.push({
+          ...row,
+          threads: openThreads,
+          openCount: openThreads.length,
+        });
+      }
+    }
+    if (rows.length > 0) byChunk.set(group.chunkId, rows);
+  }
+  return byChunk;
+}
+
+export interface InlineRowSplit {
+  /** Human threads keyed by their diff-row index — rendered UNDER the row. */
+  readonly byRow: ReadonlyMap<number, DigestThreadRow[]>;
+  /** Bot groups — ONE aggregated chunk-level disclosure per bot. */
+  readonly botGroups: readonly DigestBotGroupRow[];
+}
+
+/**
+ * Split a chunk's inline rows for rendering (Idan, smoke feedback
+ * 2026-07-08): human threads go row-level inside the diff — under the exact
+ * line they discuss, like the artifact's addressed-comments display — while
+ * bots keep the single aggregated disclosure (bots under every line would
+ * rebuild the wall the digest collapses).
+ */
+export function splitInlineRows(rows: readonly DigestRow[]): InlineRowSplit {
+  const byRow = new Map<number, DigestThreadRow[]>();
+  const botGroups: DigestBotGroupRow[] = [];
+  for (const row of rows) {
+    if (row.kind === "bot-group") {
+      botGroups.push(row);
+      continue;
+    }
+    if (row.placement.kind !== "chunk") continue;
+    const index = Number(row.placement.rowId.split(":").at(-1));
+    if (Number.isNaN(index)) continue;
+    const list = byRow.get(index) ?? [];
+    list.push(row);
+    byRow.set(index, list);
+  }
+  return { byRow, botGroups };
+}

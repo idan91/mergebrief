@@ -195,3 +195,27 @@
     }
   }
 }
+
+/* Conversation jump flash (BRIEF-25 focus contract): a transient highlight
+   on the chunk the digest jumped to. Motion collapses to a static ring
+   when the user prefers reduced motion. */
+.chunk[data-conversation-flash] {
+  animation: conversation-flash 1.4s ease-out 1;
+}
+
+@keyframes conversation-flash {
+  0% {
+    box-shadow: 0 0 0 2px #d9b36c;
+  }
+
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chunk[data-conversation-flash] {
+    animation: none;
+    box-shadow: 0 0 0 2px #d9b36c;
+  }
+}

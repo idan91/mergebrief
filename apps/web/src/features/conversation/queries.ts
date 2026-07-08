@@ -4,7 +4,7 @@
 // section invalidates this key) — NO background poll. Expected failure
 // statuses are RESULT KINDS the section renders as its error state (no
 // fallback tier); only a malformed 200 throws (contract violation).
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type QueryKey } from "@tanstack/react-query";
 
 import {
   ApiError,
@@ -33,8 +33,13 @@ export function conversationQueryKey(repoId: string, prNumber: number) {
  * refetches honest without hammering the shared budget.
  */
 export function conversationQueryOptions(repoId: string, prNumber: number) {
+  // Deliberately widened to `QueryKey` (the dbComparisonMarksQueryOptions
+  // precedent): the descriptor crosses plan seams typed as plain
+  // UseQueryOptions, and a narrower inferred key breaks that assignment
+  // (queryFn context contravariance).
+  const queryKey: QueryKey = conversationQueryKey(repoId, prNumber);
   return queryOptions({
-    queryKey: conversationQueryKey(repoId, prNumber),
+    queryKey,
     queryFn: async (): Promise<ConversationResult> => {
       const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/conversation`;
       const response = await apiFetch(path);

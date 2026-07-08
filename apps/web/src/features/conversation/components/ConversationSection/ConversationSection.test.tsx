@@ -153,6 +153,10 @@ function renderSection(
     announce: vi.fn(),
     replyDrafts: {},
     setReplyDraft: vi.fn(),
+    // Tests exercise the EXPANDED section; the collapsed header is covered
+    // by its own cases.
+    open: true,
+    onToggle: vi.fn(),
     ...overrides,
   };
   const view = render(
@@ -184,8 +188,13 @@ describe("ConversationSection", () => {
     expect(row.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(row);
     expect(row.getAttribute("aria-expanded")).toBe("true");
-    fireEvent.click(screen.getByRole("button", { name: "Jump to chunk" }));
-    expect(props.jumpToChunk).toHaveBeenCalledWith("c1");
+    fireEvent.click(screen.getByRole("button", { name: "Jump to comment" }));
+    // The jump carries the thread's diff-row target so the page can land on
+    // the comment's row, not the chunk top (post-smoke fix).
+    expect(props.jumpToChunk).toHaveBeenCalledWith("c1", {
+      rowId: "c1:1",
+      threadId: 9001,
+    });
   });
 
   it("keeps expansion across a refetch (state, not entry-path memory)", async () => {
@@ -455,7 +464,10 @@ describe("ReplyComposer", () => {
     );
   });
 
-  it("re-persists visible text after an external draft reset (Clear local drafts)", async () => {
+  it("an explicit draft reset wins: an untouched composer does not resurrect cleared text", async () => {
+    // REVERSED from an earlier round: re-persisting on unmount would also
+    // resurrect a posted twin's text and let a stale twin clobber newer
+    // edits — an EXPLICIT Clear local drafts beats the leftover display.
     const setReplyDraft = vi.fn();
     const { view, props } = renderSection({
       plan: plan([ready()]),
@@ -463,8 +475,6 @@ describe("ReplyComposer", () => {
       setReplyDraft,
     });
     await openThread();
-    // Simulate Clear local drafts: the STORE empties while the composer
-    // still shows the text — behavior must follow visible state.
     view.rerender(
       <QueryClientProvider
         client={
@@ -475,7 +485,7 @@ describe("ReplyComposer", () => {
       </QueryClientProvider>,
     );
     view.unmount();
-    expect(setReplyDraft).toHaveBeenCalledWith(9001, "still visible");
+    expect(setReplyDraft).not.toHaveBeenCalled();
   });
 
   it("persists an unsynced draft on unmount (navigation survival)", async () => {
@@ -522,9 +532,12 @@ describe("ReplyComposer", () => {
     await openThread();
     const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
     expect(textarea.getAttribute("aria-invalid")).toBe("true");
-    expect(textarea.getAttribute("aria-describedby")).toBe("reply-9001-error");
+    // Instance-scoped ids (useId): association is by reference, not by a
+    // thread-derived literal.
+    const describedBy = textarea.getAttribute("aria-describedby");
     const alert = screen.getByRole("alert");
-    expect(alert.id).toBe("reply-9001-error");
+    expect(describedBy).toBe(alert.id);
+    expect(alert.id).toBe(`${textarea.id}-error`);
     expect(alert.textContent).toContain("longer than GitHub allows");
     const button = screen.getByRole("button", { name: "Reply" });
     expect(button.getAttribute("aria-disabled")).toBe("true");
@@ -559,5 +572,50 @@ describe("ReplyComposer", () => {
     const button = screen.getByRole("button", { name: "Reply" });
     expect(button.getAttribute("aria-disabled")).toBe("true");
     expect((button as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+describe("Fable round fixes", () => {
+  it("the heading is a natively focusable disclosure with the summary visible collapsed", async () => {
+    const onToggle = vi.fn();
+    renderSection({ plan: plan([ready()]), open: false, onToggle });
+    const toggle = await screen.findByRole("button", {
+      name: /Conversation.*2 threads.*1.*open/,
+    });
+    // A button is natively focusable — the C shortcut's focus target.
+    expect(toggle.id).toBe("conversation-heading");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    // Collapsed: the digest is hidden, the summary is not.
+    expect(screen.queryByText("changes requested")).toBeNull();
+    fireEvent.click(toggle);
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("an untouched composer twin never clobbers the saved draft on unmount", async () => {
+    // The store holds a draft; this composer instance mounts WITH it and the
+    // user never edits here (the twin at the chunk did the typing). Its
+    // unmount must not write anything — especially not an empty body.
+    const setReplyDraft = vi.fn();
+    const { view } = renderSection({
+      plan: plan([ready()]),
+      replyDrafts: { "9001": "typed at the chunk twin" },
+      setReplyDraft,
+    });
+    await openThread();
+    view.unmount();
+    expect(setReplyDraft).not.toHaveBeenCalled();
+  });
+
+  it("derives the composer input id per instance, not per thread", async () => {
+    renderSection({
+      plan: plan([ready()]),
+      replyDrafts: { "9001": "draft" },
+    });
+    await openThread();
+    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
+    // Instance-scoped (useId) — a thread-derived id would duplicate when the
+    // same thread renders inline at its chunk and in the section.
+    expect(textarea.id).not.toBe("reply-9001");
+    expect(textarea.id.endsWith("-reply")).toBe(true);
   });
 });

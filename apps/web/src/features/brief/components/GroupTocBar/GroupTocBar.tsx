@@ -9,6 +9,8 @@ export interface GroupTocBarProps {
   groups: GroupView[];
   activeGroupId: string | null;
   jumpToGroup: (groupId: string) => void;
+  /** Groups carrying live conversation threads (BRIEF-25 markers). */
+  conversationGroupIds?: ReadonlySet<string> | undefined;
 }
 
 interface CalloutState {
@@ -43,6 +45,7 @@ export function GroupTocBar({
   groups,
   activeGroupId,
   jumpToGroup,
+  conversationGroupIds,
 }: GroupTocBarProps) {
   const navRef = useRef<HTMLElement>(null);
   const lineRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -118,9 +121,13 @@ export function GroupTocBar({
       onPointerMove={handlePointerMove}
     >
       {groups.map((group) => {
-        const name = group.group.title || group.group.summary;
+        const hasConversation = conversationGroupIds?.has(group.id) ?? false;
+        const name = `${group.group.title || group.group.summary}${
+          hasConversation ? " — has conversation" : ""
+        }`;
         return (
           <button
+            data-conversation={hasConversation ? "" : undefined}
             key={group.id}
             ref={(node) => {
               if (node) lineRefs.current.set(group.id, node);

@@ -8,7 +8,11 @@
 // bot self-assigned severity.
 import { describe, expect, it } from "vitest";
 import type { BriefChunk } from "../brief/types";
-import { buildConversationDigest } from "./digest";
+import {
+  buildConversationDigest,
+  buildInlineThreads,
+  splitInlineRows,
+} from "./digest";
 import type { ConversationThread, PrConversation } from "./types";
 
 function chunk(id: string, file: string): BriefChunk {
@@ -244,5 +248,89 @@ describe("buildConversationDigest", () => {
         ownThreadIds: new Set(),
       }),
     ).toEqual([]);
+  });
+});
+
+describe("buildInlineThreads", () => {
+  it("puts fresh human threads inline at their chunk (resolved included, collapsed later)", () => {
+    const openThread = thread({ line: 10 });
+    const resolved = thread({ line: 11, isResolved: true });
+    const inline = buildInlineThreads({
+      conversation: conversation([openThread, resolved]),
+      chunks: CHUNKS,
+      ownThreadIds: new Set(),
+    });
+    const rows = inline.get("c1") ?? [];
+    const ids = rows.flatMap((row) =>
+      row.kind === "thread" ? [row.thread.rootCommentId] : [],
+    );
+    expect(ids).toEqual([openThread.rootCommentId, resolved.rootCommentId]);
+  });
+
+  it("aggregates only UNRESOLVED bot threads inline; resolved bot threads stay digest-only", () => {
+    const botOpen = thread({ login: "coderabbitai", isBot: true, line: 10 });
+    const botResolved = thread({
+      login: "coderabbitai",
+      isBot: true,
+      line: 11,
+      isResolved: true,
+    });
+    const inline = buildInlineThreads({
+      conversation: conversation([botOpen, botResolved]),
+      chunks: CHUNKS,
+      ownThreadIds: new Set(),
+    });
+    const rows = inline.get("c1") ?? [];
+    const botRow = rows.find((row) => row.kind === "bot-group");
+    if (botRow?.kind !== "bot-group") throw new Error("expected bot group");
+    expect(botRow.threads).toHaveLength(1);
+    expect(botRow.threads[0]?.thread.rootCommentId).toBe(botOpen.rootCommentId);
+  });
+
+  it("never inlines outdated or unanchored threads", () => {
+    const outdated = thread({ isOutdated: true });
+    const renamed = thread({ path: "src/gone.ts", line: 10 });
+    const inline = buildInlineThreads({
+      conversation: conversation([outdated, renamed]),
+      chunks: CHUNKS,
+      ownThreadIds: new Set(),
+    });
+    expect(inline.size).toBe(0);
+  });
+
+  it("drops an all-resolved bot group entirely (no empty disclosure)", () => {
+    const botResolved = thread({
+      login: "coderabbitai",
+      isBot: true,
+      line: 10,
+      isResolved: true,
+    });
+    const inline = buildInlineThreads({
+      conversation: conversation([botResolved]),
+      chunks: CHUNKS,
+      ownThreadIds: new Set(),
+    });
+    expect(inline.get("c1")).toBeUndefined();
+  });
+});
+
+describe("splitInlineRows", () => {
+  it("routes human threads to their diff-row index and bots to chunk-level groups", () => {
+    const human = thread({ line: 10 });
+    const bot = thread({ login: "coderabbitai", isBot: true, line: 11 });
+    const rows =
+      buildInlineThreads({
+        conversation: conversation([human, bot]),
+        chunks: CHUNKS,
+        ownThreadIds: new Set(),
+      }).get("c1") ?? [];
+    const split = splitInlineRows(rows);
+    // chunk c1 diff: ctx(9)=0, add(10)=1, add(11)=2, add(12)=3.
+    expect([...split.byRow.keys()]).toEqual([1]);
+    expect(split.byRow.get(1)?.[0]?.thread.rootCommentId).toBe(
+      human.rootCommentId,
+    );
+    expect(split.botGroups).toHaveLength(1);
+    expect(split.botGroups[0]?.author).toBe("coderabbitai");
   });
 });

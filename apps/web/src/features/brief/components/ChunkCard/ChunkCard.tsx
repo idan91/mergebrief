@@ -19,6 +19,9 @@ import { riskChipView } from "../../viewModel";
 import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
 import { RiskBadge } from "../Badge/RiskBadge";
 import { RoleBadge } from "../Badge/RoleBadge";
+import { splitInlineRows, type DigestRow } from "../../../conversation/digest";
+import { InlineThreads } from "../../../conversation/components/InlineThreads/InlineThreads";
+import type { ThreadComposerWiring } from "../../../conversation/components/ConversationSection/ConversationSection";
 import { DiffTable } from "../DiffTable/DiffTable";
 import styles from "./ChunkCard.module.scss";
 
@@ -40,6 +43,9 @@ export interface ChunkCardProps {
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
   toggleReviewComment: (commentId: string) => void;
   updateReviewComment: (commentId: string, body: string) => void;
+  /** Inline conversation threads at this chunk (BRIEF-25); absent = none. */
+  conversationRows?: DigestRow[] | undefined;
+  conversationComposer?: ThreadComposerWiring | undefined;
 }
 
 /**
@@ -88,6 +94,8 @@ export const ChunkCard = memo(function ChunkCard({
   saveReviewComment,
   toggleReviewComment,
   updateReviewComment,
+  conversationRows,
+  conversationComposer,
 }: ChunkCardProps) {
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
 
@@ -96,6 +104,13 @@ export const ChunkCard = memo(function ChunkCard({
   const comparisonView = useMemo(
     () => buildChunkComparisonView(chunk, comparison.marks),
     [chunk, comparison.marks],
+  );
+  // Live threads split (smoke feedback 2026-07-08): humans render row-level
+  // inside the diff (under their lines); bots keep ONE aggregated
+  // chunk-level disclosure.
+  const conversationSplit = useMemo(
+    () => splitInlineRows(conversationRows ?? []),
+    [conversationRows],
   );
   const chunkReviewComments = reviewCommentsForChunk(
     addressedReviewComments,
@@ -119,6 +134,9 @@ export const ChunkCard = memo(function ChunkCard({
       data-reviewed={reviewed ? "" : undefined}
       data-state={expanded ? "open" : "collapsed"}
       id={chunk.id}
+      // Programmatic focus target for the conversation jump contract
+      // (BRIEF-25): move focus with the scroll, never leave it behind.
+      tabIndex={-1}
     >
       <div className={styles["head"]}>
         <button
@@ -192,7 +210,16 @@ export const ChunkCard = memo(function ChunkCard({
               ) : null}
             </div>
           ) : null}
+          {conversationSplit.botGroups.length > 0 &&
+          conversationComposer !== undefined ? (
+            <InlineThreads
+              composer={conversationComposer}
+              rows={conversationSplit.botGroups}
+            />
+          ) : null}
           <DiffTable
+            conversationComposer={conversationComposer}
+            conversationThreadsByRow={conversationSplit.byRow}
             activeCommentAnchor={activeCommentAnchor}
             addressedComments={inlineReviewComments}
             cancelCommentComposer={cancelCommentComposer}

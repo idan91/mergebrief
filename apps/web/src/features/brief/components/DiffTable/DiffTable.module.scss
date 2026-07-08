@@ -167,4 +167,29 @@
       max-inline-size: calc(100cqw - 112px);
     }
   }
+
+  /* Conversation jump flash (BRIEF-25 focus contract), row-level twin of
+     ChunkCard's chunk flash: transient highlight on the thread row the
+     digest jumped to. Inset ring — an outer box-shadow on a table row
+     clips against adjacent rows. */
+  .commentRow[data-conversation-flash] > td > * {
+    animation: conversation-row-flash 1.4s ease-out 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .commentRow[data-conversation-flash] > td > * {
+      animation: none;
+      box-shadow: 0 0 0 2px #d9b36c;
+    }
+  }
+}
+
+@keyframes conversation-row-flash {
+  0% {
+    box-shadow: 0 0 0 2px #d9b36c;
+  }
+
+  100% {
+    box-shadow: 0 0 0 2px transparent;
+  }
 }

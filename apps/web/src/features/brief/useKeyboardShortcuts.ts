@@ -16,6 +16,8 @@ export interface KeyboardShortcutsOptions {
   jumpToChunk: (chunkId: string) => void;
   toggleFocusMode: () => void;
   toggleHelp: () => void;
+  /** Jump to the Conversation section; absent on the local path (no section). */
+  jumpToConversation?: (() => void) | undefined;
 }
 
 /** The minimal slice of a keydown event the decision logic needs. */
@@ -40,7 +42,8 @@ export interface ShortcutState {
 export type ShortcutAction =
   | { type: "jump"; chunkId: string }
   | { type: "toggleFocus" }
-  | { type: "toggleHelp" };
+  | { type: "toggleHelp" }
+  | { type: "jumpToConversation" };
 
 const TYPING_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
@@ -106,6 +109,8 @@ export function resolveShortcut(
 
   if (key === "z") return { type: "toggleFocus" };
   if (key === "?") return { type: "toggleHelp" };
+  // C — jump to the Conversation section (BRIEF-25).
+  if (key === "c") return { type: "jumpToConversation" };
   return null;
 }
 
@@ -147,9 +152,15 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
         },
       );
       if (!action) return;
+      // C is a no-op without a section to jump to (local path) — don't
+      // swallow the key.
+      if (action.type === "jumpToConversation" && !o.jumpToConversation) {
+        return;
+      }
       event.preventDefault();
       if (action.type === "jump") o.jumpToChunk(action.chunkId);
       else if (action.type === "toggleFocus") o.toggleFocusMode();
+      else if (action.type === "jumpToConversation") o.jumpToConversation?.();
       else o.toggleHelp();
     }
 

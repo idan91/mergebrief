@@ -115,3 +115,17 @@
     }
   }
 }
+
+/* Conversation marker (BRIEF-25): a group with live threads carries a dot
+   beside its line — its name already appends "has conversation" for AT. */
+.line[data-conversation]::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: #d9b36c;
+  transform: translateY(-50%);
+}

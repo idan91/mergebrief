@@ -7,6 +7,8 @@ import { useRevisionNavigation } from "../../useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import type { AddressedReviewComment, Brief } from "../../types";
 import type { BriefViewModel, RiskFlag } from "../../viewModel";
+import type { DigestRow } from "../../../conversation/digest";
+import type { ThreadComposerWiring } from "../../../conversation/components/ConversationSection/ConversationSection";
 import { ChunkCard } from "../ChunkCard/ChunkCard";
 import { GroupCard } from "../GroupCard/GroupCard";
 import styles from "./StoryView.module.scss";
@@ -45,6 +47,9 @@ export interface StoryViewProps {
   toggleRiskGroup: (flagIds: string[]) => void;
   toggleReviewComment: (commentId: string) => void;
   updateReviewComment: (commentId: string, body: string) => void;
+  /** Inline conversation threads per chunk (BRIEF-25); absent on the local path. */
+  conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
+  conversationComposer?: ThreadComposerWiring | undefined;
 }
 
 export function StoryView(props: StoryViewProps) {
@@ -152,6 +157,8 @@ export function StoryView(props: StoryViewProps) {
                   }
                   deleteReviewComment={props.deleteReviewComment}
                   existingReviewCommentCount={props.existingReviewCommentCount}
+                  conversationComposer={props.conversationComposer}
+                  conversationRows={props.conversationByChunk?.get(chunk.id)}
                   markReviewed={props.markReviewed}
                   openCommentComposer={props.openCommentComposer}
                   saveReviewComment={props.saveReviewComment}

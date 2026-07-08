@@ -3,6 +3,14 @@ import { Fragment, useEffect, useState, type CSSProperties } from "react";
 import { rangeBetween } from "../../../../lib/collections";
 import { CommentComposer } from "../../../review/components/CommentComposer/CommentComposer";
 import { CommentThread } from "../../../review/components/CommentThread/CommentThread";
+import {
+  ThreadRowView,
+  type ThreadComposerWiring,
+} from "../../../conversation/components/ConversationSection/ConversationSection";
+import type { DigestThreadRow } from "../../../conversation/digest";
+
+// Row-level threads already sit AT their line — the detail's jump is hidden.
+const noJump = () => undefined;
 import { AddressedDiffComment } from "../../../review/components/AddressedDiffComment/AddressedDiffComment";
 import {
   createCommentAnchor,
@@ -37,6 +45,9 @@ export interface DiffTableProps {
   comparisonSkipReason: RevisionNarrativeSkipReason | null;
   activeCommentAnchor: CommentAnchor | null;
   addressedComments: AddressedReviewComment[];
+  /** Live conversation threads under their diff rows (BRIEF-25); optional. */
+  conversationThreadsByRow?: ReadonlyMap<number, DigestThreadRow[]> | undefined;
+  conversationComposer?: ThreadComposerWiring | undefined;
   cancelCommentComposer: () => void;
   comments: ReviewComment[];
   deleteReviewComment: (commentId: string) => void;
@@ -55,6 +66,8 @@ export function DiffTable({
   comparisonSkipReason,
   activeCommentAnchor,
   addressedComments,
+  conversationThreadsByRow,
+  conversationComposer,
   cancelCommentComposer,
   comments,
   deleteReviewComment,
@@ -66,6 +79,12 @@ export function DiffTable({
   updateReviewComment,
 }: DiffTableProps) {
   const [dragStart, setDragStart] = useState<number | null>(null);
+  // Expansion for the live threads rendered under rows (visible state,
+  // local to this table instance) — declared with the other hooks, before
+  // the no-diff early return.
+  const [expandedConversation, setExpandedConversation] = useState<
+    ReadonlySet<number>
+  >(new Set());
   const [dragCurrent, setDragCurrent] = useState<number | null>(null);
   const [railHover, setRailHover] = useState<{
     run: ComparisonRun;
@@ -116,6 +135,13 @@ export function DiffTable({
       ? []
       : rangeBetween(dragStart, dragCurrent);
   const activeRowIds = new Set(activeCommentAnchor?.rowIds ?? []);
+  const toggleConversationThread = (threadId: number) =>
+    setExpandedConversation((current) => {
+      const next = new Set(current);
+      if (next.has(threadId)) next.delete(threadId);
+      else next.add(threadId);
+      return next;
+    });
   const overlayActive = comparisonView.runs.length > 0;
   const metaColSpan = overlayActive ? 4 : 3;
 
@@ -252,6 +278,30 @@ export function DiffTable({
                       </td>
                     </tr>
                   ))}
+                  {(conversationThreadsByRow?.get(index) ?? []).map((row) =>
+                    conversationComposer !== undefined ? (
+                      <tr
+                        className={styles["commentRow"]}
+                        // Addressable target for the digest's "Jump to
+                        // comment" (BriefPage descends to this row).
+                        data-conversation-thread={row.thread.rootCommentId}
+                        key={`conversation-${row.thread.rootCommentId}`}
+                      >
+                        <td colSpan={metaColSpan}>
+                          <ThreadRowView
+                            composer={conversationComposer}
+                            expanded={expandedConversation.has(
+                              row.thread.rootCommentId,
+                            )}
+                            hideJump
+                            jumpToChunk={noJump}
+                            row={row}
+                            toggle={toggleConversationThread}
+                          />
+                        </td>
+                      </tr>
+                    ) : null,
+                  )}
                   {rowAddressedComments.map((comment) => (
                     <tr
                       className={styles["commentRow"]}
