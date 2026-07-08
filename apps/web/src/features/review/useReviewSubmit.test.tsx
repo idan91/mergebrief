@@ -53,6 +53,7 @@ function draft(id: string): ReviewComment {
 
 function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
   const markSubmitted = vi.fn();
+  const recordSubmittedReview = vi.fn();
   const announce = vi.fn();
   const closeReceipt = vi.fn();
   const resetOutcome = vi.fn();
@@ -64,6 +65,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     comments: [draft("a")],
     receipt: RECEIPT,
     markSubmitted,
+    recordSubmittedReview,
     announce,
     closeReceipt,
     resetOutcome,
@@ -77,6 +79,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     rendered,
     action,
     markSubmitted,
+    recordSubmittedReview,
     announce,
     closeReceipt,
     resetOutcome,
@@ -99,7 +102,14 @@ describe("useReviewSubmit", () => {
   });
 
   it("submits the signature-line body and flips drafts on success", async () => {
-    const { rendered, action, markSubmitted, announce, closeReceipt } = setup();
+    const {
+      rendered,
+      action,
+      markSubmitted,
+      recordSubmittedReview,
+      announce,
+      closeReceipt,
+    } = setup();
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 5,
@@ -122,7 +132,9 @@ describe("useReviewSubmit", () => {
       "db:1:7:base:head",
       ["a"],
       true,
+      5,
     );
+    expect(recordSubmittedReview).toHaveBeenCalledWith(5);
     expect(closeReceipt).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith(expect.stringMatching(/posted/i));
     expect(rendered.result.current.error).toBeNull();
@@ -208,6 +220,7 @@ describe("useReviewSubmit", () => {
       "db:1:7:base:head",
       ["a"],
       false,
+      5,
     );
   });
 

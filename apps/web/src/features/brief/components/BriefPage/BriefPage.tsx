@@ -475,6 +475,7 @@ function BriefScreen({
   const reviewedChunks = useMindMap((state) => state.reviewedChunks);
   const checkedItems = useMindMap((state) => state.checkedItems);
   const reviewComments = useMindMap((state) => state.reviewComments);
+  const submittedReviewIds = useMindMap((state) => state.submittedReviewIds);
   const reviewOutcome = useMindMap((state) => state.reviewOutcome);
   const actions = useMindMapActions();
   const scrollToChunk = useChunkScroller();
@@ -586,6 +587,7 @@ function BriefScreen({
         checkedItems,
         reviewComments,
         reviewOutcome,
+        submittedReviewIds,
       }),
     [
       briefId,
@@ -596,6 +598,7 @@ function BriefScreen({
       reviewComments,
       reviewOutcome,
       reviewedChunks,
+      submittedReviewIds,
     ],
   );
   const receipt = useMemo(
@@ -928,6 +931,8 @@ function BriefScreen({
     comments: reviewComments,
     receipt,
     markSubmitted: (ids) => actions.markCommentsSubmitted(ids),
+    recordSubmittedReview: (reviewId) =>
+      actions.recordSubmittedReview(reviewId),
     announce: announceSubmit,
     closeReceipt,
     resetOutcome: () => actions.setOutcome("comment"),

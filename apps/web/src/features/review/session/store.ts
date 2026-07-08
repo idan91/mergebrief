@@ -26,6 +26,11 @@ export interface MindMapState {
   checkedItems: Record<CheckBucket, Set<number>>;
   reviewComments: ReviewComment[];
   reviewOutcome: ReviewOutcome;
+  /**
+   * @description Review ids returned by this session's successful submits —
+   * the own-comment join keys against fetched conversation threads (BRIEF-25).
+   */
+  submittedReviewIds: number[];
 }
 
 export interface MindMapActions {
@@ -62,6 +67,11 @@ export interface MindMapActions {
    * ships only comments GitHub never saw (BRIEF-23).
    */
   markCommentsSubmitted(ids: readonly string[]): void;
+  /**
+   * @description Record a successful submit's created review id — the
+   * server-backed join key for own-comment reconciliation (BRIEF-25).
+   */
+  recordSubmittedReview(reviewId: number): void;
   setOutcome(outcome: ReviewOutcome): void;
   /**
    * @description Resets the whole session to a fresh state (the "Clear local
@@ -115,6 +125,7 @@ export function deriveInitialState(model: BriefViewModel): MindMapState {
     checkedItems: {},
     reviewComments: [],
     reviewOutcome: "comment",
+    submittedReviewIds: [],
   };
 }
 
@@ -216,6 +227,13 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
               : comment,
           ),
         }));
+      },
+      recordSubmittedReview(reviewId) {
+        set((state) =>
+          state.submittedReviewIds.includes(reviewId)
+            ? {}
+            : { submittedReviewIds: [...state.submittedReviewIds, reviewId] },
+        );
       },
       setOutcome(outcome) {
         set({ reviewOutcome: outcome });

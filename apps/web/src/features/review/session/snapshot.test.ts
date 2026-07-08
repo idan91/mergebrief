@@ -81,3 +81,32 @@ describe("markSnapshotCommentsSubmitted", () => {
     expect(readSnapshot(BRIEF_ID)?.reviewOutcome).toBe("comment");
   });
 });
+
+describe("submittedReviewIds (BRIEF-25)", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  it("round-trips through write + read", () => {
+    writeSnapshot({ ...snapshot([]), submittedReviewIds: [4_647_663_464] });
+    expect(readSnapshot(BRIEF_ID)?.submittedReviewIds).toEqual([4_647_663_464]);
+  });
+
+  it("accepts a pre-BRIEF-25 snapshot without the key (legacy tolerance)", () => {
+    writeSnapshot(snapshot([]));
+    const stored = readSnapshot(BRIEF_ID);
+    expect(stored).toBeDefined();
+    expect(stored?.submittedReviewIds).toBeUndefined();
+  });
+
+  it("markSnapshotCommentsSubmitted records the review id durably in the same write", () => {
+    writeSnapshot(snapshot([comment("a", "draft")]));
+    markSnapshotCommentsSubmitted(BRIEF_ID, ["a"], false, 4_647_663_464);
+    const stored = readSnapshot(BRIEF_ID);
+    expect(stored?.submittedReviewIds).toEqual([4_647_663_464]);
+    expect(stored?.reviewComments[0]?.status).toBe("submitted");
+    // Repeat records dedupe.
+    markSnapshotCommentsSubmitted(BRIEF_ID, [], false, 4_647_663_464);
+    expect(readSnapshot(BRIEF_ID)?.submittedReviewIds).toEqual([4_647_663_464]);
+  });
+});

@@ -29,6 +29,11 @@ export interface UseReviewSubmitInput {
    */
   markSubmitted: (ids: readonly string[]) => void;
   /**
+   * Records the created review id in the live session store — the
+   * own-comment join key for conversation reconciliation (BRIEF-25).
+   */
+  recordSubmittedReview: (reviewId: number) => void;
+  /**
    * Page-level live-region channel (the toast) — carries success AND failure
    * copy, because the drawer that renders the inline error may already be
    * closed (and inert) by the time the request settles.
@@ -91,6 +96,7 @@ export function useReviewSubmit(
     comments,
     receipt,
     markSubmitted,
+    recordSubmittedReview,
     announce,
     closeReceipt,
     resetOutcome,
@@ -148,6 +154,7 @@ export function useReviewSubmit(
             const verdictDelivered = outcome !== "comment";
             try {
               markSubmitted(draftIds);
+              recordSubmittedReview(result.reviewId);
               if (verdictDelivered) {
                 resetOutcome();
               }
@@ -160,6 +167,7 @@ export function useReviewSubmit(
                 briefId,
                 draftIds,
                 verdictDelivered,
+                result.reviewId,
               );
             } catch (persistError) {
               // Best-effort: the review IS on GitHub (sessionStorage quota /
@@ -215,6 +223,7 @@ export function useReviewSubmit(
     markSubmitted,
     outcome,
     receipt,
+    recordSubmittedReview,
     resetOutcome,
   ]);
 

@@ -217,3 +217,15 @@ describe("snapshot round-trip", () => {
     expect(restored.reviewOutcome).toBe("request-changes");
   });
 });
+
+describe("recordSubmittedReview", () => {
+  it("appends the created review id and dedupes repeats (BRIEF-25 join keys)", () => {
+    const store = freshStore();
+    store.getState().actions.recordSubmittedReview(4_647_663_464);
+    store.getState().actions.recordSubmittedReview(4_647_663_464);
+    store.getState().actions.recordSubmittedReview(4_700_000_000);
+    expect(store.getState().submittedReviewIds).toEqual([
+      4_647_663_464, 4_700_000_000,
+    ]);
+  });
+});

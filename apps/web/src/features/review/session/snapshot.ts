@@ -20,6 +20,8 @@ export interface SessionSnapshot {
   checkedItems: Record<CheckBucket, number[]>;
   reviewComments: ReviewComment[];
   reviewOutcome: ReviewOutcome;
+  /** Absent in pre-BRIEF-25 stored snapshots; hydrates to []. */
+  submittedReviewIds?: number[];
 }
 
 const STORAGE_KEY = "code-review:session:v2";
@@ -46,6 +48,7 @@ export function serializeSnapshot(
     checkedItems,
     reviewComments: state.reviewComments,
     reviewOutcome: state.reviewOutcome,
+    submittedReviewIds: [...state.submittedReviewIds],
   };
 }
 
@@ -64,6 +67,7 @@ export function snapshotToState(snapshot: SessionSnapshot): MindMapState {
     checkedItems,
     reviewComments: snapshot.reviewComments,
     reviewOutcome: snapshot.reviewOutcome,
+    submittedReviewIds: snapshot.submittedReviewIds ?? [],
   };
 }
 
@@ -143,7 +147,15 @@ function isSessionSnapshot(value: unknown): value is SessionSnapshot {
     Array.isArray(value["reviewComments"]) &&
     value["reviewComments"].every(isReviewComment) &&
     typeof value["reviewOutcome"] === "string" &&
-    REVIEW_OUTCOMES.includes(value["reviewOutcome"])
+    REVIEW_OUTCOMES.includes(value["reviewOutcome"]) &&
+    isOptionalNumberArray(value["submittedReviewIds"])
+  );
+}
+
+function isOptionalNumberArray(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (Array.isArray(value) && value.every((item) => typeof item === "number"))
   );
 }
 
@@ -202,17 +214,26 @@ export function markSnapshotCommentsSubmitted(
   briefId: string,
   ids: readonly string[],
   resetOutcomeToComment = false,
+  reviewId?: number,
 ): void {
-  if (ids.length === 0 && !resetOutcomeToComment) return;
+  if (ids.length === 0 && !resetOutcomeToComment && reviewId === undefined)
+    return;
   const snapshot = readSnapshot(briefId);
   if (snapshot === undefined) return;
   const flipped = new Set(ids);
+  const recorded = snapshot.submittedReviewIds ?? [];
   writeSnapshot({
     ...snapshot,
     reviewComments: snapshot.reviewComments.map((comment) =>
       flipped.has(comment.id) ? { ...comment, status: "submitted" } : comment,
     ),
     ...(resetOutcomeToComment ? { reviewOutcome: "comment" } : {}),
+    // The created review id is the own-comment join key (BRIEF-25) — written
+    // durably in the SAME snapshot write as the flips.
+    submittedReviewIds:
+      reviewId === undefined || recorded.includes(reviewId)
+        ? recorded
+        : [...recorded, reviewId],
   });
 }
 
