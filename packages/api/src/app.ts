@@ -10,7 +10,7 @@
 import { Hono } from "hono";
 import type { AppDatabase } from "persistence";
 import { authRoute, type AuthDeps } from "./routes/auth";
-import { conversationRoute, type ConversationGitHubPort } from "./routes/conversation";
+import { conversationRoutes, type ConversationGitHubPort } from "./routes/conversation";
 import { installationsRoute } from "./routes/installations";
 import { pullsRoute } from "./routes/pulls";
 import { readsRoute } from "./routes/reads";
@@ -40,10 +40,15 @@ export function createApp(deps: AppDeps): Hono {
   // would traverse BOTH gates (two GitHub access checks cold; a transient
   // failure on the second 404s a just-verified request). Registration order
   // ensures a submit POST hits exactly one per-repo gate: its own.
-  app.route("/", reviewSubmitRoute(deps));
-  // Conversation read (BRIEF-25) — mounted before readsRoute for the same
+  // Conversation surface (BRIEF-25): built first so the submit route can
+  // evict the PR's conversation cache on its own success path (a submitted
+  // review IS a conversation write). Mounted before readsRoute for the same
   // single-gate reason as the submit route.
-  app.route("/", conversationRoute(deps));
+  const conversation = conversationRoutes(deps);
+  app.route("/", reviewSubmitRoute(deps, (installationId, repoId, prNumber) =>
+    conversation.evictConversation(installationId, repoId, prNumber),
+  ));
+  app.route("/", conversation.app);
   app.route("/", readsRoute(deps));
   return app;
 }

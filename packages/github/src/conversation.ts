@@ -10,6 +10,7 @@ import { z } from "zod";
 import {
   GitHubApiErrorCode,
   mapGraphqlError,
+  mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
 } from "./errors";
@@ -522,4 +523,42 @@ export async function fetchPullRequestConversation(
       hasMorePrComments: pullRequest.comments.pageInfo.hasNextPage,
     },
   };
+}
+
+export interface CreateReviewCommentReplyInput {
+  readonly owner: string;
+  readonly repo: string;
+  readonly prNumber: number;
+  /** The thread's ROOT comment id (`ConversationThread.rootCommentId`). */
+  readonly commentId: number;
+  readonly body: string;
+}
+
+/**
+ * Reply to an existing review thread, authored by whoever the octokit's token
+ * identifies (the viewer's user-to-server token — ADR 0016 #4). GitHub API
+ * fact (ADR 0027): replies post IMMEDIATELY, outside any pending review —
+ * create-review's `comments[]` cannot express `in_reply_to`, so there is no
+ * batched alternative. Returns the created reply's comment id.
+ */
+export async function createReviewCommentReply(
+  octokit: Octokit,
+  input: CreateReviewCommentReplyInput,
+): Promise<Result<{ readonly commentId: number }, GitHubApiError>> {
+  try {
+    const response = await octokit.rest.pulls.createReplyForReviewComment({
+      owner: input.owner,
+      repo: input.repo,
+      pull_number: input.prNumber,
+      comment_id: input.commentId,
+      body: input.body,
+    });
+    // Same precision guard as comments.ts: JSON.parse rounds ints past 2^53.
+    if (!Number.isSafeInteger(response.data.id)) {
+      return { ok: false, error: unexpectedResponseError("create review comment reply") };
+    }
+    return { ok: true, value: { commentId: response.data.id } };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "create review comment reply") };
+  }
 }

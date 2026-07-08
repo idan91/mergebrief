@@ -100,11 +100,13 @@ export type { GitHubOAuthApp, OAuthTokens, OAuthError, UserInstallation } from "
 // numbers; GraphQL node ids never leave the module.
 export {
   fetchPullRequestConversation,
+  createReviewCommentReply,
   ThreadSubjectType,
   ReviewVerdictState,
 } from "./conversation";
 export type {
   FetchPullRequestConversationInput,
+  CreateReviewCommentReplyInput,
   PrConversation,
   ConversationThread,
   ConversationComment,

@@ -47,3 +47,18 @@ describe("createTtlCache", () => {
     expect(cache.get("c", 0)).toBe(3);
   });
 });
+
+describe("delete", () => {
+  it("removes a live entry so the next get misses (conversation-cache eviction)", () => {
+    const cache = createTtlCache<string>(10);
+    cache.set("k", "v", Date.now() + 60_000);
+    expect(cache.get("k")).toBe("v");
+    cache.delete("k");
+    expect(cache.get("k")).toBeUndefined();
+  });
+
+  it("is a no-op for an absent key", () => {
+    const cache = createTtlCache<string>(10);
+    expect(() => cache.delete("missing")).not.toThrow();
+  });
+});

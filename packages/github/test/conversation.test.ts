@@ -6,7 +6,7 @@
 // tier — a GraphQL failure is the section's error state).
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
-import { fetchPullRequestConversation } from "../src/conversation";
+import { createReviewCommentReply, fetchPullRequestConversation } from "../src/conversation";
 import { GitHubApiErrorCode } from "../src/errors";
 import {
   conversationResponse,
@@ -496,5 +496,76 @@ describe("fetchPullRequestConversation — failure paths", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.RATE_LIMITED);
+  });
+});
+
+function mockReplyOctokit(createReply: ReturnType<typeof vi.fn>): Octokit {
+  const stub = { rest: { pulls: { createReplyForReviewComment: createReply } } };
+  return stub as unknown as Octokit;
+}
+
+describe("createReviewCommentReply", () => {
+  it("posts the reply to the root comment and returns the created comment id", async () => {
+    const createReply = vi.fn().mockResolvedValue({ data: { id: 7001 } });
+    const result = await createReviewCommentReply(mockReplyOctokit(createReply), {
+      owner: "o",
+      repo: "r",
+      prNumber: 7,
+      commentId: 1001,
+      body: "a follow-up",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.commentId).toBe(7001);
+    expect(createReply).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      pull_number: 7,
+      comment_id: 1001,
+      body: "a follow-up",
+    });
+  });
+
+  it("rejects a created id past the safe-integer range", async () => {
+    const createReply = vi.fn().mockResolvedValue({ data: { id: 9007199254740992 } });
+    const result = await createReviewCommentReply(mockReplyOctokit(createReply), {
+      owner: "o",
+      repo: "r",
+      prNumber: 7,
+      commentId: 1001,
+      body: "x",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+  });
+
+  it("maps a 404 (root comment gone) to a sanitized not-found", async () => {
+    const createReply = vi.fn().mockRejectedValue(
+      new RequestError("HTTP 404", 404, {
+        request: {
+          method: "POST",
+          url: "https://api.github.com/repos/o/r/pulls/7/comments/1001/replies",
+          headers: { authorization: `token ${LEAKED_TOKEN}` },
+        },
+        response: {
+          status: 404,
+          url: "https://api.github.com/repos/o/r/pulls/7/comments/1001/replies",
+          headers: {},
+          data: { message: "Not Found" },
+        },
+      }),
+    );
+    const result = await createReviewCommentReply(mockReplyOctokit(createReply), {
+      owner: "o",
+      repo: "r",
+      prNumber: 7,
+      commentId: 1001,
+      body: "x",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(JSON.stringify(result.error)).not.toContain(LEAKED_TOKEN);
   });
 });

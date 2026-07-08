@@ -1,19 +1,26 @@
-// The PR-conversation read surface (BRIEF-25, ADR 0027).
+// The PR-conversation surface (BRIEF-25, ADR 0027): a gated live-fetch GET and
+// a gated reply POST.
 //
-// GET /api/repos/:repoId/pulls/:prNumber/conversation: fetched live from
-// GitHub over the package's GraphQL primitive with the INSTALLATION token
-// (the gate already proved the viewer's repo access; a shared token means
-// one rate budget and ONE cache entry per PR — viewer tokens would fragment
-// both). 60s positive TTL, response `no-store`, nothing persisted. No REST
-// fallback tier: a fetch failure is the section's error state.
+// READ — GET /api/repos/:repoId/pulls/:prNumber/conversation: fetched live
+// from GitHub over the package's GraphQL primitive with the INSTALLATION
+// token (the gate already proved the viewer's repo access; a shared token
+// means one rate budget and ONE cache entry per PR — viewer tokens would
+// fragment both). 60s positive TTL, response `no-store`, nothing persisted.
+// No REST fallback tier: a fetch failure is the section's error state.
 //
-// The reply POST (viewer token) and write-path cache eviction land in the
-// next PR of the stack; the installation octokit enters through
-// `ConversationGitHubPort` — injected by the composition root
-// (`appConversationPort` over the App-JWT client), substituted in tests.
-// This package never constructs App auth itself.
+// WRITE — POST .../comments/:commentId/replies: the VIEWER's token (ADR 0016
+// #4 — authorship stays the reviewer's), lazy-decrypt + refresh-once, fresh
+// repo re-resolve before the mutating call (gated-route rule), and the PR's
+// conversation cache key is evicted on success so the next read reflects it.
+//
+// The installation octokit enters through `ConversationGitHubPort` — injected
+// by the composition root (`appConversationPort` over the App-JWT client),
+// substituted in tests. This package never constructs App auth itself.
 import { Hono, type Context } from "hono";
 import {
+  createReviewCommentReply,
+  createUserOctokit,
+  fetchRepositoryById,
   fetchPullRequestConversation,
   getInstallationClient,
   GitHubApiErrorCode,
@@ -22,10 +29,18 @@ import {
   type GitHubApiError,
   type PrConversation,
 } from "github";
-import { forTenant, type InstallationId, type RepoId } from "persistence";
+import {
+  audit,
+  AuditAction,
+  AuditActorType,
+  decryptToken,
+  forTenant,
+  type InstallationId,
+  type RepoId,
+} from "persistence";
 import type { Result } from "types";
 import { z } from "zod";
-import type { AuthRouteDeps } from "./auth";
+import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
 import { createTtlCache } from "./ttl-cache";
 
@@ -72,6 +87,18 @@ export function appConversationPort(app: AppClient): ConversationGitHubPort {
 // ---------------------------------------------------------------------------
 
 const prNumberSchema = z.coerce.number().int().positive();
+/** A reply target id is a REST comment id — bounded by JS integer precision. */
+const commentIdSchema = z.coerce
+  .number()
+  .int()
+  .positive()
+  .refine((value) => Number.isSafeInteger(value));
+
+/** Same cap GitHub enforces on comment bodies (and the submit route mirrors). */
+const MAX_REPLY_BODY_LENGTH = 65_536;
+const replyBodySchema = z.object({
+  body: z.string().min(1).max(MAX_REPLY_BODY_LENGTH),
+});
 
 /** Positive TTL — same 60s staleness family as the other gated reads. */
 const CONVERSATION_CACHE_TTL_MS = 60 * 1000;
@@ -90,7 +117,7 @@ function cacheKey(installationId: InstallationId, repoId: RepoId, prNumber: numb
 function errorJson(
   c: Context<AuthzEnv>,
   message: string,
-  status: 400 | 404 | 502,
+  status: 400 | 401 | 404 | 502,
 ): Response {
   return c.json({ error: message }, status, { "cache-control": "no-store" });
 }
@@ -105,6 +132,18 @@ function splitRepoSlug(fullName: string): { owner: string; repo: string } | unde
   return { owner, repo };
 }
 
+/** Decrypt a session's stored access token; `undefined` if it is unreadable. */
+async function resolveSessionToken(
+  deps: AuthRouteDeps,
+  session: { keyRef: string; ghTokenCiphertext: string },
+): Promise<string | undefined> {
+  const decrypted = await decryptToken(
+    deps.auth.keyProvider,
+    session.keyRef,
+    session.ghTokenCiphertext,
+  );
+  return decrypted.ok ? decrypted.value : undefined;
+}
 
 // ---------------------------------------------------------------------------
 // Route factory.
@@ -114,8 +153,18 @@ export interface ConversationRouteDeps extends AuthRouteDeps {
   readonly github: ConversationGitHubPort;
 }
 
-/** Mount the conversation read behind its own per-repo gate instance. */
-export function conversationRoute(deps: ConversationRouteDeps): Hono<AuthzEnv> {
+export interface ConversationRoutes {
+  readonly app: Hono<AuthzEnv>;
+  /**
+   * Drop the PR's cached conversation. EVERY conversation write calls this —
+   * the reply POST below, and the review-submit route's success path — so a
+   * post-write refetch reflects the write inside the 60s TTL.
+   */
+  evictConversation(installationId: InstallationId, repoId: RepoId, prNumber: number): void;
+}
+
+/** Mount the conversation surface behind its own per-repo gate instance. */
+export function conversationRoutes(deps: ConversationRouteDeps): ConversationRoutes {
   const app = new Hono<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
   // Serialized response bodies, keyed installation:repo:pr (one entry per PR
@@ -123,6 +172,7 @@ export function conversationRoute(deps: ConversationRouteDeps): Hono<AuthzEnv> {
   const cache = createTtlCache<string>(CONVERSATION_CACHE_MAX_ENTRIES);
 
   app.use("/api/repos/:repoId/pulls/:prNumber/conversation", authz);
+  app.use("/api/repos/:repoId/pulls/:prNumber/comments/:commentId/replies", authz);
 
   app.get("/api/repos/:repoId/pulls/:prNumber/conversation", async (c) => {
     const ctx = c.get("ctx");
@@ -167,9 +217,150 @@ export function conversationRoute(deps: ConversationRouteDeps): Hono<AuthzEnv> {
     return conversationJson(c, body);
   });
 
-  return app;
-}
+  app.post("/api/repos/:repoId/pulls/:prNumber/comments/:commentId/replies", async (c) => {
+    let rawBody: unknown;
+    try {
+      rawBody = await c.req.json();
+    } catch {
+      return errorJson(c, "invalid request", 400);
+    }
+    const parsedBody = replyBodySchema.safeParse(rawBody);
+    if (!parsedBody.success) {
+      return errorJson(c, "invalid request", 400);
+    }
+    const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
+    const parsedComment = commentIdSchema.safeParse(c.req.param("commentId"));
+    if (!parsedPr.success || !parsedComment.success) {
+      return errorJson(c, "invalid request", 400);
+    }
 
+    const ctx = c.get("ctx");
+    const repoId = c.get("repoId");
+    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(repoId, parsedPr.data);
+    if (pr === undefined) {
+      return errorJson(c, "not found", 404);
+    }
+
+    // Viewer token: set by the gate on the verified path; on a positive-cache
+    // hit decrypt lazily (same pattern as the diff proxy / submit route).
+    let currentSession = c.get("session");
+    const resolvedToken =
+      c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
+    if (resolvedToken === undefined) {
+      return errorJson(c, "unauthorized", 401);
+    }
+    let accessToken: string = resolvedToken;
+
+    // One refresh budget per REQUEST, shared across both GitHub calls.
+    let refreshSpent = false;
+    const spendRefresh = async (): Promise<boolean> => {
+      if (refreshSpent) {
+        return false;
+      }
+      refreshSpent = true;
+      const refreshed = await refreshSessionToken(deps, currentSession);
+      if (!refreshed.ok) {
+        return false;
+      }
+      currentSession = refreshed.value.session;
+      accessToken = refreshed.value.accessToken;
+      return true;
+    };
+
+    // Mutations re-resolve the repo FRESH by numeric id (gated-route rule):
+    // the gate's cached full name is ≤60s stale, and a rename + name-reuse
+    // inside that window would point the reply at the wrong repository.
+    let repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
+    if (
+      !repoInfo.ok &&
+      repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
+      (await spendRefresh())
+    ) {
+      repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
+    }
+    if (!repoInfo.ok) {
+      if (repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+        return errorJson(c, "unauthorized", 401);
+      }
+      // 403/404 collapse to the gate's 404 posture — no existence leak.
+      if (
+        repoInfo.error.code === GitHubApiErrorCode.NOT_FOUND ||
+        repoInfo.error.code === GitHubApiErrorCode.FORBIDDEN
+      ) {
+        return errorJson(c, "not found", 404);
+      }
+      return errorJson(c, "upstream error", 502);
+    }
+    const target = splitRepoSlug(repoInfo.value.fullName);
+    if (target === undefined) {
+      return errorJson(c, "not found", 404);
+    }
+
+    const replyInput = {
+      owner: target.owner,
+      repo: target.repo,
+      prNumber: pr.prNumber,
+      commentId: parsedComment.data,
+      body: parsedBody.data.body,
+    };
+    let created = await createReviewCommentReply(createUserOctokit(accessToken), replyInput);
+    if (
+      !created.ok &&
+      created.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
+      (await spendRefresh())
+    ) {
+      created = await createReviewCommentReply(createUserOctokit(accessToken), replyInput);
+    }
+    if (!created.ok) {
+      if (created.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+        return errorJson(c, "unauthorized", 401);
+      }
+      // Gated-route rule: ANY in-route GitHub denial (403/404) collapses to
+      // the gate's 404 posture — a root comment gone and a permission denial
+      // must be indistinguishable from a cold denial (codex round 1).
+      if (
+        created.error.code === GitHubApiErrorCode.NOT_FOUND ||
+        created.error.code === GitHubApiErrorCode.FORBIDDEN
+      ) {
+        return errorJson(c, "not found", 404);
+      }
+      return errorJson(c, "upstream error", 502);
+    }
+
+    // The write happened: the cached conversation is stale — drop it so the
+    // FE's post-reply refetch reflects the reply inside the TTL.
+    cache.delete(cacheKey(ctx.installationId, repoId, pr.prNumber));
+
+    // Audit posture consistent with submit (D9: numeric-only) — but the
+    // GitHub write above is the COMMIT POINT: a local audit failure must
+    // never turn a posted reply into an error response (the composer's
+    // upstream copy invites a retry, which would double-post). Best-effort:
+    // log and keep the 201 (codex on the reply-UI PR).
+    try {
+      await audit(deps.handle, {
+        installationId: ctx.installationId,
+        actorType: AuditActorType.REVIEWER,
+        actorId: currentSession.reviewerId,
+        action: AuditAction.SUBMIT,
+        targetType: "review_comment",
+        targetId: BigInt(created.value.commentId),
+      });
+    } catch (auditError) {
+      console.error("reply audit failed after posted reply", auditError);
+    }
+
+    return c.json({ commentId: created.value.commentId }, 201, {
+      "cache-control": "no-store",
+    });
+  });
+
+  return {
+    app,
+    evictConversation(installationId, repoId, prNumber) {
+      cache.delete(cacheKey(installationId, repoId, prNumber));
+    },
+  };
+}
 
 /** A cached/serialized conversation body, per-viewer gated — `no-store`. */
 function conversationJson(c: Context<AuthzEnv>, body: string): Response {

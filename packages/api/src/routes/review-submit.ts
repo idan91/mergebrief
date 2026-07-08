@@ -34,6 +34,8 @@ import {
   AuditActorType,
   decryptToken,
   forTenant,
+  type InstallationId,
+  type RepoId,
   type ValueOf,
 } from "persistence";
 import type { Result } from "types";
@@ -211,8 +213,16 @@ async function resolveSessionToken(
   return decrypted.ok ? decrypted.value : undefined;
 }
 
-/** Mount the submit route behind its own per-repo gate instance. */
-export function reviewSubmitRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
+/**
+ * Mount the submit route behind its own per-repo gate instance.
+ * `evictConversation` is the conversation surface's cache hook (BRIEF-25):
+ * a submitted review is a conversation write, so success drops the PR's
+ * cached conversation.
+ */
+export function reviewSubmitRoute(
+  deps: AuthRouteDeps,
+  evictConversation: (installationId: InstallationId, repoId: RepoId, prNumber: number) => void,
+): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
 
@@ -361,6 +371,10 @@ export function reviewSubmitRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (!created.ok) {
       return submitFailure(c, created.error);
     }
+
+    // A submitted review is a conversation write — the cached conversation
+    // is stale the moment it lands (BRIEF-25).
+    evictConversation(ctx.installationId, c.get("repoId"), pr.prNumber);
 
     // Audit the successful post (D9: numeric-only; the checkpoint itself is
     // the webhook's to write when the echo arrives).

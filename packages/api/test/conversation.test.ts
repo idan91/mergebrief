@@ -1,10 +1,13 @@
-// Conversation-read integration tests (BRIEF-25): `app.request()` against
+// Conversation-surface integration tests (BRIEF-25): `app.request()` against
 // `createApp` over the PGlite harness. The installation-token GraphQL read
 // enters through the injected `ConversationGitHubPort` (stubbed here — the
-// wire→domain mapping is the github package's suite); the gate's access
-// check hits the global-fetch stub (same pattern as reads.test.ts). Covers:
-// gate posture (401/404), the 60s per-PR positive cache (one port call per
-// TTL, shared across viewers), and 404-collapse/502 on port failures.
+// wire→domain mapping is the github package's suite); the viewer-token reply
+// POST and the gate's access check hit the global-fetch stub (same pattern as
+// review-submit.test.ts). Covers: gate posture (401/404), the 60s per-PR
+// positive cache (one port call per TTL, shared across viewers),
+// 404-collapse/502 on port failures, reply validation + refresh-once +
+// fresh-repo re-resolve, audit-on-reply, and evict-on-write (reply AND
+// review submit).
 import { createHash, randomBytes } from "node:crypto";
 import type { Hono } from "hono";
 import type { FetchPullRequestConversationInput, PrConversation } from "github";
@@ -26,6 +29,12 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type AuthDeps, type ConversationGitHubPort } from "../src/lib";
 
+// POST .../comments/{id}/replies is on octokit's `triggersNotification` list:
+// the throttling plugin spaces consecutive reply POSTs ~3s apart through
+// MODULE-GLOBAL Bottleneck groups (shared across this whole file, unfakeable —
+// freezing Date.now poisons the shared limiters). Give the file headroom.
+vi.setConfig({ testTimeout: 30_000 });
+
 const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -34,9 +43,12 @@ const REPO_ID = 424242;
 const REPO_SLUG = "octo/hello";
 const PR_NUMBER = 7;
 const ROOT_COMMENT_ID = 3_538_588_388;
+const REPLY_ID = 3_600_000_001;
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
+const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
+const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
 function keyProvider(): KeyProvider {
   return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
@@ -183,21 +195,74 @@ function repoOk(): Response {
 function repoStatus(status: number): Response {
   return jsonResponse({ message: "denied" }, status);
 }
+function replyCreated(id = REPLY_ID): Response {
+  return jsonResponse({ id }, 201);
+}
+function replyStatus(status: number): Response {
+  return jsonResponse({ message: "denied" }, status);
+}
+function tokenSuccess(): Response {
+  return jsonResponse({
+    access_token: ROTATED_ACCESS,
+    refresh_token: ROTATED_REFRESH,
+    expires_in: 28_800,
+    refresh_token_expires_in: 15_897_600,
+    token_type: "bearer",
+    scope: "",
+  });
+}
+function reviewCreated(id = 987001): Response {
+  return jsonResponse({ id }, 200);
+}
 
 interface StubConfig {
   readonly repositories?: (call: number) => Response;
+  readonly reply?: (call: number) => Response;
+  readonly token?: (call: number) => Response;
+  readonly createReview?: (call: number) => Response;
 }
 interface StubCounts {
   repositories: number;
+  reply: number;
+  token: number;
+  createReview: number;
+  /** Parsed JSON body of each reply POST, in order. */
+  readonly replyBodies: unknown[];
+  /** URL of each reply POST, in order — pins the target repo + comment id. */
+  readonly replyUrls: string[];
 }
 
 function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = { repositories: 0 };
-  const fetchFn = vi.fn(async (input: string | URL | Request): Promise<Response> => {
+  const counts: StubCounts = {
+    repositories: 0,
+    reply: 0,
+    token: 0,
+    createReview: 0,
+    replyBodies: [],
+    replyUrls: [],
+  };
+  const fetchFn = vi.fn(async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.includes("/login/oauth/access_token")) {
+      const i = counts.token++;
+      return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
+    }
     if (url.includes("/repositories/")) {
       const i = counts.repositories++;
       return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
+    }
+    if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/comments\/\d+\/replies$/.test(url)) {
+      const i = counts.reply++;
+      counts.replyUrls.push(url);
+      const raw = init?.body ?? (input instanceof Request ? await input.text() : undefined);
+      if (typeof raw === "string") {
+        counts.replyBodies.push(JSON.parse(raw));
+      }
+      return cfg.reply ? cfg.reply(i) : replyStatus(500);
+    }
+    if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
+      const i = counts.createReview++;
+      return cfg.createReview ? cfg.createReview(i) : jsonResponse({ message: "unexpected" }, 500);
     }
     return jsonResponse({ message: "unexpected endpoint" }, 404);
   });
@@ -237,11 +302,39 @@ async function seedPullRequest(handle: AppDatabase): Promise<void> {
 
 const CONVERSATION_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
 
+function replyPath(commentId: number | string = ROOT_COMMENT_ID): string {
+  return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${commentId}/replies`;
+}
 
 async function getConversation(app: Hono, cookie: string | undefined, path = CONVERSATION_PATH): Promise<Response> {
   return await app.request(path, {
     headers: cookie === undefined ? {} : { cookie: `rs_session=${cookie}` },
   });
+}
+
+async function postReply(
+  app: Hono,
+  cookie: string | undefined,
+  body: unknown,
+  path = replyPath(),
+): Promise<Response> {
+  return await app.request(path, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      ...(cookie === undefined ? {} : { cookie: `rs_session=${cookie}` }),
+    },
+    body: JSON.stringify(body),
+  });
+}
+
+async function replyAuditCount(harness: PgliteHarness): Promise<number> {
+  const rows = await harness.raw(
+    "select count(*)::int as n from audit_log where action = 'submit' and target_type = 'review_comment'",
+  );
+  const n = rows[0]?.["n"];
+  if (typeof n !== "number") throw new Error("unexpected count result");
+  return n;
 }
 
 // ---------------------------------------------------------------------------
@@ -378,6 +471,174 @@ describe("conversation surface", () => {
     });
   });
 
+  describe("POST reply", () => {
+    it("posts the reply with the viewer token to the fresh-resolved repo and audits it", async () => {
+      const { port } = stubPort([okResult()]);
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyCreated(),
+      });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const app = makeApp(port);
+      const res = await postReply(app, cookie, { body: "a follow-up" });
+      expect(res.status).toBe(201);
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(await res.json()).toEqual({ commentId: REPLY_ID });
+      // One reply POST, aimed at the fresh-resolved slug + root comment id.
+      expect(counts.reply).toBe(1);
+      expect(counts.replyUrls[0]).toContain(`/repos/octo/hello/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/replies`);
+      expect(counts.replyBodies[0]).toEqual({ body: "a follow-up" });
+      // Mutation rule: the repo was re-resolved fresh (gate check + re-resolve).
+      expect(counts.repositories).toBeGreaterThanOrEqual(2);
+      expect(await replyAuditCount(harness)).toBe(1);
+    });
+
+    it("rejects an empty or oversized body deterministically (400, nothing posted)", async () => {
+      const { port } = stubPort([okResult()]);
+      const counts = stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const app = makeApp(port);
+      const empty = await postReply(app, cookie, { body: "" });
+      expect(empty.status).toBe(400);
+      const oversized = await postReply(app, cookie, { body: "x".repeat(65_537) });
+      expect(oversized.status).toBe(400);
+      expect(counts.reply).toBe(0);
+      expect(await replyAuditCount(harness)).toBe(0);
+    });
+
+    it("rejects a comment id past safe-integer precision (400)", async () => {
+      const { port } = stubPort([okResult()]);
+      const counts = stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const res = await postReply(makeApp(port), cookie, { body: "x" }, replyPath("9007199254740993"));
+      expect(res.status).toBe(400);
+      expect(counts.reply).toBe(0);
+    });
+
+    it("refreshes once on an expired token mid-reply and retries", async () => {
+      const { port } = stubPort([okResult()]);
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        // First reply attempt 401s (expired ~8h token), the retry succeeds.
+        reply: (call) => (call === 0 ? replyStatus(401) : replyCreated()),
+        token: () => tokenSuccess(),
+      });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const res = await postReply(makeApp(port), cookie, { body: "after refresh" });
+      expect(res.status).toBe(201);
+      expect(counts.token).toBe(1);
+      expect(counts.reply).toBe(2);
+    });
+
+    it("collapses a reply-create 403 to the gate's 404 posture (no distinguishable denial)", async () => {
+      const { port } = stubPort([okResult()]);
+      stubGitHub({ repositories: () => repoOk(), reply: () => replyStatus(403) });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const res = await postReply(makeApp(port), cookie, { body: "x" });
+      expect(res.status).toBe(404);
+      expect(await replyAuditCount(harness)).toBe(0);
+    });
+
+    it("404s when the root comment is gone (sanitized upstream 404)", async () => {
+      const { port } = stubPort([okResult()]);
+      stubGitHub({ repositories: () => repoOk(), reply: () => replyStatus(404) });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const res = await postReply(makeApp(port), cookie, { body: "x" });
+      expect(res.status).toBe(404);
+      expect(await replyAuditCount(harness)).toBe(0);
+    });
+
+    it("returns 201 even when the audit write fails after the posted reply (commit point)", async () => {
+      const { port } = stubPort([okResult(), okResult()]);
+      stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const app = makeApp(port);
+      // Sabotage the audit table: the GitHub write already happened, so a
+      // local persistence failure must not read as "nothing was posted".
+      await harness.raw("alter table audit_log rename to audit_log_hidden");
+      try {
+        const res = await postReply(app, cookie, { body: "posted then audit dies" });
+        expect(res.status).toBe(201);
+        expect(await res.json()).toEqual({ commentId: REPLY_ID });
+      } finally {
+        await harness.raw("alter table audit_log_hidden rename to audit_log");
+      }
+    });
+
+    it("collapses a denied fresh re-resolve to the gate's 404 posture", async () => {
+      const { port } = stubPort([okResult()]);
+      const counts = stubGitHub({
+        // The gate's own check passes; the route's FRESH re-resolve is denied
+        // (access revoked inside the positive-cache TTL).
+        repositories: (call) => (call === 0 ? repoOk() : repoStatus(403)),
+        reply: () => replyCreated(),
+      });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const res = await postReply(makeApp(port), cookie, { body: "x" });
+      expect(res.status).toBe(404);
+      expect(counts.reply).toBe(0);
+      expect(await replyAuditCount(harness)).toBe(0);
+    });
+
+    it("posts to the FRESHLY resolved repo slug, never the gate's cached name", async () => {
+      const { port } = stubPort([okResult()]);
+      const counts = stubGitHub({
+        // Gate check sees the old name; the fresh re-resolve reports a rename.
+        repositories: (call) =>
+          call === 0
+            ? repoOk()
+            : jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
+        reply: () => replyCreated(),
+      });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const res = await postReply(makeApp(port), cookie, { body: "to the fresh slug" });
+      expect(res.status).toBe(201);
+      expect(counts.replyUrls[0]).toContain("/repos/octo/renamed/pulls/");
+    });
+
+    it("evicts the PR's cached conversation so the next read refetches", async () => {
+      const { port, log } = stubPort([okResult(), okResult()]);
+      stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const app = makeApp(port);
+      await getConversation(app, cookie);
+      expect(log.calls).toHaveLength(1);
+      const posted = await postReply(app, cookie, { body: "invalidates cache" });
+      expect(posted.status).toBe(201);
+      await getConversation(app, cookie);
+      expect(log.calls).toHaveLength(2);
+    });
+  });
+
+  describe("review submit evicts the conversation cache", () => {
+    it("drops the PR's cached conversation on a successful review submit", async () => {
+      const { port, log } = stubPort([okResult(), okResult()]);
+      stubGitHub({ repositories: () => repoOk(), createReview: () => reviewCreated() });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
+      const app = makeApp(port);
+      await getConversation(app, cookie);
+      expect(log.calls).toHaveLength(1);
+      const submitted = await app.request(`/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/review`, {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: `rs_session=${cookie}` },
+        body: JSON.stringify({ outcome: "approve", commitId: "c".repeat(40) }),
+      });
+      expect(submitted.status).toBe(201);
+      await getConversation(app, cookie);
+      expect(log.calls).toHaveLength(2);
+    });
+  });
 });
 
 describe("appConversationPort", () => {

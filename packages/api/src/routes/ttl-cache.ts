@@ -16,6 +16,8 @@ export interface TtlCache<V> {
   get(key: string, now?: number): V | undefined;
   /** Store `value` under `key` until `expiresAt` (epoch ms). */
   set(key: string, value: V, expiresAt: number, now?: number): void;
+  /** Drop `key` immediately (write-path eviction); no-op when absent. */
+  delete(key: string): void;
 }
 
 interface Entry<V> {
@@ -62,6 +64,10 @@ export function createTtlCache<V>(maxEntries: number): TtlCache<V> {
         }
       }
       entries.set(key, { value, expiresAt });
+    },
+
+    delete(key) {
+      entries.delete(key);
     },
   };
 }
