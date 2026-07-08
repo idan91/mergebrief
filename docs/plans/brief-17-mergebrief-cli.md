@@ -162,15 +162,17 @@ Three subtasks, eight PRs. Dependency spine: PR 1 → 2 → {3, 4} → 5 → 6 �
 previous contract); exception — PR 4 (web token UI) only needs PR 2 and may
 run as a parallel subagent while the main thread does PR 3/5.
 
-**Model + effort per PR** (Fable unavailable post-cutoff; design is locked):
+**Model + effort per PR** (Fable cutoff extended to 2026-07-12; design is
+locked — nothing REQUIRES Fable, but the two quiet-mistake PRs get it while
+the window holds):
 
 | PR | Model / effort | Why |
 |---|---|---|
 | 1 token-persistence | Opus high | Credential rows + crypto reuse — auth-sensitive, but mirrors `session.ts` |
-| 2 token-routes | Opus high | Bearer presentation inside the gate + mint/revoke; posture subtleties (401-no-hint, /auth vs /api split) |
+| 2 token-routes | Fable high if reached before 2026-07-12, else Opus high | Security-critical: Bearer presentation inside the gate + mint/revoke; posture subtleties (401-no-hint, /auth vs /api split) |
 | 3 repos-endpoint | Opus medium | Pattern-following: pulls.ts allowed-set + mount-order rule |
 | 4 web-token-ui | Opus medium | Settings CRUD UI; shown-once flow is the only subtle beat |
-| 5 cli-scaffold-auth | Opus high | Foundational contracts: client seam, config/profiles, exit mapping, cache |
+| 5 cli-scaffold-auth | Fable high if reached before 2026-07-12, else Opus high | Foundational contracts: client seam, config/profiles, exit mapping, cache — package idioms compound downstream |
 | 6 cli-read-commands | Opus high | `--group` hunk join + delta envelope carry the correctness weight |
 | 7 cli-write-commands | Opus medium | Thin POSTs over locked server validation; receipts + payload plumbing |
 | 8 cli-docs | Opus medium | Writing + one embed script + CI gate |
