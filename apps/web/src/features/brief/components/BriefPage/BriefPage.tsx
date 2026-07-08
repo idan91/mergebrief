@@ -2,8 +2,6 @@ import {
   useQuery,
   useQueryClient,
   useSuspenseQuery,
-  type QueryKey,
-  type UseQueryOptions,
 } from "@tanstack/react-query";
 import {
   useCallback,
@@ -64,6 +62,7 @@ import {
   resolveBriefSearch,
   type BriefSearchParams,
 } from "../../compareState";
+import type { ComparisonQuery } from "../../comparisonQuery";
 import { summarizeProgress } from "../../progress";
 import {
   localBriefQueryOptions,
@@ -230,9 +229,6 @@ export function BriefPage({
   );
 }
 
-/** A ready-to-run react-query descriptor supplied by the comparison plan. */
-type ComparisonQuery<T> = UseQueryOptions<T> & { readonly queryKey: QueryKey };
-
 /** Typed placeholder for a plan slot that is absent — always `enabled: false`. */
 function disabledComparisonQuery<T>(slot: string): ComparisonQuery<T> {
   return {
@@ -252,12 +248,20 @@ export interface BriefComparisonPlan {
     readonly marks: ComparisonQuery<ComparisonMarks>;
     /** Present when a narrative artifact exists to fetch (may be a skip stub). */
     readonly narrative?: ComparisonQuery<RevisionNarrativeArtifact>;
+    /**
+     * The live raw span diff for this baseline → head (BRIEF-24 locked #7):
+     * powers the Changes Only "Show raw diff" toggle. Same diff proxy, an
+     * arbitrary span behind the gate — no API change.
+     */
+    readonly rawDiff?: ComparisonQuery<string>;
   };
   /** The personal checkpoint comparison (BRIEF-21) — offered iff marks exist. */
   readonly lastReview?: {
     readonly marks: ComparisonQuery<ComparisonMarks>;
     /** Absent = marks-only tier: the worker skipped the delta core. */
     readonly delta?: ComparisonQuery<Brief>;
+    /** The live raw span diff for checkpoint → head (BRIEF-24 locked #7). */
+    readonly rawDiff?: ComparisonQuery<string>;
   };
 }
 
@@ -424,6 +428,16 @@ function BriefScreen({
         : undefined;
   const planActive =
     comparisonPlan !== undefined && activePlanSlot !== undefined;
+  // The raw span diff descriptor for the ACTIVE compare baseline (BRIEF-24
+  // locked #7): previous-brief → previous head's diff, last-review → the
+  // checkpoint's — each slot carries its own baseline. Absent on the local
+  // path (no plan) and while Compare is off → the Changes Only toggle hides.
+  const activeRawSpanDiff =
+    activeCompare === "previous-brief"
+      ? planPrevious?.rawDiff
+      : activeCompare === "last-review"
+        ? planLastReview?.rawDiff
+        : undefined;
   const localMarks = useQuery({
     ...localComparisonMarksQueryOptions(marksId ?? ""),
     enabled: comparisonPlan === undefined && Boolean(marksId),
@@ -1367,6 +1381,7 @@ function BriefScreen({
             marks={marks}
             skipReason={skipReason}
             delta={delta}
+            rawSpanDiff={activeRawSpanDiff}
           />
         ) : (
           <>

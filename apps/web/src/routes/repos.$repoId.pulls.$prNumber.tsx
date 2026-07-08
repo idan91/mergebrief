@@ -618,6 +618,14 @@ function DbBrief({
                 "previous-brief",
                 previous.baselineIndex,
               ),
+              // Raw span diff toggle (BRIEF-24 #7): previous head → selected
+              // head, the same live diff proxy an arbitrary span behind the gate.
+              rawDiff: prDiffQueryOptions(
+                repoId,
+                prNumber,
+                previous.baselineSha,
+                span.head,
+              ),
               ...(previous.narrativeAvailable
                 ? {
                     narrative: dbRevisionNarrativeQueryOptions(
@@ -641,6 +649,13 @@ function DbBrief({
                 span.head,
                 "checkpoint",
                 lastReview.baselineIndex ?? null,
+              ),
+              // Raw span diff toggle (BRIEF-24 #7): checkpoint → selected head.
+              rawDiff: prDiffQueryOptions(
+                repoId,
+                prNumber,
+                lastReview.baselineSha,
+                span.head,
               ),
               // Marks-only tier: no delta descriptor — the delta pane
               // degrades honestly ("absence IS the signal").

@@ -1,0 +1,53 @@
+@layer components {
+  .wrap {
+    display: grid;
+    gap: 14px;
+  }
+
+  .toolbar {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .toggle {
+    padding-block: 6px;
+    padding-inline: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel2);
+    color: var(--dim);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+
+    &[aria-pressed="true"] {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+  }
+
+  .files {
+    display: grid;
+    gap: 10px;
+  }
+
+  .file {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--panel2);
+    overflow: hidden;
+  }
+
+  .fileName {
+    padding-block: 10px;
+    padding-inline: 14px;
+    font-family: var(--mono, monospace);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .meta {
+    color: var(--faint);
+    font-size: 13px;
+  }
+}

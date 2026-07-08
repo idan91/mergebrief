@@ -13,7 +13,7 @@
     "test:worker": "pnpm -C packages/worker test",
     "lint": "oxlint --type-aware && pnpm -C apps/web lint"
   },
-  "packageManager": "pnpm@10.0.0",
+  "packageManager": "pnpm@11.10.0",
   "devDependencies": {
     "oxlint": "1.72.0",
     "oxlint-tsgolint": "0.24.0"

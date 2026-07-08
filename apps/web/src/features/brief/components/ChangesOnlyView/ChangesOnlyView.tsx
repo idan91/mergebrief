@@ -12,7 +12,9 @@ import type {
   RevisionNarrativeChunk,
   RevisionNarrativeSkipReason,
 } from "../../types";
+import type { ComparisonQuery } from "../../comparisonQuery";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
+import { RawSpanDiff } from "../RawSpanDiff/RawSpanDiff";
 import styles from "./ChangesOnlyView.module.scss";
 
 /**
@@ -37,19 +39,42 @@ export interface ChangesOnlyViewProps {
   skipReason: RevisionNarrativeSkipReason | null;
   /** The Delta Brief for Your last review, or null when unavailable. */
   delta: Brief | null;
+  /**
+   * The live span-diff descriptor for the ACTIVE compare baseline → selected
+   * head (BRIEF-24 raw span diff, locked decision #7). Present only on the DB
+   * timeline path while a compare lens is active — it drives the "Show raw
+   * diff" toggle. Absent (the local file path, or no live diff) → no toggle,
+   * just the summary.
+   */
+  rawSpanDiff?: ComparisonQuery<string> | undefined;
 }
 
 export function ChangesOnlyView(props: ChangesOnlyViewProps) {
-  if (props.compare === "last-review") {
-    return <LastReviewChanges delta={props.delta} />;
-  }
+  const summary =
+    props.compare === "last-review" ? (
+      <LastReviewChanges delta={props.delta} />
+    ) : (
+      <PreviousBriefChanges
+        brief={props.brief}
+        model={props.model}
+        narrative={props.narrative}
+        skipReason={props.skipReason}
+      />
+    );
+  if (props.rawSpanDiff === undefined) return summary;
+  // Ephemeral, FE-only toggle: key on the LENS plus the span the descriptor
+  // addresses so a compare-lens switch or a revision change remounts it and
+  // resets back to the summary. The lens is part of the key because both
+  // lenses can resolve to the SAME span (checkpoint == previous head), and a
+  // lens switch is still a view change (codex round 1). JSON serialization
+  // keeps key parts from colliding across element boundaries.
   return (
-    <PreviousBriefChanges
-      brief={props.brief}
-      model={props.model}
-      narrative={props.narrative}
-      skipReason={props.skipReason}
-    />
+    <RawSpanDiff
+      key={`${props.compare}:${JSON.stringify(props.rawSpanDiff.queryKey)}`}
+      query={props.rawSpanDiff}
+    >
+      {summary}
+    </RawSpanDiff>
   );
 }
 

@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { buildChunkComparisonView, type ComparisonSource } from "../comparison";
+import type { ComparisonQuery } from "../comparisonQuery";
 import type {
   Brief,
   BriefChunk,
@@ -246,5 +249,161 @@ describe("Changes Only rendering (step 8)", () => {
     expect(screen.getByText("Delta chunk: adds the guard.")).toBeTruthy();
     // "Delta" is internal — never a primary visible label.
     expect(screen.queryByText("Delta brief")).toBeNull();
+  });
+});
+
+const RAW_DIFF = [
+  "diff --git a/src/a.ts b/src/a.ts",
+  "--- a/src/a.ts",
+  "+++ b/src/a.ts",
+  "@@ -1,1 +1,2 @@",
+  " const a = 1;",
+  "+validate(a);",
+].join("\n");
+
+function rawDiffQuery(base: string): ComparisonQuery<string> {
+  return {
+    queryKey: ["pr-diff", "424242", 7, base, "head1234"],
+    queryFn: async (): Promise<string> => RAW_DIFF,
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  };
+}
+
+function withClient(node: ReactNode) {
+  return (
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      {node}
+    </QueryClientProvider>
+  );
+}
+
+describe("Changes Only raw span diff toggle (BRIEF-24 #7)", () => {
+  it("offers no toggle when no raw span diff descriptor is supplied", () => {
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={fullBrief}
+        model={buildBriefViewModel(fullBrief)}
+        narrative={narrative}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /raw diff/i })).toBeNull();
+  });
+
+  it("offers the toggle when a compare lens supplies the descriptor", () => {
+    render(
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+          rawSpanDiff={rawDiffQuery("prev1234")}
+        />,
+      ),
+    );
+    expect(screen.getByRole("button", { name: "Raw diff" })).toBeTruthy();
+  });
+
+  it("resets the ephemeral toggle when the baseline (compare lens) changes", async () => {
+    const { rerender } = render(
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+          rawSpanDiff={rawDiffQuery("prev1234")}
+        />,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Raw diff" }));
+    expect(
+      screen
+        .getByRole("button", { name: "Raw diff" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    // Switching to the last-review lens swaps the descriptor's baseline — the
+    // component is keyed by the lens+span, so the toggle remounts back to off.
+    rerender(
+      withClient(
+        <ChangesOnlyView
+          compare="last-review"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={null}
+          marks={null}
+          skipReason={null}
+          delta={delta}
+          rawSpanDiff={rawDiffQuery("chk1234")}
+        />,
+      ),
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "Raw diff" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
+  });
+
+  it("resets the toggle on a lens switch even when both lenses share the SAME span", async () => {
+    // checkpoint == previous head: both descriptors carry an identical
+    // queryKey, so the span alone cannot distinguish the views — the lens is
+    // part of the remount key (codex round 1).
+    const { rerender } = render(
+      withClient(
+        <ChangesOnlyView
+          compare="previous-brief"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={narrative}
+          marks={previousBriefMarks}
+          skipReason={null}
+          delta={null}
+          rawSpanDiff={rawDiffQuery("prev1234")}
+        />,
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Raw diff" }));
+    expect(
+      screen
+        .getByRole("button", { name: "Raw diff" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    rerender(
+      withClient(
+        <ChangesOnlyView
+          compare="last-review"
+          brief={fullBrief}
+          model={buildBriefViewModel(fullBrief)}
+          narrative={null}
+          marks={null}
+          skipReason={null}
+          delta={delta}
+          rawSpanDiff={rawDiffQuery("prev1234")}
+        />,
+      ),
+    );
+    expect(
+      screen
+        .getByRole("button", { name: "Raw diff" })
+        .getAttribute("aria-pressed"),
+    ).toBe("false");
   });
 });

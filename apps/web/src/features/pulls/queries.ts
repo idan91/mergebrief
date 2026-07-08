@@ -247,8 +247,9 @@ export function prDiffQueryOptions(
   base: string,
   head: string,
 ) {
+  const queryKey: QueryKey = ["pr-diff", repoId, prNumber, base, head];
   return queryOptions({
-    queryKey: ["pr-diff", repoId, prNumber, base, head],
+    queryKey,
     queryFn: (): Promise<string> =>
       apiFetchText(`${prPath(repoId, prNumber)}/diff?${spanQuery(base, head)}`),
     staleTime: 60_000,

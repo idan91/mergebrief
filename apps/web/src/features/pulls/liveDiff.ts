@@ -4,58 +4,17 @@
 // body on `diff --git` boundaries, then slice each chunk's rows with the
 // shared diffSlicing module. A chunk whose file is absent keeps the legal
 // no-`diff` shape (the renderer degrades).
-import { parseUnifiedDiffPatch, sliceChunkDiff } from "../brief/diffSlicing";
+import {
+  parseUnifiedDiffPatch,
+  sliceChunkDiff,
+  splitUnifiedDiffByFile,
+} from "../brief/diffSlicing";
 import type { Brief } from "../brief/types";
 
-const DIFF_HEADER = /^diff --git a\/(?<pre>.+?) b\/(?<post>.+)$/;
-
-/**
- * Split a multi-file unified diff into per-file patch bodies, keyed by the
- * POST-change path (chunks reference files by their new name); a deleted
- * file (post side `/dev/null`) keys by its pre-change path.
- */
-export function splitUnifiedDiffByFile(
-  diff: string,
-): ReadonlyMap<string, string> {
-  const files = new Map<string, string>();
-  if (diff.length === 0) return files;
-
-  let currentKey: string | undefined;
-  let currentLines: string[] = [];
-  let sawDevNullPost = false;
-  let pendingPrePath: string | undefined;
-
-  const flush = (): void => {
-    if (currentKey !== undefined) {
-      // Deleted file: the post path in the `diff --git` header is the same as
-      // the pre path, but `+++ /dev/null` marks it — keep the pre path key.
-      const key =
-        sawDevNullPost && pendingPrePath !== undefined
-          ? pendingPrePath
-          : currentKey;
-      files.set(key, currentLines.join("\n"));
-    }
-    currentLines = [];
-    sawDevNullPost = false;
-  };
-
-  for (const line of diff.split("\n")) {
-    const header = DIFF_HEADER.exec(line);
-    if (header?.groups) {
-      flush();
-      currentKey = header.groups["post"];
-      pendingPrePath = header.groups["pre"];
-    }
-    if (currentKey !== undefined) {
-      if (line.startsWith("+++ /dev/null")) {
-        sawDevNullPost = true;
-      }
-      currentLines.push(line);
-    }
-  }
-  flush();
-  return files;
-}
+// `splitUnifiedDiffByFile` now lives in the shared pure diff module alongside
+// `parseUnifiedDiffPatch` — re-exported here so existing importers are
+// unchanged.
+export { splitUnifiedDiffByFile } from "../brief/diffSlicing";
 
 /**
  * Attach sliced per-chunk diff rows from the live whole-PR diff. Pure — the
