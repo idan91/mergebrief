@@ -26,6 +26,10 @@ import {
   type EvidenceTarget,
 } from "../../../review/components/EvidenceModal/EvidenceModal";
 import { PreSubmitModal } from "../../../review/components/PreSubmitModal/PreSubmitModal";
+import {
+  ConversationSection,
+  type ConversationPlan,
+} from "../../../conversation/components/ConversationSection/ConversationSection";
 import { ReceiptDrawer } from "../../../review/components/ReceiptDrawer/ReceiptDrawer";
 import { SummaryPreview } from "../../../review/components/SummaryPreview/SummaryPreview";
 import { buildReceipt } from "../../../review/receipt";
@@ -266,6 +270,11 @@ export interface BriefViewProps extends BriefPageProps {
    * path — no GitHub identity there, Submit keeps its demo behavior.
    */
   submitReview?: SubmitReviewAction;
+  /**
+   * The DB route's live-conversation plan (BRIEF-25). Absent on the local
+   * file path — no conversation section there.
+   */
+  conversation?: ConversationPlan;
 }
 
 /**
@@ -279,6 +288,7 @@ export function BriefView({
   brief,
   briefId,
   comparisonPlan,
+  conversation,
   searchParams,
   submitReview,
 }: BriefViewProps) {
@@ -290,6 +300,7 @@ export function BriefView({
         brief={brief}
         briefId={briefId}
         comparisonPlan={comparisonPlan}
+        conversation={conversation}
         model={model}
         searchParams={searchParams}
         submitReview={submitReview}
@@ -306,6 +317,7 @@ interface BriefScreenProps {
   model: ReturnType<typeof buildBriefViewModel>;
   searchParams: BriefSearchParams;
   submitReview?: SubmitReviewAction | undefined;
+  conversation?: ConversationPlan | undefined;
 }
 
 function BriefScreen({
@@ -315,6 +327,7 @@ function BriefScreen({
   comparisonPlan,
   model,
   searchParams,
+  conversation,
   submitReview,
 }: BriefScreenProps) {
   const timeline = useMemo(
@@ -482,6 +495,12 @@ function BriefScreen({
   // Walk chunks in the rendered (grouped) order, not raw brief order — the
   // StoryView lays chunks out by group, so J/K must follow the same sequence or
   // it appears to jump backward and forward. Matches the openChunks seeding.
+  // The digest's chunk axis is the RENDERED order (grouped reading order),
+  // not raw brief order — same sequence J/K walks (codex round 1).
+  const readingOrderedChunks = useMemo(
+    () => model.groups.flatMap((group) => group.chunks),
+    [model.groups],
+  );
   const chunkIds = useMemo(
     () =>
       model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id)),
@@ -1185,6 +1204,17 @@ function BriefScreen({
             )}
           </>
         )}
+        {conversation !== undefined ? (
+          <ConversationSection
+            briefId={briefId}
+            chunks={readingOrderedChunks}
+            jumpToChunk={jumpToChunk}
+            localComments={reviewComments}
+            markCommentsSubmitted={(ids) => actions.markCommentsSubmitted(ids)}
+            plan={conversation}
+            submittedReviewIds={submittedReviewIds}
+          />
+        ) : null}
       </main>
       <ReceiptDrawer
         receipt={receipt}

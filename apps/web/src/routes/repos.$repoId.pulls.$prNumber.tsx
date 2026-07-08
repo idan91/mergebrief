@@ -48,6 +48,7 @@ import {
   prDiffQueryOptions,
   prMetaQueryOptions,
 } from "../features/pulls/queries";
+import { conversationQueryOptions } from "../features/conversation/queries";
 import { submitReview } from "../features/pulls/submitReview";
 import type { PrSummary } from "../features/pulls/types";
 import {
@@ -441,6 +442,12 @@ function DbBrief({
   );
   // Keys the per-brief Mind-Map session store, exactly like a local brief id.
   const briefId = `db:${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
+  // The live-conversation plan (BRIEF-25): always fetched fresh per PR —
+  // resolution flips and replies happen outside our generation cycle.
+  const conversationPlan = useMemo(
+    () => ({ queryOptions: conversationQueryOptions(repoId, prNumber) }),
+    [prNumber, repoId],
+  );
   return (
     <>
       {comparisonsWarming(meta) ? <WarmingChip /> : null}
@@ -455,6 +462,7 @@ function DbBrief({
         brief={assembled}
         briefId={briefId}
         comparisonPlan={comparisonPlan}
+        conversation={conversationPlan}
         key={briefId}
         searchParams={searchParams}
         submitReview={submitAction}
