@@ -31,6 +31,11 @@ export interface MindMapState {
    * the own-comment join keys against fetched conversation threads (BRIEF-25).
    */
   submittedReviewIds: number[];
+  /**
+   * @description Conversation reply drafts, keyed by thread root comment id
+   * (BRIEF-25) — a half-written reply survives navigation.
+   */
+  replyDrafts: Record<string, string>;
 }
 
 export interface MindMapActions {
@@ -72,6 +77,11 @@ export interface MindMapActions {
    * server-backed join key for own-comment reconciliation (BRIEF-25).
    */
   recordSubmittedReview(reviewId: number): void;
+  /**
+   * @description Persist a conversation reply draft per thread; an empty
+   * body clears the entry (posted or discarded).
+   */
+  setReplyDraft(threadId: number, body: string): void;
   setOutcome(outcome: ReviewOutcome): void;
   /**
    * @description Resets the whole session to a fresh state (the "Clear local
@@ -126,6 +136,7 @@ export function deriveInitialState(model: BriefViewModel): MindMapState {
     reviewComments: [],
     reviewOutcome: "comment",
     submittedReviewIds: [],
+    replyDrafts: {},
   };
 }
 
@@ -234,6 +245,14 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
             ? {}
             : { submittedReviewIds: [...state.submittedReviewIds, reviewId] },
         );
+      },
+      setReplyDraft(threadId, body) {
+        set((state) => {
+          const next = { ...state.replyDrafts };
+          if (body === "") delete next[String(threadId)];
+          else next[String(threadId)] = body;
+          return { replyDrafts: next };
+        });
       },
       setOutcome(outcome) {
         set({ reviewOutcome: outcome });

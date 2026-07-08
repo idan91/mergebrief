@@ -489,6 +489,7 @@ function BriefScreen({
   const checkedItems = useMindMap((state) => state.checkedItems);
   const reviewComments = useMindMap((state) => state.reviewComments);
   const submittedReviewIds = useMindMap((state) => state.submittedReviewIds);
+  const replyDrafts = useMindMap((state) => state.replyDrafts);
   const reviewOutcome = useMindMap((state) => state.reviewOutcome);
   const actions = useMindMapActions();
   const scrollToChunk = useChunkScroller();
@@ -607,6 +608,7 @@ function BriefScreen({
         reviewComments,
         reviewOutcome,
         submittedReviewIds,
+        replyDrafts,
       }),
     [
       briefId,
@@ -615,6 +617,7 @@ function BriefScreen({
       dominants,
       reclassifiedGroups,
       reviewComments,
+      replyDrafts,
       reviewOutcome,
       reviewedChunks,
       submittedReviewIds,
@@ -1206,12 +1209,17 @@ function BriefScreen({
         )}
         {conversation !== undefined ? (
           <ConversationSection
+            announce={announceSubmit}
             briefId={briefId}
             chunks={readingOrderedChunks}
             jumpToChunk={jumpToChunk}
             localComments={reviewComments}
             markCommentsSubmitted={(ids) => actions.markCommentsSubmitted(ids)}
             plan={conversation}
+            replyDrafts={replyDrafts}
+            setReplyDraft={(threadId, body) =>
+              actions.setReplyDraft(threadId, body)
+            }
             submittedReviewIds={submittedReviewIds}
           />
         ) : null}

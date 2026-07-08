@@ -110,3 +110,17 @@ describe("submittedReviewIds (BRIEF-25)", () => {
     expect(readSnapshot(BRIEF_ID)?.submittedReviewIds).toEqual([4_647_663_464]);
   });
 });
+
+describe("replyDrafts (BRIEF-25)", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
+  it("round-trips through write + read and tolerates absence (legacy)", () => {
+    writeSnapshot({ ...snapshot([]), replyDrafts: { "9001": "draft" } });
+    expect(readSnapshot(BRIEF_ID)?.replyDrafts).toEqual({ "9001": "draft" });
+    window.sessionStorage.clear();
+    writeSnapshot(snapshot([]));
+    expect(readSnapshot(BRIEF_ID)).toBeDefined();
+  });
+});

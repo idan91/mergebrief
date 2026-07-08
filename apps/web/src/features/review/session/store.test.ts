@@ -229,3 +229,13 @@ describe("recordSubmittedReview", () => {
     ]);
   });
 });
+
+describe("setReplyDraft", () => {
+  it("persists a draft per thread and clears on empty (BRIEF-25)", () => {
+    const store = freshStore();
+    store.getState().actions.setReplyDraft(9001, "half a thought");
+    expect(store.getState().replyDrafts).toEqual({ "9001": "half a thought" });
+    store.getState().actions.setReplyDraft(9001, "");
+    expect(store.getState().replyDrafts).toEqual({});
+  });
+});

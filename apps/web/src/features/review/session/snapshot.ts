@@ -22,6 +22,8 @@ export interface SessionSnapshot {
   reviewOutcome: ReviewOutcome;
   /** Absent in pre-BRIEF-25 stored snapshots; hydrates to []. */
   submittedReviewIds?: number[];
+  /** Reply drafts per thread root id; absent in older snapshots. */
+  replyDrafts?: Record<string, string>;
 }
 
 const STORAGE_KEY = "code-review:session:v2";
@@ -49,6 +51,7 @@ export function serializeSnapshot(
     reviewComments: state.reviewComments,
     reviewOutcome: state.reviewOutcome,
     submittedReviewIds: [...state.submittedReviewIds],
+    replyDrafts: { ...state.replyDrafts },
   };
 }
 
@@ -68,6 +71,7 @@ export function snapshotToState(snapshot: SessionSnapshot): MindMapState {
     reviewComments: snapshot.reviewComments,
     reviewOutcome: snapshot.reviewOutcome,
     submittedReviewIds: snapshot.submittedReviewIds ?? [],
+    replyDrafts: snapshot.replyDrafts ?? {},
   };
 }
 
@@ -148,7 +152,16 @@ function isSessionSnapshot(value: unknown): value is SessionSnapshot {
     value["reviewComments"].every(isReviewComment) &&
     typeof value["reviewOutcome"] === "string" &&
     REVIEW_OUTCOMES.includes(value["reviewOutcome"]) &&
-    isOptionalNumberArray(value["submittedReviewIds"])
+    isOptionalNumberArray(value["submittedReviewIds"]) &&
+    isOptionalStringRecord(value["replyDrafts"])
+  );
+}
+
+function isOptionalStringRecord(value: unknown): boolean {
+  return (
+    value === undefined ||
+    (isObject(value) &&
+      Object.values(value).every((entry) => typeof entry === "string"))
   );
 }
 
@@ -235,6 +248,26 @@ export function markSnapshotCommentsSubmitted(
         ? recorded
         : [...recorded, reviewId],
   });
+}
+
+/**
+ * Persist one reply draft DIRECTLY (BRIEF-25): the composer's unmount can
+ * race the provider's debounced sessionStorage flush, so the last local
+ * edit writes durably itself — same discipline as
+ * `markSnapshotCommentsSubmitted`. An empty body clears the entry. No-op
+ * when nothing is persisted for the brief.
+ */
+export function persistReplyDraft(
+  briefId: string,
+  threadId: number,
+  body: string,
+): void {
+  const snapshot = readSnapshot(briefId);
+  if (snapshot === undefined) return;
+  const drafts = { ...snapshot.replyDrafts };
+  if (body === "") delete drafts[String(threadId)];
+  else drafts[String(threadId)] = body;
+  writeSnapshot({ ...snapshot, replyDrafts: drafts });
 }
 
 /** Clear all persisted session snapshots (the "Clear local drafts" action). */

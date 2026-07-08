@@ -11,6 +11,7 @@ export {
 export {
   clearSnapshots,
   markSnapshotCommentsSubmitted,
+  persistReplyDraft,
   readSnapshot,
   serializeSnapshot,
   snapshotToState,

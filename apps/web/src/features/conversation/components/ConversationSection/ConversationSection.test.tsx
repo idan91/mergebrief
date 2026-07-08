@@ -28,7 +28,11 @@ import {
 
 vi.mock("../../../review/session", async (importOriginal) => {
   const actual = await importOriginal<typeof SessionModule>();
-  return { ...actual, markSnapshotCommentsSubmitted: vi.fn() };
+  return {
+    ...actual,
+    markSnapshotCommentsSubmitted: vi.fn(),
+    persistReplyDraft: vi.fn(),
+  };
 });
 
 afterEach(cleanup);
@@ -110,8 +114,11 @@ function conversation(): PrConversation {
   };
 }
 
+const planQueryCalls = { count: () => 0 };
+
 function plan(results: ConversationResult[]): ConversationPlan {
   let call = 0;
+  planQueryCalls.count = () => call;
   const descriptor = {
     queryKey: ["conversation", "42", 7] as const,
     queryFn: async () => {
@@ -126,6 +133,7 @@ function plan(results: ConversationResult[]): ConversationPlan {
   // Structural stand-in for the real descriptor (test-only escape hatch).
   return {
     queryOptions: descriptor as unknown as ConversationPlan["queryOptions"],
+    postReply: vi.fn(async () => ({ kind: "posted", commentId: 1 }) as const),
   };
 }
 
@@ -142,6 +150,9 @@ function renderSection(
     submittedReviewIds: [],
     jumpToChunk: vi.fn(),
     markCommentsSubmitted: vi.fn(),
+    announce: vi.fn(),
+    replyDrafts: {},
+    setReplyDraft: vi.fn(),
     ...overrides,
   };
   const view = render(
@@ -363,5 +374,190 @@ describe("ConversationSection", () => {
     );
     // The own thread carries the "yours" tag.
     expect(screen.getByText("yours")).toBeDefined();
+  });
+});
+
+async function openThread() {
+  const row = await screen.findByRole("button", {
+    name: /This null check looks inverted/,
+  });
+  fireEvent.click(row);
+  return row;
+}
+
+describe("ReplyComposer", () => {
+  it("posts a reply, clears the draft, announces, and refetches", async () => {
+    const setReplyDraft = vi.fn();
+    const announce = vi.fn();
+    const { props } = renderSection({
+      plan: plan([ready(), ready()]),
+      replyDrafts: { "9001": "a follow-up" },
+      setReplyDraft,
+      announce,
+    });
+    await openThread();
+    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
+    expect((textarea as HTMLTextAreaElement).value).toBe("a follow-up");
+    fireEvent.click(screen.getByRole("button", { name: "Reply" }));
+    await waitFor(() =>
+      expect(props.plan.postReply).toHaveBeenCalledWith(9001, "a follow-up"),
+    );
+    await waitFor(() => expect(setReplyDraft).toHaveBeenCalledWith(9001, ""));
+    expect(announce).toHaveBeenCalledWith(
+      "Reply posted to GitHub under your account.",
+    );
+    // The post-success refetch is the evict-on-write round trip: the query
+    // must run again (two fetches total).
+    await waitFor(() =>
+      expect((planQueryCalls.count as () => number)()).toBeGreaterThanOrEqual(
+        2,
+      ),
+    );
+  });
+
+  it("persists the draft on blur, not per keystroke (perf: local typing)", async () => {
+    const setReplyDraft = vi.fn();
+    renderSection({ plan: plan([ready()]), setReplyDraft });
+    await openThread();
+    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
+    fireEvent.change(textarea, { target: { value: "half a thought" } });
+    // Typing stays local — no store churn per keystroke.
+    expect(setReplyDraft).not.toHaveBeenCalled();
+    fireEvent.blur(textarea);
+    expect(setReplyDraft).toHaveBeenCalledWith(9001, "half a thought");
+  });
+
+  it("clears the durable draft when success settles after unmount", async () => {
+    const { markSnapshotCommentsSubmitted: _flip, persistReplyDraft } =
+      await import("../../../review/session");
+    const durable = vi.mocked(persistReplyDraft);
+    durable.mockClear();
+    const release: {
+      fn: ((value: { kind: "posted"; commentId: number }) => void) | null;
+    } = { fn: null };
+    const slowPlan = plan([ready()]);
+    (slowPlan.postReply as ReturnType<typeof vi.fn>).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release.fn = resolve;
+        }),
+    );
+    const { view } = renderSection({
+      plan: slowPlan,
+      replyDrafts: { "9001": "in flight" },
+    });
+    await openThread();
+    fireEvent.click(screen.getByRole("button", { name: "Reply" }));
+    view.unmount();
+    release.fn?.({ kind: "posted", commentId: 1 });
+    await waitFor(() =>
+      expect(durable).toHaveBeenCalledWith("db:42:7:base:head", 9001, ""),
+    );
+  });
+
+  it("re-persists visible text after an external draft reset (Clear local drafts)", async () => {
+    const setReplyDraft = vi.fn();
+    const { view, props } = renderSection({
+      plan: plan([ready()]),
+      replyDrafts: { "9001": "still visible" },
+      setReplyDraft,
+    });
+    await openThread();
+    // Simulate Clear local drafts: the STORE empties while the composer
+    // still shows the text — behavior must follow visible state.
+    view.rerender(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <ConversationSection {...props} replyDrafts={{}} />
+      </QueryClientProvider>,
+    );
+    view.unmount();
+    expect(setReplyDraft).toHaveBeenCalledWith(9001, "still visible");
+  });
+
+  it("persists an unsynced draft on unmount (navigation survival)", async () => {
+    const setReplyDraft = vi.fn();
+    const { view } = renderSection({ plan: plan([ready()]), setReplyDraft });
+    await openThread();
+    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
+    fireEvent.change(textarea, { target: { value: "leaving mid-thought" } });
+    view.unmount();
+    expect(setReplyDraft).toHaveBeenCalledWith(9001, "leaving mid-thought");
+  });
+
+  it("keeps the draft and announces on failure (indeterminate copy on throw)", async () => {
+    const setReplyDraft = vi.fn();
+    const announce = vi.fn();
+    const failingPlan = plan([ready()]);
+    (failingPlan.postReply as ReturnType<typeof vi.fn>).mockRejectedValue(
+      new Error("boom"),
+    );
+    renderSection({
+      plan: failingPlan,
+      replyDrafts: { "9001": "risky reply" },
+      setReplyDraft,
+      announce,
+    });
+    await openThread();
+    fireEvent.click(screen.getByRole("button", { name: "Reply" }));
+    await waitFor(() =>
+      expect(announce).toHaveBeenCalledWith(
+        expect.stringContaining("may or may not have posted"),
+      ),
+    );
+    expect(setReplyDraft).not.toHaveBeenCalledWith(9001, "");
+    expect(screen.getByRole("alert").textContent).toContain(
+      "may or may not have posted",
+    );
+  });
+
+  it("blocks an over-cap reply with associated error copy (mirrored 400)", async () => {
+    renderSection({
+      plan: plan([ready()]),
+      replyDrafts: { "9001": "x".repeat(65_537) },
+    });
+    await openThread();
+    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
+    expect(textarea.getAttribute("aria-invalid")).toBe("true");
+    expect(textarea.getAttribute("aria-describedby")).toBe("reply-9001-error");
+    const alert = screen.getByRole("alert");
+    expect(alert.id).toBe("reply-9001-error");
+    expect(alert.textContent).toContain("longer than GitHub allows");
+    const button = screen.getByRole("button", { name: "Reply" });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("keeps focus on the Reply button through posting (focusable-disabled)", async () => {
+    renderSection({
+      plan: plan([ready(), ready()]),
+      replyDrafts: { "9001": "a follow-up" },
+    });
+    await openThread();
+    const button = screen.getByRole("button", { name: "Reply" });
+    (button as HTMLButtonElement).focus();
+    fireEvent.click(button);
+    // Never hard-disabled: focus survives the pending and posted states.
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("button", { name: "Reply" })
+          .getAttribute("aria-disabled"),
+      ).toBe("true"),
+    );
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Reply" }),
+    );
+  });
+
+  it("blocks an empty reply (button disabled)", async () => {
+    renderSection({ plan: plan([ready()]) });
+    await openThread();
+    const button = screen.getByRole("button", { name: "Reply" });
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect((button as HTMLButtonElement).disabled).toBe(false);
   });
 });

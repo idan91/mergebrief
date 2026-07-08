@@ -16,7 +16,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Markdown } from "../../../../components/Markdown/Markdown";
 import type { BriefChunk } from "../../../brief/types";
 import type { ReviewComment } from "../../../review/comments";
-import { markSnapshotCommentsSubmitted } from "../../../review/session";
+import {
+  markSnapshotCommentsSubmitted,
+  persistReplyDraft,
+} from "../../../review/session";
 import { deriveDigestLine } from "../../digestLine";
 import {
   buildConversationDigest,
@@ -26,12 +29,18 @@ import {
 } from "../../digest";
 import { reconcileOwnComments } from "../../ownComments";
 import type { conversationQueryOptions } from "../../queries";
+import { MAX_REPLY_LENGTH, type ReplyResult } from "../../reply";
 import type { ConversationReview, ConversationThread } from "../../types";
 import styles from "./ConversationSection.module.scss";
 
 /** The route-injected data plan (absent on the local demo path). */
 export interface ConversationPlan {
   readonly queryOptions: ReturnType<typeof conversationQueryOptions>;
+  /** Immediate viewer-token reply to a thread's root comment (BRIEF-25 #7). */
+  readonly postReply: (
+    rootCommentId: number,
+    body: string,
+  ) => Promise<ReplyResult>;
 }
 
 export interface ConversationSectionProps {
@@ -43,6 +52,11 @@ export interface ConversationSectionProps {
   jumpToChunk: (chunkId: string) => void;
   /** Store flip for drafts the reconciliation proved posted (BRIEF-23 residual). */
   markCommentsSubmitted: (ids: readonly string[]) => void;
+  /** Page live region — result surfaces must outlive the disclosure. */
+  announce: (message: string) => void;
+  /** Reply drafts per thread root id (session store — survive navigation). */
+  replyDrafts: Readonly<Record<string, string>>;
+  setReplyDraft: (threadId: number, body: string) => void;
 }
 
 /** Rows shown per digest group before "Show more" (locked decision 6). */
@@ -62,12 +76,215 @@ function threadStateChip(thread: ConversationThread): string {
   return thread.isResolved ? "resolved" : "open";
 }
 
+const REPLY_COPY = {
+  posted: "Reply posted to GitHub under your account.",
+  unauthorized:
+    "Your GitHub session expired — sign in again. Your reply draft is saved locally.",
+  notFound:
+    "This thread is no longer on GitHub — it may have been deleted. Your draft is saved locally.",
+  invalid: "The reply was rejected as invalid — reload and try again.",
+  upstream: "GitHub rejected the reply or is unreachable — try again shortly.",
+  // INDETERMINATE (same discipline as submit): a throw can land after the
+  // POST reached GitHub — never claim "nothing was posted".
+  failed:
+    "Something went wrong posting the reply — it may or may not have posted. Check the thread on GitHub before retrying.",
+} as const;
+
+interface ReplyComposerProps {
+  briefId: string;
+  threadId: number;
+  draft: string;
+  setDraft: (threadId: number, body: string) => void;
+  post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
+  announce: (message: string) => void;
+  onPosted: () => void;
+}
+
+function ReplyComposer({
+  briefId,
+  threadId,
+  draft,
+  setDraft,
+  post,
+  announce,
+  onPosted,
+}: ReplyComposerProps) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Synchronous double-click guard (same as useReviewSubmit): state updates
+  // are async, a ref is not — aria-disabled does not block the click event.
+  const inFlight = useRef(false);
+  // Typing stays LOCAL: a per-keystroke store write would re-render the
+  // whole digest and rebuild the receipt memo chain (perf review). The
+  // store draft syncs on blur, unmount, and post — the persistence points
+  // that matter for surviving navigation.
+  const [local, setLocal] = useState(draft);
+  const localRef = useRef(local);
+  localRef.current = local;
+  // Mirrors the STORE's current value (not "what this composer last wrote"):
+  // comparing against it means an external reset (Clear local drafts) can't
+  // silently un-persist text the user still SEES — behavior follows visible
+  // state (Fable review).
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  useEffect(() => {
+    return () => {
+      if (localRef.current !== draftRef.current) {
+        setDraftRef.current(threadId, localRef.current);
+        // The live-store write can race the provider's debounced
+        // sessionStorage flush on full navigation — write durably too
+        // (codex round 1), best-effort like every direct snapshot write.
+        try {
+          persistReplyDraft(briefId, threadId, localRef.current);
+        } catch (persistError) {
+          console.error("reply draft: durable write failed", persistError);
+        }
+      }
+    };
+    // Mount/unmount only — the refs carry current values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const setDraftRef = useRef(setDraft);
+  setDraftRef.current = setDraft;
+  const persist = () => {
+    if (local !== draftRef.current) {
+      draftRef.current = local;
+      setDraft(threadId, local);
+    }
+  };
+  const inputId = `reply-${threadId}`;
+  const overCap = local.length > MAX_REPLY_LENGTH;
+  const blocked = pending || local.trim() === "" || overCap;
+
+  const submit = () => {
+    if (blocked || inFlight.current) return;
+    inFlight.current = true;
+    setPending(true);
+    setError(null);
+    // Captured at click time — edits mid-flight never count as sent.
+    const body = local;
+    // The in-flight body is durable too (a navigation mid-post keeps it).
+    draftRef.current = body;
+    setDraft(threadId, body);
+    const fail = (copy: string) => {
+      setError(copy);
+      announce(copy);
+    };
+    void (async () => {
+      try {
+        let result: ReplyResult;
+        try {
+          result = await post(threadId, body);
+        } catch {
+          fail(REPLY_COPY.failed);
+          return;
+        }
+        switch (result.kind) {
+          case "posted": {
+            // The external write is the commit point: clear the draft (the
+            // reply is GitHub's record now) and let the caller refetch.
+            setLocal("");
+            localRef.current = "";
+            draftRef.current = "";
+            setDraft(threadId, "");
+            // Success must persist independent of component lifetime
+            // (BRIEF-23 rule): the provider may have unmounted while the
+            // POST was in flight — clear the DURABLE draft directly too.
+            try {
+              persistReplyDraft(briefId, threadId, "");
+            } catch (persistError) {
+              console.error("reply draft: durable clear failed", persistError);
+            }
+            announce(REPLY_COPY.posted);
+            onPosted();
+            break;
+          }
+          case "unauthorized": {
+            fail(REPLY_COPY.unauthorized);
+            break;
+          }
+          case "not-found": {
+            fail(REPLY_COPY.notFound);
+            break;
+          }
+          case "invalid": {
+            fail(REPLY_COPY.invalid);
+            break;
+          }
+          case "upstream": {
+            fail(REPLY_COPY.upstream);
+            break;
+          }
+        }
+      } finally {
+        inFlight.current = false;
+        setPending(false);
+      }
+    })();
+  };
+
+  return (
+    <div className={styles["composer"]}>
+      <label className={styles["composerLabel"]} htmlFor={inputId}>
+        Reply (posts to GitHub immediately)
+      </label>
+      <textarea
+        aria-busy={pending || undefined}
+        aria-describedby={
+          overCap || error !== null ? `${inputId}-error` : undefined
+        }
+        aria-invalid={overCap || undefined}
+        className={styles["composerInput"]}
+        id={inputId}
+        readOnly={pending}
+        rows={3}
+        value={local}
+        onBlur={persist}
+        onChange={(event) => setLocal(event.target.value)}
+      />
+      {overCap || error !== null ? (
+        <p className={styles["error"]} id={`${inputId}-error`} role="alert">
+          {overCap
+            ? `This reply is longer than GitHub allows (${MAX_REPLY_LENGTH.toLocaleString()} characters) — shorten it to post.`
+            : error}
+        </p>
+      ) : null}
+      <div className={styles["detailActions"]}>
+        {/* Focusable-disabled (ReceiptDrawer pattern): a hard `disabled`
+            would drop keyboard/SR focus to <body> the moment posting starts
+            — and strand it there on success (Fable review). The click guard
+            lives in submit(). */}
+        <button
+          aria-busy={pending || undefined}
+          aria-disabled={blocked || undefined}
+          className={styles["action"]}
+          type="button"
+          onClick={submit}
+        >
+          {pending ? "Posting…" : "Reply"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface ThreadComposerWiring {
+  readonly briefId: string;
+  readonly post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
+  readonly announce: (message: string) => void;
+  readonly drafts: Readonly<Record<string, string>>;
+  readonly setDraft: (threadId: number, body: string) => void;
+  readonly onPosted: () => void;
+}
+
 function ThreadDetail({
   row,
   jumpToChunk,
+  composer,
 }: {
   row: DigestThreadRow;
   jumpToChunk: (chunkId: string) => void;
+  composer: ThreadComposerWiring;
 }) {
   const { thread, placement } = row;
   return (
@@ -115,6 +332,15 @@ function ThreadDetail({
           <span className={styles["srOnly"]}> (opens in a new tab)</span>
         </a>
       </div>
+      <ReplyComposer
+        announce={composer.announce}
+        briefId={composer.briefId}
+        draft={composer.drafts[String(thread.rootCommentId)] ?? ""}
+        onPosted={composer.onPosted}
+        post={composer.post}
+        setDraft={composer.setDraft}
+        threadId={thread.rootCommentId}
+      />
     </div>
   );
 }
@@ -124,11 +350,13 @@ function ThreadRowView({
   expanded,
   toggle,
   jumpToChunk,
+  composer,
 }: {
   row: DigestThreadRow;
   expanded: boolean;
   toggle: (threadId: number) => void;
   jumpToChunk: (chunkId: string) => void;
+  composer: ThreadComposerWiring;
 }) {
   const { thread } = row;
   const author = thread.comments[0]?.author;
@@ -155,7 +383,9 @@ function ThreadRowView({
             : null}
         </span>
       </button>
-      {expanded ? <ThreadDetail jumpToChunk={jumpToChunk} row={row} /> : null}
+      {expanded ? (
+        <ThreadDetail composer={composer} jumpToChunk={jumpToChunk} row={row} />
+      ) : null}
     </li>
   );
 }
@@ -168,6 +398,7 @@ function BotGroupRowView({
   expandedThreads,
   toggleThread,
   jumpToChunk,
+  composer,
 }: {
   row: Extract<DigestRow, { kind: "bot-group" }>;
   groupId: string;
@@ -176,6 +407,7 @@ function BotGroupRowView({
   expandedThreads: ReadonlySet<number>;
   toggleThread: (threadId: number) => void;
   jumpToChunk: (chunkId: string) => void;
+  composer: ThreadComposerWiring;
 }) {
   const key = `${groupId}:${row.author}`;
   const expanded = expandedGroups.has(key);
@@ -213,6 +445,7 @@ function BotGroupRowView({
         <ul className={styles["nested"]}>
           {row.threads.map((threadRow) => (
             <ThreadRowView
+              composer={composer}
               expanded={expandedThreads.has(threadRow.thread.rootCommentId)}
               jumpToChunk={jumpToChunk}
               key={threadRow.thread.rootCommentId}
@@ -235,6 +468,7 @@ function DigestGroupView({
   shownAll,
   showAll,
   jumpToChunk,
+  composer,
 }: {
   group: DigestGroup;
   expandedThreads: ReadonlySet<number>;
@@ -244,6 +478,7 @@ function DigestGroupView({
   shownAll: boolean;
   showAll: (groupId: string) => void;
   jumpToChunk: (chunkId: string) => void;
+  composer: ThreadComposerWiring;
 }) {
   const rows = shownAll ? group.rows : group.rows.slice(0, GROUP_ROW_CAP);
   const hidden = group.rows.length - rows.length;
@@ -276,6 +511,7 @@ function DigestGroupView({
         {rows.map((row) =>
           row.kind === "thread" ? (
             <ThreadRowView
+              composer={composer}
               expanded={expandedThreads.has(row.thread.rootCommentId)}
               jumpToChunk={jumpToChunk}
               key={row.thread.rootCommentId}
@@ -284,6 +520,7 @@ function DigestGroupView({
             />
           ) : (
             <BotGroupRowView
+              composer={composer}
               expandedGroups={expandedGroups}
               expandedThreads={expandedThreads}
               groupId={group.id}
@@ -361,6 +598,9 @@ export function ConversationSection({
   submittedReviewIds,
   jumpToChunk,
   markCommentsSubmitted,
+  announce,
+  replyDrafts,
+  setReplyDraft,
 }: ConversationSectionProps) {
   const queryClient = useQueryClient();
   const query = useQuery(plan.queryOptions);
@@ -442,6 +682,17 @@ export function ConversationSection({
     void queryClient.invalidateQueries({
       queryKey: plan.queryOptions.queryKey,
     });
+
+  // Every conversation write evicts server-side; the post-reply refetch
+  // makes the reply visible in-section (locked decision 9).
+  const composer: ThreadComposerWiring = {
+    briefId,
+    post: plan.postReply,
+    announce,
+    drafts: replyDrafts,
+    setDraft: setReplyDraft,
+    onPosted: refresh,
+  };
 
   const verdicts =
     conversation?.reviews.filter(
@@ -531,6 +782,7 @@ export function ConversationSection({
 
           {digest.map((group) => (
             <DigestGroupView
+              composer={composer}
               expandedGroups={expandedGroups}
               expandedThreads={expandedThreads}
               group={group}

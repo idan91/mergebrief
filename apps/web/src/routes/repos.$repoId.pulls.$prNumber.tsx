@@ -49,6 +49,7 @@ import {
   prMetaQueryOptions,
 } from "../features/pulls/queries";
 import { conversationQueryOptions } from "../features/conversation/queries";
+import { postConversationReply } from "../features/conversation/reply";
 import { submitReview } from "../features/pulls/submitReview";
 import type { PrSummary } from "../features/pulls/types";
 import {
@@ -445,7 +446,11 @@ function DbBrief({
   // The live-conversation plan (BRIEF-25): always fetched fresh per PR —
   // resolution flips and replies happen outside our generation cycle.
   const conversationPlan = useMemo(
-    () => ({ queryOptions: conversationQueryOptions(repoId, prNumber) }),
+    () => ({
+      queryOptions: conversationQueryOptions(repoId, prNumber),
+      postReply: (rootCommentId: number, body: string) =>
+        postConversationReply(repoId, prNumber, rootCommentId, body),
+    }),
     [prNumber, repoId],
   );
   return (
