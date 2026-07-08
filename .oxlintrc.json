@@ -47,6 +47,9 @@
       }
     ],
     "no-console": ["error", { "allow": ["warn", "error", "info"] }],
+    // `__typename` is GraphQL's own introspection field — the only way to
+    // discriminate author kinds (User vs Bot) on the wire.
+    "no-underscore-dangle": ["error", { "allow": ["__typename"] }],
     // Effects legitimately mix early `return;` with `return cleanup` — the
     // conditional-cleanup idiom React documents; tsc checks the return type.
     "typescript/consistent-return": "off",

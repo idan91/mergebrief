@@ -94,6 +94,26 @@ export {
 } from "./oauth";
 export type { GitHubOAuthApp, OAuthTokens, OAuthError, UserInstallation } from "./oauth";
 
-// Shared sanitized API-error shape (single sanitization chokepoint).
+// PR-conversation primitive (BRIEF-25, ADR 0027): the package's first GraphQL
+// surface — pre-threaded review threads with first-class resolution state,
+// review verdicts, PR-level comments. Domain ids are REST `databaseId`
+// numbers; GraphQL node ids never leave the module.
+export {
+  fetchPullRequestConversation,
+  ThreadSubjectType,
+  ReviewVerdictState,
+} from "./conversation";
+export type {
+  FetchPullRequestConversationInput,
+  PrConversation,
+  ConversationThread,
+  ConversationComment,
+  ConversationReview,
+  ConversationAuthor,
+  PrComment,
+} from "./conversation";
+
+// Shared sanitized API-error shape (single sanitization chokepoint; GraphQL
+// failures map through the `mapGraphqlError` taxonomy sibling).
 export { GitHubApiErrorCode } from "./errors";
 export type { GitHubApiError } from "./errors";
