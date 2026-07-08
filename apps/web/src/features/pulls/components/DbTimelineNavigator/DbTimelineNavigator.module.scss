@@ -1,0 +1,104 @@
+@layer components {
+  // Header-slot idiom (matches the local TimelineNavigator's control
+  // language): 32px mono controls on --panel2, the stepper dots on their own
+  // row. The component fills its slot column — sizing is the slot's job.
+  .timeline {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 4px;
+    align-items: center;
+    inline-size: 100%;
+
+    select,
+    .arrow {
+      min-block-size: 32px;
+      border: 1px solid var(--line2);
+      border-radius: 6px;
+      background: var(--panel2);
+      color: var(--dim);
+      font: 11px var(--mono);
+    }
+
+    select {
+      inline-size: 100%;
+      min-inline-size: 0;
+      padding-inline: 8px;
+      color: var(--text);
+    }
+  }
+
+  .picker {
+    display: block;
+    min-inline-size: 0;
+  }
+
+  .arrow {
+    display: grid;
+    inline-size: 32px;
+    color: var(--text);
+    cursor: pointer;
+    place-items: center;
+
+    &:not(:disabled):hover {
+      border-color: color-mix(in srgb, var(--blue) 42%, var(--line2));
+      background: color-mix(in srgb, var(--panel2) 82%, var(--blue));
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.35;
+    }
+  }
+
+  .steps {
+    display: flex;
+    grid-column: 1 / -1;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  // The clickable target is 24x24 (WCAG 2.2 target size — codex round 1);
+  // the visible dot is a centered pseudo-element inside it.
+  .step {
+    display: grid;
+    inline-size: 24px;
+    block-size: 24px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    place-items: center;
+
+    &::after {
+      content: "";
+      inline-size: 11px;
+      block-size: 11px;
+      border: 1px solid var(--faint);
+      border-radius: 50%;
+    }
+
+    &:hover::after {
+      border-color: var(--text);
+    }
+
+    &[data-comparable]::after {
+      border-color: var(--blue);
+    }
+
+    &[data-state="active"]::after {
+      border-color: var(--text);
+      background: var(--text);
+      box-shadow: 0 0 0 3px #30303a;
+    }
+  }
+
+  // Tight header (narrow viewport): the dots are a luxury; the picker and
+  // arrows stay.
+  @container header (max-width: 900px) {
+    .steps {
+      display: none;
+    }
+  }
+}

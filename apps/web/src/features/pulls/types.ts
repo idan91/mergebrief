@@ -74,6 +74,22 @@ export interface PrComparisons {
   readonly lastReview?: LastReviewComparison;
 }
 
+/**
+ * One browsable Brief revision on PR meta (BRIEF-24). `baseSha` is PER-ENTRY
+ * and load-bearing: the base drifts across revisions (base-branch advance /
+ * retarget) and the brief GET is an exact `(pr, base, head)` lookup, so the
+ * navigator fetches each revision with ITS OWN base — never the top-level
+ * view's. Ordered by `headIndex` ascending; `comparisons` mirrors the
+ * top-level envelope (empty object when neither baseline has marks here).
+ */
+export interface RevisionSummary {
+  readonly headSha: string;
+  readonly baseSha: string;
+  readonly headIndex: number;
+  readonly createdAt: string;
+  readonly comparisons: PrComparisons;
+}
+
 /** One PR as the list and PR-meta endpoints return it. */
 export interface PrSummary {
   readonly repoId: string;
@@ -90,6 +106,11 @@ export interface PrSummary {
   readonly updatedAt: string;
   /** Present on PR-meta responses only; absent on list rows. */
   readonly comparisons?: PrComparisons;
+  /**
+   * The browsable revision timeline (BRIEF-24) — present on PR-meta only when
+   * `briefAvailable` (no brief, no head, no history). Ordered by `headIndex`.
+   */
+  readonly revisions?: readonly RevisionSummary[];
 }
 
 /**
@@ -276,6 +297,54 @@ function parseComparisons(value: unknown): Result<PrComparisons | undefined> {
   };
 }
 
+function parseRevision(value: unknown): Result<RevisionSummary> {
+  if (!isRecord(value))
+    return { ok: false, error: "revision must be an object" };
+  if (typeof value["headSha"] !== "string") {
+    return { ok: false, error: "revision.headSha must be a string" };
+  }
+  if (typeof value["baseSha"] !== "string") {
+    return { ok: false, error: "revision.baseSha must be a string" };
+  }
+  if (typeof value["headIndex"] !== "number") {
+    return { ok: false, error: "revision.headIndex must be a number" };
+  }
+  if (typeof value["createdAt"] !== "string") {
+    return { ok: false, error: "revision.createdAt must be a string" };
+  }
+  // A revision's `comparisons` is the SAME envelope as the top-level one
+  // (empty object when neither baseline has marks) — reuse its guard so the
+  // two can never drift.
+  const comparisons = parseComparisons(value["comparisons"]);
+  if (!comparisons.ok) return comparisons;
+  return {
+    ok: true,
+    value: {
+      headSha: value["headSha"],
+      baseSha: value["baseSha"],
+      headIndex: value["headIndex"],
+      createdAt: value["createdAt"],
+      comparisons: comparisons.value ?? {},
+    },
+  };
+}
+
+function parseRevisions(
+  value: unknown,
+): Result<readonly RevisionSummary[] | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (!Array.isArray(value)) {
+    return { ok: false, error: "revisions must be an array" };
+  }
+  const revisions: RevisionSummary[] = [];
+  for (const item of value) {
+    const parsed = parseRevision(item);
+    if (!parsed.ok) return parsed;
+    revisions.push(parsed.value);
+  }
+  return { ok: true, value: revisions };
+}
+
 export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (!isRecord(value))
     return { ok: false, error: "PR summary must be an object" };
@@ -307,6 +376,8 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   }
   const comparisons = parseComparisons(value["comparisons"]);
   if (!comparisons.ok) return comparisons;
+  const revisions = parseRevisions(value["revisions"]);
+  if (!revisions.ok) return revisions;
   return {
     ok: true,
     value: {
@@ -323,6 +394,7 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
       ...(comparisons.value === undefined
         ? {}
         : { comparisons: comparisons.value }),
+      ...(revisions.value === undefined ? {} : { revisions: revisions.value }),
     },
   };
 }

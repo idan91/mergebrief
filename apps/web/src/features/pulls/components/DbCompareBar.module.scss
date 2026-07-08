@@ -1,12 +1,12 @@
 @layer components {
+  // Header-slot lens rows (BRIEF-24 UX pass): the bar lives inside the sticky
+  // header's control column now — two stacked segmented controls, same
+  // language as the local TimelineNavigator's lens fieldsets. No full-width
+  // strip chrome; the header is the surface.
   .bar {
     display: flex;
-    flex-wrap: wrap;
-    gap: 12px;
-    justify-content: center;
-    padding-block: 10px;
-    border-block-end: 1px solid var(--line);
-    background: var(--panel2);
+    flex-direction: column;
+    gap: 4px;
   }
 
   .group {
@@ -17,14 +17,24 @@
     border: 1px solid var(--line2);
     border-radius: 8px;
 
+    // Disabled-with-tooltip options render inside a .tipAnchor wrapper; both
+    // the direct buttons and the wrapper share the row equally.
+    > button,
+    > .tipAnchor {
+      flex: 1;
+    }
+
     button {
-      padding-block: 5px;
-      padding-inline: 12px;
+      inline-size: 100%;
+      min-block-size: 24px;
+      padding-block: 3px;
+      padding-inline: 8px;
       border: 0;
       border-radius: 6px;
       background: none;
       color: var(--dim);
-      font-size: 12.5px;
+      font-size: 12px;
+      white-space: nowrap;
       cursor: pointer;
 
       &[data-state="active"] {

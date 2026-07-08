@@ -1,4 +1,10 @@
-import { Fragment, useEffect, useState, type CSSProperties } from "react";
+import {
+  Fragment,
+  useEffect,
+  useId,
+  useState,
+  type CSSProperties,
+} from "react";
 
 import { rangeBetween } from "../../../../lib/collections";
 import { CommentComposer } from "../../../review/components/CommentComposer/CommentComposer";
@@ -45,6 +51,14 @@ export interface DiffTableProps {
   comparisonSkipReason: RevisionNarrativeSkipReason | null;
   activeCommentAnchor: CommentAnchor | null;
   addressedComments: AddressedReviewComment[];
+  /**
+   * Why comment composition is disabled (BRIEF-24 read-only posture on a
+   * historical revision). When set, the commentable rows stay focusable but
+   * carry `aria-disabled` + an `aria-describedby` reason (BRIEF-23 pattern —
+   * keyboard/SR users learn WHY before activation), and selection/composer
+   * entry is inert. Absent → rows are writable as usual.
+   */
+  composerDisabledReason?: string | undefined;
   /** Live conversation threads under their diff rows (BRIEF-25); optional. */
   conversationThreadsByRow?: ReadonlyMap<number, DigestThreadRow[]> | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
@@ -66,6 +80,7 @@ export function DiffTable({
   comparisonSkipReason,
   activeCommentAnchor,
   addressedComments,
+  composerDisabledReason,
   conversationThreadsByRow,
   conversationComposer,
   cancelCommentComposer,
@@ -79,6 +94,9 @@ export function DiffTable({
   updateReviewComment,
 }: DiffTableProps) {
   const [dragStart, setDragStart] = useState<number | null>(null);
+  // Instance-scoped id for the read-only reason the disabled rows point at
+  // (declared before the no-diff early return — hooks order).
+  const composerDisabledReasonId = `${useId()}-composer-disabled`;
   // Expansion for the live threads rendered under rows (visible state,
   // local to this table instance) — declared with the other hooks, before
   // the no-diff early return.
@@ -146,6 +164,9 @@ export function DiffTable({
   const metaColSpan = overlayActive ? 4 : 3;
 
   function finishSelection(rowIndex: number) {
+    // Read-only revision: composer entry is inert (the affordance itself is
+    // aria-disabled with the reason — this guards the activation path).
+    if (composerDisabledReason !== undefined) return;
     const indexes =
       dragStart === null ? [rowIndex] : rangeBetween(dragStart, rowIndex);
     setDragStart(null);
@@ -164,6 +185,16 @@ export function DiffTable({
   };
   return (
     <>
+      {/* The reason the commentable rows are inert (aria-describedby target).
+          Visible — not sr-only — so pointer users learn it too. */}
+      {composerDisabledReason !== undefined ? (
+        <p
+          className={styles["composerDisabledNote"]}
+          id={composerDisabledReasonId}
+        >
+          {composerDisabledReason}
+        </p>
+      ) : null}
       <div className={styles["viewport"]} style={viewportStyle}>
         <table className={styles["diff"]}>
           <tbody>
@@ -204,8 +235,18 @@ export function DiffTable({
               return (
                 <Fragment key={`${line.kind}-${index}`}>
                   <tr
+                    aria-describedby={
+                      composerDisabledReason !== undefined
+                        ? composerDisabledReasonId
+                        : undefined
+                    }
+                    aria-disabled={
+                      composerDisabledReason !== undefined ? true : undefined
+                    }
                     className={styles["line"]}
-                    data-commentable=""
+                    data-commentable={
+                      composerDisabledReason === undefined ? "" : undefined
+                    }
                     data-line-kind={line.kind}
                     data-rev={revMark}
                     data-selected={isSelected ? "" : undefined}
@@ -213,6 +254,7 @@ export function DiffTable({
                       if (event.key === "Enter") finishSelection(index);
                     }}
                     onMouseDown={(event) => {
+                      if (composerDisabledReason !== undefined) return;
                       event.preventDefault();
                       setDragStart(index);
                       setDragCurrent(index);

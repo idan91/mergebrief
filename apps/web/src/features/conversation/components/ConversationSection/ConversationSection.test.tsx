@@ -619,3 +619,201 @@ describe("Fable round fixes", () => {
     expect(textarea.id.endsWith("-reply")).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Outdated-thread revision jump (BRIEF-24 handoff).
+// ---------------------------------------------------------------------------
+
+function outdatedHumanConversation(anchorSha: string): PrConversation {
+  return {
+    threads: [
+      {
+        rootCommentId: 7777,
+        path: "src/a.ts",
+        subjectType: "LINE",
+        isResolved: false,
+        isOutdated: true,
+        anchorSha,
+        comments: [
+          {
+            commentId: 7777,
+            author: { login: "alice", isBot: false },
+            body: "old comment on an earlier revision",
+            createdAt: "2026-07-01T10:00:00Z",
+            url: "https://example.test/c/7777",
+          },
+        ],
+        hasMoreComments: false,
+      },
+    ],
+    reviews: [],
+    prComments: [],
+    hasMoreThreads: false,
+    hasMoreReviews: false,
+    hasMorePrComments: false,
+  };
+}
+
+function jumpPlan(
+  anchorSha: string,
+  knownHeads: string[],
+  onJump = vi.fn(),
+): { plan: ConversationPlan; onJump: ReturnType<typeof vi.fn> } {
+  return {
+    plan: {
+      ...plan([
+        { kind: "ready", conversation: outdatedHumanConversation(anchorSha) },
+      ]),
+      revisionJump: { knownHeads: new Set(knownHeads), onJump },
+    },
+    onJump,
+  };
+}
+
+describe("ConversationSection — outdated-thread revision jump (BRIEF-24)", () => {
+  it("offers an enabled jump when the anchor was a briefed head", async () => {
+    const { plan: jp, onJump } = jumpPlan("anchor-1", ["anchor-1"]);
+    renderSection({ plan: jp });
+    const row = await screen.findByRole("button", {
+      name: /old comment on an earlier revision/i,
+    });
+    fireEvent.click(row);
+    const jump = await screen.findByRole("button", {
+      name: /jump to revision/i,
+    });
+    expect(jump.getAttribute("aria-disabled")).toBeNull();
+    fireEvent.click(jump);
+    expect(onJump).toHaveBeenCalledWith("anchor-1", 7777);
+  });
+
+  it("disables the jump (focusably, with a reason) when the anchor was never briefed", async () => {
+    const { plan: jp, onJump } = jumpPlan("anchor-x", ["anchor-1"]);
+    renderSection({ plan: jp });
+    const row = await screen.findByRole("button", {
+      name: /old comment on an earlier revision/i,
+    });
+    fireEvent.click(row);
+    const jump = await screen.findByRole("button", {
+      name: /jump to revision/i,
+    });
+    expect(jump.getAttribute("aria-disabled")).toBe("true");
+    const reason = document.getElementById(
+      jump.getAttribute("aria-describedby") ?? "",
+    );
+    expect(reason?.textContent).toMatch(/never briefed/i);
+    fireEvent.click(jump);
+    expect(onJump).not.toHaveBeenCalled();
+  });
+
+  it("reveals a target hidden behind the group's show-more cap before landing", async () => {
+    // 51 unresolved threads + a resolved target: sorted last (resolved sinks),
+    // it falls past the 50-row cap and would never render — the landing
+    // effect must lift the cap for its group first (codex round 1).
+    const filler = Array.from({ length: 51 }, (_, i) => {
+      const id = 20_000 + i;
+      return {
+        rootCommentId: id,
+        path: "src/a.ts",
+        line: 10,
+        side: "RIGHT" as const,
+        subjectType: "LINE" as const,
+        isResolved: false,
+        isOutdated: false,
+        comments: [
+          {
+            commentId: id,
+            author: { login: `human${String(i)}`, isBot: false },
+            body: `filler ${String(i)}`,
+            createdAt: "2026-07-01T10:00:00Z",
+            url: `https://example.test/c/${String(id)}`,
+          },
+        ],
+        hasMoreComments: false,
+      };
+    });
+    const target = {
+      rootCommentId: 30_001,
+      path: "src/a.ts",
+      line: 10,
+      side: "RIGHT" as const,
+      subjectType: "LINE" as const,
+      isResolved: true,
+      isOutdated: false,
+      comments: [
+        {
+          commentId: 30_001,
+          author: { login: "alice", isBot: false },
+          body: "the capped target",
+          createdAt: "2026-07-01T10:00:00Z",
+          url: "https://example.test/c/30001",
+        },
+      ],
+      hasMoreComments: false,
+    };
+    const payload: PrConversation = {
+      threads: [...filler, target],
+      reviews: [],
+      prComments: [],
+      hasMoreThreads: false,
+      hasMoreReviews: false,
+      hasMorePrComments: false,
+    };
+    renderSection({
+      plan: plan([{ kind: "ready", conversation: payload }]),
+      focusThreadId: 30_001,
+    });
+    // Without the reveal, this row is sliced out by GROUP_ROW_CAP and the
+    // landing effect polls into nothing.
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-conversation-section-thread="30001"]'),
+      ).not.toBeNull(),
+    );
+  });
+
+  it("lands with an instant scroll when the viewer prefers reduced motion", async () => {
+    // The setup stub's matchMedia always reports matches=false; override it
+    // for this test to simulate prefers-reduced-motion: reduce.
+    const originalMatchMedia = globalThis.matchMedia;
+    const scrollSpy = vi.spyOn(Element.prototype, "scrollIntoView");
+    globalThis.matchMedia = (query: string) => {
+      const list = originalMatchMedia(query);
+      return query.includes("prefers-reduced-motion")
+        ? new Proxy(list, {
+            get: (target, prop) =>
+              prop === "matches" ? true : Reflect.get(target, prop),
+          })
+        : list;
+    };
+    try {
+      const { plan: jp } = jumpPlan("anchor-1", ["anchor-1"]);
+      renderSection({ plan: jp, focusThreadId: 7777 });
+      await waitFor(() => expect(scrollSpy).toHaveBeenCalled());
+      expect(scrollSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ behavior: "auto" }),
+      );
+    } finally {
+      globalThis.matchMedia = originalMatchMedia;
+      scrollSpy.mockRestore();
+    }
+  });
+
+  it("lands on the ?thread= target by auto-expanding its row (reads thread=)", async () => {
+    const { plan: jp } = jumpPlan("anchor-1", ["anchor-1"]);
+    renderSection({ plan: jp, focusThreadId: 7777 });
+    // The targeted thread expands on its own — the reply composer (rendered
+    // only inside an expanded thread detail) appears with no manual click.
+    expect(
+      await screen.findByLabelText(/Reply \(posts to GitHub/),
+    ).toBeDefined();
+    // The row carries the jump-target hook the router-driven landing queries…
+    expect(
+      document.querySelector('[data-conversation-section-thread="7777"]'),
+    ).not.toBeNull();
+    // …and NOT the inline diff rows' attribute: the section renders above
+    // the change groups, so sharing `data-conversation-thread` would shadow
+    // the diff row for BriefScreen's "Jump to comment" landing (codex
+    // round 5).
+    expect(document.querySelector("[data-conversation-thread]")).toBeNull();
+  });
+});

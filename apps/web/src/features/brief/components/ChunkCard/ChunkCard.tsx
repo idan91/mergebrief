@@ -46,6 +46,8 @@ export interface ChunkCardProps {
   /** Inline conversation threads at this chunk (BRIEF-25); absent = none. */
   conversationRows?: DigestRow[] | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
+  /** Read-only reason for the comment affordances (BRIEF-24); absent = writable. */
+  composerDisabledReason?: string | undefined;
 }
 
 /**
@@ -96,6 +98,7 @@ export const ChunkCard = memo(function ChunkCard({
   updateReviewComment,
   conversationRows,
   conversationComposer,
+  composerDisabledReason,
 }: ChunkCardProps) {
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
 
@@ -218,6 +221,7 @@ export const ChunkCard = memo(function ChunkCard({
             />
           ) : null}
           <DiffTable
+            composerDisabledReason={composerDisabledReason}
             conversationComposer={conversationComposer}
             conversationThreadsByRow={conversationSplit.byRow}
             activeCommentAnchor={activeCommentAnchor}

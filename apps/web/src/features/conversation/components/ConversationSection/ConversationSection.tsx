@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Markdown } from "../../../../components/Markdown/Markdown";
+import { prefersReducedMotion } from "../../../../lib/motion";
 import type { BriefChunk } from "../../../brief/types";
 import type { ReviewComment } from "../../../review/comments";
 import {
@@ -33,6 +34,20 @@ import { MAX_REPLY_LENGTH, type ReplyResult } from "../../reply";
 import type { ConversationReview, ConversationThread } from "../../types";
 import styles from "./ConversationSection.module.scss";
 
+/**
+ * Outdated-thread → revision navigation (BRIEF-24 handoff). An outdated thread
+ * is anchored on an EARLIER commit; when that commit was itself a briefed head,
+ * the reviewer can jump to that revision (with the thread pre-targeted). Misses
+ * are COMMON — debounce means many anchors were never briefed heads — so the
+ * affordance only enables on a hit; the GitHub permalink is the fallback.
+ */
+export interface ThreadRevisionJump {
+  /** Briefed revision head SHAs a thread anchor can navigate to. */
+  readonly knownHeads: ReadonlySet<string>;
+  /** Navigate the page to `anchorSha`, pre-targeting `threadId`. */
+  readonly onJump: (anchorSha: string, threadId: number) => void;
+}
+
 /** The route-injected data plan (absent on the local demo path). */
 export interface ConversationPlan {
   readonly queryOptions: ReturnType<typeof conversationQueryOptions>;
@@ -41,6 +56,8 @@ export interface ConversationPlan {
     rootCommentId: number,
     body: string,
   ) => Promise<ReplyResult>;
+  /** Outdated-thread revision jump (BRIEF-24); absent when there is no timeline. */
+  readonly revisionJump?: ThreadRevisionJump;
 }
 
 export interface ConversationSectionProps {
@@ -68,6 +85,12 @@ export interface ConversationSectionProps {
   /** Reply drafts per thread root id (session store — survive navigation). */
   replyDrafts: Readonly<Record<string, string>>;
   setReplyDraft: (threadId: number, body: string) => void;
+  /**
+   * A thread to land on after an outdated-thread revision jump (BRIEF-24 reads
+   * `?thread=`): once the conversation is loaded, its digest row expands,
+   * scrolls into view, flashes, and takes focus.
+   */
+  focusThreadId?: number | undefined;
 }
 
 /** Rows shown per digest group before "Show more" (locked decision 6). */
@@ -304,6 +327,64 @@ export interface ThreadComposerWiring {
   readonly getDraft: (threadId: number) => string;
   readonly setDraft: (threadId: number, body: string) => void;
   readonly onPosted: () => void;
+  /** Outdated-thread revision jump (BRIEF-24); absent inline / on the local path. */
+  readonly revisionJump?: ThreadRevisionJump;
+}
+
+const SHORT_SHA = 7;
+
+/**
+ * The outdated-thread revision jump (BRIEF-24). Rendered only for an outdated
+ * thread that carries an anchor commit AND a timeline is present. On a hit
+ * (the anchor was a briefed head) it navigates to that revision; on a miss —
+ * the common case — it stays disabled (focusable, with a reachable reason) and
+ * the sibling "View on GitHub" permalink is the fallback. No nearest-revision
+ * guessing.
+ */
+function RevisionJumpAction({
+  thread,
+  composer,
+}: {
+  thread: ConversationThread;
+  composer: ThreadComposerWiring;
+}) {
+  const reasonId = `${useId()}-jump-reason`;
+  const jump = composer.revisionJump;
+  if (
+    !thread.isOutdated ||
+    thread.anchorSha === undefined ||
+    jump === undefined
+  ) {
+    return null;
+  }
+  const anchorSha = thread.anchorSha;
+  const label = `Jump to revision ${anchorSha.slice(0, SHORT_SHA)}`;
+  if (jump.knownHeads.has(anchorSha)) {
+    return (
+      <button
+        className={styles["action"]}
+        onClick={() => jump.onJump(anchorSha, thread.rootCommentId)}
+        type="button"
+      >
+        {label}
+      </button>
+    );
+  }
+  return (
+    <>
+      <button
+        aria-describedby={reasonId}
+        aria-disabled="true"
+        className={styles["action"]}
+        type="button"
+      >
+        {label}
+      </button>
+      <span className={styles["note"]} id={reasonId}>
+        This revision was never briefed — open it on GitHub.
+      </span>
+    </>
+  );
 }
 
 function ThreadDetail({
@@ -362,6 +443,7 @@ function ThreadDetail({
             Jump to comment
           </button>
         ) : null}
+        <RevisionJumpAction composer={composer} thread={thread} />
         <a
           className={styles["action"]}
           href={thread.comments[0]?.url}
@@ -406,7 +488,18 @@ export function ThreadRowView({
   const { thread } = row;
   const author = thread.comments[0]?.author;
   return (
-    <li className={styles["row"]}>
+    <li
+      className={styles["row"]}
+      // The ?thread= landing target — a DISTINCT attribute from the inline
+      // diff rows' `data-conversation-thread`. The section renders ABOVE the
+      // change groups, so sharing that name would shadow the diff row in
+      // document order and break the digest's "Jump to comment" landing on
+      // the thread's own row (codex round 5). Section rows only: `hideJump`
+      // marks the inline (at-chunk) renders of this same component.
+      data-conversation-section-thread={
+        hideJump ? undefined : thread.rootCommentId
+      }
+    >
       <button
         aria-expanded={expanded}
         className={styles["rowButton"]}
@@ -659,6 +752,7 @@ export function ConversationSection({
   setReplyDraft,
   open,
   onToggle,
+  focusThreadId,
 }: ConversationSectionProps) {
   const queryClient = useQueryClient();
   const query = useQuery(plan.queryOptions);
@@ -741,6 +835,69 @@ export function ConversationSection({
       queryKey: plan.queryOptions.queryKey,
     });
 
+  // Inbound `?thread=` landing (BRIEF-24): once the conversation is loaded and
+  // the section is open, reveal the targeted thread, then scroll+flash+focus
+  // its row. Lands ONCE per target id (a ref, not state — re-runs must not
+  // re-yank focus while the reviewer reads), but the target is only marked
+  // landed AFTER its row was actually found and focused — a row still hidden
+  // (or data still settling) retries on the next conversation refetch instead
+  // of being silently spent (codex round 1).
+  const landedThreadRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (focusThreadId === undefined || !open || conversation === undefined) {
+      return;
+    }
+    if (landedThreadRef.current === focusThreadId) return;
+    // Reveal the target everywhere it could be hidden: expand its detail,
+    // lift its group's show-more cap, and open a containing bot group — a
+    // row behind any of these never renders, so it could never be landed on.
+    setExpandedThreads((current) => new Set(current).add(focusThreadId));
+    for (const group of digest) {
+      for (const row of group.rows) {
+        const holdsTarget =
+          row.kind === "thread"
+            ? row.thread.rootCommentId === focusThreadId
+            : row.threads.some(
+                (nested) => nested.thread.rootCommentId === focusThreadId,
+              );
+        if (!holdsTarget) continue;
+        setShownAllGroups((current) => new Set(current).add(group.id));
+        if (row.kind === "bot-group") {
+          setExpandedGroups((current) =>
+            new Set(current).add(`${group.id}:${row.author}`),
+          );
+        }
+      }
+    }
+    let frames = 12;
+    const land = () => {
+      const row = document.querySelector<HTMLElement>(
+        `[data-conversation-section-thread="${focusThreadId}"]`,
+      );
+      if (row !== null) {
+        // Found — only now is the target spent.
+        landedThreadRef.current = focusThreadId;
+        // Reduced motion: land instantly (codex round 2). The flash side is
+        // already CSS-gated (`@media (prefers-reduced-motion: reduce)` swaps
+        // the animation for a static ring where the flash is styled).
+        row.scrollIntoView({
+          behavior: prefersReducedMotion() ? "auto" : "smooth",
+          block: "center",
+        });
+        (row.querySelector("button") ?? row).focus({ preventScroll: true });
+        row.setAttribute("data-conversation-flash", "");
+        window.setTimeout(
+          () => row.removeAttribute("data-conversation-flash"),
+          1600,
+        );
+        return;
+      }
+      frames -= 1;
+      if (frames > 0) window.requestAnimationFrame(land);
+    };
+    window.requestAnimationFrame(land);
+  }, [conversation, digest, focusThreadId, open]);
+
   // Every conversation write evicts server-side; the post-reply refetch
   // makes the reply visible in-section (locked decision 9).
   // Drafts read through a ref so the wiring object's identity never follows
@@ -754,6 +911,9 @@ export function ConversationSection({
     getDraft: (threadId) => replyDraftsRef.current[String(threadId)] ?? "",
     setDraft: setReplyDraft,
     onPosted: refresh,
+    ...(plan.revisionJump === undefined
+      ? {}
+      : { revisionJump: plan.revisionJump }),
   };
 
   const verdicts =

@@ -38,7 +38,6 @@ import {
   WarmingChip,
   waitLabel,
 } from "../features/pulls/components/PrBriefStates";
-import { DbCompareBar } from "../features/pulls/components/DbCompareBar";
 import { attachLiveDiffs } from "../features/pulls/liveDiff";
 import {
   dbBriefQueryOptions,
@@ -49,9 +48,16 @@ import {
   prMetaQueryOptions,
 } from "../features/pulls/queries";
 import { conversationQueryOptions } from "../features/conversation/queries";
+import type { ThreadRevisionJump } from "../features/conversation/components/ConversationSection/ConversationSection";
 import { postConversationReply } from "../features/conversation/reply";
 import { submitReview } from "../features/pulls/submitReview";
 import type { PrSummary } from "../features/pulls/types";
+import {
+  resolveDbTimeline,
+  type DbTimelinePoint,
+  type DbTimelineSelection,
+} from "../features/pulls/dbTimeline";
+import { DbBriefControls } from "../features/pulls/components/DbBriefControls/DbBriefControls";
 import {
   buildSubmitPayload,
   type SubmitDraftInput,
@@ -65,17 +71,34 @@ const META_POLL_MS = 4000;
 interface PrBriefSearch extends BriefSearchParams {
   base?: string;
   head?: string;
+  /**
+   * The outdated-thread jump target (BRIEF-24/25 handoff): the thread's
+   * databaseId. This route owns head navigation and reserves the param;
+   * BRIEF-25's conversation section reads it to open/flash the thread.
+   */
+  thread?: number;
 }
 
 function nonEmpty(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
-/** Both-or-neither: a lone base/head cannot address a span. */
+/** Both-or-neither: a lone base/head cannot address a span (fallback path). */
 function spanFromSearch(search: PrBriefSearch): Span | undefined {
   return search.base !== undefined && search.head !== undefined
     ? { base: search.base, head: search.head }
     : undefined;
+}
+
+/** A positive-int thread databaseId, or undefined. */
+function parseThreadParam(value: unknown): number | undefined {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number(value)
+        : NaN;
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
 function parsePrNumber(raw: string): number {
@@ -108,18 +131,21 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   validateSearch: (search: Record<string, unknown>): PrBriefSearch => {
     const base = search["base"];
     const head = search["head"];
-    // A span is BOTH-or-neither: a lone base/head cannot address one, so it
-    // is normalized away HERE (not silently ignored downstream) — the route
-    // then behaves exactly like a span-less deep link and pins the resolved
-    // span into the URL, rather than 404ing a sloppy-but-recoverable link.
-    const spanComplete = nonEmpty(base) && nonEmpty(head);
-    // View/Compare (ADR 0024) share the local route's parse-or-omit posture.
+    // `head` is the revision-selection key (BRIEF-24): kept on its own so a
+    // `?head=<sha>` deep link (e.g. an outdated-thread jump) selects a
+    // revision — its base is resolved from `revisions[]`, never the URL. A
+    // lone `base` still cannot address anything, so it is kept only alongside
+    // a head (the pinned convenience of a full span); an unknown head degrades
+    // to latest downstream rather than 404ing a stale link.
     const view = parseViewParam(search["view"]);
     const compare = parseCompareParam(search["compare"]);
+    const thread = parseThreadParam(search["thread"]);
     return {
-      ...(spanComplete ? { base, head } : {}),
+      ...(nonEmpty(head) ? { head } : {}),
+      ...(nonEmpty(head) && nonEmpty(base) ? { base } : {}),
       ...(view !== undefined ? { view } : {}),
       ...(compare !== undefined ? { compare } : {}),
+      ...(thread !== undefined ? { thread } : {}),
     };
   },
   loaderDeps: ({ search }) => ({
@@ -148,6 +174,23 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       const meta = await context.queryClient.ensureQueryData(
         prMetaQueryOptions(repoId, prNumber),
       );
+      // A `?head=` deep link (or a fresh link on a multi-revision PR) resolves
+      // through the timeline: prefetch the SELECTED revision's brief with ITS
+      // OWN base (`deps.base` disambiguates duplicate-head rows), so a
+      // historical head SSRs correctly. An unknown head degrades to latest
+      // here too — never a 404.
+      const timeline = resolveDbTimeline(meta.revisions, deps.head, deps.base);
+      if (timeline !== undefined) {
+        await context.queryClient.ensureQueryData(
+          dbBriefQueryOptions(
+            repoId,
+            prNumber,
+            timeline.selected.baseSha,
+            timeline.selected.headSha,
+          ),
+        );
+        return;
+      }
       const state = deriveBriefRouteState(meta, undefined);
       if (state.kind === "render") {
         await context.queryClient.ensureQueryData(
@@ -183,29 +226,174 @@ function PrBriefRoute() {
         : false,
   }).data;
 
-  const state = deriveBriefRouteState(meta, explicit);
+  // BRIEF-24: a briefed PR exposes a revision timeline; `?head=` (+ `base`,
+  // which disambiguates duplicate-head rows from a retarget re-brief) selects
+  // a point (unknown head degrades to latest — never a 404). Absent → the
+  // legacy explicit-span / current-head flow is unchanged (metas without
+  // revisions).
+  const timeline = useMemo(
+    () => resolveDbTimeline(meta.revisions, search.head, search.base),
+    [meta.revisions, search.base, search.head],
+  );
 
-  // Pin the resolved span into the URL once rendering without one: the view
-  // stays stable (a head advance offers navigation, never yanks the page) and
-  // the address bar becomes a shareable exact-span deep link.
-  useEffect(() => {
-    if (explicit === undefined && state.kind === "render") {
+  const state = useMemo(
+    () =>
+      timeline !== undefined
+        ? ({
+            kind: "render",
+            span: {
+              base: timeline.selected.baseSha,
+              head: timeline.selected.headSha,
+            },
+          } as const)
+        : deriveBriefRouteState(meta, explicit),
+    [explicit, meta, timeline],
+  );
+
+  // A revision is WRITABLE only when its SPAN is the PR's current one
+  // (ADR 0019 #6): the submit route pins commit_id to the viewed head, and —
+  // just as load-bearing — comment anchors are read against the RENDERED
+  // (base…head) diff. A same-head revision with a stale base (retarget
+  // re-brief; codex round 4) renders a diff that is not the PR's current
+  // diff, so its line anchors can land wrong or nowhere on GitHub: base
+  // mismatch is a write-safety issue, not merely a stale lens. Read-only
+  // shapes:
+  // - a historical (non-latest) revision — switch forward to write;
+  // - the latest revision while the PR head ALREADY advanced (next brief
+  //   still generating; codex round 1) — the poll flips this off;
+  // - a same-head revision briefed against a superseded base (codex round 4).
+  // `meta.baseSha` is comparable here: with `briefAvailable` it is the latest
+  // brief row's own base (`buildPrView`), the same row `revisions[]` ends
+  // with; a null meta base (defensive) cannot veto.
+  // Derived as primitives so the memo below survives poll ticks (each meta
+  // refetch rebuilds `timeline` object identities — codex round 1).
+  const selectedHeadIsCurrent =
+    timeline !== undefined && timeline.selected.headSha === meta.headSha;
+  const selectedBaseIsCurrent =
+    timeline !== undefined &&
+    (meta.baseSha === null || timeline.selected.baseSha === meta.baseSha);
+  const readOnlyKind =
+    timeline === undefined || (selectedHeadIsCurrent && selectedBaseIsCurrent)
+      ? undefined
+      : selectedHeadIsCurrent
+        ? ("base-drift" as const)
+        : timeline.isLatest
+          ? ("head-advanced" as const)
+          : ("historical" as const);
+  const selectedHeadIndex = timeline?.selected.headIndex;
+  // Memoized so its reference is stable across PR-meta poll ticks — an inline
+  // literal would recreate `openCommentComposer` and bust every ChunkCard's
+  // memo boundary on each tick (perf review).
+  const readOnly = useMemo(
+    () =>
+      readOnlyKind === undefined
+        ? undefined
+        : {
+            reason:
+              readOnlyKind === "historical"
+                ? `You're viewing an earlier revision (revision ${selectedHeadIndex ?? "?"}). Switch to the latest revision to comment or submit a review.`
+                : readOnlyKind === "base-drift"
+                  ? "This Brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review."
+                  : "The pull request has newer commits — a new Brief is on the way. Commenting and submit resume on the new revision.",
+          },
+    [readOnlyKind, selectedHeadIndex],
+  );
+
+  const selectRevision = useCallback(
+    (point: { headSha: string; baseSha: string }) => {
       void navigate({
-        search: (current) => ({
-          ...current,
-          base: state.span.base,
-          head: state.span.head,
+        // The FULL span is written — head alone cannot address a duplicate-
+        // head revision (codex round 4). A jump target (`thread`) is spent
+        // once a revision is selected — drop the key entirely
+        // (exactOptionalPropertyTypes forbids `undefined`).
+        search: ({ thread: _spent, ...rest }) => ({
+          ...rest,
+          head: point.headSha,
+          base: point.baseSha,
         }),
-        replace: true,
+        replace: false,
       });
-    }
-  }, [explicit, navigate, state]);
+    },
+    [navigate],
+  );
 
-  // Announce state swaps to screen readers and re-anchor keyboard focus.
-  const announcement = stateAnnouncement(state, meta);
+  // Outdated-thread → revision jump (BRIEF-24 owns the head-navigation half):
+  // a thread anchored on a briefed head navigates to `?head=<anchor>&thread=<id>`
+  // (its own base). A miss keeps the affordance disabled — no guessing.
+  // `revisionJump` flows into conversationPlan → conversationComposer →
+  // every memoized ChunkCard, so its identity must survive PR-meta poll
+  // ticks (which rebuild `timeline` and its point objects). Key the memo on
+  // a PRIMITIVE fingerprint of the span list — `(head base)` pairs,
+  // whitespace-joined; SHAs are hex, the separators cannot collide (the
+  // backend's spanKey uses the same property) — and rebuild the pairs from
+  // that key (perf review, codex round 4 gate).
+  const revisionSpansKey = useMemo(
+    () =>
+      timeline === undefined
+        ? undefined
+        : timeline.points.map((p) => `${p.headSha} ${p.baseSha}`).join("\n"),
+    [timeline],
+  );
+  const revisionJump = useMemo(() => {
+    if (revisionSpansKey === undefined) return undefined;
+    const spans = revisionSpansKey.split("\n").map((line) => {
+      const [headSha = "", baseSha = ""] = line.split(" ");
+      return { headSha, baseSha };
+    });
+    return {
+      knownHeads: new Set(spans.map((span) => span.headSha)),
+      onJump: (anchorSha: string, threadId: number) => {
+        // Duplicate heads: the HIGHEST-index row wins — the backend's
+        // current-entry (`at(-1)`) choice for the same ambiguity.
+        const span = spans.findLast((s) => s.headSha === anchorSha);
+        void navigate({
+          search: (current) => ({
+            ...current,
+            head: anchorSha,
+            ...(span !== undefined ? { base: span.baseSha } : {}),
+            thread: threadId,
+          }),
+          replace: false,
+        });
+      },
+    };
+  }, [navigate, revisionSpansKey]);
+
+  // Pin the selected span into the URL: fresh links get the resolved head+base,
+  // and base drift is corrected to the revision's OWN base. A DEGRADED (unknown)
+  // head is left in place — the page shows latest with a stable note rather
+  // than silently rewriting the address the reviewer followed.
+  const pinnedSpan = state.kind === "render" ? state.span : undefined;
+  useEffect(() => {
+    if (pinnedSpan === undefined || timeline?.degraded) return;
+    if (search.head === pinnedSpan.head && search.base === pinnedSpan.base) {
+      return;
+    }
+    void navigate({
+      search: (current) => ({
+        ...current,
+        base: pinnedSpan.base,
+        head: pinnedSpan.head,
+      }),
+      replace: true,
+    });
+  }, [navigate, pinnedSpan, search.base, search.head, timeline?.degraded]);
+
+  // Announce state swaps AND revision selection to screen readers; re-anchor
+  // keyboard focus onto the Brief heading region on either change (ADR 0019 #7).
+  // Keyed by the full SPAN identity — duplicate-head revisions differ only by
+  // base, and moving between them swaps the content and read-only posture
+  // just like any other selection (codex round 6, round-4 identity rule).
+  const announcement = timeline
+    ? timelineAnnouncement(timeline, readOnly === undefined)
+    : stateAnnouncement(state, meta);
+  const selectedSpanKey =
+    timeline === undefined
+      ? undefined
+      : `${timeline.selected.baseSha} ${timeline.selected.headSha}`;
   useEffect(() => {
     document.getElementById("main-content")?.focus();
-  }, [state.kind]);
+  }, [state.kind, selectedSpanKey]);
 
   return (
     <>
@@ -217,7 +405,11 @@ function PrBriefRoute() {
       >
         {announcement}
       </span>
-      {explicit !== undefined && headAdvanced(meta, explicit) ? (
+      {/* The navigator OWNS head navigation on a multi-revision PR; the legacy
+          head-advanced banner only fires on the non-timeline path. */}
+      {timeline === undefined &&
+      explicit !== undefined &&
+      headAdvanced(meta, explicit) ? (
         <HeadAdvancedBanner
           onNavigate={() => {
             void navigate({ search: {}, replace: false });
@@ -232,16 +424,33 @@ function PrBriefRoute() {
             replace: false,
           });
         }}
+        conversationFocusThreadId={search.thread}
+        onSelectRevision={selectRevision}
         prNumber={prNumber}
+        readOnly={readOnly}
         repoId={repoId}
+        revisionJump={revisionJump}
         searchParams={{
           ...(search.view !== undefined ? { view: search.view } : {}),
           ...(search.compare !== undefined ? { compare: search.compare } : {}),
         }}
         state={state}
+        timeline={timeline}
       />
     </>
   );
+}
+
+/** The polite revision-selection announcement (ADR 0019 #7 a11y contract). */
+function timelineAnnouncement(
+  timeline: DbTimelineSelection,
+  writable: boolean,
+): string {
+  if (timeline.degraded) {
+    return "That revision is unavailable. Showing the latest Brief.";
+  }
+  const position = `Viewing revision ${timeline.selected.headIndex} of ${timeline.points.length}`;
+  return writable ? `${position}.` : `${position}. Read-only.`;
 }
 
 function stateAnnouncement(
@@ -271,6 +480,15 @@ interface PrBriefBodyProps {
   state: ReturnType<typeof deriveBriefRouteState>;
   searchParams: BriefSearchParams;
   onNavigateSearch: (next: BriefSearch) => void;
+  /** Read-only posture + reason on a historical head (BRIEF-24, ADR 0019 #6). */
+  readOnly?: { reason: string } | undefined;
+  /** The resolved revision timeline (BRIEF-24); absent on legacy metas. */
+  timeline?: DbTimelineSelection | undefined;
+  onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
+  /** Outdated-thread revision jump (BRIEF-24); absent when there is no timeline. */
+  revisionJump?: ThreadRevisionJump | undefined;
+  /** `?thread=` landing target (BRIEF-24 reads it). */
+  conversationFocusThreadId?: number | undefined;
 }
 
 function PrBriefBody({
@@ -280,17 +498,27 @@ function PrBriefBody({
   state,
   searchParams,
   onNavigateSearch,
+  readOnly,
+  timeline,
+  onSelectRevision,
+  revisionJump,
+  conversationFocusThreadId,
 }: PrBriefBodyProps) {
   switch (state.kind) {
     case "render":
       return (
         <DbBrief
+          conversationFocusThreadId={conversationFocusThreadId}
           meta={meta}
           onNavigateSearch={onNavigateSearch}
+          onSelectRevision={onSelectRevision}
           prNumber={prNumber}
+          readOnly={readOnly}
           repoId={repoId}
+          revisionJump={revisionJump}
           searchParams={searchParams}
           span={state.span}
+          timeline={timeline}
         />
       );
     case "waiting":
@@ -333,6 +561,11 @@ interface DbBriefProps {
   meta: PrSummary;
   searchParams: BriefSearchParams;
   onNavigateSearch: (next: BriefSearch) => void;
+  readOnly?: { reason: string } | undefined;
+  timeline?: DbTimelineSelection | undefined;
+  onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
+  revisionJump?: ThreadRevisionJump | undefined;
+  conversationFocusThreadId?: number | undefined;
 }
 
 function DbBrief({
@@ -342,6 +575,11 @@ function DbBrief({
   meta,
   searchParams,
   onNavigateSearch,
+  readOnly,
+  timeline,
+  onSelectRevision,
+  revisionJump,
+  conversationFocusThreadId,
 }: DbBriefProps) {
   const brief = useSuspenseQuery(
     dbBriefQueryOptions(repoId, prNumber, span.base, span.head),
@@ -355,16 +593,18 @@ function DbBrief({
     () => (diff.data === undefined ? brief : attachLiveDiffs(brief, diff.data)),
     [brief, diff.data],
   );
-  // Comparisons (BRIEF-19 4.1 + BRIEF-21): offered exactly when the meta says
-  // their marks exist AND the comparison targets the RENDERED span's head (a
-  // pinned older span must not borrow the current head's baselines).
-  const previous = meta.comparisons?.previousBrief;
-  const lastReview = meta.comparisons?.lastReview;
+  // Comparisons: on the BRIEF-24 timeline path the SELECTED revision's own
+  // availability drives the plan (offered wherever spans exist for THIS head,
+  // historical included — PR-1 already scoped each envelope to its head). On
+  // the legacy non-timeline path, meta.comparisons applies only to the current
+  // head (a pinned older span must not borrow the current head's baselines).
   const currentHead = meta.headSha === span.head;
+  const effectiveComparisons =
+    timeline?.selected.comparisons ??
+    (currentHead ? meta.comparisons : undefined);
+  const previous = effectiveComparisons?.previousBrief;
+  const lastReview = effectiveComparisons?.lastReview;
   const comparisonPlan = useMemo<BriefComparisonPlan>(() => {
-    if (!currentHead) {
-      return {};
-    }
     return {
       ...(previous === undefined
         ? {}
@@ -417,7 +657,7 @@ function DbBrief({
             },
           }),
     };
-  }, [currentHead, lastReview, prNumber, previous, repoId, span.head]);
+  }, [lastReview, prNumber, previous, repoId, span.head]);
   const availability: CompareOptionFlags = {
     previousBrief: comparisonPlan.previousBrief !== undefined,
     lastReview: comparisonPlan.lastReview !== undefined,
@@ -425,7 +665,7 @@ function DbBrief({
   // A checkpoint that EXISTS but cannot be compared gets its honest reason on
   // the disabled control; an absent field keeps the generic copy.
   const lastReviewDisabledReason =
-    currentHead && lastReview?.kind === "unavailable"
+    lastReview?.kind === "unavailable"
       ? lastReviewUnavailableReasonTitle(lastReview.reason)
       : undefined;
   const compareState = resolveBriefSearch(searchParams, availability);
@@ -450,25 +690,48 @@ function DbBrief({
       queryOptions: conversationQueryOptions(repoId, prNumber),
       postReply: (rootCommentId: number, body: string) =>
         postConversationReply(repoId, prNumber, rootCommentId, body),
+      ...(revisionJump === undefined ? {} : { revisionJump }),
     }),
-    [prNumber, repoId],
+    [prNumber, repoId, revisionJump],
+  );
+  // The unified control surface (BRIEF-24 UX pass): revision navigator +
+  // View/Compare lenses render in the STICKY header's control slot — always
+  // discoverable, never scrolled out of reach by the selection focus effect.
+  const headerControls = (
+    <DbBriefControls
+      compare={{
+        availability,
+        compareState,
+        lastReviewDisabledReason,
+        onNavigate: onNavigateSearch,
+      }}
+      note={
+        timeline?.degraded
+          ? "That revision link is no longer available — showing the latest Brief."
+          : undefined
+      }
+      onSelectRevision={onSelectRevision}
+      readOnly={readOnly !== undefined}
+      timeline={timeline}
+    />
   );
   return (
     <>
-      {comparisonsWarming(meta) ? <WarmingChip /> : null}
-      <DbCompareBar
-        availability={availability}
-        compareState={compareState}
-        lastReviewDisabledReason={lastReviewDisabledReason}
-        onNavigate={onNavigateSearch}
-      />
+      {/* Warming is a property of the LATEST generation — never shown while a
+          historical (read-only) revision is in view (history never polls). */}
+      {readOnly === undefined && comparisonsWarming(meta) ? (
+        <WarmingChip />
+      ) : null}
       <BriefView
         artifacts={[]}
         brief={assembled}
         briefId={briefId}
         comparisonPlan={comparisonPlan}
         conversation={conversationPlan}
+        conversationFocusThreadId={conversationFocusThreadId}
+        headerControls={headerControls}
         key={briefId}
+        readOnly={readOnly}
         searchParams={searchParams}
         submitReview={submitAction}
       />

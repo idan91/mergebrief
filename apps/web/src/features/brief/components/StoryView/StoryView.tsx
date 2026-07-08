@@ -50,6 +50,8 @@ export interface StoryViewProps {
   /** Inline conversation threads per chunk (BRIEF-25); absent on the local path. */
   conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
+  /** Read-only reason for the comment affordances (BRIEF-24); absent = writable. */
+  composerDisabledReason?: string | undefined;
 }
 
 export function StoryView(props: StoryViewProps) {
@@ -157,6 +159,7 @@ export function StoryView(props: StoryViewProps) {
                   }
                   deleteReviewComment={props.deleteReviewComment}
                   existingReviewCommentCount={props.existingReviewCommentCount}
+                  composerDisabledReason={props.composerDisabledReason}
                   conversationComposer={props.conversationComposer}
                   conversationRows={props.conversationByChunk?.get(chunk.id)}
                   markReviewed={props.markReviewed}

@@ -11,12 +11,14 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type RefObject,
 } from "react";
 
 import { Drawer } from "../../../../components/Drawer/Drawer";
 import { Markdown } from "../../../../components/Markdown/Markdown";
 import { useScrollSpy } from "../../../../hooks/useScrollSpy";
+import { prefersReducedMotion } from "../../../../lib/motion";
 import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import {
   DismissModal,
@@ -95,13 +97,6 @@ import { StoryView } from "../StoryView/StoryView";
 import styles from "./BriefPage.module.scss";
 
 const EMPTY_CHUNK_IDS: string[] = [];
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
 
 function numericCssVar(name: string): number {
   if (typeof window === "undefined") return 0;
@@ -280,6 +275,23 @@ export interface BriefViewProps extends BriefPageProps {
    * file path — no conversation section there.
    */
   conversation?: ConversationPlan;
+  /**
+   * Read-only posture on a historical revision (BRIEF-24, ADR 0019 #6): the
+   * comment composer and Submit disable with this reason (the submit route
+   * pins commit_id to the viewed head — a historical submit would post against
+   * a stale commit). Absent → the head is live and writable.
+   */
+  readOnly?: { reason: string } | undefined;
+  /**
+   * The `?thread=` landing target (BRIEF-24 reads it): opens the conversation
+   * section and lands on that thread. Absent → no auto-open.
+   */
+  conversationFocusThreadId?: number | undefined;
+  /**
+   * The DB route's unified revision/compare controls, rendered in the sticky
+   * header's control slot (BRIEF-24 UX pass). Absent on the local path.
+   */
+  headerControls?: ReactNode | undefined;
 }
 
 /**
@@ -294,6 +306,9 @@ export function BriefView({
   briefId,
   comparisonPlan,
   conversation,
+  conversationFocusThreadId,
+  headerControls,
+  readOnly,
   searchParams,
   submitReview,
 }: BriefViewProps) {
@@ -306,7 +321,10 @@ export function BriefView({
         briefId={briefId}
         comparisonPlan={comparisonPlan}
         conversation={conversation}
+        conversationFocusThreadId={conversationFocusThreadId}
+        headerControls={headerControls}
         model={model}
+        readOnly={readOnly}
         searchParams={searchParams}
         submitReview={submitReview}
       />
@@ -323,6 +341,13 @@ interface BriefScreenProps {
   searchParams: BriefSearchParams;
   submitReview?: SubmitReviewAction | undefined;
   conversation?: ConversationPlan | undefined;
+  readOnly?: { reason: string } | undefined;
+  /**
+   * The `?thread=` landing target (BRIEF-24 reads it): opens the conversation
+   * section and lands on that thread. Absent → no auto-open.
+   */
+  conversationFocusThreadId?: number | undefined;
+  headerControls?: ReactNode | undefined;
 }
 
 function BriefScreen({
@@ -333,6 +358,9 @@ function BriefScreen({
   model,
   searchParams,
   conversation,
+  conversationFocusThreadId,
+  headerControls,
+  readOnly,
   submitReview,
 }: BriefScreenProps) {
   const timeline = useMemo(
@@ -940,9 +968,19 @@ function BriefScreen({
     [actions],
   );
 
-  const openCommentComposer = useCallback((anchor: CommentAnchor) => {
-    setActiveCommentAnchor(anchor);
-  }, []);
+  const openCommentComposer = useCallback(
+    (anchor: CommentAnchor) => {
+      // Read-only posture (BRIEF-24): a historical head cannot take new draft
+      // comments (the submit would pin a stale commit_id). Surface the reason
+      // through the page live region instead of opening the composer.
+      if (readOnly !== undefined) {
+        setToast(readOnly.reason);
+        return;
+      }
+      setActiveCommentAnchor(anchor);
+    },
+    [readOnly],
+  );
   const cancelCommentComposer = useCallback(() => {
     setActiveCommentAnchor(null);
   }, []);
@@ -968,7 +1006,17 @@ function BriefScreen({
   // The conversation section collapses to its summary header by default —
   // it sits ABOVE the change groups (Idan, smoke feedback 2026-07-08), so
   // expanded-by-default would push the Brief down. The C shortcut expands.
-  const [conversationOpen, setConversationOpen] = useState(false);
+  // A `?thread=` landing (BRIEF-24) opens it so its target is reachable —
+  // including when the param arrives via in-app navigation AFTER mount (an
+  // initializer alone would leave the section collapsed; codex round 1). The
+  // user can still collapse it afterwards: the effect re-fires only when the
+  // TARGET changes, not on every render (navigation event, not state sync).
+  const [conversationOpen, setConversationOpen] = useState(
+    conversationFocusThreadId !== undefined,
+  );
+  useEffect(() => {
+    if (conversationFocusThreadId !== undefined) setConversationOpen(true);
+  }, [conversationFocusThreadId]);
   // Inline conversation threads (BRIEF-25): the same query the section runs
   // (react-query dedupes on the key), disabled on the local path.
   const queryClient = useQueryClient();
@@ -1085,7 +1133,12 @@ function BriefScreen({
           `[data-conversation-thread="${target.threadId}"]`,
         );
         if (row instanceof HTMLElement) {
-          row.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Same reduced-motion gate as every other programmatic scroll
+          // (codex round 2 — the section's landing twin).
+          row.scrollIntoView({
+            behavior: prefersReducedMotion() ? "auto" : "smooth",
+            block: "center",
+          });
           const disclosure = row.querySelector("button");
           (disclosure ?? row).focus({ preventScroll: true });
           flashConversationTarget(row);
@@ -1114,6 +1167,12 @@ function BriefScreen({
   });
   const liveSubmit = submitFlow.available && reviewMode === "reviewer";
   const submitReceipt = useCallback(() => {
+    // Read-only posture (BRIEF-24): the submit control disables focusably with
+    // the reason (below) — this guards the click path itself.
+    if (readOnly !== undefined) {
+      announceSubmit(readOnly.reason);
+      return;
+    }
     if (liveSubmit) {
       submitFlow.submit();
       return;
@@ -1124,7 +1183,7 @@ function BriefScreen({
         ? "Mockup flow — this would mark the PR ready for review after self-review."
         : "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
     );
-  }, [liveSubmit, reviewMode, submitFlow]);
+  }, [announceSubmit, liveSubmit, readOnly, reviewMode, submitFlow]);
   const closeSummaryPreview = useCallback(
     () => setSummaryPreviewOpen(false),
     [],
@@ -1200,6 +1259,7 @@ function BriefScreen({
         openSummaryPreviewDrawer={
           comparisonPlan === undefined ? undefined : openSummaryPreview
         }
+        controlsSlot={headerControls}
       />
       {/* Focus mode (Z) strips the page chrome and centers a single chunk in
           a narrow reading column — the visible payoff of "focus". The banner
@@ -1324,6 +1384,7 @@ function BriefScreen({
                 announce={announceSubmit}
                 briefId={briefId}
                 chunks={readingOrderedChunks}
+                focusThreadId={conversationFocusThreadId}
                 jumpToChunk={jumpToChunkFromConversation}
                 localComments={reviewComments}
                 markCommentsSubmitted={(ids) =>
@@ -1353,6 +1414,7 @@ function BriefScreen({
                 activeCommentAnchor={activeCommentAnchor}
                 addressedReviewComments={brief.reviewComments}
                 commentsByChunk={commentsByChunk}
+                composerDisabledReason={readOnly?.reason}
                 conversationByChunk={conversationByChunk}
                 conversationComposer={conversationComposer}
                 existingReviewCommentCount={reviewComments.length}
@@ -1392,9 +1454,16 @@ function BriefScreen({
         close={closeReceipt}
         openSummaryPreview={openSummaryPreview}
         submit={submitReceipt}
-        submitPending={liveSubmit ? submitFlow.pending : false}
-        submitBlockedReason={liveSubmit ? submitFlow.blockedReason : undefined}
-        submitError={liveSubmit ? submitFlow.error : null}
+        submitPending={
+          liveSubmit && readOnly === undefined ? submitFlow.pending : false
+        }
+        submitBlockedReason={
+          readOnly?.reason ??
+          (liveSubmit ? submitFlow.blockedReason : undefined)
+        }
+        submitError={
+          liveSubmit && readOnly === undefined ? submitFlow.error : null
+        }
         submitNote={liveSubmit ? submitFlow.note : null}
       />
       <SummaryPreviewDrawer

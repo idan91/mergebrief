@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { prefersReducedMotion } from "../../../../lib/motion";
 import { categoryLabel } from "../../viewModel";
 import type { GroupView } from "../../viewModel";
 import styles from "./GroupTocBar.module.scss";
@@ -26,13 +27,6 @@ const MAG_SIGMA = 24;
 
 function magnitudeAt(distance: number): number {
   return Math.exp(-((distance / MAG_SIGMA) ** 2));
-}
-
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
 }
 
 /**
@@ -74,11 +68,13 @@ export function GroupTocBar({
   };
 
   const handlePointerMove = (event: React.PointerEvent<HTMLElement>) => {
-    if (prefersReducedMotion()) return;
     const pointerY = event.clientY;
     if (frameRef.current !== null) return;
     frameRef.current = window.requestAnimationFrame(() => {
       frameRef.current = null;
+      // Checked inside the rAF gate: once per frame, not once per raw
+      // pointer-move event (perf review).
+      if (prefersReducedMotion()) return;
       setMagFromPointer(pointerY);
     });
   };

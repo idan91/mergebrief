@@ -15,6 +15,7 @@ import {
 } from "@floating-ui/react";
 import { useRef, type ReactNode } from "react";
 
+import { prefersReducedMotion } from "../lib/motion";
 import styles from "./Callout.module.scss";
 
 export interface CalloutProps {
@@ -75,9 +76,7 @@ function CalloutRoot({
   });
   const hover = useHover(context, { handleClose: safePolygon() });
   const { getFloatingProps } = useInteractions([hover]);
-  const reduceMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const reduceMotion = prefersReducedMotion();
   const { styles: transitionStyles } = useTransitionStyles(context, {
     duration: reduceMotion ? 0 : 140,
     common: { transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)" },

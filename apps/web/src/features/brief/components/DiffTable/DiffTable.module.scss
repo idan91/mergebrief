@@ -15,6 +15,15 @@
     }
   }
 
+  .composerDisabledNote {
+    margin: 0;
+    padding-block: 8px;
+    padding-inline: 16px;
+    border-block-start: 1px solid var(--line);
+    color: var(--dim);
+    font-size: 12px;
+  }
+
   .viewport {
     content-visibility: auto;
 

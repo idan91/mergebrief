@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 
 import type { ReviewMode } from "../../../review/state";
 import type { BriefSearch, CompareOptionFlags } from "../../compareState";
@@ -38,6 +38,12 @@ export interface HeaderProps {
    * Absent → the local cross-route link renders as before.
    */
   openSummaryPreviewDrawer?: (() => void) | undefined;
+  /**
+   * The DB route's unified revision/compare controls (BRIEF-24): rendered in
+   * the local TimelineNavigator's slot so BOTH paths keep their controls in
+   * the sticky header — discoverable and never scrolled out of reach.
+   */
+  controlsSlot?: ReactNode | undefined;
 }
 
 export function Header({
@@ -57,6 +63,7 @@ export function Header({
   availability,
   compareState,
   openSummaryPreviewDrawer,
+  controlsSlot,
 }: HeaderProps) {
   const headerRef = useRef<HTMLElement>(null);
   // The header height is content-driven (title length, meta lines, viewport),
@@ -108,12 +115,16 @@ export function Header({
           <div className={styles["sub"]}>{briefMetaLine(brief)}</div>
         ) : null}
       </div>
-      <TimelineNavigator
-        availability={availability}
-        briefId={briefId}
-        compareState={compareState}
-        timeline={timeline}
-      />
+      {controlsSlot !== undefined ? (
+        controlsSlot
+      ) : (
+        <TimelineNavigator
+          availability={availability}
+          briefId={briefId}
+          compareState={compareState}
+          timeline={timeline}
+        />
+      )}
       <fieldset className={styles["viewbar"]}>
         <legend className="sr-only">Review view</legend>
         <label className={styles["viewOption"]}>

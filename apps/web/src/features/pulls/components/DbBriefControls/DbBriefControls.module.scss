@@ -1,0 +1,59 @@
+@layer components {
+  // One compact column in the sticky header, mirroring the local
+  // TimelineNavigator's footprint: revision row (arrows + picker + dots),
+  // then the View/Compare lens rows.
+  .controls {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    inline-size: min(320px, 30cqw);
+    min-inline-size: 260px;
+  }
+
+  .revisionRow {
+    position: relative;
+    display: flex;
+
+    // Top-aligned: the navigator stacks a dots row under the picker; the chip
+    // belongs beside the PICKER row, not centered across both.
+    align-items: flex-start;
+    gap: 6px;
+
+    > :first-child {
+      flex: 1;
+      min-inline-size: 0;
+    }
+  }
+
+  .revisionRow .readOnlyChip {
+    margin-block-start: 7px;
+  }
+
+  .readOnlyChip {
+    padding-block: 2px;
+    padding-inline: 7px;
+    border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--line2));
+    border-radius: 999px;
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .note {
+    margin: 0;
+    color: var(--faint);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  // Narrow header (--top-bar-h drops to 60px): keep every control reachable —
+  // the header grows and republishes its measured height, so sticky offsets
+  // below stay correct. Only the width tightens.
+  @container header (max-width: 900px) {
+    .controls {
+      inline-size: 100%;
+      min-inline-size: 220px;
+    }
+  }
+}

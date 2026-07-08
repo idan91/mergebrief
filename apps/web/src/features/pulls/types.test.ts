@@ -175,6 +175,96 @@ describe("parsePrSummary comparisons (PR-meta only)", () => {
   });
 });
 
+describe("parsePrSummary revisions (BRIEF-24 PR-meta only)", () => {
+  const REVISION = {
+    headSha: "head-1",
+    baseSha: "base-1",
+    headIndex: 1,
+    createdAt: "2026-07-06T12:00:00.000Z",
+    comparisons: {},
+  };
+
+  it("accepts an absent revisions key (list rows / no brief)", () => {
+    const parsed = parsePrSummary(ROW);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.revisions).toBeUndefined();
+  });
+
+  it("parses an ordered revision timeline preserving each entry's own baseSha", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      revisions: [
+        { ...REVISION, headSha: "head-0", baseSha: "base-0", headIndex: 1 },
+        // base drifts across revisions (base-branch advance / retarget) — the
+        // per-entry base must survive verbatim, never be borrowed.
+        { ...REVISION, headSha: "head-1", baseSha: "base-1b", headIndex: 2 },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.revisions).toEqual([
+      {
+        headSha: "head-0",
+        baseSha: "base-0",
+        headIndex: 1,
+        createdAt: REVISION.createdAt,
+        comparisons: {},
+      },
+      {
+        headSha: "head-1",
+        baseSha: "base-1b",
+        headIndex: 2,
+        createdAt: REVISION.createdAt,
+        comparisons: {},
+      },
+    ]);
+  });
+
+  it("parses per-revision comparison availability (same envelope as top-level)", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      revisions: [
+        {
+          ...REVISION,
+          comparisons: {
+            previousBrief: {
+              baselineSha: "head-0",
+              baselineIndex: 1,
+              narrativeAvailable: false,
+            },
+            lastReview: { unavailable: "baseline-unavailable" },
+          },
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    const revision = parsed.value.revisions?.[0];
+    expect(revision?.comparisons.previousBrief?.baselineSha).toBe("head-0");
+    expect(revision?.comparisons.lastReview).toEqual({
+      kind: "unavailable",
+      reason: "baseline-unavailable",
+    });
+  });
+
+  it("rejects a non-array revisions and a malformed entry", () => {
+    expect(parsePrSummary({ ...ROW, revisions: {} }).ok).toBe(false);
+    expect(
+      parsePrSummary({
+        ...ROW,
+        revisions: [{ ...REVISION, headIndex: "2" }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      parsePrSummary({
+        ...ROW,
+        revisions: [{ ...REVISION, comparisons: { lastReview: 5 } }],
+      }).ok,
+    ).toBe(false);
+  });
+});
+
 describe("parsePullsList", () => {
   it("accepts { pulls: [...] } and rejects a bare array", () => {
     const ok = parsePullsList({ pulls: [ROW] });
