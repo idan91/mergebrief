@@ -1,0 +1,36 @@
+{
+  "name": "mergebrief",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MergeBrief CLI — humans and AI agents over the read/write API (BRIEF-17, ADR 0028/0029).",
+  "bin": {
+    "mergebrief": "./dist/mergebrief.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "tsup",
+    "link-dev": "pnpm build && pnpm link --global"
+  },
+  "dependencies": {
+    "commander": "^14.0.2",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.4",
+    "@types/node": "^22.10.0",
+    "api": "workspace:*",
+    "persistence": "workspace:*",
+    "tsup": "^8.5.0",
+    "types": "workspace:*",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}
