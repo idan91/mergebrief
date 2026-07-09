@@ -7,6 +7,7 @@
 import { Command } from "commander";
 import { createApiClient, type ApiClient, type FetchLike } from "./client";
 import {
+  fullNameFromOriginUrl,
   loadConfig,
   ownerFromOriginUrl,
   resolveProfile,
@@ -14,10 +15,21 @@ import {
   type ResolvedProfile,
 } from "./config";
 import { CliError, ExitCode } from "./exit";
-import { loadRepos, type RepoCacheDeps } from "./repos";
+import {
+  runConversation,
+  runDelta,
+  runDiff,
+  runGroups,
+  runPrList,
+  runPrMeta,
+  type ReadIo,
+} from "./read-commands";
+import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./repos";
 
 export interface CliDeps {
   readonly fetch: FetchLike;
+  /** `$PAGER` hook for `diff` on a TTY (cosmetic — ADR 0029 #7); optional. */
+  readonly pager?: ((text: string) => Promise<void>) | undefined;
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly configDir: string;
   readonly cacheDir: string;
@@ -48,6 +60,8 @@ interface AuthStatusBody {
 interface GlobalOptions {
   readonly json: boolean;
   readonly profile?: string;
+  /** `-R owner/name` — overrides origin-remote inference (plan decision 3). */
+  readonly repo?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -217,6 +231,44 @@ async function runRepos(
   }
 }
 
+/** Resolve the PR-addressed commands' target repo: `-R` beats the origin
+ * remote; no prompts, ever (plan decision 3). */
+async function resolveTarget(
+  deps: CliDeps,
+  global: GlobalOptions,
+): Promise<{ client: ApiClient; repoId: string }> {
+  const resolved = resolveFromDisk(deps, global.profile);
+  const originUrl = deps.gitOriginUrl();
+  const fullName =
+    global.repo ?? (originUrl === undefined ? undefined : fullNameFromOriginUrl(originUrl));
+  if (fullName === undefined) {
+    throw new CliError(
+      ExitCode.USAGE,
+      "no target repository — run inside a git repo with an origin remote, or pass -R owner/name",
+    );
+  }
+  if (!/^[^/\s]+\/[^/\s]+$/.test(fullName)) {
+    throw new CliError(ExitCode.USAGE, `-R expects owner/name, got "${fullName}"`);
+  }
+  const client = clientFor(deps, resolved);
+  const repoId = await resolveRepoId(
+    { client, cacheDir: deps.cacheDir, profileName: resolved.name },
+    fullName,
+  );
+  return { client, repoId };
+}
+
+function readIo(deps: CliDeps, global: GlobalOptions): ReadIo {
+  return { stdout: deps.stdout, stderr: deps.stderr, json: global.json };
+}
+
+function parsePrNumber(raw: string): number {
+  if (!/^\d+$/.test(raw)) {
+    throw new CliError(ExitCode.USAGE, `PR number must be a positive integer, got "${raw}"`);
+  }
+  return Number(raw);
+}
+
 /** Build the commander program over injected deps. */
 function buildProgram(deps: CliDeps): Command {
   const program = new Command("mergebrief");
@@ -224,6 +276,7 @@ function buildProgram(deps: CliDeps): Command {
     .description("MergeBrief — PR briefs for humans and agents, over your deployment's API")
     .option("--json", "machine output: the documented JSON contract (ADR 0029)", false)
     .option("--profile <name>", "config profile (default: owners match, then the default profile)")
+    .option("-R, --repo <owner/name>", "target repository (default: the origin remote)")
     .exitOverride()
     .configureOutput({
       writeOut: (str) => deps.stdout(str),
@@ -231,8 +284,12 @@ function buildProgram(deps: CliDeps): Command {
     });
 
   const globals = (): GlobalOptions => {
-    const opts = program.opts<{ json: boolean; profile?: string }>();
-    return { json: opts.json, ...(opts.profile === undefined ? {} : { profile: opts.profile }) };
+    const opts = program.opts<{ json: boolean; profile?: string; repo?: string }>();
+    return {
+      json: opts.json,
+      ...(opts.profile === undefined ? {} : { profile: opts.profile }),
+      ...(opts.repo === undefined ? {} : { repo: opts.repo }),
+    };
   };
 
   const auth = program.command("auth").description("authentication against your deployment");
@@ -251,6 +308,75 @@ function buildProgram(deps: CliDeps): Command {
     .description("repositories visible to the profile's token (cached; see --refresh)")
     .option("--refresh", "bypass the disk cache", false)
     .action(async (options: { refresh: boolean }) => runRepos(deps, globals(), options));
+
+  program
+    .command("pr")
+    .description("your PRs (no argument), or one PR's metadata")
+    .argument("[number]", "PR number in the target repository")
+    .action(async (raw: string | undefined) => {
+      const global = globals();
+      if (raw === undefined) {
+        const resolved = resolveFromDisk(deps, global.profile);
+        await runPrList(clientFor(deps, resolved), readIo(deps, global));
+        return;
+      }
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runPrMeta(client, repoId, parsePrNumber(raw), readIo(deps, global));
+    });
+
+  program
+    .command("groups")
+    .description("the PR's brief — change groups over the current span")
+    .argument("<number>", "PR number")
+    .action(async (raw: string) => {
+      const global = globals();
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runGroups(client, repoId, parsePrNumber(raw), readIo(deps, global));
+    });
+
+  program
+    .command("conversation")
+    .description("the PR's review conversation")
+    .argument("<number>", "PR number")
+    .action(async (raw: string) => {
+      const global = globals();
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runConversation(client, repoId, parsePrNumber(raw), readIo(deps, global));
+    });
+
+  program
+    .command("diff")
+    .description("the PR's unified diff (its raw text IS the machine format)")
+    .argument("<number>", "PR number")
+    .option("--base <sha>", "span base (with --head)")
+    .option("--head <sha>", "span head (with --base)")
+    .action(async (raw: string, options: { base?: string; head?: string }) => {
+      const global = globals();
+      if (global.json) {
+        // ADR 0029 #7: the raw unified diff IS diff's machine format.
+        throw new CliError(ExitCode.USAGE, "diff has no JSON arm — its raw output is the machine format");
+      }
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runDiff(
+        client,
+        repoId,
+        parsePrNumber(raw),
+        { ...options, pager: deps.pager },
+        readIo(deps, global),
+      );
+    });
+
+  program
+    .command("delta")
+    .description("what changed since your last review (union: available | not)")
+    .argument("<number>", "PR number")
+    .option("--baseline <sha>", "override the checkpoint baseline (with --head)")
+    .option("--head <sha>", "override the head (with --baseline)")
+    .action(async (raw: string, options: { baseline?: string; head?: string }) => {
+      const global = globals();
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runDelta(client, repoId, parsePrNumber(raw), options, readIo(deps, global));
+    });
 
   return program;
 }

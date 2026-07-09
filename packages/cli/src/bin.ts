@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // The thin bin over the client module (ADR 0028 #1): real-world deps wired
 // here and ONLY here — the whole CLI stays testable behind `runCli`.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -40,8 +40,27 @@ function gitOriginUrl(): string | undefined {
   }
 }
 
+/** `$PAGER` for `diff` on a TTY — cosmetics only (ADR 0029 #7). */
+function makePager(): ((text: string) => Promise<void>) | undefined {
+  const pager = process.env["PAGER"];
+  if (!process.stdout.isTTY || pager === undefined || pager.length === 0) {
+    return undefined;
+  }
+  return (text) =>
+    new Promise((resolve) => {
+      const child = spawn(pager, { shell: true, stdio: ["pipe", "inherit", "inherit"] });
+      child.on("close", () => resolve());
+      child.on("error", () => {
+        process.stdout.write(text);
+        resolve();
+      });
+      child.stdin.end(text);
+    });
+}
+
 const code = await runCli(process.argv.slice(2), {
   fetch: (input, init) => fetch(input, init),
+  pager: makePager(),
   env: process.env,
   configDir: xdgDir("XDG_CONFIG_HOME", ".config"),
   cacheDir: xdgDir("XDG_CACHE_HOME", ".cache"),
