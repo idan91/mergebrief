@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "MergeBrief CLI — humans and AI agents over the read/write API (BRIEF-17, ADR 0028/0029).",
+  "description": "MergeBrief CLI \u2014 humans and AI agents over the read/write API (BRIEF-17, ADR 0028/0029).",
   "bin": {
     "mergebrief": "./dist/mergebrief.js"
   },
@@ -17,7 +17,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "tsup",
-    "link-dev": "pnpm build && pnpm link --global"
+    "link-dev": "pnpm build && pnpm link --global",
+    "docs:appendix": "tsx scripts/embed-help.ts",
+    "docs:check": "tsx scripts/embed-help.ts --check"
   },
   "dependencies": {
     "commander": "^14.0.2",
@@ -31,6 +33,7 @@
     "tsup": "^8.5.0",
     "types": "workspace:*",
     "typescript": "^5.7.0",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "tsx": "^4.19.0"
   }
 }

@@ -173,7 +173,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        check: [typecheck, test]
+        check: [typecheck, test, "docs:check"]
 
     steps:
       - name: Check out repository

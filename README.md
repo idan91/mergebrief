@@ -72,6 +72,15 @@ same PR reuses it at no extra cost.
 Prefer the terminal? `tools/categorizer` exposes the same engine as a CLI —
 see [`tools/categorizer/README.md`](./tools/categorizer/README.md).
 
+## The CLI (humans + agents)
+
+The same review loop, scriptable: **`mergebrief`** ([packages/cli](packages/cli/README.md))
+drives `pr` → `groups` → `diff --group` → `submit` over your deployment's API with an
+opaque token minted in the web app. `--json` output is a stability-promised contract
+(passthrough server shapes, additive-only, a 6-code exit table), which makes it safe to
+hand to an AI agent unattended — `mergebrief --agents` prints the packaged guide.
+Deploy-side setup: [docs/self-host/cli.md](docs/self-host/cli.md).
+
 ## What you get
 
 | | |

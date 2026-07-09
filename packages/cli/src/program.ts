@@ -25,6 +25,7 @@ import {
   type ReadIo,
 } from "./read-commands";
 import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./repos";
+import { AGENTS_GUIDE } from "./agents-guide";
 import { runReply, runSubmit, type SubmitInput } from "./write-commands";
 
 export interface CliDeps {
@@ -320,6 +321,7 @@ function buildProgram(deps: CliDeps): Command {
   program
     .description("MergeBrief — PR briefs for humans and agents, over your deployment's API")
     .option("--json", "machine output: the documented JSON contract (ADR 0029)", false)
+    .option("--agents", "print the packaged agent guide and exit", false)
     .option("--profile <name>", "config profile (default: owners match, then the default profile)")
     .option("-R, --repo <owner/name>", "target repository (default: the origin remote)")
     .exitOverride()
@@ -479,6 +481,12 @@ function buildProgram(deps: CliDeps): Command {
  * invariant. Returns the process exit code; never throws.
  */
 export async function runCli(argv: readonly string[], deps: CliDeps): Promise<number> {
+  // Root-level guide (plan decision 8): print and exit before any parsing
+  // side effects — agents read this first.
+  if (argv.includes("--agents")) {
+    deps.stdout(AGENTS_GUIDE);
+    return ExitCode.OK;
+  }
   try {
     await buildProgram(deps).parseAsync([...argv], { from: "user" });
     return ExitCode.OK;
