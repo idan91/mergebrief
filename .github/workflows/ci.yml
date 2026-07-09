@@ -167,6 +167,60 @@ jobs:
         if: steps.changes.outputs.categorizer != 'true'
         run: echo "No categorizer files changed; skipping categorizer checks."
 
+  cli-checks:
+    name: CLI ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [typecheck, test]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect CLI changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
+          cli_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/cli/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+
+          if [ -n "$cli_files" ]; then
+            echo "cli=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cli=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up pnpm
+        if: steps.changes.outputs.cli == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.cli == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install CLI dependencies
+        if: steps.changes.outputs.cli == 'true'
+        run: pnpm --filter mergebrief... install --frozen-lockfile
+
+      - name: Run CLI ${{ matrix.check }}
+        if: steps.changes.outputs.cli == 'true'
+        run: pnpm --dir packages/cli ${{ matrix.check }}
+
+      - name: Skip CLI checks
+        if: steps.changes.outputs.cli != 'true'
+        run: echo "No CLI files changed; skipping CLI checks."
+
   persistence-checks:
     name: Persistence ${{ matrix.check }}
     runs-on: ubuntu-latest
