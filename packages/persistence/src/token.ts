@@ -17,14 +17,17 @@
 // or `user_id` + `id` for the owner-scoped revoke), never by an unscoped
 // caller argument.
 import { and, desc, eq, isNull } from "drizzle-orm";
+import { insertAudit } from "./audit";
 import { type AppDatabase, internal } from "./db";
 import { apiToken } from "./schema/api-token";
-import type {
-  ApiTokenRowId,
-  InstallationId,
-  Result,
-  ReviewerId,
-  ValueOf,
+import {
+  AuditAction,
+  AuditActorType,
+  type ApiTokenRowId,
+  type InstallationId,
+  type Result,
+  type ReviewerId,
+  type ValueOf,
 } from "./types";
 
 export type ApiTokenRow = typeof apiToken.$inferSelect;
@@ -141,7 +144,11 @@ export interface TokenMintInput {
 }
 
 export interface TokenAuth {
-  /** Insert a minted token row (installation binding pre-validated upstream). */
+  /**
+   * Insert a minted token row (installation binding pre-validated upstream)
+   * AND its D9 `auth` audit entry, atomically — a mint that cannot be
+   * audited must not exist.
+   */
   mintToken(input: TokenMintInput): Promise<ApiTokenMetadataRow>;
   /**
    * The Bearer-path resolver: hash → row → liveness (revoked, then expired).
@@ -207,25 +214,40 @@ export function tokenAuth(handle: AppDatabase): TokenAuth {
 
   return {
     async mintToken(input) {
-      const rows = await db
-        .insert(apiToken)
-        .values({
+      // ONE transaction with the D9 audit emit (codex PR2 R1): a mint that
+      // cannot be audited must not exist — otherwise an audit failure leaves
+      // a live, unaudited credential behind a 500, and the caller's retry
+      // mints another.
+      return db.transaction(async (tx) => {
+        const rows = await tx
+          .insert(apiToken)
+          .values({
+            installationId: input.installationId,
+            userId: input.userId,
+            userLogin: input.userLogin,
+            name: input.name,
+            tokenHash: input.tokenHash,
+            ghTokenCiphertext: input.ghTokenCiphertext,
+            ghRefreshTokenCiphertext: input.ghRefreshTokenCiphertext,
+            keyRef: input.keyRef,
+            expiresAt: input.expiresAt,
+          })
+          .returning(metadataColumns);
+        const row = rows[0];
+        if (row === undefined) {
+          throw new Error("api_token insert returned no row");
+        }
+        await insertAudit(tx, {
           installationId: input.installationId,
-          userId: input.userId,
-          userLogin: input.userLogin,
-          name: input.name,
-          tokenHash: input.tokenHash,
-          ghTokenCiphertext: input.ghTokenCiphertext,
-          ghRefreshTokenCiphertext: input.ghRefreshTokenCiphertext,
-          keyRef: input.keyRef,
-          expiresAt: input.expiresAt,
-        })
-        .returning(metadataColumns);
-      const row = rows[0];
-      if (row === undefined) {
-        throw new Error("api_token insert returned no row");
-      }
-      return row;
+          actorType: AuditActorType.REVIEWER,
+          actorId: input.userId,
+          action: AuditAction.AUTH,
+          targetType: "api_token",
+          targetId: row.id,
+          metadata: { decision: "200", kind: "mint" },
+        });
+        return row;
+      });
     },
 
     async resolveByHash(tokenHash, now) {

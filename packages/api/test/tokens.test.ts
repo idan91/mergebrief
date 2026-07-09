@@ -306,3 +306,224 @@ describe("Bearer presentation on /api/*", () => {
     expect(throttled[0]?.["last_used_at"]).toBeNull();
   });
 });
+
+describe("/auth/tokens mint / list / revoke (cookie-only)", () => {
+  let harness: PgliteHarness;
+  let app: Hono;
+  let kp: KeyProvider;
+
+  beforeEach(async () => {
+    harness = await createPgliteHarness();
+    kp = keyProvider();
+    app = createApp({
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: authDeps(kp),
+      github: unusedConversationPort,
+    });
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    await harness.close();
+  });
+
+  /** Seed a cookie session; returns the cookie plaintext. */
+  async function seedSession(): Promise<string> {
+    const cookie = randomBytes(32).toString("base64url");
+    const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
+    const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
+    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    await forTenant(harness.handle, CTX).sessions.create({
+      sessionTokenHash: sha256Hex(cookie),
+      reviewerId: REVIEWER,
+      reviewerLogin: "octocat",
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      expiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
+    return cookie;
+  }
+
+  async function mint(
+    body: unknown,
+    cookie?: string,
+  ): Promise<Response> {
+    return app.request("/auth/tokens", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(cookie === undefined ? {} : { Cookie: `rs_session=${cookie}` }),
+      },
+      body: JSON.stringify(body),
+    });
+  }
+
+  interface MintedBody {
+    readonly token: string;
+    readonly apiToken: { readonly id: string; readonly expiresAt: string | null };
+  }
+
+  it("mints a token shown exactly once, stored hash-only, usable as Bearer", async () => {
+    stubGitHub({
+      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: () => installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+    });
+    await seedPr(harness.handle);
+    const cookie = await seedSession();
+
+    const res = await mint({ name: "ci-token", installationId: INSTALLATION_ID }, cookie);
+    expect(res.status).toBe(201);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const body = (await res.json()) as MintedBody;
+    expect(body.token.startsWith("mergebrief_")).toBe(true);
+
+    // Hash-only storage: the DB row carries sha256(token), never the token.
+    const rows = await harness.raw("select token_hash from api_token");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.["token_hash"]).toBe(sha256Hex(body.token));
+
+    // Default expiry ≈ 90 days out.
+    const expiresAt = body.apiToken.expiresAt;
+    if (expiresAt === null) throw new Error("expected a default expiry");
+    const days = (new Date(expiresAt).getTime() - Date.now()) / 86_400_000;
+    expect(days).toBeGreaterThan(89);
+    expect(days).toBeLessThan(91);
+
+    // The minted token authenticates on /api/* immediately.
+    const read = await app.request("/api/pulls", {
+      headers: { Authorization: `Bearer ${body.token}` },
+    });
+    expect(read.status).toBe(200);
+
+    // The list never re-surfaces token material.
+    const list = await app.request("/auth/tokens", {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(list.status).toBe(200);
+    const listed = (await list.json()) as { tokens: Array<Record<string, unknown>> };
+    expect(listed.tokens).toHaveLength(1);
+    const entry = listed.tokens[0];
+    expect(entry?.["name"]).toBe("ci-token");
+    expect(entry?.["installationId"]).toBe(String(INSTALLATION_ID));
+    expect(JSON.stringify(listed)).not.toContain(body.token);
+    expect(JSON.stringify(listed)).not.toContain("tokenHash");
+    expect(JSON.stringify(listed)).not.toContain("Ciphertext");
+  });
+
+  it("supports the no-expiry choice", async () => {
+    stubGitHub({
+      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+    });
+    const cookie = await seedSession();
+    const res = await mint(
+      { name: "forever", installationId: INSTALLATION_ID, expiresInDays: null },
+      cookie,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as MintedBody;
+    expect(body.apiToken.expiresAt).toBeNull();
+  });
+
+  it("validates the installation against the viewer's LIVE set — 403, nothing minted", async () => {
+    stubGitHub({
+      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+    });
+    const cookie = await seedSession();
+    const res = await mint(
+      { name: "sneaky", installationId: 424242 },
+      cookie,
+    );
+    expect(res.status).toBe(403);
+    expect(await harness.raw("select count(*)::int as n from api_token")).toEqual([{ n: 0 }]);
+  });
+
+  it("is cookie-only: no cookie → 401; a Bearer token cannot mint or list", async () => {
+    stubGitHub({
+      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+    });
+    const bearer = await seedApiToken(harness.handle, kp);
+
+    expect((await mint({ name: "x", installationId: INSTALLATION_ID })).status).toBe(401);
+    const viaBearerMint = await app.request("/auth/tokens", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        Authorization: `Bearer ${bearer}`,
+      },
+      body: JSON.stringify({ name: "x", installationId: INSTALLATION_ID }),
+    });
+    expect(viaBearerMint.status).toBe(401);
+    const viaBearerList = await app.request("/auth/tokens", {
+      headers: { Authorization: `Bearer ${bearer}` },
+    });
+    expect(viaBearerList.status).toBe(401);
+    // Exactly the seeded row — nothing minted through either path.
+    expect(await harness.raw("select count(*)::int as n from api_token")).toEqual([{ n: 1 }]);
+  });
+
+  it("rejects malformed bodies deterministically", async () => {
+    stubGitHub({});
+    const cookie = await seedSession();
+    for (const bad of [
+      {},
+      { name: "", installationId: INSTALLATION_ID },
+      { name: "x".repeat(101), installationId: INSTALLATION_ID },
+      { name: "ok", installationId: "not-a-number" },
+      { name: "ok", installationId: INSTALLATION_ID, expiresInDays: 0 },
+      { name: "ok", installationId: INSTALLATION_ID, expiresInDays: -3 },
+    ]) {
+      const res = await mint(bad, cookie);
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it("revokes: Bearer dies, list shows revoked_at, repeat revoke is idempotent, foreign id is 404", async () => {
+    stubGitHub({
+      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: () => installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+    });
+    await seedPr(harness.handle);
+    const cookie = await seedSession();
+    const minted = (await (await mint({ name: "doomed", installationId: INSTALLATION_ID }, cookie)).json()) as MintedBody;
+
+    // Works before revocation.
+    expect(
+      (await app.request("/api/pulls", { headers: { Authorization: `Bearer ${minted.token}` } }))
+        .status,
+    ).toBe(200);
+
+    const revoke = await app.request(`/auth/tokens/${minted.apiToken.id}`, {
+      method: "DELETE",
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(revoke.status).toBe(200);
+
+    // Bearer is dead immediately (liveness is checked per request, uncached).
+    expect(
+      (await app.request("/api/pulls", { headers: { Authorization: `Bearer ${minted.token}` } }))
+        .status,
+    ).toBe(401);
+
+    const list = await app.request("/auth/tokens", {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    const listed = (await list.json()) as { tokens: Array<Record<string, unknown>> };
+    expect(listed.tokens[0]?.["revokedAt"]).not.toBeNull();
+
+    // Idempotent repeat; foreign/unknown id is an indistinguishable 404.
+    expect(
+      (await app.request(`/auth/tokens/${minted.apiToken.id}`, {
+        method: "DELETE",
+        headers: { Cookie: `rs_session=${cookie}` },
+      })).status,
+    ).toBe(200);
+    expect(
+      (await app.request("/auth/tokens/999999", {
+        method: "DELETE",
+        headers: { Cookie: `rs_session=${cookie}` },
+      })).status,
+    ).toBe(404);
+  });
+});

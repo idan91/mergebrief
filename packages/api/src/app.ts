@@ -14,6 +14,7 @@ import { conversationRoutes, type ConversationGitHubPort } from "./routes/conver
 import { installationsRoute } from "./routes/installations";
 import { pullsRoute } from "./routes/pulls";
 import { readsRoute } from "./routes/reads";
+import { tokensRoute } from "./routes/tokens";
 import { reviewSubmitRoute } from "./routes/review-submit";
 import { webhookRoute } from "./routes/webhook";
 
@@ -34,6 +35,7 @@ export function createApp(deps: AppDeps): Hono {
   app.route("/", webhookRoute(deps));
   app.route("/", authRoute(deps));
   app.route("/", installationsRoute(deps));
+  app.route("/", tokensRoute(deps));
   app.route("/", pullsRoute(deps));
   // Mounted BEFORE readsRoute: readsRoute guards `/api/repos/:repoId/*` with
   // its own gate instance, method-agnostic — mounted first, the submit POST

@@ -70,7 +70,7 @@ interface AccessibleSet {
  * carries the HTTP status the route should return: 401 (auth dead → re-login)
  * or 502 (GitHub upstream error). An unreadable stored token burns the session.
  */
-async function resolveAccessibleInstallations(
+export async function resolveAccessibleInstallations(
   deps: AuthRouteDeps,
   session: ViewerPrincipal,
 ): Promise<Result<AccessibleSet, { status: 401 | 502 }>> {

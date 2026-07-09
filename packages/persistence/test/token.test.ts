@@ -381,3 +381,19 @@ describe("tokenAuth.refreshToken", () => {
     expect(expired.error.code).toBe(TokenAuthErrorCode.EXPIRED);
   });
 });
+
+describe("tokenAuth.mintToken audit atomicity (codex PR2 R1)", () => {
+  it("mint emits its D9 auth audit row in the same transaction", async () => {
+    const handle = await freshDatabase();
+    await tokenAuth(handle).mintToken(mintInput());
+    const { internal } = await import("../src/db");
+    const { auditLog } = await import("../src/schema/audit-log");
+    const rows = await internal(handle).select().from(auditLog);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.action).toBe("auth");
+    expect(rows[0]?.targetType).toBe("api_token");
+    expect(rows[0]?.metadata).toEqual({ decision: "200", kind: "mint" });
+    expect(String(rows[0]?.installationId)).toBe(String(INSTALLATION));
+    expect(String(rows[0]?.actorId)).toBe(String(USER));
+  });
+});
