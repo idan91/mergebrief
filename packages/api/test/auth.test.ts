@@ -350,7 +350,7 @@ describe("reviewer auth routes", () => {
     if (session === undefined) throw new Error("seeded session not found");
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: authDeps(kp) },
-      session,
+      { ...session, channel: "cookie" },
     );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -390,7 +390,7 @@ describe("reviewer auth routes", () => {
     if (session === undefined) throw new Error("seeded session not found");
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: authDeps(kp) },
-      session,
+      { ...session, channel: "cookie" },
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");

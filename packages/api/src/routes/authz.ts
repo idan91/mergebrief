@@ -44,16 +44,19 @@ import {
   decryptToken,
   isRepoId,
   sessionAuth,
+  tokenAuth,
   type InstallationId,
   type RepoId,
-  type ReviewerSessionRow,
   type TenantContext,
 } from "persistence";
 import {
+  AuthChannel,
+  principalFromApiToken,
   refreshSessionToken,
   SESSION_COOKIE,
   sha256Hex,
   type AuthRouteDeps,
+  type ViewerPrincipal,
 } from "./auth";
 import { createTtlCache } from "./ttl-cache";
 
@@ -67,7 +70,7 @@ import { createTtlCache } from "./ttl-cache";
 
 export interface AuthzVariables {
   readonly ctx: TenantContext;
-  readonly session: ReviewerSessionRow;
+  readonly session: ViewerPrincipal;
   readonly repoId: RepoId;
   /**
    * The repo's `owner/name` as GITHUB verified it during the access check
@@ -107,6 +110,14 @@ export const AUTHZ_CACHE_TTL_MS = 60 * 1000;
  * (a handful of reviewers × repos); the oldest entry is evicted past the cap.
  */
 const POSITIVE_CACHE_MAX_ENTRIES = 50_000;
+
+/** `Authorization` scheme + the opaque token's secret-scanner-friendly prefix. */
+const BEARER_SCHEME = "Bearer ";
+export const API_TOKEN_PREFIX = "mergebrief_";
+/** `last_used_at` is visibility metadata — one write per token per window. */
+const TOKEN_TOUCH_THROTTLE_MS = 60 * 1000;
+/** Bounded like the positive cache: token hashes are long-lived but finite. */
+const TOUCH_THROTTLE_MAX_ENTRIES = 50_000;
 
 /** The access-check decision, as it appears in the stdout access log. */
 type AccessDecision = "200" | "401" | "404";
@@ -171,8 +182,58 @@ function logAccess(
  * last layer.
  */
 export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
+  // Throttle for the Bearer `last_used_at` touch: at most one UPDATE per token
+  // per window, app-instance-scoped like the positive cache.
+  const touchThrottle = createTtlCache<true>(TOUCH_THROTTLE_MAX_ENTRIES);
+
   return async (c, next) => {
     const startedAt = Date.now();
+
+    // Bearer presentation (BRIEF-17, ADR 0016 #4 as amended): accepted on
+    // `/api/*` ONLY — `/auth/*` stays browser-only, so one IdP path-exemption
+    // rule covers webhooks + CLI traffic. Outside `/api/*` the header is
+    // IGNORED (falls through to the cookie path), never honored.
+    const authorization = c.req.header("authorization");
+    if (
+      authorization !== undefined &&
+      authorization.startsWith(BEARER_SCHEME) &&
+      c.req.path.startsWith("/api/")
+    ) {
+      const bearer = authorization.slice(BEARER_SCHEME.length);
+      // Wrong prefix / miss / expired / revoked — the SAME hint-free 401.
+      if (!bearer.startsWith(API_TOKEN_PREFIX)) {
+        logAccess(c, startedAt, "401", {});
+        return c.json({ error: "unauthorized" }, 401, NO_STORE);
+      }
+      const tokenHash = sha256Hex(bearer);
+      const resolved = await tokenAuth(deps.handle).resolveByHash(
+        tokenHash,
+        new Date(startedAt),
+      );
+      if (!resolved.ok) {
+        logAccess(c, startedAt, "401", {});
+        return c.json({ error: "unauthorized" }, 401, NO_STORE);
+      }
+      const principal = principalFromApiToken(resolved.value);
+
+      // Throttled usage stamp — visibility, not auth state; the write is
+      // skipped entirely while the window holds and never awaited on the
+      // request path (its outcome cannot change the 401/200 decision).
+      if (touchThrottle.get(tokenHash) === undefined) {
+        touchThrottle.set(tokenHash, true, startedAt + TOKEN_TOUCH_THROTTLE_MS);
+        void tokenAuth(deps.handle)
+          .touchLastUsed(tokenHash, new Date(startedAt))
+          .catch((error: unknown) => {
+            console.error("api_token last_used_at touch failed", error);
+          });
+      }
+
+      c.set("ctx", { installationId: principal.installationId });
+      c.set("session", principal);
+      c.set("gateStartedAt", startedAt);
+      await next();
+      return;
+    }
 
     // No cookie / unknown session both → 401 with no GitHub call and no
     // repo-existence hint.
@@ -200,7 +261,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     }
 
     c.set("ctx", { installationId: session.installationId });
-    c.set("session", session);
+    c.set("session", { ...session, channel: AuthChannel.COOKIE });
     c.set("gateStartedAt", startedAt);
     await next();
   };

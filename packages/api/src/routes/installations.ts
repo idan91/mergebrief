@@ -29,11 +29,10 @@ import {
   sessionAuth,
   userSettingsStore,
   type InstallationId,
-  type ReviewerSessionRow,
 } from "persistence";
 import type { Result } from "types";
 import { z } from "zod";
-import { refreshSessionToken, type AuthRouteDeps } from "./auth";
+import { refreshSessionToken, type AuthRouteDeps, type ViewerPrincipal } from "./auth";
 import { accessLogLayer, sessionLayer, type AuthzEnv } from "./authz";
 
 /** The switch body — `installationId` as a numeric string or JSON number. */
@@ -62,7 +61,7 @@ function toInstallationId(raw: string | number): InstallationId | undefined {
 /** The live accessible set plus the (possibly refreshed) session it was read under. */
 interface AccessibleSet {
   readonly installations: readonly UserInstallation[];
-  readonly session: ReviewerSessionRow;
+  readonly session: ViewerPrincipal;
 }
 
 /**
@@ -73,7 +72,7 @@ interface AccessibleSet {
  */
 async function resolveAccessibleInstallations(
   deps: AuthRouteDeps,
-  session: ReviewerSessionRow,
+  session: ViewerPrincipal,
 ): Promise<Result<AccessibleSet, { status: 401 | 502 }>> {
   const decrypted = await decryptToken(
     deps.auth.keyProvider,
