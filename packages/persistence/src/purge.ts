@@ -21,8 +21,9 @@
 // `checkpoint`, `disposition`, `generation`) FKs `pull_request.id`
 // `ON DELETE CASCADE`, so deleting a `pull_request` row — or predicate-deleting
 // a set of them — cascades every child with no forgotten table (D5). The only
-// non-PR table a purge touches is `reviewer_session` (D11, not FK'd); it is
-// deleted explicitly on installation offboarding. `audit_log` is RETAINED
+// non-PR tables a purge touches are `reviewer_session` (D11, not FK'd) and
+// `api_token` (BRIEF-17, same posture); both are deleted explicitly on
+// installation offboarding. `audit_log` is RETAINED
 // (numeric-only, never purged, no FK — D9): a purge APPENDS a `delete` entry to
 // it and never removes from it.
 //
@@ -41,6 +42,7 @@
 import { and, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { insertAudit } from "./audit";
 import { type AppDatabase, internal } from "./db";
+import { apiToken } from "./schema/api-token";
 import { pullRequest } from "./schema/pull-request";
 import { reviewerSession } from "./schema/reviewer-session";
 import type { PullRequestRow, TenantContext } from "./tenant";
@@ -86,6 +88,7 @@ function fail(code: PurgeErrorCode, message: string): Result<never, PurgeError> 
 export interface InstallationPurgeCounts {
   readonly pullRequests: number;
   readonly sessions: number;
+  readonly apiTokens: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -123,9 +126,10 @@ export interface PurgeRoutines {
   /**
    * Offboard the whole tenant: predicate-delete ALL `pull_request` rows for ctx
    * (children cascade) + explicit delete of the tenant's `reviewer_session`
-   * rows (the one non-PR table, D5/D11). `audit_log` is retained untouched
-   * (numeric-only, never purged) — this APPENDS an `installation` `delete`
-   * entry. Returns both row counts.
+   * and `api_token` rows (the non-PR secret-bearing tables, D5/D11 +
+   * BRIEF-17 — installation-bound tokens must not outlive their tenant).
+   * `audit_log` is retained untouched (numeric-only, never purged) — this
+   * APPENDS an `installation` `delete` entry. Returns all three row counts.
    */
   purgeInstallation(): Promise<InstallationPurgeCounts>;
   /**
@@ -275,6 +279,10 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
           .delete(reviewerSession)
           .where(eq(reviewerSession.installationId, installationId))
           .returning({ id: reviewerSession.id });
+        const purgedTokens = await tx
+          .delete(apiToken)
+          .where(eq(apiToken.installationId, installationId))
+          .returning({ id: apiToken.id });
         await insertAudit(tx, {
           installationId,
           actorType: AuditActorType.APP,
@@ -283,7 +291,11 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
           targetId: installationId,
           metadata: { count: purgedPrs.length },
         });
-        return { pullRequests: purgedPrs.length, sessions: purgedSessions.length };
+        return {
+          pullRequests: purgedPrs.length,
+          sessions: purgedSessions.length,
+          apiTokens: purgedTokens.length,
+        };
       });
     },
 

@@ -57,6 +57,13 @@
       "when": 1783423118194,
       "tag": "0007_audit-action-submit",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783555270747,
+      "tag": "0008_api-token",
+      "breakpoints": true
     }
   ]
 }

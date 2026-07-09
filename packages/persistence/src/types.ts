@@ -16,6 +16,7 @@ export type RepoId = Brand<bigint, "RepoId">;
 export type ReviewerId = Brand<bigint, "ReviewerId">;
 export type PullRequestRowId = Brand<bigint, "PullRequestRowId">;
 export type BriefRowId = Brand<bigint, "BriefRowId">;
+export type ApiTokenRowId = Brand<bigint, "ApiTokenRowId">;
 
 /**
  * Type guards for branding raw bigints at boundaries (webhook payloads,
@@ -39,6 +40,9 @@ export function isPullRequestRowId(value: bigint): value is PullRequestRowId {
   return isPositiveBigInt(value);
 }
 export function isBriefRowId(value: bigint): value is BriefRowId {
+  return isPositiveBigInt(value);
+}
+export function isApiTokenRowId(value: bigint): value is ApiTokenRowId {
   return isPositiveBigInt(value);
 }
 

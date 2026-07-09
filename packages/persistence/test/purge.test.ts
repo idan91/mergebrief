@@ -18,6 +18,7 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
 import { type AppDatabase, fromDrizzle } from "../src/db";
 import {
+  apiToken,
   auditLog,
   brief,
   checkpoint,
@@ -369,17 +370,34 @@ describe("purgeRoutines.purgeRepos — set-based multi-repo purge (D5)", () => {
 });
 
 describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D11)", () => {
-  it("removes tenant A's PRs + sessions only; B untouched; audit_log retained", async () => {
+  it("removes tenant A's PRs + sessions + api tokens only; B untouched; audit_log retained", async () => {
     const { raw, handle } = await freshPair();
     const aPr = await insertPr(raw, { installationId: TENANT_A, prNumber: 1 });
     const bPr = await insertPr(raw, { installationId: TENANT_B, prNumber: 1 });
     await seedFullGraph(raw, TENANT_A, aPr);
     await seedFullGraph(raw, TENANT_B, bPr);
+    // The second non-PR secret-bearing table (BRIEF-17): installation-bound
+    // API tokens must die with the tenant, like sessions.
+    for (const [installationId, hash] of [
+      [TENANT_A, "e".repeat(64)],
+      [TENANT_B, "f".repeat(64)],
+    ] as const) {
+      await raw.insert(apiToken).values({
+        installationId,
+        tokenHash: hash,
+        userId: REVIEWER,
+        name: "ci-token",
+        ghTokenCiphertext: "ct",
+        ghRefreshTokenCiphertext: "rct",
+        keyRef: "SESSION_KEY_V1",
+        expiresAt: null,
+      });
+    }
 
     const counts = await purgeRoutines(handle, CTX_A).purgeInstallation();
-    expect(counts).toEqual({ pullRequests: 1, sessions: 1 });
+    expect(counts).toEqual({ pullRequests: 1, sessions: 1, apiTokens: 1 });
 
-    // Tenant A fully erased (PR + session).
+    // Tenant A fully erased (PR + session + token).
     const prs = await raw.select({ id: pullRequest.id }).from(pullRequest);
     expect(prs.map((r) => r.id)).toEqual([bPr]);
     const sessions = await raw
@@ -387,6 +405,11 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D1
       .from(reviewerSession);
     expect(sessions).toHaveLength(1);
     expect(sessions[0]?.installationId).toBe(TENANT_B);
+    const tokens = await raw
+      .select({ id: apiToken.id, installationId: apiToken.installationId })
+      .from(apiToken);
+    expect(tokens).toHaveLength(1);
+    expect(tokens[0]?.installationId).toBe(TENANT_B);
 
     // Tenant B's child graph is intact.
     expect(await countChildTables(raw, bPr)).toBe(8);

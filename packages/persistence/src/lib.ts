@@ -114,6 +114,20 @@ export type {
   SessionRefreshRejection,
 } from "./session";
 
+// The API-token auth seam (BRIEF-17, ADR 0016 #4 as amended) — the SECOND
+// presentation channel's PRE-TENANT, hash-keyed resolver. Like `sessionAuth`
+// it PRODUCES the tenant, so it precedes `forTenant` scoping.
+export { tokenAuth, TokenAuthErrorCode } from "./token";
+export type {
+  TokenAuth,
+  TokenAuthError,
+  TokenMintInput,
+  TokenRefreshPatch,
+  TokenRefreshRejection,
+  ApiTokenRow,
+  ApiTokenMetadataRow,
+} from "./token";
+
 // The per-user settings seam (BRIEF-19, D14) — the SECOND non-tenant surface
 // after `audit`. Keyed by GitHub user id (a person spans installations), so it
 // is NOT ctx-bound and NOT reachable through `forTenant`.
