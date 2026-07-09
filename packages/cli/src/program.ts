@@ -350,7 +350,8 @@ function buildProgram(deps: CliDeps): Command {
     .argument("<number>", "PR number")
     .option("--base <sha>", "span base (with --head)")
     .option("--head <sha>", "span head (with --base)")
-    .action(async (raw: string, options: { base?: string; head?: string }) => {
+    .option("--group <id>", "filter to one change group's whole hunks (brief span only)")
+    .action(async (raw: string, options: { base?: string; head?: string; group?: string }) => {
       const global = globals();
       if (global.json) {
         // ADR 0029 #7: the raw unified diff IS diff's machine format.

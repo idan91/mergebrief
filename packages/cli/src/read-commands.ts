@@ -6,6 +6,7 @@
 import { z } from "zod";
 import type { ApiClient } from "./client";
 import { CliError, ExitCode } from "./exit";
+import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
 
 // ---------------------------------------------------------------------------
 // The PR-meta slices these commands consume (tolerant-read: only the fields
@@ -29,6 +30,17 @@ const prMetaSliceSchema = z.object({
         .optional(),
     })
     .optional(),
+});
+
+const briefChunkSliceSchema = z.object({
+  chunks: z.array(
+    z.object({
+      changeGroupId: z.string(),
+      file: z.string(),
+      addedRanges: z.array(z.object({ start: z.number(), end: z.number() })),
+      removedRanges: z.array(z.object({ start: z.number(), end: z.number() })),
+    }),
+  ),
 });
 
 function skewError(what: string): CliError {
@@ -122,7 +134,7 @@ export async function runGroups(
   const meta = await fetchPrMeta(client, repoId, prNumber);
   const span = briefSpan(meta, prNumber);
   const brief = await client.request({
-    path: `/api/repos/${repoId}/pulls/${prNumber}/brief?base=${span.base}&head=${span.head}`,
+    path: `/api/repos/${repoId}/pulls/${prNumber}/brief?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`,
   });
   if (io.json) {
     io.stdout(brief.bodyText); // verbatim
@@ -151,14 +163,16 @@ export async function runConversation(
 export interface DiffOptions {
   readonly base?: string | undefined;
   readonly head?: string | undefined;
+  readonly group?: string | undefined;
   /** TTY pager hook (cosmetic only — wired by bin, absent in tests). */
   readonly pager?: ((text: string) => Promise<void>) | undefined;
 }
 
 /**
  * `diff <n>`: the raw unified diff IS the machine format — `--json` is
- * rejected by the caller (exit 2) before this runs. (`--group` lands in the
- * next PR.)
+ * rejected by the caller (exit 2) before this runs. `--group` filters to a
+ * change-group's whole hunks on the brief's OWN span; combining it with a
+ * custom `--base`/`--head` is a hard usage error (plan decision 4).
  */
 export async function runDiff(
   client: ApiClient,
@@ -167,8 +181,39 @@ export async function runDiff(
   options: DiffOptions,
   io: ReadIo,
 ): Promise<void> {
+  if (options.group !== undefined && (options.base !== undefined || options.head !== undefined)) {
+    throw new CliError(
+      ExitCode.USAGE,
+      "--group filters the brief's own span — it cannot be combined with --base/--head",
+    );
+  }
+
   let span: { base: string; head: string };
-  if (options.base !== undefined && options.head !== undefined) {
+  let groupChunks: ChunkSpan[] | undefined;
+  if (options.group !== undefined) {
+    const meta = await fetchPrMeta(client, repoId, prNumber);
+    span = briefSpan(meta, prNumber);
+    const brief = await client.request({
+      path: `/api/repos/${repoId}/pulls/${prNumber}/brief?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`,
+    });
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(brief.bodyText);
+    } catch {
+      throw skewError("brief");
+    }
+    const parsed = briefChunkSliceSchema.safeParse(parsedJson);
+    if (!parsed.success) {
+      throw skewError("brief");
+    }
+    groupChunks = parsed.data.chunks.filter((chunk) => chunk.changeGroupId === options.group);
+    if (groupChunks.length === 0) {
+      throw new CliError(
+        ExitCode.NOT_FOUND,
+        `change group "${options.group}" is not in this PR's brief (see \`mergebrief groups ${prNumber}\`)`,
+      );
+    }
+  } else if (options.base !== undefined && options.head !== undefined) {
     span = { base: options.base, head: options.head };
   } else if (options.base === undefined && options.head === undefined) {
     const meta = await fetchPrMeta(client, repoId, prNumber);
@@ -178,10 +223,22 @@ export async function runDiff(
   }
 
   const diff = await client.request({
-    path: `/api/repos/${repoId}/pulls/${prNumber}/diff?base=${span.base}&head=${span.head}`,
+    path: `/api/repos/${repoId}/pulls/${prNumber}/diff?base=${encodeURIComponent(span.base)}&head=${encodeURIComponent(span.head)}`,
   });
 
-  const text = diff.bodyText;
+  let text = diff.bodyText;
+  if (groupChunks !== undefined) {
+    const filtered = filterDiffByChunks(text, groupChunks);
+    if (filtered.missingFiles.length > 0) {
+      // Fail LOUD (plan decision 4): a silently under-shown group is worse
+      // than an error — the brief and the live diff disagree about files.
+      throw new CliError(
+        ExitCode.GENERIC,
+        `group "${options.group}" references files missing from the live diff (${filtered.missingFiles.join(", ")}) — the brief may lag a push; retry after regeneration`,
+      );
+    }
+    text = filtered.diff;
+  }
 
   if (options.pager !== undefined) {
     await options.pager(text);
@@ -246,7 +303,7 @@ export async function runDelta(
   // Unmodeled 404 (the artifact vanished between reads / explicit bad span)
   // stays exit 4 — only MODELED unavailability is data.
   const artifact = await client.request({
-    path: `/api/repos/${repoId}/pulls/${prNumber}/delta?baseline=${baseline}&head=${head}`,
+    path: `/api/repos/${repoId}/pulls/${prNumber}/delta?baseline=${encodeURIComponent(baseline)}&head=${encodeURIComponent(head)}`,
   });
   // Splice the artifact bytes VERBATIM into the envelope — never re-parsed.
   emit(

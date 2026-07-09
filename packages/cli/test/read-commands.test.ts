@@ -321,6 +321,26 @@ describe("read commands over the real api app", () => {
     expect(raw.out).toBe(RAW_DIFF);
   });
 
+  it("diff --group keeps only the group's whole hunks; custom span is exit 2", async () => {
+    await seedBriefedPr(harness.handle);
+    await login();
+
+    const filtered = await run(["diff", "7", "--group", "grp-1"]);
+    expect(filtered.code).toBe(ExitCode.OK);
+    expect(filtered.out).toContain("@@ -8,3 +8,5 @@");
+    expect(filtered.out).toContain("+added two");
+    expect(filtered.out).not.toContain("@@ -40,2 +42,2 @@");
+    expect(filtered.out).not.toContain("src/other.ts");
+
+    const custom = await run(["diff", "7", "--group", "grp-1", "--base", BASE_SHA]);
+    expect(custom.code).toBe(ExitCode.USAGE);
+    expect(custom.out).toBe("");
+
+    const unknown = await run(["diff", "7", "--group", "nope"]);
+    expect(unknown.code).toBe(ExitCode.NOT_FOUND);
+    expect(unknown.err[0]).toContain('change group "nope"');
+  });
+
   it("delta with explicit --baseline/--head wraps the artifact verbatim; unmodeled 404 exits 4", async () => {
     await seedBriefedPr(harness.handle);
     const deltaBody = '{"artifactKind":"delta","changedGroups":[]}';
