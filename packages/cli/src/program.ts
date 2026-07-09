@@ -25,9 +25,12 @@ import {
   type ReadIo,
 } from "./read-commands";
 import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./repos";
+import { runReply, runSubmit, type SubmitInput } from "./write-commands";
 
 export interface CliDeps {
   readonly fetch: FetchLike;
+  /** Read a file for `submit -F <file>`; injected for tests. */
+  readonly readFile?: ((path: string) => string) | undefined;
   /** `$PAGER` hook for `diff` on a TTY (cosmetic — ADR 0029 #7); optional. */
   readonly pager?: ((text: string) => Promise<void>) | undefined;
   readonly env: Readonly<Record<string, string | undefined>>;
@@ -262,6 +265,48 @@ function readIo(deps: CliDeps, global: GlobalOptions): ReadIo {
   return { stdout: deps.stdout, stderr: deps.stderr, json: global.json };
 }
 
+/** Read `-F`/`--body-file` sources: a path, or "-" for stdin. */
+async function readSource(deps: CliDeps, source: string): Promise<string> {
+  if (source === "-") {
+    return deps.readStdin();
+  }
+  const readFile = deps.readFile;
+  if (readFile === undefined) {
+    throw new CliError(ExitCode.USAGE, "file input is not available in this environment");
+  }
+  try {
+    return readFile(source);
+  } catch {
+    throw new CliError(ExitCode.USAGE, `could not read ${source}`);
+  }
+}
+
+function parsePayloadSource(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new CliError(ExitCode.USAGE, "the -F payload is not valid JSON");
+  }
+}
+
+/** `--body` beats `--body-file`; one of them is required. */
+async function readBodySource(
+  deps: CliDeps,
+  body: string | undefined,
+  bodyFile: string | undefined,
+): Promise<string> {
+  if (body !== undefined && bodyFile !== undefined) {
+    throw new CliError(ExitCode.USAGE, "--body and --body-file are mutually exclusive");
+  }
+  if (body !== undefined) {
+    return body;
+  }
+  if (bodyFile !== undefined) {
+    return (await readSource(deps, bodyFile)).replace(/\n$/, "");
+  }
+  throw new CliError(ExitCode.USAGE, "a reply needs --body or --body-file");
+}
+
 function parsePrNumber(raw: string): number {
   if (!/^\d+$/.test(raw)) {
     throw new CliError(ExitCode.USAGE, `PR number must be a positive integer, got "${raw}"`);
@@ -366,6 +411,53 @@ function buildProgram(deps: CliDeps): Command {
         readIo(deps, global),
       );
     });
+
+  program
+    .command("reply")
+    .description("reply to a review comment (the viewer's own voice)")
+    .argument("<commentId>", "the review comment id (see `conversation <n>`)")
+    .requiredOption("--pr <number>", "the PR the comment belongs to")
+    .option("--body <text>", "reply text")
+    .option("--body-file <path>", 'reply text from a file, or "-" for stdin')
+    .action(async (commentId: string, options: { pr: string; body?: string; bodyFile?: string }) => {
+      const global = globals();
+      const body = await readBodySource(deps, options.body, options.bodyFile);
+      const { client, repoId } = await resolveTarget(deps, global);
+      await runReply(
+        client,
+        repoId,
+        commentId,
+        { pr: parsePrNumber(options.pr), body },
+        readIo(deps, global),
+      );
+    });
+
+  program
+    .command("submit")
+    .description("submit a review (commitId is required and never auto-fetched)")
+    .argument("<number>", "PR number")
+    .option("-F, --file <path>", 'full JSON payload from a file, or "-" for stdin')
+    .option("--outcome <outcome>", "comment | approve | request-changes (flag form)")
+    .option("--body <text>", "review body (flag form)")
+    .option("--commit <sha>", "the commitId you reviewed (flag form)")
+    .action(
+      async (
+        raw: string,
+        options: { file?: string; outcome?: string; body?: string; commit?: string },
+      ) => {
+        const global = globals();
+        const input: SubmitInput = {
+          ...(options.file === undefined
+            ? {}
+            : { payload: parsePayloadSource(await readSource(deps, options.file)) }),
+          outcome: options.outcome,
+          body: options.body,
+          commit: options.commit,
+        };
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runSubmit(client, repoId, parsePrNumber(raw), input, readIo(deps, global));
+      },
+    );
 
   program
     .command("delta")

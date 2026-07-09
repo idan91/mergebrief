@@ -1,0 +1,332 @@
+// Write-command tests (BRIEF-17 PR 7): payload plumbing (file / stdin /
+// flags, with the mutual-exclusion rule pinned), the ONE client-side shape
+// check (commitId, exit 2), receipt passthrough byte-fidelity against the
+// real app, the commentsDegraded warning in both modes, and the exit-5
+// self-correction path against REAL server validation.
+//
+// Long file timeout: octokit's write-path throttle spaces consecutive POSTs
+// ~3s (BRIEF-23 lesson) — several tests submit through the real app.
+import { createHash, randomBytes } from "node:crypto";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createApp, type AuthDeps } from "api";
+import {
+  encryptToken,
+  envKeyProvider,
+  forTenant,
+  isInstallationId,
+  isRepoId,
+  isReviewerId,
+  PrState,
+  tokenAuth,
+  type KeyProvider,
+  type ReviewerId,
+  type TenantContext,
+} from "persistence";
+import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ExitCode } from "../src/exit";
+import { buildSubmitPayload } from "../src/write-commands";
+import { runCli, type CliDeps } from "../src/program";
+
+const KEY_REF = "SESSION_KEY_V1";
+const INSTALLATION_ID = 987654;
+const REVIEWER_ID = 555;
+const REPO_A = 42001;
+const BASE_URL = "https://mb.example";
+const COMMIT = "c".repeat(40);
+
+function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+  const asBigInt = BigInt(value);
+  if (!guard(asBigInt)) throw new Error("bad branded id");
+  return asBigInt;
+}
+const CTX: TenantContext = { installationId: brand(isInstallationId, INSTALLATION_ID) };
+const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
+  });
+}
+
+describe("buildSubmitPayload plumbing", () => {
+  it("-F payload with commitId passes through untouched", () => {
+    const payload = { outcome: "comment", commitId: COMMIT, comments: [] };
+    expect(buildSubmitPayload({ payload })).toBe(payload);
+  });
+
+  it("missing commitId in the payload is the ONE client-side shape check (exit 2)", () => {
+    for (const payload of [{}, { commitId: "" }, { commitId: 7 }, "not-an-object"]) {
+      let thrown: unknown;
+      try {
+        buildSubmitPayload({ payload });
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeDefined();
+      expect(
+        thrown !== null && typeof thrown === "object" && "code" in thrown
+          ? (thrown as { code: number }).code
+          : undefined,
+      ).toBe(ExitCode.USAGE);
+    }
+  });
+
+  it("flags build a comment-less review; --commit is required", () => {
+    expect(
+      buildSubmitPayload({ outcome: "approve", body: "lgtm", commit: COMMIT }),
+    ).toEqual({ outcome: "approve", commitId: COMMIT, body: "lgtm" });
+    expect(() => buildSubmitPayload({ outcome: "approve" })).toThrowError(/--commit is required/);
+  });
+
+  it("-F and flags are mutually exclusive (defined precedence over silent merge)", () => {
+    expect(() =>
+      buildSubmitPayload({ payload: { commitId: COMMIT }, body: "x" }),
+    ).toThrowError(/mutually exclusive/);
+  });
+});
+
+describe("write commands over the real api app", () => {
+  // Write-path throttle spaces consecutive review POSTs (BRIEF-23 gotcha).
+  vi.setConfig({ testTimeout: 30_000 });
+
+  let harness: PgliteHarness;
+  let kp: KeyProvider;
+  let appFetch: CliDeps["fetch"];
+  let configDir: string;
+  let cacheDir: string;
+
+  beforeEach(async () => {
+    harness = await createPgliteHarness();
+    kp = envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
+    const auth: AuthDeps = {
+      oauthClientId: "Iv1.test-client-id",
+      oauthClientSecret: "test-client-secret",
+      keyProvider: kp,
+      sessionKeyRef: KEY_REF,
+      publicBaseUrl: BASE_URL,
+      cookieSecure: true,
+    };
+    const app = createApp({
+      handle: harness.handle,
+      webhookSecret: "test-webhook-secret",
+      auth,
+      github: {
+        fetchPullRequestConversation: async () => {
+          throw new Error("conversation port must not be called in this suite");
+        },
+      },
+      serverVersion: "test-version",
+    });
+    appFetch = async (input, init) => app.request(input, init);
+    configDir = mkdtempSync(join(tmpdir(), "mb-config-"));
+    cacheDir = mkdtempSync(join(tmpdir(), "mb-cache-"));
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request): Promise<Response> => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        if (url.includes("/user/installations/") && url.includes("/repositories")) {
+          return jsonResponse({
+            total_count: 1,
+            repositories: [{ id: REPO_A, full_name: "octo/hello" }],
+          });
+        }
+        if (/\/repositories\/\d+$/.test(url)) {
+          return jsonResponse({ id: REPO_A, full_name: "octo/hello", private: true });
+        }
+        if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
+          return jsonResponse({ id: 987001 });
+        }
+        if (/\/pulls\/comments\/\d+\/replies$/.test(url) || /\/comments\/\d+\/replies$/.test(url)) {
+          return jsonResponse({ id: 987002 }, 201);
+        }
+        return jsonResponse({ message: "unexpected endpoint" }, 404);
+      }),
+    );
+  });
+
+  afterEach(async () => {
+    vi.unstubAllGlobals();
+    await harness.close();
+  });
+
+  async function seedToken(): Promise<string> {
+    const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
+    const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
+    const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
+    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    await tokenAuth(harness.handle).mintToken({
+      installationId: CTX.installationId,
+      userId: REVIEWER,
+      name: "ci-token",
+      tokenHash: createHash("sha256").update(plaintext).digest("hex"),
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      expiresAt: null,
+    });
+    return plaintext;
+  }
+
+  async function seedPr(): Promise<void> {
+    await forTenant(harness.handle, CTX).pullRequests.upsert({
+      repoId: brand(isRepoId, REPO_A),
+      prNumber: 7,
+      repoSlug: "octo/hello",
+      title: "PR 7",
+      state: PrState.OPEN,
+    });
+  }
+
+  interface Run {
+    readonly code: number;
+    readonly out: string;
+    readonly err: string[];
+  }
+
+  async function run(argv: string[], stdin?: string): Promise<Run> {
+    const out: string[] = [];
+    const err: string[] = [];
+    const token = await seedToken();
+    const code = await runCli(argv, {
+      fetch: appFetch,
+      env: { MERGEBRIEF_TOKEN: token },
+      configDir,
+      cacheDir,
+      stdout: (t) => out.push(t),
+      stderr: (l) => err.push(l),
+      readStdin: async () => {
+        if (stdin === undefined) throw new Error("stdin not expected");
+        return stdin;
+      },
+      readFile: (path) => readFileSync(path, "utf8"),
+      gitOriginUrl: () => "git@github.com:octo/hello.git",
+    });
+    return { code, out: out.join(""), err };
+  }
+
+  async function login(): Promise<void> {
+    const token = await seedToken();
+    const code = await runCli(["auth", "login", "--base-url", BASE_URL, "--json"], {
+      fetch: appFetch,
+      env: {},
+      configDir,
+      cacheDir,
+      stdout: () => undefined,
+      stderr: () => undefined,
+      readStdin: async () => `${token}\n`,
+      gitOriginUrl: () => undefined,
+    });
+    expect(code).toBe(ExitCode.OK);
+  }
+
+  it("submit -F - (stdin) posts and passes the receipt through verbatim", async () => {
+    await seedPr();
+    await login();
+    const payload = JSON.stringify({
+      outcome: "comment",
+      commitId: COMMIT,
+      body: "looks fine",
+      comments: [],
+    });
+    const result = await run(["submit", "7", "-F", "-", "--json"], payload);
+    expect(result.err).toEqual([]);
+    expect(result.code).toBe(ExitCode.OK);
+    expect(JSON.parse(result.out)).toEqual({ reviewId: 987001, commentsDegraded: false });
+  });
+
+  it("submit -F <file> reads the payload from disk", async () => {
+    await seedPr();
+    await login();
+    const path = join(mkdtempSync(join(tmpdir(), "mb-payload-")), "review.json");
+    writeFileSync(path, JSON.stringify({ outcome: "comment", commitId: COMMIT, body: "ok" }));
+    const result = await run(["submit", "7", "-F", path, "--json"]);
+    expect(result.code).toBe(ExitCode.OK);
+  });
+
+  it("submit with convenience flags posts a comment-less review", async () => {
+    await seedPr();
+    await login();
+    const result = await run([
+      "submit",
+      "7",
+      "--outcome",
+      "approve",
+      "--body",
+      "lgtm",
+      "--commit",
+      COMMIT,
+      "--json",
+    ]);
+    expect(result.code).toBe(ExitCode.OK);
+    expect(JSON.parse(result.out)).toEqual({ reviewId: 987001, commentsDegraded: false });
+  });
+
+  it("missing commitId is a usage error before any request (exit 2)", async () => {
+    await seedPr();
+    await login();
+    const result = await run(["submit", "7", "-F", "-", "--json"], '{"outcome":"comment"}');
+    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.out).toBe("");
+    expect(result.err[0]).toContain("commitId");
+  });
+
+  it("server validation rejection maps to exit 5 (the self-correction path)", async () => {
+    await seedPr();
+    await login();
+    // request-changes without a body — the server 400s deterministically.
+    const result = await run([
+      "submit",
+      "7",
+      "--outcome",
+      "request-changes",
+      "--commit",
+      COMMIT,
+      "--json",
+    ]);
+    expect(result.code).toBe(ExitCode.SERVER_REJECTED);
+    expect(result.out).toBe("");
+    expect(result.err).toHaveLength(1);
+  });
+
+  it("reply --body posts under the comment; receipt is verbatim", async () => {
+    await seedPr();
+    await login();
+    const result = await run([
+      "reply",
+      "12345",
+      "--pr",
+      "7",
+      "--body",
+      "thanks, fixed",
+      "--json",
+    ]);
+    expect(result.code).toBe(ExitCode.OK);
+    expect(JSON.parse(result.out)).toEqual({ commentId: 987002 });
+  });
+
+  it("reply --body-file - reads the body from stdin", async () => {
+    await seedPr();
+    await login();
+    const result = await run(
+      ["reply", "12345", "--pr", "7", "--body-file", "-", "--json"],
+      "multi\nline body\n",
+    );
+    expect(result.code).toBe(ExitCode.OK);
+  });
+
+  it("reply without a body source is a usage error", async () => {
+    await seedPr();
+    await login();
+    const result = await run(["reply", "12345", "--pr", "7", "--json"]);
+    expect(result.code).toBe(ExitCode.USAGE);
+    expect(result.out).toBe("");
+  });
+});

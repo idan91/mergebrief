@@ -2,6 +2,7 @@
 // The thin bin over the client module (ADR 0028 #1): real-world deps wired
 // here and ONLY here — the whole CLI stays testable behind `runCli`.
 import { execFileSync, spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -61,6 +62,7 @@ function makePager(): ((text: string) => Promise<void>) | undefined {
 const code = await runCli(process.argv.slice(2), {
   fetch: (input, init) => fetch(input, init),
   pager: makePager(),
+  readFile: (path) => readFileSync(path, "utf8"),
   env: process.env,
   configDir: xdgDir("XDG_CONFIG_HOME", ".config"),
   cacheDir: xdgDir("XDG_CACHE_HOME", ".cache"),
