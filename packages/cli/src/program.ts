@@ -14,6 +14,7 @@ import {
   type ResolvedProfile,
 } from "./config";
 import { CliError, ExitCode } from "./exit";
+import { loadRepos, type RepoCacheDeps } from "./repos";
 
 export interface CliDeps {
   readonly fetch: FetchLike;
@@ -193,6 +194,29 @@ async function runAuthStatus(deps: CliDeps, global: GlobalOptions): Promise<void
 }
 
 
+async function runRepos(
+  deps: CliDeps,
+  global: GlobalOptions,
+  options: { readonly refresh: boolean },
+): Promise<void> {
+  const resolved = resolveFromDisk(deps, global.profile);
+  const cacheDeps: RepoCacheDeps = {
+    client: clientFor(deps, resolved),
+    cacheDir: deps.cacheDir,
+    profileName: resolved.name,
+  };
+  const { body, bodyText } = await loadRepos(cacheDeps, options);
+  if (global.json) {
+    // Passthrough: the server body VERBATIM — not one byte more (codex PR5
+    // R1: an appended newline is a byte the server never sent).
+    deps.stdout(bodyText);
+    return;
+  }
+  for (const repo of body.repos) {
+    deps.stdout(`${repo.fullName}\t${repo.repoId}\n`);
+  }
+}
+
 /** Build the commander program over injected deps. */
 function buildProgram(deps: CliDeps): Command {
   const program = new Command("mergebrief");
@@ -221,6 +245,12 @@ function buildProgram(deps: CliDeps): Command {
     .command("status")
     .description("config + server status for the resolved profile")
     .action(async () => runAuthStatus(deps, globals()));
+
+  program
+    .command("repos")
+    .description("repositories visible to the profile's token (cached; see --refresh)")
+    .option("--refresh", "bypass the disk cache", false)
+    .action(async (options: { refresh: boolean }) => runRepos(deps, globals(), options));
 
   return program;
 }
