@@ -12,7 +12,9 @@ import type { AppDatabase } from "persistence";
 import { authRoute, type AuthDeps } from "./routes/auth";
 import { conversationRoutes, type ConversationGitHubPort } from "./routes/conversation";
 import { installationsRoute } from "./routes/installations";
+import { createAllowedRepoResolver } from "./routes/allowed-repos";
 import { pullsRoute } from "./routes/pulls";
+import { reposRoute } from "./routes/repos";
 import { readsRoute } from "./routes/reads";
 import { tokensRoute } from "./routes/tokens";
 import { reviewSubmitRoute } from "./routes/review-submit";
@@ -36,7 +38,12 @@ export function createApp(deps: AppDeps): Hono {
   app.route("/", authRoute(deps));
   app.route("/", installationsRoute(deps));
   app.route("/", tokensRoute(deps));
-  app.route("/", pullsRoute(deps));
+  // ONE resolver instance: /api/pulls and /api/repos share the allowed-set
+  // cache (BRIEF-17 PR 3 — one GitHub fetch serves both inside the TTL).
+  const allowedRepos = createAllowedRepoResolver(deps);
+  app.route("/", pullsRoute(deps, allowedRepos));
+  // Mounted BEFORE readsRoute (single-gate rule); exact path, no :repoId.
+  app.route("/", reposRoute(deps, allowedRepos));
   // Mounted BEFORE readsRoute: readsRoute guards `/api/repos/:repoId/*` with
   // its own gate instance, method-agnostic — mounted first, the submit POST
   // would traverse BOTH gates (two GitHub access checks cold; a transient
