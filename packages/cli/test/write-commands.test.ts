@@ -278,6 +278,71 @@ describe("write commands over the real api app", () => {
     expect(result.err[0]).toContain("commitId");
   });
 
+  it("missing --commit exits 2 before target resolution, even from a non-covered repo", async () => {
+    await login();
+    const token = await seedToken();
+    const requested: string[] = [];
+    const out: string[] = [];
+    const err: string[] = [];
+    // The fetch seam would FAIL resolution if reached — the usage error must
+    // fire first, so this stub must never see an /api/repos request.
+    const failingFetch: CliDeps["fetch"] = async (input, init) => {
+      requested.push(input);
+      return appFetch(input, init);
+    };
+    const code = await runCli(["submit", "1", "--outcome", "comment", "--body", "x", "--json"], {
+      fetch: failingFetch,
+      env: { MERGEBRIEF_TOKEN: token },
+      configDir,
+      cacheDir,
+      stdout: (t) => out.push(t),
+      stderr: (l) => err.push(l),
+      readStdin: async () => {
+        throw new Error("stdin not expected");
+      },
+      // A repo OUTSIDE the token's allowed set: resolution would exit 4.
+      gitOriginUrl: () => "git@github.com:nobody/nothing.git",
+    });
+    expect(code).toBe(ExitCode.USAGE);
+    expect(out.join("")).toBe("");
+    expect(err).toHaveLength(1);
+    expect(err[0]).toContain("commit");
+    expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
+  });
+
+  it("invalid PR number exits 2 before target resolution, even from a non-covered repo", async () => {
+    await login();
+    const token = await seedToken();
+    const requested: string[] = [];
+    const out: string[] = [];
+    const err: string[] = [];
+    const failingFetch: CliDeps["fetch"] = async (input, init) => {
+      requested.push(input);
+      return appFetch(input, init);
+    };
+    const code = await runCli(
+      ["submit", "abc", "--outcome", "comment", "--body", "x", "--commit", "c0ffee", "--json"],
+      {
+        fetch: failingFetch,
+        env: { MERGEBRIEF_TOKEN: token },
+        configDir,
+        cacheDir,
+        stdout: (t) => out.push(t),
+        stderr: (l) => err.push(l),
+        readStdin: async () => {
+          throw new Error("stdin not expected");
+        },
+        // A repo OUTSIDE the token's allowed set: resolution would exit 4.
+        gitOriginUrl: () => "git@github.com:nobody/nothing.git",
+      },
+    );
+    expect(code).toBe(ExitCode.USAGE);
+    expect(out.join("")).toBe("");
+    expect(err).toHaveLength(1);
+    expect(err[0]).toContain("PR number");
+    expect(requested.filter((url) => url.includes("/api/repos"))).toEqual([]);
+  });
+
   it("server validation rejection maps to exit 5 (the self-correction path)", async () => {
     await seedPr();
     await login();

@@ -26,7 +26,7 @@ import {
 } from "./read-commands";
 import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./repos";
 import { AGENTS_GUIDE } from "./agents-guide";
-import { runReply, runSubmit, type SubmitInput } from "./write-commands";
+import { buildSubmitPayload, runReply, runSubmit, type SubmitInput } from "./write-commands";
 
 export interface CliDeps {
   readonly fetch: FetchLike;
@@ -456,8 +456,13 @@ function buildProgram(deps: CliDeps): Command {
           body: options.body,
           commit: options.commit,
         };
+        // Usage validation BEFORE any network work: a malformed PR number or
+        // a missing --commit must exit 2 even when target resolution would
+        // fail (e.g. exit 4 from a non-covered repo).
+        const prNumber = parsePrNumber(raw);
+        const payload = buildSubmitPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
-        await runSubmit(client, repoId, parsePrNumber(raw), input, readIo(deps, global));
+        await runSubmit(client, repoId, prNumber, payload, readIo(deps, global));
       },
     );
 

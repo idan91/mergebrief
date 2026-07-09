@@ -108,15 +108,19 @@ export function buildSubmitPayload(input: SubmitInput): unknown {
   };
 }
 
-/** POST the review; the receipt ({reviewId, commentsDegraded}) is passthrough. */
+/**
+ * POST the review; the receipt ({reviewId, commentsDegraded}) is passthrough.
+ * Takes the ALREADY-BUILT payload (`buildSubmitPayload`) — the caller builds
+ * it before any network work so usage errors (exit 2) fire before target
+ * resolution can fail with exit 4.
+ */
 export async function runSubmit(
   client: ApiClient,
   repoId: string,
   prNumber: number,
-  input: SubmitInput,
+  payload: unknown,
   io: WriteIo,
 ): Promise<void> {
-  const payload = buildSubmitPayload(input);
   const response = await client.request({
     method: "POST",
     path: `/api/repos/${repoId}/pulls/${prNumber}/review`,
