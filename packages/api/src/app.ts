@@ -17,6 +17,7 @@ import { pullsRoute } from "./routes/pulls";
 import { reposRoute } from "./routes/repos";
 import { readsRoute } from "./routes/reads";
 import { tokensRoute } from "./routes/tokens";
+import { versionRoute } from "./routes/version";
 import { reviewSubmitRoute } from "./routes/review-submit";
 import { webhookRoute } from "./routes/webhook";
 
@@ -29,6 +30,8 @@ export interface AppDeps {
   readonly auth: AuthDeps;
   /** Installation-octokit seam for the conversation read (BRIEF-25). */
   readonly github: ConversationGitHubPort;
+  /** Exposed by GET /api/version (ADR 0029 #8 — skew visibility). */
+  readonly serverVersion?: string;
 }
 
 /** Build the API app over injected deps. */
@@ -41,6 +44,7 @@ export function createApp(deps: AppDeps): Hono {
   // ONE resolver instance: /api/pulls and /api/repos share the allowed-set
   // cache (BRIEF-17 PR 3 — one GitHub fetch serves both inside the TTL).
   const allowedRepos = createAllowedRepoResolver(deps);
+  app.route("/", versionRoute(deps, deps.serverVersion ?? "dev"));
   app.route("/", pullsRoute(deps, allowedRepos));
   // Mounted BEFORE readsRoute (single-gate rule); exact path, no :repoId.
   app.route("/", reposRoute(deps, allowedRepos));

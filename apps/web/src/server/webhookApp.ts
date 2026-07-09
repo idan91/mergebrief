@@ -93,6 +93,9 @@ async function buildWebhookApp(): Promise<WebhookApp> {
   return createApp({
     handle,
     webhookSecret: githubConfig.value.webhookSecret,
+    // Skew visibility (ADR 0029 #8): surfaced by GET /api/version and the
+    // CLI's `auth status`; the api changelog is keyed to it.
+    serverVersion: process.env["SERVER_VERSION"] ?? "dev",
     // Conversation reads run as the App on the installation token (ADR 0027):
     // one rate budget and one cache entry per PR, gate-authorized per viewer.
     github: appConversationPort(createAppClient(githubConfig.value)),
