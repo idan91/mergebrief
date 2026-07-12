@@ -255,6 +255,19 @@ export function DiffTable({
                     }}
                     onMouseDown={(event) => {
                       if (composerDisabledReason !== undefined) return;
+                      // Range anchoring starts from the line-number gutter
+                      // only — a mousedown on the code cell stays native so
+                      // the code text is selectable (BRIEF-14).
+                      if (
+                        !(event.target instanceof Element) ||
+                        event.target.closest("[data-line-number]") === null
+                      ) {
+                        return;
+                      }
+                      // Anchoring intent: drop any stale text selection —
+                      // preventDefault keeps it alive otherwise, and it
+                      // would trip the mouseup suppression guard.
+                      window.getSelection()?.removeAllRanges();
                       event.preventDefault();
                       setDragStart(index);
                       setDragCurrent(index);
@@ -262,7 +275,39 @@ export function DiffTable({
                     onMouseEnter={() => {
                       if (dragStart !== null) setDragCurrent(index);
                     }}
-                    onMouseUp={() => finishSelection(index)}
+                    onMouseUp={(event) => {
+                      // A gutter-initiated drag is unambiguous comment
+                      // intent (the gutter mousedown cleared any selection).
+                      if (dragStart !== null) {
+                        finishSelection(index);
+                        return;
+                      }
+                      // Plain mouseup: composer entry is gutter-only — the
+                      // code column is reserved for text selection, so a
+                      // double-click word-select never pops the composer
+                      // (BRIEF-14). Keyboard entry stays row-level (Enter).
+                      if (
+                        !(event.target instanceof Element) ||
+                        event.target.closest("[data-line-number]") === null
+                      ) {
+                        return;
+                      }
+                      // A text-selection drag released over the gutter: if
+                      // either endpoint of a non-collapsed selection touches
+                      // this table, the reviewer was selecting text.
+                      const selection = window.getSelection();
+                      const table = event.currentTarget.closest("table");
+                      if (
+                        selection &&
+                        !selection.isCollapsed &&
+                        table !== null &&
+                        (table.contains(selection.anchorNode) ||
+                          table.contains(selection.focusNode))
+                      ) {
+                        return;
+                      }
+                      finishSelection(index);
+                    }}
                     tabIndex={0}
                   >
                     {overlayActive ? (
@@ -275,10 +320,10 @@ export function DiffTable({
                         onRailLeave={handleRailLeave}
                       />
                     ) : null}
-                    <td className={styles["lineNumber"]}>
+                    <td className={styles["lineNumber"]} data-line-number="">
                       {line.oldLine ?? ""}
                     </td>
-                    <td className={styles["lineNumber"]}>
+                    <td className={styles["lineNumber"]} data-line-number="">
                       {line.newLine ?? ""}
                     </td>
                     <td className={styles["code"]}>

@@ -110,7 +110,11 @@
       }
     }
 
-    &[data-selected] {
+    // The :hover arm matches the commentable-hover rule's specificity so
+    // the selection tint wins on the row currently under the cursor —
+    // otherwise a drag's newest row reads as unselected until mouseup.
+    &[data-selected],
+    &[data-selected]:hover {
       background: color-mix(in srgb, var(--blue) 12%, transparent);
       box-shadow: inset 3px 0 0 var(--blue);
     }
@@ -129,22 +133,42 @@
     min-inline-size: 42px;
     color: #3b3b43;
     text-align: end;
+
+    // Safari only honors the prefixed form (WebKit bug 208677); without it
+    // a multi-line code selection copies the gutter numbers too (BRIEF-14).
+    // stylelint-disable-next-line property-no-vendor-prefix
+    -webkit-user-select: none;
     user-select: none;
   }
 
   .code {
     color: #85858e;
+
+    // Code text is selectable (BRIEF-14); the row keeps `cell` for the
+    // gutter, where range anchoring starts.
+    cursor: text;
   }
 
   .sign {
     display: inline-block;
     inline-size: 16px;
     opacity: 0.6;
+
+    // Copied code must be the code: the sign is a literal text node with
+    // no separating space, so a selection would paste `+code` fused.
+    // stylelint-disable-next-line property-no-vendor-prefix
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .newTag {
     padding-block: 0;
     padding-inline: 6px;
+
+    // Same as .sign: the badge text would fuse onto copied code.
+    // stylelint-disable-next-line property-no-vendor-prefix
+    -webkit-user-select: none;
+    user-select: none;
     border: 1px solid color-mix(in srgb, var(--blue) 45%, transparent);
     border-radius: 99px;
     margin-inline-start: 10px;

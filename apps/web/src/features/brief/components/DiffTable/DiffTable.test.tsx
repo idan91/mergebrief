@@ -153,6 +153,112 @@ describe("DiffTable — read-only comment affordances (BRIEF-24)", () => {
   });
 });
 
+function commentableRows(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll("tr[data-commentable]"));
+}
+
+function selectTextIn(cell: Element) {
+  const range = document.createRange();
+  range.selectNodeContents(cell);
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(range);
+}
+
+describe("DiffTable — selectable code text (BRIEF-14)", () => {
+  afterEach(() => {
+    window.getSelection()?.removeAllRanges();
+  });
+
+  it("anchors a range from a line-number gutter drag", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    const gutter = first.querySelector("[data-line-number]");
+    if (!(gutter instanceof HTMLElement)) throw new Error("expected a gutter");
+    fireEvent.mouseDown(gutter);
+    fireEvent.mouseEnter(second);
+    // Both rows show the drag highlight while anchoring.
+    expect(container.querySelectorAll("tr[data-selected]").length).toBe(2);
+    fireEvent.mouseUp(second);
+    expect(openCommentComposer).toHaveBeenCalledTimes(1);
+  });
+
+  it("anchors a single row from a plain gutter click", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable();
+    const [first] = commentableRows(container);
+    const gutter = first?.querySelector("[data-line-number]");
+    if (!first || !(gutter instanceof HTMLElement)) {
+      throw new Error("expected a gutter");
+    }
+    fireEvent.mouseDown(gutter);
+    fireEvent.mouseUp(first);
+    expect(openCommentComposer).toHaveBeenCalledTimes(1);
+  });
+
+  it("reserves the code column for text selection (no drag, no composer)", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    if (!first || !second) throw new Error("expected two diff rows");
+    const code = first.querySelector("td:not([data-line-number])");
+    if (!(code instanceof HTMLElement)) throw new Error("expected a code cell");
+    fireEvent.mouseDown(code);
+    fireEvent.mouseEnter(second);
+    expect(container.querySelector("tr[data-selected]")).toBeNull();
+    // A double-click's first click lands here: never a composer.
+    fireEvent.mouseUp(second);
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
+  it("suppresses gutter mouseup at the end of a text-selection drag", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable();
+    const [first] = commentableRows(container);
+    const code = first?.querySelector("td:not([data-line-number])");
+    const gutter = first?.querySelector("[data-line-number]");
+    if (!first || !(code instanceof Element) || !(gutter instanceof Element)) {
+      throw new Error("expected code and gutter cells");
+    }
+    // Selection made during the drag (no gutter mousedown), released over
+    // the gutter numbers.
+    selectTextIn(code);
+    fireEvent.mouseUp(gutter);
+    expect(openCommentComposer).not.toHaveBeenCalled();
+  });
+
+  it("anchors from the gutter despite a stale in-table selection", () => {
+    const {
+      view: { container },
+      openCommentComposer,
+    } = renderTable();
+    const [first, second] = commentableRows(container);
+    const code = first?.querySelector("td:not([data-line-number])");
+    const gutter = first?.querySelector("[data-line-number]");
+    if (!second || !(code instanceof Element) || !(gutter instanceof Element)) {
+      throw new Error("expected code and gutter cells");
+    }
+    // Copying code first must not kill the range affordance.
+    selectTextIn(code);
+    fireEvent.mouseDown(gutter);
+    // The gutter mousedown drops the stale selection.
+    expect(window.getSelection()?.isCollapsed ?? true).toBe(true);
+    fireEvent.mouseEnter(second);
+    fireEvent.mouseUp(second);
+    expect(openCommentComposer).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("DiffTable — row-level conversation threads", () => {
   it("renders the thread under its line with the jump-target attribute", () => {
     const {

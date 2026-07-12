@@ -212,10 +212,14 @@ describe("brief screen characterization", () => {
     // open; `activeCommentAnchor` never cleared, `shortcutsDisabled` stayed
     // true, and J/K/Z stayed dead until the reviewer noticed they had to
     // click Cancel/save explicitly.
-    const row = document.querySelector("[data-commentable]");
-    expect(row).toBeTruthy();
-    fireEvent.mouseDown(row!);
-    fireEvent.mouseUp(row!);
+    // Composer entry is gutter-only since BRIEF-14 (the code column is
+    // reserved for text selection).
+    const gutter = document.querySelector(
+      "[data-commentable] [data-line-number]",
+    );
+    expect(gutter).toBeTruthy();
+    fireEvent.mouseDown(gutter!);
+    fireEvent.mouseUp(gutter!);
     await screen.findByPlaceholderText("Leave a comment");
 
     fireEvent.keyDown(window, { key: "Escape" });

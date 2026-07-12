@@ -1,6 +1,7 @@
-import { memo, useMemo, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 
 import { Callout } from "../../../../components/Callout";
+import { CopyButton } from "../../../../components/CopyButton/CopyButton";
 import { reviewCommentsForChunk } from "../../reviewComments";
 import { buildChunkComparisonView } from "../../comparison";
 import type {
@@ -78,6 +79,38 @@ function OverflowRiskChip({ attrs }: { attrs: RiskSurfaceAttribute[] }) {
   );
 }
 
+/** Identity of a non-collapsed selection, for change detection across a gesture. */
+interface SelectionSnapshot {
+  anchorNode: Node | null;
+  anchorOffset: number;
+  focusNode: Node | null;
+  focusOffset: number;
+}
+
+function snapshotSelection(): SelectionSnapshot | null {
+  const selection = window.getSelection();
+  if (!selection || selection.isCollapsed) return null;
+  return {
+    anchorNode: selection.anchorNode,
+    anchorOffset: selection.anchorOffset,
+    focusNode: selection.focusNode,
+    focusOffset: selection.focusOffset,
+  };
+}
+
+function isSameSnapshot(
+  a: SelectionSnapshot,
+  b: SelectionSnapshot | null,
+): boolean {
+  return (
+    b !== null &&
+    a.anchorNode === b.anchorNode &&
+    a.anchorOffset === b.anchorOffset &&
+    a.focusNode === b.focusNode &&
+    a.focusOffset === b.focusOffset
+  );
+}
+
 export const ChunkCard = memo(function ChunkCard({
   chunk,
   comparison,
@@ -101,6 +134,15 @@ export const ChunkCard = memo(function ChunkCard({
   composerDisabledReason,
 }: ChunkCardProps) {
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
+  // Selection identity when the toggle gesture started — only a selection
+  // CHANGED by this gesture suppresses the click. A stale selection that
+  // survives the mousedown untouched (Firefox/Safari keep selections
+  // across mousedowns on unselectable content) must not swallow the click.
+  const selectionAtMouseDown = useRef<SelectionSnapshot | null>(null);
+  // Unsuppressed toggles within the current click pair (reset on the
+  // pair's first mousedown) — the dblclick compensator must know what the
+  // pair actually did, not infer it from selection presence.
+  const togglesThisPair = useRef(0);
 
   const riskChips = riskChipView(chunk.riskSurface);
   const expanded = open && !forceCollapsed;
@@ -146,43 +188,84 @@ export const ChunkCard = memo(function ChunkCard({
           className={styles["toggle"]}
           type="button"
           aria-expanded={expanded}
-          onClick={() => toggleChunk(chunk.id)}
+          onMouseDown={(event) => {
+            selectionAtMouseDown.current = snapshotSelection();
+            if (event.detail <= 1) togglesThisPair.current = 0;
+          }}
+          onClick={(event) => {
+            // Selecting the file path (selectable inside this button —
+            // BRIEF-14) must not toggle the chunk open/closed. Keyboard
+            // activation (detail 0) always toggles. Residual edge: re-
+            // selecting the EXACT same range reads as unchanged and
+            // toggles — the cost is a toggle, not a lost selection.
+            if (event.detail > 0) {
+              const selection = snapshotSelection();
+              // Either endpoint counts: a shift-click extension keeps its
+              // anchor where the selection started (e.g. down in the diff)
+              // and only moves the focus into this button.
+              if (
+                selection !== null &&
+                !isSameSnapshot(selection, selectionAtMouseDown.current) &&
+                (event.currentTarget.contains(selection.anchorNode) ||
+                  event.currentTarget.contains(selection.focusNode))
+              ) {
+                return;
+              }
+              togglesThisPair.current += 1;
+            }
+            toggleChunk(chunk.id);
+          }}
+          onDoubleClick={() => {
+            // A double-click pair that netted exactly ONE unsuppressed
+            // toggle (its first click preceded the word selection, the
+            // second was suppressed) toggles again so the pair nets to
+            // zero. Pairs that netted zero (both suppressed) or two (no
+            // selection change — already net zero) are left alone.
+            if (togglesThisPair.current === 1) toggleChunk(chunk.id);
+          }}
         >
-          <span className={styles["twist"]}>▶</span>
-          <span className={styles["file"]}>{chunk.file}</span>
-          <span className={styles["chips"]}>
-            {riskChips.shown.length > 0 ? (
-              <span className={styles["riskLane"]}>
-                {riskChips.shown.map((risk) => (
-                  <RiskBadge key={risk}>{risk}</RiskBadge>
-                ))}
-                {riskChips.overflow.length > 0 ? (
-                  <OverflowRiskChip attrs={riskChips.overflow} />
-                ) : null}
-              </span>
-            ) : null}
-            <span className={styles["chip"]} data-concern={chunk.concern}>
-              <span className={styles["dot"]} />
-              {chunk.concern}
-            </span>
-            <RoleBadge role={chunk.role} />
-            {comments.length > 0 ? (
-              <span className={styles["chip"]}>
-                {comments.length} draft{comments.length === 1 ? "" : "s"}
-              </span>
-            ) : null}
-            {chunkReviewComments.length > 0 ? (
-              <span className={styles["chip"]}>
-                {chunkReviewComments.length}{" "}
-                {hasLinkedAddressedComments ? "addressed" : "review"}
-              </span>
-            ) : null}
-            <span className={`${styles["chip"]} ${styles["loc"]}`}>
-              <span className="a">+{chunk.loc.added}</span>{" "}
-              <span className="d">−{chunk.loc.deleted}</span>
-            </span>
+          <span aria-hidden="true" className={styles["twist"]}>
+            ▶
           </span>
+          <span className={styles["file"]}>{chunk.file}</span>
         </button>
+        <CopyButton
+          className={styles["copyPath"]}
+          label="Copy file path"
+          text={chunk.file}
+        />
+        <span className={styles["chips"]}>
+          {riskChips.shown.length > 0 ? (
+            <span className={styles["riskLane"]}>
+              {riskChips.shown.map((risk) => (
+                <RiskBadge key={risk}>{risk}</RiskBadge>
+              ))}
+              {riskChips.overflow.length > 0 ? (
+                <OverflowRiskChip attrs={riskChips.overflow} />
+              ) : null}
+            </span>
+          ) : null}
+          <span className={styles["chip"]} data-concern={chunk.concern}>
+            <span className={styles["dot"]} />
+            {chunk.concern}
+          </span>
+          <RoleBadge role={chunk.role} />
+          {comments.length > 0 ? (
+            <span className={styles["chip"]}>
+              {comments.length} draft{comments.length === 1 ? "" : "s"}
+            </span>
+          ) : null}
+          {chunkReviewComments.length > 0 ? (
+            <span className={styles["chip"]}>
+              {chunkReviewComments.length}{" "}
+              {hasLinkedAddressedComments ? "addressed" : "review"}
+            </span>
+          ) : null}
+          <span className={`${styles["chip"]} ${styles["loc"]}`}>
+            <span className="a">+{chunk.loc.added}</span>{" "}
+            <span className="d">−{chunk.loc.deleted}</span>
+          </span>
+        </span>
         <label className={styles["reviewToggle"]}>
           <input
             type="checkbox"

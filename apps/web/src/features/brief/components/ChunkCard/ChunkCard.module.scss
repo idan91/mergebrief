@@ -44,8 +44,8 @@
 
   .toggle {
     display: flex;
-    flex: 1;
     min-inline-size: 0;
+    flex: 0 1 auto;
     align-items: center;
     gap: 12px;
     padding: 0;
@@ -53,13 +53,29 @@
     background: transparent;
     cursor: pointer;
     text-align: start;
+
+    // Selectability must be granted on the BUTTON: WebKit ignores a
+    // child's `user-select: text` under an unselectable ancestor, so the
+    // .file override alone never worked in Safari (BRIEF-14). The twist
+    // opts back out below.
+    // stylelint-disable-next-line property-no-vendor-prefix
+    -webkit-user-select: text;
+    user-select: text;
   }
 
   .twist {
     flex: none;
+    // stylelint-disable-next-line property-no-vendor-prefix
+    -webkit-user-select: none;
+    user-select: none;
     color: var(--faint);
     font-size: 9px;
     transition: transform 0.2s;
+  }
+
+  // Tighten the shared CopyButton against the file name it copies.
+  .copyPath {
+    margin-inline-start: -6px;
   }
 
   .file {
@@ -69,6 +85,13 @@
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
+
+    // File paths are copyable despite the button parent — UA stylesheets
+    // make button text unselectable (BRIEF-14). Safari only honors the
+    // prefixed form (WebKit bug 208677) and the build has no autoprefixer.
+    // stylelint-disable-next-line property-no-vendor-prefix
+    -webkit-user-select: text;
+    user-select: text;
 
     // Truncate from the start: the tail of a path (filename) is the part
     // that identifies the chunk. RTL flips the ellipsis side; the latin
