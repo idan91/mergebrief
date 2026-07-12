@@ -1,13 +1,12 @@
 @layer components {
   // Header-slot idiom (matches the local TimelineNavigator's control
-  // language): 32px mono controls on --panel2, the stepper dots on their own
-  // row. The component fills its slot column — sizing is the slot's job.
+  // language): 32px mono controls on --panel2. One flat row now (BRIEF-28
+  // round 2): arrows + picker + stepper dots inline in the lens toolbar.
   .timeline {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 4px;
+    display: flex;
     align-items: center;
-    inline-size: 100%;
+    gap: 4px;
+    min-inline-size: 0;
 
     select,
     .arrow {
@@ -30,6 +29,7 @@
   .picker {
     display: block;
     min-inline-size: 0;
+    max-inline-size: 230px;
   }
 
   .arrow {
@@ -52,9 +52,8 @@
 
   .steps {
     display: flex;
-    grid-column: 1 / -1;
-    justify-content: center;
     margin: 0;
+    margin-inline-start: 4px;
     padding: 0;
     list-style: none;
   }

@@ -256,6 +256,16 @@ describe("brief screen characterization", () => {
     await waitFor(() => expect(stat()).toBe("1/2"));
   });
 
+  it("links Summary preview from the header menu on the local path", async () => {
+    await renderBriefScreen();
+    // The local path renders the cross-route LINK variant (BRIEF-28 menu).
+    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
+    const item = screen.getByRole("menuitem", { name: /^summary preview$/i });
+    expect(item.getAttribute("href")).toContain(
+      `/briefs/${BRIEF_ID}/summary-preview`,
+    );
+  });
+
   it("lists unique risk-attribute names under the brief summary", async () => {
     await renderBriefScreen();
     const section = document.querySelector("[data-summary-risk]");

@@ -1,32 +1,21 @@
 @layer components {
-  // One compact column in the sticky header, mirroring the local
-  // TimelineNavigator's footprint: revision row (arrows + picker + dots),
-  // then the View/Compare lens rows.
+  // One flat line in the header's lens toolbar (BRIEF-28 round 2): revision
+  // navigator, then the View/Compare lens groups, co-linear. Wrapping is the
+  // narrow-width fallback — the header re-measures --top-bar-h as it grows.
   .controls {
     display: flex;
-    flex-direction: column;
-    gap: 5px;
-    inline-size: min(320px, 30cqw);
-    min-inline-size: 260px;
+    flex: 1;
+    min-inline-size: 0;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px clamp(10px, 1.5vw, 18px);
   }
 
   .revisionRow {
-    position: relative;
     display: flex;
-
-    // Top-aligned: the navigator stacks a dots row under the picker; the chip
-    // belongs beside the PICKER row, not centered across both.
-    align-items: flex-start;
-    gap: 6px;
-
-    > :first-child {
-      flex: 1;
-      min-inline-size: 0;
-    }
-  }
-
-  .revisionRow .readOnlyChip {
-    margin-block-start: 7px;
+    align-items: center;
+    gap: 8px;
+    min-inline-size: 0;
   }
 
   .readOnlyChip {
@@ -40,20 +29,13 @@
     white-space: nowrap;
   }
 
+  // The degraded-revision status line: rare, so it may take its own line
+  // rather than squeezing the controls.
   .note {
+    flex-basis: 100%;
     margin: 0;
     color: var(--faint);
     font-size: 11px;
     line-height: 1.4;
-  }
-
-  // Narrow header (--top-bar-h drops to 60px): keep every control reachable —
-  // the header grows and republishes its measured height, so sticky offsets
-  // below stay correct. Only the width tightens.
-  @container header (max-width: 900px) {
-    .controls {
-      inline-size: 100%;
-      min-inline-size: 220px;
-    }
   }
 }

@@ -1,18 +1,41 @@
 @layer components {
+  // Two-tier sticky header (BRIEF-28 round 2): tier 1 is the stable
+  // identity/status row, tier 2 the lens toolbar — the controls that change
+  // WHAT is on screen. --top-bar-h keeps measuring the whole element, so
+  // sticky offsets below stay correct however either tier wraps.
   .header {
     position: sticky;
     inset-block-start: 0;
     z-index: 50;
     display: flex;
-    align-items: center;
-    gap: clamp(12px, 2vw, 22px);
-    min-block-size: 116px;
-    padding-block: 12px;
-    padding-inline: clamp(18px, 3vw, 28px);
+    flex-direction: column;
     border-block-end: 1px solid var(--line);
     background: color-mix(in srgb, var(--bg) 85%, transparent);
     backdrop-filter: blur(12px);
     container: header / inline-size;
+  }
+
+  .identityRow {
+    display: flex;
+    align-items: center;
+    gap: clamp(12px, 2vw, 22px);
+    min-block-size: 52px;
+    padding-block: 7px;
+    padding-inline: clamp(18px, 3vw, 28px);
+  }
+
+  // A second neutral layer (product register) so the working controls read
+  // as a toolbar rather than more header.
+  .lensRow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px clamp(10px, 1.5vw, 18px);
+    min-block-size: 44px;
+    padding-block: 5px;
+    padding-inline: clamp(18px, 3vw, 28px);
+    border-block-start: 1px solid var(--line);
+    background: color-mix(in srgb, var(--panel2) 45%, transparent);
   }
 
   .wordmark {
@@ -33,6 +56,7 @@
     flex: 1;
     min-inline-size: 0;
     flex-direction: column;
+    gap: 1px;
     line-height: 1.35;
 
     b {
@@ -50,9 +74,14 @@
     white-space: nowrap;
   }
 
+  // The single context line (BRIEF-28): identity facts truncate as one row
+  // instead of stacking a second meta line under the title.
   .sub {
+    overflow: hidden;
     color: var(--faint);
     font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .ghlink {
@@ -66,14 +95,22 @@
     }
   }
 
-  .stats {
+  // One visual object for the three progress facts: hairline-divided cells
+  // read as a group, not three floating text blocks (BRIEF-28).
+  .statsGroup {
     display: flex;
-    align-items: center;
-    gap: 20px;
+    align-items: stretch;
+
+    > * + * {
+      border-inline-start: 1px solid var(--line);
+      padding-inline-start: 14px;
+      margin-inline-start: 14px;
+    }
   }
 
   .stat {
     position: relative;
+    padding: 0;
     border: 0;
     background: transparent;
     color: var(--faint);
@@ -124,35 +161,22 @@
     }
   }
 
-  .clearDrafts {
-    border: 0;
-    background: transparent;
-    color: var(--faint);
-    cursor: pointer;
-    font-size: 11px;
-    white-space: nowrap;
-
-    &:hover,
-    &:focus-visible {
-      color: var(--text);
-      text-decoration: underline;
-      text-underline-offset: 3px;
-    }
-  }
-
+  // Story/Concerns in the lens toolbar (BRIEF-28 round 2): the same
+  // segmented vocabulary as the View/Compare groups, parked at the row's
+  // far end.
   .viewbar {
     display: inline-flex;
     gap: 2px;
-    padding: 3px;
-    border: 1px solid var(--line);
+    margin: 0;
+    margin-inline-start: auto;
+    padding: 2px;
+    border: 1px solid var(--line2);
     border-radius: 8px;
-    background: var(--panel2);
   }
 
   .viewOption {
     position: relative;
     display: inline-flex;
-    min-block-size: max(24px, 34px);
     cursor: pointer;
   }
 
@@ -166,12 +190,13 @@
   .viewLabel {
     display: inline-flex;
     align-items: center;
-    padding-block: 7px;
-    padding-inline: 18px;
+    min-block-size: 24px;
+    padding-block: 3px;
+    padding-inline: 14px;
     border-radius: 6px;
     background: transparent;
-    color: var(--faint);
-    font-size: 13px;
+    color: var(--dim);
+    font-size: 12px;
     font-weight: 500;
     transition:
       background 0.15s,
@@ -180,17 +205,96 @@
   }
 
   .viewControl:checked + .viewLabel {
-    background: #1e1e24;
+    background: color-mix(in srgb, var(--blue) 16%, transparent);
     color: var(--text);
   }
 
   .viewControl:not(:checked):hover + .viewLabel {
-    color: var(--dim);
+    color: var(--text);
   }
 
   .viewControl:focus-visible + .viewLabel {
     outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
+    outline-offset: 1px;
+  }
+
+  // Overflow for rare actions (BRIEF-28).
+  .menuWrap {
+    position: relative;
+    flex: none;
+  }
+
+  .menuTrigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 34px;
+    block-size: 34px;
+    padding: 0;
+    border: 1px solid var(--line2);
+    border-radius: 7px;
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    transition:
+      background 0.15s,
+      border-color 0.15s,
+      color 0.15s;
+
+    &:hover,
+    &[aria-expanded="true"] {
+      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+      background: color-mix(in srgb, var(--panel) 88%, var(--text));
+      color: var(--text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: 2px;
+    }
+  }
+
+  .menu {
+    position: absolute;
+    inset-block-start: calc(100% + 8px);
+    inset-inline-end: 0;
+    z-index: 60;
+    min-inline-size: 190px;
+    padding: 4px;
+    border: 1px solid var(--line2);
+    border-radius: 8px;
+    background: var(--panel);
+    box-shadow: 0 16px 48px rgb(0 0 0 / 60%);
+    animation: menu-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .menuItem {
+    display: block;
+    inline-size: 100%;
+    padding-block: 8px;
+    padding-inline: 12px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: 12.5px;
+    text-align: start;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover {
+      background: color-mix(in srgb, var(--panel) 88%, var(--text));
+      color: var(--text);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--focus-ring);
+      outline-offset: -2px;
+      color: var(--text);
+    }
   }
 
   .progressBar {
@@ -204,26 +308,57 @@
     transition: inline-size 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .menu {
+      animation: none;
+    }
+
+    .progressBar {
+      transition: none;
+    }
+  }
+
   @media (width <= 1120px) {
-    .header {
-      min-block-size: 60px;
-      padding-block: 0;
+    .identityRow {
+      min-block-size: 46px;
+      padding-block: 5px;
     }
   }
 
   @media (width <= 880px) {
-    .header {
+    .identityRow {
       align-items: flex-start;
-      min-block-size: 60px;
       flex-wrap: wrap;
-      padding-block: 12px;
+      padding-block: 10px;
       padding-inline: 18px;
     }
 
-    .stats {
+    .lensRow {
+      padding-inline: 18px;
+    }
+
+    .statsGroup {
       order: 3;
       inline-size: 100%;
       justify-content: space-between;
+
+      > * + * {
+        border-inline-start: 0;
+        padding-inline-start: 0;
+        margin-inline-start: 0;
+      }
     }
+  }
+}
+
+@keyframes menu-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: none;
   }
 }

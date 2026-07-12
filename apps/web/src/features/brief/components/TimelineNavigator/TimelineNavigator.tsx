@@ -124,74 +124,6 @@ export function TimelineNavigator({
           →
         </span>
       )}
-      <fieldset className={styles["lens"]}>
-        <legend className="sr-only">View</legend>
-        <button
-          aria-pressed={compareState.view === "full"}
-          data-state={compareState.view === "full" ? "active" : undefined}
-          type="button"
-          onClick={() => selectView("full")}
-        >
-          Full Brief
-        </button>
-        <button
-          aria-pressed={compareState.view === "changes"}
-          data-state={compareState.view === "changes" ? "active" : undefined}
-          type="button"
-          onClick={() => selectView("changes")}
-        >
-          Changes Only
-        </button>
-      </fieldset>
-      <fieldset className={styles["lens"]}>
-        <legend className="sr-only">Compare</legend>
-        <button
-          aria-pressed={compareState.compare === "last-review"}
-          data-state={
-            compareState.compare === "last-review" ? "active" : undefined
-          }
-          disabled={!isCompareAvailable("last-review", availability)}
-          title={
-            isCompareAvailable("last-review", availability)
-              ? undefined
-              : compareUnavailableTitle("last-review")
-          }
-          type="button"
-          onClick={() => selectCompare("last-review")}
-        >
-          Your last review
-        </button>
-        <button
-          aria-pressed={compareState.compare === "previous-brief"}
-          data-state={
-            compareState.compare === "previous-brief" ? "active" : undefined
-          }
-          disabled={!isCompareAvailable("previous-brief", availability)}
-          title={
-            isCompareAvailable("previous-brief", availability)
-              ? undefined
-              : compareUnavailableTitle("previous-brief")
-          }
-          type="button"
-          onClick={() => selectCompare("previous-brief")}
-        >
-          Previous Brief
-        </button>
-        <button
-          aria-pressed={compareState.compare === "off"}
-          data-state={compareState.compare === "off" ? "active" : undefined}
-          disabled={compareState.view === "changes"}
-          title={
-            compareState.view === "changes"
-              ? "Off is only available in Full Brief"
-              : undefined
-          }
-          type="button"
-          onClick={() => selectCompare("off")}
-        >
-          Off
-        </button>
-      </fieldset>
       <ol className={styles["steps"]}>
         {timeline.points
           .slice(Math.max(0, currentIndex - 4), currentIndex + 5)
@@ -219,6 +151,81 @@ export function TimelineNavigator({
             </li>
           ))}
       </ol>
+      <fieldset className={styles["lens"]}>
+        <legend className="sr-only">View</legend>
+        <button
+          aria-pressed={compareState.view === "full"}
+          data-state={compareState.view === "full" ? "active" : undefined}
+          type="button"
+          onClick={() => selectView("full")}
+        >
+          Full Brief
+        </button>
+        <button
+          aria-pressed={compareState.view === "changes"}
+          data-state={compareState.view === "changes" ? "active" : undefined}
+          type="button"
+          onClick={() => selectView("changes")}
+        >
+          Changes Only
+        </button>
+      </fieldset>
+      <fieldset className={styles["labeledLens"]}>
+        <legend className="sr-only">Compare</legend>
+        {/* Outside the bordered group — inside it the label reads as a
+            fourth (selectable) option. */}
+        <span aria-hidden="true" className={styles["lensLabel"]}>
+          Compare
+        </span>
+        <div className={styles["lens"]}>
+          <button
+            aria-pressed={compareState.compare === "last-review"}
+            data-state={
+              compareState.compare === "last-review" ? "active" : undefined
+            }
+            disabled={!isCompareAvailable("last-review", availability)}
+            title={
+              isCompareAvailable("last-review", availability)
+                ? undefined
+                : compareUnavailableTitle("last-review")
+            }
+            type="button"
+            onClick={() => selectCompare("last-review")}
+          >
+            Your last review
+          </button>
+          <button
+            aria-pressed={compareState.compare === "previous-brief"}
+            data-state={
+              compareState.compare === "previous-brief" ? "active" : undefined
+            }
+            disabled={!isCompareAvailable("previous-brief", availability)}
+            title={
+              isCompareAvailable("previous-brief", availability)
+                ? undefined
+                : compareUnavailableTitle("previous-brief")
+            }
+            type="button"
+            onClick={() => selectCompare("previous-brief")}
+          >
+            Previous Brief
+          </button>
+          <button
+            aria-pressed={compareState.compare === "off"}
+            data-state={compareState.compare === "off" ? "active" : undefined}
+            disabled={compareState.view === "changes"}
+            title={
+              compareState.view === "changes"
+                ? "Off is only available in Full Brief"
+                : undefined
+            }
+            type="button"
+            onClick={() => selectCompare("off")}
+          >
+            Off
+          </button>
+        </div>
+      </fieldset>
     </nav>
   );
 }

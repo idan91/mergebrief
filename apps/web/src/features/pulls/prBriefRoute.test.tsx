@@ -473,8 +473,12 @@ describe("DB brief route", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
+    // Lives in the header's More-actions menu since BRIEF-28.
+    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
     // A BUTTON, not the local cross-route link.
-    const trigger = screen.getByRole("button", { name: /^summary preview$/i });
+    const trigger = screen.getByRole("menuitem", {
+      name: /^summary preview$/i,
+    });
     expect(trigger.getAttribute("href")).toBeNull();
     fireEvent.click(trigger);
     await waitFor(() =>

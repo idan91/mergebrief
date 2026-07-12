@@ -1,12 +1,32 @@
 @layer components {
-  // Header-slot lens rows (BRIEF-24 UX pass): the bar lives inside the sticky
-  // header's control column now — two stacked segmented controls, same
-  // language as the local TimelineNavigator's lens fieldsets. No full-width
-  // strip chrome; the header is the surface.
+  // Lens groups in the header toolbar (BRIEF-28 round 2): the two segmented
+  // controls sit co-linear on the lens row, same language as the local
+  // TimelineNavigator's fieldsets. No full-width strip chrome; the header is
+  // the surface.
   .bar {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  // One-line layout loses the vertical grouping that made the Compare
+  // options self-explanatory — a faint prefix label restores it, OUTSIDE
+  // the bordered group so it cannot read as a selectable option. The
+  // accessible name stays on the sr-only legend.
+  .labeledGroup {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .groupLabel {
+    color: var(--faint);
+    font-size: 11px;
+    white-space: nowrap;
   }
 
   .group {

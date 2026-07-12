@@ -116,24 +116,31 @@ export function DbCompareBar({
           Changes Only
         </button>
       </fieldset>
-      <fieldset className={styles["group"]}>
+      <fieldset className={styles["labeledGroup"]}>
         <legend className="sr-only">Compare</legend>
-        {compareButton("last-review", "Your last review")}
-        {compareButton("previous-brief", "Previous Brief")}
-        <button
-          aria-pressed={compareState.compare === "off"}
-          data-state={compareState.compare === "off" ? "active" : undefined}
-          disabled={compareState.view === "changes"}
-          onClick={() => selectCompare("off")}
-          title={
-            compareState.view === "changes"
-              ? "Off is only available in Full Brief"
-              : undefined
-          }
-          type="button"
-        >
-          Off
-        </button>
+        {/* Outside the bordered group — inside it the label reads as a
+            fourth (selectable) option. */}
+        <span aria-hidden="true" className={styles["groupLabel"]}>
+          Compare
+        </span>
+        <div className={styles["group"]}>
+          {compareButton("last-review", "Your last review")}
+          {compareButton("previous-brief", "Previous Brief")}
+          <button
+            aria-pressed={compareState.compare === "off"}
+            data-state={compareState.compare === "off" ? "active" : undefined}
+            disabled={compareState.view === "changes"}
+            onClick={() => selectCompare("off")}
+            title={
+              compareState.view === "changes"
+                ? "Off is only available in Full Brief"
+                : undefined
+            }
+            type="button"
+          >
+            Off
+          </button>
+        </div>
       </fieldset>
     </nav>
   );
