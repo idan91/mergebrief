@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 
-import type { CommentAnchor, ReviewComment } from "../../../review/comments";
+import type { CommentAnchor } from "../../../review/comments";
 import type { DismissTarget } from "../../../review/components/DismissModal/DismissModal";
 import type { EvidenceTarget } from "../../../review/components/EvidenceModal/EvidenceModal";
 import { useRevisionNavigation } from "../../useRevisionNavigation";
@@ -14,7 +14,6 @@ import { GroupCard } from "../GroupCard/GroupCard";
 import styles from "./StoryView.module.scss";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
-const EMPTY_REVIEW_COMMENTS: ReviewComment[] = [];
 const EMPTY_RISK_FLAGS: RiskFlag[] = [];
 
 export interface StoryViewProps {
@@ -28,8 +27,6 @@ export interface StoryViewProps {
   selectedRiskFlags: Set<string>;
   activeCommentAnchor: CommentAnchor | null;
   addressedReviewComments: AddressedReviewComment[] | undefined;
-  commentsByChunk: Map<string, ReviewComment[]>;
-  existingReviewCommentCount: number;
   cancelCommentComposer: () => void;
   deleteReviewComment: (commentId: string) => void;
   jumpToChunk: (chunkId: string) => void;
@@ -154,11 +151,7 @@ export function StoryView(props: StoryViewProps) {
                   }
                   addressedReviewComments={addressedReviewComments}
                   cancelCommentComposer={props.cancelCommentComposer}
-                  comments={
-                    props.commentsByChunk.get(chunk.id) ?? EMPTY_REVIEW_COMMENTS
-                  }
                   deleteReviewComment={props.deleteReviewComment}
-                  existingReviewCommentCount={props.existingReviewCommentCount}
                   composerDisabledReason={props.composerDisabledReason}
                   conversationComposer={props.conversationComposer}
                   conversationRows={props.conversationByChunk?.get(chunk.id)}

@@ -81,8 +81,6 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
     forceCollapsed: false,
     activeCommentAnchor: null,
     addressedReviewComments: [],
-    comments: [],
-    existingReviewCommentCount: 0,
     cancelCommentComposer: vi.fn(),
     deleteReviewComment: vi.fn(),
     toggleChunk,

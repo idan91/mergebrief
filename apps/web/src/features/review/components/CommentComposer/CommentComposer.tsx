@@ -9,6 +9,7 @@ import {
   reviewCommentSubmitLabel,
   type CommentAnchor,
 } from "../../comments";
+import { useMindMap } from "../../session";
 import { MarkdownPreview } from "../MarkdownPreview/MarkdownPreview";
 import { useCommentComposerFacade } from "./useCommentComposerFacade";
 import styles from "./CommentComposer.module.scss";
@@ -16,17 +17,21 @@ import styles from "./CommentComposer.module.scss";
 export interface CommentComposerProps {
   anchor: CommentAnchor;
   cancel: () => void;
-  existingReviewCommentCount: number;
   save: (anchor: CommentAnchor, body: string) => void;
 }
 
 export function CommentComposer({
   anchor,
   cancel,
-  existingReviewCommentCount,
   save,
 }: CommentComposerProps) {
   const composer = useCommentComposerFacade(anchor, save);
+  // Selected here — the only consumer — so the count doesn't thread
+  // through four component layers and bust every ChunkCard's memo on
+  // save/delete; only a mounted (open) composer subscribes (BRIEF-27).
+  const existingReviewCommentCount = useMindMap(
+    (state) => state.reviewComments.length,
+  );
 
   // Escape-to-close, mirroring Modal's convention: the composer is an overlay
   // that holds `shortcutsDisabled` while open (BriefPage), but — unlike

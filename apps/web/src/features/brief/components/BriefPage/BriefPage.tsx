@@ -17,7 +17,7 @@ import { Drawer } from "../../../../components/Drawer/Drawer";
 import { Markdown } from "../../../../components/Markdown/Markdown";
 import { useScrollSpy } from "../../../../hooks/useScrollSpy";
 import { prefersReducedMotion } from "../../../../lib/motion";
-import type { CommentAnchor, ReviewComment } from "../../../review/comments";
+import type { CommentAnchor } from "../../../review/comments";
 import {
   DismissModal,
   type DismissTarget,
@@ -675,16 +675,6 @@ function BriefScreen({
     () => buildReceipt(snapshot, brief, model),
     [snapshot, brief, model],
   );
-  const commentsByChunk = useMemo(() => {
-    const map = new Map<string, ReviewComment[]>();
-    for (const comment of reviewComments) {
-      const comments = map.get(comment.anchor.chunkId) ?? [];
-      comments.push(comment);
-      map.set(comment.anchor.chunkId, comments);
-    }
-    return map;
-  }, [reviewComments]);
-
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 4200);
@@ -1428,11 +1418,9 @@ function BriefScreen({
                 selectedRiskFlags={selectedRiskFlags}
                 activeCommentAnchor={activeCommentAnchor}
                 addressedReviewComments={brief.reviewComments}
-                commentsByChunk={commentsByChunk}
                 composerDisabledReason={readOnly?.reason}
                 conversationByChunk={conversationByChunk}
                 conversationComposer={conversationComposer}
-                existingReviewCommentCount={reviewComments.length}
                 cancelCommentComposer={cancelCommentComposer}
                 deleteReviewComment={deleteReviewComment}
                 jumpToChunk={jumpToChunk}

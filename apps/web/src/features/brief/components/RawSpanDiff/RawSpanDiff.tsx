@@ -170,7 +170,6 @@ function ReadonlyDiffTable({ chunk }: ReadonlyDiffTableProps) {
       comparisonView={EMPTY_COMPARISON_VIEW}
       composerDisabledReason={READ_ONLY_REASON}
       deleteReviewComment={NO_OP}
-      existingReviewCommentCount={0}
       openCommentComposer={NO_OP}
       reviewCommentLabel=""
       saveReviewComment={NO_OP}

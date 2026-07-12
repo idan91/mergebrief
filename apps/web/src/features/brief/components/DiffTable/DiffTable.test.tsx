@@ -100,7 +100,6 @@ function renderTable(overrides: Partial<DiffTableProps> = {}) {
     cancelCommentComposer: vi.fn(),
     comments: [],
     deleteReviewComment: vi.fn(),
-    existingReviewCommentCount: 0,
     openCommentComposer,
     reviewCommentLabel: "review comment",
     saveReviewComment: vi.fn(),

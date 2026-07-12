@@ -65,7 +65,6 @@ export interface DiffTableProps {
   cancelCommentComposer: () => void;
   comments: ReviewComment[];
   deleteReviewComment: (commentId: string) => void;
-  existingReviewCommentCount: number;
   openCommentComposer: (anchor: CommentAnchor) => void;
   reviewCommentLabel: string;
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
@@ -86,7 +85,6 @@ export function DiffTable({
   cancelCommentComposer,
   comments,
   deleteReviewComment,
-  existingReviewCommentCount,
   openCommentComposer,
   reviewCommentLabel,
   saveReviewComment,
@@ -345,9 +343,6 @@ export function DiffTable({
                         <CommentComposer
                           anchor={activeCommentAnchor}
                           cancel={cancelCommentComposer}
-                          existingReviewCommentCount={
-                            existingReviewCommentCount
-                          }
                           save={saveReviewComment}
                         />
                       </td>

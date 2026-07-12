@@ -6,8 +6,10 @@ import {
   type ReactNode,
 } from "react";
 import { useStore } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 
 import type { BriefViewModel } from "../../brief/viewModel";
+import type { ReviewComment } from "../comments";
 import {
   createMindMapStore,
   deriveInitialState,
@@ -93,4 +95,20 @@ export function useMindMap<T>(selector: (state: MindMapStoreValue) => T): T {
 
 export function useMindMapActions(): MindMapActions {
   return useMindMap((state) => state.actions);
+}
+
+/**
+ * The chunk-scoped slice of the session's review comments. `useShallow`
+ * keeps the returned array identity stable while the chunk's own comments
+ * are reference-unchanged, so a memoized consumer re-renders only when its
+ * slice changes — not on every comment interaction elsewhere (BRIEF-27).
+ */
+export function useChunkReviewComments(chunkId: string): ReviewComment[] {
+  return useMindMap(
+    useShallow((state) =>
+      state.reviewComments.filter(
+        (comment) => comment.anchor.chunkId === chunkId,
+      ),
+    ),
+  );
 }

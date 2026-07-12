@@ -14,8 +14,8 @@ import {
   AddressedComments,
   ReviewComments,
 } from "../../../review/components/AddressedComments/AddressedComments";
-import type { CommentAnchor, ReviewComment } from "../../../review/comments";
-import { useMindMap } from "../../../review/session";
+import type { CommentAnchor } from "../../../review/comments";
+import { useChunkReviewComments, useMindMap } from "../../../review/session";
 import { riskChipView } from "../../viewModel";
 import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
 import { RiskBadge } from "../Badge/RiskBadge";
@@ -34,8 +34,6 @@ export interface ChunkCardProps {
   forceCollapsed: boolean;
   activeCommentAnchor: CommentAnchor | null;
   addressedReviewComments: AddressedReviewComment[];
-  comments: ReviewComment[];
-  existingReviewCommentCount: number;
   cancelCommentComposer: () => void;
   deleteReviewComment: (commentId: string) => void;
   toggleChunk: (chunkId: string) => void;
@@ -119,8 +117,6 @@ export const ChunkCard = memo(function ChunkCard({
   forceCollapsed,
   activeCommentAnchor,
   addressedReviewComments,
-  comments,
-  existingReviewCommentCount,
   cancelCommentComposer,
   deleteReviewComment,
   toggleChunk,
@@ -143,6 +139,10 @@ export const ChunkCard = memo(function ChunkCard({
   // pair's first mousedown) — the dblclick compensator must know what the
   // pair actually did, not infer it from selection presence.
   const togglesThisPair = useRef(0);
+  // Selected per chunk (BRIEF-27): this card re-renders only when ITS
+  // slice changes, instead of trusting a parent-built map whose array
+  // identities churned on every comment interaction anywhere.
+  const comments = useChunkReviewComments(chunk.id);
 
   const riskChips = riskChipView(chunk.riskSurface);
   const expanded = open && !forceCollapsed;
@@ -316,7 +316,6 @@ export const ChunkCard = memo(function ChunkCard({
             comparisonSkipReason={comparison.skipReason}
             comments={comments}
             deleteReviewComment={deleteReviewComment}
-            existingReviewCommentCount={existingReviewCommentCount}
             openCommentComposer={openCommentComposer}
             reviewCommentLabel={
               hasLinkedAddressedComments ? "addressed" : "review comment"

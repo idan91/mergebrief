@@ -18,4 +18,9 @@ export {
   writeSnapshot,
   type SessionSnapshot,
 } from "./snapshot";
-export { MindMapProvider, useMindMap, useMindMapActions } from "./provider";
+export {
+  MindMapProvider,
+  useChunkReviewComments,
+  useMindMap,
+  useMindMapActions,
+} from "./provider";
