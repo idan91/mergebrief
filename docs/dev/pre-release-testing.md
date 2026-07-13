@@ -73,6 +73,25 @@ Recipe with per-adapter checklists and the exact commands:
 [`generator-smoke-recipe.md`](./generator-smoke-recipe.md). NEVER wire any
 of these into vitest or CI.
 
+### Accounts & credentials needed (one per adapter)
+
+| adapter | needs | notes |
+|---|---|---|
+| `anthropic` | `ANTHROPIC_API_KEY` | the deploy default — already required by Layer 1 |
+| `claude-code` | Claude subscription + `claude /login` | interactive OAuth/keychain; no API key |
+| `codex` | ChatGPT subscription + `codex login` | interactive; subject to the plan's usage limits |
+| `openai` | OpenAI **API** key (platform.openai.com, prepaid) | ChatGPT subscription does NOT cover it; a smoke costs cents |
+| `openrouter` | OpenRouter account + small prepaid credit (~$5 min) | one key smokes both the structured-outputs slug and the refusal arm |
+
+No account for an adapter → record that adapter as **SKIPPED (no account)**
+in the pass record rather than faking coverage; the contract/SSE-fixture
+suites still cover its logic, but the live wire stays unverified — say so
+honestly in the release notes. (The `openai` `baseUrl` escape hatch is its
+own checklist arm, not a substitute for the native smoke.) An OpenRouter
+key is the cheapest way to close most of the gap: it natively covers
+`openrouter` and can also exercise `openai`'s compatible-server arm via
+`baseUrl: https://openrouter.ai/api/v1`.
+
 - [ ] Live smoke per adapter you ship (`pnpm -C packages/generators smoke
       -- --adapter …`): boot probe passes, provenance honest (effort
       echoed/null per adapter; `codex-default` when unconfigured), output
