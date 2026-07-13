@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
 import { enumPreservingOutputFormat } from "./outputFormat";
 import { salvageDroppableEnums } from "./salvage";
-import type { Effort, Generation } from "./types";
+import type { Effort, Generation } from "./vocabulary";
 
 /** Progress sink — defaults to no-op so callers stay usable in tests. */
 export type Logger = (message: string) => void;

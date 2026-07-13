@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          web_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/web/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          web_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/web/|packages/types/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$web_files" ]; then
             echo "web=true" >> "$GITHUB_OUTPUT"
@@ -134,7 +134,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          categorizer_files="$(printf '%s\n' "$changed_files" | grep -E '^(tools/categorizer/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          categorizer_files="$(printf '%s\n' "$changed_files" | grep -E '^(tools/categorizer/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$categorizer_files" ]; then
             echo "categorizer=true" >> "$GITHUB_OUTPUT"
@@ -188,7 +188,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          cli_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/cli/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          cli_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/cli/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$cli_files" ]; then
             echo "cli=true" >> "$GITHUB_OUTPUT"
@@ -220,6 +220,60 @@ jobs:
       - name: Skip CLI checks
         if: steps.changes.outputs.cli != 'true'
         run: echo "No CLI files changed; skipping CLI checks."
+
+  generators-checks:
+    name: Generators ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [typecheck, test]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect generators package changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
+          generators_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+
+          if [ -n "$generators_files" ]; then
+            echo "generators=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "generators=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up pnpm
+        if: steps.changes.outputs.generators == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.generators == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install generators package dependencies
+        if: steps.changes.outputs.generators == 'true'
+        run: pnpm --filter generators... install --frozen-lockfile
+
+      - name: Run generators package ${{ matrix.check }}
+        if: steps.changes.outputs.generators == 'true'
+        run: pnpm --dir packages/generators ${{ matrix.check }}
+
+      - name: Skip generators package checks
+        if: steps.changes.outputs.generators != 'true'
+        run: echo "No generators package files changed; skipping generators package checks."
 
   persistence-checks:
     name: Persistence ${{ matrix.check }}
@@ -350,7 +404,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          worker_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/worker/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          worker_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/worker/|packages/types/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$worker_files" ]; then
             echo "worker=true" >> "$GITHUB_OUTPUT"

@@ -116,10 +116,11 @@ describe("AnthropicGenerator parse-failure handling", () => {
     await expect(result).resolves.toEqual({ title: "fixed", tags: [] });
     expect(requests).toHaveLength(2);
     // The retry carries the failed output and the validation error as feedback.
-    const retryMessages = requests[1].messages;
+    const retryMessages = requests[1]?.messages;
+    if (!retryMessages) throw new Error("expected a retry request");
     expect(retryMessages).toHaveLength(3);
     expect(retryMessages[1]).toMatchObject({ role: "assistant", content: bad });
-    expect(String(retryMessages[2].content)).toContain(
+    expect(String(retryMessages[2]?.content)).toContain(
       "failed schema validation",
     );
   });
@@ -130,7 +131,9 @@ describe("AnthropicGenerator parse-failure handling", () => {
     await expect(result).rejects.toThrow(/raw output saved to/);
     const dumps = readdirSync(dir).filter((f) => f.endsWith(".failed.json"));
     expect(dumps.length).toBe(2);
-    const dumped = JSON.parse(readFileSync(join(dir, dumps[0]), "utf8"));
+    const firstDump = dumps[0];
+    if (!firstDump) throw new Error("expected a dump file");
+    const dumped = JSON.parse(readFileSync(join(dir, firstDump), "utf8"));
     expect(dumped.raw).toBe(bad);
     expect(dumped.error).toContain("Failed to parse structured output");
   });

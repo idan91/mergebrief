@@ -13,7 +13,7 @@ import {
   AnthropicGenerator,
   type Generator,
   type Logger,
-} from "./generator";
+} from "generators";
 import {
   buildSystemPrompt,
   buildDeltaSystemPrompt,

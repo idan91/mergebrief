@@ -3,7 +3,7 @@ import { z } from "zod/v4";
 import {
   enumPreservingOutputFormat,
   toStrictJsonSchema,
-} from "../src/outputFormat";
+} from "generators";
 import { BriefGenerationSchema, RiskSurfaceAttributes } from "../src/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {

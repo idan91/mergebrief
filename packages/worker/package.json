@@ -15,6 +15,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
     "categorizer": "workspace:^",
+    "generators": "workspace:*",
     "github": "workspace:^",
     "graphile-worker": "^0.16.6",
     "persistence": "workspace:*",

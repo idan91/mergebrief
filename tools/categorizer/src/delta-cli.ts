@@ -10,7 +10,7 @@ import {
   resolveFullSha,
 } from "./github";
 import { categorizeDelta } from "./categorize";
-import { AnthropicGenerator, type Generator } from "./generator";
+import { AnthropicGenerator, type Generator } from "generators";
 import { splitDiffByFile } from "./diff";
 import { lookupBriefIndex } from "./manifest";
 import { buildComparisonMarks, writeComparisonMarks } from "./comparison";

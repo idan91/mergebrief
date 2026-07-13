@@ -3,16 +3,15 @@ import "@tanstack/react-start/server-only";
 import { resolve } from "node:path";
 
 import {
-  AnthropicGenerator,
   briefId,
   fetchPrMetadata,
   generateAndWrite,
   lookupBriefIndex,
   parsePrUrl,
   prStem,
-  type Generator,
   type PrLocator,
 } from "categorizer";
+import { AnthropicGenerator, type Generator } from "generators";
 
 import { createSingleFlight } from "./singleFlight";
 

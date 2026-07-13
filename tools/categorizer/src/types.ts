@@ -1,4 +1,10 @@
 import { z } from "zod/v4";
+import { GenerationSchema } from "generators";
+
+// Port vocabulary now lives in packages/generators (BRIEF-11); re-exported
+// here so the categorizer's own modules and downstream consumers keep their
+// import paths.
+export { Efforts, GenerationSchema, type Effort, type Generation } from "generators";
 
 /**
  * Brief schema — the heart of the categorizer.
@@ -44,13 +50,6 @@ export const Roles = [
 ] as const;
 
 /**
- * Effort — the normalized, cross-provider reasoning-effort knob. Each adapter
- * maps it to its provider's own setting (Anthropic `output_config.effort`,
- * OpenAI `reasoning_effort`, …); a provider without the concept ignores it.
- */
-export const Efforts = ["low", "medium", "high"] as const;
-
-/**
  * Risk surface — 19 factual attributes (never verdicts). Attaches to a chunk.
  * Three buckets: about the code / about the change / about the blast radius.
  */
@@ -83,7 +82,6 @@ export type Category = (typeof Categories)[number];
 export type Concern = (typeof Concerns)[number];
 export type Role = (typeof Roles)[number];
 export type RiskSurfaceAttribute = (typeof RiskSurfaceAttributes)[number];
-export type Effort = (typeof Efforts)[number];
 
 const categoryEnum = z.enum(Categories);
 const concernEnum = z.enum(Concerns);
@@ -240,25 +238,6 @@ export const CommitRangeSchema = z.object({
     .number()
     .int()
     .describe("number of commits in the PR at this head"),
-});
-
-/**
- * Generation provenance — which provider/model/effort produced this artifact.
- * CLI-owned metadata (the model never produces it); surfaced on the Receipt and
- * as an understated header label so the analysis is never mistaken for a verdict
- * (ADR 0012/0013).
- */
-export const GenerationSchema = z.object({
-  provider: z
-    .string()
-    .describe("LLM provider that produced this artifact, e.g. 'anthropic'"),
-  model: z.string().describe("model id, e.g. 'claude-opus-4-8'"),
-  effort: z
-    .enum(Efforts)
-    .nullable()
-    .describe(
-      "normalized reasoning effort used; null when the provider has no effort concept",
-    ),
 });
 
 /**
@@ -525,7 +504,6 @@ export type ChangeGroup = z.infer<typeof ChangeGroupSchema>;
 export type ReadingOrderStep = z.infer<typeof ReadingOrderStepSchema>;
 export type ConcernRollup = z.infer<typeof ConcernRollupSchema>;
 export type CommitRange = z.infer<typeof CommitRangeSchema>;
-export type Generation = z.infer<typeof GenerationSchema>;
 export type ReviewComment = z.infer<typeof ReviewCommentSchema>;
 export type Brief = z.infer<typeof BriefSchema>;
 export type DeltaChunk = z.infer<typeof DeltaChunkSchema>;

@@ -1,0 +1,23 @@
+{
+  "name": "generators",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Generator port and its adapter family (ADR 0013/0030): structured generation behind one contract — Anthropic SDK adapter, shared schema-floor pipeline, provenance vocabulary.",
+  "exports": {
+    ".": "./src/lib.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

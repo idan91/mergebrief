@@ -36,12 +36,12 @@ import {
   revisionNarrativeConfig,
   type Brief,
   type DeltaInput,
-  type Generator,
   type LinkedContext,
   type PrLocator,
   type PrMetadata,
   type RevisionNarrativeSkipped,
 } from "categorizer";
+import type { Generator } from "generators";
 import {
   artifactStore,
   audit,

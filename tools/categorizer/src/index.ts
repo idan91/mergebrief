@@ -15,7 +15,7 @@ import {
   type ReviewComment,
 } from "./github";
 import { categorize, categorizeRevisionNarrative, warnIssues } from "./categorize";
-import { AnthropicGenerator, type Generator } from "./generator";
+import { AnthropicGenerator, type Generator } from "generators";
 import { splitDiffByFile } from "./diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "./manifest";
 import { countChangedLines, type RevisionChanges } from "./revchanges";

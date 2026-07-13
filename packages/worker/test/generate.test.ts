@@ -27,7 +27,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
-import type { Effort, GenerateRequest, Generator } from "categorizer";
+import type { Effort, GenerateRequest, Generator } from "generators";
 import type { Result } from "types";
 import { createGenerateTask } from "../src/generate";
 import type {

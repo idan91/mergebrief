@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { salvageDroppableEnums } from "../src/salvage";
+import { salvageDroppableEnums } from "generators";
 import { BriefGenerationSchema } from "../src/types";
 
 const DROPPABLE = new Set([

@@ -22,7 +22,6 @@ export {
   type DeltaInput,
   type RevisionNarrativeInput,
 } from "./categorize";
-export { AnthropicGenerator, type Generator, type GenerateRequest } from "./generator";
 export { splitDiffByFile } from "./diff";
 export { assignBriefIndex, lookupBriefIndex, lookupBriefShaByIndex } from "./manifest";
 export {

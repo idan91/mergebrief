@@ -4,7 +4,7 @@
 // `apps/web/src/server/webhookApp.ts`). A misconfigured worker must fail
 // LOUDLY at boot, never limp into draining jobs it cannot complete.
 import Anthropic from "@anthropic-ai/sdk";
-import { AnthropicGenerator } from "categorizer";
+import { AnthropicGenerator } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import { closeDb, createDb } from "persistence";
 import { loadConfig } from "./config";

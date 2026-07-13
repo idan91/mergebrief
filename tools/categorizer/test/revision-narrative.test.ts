@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod/v4";
 import { categorizeRevisionNarrative } from "../src/categorize";
-import type { GenerateRequest, Generator } from "../src/generator";
+import type { GenerateRequest, Generator } from "generators";
 import type { Brief, Effort, Generation } from "../src/types";
 import type * as GithubModule from "../src/github";
 import type { PrMetadata } from "../src/github";
