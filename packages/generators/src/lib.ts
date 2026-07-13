@@ -24,6 +24,17 @@ export {
 } from "./registry";
 export { GeneratorError, GeneratorErrorKind } from "./errors";
 export {
+  DEFAULT_HARNESS_TIMEOUTS,
+  harnessTimeoutError,
+  probeHarnessCli,
+  runHarnessProcess,
+  spawnFailureError,
+  type HarnessProbeArgs,
+  type HarnessRunArgs,
+  type HarnessRunResult,
+  type HarnessTimeouts,
+} from "./harness";
+export {
   runWithSchemaFloor,
   schemaFeedbackMessage,
   type FloorAttempt,

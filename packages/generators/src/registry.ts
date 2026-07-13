@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
 import type { Result, ValueOf } from "types";
+import { configError, type ConfigError } from "./errors";
 import { AnthropicGenerator, type Generator, type Logger } from "./generator";
 
 /**
@@ -36,27 +37,9 @@ export interface CreateGeneratorDeps {
   log?: Logger;
 }
 
-/**
- * Expected construction failure (bad config, missing key var, failed boot
- * probe). Mirrors the worker-config ConfigError pattern: per-field issues,
- * VALUES OMITTED — key material never appears, env vars by NAME only.
- */
-export interface ConfigError {
-  readonly code: "invalid";
-  readonly message: string;
-  readonly issues: readonly string[];
-}
-
-function configError(issues: readonly string[]): Result<never, ConfigError> {
-  return {
-    ok: false,
-    error: {
-      code: "invalid",
-      message: "invalid generator configuration",
-      issues,
-    },
-  };
-}
+// ConfigError lives in ./errors (shared with the harness boot probe);
+// re-exported here so config-focused consumers keep one import site.
+export { configError, type ConfigError } from "./errors";
 
 interface RegistryEntry<O extends z.ZodType> {
   options: O;

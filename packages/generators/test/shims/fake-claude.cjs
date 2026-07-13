@@ -1,0 +1,207 @@
+#!/usr/bin/env node
+/**
+ * Fake `claude` binary for harness tests (BRIEF-11 testing strategy: fake
+ * the BINARY, not the spawn). Scenario via SHIM_SCENARIO; the structured
+ * payload via SHIM_OUTPUT (a JSON string); SIGINT recording via
+ * SHIM_MARKER_FILE; drip pacing via SHIM_DRIP_MS / SHIM_DRIP_COUNT.
+ *
+ * Emits envelope-accurate `--output-format stream-json` NDJSON (see
+ * docs/dev/harness-cli-capabilities.md §1): a `system`/`init` event, then a
+ * terminal `result` envelope with `structured_output` / `result` /
+ * `subtype` / `modelUsage`.
+ */
+const { appendFileSync, writeFileSync } = require("node:fs");
+
+const scenario = process.env.SHIM_SCENARIO ?? "valid";
+const output = process.env.SHIM_OUTPUT ?? '{"ok":true}';
+const model = process.env.SHIM_MODEL ?? "claude-opus-4-8";
+const servedModel = process.env.SHIM_SERVED_MODEL ?? model;
+
+function emit(event) {
+  process.stdout.write(`${JSON.stringify(event)}\n`);
+}
+
+function init() {
+  emit({ type: "system", subtype: "init", session_id: "shim-session", model });
+}
+
+function resultEnvelope(overrides) {
+  return {
+    type: "result",
+    subtype: "success",
+    is_error: false,
+    duration_ms: 10,
+    duration_api_ms: 8,
+    num_turns: 1,
+    session_id: "shim-session",
+    total_cost_usd: 0.01,
+    usage: { input_tokens: 10, output_tokens: 20 },
+    modelUsage: {
+      [servedModel]: { inputTokens: 10, outputTokens: 20, costUSD: 0.01 },
+    },
+    result: output,
+    ...overrides,
+  };
+}
+
+function stayAlive() {
+  setInterval(() => {}, 60_000);
+}
+
+function drainStdinThen(fn) {
+  let stdin = "";
+  process.stdin.on("data", (chunk) => {
+    stdin += chunk;
+  });
+  process.stdin.on("end", () => fn(stdin));
+}
+
+// Boot-probe surface: `--version` and `auth status` (capabilities note §1).
+const argv = process.argv.slice(2);
+if (argv.includes("--version")) {
+  if (scenario === "version-broken") process.exit(1);
+  process.stdout.write("2.1.207 (Claude Code)\n");
+  process.exit(0);
+}
+if (argv[0] === "auth" && argv[1] === "status") {
+  if (scenario === "auth-error") {
+    process.stderr.write("Not logged in · run /login\n");
+    process.exit(1);
+  }
+  if (scenario === "auth-hang") {
+    // Authenticated-but-hung CLI: stay alive silently; never reach the
+    // generation scenario switch (CJS top-level return).
+    setInterval(() => {}, 60_000);
+    return;
+  }
+  process.stdout.write("Logged in as shim@example.com\n");
+  process.exit(0);
+}
+
+if (process.env.SHIM_MARKER_FILE) {
+  process.on("SIGINT", () => {
+    appendFileSync(process.env.SHIM_MARKER_FILE, "SIGINT\n");
+    if (scenario !== "ignores-sigint") process.exit(130);
+    // ignores-sigint: recorded, deliberately keep running until SIGKILL.
+  });
+}
+
+switch (scenario) {
+  case "valid":
+    drainStdinThen(() => {
+      init();
+      emit(resultEnvelope({ structured_output: JSON.parse(output) }));
+      process.exit(0);
+    });
+    break;
+  case "invalid-json":
+    // Schema-invalid answer: no structured_output, raw text in `result`.
+    drainStdinThen(() => {
+      init();
+      emit(
+        resultEnvelope({
+          subtype: "error_max_structured_output_retries",
+          is_error: true,
+          errors: [{ type: "structured_output_validation" }],
+        }),
+      );
+      process.exit(0);
+    });
+    break;
+  case "echo-stdin":
+    drainStdinThen((stdin) => {
+      init();
+      emit(resultEnvelope({ result: stdin, structured_output: null }));
+      process.exit(0);
+    });
+    break;
+  case "hang":
+    // No output, never exits — the inactivity watchdog's case.
+    stayAlive();
+    break;
+  case "spawn-grandchild": {
+    // Fork a SIGINT-IGNORING grandchild and (as a cooperative parent) die on
+    // SIGINT ourselves: proves the ladder both signals the process GROUP and
+    // completes the SIGKILL escalation even after the direct child closed.
+    const { spawn } = require("node:child_process");
+    const grandchild = spawn(
+      process.execPath,
+      ["-e", "process.on('SIGINT', () => {}); setInterval(() => {}, 60000)"],
+      { stdio: "ignore" },
+    );
+    writeFileSync(process.env.SHIM_GRANDCHILD_PID_FILE, String(grandchild.pid));
+    stayAlive();
+    break;
+  }
+  case "split-multibyte":
+    drainStdinThen(() => {
+      // One UTF-8 char split across two writes with a scheduling gap: the
+      // harness must decode it whole, never as replacement junk.
+      const bytes = Buffer.from('{"type":"result","result":"héllo"}\n', "utf8");
+      const cut = bytes.indexOf(0xc3); // first byte of "é"
+      process.stdout.write(bytes.subarray(0, cut + 1));
+      setTimeout(() => {
+        process.stdout.write(bytes.subarray(cut + 1), () => process.exit(0));
+      }, 30);
+    });
+    break;
+  case "ignores-sigint":
+    stayAlive();
+    break;
+  case "flush-on-sigint":
+    // Silent hang; on SIGINT flush malformed output then exit — the
+    // grace-window flush a dying CLI produces.
+    process.on("SIGINT", () => {
+      process.stdout.write("MALFORMED-DYING-FLUSH\n", () => process.exit(130));
+    });
+    stayAlive();
+    break;
+  case "slow-drip": {
+    // Steady partial events (watchdog keeps resetting)…
+    init();
+    const dripMs = Number(process.env.SHIM_DRIP_MS ?? 50);
+    const count = Number(process.env.SHIM_DRIP_COUNT ?? 10);
+    let sent = 0;
+    const timer = setInterval(() => {
+      emit({ type: "stream_event", event: { type: "content_block_delta" } });
+      sent++;
+      if (sent >= count) {
+        clearInterval(timer);
+        if (process.env.SHIM_DRIP_THEN === "exit") {
+          emit(resultEnvelope({ structured_output: JSON.parse(output) }));
+          process.exit(0);
+        }
+        stayAlive(); // …then stall with no further output.
+      }
+    }, dripMs);
+    break;
+  }
+  case "api-retry-auth":
+    drainStdinThen(() => {
+      init();
+      emit({
+        type: "system",
+        subtype: "api_retry",
+        error: "authentication_failed",
+      });
+      process.stderr.write("authentication_failed\n");
+      process.exit(1);
+    });
+    break;
+  case "envelope-drift":
+    drainStdinThen(() => {
+      emit({ type: "totally-new-envelope", payload: "surprise" });
+      process.exit(0);
+    });
+    break;
+  case "stderr-exit":
+    drainStdinThen(() => {
+      process.stderr.write(process.env.SHIM_STDERR ?? "shim exploded\n", () =>
+        process.exit(Number(process.env.SHIM_EXIT_CODE ?? 1)),
+      );
+    });
+    break;
+  default:
+    process.stderr.write(`fake-claude: unknown scenario ${scenario}\n`);
+    process.exit(64);
+}

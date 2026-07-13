@@ -30,6 +30,31 @@ export const GeneratorErrorKind = {
 export type GeneratorErrorKind = ValueOf<typeof GeneratorErrorKind>;
 
 /**
+ * Expected construction failure (bad config, missing key var, failed boot
+ * probe). Mirrors the worker-config ConfigError pattern: per-field issues,
+ * VALUES OMITTED — key material never appears, env vars by NAME only.
+ */
+export interface ConfigError {
+  readonly code: "invalid";
+  readonly message: string;
+  readonly issues: readonly string[];
+}
+
+/** Build the failed Result for a construction path. */
+export function configError(
+  issues: readonly string[],
+): { ok: false; error: ConfigError } {
+  return {
+    ok: false,
+    error: {
+      code: "invalid",
+      message: "invalid generator configuration",
+      issues,
+    },
+  };
+}
+
+/**
  * The one failure class every adapter throws from `generate()`. Messages
  * follow the repo rule: never a secret, a token, or a connection string —
  * env vars are referenced by NAME only.
