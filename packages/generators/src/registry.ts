@@ -1,8 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
 import type { Result, ValueOf } from "types";
+import { ClaudeCodeGenerator } from "./claudeCode";
 import { configError, type ConfigError } from "./errors";
 import { AnthropicGenerator, type Generator, type Logger } from "./generator";
+import { probeHarnessCli } from "./harness";
 
 /**
  * The static compiled-in generator registry (BRIEF-11 decision 1, ADR 0013
@@ -93,6 +95,28 @@ const anthropicOptions = z
   })
   .strict();
 
+/** Harness timer tunables (instance config, PR 9 loader parses these). */
+const harnessTimeouts = z
+  .object({
+    hardMs: z.number().int().positive().optional(),
+    inactivityMs: z.number().int().positive().optional(),
+    killGraceMs: z.number().int().positive().optional(),
+  })
+  .strict();
+
+const claudeCodeOptions = z
+  .object({
+    provider: z.literal(Providers.CLAUDE_CODE),
+    /** Model id passed via --model; default Opus 4.8. */
+    model: z.string().min(1).optional(),
+    /** Binary path or name; default "claude" (PATH-resolved). */
+    command: z.string().min(1).optional(),
+    timeouts: harnessTimeouts.optional(),
+  })
+  .strict();
+
+const DEFAULT_CLAUDE_COMMAND = "claude";
+
 export const GENERATOR_REGISTRY = {
   [Providers.ANTHROPIC]: defineEntry({
     options: anthropicOptions,
@@ -112,6 +136,37 @@ export const GENERATOR_REGISTRY = {
       };
     },
   }),
+  [Providers.CLAUDE_CODE]: defineEntry({
+    options: claudeCodeOptions,
+    create: async (options, deps) => {
+      const command = options.command ?? DEFAULT_CLAUDE_COMMAND;
+      // Boot probe (ADR 0030 #5): a misconfigured instance refuses boot
+      // instead of failing inside jobs.
+      const probe = await probeHarnessCli({
+        command,
+        versionArgv: ["--version"],
+        authArgv: ["auth", "status"],
+        authFailureHint:
+          "run `claude /login` interactively on this machine (or set ANTHROPIC_API_KEY)",
+        env: deps.env,
+      });
+      if (!probe.ok) return probe;
+      return {
+        ok: true,
+        value: new ClaudeCodeGenerator({
+          command,
+          model: options.model,
+          failureDir: deps.failureDir,
+          timeouts: options.timeouts,
+          env: deps.env,
+          onModelMismatch: (requested, served) =>
+            deps.log?.(
+              `claude-code served-model mismatch: requested ${requested}, served ${served.join(", ")}`,
+            ),
+        }),
+      };
+    },
+  }),
 } as const;
 
 /**
@@ -121,6 +176,7 @@ export const GENERATOR_REGISTRY = {
  */
 export const GeneratorConfigSchema = z.discriminatedUnion("provider", [
   GENERATOR_REGISTRY[Providers.ANTHROPIC].options,
+  GENERATOR_REGISTRY[Providers.CLAUDE_CODE].options,
 ]);
 export type GeneratorConfig = z.infer<typeof GeneratorConfigSchema>;
 
@@ -210,5 +266,7 @@ export async function createGenerator(
   switch (parsed.data.provider) {
     case Providers.ANTHROPIC:
       return GENERATOR_REGISTRY[Providers.ANTHROPIC].create(parsed.data, deps);
+    case Providers.CLAUDE_CODE:
+      return GENERATOR_REGISTRY[Providers.CLAUDE_CODE].create(parsed.data, deps);
   }
 }

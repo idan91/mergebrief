@@ -10,7 +10,13 @@
  * terminal `result` envelope with `structured_output` / `result` /
  * `subtype` / `modelUsage`.
  */
-const { appendFileSync, writeFileSync } = require("node:fs");
+const {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} = require("node:fs");
+const { join } = require("node:path");
 
 const scenario = process.env.SHIM_SCENARIO ?? "valid";
 const output = process.env.SHIM_OUTPUT ?? '{"ok":true}';
@@ -84,6 +90,93 @@ if (process.env.SHIM_MARKER_FILE) {
     if (scenario !== "ignores-sigint") process.exit(130);
     // ignores-sigint: recorded, deliberately keep running until SIGKILL.
   });
+}
+
+// Scripted mode (adapter contract tests): SHIM_SCRIPT_DIR holds turns.json
+// (array of {output} / {hang:true}), a counter file selecting the turn per
+// invocation, and receives argv-N.json / stdin-N.txt recordings.
+if (scenario === "scripted") {
+  const dir = process.env.SHIM_SCRIPT_DIR;
+  if (!dir) {
+    process.stderr.write("fake-claude: scripted needs SHIM_SCRIPT_DIR\n");
+    process.exit(64);
+  }
+  const counterFile = join(dir, "counter");
+  const turn = existsSync(counterFile)
+    ? Number(readFileSync(counterFile, "utf8"))
+    : 0;
+  writeFileSync(counterFile, String(turn + 1));
+  const turns = JSON.parse(readFileSync(join(dir, "turns.json"), "utf8"));
+  const script = turns[turn] ?? turns[turns.length - 1];
+  writeFileSync(join(dir, `argv-${turn}.json`), JSON.stringify(argv));
+  // Capture the system prompt while its temp file still exists (the parent
+  // cleans it up after the run) so tests can assert its contents.
+  const systemFlag = argv.indexOf("--system-prompt-file");
+  if (systemFlag !== -1 && existsSync(argv[systemFlag + 1])) {
+    writeFileSync(
+      join(dir, `system-${turn}.txt`),
+      readFileSync(argv[systemFlag + 1], "utf8"),
+    );
+  }
+  drainStdinThen((stdin) => {
+    writeFileSync(join(dir, `stdin-${turn}.txt`), stdin);
+    if (script.hang) {
+      stayAlive();
+      return;
+    }
+    init();
+    if (script.apiRetryCategory) {
+      // In-band retry category then death without a result envelope
+      // (classification tests, incl. hostile category names).
+      emit({ type: "system", subtype: "api_retry", error: script.apiRetryCategory });
+      process.exit(1);
+    }
+    if (script.emptySuccess) {
+      // Drifted non-error envelope: no output, no structured_output key
+      // (the base envelope only carries structured_output via overrides).
+      emit(resultEnvelope({ subtype: script.subtype ?? "success", result: "" }));
+      process.exit(0);
+    }
+    if (script.errorSubtype) {
+      // Drifted/unknown error subtype arm (error-hygiene tests).
+      emit(
+        resultEnvelope({
+          subtype: script.errorSubtype,
+          is_error: true,
+          result: script.output,
+        }),
+      );
+      process.exit(0);
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(script.output);
+    } catch {
+      parsed = undefined;
+    }
+    if (parsed === undefined || script.forceExhausted) {
+      // Mimic the real CLI: an answer its schema validation never accepted
+      // arrives as error_max_structured_output_retries with the raw text.
+      emit(
+        resultEnvelope({
+          subtype: "error_max_structured_output_retries",
+          is_error: true,
+          result: script.output,
+          errors: [{ type: "structured_output_validation" }],
+        }),
+      );
+    } else {
+      const envelope = resultEnvelope({
+        result: script.output,
+        structured_output: parsed,
+      });
+      // Envelope-drift arm: an older/newer CLI without modelUsage.
+      if (script.noModelUsage) delete envelope.modelUsage;
+      emit(envelope);
+    }
+    process.exit(0);
+  });
+  return;
 }
 
 switch (scenario) {

@@ -24,6 +24,10 @@ export {
 } from "./registry";
 export { GeneratorError, GeneratorErrorKind } from "./errors";
 export {
+  ClaudeCodeGenerator,
+  type ClaudeCodeGeneratorOptions,
+} from "./claudeCode";
+export {
   DEFAULT_HARNESS_TIMEOUTS,
   harnessTimeoutError,
   probeHarnessCli,
