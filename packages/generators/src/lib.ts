@@ -42,6 +42,10 @@ export {
   type OpenAiAssemblyOptions,
 } from "./openai";
 export {
+  createOpenRouterCore,
+  type OpenRouterAssemblyOptions,
+} from "./openrouter";
+export {
   DEFAULT_HARNESS_TIMEOUTS,
   harnessTimeoutError,
   probeHarnessCli,

@@ -4,6 +4,7 @@ import type { Result, ValueOf } from "types";
 import { ClaudeCodeGenerator } from "./claudeCode";
 import { CodexGenerator, CODEX_PROBE } from "./codex";
 import { createOpenAiCore } from "./openai";
+import { createOpenRouterCore } from "./openrouter";
 import { configError, type ConfigError } from "./errors";
 import { AnthropicGenerator, type Generator, type Logger } from "./generator";
 import { probeHarnessCli } from "./harness";
@@ -151,6 +152,26 @@ const openaiOptions = z
   })
   .strict();
 
+const DEFAULT_OPENROUTER_KEY_ENV = "OPENROUTER_API_KEY";
+
+const openrouterOptions = z
+  .object({
+    provider: z.literal(Providers.OPENROUTER),
+    /** Full OpenRouter slug (e.g. "anthropic/claude-opus-4.8") — REQUIRED. */
+    model: z.string().min(1),
+    apiKeyEnv: z.string().min(1).optional(),
+    /**
+     * OpenRouter provider-routing options (order, allow/deny, quantization…)
+     * passed through under `provider`; `require_parameters: true` is forced
+     * over whatever is set here.
+     */
+    providerRouting: z.record(z.string(), z.unknown()).optional(),
+    /** Attribution headers. */
+    referer: z.string().min(1).optional(),
+    title: z.string().min(1).optional(),
+  })
+  .strict();
+
 export const GENERATOR_REGISTRY = {
   [Providers.ANTHROPIC]: defineEntry({
     options: anthropicOptions,
@@ -243,6 +264,27 @@ export const GENERATOR_REGISTRY = {
       });
     },
   }),
+  [Providers.OPENROUTER]: defineEntry({
+    options: openrouterOptions,
+    create: async (options, deps) => {
+      const key = resolveApiKey(
+        deps.env,
+        options.apiKeyEnv ?? DEFAULT_OPENROUTER_KEY_ENV,
+      );
+      if (!key.ok) return key;
+      return createOpenRouterCore({
+        apiKey: key.value,
+        model: options.model,
+        failureDir: deps.failureDir,
+        providerRouting: options.providerRouting,
+        referer: options.referer,
+        title: options.title,
+        // No hook here: createOpenRouterCore already logs mismatches via
+        // deps.log; the hook is for UI surfacing (wired in PR 10).
+        log: deps.log,
+      });
+    },
+  }),
 } as const;
 
 /**
@@ -255,6 +297,7 @@ export const GeneratorConfigSchema = z.discriminatedUnion("provider", [
   GENERATOR_REGISTRY[Providers.CLAUDE_CODE].options,
   GENERATOR_REGISTRY[Providers.CODEX].options,
   GENERATOR_REGISTRY[Providers.OPENAI].options,
+  GENERATOR_REGISTRY[Providers.OPENROUTER].options,
 ]);
 export type GeneratorConfig = z.infer<typeof GeneratorConfigSchema>;
 
@@ -350,5 +393,7 @@ export async function createGenerator(
       return GENERATOR_REGISTRY[Providers.CODEX].create(parsed.data, deps);
     case Providers.OPENAI:
       return GENERATOR_REGISTRY[Providers.OPENAI].create(parsed.data, deps);
+    case Providers.OPENROUTER:
+      return GENERATOR_REGISTRY[Providers.OPENROUTER].create(parsed.data, deps);
   }
 }

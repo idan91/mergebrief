@@ -71,6 +71,19 @@ export interface OpenAiCompatibleCoreOptions {
   provider: string;
   model: string;
   failureDir: string;
+  /**
+   * Pre-seeded effort-knob knowledge (openrouter learns it from its
+   * /models preflight — no discovery 400 needed). Omit for run-time
+   * discovery.
+   */
+  initialEffortSupported?: boolean | undefined;
+  /**
+   * The parameter name a knob-rejection 400 would mention. The default
+   * matches the OpenAI wire name; openrouter's transport translates the
+   * knob to `reasoning`, so its rejections name THAT (transport-aware
+   * backstop for a listing that lied about reasoning support).
+   */
+  knobRejectionMarker?: string | undefined;
 }
 
 /** Documented finish reasons; anything else renders as unrecognized —
@@ -103,13 +116,16 @@ export class OpenAiCompatibleCore implements Generator {
    * Instance-lifetime effort-knob cache: null = unknown, true/false once
    * discovered. Discovered-absent surfaces in provenance as effort null.
    */
-  private effortSupported: boolean | null = null;
+  private effortSupported: boolean | null;
+  private readonly knobRejectionMarker: string;
 
   constructor(options: OpenAiCompatibleCoreOptions) {
     this.transport = options.transport;
     this.provider = options.provider;
     this.model = options.model;
     this.failureDir = options.failureDir;
+    this.effortSupported = options.initialEffortSupported ?? null;
+    this.knobRejectionMarker = options.knobRejectionMarker ?? "reasoning_effort";
   }
 
   provenance(effort: Effort): Generation {
@@ -220,7 +236,10 @@ export class OpenAiCompatibleCore implements Generator {
       // shared cache: two concurrent first requests can both send the knob
       // and both get the 400 — the second must still retry even though its
       // sibling already flipped the cache (setting it again is idempotent).
-      if (body.reasoning_effort !== undefined && isEffortKnobRejection(error)) {
+      if (
+        body.reasoning_effort !== undefined &&
+        isEffortKnobRejection(error, this.knobRejectionMarker)
+      ) {
         // Discovery is INDEPENDENT of abort timing: the knob's absence is
         // now known either way (later calls must not resend it), and an
         // abort landing between the 400 and this catch is still an abort —
@@ -298,14 +317,14 @@ export class OpenAiCompatibleCore implements Generator {
   }
 }
 
-/** True for a 400 whose provider message names reasoning_effort. The text
- * is PROVIDER-authored status prose (never model output) — sniffing it is
- * the documented discovery mechanism for the knob's absence. */
-function isEffortKnobRejection(error: unknown): boolean {
+/** True for a 400 whose provider message names the effort knob's wire
+ * parameter. The text is PROVIDER-authored status prose (never model
+ * output) — sniffing it is the documented discovery mechanism. */
+function isEffortKnobRejection(error: unknown, marker: string): boolean {
   if (typeof error !== "object" || error === null) return false;
   if (Reflect.get(error, "status") !== 400) return false;
   const message = Reflect.get(error, "message");
-  return typeof message === "string" && message.includes("reasoning_effort");
+  return typeof message === "string" && message.includes(marker);
 }
 
 /**
