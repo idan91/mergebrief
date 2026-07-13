@@ -7,8 +7,8 @@ import { createGenerator } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import { closeDb, createDb } from "persistence";
 import { loadConfig } from "./config";
-import { appGitHubPort } from "./github-port";
-import { createGenerateTask } from "./generate";
+import { appGitHubPort } from "./task/github-port";
+import { createGenerateTask } from "./task/generate";
 import { startWorker } from "./runner";
 
 /** Where failed-generation raw outputs are dumped for debugging (ephemeral). */

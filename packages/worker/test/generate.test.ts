@@ -29,13 +29,13 @@ import { APIConnectionError } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
 import type { Result } from "types";
-import { createGenerateTask } from "../src/generate";
+import { createGenerateTask } from "../src/task/generate";
 import type {
   GitHubApiError,
   GitHubPort,
   PullRequestFile,
   PullRequestInfo,
-} from "../src/github-port";
+} from "../src/task/github-port";
 
 // ---------------------------------------------------------------------------
 // Fixtures.

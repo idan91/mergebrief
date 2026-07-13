@@ -7,11 +7,35 @@ artifacts: shared Brief, comparison marks, revision narrative, and pre-warmed
 delta cores (one per distinct checkpoint SHA, huge-span skip honored). The
 generation engine is `categorizer`, reused as-is behind its `Generator` port.
 
+## Map
+
+**Entry points: `src/lib.ts`** (the public surface, `exports["."]` — tests +
+future embedding) and **`src/main.ts`** (the runnable composition root,
+`pnpm start` — deliberately not exported).
+
+```
+src/
+  lib.ts              ENTRY — sectioned re-exports = the public surface
+  main.ts             composition root — the ONE place env is read + deps wired
+  config.ts           Zod env config (DATABASE_URL, MERGEBRIEF_CONFIG,
+                      PUBLIC_BASE_URL, GitHub App creds)
+  runner.ts           boot order (app-schema → queue-schema migrations) +
+                      the long-lived graphile-worker runner
+  task/               the `generate` task + its collaborators
+    generate.ts         orchestration: payload → tenancy → idempotent skip →
+                        brief/marks/narrative/delta cores → projection + errors
+    payload.ts          GenerateJobPayload boundary (string ids → branded)
+    entry-comment.ts    Entry-comment pure builders (delete+repost lives
+                        in generate.ts)
+    github-port.ts      the GitHub seam: four PR reads behind a testable port
+test/                 generate.test.ts = integration via persistence/testing
+```
+
 ## Invariants (enforced, don't weaken)
 
 - **Payload handshake:** the job payload shape is the shared
   `GenerateJobPayload` type in `types` — string ids, snake_case. Both sides
-  (ingest serializer, `src/payload.ts` parser) plus their tests move in
+  (ingest serializer, `src/task/payload.ts` parser) plus their tests move in
   lockstep; the compile-time pin in `payload.ts` breaks the build on drift.
 - **Tenancy:** everything goes through persistence's ctx-bound seams
   (`forTenant`, `artifactStore`, `generationProjection`); the installation id
