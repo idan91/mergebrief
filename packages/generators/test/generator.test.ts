@@ -8,10 +8,15 @@ import { AnthropicGenerator } from "../src/generator";
 
 /**
  * Exercises the parse-failure path of AnthropicGenerator (salvage → feedback
- * retry → dump-and-throw) against a stubbed SDK client. The stub mirrors the
- * two surfaces generate() touches: `stream.on` / `stream.finalMessage()` and
- * the response's `parsed_output` getter (which throws on invalid output,
- * like the SDK's zod helper).
+ * retry → dump-and-throw) against a stubbed SDK client.
+ *
+ * DELIBERATE ASYMMETRY (BRIEF-11 testing strategy): this stays a stub-level
+ * SDK-client fake while the API adapters fake at fetch level. These tests
+ * predate the shared schema-floor pipeline and are the characterization
+ * anchor that held while AnthropicGenerator migrated onto it — do not
+ * rewrite them alongside implementation changes. Promotion trigger to a
+ * wire-level fake: a bug escaping through the stubbed surface, or the next
+ * substantive SDK-client change.
  */
 
 const Schema = z.object({

@@ -41,7 +41,7 @@ import {
   type PrMetadata,
   type RevisionNarrativeSkipped,
 } from "categorizer";
-import type { Generator } from "generators";
+import { GeneratorError, GeneratorErrorKind, type Generator } from "generators";
 import {
   artifactStore,
   audit,
@@ -214,6 +214,11 @@ function unwrapGitHub<T>(result: Result<T, GitHubApiError>): T {
  * would re-spend tokens for the same outcome.
  */
 function isTransientGenerationError(error: unknown): boolean {
+  // Generator adapters classify their own transport failures (BRIEF-11
+  // decision 5): provider-transient is the only kind a retry can help.
+  if (error instanceof GeneratorError) {
+    return error.kind === GeneratorErrorKind.PROVIDER_TRANSIENT;
+  }
   if (error instanceof APIConnectionError) {
     return true;
   }

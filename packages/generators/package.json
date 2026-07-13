@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
+    "types": "workspace:*",
     "zod": "^3.25.0"
   },
   "devDependencies": {

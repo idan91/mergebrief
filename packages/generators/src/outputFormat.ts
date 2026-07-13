@@ -180,39 +180,73 @@ function formatIssues(error: z.ZodError): string {
 }
 
 /**
+ * Parse a raw model output against a Zod schema with the SDK's exact failure
+ * message shapes ("Failed to parse structured output[ as JSON]: …"). Shared
+ * by the output format's `parse` and by the schema-floor pipeline, so the
+ * retry feedback a model sees is identical whichever path validated it.
+ */
+export function parseStructuredText<S extends z.ZodType>(
+  zodSchema: S,
+  content: string,
+): z.infer<S> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    throw new Error(
+      `Failed to parse structured output as JSON: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+  const output = zodSchema.safeParse(parsed);
+  if (!output.success) {
+    throw validationError(output.error);
+  }
+  return output.data;
+}
+
+/**
+ * The SDK-shaped validation failure for a Zod error — one message shape
+ * whether the payload arrived as text or as a transport-parsed candidate.
+ */
+export function validationError(error: z.ZodError): Error {
+  return new Error(
+    `Failed to parse structured output: ${error.message}\n${formatIssues(error)}`,
+  );
+}
+
+/**
+ * The enum-preserving strict JSON schema for a Zod schema — the wire payload
+ * for Anthropic `output_config.format.schema`, claude's `--json-schema`, and
+ * codex's `--output-schema` alike. Bare schema, no client parse callback:
+ * SDK ≥0.101 parses eagerly at message_stop, so a `parse` member would turn
+ * an invalid output into a stream rejection that bypasses the schema-floor
+ * pipeline (salvage/retry/dump).
+ */
+export function enumPreservingJsonSchema(
+  zodSchema: z.ZodType,
+): Record<string, unknown> {
+  const jsonSchema: unknown = z.toJSONSchema(zodSchema, { reused: "ref" });
+  if (!isRecord(jsonSchema)) {
+    throw new Error("enumPreservingJsonSchema: z.toJSONSchema did not return an object");
+  }
+  return toStrictJsonSchema(jsonSchema);
+}
+
+/**
  * Build an enum-preserving output format from a Zod schema. Same call shape as
  * the SDK's `zodOutputFormat`, and the returned object is a drop-in replacement:
  * `{ type: "json_schema", schema, parse }`, where `parse` yields typed data or
- * throws with the SDK's exact message shape on invalid output.
+ * throws with the SDK's exact message shape on invalid output. NOTE: do not
+ * hand this to `messages.stream()` — the `parse` member triggers the SDK's
+ * eager client-side parse (see `enumPreservingJsonSchema`).
  */
 export function enumPreservingOutputFormat<S extends z.ZodType>(
   zodSchema: S,
 ): ParseableOutputFormat<z.infer<S>> {
-  const jsonSchema: unknown = z.toJSONSchema(zodSchema, { reused: "ref" });
-  if (!isRecord(jsonSchema)) {
-    throw new Error("enumPreservingOutputFormat: z.toJSONSchema did not return an object");
-  }
-  const schema = toStrictJsonSchema(jsonSchema);
   return {
     type: "json_schema",
-    schema,
-    parse(content: string): z.infer<S> {
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(content);
-      } catch (error) {
-        throw new Error(
-          `Failed to parse structured output as JSON: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error },
-        );
-      }
-      const output = zodSchema.safeParse(parsed);
-      if (!output.success) {
-        throw new Error(
-          `Failed to parse structured output: ${output.error.message}\n${formatIssues(output.error)}`,
-        );
-      }
-      return output.data;
-    },
+    schema: enumPreservingJsonSchema(zodSchema),
+    parse: (content: string): z.infer<S> => parseStructuredText(zodSchema, content),
   };
 }

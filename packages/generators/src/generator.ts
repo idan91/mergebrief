@@ -1,9 +1,12 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import Anthropic from "@anthropic-ai/sdk";
+import Anthropic, {
+  AnthropicError,
+  APIConnectionError,
+  RetryableError,
+} from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
-import { enumPreservingOutputFormat } from "./outputFormat";
-import { salvageDroppableEnums } from "./salvage";
+import { GeneratorError, GeneratorErrorKind } from "./errors";
+import { runWithSchemaFloor, schemaFeedbackMessage } from "./floor";
+import { enumPreservingJsonSchema } from "./outputFormat";
 import type { Effort, Generation } from "./vocabulary";
 
 /** Progress sink — defaults to no-op so callers stay usable in tests. */
@@ -20,7 +23,7 @@ export interface GenerateRequest<S extends z.ZodType> {
   /**
    * Array fields whose invalid elements may be dropped (warn-and-drop) when
    * strict parsing fails. Closed vocabularies are now enforced server-side via
-   * the hand-built enum-preserving schema (`enumPreservingOutputFormat`), so an
+   * the hand-built enum-preserving schema (`enumPreservingJsonSchema`), so an
    * out-of-vocabulary token can no longer be decoded in the first place. Salvage
    * stays as defense-in-depth for what enforcement doesn't cover — structural
    * failures, refusals, and any residual slip — dropping bad elements of
@@ -51,6 +54,42 @@ export interface Generator {
   provenance(effort: Effort): Generation;
 }
 
+// ---------------------------------------------------------------------------
+// The structural slice of the SDK client the adapter touches — lets tests
+// fake it with `satisfies` instead of double assertions, while the real
+// `Anthropic` instance remains assignable unchanged.
+// ---------------------------------------------------------------------------
+
+/** The response fields the adapter reads off a finished stream. */
+export interface AnthropicStreamResponse {
+  stop_reason: string | null;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    cache_read_input_tokens?: number | null;
+  };
+  content: { type: string }[];
+}
+
+/** The stream-handle surface the adapter drives. */
+export interface AnthropicStreamHandle {
+  on(
+    event: "streamEvent",
+    listener: (event: Anthropic.MessageStreamEvent) => void,
+  ): unknown;
+  finalMessage(): Promise<AnthropicStreamResponse>;
+}
+
+/** The client surface the adapter needs — `Anthropic` satisfies it as-is. */
+export interface AnthropicStreamingClient {
+  messages: {
+    stream(
+      body: Parameters<Anthropic["messages"]["stream"]>[0],
+      options?: { signal?: AbortSignal },
+    ): AnthropicStreamHandle;
+  };
+}
+
 /**
  * Anthropic adapter on the official SDK (the default per the claude-api skill):
  * Opus 4.8 with adaptive thinking, effort, prompt caching, and native
@@ -59,22 +98,30 @@ export interface Generator {
  * turn after it. Streaming (not parse()) because adaptive thinking + a large
  * max_tokens trips the SDK's 10-minute guard.
  *
- * Parse-failure handling (the structured-output floor stays hard, but not
- * hair-trigger): salvage droppable enum slips per `salvageFields`; otherwise
- * retry ONCE with the validation errors fed back; the raw output of every
- * failed attempt is dumped to `<failureDir>/<label>-*.failed.json` so
- * failures are never opaque.
+ * Parse-failure handling is the shared schema-floor pipeline
+ * (`runWithSchemaFloor`): salvage droppable enum slips per `salvageFields`;
+ * otherwise retry ONCE with the validation errors fed back; the raw output
+ * of every failed attempt is dumped to `<failureDir>/<label>-*.failed.json`
+ * so failures are never opaque.
+ *
+ * The wire format carries the enum-preserving JSON schema WITHOUT a client
+ * `parse` callback: SDK ≥0.101 parses eagerly at message_stop and a `parse`
+ * member would turn an invalid output into a stream REJECTION — skipping
+ * salvage, retry, and dump entirely. The pipeline owns validation; the SDK's
+ * residual JSON.parse rejection (non-JSON output, e.g. max_tokens truncation)
+ * is caught below and converted into a pipeline-visible failed attempt.
  */
 const MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 32000;
 
 export class AnthropicGenerator implements Generator {
-  private readonly client: Anthropic;
+  private readonly client: AnthropicStreamingClient;
   private readonly failureDir: string;
-  /** Disambiguates dump filenames within one process (Date.now can collide). */
-  private dumpCounter = 0;
 
-  constructor(client: Anthropic = new Anthropic(), failureDir = "out") {
+  constructor(
+    client: AnthropicStreamingClient = new Anthropic(),
+    failureDir = "out",
+  ) {
     this.client = client;
     this.failureDir = failureDir;
   }
@@ -90,82 +137,81 @@ export class AnthropicGenerator implements Generator {
     const baseMessages: Anthropic.MessageParam[] = [
       { role: "user", content: req.user },
     ];
-    let feedback: { raw: string; error: string } | null = null;
 
-    for (let attempt = 0; ; attempt++) {
-      // On retry, the model sees its own failed output plus the validation
-      // errors — mid-conversation assistant turns are fine (only last-turn
-      // prefill is disallowed), and the cached system+user prefix is reused.
-      const messages: Anthropic.MessageParam[] = feedback
-        ? [
-            ...baseMessages,
-            { role: "assistant", content: feedback.raw },
-            {
-              role: "user",
-              content:
-                `Your previous response failed schema validation:\n${feedback.error}\n\n` +
-                `Produce the corrected JSON object conforming exactly to the schema. ` +
-                `Use ONLY tokens from the closed vocabularies — never invent a token.`,
-            },
-          ]
-        : baseMessages;
-
-      // Sequential by design: the retry needs the failed attempt's output.
-      // eslint-disable-next-line no-await-in-loop
-      const response = await this.request(req, messages, log);
-
-      if (response.stop_reason === "refusal") {
-        throw new Error(`Model refused to produce the ${req.label}.`);
-      }
-
-      let parseError: unknown;
-      try {
-        const parsed = response.parsed_output;
-        if (parsed) return parsed;
-        throw new Error(
-          `No structured output for ${req.label} (stop_reason=${response.stop_reason}).`,
-        );
-      } catch (error) {
-        parseError = error;
-      }
-
-      const raw = textContent(response);
-      const salvaged =
-        raw !== "" && req.salvageFields?.length
-          ? salvageDroppableEnums(
-              tryJsonParse(raw),
-              req.schema,
-              new Set(req.salvageFields),
-            )
-          : null;
-      if (salvaged) {
-        log(`⚠ salvaged ${req.label}: ${salvaged.issues.join("; ")}`);
-        return salvaged.value;
-      }
-
-      const errorMessage =
-        parseError instanceof Error ? parseError.message : String(parseError);
-      const dumpPath = this.dumpFailure(req.label, raw, errorMessage);
-      const dumpNote = dumpPath ? ` (raw output saved to ${dumpPath})` : "";
-
-      if (attempt === 0 && raw !== "") {
-        log(
-          `⚠ ${req.label} failed schema validation — retrying once with error feedback${dumpNote}`,
-        );
-        feedback = { raw, error: errorMessage };
-        continue;
-      }
-
-      throw new Error(`${errorMessage}${dumpNote}`, { cause: parseError });
+    // Built once per generate(): an unrepresentable schema is a programmer/
+    // config error (taxonomy kind config), not a generation failure.
+    let wireSchema: Record<string, unknown>;
+    try {
+      wireSchema = enumPreservingJsonSchema(req.schema);
+    } catch (error) {
+      throw new GeneratorError(
+        GeneratorErrorKind.CONFIG,
+        `schema for ${req.label} is not representable as a strict JSON schema: ${
+          error instanceof Error ? error.message : "unknown error"
+        }`,
+        { cause: error },
+      );
     }
+
+    return runWithSchemaFloor({
+      schema: req.schema,
+      label: req.label,
+      ...(req.salvageFields ? { salvageFields: req.salvageFields } : {}),
+      failureDir: this.failureDir,
+      log,
+      attempt: async (feedback) => {
+        // On retry, the model sees its own failed output plus the validation
+        // errors — mid-conversation assistant turns are fine (only last-turn
+        // prefill is disallowed), and the cached system+user prefix is reused.
+        const messages: Anthropic.MessageParam[] = feedback
+          ? [
+              ...baseMessages,
+              { role: "assistant", content: feedback.raw },
+              { role: "user", content: schemaFeedbackMessage(feedback.error) },
+            ]
+          : baseMessages;
+
+        const outcome = await this.request(req, wireSchema, messages, log);
+        if ("sdkParseFailure" in outcome) {
+          // The SDK's eager JSON.parse rejected (non-JSON output): hand the
+          // delta-accumulated raw to the pipeline as a failed attempt so
+          // salvage/retry/dump still run.
+          return { raw: outcome.raw, invalidReason: outcome.sdkParseFailure };
+        }
+
+        const response = outcome.response;
+        if (response.stop_reason === "refusal") {
+          throw new GeneratorError(
+            GeneratorErrorKind.REFUSAL,
+            `Model refused to produce the ${req.label}.`,
+          );
+        }
+
+        const raw = textContent(response);
+        if (raw === "") {
+          // Preserve the pre-pipeline diagnostic for a no-text response.
+          return {
+            raw,
+            invalidReason: `No structured output for ${req.label} (stop_reason=${response.stop_reason}).`,
+          };
+        }
+        // The pipeline owns validation (identical message shapes via
+        // parseStructuredText), so only the raw text crosses the seam.
+        return { raw };
+      },
+    });
   }
 
   /** One streamed request with live progress + heartbeat logging. */
   private async request<S extends z.ZodType>(
     req: GenerateRequest<S>,
+    wireSchema: Record<string, unknown>,
     messages: Anthropic.MessageParam[],
     log: Logger,
-  ) {
+  ): Promise<
+    | { response: AnthropicStreamResponse }
+    | { sdkParseFailure: string; raw: string }
+  > {
     // The request options' `signal` aborts the HTTP stream itself — the SDK
     // rejects with APIUserAbortError and no further output tokens are billed.
     const stream = this.client.messages.stream(
@@ -174,7 +220,8 @@ export class AnthropicGenerator implements Generator {
         max_tokens: MAX_TOKENS,
         thinking: { type: "adaptive" },
         output_config: {
-          format: enumPreservingOutputFormat(req.schema),
+          // Schema only — never a client parse callback (see class docs).
+          format: { type: "json_schema", schema: wireSchema },
           effort: req.effort,
         },
         system: [
@@ -186,11 +233,13 @@ export class AnthropicGenerator implements Generator {
     );
 
     // Live progress: phase + elapsed + output size. A heartbeat covers the long
-    // silent stretches (e.g. extended thinking) where no deltas arrive.
+    // silent stretches (e.g. extended thinking) where no deltas arrive. The
+    // accumulated text doubles as the raw output when the SDK's eager parse
+    // rejects the final message before we can read it.
     const start = Date.now();
     const elapsed = (): string => `${((Date.now() - start) / 1000).toFixed(0)}s`;
     let phase: "thinking" | "writing" = "thinking";
-    let outChars = 0;
+    let collected = "";
     stream.on("streamEvent", (event) => {
       if (
         event.type === "content_block_start" &&
@@ -202,18 +251,29 @@ export class AnthropicGenerator implements Generator {
         event.type === "content_block_delta" &&
         event.delta.type === "text_delta"
       ) {
-        outChars += event.delta.text.length;
+        collected += event.delta.text;
       }
     });
     log(`thinking… (${req.label})`);
     const heartbeat = setInterval(() => {
-      const size = outChars > 0 ? `, ${outChars} chars` : "";
+      const size = collected.length > 0 ? `, ${collected.length} chars` : "";
       log(`…${phase} ${req.label} (${elapsed()}${size})`);
     }, 5000);
 
-    let response;
+    let response: AnthropicStreamResponse;
     try {
       response = await stream.finalMessage();
+    } catch (error) {
+      if (
+        error instanceof AnthropicError &&
+        error.message.startsWith("Failed to parse structured output")
+      ) {
+        return { sdkParseFailure: error.message, raw: collected };
+      }
+      // Recognized SDK failures adopt the shared taxonomy (decision 5);
+      // anything unrecognized — most importantly aborts — propagates
+      // UNTOUCHED (ADR 0006 #6).
+      throw classifySdkError(error);
     } finally {
       clearInterval(heartbeat);
     }
@@ -223,31 +283,61 @@ export class AnthropicGenerator implements Generator {
       `done in ${elapsed()} — tokens in:${u.input_tokens} out:${u.output_tokens} ` +
         `cache_read:${u.cache_read_input_tokens ?? 0}`,
     );
-    return response;
+    return { response };
   }
+}
 
-  /**
-   * Persist a failed attempt's raw output next to the artifacts so a schema
-   * failure is debuggable after the fact (the Zod error alone doesn't show
-   * what the model actually emitted). Best-effort — never throws.
-   */
-  private dumpFailure(
-    label: string,
-    raw: string,
-    error: string,
-  ): string | null {
-    try {
-      mkdirSync(this.failureDir, { recursive: true });
-      const file = join(
-        this.failureDir,
-        `${label.replace(/\W+/g, "-")}-${Date.now()}-${this.dumpCounter++}.failed.json`,
-      );
-      writeFileSync(file, JSON.stringify({ error, raw }, null, 2));
-      return file;
-    } catch {
-      return null;
-    }
+/**
+ * Map recognized SDK failures onto the shared taxonomy (decision 5):
+ * 401/403 → auth; 400/404 (bad model, unsupported request shape) → config;
+ * 408/429/5xx after the SDK's own retries, and connection-level failures →
+ * provider-transient. Unrecognized errors (aborts, custom rejections)
+ * return UNCHANGED so they propagate untouched.
+ */
+function classifySdkError(error: unknown): unknown {
+  // Statusless-but-retryable SDK failures (connection errors, middleware
+  // RetryableError surfacing after retry exhaustion) are provider-transient.
+  if (error instanceof APIConnectionError || error instanceof RetryableError) {
+    return new GeneratorError(
+      GeneratorErrorKind.PROVIDER_TRANSIENT,
+      error.message,
+      { cause: error },
+    );
   }
+  if (typeof error !== "object" || error === null) return error;
+  if (Reflect.get(error, "name") === "APIUserAbortError") return error;
+  const status = Reflect.get(error, "status");
+  if (typeof status !== "number") return wrapStatuslessSdkError(error);
+  // SDK Error messages are provider-authored status descriptions (never
+  // credential-bearing); a non-Error carrier gets a fixed message instead
+  // of echoing arbitrary object contents.
+  const message =
+    error instanceof Error ? error.message : `transport error (status ${status})`;
+  if (status === 401 || status === 403) {
+    return new GeneratorError(GeneratorErrorKind.AUTH, message, { cause: error });
+  }
+  if (status === 400 || status === 404) {
+    return new GeneratorError(GeneratorErrorKind.CONFIG, message, { cause: error });
+  }
+  if (status === 408 || status === 429 || status >= 500) {
+    return new GeneratorError(GeneratorErrorKind.PROVIDER_TRANSIENT, message, {
+      cause: error,
+    });
+  }
+  return new GeneratorError(GeneratorErrorKind.OPAQUE, message, { cause: error });
+}
+
+/**
+ * Statusless SDK failures that aren't aborts (e.g. "stream ended without a
+ * message") still belong to the taxonomy — opaque, original as cause.
+ */
+function wrapStatuslessSdkError(error: unknown): unknown {
+  if (error instanceof AnthropicError) {
+    return new GeneratorError(GeneratorErrorKind.OPAQUE, error.message, {
+      cause: error,
+    });
+  }
+  return error;
 }
 
 /** The response's text content — the raw (possibly invalid) structured output. */
@@ -258,13 +348,4 @@ function textContent(response: { content: { type: string }[] }): string {
     )
     .map((block) => block.text)
     .join("");
-}
-
-/** JSON.parse that yields undefined (never throws) on malformed text. */
-function tryJsonParse(text: string): unknown {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return undefined;
-  }
 }

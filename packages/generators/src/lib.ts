@@ -5,14 +5,25 @@
  */
 export {
   AnthropicGenerator,
+  type AnthropicStreamingClient,
   type Generator,
   type GenerateRequest,
   type Logger,
 } from "./generator";
 export { Efforts, GenerationSchema, type Effort, type Generation } from "./vocabulary";
+export { GeneratorError, GeneratorErrorKind } from "./errors";
+export {
+  runWithSchemaFloor,
+  schemaFeedbackMessage,
+  type FloorAttempt,
+  type FloorFeedback,
+  type RunWithSchemaFloorArgs,
+} from "./floor";
 export { salvageDroppableEnums, type SalvageResult } from "./salvage";
 export {
+  enumPreservingJsonSchema,
   enumPreservingOutputFormat,
+  parseStructuredText,
   toStrictJsonSchema,
   type ParseableOutputFormat,
 } from "./outputFormat";
