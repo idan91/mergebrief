@@ -1,5 +1,14 @@
 # Author-Side Self-Review (v1, Secondary Surface)
 
+> **Amended 2026-07-13 (BRIEF-30 grill → [ADR 0031](./0031-single-brief-view-author-affordances.md)):**
+> the FE realization is pinned down — there is **no separate author view or
+> mode**; the author surface is state-derived affordances (`viewer == PR
+> author && PR draft`, visibly labeled) inside the single Brief view, with
+> receipt/submit machinery hidden in that state, flags as a read-only
+> mirror, and mark-ready executed via `markPullRequestReadyForReview` with
+> the viewer's token. The shipped author/reviewer toggle is killed. This
+> ADR's analysis and decisions otherwise stand.
+
 The author view is the **same shared Brief**, shown one step earlier (pre-submit), with **no author-specific analysis engine and no persistent author state**. The only additions are two author-facing elements: an **Intent check** (a deliberately de-emphasized, ticket-gated section of the shared Brief) and a **Soft gate** (a transient, non-blocking pre-submit nudge). Post-review author flow is deferred to v2.
 
 ## Context
