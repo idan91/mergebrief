@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { APIUserAbortError } from "openai";
-import { createOpenRouterCore } from "../src/openrouter";
-import { createGenerator, Providers } from "../src/registry";
+import { createOpenRouterCore } from "../src/adapters/openrouter";
+import { createGenerator, Providers } from "../src/config/registry";
 import {
   describeGeneratorContract,
   type ContractTurn,

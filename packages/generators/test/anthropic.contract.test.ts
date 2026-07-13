@@ -5,9 +5,9 @@ import { AnthropicError, APIConnectionError, RetryableError } from "@anthropic-a
 import type Anthropic from "@anthropic-ai/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../src/errors";
-import { AnthropicGenerator } from "../src/generator";
-import type { AnthropicStreamingClient } from "../src/generator";
+import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { AnthropicGenerator } from "../src/adapters/anthropic";
+import type { AnthropicStreamingClient } from "../src/adapters/anthropic";
 import {
   ContractSchema,
   contractPayloads,

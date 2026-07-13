@@ -1,11 +1,11 @@
 import { APIConnectionError, APIUserAbortError, OpenAIError } from "openai";
 import type { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "./errors";
-import { runWithSchemaFloor, schemaFeedbackMessage } from "./floor";
-import { redactSecrets } from "./harness";
-import type { GenerateRequest, Generator, Logger } from "./generator";
-import { enumPreservingJsonSchema } from "./outputFormat";
-import type { Effort, Generation } from "./vocabulary";
+import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { runWithSchemaFloor, schemaFeedbackMessage } from "../validation/enforceSchema";
+import { redactSecrets } from "../harness/redact";
+import type { GenerateRequest, Generator, Logger } from "../contract/generator";
+import { enumPreservingJsonSchema } from "../validation/jsonSchema";
+import type { Effort, Generation } from "../contract/provenance";
 
 /**
  * Shared core for OpenAI-compatible chat-completions providers (ADR 0030):

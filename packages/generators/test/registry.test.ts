@@ -4,7 +4,7 @@ import {
   defaultGeneratorConfig,
   GeneratorConfigSchema,
   Providers,
-} from "../src/registry";
+} from "../src/config/registry";
 
 /**
  * The registry + construction seam (BRIEF-11 decision 1): static compiled-in

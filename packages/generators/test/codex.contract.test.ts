@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CodexGenerator } from "../src/codex";
+import { CodexGenerator } from "../src/adapters/codex";
 import {
   describeGeneratorContract,
   type ContractTurn,

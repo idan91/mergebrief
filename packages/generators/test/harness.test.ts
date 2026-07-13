@@ -3,15 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { GeneratorError, GeneratorErrorKind } from "../src/errors";
+import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
 import {
-  harnessTimeoutError,
-  probeHarnessCli,
-  redactSecrets,
   runHarnessProcess,
   spawnFailureError,
   type HarnessTimeouts,
-} from "../src/harness";
+} from "../src/harness/run";
+import { harnessTimeoutError, redactSecrets } from "../src/harness/redact";
+import { probeHarnessCli } from "../src/harness/probe";
 
 /**
  * Process-lifecycle tests against REAL child processes running fake CLI

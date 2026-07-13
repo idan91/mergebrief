@@ -4,9 +4,9 @@ import { join } from "node:path";
 import { APIUserAbortError } from "openai";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../src/errors";
-import { createOpenAiCore } from "../src/openai";
-import { createGenerator, Providers } from "../src/registry";
+import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { createOpenAiCore } from "../src/adapters/openai";
+import { createGenerator, Providers } from "../src/config/registry";
 
 /**
  * Adapter-specific behavior on fetch-level fixtures: request construction

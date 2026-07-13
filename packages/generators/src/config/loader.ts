@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import type { Result } from "types";
-import { configError, type ConfigError } from "./errors";
+import { configError, type ConfigError } from "../contract/errors";
 import {
   defaultGeneratorConfig,
   validateGeneratorConfig,

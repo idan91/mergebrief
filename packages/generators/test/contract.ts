@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../src/errors";
-import type { Generator } from "../src/generator";
-import { GenerationSchema, type Generation } from "../src/vocabulary";
+import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import type { Generator } from "../src/contract/generator";
+import { GenerationSchema, type Generation } from "../src/contract/provenance";
 
 /**
  * The shared Generator conformance suite (BRIEF-11 testing strategy): every

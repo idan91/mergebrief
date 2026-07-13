@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ClaudeCodeGenerator } from "../src/claudeCode";
+import { ClaudeCodeGenerator } from "../src/adapters/claudeCode";
 import {
   describeGeneratorContract,
   type ContractTurn,

@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { Result } from "types";
-import { configError, type ConfigError } from "./errors";
-import type { Logger } from "./generator";
+import { configError, type ConfigError } from "../contract/errors";
+import type { Logger } from "../contract/generator";
 import {
   OpenAiCompatibleCore,
   type OpenAiChatRequest,

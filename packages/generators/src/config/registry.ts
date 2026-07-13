@@ -1,13 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
 import type { Result, ValueOf } from "types";
-import { ClaudeCodeGenerator } from "./claudeCode";
-import { CodexGenerator, CODEX_PROBE } from "./codex";
-import { createOpenAiCore } from "./openai";
-import { createOpenRouterCore } from "./openrouter";
-import { configError, type ConfigError } from "./errors";
-import { AnthropicGenerator, type Generator, type Logger } from "./generator";
-import { probeHarnessCli } from "./harness";
+import { ClaudeCodeGenerator } from "../adapters/claudeCode";
+import { CodexGenerator, CODEX_PROBE } from "../adapters/codex";
+import { createOpenAiCore } from "../adapters/openai";
+import { createOpenRouterCore } from "../adapters/openrouter";
+import { configError, type ConfigError } from "../contract/errors";
+import { AnthropicGenerator } from "../adapters/anthropic";
+import type { Generator, Logger } from "../contract/generator";
+import { probeHarnessCli } from "../harness/probe";
 
 /**
  * The static compiled-in generator registry (BRIEF-11 decision 1, ADR 0013
@@ -44,7 +45,7 @@ export interface CreateGeneratorDeps {
 
 // ConfigError lives in ./errors (shared with the harness boot probe);
 // re-exported here so config-focused consumers keep one import site.
-export { configError, type ConfigError } from "./errors";
+export { configError, type ConfigError } from "../contract/errors";
 
 interface RegistryEntry<O extends z.ZodType> {
   options: O;

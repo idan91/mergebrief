@@ -2,23 +2,73 @@
 
 The `Generator` port and its adapter family (ADR 0013, ADR 0030, BRIEF-11):
 structured generation — `(schema, system, user) → object valid against the
-schema` — behind one contract. Home of the port vocabulary (`Effort`,
-`Generation` provenance), the `AnthropicGenerator` adapter, the
-enum-preserving structured-output schema (`outputFormat.ts`, the
-server-enforcement lesson from PR #22), and enum salvage (`salvage.ts`).
+schema` — behind one contract, with five interchangeable adapters.
+
+## Map
+
+**Entry point: `src/lib.ts`** — the package's only export
+(`package.json` `exports["."]`); every public symbol is re-exported there,
+grouped by folder. Start reading there.
+
+```
+src/
+  lib.ts                  ENTRY — sectioned re-exports = the public surface
+  contract/               what an adapter IS
+    generator.ts            Generator interface, GenerateRequest, Logger
+    provenance.ts           Effort, Generation (the provenance stamp)
+    errors.ts               GeneratorError + kinds, ConfigError
+  config/                 how an instance CHOOSES an adapter
+    registry.ts             provider registry + per-adapter option schemas
+                            + createGenerator (construction = Result)
+    loader.ts               mergebrief.config.yaml loader (yaml dep lives here)
+  adapters/               the five implementations
+    anthropic.ts            Anthropic SDK (streaming, the default)
+    claudeCode.ts codex.ts  local-CLI adapters (run on the harness)
+    openaiCore.ts           shared OpenAI-compatible streaming core
+    openai.ts openrouter.ts assemblies on that core
+  validation/             what every adapter's OUTPUT passes through
+    enforceSchema.ts        runWithSchemaFloor: validate → recover →
+                            one feedback retry → dump + throw
+    enumRecovery.ts         salvageDroppableEnums (drop bad enum entries)
+    jsonSchema.ts           enum-preserving strict JSON schema + parse
+  harness/                how the CLI adapters RUN local binaries
+    run.ts                  spawn (no shell), watchdog timers, kill ladder
+    redact.ts               redactSecrets, harnessTimeoutError
+    probe.ts                boot probe (--version + auth preflight)
+test/                     per-module suites; contract.ts = the shared
+                          conformance suite every adapter runs; shims/ =
+                          fake CLI binaries (fake the binary, not the spawn)
+smoke/                    manual live smoke — NEVER wired into vitest/CI
+```
+
+Config shape for operators: `mergebrief.config.example.yaml` (repo root)
+and `docs/self-host/generators.md`.
+
+## Glossary (ADR vocabulary kept on the exported symbols)
+
+- **Schema floor** (`runWithSchemaFloor`): the hard guarantee — output is
+  schema-valid or the generation throws; native provider enforcement is a
+  bonus layer, never the mechanism (ADR 0013 #3).
+- **Salvage** (`salvageDroppableEnums`): recovery step inside the floor —
+  invalid entries in caller-designated array fields are dropped
+  (warn-and-drop) instead of failing the whole generation.
+- **Harness**: the subprocess machinery under the claude-code/codex
+  adapters only; API adapters never touch it.
 
 ## Invariants (enforced, don't weaken)
 
 - **The structured-output floor is hard** (ADR 0013 #3): every adapter must
   return schema-valid output or throw — never a silent text-mode degrade.
-  Native provider enforcement is a bonus layer, never the mechanism.
 - **Abort is not a failure** (ADR 0006 #6): an abort rejection propagates to
   the caller untouched — no salvage, no feedback retry, no failure dump.
 - **Provenance is honest** (ADR 0013 #5): `Generation` records what was
   requested/declared; capability gaps (no effort knob, unknown served model)
   surface rather than being papered over.
 - **No secrets in errors**: error messages may name an env VAR, never echo
-  its value, a key, or a connection string.
+  its value, a key, or a connection string. Untrusted provider/CLI strings
+  reach messages only through allowlists or `redactSecrets`.
+- **Construction returns `Result`; `generate()` throws** — a misconfigured
+  instance refuses boot, never limps into jobs.
 
 ## Conventions
 
@@ -28,12 +78,13 @@ Repo-wide rules apply (root `CLAUDE.md`): no `enum`, strict TS, no bare
 
 ## Tests
 
-`test/generator.test.ts` exercises the Anthropic adapter's parse-failure
-path (salvage → feedback retry → dump-and-throw) against a stubbed SDK
-client — a deliberate stub-level fake kept as the characterization anchor.
-The generic salvage/outputFormat mechanics are covered here; their
-integration with the real Brief schema stays in `tools/categorizer/test`
-(the domain schema lives there — importing it here would cycle).
+`test/contract.ts` is the shared Generator conformance suite; each adapter
+runs it through its own transport fake — a stub SDK client (anthropic, the
+characterization anchor), real fake-binary processes (claude-code/codex),
+fetch-level SSE fixtures (openai/openrouter). The generic pipeline
+mechanics are covered here; their integration with the real Brief schema
+stays in `tools/categorizer/test` (the domain schema lives there —
+importing it here would cycle).
 
 ## Verification
 
@@ -41,4 +92,5 @@ integration with the real Brief schema stays in `tools/categorizer/test`
 pnpm -C packages/generators typecheck
 pnpm -C packages/generators test
 pnpm lint                        # repo-root oxlint --type-aware
+pnpm -C packages/generators smoke -- --adapter <name>   # MANUAL live smoke
 ```

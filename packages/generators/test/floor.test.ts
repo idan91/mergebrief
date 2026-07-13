@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../src/errors";
-import { runWithSchemaFloor } from "../src/floor";
+import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { runWithSchemaFloor } from "../src/validation/enforceSchema";
 
 /**
  * Pipeline edge cases the shared contract suite can't reach through a real

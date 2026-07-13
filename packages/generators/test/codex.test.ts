@@ -10,9 +10,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { CodexGenerator } from "../src/codex";
-import { GeneratorError, GeneratorErrorKind } from "../src/errors";
-import { createGenerator, Providers } from "../src/registry";
+import { CodexGenerator } from "../src/adapters/codex";
+import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
+import { createGenerator, Providers } from "../src/config/registry";
 
 /**
  * Adapter-specific behavior on real fake-codex processes: invocation

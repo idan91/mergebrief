@@ -1,9 +1,9 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "./errors";
-import { parseStructuredText, validationError } from "./outputFormat";
-import { salvageDroppableEnums } from "./salvage";
+import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { parseStructuredText, validationError } from "./jsonSchema";
+import { salvageDroppableEnums } from "./enumRecovery";
 
 /** Progress sink — defaults to no-op so callers stay usable in tests. */
 type Logger = (message: string) => void;

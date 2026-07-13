@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadGeneratorConfig, loadGeneratorConfigFile } from "../src/config";
+import { loadGeneratorConfig, loadGeneratorConfigFile } from "../src/config/loader";
 
 /**
  * The instance-config loader table (BRIEF-11 decision 6): every fail-fast

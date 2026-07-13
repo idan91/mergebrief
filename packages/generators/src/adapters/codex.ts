@@ -2,19 +2,19 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "./errors";
-import { runWithSchemaFloor, schemaFeedbackMessage } from "./floor";
-import type { GenerateRequest, Generator } from "./generator";
+import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { runWithSchemaFloor, schemaFeedbackMessage } from "../validation/enforceSchema";
+import type { GenerateRequest, Generator } from "../contract/generator";
+import { harnessTimeoutError } from "../harness/redact";
 import {
-  harnessTimeoutError,
   resolveHarnessTimeouts,
   runHarnessProcess,
   type HarnessRunResult,
   type HarnessTimeoutOverrides,
   type HarnessTimeouts,
-} from "./harness";
-import { enumPreservingJsonSchema } from "./outputFormat";
-import type { Effort, Generation } from "./vocabulary";
+} from "../harness/run";
+import { enumPreservingJsonSchema } from "../validation/jsonSchema";
+import type { Effort, Generation } from "../contract/provenance";
 
 /**
  * Codex CLI adapter (ADR 0030): one `codex exec --json` process per attempt,

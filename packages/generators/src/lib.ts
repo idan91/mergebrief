@@ -1,16 +1,28 @@
 /**
- * Public surface of the generators package (ADR 0013/0030): the `Generator`
- * port, its cross-provider vocabulary, the Anthropic adapter, and the shared
- * structured-output machinery (enum-preserving schema, salvage).
+ * ENTRY POINT — the generators package's ONLY export (`package.json`
+ * `exports["."]`). Everything importable from `"generators"` is re-exported
+ * here, grouped by the folder it lives in. Map + glossary: `AGENTS.md`.
+ *
+ * The package (ADR 0013/0030): structured generation —
+ * `(schema, system, user) → object valid against the schema` — behind one
+ * `Generator` contract, with five interchangeable adapters.
  */
+
+// --- contract/ — what an adapter IS -----------------------------------------
 export {
-  AnthropicGenerator,
-  type AnthropicStreamingClient,
   type Generator,
   type GenerateRequest,
   type Logger,
-} from "./generator";
-export { Efforts, GenerationSchema, type Effort, type Generation } from "./vocabulary";
+} from "./contract/generator";
+export {
+  Efforts,
+  GenerationSchema,
+  type Effort,
+  type Generation,
+} from "./contract/provenance";
+export { GeneratorError, GeneratorErrorKind } from "./contract/errors";
+
+// --- config/ — how an instance CHOOSES an adapter ---------------------------
 export {
   createGenerator,
   defaultGeneratorConfig,
@@ -22,13 +34,25 @@ export {
   type CreateGeneratorDeps,
   type GeneratorConfig,
   type Provider,
-} from "./registry";
-export { GeneratorError, GeneratorErrorKind } from "./errors";
+} from "./config/registry";
+export {
+  loadGeneratorConfig,
+  loadGeneratorConfigFile,
+  type LoadedGeneratorConfig,
+} from "./config/loader";
+
+// --- adapters/ — the five implementations -----------------------------------
+// (Constructed via createGenerator in normal use; exported for tests and
+// direct composition.)
+export {
+  AnthropicGenerator,
+  type AnthropicStreamingClient,
+} from "./adapters/anthropic";
 export {
   ClaudeCodeGenerator,
   type ClaudeCodeGeneratorOptions,
-} from "./claudeCode";
-export { CodexGenerator, type CodexGeneratorOptions } from "./codex";
+} from "./adapters/claudeCode";
+export { CodexGenerator, type CodexGeneratorOptions } from "./adapters/codex";
 export {
   classifyOpenAiError,
   OpenAiCompatibleCore,
@@ -36,46 +60,47 @@ export {
   type OpenAiChatTransport,
   type OpenAiCompatibleCoreOptions,
   type OpenAiStreamChunk,
-} from "./openaiCore";
+} from "./adapters/openaiCore";
 export {
   createOpenAiCore,
   sdkTransport,
   type OpenAiAssemblyOptions,
-} from "./openai";
+} from "./adapters/openai";
 export {
   createOpenRouterCore,
   type OpenRouterAssemblyOptions,
-} from "./openrouter";
-export {
-  loadGeneratorConfig,
-  loadGeneratorConfigFile,
-  type LoadedGeneratorConfig,
-} from "./config";
-export {
-  DEFAULT_HARNESS_TIMEOUTS,
-  harnessTimeoutError,
-  probeHarnessCli,
-  resolveHarnessTimeouts,
-  runHarnessProcess,
-  spawnFailureError,
-  type HarnessTimeoutOverrides,
-  type HarnessProbeArgs,
-  type HarnessRunArgs,
-  type HarnessRunResult,
-  type HarnessTimeouts,
-} from "./harness";
+} from "./adapters/openrouter";
+
+// --- validation/ — what every adapter's OUTPUT passes through ---------------
 export {
   runWithSchemaFloor,
   schemaFeedbackMessage,
   type FloorAttempt,
   type FloorFeedback,
   type RunWithSchemaFloorArgs,
-} from "./floor";
-export { salvageDroppableEnums, type SalvageResult } from "./salvage";
+} from "./validation/enforceSchema";
+export {
+  salvageDroppableEnums,
+  type SalvageResult,
+} from "./validation/enumRecovery";
 export {
   enumPreservingJsonSchema,
   enumPreservingOutputFormat,
   parseStructuredText,
   toStrictJsonSchema,
   type ParseableOutputFormat,
-} from "./outputFormat";
+} from "./validation/jsonSchema";
+
+// --- harness/ — how the CLI adapters RUN local binaries ---------------------
+export {
+  DEFAULT_HARNESS_TIMEOUTS,
+  resolveHarnessTimeouts,
+  runHarnessProcess,
+  spawnFailureError,
+  type HarnessTimeoutOverrides,
+  type HarnessRunArgs,
+  type HarnessRunResult,
+  type HarnessTimeouts,
+} from "./harness/run";
+export { harnessTimeoutError, redactSecrets } from "./harness/redact";
+export { probeHarnessCli, type HarnessProbeArgs } from "./harness/probe";

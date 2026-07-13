@@ -14,8 +14,8 @@
  *   (paths resolve relative to packages/generators because of -C)
  */
 import { z } from "zod/v4";
-import { createGenerator } from "../src/registry";
-import { loadGeneratorConfigFile } from "../src/config";
+import { createGenerator } from "../src/config/registry";
+import { loadGeneratorConfigFile } from "../src/config/loader";
 
 const SmokeSchema = z.object({
   greeting: z.string(),

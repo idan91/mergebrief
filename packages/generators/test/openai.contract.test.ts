@@ -4,7 +4,7 @@ import {
   type ContractTurn,
   type GeneratorContractHarness,
 } from "./contract";
-import { createOpenAiCore } from "../src/openai";
+import { createOpenAiCore } from "../src/adapters/openai";
 
 /**
  * The shared Generator conformance suite against FETCH-LEVEL fixtures: a
