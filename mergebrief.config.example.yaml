@@ -1,0 +1,47 @@
+# MergeBrief instance config — copy to `mergebrief.config.yaml` (gitignored)
+# and point MERGEBRIEF_CONFIG at it (worker + web). The categorizer CLIs take
+# it explicitly: `pnpm categorize --config ./mergebrief.config.yaml <pr-url>`.
+#
+# NO file at all = zero-config default: anthropic + ANTHROPIC_API_KEY +
+# claude-opus-4-8. Only create this file to change that.
+#
+# Full reference: docs/self-host/generators.md. Unknown keys refuse boot
+# (root keys starting with `x-` are ignored — compose-style extension slot).
+# API keys are BYOK-by-env-NAME: never put a key VALUE in this file.
+
+generator:
+  # anthropic | claude-code | codex | openai | openrouter
+  provider: anthropic
+
+  # Model id. Optional for anthropic/claude-code (Opus 4.8 default) and
+  # codex (the CLI's configured default runs; provenance stamps
+  # "codex-default"); REQUIRED for openai and openrouter (full slug there,
+  # e.g. anthropic/claude-sonnet-5).
+  # The documented cost knob:
+  model: claude-sonnet-5
+
+  # --- API providers (anthropic / openai / openrouter) ---------------------
+  # NAME of the env var holding the key. Defaults: ANTHROPIC_API_KEY /
+  # OPENAI_API_KEY / OPENROUTER_API_KEY.
+  # apiKeyEnv: MY_PROVIDER_KEY_VAR
+
+  # openai only: OpenAI-compatible server escape hatch (the /models
+  # preflight downgrades to warnings when set).
+  # baseUrl: https://your-server.example/v1
+
+  # openrouter only: routing options passed through under `provider`
+  # (require_parameters: true is always forced on top) + attribution headers.
+  # providerRouting:
+  #   order: ["anthropic"]
+  # referer: https://you.example
+  # title: MergeBrief
+
+  # --- Harness CLIs (claude-code / codex; LOCAL dev loop only) -------------
+  # These run the CLI on YOUR machine under YOUR interactive login
+  # (`claude /login` / `codex login`) — not available to the deployed
+  # worker (docs/self-host/generators.md explains the boundary).
+  # command: /usr/local/bin/claude   # binary path/name; defaults: claude / codex
+  # timeouts:                        # harness watchdogs, milliseconds
+  #   hardMs: 900000                 #   hard wall-clock cap (default 15 min)
+  #   inactivityMs: 180000           #   output-inactivity watchdog (default 3 min)
+  #   killGraceMs: 5000              #   SIGINT → SIGKILL grace (default 5 s)

@@ -50,3 +50,6 @@ node_modules
 .pnpm-store
 # TanStack Start dev artifacts
 apps/web/.tanstack/
+
+# Instance config (real file may name private key VARS/models; example is committed)
+mergebrief.config.yaml

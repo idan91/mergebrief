@@ -19,7 +19,10 @@ provider (~5x cheaper input/output than Opus at very good Brief quality).
 ## The config file
 
 One optional YAML file selects the backend for the **worker, the web app,
-and the categorizer CLIs** alike:
+and the categorizer CLIs** alike. A ready-to-copy annotated template ships
+at the repo root: [`mergebrief.config.example.yaml`](../../mergebrief.config.example.yaml)
+(copy to `mergebrief.config.yaml` — gitignored — same convention as
+`.env.example`).
 
 ```yaml
 # mergebrief.config.yaml — next to your compose file
