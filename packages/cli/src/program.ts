@@ -13,7 +13,7 @@ import {
   resolveProfile,
   saveConfig,
   type ResolvedProfile,
-} from "./config";
+} from "./profile/config";
 import { CliError, ExitCode } from "./exit";
 import {
   runConversation,
@@ -23,10 +23,10 @@ import {
   runPrList,
   runPrMeta,
   type ReadIo,
-} from "./read-commands";
-import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./repos";
+} from "./commands/read";
+import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./profile/repos";
 import { AGENTS_GUIDE } from "./agents-guide";
-import { buildSubmitPayload, runReply, runSubmit, type SubmitInput } from "./write-commands";
+import { buildSubmitPayload, runReply, runSubmit, type SubmitInput } from "./commands/write";
 
 export interface CliDeps {
   readonly fetch: FetchLike;

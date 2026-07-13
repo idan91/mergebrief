@@ -11,7 +11,7 @@ import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
 import type { Result } from "types";
-import { CliError, ExitCode } from "./exit";
+import { CliError, ExitCode } from "../exit";
 
 const profileSchema = z.object({
   baseUrl: z.string().url(),

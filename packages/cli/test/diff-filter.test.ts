@@ -4,7 +4,7 @@
 // `removedRanges` against its OLD side — and reports chunk files missing
 // from the diff so the command can fail loud.
 import { describe, expect, it } from "vitest";
-import { filterDiffByChunks, type ChunkSpan } from "../src/diff-filter";
+import { filterDiffByChunks, type ChunkSpan } from "../src/commands/diff-filter";
 
 function diffOf(...sections: string[]): string {
   return sections.join("");

@@ -10,8 +10,8 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
-import type { ApiClient } from "./client";
-import { CliError, ExitCode } from "./exit";
+import type { ApiClient } from "../client";
+import { CliError, ExitCode } from "../exit";
 
 const reposBodySchema = z.object({
   repos: z.array(z.object({ repoId: z.string(), fullName: z.string() })),

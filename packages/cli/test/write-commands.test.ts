@@ -27,7 +27,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCode } from "../src/exit";
-import { buildSubmitPayload } from "../src/write-commands";
+import { buildSubmitPayload } from "../src/commands/write";
 import { runCli, type CliDeps } from "../src/program";
 
 const KEY_REF = "SESSION_KEY_V1";

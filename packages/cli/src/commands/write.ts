@@ -4,8 +4,8 @@
 // everything else: a 4xx validation rejection maps to exit 5, which is what
 // makes an agent's submit loop self-correcting without stderr parsing
 // (ADR 0029 #6). Receipts pass through VERBATIM.
-import { CliError, ExitCode } from "./exit";
-import type { ApiClient } from "./client";
+import { CliError, ExitCode } from "../exit";
+import type { ApiClient } from "../client";
 
 export interface WriteIo {
   readonly stdout: (text: string) => void;

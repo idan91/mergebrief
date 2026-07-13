@@ -4,8 +4,8 @@
 // (#2a). The blessed composition pattern: one command may make two API reads
 // (`delta` = pr-meta → delta; `diff --group` = brief + diff).
 import { z } from "zod";
-import type { ApiClient } from "./client";
-import { CliError, ExitCode } from "./exit";
+import type { ApiClient } from "../client";
+import { CliError, ExitCode } from "../exit";
 import { filterDiffByChunks, type ChunkSpan } from "./diff-filter";
 
 // ---------------------------------------------------------------------------

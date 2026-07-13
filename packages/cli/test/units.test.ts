@@ -4,7 +4,7 @@
 // the client's proxy/IdP detection.
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
-import { fullNameFromOriginUrl, ownerFromOriginUrl, resolveProfile, type CliConfig } from "../src/config";
+import { fullNameFromOriginUrl, ownerFromOriginUrl, resolveProfile, type CliConfig } from "../src/profile/config";
 import { CliError, ExitCode, exitCodeForStatus } from "../src/exit";
 
 describe("exit-code mapping (the contract table)", () => {
@@ -157,7 +157,7 @@ describe("saveConfig permissions (codex PR5 R1)", () => {
     const { mkdtempSync, statSync, writeFileSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");
     const { join } = await import("node:path");
-    const { saveConfig } = await import("../src/config");
+    const { saveConfig } = await import("../src/profile/config");
     const dir = mkdtempSync(join(tmpdir(), "mb-cfg-"));
     // Pre-existing world-readable file (created before the CLI owned it).
     writeFileSync(join(dir, "config.json"), "{}", { mode: 0o644 });

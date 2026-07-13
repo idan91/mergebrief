@@ -27,7 +27,7 @@ import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiClient } from "../src/client";
 import { ExitCode } from "../src/exit";
-import { runDelta } from "../src/read-commands";
+import { runDelta } from "../src/commands/read";
 import { runCli, type CliDeps } from "../src/program";
 
 const KEY_REF = "SESSION_KEY_V1";
