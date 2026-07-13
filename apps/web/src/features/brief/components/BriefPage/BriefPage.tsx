@@ -52,7 +52,6 @@ import {
 import {
   deriveUnresolvedItems,
   type RiskEvidenceKind,
-  type ReviewMode,
   type ReviewOutcome,
   type RiskEvidence,
   type UnresolvedItem,
@@ -87,7 +86,6 @@ import { RiskBadge } from "../Badge/RiskBadge";
 import { ChangesOnlyView } from "../ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
-import { DemoControls } from "../DemoControls/DemoControls";
 import { GroupTocBar } from "../GroupTocBar/GroupTocBar";
 import { Header, type LayoutMode, type ViewMode } from "../Header/Header";
 import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress";
@@ -569,7 +567,6 @@ function BriefScreen({
   }, [model.groups]);
 
   // Transient UI state stays local and colocated.
-  const [reviewMode, setReviewMode] = useState<ReviewMode>("reviewer");
   const [viewMode, setViewMode] = useState<ViewMode>("story");
   const [layoutMode] = useState<LayoutMode>("split");
   const [collapseSupporting, setCollapseSupporting] = useState(false);
@@ -996,8 +993,7 @@ function BriefScreen({
   const closeReceipt = useCallback(() => setReceiptOpen(false), []);
   const openSummaryPreview = useCallback(() => setSummaryPreviewOpen(true), []);
   // The DB submit flow (BRIEF-23): available only when the route injected a
-  // transport AND the viewer is in reviewer mode — the author mode and the
-  // local demo path keep the mock toast below.
+  // transport — the local demo path keeps the mock toast below.
   //
   // Announce via clear-then-set (two ticks): an identical repeat message
   // still produces a DOM change — re-announced by the live region — and
@@ -1169,7 +1165,7 @@ function BriefScreen({
     closeReceipt,
     resetOutcome: () => actions.setOutcome("comment"),
   });
-  const liveSubmit = submitFlow.available && reviewMode === "reviewer";
+  const liveSubmit = submitFlow.available;
   const submitReceipt = useCallback(() => {
     // Read-only posture (BRIEF-24): the submit control disables focusably with
     // the reason (below) — this guards the click path itself.
@@ -1183,11 +1179,9 @@ function BriefScreen({
     }
     setReceiptOpen(false);
     setToast(
-      reviewMode === "author"
-        ? "Mockup flow — this would mark the PR ready for review after self-review."
-        : "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
+      "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
     );
-  }, [announceSubmit, liveSubmit, readOnly, reviewMode, submitFlow]);
+  }, [announceSubmit, liveSubmit, readOnly, submitFlow]);
   const closeSummaryPreview = useCallback(
     () => setSummaryPreviewOpen(false),
     [],
@@ -1250,7 +1244,6 @@ function BriefScreen({
         totals={totals}
         progress={progress}
         locOpen={locOpen}
-        reviewMode={reviewMode}
         viewMode={viewMode}
         setViewMode={setViewMode}
         setLocOpen={setLocOpen}
@@ -1307,11 +1300,7 @@ function BriefScreen({
         {focusMode ? null : (
           <section className={`${styles["summary"]} reveal`}>
             <div className={styles["eyebrow"]}>
-              {brief.artifactKind === "delta"
-                ? "Delta brief"
-                : reviewMode === "author"
-                  ? "Author self-review"
-                  : "Brief"}
+              {brief.artifactKind === "delta" ? "Delta brief" : "Brief"}
             </div>
             <Markdown content={brief.summary} />
             {model.flags.length > 0 ? (
@@ -1354,10 +1343,6 @@ function BriefScreen({
               </div>
             ) : null}
           </section>
-        )}
-
-        {focusMode ? null : (
-          <DemoControls reviewMode={reviewMode} setReviewMode={setReviewMode} />
         )}
 
         {compareState.view === "changes" ? (
@@ -1452,7 +1437,6 @@ function BriefScreen({
       </main>
       <ReceiptDrawer
         receipt={receipt}
-        reviewMode={reviewMode}
         open={receiptOpen}
         close={closeReceipt}
         openSummaryPreview={openSummaryPreview}
@@ -1471,14 +1455,12 @@ function BriefScreen({
       />
       <SummaryPreviewDrawer
         brief={brief}
-        mode={reviewMode}
         open={summaryPreviewOpen}
         snapshot={snapshot}
         close={closeSummaryPreview}
         setOutcome={(outcome) => actions.setOutcome(outcome)}
       />
       <PreSubmitModal
-        mode={reviewMode}
         open={preSubmitOpen}
         unresolvedItems={unresolvedItems}
         close={closePreSubmit}
@@ -1531,7 +1513,6 @@ function BriefScreen({
 interface SummaryPreviewDrawerProps {
   brief: Brief;
   close: () => void;
-  mode: ReviewMode;
   open: boolean;
   setOutcome: (outcome: ReviewOutcome) => void;
   snapshot: SessionSnapshot;
@@ -1540,7 +1521,6 @@ interface SummaryPreviewDrawerProps {
 function SummaryPreviewDrawer({
   brief,
   close,
-  mode,
   open,
   setOutcome,
   snapshot,
@@ -1554,7 +1534,6 @@ function SummaryPreviewDrawer({
     >
       <SummaryPreview
         brief={brief}
-        mode={mode}
         snapshot={snapshot}
         setOutcome={setOutcome}
       />

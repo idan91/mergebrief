@@ -72,7 +72,6 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
     },
     progress: 50,
     locOpen: false,
-    reviewMode: "author",
     viewMode: "story",
     setViewMode: vi.fn(),
     setLocOpen: vi.fn(),
@@ -281,7 +280,7 @@ describe("Header (BRIEF-28)", () => {
 
   it("keeps the primary CTA top-level", () => {
     const { openReceipt } = renderHeader();
-    fireEvent.click(screen.getByRole("button", { name: "Ready for review" }));
+    fireEvent.click(screen.getByRole("button", { name: "Receipt" }));
     expect(openReceipt).toHaveBeenCalledTimes(1);
   });
 });

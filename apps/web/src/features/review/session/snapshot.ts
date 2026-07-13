@@ -9,7 +9,8 @@ import type { CheckBucket, MindMapState } from "./store";
  * sessionStorage — Sets flattened to arrays. This is also the input the Receipt
  * builder (Slice E) consumes. Persists more than the old DemoReviewSnapshot
  * (dominants, reclassifications, playbook checks now survive refresh) and drops
- * reviewMode (now local UI). The `v2` key avoids colliding with old `v1` data.
+ * the old review-perspective toggle (killed per ADR 0031; was local UI only).
+ * The `v2` key avoids colliding with old `v1` data.
  */
 export interface SessionSnapshot {
   briefId: string;

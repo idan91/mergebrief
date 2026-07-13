@@ -5,24 +5,18 @@ import { Roles, type Brief } from "../../../brief/types";
 import { buildBriefViewModel } from "../../../brief/viewModel";
 import { buildReceipt, RECEIPT_NOT_CHECKED, type Receipt } from "../../receipt";
 import type { SessionSnapshot } from "../../session";
-import {
-  summarySignatureLine,
-  type ReviewMode,
-  type ReviewOutcome,
-} from "../../state";
+import { summarySignatureLine, type ReviewOutcome } from "../../state";
 import styles from "./SummaryPreview.module.scss";
 
 export interface SummaryPreviewProps {
   brief: Brief;
   snapshot: SessionSnapshot;
-  mode?: ReviewMode;
   setOutcome?: (outcome: ReviewOutcome) => void;
 }
 
 export function SummaryPreview({
   brief,
   snapshot,
-  mode = "reviewer",
   setOutcome,
 }: SummaryPreviewProps) {
   const model = buildBriefViewModel(brief);
@@ -34,7 +28,6 @@ export function SummaryPreview({
   const supportingChunks = brief.chunks.filter(
     (chunk) => chunk.role === Roles.Supporting,
   );
-  const title = mode === "author" ? "Self-review summary" : "Review Summary";
 
   return (
     <main className={styles["page"]}>
@@ -42,7 +35,7 @@ export function SummaryPreview({
         <div className={styles["kicker"]}>Frozen preview · interview demo</div>
         <div className={styles["head"]}>
           <div>
-            <h1>{title}</h1>
+            <h1>Review Summary</h1>
             <p>
               Reviewed by @you · {brief.pr.repo} #{brief.pr.number} ·{" "}
               {brief.pr.sha.slice(0, 7)}

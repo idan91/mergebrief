@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 
-import type { ReviewMode } from "../../../review/state";
 import type { BriefSearch, CompareOptionFlags } from "../../compareState";
 import type { ProgressTotals } from "../../progress";
 import type { BriefTimeline } from "../../timeline";
@@ -29,7 +28,6 @@ export interface HeaderProps {
   totals: ProgressTotals;
   progress: number;
   locOpen: boolean;
-  reviewMode: ReviewMode;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   setLocOpen: (value: boolean) => void;
@@ -62,7 +60,6 @@ export function Header({
   totals,
   progress,
   locOpen,
-  reviewMode,
   viewMode,
   setViewMode,
   setLocOpen,
@@ -172,11 +169,10 @@ export function Header({
           </div>
         </div>
         <button className="btn primary" type="button" onClick={openReceipt}>
-          {reviewMode === "author" ? "Ready for review" : "Receipt"}
+          Receipt
         </button>
         <HeaderMenu
           briefId={briefId}
-          reviewMode={reviewMode}
           clearDrafts={clearDrafts}
           openSummaryPreviewDrawer={openSummaryPreviewDrawer}
         />
@@ -234,7 +230,6 @@ export function Header({
 
 interface HeaderMenuProps {
   briefId: string;
-  reviewMode: ReviewMode;
   clearDrafts: () => void;
   openSummaryPreviewDrawer?: (() => void) | undefined;
 }
@@ -247,7 +242,6 @@ interface HeaderMenuProps {
  */
 function HeaderMenu({
   briefId,
-  reviewMode,
   clearDrafts,
   openSummaryPreviewDrawer,
 }: HeaderMenuProps) {
@@ -347,7 +341,6 @@ function HeaderMenu({
               className={styles["menuItem"]}
               params={{ briefId }}
               role="menuitem"
-              search={{ mode: reviewMode }}
               tabIndex={0}
               to="/briefs/$briefId/summary-preview"
               onClick={() => setOpen(false)}

@@ -1,11 +1,9 @@
 import { Drawer } from "../../../../components/Drawer/Drawer";
-import type { ReviewMode } from "../../state";
 import { RECEIPT_NOT_CHECKED, type Receipt } from "../../receipt";
 import styles from "./ReceiptDrawer.module.scss";
 
 export interface ReceiptDrawerProps {
   receipt: Receipt;
-  reviewMode: ReviewMode;
   open: boolean;
   close: () => void;
   openSummaryPreview: () => void;
@@ -22,7 +20,6 @@ export interface ReceiptDrawerProps {
 
 export function ReceiptDrawer({
   receipt,
-  reviewMode,
   open,
   close,
   openSummaryPreview,
@@ -62,17 +59,12 @@ export function ReceiptDrawer({
     >
       <div className={styles["inner"]}>
         <div className={styles["title"]}>
-          <h2>
-            {reviewMode === "author"
-              ? "Self-review summary"
-              : "Verification receipt"}
-          </h2>
+          <h2>Verification receipt</h2>
           <span className={styles["tag"]}>not an approval</span>
         </div>
         <div className={styles["sub"]}>
-          {reviewMode === "author"
-            ? "Author-side preview · catches unresolved risk before requesting review"
-            : "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours"}
+          Frozen at submit · linked from a one-line signature on your normal
+          GitHub review · the review itself stays yours
         </div>
         <pre
           className={styles["body"]}
@@ -101,11 +93,7 @@ ${receipt.reclassifiedCount > 0 ? `\n  ${receipt.reclassifiedCount} group reclas
               if (!submitDisabled) submit();
             }}
           >
-            {submitPending
-              ? "Submitting…"
-              : reviewMode === "author"
-                ? "Mark ready for review"
-                : "Submit review to GitHub"}
+            {submitPending ? "Submitting…" : "Submit review to GitHub"}
           </button>
           <button className="btn" type="button" onClick={openSummaryPreview}>
             Preview public summary

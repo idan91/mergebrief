@@ -4,7 +4,6 @@ import type { ReviewComment } from "./comments";
 import type { Disposition } from "./session/disposition";
 
 export type FlagStatus = "open" | "addressed" | "dismissed";
-export type ReviewMode = "reviewer" | "author";
 export type ReviewOutcome = "comment" | "approve" | "request-changes";
 export type RiskEvidenceKind =
   | "linked-comment"
