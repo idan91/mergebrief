@@ -1,0 +1,321 @@
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { afterEach, describe, expect, it } from "vitest";
+import { z } from "zod/v4";
+import { CodexGenerator } from "../src/codex";
+import { GeneratorError, GeneratorErrorKind } from "../src/errors";
+import { createGenerator, Providers } from "../src/registry";
+
+/**
+ * Adapter-specific behavior on real fake-codex processes: invocation
+ * profile (argv, schema tempfile), last-agent-message selection, opaque
+ * classification with untrusted-message hygiene, provenance (effort echoed,
+ * reroute blind spot), and registry construction. Pipeline conformance
+ * lives in codex.contract.test.ts.
+ */
+
+const FAKE_CODEX = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "shims",
+  "fake-codex.cjs",
+);
+
+const Schema = z.object({ ok: z.boolean() });
+
+const tempDirs: string[] = [];
+function tempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+function makeGenerator(
+  env: Record<string, string>,
+  overrides?: Partial<ConstructorParameters<typeof CodexGenerator>[0]>,
+) {
+  return new CodexGenerator({
+    command: FAKE_CODEX,
+    failureDir: tempDir("codex-fail-"),
+    env: { ...process.env, ...env },
+    timeouts: { hardMs: 8000, inactivityMs: 4000, killGraceMs: 300 },
+    ...overrides,
+  });
+}
+
+function request(log?: (m: string) => void) {
+  return {
+    schema: Schema,
+    system: "you are a test",
+    user: "produce ok",
+    effort: "high" as const,
+    label: "probe",
+    ...(log ? { log } : {}),
+  };
+}
+
+describe("CodexGenerator invocation profile", () => {
+  it("passes the lockdown argv, prompt via stdin, schema via tempfile", async () => {
+    const scriptDir = tempDir("codex-argv-");
+    writeFileSync(
+      join(scriptDir, "turns.json"),
+      JSON.stringify([{ output: '{"ok":true}' }]),
+    );
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "scripted",
+      SHIM_SCRIPT_DIR: scriptDir,
+    });
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+
+    const argv: unknown = JSON.parse(
+      readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
+    );
+    // The COMPLETE lockdown argv contract — read-only sandbox, no session
+    // persistence, effort mapped to model_reasoning_effort, no --model
+    // when unconfigured.
+    expect(argv).toEqual([
+      "exec",
+      "--json",
+      "--sandbox",
+      "read-only",
+      "--skip-git-repo-check",
+      "--ephemeral",
+      "--output-schema",
+      expect.stringContaining("codex-gen-"),
+      "-c",
+      "model_reasoning_effort=high",
+    ]);
+    if (!Array.isArray(argv)) throw new Error("expected recorded argv array");
+    expect(argv.join(" ")).not.toContain("produce ok");
+    // Prompt (system + user stitched) went via stdin; the schema tempfile
+    // carried the enum-preserving schema (captured before cleanup).
+    const stdin = readFileSync(join(scriptDir, "stdin-0.txt"), "utf8");
+    expect(stdin).toContain("you are a test");
+    expect(stdin).toContain("produce ok");
+    const schema: unknown = JSON.parse(
+      readFileSync(join(scriptDir, "schema-0.json"), "utf8"),
+    );
+    expect(JSON.stringify(schema)).toContain('"ok"');
+    // 0600 while the CLI ran; removed once generate() settled.
+    const meta: unknown = JSON.parse(
+      readFileSync(join(scriptDir, "schema-meta-0.json"), "utf8"),
+    );
+    expect(meta).toMatchObject({ mode: 0o600 });
+    if (typeof meta !== "object" || meta === null) throw new Error("bad meta");
+    expect(existsSync(String(Reflect.get(meta, "path")))).toBe(false);
+  });
+
+  it("removes the schema tempfile after a rejected run too", async () => {
+    const scriptDir = tempDir("codex-cleanup-");
+    writeFileSync(
+      join(scriptDir, "turns.json"),
+      JSON.stringify([{ turnFailed: "boom" }]),
+    );
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "scripted",
+      SHIM_SCRIPT_DIR: scriptDir,
+    });
+    await expect(generator.generate(request())).rejects.toBeInstanceOf(
+      GeneratorError,
+    );
+    const meta: unknown = JSON.parse(
+      readFileSync(join(scriptDir, "schema-meta-0.json"), "utf8"),
+    );
+    if (typeof meta !== "object" || meta === null) throw new Error("bad meta");
+    expect(existsSync(String(Reflect.get(meta, "path")))).toBe(false);
+  });
+
+  it("passes --model when configured and stamps it in provenance", async () => {
+    const scriptDir = tempDir("codex-model-");
+    writeFileSync(
+      join(scriptDir, "turns.json"),
+      JSON.stringify([{ output: '{"ok":true}' }]),
+    );
+    const generator = makeGenerator(
+      { SHIM_SCENARIO: "scripted", SHIM_SCRIPT_DIR: scriptDir },
+      { model: "gpt-5.6-sol" },
+    );
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+    const argv: unknown = JSON.parse(
+      readFileSync(join(scriptDir, "argv-0.json"), "utf8"),
+    );
+    if (!Array.isArray(argv)) throw new Error("expected argv array");
+    expect(argv.slice(-2)).toEqual(["--model", "gpt-5.6-sol"]);
+    expect(generator.provenance("low")).toEqual({
+      provider: "codex",
+      model: "gpt-5.6-sol",
+      effort: "low",
+    });
+  });
+
+  it("stamps codex-default and echoes effort when no model is configured", () => {
+    const generator = makeGenerator({});
+    // The reroute blind spot: no JSONL event carries a model id, so the
+    // stamp is the static declaration — here, the CLI's own default.
+    expect(generator.provenance("medium")).toEqual({
+      provider: "codex",
+      model: "codex-default",
+      effort: "medium",
+    });
+  });
+});
+
+describe("CodexGenerator answer selection and classification", () => {
+  it("selects the LAST completed agent_message, skipping narration", async () => {
+    // The 'valid' scenario emits a preliminary narration message first.
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "valid",
+      SHIM_OUTPUT: '{"ok":true}',
+    });
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+  });
+
+  it("keeps untrusted failure messages out of the thrown error", async () => {
+    const generator = makeGenerator({ SHIM_SCENARIO: "turn-failed" });
+    const caught = await generator.generate(request()).then(
+      () => {
+        throw new Error("expected rejection");
+      },
+      (error: unknown) => error,
+    );
+    if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+    expect(caught.kind).toBe(GeneratorErrorKind.OPAQUE);
+    // The shim's message is "stream error: rate limited" — free-form CLI
+    // text must never reach the error message.
+    expect(caught.message).not.toContain("rate limited");
+    expect(caught.message).toContain("in-band error event");
+  });
+
+  it("classifies a fatal error event as opaque without echoing its message", async () => {
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "fatal-error",
+      SHIM_ERROR: "leak-SENTINEL-token",
+    });
+    const caught = await generator.generate(request()).then(
+      () => {
+        throw new Error("expected rejection");
+      },
+      (error: unknown) => error,
+    );
+    if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection");
+    expect(caught.message).not.toContain("SENTINEL");
+  });
+
+  it("ignores a non-string agent_message text without erasing an earlier answer", async () => {
+    // Envelope drift: a valid answer followed by a non-string text item —
+    // the drifted item must not overwrite the answer with "".
+    const scriptDir = tempDir("codex-nonstring-");
+    writeFileSync(
+      join(scriptDir, "turns.json"),
+      JSON.stringify([{ output: '{"ok":true}', trailingNonString: true }]),
+    );
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "scripted",
+      SHIM_SCRIPT_DIR: scriptDir,
+    });
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+  });
+
+  it("voids an answer that arrives alongside a fatal event on a drifted exit 0", async () => {
+    const scriptDir = tempDir("codex-fatalanswer-");
+    writeFileSync(
+      join(scriptDir, "turns.json"),
+      JSON.stringify([{ output: '{"ok":true}', fatalBeforeAnswerExitZero: true }]),
+    );
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "scripted",
+      SHIM_SCRIPT_DIR: scriptDir,
+    });
+    await expect(generator.generate(request())).rejects.toMatchObject({
+      kind: GeneratorErrorKind.OPAQUE,
+    });
+  });
+
+  it("classifies a clean exit without an agent answer as opaque", async () => {
+    const generator = makeGenerator({ SHIM_SCENARIO: "envelope-drift" });
+    await expect(generator.generate(request())).rejects.toMatchObject({
+      kind: GeneratorErrorKind.OPAQUE,
+    });
+  });
+
+  it("classifies a silent hang as a timeout", async () => {
+    const generator = makeGenerator(
+      { SHIM_SCENARIO: "hang" },
+      { timeouts: { hardMs: 8000, inactivityMs: 300, killGraceMs: 200 } },
+    );
+    await expect(generator.generate(request())).rejects.toMatchObject({
+      kind: GeneratorErrorKind.TIMEOUT,
+    });
+  });
+
+  it("hands a non-JSON answer to the floor (second parse is the floor's)", async () => {
+    const scriptDir = tempDir("codex-nonjson-");
+    writeFileSync(
+      join(scriptDir, "turns.json"),
+      JSON.stringify([
+        { output: "I could not produce JSON, sorry." },
+        { output: '{"ok":true}' },
+      ]),
+    );
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "scripted",
+      SHIM_SCRIPT_DIR: scriptDir,
+    });
+    // Floor retry recovers on the second scripted turn.
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+    expect(readFileSync(join(scriptDir, "counter"), "utf8")).toBe("2");
+  });
+});
+
+function deps(env: Record<string, string>) {
+  return {
+    env: { ...process.env, ...env },
+    failureDir: tempDir("codex-reg-"),
+  };
+}
+
+describe("codex registry entry", () => {
+  it("constructs through the boot probe against the shim", async () => {
+    const result = await createGenerator(
+      { provider: Providers.CODEX, command: FAKE_CODEX },
+      deps({ SHIM_SCENARIO: "valid" }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.provenance("high")).toEqual({
+      provider: "codex",
+      model: "codex-default",
+      effort: "high",
+    });
+  });
+
+  it("refuses boot when the CLI is not logged in", async () => {
+    const result = await createGenerator(
+      { provider: Providers.CODEX, command: FAKE_CODEX },
+      deps({ SHIM_SCENARIO: "auth-error" }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("codex login");
+  });
+
+  it("refuses boot when the binary is missing", async () => {
+    const result = await createGenerator(
+      { provider: Providers.CODEX, command: "/nonexistent/codex" },
+      deps({}),
+    );
+    expect(result.ok).toBe(false);
+  });
+});

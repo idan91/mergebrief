@@ -10,7 +10,13 @@
  * a JSON STRING (the double-parse quirk). No model id anywhere in JSONL —
  * the verified provenance blind spot.
  */
-const { appendFileSync, writeFileSync } = require("node:fs");
+const {
+  appendFileSync,
+  existsSync,
+  readFileSync,
+  writeFileSync,
+} = require("node:fs");
+const { join } = require("node:path");
 
 const scenario = process.env.SHIM_SCENARIO ?? "valid";
 const output = process.env.SHIM_OUTPUT ?? '{"ok":true}';
@@ -73,10 +79,8 @@ if (argv[0] === "login" && argv[1] === "status") {
 // can assert the tempfile contents (PR 6).
 const schemaFlag = argv.indexOf("--output-schema");
 if (schemaFlag !== -1 && process.env.SHIM_SCHEMA_COPY) {
-  const schemaPath = argv[schemaFlag + 1];
   try {
-    const { readFileSync } = require("node:fs");
-    writeFileSync(process.env.SHIM_SCHEMA_COPY, readFileSync(schemaPath));
+    writeFileSync(process.env.SHIM_SCHEMA_COPY, readFileSync(argv[schemaFlag + 1]));
   } catch {
     // Absent/unreadable schema file: leave no copy; the test will fail loudly.
   }
@@ -87,6 +91,84 @@ if (process.env.SHIM_MARKER_FILE) {
     appendFileSync(process.env.SHIM_MARKER_FILE, "SIGINT\n");
     if (scenario !== "ignores-sigint") process.exit(1);
   });
+}
+
+// Scripted mode (adapter contract tests) — mirrors fake-claude: turns.json
+// in SHIM_SCRIPT_DIR, counter-selected per invocation, argv/stdin/schema
+// recordings. Turn shapes: {output} (answer as JSON string), {hang:true},
+// {turnFailed:"msg"}, {fatal:"msg"}.
+if (scenario === "scripted") {
+  const dir = process.env.SHIM_SCRIPT_DIR;
+  if (!dir) {
+    process.stderr.write("fake-codex: scripted needs SHIM_SCRIPT_DIR\n");
+    process.exit(64);
+  }
+  const counterFile = join(dir, "counter");
+  const turn = existsSync(counterFile)
+    ? Number(readFileSync(counterFile, "utf8"))
+    : 0;
+  writeFileSync(counterFile, String(turn + 1));
+  const turns = JSON.parse(readFileSync(join(dir, "turns.json"), "utf8"));
+  const script = turns[turn] ?? turns[turns.length - 1];
+  writeFileSync(join(dir, `argv-${turn}.json`), JSON.stringify(argv));
+  // Capture the --output-schema tempfile contents before the parent
+  // cleans it up.
+  const scriptedSchemaFlag = argv.indexOf("--output-schema");
+  if (scriptedSchemaFlag !== -1 && existsSync(argv[scriptedSchemaFlag + 1])) {
+    const schemaPath = argv[scriptedSchemaFlag + 1];
+    writeFileSync(join(dir, `schema-${turn}.json`), readFileSync(schemaPath));
+    // Path + mode so tests can assert 0600 while running and removal after.
+    const { statSync } = require("node:fs");
+    writeFileSync(
+      join(dir, `schema-meta-${turn}.json`),
+      JSON.stringify({
+        path: schemaPath,
+        mode: statSync(schemaPath).mode & 0o777,
+      }),
+    );
+  }
+  drainStdinThen((stdin) => {
+    writeFileSync(join(dir, `stdin-${turn}.txt`), stdin);
+    if (script.hang) {
+      stayAlive();
+      return;
+    }
+    if (script.turnFailed) {
+      preamble();
+      emit({ type: "turn.failed", error: { message: script.turnFailed } });
+      process.exit(1);
+    }
+    if (script.fatal) {
+      emit({ type: "error", message: script.fatal });
+      process.exit(1);
+    }
+    if (script.fatalBeforeAnswerExitZero) {
+      // Drifted-CLI arm: fatal event AND an answer AND exit 0 — the real
+      // CLI sets error_seen and exits 1; an adapter must void the answer.
+      preamble();
+      emit({ type: "turn.failed", error: { message: "half-broken" } });
+      answer(script.output);
+      process.exit(0);
+    }
+    preamble();
+    // Preliminary narration first — consumers must take the LAST message.
+    emit({
+      type: "item.completed",
+      item: { id: "item_0", type: "agent_message", text: "Working on it." },
+    });
+    answer(script.output);
+    if (script.trailingNonString) {
+      // Envelope-drift arm: a completed agent_message whose text is not a
+      // string arrives AFTER the real answer.
+      emit({
+        type: "item.completed",
+        item: { id: "item_2", type: "agent_message", text: { weird: true } },
+      });
+      emit({ type: "turn.completed", usage: {} });
+    }
+    process.exit(0);
+  });
+  return;
 }
 
 switch (scenario) {

@@ -27,12 +27,15 @@ export {
   ClaudeCodeGenerator,
   type ClaudeCodeGeneratorOptions,
 } from "./claudeCode";
+export { CodexGenerator, type CodexGeneratorOptions } from "./codex";
 export {
   DEFAULT_HARNESS_TIMEOUTS,
   harnessTimeoutError,
   probeHarnessCli,
+  resolveHarnessTimeouts,
   runHarnessProcess,
   spawnFailureError,
+  type HarnessTimeoutOverrides,
   type HarnessProbeArgs,
   type HarnessRunArgs,
   type HarnessRunResult,

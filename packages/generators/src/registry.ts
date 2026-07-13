@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
 import type { Result, ValueOf } from "types";
 import { ClaudeCodeGenerator } from "./claudeCode";
+import { CodexGenerator, CODEX_PROBE } from "./codex";
 import { configError, type ConfigError } from "./errors";
 import { AnthropicGenerator, type Generator, type Logger } from "./generator";
 import { probeHarnessCli } from "./harness";
@@ -117,6 +118,20 @@ const claudeCodeOptions = z
 
 const DEFAULT_CLAUDE_COMMAND = "claude";
 
+const codexOptions = z
+  .object({
+    provider: z.literal(Providers.CODEX),
+    /** Model id for -m; absent → the CLI's configured default (provenance
+     * stamps "codex-default"). */
+    model: z.string().min(1).optional(),
+    /** Binary path or name; default "codex" (PATH-resolved). */
+    command: z.string().min(1).optional(),
+    timeouts: harnessTimeouts.optional(),
+  })
+  .strict();
+
+const DEFAULT_CODEX_COMMAND = "codex";
+
 export const GENERATOR_REGISTRY = {
   [Providers.ANTHROPIC]: defineEntry({
     options: anthropicOptions,
@@ -167,6 +182,30 @@ export const GENERATOR_REGISTRY = {
       };
     },
   }),
+  [Providers.CODEX]: defineEntry({
+    options: codexOptions,
+    create: async (options, deps) => {
+      const command = options.command ?? DEFAULT_CODEX_COMMAND;
+      const probe = await probeHarnessCli({
+        command,
+        versionArgv: [...CODEX_PROBE.versionArgv],
+        authArgv: [...CODEX_PROBE.authArgv],
+        authFailureHint: CODEX_PROBE.authFailureHint,
+        env: deps.env,
+      });
+      if (!probe.ok) return probe;
+      return {
+        ok: true,
+        value: new CodexGenerator({
+          command,
+          model: options.model,
+          failureDir: deps.failureDir,
+          timeouts: options.timeouts,
+          env: deps.env,
+        }),
+      };
+    },
+  }),
 } as const;
 
 /**
@@ -177,6 +216,7 @@ export const GENERATOR_REGISTRY = {
 export const GeneratorConfigSchema = z.discriminatedUnion("provider", [
   GENERATOR_REGISTRY[Providers.ANTHROPIC].options,
   GENERATOR_REGISTRY[Providers.CLAUDE_CODE].options,
+  GENERATOR_REGISTRY[Providers.CODEX].options,
 ]);
 export type GeneratorConfig = z.infer<typeof GeneratorConfigSchema>;
 
@@ -268,5 +308,7 @@ export async function createGenerator(
       return GENERATOR_REGISTRY[Providers.ANTHROPIC].create(parsed.data, deps);
     case Providers.CLAUDE_CODE:
       return GENERATOR_REGISTRY[Providers.CLAUDE_CODE].create(parsed.data, deps);
+    case Providers.CODEX:
+      return GENERATOR_REGISTRY[Providers.CODEX].create(parsed.data, deps);
   }
 }

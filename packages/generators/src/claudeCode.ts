@@ -6,10 +6,11 @@ import { GeneratorError, GeneratorErrorKind } from "./errors";
 import { runWithSchemaFloor, schemaFeedbackMessage } from "./floor";
 import type { GenerateRequest, Generator, Logger } from "./generator";
 import {
-  DEFAULT_HARNESS_TIMEOUTS,
   harnessTimeoutError,
+  resolveHarnessTimeouts,
   runHarnessProcess,
   type HarnessRunResult,
+  type HarnessTimeoutOverrides,
   type HarnessTimeouts,
 } from "./harness";
 import { enumPreservingJsonSchema } from "./outputFormat";
@@ -88,12 +89,6 @@ function renderCategory(category: string): string {
 /** Same default as the SDK adapter — the stamp must name a real model. */
 const DEFAULT_MODEL = "claude-opus-4-8";
 
-/** Per-instance timer tunables (instance config carries these, PR 9). */
-export interface HarnessTimeoutOverrides {
-  hardMs?: number | undefined;
-  inactivityMs?: number | undefined;
-  killGraceMs?: number | undefined;
-}
 
 export interface ClaudeCodeGeneratorOptions {
   /** Binary path or name (PATH-resolved by spawn). */
@@ -140,15 +135,7 @@ export class ClaudeCodeGenerator implements Generator {
     this.command = options.command;
     this.model = options.model ?? DEFAULT_MODEL;
     this.failureDir = options.failureDir;
-    // Explicit per-field merge: a present-but-undefined override key must
-    // not clobber a default (exactOptionalPropertyTypes-safe).
-    this.timeouts = {
-      hardMs: options.timeouts?.hardMs ?? DEFAULT_HARNESS_TIMEOUTS.hardMs,
-      inactivityMs:
-        options.timeouts?.inactivityMs ?? DEFAULT_HARNESS_TIMEOUTS.inactivityMs,
-      killGraceMs:
-        options.timeouts?.killGraceMs ?? DEFAULT_HARNESS_TIMEOUTS.killGraceMs,
-    };
+    this.timeouts = resolveHarnessTimeouts(options.timeouts);
     this.onModelMismatch = options.onModelMismatch;
     this.env = options.env;
   }

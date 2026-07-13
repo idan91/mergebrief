@@ -48,6 +48,25 @@ const STDERR_TAIL_UNITS = 4096;
  */
 const DEFAULT_MAX_STDOUT_UNITS = 16 * 1024 * 1024;
 
+/** Per-instance timer tunables (instance config carries these, PR 9). */
+export interface HarnessTimeoutOverrides {
+  hardMs?: number | undefined;
+  inactivityMs?: number | undefined;
+  killGraceMs?: number | undefined;
+}
+
+/** Explicit per-field merge: a present-but-undefined override key must not
+ * clobber a default (exactOptionalPropertyTypes-safe). */
+export function resolveHarnessTimeouts(
+  overrides: HarnessTimeoutOverrides | undefined,
+): HarnessTimeouts {
+  return {
+    hardMs: overrides?.hardMs ?? DEFAULT_HARNESS_TIMEOUTS.hardMs,
+    inactivityMs: overrides?.inactivityMs ?? DEFAULT_HARNESS_TIMEOUTS.inactivityMs,
+    killGraceMs: overrides?.killGraceMs ?? DEFAULT_HARNESS_TIMEOUTS.killGraceMs,
+  };
+}
+
 export interface HarnessRunArgs {
   /** Binary path or name (resolved via PATH by spawn — never a shell). */
   command: string;
