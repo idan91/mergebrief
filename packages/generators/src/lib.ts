@@ -11,6 +11,17 @@ export {
   type Logger,
 } from "./generator";
 export { Efforts, GenerationSchema, type Effort, type Generation } from "./vocabulary";
+export {
+  createGenerator,
+  defaultGeneratorConfig,
+  GENERATOR_REGISTRY,
+  GeneratorConfigSchema,
+  Providers,
+  type ConfigError,
+  type CreateGeneratorDeps,
+  type GeneratorConfig,
+  type Provider,
+} from "./registry";
 export { GeneratorError, GeneratorErrorKind } from "./errors";
 export {
   runWithSchemaFloor,

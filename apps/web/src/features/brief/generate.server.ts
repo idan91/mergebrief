@@ -11,7 +11,11 @@ import {
   prStem,
   type PrLocator,
 } from "categorizer";
-import { AnthropicGenerator, type Generator } from "generators";
+import {
+  createGenerator,
+  defaultGeneratorConfig,
+  type Generator,
+} from "generators";
 
 import { createSingleFlight } from "./singleFlight";
 
@@ -47,27 +51,54 @@ export interface GenerateBriefEngine {
   generate(url: string): Promise<GeneratedBrief>;
 }
 
-/** Thrown when ANTHROPIC_API_KEY is unset — already a safe, specific message, so callers don't sanitize it further. */
-export class MissingApiKeyError extends Error {}
+/**
+ * CONSTRUCTION-time config failure, thrown with a message this module
+ * authored from ConfigError issues (env-var NAMES only — browser-safe).
+ * Deliberately distinct from GeneratorError kind "config": that kind is
+ * also produced at RUNTIME for provider 400/404s whose messages are
+ * provider-authored text, which must go through the curated-message path.
+ */
+export class GeneratorConfigurationError extends Error {}
 
-let sharedGenerator: Generator | undefined;
+let sharedGenerator: Promise<Generator> | undefined;
+
+/**
+ * Single-flighted async construction: concurrent first requests share one
+ * client; a failed construction clears the slot so the next request retries
+ * (e.g. after the operator sets the missing env var).
+ */
+function sharedGeneratorOnce(): Promise<Generator> {
+  sharedGenerator ??= (async () => {
+    // Uniform construction error (BRIEF-11): issues name env VARS only,
+    // so the message is safe for the browser like MissingApiKeyError was.
+    const result = await createGenerator(defaultGeneratorConfig, {
+      env: process.env,
+      failureDir: "out",
+    });
+    if (!result.ok) {
+      throw new GeneratorConfigurationError(
+        `${result.error.issues.join("; ")} — add it to the web app's environment (see tools/categorizer/.env.example).`,
+      );
+    }
+    return result.value;
+  })().catch((error: unknown) => {
+    sharedGenerator = undefined;
+    throw error;
+  });
+  return sharedGenerator;
+}
 
 function realEngine(): GenerateBriefEngine {
   return {
     fetchHeadSha: async (locator) => (await fetchPrMetadata(locator)).sha,
     lookupIndex: (stem, head) => lookupBriefIndex(OUT_DIR, stem, head),
     generate: async (url) => {
-      if (!process.env["ANTHROPIC_API_KEY"]) {
-        throw new MissingApiKeyError(
-          "ANTHROPIC_API_KEY is not set — add it to the web app's environment (see tools/categorizer/.env.example).",
-        );
-      }
-      sharedGenerator ??= new AnthropicGenerator();
+      const generator = await sharedGeneratorOnce();
       const brief = await generateAndWrite(
         OUT_DIR,
         url,
         undefined,
-        sharedGenerator,
+        generator,
         () => {},
       );
       return {
@@ -89,8 +120,9 @@ const singleFlight = createSingleFlight<string>();
  * `gh`/SDK failures carry raw command lines and stderr in their `.message` —
  * fine for a server log, not for an unauthenticated browser response. Those
  * are logged here and replaced with the curated messages from the plan's
- * error states; `MissingApiKeyError` is already safe and specific, so it
- * passes through unwrapped.
+ * error states; a construction ConfigError (GeneratorError kind config)
+ * names env VARS only, so it is safe and specific and passes through
+ * unwrapped.
  */
 export async function generateBriefFromUrl(
   url: string,
@@ -118,7 +150,7 @@ export async function generateBriefFromUrl(
     try {
       result = await engine.generate(url);
     } catch (error) {
-      if (error instanceof MissingApiKeyError) throw error;
+      if (error instanceof GeneratorConfigurationError) throw error;
       console.error("generateBriefFromUrl: generation failed", error);
       throw new Error(
         "Couldn't generate the brief for this PR — check the server logs and try again.",

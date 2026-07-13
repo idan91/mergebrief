@@ -111,23 +111,26 @@ export interface AnthropicStreamingClient {
  * residual JSON.parse rejection (non-JSON output, e.g. max_tokens truncation)
  * is caught below and converted into a pipeline-visible failed attempt.
  */
-const MODEL = "claude-opus-4-8";
+const DEFAULT_MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 32000;
 
 export class AnthropicGenerator implements Generator {
   private readonly client: AnthropicStreamingClient;
   private readonly failureDir: string;
+  private readonly model: string;
 
   constructor(
     client: AnthropicStreamingClient = new Anthropic(),
     failureDir = "out",
+    model: string = DEFAULT_MODEL,
   ) {
     this.client = client;
     this.failureDir = failureDir;
+    this.model = model;
   }
 
   provenance(effort: Effort): Generation {
-    return { provider: "anthropic", model: MODEL, effort };
+    return { provider: "anthropic", model: this.model, effort };
   }
 
   async generate<S extends z.ZodType>(
@@ -216,7 +219,7 @@ export class AnthropicGenerator implements Generator {
     // rejects with APIUserAbortError and no further output tokens are billed.
     const stream = this.client.messages.stream(
       {
-        model: MODEL,
+        model: this.model,
         max_tokens: MAX_TOKENS,
         thinking: { type: "adaptive" },
         output_config: {

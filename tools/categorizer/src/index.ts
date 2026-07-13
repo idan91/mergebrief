@@ -15,7 +15,7 @@ import {
   type ReviewComment,
 } from "./github";
 import { categorize, categorizeRevisionNarrative, warnIssues } from "./categorize";
-import { AnthropicGenerator, type Generator } from "generators";
+import { createGenerator, defaultGeneratorConfig, type Generator } from "generators";
 import { splitDiffByFile } from "./diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "./manifest";
 import { countChangedLines, type RevisionChanges } from "./revchanges";
@@ -331,9 +331,15 @@ async function main(): Promise<void> {
   }
 
   loadEnv();
-  if (!process.env["ANTHROPIC_API_KEY"]) {
+  // Zero-config default through the registry seam (BRIEF-11): anthropic +
+  // ANTHROPIC_API_KEY + Opus 4.8. Boot refuses loudly on misconfiguration.
+  const constructed = await createGenerator(defaultGeneratorConfig, {
+    env: process.env,
+    failureDir: OUT_DIR,
+  });
+  if (!constructed.ok) {
     console.error(
-      "ANTHROPIC_API_KEY not set — add it to tools/categorizer/.env (see .env.example).",
+      `${constructed.error.issues.join("; ")} — add it to tools/categorizer/.env (see .env.example).`,
     );
     process.exit(1);
   }
@@ -342,7 +348,7 @@ async function main(): Promise<void> {
 
   // PRs are independent — run them in parallel, sharing one generator so the
   // SDK's connection pool is reused. A single bad URL must not kill the batch.
-  const generator = new AnthropicGenerator();
+  const generator = constructed.value;
   const results = await Promise.all(
     parsed.urls.map(
       async (

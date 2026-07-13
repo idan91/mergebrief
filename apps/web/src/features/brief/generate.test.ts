@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   generateBriefFromUrl,
-  MissingApiKeyError,
+  GeneratorConfigurationError,
   type GenerateBriefEngine,
 } from "./generate.server";
 
@@ -91,17 +91,35 @@ describe("generateBriefFromUrl", () => {
     );
   });
 
-  it("passes a missing-API-key error through unwrapped (it is already a safe, specific message)", async () => {
+  it("passes a construction config error through unwrapped (issues name env vars only — safe for the browser)", async () => {
     const engine = fakeEngine({
       generate: vi
         .fn()
         .mockRejectedValue(
-          new MissingApiKeyError("ANTHROPIC_API_KEY is not set"),
+          new GeneratorConfigurationError(
+            "ANTHROPIC_API_KEY: provider API key env var is not set",
+          ),
         ),
     });
 
     await expect(generateBriefFromUrl(URL, engine)).rejects.toThrow(
-      "ANTHROPIC_API_KEY is not set",
+      "ANTHROPIC_API_KEY: provider API key env var is not set",
+    );
+  });
+
+  it("curates a runtime provider config error instead of passing it through", async () => {
+    // GeneratorError kind "config" can carry provider-authored 400/404 text —
+    // it must NOT reach the browser; only construction errors pass through.
+    const providerError = Object.assign(
+      new Error("400 model_not_found: provider says something detailed"),
+      { name: "GeneratorError", kind: "config" },
+    );
+    const engine = fakeEngine({
+      generate: vi.fn().mockRejectedValue(providerError),
+    });
+
+    await expect(generateBriefFromUrl(URL, engine)).rejects.toThrow(
+      /couldn't generate the brief/i,
     );
   });
 

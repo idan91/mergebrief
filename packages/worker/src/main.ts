@@ -3,8 +3,7 @@
 // library modules stay env-INJECTED (same posture as
 // `apps/web/src/server/webhookApp.ts`). A misconfigured worker must fail
 // LOUDLY at boot, never limp into draining jobs it cannot complete.
-import Anthropic from "@anthropic-ai/sdk";
-import { AnthropicGenerator } from "generators";
+import { createGenerator } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import { closeDb, createDb } from "persistence";
 import { loadConfig } from "./config";
@@ -46,13 +45,23 @@ async function main(): Promise<void> {
     );
   }
 
+  // Generator construction goes through the registry seam (BRIEF-11): the
+  // key still resolves by env-var NAME (GENERATOR_API_KEY_ENV stays
+  // functional until the instance-config PR replaces it).
+  const generator = await createGenerator(
+    { provider: "anthropic", apiKeyEnv: config.value.providerApiKeyEnv },
+    { env, failureDir: FAILURE_DUMP_DIR },
+  );
+  if (!generator.ok) {
+    throw new Error(
+      `worker composition: invalid generator configuration — ${generator.error.issues.join("; ")}`,
+    );
+  }
+
   const handle = createDb(config.value.databaseUrl);
   const generate = createGenerateTask({
     handle,
-    generator: new AnthropicGenerator(
-      new Anthropic({ apiKey: config.value.providerApiKey }),
-      FAILURE_DUMP_DIR,
-    ),
+    generator: generator.value,
     github: appGitHubPort(createAppClient(githubConfig.value)),
     publicBaseUrl: config.value.publicBaseUrl,
     log: (message) => console.error(`[worker] ${message}`),

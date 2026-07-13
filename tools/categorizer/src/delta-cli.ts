@@ -10,7 +10,7 @@ import {
   resolveFullSha,
 } from "./github";
 import { categorizeDelta } from "./categorize";
-import { AnthropicGenerator, type Generator } from "generators";
+import { createGenerator, defaultGeneratorConfig, type Generator } from "generators";
 import { splitDiffByFile } from "./diff";
 import { lookupBriefIndex } from "./manifest";
 import { buildComparisonMarks, writeComparisonMarks } from "./comparison";
@@ -127,9 +127,14 @@ async function main(): Promise<void> {
   }
 
   loadEnv();
-  if (!process.env["ANTHROPIC_API_KEY"]) {
+  // Zero-config default through the registry seam (BRIEF-11).
+  const constructed = await createGenerator(defaultGeneratorConfig, {
+    env: process.env,
+    failureDir: OUT_DIR,
+  });
+  if (!constructed.ok) {
     console.error(
-      "ANTHROPIC_API_KEY not set — add it to tools/categorizer/.env (see .env.example).",
+      `${constructed.error.issues.join("; ")} — add it to tools/categorizer/.env (see .env.example).`,
     );
     process.exit(1);
   }
@@ -143,7 +148,7 @@ async function main(): Promise<void> {
     url,
     baselineSha,
     headSha,
-    new AnthropicGenerator(),
+    constructed.value,
     log,
   );
 
