@@ -12,7 +12,7 @@ import {
   envKeyProvider,
   type CryptoError,
   type KeyProvider,
-} from "../src/crypto";
+} from "../src/auth/crypto";
 import type { Result } from "../src/types";
 
 const KEY_REF = "SESSION_KEY_V1";

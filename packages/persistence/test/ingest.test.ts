@@ -3,9 +3,9 @@
 // PGlite harness because it provides the `graphile_worker` stub the enqueue
 // step calls by name.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { IngestOutcome } from "../src/ingest";
-import { ingestRoutines } from "../src/ingest";
-import { forTenant, parseTenantContext } from "../src/tenant";
+import type { IngestOutcome } from "../src/stores/ingest";
+import { ingestRoutines } from "../src/stores/ingest";
+import { forTenant, parseTenantContext } from "../src/stores/tenant";
 import { createPgliteHarness, type PgliteHarness } from "../src/testing";
 import {
   GenerationKind,

@@ -12,7 +12,7 @@
 // code and names, so both minimization gates default OFF-meaning-ON here. The
 // hosted-strict arm flips them via env, no code change.
 import { z } from "zod";
-import type { Result, ValueOf } from "./types";
+import type { Result, ValueOf } from "../types";
 
 // ---------------------------------------------------------------------------
 // Public config shape.

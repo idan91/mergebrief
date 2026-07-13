@@ -44,7 +44,7 @@ export type MaybePromise<T> = T | Promise<T>;
 
 /**
  * The `generate` job payload — the ONE handshake between the enqueue side
- * (`persistence/src/ingest.ts`, which serializes this into
+ * (`persistence/src/stores/ingest.ts`, which serializes this into
  * `graphile_worker.add_job`) and the drain side (`worker`, which Zod-validates
  * the job payload back into branded ids). Snake_case because it crosses as
  * JSON in a Postgres row, and STRING ids because JSON cannot carry bigint —

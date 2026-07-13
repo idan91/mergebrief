@@ -19,7 +19,7 @@ import {
   type TokenMintInput,
   type TokenRefreshPatch,
   type TokenRefreshRejection,
-} from "../src/token";
+} from "../src/auth/token";
 import {
   isInstallationId,
   isReviewerId,
@@ -27,7 +27,7 @@ import {
   type Result,
   type ReviewerId,
 } from "../src/types";
-import type { AppDatabase } from "../src/db";
+import type { AppDatabase } from "../src/db/handle";
 import { brandWith, freshDatabase } from "./helpers";
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
@@ -386,7 +386,7 @@ describe("tokenAuth.mintToken audit atomicity (codex PR2 R1)", () => {
   it("mint emits its D9 auth audit row in the same transaction", async () => {
     const handle = await freshDatabase();
     await tokenAuth(handle).mintToken(mintInput());
-    const { internal } = await import("../src/db");
+    const { internal } = await import("../src/db/handle");
     const { auditLog } = await import("../src/schema/audit-log");
     const rows = await internal(handle).select().from(auditLog);
     expect(rows).toHaveLength(1);

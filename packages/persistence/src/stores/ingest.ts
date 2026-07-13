@@ -22,9 +22,9 @@
 // missing `graphile_worker` schema — is an infra/programmer error and throws,
 // rolling the whole transaction back (no partial writes, no orphaned job).
 import { sql } from "drizzle-orm";
-import { type AppDatabase, internal } from "./db";
-import { generation } from "./schema/generation";
-import { pullRequest } from "./schema/pull-request";
+import { type AppDatabase, internal } from "../db/handle";
+import { generation } from "../schema/generation";
+import { pullRequest } from "../schema/pull-request";
 import type { GenerationRow } from "./generation";
 import {
   lifecycleColumns,
@@ -33,7 +33,7 @@ import {
   type TenantContext,
 } from "./tenant";
 import type { GenerateJobPayload } from "types";
-import { GenerationKind, GenerationStatus, PrState, type Result, type ValueOf } from "./types";
+import { GenerationKind, GenerationStatus, PrState, type Result, type ValueOf } from "../types";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
 

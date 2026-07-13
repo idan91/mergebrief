@@ -41,10 +41,10 @@
 // see its doc comment.
 import { and, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { insertAudit } from "./audit";
-import { type AppDatabase, internal } from "./db";
-import { apiToken } from "./schema/api-token";
-import { pullRequest } from "./schema/pull-request";
-import { reviewerSession } from "./schema/reviewer-session";
+import { type AppDatabase, internal } from "../db/handle";
+import { apiToken } from "../schema/api-token";
+import { pullRequest } from "../schema/pull-request";
+import { reviewerSession } from "../schema/reviewer-session";
 import type { PullRequestRow, TenantContext } from "./tenant";
 import {
   AuditAction,
@@ -54,7 +54,7 @@ import {
   type RepoId,
   type Result,
   type ValueOf,
-} from "./types";
+} from "../types";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 

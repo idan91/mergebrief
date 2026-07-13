@@ -7,13 +7,13 @@
 // absent hash → NOT_FOUND. Rows are seeded through the tenant repository so the
 // seam is tested exactly as production writes them.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { forTenant } from "../src/tenant";
+import { forTenant } from "../src/stores/tenant";
 import {
   sessionAuth,
   SessionAuthErrorCode,
   type SessionRefreshPatch,
   type SessionRefreshRejection,
-} from "../src/session";
+} from "../src/auth/session";
 import {
   isInstallationId,
   isReviewerId,
@@ -21,7 +21,7 @@ import {
   type Result,
   type ReviewerId,
 } from "../src/types";
-import { type AppDatabase } from "../src/db";
+import { type AppDatabase } from "../src/db/handle";
 import { brandWith, freshDatabase } from "./helpers";
 
 const INSTALLATION_ID: InstallationId = brandWith(isInstallationId, 4242n);

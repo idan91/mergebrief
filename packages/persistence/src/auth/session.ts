@@ -13,10 +13,10 @@
 // the locked row's own `installation_id` (+ its `id`), so the value that gates
 // the write comes from the row, never from an unscoped caller argument.
 import { and, eq } from "drizzle-orm";
-import { type AppDatabase, internal } from "./db";
-import { reviewerSession } from "./schema/reviewer-session";
-import type { ReviewerSessionRow } from "./tenant";
-import type { InstallationId, Result, ValueOf } from "./types";
+import { type AppDatabase, internal } from "../db/handle";
+import { reviewerSession } from "../schema/reviewer-session";
+import type { ReviewerSessionRow } from "../stores/tenant";
+import type { InstallationId, Result, ValueOf } from "../types";
 
 // ---------------------------------------------------------------------------
 // Refresh patch + rejection — the caller-driven refresh callback's contract.

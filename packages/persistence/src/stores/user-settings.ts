@@ -11,9 +11,9 @@
 // set (read at login, written by the switch endpoint). Typed columns only,
 // never a JSON blob (D14).
 import { eq } from "drizzle-orm";
-import { type AppDatabase, internal } from "./db";
-import { userSettings } from "./schema/user-settings";
-import type { InstallationId, ReviewerId } from "./types";
+import { type AppDatabase, internal } from "../db/handle";
+import { userSettings } from "../schema/user-settings";
+import type { InstallationId, ReviewerId } from "../types";
 
 export type UserSettingsRow = typeof userSettings.$inferSelect;
 

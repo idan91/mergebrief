@@ -13,9 +13,9 @@
 // no update/delete helpers — append-only by convention (the
 // `REVOKE UPDATE/DELETE` is the hosted hardening step).
 import { z } from "zod";
-import { type AppDatabase, type AppDrizzle, internal } from "./db";
-import { auditLog } from "./schema/audit-log";
-import type { AuditAction, AuditActorType, InstallationId, ValueOf } from "./types";
+import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
+import { auditLog } from "../schema/audit-log";
+import type { AuditAction, AuditActorType, InstallationId, ValueOf } from "../types";
 
 export type AuditLogRow = typeof auditLog.$inferSelect;
 

@@ -7,7 +7,7 @@ import {
   loadConfig,
   type ConfigError,
   type PersistenceConfig,
-} from "../src/config";
+} from "../src/db/config";
 import type { Result } from "../src/types";
 
 const VALID_URL = "postgres://user:pass@localhost:5432/app";

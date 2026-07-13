@@ -17,9 +17,9 @@
 // or `user_id` + `id` for the owner-scoped revoke), never by an unscoped
 // caller argument.
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { insertAudit } from "./audit";
-import { type AppDatabase, internal } from "./db";
-import { apiToken } from "./schema/api-token";
+import { insertAudit } from "../stores/audit";
+import { type AppDatabase, internal } from "../db/handle";
+import { apiToken } from "../schema/api-token";
 import {
   AuditAction,
   AuditActorType,
@@ -28,7 +28,7 @@ import {
   type Result,
   type ReviewerId,
   type ValueOf,
-} from "./types";
+} from "../types";
 
 export type ApiTokenRow = typeof apiToken.$inferSelect;
 

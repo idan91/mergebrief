@@ -11,9 +11,9 @@
 // every mutation. Like the artifact writes, `upsertQueued` verifies the parent
 // `pull_request` belongs to ctx in-transaction (stage-3 invariant (a)).
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
-import { type AppDatabase, internal } from "./db";
-import { generation } from "./schema/generation";
-import { pullRequest } from "./schema/pull-request";
+import { type AppDatabase, internal } from "../db/handle";
+import { generation } from "../schema/generation";
+import { pullRequest } from "../schema/pull-request";
 import type { TenantContext } from "./tenant";
 import {
   GenerationKind,
@@ -22,7 +22,7 @@ import {
   type PullRequestRowId,
   type Result,
   type ValueOf,
-} from "./types";
+} from "../types";
 
 export type GenerationRow = typeof generation.$inferSelect;
 

@@ -23,7 +23,7 @@ import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
-import { type AppDatabase, fromDrizzle } from "./db";
+import { type AppDatabase, fromDrizzle } from "./db/handle";
 import * as schema from "./schema/index";
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));

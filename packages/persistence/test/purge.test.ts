@@ -16,7 +16,7 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
-import { type AppDatabase, fromDrizzle } from "../src/db";
+import { type AppDatabase, fromDrizzle } from "../src/db/handle";
 import {
   apiToken,
   auditLog,
@@ -32,8 +32,8 @@ import {
   revisionNarrative,
 } from "../src/schema/index";
 import * as schema from "../src/schema/index";
-import { PurgeErrorCode, purgeRoutines } from "../src/purge";
-import type { TenantContext } from "../src/tenant";
+import { PurgeErrorCode, purgeRoutines } from "../src/stores/purge";
+import type { TenantContext } from "../src/stores/tenant";
 import {
   AuditAction,
   DispositionDecision,
