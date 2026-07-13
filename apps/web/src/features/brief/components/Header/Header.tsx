@@ -99,7 +99,7 @@ export function Header({
       {/* Tier 1 — identity and status: stable while reviewing. */}
       <div className={styles["identityRow"]}>
         <div className={styles["wordmark"]}>
-          Brief<span> / review</span>
+          MergeBrief<span> / review</span>
         </div>
         <div className={styles["prmeta"]}>
           <h1 className={styles["title"]}>{brief.pr.title}</h1>

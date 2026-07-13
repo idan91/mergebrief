@@ -51,7 +51,7 @@ function BriefPicker() {
     <main className={styles["pickerMain"]} id="main-content" tabIndex={-1}>
       <section className={styles["picker"]}>
         <div className={styles["wordmark"]}>
-          Brief<span> / review</span>
+          MergeBrief<span> / review</span>
         </div>
         <div className={styles["eyebrow"]}>
           Open-source · self-hosted · BYOK

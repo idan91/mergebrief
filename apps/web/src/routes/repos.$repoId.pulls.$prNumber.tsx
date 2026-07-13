@@ -761,7 +761,7 @@ function PrBriefError({ error }: { error: Error }) {
         ? "This pull request (or this span's Brief) was not found."
         : error.kind === ApiErrorKind.UNAUTHORIZED
           ? "You need to sign in to read this Brief."
-          : "The Brief backend is unreachable right now — try again shortly."
+          : "The MergeBrief backend is unreachable right now — try again shortly."
       : error.message;
   return (
     <main className="main" id="main-content" tabIndex={-1}>

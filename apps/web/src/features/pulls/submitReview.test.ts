@@ -19,7 +19,7 @@ const apiFetchMock = vi.mocked(apiFetch);
 const PAYLOAD: SubmitPayload = {
   outcome: "approve",
   commitId: "c".repeat(40),
-  body: "Reviewed with Brief — signature",
+  body: "Reviewed with MergeBrief — signature",
   comments: [],
 };
 

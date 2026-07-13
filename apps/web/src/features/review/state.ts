@@ -135,7 +135,7 @@ export function deriveUnresolvedItems(
 }
 
 export function summarySignatureLine(counts: SignatureCounts): string {
-  return `Reviewed with Brief / review — summary: ${counts.reviewedChunks} chunks read, ${counts.addressedRisks} risks addressed, ${counts.dismissedRisks} dismissed.`;
+  return `Reviewed with MergeBrief / review — summary: ${counts.reviewedChunks} chunks read, ${counts.addressedRisks} risks addressed, ${counts.dismissedRisks} dismissed.`;
 }
 
 export function riskDispositionCounts(

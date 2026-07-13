@@ -141,7 +141,7 @@ export function buildSignatureLine(
     `${counts.open} open`,
     `${draftCommentCount} inline comments`,
   ];
-  return `Reviewed with Brief — ${claims.join(" · ")}`;
+  return `Reviewed with MergeBrief — ${claims.join(" · ")}`;
 }
 
 /**

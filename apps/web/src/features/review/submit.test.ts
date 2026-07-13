@@ -79,7 +79,7 @@ describe("buildSubmitPayload", () => {
     const payload = buildSubmitPayload({
       outcome: "request-changes",
       commitId: COMMIT_ID,
-      body: "Reviewed with Brief — signature",
+      body: "Reviewed with MergeBrief — signature",
       comments: [
         comment("a", { side: "new", startLine: 12, endLine: 12 }, "first"),
         comment(
@@ -92,7 +92,7 @@ describe("buildSubmitPayload", () => {
     expect(payload).toEqual({
       outcome: "request-changes",
       commitId: COMMIT_ID,
-      body: "Reviewed with Brief — signature",
+      body: "Reviewed with MergeBrief — signature",
       comments: [
         {
           path: "src/a.ts",
@@ -153,7 +153,7 @@ describe("buildSignatureLine", () => {
   it("renders one line of mechanical claims", () => {
     const line = buildSignatureLine(receipt, 2);
     expect(line).toBe(
-      "Reviewed with Brief — 12/14 chunks read · 2 risks addressed · 1 dismissed · 3 open · 2 inline comments",
+      "Reviewed with MergeBrief — 12/14 chunks read · 2 risks addressed · 1 dismissed · 3 open · 2 inline comments",
     );
     expect(line).not.toContain("\n");
   });

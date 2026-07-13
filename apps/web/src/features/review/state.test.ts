@@ -164,7 +164,7 @@ describe("summarySignatureLine", () => {
         dismissedRisks: 1,
       }),
     ).toBe(
-      "Reviewed with Brief / review — summary: 7 chunks read, 5 risks addressed, 1 dismissed.",
+      "Reviewed with MergeBrief / review — summary: 7 chunks read, 5 risks addressed, 1 dismissed.",
     );
   });
 });

@@ -15,7 +15,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Brief / review" },
+      { title: "MergeBrief / review" },
       {
         name: "description",
         content:
@@ -23,7 +23,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       },
       {
         property: "og:title",
-        content: "Brief / review — a comprehension layer for code review",
+        content: "MergeBrief / review — a comprehension layer for code review",
       },
       {
         property: "og:description",
