@@ -42,6 +42,13 @@ export interface FloorAttempt {
   raw: string;
   parsed?: unknown;
   invalidReason?: string;
+  /**
+   * false when the raw output must not be salvage-eligible — e.g. a
+   * truncated/content-filtered stream (finish_reason length/content_filter):
+   * a droppable-enum salvage of INCOMPLETE output would return a fragment
+   * as a completed generation. The raw still feeds retry feedback/dumps.
+   */
+  salvageable?: boolean;
 }
 
 export interface RunWithSchemaFloorArgs<S extends z.ZodType> {
@@ -177,7 +184,9 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
     const salvageInput =
       outcome.parsed !== undefined ? outcome.parsed : tryJsonParse(raw);
     const salvaged =
-      (outcome.parsed !== undefined || raw !== "") && args.salvageFields?.length
+      (outcome.parsed !== undefined || raw !== "") &&
+      args.salvageFields?.length &&
+      outcome.salvageable !== false
         ? salvageDroppableEnums(
             salvageInput,
             args.schema,

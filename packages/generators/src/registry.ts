@@ -3,6 +3,7 @@ import { z } from "zod/v4";
 import type { Result, ValueOf } from "types";
 import { ClaudeCodeGenerator } from "./claudeCode";
 import { CodexGenerator, CODEX_PROBE } from "./codex";
+import { createOpenAiCore } from "./openai";
 import { configError, type ConfigError } from "./errors";
 import { AnthropicGenerator, type Generator, type Logger } from "./generator";
 import { probeHarnessCli } from "./harness";
@@ -132,6 +133,24 @@ const codexOptions = z
 
 const DEFAULT_CODEX_COMMAND = "codex";
 
+const DEFAULT_OPENAI_KEY_ENV = "OPENAI_API_KEY";
+
+const openaiOptions = z
+  .object({
+    provider: z.literal(Providers.OPENAI),
+    /** Model id — REQUIRED: there is no honest universal default here. */
+    model: z.string().min(1),
+    /** NAME of the env var holding the key (BYOK-by-env-name). */
+    apiKeyEnv: z.string().min(1).optional(),
+    /**
+     * OpenAI-compatible server escape hatch. When set, the /models
+     * preflight downgrades to warnings (self-hosted servers may not
+     * implement it).
+     */
+    baseUrl: z.string().url().optional(),
+  })
+  .strict();
+
 export const GENERATOR_REGISTRY = {
   [Providers.ANTHROPIC]: defineEntry({
     options: anthropicOptions,
@@ -206,6 +225,24 @@ export const GENERATOR_REGISTRY = {
       };
     },
   }),
+  [Providers.OPENAI]: defineEntry({
+    options: openaiOptions,
+    create: async (options, deps) => {
+      const key = resolveApiKey(
+        deps.env,
+        options.apiKeyEnv ?? DEFAULT_OPENAI_KEY_ENV,
+      );
+      if (!key.ok) return key;
+      return createOpenAiCore({
+        apiKey: key.value,
+        model: options.model,
+        failureDir: deps.failureDir,
+        baseUrl: options.baseUrl,
+        provider: Providers.OPENAI,
+        log: deps.log,
+      });
+    },
+  }),
 } as const;
 
 /**
@@ -217,6 +254,7 @@ export const GeneratorConfigSchema = z.discriminatedUnion("provider", [
   GENERATOR_REGISTRY[Providers.ANTHROPIC].options,
   GENERATOR_REGISTRY[Providers.CLAUDE_CODE].options,
   GENERATOR_REGISTRY[Providers.CODEX].options,
+  GENERATOR_REGISTRY[Providers.OPENAI].options,
 ]);
 export type GeneratorConfig = z.infer<typeof GeneratorConfigSchema>;
 
@@ -310,5 +348,7 @@ export async function createGenerator(
       return GENERATOR_REGISTRY[Providers.CLAUDE_CODE].create(parsed.data, deps);
     case Providers.CODEX:
       return GENERATOR_REGISTRY[Providers.CODEX].create(parsed.data, deps);
+    case Providers.OPENAI:
+      return GENERATOR_REGISTRY[Providers.OPENAI].create(parsed.data, deps);
   }
 }

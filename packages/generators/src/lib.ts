@@ -29,6 +29,19 @@ export {
 } from "./claudeCode";
 export { CodexGenerator, type CodexGeneratorOptions } from "./codex";
 export {
+  classifyOpenAiError,
+  OpenAiCompatibleCore,
+  type OpenAiChatRequest,
+  type OpenAiChatTransport,
+  type OpenAiCompatibleCoreOptions,
+  type OpenAiStreamChunk,
+} from "./openaiCore";
+export {
+  createOpenAiCore,
+  sdkTransport,
+  type OpenAiAssemblyOptions,
+} from "./openai";
+export {
   DEFAULT_HARNESS_TIMEOUTS,
   harnessTimeoutError,
   probeHarnessCli,
