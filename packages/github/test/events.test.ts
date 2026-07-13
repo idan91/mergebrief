@@ -15,7 +15,7 @@ import {
   PullRequestAction,
   type EventParseError,
   type ParsedWebhookEvent,
-} from "../src/events";
+} from "../src/webhook/events";
 import type { Result } from "../src/types";
 
 function jsonFixture(name: string): unknown {

@@ -4,7 +4,7 @@
 // (AGENTS.md invariant). The verified subject is the RAW request-body string:
 // callers MUST pass the exact bytes GitHub signed, before any JSON re-encode.
 import { verify } from "@octokit/webhooks-methods";
-import type { Result, ValueOf } from "./types";
+import type { Result, ValueOf } from "../types";
 
 export const WebhookVerifyErrorCode = {
   MISSING_SIGNATURE: "missing-signature",

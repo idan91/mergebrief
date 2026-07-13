@@ -28,9 +28,9 @@ import {
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
-} from "./errors";
-import { isInstallationId, isReviewerId } from "./ids";
-import type { Result, ValueOf } from "./types";
+} from "../errors";
+import { isInstallationId, isReviewerId } from "../ids";
+import type { Result, ValueOf } from "../types";
 
 // ---------------------------------------------------------------------------
 // The github-app-typed OAuth client. Typing it with `Options<"github-app">`

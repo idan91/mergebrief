@@ -12,7 +12,7 @@ import {
   refreshUserToken,
   OAuthErrorCode,
   type GitHubOAuthApp,
-} from "../src/oauth";
+} from "../src/auth/oauth";
 import { GitHubApiErrorCode } from "../src/errors";
 
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_VALUE";

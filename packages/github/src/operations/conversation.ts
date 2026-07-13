@@ -13,9 +13,9 @@ import {
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
-} from "./errors";
+} from "../errors";
 import { ReviewCommentSide } from "./review";
-import type { Result, ValueOf } from "./types";
+import type { Result, ValueOf } from "../types";
 
 /** GitHub wire values for a review thread's subject (line-anchored or file-level). */
 export const ThreadSubjectType = {

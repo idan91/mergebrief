@@ -17,8 +17,8 @@ import {
   positiveBigIntSchema,
   repoIdSchema,
   reviewerIdSchema,
-} from "./ids";
-import type { Result, ValueOf } from "./types";
+} from "../ids";
+import type { Result, ValueOf } from "../types";
 
 // ---------------------------------------------------------------------------
 // Closed vocabularies (kebab-case values; SHOUT_CASE keys).

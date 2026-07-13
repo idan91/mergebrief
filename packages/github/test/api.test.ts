@@ -4,16 +4,16 @@
 // fetch maps to a sanitized Result error that leaks NO token/header/body.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
-import { deleteComment, postEntryComment } from "../src/comments";
+import { deleteComment, postEntryComment } from "../src/operations/comments";
 import { GitHubApiErrorCode } from "../src/errors";
-import { fetchPullRequest, fetchPullRequestFiles, fetchDiff, fetchCompareDiff } from "../src/pull-request";
+import { fetchPullRequest, fetchPullRequestFiles, fetchDiff, fetchCompareDiff } from "../src/operations/pull-request";
 import {
   createPullRequestReview,
   ReviewCommentSide,
   ReviewEvent,
   ReviewValidationClass,
-} from "../src/review";
-import { fetchRepositoryById, listInstallationRepositoriesForUser } from "../src/repo";
+} from "../src/operations/review";
+import { fetchRepositoryById, listInstallationRepositoriesForUser } from "../src/operations/repo";
 import { isInstallationId, isRepoId } from "../src/ids";
 
 // A leaked auth header/token must never surface in a sanitized error. We plant

@@ -12,9 +12,9 @@ import {
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
-} from "./errors";
-import { repoIdSchema } from "./ids";
-import type { Result } from "./types";
+} from "../errors";
+import { repoIdSchema } from "../ids";
+import type { Result } from "../types";
 
 export interface RepositoryInfo {
   readonly repoId: RepoId;

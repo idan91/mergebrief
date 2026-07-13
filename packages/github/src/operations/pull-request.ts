@@ -7,8 +7,8 @@ import {
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
-} from "./errors";
-import type { Result } from "./types";
+} from "../errors";
+import type { Result } from "../types";
 
 export interface PullRequestRef {
   readonly owner: string;

@@ -1,10 +1,12 @@
-// Package entry point — the whole public surface (BRIEF-2 stage 1). Mirrors
-// `packages/persistence/src/lib.ts`'s documented-export style: named exports
-// only, grouped by concern.
+// ENTRY POINT — the package's ONLY export (`package.json` `exports["."]`).
+// Everything importable from `"github"` is re-exported here, grouped by the
+// folder it lives in. Map: `AGENTS.md`.
+
+// --- root — cross-cutting plumbing ------------------------------------------
 
 // Local `Result`/`ValueOf` — this package does not import them from
 // `persistence` at runtime (type-only imports of branded ids are the sole
-// exception; see `app-auth.ts`).
+// exception; see `auth/app.ts`).
 export type { Result, ValueOf } from "./types";
 
 // GitHub client env config (Zod-parsed; injectable env — never reads
@@ -12,71 +14,18 @@ export type { Result, ValueOf } from "./types";
 export { loadConfig, ConfigErrorCode } from "./config";
 export type { GitHubConfig, ConfigError } from "./config";
 
+// Shared sanitized API-error shape (single sanitization chokepoint; GraphQL
+// failures map through the `mapGraphqlError` taxonomy sibling).
+export { GitHubApiErrorCode } from "./errors";
+export type { GitHubApiError } from "./errors";
+
+// --- auth/ — how a client gets CONSTRUCTED + AUTHENTICATED ------------------
+
 // GitHub App authentication: App-JWT client + installation-scoped Octokit
 // minting. JWT signing and installation-token minting/caching are owned by
 // octokit's `App` class, not hand-rolled here.
-export { createAppClient, getInstallationClient } from "./app-auth";
-export type { AppClient } from "./app-auth";
-
-// Webhook HMAC verification (constant-time, via `@octokit/webhooks-methods` —
-// not hand-rolled). Verifies the RAW body against `x-hub-signature-256`.
-export { verifyWebhookSignature, WebhookVerifyErrorCode } from "./webhook";
-export type {
-  VerifyWebhookSignatureInput,
-  WebhookVerifyError,
-} from "./webhook";
-
-// Webhook event parsing: Zod-validated, branded, discriminated `ParsedWebhookEvent`.
-export {
-  parseWebhookEvent,
-  ParsedWebhookEventKind,
-  PullRequestAction,
-  InstallationAction,
-  InstallationRepositoriesAction,
-  EventParseErrorCode,
-} from "./events";
-export type {
-  ParseWebhookEventInput,
-  ParsedWebhookEvent,
-  ParsedPullRequestEvent,
-  ParsedPullRequestReviewEvent,
-  ParsedInstallationEvent,
-  ParsedInstallationRepositoriesEvent,
-  IgnoredWebhookEvent,
-  EventParseError,
-} from "./events";
-
-// GitHub REST primitives: Entry-comment ops, repo lookup, PR + diff fetch.
-export { postEntryComment, deleteComment } from "./comments";
-export type { PostEntryCommentInput, DeleteCommentInput } from "./comments";
-export { fetchRepositoryById, listInstallationRepositoriesForUser } from "./repo";
-export type { RepositoryInfo } from "./repo";
-export {
-  fetchPullRequest,
-  fetchPullRequestFiles,
-  fetchDiff,
-  fetchCompareDiff,
-} from "./pull-request";
-export type {
-  PullRequestRef,
-  PullRequestInfo,
-  PullRequestFile,
-  CompareDiffRef,
-} from "./pull-request";
-
-// Review-submit primitive (BRIEF-23): one grouped formal review, pinned to
-// the reviewed commit; 422s carry a best-effort validation class.
-export {
-  createPullRequestReview,
-  ReviewEvent,
-  ReviewCommentSide,
-  ReviewValidationClass,
-} from "./review";
-export type {
-  CreatePullRequestReviewInput,
-  ReviewCommentInput,
-  CreateReviewError,
-} from "./review";
+export { createAppClient, getInstallationClient } from "./auth/app";
+export type { AppClient } from "./auth/app";
 
 // Reviewer OAuth (user-to-server) helpers (BRIEF-2 stage 6, PR C): web-flow
 // URL, code exchange, token refresh, and the two user-token REST reads the
@@ -91,8 +40,72 @@ export {
   listUserInstallations,
   createUserOctokit,
   OAuthErrorCode,
-} from "./oauth";
-export type { GitHubOAuthApp, OAuthTokens, OAuthError, UserInstallation } from "./oauth";
+} from "./auth/oauth";
+export type { GitHubOAuthApp, OAuthTokens, OAuthError, UserInstallation } from "./auth/oauth";
+
+// --- webhook/ — what GitHub PUSHES at us -------------------------------------
+
+// Webhook HMAC verification (constant-time, via `@octokit/webhooks-methods` —
+// not hand-rolled). Verifies the RAW body against `x-hub-signature-256`.
+export { verifyWebhookSignature, WebhookVerifyErrorCode } from "./webhook/verify";
+export type {
+  VerifyWebhookSignatureInput,
+  WebhookVerifyError,
+} from "./webhook/verify";
+
+// Webhook event parsing: Zod-validated, branded, discriminated `ParsedWebhookEvent`.
+export {
+  parseWebhookEvent,
+  ParsedWebhookEventKind,
+  PullRequestAction,
+  InstallationAction,
+  InstallationRepositoriesAction,
+  EventParseErrorCode,
+} from "./webhook/events";
+export type {
+  ParseWebhookEventInput,
+  ParsedWebhookEvent,
+  ParsedPullRequestEvent,
+  ParsedPullRequestReviewEvent,
+  ParsedInstallationEvent,
+  ParsedInstallationRepositoriesEvent,
+  IgnoredWebhookEvent,
+  EventParseError,
+} from "./webhook/events";
+
+// --- operations/ — what we CALL on GitHub (REST + GraphQL) -------------------
+
+// GitHub REST primitives: Entry-comment ops, repo lookup, PR + diff fetch.
+export { postEntryComment, deleteComment } from "./operations/comments";
+export type { PostEntryCommentInput, DeleteCommentInput } from "./operations/comments";
+export { fetchRepositoryById, listInstallationRepositoriesForUser } from "./operations/repo";
+export type { RepositoryInfo } from "./operations/repo";
+export {
+  fetchPullRequest,
+  fetchPullRequestFiles,
+  fetchDiff,
+  fetchCompareDiff,
+} from "./operations/pull-request";
+export type {
+  PullRequestRef,
+  PullRequestInfo,
+  PullRequestFile,
+  CompareDiffRef,
+} from "./operations/pull-request";
+
+// Review-submit primitive (BRIEF-23): one grouped formal review, pinned to
+// the reviewed commit; 422s carry a best-effort validation class.
+export {
+  createPullRequestReview,
+  ReviewEvent,
+  ReviewCommentSide,
+  ReviewValidationClass,
+} from "./operations/review";
+export type {
+  CreatePullRequestReviewInput,
+  ReviewCommentInput,
+  CreateReviewError,
+} from "./operations/review";
 
 // PR-conversation primitive (BRIEF-25, ADR 0027): the package's first GraphQL
 // surface — pre-threaded review threads with first-class resolution state,
@@ -103,7 +116,7 @@ export {
   createReviewCommentReply,
   ThreadSubjectType,
   ReviewVerdictState,
-} from "./conversation";
+} from "./operations/conversation";
 export type {
   FetchPullRequestConversationInput,
   CreateReviewCommentReplyInput,
@@ -113,9 +126,4 @@ export type {
   ConversationReview,
   ConversationAuthor,
   PrComment,
-} from "./conversation";
-
-// Shared sanitized API-error shape (single sanitization chokepoint; GraphQL
-// failures map through the `mapGraphqlError` taxonomy sibling).
-export { GitHubApiErrorCode } from "./errors";
-export type { GitHubApiError } from "./errors";
+} from "./operations/conversation";

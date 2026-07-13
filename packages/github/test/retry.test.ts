@@ -4,8 +4,8 @@
 // `createUserOctokit` construction with an injected fetch counting calls.
 import { describe, expect, it, vi } from "vitest";
 import { Octokit } from "octokit";
-import { DO_NOT_RETRY_STATUSES, retryOptions } from "../src/retry";
-import { fetchDiff } from "../src/pull-request";
+import { DO_NOT_RETRY_STATUSES, retryOptions } from "../src/auth/retry";
+import { fetchDiff } from "../src/operations/pull-request";
 
 function countingFetch(status: number) {
   return vi.fn(async () => new Response(JSON.stringify({ message: "nope" }), {

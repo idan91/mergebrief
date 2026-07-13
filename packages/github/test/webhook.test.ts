@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   verifyWebhookSignature,
   WebhookVerifyErrorCode,
-} from "../src/webhook";
+} from "../src/webhook/verify";
 
 const SECRET = "it's a secret to everybody";
 const PAYLOAD = JSON.stringify({ action: "opened", number: 7 });

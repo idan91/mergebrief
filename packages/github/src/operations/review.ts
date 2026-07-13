@@ -13,8 +13,8 @@ import {
   mapRequestError,
   unexpectedResponseError,
   type GitHubApiError,
-} from "./errors";
-import type { Result, ValueOf } from "./types";
+} from "../errors";
+import type { Result, ValueOf } from "../types";
 
 /**
  * GitHub wire values for the review `event` (like `HANDLED_EVENT_NAMES`,

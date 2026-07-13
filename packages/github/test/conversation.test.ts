@@ -6,7 +6,7 @@
 // tier — a GraphQL failure is the section's error state).
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
-import { createReviewCommentReply, fetchPullRequestConversation } from "../src/conversation";
+import { createReviewCommentReply, fetchPullRequestConversation } from "../src/operations/conversation";
 import { GitHubApiErrorCode } from "../src/errors";
 import {
   conversationResponse,

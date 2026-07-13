@@ -4,7 +4,7 @@
 // internally — this module never hand-rolls either.
 import { App, Octokit } from "octokit";
 import type { InstallationId } from "persistence";
-import type { GitHubConfig } from "./config";
+import type { GitHubConfig } from "../config";
 import { retryOptions } from "./retry";
 
 /**

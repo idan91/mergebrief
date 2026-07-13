@@ -1,17 +1,44 @@
 # packages/github — agent notes
 
-The GitHub client package for BRIEF-2 (PR A/B/C). This PR (PR A) ships, across
-stages: the package scaffold + Zod-parsed env config + GitHub App
-authentication (App-JWT client construction and installation-scoped Octokit
-minting via `octokit`'s `App` class); and, in stage 2, the typed webhook +
-REST **primitives** — webhook HMAC verification, Zod-validated webhook event
-parsing (a branded, discriminated `ParsedWebhookEvent`), Entry-comment
-post/delete ops, and repo/PR/diff fetch. All API failures funnel through the
-single sanitization chokepoint in `src/errors.ts` (`mapRequestError`).
+The GitHub client package (BRIEF-2 onward): Zod-parsed env config, GitHub
+App + reviewer-OAuth authentication, typed webhook verification/parsing, and
+the REST + GraphQL **primitives** the rest of the system composes
+(Entry-comment ops, repo/PR/diff fetch, review submit, the conversation
+primitive). All API failures funnel through the single sanitization
+chokepoint in `src/errors.ts` (`mapRequestError` / `mapGraphqlError`).
 
 Deliberately NOT here: the event→state mapping / enqueue / tenant writes
-(stage 4, a different package composes these primitives) and the reviewer
-OAuth flow (PR C).
+(stage 4, a different package composes these primitives).
+
+## Map
+
+**Entry point: `src/lib.ts`** — the package's only export
+(`package.json` `exports["."]`); every public symbol is re-exported there,
+grouped by folder. Start reading there.
+
+```
+src/
+  lib.ts              ENTRY — sectioned re-exports = the public surface
+  types.ts            Result/ValueOf re-export (zero-runtime `types` pkg)
+  config.ts           Zod env config (App creds, webhook secret, OAuth client)
+  errors.ts           single sanitization chokepoint (mapRequestError +
+                      mapGraphqlError taxonomy)
+  ids.ts              branded-id guards where GitHub numbers enter
+  auth/               how a client gets CONSTRUCTED + AUTHENTICATED
+    app.ts              App-JWT client + installation-scoped Octokit minting
+    oauth.ts            reviewer OAuth (user-to-server) web flow + refresh
+    retry.ts            retry tuning for every Octokit constructed here
+  webhook/            what GitHub PUSHES at us
+    verify.ts           HMAC verification (raw body, constant-time)
+    events.ts           Zod-parsed discriminated ParsedWebhookEvent
+  operations/         what we CALL on GitHub (REST + GraphQL)
+    comments.ts         Entry-comment post/delete
+    repo.ts             repo lookup + installation-repo listing
+    pull-request.ts     PR + files + diff/compare fetch
+    review.ts           grouped formal review submit (BRIEF-23)
+    conversation.ts     GraphQL conversation primitive (BRIEF-25)
+test/                 per-module suites; fixtures/ = sanitized webhook payloads
+```
 
 ## Invariants (enforced, don't weaken)
 
@@ -63,7 +90,7 @@ OAuth flow (PR C).
   per reviewer per commit are allowed.
 - **422 bodies are unstable**: the discriminating signal sometimes lives
   ONLY in the top-level `message` with an empty `errors` array — a
-  classifier must scan both (`src/review.ts`), and classification stays
+  classifier must scan both (`src/operations/review.ts`), and classification stays
   best-effort (no stable machine-readable discriminator exists).
 - A force-pushed-away `commit_id` normally still posts, with comments
   rendered "outdated" (assumed from docs — smoke item).
