@@ -13,7 +13,7 @@ import {
 } from "categorizer";
 import {
   createGenerator,
-  defaultGeneratorConfig,
+  loadGeneratorConfig,
   type Generator,
 } from "generators";
 
@@ -69,9 +69,17 @@ let sharedGenerator: Promise<Generator> | undefined;
  */
 function sharedGeneratorOnce(): Promise<Generator> {
   sharedGenerator ??= (async () => {
-    // Uniform construction error (BRIEF-11): issues name env VARS only,
-    // so the message is safe for the browser like MissingApiKeyError was.
-    const result = await createGenerator(defaultGeneratorConfig, {
+    // Instance config (BRIEF-11 decision 6): MERGEBRIEF_CONFIG →
+    // mergebrief.config.yaml, else zero-config defaults. The web dogfood
+    // follows the same fail-fast rule as the worker; issues name env vars
+    // and config fields only, so the message is browser-safe.
+    const loaded = loadGeneratorConfig(process.env);
+    if (!loaded.ok) {
+      throw new GeneratorConfigurationError(
+        `${loaded.error.issues.join("; ")} — fix mergebrief.config.yaml (or unset MERGEBRIEF_CONFIG for defaults).`,
+      );
+    }
+    const result = await createGenerator(loaded.value.generator, {
       env: process.env,
       failureDir: "out",
     });

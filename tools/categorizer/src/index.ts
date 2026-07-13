@@ -15,7 +15,13 @@ import {
   type ReviewComment,
 } from "./github";
 import { categorize, categorizeRevisionNarrative, warnIssues } from "./categorize";
-import { createGenerator, defaultGeneratorConfig, type Generator } from "generators";
+import {
+  createGenerator,
+  defaultGeneratorConfig,
+  loadGeneratorConfigFile,
+  type Generator,
+} from "generators";
+import { extractConfigFlag } from "./cliConfig";
 import { splitDiffByFile } from "./diff";
 import { assignBriefIndex, lookupBriefShaByIndex } from "./manifest";
 import { countChangedLines, type RevisionChanges } from "./revchanges";
@@ -321,19 +327,29 @@ function parseArgs(
 }
 
 async function main(): Promise<void> {
-  const parsed = parseArgs(process.argv.slice(2));
-  if (!parsed) {
+  const flagged = extractConfigFlag(process.argv.slice(2));
+  const parsed = flagged ? parseArgs(flagged.rest) : null;
+  if (!flagged || !parsed) {
     console.error(
-      "usage: pnpm categorize <pr-url> [<pr-url> …]\n" +
-        "       pnpm categorize <pr-url> <base-sha> <head-sha>   (brief over an explicit span)",
+      "usage: pnpm categorize [--config <mergebrief.config.yaml>] <pr-url> [<pr-url> …]\n" +
+        "       pnpm categorize [--config <path>] <pr-url> <base-sha> <head-sha>   (explicit span)",
     );
     process.exit(1);
   }
 
   loadEnv();
-  // Zero-config default through the registry seam (BRIEF-11): anthropic +
-  // ANTHROPIC_API_KEY + Opus 4.8. Boot refuses loudly on misconfiguration.
-  const constructed = await createGenerator(defaultGeneratorConfig, {
+  // Explicit --config only (no ambient MERGEBRIEF_CONFIG here); absent →
+  // zero-config default (anthropic + ANTHROPIC_API_KEY + Opus 4.8). This
+  // path doubles as the fast config validator: a bad file refuses loudly.
+  const loaded =
+    flagged.configPath !== null
+      ? loadGeneratorConfigFile(flagged.configPath)
+      : { ok: true as const, value: { generator: defaultGeneratorConfig } };
+  if (!loaded.ok) {
+    console.error(loaded.error.issues.join("; "));
+    process.exit(1);
+  }
+  const constructed = await createGenerator(loaded.value.generator, {
     env: process.env,
     failureDir: OUT_DIR,
   });

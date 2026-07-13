@@ -10,7 +10,13 @@ import {
   resolveFullSha,
 } from "./github";
 import { categorizeDelta } from "./categorize";
-import { createGenerator, defaultGeneratorConfig, type Generator } from "generators";
+import {
+  createGenerator,
+  defaultGeneratorConfig,
+  loadGeneratorConfigFile,
+  type Generator,
+} from "generators";
+import { extractConfigFlag } from "./cliConfig";
 import { splitDiffByFile } from "./diff";
 import { lookupBriefIndex } from "./manifest";
 import { buildComparisonMarks, writeComparisonMarks } from "./comparison";
@@ -120,15 +126,27 @@ export async function generateAndWriteDelta(
 }
 
 async function main(): Promise<void> {
-  const [url, baselineSha, headSha] = process.argv.slice(2);
-  if (!url || !baselineSha || !headSha) {
-    console.error("usage: pnpm delta <pr-url> <baseline-sha> <head-sha>");
+  const flagged = extractConfigFlag(process.argv.slice(2));
+  const [url, baselineSha, headSha] = flagged ? flagged.rest : [];
+  if (!flagged || !url || !baselineSha || !headSha) {
+    console.error(
+      "usage: pnpm delta [--config <mergebrief.config.yaml>] <pr-url> <baseline-sha> <head-sha>",
+    );
     process.exit(1);
   }
 
   loadEnv();
-  // Zero-config default through the registry seam (BRIEF-11).
-  const constructed = await createGenerator(defaultGeneratorConfig, {
+  // Explicit --config only (no ambient MERGEBRIEF_CONFIG); absent →
+  // zero-config default through the registry seam (BRIEF-11).
+  const loaded =
+    flagged.configPath !== null
+      ? loadGeneratorConfigFile(flagged.configPath)
+      : { ok: true as const, value: { generator: defaultGeneratorConfig } };
+  if (!loaded.ok) {
+    console.error(loaded.error.issues.join("; "));
+    process.exit(1);
+  }
+  const constructed = await createGenerator(loaded.value.generator, {
     env: process.env,
     failureDir: OUT_DIR,
   });

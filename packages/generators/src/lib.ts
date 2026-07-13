@@ -17,6 +17,7 @@ export {
   GENERATOR_REGISTRY,
   GeneratorConfigSchema,
   Providers,
+  validateGeneratorConfig,
   type ConfigError,
   type CreateGeneratorDeps,
   type GeneratorConfig,
@@ -45,6 +46,11 @@ export {
   createOpenRouterCore,
   type OpenRouterAssemblyOptions,
 } from "./openrouter";
+export {
+  loadGeneratorConfig,
+  loadGeneratorConfigFile,
+  type LoadedGeneratorConfig,
+} from "./config";
 export {
   DEFAULT_HARNESS_TIMEOUTS,
   harnessTimeoutError,

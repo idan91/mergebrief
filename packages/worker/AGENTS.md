@@ -25,8 +25,10 @@ generation engine is `categorizer`, reused as-is behind its `Generator` port.
   generation failures) are marked `failed` and NOT rethrown; transient ones
   (429/5xx/network) are marked and rethrown so graphile owns retry/backoff.
 - **Env is injected** (`loadConfig(env)`); only `main.ts` reads
-  `process.env`. BYOK key resolves by env-var NAME (`GENERATOR_API_KEY_ENV`,
-  default `ANTHROPIC_API_KEY`) — never from DB or repo config (ADR 0013).
+  `process.env`. The generator block comes from the instance config
+  (`MERGEBRIEF_CONFIG` → `mergebrief.config.yaml`, else zero-config
+  defaults); BYOK keys resolve by env-var NAME (`generator.apiKeyEnv`) —
+  never from DB or repo config (ADR 0013/BRIEF-11).
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema
   (`startWorker`); the `graphile_worker` schema stays graphile-owned.
 

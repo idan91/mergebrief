@@ -1,21 +1,73 @@
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
 import { ConfigErrorCode, loadConfig } from "../src/config";
 
 const VALID_ENV = {
   DATABASE_URL: "postgres://user:pass@localhost:5432/db",
-  ANTHROPIC_API_KEY: "sk-ant-test",
   PUBLIC_BASE_URL: "https://brief.example",
 };
 
+const tempDirs: string[] = [];
+function configFile(contents: string): string {
+  const dir = mkdtempSync(join(tmpdir(), "worker-config-"));
+  tempDirs.push(dir);
+  const path = join(dir, "mergebrief.config.yaml");
+  writeFileSync(path, contents);
+  return path;
+}
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 describe("loadConfig", () => {
-  it("parses a valid env with the default key var", () => {
+  it("parses a valid env into the zero-config generator default", () => {
+    // Key presence is createGenerator's boot check now, not loadConfig's —
+    // the generator block just selects the adapter.
     const result = loadConfig(VALID_ENV);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.databaseUrl).toBe(VALID_ENV.DATABASE_URL);
-    expect(result.value.providerApiKeyEnv).toBe("ANTHROPIC_API_KEY");
-    expect(result.value.providerApiKey).toBe("sk-ant-test");
-    expect(result.value.publicBaseUrl).toBe("https://brief.example");
+    expect(result.value.generator).toEqual({ provider: "anthropic" });
+    expect(result.value.publicBaseUrl).toBe(VALID_ENV.PUBLIC_BASE_URL);
+  });
+
+  it("composes the instance config's generator block", () => {
+    const path = configFile(
+      "generator:\n  provider: anthropic\n  model: claude-sonnet-5\n",
+    );
+    const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.generator).toEqual({
+      provider: "anthropic",
+      model: "claude-sonnet-5",
+    });
+  });
+
+  it("refuses boot on a broken instance config with per-field issues", () => {
+    const path = configFile("generator:\n  provider: gemini\n");
+    const result = loadConfig({ ...VALID_ENV, MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join(";")).toContain("unknown provider");
+  });
+
+  it("refuses boot when the removed GENERATOR_API_KEY_ENV is still set", () => {
+    // Loud migration: a stale deployment believes it controls the key
+    // source — silently ignoring it would fall back to the default var.
+    const result = loadConfig({
+      ...VALID_ENV,
+      GENERATOR_API_KEY_ENV: "MY_PROVIDER_KEY",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const text = result.error.issues.join(";");
+    expect(text).toContain("GENERATOR_API_KEY_ENV: removed");
+    expect(text).toContain("generator.apiKeyEnv");
   });
 
   it("rejects a missing PUBLIC_BASE_URL (the Entry comment's deep-link base)", () => {
@@ -33,21 +85,8 @@ describe("loadConfig", () => {
     expect(result.error.issues.join(";")).toContain("PUBLIC_BASE_URL");
   });
 
-  it("resolves the key from a custom env-var name (BYOK by env-name)", () => {
-    const result = loadConfig({
-      DATABASE_URL: VALID_ENV.DATABASE_URL,
-      PUBLIC_BASE_URL: VALID_ENV.PUBLIC_BASE_URL,
-      GENERATOR_API_KEY_ENV: "MY_PROVIDER_KEY",
-      MY_PROVIDER_KEY: "byok-key",
-    });
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.providerApiKeyEnv).toBe("MY_PROVIDER_KEY");
-    expect(result.value.providerApiKey).toBe("byok-key");
-  });
-
   it("rejects a missing DATABASE_URL", () => {
-    const result = loadConfig({ ANTHROPIC_API_KEY: "sk-ant-test" });
+    const result = loadConfig({ PUBLIC_BASE_URL: VALID_ENV.PUBLIC_BASE_URL });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe(ConfigErrorCode.INVALID);
@@ -56,37 +95,16 @@ describe("loadConfig", () => {
 
   it("rejects a non-postgres DATABASE_URL", () => {
     const result = loadConfig({
+      ...VALID_ENV,
       DATABASE_URL: "mysql://localhost/db",
-      ANTHROPIC_API_KEY: "sk-ant-test",
     });
     expect(result.ok).toBe(false);
   });
 
-  it("rejects when the named key var is unset, naming the VARIABLE only", () => {
-    const result = loadConfig({
-      DATABASE_URL: VALID_ENV.DATABASE_URL,
-      GENERATOR_API_KEY_ENV: "MISSING_KEY_VAR",
-    });
+  it("collects issues from multiple surfaces at once", () => {
+    const result = loadConfig({ GENERATOR_API_KEY_ENV: "X" });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.issues.join(";")).toContain("MISSING_KEY_VAR");
-  });
-
-  it("rejects an empty key value without echoing any value", () => {
-    const result = loadConfig({
-      DATABASE_URL: VALID_ENV.DATABASE_URL,
-      ANTHROPIC_API_KEY: "",
-    });
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    // No secret material in the error surface.
-    expect(JSON.stringify(result.error)).not.toContain("pass");
-  });
-
-  it("collects issues from both fields at once", () => {
-    const result = loadConfig({});
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error.issues.length).toBeGreaterThanOrEqual(2);
+    expect(result.error.issues.length).toBeGreaterThanOrEqual(3);
   });
 });

@@ -46,12 +46,14 @@ async function main(): Promise<void> {
   }
 
   // Generator construction goes through the registry seam (BRIEF-11): the
-  // key still resolves by env-var NAME (GENERATOR_API_KEY_ENV stays
-  // functional until the instance-config PR replaces it).
-  const generator = await createGenerator(
-    { provider: "anthropic", apiKeyEnv: config.value.providerApiKeyEnv },
-    { env, failureDir: FAILURE_DUMP_DIR },
-  );
+  // instance config (or zero-config default) selects the adapter; keys
+  // resolve by env-var NAME and harness adapters run their boot probes here
+  // — a misconfigured instance refuses boot before taking jobs.
+  const generator = await createGenerator(config.value.generator, {
+    env,
+    failureDir: FAILURE_DUMP_DIR,
+    log: (message) => console.error(`[worker] ${message}`),
+  });
   if (!generator.ok) {
     throw new Error(
       `worker composition: invalid generator configuration — ${generator.error.issues.join("; ")}`,

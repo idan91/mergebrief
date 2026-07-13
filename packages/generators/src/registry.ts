@@ -370,6 +370,21 @@ function describeConfigIssues(error: z.ZodError, config: unknown): string[] {
 const CONFIG_KEY_TOKEN = /^[A-Za-z][A-Za-z-]{0,19}$/;
 
 /**
+ * Validate a config value against the registry-derived union WITHOUT
+ * constructing (the YAML loader's early gate; `createGenerator` re-runs the
+ * same validation so programmatic callers get identical errors).
+ */
+export function validateGeneratorConfig(
+  config: unknown,
+): Result<GeneratorConfig, ConfigError> {
+  const parsed = GeneratorConfigSchema.safeParse(config);
+  if (!parsed.success) {
+    return configError(describeConfigIssues(parsed.error, config));
+  }
+  return { ok: true, value: parsed.data };
+}
+
+/**
  * Validate a generator config and construct its adapter. Async because
  * harness entries run boot probes (`<cli> --version` + auth preflight) at
  * construction (PRs 4-6). Never throws for expected misconfiguration.

@@ -15,6 +15,7 @@
     "@anthropic-ai/sdk": "^0.104.1",
     "openai": "^6.46.0",
     "types": "workspace:*",
+    "yaml": "^2.9.0",
     "zod": "^3.25.0"
   },
   "devDependencies": {
