@@ -44,7 +44,7 @@ doesn't apply — several loaders distinguish unset from empty.
 | `SESSION_KEY_V1` | web | `openssl rand -base64 32` |
 | `PUBLIC_BASE_URL` | web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it |
 | `ANTHROPIC_API_KEY` | worker + web | your model key (BYOK — your spend; the zero-config default) |
-| `MERGEBRIEF_CONFIG` | worker + web | optional; path to `mergebrief.config.yaml` selecting another provider/model (its `generator.apiKeyEnv` names a different key var) |
+| `MERGEBRIEF_CONFIG` | worker + web | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker) |
 | `DATABASE_URL` | — | ignored in compose (overridden to the in-network DSN) |
 
 ## The lifecycle of a push

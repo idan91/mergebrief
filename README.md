@@ -72,6 +72,26 @@ same PR reuses it at no extra cost.
 Prefer the terminal? `tools/categorizer` exposes the same engine as a CLI —
 see [`tools/categorizer/README.md`](./tools/categorizer/README.md).
 
+## Generation backends (pick your model — or your subscription)
+
+Briefs generate through one of five interchangeable backends, all held to
+the same hard floor (schema-valid output or a loud failure): **Anthropic
+API** (the zero-config default; `claude-sonnet-5` is the documented cost
+knob), **OpenAI API**, **OpenRouter** (any slug with structured outputs),
+or — for the local dev loop — the **Claude Code** and **Codex CLIs**, which
+generate on the subscription you already pay for. One optional
+`mergebrief.config.yaml` selects the backend for the worker, the web app,
+and the categorizer CLIs alike (the `mergebrief` HTTP client below never
+constructs a generator).
+
+**The CLI backends are local-only in v1, deliberately.** Subscription auth
+for unattended/server use ranges from documented-but-discouraged (Codex) to
+explicitly reserved for individual usage with an enforcement precedent
+(Anthropic), and API-key mode erases the cost advantage that makes CLI
+backends attractive — so the deployed worker stays on API backends.
+Full config surface, per-provider notes, and the boundary reasoning:
+[`docs/self-host/generators.md`](./docs/self-host/generators.md).
+
 ## The CLI (humans + agents)
 
 The same review loop, scriptable: **`mergebrief`** ([packages/cli](packages/cli/README.md))
