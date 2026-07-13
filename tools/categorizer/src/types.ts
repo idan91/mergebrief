@@ -292,6 +292,12 @@ export const BriefSchema = z.object({
   generation: GenerationSchema.describe(
     "which provider/model/effort produced this brief. CLI-assigned.",
   ),
+  generationWarnings: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "warning lines the generation pipeline emitted (salvage, feedback retry, served-model mismatch). CLI-collected, never model-produced (BRIEF-11 UI surfacing).",
+    ),
   summary: z
     .string()
     .describe(
@@ -320,6 +326,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   index: true,
   commitRange: true,
   generation: true,
+  generationWarnings: true,
 });
 
 /**
@@ -365,6 +372,12 @@ export const DeltaBriefSchema = z.object({
   generation: GenerationSchema.describe(
     "which provider/model/effort produced this delta. CLI-assigned.",
   ),
+  generationWarnings: z
+    .array(z.string())
+    .optional()
+    .describe(
+      "warning lines the generation pipeline emitted. CLI-collected (BRIEF-11 UI surfacing).",
+    ),
   summary: z
     .string()
     .describe(
@@ -400,6 +413,7 @@ export const DeltaBriefGenerationSchema = DeltaBriefSchema.omit({
   baselineIndex: true,
   headIndex: true,
   generation: true,
+  generationWarnings: true,
 });
 
 /**

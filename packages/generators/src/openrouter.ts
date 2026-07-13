@@ -92,11 +92,13 @@ export async function createOpenRouterCore(
     requested: options.model,
     reasoningSupported,
     providerRouting: options.providerRouting,
-    onMismatch: (served) => {
+    onMismatch: (served, requestLog) => {
       // The served id is provider-reported (untrusted): render it through
       // the slug grammar so arbitrary text can't enter logs or the hook.
+      // The warning goes through the PER-REQUEST log so it reaches the
+      // caller's artifact-warning collection, not just the process log.
       const shown = MODEL_SLUG.test(served) ? served : "(unrecognized id)";
-      log(
+      (requestLog ?? log)(
         `warning: requested model ${options.model} but the stream reports ${shown} — provenance stamp stays the declaration`,
       );
       options.onModelMismatch?.(options.model, shown);
@@ -134,7 +136,7 @@ function openRouterTransport(
     requested: string;
     reasoningSupported: boolean;
     providerRouting: Record<string, unknown> | undefined;
-    onMismatch: (served: string) => void;
+    onMismatch: (served: string, requestLog: Logger | undefined) => void;
   },
 ): OpenAiChatTransport {
   return {
@@ -157,7 +159,9 @@ function openRouterTransport(
         wireBody,
         options.signal ? { signal: options.signal } : undefined,
       );
-      return verifyServedModel(stream, config.requested, config.onMismatch);
+      return verifyServedModel(stream, config.requested, (served) =>
+        config.onMismatch(served, options.log),
+      );
     },
   };
 }

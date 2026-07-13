@@ -61,7 +61,10 @@ export interface OpenAiChatRequest {
 export interface OpenAiChatTransport {
   streamChat(
     body: OpenAiChatRequest,
-    options: { signal?: AbortSignal },
+    /** `log` is the PER-REQUEST logger: warnings a wrapper emits through it
+     * reach the caller's collection surface (artifact warnings), not just
+     * the construction-time process log. */
+    options: { signal?: AbortSignal; log?: Logger },
   ): Promise<AsyncIterable<OpenAiStreamChunk>>;
 }
 
@@ -281,10 +284,13 @@ export class OpenAiCompatibleCore implements Generator {
       log(`…writing ${req.label} (${elapsed()}${size})`);
     }, 5000);
     try {
-      const stream = await this.transport.streamChat(
-        body,
-        req.signal ? { signal: req.signal } : {},
-      );
+      // The ORIGINAL optional req.log crosses the seam (not the normalized
+      // no-op): a wrapper's `requestLog ?? constructionLog` fallback must
+      // still fire for callers that gave no per-request logger.
+      const stream = await this.transport.streamChat(body, {
+        ...(req.signal ? { signal: req.signal } : {}),
+        ...(req.log ? { log: req.log } : {}),
+      });
       for await (const chunk of stream) {
         const choice = chunk.choices?.[0];
         if (!choice) continue;

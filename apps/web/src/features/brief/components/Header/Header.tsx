@@ -125,6 +125,16 @@ export function Header({
             · {artifactHeaderLabel(brief)}
             {meta ? ` · ${meta}` : ""}
           </div>
+          {brief.generationWarnings && brief.generationWarnings.length > 0 ? (
+            // What generation DID, not just that it finished (BRIEF-11):
+            // salvage, feedback retry, and served-model mismatch stay
+            // visible on the artifact they degraded.
+            <div className={styles["generationWarnings"]} role="note">
+              {[...new Set(brief.generationWarnings)].map((warning) => (
+                <div key={warning}>{warning}</div>
+              ))}
+            </div>
+          ) : null}
         </div>
         {/* The three progress facts read as ONE object — hairline-divided
             cells instead of three floating text blocks. */}
@@ -429,9 +439,30 @@ function briefMetaLine(brief: Brief): string {
   }
   if (brief.generation) {
     const g = brief.generation;
+    // Own-property only: the provider token comes from artifact data, and a
+    // plain index read would resolve inherited Object members ("toString").
+    const adapterClass = Object.hasOwn(PROVIDER_CLASS_LABEL, g.provider)
+      ? PROVIDER_CLASS_LABEL[g.provider]
+      : undefined;
     parts.push(
-      `via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`,
+      `via ${g.provider}${adapterClass ? ` (${adapterClass})` : ""}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`,
     );
   }
   return parts.join(" · ");
 }
+
+/**
+ * Adapter CLASS per provider token (BRIEF-11 / ADR 0030 #6): a harness-CLI
+ * run must be visibly distinct from an API/SDK run — the CLI owns routing
+ * and auth, so "claude-code" and "anthropic" are different trust shapes
+ * even when the same model served. Pinned to `Providers` in
+ * packages/generators/src/registry.ts (kept as plain data here — the
+ * header is client code and must not pull provider SDKs into the bundle).
+ */
+const PROVIDER_CLASS_LABEL: Record<string, string> = {
+  anthropic: "API",
+  openai: "API",
+  openrouter: "API",
+  "claude-code": "local CLI",
+  codex: "local CLI",
+};

@@ -84,6 +84,14 @@
     white-space: nowrap;
   }
 
+  // Generation warnings (BRIEF-11): quiet amber, one line per event —
+  // present only when the pipeline salvaged/retried/saw a model mismatch.
+  .generationWarnings {
+    color: var(--amber);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
   .ghlink {
     color: var(--dim);
     text-decoration: none;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { z } from "zod/v4";
 import { categorize } from "../src/categorize";
-import type { GenerateRequest, Generator } from "generators";
+import type { GenerateRequest, Generator, Logger } from "generators";
 import type { Effort, Generation } from "../src/types";
 import type { FetchedPr } from "../src/github";
 
@@ -134,5 +134,60 @@ describe("categorize — readingOrder pass-through", () => {
     );
     expect(brief.readingOrder).toBeUndefined();
     expect(logs.some((l) => l.includes("reading order"))).toBe(true);
+  });
+});
+
+/** Emits pipeline-shaped warning lines via the request log mid-generate. */
+class WarningGenerator extends FakeGenerator {
+  constructor(
+    fixture: unknown,
+    private readonly lines: string[],
+  ) {
+    super(fixture);
+  }
+
+  override async generate<S extends z.ZodType>(
+    req: GenerateRequest<S>,
+  ): Promise<z.infer<S>> {
+    const log: Logger = req.log ?? (() => {});
+    for (const line of this.lines) log(line);
+    return super.generate(req);
+  }
+}
+
+describe("categorize — generation warnings surfaced on the artifact (BRIEF-11)", () => {
+  it("collects salvage/mismatch warning lines into generationWarnings", async () => {
+    const brief = await categorize(
+      pr,
+      1,
+      commitRange,
+      new WarningGenerator(twoGroupBriefGen, [
+        "⚠ salvaged brief: dropped 1 invalid tags entry",
+        "warning: requested model m but modelUsage reports other — provenance stamp stays the declaration",
+        "thinking… (brief)", // progress noise — must NOT be collected
+        "note: could not remove temp dir /tmp/x", // operational — NOT collected
+      ]),
+    );
+    expect(brief.generationWarnings).toEqual([
+      "⚠ salvaged brief: dropped 1 invalid tags entry",
+      "warning: requested model m but modelUsage reports other — provenance stamp stays the declaration",
+    ]);
+  });
+
+  it("omits the field entirely on a clean generation", async () => {
+    const brief = await categorize(pr, 1, commitRange, new FakeGenerator(twoGroupBriefGen));
+    expect(brief.generationWarnings).toBeUndefined();
+    expect("generationWarnings" in brief).toBe(false);
+  });
+
+  it("includes warn-only validation issues (they degrade the artifact too)", async () => {
+    const fixture = {
+      ...twoGroupBriefGen,
+      readingOrder: [{ groupId: "g1", why: "half an order" }],
+    };
+    const brief = await categorize(pr, 1, commitRange, new FakeGenerator(fixture));
+    expect(
+      brief.generationWarnings?.some((line) => line.includes("reading order")),
+    ).toBe(true);
   });
 });

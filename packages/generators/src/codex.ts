@@ -147,7 +147,7 @@ export class CodexGenerator implements Generator {
       try {
         rmSync(workDir, { recursive: true, force: true });
       } catch {
-        log(`warning: could not remove temp dir ${workDir}`);
+        log(`note: could not remove temp dir ${workDir}`);
       }
     }
   }

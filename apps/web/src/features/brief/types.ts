@@ -197,6 +197,13 @@ export interface Brief {
   index?: number;
   commitRange?: CommitRange;
   generation?: Generation;
+  /**
+   * @description Warning lines the generation pipeline emitted (salvage,
+   * feedback retry, served-model mismatch) — CLI-collected (BRIEF-11).
+   * Rendered under the header meta line so a degraded generation is
+   * visible, not just finished.
+   */
+  generationWarnings?: string[];
   baselineSha?: string;
   headSha?: string;
   baselineIndex?: number | null;

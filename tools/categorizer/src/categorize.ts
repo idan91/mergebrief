@@ -113,6 +113,7 @@ export async function categorize(
 ): Promise<Brief> {
   // The model produces analysis only; pr / index / commitRange / generation are
   // CLI-owned metadata it cannot know, filled in here (ADR 0012/0013).
+  const collector = collectGenerationWarnings(log);
   const generated = await generator.generate({
     schema: BriefGenerationSchema,
     system: buildSystemPrompt(),
@@ -120,17 +121,17 @@ export async function categorize(
     effort: EFFORT,
     label: "brief",
     salvageFields: SALVAGE_FIELDS,
-    log,
+    log: collector.log,
   });
   const { readingOrder, ...rest } = generated;
   const readingOrderIssues = validateReadingOrder(readingOrder, generated.changeGroups);
-  warnIssues(readingOrderIssues, log, "reading order");
+  warnIssues(readingOrderIssues, collector.log, "reading order");
   const keepReadingOrder = readingOrder !== undefined && readingOrderIssues.length === 0;
 
   const trio = validateRiskAttributes(generated.chunks, splitDiffByFile(pr.diff));
-  warnIssues(trio.issues, log, "risk attrs");
+  warnIssues(trio.issues, collector.log, "risk attrs");
 
-  const brief: Brief = {
+  const partial = {
     ...rest,
     chunks: trio.chunks,
     ...(keepReadingOrder ? { readingOrder } : {}),
@@ -139,7 +140,12 @@ export async function categorize(
     commitRange,
     generation: generator.provenance(EFFORT),
   };
-  warnIssues(validatePartition(brief.changeGroups, brief.chunks), log);
+  warnIssues(validatePartition(partial.changeGroups, partial.chunks), collector.log);
+  const warnings = collector.warnings();
+  const brief: Brief = {
+    ...partial,
+    ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
+  };
   return brief;
 }
 
@@ -148,6 +154,29 @@ export function warnIssues(issues: string[], log: Logger, label = "partition"): 
   if (issues.length > 0) {
     log(`⚠ ${label} issues: ${issues.join("; ")}`);
   }
+}
+
+/**
+ * Tee warning lines off a Logger into an artifact-bound collection (BRIEF-11
+ * UI surfacing): salvage/retry lines from the schema floor (`⚠ …`) and
+ * adapter warnings (served-model mismatch, effort-knob gaps — `warning: …`)
+ * become part of the artifact so the UI can render what generation did,
+ * not just that it finished.
+ */
+export function collectGenerationWarnings(log: Logger): {
+  log: Logger;
+  warnings: () => string[];
+} {
+  const seen: string[] = [];
+  return {
+    log: (message) => {
+      if (message.startsWith("⚠") || message.startsWith("warning:")) {
+        seen.push(message);
+      }
+      log(message);
+    },
+    warnings: () => [...seen],
+  };
 }
 
 // --- Delta (delta core; per-reviewer carry-over is out of CLI scope) -------
@@ -225,6 +254,7 @@ export async function categorizeDelta(
 ): Promise<DeltaBrief> {
   // The model produces analysis only; identifiers + endpoint indices + generation
   // are CLI-owned (ADR 0012/0013), filled in here.
+  const collector = collectGenerationWarnings(log);
   const generated = await generator.generate({
     schema: DeltaBriefGenerationSchema,
     system: buildDeltaSystemPrompt(),
@@ -232,15 +262,15 @@ export async function categorizeDelta(
     effort: EFFORT,
     label: "delta",
     salvageFields: SALVAGE_FIELDS,
-    log,
+    log: collector.log,
   });
   const trio = validateRiskAttributes(
     generated.chunks,
     splitDiffByFile(input.incrementalDiff),
   );
-  warnIssues(trio.issues, log, "risk attrs");
+  warnIssues(trio.issues, collector.log, "risk attrs");
 
-  const delta: DeltaBrief = {
+  const partial = {
     ...generated,
     chunks: trio.chunks,
     pr: buildPrRef(input.locator, input.meta, input.meta.sha),
@@ -250,7 +280,12 @@ export async function categorizeDelta(
     headIndex: input.headIndex ?? null,
     generation: generator.provenance(EFFORT),
   };
-  warnIssues(validatePartition(delta.changedGroups, delta.chunks), log);
+  warnIssues(validatePartition(partial.changedGroups, partial.chunks), collector.log);
+  const warnings = collector.warnings();
+  const delta: DeltaBrief = {
+    ...partial,
+    ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
+  };
   return delta;
 }
 

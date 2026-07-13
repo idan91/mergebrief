@@ -100,7 +100,63 @@ describe("Header (BRIEF-28)", () => {
     expect(text).toContain("#7");
     expect(text).toContain("brief _3");
     expect(text).toContain("basebase..headhead, 2 commits");
-    expect(text).toContain("via anthropic/m-1 · effort high");
+    // BRIEF-11: the adapter CLASS is part of provenance — an API/SDK run
+    // reads differently from a harness-CLI run.
+    expect(text).toContain("via anthropic (API)/m-1 · effort high");
+  });
+
+  it("labels harness-CLI providers distinctly from API providers", () => {
+    renderHeader({
+      brief: {
+        ...brief,
+        generation: { provider: "claude-code", model: "m-1", effort: null },
+      },
+    });
+    const sub = screen.getByText(/local brief @ headabc/).closest("div");
+    expect(sub?.textContent).toContain("via claude-code (local CLI)/m-1");
+  });
+
+  it("renders an unknown provider token without a class label", () => {
+    renderHeader({
+      brief: {
+        ...brief,
+        generation: { provider: "fake", model: "m-1", effort: null },
+      },
+    });
+    const sub = screen.getByText(/local brief @ headabc/).closest("div");
+    expect(sub?.textContent).toContain("via fake/m-1");
+  });
+
+  it("treats inherited-object tokens as unknown (no bogus class label)", () => {
+    renderHeader({
+      brief: {
+        ...brief,
+        generation: { provider: "toString", model: "m-1", effort: null },
+      },
+    });
+    const sub = screen.getByText(/local brief @ headabc/).closest("div");
+    expect(sub?.textContent).toContain("via toString/m-1");
+    expect(sub?.textContent).not.toContain("via toString (");
+  });
+
+  it("surfaces generation warnings under the context line", () => {
+    renderHeader({
+      brief: {
+        ...brief,
+        generationWarnings: [
+          "⚠ salvaged brief: dropped 1 invalid tags entry",
+          "warning: requested model m-1 but modelUsage reports m-2 — provenance stamp stays the declaration",
+        ],
+      },
+    });
+    const note = screen.getByRole("note");
+    expect(note.textContent).toContain("salvaged brief");
+    expect(note.textContent).toContain("modelUsage reports m-2");
+  });
+
+  it("renders no warning block on a clean generation", () => {
+    renderHeader();
+    expect(screen.queryByRole("note")).toBeNull();
   });
 
   it("shows the progress facts", () => {

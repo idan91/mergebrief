@@ -204,23 +204,48 @@ describe("OpenRouter reasoning backstop", () => {
 });
 
 describe("OpenRouter served-model verification", () => {
-  it("fires the mismatch hook and keeps the stamp on a rerouted stream", async () => {
+  it("fires the mismatch hook and warns through the REQUEST log", async () => {
     const scripted = scriptedFetch(() =>
       new Response(sse('{"ok":true}', "other-lab/shadow-model"), {
         status: 200,
         headers: { "content-type": "text/event-stream" },
       }),
     );
-    const logs: string[] = [];
+    const assemblyLogs: string[] = [];
+    const requestLogs: string[] = [];
     const mismatches: Array<[string, string]> = [];
     const generator = await mustCore(scripted, {
-      log: (m) => logs.push(m),
+      log: (m) => assemblyLogs.push(m),
       onModelMismatch: (requested, served) => mismatches.push([requested, served]),
     });
-    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+    await expect(
+      generator.generate({ ...request(), log: (m) => requestLogs.push(m) }),
+    ).resolves.toEqual({ ok: true });
     expect(mismatches).toEqual([[SLUG, "other-lab/shadow-model"]]);
-    expect(logs.join("\n")).toContain("stream reports other-lab/shadow-model");
+    // The per-request log carries the warning — that is the caller's
+    // artifact-warning collection surface (BRIEF-11 UI surfacing); the
+    // construction-time log does NOT double-log it.
+    expect(requestLogs.join("\n")).toContain(
+      "warning: requested model test-lab/test-model-1 but the stream reports other-lab/shadow-model",
+    );
+    expect(assemblyLogs.join("\n")).not.toContain("stream reports");
     expect(generator.provenance("medium").model).toBe(SLUG);
+  });
+
+  it("falls back to the construction log when the caller gave no request log", async () => {
+    const scripted = scriptedFetch(() =>
+      new Response(sse('{"ok":true}', "other-lab/shadow-model"), {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      }),
+    );
+    const assemblyLogs: string[] = [];
+    const generator = await mustCore(scripted, {
+      log: (m) => assemblyLogs.push(m),
+    });
+    // No req.log: the mismatch warning must still reach SOME log.
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+    expect(assemblyLogs.join("\n")).toContain("stream reports other-lab/shadow-model");
   });
 
   it("stays quiet when the served model matches", async () => {

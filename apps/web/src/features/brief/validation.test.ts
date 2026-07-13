@@ -49,6 +49,36 @@ describe("parseBrief", () => {
     expect(parsed.value.chunks[0]?.changeGroupId).toBe("g1");
   });
 
+  it("carries generationWarnings through, dropping non-string entries", () => {
+    const parsed = parseBrief({
+      pr,
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+      generationWarnings: ["⚠ salvaged brief: dropped 1 entry", 42, null],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.generationWarnings).toEqual([
+      "⚠ salvaged brief: dropped 1 entry",
+    ]);
+  });
+
+  it("omits generationWarnings when absent or empty", () => {
+    const parsed = parseBrief({
+      pr,
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+      generationWarnings: [],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect("generationWarnings" in parsed.value).toBe(false);
+  });
+
   it("rejects pr urls that are not http(s)", () => {
     const parsed = parseBrief({
       pr: { ...pr, url: "javascript:alert(1)" },

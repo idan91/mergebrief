@@ -736,6 +736,13 @@ function parseGeneration(value: unknown): Generation | undefined {
   return { provider, model, effort: isString(effort) ? effort : null };
 }
 
+/** Defensive: keep string entries only; absent/invalid → undefined. */
+function parseGenerationWarnings(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const entries = value.filter(isString);
+  return entries.length > 0 ? entries : undefined;
+}
+
 export function parseBrief(value: unknown): Result<Brief> {
   if (!isRecord(value))
     return { ok: false, error: "Expected brief to be an object" };
@@ -762,6 +769,9 @@ export function parseBrief(value: unknown): Result<Brief> {
   const index = value["index"];
   const commitRange = parseCommitRange(value["commitRange"]);
   const generation = parseGeneration(value["generation"]);
+  const generationWarnings = parseGenerationWarnings(
+    value["generationWarnings"],
+  );
   const readingOrder = parseReadingOrder(
     value["readingOrder"],
     normalized.value.changeGroups.map((group) => group.id),
@@ -775,6 +785,7 @@ export function parseBrief(value: unknown): Result<Brief> {
       ...(isInteger(index) ? { index } : {}),
       ...(commitRange ? { commitRange } : {}),
       ...(generation ? { generation } : {}),
+      ...(generationWarnings ? { generationWarnings } : {}),
       ...(readingOrder ? { readingOrder } : {}),
       changeGroups: normalized.value.changeGroups,
       chunks: normalized.value.chunks,
@@ -837,6 +848,9 @@ export function parseDeltaBrief(value: unknown): Result<Brief> {
   const baselineIndex = value["baselineIndex"];
   const headIndex = value["headIndex"];
   const generation = parseGeneration(value["generation"]);
+  const generationWarnings = parseGenerationWarnings(
+    value["generationWarnings"],
+  );
   return {
     ok: true,
     value: {
@@ -847,6 +861,7 @@ export function parseDeltaBrief(value: unknown): Result<Brief> {
       ...(isNullableInteger(baselineIndex) ? { baselineIndex } : {}),
       ...(isNullableInteger(headIndex) ? { headIndex } : {}),
       ...(generation ? { generation } : {}),
+      ...(generationWarnings ? { generationWarnings } : {}),
       summary,
       commentsAddressed,
       ...(reviewComments !== undefined

@@ -60,6 +60,11 @@ export interface GenerateBriefEngine {
  */
 export class GeneratorConfigurationError extends Error {}
 
+/** Message only — never the object (cause chains print recursively). */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 let sharedGenerator: Promise<Generator> | undefined;
 
 /**
@@ -142,7 +147,12 @@ export async function generateBriefFromUrl(
   try {
     head = await engine.fetchHeadSha(locator);
   } catch (error) {
-    console.error("generateBriefFromUrl: failed to fetch PR metadata", error);
+    // Message-only logging (BRIEF-11 defense in depth): console.error on a
+    // full error object prints the CAUSE CHAIN recursively — provider text
+    // there may carry request contents. The worker already logs this way.
+    console.error(
+      `generateBriefFromUrl: failed to fetch PR metadata — ${errorMessage(error)}`,
+    );
     throw new Error(
       "Couldn't fetch this PR — is it public, and are you `gh auth login`'d?",
       { cause: error },
@@ -159,7 +169,9 @@ export async function generateBriefFromUrl(
       result = await engine.generate(url);
     } catch (error) {
       if (error instanceof GeneratorConfigurationError) throw error;
-      console.error("generateBriefFromUrl: generation failed", error);
+      console.error(
+        `generateBriefFromUrl: generation failed — ${errorMessage(error)}`,
+      );
       throw new Error(
         "Couldn't generate the brief for this PR — check the server logs and try again.",
         { cause: error },
