@@ -56,6 +56,17 @@ Reviewer surface:
 - [ ] Revisions timeline: walk briefed heads, thread-jump into
       conversation (BRIEF-24/25); "Your last review" enables only after a
       submitted checkpoint (BRIEF-21/23).
+- [ ] Outdated-thread jump specifics (folded from BRIEF-29; needs a real
+      multi-revision PR with outdated review threads):
+      - anchor sha IS a briefed revision → "Jump to revision" lands on
+        `?head=<anchor>&thread=<id>`, conversation open, target row
+        revealed even behind the show-more cap / inside collapsed bot
+        groups, and focused;
+      - anchor sha never briefed (common — debounce) → affordance disabled
+        with a reachable reason + GitHub permalink fallback, no
+        nearest-revision guessing;
+      - reduced-motion: landing snaps instead of smooth-scrolling.
+      Any defect becomes its own fix PR.
 - [ ] Review submit: comments post to GitHub, checkpoint written by the
       webhook (commit_id pinned, bots filtered), submitted comments go
       read-only locally, verdict spent on success (BRIEF-23/25).
