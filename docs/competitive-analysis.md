@@ -46,6 +46,26 @@ Snapshot: **2026-06-18.** Supersedes the preliminary scan in `docs/next-steps.md
 - **PR-Agent** (Qodo, **open-source, self-hostable**) — the closest to our *distribution* posture (full data isolation). Stateless.
 - **Korbit** — shut down 2025. **Ellipsis**, Panto, CodeAnt, Baz — minor / early.
 
+### Addendum (2026-07-14) — Unblocked risk policies
+
+**Unblocked** (getunblocked.com) added **risk assessment** to its Code Review Agent
+([docs](https://docs.getunblocked.com/code-review/risk-assessment)): user-defined policies in
+`.unblocked/risk-policies.yaml` (name + tier + **natural-language criteria**, ≤4k chars,
+evaluated by the model), five tiers, highest-match wins per PR — and **auto-approves at
+`low`/`lowest`**. Their pitch line is our thesis verbatim ("reviews are the bottleneck, not
+the code"); their conclusion is the opposite of ours — they *gate approval*, we *allocate
+attention*.
+
+- **Take:** repo-local user-defined policy file (→ custom risk-surface attributes layered on
+  our built-in library; board ticket filed 2026-07-14); natural-language criteria evaluated by
+  the model; the **default-branch trust rule** ("uses the policy from the default branch, not
+  policy changes proposed in the PR") as a standing invariant for any repo-local config we honor.
+- **Reject (positioning):** PR-level risk score (severity label — non-gap), auto-approve
+  (anti-thesis of receipt-not-approval, ADR 0002), highest-wins verdict aggregation. Their
+  tier examples (`auth-highest`, `DB-high`, `deps-medium`) are facts we already surface as
+  attributes (`touches-auth`, `mutates-state`, …) without the verdict.
+- **Watch:** include Unblocked in the quarterly re-scan going forward.
+
 ## 3. Favorability synthesis — the universal pain *is* our wedge
 
 The single most-repeated complaint across **every** tier: **false positives / noise.** Best-tuned tools sit at 5–15% FP; untuned LLM reviewers 40–80%. The failure mode is named explicitly in the literature: *"flags 100 issues, 70 wrong → devs hit dismiss reflexively → the tool becomes noise nobody reads."*
