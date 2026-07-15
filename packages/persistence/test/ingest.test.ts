@@ -231,4 +231,60 @@ describe("ingestRoutines.triggerGeneration", () => {
     expect(result.error.code).toBe("invalid-debounce");
     expect(await harness.raw("select id from pull_request")).toHaveLength(0);
   });
+
+  // recordState (BRIEF-43): the enqueue-free sibling — state-only events
+  // (converted_to_draft) persist PR fields WITHOUT touching the generation
+  // projection or scheduling work.
+  describe("recordState", () => {
+    it("upserts the PR row without a generation row or job", async () => {
+      const row = await ingestRoutines(harness.handle, CTX).recordState({
+        repoId: REPO_ID,
+        prNumber: 7,
+        repoSlug: "acme/widgets",
+        title: "feat: add widgets",
+        draft: true,
+        authorLogin: "author-octocat",
+        state: PrState.OPEN,
+      });
+      expect(row.draft).toBe(true);
+      expect(row.authorLogin).toBe("author-octocat");
+      expect(await harness.raw("select id from pull_request")).toHaveLength(1);
+      expect(await harness.raw("select id from generation")).toHaveLength(0);
+      expect(await harness.raw("select id from graphile_worker.jobs")).toHaveLength(0);
+    });
+
+    it("leaves an existing generation projection untouched", async () => {
+      unwrap(await trigger());
+      const before = await harness.raw("select status, attempts from generation");
+
+      await ingestRoutines(harness.handle, CTX).recordState({
+        repoId: REPO_ID,
+        prNumber: 7,
+        repoSlug: "acme/widgets",
+        draft: true,
+        state: PrState.OPEN,
+      });
+      const after = await harness.raw("select status, attempts from generation");
+      expect(after).toEqual(before);
+      // Still exactly the one job from the trigger — no new enqueue.
+      expect(await harness.raw("select id from graphile_worker.jobs")).toHaveLength(1);
+    });
+
+    it("preserves a terminal lifecycle (never resurrects a closed PR)", async () => {
+      unwrap(await trigger());
+      await closePr();
+
+      const row = await ingestRoutines(harness.handle, CTX).recordState({
+        repoId: REPO_ID,
+        prNumber: 7,
+        repoSlug: "acme/widgets",
+        draft: true,
+        state: PrState.OPEN,
+      });
+      expect(row.state).toBe(PrState.CLOSED);
+      expect(row.closedAt).not.toBeNull();
+      // The non-lifecycle fields still refreshed.
+      expect(row.draft).toBe(true);
+    });
+  });
 });

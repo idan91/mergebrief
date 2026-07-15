@@ -33,7 +33,14 @@ import {
   type TenantContext,
 } from "./tenant";
 import type { GenerateJobPayload } from "types";
-import { GenerationKind, GenerationStatus, PrState, type Result, type ValueOf } from "../types";
+import {
+  GenerationKind,
+  GenerationStatus,
+  PrState,
+  type InstallationId,
+  type Result,
+  type ValueOf,
+} from "../types";
 
 const DEFAULT_DEBOUNCE_SECONDS = 60;
 
@@ -61,6 +68,75 @@ export type IngestErrorCode = ValueOf<typeof IngestErrorCode>;
 export interface IngestError {
   readonly code: IngestErrorCode;
   readonly message: string;
+}
+
+// ---------------------------------------------------------------------------
+// The shared PR upsert.
+// ---------------------------------------------------------------------------
+
+/**
+ * The query surface the upsert needs — satisfied by both the unwrapped db and
+ * a transaction client, so `triggerGeneration` (inside its tx) and
+ * `recordState` (single statement, atomic on its own) share ONE upsert.
+ */
+type IngestExecutor = Pick<ReturnType<typeof internal>, "insert">;
+
+/**
+ * The terminal-preserving `pull_request` upsert (same values/onConflict shape
+ * as `tenant.ts#pullRequests.upsert`, installation stamped from ctx — D2b).
+ * With `preserveTerminal`, a `state: open` input landing on a closed/merged
+ * row keeps the stored terminal lifecycle (stale redeliveries and state-only
+ * events must never resurrect a terminal PR); non-lifecycle fields refresh
+ * either way, with omitted optionals preserving stored values.
+ */
+async function upsertPullRequestRow(
+  executor: IngestExecutor,
+  installationId: InstallationId,
+  input: PullRequestUpsertInput,
+  preserveTerminal: boolean,
+): Promise<PullRequestRow> {
+  const lifecycle = lifecycleColumns(input);
+  const rows = await executor
+    .insert(pullRequest)
+    .values({
+      installationId,
+      repoId: input.repoId,
+      prNumber: input.prNumber,
+      repoSlug: input.repoSlug,
+      title: input.title,
+      baseSha: input.baseSha,
+      draft: input.draft,
+      authorLogin: input.authorLogin,
+      ...lifecycle,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [pullRequest.installationId, pullRequest.repoId, pullRequest.prNumber],
+      set: {
+        repoSlug: input.repoSlug,
+        title: input.title,
+        // Omitted (review events) preserves the stored value.
+        ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
+        ...(input.draft === undefined ? {} : { draft: input.draft }),
+        ...(input.authorLogin === undefined ? {} : { authorLogin: input.authorLogin }),
+        state: preserveTerminal
+          ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.state} else ${lifecycle.state} end`
+          : lifecycle.state,
+        closedAt: preserveTerminal
+          ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.closedAt} else ${lifecycle.closedAt} end`
+          : lifecycle.closedAt,
+        purgeAfter: preserveTerminal
+          ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.purgeAfter} else ${lifecycle.purgeAfter} end`
+          : lifecycle.purgeAfter,
+        updatedAt: new Date(),
+      },
+    })
+    .returning();
+  const row = rows[0];
+  if (row === undefined) {
+    throw new Error("pull_request upsert returned no row");
+  }
+  return row;
 }
 
 // ---------------------------------------------------------------------------
@@ -103,6 +179,16 @@ export interface IngestRoutines {
    * for the idempotency contract.
    */
   triggerGeneration(input: TriggerGenerationInput): Promise<Result<IngestOutcome, IngestError>>;
+  /**
+   * Persist PR state fields through the SAME terminal-preserving upsert as
+   * `triggerGeneration` — WITHOUT touching the generation projection or
+   * enqueueing work. For state-only events (`converted_to_draft`, BRIEF-43)
+   * that carry no regen rationale: re-triggering the worker's skip-path is not
+   * a no-op (Entry-comment repost ping, compare-diff spend, phantom `queued`
+   * status, and a full LLM re-run if the head's last generation failed).
+   * Terminal lifecycles are always preserved (state-only events never reopen).
+   */
+  recordState(input: PullRequestUpsertInput): Promise<PullRequestRow>;
 }
 
 // ---------------------------------------------------------------------------
@@ -133,10 +219,7 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
       }
 
       return db.transaction(async (tx) => {
-        // 1. Upsert the `pull_request` aggregate root — same values/onConflict
-        // shape as `tenant.ts#pullRequests.upsert`, installation stamped from
-        // ctx (D2b).
-        const lifecycle = lifecycleColumns(input.pullRequest);
+        // 1. Upsert the `pull_request` aggregate root (shared helper).
         // Preserve a terminal lifecycle unless this is an explicit `reopened`.
         // A stale/late generation trigger (redelivery, or a review on an
         // already-closed PR) writes `state: open` too, and must not resurrect a
@@ -144,44 +227,12 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
         // state/closed_at/purge_after via a CASE keyed on the EXISTING row's
         // state. `reopened` bypasses the guard and applies the open lifecycle.
         const preserveTerminal = input.reopen !== true;
-        const prRows = await tx
-          .insert(pullRequest)
-          .values({
-            installationId,
-            repoId: input.pullRequest.repoId,
-            prNumber: input.pullRequest.prNumber,
-            repoSlug: input.pullRequest.repoSlug,
-            title: input.pullRequest.title,
-            baseSha: input.pullRequest.baseSha,
-            ...lifecycle,
-            updatedAt: new Date(),
-          })
-          .onConflictDoUpdate({
-            target: [pullRequest.installationId, pullRequest.repoId, pullRequest.prNumber],
-            set: {
-              repoSlug: input.pullRequest.repoSlug,
-              title: input.pullRequest.title,
-              // Omitted (review events) preserves the stored value.
-              ...(input.pullRequest.baseSha === undefined
-                ? {}
-                : { baseSha: input.pullRequest.baseSha }),
-              state: preserveTerminal
-                ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.state} else ${lifecycle.state} end`
-                : lifecycle.state,
-              closedAt: preserveTerminal
-                ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.closedAt} else ${lifecycle.closedAt} end`
-                : lifecycle.closedAt,
-              purgeAfter: preserveTerminal
-                ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.purgeAfter} else ${lifecycle.purgeAfter} end`
-                : lifecycle.purgeAfter,
-              updatedAt: new Date(),
-            },
-          })
-          .returning();
-        const prRow = prRows[0];
-        if (prRow === undefined) {
-          throw new Error("pull_request upsert returned no row");
-        }
+        const prRow = await upsertPullRequestRow(
+          tx,
+          installationId,
+          input.pullRequest,
+          preserveTerminal,
+        );
 
         // Terminal preserved → the trigger was stale. Stop here: projecting a
         // `queued` generation row and scheduling the job for a closed/merged PR
@@ -254,6 +305,12 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
 
         return { ok: true, value: { pullRequest: prRow, generation: genRow } };
       });
+    },
+
+    async recordState(input) {
+      // One statement — atomic on its own, no tx needed. Always terminal-
+      // preserving: a state-only event never transitions a closed/merged PR.
+      return upsertPullRequestRow(db, installationId, input, true);
     },
   };
 }

@@ -40,6 +40,7 @@ export const PullRequestAction = {
   SYNCHRONIZE: "synchronize",
   REOPENED: "reopened",
   READY_FOR_REVIEW: "ready-for-review",
+  CONVERTED_TO_DRAFT: "converted-to-draft",
   CLOSED: "closed",
   REVIEW_REQUESTED: "review-requested",
 } as const;
@@ -68,6 +69,7 @@ const RAW_PULL_REQUEST_ACTION: Readonly<Record<string, PullRequestAction>> = {
   synchronize: PullRequestAction.SYNCHRONIZE,
   reopened: PullRequestAction.REOPENED,
   ready_for_review: PullRequestAction.READY_FOR_REVIEW,
+  converted_to_draft: PullRequestAction.CONVERTED_TO_DRAFT,
   closed: PullRequestAction.CLOSED,
   review_requested: PullRequestAction.REVIEW_REQUESTED,
 };
@@ -107,6 +109,13 @@ export interface ParsedPullRequestEvent {
   readonly headSha: string;
   readonly baseSha: string;
   readonly draft: boolean;
+  /**
+   * The PR author's GitHub login (BRIEF-43) — persisted so `viewerIsAuthor`
+   * can be derived server-side. Absent when GitHub omits the author (a deleted
+   * account sends `pull_request.user: null`); an omitted value preserves the
+   * stored one instead of nulling it (same as review events omitting base_sha).
+   */
+  readonly authorLogin?: string;
   /** Present on `synchronize` — the pre-push head, for force-push detection. */
   readonly before?: string;
   /** Present on `synchronize` — the post-push head. */
@@ -208,6 +217,8 @@ const pullRequestEventSchema = z.object({
     base: shaRefSchema,
     draft: z.boolean(),
     merged: z.boolean().optional(),
+    // The author. `null` for a deleted account; absent in trimmed payloads.
+    user: z.object({ login: z.string().min(1) }).nullish(),
   }),
 });
 
@@ -306,6 +317,9 @@ function parsePullRequest(
     headSha: data.pull_request.head.sha,
     baseSha: data.pull_request.base.sha,
     draft: data.pull_request.draft,
+    ...(data.pull_request.user == null
+      ? {}
+      : { authorLogin: data.pull_request.user.login }),
     ...(data.before === undefined ? {} : { before: data.before }),
     ...(data.after === undefined ? {} : { after: data.after }),
     ...(action === PullRequestAction.CLOSED &&

@@ -19,6 +19,9 @@
     "number": 2,
     "state": "open",
     "title": "Update the README with new information.",
+    "user": {
+      "login": "Codertocat"
+    },
     "draft": false,
     "merged": false,
     "head": {

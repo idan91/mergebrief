@@ -83,9 +83,30 @@ async function handlePullRequest(
       repoSlug: event.repoFullName,
       title: event.title,
       baseSha: event.baseSha,
+      draft: event.draft,
+      ...(event.authorLogin === undefined ? {} : { authorLogin: event.authorLogin }),
       state: event.merged === true ? PrState.MERGED : PrState.CLOSED,
       closedAt: new Date(),
       purgeAfter: null,
+    });
+    return;
+  }
+  if (event.action === PullRequestAction.CONVERTED_TO_DRAFT) {
+    // ready→draft re-entry (BRIEF-43): state-only. Persist draft=true (and the
+    // refreshed labels) through the terminal-preserving ingest upsert, but do
+    // NOT touch the generation projection or enqueue — entering draft has no
+    // regen rationale, and re-triggering the worker's skip-path is not a no-op
+    // (Entry-comment repost ping, compare-diff spend, phantom `queued` status,
+    // and a full LLM re-run if the head's last generation failed).
+    await ingestRoutines(handle, ctx).recordState({
+      repoId: event.repoId,
+      prNumber: event.prNumber,
+      repoSlug: event.repoFullName,
+      title: event.title,
+      baseSha: event.baseSha,
+      draft: event.draft,
+      ...(event.authorLogin === undefined ? {} : { authorLogin: event.authorLogin }),
+      state: PrState.OPEN,
     });
     return;
   }
@@ -153,6 +174,12 @@ async function triggerGeneration(
       title: event.title,
       // Review events carry no base SHA; omission preserves the stored one.
       ...("baseSha" in event ? { baseSha: event.baseSha } : {}),
+      // Draft + author ride pull_request events only; a review omits both, so
+      // omission preserves the stored values (same as base_sha).
+      ...("draft" in event ? { draft: event.draft } : {}),
+      ...("authorLogin" in event && event.authorLogin !== undefined
+        ? { authorLogin: event.authorLogin }
+        : {}),
       state: PrState.OPEN,
     },
     headSha: event.headSha,

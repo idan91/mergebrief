@@ -41,8 +41,31 @@ export interface PrView {
   /** The current push's head; null only when nothing was ever projected. */
   readonly headSha: string | null;
   readonly briefAvailable: boolean;
+  /** GitHub draft state (BRIEF-43) — the FE derives own-draft author affordances. */
+  readonly draft: boolean;
+  /**
+   * Whether the requesting viewer is this PR's author (BRIEF-43), computed
+   * PER REQUEST server-side by comparing the session's reviewer login to the
+   * row's stored `author_login`. The login itself is NEVER serialized — only
+   * this derived boolean crosses to the FE. False for any signed-out/token-less
+   * read (those never reach this builder — the authz gate 401s first) and for
+   * any null/missing author or viewer login.
+   */
+  readonly viewerIsAuthor: boolean;
   readonly generation: GenerationSummaryView | null;
   readonly updatedAt: string;
+}
+
+/**
+ * The `viewerIsAuthor` truth function. True ONLY when both logins are present
+ * (non-null, non-empty) and equal — so a null/missing author login and a
+ * null/missing viewer login both yield false, never a spurious `null === null`.
+ */
+export function deriveViewerIsAuthor(
+  viewerLogin: string | null,
+  authorLogin: string | null,
+): boolean {
+  return Boolean(authorLogin) && authorLogin === viewerLogin;
 }
 
 /**
@@ -55,6 +78,7 @@ export function buildPrView(
   latestBrief: BriefSpanRow | undefined,
   latestGeneration: GenerationRow | undefined,
   verifiedSlug: string | undefined,
+  viewerLogin: string | null,
 ): PrView {
   const headSha = latestGeneration?.headSha ?? latestBrief?.headSha ?? null;
   const briefAvailable = latestBrief !== undefined && latestBrief.headSha === headSha;
@@ -67,6 +91,8 @@ export function buildPrView(
     baseSha: briefAvailable ? latestBrief.baseSha : row.baseSha,
     headSha,
     briefAvailable,
+    draft: row.draft,
+    viewerIsAuthor: deriveViewerIsAuthor(viewerLogin, row.authorLogin),
     generation:
       latestGeneration === undefined
         ? null

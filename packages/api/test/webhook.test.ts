@@ -91,6 +91,8 @@ function pullRequestPayload(input: {
   prNumber?: number;
   repoId?: number;
   merged?: boolean;
+  draft?: boolean;
+  authorLogin?: string | null;
 }): Record<string, unknown> {
   return {
     action: input.action,
@@ -101,7 +103,8 @@ function pullRequestPayload(input: {
       title: "Update the README with new information.",
       head: { sha: HEAD_SHA },
       base: { sha: "f95f852bd8fca8fcc58a9a2d6c842781e32a215e" },
-      draft: false,
+      draft: input.draft ?? false,
+      user: input.authorLogin === null ? null : { login: input.authorLogin ?? "author-octocat" },
       ...(input.merged === undefined ? {} : { merged: input.merged }),
     },
   };
@@ -234,6 +237,149 @@ describe("POST /api/webhooks/github", () => {
     const runAt = epochMs(jobs[0]?.["run_at"]);
     expect(runAt - before).toBeGreaterThan(55_000);
     expect(runAt - before).toBeLessThan(65_000);
+  });
+
+  it("persists draft + author_login from a pull_request event (BRIEF-43)", async () => {
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened", draft: true, authorLogin: "author-octocat" }),
+    );
+    expect(res.status).toBe(200);
+    const prs = await harness.raw("select * from pull_request");
+    expect(prs).toHaveLength(1);
+    expect(prs[0]?.["draft"]).toBe(true);
+    expect(prs[0]?.["author_login"]).toBe("author-octocat");
+  });
+
+  it("a pull_request_review does NOT overwrite stored draft/author_login", async () => {
+    // Ingest as a draft authored by author-octocat.
+    expect(
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "opened", draft: true, authorLogin: "author-octocat" }),
+        )
+      ).status,
+    ).toBe(200);
+    // A review carries neither draft nor author — must preserve both, exactly
+    // as it preserves base_sha.
+    expect(
+      (await deliver(app, "pull_request_review", pullRequestReviewPayload())).status,
+    ).toBe(200);
+    const prs = await harness.raw("select * from pull_request");
+    expect(prs).toHaveLength(1);
+    expect(prs[0]?.["draft"]).toBe(true);
+    expect(prs[0]?.["author_login"]).toBe("author-octocat");
+  });
+
+  it("a pull_request event with user:null (deleted author) preserves the stored author_login", async () => {
+    // Ingest with a known author.
+    expect(
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "opened", draft: true, authorLogin: "author-octocat" }),
+        )
+      ).status,
+    ).toBe(200);
+    // Redeliver the same PR's synchronize with `pull_request.user: null` —
+    // GitHub's deleted-author shape. The omitted parse field must preserve the
+    // stored login (pinning webhook.ts's `=== undefined` spread against a
+    // future `?? null` refactor), while draft still updates normally.
+    expect(
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "synchronize", draft: false, authorLogin: null }),
+        )
+      ).status,
+    ).toBe(200);
+    const prs = await harness.raw("select * from pull_request");
+    expect(prs).toHaveLength(1);
+    expect(prs[0]?.["author_login"]).toBe("author-octocat");
+    expect(prs[0]?.["draft"]).toBe(false);
+  });
+
+  it("ready_for_review flips draft false idempotently (route + webhook converge)", async () => {
+    expect(
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "opened", draft: true, authorLogin: "author-octocat" }),
+        )
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "ready_for_review", draft: false, authorLogin: "author-octocat" }),
+        )
+      ).status,
+    ).toBe(200);
+    const prs = await harness.raw("select * from pull_request");
+    expect(prs).toHaveLength(1);
+    expect(prs[0]?.["draft"]).toBe(false);
+    expect(prs[0]?.["author_login"]).toBe("author-octocat");
+  });
+
+  it("converted_to_draft flips draft true WITHOUT touching generation or enqueueing (state-only)", async () => {
+    // A ready PR converted back to draft must re-enter own-draft state — but
+    // entering draft has no regen rationale (BRIEF-43 reviewer round 3): the
+    // event is state-only. The generation projection for the already-briefed
+    // head must be untouched (no phantom `queued`, no attempts bump) and no
+    // job may be scheduled beyond the one the earlier trigger left.
+    expect(
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "opened", draft: false, authorLogin: "author-octocat" }),
+        )
+      ).status,
+    ).toBe(200);
+    const genBefore = await harness.raw("select status, attempts from generation");
+    const jobsBefore = await harness.raw("select id, run_at from graphile_worker.jobs");
+    expect(genBefore).toHaveLength(1);
+    expect(jobsBefore).toHaveLength(1);
+
+    expect(
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "converted_to_draft", draft: true, authorLogin: "author-octocat" }),
+        )
+      ).status,
+    ).toBe(200);
+    const prs = await harness.raw("select * from pull_request");
+    expect(prs).toHaveLength(1);
+    expect(prs[0]?.["draft"]).toBe(true);
+    expect(prs[0]?.["author_login"]).toBe("author-octocat");
+    // Generation projection untouched (status AND attempts), job list identical
+    // (same single job, run_at NOT pushed — no debounce replace happened).
+    expect(await harness.raw("select status, attempts from generation")).toEqual(genBefore);
+    expect(await harness.raw("select id, run_at from graphile_worker.jobs")).toEqual(jobsBefore);
+
+    // Redelivery converges (idempotent no-op when already draft).
+    expect(
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "converted_to_draft", draft: true, authorLogin: "author-octocat" }),
+        )
+      ).status,
+    ).toBe(200);
+    const again = await harness.raw("select draft from pull_request");
+    expect(again).toHaveLength(1);
+    expect(again[0]?.["draft"]).toBe(true);
   });
 
   it("redelivery is idempotent: one PR row, attempts++, one job with a pushed run_at", async () => {

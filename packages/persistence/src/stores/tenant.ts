@@ -166,6 +166,19 @@ interface BasePullRequestUpsertInput {
    * preserves the stored one instead of nulling it.
    */
   readonly baseSha?: string;
+  /**
+   * Whether the PR is a GitHub draft (BRIEF-43). Optional because
+   * `pull_request_review` payloads don't carry it — an omitted value preserves
+   * the stored one (and the column's `false` default on first insert) instead
+   * of forcing it false.
+   */
+  readonly draft?: boolean;
+  /**
+   * PR author login (BRIEF-43), refreshed by `pull_request` events. Optional
+   * for the same reason as `baseSha`: review payloads (and deleted authors)
+   * omit it, and an omitted value preserves the stored one.
+   */
+  readonly authorLogin?: string;
 }
 
 export type PullRequestUpsertInput = BasePullRequestUpsertInput & PullRequestLifecycle;
@@ -299,6 +312,8 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           repoSlug: input.repoSlug,
           title: input.title,
           baseSha: input.baseSha,
+          draft: input.draft,
+          authorLogin: input.authorLogin,
           ...lifecycle,
           updatedAt: new Date(),
         })
@@ -309,6 +324,8 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
             title: input.title,
             // Omitted (review events) preserves the stored value.
             ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
+            ...(input.draft === undefined ? {} : { draft: input.draft }),
+            ...(input.authorLogin === undefined ? {} : { authorLogin: input.authorLogin }),
             ...lifecycle,
             updatedAt: new Date(),
           },

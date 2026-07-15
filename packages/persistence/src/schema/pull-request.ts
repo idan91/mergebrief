@@ -2,7 +2,7 @@
 // immutable per-PR artifact; the retention/cascade anchor. No `activated_at`
 // (dropped 2026-07-04, ADR 0020). The partial index on `purge_after`
 // (sweep target) is raw SQL in the hardening migration.
-import { bigint, integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { bigint, boolean, integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 import type { PrState, PullRequestRowId, RepoId } from "../types";
 import { tenantColumns } from "./columns";
 
@@ -28,6 +28,23 @@ export const pullRequest = pgTable(
      * overwrite a stored value.
      */
     baseSha: text("base_sha"),
+    /**
+     * Whether the PR is a GitHub draft, from the last `pull_request` event
+     * (BRIEF-43): the FE derives own-draft author affordances from it. NOT
+     * NULL, defaults false — rows ingested by an event that doesn't carry it
+     * (e.g. `pull_request_review`) take the default and are corrected on the
+     * PR's next `pull_request` event, same refresh pattern as `title`.
+     */
+    draft: boolean("draft").notNull().default(false),
+    /**
+     * The PR author's GitHub login (BRIEF-43), refreshed on every
+     * `pull_request` event. Purgeable display-label class like `title`/
+     * `repo_slug`, but NEVER exposed to the FE — it is server-side input to the
+     * per-request `viewerIsAuthor` derivation only. Nullable: rows ingested
+     * before the column existed (or via an event that omits it, or a deleted
+     * author) backfill on the next `pull_request` event.
+     */
+    authorLogin: text("author_login"),
     state: text("state").$type<PrState>().notNull(),
     /**
      * The branded Entry comment id (D5). Nullable: no writer in BRIEF-2, and

@@ -88,12 +88,32 @@ describe("parseWebhookEvent — pull_request", () => {
         "f95f852bd8fca8fcc58a9a2d6c842781e32a215e",
       );
       expect(event.draft).toBe(false);
+      // The PR author login rides every handled pull_request payload —
+      // persisted so `viewerIsAuthor` can be derived server-side (BRIEF-43).
+      expect(event.authorLogin).toBe("Codertocat");
       expect(typeof event.installationId).toBe("bigint");
       // The title rides every handled pull_request payload — persisted as the
       // picker's display label (BRIEF-19 list endpoint).
       expect(event.title).toBe("Update the README with new information.");
     });
   }
+
+  it("parses pull_request.converted_to_draft.json → converted-to-draft (draft: true)", () => {
+    // ready→draft transition (BRIEF-43 reviewer round 2): without it the row
+    // would stay draft=false indefinitely on a quiet PR.
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: jsonFixture("pull_request.converted_to_draft.json"),
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST) {
+      throw new Error(`expected pull-request kind, got ${event.kind}`);
+    }
+    expect(event.action).toBe(PullRequestAction.CONVERTED_TO_DRAFT);
+    expect(event.draft).toBe(true);
+    expect(event.authorLogin).toBe("Codertocat");
+  });
 
   it("exposes before/after only on synchronize (force-push detection)", () => {
     const sync = expectOk(
@@ -143,6 +163,34 @@ describe("parseWebhookEvent — pull_request", () => {
       throw new Error("expected pull-request");
     }
     expect(opened.merged).toBeUndefined();
+  });
+
+  it("omits authorLogin when the PR author is absent (deleted account)", () => {
+    // GitHub sends `pull_request.user: null` for a deleted author; the parse
+    // must not throw or 400 — it omits authorLogin (preserve-stored pattern,
+    // mirroring how review events omit base_sha).
+    const event = expectOk(
+      parseWebhookEvent({
+        eventName: "pull_request",
+        payload: {
+          action: "opened",
+          number: 2,
+          installation: { id: 1 },
+          repository: { id: 1, full_name: "a/b" },
+          pull_request: {
+            title: "t",
+            head: { sha: "x" },
+            base: { sha: "y" },
+            draft: false,
+            user: null,
+          },
+        },
+      }),
+    );
+    if (event.kind !== ParsedWebhookEventKind.PULL_REQUEST) {
+      throw new Error("expected pull-request");
+    }
+    expect(event.authorLogin).toBeUndefined();
   });
 
   it("ignores an unhandled pull_request action", () => {

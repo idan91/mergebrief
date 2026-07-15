@@ -160,6 +160,9 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       latestBriefs.get(resolved.pr.id),
       latestGenerations.get(resolved.pr.id),
       c.get("repoFullName"),
+      // Per-request author derivation (BRIEF-43): the viewer's verified login
+      // from the session. `viewerIsAuthor` is computed here, never cached.
+      c.get("session").reviewerLogin,
     );
     // Compare availability + the browsable revision timeline (BRIEF-24). Both
     // are derived from ONE lean listing per artifact kind, joined in memory —

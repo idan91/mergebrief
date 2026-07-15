@@ -61,8 +61,9 @@ export function pullsRoute(
       generationProjection(deps.handle, ctx).latestBriefForPullRequests(ids),
     ]);
 
+    const viewerLogin = c.get("session").reviewerLogin;
     const pulls = rows.map((row) =>
-      buildPrView(row, latestBriefs.get(row.id), latestGenerations.get(row.id), allowed.get(row.repoId)),
+      buildPrView(row, latestBriefs.get(row.id), latestGenerations.get(row.id), allowed.get(row.repoId), viewerLogin),
     );
     return c.json({ pulls }, 200, NO_STORE);
   });

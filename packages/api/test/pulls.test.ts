@@ -134,6 +134,8 @@ interface SeedPrInput {
   readonly title?: string;
   readonly slug?: string;
   readonly baseSha?: string;
+  readonly draft?: boolean;
+  readonly authorLogin?: string;
 }
 
 async function seedPr(handle: AppDatabase, input: SeedPrInput) {
@@ -144,6 +146,8 @@ async function seedPr(handle: AppDatabase, input: SeedPrInput) {
     repoSlug: input.slug ?? "octo/hello",
     title: input.title ?? `PR ${input.prNumber}`,
     ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
+    ...(input.draft === undefined ? {} : { draft: input.draft }),
+    ...(input.authorLogin === undefined ? {} : { authorLogin: input.authorLogin }),
     state: PrState.OPEN,
   });
 }
@@ -269,6 +273,33 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       briefAvailable: false,
       generation: null,
     });
+  });
+
+  it("list: exposes draft + viewerIsAuthor per row, never the author login (BRIEF-43)", async () => {
+    stubGitHub({
+      installations: () => installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
+    });
+    // The seeded session's reviewer login is "octocat".
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1, draft: true, authorLogin: "octocat" });
+    await new Promise((r) => setTimeout(r, 5));
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 2, draft: true, authorLogin: "not-octocat" });
+    await new Promise((r) => setTimeout(r, 5));
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 3 }); // no author, not draft
+
+    const res = await get("/api/pulls", cookie);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { pulls: Array<Record<string, unknown>> };
+    expect(body.pulls.map((p) => p["prNumber"])).toEqual([3, 2, 1]);
+    // Own draft → true; someone else's draft → false; null author → false.
+    expect(body.pulls[2]).toMatchObject({ draft: true, viewerIsAuthor: true });
+    expect(body.pulls[1]).toMatchObject({ draft: true, viewerIsAuthor: false });
+    expect(body.pulls[0]).toMatchObject({ draft: false, viewerIsAuthor: false });
+    // The author login must never cross to the FE — in any casing/shape.
+    const raw = JSON.stringify(body);
+    expect(raw).not.toContain("author_login");
+    expect(raw).not.toContain("authorLogin");
+    expect(raw).not.toContain("not-octocat");
   });
 
   it("list: current-span enrichment — generation summary + briefAvailable per row", async () => {
@@ -447,6 +478,38 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       briefAvailable: true,
       generation: { status: GenerationStatus.SUCCEEDED, phase: null },
     });
+  });
+
+  it("meta: exposes draft + viewerIsAuthor=true when the viewer authored the draft (BRIEF-43)", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    // The seeded session's reviewer login is "octocat".
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, draft: true, authorLogin: "octocat" });
+
+    const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body["draft"]).toBe(true);
+    expect(body["viewerIsAuthor"]).toBe(true);
+    // The login itself must never cross to the FE.
+    expect(JSON.stringify(body)).not.toContain("author_login");
+    expect(body["authorLogin"]).toBeUndefined();
+  });
+
+  it("meta: viewerIsAuthor=false for a non-author viewer and for a null author (BRIEF-43)", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    // Authored by someone else.
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, draft: true, authorLogin: "not-octocat" });
+    const other = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(((await other.json()) as Record<string, unknown>)["viewerIsAuthor"]).toBe(false);
+
+    // No stored author (null) must never match — not even a null viewer login.
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 8 });
+    const noAuthor = await get(`/api/repos/${REPO_A}/pulls/8`, cookie);
+    const noAuthorBody = (await noAuthor.json()) as Record<string, unknown>;
+    expect(noAuthorBody["viewerIsAuthor"]).toBe(false);
+    expect(noAuthorBody["draft"]).toBe(false);
   });
 
   it("meta: previous-brief comparison availability derives from marks + narrative rows", async () => {
