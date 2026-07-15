@@ -31,6 +31,11 @@ export interface OwnDraftHeaderProps {
   markReady: () => void;
   /** True while the mark-ready mutation (incl. the pr-view refresh) is in flight. */
   pending: boolean;
+  /**
+   * True while a historical revision is in view: mark-ready is head-scoped,
+   * so the CTA reads disabled (still focusable) and the click announces why.
+   */
+  unavailable?: boolean;
 }
 
 export interface HeaderProps {
@@ -226,7 +231,7 @@ export function Header({
              regardless — the mark-ready flow's in-flight guard no-ops
              repeats. */
           <button
-            aria-disabled={ownDraft.pending}
+            aria-disabled={ownDraft.pending || ownDraft.unavailable === true}
             className="btn primary"
             data-terminal-slot=""
             ref={terminalSlotRef}

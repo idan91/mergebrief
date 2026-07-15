@@ -716,10 +716,22 @@ function DbBrief({
     () => createMarkReadyAction(queryClient, repoId, prNumber),
     [prNumber, queryClient, repoId],
   );
+  // The mark-ready ACTION (and with it the soft gate) rides the plan only
+  // while the CURRENT head is in view: the gate lists the rendered Brief's
+  // flags, and the contract is "ALL current-head flags" — on a historical
+  // revision a zero-flag view could slip past flags the head carries (and
+  // the inverse would gate on stale ones). The STATE itself (chip, hidden
+  // submit, read-only flags) stays on every revision — the PR is the
+  // viewer's draft regardless of which revision is on screen.
   const ownDraftState = isOwnDraft(meta);
   const ownDraft = useMemo(
-    () => (ownDraftState ? { markReady: markReadyAction } : undefined),
-    [markReadyAction, ownDraftState],
+    () =>
+      ownDraftState
+        ? currentHead
+          ? { markReady: markReadyAction }
+          : {}
+        : undefined,
+    [currentHead, markReadyAction, ownDraftState],
   );
   // Keys the per-brief Mind-Map session store, exactly like a local brief id.
   const briefId = `db:${repoId}:${String(prNumber)}:${span.base}:${span.head}`;

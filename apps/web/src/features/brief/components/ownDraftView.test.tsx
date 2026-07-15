@@ -19,8 +19,13 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { MarkReadyResult } from "../../pulls/markReady";
+import { MARK_READY_COPY } from "../../pulls/useMarkReady";
+import type { ReviewComment } from "../../review/comments";
+import { writeSnapshot } from "../../review/session";
 import type { OwnDraftPlan } from "./BriefPage/BriefPage";
 import { BriefView } from "./BriefPage/BriefPage";
+import type { Brief } from "../types";
 import { briefFixture } from "../fixtures";
 
 afterEach(() => {
@@ -38,7 +43,46 @@ function overlayState(text: string): string | undefined | null {
     ?.getAttribute("data-state");
 }
 
-function renderBriefView(ownDraft: OwnDraftPlan | undefined) {
+/** The terminal-slot CTA across its idle/pending labels (never the modal's). */
+function markReadyCta(): HTMLButtonElement {
+  return screen.getByRole("button", {
+    name: /^mark ready for review$|^marking ready/i,
+  }) as HTMLButtonElement;
+}
+
+/** A review comment anchored on `chunkId` — session-store seeding shape. */
+function comment(
+  id: string,
+  chunkId: string,
+  status: ReviewComment["status"],
+): ReviewComment {
+  return {
+    id,
+    anchor: {
+      chunkId,
+      file: "src/x.ts",
+      side: "new",
+      startLine: 1,
+      endLine: 1,
+      rowIds: [],
+      selectedText: "",
+    },
+    body: `${id} body`,
+    status,
+    collapsed: false,
+  };
+}
+
+/** The same Brief with an empty risk surface — the zero-flag bypass case. */
+const flaglessBrief: Brief = {
+  ...briefFixture,
+  chunks: briefFixture.chunks.map((chunk) => ({ ...chunk, riskSurface: [] })),
+};
+
+function renderBriefView(
+  ownDraft: OwnDraftPlan | undefined,
+  brief: Brief = briefFixture,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -46,7 +90,7 @@ function renderBriefView(ownDraft: OwnDraftPlan | undefined) {
     <QueryClientProvider client={queryClient}>
       <BriefView
         artifacts={[]}
-        brief={briefFixture}
+        brief={brief}
         briefId="own-draft-test"
         searchParams={{}}
         ownDraft={plan}
@@ -123,6 +167,176 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     }
     const bar = document.querySelector('header div[style*="--progress-width"]');
     expect(bar?.getAttribute("style")).toContain("100%");
+  });
+
+  it("soft gate: flags on the Brief → the CTA opens the modal, nothing posted yet", () => {
+    const markReady = vi.fn();
+    renderBriefView({ markReady });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(screen.getByText("Before marking ready")).toBeTruthy();
+    expect(markReady).toHaveBeenCalledTimes(0);
+    // "Mark ready anyway" — one click runs the mutation.
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+    expect(markReady).toHaveBeenCalledTimes(1);
+  });
+
+  it("soft gate: zero flags → the modal is skipped entirely, the CTA acts directly", () => {
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    renderBriefView({ markReady }, flaglessBrief);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(screen.queryByText("Before marking ready")).toBeNull();
+    expect(markReady).toHaveBeenCalledTimes(1);
+  });
+
+  it("failure: toast copy through the live region, CTA re-enabled, state kept", async () => {
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "upstream" }),
+    );
+    renderBriefView({ markReady }, flaglessBrief);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(MARK_READY_COPY.upstream)).toBeTruthy(),
+    );
+    // Stay in-state: the chip is still up and the CTA is re-enabled (the CTA
+    // is never hard-disabled — aria-disabled is the pending signal).
+    expect(screen.getByText(CHIP_COPY)).toBeTruthy();
+    const cta = screen.getByRole("button", { name: "Mark ready for review" });
+    expect(cta.getAttribute("aria-disabled")).toBe("false");
+  });
+
+  it("soft gate: pending mutation → the CTA does NOT reopen the gate", async () => {
+    // A mutation that never settles: pending holds while we click again.
+    const markReady = vi.fn(() => new Promise<MarkReadyResult>(() => {}));
+    renderBriefView({ markReady });
+    // Through the gate once: flags exist, so the CTA opens the modal and
+    // "Mark ready anyway" starts the mutation.
+    fireEvent.click(markReadyCta());
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+    expect(markReady).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(markReadyCta().getAttribute("aria-disabled")).toBe("true"),
+    );
+
+    // The CTA is aria-disabled (not hard disabled), so this click lands in
+    // requestMarkReady — it must not reopen the gate over the in-flight
+    // mutation (whose "Mark ready anyway" would silently no-op).
+    fireEvent.click(markReadyCta());
+    expect(overlayState("Before marking ready")).toBe("closed");
+    expect(markReady).toHaveBeenCalledTimes(1);
+  });
+
+  it("soft gate: counts only unposted drafts; the jump link closes the gate and lands on the first draft's chunk", async () => {
+    // Seed the persisted session for THIS briefId: two drafts + one already
+    // posted — only the drafts may count.
+    writeSnapshot({
+      briefId: "own-draft-test",
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroupIds: [],
+      reviewedChunkIds: [],
+      checkedItems: {},
+      reviewComments: [
+        comment("c1", "chunk-b", "draft"),
+        comment("c2", "chunk-a", "draft"),
+        comment("c3", "chunk-a", "submitted"),
+      ],
+      reviewOutcome: "comment",
+    });
+    renderBriefView({ markReady: vi.fn() });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    // 2, not 3: the submitted comment is already on GitHub.
+    expect(
+      await screen.findByText("You have 2 unposted draft comments."),
+    ).toBeTruthy();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /jump to your drafts/i }),
+    );
+    // The gate closes and the FIRST draft's chunk becomes the active one.
+    expect(overlayState("Before marking ready")).toBe("closed");
+    await waitFor(() =>
+      expect(
+        document.getElementById("chunk-b")?.hasAttribute("data-current"),
+      ).toBe(true),
+    );
+  });
+
+  it("plan without an action (historical revision): CTA reads disabled, click announces, gate never mounts", async () => {
+    // A plan with no `markReady` — the route withholds the action while a
+    // historical revision is in view.
+    renderBriefView({});
+    const cta = markReadyCta();
+    expect(cta.getAttribute("aria-disabled")).toBe("true");
+    // Flags exist on this Brief, but the gate is not the viewed revision's
+    // to show — nothing gate-shaped in the DOM, and the click explains.
+    expect(screen.queryByText("Before marking ready")).toBeNull();
+    fireEvent.click(cta);
+    expect(
+      await screen.findByText(/switch to the latest revision to mark/i),
+    ).toBeTruthy();
+    expect(screen.queryByText("Before marking ready")).toBeNull();
+  });
+
+  it("head advances while the gate is open: modal unmounts, flag resets, focus rescued, shortcuts revive", async () => {
+    const { rerenderWith } = renderBriefView({ markReady: vi.fn() });
+    fireEvent.click(markReadyCta());
+    expect(overlayState("Before marking ready")).toBe("open");
+
+    // The author pushes mid-gate: the poll advances meta.headSha, the route
+    // keeps the plan (still the viewer's draft) but withholds the action —
+    // no remount, the span keys the mount.
+    rerenderWith({});
+    expect(screen.queryByText("Before marking ready")).toBeNull();
+    // The focus the unmounting modal held is rescued onto the slot CTA…
+    expect(document.activeElement).toBe(markReadyCta());
+    // …the live region explains the vanished check…
+    await waitFor(() =>
+      expect(screen.getByText(/newer commits/i)).toBeTruthy(),
+    );
+    // …and page shortcuts are not stuck disabled.
+    fireEvent.keyDown(window, { key: "?" });
+    expect(overlayState("Keyboard shortcuts")).toBe("open");
+  });
+
+  it("ready-elsewhere while the gate is open: the modal unmounts cleanly, focus rescued, announced, shortcuts revive, no resurrection", async () => {
+    const { rerenderWith } = renderBriefView({ markReady: vi.fn() });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(overlayState("Before marking ready")).toBe("open");
+
+    // The PR is marked ready on GitHub while the gate is open: the refreshed
+    // PrView ends the own-draft state and the gate goes with it.
+    rerenderWith(undefined);
+    expect(screen.queryByText("Before marking ready")).toBeNull();
+    // The focus the unmounting modal held lands on the terminal slot (which
+    // now holds Receipt), never silently on <body>…
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Receipt" }),
+    );
+    // …and the live region explains why the modal vanished.
+    await waitFor(() =>
+      expect(screen.getByText(/now ready for review/i)).toBeTruthy(),
+    );
+    // The open flag was RESET, not merely unmounted: page shortcuts are not
+    // stuck disabled.
+    fireEvent.keyDown(window, { key: "?" });
+    expect(overlayState("Keyboard shortcuts")).toBe("open");
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    // Converting back to draft later must not resurrect the gate.
+    rerenderWith({ markReady: vi.fn() });
+    expect(overlayState("Before marking ready")).toBe("closed");
   });
 
   it("vanishes the affordances when draft flips under a live session", () => {

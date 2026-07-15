@@ -503,4 +503,42 @@ describe("DB brief route", () => {
     // Still pinned: the OLD span's brief renders behind the banner.
     expect(screen.getByText(briefFixture.pr.title)).toBeTruthy();
   });
+
+  it("own-draft on the current head: mark-ready is live (BRIEF-43)", async () => {
+    await renderRoute(
+      meta({ draft: true, viewerIsAuthor: true }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    expect(screen.getByText("Self-review — your draft")).toBeTruthy();
+    const cta = screen.getByRole("button", { name: "Mark ready for review" });
+    expect(cta.getAttribute("aria-disabled")).toBe("false");
+  });
+
+  it("own-draft on a HISTORICAL span: the state label stays, mark-ready and its gate do not (BRIEF-43)", async () => {
+    // The PR's head moved on; the viewer is pinned to the older span.
+    await renderRoute(
+      meta({
+        draft: true,
+        viewerIsAuthor: true,
+        headSha: "head-9",
+        baseSha: "base-9",
+      }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    // The PR is still the viewer's draft — the state label follows STATE,
+    // not the revision on screen.
+    expect(screen.getByText("Self-review — your draft")).toBeTruthy();
+    // But mark-ready is head-scoped: the gate would list THIS revision's
+    // flags, not the current head's — so the action reads disabled (still
+    // focusable) and a click explains itself instead of gating on stale
+    // flags. Nothing gate-shaped exists in the DOM.
+    const cta = screen.getByRole("button", { name: "Mark ready for review" });
+    expect(cta.getAttribute("aria-disabled")).toBe("true");
+    expect(screen.queryByText("Before marking ready")).toBeNull();
+    fireEvent.click(cta);
+    expect(
+      await screen.findByText(/switch to the latest revision to mark/i),
+    ).toBeTruthy();
+    expect(screen.queryByText("Before marking ready")).toBeNull();
+  });
 });

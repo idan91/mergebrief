@@ -74,6 +74,7 @@ import {
 } from "../../comparison";
 import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import type { MarkReadyAction } from "../../../pulls/markReady";
+import { MarkReadyModal } from "../../../pulls/components/MarkReadyModal/MarkReadyModal";
 import { useMarkReady } from "../../../pulls/useMarkReady";
 import { buildBriefTimeline } from "../../timeline";
 import type {
@@ -281,9 +282,27 @@ export interface OwnDraftPlan {
   /**
    * POSTs mark-ready; on success it awaits the pr-view invalidation, so the
    * own-draft UI stays stable until the refreshed PrView actually flips.
+   *
+   * ABSENT while a historical revision is in view: the soft gate lists the
+   * rendered Brief's flags and the contract is "ALL current-head flags", so
+   * the action (and the gate with it) only exists on the current head. The
+   * CTA then stays focusable and a click announces why (the BRIEF-24
+   * disabled-with-reason pattern).
    */
-  readonly markReady: MarkReadyAction;
+  readonly markReady?: MarkReadyAction;
 }
+
+/** Announced when the CTA is used while a historical revision is in view. */
+export const MARK_READY_HISTORICAL_REASON =
+  "You're viewing an earlier revision. Switch to the latest revision to mark this pull request ready for review.";
+
+/** Announced when a head advance closes the open pre-ready check. */
+export const MARK_READY_GATE_CLOSED_REASON =
+  "This pull request has newer commits — switch to the latest revision to mark it ready for review.";
+
+/** Announced when the own-draft state ends while the pre-ready check is open. */
+export const MARK_READY_EXIT_ANNOUNCEMENT =
+  "This pull request is now ready for review — the pre-ready check closed.";
 
 export interface BriefViewProps extends BriefPageProps {
   /** The already-fetched Brief to render (DB path: assembled client-side). */
@@ -608,6 +627,8 @@ function BriefScreen({
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
   const [preSubmitOpen, setPreSubmitOpen] = useState(false);
+  // The mark-ready soft gate (BRIEF-43) — own-draft state only.
+  const [markReadyGateOpen, setMarkReadyGateOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [dismissTarget, setDismissTarget] = useState<DismissTarget | null>(
@@ -849,6 +870,7 @@ function BriefScreen({
     receiptOpen ||
     summaryPreviewOpen ||
     preSubmitOpen ||
+    markReadyGateOpen ||
     shortcutsOpen ||
     dismissTarget !== null ||
     evidenceTarget !== null ||
@@ -1237,8 +1259,29 @@ function BriefScreen({
       dismissTarget !== null ||
       evidenceTarget !== null,
   );
+  // This render's gate-open snapshot — consumed by the exit branch below and
+  // by the mid-gate head-advance effect further down.
+  const gateOpenRef = useLatestRef(markReadyGateOpen);
   useEffect(() => {
-    if (!ownDraftActive) return;
+    if (!ownDraftActive) {
+      // Leaving the own-draft state (mark-ready here or ready-elsewhere)
+      // closes the soft gate the same way entering closes the reviewer
+      // overlays: the modal unmounts with the state, but a left-set open
+      // flag would keep `shortcutsDisabled` stuck true and resurrect the
+      // gate if the PR converts back to draft later. If the gate was OPEN at
+      // exit, its unmount also dropped the focus it held — rescue it onto
+      // the terminal slot (now Receipt) and say why the modal vanished, the
+      // entry path's mirror.
+      setMarkReadyGateOpen(false);
+      if (gateOpenRef.current) {
+        const activeAtExit = document.activeElement;
+        if (activeAtExit === null || activeAtExit === document.body) {
+          document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
+        }
+        announceSubmit(MARK_READY_EXIT_ANNOUNCEMENT);
+      }
+      return;
+    }
     const active = document.activeElement;
     if (
       overlayWasOpenRef.current &&
@@ -1252,7 +1295,73 @@ function BriefScreen({
     setPreSubmitOpen(false);
     setDismissTarget(null);
     setEvidenceTarget(null);
-  }, [announceSubmit, overlayWasOpenRef, ownDraftActive]);
+  }, [announceSubmit, gateOpenRef, overlayWasOpenRef, ownDraftActive]);
+  // The soft gate (ADR 0009 #3 per ADR 0031): the modal shows iff the current
+  // head's Brief carries risk flags — zero flags skips it entirely and the
+  // CTA acts directly. The unposted-drafts reminder rides the modal only.
+  const unpostedDraftComments = useMemo(
+    () => reviewComments.filter((comment) => comment.status === "draft"),
+    [reviewComments],
+  );
+  const markReadyAvailable = ownDraft?.markReady !== undefined;
+  // The gate closes whenever its ACTION goes away while the state holds: the
+  // author pushes mid-gate, the poll advances meta.headSha, `currentHead`
+  // flips and the route withholds `markReady` WITHOUT a remount (the span
+  // keys the mount). The modal unmounts via its mount condition, but the
+  // open flag is plain local state — left set, `shortcutsDisabled` sticks
+  // true for the session and the focus the unmounting modal held drops to
+  // <body> silently. Same rescue + announcement pattern as the own-draft
+  // entry path. (The state-EXIT reset lives in the entry effect above, which
+  // also declares `gateOpenRef`.)
+  useEffect(() => {
+    if (!ownDraftActive || markReadyAvailable) return;
+    if (!gateOpenRef.current) return;
+    setMarkReadyGateOpen(false);
+    const active = document.activeElement;
+    if (active === null || active === document.body) {
+      document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
+    }
+    announceSubmit(MARK_READY_GATE_CLOSED_REASON);
+  }, [announceSubmit, gateOpenRef, markReadyAvailable, ownDraftActive]);
+  const requestMarkReady = useCallback(() => {
+    // Historical revision in view: the action (and gate) don't exist here —
+    // the CTA stays focusable and the click explains itself through the page
+    // live region (BRIEF-24 disabled-with-reason pattern).
+    if (!markReadyAvailable) {
+      announceSubmit(MARK_READY_HISTORICAL_REASON);
+      return;
+    }
+    // In-flight guard for the GATE path: the CTA is aria-disabled (not hard
+    // disabled) while pending, so a click still lands here — without this it
+    // would reopen the gate over the running mutation, whose "Mark ready
+    // anyway" then silently no-ops against the flow's inFlight ref.
+    if (markReadyFlow.pending) return;
+    if (model.flags.length > 0) {
+      setMarkReadyGateOpen(true);
+      return;
+    }
+    markReadyFlow.markReady();
+  }, [announceSubmit, markReadyAvailable, markReadyFlow, model.flags.length]);
+  const markReadyAnyway = useCallback(() => {
+    // One click, records nothing: close the gate and run the mutation.
+    setMarkReadyGateOpen(false);
+    markReadyFlow.markReady();
+  }, [markReadyFlow]);
+  const closeMarkReadyGate = useCallback(() => setMarkReadyGateOpen(false), []);
+  const jumpToFlagFromGate = useCallback(
+    (flag: RiskFlag) => {
+      setMarkReadyGateOpen(false);
+      jumpToChunk(flag.chunkId);
+    },
+    [jumpToChunk],
+  );
+  // The reminder's jump link: land on the first unposted draft's chunk — a
+  // navigation aid only, posting stays manual (no auto-post).
+  const jumpToDraftsFromGate = useCallback(() => {
+    setMarkReadyGateOpen(false);
+    const first = unpostedDraftComments[0];
+    if (first) jumpToChunk(first.anchor.chunkId);
+  }, [jumpToChunk, unpostedDraftComments]);
   const submitReceipt = useCallback(() => {
     // Read-only posture (BRIEF-24): the submit control disables focusably with
     // the reason (below) — this guards the click path itself.
@@ -1347,8 +1456,9 @@ function BriefScreen({
         ownDraft={
           ownDraftActive
             ? {
-                markReady: markReadyFlow.markReady,
+                markReady: requestMarkReady,
                 pending: markReadyFlow.pending,
+                unavailable: !markReadyAvailable,
               }
             : undefined
         }
@@ -1594,6 +1704,23 @@ function BriefScreen({
           />
         </>
       )}
+      {/* The mark-ready soft gate (BRIEF-43): mounted only in the own-draft
+          state, only while the action exists (current head in view — a
+          historical revision's flags are not the gate's contract), and only
+          when the Brief carries risk flags — zero flags skips the modal
+          entirely (the CTA acts directly, and nothing gate-shaped exists in
+          the DOM). */}
+      {ownDraftActive && markReadyAvailable && model.flags.length > 0 ? (
+        <MarkReadyModal
+          open={markReadyGateOpen}
+          flags={model.flags}
+          unpostedDraftCount={unpostedDraftComments.length}
+          close={closeMarkReadyGate}
+          markReadyAnyway={markReadyAnyway}
+          jumpToFlag={jumpToFlagFromGate}
+          jumpToDrafts={jumpToDraftsFromGate}
+        />
+      ) : null}
       <ShortcutsModal open={shortcutsOpen} close={closeShortcuts} />
       <div className={styles["kbdHint"]}>
         {focusMode ? (
