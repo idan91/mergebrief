@@ -5,7 +5,7 @@ run layer 0 always; layers 1–3 before a release, after infra changes, or
 after anything touching their surface. Deep walkthroughs live in their own
 docs — this page is the index of use cases and what "pass" means for each.
 
-Last consolidated: 2026-07-13 (post-BRIEF-11).
+Last consolidated: 2026-07-15 (post-BRIEF-43).
 
 ---
 
@@ -70,6 +70,22 @@ Reviewer surface:
 - [ ] Review submit: comments post to GitHub, checkpoint written by the
       webhook (commit_id pinned, bots filtered), submitted comments go
       read-only locally, verdict spent on success (BRIEF-23/25).
+- [ ] Author self-review surface (BRIEF-43; needs a **draft** PR you author,
+      with a generated Brief, plus a second account for the non-author check).
+      Full walkthrough: [`brief-43-testing.md`](./brief-43-testing.md). Fast
+      pass:
+      - own-draft state renders for the author (chip "Self-review — your
+        draft", submit/receipt hidden, flags read-only, mark-ready CTA) and
+        the same PR is a plain reviewer view for a non-author — no "mode"
+        wording anywhere;
+      - soft gate lists current-head flags (zero flags → skipped; historical
+        revision → chip stays, CTA disabled, no gate);
+      - mark-ready flips the PR non-draft on GitHub and the surface converges
+        to reviewer view; `converted_to_draft` returns it WITHOUT regenerating;
+      - post-now on an own-draft inline comment posts to GitHub (commit_id
+        pinned) and renders as a "yours" thread; the reviewer composer stays
+        private-until-submit (ADR 0004 — a "Post" button in reviewer state is a
+        hard regression).
 - [ ] Access control spot checks: `/api/*` 401 signed-out; inaccessible
       repo id → 404 (never 403); audit line in the web log.
 
