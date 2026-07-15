@@ -102,6 +102,13 @@ export interface PrSummary {
   /** The current push's head; null only when nothing was ever projected. */
   readonly headSha: string | null;
   readonly briefAvailable: boolean;
+  /** GitHub draft state (BRIEF-43); with `viewerIsAuthor` it derives own-draft affordances. */
+  readonly draft: boolean;
+  /**
+   * Whether the requesting viewer authored this PR (BRIEF-43) — derived
+   * server-side per request; the author login itself never crosses the wire.
+   */
+  readonly viewerIsAuthor: boolean;
   readonly generation: GenerationSummary | null;
   readonly updatedAt: string;
   /** Present on PR-meta responses only; absent on list rows. */
@@ -369,6 +376,15 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (typeof value["briefAvailable"] !== "boolean") {
     return { ok: false, error: "briefAvailable must be a boolean" };
   }
+  // Both BRIEF-43 booleans are REQUIRED on every row (list and meta): they
+  // gate author-only affordances, so a missing field is a contract violation,
+  // never a silent false.
+  if (typeof value["draft"] !== "boolean") {
+    return { ok: false, error: "draft must be a boolean" };
+  }
+  if (typeof value["viewerIsAuthor"] !== "boolean") {
+    return { ok: false, error: "viewerIsAuthor must be a boolean" };
+  }
   const generation = parseGenerationSummary(value["generation"]);
   if (!generation.ok) return generation;
   if (typeof value["updatedAt"] !== "string") {
@@ -389,6 +405,8 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
       baseSha: value["baseSha"],
       headSha: value["headSha"],
       briefAvailable: value["briefAvailable"],
+      draft: value["draft"],
+      viewerIsAuthor: value["viewerIsAuthor"],
       generation: generation.value,
       updatedAt: value["updatedAt"],
       ...(comparisons.value === undefined

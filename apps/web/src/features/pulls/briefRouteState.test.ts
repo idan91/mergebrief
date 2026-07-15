@@ -19,6 +19,8 @@ function meta(overrides: Partial<PrSummary>): PrSummary {
     baseSha: null,
     headSha: "head-2",
     briefAvailable: false,
+    draft: false,
+    viewerIsAuthor: false,
     generation: null,
     updatedAt: "2026-07-06T12:00:00.000Z",
     ...overrides,
@@ -147,6 +149,46 @@ describe("shouldPollMeta", () => {
         meta({
           briefAvailable: true,
           generation: generation({ status: "superseded" }),
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("polls the viewer's OWN draft (BRIEF-43): external ready flips must propagate", () => {
+    // A fully settled generation on the author's own draft still polls —
+    // this is exactly the state an author sits in while self-reviewing, and
+    // a ready-elsewhere flip (marked ready on GitHub) must reach a focused
+    // tab without a window-focus refetch.
+    expect(
+      shouldPollMeta(
+        meta({
+          draft: true,
+          viewerIsAuthor: true,
+          briefAvailable: true,
+          generation: generation({ status: "succeeded" }),
+        }),
+      ),
+    ).toBe(true);
+    // Someone ELSE's draft does not poll — no draft-keyed affordances there;
+    // a flip INTO own-draft arrives via the focus refetch, as before.
+    expect(
+      shouldPollMeta(
+        meta({
+          draft: true,
+          viewerIsAuthor: false,
+          briefAvailable: true,
+          generation: generation({ status: "succeeded" }),
+        }),
+      ),
+    ).toBe(false);
+    // The same settled meta without the draft flag does not poll either.
+    expect(
+      shouldPollMeta(
+        meta({
+          draft: false,
+          viewerIsAuthor: true,
+          briefAvailable: true,
+          generation: generation({ status: "succeeded" }),
         }),
       ),
     ).toBe(false);

@@ -53,6 +53,35 @@ const brief: Brief = {
   concernView: [],
 };
 
+/** A full prop set keyed on the own-draft plan — for rerender-based tests. */
+function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
+  return {
+    brief,
+    briefId: "test-brief",
+    timeline: { points: [], selectedPoint: undefined },
+    model: buildBriefViewModel(brief),
+    totals: {
+      playbookChecked: 0,
+      playbookTotal: 0,
+      reviewed: 1,
+      chunkTotal: 2,
+      flagsResolved: 0,
+      flagTotal: 1,
+    },
+    progress: 50,
+    locOpen: false,
+    viewMode: "story",
+    setViewMode: vi.fn(),
+    setLocOpen: vi.fn(),
+    openReceipt: vi.fn(),
+    clearDrafts: vi.fn(),
+    availability: { previousBrief: false, lastReview: false },
+    compareState: { view: "full", compare: "off" },
+    openSummaryPreviewDrawer: vi.fn(),
+    ownDraft,
+  };
+}
+
 function renderHeader(overrides: Partial<HeaderProps> = {}) {
   const clearDrafts = vi.fn();
   const openSummaryPreviewDrawer = vi.fn();
@@ -282,5 +311,208 @@ describe("Header (BRIEF-28)", () => {
     const { openReceipt } = renderHeader();
     fireEvent.click(screen.getByRole("button", { name: "Receipt" }));
     expect(openReceipt).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Header own-draft state (BRIEF-43)", () => {
+  it("renders no self-review chip outside the own-draft state", () => {
+    renderHeader();
+    expect(screen.queryByText("Self-review — your draft")).toBeNull();
+  });
+
+  it("renders the non-dismissible self-review chip with its tooltip", () => {
+    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+    const chip = screen.getByText("Self-review — your draft");
+    expect(chip).toBeTruthy();
+    // Non-dismissible: the chip carries no close affordance.
+    expect(
+      chip
+        .closest("[data-self-review-chip]")
+        ?.querySelector("button[aria-label*='close' i]"),
+    ).toBeNull();
+    const info = screen.getByRole("button", { name: "About self-review" });
+    const tooltipId = info.getAttribute("aria-describedby");
+    expect(tooltipId).toBeTruthy();
+    const tooltip = document.getElementById(tooltipId ?? "");
+    expect(tooltip?.getAttribute("role")).toBe("tooltip");
+    expect(tooltip?.textContent).toBe(
+      "You're viewing your own draft PR. Review submission and the receipt unlock once it's marked ready for review.",
+    );
+  });
+
+  it("tooltip dismisses on Escape while focused without leaking the key, and re-arms (WCAG 1.4.13)", () => {
+    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+    const info = screen.getByRole("button", { name: "About self-review" });
+    const wrap = info.parentElement;
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
+
+    const onWindowKeyDown = vi.fn();
+    window.addEventListener("keydown", onWindowKeyDown);
+    fireEvent.focus(info);
+    fireEvent.keyDown(info, { key: "Escape" });
+    // Dismissed — and the key never reached the page (focus-mode Escape).
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+    expect(onWindowKeyDown).not.toHaveBeenCalled();
+    window.removeEventListener("keydown", onWindowKeyDown);
+
+    // Blur re-arms it for the next focus/hover…
+    fireEvent.blur(info);
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
+
+    // …and so does the pointer leaving after an Escape while hovering.
+    if (wrap) fireEvent.mouseEnter(wrap);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+    if (wrap) fireEvent.mouseLeave(wrap);
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
+  });
+
+  it("Escape-dismissal sticks while EITHER hover or focus is still active", () => {
+    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+    const info = screen.getByRole("button", { name: "About self-review" });
+    const wrap = info.parentElement;
+
+    // Both channels active, then Escape.
+    if (wrap) fireEvent.mouseEnter(wrap);
+    fireEvent.focus(info);
+    fireEvent.keyDown(info, { key: "Escape" });
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+
+    // Pointer drifts away while focus remains: must STAY dismissed.
+    if (wrap) fireEvent.mouseLeave(wrap);
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+
+    // The inverse: re-hover, then blur while the pointer stays — still
+    // dismissed (focus left, hover holds).
+    if (wrap) fireEvent.mouseEnter(wrap);
+    fireEvent.blur(info);
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+
+    // Only when BOTH channels go idle does the tooltip re-arm.
+    if (wrap) fireEvent.mouseLeave(wrap);
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(false);
+  });
+
+  it("tooltip dismisses on Escape while HOVERED without focus (WCAG 1.4.13)", () => {
+    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+    const info = screen.getByRole("button", { name: "About self-review" });
+    const wrap = info.parentElement;
+    expect(document.activeElement).toBe(document.body);
+
+    const onWindowKeyDown = vi.fn();
+    window.addEventListener("keydown", onWindowKeyDown);
+    // Pointer hover only — focus never moves off <body>.
+    if (wrap) fireEvent.mouseEnter(wrap);
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    // Dismissed, key claimed: it must NOT fall through to the page's
+    // window-level shortcut listener (which would exit focus mode).
+    expect(wrap?.hasAttribute("data-tooltip-dismissed")).toBe(true);
+    expect(onWindowKeyDown).not.toHaveBeenCalled();
+
+    // Once the tooltip is gone, the claim is released: a second Escape
+    // reaches the page as usual.
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(onWindowKeyDown).toHaveBeenCalledTimes(1);
+    window.removeEventListener("keydown", onWindowKeyDown);
+  });
+
+  it("swaps the terminal-action slot: Mark ready for review replaces Receipt", () => {
+    const markReady = vi.fn();
+    const { openReceipt } = renderHeader({
+      ownDraft: { markReady, pending: false },
+    });
+    expect(screen.queryByRole("button", { name: "Receipt" })).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(markReady).toHaveBeenCalledTimes(1);
+    expect(openReceipt).toHaveBeenCalledTimes(0);
+  });
+
+  it("marks the CTA aria-disabled (never hard disabled) while pending — focus survives", () => {
+    renderHeader({ ownDraft: { markReady: vi.fn(), pending: true } });
+    const cta = screen.getByRole("button", { name: /marking ready/i });
+    // Hard `disabled` would dump keyboard focus on <body> mid-mutation; the
+    // in-flight guard in the mark-ready flow already no-ops repeat clicks.
+    expect((cta as HTMLButtonElement).disabled).toBe(false);
+    expect(cta.getAttribute("aria-disabled")).toBe("true");
+    cta.focus();
+    expect(document.activeElement).toBe(cta);
+  });
+
+  it("moves focus to the swapped-in Receipt CTA when the own-draft state ends on the focused slot", () => {
+    const { rerender } = render(
+      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+    );
+    const cta = screen.getByRole("button", { name: "Mark ready for review" });
+    cta.focus();
+
+    // The refreshed PrView flips draft=false: the CTA unmounts, Receipt
+    // mounts in the terminal-action slot — focus follows the slot instead of
+    // dropping to <body>.
+    rerender(<Header {...headerProps(undefined)} />);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Receipt" }),
+    );
+  });
+
+  it("keeps slot focus continuity on the flip INTO own-draft too (symmetric)", () => {
+    const { rerender } = render(<Header {...headerProps(undefined)} />);
+    screen.getByRole("button", { name: "Receipt" }).focus();
+
+    // The PR converts to draft under focus: Receipt unmounts, the mark-ready
+    // CTA mounts in the same slot — focus follows.
+    rerender(
+      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+    );
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+  });
+
+  it("a consumed slot-focus flag never goes stale: a later external flip must not steal focus", () => {
+    const { rerender } = render(<Header {...headerProps(undefined)} />);
+    // Focus Receipt, then flip INTO own-draft (slot continuity moves focus
+    // onto the CTA and consumes the flag)…
+    screen.getByRole("button", { name: "Receipt" }).focus();
+    rerender(
+      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+    );
+    // …then the user moves on and works elsewhere.
+    const elsewhere = screen.getByRole("button", { name: /more actions/i });
+    elsewhere.focus();
+
+    // A LATER external ready flip must leave the user's focus alone — a
+    // stale `true` from the earlier swap would yank it onto Receipt.
+    rerender(<Header {...headerProps(undefined)} />);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: /more actions/i }),
+    );
+  });
+
+  it("does NOT steal focus on the swap when the slot was not focused", () => {
+    const { rerender } = render(
+      <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
+    );
+    // Focus never visited the terminal slot in this session.
+    rerender(<Header {...headerProps(undefined)} />);
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("shows a count-only flags stat (dispositions are unreachable in own-draft)", () => {
+    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+    const stat = screen.getByText("flags");
+    // No resolved/total fraction — it would sit at a permanent 0/N.
+    expect(stat.textContent).toBe("flags1");
+    expect(stat.textContent).not.toContain("/");
+  });
+
+  it("drops the Summary preview item (submit machinery) from the menu", () => {
+    renderHeader({ ownDraft: { markReady: vi.fn(), pending: false } });
+    fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
+    const items = screen.getAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Clear local drafts",
+    ]);
   });
 });

@@ -73,6 +73,8 @@ import {
   type ComparisonSource,
 } from "../../comparison";
 import type { ComparisonOverlayState } from "../../comparisonOverlay";
+import type { MarkReadyAction } from "../../../pulls/markReady";
+import { useMarkReady } from "../../../pulls/useMarkReady";
 import { buildBriefTimeline } from "../../timeline";
 import type {
   Brief,
@@ -94,6 +96,10 @@ import { StoryView } from "../StoryView/StoryView";
 import styles from "./BriefPage.module.scss";
 
 const EMPTY_CHUNK_IDS: string[] = [];
+
+/** Read by the live region when an external draft-flip closes reviewer overlays. */
+export const OWN_DRAFT_ENTRY_ANNOUNCEMENT =
+  "This pull request was converted to a draft. You're now viewing your own draft — review submission unlocks once it's marked ready for review.";
 
 function numericCssVar(name: string): number {
   if (typeof window === "undefined") return 0;
@@ -263,6 +269,22 @@ export interface BriefComparisonPlan {
   };
 }
 
+/**
+ * Own-draft state wiring (BRIEF-43, ADR 0031): injected by the DB route ONLY
+ * while `draft && viewerIsAuthor` holds on the PrView (derived at read time,
+ * single source: `features/pulls/ownDraft`). Present → the screen labels the
+ * state (self-review chip), hides the submit/receipt machinery, renders flags
+ * as a read-only mirror, and puts "Mark ready for review" in the terminal-
+ * action slot. Absent (local path, any reviewer view) → nothing changes.
+ */
+export interface OwnDraftPlan {
+  /**
+   * POSTs mark-ready; on success it awaits the pr-view invalidation, so the
+   * own-draft UI stays stable until the refreshed PrView actually flips.
+   */
+  readonly markReady: MarkReadyAction;
+}
+
 export interface BriefViewProps extends BriefPageProps {
   /** The already-fetched Brief to render (DB path: assembled client-side). */
   brief: Brief;
@@ -294,6 +316,8 @@ export interface BriefViewProps extends BriefPageProps {
    * header's control slot (BRIEF-24 UX pass). Absent on the local path.
    */
   headerControls?: ReactNode | undefined;
+  /** Own-draft state plan (BRIEF-43); absent on every plain reviewer view. */
+  ownDraft?: OwnDraftPlan | undefined;
 }
 
 /**
@@ -310,6 +334,7 @@ export function BriefView({
   conversation,
   conversationFocusThreadId,
   headerControls,
+  ownDraft,
   readOnly,
   searchParams,
   submitReview,
@@ -326,6 +351,7 @@ export function BriefView({
         conversationFocusThreadId={conversationFocusThreadId}
         headerControls={headerControls}
         model={model}
+        ownDraft={ownDraft}
         readOnly={readOnly}
         searchParams={searchParams}
         submitReview={submitReview}
@@ -350,6 +376,7 @@ interface BriefScreenProps {
    */
   conversationFocusThreadId?: number | undefined;
   headerControls?: ReactNode | undefined;
+  ownDraft?: OwnDraftPlan | undefined;
 }
 
 function BriefScreen({
@@ -362,6 +389,7 @@ function BriefScreen({
   conversation,
   conversationFocusThreadId,
   headerControls,
+  ownDraft,
   readOnly,
   submitReview,
 }: BriefScreenProps) {
@@ -621,15 +649,23 @@ function BriefScreen({
   }, [focusMode]);
   const firstChunkId = chunkIds[0] ?? null;
 
+  // Own-draft state (BRIEF-43): the plan's presence IS the state — see the
+  // block around `markReadyFlow` below.
+  const ownDraftActive = ownDraft !== undefined;
   const totals = useMemo(
     () => summarizeProgress(model, reviewedChunks, dispositions),
     [dispositions, model, reviewedChunks],
   );
-  const totalWork = model.flags.length + brief.chunks.length;
-  const progress =
-    totalWork === 0
-      ? 0
-      : ((totals.reviewed + totals.flagsResolved) / totalWork) * 100;
+  // Own-draft state: flag dispositions are unreachable (read-only mirror), so
+  // counting them in the denominator would cap progress below 100% forever —
+  // progress is chunk read-through only there.
+  const totalWork = ownDraftActive
+    ? brief.chunks.length
+    : model.flags.length + brief.chunks.length;
+  const progressDone = ownDraftActive
+    ? totals.reviewed
+    : totals.reviewed + totals.flagsResolved;
+  const progress = totalWork === 0 ? 0 : (progressDone / totalWork) * 100;
   const unresolvedItems = useMemo(
     () =>
       deriveUnresolvedItems({
@@ -1166,6 +1202,57 @@ function BriefScreen({
     resetOutcome: () => actions.setOutcome("comment"),
   });
   const liveSubmit = submitFlow.available;
+  // Own-draft state (BRIEF-43, ADR 0031): the plan's presence IS the state —
+  // derived at read time by the route (draft && viewerIsAuthor), never a
+  // self-declared toggle.
+  // While active: submit/receipt machinery is hidden (not broken), flags are a
+  // read-only mirror, and the terminal-action slot holds Mark ready for
+  // review. When the refreshed PrView flips draft=false (mark-ready here, or
+  // ready-elsewhere via the pr-view poll), `ownDraft` turns undefined and the
+  // affordances vanish — the reviewer view below is already fully wired.
+  // (`ownDraftActive` itself is derived earlier, next to the progress calc.)
+  const markReadyFlow = useMarkReady({
+    action: ownDraft?.markReady,
+    announce: announceSubmit,
+  });
+  // Entering the own-draft state closes every reviewer overlay. The overlays
+  // UNMOUNT while the state holds, but their open flags are plain local
+  // state — left set, they would keep `shortcutsDisabled` stuck true for the
+  // whole session (dead J/K/Z/?/C with nothing visible) and resurrect the
+  // overlay the moment the PR is marked ready. A PrView can flip INTO
+  // own-draft mid-session (converted to draft on GitHub under an open
+  // overlay), so this is a real path, not just belt-and-braces.
+  //
+  // Focus rescue: by the time the effect runs, this render already unmounted
+  // the overlays — a focus that lived inside one was silently dropped on
+  // <body> (an unmounting element fires no blur). The overlay-open snapshot
+  // rides a latest-ref (this render's values — the resets below only land
+  // next render), and orphaned focus is re-homed on the terminal-slot CTA,
+  // mirroring the Header's slot-continuity, with the live region explaining
+  // why the screen just changed.
+  const overlayWasOpenRef = useLatestRef(
+    receiptOpen ||
+      summaryPreviewOpen ||
+      preSubmitOpen ||
+      dismissTarget !== null ||
+      evidenceTarget !== null,
+  );
+  useEffect(() => {
+    if (!ownDraftActive) return;
+    const active = document.activeElement;
+    if (
+      overlayWasOpenRef.current &&
+      (active === null || active === document.body)
+    ) {
+      document.querySelector<HTMLElement>("[data-terminal-slot]")?.focus();
+      announceSubmit(OWN_DRAFT_ENTRY_ANNOUNCEMENT);
+    }
+    setReceiptOpen(false);
+    setSummaryPreviewOpen(false);
+    setPreSubmitOpen(false);
+    setDismissTarget(null);
+    setEvidenceTarget(null);
+  }, [announceSubmit, overlayWasOpenRef, ownDraftActive]);
   const submitReceipt = useCallback(() => {
     // Read-only posture (BRIEF-24): the submit control disables focusably with
     // the reason (below) — this guards the click path itself.
@@ -1257,6 +1344,14 @@ function BriefScreen({
           comparisonPlan === undefined ? undefined : openSummaryPreview
         }
         controlsSlot={headerControls}
+        ownDraft={
+          ownDraftActive
+            ? {
+                markReady: markReadyFlow.markReady,
+                pending: markReadyFlow.pending,
+              }
+            : undefined
+        }
       />
       {/* Focus mode (Z) strips the page chrome and centers a single chunk in
           a narrow reading column — the visible payoff of "focus". The banner
@@ -1416,6 +1511,7 @@ function BriefScreen({
                 setDismissTarget={openDismissTarget}
                 setEvidenceTarget={setEvidenceTarget}
                 setToast={setToast}
+                flagsReadOnly={ownDraftActive}
                 toggleChunk={toggleChunk}
                 toggleRiskFlag={toggleRiskFlag}
                 toggleRiskGroup={toggleRiskGroup}
@@ -1435,52 +1531,69 @@ function BriefScreen({
           </>
         )}
       </main>
-      <ReceiptDrawer
-        receipt={receipt}
-        open={receiptOpen}
-        close={closeReceipt}
-        openSummaryPreview={openSummaryPreview}
-        submit={submitReceipt}
-        submitPending={
-          liveSubmit && readOnly === undefined ? submitFlow.pending : false
-        }
-        submitBlockedReason={
-          readOnly?.reason ??
-          (liveSubmit ? submitFlow.blockedReason : undefined)
-        }
-        submitError={
-          liveSubmit && readOnly === undefined ? submitFlow.error : null
-        }
-        submitNote={liveSubmit ? submitFlow.note : null}
-      />
-      <SummaryPreviewDrawer
-        brief={brief}
-        open={summaryPreviewOpen}
-        snapshot={snapshot}
-        close={closeSummaryPreview}
-        setOutcome={(outcome) => actions.setOutcome(outcome)}
-      />
-      <PreSubmitModal
-        open={preSubmitOpen}
-        unresolvedItems={unresolvedItems}
-        close={closePreSubmit}
-        continueToReceipt={continuePreSubmitToReceipt}
-        jumpToItem={jumpToPreSubmitItem}
-      />
-      <DismissModal
-        target={dismissTarget}
-        reason={dismissReason}
-        warned={dismissWarned}
-        cancel={cancelDismiss}
-        confirm={confirmDismiss}
-        setReason={setDismissReason}
-      />
-      <EvidenceModal
-        comments={reviewComments}
-        target={evidenceTarget}
-        cancel={cancelEvidence}
-        confirm={confirmEvidence}
-      />
+      {/* Submit-review machinery + receipt: HIDDEN (not broken) in the
+          own-draft state (BRIEF-43, ADR 0031). The receipt is the terminal
+          artifact of submitting a review; in own-draft the terminal action is
+          mark-ready — no submit, no receipt ceremony, and none of these
+          surfaces (nor their toasts) is reachable: the Header CTA slot swaps,
+          the menu drops Summary preview, and no keyboard shortcut opens any
+          of them. */}
+      {ownDraftActive ? null : (
+        <>
+          <ReceiptDrawer
+            receipt={receipt}
+            open={receiptOpen}
+            close={closeReceipt}
+            openSummaryPreview={openSummaryPreview}
+            submit={submitReceipt}
+            submitPending={
+              liveSubmit && readOnly === undefined ? submitFlow.pending : false
+            }
+            submitBlockedReason={
+              readOnly?.reason ??
+              (liveSubmit ? submitFlow.blockedReason : undefined)
+            }
+            submitError={
+              liveSubmit && readOnly === undefined ? submitFlow.error : null
+            }
+            submitNote={liveSubmit ? submitFlow.note : null}
+          />
+          <SummaryPreviewDrawer
+            brief={brief}
+            open={summaryPreviewOpen}
+            snapshot={snapshot}
+            close={closeSummaryPreview}
+            setOutcome={(outcome) => actions.setOutcome(outcome)}
+          />
+          <PreSubmitModal
+            open={preSubmitOpen}
+            unresolvedItems={unresolvedItems}
+            close={closePreSubmit}
+            continueToReceipt={continuePreSubmitToReceipt}
+            jumpToItem={jumpToPreSubmitItem}
+          />
+        </>
+      )}
+      {/* Flag-disposition machinery: unmounted with its controls — flags are
+          a read-only mirror in the own-draft state (no author dispositions). */}
+      {ownDraftActive ? null : (
+        <>
+          <DismissModal
+            target={dismissTarget}
+            reason={dismissReason}
+            warned={dismissWarned}
+            cancel={cancelDismiss}
+            confirm={confirmDismiss}
+            setReason={setDismissReason}
+          />
+          <EvidenceModal
+            comments={reviewComments}
+            target={evidenceTarget}
+            cancel={cancelEvidence}
+            confirm={confirmEvidence}
+          />
+        </>
+      )}
       <ShortcutsModal open={shortcutsOpen} close={closeShortcuts} />
       <div className={styles["kbdHint"]}>
         {focusMode ? (

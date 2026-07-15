@@ -21,6 +21,8 @@ const ROW = {
     updatedAt: "2026-07-06T12:00:00.000Z",
   },
   updatedAt: "2026-07-06T12:00:00.000Z",
+  draft: false,
+  viewerIsAuthor: false,
 };
 
 describe("parsePrSummary", () => {
@@ -30,6 +32,25 @@ describe("parsePrSummary", () => {
     if (!parsed.ok) throw new Error("unreachable");
     expect(parsed.value.prNumber).toBe(7);
     expect(parsed.value.generation?.status).toBe("succeeded");
+  });
+
+  it("parses draft + viewerIsAuthor (BRIEF-43) and requires both", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      draft: true,
+      viewerIsAuthor: true,
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.draft).toBe(true);
+    expect(parsed.value.viewerIsAuthor).toBe(true);
+
+    const { draft: _noDraft, ...withoutDraft } = ROW;
+    expect(parsePrSummary(withoutDraft).ok).toBe(false);
+    const { viewerIsAuthor: _noViewer, ...withoutViewer } = ROW;
+    expect(parsePrSummary(withoutViewer).ok).toBe(false);
+    // A non-boolean must be rejected, not coerced — this gates affordances.
+    expect(parsePrSummary({ ...ROW, viewerIsAuthor: "true" }).ok).toBe(false);
   });
 
   it("accepts nullable fields (waiting row: no brief, no title, null span)", () => {

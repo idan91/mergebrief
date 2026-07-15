@@ -28,6 +28,13 @@ export interface GroupCardProps {
   setToast: (message: string) => void;
   toggleRiskFlag: (flagId: string) => void;
   toggleRiskGroup: (flagIds: string[]) => void;
+  /**
+   * Own-draft state (BRIEF-43, ADR 0031): risk flags render as a read-only
+   * MIRROR — no author dispositions exist, so every disposition control
+   * (checkboxes, Address/Dismiss) disappears while the flags themselves stay
+   * fully visible. The author's disposition mechanism is code: fix and push.
+   */
+  flagsReadOnly?: boolean | undefined;
 }
 
 function evidenceText(
@@ -51,6 +58,7 @@ export const GroupCard = memo(function GroupCard({
   setToast,
   toggleRiskFlag,
   toggleRiskGroup,
+  flagsReadOnly = false,
 }: GroupCardProps) {
   const dispositions = useMindMap((state) => state.dispositions);
   const dominants = useMindMap((state) => state.dominants);
@@ -145,29 +153,33 @@ export const GroupCard = memo(function GroupCard({
               Risk surface — {groupFlags.length} flags{" "}
               <span className={styles["count"]}>attributes, not verdicts</span>
             </span>
-            <span className={styles["riskInfo"]}>
-              <button
-                aria-describedby={`${group.id}-risk-help`}
-                aria-label="Risk surface status meanings"
-                className={styles["infoButton"]}
-                type="button"
-              >
-                i
-              </button>
-              <span
-                className={styles["riskInfoPopover"]}
-                id={`${group.id}-risk-help`}
-                role="tooltip"
-              >
-                <span>
-                  <b>Addressed:</b> this risk was reviewed and handled.
-                </span>
-                <span>
-                  <b>Dismissed:</b> this risk is not applicable, duplicate, or a
-                  false positive.
+            {/* The popover documents the disposition controls — it goes with
+                them in the read-only mirror (nothing dangling). */}
+            {flagsReadOnly ? null : (
+              <span className={styles["riskInfo"]}>
+                <button
+                  aria-describedby={`${group.id}-risk-help`}
+                  aria-label="Risk surface status meanings"
+                  className={styles["infoButton"]}
+                  type="button"
+                >
+                  i
+                </button>
+                <span
+                  className={styles["riskInfoPopover"]}
+                  id={`${group.id}-risk-help`}
+                  role="tooltip"
+                >
+                  <span>
+                    <b>Addressed:</b> this risk was reviewed and handled.
+                  </span>
+                  <span>
+                    <b>Dismissed:</b> this risk is not applicable, duplicate, or
+                    a false positive.
+                  </span>
                 </span>
               </span>
-            </span>
+            )}
           </div>
           {groupFlags.length === 0 ? (
             <p className={styles["empty"]}>
@@ -190,53 +202,63 @@ export const GroupCard = memo(function GroupCard({
             return (
               <div className={styles["riskGroup"]} key={riskGroup.attr}>
                 <div className={styles["riskGroupHead"]}>
-                  <label className={styles["riskCheck"]}>
-                    <input
-                      className={styles["checkbox"]}
-                      checked={allSelected}
-                      disabled={openRiskFlagIds.length === 0}
-                      suppressHydrationWarning
-                      type="checkbox"
-                      onChange={() => toggleRiskGroup(openRiskFlagIds)}
-                    />
-                    <span className={styles["riskGroupTitle"]}>
-                      {riskGroup.attr}
+                  {flagsReadOnly ? (
+                    <span className={styles["riskCheck"]}>
+                      <span className={styles["riskGroupTitle"]}>
+                        {riskGroup.attr}
+                      </span>
                     </span>
-                  </label>
-                  <div className={styles["riskBulkActions"]}>
-                    <button
-                      className={styles["button"]}
-                      disabled={!hasSelection}
-                      title="Mark selected risks as reviewed and handled"
-                      type="button"
-                      onClick={() => {
-                        setEvidenceTarget({
-                          flagIds: openRiskFlagIds.filter((flagId) =>
-                            selectedRiskFlags.has(flagId),
-                          ),
-                          label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
-                        });
-                      }}
-                    >
-                      Address selected
-                    </button>
-                    <button
-                      className={styles["button"]}
-                      disabled={!hasSelection}
-                      title="Mark selected risks as not applicable"
-                      type="button"
-                      onClick={() => {
-                        setDismissTarget({
-                          flagIds: openRiskFlagIds.filter((flagId) =>
-                            selectedRiskFlags.has(flagId),
-                          ),
-                          label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
-                        });
-                      }}
-                    >
-                      Dismiss selected…
-                    </button>
-                  </div>
+                  ) : (
+                    <label className={styles["riskCheck"]}>
+                      <input
+                        className={styles["checkbox"]}
+                        checked={allSelected}
+                        disabled={openRiskFlagIds.length === 0}
+                        suppressHydrationWarning
+                        type="checkbox"
+                        onChange={() => toggleRiskGroup(openRiskFlagIds)}
+                      />
+                      <span className={styles["riskGroupTitle"]}>
+                        {riskGroup.attr}
+                      </span>
+                    </label>
+                  )}
+                  {flagsReadOnly ? null : (
+                    <div className={styles["riskBulkActions"]}>
+                      <button
+                        className={styles["button"]}
+                        disabled={!hasSelection}
+                        title="Mark selected risks as reviewed and handled"
+                        type="button"
+                        onClick={() => {
+                          setEvidenceTarget({
+                            flagIds: openRiskFlagIds.filter((flagId) =>
+                              selectedRiskFlags.has(flagId),
+                            ),
+                            label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
+                          });
+                        }}
+                      >
+                        Address selected
+                      </button>
+                      <button
+                        className={styles["button"]}
+                        disabled={!hasSelection}
+                        title="Mark selected risks as not applicable"
+                        type="button"
+                        onClick={() => {
+                          setDismissTarget({
+                            flagIds: openRiskFlagIds.filter((flagId) =>
+                              selectedRiskFlags.has(flagId),
+                            ),
+                            label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
+                          });
+                        }}
+                      >
+                        Dismiss selected…
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className={styles["riskFiles"]}>
                   {riskGroup.flags.map((flag) => {
@@ -251,17 +273,19 @@ export const GroupCard = memo(function GroupCard({
                         key={flag.id}
                       >
                         <div className={styles["flagRow"]}>
-                          <input
-                            aria-label={`Select ${flag.attr} flag for ${flag.file}`}
-                            checked={
-                              !isResolved && selectedRiskFlags.has(flag.id)
-                            }
-                            className={styles["checkbox"]}
-                            disabled={isResolved}
-                            suppressHydrationWarning
-                            type="checkbox"
-                            onChange={() => toggleRiskFlag(flag.id)}
-                          />
+                          {flagsReadOnly ? null : (
+                            <input
+                              aria-label={`Select ${flag.attr} flag for ${flag.file}`}
+                              checked={
+                                !isResolved && selectedRiskFlags.has(flag.id)
+                              }
+                              className={styles["checkbox"]}
+                              disabled={isResolved}
+                              suppressHydrationWarning
+                              type="checkbox"
+                              onChange={() => toggleRiskFlag(flag.id)}
+                            />
+                          )}
                           <button
                             className={styles["fileButton"]}
                             type="button"
@@ -286,34 +310,36 @@ export const GroupCard = memo(function GroupCard({
                                 {flag.note}
                               </div>
                             ) : null}
-                            <div className={styles["flagActions"]}>
-                              <button
-                                className={styles["button"]}
-                                title="Mark this risk as reviewed and handled"
-                                type="button"
-                                onClick={() => {
-                                  setEvidenceTarget({
-                                    flagIds: [flag.id],
-                                    label: `${flag.attr} @ ${flag.file}`,
-                                  });
-                                }}
-                              >
-                                Addressed
-                              </button>
-                              <button
-                                className={styles["button"]}
-                                title="Mark this risk as not applicable"
-                                type="button"
-                                onClick={() =>
-                                  setDismissTarget({
-                                    flagIds: [flag.id],
-                                    label: `${flag.attr} @ ${flag.file}`,
-                                  })
-                                }
-                              >
-                                Dismiss…
-                              </button>
-                            </div>
+                            {flagsReadOnly ? null : (
+                              <div className={styles["flagActions"]}>
+                                <button
+                                  className={styles["button"]}
+                                  title="Mark this risk as reviewed and handled"
+                                  type="button"
+                                  onClick={() => {
+                                    setEvidenceTarget({
+                                      flagIds: [flag.id],
+                                      label: `${flag.attr} @ ${flag.file}`,
+                                    });
+                                  }}
+                                >
+                                  Addressed
+                                </button>
+                                <button
+                                  className={styles["button"]}
+                                  title="Mark this risk as not applicable"
+                                  type="button"
+                                  onClick={() =>
+                                    setDismissTarget({
+                                      flagIds: [flag.id],
+                                      label: `${flag.attr} @ ${flag.file}`,
+                                    })
+                                  }
+                                >
+                                  Dismiss…
+                                </button>
+                              </div>
+                            )}
                           </>
                         ) : kind === "addressed" ? (
                           <div className={styles["stateDetail"]}>

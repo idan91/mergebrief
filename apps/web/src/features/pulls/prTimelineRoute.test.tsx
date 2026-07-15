@@ -64,6 +64,8 @@ function timelineMeta(overrides: Partial<PrSummary> = {}): PrSummary {
     baseSha: REV2.baseSha,
     headSha: REV2.headSha,
     briefAvailable: true,
+    draft: false,
+    viewerIsAuthor: false,
     generation: {
       status: "succeeded",
       phase: null,

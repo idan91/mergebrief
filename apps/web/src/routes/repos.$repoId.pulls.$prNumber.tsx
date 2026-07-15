@@ -4,7 +4,11 @@
 // dynamic rest (live diff, status polling) is client-side. The wait UX is the
 // pure `briefRouteState` machine; render trigger = artifact EXISTS
 // (ADR 0006 #10), status only flavors the wait.
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
 
@@ -50,6 +54,8 @@ import {
 import { conversationQueryOptions } from "../features/conversation/queries";
 import type { ThreadRevisionJump } from "../features/conversation/components/ConversationSection/ConversationSection";
 import { postConversationReply } from "../features/conversation/reply";
+import { createMarkReadyAction } from "../features/pulls/markReady";
+import { isOwnDraft } from "../features/pulls/ownDraft";
 import { submitReview } from "../features/pulls/submitReview";
 import type { PrSummary } from "../features/pulls/types";
 import {
@@ -696,6 +702,25 @@ function DbBrief({
       ),
     [prNumber, repoId, span.head],
   );
+  // Own-draft state (BRIEF-43, ADR 0031): derived at read time from the
+  // PrView booleans — never stored, never an entry path. The injected action
+  // POSTs mark-ready and, on success, awaits the pr-view invalidation so the
+  // own-draft UI stays stable until the refreshed PrView (draft=false)
+  // actually lands — invalidate, never optimistically clear. A ready-
+  // elsewhere flip (marked ready on GitHub) rides the same derivation:
+  // `shouldPollMeta` polls while `draft` holds, so the flip reaches a focused
+  // tab within a poll tick, turns the plan undefined, and the affordances
+  // vanish.
+  const queryClient = useQueryClient();
+  const markReadyAction = useMemo(
+    () => createMarkReadyAction(queryClient, repoId, prNumber),
+    [prNumber, queryClient, repoId],
+  );
+  const ownDraftState = isOwnDraft(meta);
+  const ownDraft = useMemo(
+    () => (ownDraftState ? { markReady: markReadyAction } : undefined),
+    [markReadyAction, ownDraftState],
+  );
   // Keys the per-brief Mind-Map session store, exactly like a local brief id.
   const briefId = `db:${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
   // The live-conversation plan (BRIEF-25): always fetched fresh per PR —
@@ -746,6 +771,7 @@ function DbBrief({
         conversationFocusThreadId={conversationFocusThreadId}
         headerControls={headerControls}
         key={briefId}
+        ownDraft={ownDraft}
         readOnly={readOnly}
         searchParams={searchParams}
         submitReview={submitAction}

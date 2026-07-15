@@ -42,6 +42,8 @@ function meta(overrides: Partial<PrSummary>): PrSummary {
     baseSha: SPAN.base,
     headSha: SPAN.head,
     briefAvailable: true,
+    draft: false,
+    viewerIsAuthor: false,
     generation: {
       status: "succeeded",
       phase: null,

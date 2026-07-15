@@ -20,6 +20,19 @@ import styles from "./Header.module.scss";
 export type ViewMode = "story" | "concerns";
 export type LayoutMode = "stacked" | "split";
 
+/**
+ * Own-draft state wiring (BRIEF-43, ADR 0031): present only while the viewer
+ * reads their OWN DRAFT PR. The header then labels the state with the
+ * self-review chip and puts "Mark ready for review" — the state's terminal
+ * action — in the slot the Receipt CTA otherwise holds.
+ */
+export interface OwnDraftHeaderProps {
+  /** The state's terminal action (opens the soft gate or marks ready directly). */
+  markReady: () => void;
+  /** True while the mark-ready mutation (incl. the pr-view refresh) is in flight. */
+  pending: boolean;
+}
+
 export interface HeaderProps {
   brief: Brief;
   briefId: string;
@@ -50,6 +63,8 @@ export interface HeaderProps {
    * the sticky header — discoverable and never scrolled out of reach.
    */
   controlsSlot?: ReactNode | undefined;
+  /** Own-draft state (BRIEF-43); absent on every plain reviewer view. */
+  ownDraft?: OwnDraftHeaderProps | undefined;
 }
 
 export function Header({
@@ -69,6 +84,7 @@ export function Header({
   compareState,
   openSummaryPreviewDrawer,
   controlsSlot,
+  ownDraft,
 }: HeaderProps) {
   const headerRef = useRef<HTMLElement>(null);
   // The header height is content-driven (title length, meta line, viewport),
@@ -87,6 +103,31 @@ export function Header({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  // Terminal-action slot focus continuity (BRIEF-43): when the own-draft
+  // state flips (either direction), the focused slot button unmounts and its
+  // replacement mounts — without this, keyboard focus is dumped on <body>.
+  // Track whether the slot's button holds focus (an unmounting element fires
+  // no blur, so the flag survives the swap exactly when it should) and, on a
+  // slot swap, move focus to the swapped-in button. The flag is CONSUMED on
+  // every swap — cleared first, re-armed only by the real onFocus the
+  // focus() call triggers — so a swap that happened while focus was
+  // elsewhere can never leave a stale `true` behind for a LATER external
+  // flip to steal focus with (review round 3).
+  const terminalSlotRef = useRef<HTMLButtonElement>(null);
+  const terminalSlotFocused = useRef(false);
+  const wasOwnDraft = useRef(ownDraft !== undefined);
+  useEffect(() => {
+    const isOwnDraftNow = ownDraft !== undefined;
+    if (wasOwnDraft.current !== isOwnDraftNow) {
+      const slotHadFocus = terminalSlotFocused.current;
+      terminalSlotFocused.current = false;
+      if (slotHadFocus) {
+        terminalSlotRef.current?.focus();
+      }
+    }
+    wasOwnDraft.current = isOwnDraftNow;
+  }, [ownDraft]);
 
   const progressStyle: ProgressBarStyle = {
     "--progress-width": `${progress}%`,
@@ -163,17 +204,66 @@ export function Header({
           </div>
           <div className={`stat ${styles["stat"]}`}>
             flags
-            <b>
-              {totals.flagsResolved}/{totals.flagTotal}
-            </b>
+            {/* Own-draft state: dispositions are unreachable (flags are a
+                read-only mirror), so a resolved/total fraction would sit at a
+                permanent 0/N — show the count alone. */}
+            {ownDraft !== undefined ? (
+              <b>{totals.flagTotal}</b>
+            ) : (
+              <b>
+                {totals.flagsResolved}/{totals.flagTotal}
+              </b>
+            )}
           </div>
         </div>
-        <button className="btn primary" type="button" onClick={openReceipt}>
-          Receipt
-        </button>
+        {ownDraft !== undefined ? <SelfReviewChip /> : null}
+        {/* The terminal-action slot: it always holds the state's terminal
+            action — Receipt (→ submit) on a reviewer view, Mark ready for
+            review in the own-draft state (BRIEF-43, ADR 0031). */}
+        {ownDraft !== undefined ? (
+          /* aria-disabled, never hard disabled, while pending: a disabled
+             element dumps keyboard focus on <body>; the click path is safe
+             regardless — the mark-ready flow's in-flight guard no-ops
+             repeats. */
+          <button
+            aria-disabled={ownDraft.pending}
+            className="btn primary"
+            data-terminal-slot=""
+            ref={terminalSlotRef}
+            type="button"
+            onBlur={() => {
+              terminalSlotFocused.current = false;
+            }}
+            onFocus={() => {
+              terminalSlotFocused.current = true;
+            }}
+            onClick={ownDraft.markReady}
+          >
+            {ownDraft.pending ? "Marking ready…" : "Mark ready for review"}
+          </button>
+        ) : (
+          <button
+            className="btn primary"
+            data-terminal-slot=""
+            ref={terminalSlotRef}
+            type="button"
+            onBlur={() => {
+              terminalSlotFocused.current = false;
+            }}
+            onFocus={() => {
+              terminalSlotFocused.current = true;
+            }}
+            onClick={openReceipt}
+          >
+            Receipt
+          </button>
+        )}
         <HeaderMenu
           briefId={briefId}
           clearDrafts={clearDrafts}
+          /* Summary preview is submit machinery (review outcome + summary):
+             hidden-not-broken in the own-draft state. */
+          hideSummaryPreview={ownDraft !== undefined}
           openSummaryPreviewDrawer={openSummaryPreviewDrawer}
         />
       </div>
@@ -228,9 +318,85 @@ export function Header({
   );
 }
 
+/**
+ * The own-draft state label (BRIEF-43, ADR 0031): behavioral differences must
+ * read as visible STATE, never as bugs — this chip is that label. It is
+ * non-dismissible (no close affordance) and renders only in the own-draft
+ * state. The tooltip explains what the state hides and how it ends.
+ *
+ * WCAG 1.4.13 (content on hover/focus): the tooltip is DISMISSABLE — while
+ * it is visible (hovered OR focused, both tracked in React), a document-level
+ * CAPTURE listener claims Escape and hides it, so dismissal works for a
+ * hover-without-focus pointer user too, without moving the pointer or focus,
+ * and the key never reaches page-level handling (focus-mode exit) — the CHIP
+ * stays, only the tooltip goes. HOVERABLE — visible-state CSS re-enables
+ * pointer events so the pointer can travel onto the tooltip text. PERSISTENT
+ * — it stays while hovered or focused. Leaving (blur/mouse-out) re-arms it
+ * for the next hover.
+ */
+function SelfReviewChip() {
+  const tooltipId = useId();
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [tooltipDismissed, setTooltipDismissed] = useState(false);
+  // The Escape claim exists exactly while the tooltip is visible: capture
+  // phase on document beats (and stops) the window-level page-shortcut
+  // listener, and detaches the moment the tooltip is gone so a plain Escape
+  // elsewhere on the page is untouched.
+  const tooltipVisible = (hovered || focused) && !tooltipDismissed;
+  useEffect(() => {
+    if (!tooltipVisible) return;
+    // `globalThis.`: the module imports React's KeyboardEvent for the menu;
+    // this is a native document listener.
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      setTooltipDismissed(true);
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [tooltipVisible]);
+  // Re-arm only when BOTH channels are idle: with hover and focus
+  // overlapping, a per-channel re-arm (on mouseleave / on blur) would bring a
+  // dismissed tooltip back while the OTHER channel still holds it visible —
+  // Escape must stick for as long as either channel is active.
+  useEffect(() => {
+    if (!hovered && !focused) setTooltipDismissed(false);
+  }, [focused, hovered]);
+  return (
+    <span className={styles["selfReviewChip"]} data-self-review-chip="">
+      <span>Self-review — your draft</span>
+      <span
+        className={styles["chipInfo"]}
+        data-tooltip-dismissed={tooltipDismissed ? "" : undefined}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        <button
+          aria-describedby={tooltipId}
+          aria-label="About self-review"
+          className={styles["chipInfoButton"]}
+          type="button"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        >
+          i
+        </button>
+        <span className={styles["chipTooltip"]} id={tooltipId} role="tooltip">
+          {
+            "You're viewing your own draft PR. Review submission and the receipt unlock once it's marked ready for review."
+          }
+        </span>
+      </span>
+    </span>
+  );
+}
+
 interface HeaderMenuProps {
   briefId: string;
   clearDrafts: () => void;
+  /** Own-draft state (BRIEF-43): the Summary preview item is submit machinery. */
+  hideSummaryPreview: boolean;
   openSummaryPreviewDrawer?: (() => void) | undefined;
 }
 
@@ -243,6 +409,7 @@ interface HeaderMenuProps {
 function HeaderMenu({
   briefId,
   clearDrafts,
+  hideSummaryPreview,
   openSummaryPreviewDrawer,
 }: HeaderMenuProps) {
   const [open, setOpen] = useState(false);
@@ -336,7 +503,8 @@ function HeaderMenu({
           aria-label="More actions"
           tabIndex={-1}
         >
-          {openSummaryPreviewDrawer === undefined ? (
+          {hideSummaryPreview ? null : openSummaryPreviewDrawer ===
+            undefined ? (
             <Link
               className={styles["menuItem"]}
               params={{ briefId }}

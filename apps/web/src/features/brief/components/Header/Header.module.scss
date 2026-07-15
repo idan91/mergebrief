@@ -316,12 +316,118 @@
     transition: inline-size 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
+  /* The own-draft state label (BRIEF-43): non-dismissible, informational. */
+  .selfReviewChip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    padding-block: 4px;
+    padding-inline: 10px;
+    border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--amber) 7%, transparent);
+    color: var(--amber);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .chipInfo {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+
+    /* Visible on hover/focus — and HOVERABLE (WCAG 1.4.13): pointer events
+       re-enable so the pointer can travel from the trigger onto the tooltip
+       text without it vanishing. */
+    &:hover .chipTooltip,
+    &:focus-within .chipTooltip {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+
+    /* DISMISSABLE (WCAG 1.4.13): Escape on the trigger sets this attribute —
+       it must win over the hover/focus rule above (equal specificity, so
+       source order decides). */
+    &[data-tooltip-dismissed] .chipTooltip {
+      opacity: 0;
+      pointer-events: none;
+    }
+  }
+
+  .chipInfoButton {
+    display: grid;
+    inline-size: 16px;
+    block-size: 16px;
+    border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--amber);
+    cursor: help;
+    font-family: var(--mono);
+    font-size: 10px;
+    line-height: 1;
+    place-items: center;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--amber);
+    }
+  }
+
+  .chipTooltip {
+    position: absolute;
+
+    /* 100% of the 16px trigger + the 8px visual offset — same place as the
+       old fixed 24px, but expressed off the trigger box so the hover bridge
+       below can span exactly the offset. */
+    inset-block-start: calc(100% + 8px);
+    inset-inline-end: 0;
+    z-index: 20;
+    inline-size: min(300px, calc(100vw - 48px));
+    padding: 12px;
+    border: 1px solid var(--line2);
+    border-radius: 8px;
+    background: #151519;
+    box-shadow: 0 18px 44px rgb(0 0 0 / 35%);
+    color: var(--dim);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.45;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition:
+      opacity 0.16s ease,
+      transform 0.16s ease;
+    white-space: normal;
+
+    /* WCAG 1.4.13 hover bridge: an invisible strip spanning the 8px visual
+       offset above the tooltip box. It is part of the tooltip (a descendant
+       of .chipInfo), so the pointer travelling trigger → tooltip never
+       leaves the hover chain — without it the tooltip flips back to
+       pointer-events: none (and the Escape claim detaches) mid-gap. Its
+       pointer-events follow the tooltip's: inert while hidden. */
+    &::before {
+      content: "";
+      position: absolute;
+      inset-block-start: -8px;
+      inset-inline: 0;
+      block-size: 8px;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .menu {
       animation: none;
     }
 
     .progressBar {
+      transition: none;
+    }
+
+    .chipTooltip {
       transition: none;
     }
   }

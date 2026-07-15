@@ -49,6 +49,8 @@ export interface StoryViewProps {
   conversationComposer?: ThreadComposerWiring | undefined;
   /** Read-only reason for the comment affordances (BRIEF-24); absent = writable. */
   composerDisabledReason?: string | undefined;
+  /** Own-draft state (BRIEF-43): flags render as a read-only mirror. */
+  flagsReadOnly?: boolean | undefined;
 }
 
 export function StoryView(props: StoryViewProps) {
@@ -184,6 +186,7 @@ export function StoryView(props: StoryViewProps) {
                 jumpToChunk={props.jumpToChunk}
                 setDismissTarget={props.setDismissTarget}
                 setEvidenceTarget={props.setEvidenceTarget}
+                flagsReadOnly={props.flagsReadOnly}
                 setToast={props.setToast}
                 toggleRiskFlag={props.toggleRiskFlag}
                 toggleRiskGroup={props.toggleRiskGroup}

@@ -4,6 +4,7 @@
 // (markSucceeded fires only after delta warmup, well after the artifact is
 // readable). Generation status drives the waiting/failed/superseded display
 // and the polling cadence only.
+import { isOwnDraft } from "./ownDraft";
 import type { PrSummary } from "./types";
 
 export interface Span {
@@ -90,10 +91,17 @@ export function deriveBriefRouteState(
 /**
  * Poll the PR-meta while something is (or may be) in flight: a non-terminal
  * generation, a superseded row (its replacement is queued momentarily —
- * ADR 0006 #6), or a rendered brief whose generation is still finishing (the
- * "comparisons warming" chip clears on the terminal refetch).
+ * ADR 0006 #6), a rendered brief whose generation is still finishing (the
+ * "comparisons warming" chip clears on the terminal refetch), or the
+ * viewer's OWN DRAFT (BRIEF-43): the draft flag can flip externally at any
+ * moment (marked ready on GitHub) and the own-draft affordances key on it —
+ * a settled draft would otherwise never refetch, so a ready-elsewhere flip
+ * would only propagate on a window-focus refetch. Scoped to the author:
+ * other viewers of a draft carry no draft-keyed affordances, so for them the
+ * focus refetch stays good enough — no poll cost across every open draft.
  */
 export function shouldPollMeta(meta: PrSummary): boolean {
+  if (isOwnDraft(meta)) return true;
   const status = meta.generation?.status;
   if (status === "queued" || status === "running") return true;
   if (status === "superseded" && !meta.briefAvailable) return true;

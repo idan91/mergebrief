@@ -18,6 +18,8 @@ function pull(overrides: Partial<PrSummary>): PrSummary {
     baseSha: "base-1",
     headSha: "headsha1234567",
     briefAvailable: true,
+    draft: false,
+    viewerIsAuthor: false,
     generation: {
       status: "succeeded",
       phase: null,
