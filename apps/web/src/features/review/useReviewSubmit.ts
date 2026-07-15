@@ -46,6 +46,15 @@ export interface UseReviewSubmitInput {
    * the same approval/request-changes again.
    */
   resetOutcome: () => void;
+  /**
+   * A screen-owned reason Submit must not proceed right now, folded into
+   * `blockedReason` and hard-guarding `submit()` itself. BRIEF-43: a
+   * post-now request still in flight when the own-draft state exits (ready
+   * flip mid-request) — the payload capture would ship the still-draft
+   * comment, and the settling 201 would flip it AFTER the review already
+   * re-shipped it (duplicate on GitHub). Absent → no external block.
+   */
+  blockedExternally?: string | undefined;
 }
 
 export interface UseReviewSubmitValue {
@@ -100,6 +109,7 @@ export function useReviewSubmit(
     announce,
     closeReceipt,
     resetOutcome,
+    blockedExternally,
   } = input;
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,13 +117,20 @@ export function useReviewSubmit(
   // Synchronous double-click guard: state updates are async, a ref is not.
   const inFlight = useRef(false);
 
-  const blockedReason = submitBlockedReason(outcome, comments);
+  // The external block wins the display: it is the transient, wait-shaped
+  // reason (a post-now settling), and the content reasons re-surface once it
+  // clears.
+  const blockedReason =
+    blockedExternally ?? submitBlockedReason(outcome, comments);
 
   const submit = useCallback(() => {
     if (action === undefined || inFlight.current) {
       return;
     }
-    if (submitBlockedReason(outcome, comments) !== undefined) {
+    if (
+      blockedExternally !== undefined ||
+      submitBlockedReason(outcome, comments) !== undefined
+    ) {
       return;
     }
     inFlight.current = true;
@@ -217,6 +234,7 @@ export function useReviewSubmit(
   }, [
     action,
     announce,
+    blockedExternally,
     briefId,
     closeReceipt,
     comments,

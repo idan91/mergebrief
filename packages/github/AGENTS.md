@@ -38,6 +38,7 @@ src/
     review.ts           grouped formal review submit (BRIEF-23)
     conversation.ts     GraphQL conversation primitive (BRIEF-25)
     mark-ready.ts       markPullRequestReadyForReview mutation (BRIEF-43)
+    inline-comment.ts   standalone inline review-comment write (BRIEF-43 PR 4)
 test/                 per-module suites; fixtures/ = sanitized webhook payloads
 ```
 

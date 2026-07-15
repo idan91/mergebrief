@@ -162,6 +162,35 @@ export function buildSuggestionDiffRows(
   ];
 }
 
+/**
+ * Mirrors of the post-now route's deterministic Zod caps (packages/api
+ * inline-comment schema, `MAX_BODY_LENGTH`/`MAX_PATH_LENGTH`) — an over-cap
+ * payload is a deterministic 400 there, and the UI would resubmit the same
+ * draft, so it must block HERE with recoverable copy instead (apps/web
+ * AGENTS.md; the submitBlockedReason pattern). Keep in lockstep with the route.
+ */
+export const MAX_POSTED_COMMENT_LENGTH = 65_536;
+export const MAX_POSTED_COMMENT_PATH_LENGTH = 1_024;
+
+/**
+ * Why post-now is blocked for this draft, or `undefined` when it may proceed.
+ * Checked both at the Post affordance (disabled with the reason) and in the
+ * post handler (belt and braces for programmatic/keyboard paths).
+ */
+export function postCommentBlockedReason(
+  comment: Pick<ReviewComment, "anchor" | "body">,
+): string | undefined {
+  if (comment.body.length > MAX_POSTED_COMMENT_LENGTH) {
+    return "This comment is longer than GitHub's 65,536-character limit — shorten it to post.";
+  }
+  if (comment.anchor.file.length > MAX_POSTED_COMMENT_PATH_LENGTH) {
+    // Mirrors submitBlockedReason's overlong-path copy: no edit can fix the
+    // anchor's path, so the only recovery is deleting the draft.
+    return "This comment is anchored to a file whose path is too long to post. Delete the draft to continue.";
+  }
+  return undefined;
+}
+
 export function reviewCommentSubmitLabel(existingCommentCount: number): string {
   return existingCommentCount === 0 ? "Start review" : "Add review comment";
 }

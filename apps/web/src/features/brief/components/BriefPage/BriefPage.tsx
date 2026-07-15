@@ -17,7 +17,11 @@ import { Drawer } from "../../../../components/Drawer/Drawer";
 import { Markdown } from "../../../../components/Markdown/Markdown";
 import { useScrollSpy } from "../../../../hooks/useScrollSpy";
 import { prefersReducedMotion } from "../../../../lib/motion";
-import type { CommentAnchor } from "../../../review/comments";
+import {
+  postCommentBlockedReason,
+  type CommentAnchor,
+  type ReviewComment,
+} from "../../../review/comments";
 import {
   DismissModal,
   type DismissTarget,
@@ -74,6 +78,15 @@ import {
 } from "../../comparison";
 import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import type { MarkReadyAction } from "../../../pulls/markReady";
+import {
+  applySettledPosts,
+  beginInFlightPost,
+  commitPostedComment,
+  endInFlightPost,
+  recordFailedPost,
+  useInFlightPosts,
+  type PostCommentResult,
+} from "../../../pulls/postComment";
 import { MarkReadyModal } from "../../../pulls/components/MarkReadyModal/MarkReadyModal";
 import { useMarkReady } from "../../../pulls/useMarkReady";
 import { buildBriefTimeline } from "../../timeline";
@@ -290,6 +303,18 @@ export interface OwnDraftPlan {
    * disabled-with-reason pattern).
    */
   readonly markReady?: MarkReadyAction;
+  /**
+   * Posts a staged draft comment NOW as a standalone inline review comment
+   * (per-comment post-now, ADR 0031). Anchors from the comment's chunk-region
+   * data; `commit_id` is pinned to the viewed head by the route. ABSENT on the
+   * same terms as `markReady` — only while the CURRENT head is in view (a
+   * historical/advanced span would pin a stale commit, so the composer is
+   * already read-only there); its absence hides the Post affordance.
+   */
+  readonly postComment?: (
+    anchor: CommentAnchor,
+    body: string,
+  ) => Promise<PostCommentResult>;
 }
 
 /** Announced when the CTA is used while a historical revision is in view. */
@@ -303,6 +328,38 @@ export const MARK_READY_GATE_CLOSED_REASON =
 /** Announced when the own-draft state ends while the pre-ready check is open. */
 export const MARK_READY_EXIT_ANNOUNCEMENT =
   "This pull request is now ready for review — the pre-ready check closed.";
+
+/** Toast copy for per-comment post-now (BRIEF-43): failures always keep the draft. */
+export const POST_COMMENT_COPY = {
+  posted: "Comment posted to GitHub.",
+  unauthorized:
+    "Your GitHub session expired — sign in again to post this comment.",
+  notFound: "This pull request is no longer accessible on GitHub.",
+  stale:
+    "The pull request has newer commits — reload to post this comment against the current diff.",
+  // A deterministic route reject: retrying the SAME draft can never succeed
+  // (unlike `upstream`), so this copy asks for an edit, never a plain retry.
+  invalid:
+    "This comment couldn't be posted as sent — edit the draft and post again.",
+  upstream:
+    "GitHub rejected the request or is unreachable — your draft is kept, try again shortly.",
+  // Deliberately INDETERMINATE (useReviewSubmit's discipline): the catch can
+  // land AFTER the POST reached GitHub (connection drop mid-response,
+  // malformed 201) — with the draft never flipped, a confident retry prompt
+  // could double-post, and the still-draft record would re-ship on the next
+  // Submit review on top of that.
+  failed:
+    "Something went wrong posting this comment — it may or may not have posted. Check the pull request on GitHub before retrying.",
+  // Blocks Submit review while any post-now is settling (same-tab re-ship
+  // window: the payload capture would ship the still-draft comment, and the
+  // 201 would flip it only after the review re-shipped it).
+  submitWhilePosting:
+    "A comment is still posting to GitHub — wait for it to finish before submitting the review.",
+  // The symmetric block: a Submit review in flight already CAPTURED the
+  // drafts, so posting one now would double-post it when the review lands.
+  postWhileSubmitting:
+    "A review is being submitted — wait for it to finish before posting this comment.",
+} as const;
 
 export interface BriefViewProps extends BriefPageProps {
   /** The already-fetched Brief to render (DB path: assembled client-side). */
@@ -1210,6 +1267,28 @@ function BriefScreen({
     },
     [flashConversationTarget, jumpToChunk],
   );
+  // Post-now in-flight tracking (BRIEF-43) — the MODULE-LEVEL registry's
+  // per-brief view, subscribed here (above the submit flow, which consumes
+  // it). Module state, not component state: a same-tab remount with the same
+  // briefId (historical-revision round trip) resets component state while
+  // the fetch closure survives — the registry keeps the lockdown and the
+  // submit block alive across it. See `postDraftComment` below.
+  const postingCommentIds = useInFlightPosts(briefId);
+  // Drain settled posts into THIS mount (reviewer rounds 7/8): the settling
+  // closure captured the store AND toast of the mount that STARTED the post —
+  // after a same-tab remount both are orphans, so the flip must apply through
+  // whichever store is live at settle time, and EVERY outcome's copy (the
+  // indeterminate failure warning above all) must reach the live region that
+  // is actually on screen. Runs on mount (drains a settle that landed while
+  // no screen was up) and on every in-flight change (a settle notifies the
+  // subscription above, re-rendering us right after) — flipping the new
+  // store BEFORE its next whole-state flush can clobber the durable snapshot
+  // flip, and restoring the "yours" reconciliation join key. Synchronizing
+  // with an external system (the module registry), not deriving state — an
+  // effect is the right tool.
+  useEffect(() => {
+    applySettledPosts(briefId, actions, announceSubmit);
+  }, [actions, announceSubmit, briefId, postingCommentIds]);
   const submitFlow = useReviewSubmit({
     action: submitReview,
     briefId,
@@ -1222,8 +1301,21 @@ function BriefScreen({
     announce: announceSubmit,
     closeReceipt,
     resetOutcome: () => actions.setOutcome("comment"),
+    // Same-tab re-ship window (reviewer round 5): a post-now still settling
+    // when the own-draft state exits (ready flip mid-request) is invisible to
+    // the payload capture — the review would ship the still-draft comment and
+    // the 201 would flip it only afterwards, a duplicate on GitHub. Submit
+    // blocks (reason + hard guard) until every post settles.
+    blockedExternally:
+      postingCommentIds.size > 0
+        ? POST_COMMENT_COPY.submitWhilePosting
+        : undefined,
   });
   const liveSubmit = submitFlow.available;
+  // Primitive binding: the post path guards on it (a Submit in flight already
+  // captured the drafts — posting one now would double-post when the review
+  // lands), and the memoized card tree receives it as the Post block reason.
+  const submitPending = submitFlow.pending;
   // Own-draft state (BRIEF-43, ADR 0031): the plan's presence IS the state —
   // derived at read time by the route (draft && viewerIsAuthor), never a
   // self-declared toggle.
@@ -1362,6 +1454,125 @@ function BriefScreen({
     const first = unpostedDraftComments[0];
     if (first) jumpToChunk(first.anchor.chunkId);
   }, [jumpToChunk, unpostedDraftComments]);
+  // Per-comment post-now (BRIEF-43, ADR 0031): post a staged draft NOW as a
+  // standalone inline review comment. Present only in own-draft state at the
+  // current head (`ownDraft.postComment`) — off the current head the composer
+  // is already read-only, so no draft can be staged to post.
+  const postComment = ownDraft?.postComment;
+  // Double-post guard, twice over: the module-level REGISTRY is the
+  // synchronous re-entrancy gate (`beginInFlightPost` returns false on a
+  // duplicate — module state, so it survives the same-tab remount a ref/state
+  // pair dies with), and its subscribed view (`postingCommentIds` above)
+  // re-renders so the in-flight comment's Post/Edit/Delete controls visibly
+  // disable (a mid-flight edit would flip a `submitted` record whose edited
+  // body was never what actually posted). Keyed by comment id so distinct
+  // drafts post concurrently but one draft cannot double-fire.
+  //
+  // Accepted scope (reviewer round 1, 4b): the guard is per-TAB. Two tabs
+  // share the same sessionStorage-copied draft ids, so posting the same draft
+  // from both tabs can double-post on GitHub — deduping that would need a
+  // server-side idempotency key. Accepted for this PR; the second tab's local
+  // record still reconciles as "yours" after its next conversation refetch.
+  const postDraftComment = useCallback(
+    (comment: ReviewComment) => {
+      // Guard the injected action's presence, the draft status (a posted
+      // comment is server-owned/read-only), and re-entrancy.
+      if (postComment === undefined || comment.status !== "draft") return;
+      // Cap mirrors (apps/web AGENTS.md): an over-cap body or anchor path is
+      // a deterministic route 400 — the Post button is already disabled with
+      // this reason; this guards the programmatic path with the same copy.
+      const blocked = postCommentBlockedReason(comment);
+      if (blocked !== undefined) {
+        announceSubmit(blocked);
+        return;
+      }
+      // Reverse race (reviewer round 7 #2, blockedExternally's mirror): a
+      // Submit review in flight already CAPTURED this draft — posting it now
+      // would double-post it when the review lands. The Post button is
+      // disabled with this reason; this guards the programmatic path.
+      if (submitPending) {
+        announceSubmit(POST_COMMENT_COPY.postWhileSubmitting);
+        return;
+      }
+      if (!beginInFlightPost(briefId, comment.id)) return;
+      // EVERY outcome below is RECORDED on the module-level settled queue,
+      // never announced from this closure (reviewer round 8): after a
+      // remount-mid-flight, this closure's announceSubmit targets the
+      // orphaned mount — a React no-op — and a lost failure warning (the
+      // indeterminate copy above all) would leave a silently re-enabled
+      // Post button inviting a double-posting retry. The drain effect above
+      // announces through whichever mount is live; the settle's
+      // endInFlightPost notification re-renders it, so the common
+      // no-remount case announces exactly once, right after the flip.
+      void (async () => {
+        try {
+          const result = await postComment(comment.anchor, comment.body);
+          switch (result.kind) {
+            case "posted": {
+              // The submit flow's exact success semantics, for one comment:
+              // the draft flips to `submitted` (dropping the unposted-draft
+              // count the soft gate reminds on — BRIEF-43 #5) and the
+              // wrapping review id is recorded ("yours" join, BRIEF-25).
+              // The DURABLE snapshot write + settled-queue entry happen here;
+              // the LIVE-store flip + announcement apply through the drain
+              // effect above — always the mount that is live at settle time,
+              // never the one this closure captured (reviewer round 7 #1).
+              commitPostedComment(
+                briefId,
+                comment.id,
+                result.reviewId,
+                POST_COMMENT_COPY.posted,
+              );
+              // A posted inline comment is a conversation write — refetch so the
+              // new thread renders (the eviction on the route already dropped the
+              // server cache). The query client is app-level, not mount-level,
+              // so invalidating from this closure is remount-safe.
+              if (conversation !== undefined) {
+                void queryClient.invalidateQueries({
+                  queryKey: conversation.queryOptions.queryKey,
+                });
+              }
+              break;
+            }
+            case "unauthorized":
+              recordFailedPost(
+                briefId,
+                comment.id,
+                POST_COMMENT_COPY.unauthorized,
+              );
+              break;
+            case "not-found":
+              recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.notFound);
+              break;
+            case "stale":
+              recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.stale);
+              break;
+            // Deterministic reject: distinct copy — a retry of the SAME draft
+            // can never succeed, so it must never read as retryable.
+            case "invalid":
+              recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.invalid);
+              break;
+            case "upstream":
+              recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.upstream);
+              break;
+          }
+        } catch (error) {
+          console.error("post-now failed", error);
+          recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.failed);
+        } finally {
+          endInFlightPost(briefId, comment.id);
+        }
+      })();
+    },
+    [
+      announceSubmit,
+      briefId,
+      conversation,
+      postComment,
+      queryClient,
+      submitPending,
+    ],
+  );
   const submitReceipt = useCallback(() => {
     // Read-only posture (BRIEF-24): the submit control disables focusably with
     // the reason (below) — this guards the click path itself.
@@ -1617,6 +1828,26 @@ function BriefScreen({
                 markReviewed={markReviewed}
                 openCommentComposer={openCommentComposer}
                 saveReviewComment={saveReviewComment}
+                postReviewComment={
+                  postComment !== undefined ? postDraftComment : undefined
+                }
+                /* Unconditional (empty set inert): if the own-draft state
+                   exits while a post is settling (mark-ready confirmed,
+                   same span so no remount), the ACTION vanishes with the
+                   plan but the lockdown must hold — Edit/Delete re-enabling
+                   on a still-posting draft could flip a submitted record
+                   whose edited body never posted, or orphan the GitHub
+                   comment on delete. */
+                postingCommentIds={postingCommentIds}
+                /* The reverse race's visible half (round 7 #2): while a
+                   Submit review is pending every Post disables with this
+                   wait-shaped reason — the review already captured the
+                   drafts it ships. */
+                postBlockedExternally={
+                  submitPending
+                    ? POST_COMMENT_COPY.postWhileSubmitting
+                    : undefined
+                }
                 setCollapseSupporting={setCollapseSupporting}
                 setDismissTarget={openDismissTarget}
                 setEvidenceTarget={setEvidenceTarget}

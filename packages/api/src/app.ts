@@ -20,6 +20,7 @@ import { tokensRoute } from "./routes/tokens";
 import { versionRoute } from "./routes/version";
 import { reviewSubmitRoute } from "./routes/review-submit";
 import { markReadyRoute } from "./routes/mark-ready";
+import { inlineCommentRoute } from "./routes/inline-comment";
 import { webhookRoute } from "./routes/webhook";
 
 export type { AuthDeps } from "./routes/auth";
@@ -65,6 +66,12 @@ export function createApp(deps: AppDeps): Hono {
   // Mark-ready (BRIEF-43): its own per-repo gate instance, mounted BEFORE
   // readsRoute for the same single-gate reason as the submit route.
   app.route("/", markReadyRoute(deps));
+  // Inline post-now (BRIEF-43 PR 4): a posted inline comment is a conversation
+  // write, so its success evicts the PR's conversation cache. Own per-repo
+  // gate, mounted BEFORE readsRoute for the same single-gate reason.
+  app.route("/", inlineCommentRoute(deps, (installationId, repoId, prNumber) =>
+    conversation.evictConversation(installationId, repoId, prNumber),
+  ));
   app.route("/", conversation.app);
   app.route("/", readsRoute(deps));
   return app;

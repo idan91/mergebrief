@@ -107,6 +107,17 @@ export type {
   CreateReviewError,
 } from "./operations/review";
 
+// Inline review-comment write (BRIEF-43 PR 4): post one standalone comment on
+// a PR's diff, pinned to the anchor's commit, with the viewer's token. Returns
+// the comment id + the wrapping review id (the own-comment join key); a 422
+// flags a stale anchor. REST — the anchor maps 1:1 to the wire shape.
+export { createInlineReviewComment } from "./operations/inline-comment";
+export type {
+  CreateInlineReviewCommentInput,
+  InlineReviewCommentResult,
+  InlineReviewCommentError,
+} from "./operations/inline-comment";
+
 // Mark-ready mutation (BRIEF-43, ADR 0031): flip a draft PR to ready-for-review
 // with the viewer's own token. GraphQL resolve-then-mutate; a PR already out of
 // draft (read-time or racing the mutation) converges instead of failing.

@@ -55,6 +55,7 @@ import { conversationQueryOptions } from "../features/conversation/queries";
 import type { ThreadRevisionJump } from "../features/conversation/components/ConversationSection/ConversationSection";
 import { postConversationReply } from "../features/conversation/reply";
 import { createMarkReadyAction } from "../features/pulls/markReady";
+import { postInlineComment } from "../features/pulls/postComment";
 import { isOwnDraft } from "../features/pulls/ownDraft";
 import { submitReview } from "../features/pulls/submitReview";
 import type { PrSummary } from "../features/pulls/types";
@@ -66,9 +67,11 @@ import {
 import { DbBriefControls } from "../features/pulls/components/DbBriefControls/DbBriefControls";
 import {
   buildSubmitPayload,
+  mapAnchorToWire,
   type SubmitDraftInput,
   type SubmitReviewAction,
 } from "../features/review/submit";
+import type { CommentAnchor } from "../features/review/comments";
 import styles from "./routeShared.module.scss";
 
 /** 3–5s window per the plan; one lightweight PR-meta read per tick. */
@@ -716,6 +719,24 @@ function DbBrief({
     () => createMarkReadyAction(queryClient, repoId, prNumber),
     [prNumber, queryClient, repoId],
   );
+  // Per-comment post-now (BRIEF-43 PR 4): posts a staged draft NOW, pinned to
+  // THIS span's head — never meta.headSha, which may have advanced while
+  // drafting (same commit_id discipline as the submit transport above). Only
+  // wired into `ownDraft` at the current head (below), so a stale-head post
+  // cannot be offered.
+  const postCommentAction = useCallback(
+    (anchor: CommentAnchor, body: string) => {
+      // The FE owns the anchor→GitHub wire translation; selectedText is a
+      // submit-only degradation quote the post-now route does not take.
+      const { selectedText: _drop, ...wire } = mapAnchorToWire(anchor);
+      return postInlineComment(repoId, prNumber, {
+        ...wire,
+        commitId: span.head,
+        body,
+      });
+    },
+    [prNumber, repoId, span.head],
+  );
   // The mark-ready ACTION (and with it the soft gate) rides the plan only
   // while the CURRENT head is in view: the gate lists the rendered Brief's
   // flags, and the contract is "ALL current-head flags" — on a historical
@@ -728,10 +749,10 @@ function DbBrief({
     () =>
       ownDraftState
         ? currentHead
-          ? { markReady: markReadyAction }
+          ? { markReady: markReadyAction, postComment: postCommentAction }
           : {}
         : undefined,
-    [currentHead, markReadyAction, ownDraftState],
+    [currentHead, markReadyAction, postCommentAction, ownDraftState],
   );
   // Keys the per-brief Mind-Map session store, exactly like a local brief id.
   const briefId = `db:${repoId}:${String(prNumber)}:${span.base}:${span.head}`;

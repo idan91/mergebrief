@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 
-import type { CommentAnchor } from "../../../review/comments";
+import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import type { DismissTarget } from "../../../review/components/DismissModal/DismissModal";
 import type { EvidenceTarget } from "../../../review/components/EvidenceModal/EvidenceModal";
 import { useRevisionNavigation } from "../../useRevisionNavigation";
@@ -35,6 +35,12 @@ export interface StoryViewProps {
   markReviewed: (chunkId: string) => void;
   openCommentComposer: (anchor: CommentAnchor) => void;
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
+  /** Post a staged draft NOW (BRIEF-43 own-draft, current head); absent otherwise. */
+  postReviewComment?: ((comment: ReviewComment) => void) | undefined;
+  /** Comment ids with a post-now request in flight (state-backed, re-renders). */
+  postingCommentIds?: ReadonlySet<string> | undefined;
+  /** Wait-shaped reason every Post is blocked right now (submit in flight). */
+  postBlockedExternally?: string | undefined;
   setCollapseSupporting: (value: boolean) => void;
   setDismissTarget: (target: DismissTarget) => void;
   setEvidenceTarget: (target: EvidenceTarget) => void;
@@ -160,6 +166,9 @@ export function StoryView(props: StoryViewProps) {
                   markReviewed={props.markReviewed}
                   openCommentComposer={props.openCommentComposer}
                   saveReviewComment={props.saveReviewComment}
+                  postReviewComment={props.postReviewComment}
+                  postingCommentIds={props.postingCommentIds}
+                  postBlockedExternally={props.postBlockedExternally}
                   toggleChunk={props.toggleChunk}
                   toggleReviewComment={props.toggleReviewComment}
                   updateReviewComment={props.updateReviewComment}

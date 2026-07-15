@@ -14,7 +14,7 @@ import {
   AddressedComments,
   ReviewComments,
 } from "../../../review/components/AddressedComments/AddressedComments";
-import type { CommentAnchor } from "../../../review/comments";
+import type { CommentAnchor, ReviewComment } from "../../../review/comments";
 import { useChunkReviewComments, useMindMap } from "../../../review/session";
 import { riskChipView } from "../../viewModel";
 import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
@@ -40,6 +40,12 @@ export interface ChunkCardProps {
   markReviewed: (chunkId: string) => void;
   openCommentComposer: (anchor: CommentAnchor) => void;
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
+  /** Post a staged draft NOW (BRIEF-43 own-draft, current head); absent otherwise. */
+  postReviewComment?: ((comment: ReviewComment) => void) | undefined;
+  /** Comment ids with a post-now request in flight (state-backed, re-renders). */
+  postingCommentIds?: ReadonlySet<string> | undefined;
+  /** Wait-shaped reason every Post is blocked right now (submit in flight). */
+  postBlockedExternally?: string | undefined;
   toggleReviewComment: (commentId: string) => void;
   updateReviewComment: (commentId: string, body: string) => void;
   /** Inline conversation threads at this chunk (BRIEF-25); absent = none. */
@@ -123,6 +129,9 @@ export const ChunkCard = memo(function ChunkCard({
   markReviewed,
   openCommentComposer,
   saveReviewComment,
+  postReviewComment,
+  postingCommentIds,
+  postBlockedExternally,
   toggleReviewComment,
   updateReviewComment,
   conversationRows,
@@ -321,6 +330,9 @@ export const ChunkCard = memo(function ChunkCard({
               hasLinkedAddressedComments ? "addressed" : "review comment"
             }
             saveReviewComment={saveReviewComment}
+            postReviewComment={postReviewComment}
+            postingCommentIds={postingCommentIds}
+            postBlockedExternally={postBlockedExternally}
             toggleReviewComment={toggleReviewComment}
             updateReviewComment={updateReviewComment}
           />

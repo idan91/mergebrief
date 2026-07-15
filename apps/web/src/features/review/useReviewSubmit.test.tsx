@@ -77,6 +77,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
   );
   return {
     rendered,
+    input,
     action,
     markSubmitted,
     recordSubmittedReview,
@@ -99,6 +100,29 @@ describe("useReviewSubmit", () => {
     );
     act(() => rendered.result.current.submit());
     expect(action).not.toHaveBeenCalled();
+  });
+
+  it("blocks submit while blocked externally, unblocking when the reason clears", () => {
+    // Same-tab re-ship window (BRIEF-43, reviewer round 5): a post-now still
+    // in flight when the submit machinery mounts would ship the still-draft
+    // comment; the screen passes the in-flight reason and submit must both
+    // surface it AND refuse to run until it clears.
+    const reason = "A comment is still posting to GitHub — wait.";
+    const { rendered, input, action } = setup({ blockedExternally: reason });
+    expect(rendered.result.current.blockedReason).toBe(reason);
+    act(() => rendered.result.current.submit());
+    expect(action).not.toHaveBeenCalled();
+
+    // The post settled: the block clears and submit proceeds.
+    rendered.rerender({ ...input, blockedExternally: undefined });
+    expect(rendered.result.current.blockedReason).toBeUndefined();
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 1,
+      commentsDegraded: false,
+    });
+    act(() => rendered.result.current.submit());
+    expect(action).toHaveBeenCalledTimes(1);
   });
 
   it("submits the signature-line body and flips drafts on success", async () => {

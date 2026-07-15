@@ -68,6 +68,12 @@ export interface DiffTableProps {
   openCommentComposer: (anchor: CommentAnchor) => void;
   reviewCommentLabel: string;
   saveReviewComment: (anchor: CommentAnchor, body: string) => void;
+  /** Post a staged draft NOW (BRIEF-43 own-draft, current head); absent otherwise. */
+  postReviewComment?: ((comment: ReviewComment) => void) | undefined;
+  /** Comment ids with a post-now request in flight (state-backed, re-renders). */
+  postingCommentIds?: ReadonlySet<string> | undefined;
+  /** Wait-shaped reason every Post is blocked right now (submit in flight). */
+  postBlockedExternally?: string | undefined;
   toggleReviewComment: (commentId: string) => void;
   updateReviewComment: (commentId: string, body: string) => void;
 }
@@ -88,6 +94,9 @@ export function DiffTable({
   openCommentComposer,
   reviewCommentLabel,
   saveReviewComment,
+  postReviewComment,
+  postingCommentIds,
+  postBlockedExternally,
   toggleReviewComment,
   updateReviewComment,
 }: DiffTableProps) {
@@ -354,6 +363,9 @@ export function DiffTable({
                         <CommentThread
                           comment={comment}
                           deleteComment={deleteReviewComment}
+                          post={postReviewComment}
+                          posting={postingCommentIds?.has(comment.id) ?? false}
+                          postBlockedExternally={postBlockedExternally}
                           toggle={toggleReviewComment}
                           update={updateReviewComment}
                         />

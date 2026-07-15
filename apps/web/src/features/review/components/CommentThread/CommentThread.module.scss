@@ -82,6 +82,21 @@
         text-decoration: underline;
         text-underline-offset: 3px;
       }
+
+      &:disabled {
+        color: var(--faint);
+        cursor: default;
+        opacity: 0.55;
+        text-decoration: none;
+      }
     }
+  }
+
+  /* The recoverable why-not for a blocked Post (BRIEF-43 cap mirror). */
+  .postBlocked {
+    margin-block: 0 4px;
+    margin-inline: 12px;
+    color: var(--faint);
+    font-size: 12px;
   }
 }
