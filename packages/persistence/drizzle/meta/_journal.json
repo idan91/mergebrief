@@ -71,6 +71,13 @@
       "when": 1784068966457,
       "tag": "0009_pull-request-draft-author",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784073977112,
+      "tag": "0010_audit-action-mark-ready",
+      "breakpoints": true
     }
   ]
 }

@@ -117,6 +117,7 @@ export const AuditAction = {
   CONFIG: "config",
   AUTH: "auth",
   SUBMIT: "submit",
+  MARK_READY: "mark-ready",
 } as const;
 export type AuditAction = ValueOf<typeof AuditAction>;
 

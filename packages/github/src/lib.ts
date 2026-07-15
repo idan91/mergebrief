@@ -107,6 +107,15 @@ export type {
   CreateReviewError,
 } from "./operations/review";
 
+// Mark-ready mutation (BRIEF-43, ADR 0031): flip a draft PR to ready-for-review
+// with the viewer's own token. GraphQL resolve-then-mutate; a PR already out of
+// draft (read-time or racing the mutation) converges instead of failing.
+export { markPullRequestReadyForReview } from "./operations/mark-ready";
+export type {
+  MarkPullRequestReadyInput,
+  MarkReadyResult,
+} from "./operations/mark-ready";
+
 // PR-conversation primitive (BRIEF-25, ADR 0027): the package's first GraphQL
 // surface — pre-threaded review threads with first-class resolution state,
 // review verdicts, PR-level comments. Domain ids are REST `databaseId`

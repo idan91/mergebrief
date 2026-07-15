@@ -37,6 +37,7 @@ src/
     pull-request.ts     PR + files + diff/compare fetch
     review.ts           grouped formal review submit (BRIEF-23)
     conversation.ts     GraphQL conversation primitive (BRIEF-25)
+    mark-ready.ts       markPullRequestReadyForReview mutation (BRIEF-43)
 test/                 per-module suites; fixtures/ = sanitized webhook payloads
 ```
 

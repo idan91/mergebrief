@@ -179,6 +179,43 @@ describe("forTenant — entry comment rotation (ADR 0016 #3 delete+repost)", () 
   });
 });
 
+describe("forTenant — setDraft (BRIEF-43 mark-ready flip)", () => {
+  it("flips draft=true to false in place and is idempotent", async () => {
+    const handle = await freshDatabase();
+    const a = forTenant(handle, CTX_A);
+
+    const pr = await a.pullRequests.upsert({ ...upsertInput(7), draft: true });
+    expect(pr.draft).toBe(true);
+
+    const flipped = await a.pullRequests.setDraft(pr.id, false);
+    expect(flipped.ok).toBe(true);
+    if (!flipped.ok) throw new Error("expected success");
+    expect(flipped.value.draft).toBe(false);
+    expect((await a.pullRequests.getById(pr.id))?.draft).toBe(false);
+
+    // Idempotent: a second flip (e.g. a double-POST) is a clean no-op write.
+    const again = await a.pullRequests.setDraft(pr.id, false);
+    expect(again.ok).toBe(true);
+    if (!again.ok) throw new Error("expected success");
+    expect(again.value.draft).toBe(false);
+  });
+
+  it("setDraft on a PR outside the tenant returns notFound and touches nothing", async () => {
+    const handle = await freshDatabase();
+    const a = forTenant(handle, CTX_A);
+    const b = forTenant(handle, CTX_B);
+
+    const bPr = await b.pullRequests.upsert({ ...upsertInput(7), draft: true });
+    const result = await a.pullRequests.setDraft(bPr.id, false);
+
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("expected a rejection");
+    expect(result.error.code).toBe(RepositoryErrorCode.NOT_FOUND);
+    // B's draft PR is untouched.
+    expect((await b.pullRequests.getByNumber(REPO, 7))?.draft).toBe(true);
+  });
+});
+
 describe("forTenant — idempotent upserts", () => {
   it("pull_request upsert is idempotent and mutates state in place", async () => {
     const handle = await freshDatabase();

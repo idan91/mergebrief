@@ -253,6 +253,18 @@ export interface PullRequestRepository {
     pullRequestId: PullRequestRowId,
     entryCommentId: bigint,
   ): Promise<Result<PullRequestRow, RepositoryError>>;
+  /**
+   * Flip the local `draft` mirror after a mark-ready mutation (BRIEF-43). A
+   * NARROW, tenant-scoped update by row id — the caller already resolved the
+   * row via `getByNumber`, so this never reconstructs the lifecycle (unlike
+   * `recordState`, which is a full webhook upsert). Idempotent: re-running with
+   * the same value is a no-op write. `notFound` if no row in ctx's tenant (a
+   * PR deleted mid-request); the later `ready_for_review` webhook reconciles.
+   */
+  setDraft(
+    pullRequestId: PullRequestRowId,
+    draft: boolean,
+  ): Promise<Result<PullRequestRow, RepositoryError>>;
 }
 
 export interface CheckpointRepository {
@@ -408,6 +420,24 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
       const rows = await db
         .update(pullRequest)
         .set({ entryCommentId, updatedAt: new Date() })
+        .where(
+          and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)),
+        )
+        .returning();
+      const row = rows[0];
+      if (row === undefined) {
+        return fail(
+          RepositoryErrorCode.NOT_FOUND,
+          `pull_request ${pullRequestId} not found in tenant ${installationId}`,
+        );
+      }
+      return { ok: true, value: row };
+    },
+
+    async setDraft(pullRequestId, draft) {
+      const rows = await db
+        .update(pullRequest)
+        .set({ draft, updatedAt: new Date() })
         .where(
           and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)),
         )

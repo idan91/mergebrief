@@ -19,6 +19,7 @@ import { readsRoute } from "./routes/reads";
 import { tokensRoute } from "./routes/tokens";
 import { versionRoute } from "./routes/version";
 import { reviewSubmitRoute } from "./routes/review-submit";
+import { markReadyRoute } from "./routes/mark-ready";
 import { webhookRoute } from "./routes/webhook";
 
 export type { AuthDeps } from "./routes/auth";
@@ -61,6 +62,9 @@ export function createApp(deps: AppDeps): Hono {
   app.route("/", reviewSubmitRoute(deps, (installationId, repoId, prNumber) =>
     conversation.evictConversation(installationId, repoId, prNumber),
   ));
+  // Mark-ready (BRIEF-43): its own per-repo gate instance, mounted BEFORE
+  // readsRoute for the same single-gate reason as the submit route.
+  app.route("/", markReadyRoute(deps));
   app.route("/", conversation.app);
   app.route("/", readsRoute(deps));
   return app;
