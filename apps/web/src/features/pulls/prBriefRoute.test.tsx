@@ -164,13 +164,15 @@ describe("DB brief route", () => {
       }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}`,
     );
+    // The phase is "generating" — the heading must NOT echo the verb
+    // ("Generating the brief — generating…"); it collapses to the phase-less
+    // heading, with a lowercase "brief" for this view.
     await waitFor(() =>
       expect(
-        screen.getByRole("heading", {
-          name: /generating the brief — generating/i,
-        }),
+        screen.getByRole("heading", { name: "Generating the brief…" }),
       ).toBeTruthy(),
     );
+    expect(screen.queryByRole("heading", { name: /— generating/i })).toBeNull();
   });
 
   it("shows the failed card with attempts and the sanitized error", async () => {
@@ -581,7 +583,7 @@ async function renderRouteWithFetch(
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return router;
+  return { router, queryClient };
 }
 
 describe("DB brief route — explicit-span deep link while generating", () => {
@@ -631,6 +633,84 @@ describe("DB brief route — explicit-span deep link while generating", () => {
     expect(screen.getByText(/read the raw diff while you wait/i)).toBeTruthy();
     // Crucially NOT the router's not-found page.
     expect(screen.queryByTestId("nf")).toBeNull();
+  });
+
+  it("leaves NO brief query entry in the cache after swallowing the generating-brief 404", async () => {
+    const { queryClient } = await renderRouteWithFetch(
+      (client) => {
+        client.setQueryData(
+          prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+          generatingMeta,
+        );
+        client.setQueryData(
+          prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+          "",
+        );
+      },
+      (url) =>
+        url.includes("/brief")
+          ? new Response("not found", { status: 404 })
+          : new Response("{}", { status: 200 }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /generating the brief/i }),
+      ).toBeTruthy(),
+    );
+    // ensureQueryData wrote an ERROR entry for the brief key; the loader must
+    // evict it so a later render-state mount refetches instead of throwing the
+    // cached error. No entry (neither data nor error) must remain.
+    expect(
+      queryClient.getQueryState(
+        dbBriefQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("flips wait→render without the cached 404 crashing the Brief (artifact lands + meta flips)", async () => {
+    let briefReady = false;
+    const { queryClient } = await renderRouteWithFetch(
+      (client) => {
+        client.setQueryData(
+          prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+          generatingMeta,
+        );
+        client.setQueryData(
+          prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+          "",
+        );
+      },
+      (url) => {
+        if (!url.includes("/brief")) return new Response("{}", { status: 200 });
+        // Still generating on the deep-link load; the artifact lands later.
+        return briefReady
+          ? new Response(JSON.stringify(briefFixture), { status: 200 })
+          : new Response("not found", { status: 404 });
+      },
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    // The wait state renders (the swallowed 404), not the error boundary.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /generating the brief/i }),
+      ).toBeTruthy(),
+    );
+
+    // Generation completes: the artifact becomes fetchable and the poll flips
+    // briefAvailable → the route swaps to the render state and DbBrief mounts.
+    briefReady = true;
+    queryClient.setQueryData(
+      prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+      meta({}),
+    );
+
+    // The Brief renders from a FRESH fetch — the evicted 404 does not resurface
+    // as the error boundary.
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    expect(screen.queryByText(/brief failed to load/i)).toBeNull();
   });
 
   it("still renders the not-found component when the PR meta 404s (a missing PR is a real 404)", async () => {

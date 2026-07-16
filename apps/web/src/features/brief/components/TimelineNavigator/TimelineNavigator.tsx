@@ -159,7 +159,7 @@ export function TimelineNavigator({
           type="button"
           onClick={() => selectView("full")}
         >
-          Full Brief
+          Full brief
         </button>
         <button
           aria-pressed={compareState.view === "changes"}
@@ -208,7 +208,7 @@ export function TimelineNavigator({
             type="button"
             onClick={() => selectCompare("previous-brief")}
           >
-            Previous Brief
+            Previous brief
           </button>
           <button
             aria-pressed={compareState.compare === "off"}
@@ -216,7 +216,7 @@ export function TimelineNavigator({
             disabled={compareState.view === "changes"}
             title={
               compareState.view === "changes"
-                ? "Off is only available in Full Brief"
+                ? "Off is only available in Full brief"
                 : undefined
             }
             type="button"

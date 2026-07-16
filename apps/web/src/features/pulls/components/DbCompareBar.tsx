@@ -104,7 +104,7 @@ export function DbCompareBar({
           onClick={() => selectView("full")}
           type="button"
         >
-          Full Brief
+          Full brief
         </button>
         <button
           aria-pressed={compareState.view === "changes"}
@@ -125,7 +125,7 @@ export function DbCompareBar({
         </span>
         <div className={styles["group"]}>
           {compareButton("last-review", "Your last review")}
-          {compareButton("previous-brief", "Previous Brief")}
+          {compareButton("previous-brief", "Previous brief")}
           <button
             aria-pressed={compareState.compare === "off"}
             data-state={compareState.compare === "off" ? "active" : undefined}
@@ -133,7 +133,7 @@ export function DbCompareBar({
             onClick={() => selectCompare("off")}
             title={
               compareState.view === "changes"
-                ? "Off is only available in Full Brief"
+                ? "Off is only available in Full brief"
                 : undefined
             }
             type="button"

@@ -144,7 +144,12 @@ export function getInFlightPosts(briefId: string): ReadonlySet<string> {
   let snapshot = inFlightSnapshots.get(briefId);
   if (snapshot === undefined) {
     const ids = inFlightPosts.get(briefId);
-    snapshot = ids === undefined ? EMPTY_POSTING_IDS : new Set(ids);
+    // Always a FRESH reference after a notification — even when the content
+    // is unchanged (empty → empty): `recordPostNotice` rides this same
+    // notification channel to wake the drain effect, and a shared empty-set
+    // reference would let React bail out of the re-render, leaving a queued
+    // batch summary unannounced until some unrelated post settled.
+    snapshot = new Set(ids ?? []);
     inFlightSnapshots.set(briefId, snapshot);
   }
   return snapshot;
@@ -186,11 +191,26 @@ type SettledPost =
       readonly kind: "posted";
       readonly commentId: string;
       readonly reviewId: number | undefined;
-      readonly announceCopy: string;
+      /** `null` = the initiator owns messaging (batch): flip silently. */
+      readonly announceCopy: string | null;
     }
   | {
       readonly kind: "failed";
       readonly commentId: string;
+      /** `null` = the initiator owns messaging (batch): no drain announce. */
+      readonly announceCopy: string | null;
+    }
+  /**
+   * A batch-level message (the mark-ready batch's stop-the-run summary): no
+   * store effect, announced LAST by the drain — after every per-comment
+   * entry — so it is the live-region write that survives. Routed through
+   * this queue for the same remount-independence as per-comment failures:
+   * announcing from the batch closure would target the mount that STARTED
+   * the batch, and a remount-mid-batch would silently drop the summary (the
+   * batch's per-comment entries are suppressed, so nothing else would warn).
+   */
+  | {
+      readonly kind: "notice";
       readonly announceCopy: string;
     };
 
@@ -229,12 +249,18 @@ function pushSettledPost(briefId: string, entry: SettledPost): void {
  * Best-effort past the commit point: the comment IS on GitHub, so a local
  * persistence failure (sessionStorage quota/security) logs, never throws —
  * and the queue push happens regardless.
+ *
+ * `announceCopy: null` = the INITIATOR owns messaging (the mark-ready batch,
+ * BRIEF-43 follow-up): the drain still applies the store flips but announces
+ * nothing, so the batch's summary toast is deterministically the last
+ * live-region write — a per-comment drain announcement scheduled after it
+ * would otherwise overwrite the honest counts.
  */
 export function commitPostedComment(
   briefId: string,
   commentId: string,
   reviewId: number | undefined,
-  announceCopy: string,
+  announceCopy: string | null,
 ): void {
   try {
     markSnapshotCommentsSubmitted(briefId, [commentId], false, reviewId);
@@ -255,13 +281,30 @@ export function commitPostedComment(
  * copy must reach whichever screen is up: the indeterminate "may or may not
  * have posted" warning is precisely what stands between a re-enabled Post
  * button and a blind double-posting retry (reviewer round 8).
+ *
+ * `announceCopy: null` = the INITIATOR owns messaging (the mark-ready batch):
+ * its stop-the-run summary carries the indeterminate warning with honest
+ * counts, and the drain must not overwrite it with per-comment copy.
  */
 export function recordFailedPost(
   briefId: string,
   commentId: string,
-  announceCopy: string,
+  announceCopy: string | null,
 ): void {
   pushSettledPost(briefId, { kind: "failed", commentId, announceCopy });
+}
+
+/**
+ * Record a batch-level message (the mark-ready batch's failure summary) for
+ * the LIVE mount to announce after every per-comment entry. Notifies the
+ * in-flight subscribers so the drain effect runs even when the notice is
+ * recorded without an in-flight transition (a guard-path failure never
+ * touched the registry) — otherwise the summary would sit queued until some
+ * unrelated post settled.
+ */
+export function recordPostNotice(briefId: string, announceCopy: string): void {
+  pushSettledPost(briefId, { kind: "notice", announceCopy });
+  notifyInFlightPosts();
 }
 
 /**
@@ -305,12 +348,19 @@ export function applySettledPosts(
   // safety-critical "may or may not have posted — check GitHub" warning
   // (round 8), which must win over a co-settling success in the rare
   // concurrent-settle tick rather than be silently overwritten by it.
+  // Suppressed entries (null copy — the mark-ready batch owns messaging)
+  // flip above but announce nothing here; batch NOTICES (the summary that
+  // owns that messaging) announce after everything else, so the summary is
+  // deterministically the live-region write that survives.
   const ordered = [
     ...queue.filter((entry) => entry.kind === "posted"),
     ...queue.filter((entry) => entry.kind === "failed"),
+    ...queue.filter((entry) => entry.kind === "notice"),
   ];
   for (const entry of ordered) {
-    announce(entry.announceCopy);
+    if (entry.announceCopy !== null) {
+      announce(entry.announceCopy);
+    }
   }
 }
 

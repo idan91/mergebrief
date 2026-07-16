@@ -191,11 +191,27 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
         if (metaResult.status === "rejected") {
           mapLoaderError(metaResult.reason);
         }
-        if (
-          briefResult.status === "rejected" &&
-          !isNotFoundError(briefResult.reason)
-        ) {
-          mapLoaderError(briefResult.reason);
+        if (briefResult.status === "rejected") {
+          if (!isNotFoundError(briefResult.reason)) {
+            mapLoaderError(briefResult.reason);
+          }
+          // The brief 404s while the PR's first Brief is still generating —
+          // swallowed above so the page shows the wait state. But
+          // `ensureQueryData` has already written an ERROR entry into the brief
+          // query cache, and `dbBriefQueryOptions` is retry:false +
+          // staleTime Infinity: when the poll flips `briefAvailable` and the
+          // render-state `useSuspenseQuery` mounts, it would THROW that cached
+          // error instead of refetching (a hard error boundary until a manual
+          // reload). Drop the errored entry so the first render fetches fresh.
+          context.queryClient.removeQueries({
+            queryKey: dbBriefQueryOptions(
+              repoId,
+              prNumber,
+              explicit.base,
+              explicit.head,
+            ).queryKey,
+            exact: true,
+          });
         }
         return;
       }
@@ -323,8 +339,8 @@ function PrBriefRoute() {
               readOnlyKind === "historical"
                 ? `You're viewing an earlier revision (revision ${selectedHeadIndex ?? "?"}). Switch to the latest revision to comment or submit a review.`
                 : readOnlyKind === "base-drift"
-                  ? "This Brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review."
-                  : "The pull request has newer commits — a new Brief is on the way. Commenting and submit resume on the new revision.",
+                  ? "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review."
+                  : "The pull request has newer commits — a new brief is on the way. Commenting and submit resume on the new revision.",
           },
     [readOnlyKind, selectedHeadIndex],
   );
@@ -477,7 +493,7 @@ function timelineAnnouncement(
   writable: boolean,
 ): string {
   if (timeline.degraded) {
-    return "That revision is unavailable. Showing the latest Brief.";
+    return "That revision is unavailable. Showing the latest brief.";
   }
   const position = `Viewing revision ${timeline.selected.headIndex} of ${timeline.points.length}`;
   return writable ? `${position}.` : `${position}. Read-only.`;
@@ -499,7 +515,7 @@ function stateAnnouncement(
     case "superseded":
       return "A newer revision is on the way.";
     case "empty":
-      return "No Brief for this pull request yet.";
+      return "No brief for this pull request yet.";
   }
 }
 
@@ -801,7 +817,7 @@ function DbBrief({
       }}
       note={
         timeline?.degraded
-          ? "That revision link is no longer available — showing the latest Brief."
+          ? "That revision link is no longer available — showing the latest brief."
           : undefined
       }
       onSelectRevision={onSelectRevision}
@@ -838,9 +854,9 @@ function PrBriefError({ error }: { error: Error }) {
   const detail =
     error instanceof ApiError
       ? error.kind === ApiErrorKind.NOT_FOUND
-        ? "This pull request (or this span's Brief) was not found."
+        ? "This pull request (or this span's brief) was not found."
         : error.kind === ApiErrorKind.UNAUTHORIZED
-          ? "You need to sign in to read this Brief."
+          ? "You need to sign in to read this brief."
           : "The MergeBrief backend is unreachable right now — try again shortly."
       : error.message;
   return (

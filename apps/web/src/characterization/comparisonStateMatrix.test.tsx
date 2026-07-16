@@ -326,7 +326,7 @@ describe("comparison state matrix characterization", () => {
     await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
 
     const previousBriefButton = screen.getByRole("button", {
-      name: "Previous Brief",
+      name: "Previous brief",
     });
     expect((previousBriefButton as HTMLButtonElement).disabled).toBe(false);
     expect(previousBriefButton.getAttribute("aria-pressed")).toBe("false");
@@ -366,7 +366,7 @@ describe("comparison state matrix characterization", () => {
     expect(
       (
         screen.getByRole("button", {
-          name: "Previous Brief",
+          name: "Previous brief",
         }) as HTMLButtonElement
       ).disabled,
     ).toBe(true);
@@ -386,7 +386,7 @@ describe("comparison state matrix characterization", () => {
     expect(screen.queryByText(/Changes Only ·/)).toBeNull();
     expect(
       screen
-        .getByRole("button", { name: "Full Brief" })
+        .getByRole("button", { name: "Full brief" })
         .getAttribute("aria-pressed"),
     ).toBe("true");
   });
@@ -408,7 +408,7 @@ describe("comparison state matrix characterization", () => {
     expect(document.activeElement).toBe(changesButton);
 
     const previousBriefButton = screen.getByRole("button", {
-      name: "Previous Brief",
+      name: "Previous brief",
     });
     fireEvent.click(previousBriefButton);
     await waitFor(() =>

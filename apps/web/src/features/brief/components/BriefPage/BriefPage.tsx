@@ -84,6 +84,7 @@ import {
   commitPostedComment,
   endInFlightPost,
   recordFailedPost,
+  recordPostNotice,
   useInFlightPosts,
   type PostCommentResult,
 } from "../../../pulls/postComment";
@@ -360,6 +361,56 @@ export const POST_COMMENT_COPY = {
   postWhileSubmitting:
     "A review is being submitted — wait for it to finish before posting this comment.",
 } as const;
+
+/**
+ * How a single batch post ended (reviewer rounds 2–3): every value except
+ * `posted`/`indeterminate` is a DETERMINISTIC stop-cause — the comment
+ * definitively did NOT post — carried granularly because in a batch the
+ * per-comment copy is suppressed and the summary is the ONLY message, so it
+ * must give the cause's own recovery (round 3 #2):
+ * - `rejected`   — guard rejection or invalid 400: edit the draft;
+ * - `unauthorized` — session expired: sign in again;
+ * - `stale`      — head advanced under the pinned commit: reload;
+ * - `not-found`  — the PR is no longer accessible;
+ * - `indeterminate` — failure AROUND the write (thrown mid-flight, upstream
+ *   unreachable, duplicate in-flight): may or may not have reached GitHub.
+ */
+export type PostDraftOutcome =
+  | "posted"
+  | "rejected"
+  | "unauthorized"
+  | "stale"
+  | "not-found"
+  | "indeterminate";
+
+/**
+ * Batch "post my drafts, then mark ready" failure toast (BRIEF-43 follow-up).
+ * Honest counts prefix and the explicit NOT-marked-ready suffix on every
+ * variant; the guidance branches on the stop-cause (round 3 #2). The house
+ * indeterminate rule ("may or may not have posted — check GitHub") applies
+ * only to around-the-write failures, where a confident "not posted" would
+ * invite a double-posting retry.
+ */
+export function markReadyBatchFailureCopy(
+  posted: number,
+  total: number,
+  cause: Exclude<PostDraftOutcome, "posted">,
+): string {
+  const counts = `Posted ${String(posted)} of ${String(total)}.`;
+  const suffix = "The PR was NOT marked ready.";
+  switch (cause) {
+    case "rejected":
+      return `${counts} One comment was rejected before posting — edit the draft and try again. ${suffix}`;
+    case "unauthorized":
+      return `${counts} One comment could not be posted — your GitHub session expired, sign in again to continue. ${suffix}`;
+    case "stale":
+      return `${counts} One comment could not be posted — the pull request has newer commits, reload to post against the current diff. ${suffix}`;
+    case "not-found":
+      return `${counts} One comment could not be posted — this pull request is no longer accessible on GitHub. ${suffix}`;
+    case "indeterminate":
+      return `${counts} One comment may or may not have posted — check GitHub before retrying. ${suffix}`;
+  }
+}
 
 export interface BriefViewProps extends BriefPageProps {
   /** The already-fetched Brief to render (DB path: assembled client-side). */
@@ -686,6 +737,14 @@ function BriefScreen({
   const [preSubmitOpen, setPreSubmitOpen] = useState(false);
   // The mark-ready soft gate (BRIEF-43) — own-draft state only.
   const [markReadyGateOpen, setMarkReadyGateOpen] = useState(false);
+  // Opt-in batch post-then-ready (BRIEF-43 follow-up): the gate's checkbox
+  // state (default UNCHECKED — posting is an outward write), and the running
+  // batch's progress that pending-labels the confirm button ("Posting 2 of 3…").
+  const [postDraftsOnReady, setPostDraftsOnReady] = useState(false);
+  const [markReadyBatch, setMarkReadyBatch] = useState<{
+    current: number;
+    total: number;
+  } | null>(null);
   const [locOpen, setLocOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   const [dismissTarget, setDismissTarget] = useState<DismissTarget | null>(
@@ -1428,17 +1487,25 @@ function BriefScreen({
     // would reopen the gate over the running mutation, whose "Mark ready
     // anyway" then silently no-ops against the flow's inFlight ref.
     if (markReadyFlow.pending) return;
-    if (model.flags.length > 0) {
+    // The gate opens for risk flags OR unposted drafts (owner amendment to
+    // the Q4 zero-flag bypass): the batch expectation is global — a
+    // zero-flag brief with drafts staged must still offer the post-my-drafts
+    // checkbox, or the drafts silently stay local while the PR goes ready
+    // (live bug, PR 9 test). Direct mark-ready only when BOTH are zero.
+    if (model.flags.length > 0 || unpostedDraftComments.length > 0) {
+      // Open the gate with the post-drafts checkbox reset to unchecked.
+      setPostDraftsOnReady(false);
       setMarkReadyGateOpen(true);
       return;
     }
     markReadyFlow.markReady();
-  }, [announceSubmit, markReadyAvailable, markReadyFlow, model.flags.length]);
-  const markReadyAnyway = useCallback(() => {
-    // One click, records nothing: close the gate and run the mutation.
-    setMarkReadyGateOpen(false);
-    markReadyFlow.markReady();
-  }, [markReadyFlow]);
+  }, [
+    announceSubmit,
+    markReadyAvailable,
+    markReadyFlow,
+    model.flags.length,
+    unpostedDraftComments.length,
+  ]);
   const closeMarkReadyGate = useCallback(() => setMarkReadyGateOpen(false), []);
   const jumpToFlagFromGate = useCallback(
     (flag: RiskFlag) => {
@@ -1473,96 +1540,138 @@ function BriefScreen({
   // from both tabs can double-post on GitHub — deduping that would need a
   // server-side idempotency key. Accepted for this PR; the second tab's local
   // record still reconciles as "yours" after its next conversation refetch.
+  // Returns the post's OUTCOME (posted / deterministic reject /
+  // indeterminate) — the single per-comment path reused by both the inline
+  // Post button (fire-and-forget: the return is ignored) and the batch below
+  // (awaited sequentially; the outcome branches the summary's stop-cause
+  // copy — reviewer round 2 #2). EVERY outcome is
+  // RECORDED on the module-level settled queue, never announced from this
+  // closure (reviewer round 8): after a remount-mid-flight, this closure's
+  // announceSubmit targets the orphaned mount — a React no-op — and a lost
+  // failure warning (the indeterminate copy above all) would leave a silently
+  // re-enabled Post button inviting a double-posting retry. The drain effect
+  // above announces through whichever mount is live.
+  //
+  // `batchOwnsMessaging` (reviewer round 1 #1): batch-initiated posts queue
+  // their settled entries with a NULL copy — the drain still applies every
+  // store flip but announces nothing, so the batch's summary toast is
+  // deterministically the LAST live-region write. Without it, the summary
+  // (announced from the await continuation) was scheduled first and the
+  // failed post's drain announcement then overwrote the honest counts and
+  // "The PR was NOT marked ready".
   const postDraftComment = useCallback(
-    (comment: ReviewComment) => {
+    async (
+      comment: ReviewComment,
+      batchOwnsMessaging = false,
+    ): Promise<PostDraftOutcome> => {
       // Guard the injected action's presence, the draft status (a posted
       // comment is server-owned/read-only), and re-entrancy.
-      if (postComment === undefined || comment.status !== "draft") return;
+      if (postComment === undefined || comment.status !== "draft") {
+        return "rejected";
+      }
       // Cap mirrors (apps/web AGENTS.md): an over-cap body or anchor path is
       // a deterministic route 400 — the Post button is already disabled with
       // this reason; this guards the programmatic path with the same copy.
+      // In a batch the reason is SUPPRESSED (round 2 #1): it would inject
+      // noise before the summary, which reports the deterministic stop-cause
+      // itself.
       const blocked = postCommentBlockedReason(comment);
       if (blocked !== undefined) {
-        announceSubmit(blocked);
-        return;
+        if (!batchOwnsMessaging) announceSubmit(blocked);
+        return "rejected";
       }
       // Reverse race (reviewer round 7 #2, blockedExternally's mirror): a
       // Submit review in flight already CAPTURED this draft — posting it now
       // would double-post it when the review lands. The Post button is
       // disabled with this reason; this guards the programmatic path.
+      // Suppressed in a batch on the same terms as the cap mirror above.
       if (submitPending) {
-        announceSubmit(POST_COMMENT_COPY.postWhileSubmitting);
-        return;
-      }
-      if (!beginInFlightPost(briefId, comment.id)) return;
-      // EVERY outcome below is RECORDED on the module-level settled queue,
-      // never announced from this closure (reviewer round 8): after a
-      // remount-mid-flight, this closure's announceSubmit targets the
-      // orphaned mount — a React no-op — and a lost failure warning (the
-      // indeterminate copy above all) would leave a silently re-enabled
-      // Post button inviting a double-posting retry. The drain effect above
-      // announces through whichever mount is live; the settle's
-      // endInFlightPost notification re-renders it, so the common
-      // no-remount case announces exactly once, right after the flip.
-      void (async () => {
-        try {
-          const result = await postComment(comment.anchor, comment.body);
-          switch (result.kind) {
-            case "posted": {
-              // The submit flow's exact success semantics, for one comment:
-              // the draft flips to `submitted` (dropping the unposted-draft
-              // count the soft gate reminds on — BRIEF-43 #5) and the
-              // wrapping review id is recorded ("yours" join, BRIEF-25).
-              // The DURABLE snapshot write + settled-queue entry happen here;
-              // the LIVE-store flip + announcement apply through the drain
-              // effect above — always the mount that is live at settle time,
-              // never the one this closure captured (reviewer round 7 #1).
-              commitPostedComment(
-                briefId,
-                comment.id,
-                result.reviewId,
-                POST_COMMENT_COPY.posted,
-              );
-              // A posted inline comment is a conversation write — refetch so the
-              // new thread renders (the eviction on the route already dropped the
-              // server cache). The query client is app-level, not mount-level,
-              // so invalidating from this closure is remount-safe.
-              if (conversation !== undefined) {
-                void queryClient.invalidateQueries({
-                  queryKey: conversation.queryOptions.queryKey,
-                });
-              }
-              break;
-            }
-            case "unauthorized":
-              recordFailedPost(
-                briefId,
-                comment.id,
-                POST_COMMENT_COPY.unauthorized,
-              );
-              break;
-            case "not-found":
-              recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.notFound);
-              break;
-            case "stale":
-              recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.stale);
-              break;
-            // Deterministic reject: distinct copy — a retry of the SAME draft
-            // can never succeed, so it must never read as retryable.
-            case "invalid":
-              recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.invalid);
-              break;
-            case "upstream":
-              recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.upstream);
-              break;
-          }
-        } catch (error) {
-          console.error("post-now failed", error);
-          recordFailedPost(briefId, comment.id, POST_COMMENT_COPY.failed);
-        } finally {
-          endInFlightPost(briefId, comment.id);
+        if (!batchOwnsMessaging) {
+          announceSubmit(POST_COMMENT_COPY.postWhileSubmitting);
         }
-      })();
+        return "rejected";
+      }
+      // A duplicate in-flight post: ITS outcome is unknowable from here, so a
+      // batch must stop with the indeterminate summary, never a confident
+      // "did not post".
+      if (!beginInFlightPost(briefId, comment.id)) return "indeterminate";
+      try {
+        const result = await postComment(comment.anchor, comment.body);
+        switch (result.kind) {
+          case "posted": {
+            // The submit flow's exact success semantics, for one comment:
+            // the draft flips to `submitted` (dropping the unposted-draft
+            // count the soft gate reminds on — BRIEF-43 #5) and the wrapping
+            // review id is recorded ("yours" join, BRIEF-25). The DURABLE
+            // snapshot write + settled-queue entry happen here; the LIVE-store
+            // flip + announcement apply through the drain effect above — always
+            // the mount live at settle time, never the one this closure
+            // captured (reviewer round 7 #1).
+            commitPostedComment(
+              briefId,
+              comment.id,
+              result.reviewId,
+              batchOwnsMessaging ? null : POST_COMMENT_COPY.posted,
+            );
+            // A posted inline comment is a conversation write — refetch so the
+            // new thread renders. The query client is app-level, not
+            // mount-level, so invalidating from this closure is remount-safe.
+            if (conversation !== undefined) {
+              void queryClient.invalidateQueries({
+                queryKey: conversation.queryOptions.queryKey,
+              });
+            }
+            return "posted";
+          }
+          case "unauthorized":
+            recordFailedPost(
+              briefId,
+              comment.id,
+              batchOwnsMessaging ? null : POST_COMMENT_COPY.unauthorized,
+            );
+            return "unauthorized";
+          case "not-found":
+            recordFailedPost(
+              briefId,
+              comment.id,
+              batchOwnsMessaging ? null : POST_COMMENT_COPY.notFound,
+            );
+            return "not-found";
+          case "stale":
+            recordFailedPost(
+              briefId,
+              comment.id,
+              batchOwnsMessaging ? null : POST_COMMENT_COPY.stale,
+            );
+            return "stale";
+          // Deterministic reject: distinct copy — a retry of the SAME draft
+          // can never succeed, so it must never read as retryable.
+          case "invalid":
+            recordFailedPost(
+              briefId,
+              comment.id,
+              batchOwnsMessaging ? null : POST_COMMENT_COPY.invalid,
+            );
+            return "rejected";
+          case "upstream":
+            recordFailedPost(
+              briefId,
+              comment.id,
+              batchOwnsMessaging ? null : POST_COMMENT_COPY.upstream,
+            );
+            return "indeterminate";
+        }
+      } catch (error) {
+        console.error("post-now failed", error);
+        recordFailedPost(
+          briefId,
+          comment.id,
+          batchOwnsMessaging ? null : POST_COMMENT_COPY.failed,
+        );
+        return "indeterminate";
+      } finally {
+        endInFlightPost(briefId, comment.id);
+      }
     },
     [
       announceSubmit,
@@ -1573,6 +1682,98 @@ function BriefScreen({
       submitPending,
     ],
   );
+  // Batch "post my drafts, then mark ready" (BRIEF-43 follow-up, owner-approved
+  // reversal of the grill's no-batch decision). Posts each unposted draft
+  // SEQUENTIALLY through the SAME per-comment path above (in-flight registry,
+  // durable commitPostedComment, settled queue — no second posting path), and
+  // marks ready ONLY if every post succeeded. Any failure STOPS before
+  // mark-ready: the remaining drafts are left untouched, the gate closes, and
+  // an honest-counts toast (indeterminate for the one that failed) fires.
+  // Synchronous re-entrancy guard (round 2 #3 fallout): the confirm CTA is
+  // aria-disabled — not hard disabled — while the batch runs, so a click can
+  // land before the busy state renders; state updates are async, a ref is not
+  // (the useMarkReady pattern).
+  const batchInFlight = useRef(false);
+  const runMarkReadyBatch = useCallback(
+    async (drafts: readonly ReviewComment[]) => {
+      if (batchInFlight.current) return;
+      batchInFlight.current = true;
+      try {
+        const total = drafts.length;
+        let posted = 0;
+        for (const draft of drafts) {
+          setMarkReadyBatch({ current: posted + 1, total });
+          // Sequential BY DESIGN (not parallelizable): each post is an outward
+          // GitHub write, and a failure must STOP the run before the next post
+          // and before mark-ready — Promise.all would fire them all and defeat
+          // the stop-on-failure contract.
+          // eslint-disable-next-line no-await-in-loop
+          const outcome = await postDraftComment(draft, true);
+          if (outcome !== "posted") {
+            setMarkReadyBatch(null);
+            setMarkReadyGateOpen(false);
+            // The batch owns messaging (round 1 #1): every batch entry drains
+            // silently and this summary — honest counts, the indeterminate rule
+            // for the failed one, the explicit NOT-marked-ready — rides the
+            // settled queue as a NOTICE, announced LAST by whichever mount is
+            // live. Announcing from this closure instead would target the mount
+            // that STARTED the batch: a remount-mid-batch would silently drop
+            // the safety-critical warning (security review, this round).
+            recordPostNotice(
+              briefId,
+              markReadyBatchFailureCopy(posted, total, outcome),
+            );
+            // Focus rescue (round 3 #1): this close happens while the modal
+            // may hold focus (the confirm CTA) — the box goes inert and focus
+            // drops to <body>, and NEITHER sibling rescue fires (the own-draft
+            // state didn't exit, the head didn't advance). After the close
+            // commits, re-home focus that was dropped or stranded inside the
+            // now-closed modal onto the terminal-slot CTA, mirroring the
+            // sibling effects.
+            window.requestAnimationFrame(() => {
+              const active = document.activeElement;
+              if (
+                active === null ||
+                active === document.body ||
+                active.closest('[data-state="closed"]') !== null
+              ) {
+                document
+                  .querySelector<HTMLElement>("[data-terminal-slot]")
+                  ?.focus();
+              }
+            });
+            return;
+          }
+          posted += 1;
+        }
+        setMarkReadyBatch(null);
+        setMarkReadyGateOpen(false);
+        // All posted → mark ready. Same messaging guarantee as the failure
+        // path: the batch's entries drain silently, so the mark-ready flow's
+        // own result copy is the terminal live-region write — a late
+        // per-comment success drain cannot clobber it (round 1 #1).
+        markReadyFlow.markReady();
+      } finally {
+        batchInFlight.current = false;
+      }
+    },
+    [briefId, markReadyFlow, postDraftComment],
+  );
+  const markReadyAnyway = useCallback(() => {
+    // Checked (N>0) → post every unposted draft first, then mark ready iff all
+    // succeed. Unchecked → today's behavior: mark ready, post nothing.
+    if (postDraftsOnReady && unpostedDraftComments.length > 0) {
+      void runMarkReadyBatch(unpostedDraftComments);
+      return;
+    }
+    setMarkReadyGateOpen(false);
+    markReadyFlow.markReady();
+  }, [
+    markReadyFlow,
+    postDraftsOnReady,
+    runMarkReadyBatch,
+    unpostedDraftComments,
+  ]);
   const submitReceipt = useCallback(() => {
     // Read-only posture (BRIEF-24): the submit control disables focusably with
     // the reason (below) — this guards the click path itself.
@@ -1938,10 +2139,13 @@ function BriefScreen({
       {/* The mark-ready soft gate (BRIEF-43): mounted only in the own-draft
           state, only while the action exists (current head in view — a
           historical revision's flags are not the gate's contract), and only
-          when the Brief carries risk flags — zero flags skips the modal
-          entirely (the CTA acts directly, and nothing gate-shaped exists in
-          the DOM). */}
-      {ownDraftActive && markReadyAvailable && model.flags.length > 0 ? (
+          when there is something to gate ON — risk flags OR unposted drafts
+          (owner amendment: the batch expectation is global, not flags-only).
+          Both zero skips the modal entirely (the CTA acts directly, and
+          nothing gate-shaped exists in the DOM). */}
+      {ownDraftActive &&
+      markReadyAvailable &&
+      (model.flags.length > 0 || unpostedDraftComments.length > 0) ? (
         <MarkReadyModal
           open={markReadyGateOpen}
           flags={model.flags}
@@ -1950,6 +2154,13 @@ function BriefScreen({
           markReadyAnyway={markReadyAnyway}
           jumpToFlag={jumpToFlagFromGate}
           jumpToDrafts={jumpToDraftsFromGate}
+          postDrafts={postDraftsOnReady}
+          setPostDrafts={setPostDraftsOnReady}
+          busyLabel={
+            markReadyBatch !== null
+              ? `Posting ${String(markReadyBatch.current)} of ${String(markReadyBatch.total)}…`
+              : undefined
+          }
         />
       ) : null}
       <ShortcutsModal open={shortcutsOpen} close={closeShortcuts} />

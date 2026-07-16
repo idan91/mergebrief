@@ -24,7 +24,7 @@ export function entryCommentDeepLink(link: EntryCommentLink): string {
 /** The branded "ready" body posted once the brief artifact is readable. */
 export function entryCommentBody(link: EntryCommentLink): string {
   return [
-    `**[Read the Brief for this push](${entryCommentDeepLink(link)})** (\`${link.headSha.slice(0, 7)}\`)`,
+    `**[Read the brief for this push](${entryCommentDeepLink(link)})** (\`${link.headSha.slice(0, 7)}\`)`,
     "",
     "<sub>Posted by MergeBrief — replaced on each settled push so it always links the latest revision.</sub>",
   ].join("\n");
@@ -39,6 +39,6 @@ export function entryCommentGeneratingBody(link: EntryCommentLink): string {
   return [
     `**[Brief is generating for this push…](${entryCommentDeepLink(link)})** (\`${link.headSha.slice(0, 7)}\`)`,
     "",
-    "<sub>Posted by MergeBrief — the link already shows the live diff; this comment is replaced when the Brief is ready.</sub>",
+    "<sub>Posted by MergeBrief — the link already shows the live diff; this comment is replaced when the brief is ready.</sub>",
   ].join("\n");
 }

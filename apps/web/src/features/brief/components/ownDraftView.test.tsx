@@ -11,6 +11,7 @@
 //     ready-elsewhere), the affordances vanish and the reviewer view appears.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -20,11 +21,16 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MarkReadyResult } from "../../pulls/markReady";
+import type { PostCommentResult } from "../../pulls/postComment";
 import { MARK_READY_COPY } from "../../pulls/useMarkReady";
 import type { ReviewComment } from "../../review/comments";
 import { writeSnapshot } from "../../review/session";
 import type { OwnDraftPlan } from "./BriefPage/BriefPage";
-import { BriefView } from "./BriefPage/BriefPage";
+import {
+  BriefView,
+  markReadyBatchFailureCopy,
+  POST_COMMENT_COPY,
+} from "./BriefPage/BriefPage";
 import type { Brief } from "../types";
 import { briefFixture } from "../fixtures";
 
@@ -182,7 +188,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: zero flags → the modal is skipped entirely, the CTA acts directly", () => {
+  it("soft gate: zero flags AND zero drafts → the modal is skipped entirely, the CTA acts directly", () => {
+    // The direct bypass survives the owner amendment only when there is
+    // nothing to gate on at all — no flags and no unposted drafts.
     const markReady = vi.fn(() =>
       Promise.resolve<MarkReadyResult>({ kind: "ready" }),
     );
@@ -192,6 +200,52 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     );
     expect(screen.queryByText("Before marking ready")).toBeNull();
     expect(markReady).toHaveBeenCalledTimes(1);
+  });
+
+  it("soft gate: zero flags but unposted drafts → the gate OPENS with the checkbox, batch posts then mark-ready", async () => {
+    // Owner amendment (live bug, PR 9 test): the flags-only bypass skipped
+    // the gate on a zero-flag brief, so the post-my-drafts checkbox was
+    // unreachable — drafts silently stayed local while the PR went ready.
+    // The batch expectation is global: drafts alone open the gate.
+    writeSnapshot({
+      briefId: "own-draft-test",
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroupIds: [],
+      reviewedChunkIds: [],
+      checkedItems: {},
+      reviewComments: [
+        comment("c1", "chunk-a", "draft"),
+        comment("c2", "chunk-b", "draft"),
+      ],
+      reviewOutcome: "comment",
+    });
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const postComment = vi.fn((_anchor, _body) =>
+      Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
+    );
+    renderBriefView({ markReady, postComment }, flaglessBrief);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    // The gate opened — nothing posted, nothing marked ready yet…
+    expect(screen.getByText("Before marking ready")).toBeTruthy();
+    expect(markReady).toHaveBeenCalledTimes(0);
+    // …with the drafts-focused advisory, NOT risk-flag copy over an empty list.
+    expect(
+      await screen.findByText("You have 2 unposted draft comments."),
+    ).toBeTruthy();
+    expect(screen.queryByText(/these risk flags/i)).toBeNull();
+
+    // The checkbox is reachable and the batch works end to end.
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /post my 2 draft comments/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+    await waitFor(() => expect(markReady).toHaveBeenCalledTimes(1));
+    expect(postComment).toHaveBeenCalledTimes(2);
   });
 
   it("failure: toast copy through the live region, CTA re-enabled, state kept", async () => {
@@ -269,6 +323,384 @@ describe("own-draft Brief view (BRIEF-43)", () => {
         document.getElementById("chunk-b")?.hasAttribute("data-current"),
       ).toBe(true),
     );
+  });
+
+  it("batch (checked, all succeed): posts every draft, THEN marks ready", async () => {
+    writeSnapshot({
+      briefId: "own-draft-test",
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroupIds: [],
+      reviewedChunkIds: [],
+      checkedItems: {},
+      reviewComments: [
+        comment("c1", "chunk-a", "draft"),
+        comment("c2", "chunk-b", "draft"),
+      ],
+      reviewOutcome: "comment",
+    });
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const postComment = vi.fn((_anchor, _body) =>
+      Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
+    );
+    renderBriefView({ markReady, postComment });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(
+      await screen.findByText("You have 2 unposted draft comments."),
+    ).toBeTruthy();
+    // Opt in, then confirm.
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /post my 2 draft comments/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+    // Every draft posted through the per-comment path, then mark-ready ran.
+    await waitFor(() => expect(markReady).toHaveBeenCalledTimes(1));
+    expect(postComment).toHaveBeenCalledTimes(2);
+  });
+
+  it("batch (checked, one fails midway): posts STOP, mark-ready NOT called, honest-counts toast", async () => {
+    writeSnapshot({
+      briefId: "own-draft-test",
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroupIds: [],
+      reviewedChunkIds: [],
+      checkedItems: {},
+      reviewComments: [
+        comment("c1", "chunk-a", "draft"),
+        comment("c2", "chunk-b", "draft"),
+        comment("c3", "chunk-a", "draft"),
+      ],
+      reviewOutcome: "comment",
+    });
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    let call = 0;
+    const postComment = vi.fn((_anchor, _body) => {
+      call += 1;
+      // The second post fails — the batch must stop before the third.
+      return Promise.resolve<PostCommentResult>(
+        call === 2 ? { kind: "upstream" } : { kind: "posted", commentId: call },
+      );
+    });
+    renderBriefView({ markReady, postComment });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(
+      await screen.findByText("You have 3 unposted draft comments."),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /post my 3 draft comments/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+
+    // Honest counts, indeterminate for the one that failed (upstream is an
+    // around-the-write failure), PR not marked ready.
+    const summary = markReadyBatchFailureCopy(1, 3, "indeterminate");
+    expect(await screen.findByText(summary)).toBeTruthy();
+    // Reviewer round 1 #1/#3: the summary must be the SETTLED live-region
+    // message, not a transient 30ms window — flush the failed post's drain
+    // (endInFlightPost re-render → applySettledPosts) and every pending
+    // clear-then-set announce tick, then assert the summary still stands and
+    // the per-comment upstream copy never took the region over.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    expect(screen.getByText(summary)).toBeTruthy();
+    expect(screen.queryByText(POST_COMMENT_COPY.upstream)).toBeNull();
+    // Stopped at the failure: the third draft was never attempted…
+    expect(postComment).toHaveBeenCalledTimes(2);
+    // …and mark-ready never ran.
+    expect(markReady).toHaveBeenCalledTimes(0);
+    // The gate closed on the failure.
+    expect(overlayState("Before marking ready")).toBe("closed");
+  });
+
+  it("batch (checked, deterministic 400 midway): the summary says rejected-before-posting, not indeterminate", async () => {
+    // Reviewer round 2 #2: an `invalid` route reject is deterministic — the
+    // comment definitively did NOT post, so the summary must be actionable
+    // ("edit the draft"), never the indeterminate check-GitHub warning.
+    writeSnapshot({
+      briefId: "own-draft-test",
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroupIds: [],
+      reviewedChunkIds: [],
+      checkedItems: {},
+      reviewComments: [
+        comment("c1", "chunk-a", "draft"),
+        comment("c2", "chunk-b", "draft"),
+      ],
+      reviewOutcome: "comment",
+    });
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    let call = 0;
+    const postComment = vi.fn((_anchor, _body) => {
+      call += 1;
+      return Promise.resolve<PostCommentResult>(
+        call === 2 ? { kind: "invalid" } : { kind: "posted", commentId: call },
+      );
+    });
+    renderBriefView({ markReady, postComment });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(
+      await screen.findByText("You have 2 unposted draft comments."),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /post my 2 draft comments/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+
+    expect(
+      await screen.findByText(markReadyBatchFailureCopy(1, 2, "rejected")),
+    ).toBeTruthy();
+    // Not the indeterminate wording — the reject was deterministic.
+    expect(screen.queryByText(/may or may not have posted/)).toBeNull();
+    expect(markReady).toHaveBeenCalledTimes(0);
+  });
+
+  it("batch (checked, guard-blocked draft): no per-comment noise, the deterministic summary is the message", async () => {
+    // Reviewer round 2 #1: a guard-path rejection (over-cap body — the
+    // deterministic-400 mirror) inside a batch must not announce its blocked
+    // reason before the summary; the summary carries the stop-cause.
+    writeSnapshot({
+      briefId: "own-draft-test",
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroupIds: [],
+      reviewedChunkIds: [],
+      checkedItems: {},
+      reviewComments: [
+        comment("c1", "chunk-a", "draft"),
+        { ...comment("c2", "chunk-b", "draft"), body: "x".repeat(65_537) },
+      ],
+      reviewOutcome: "comment",
+    });
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const postComment = vi.fn((_anchor, _body) =>
+      Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
+    );
+    renderBriefView({ markReady, postComment });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(
+      await screen.findByText("You have 2 unposted draft comments."),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /post my 2 draft comments/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+
+    // The guard rejected pre-network: only the first draft was sent, the
+    // deterministic summary is announced…
+    expect(
+      await screen.findByText(markReadyBatchFailureCopy(1, 2, "rejected")),
+    ).toBeTruthy();
+    expect(postComment).toHaveBeenCalledTimes(1);
+    expect(markReady).toHaveBeenCalledTimes(0);
+    // …and the per-comment blocked reason never injected noise into the live
+    // region (the thread still shows it inline next to its disabled Post —
+    // that adjacency is unchanged): after the drain + announce ticks settle,
+    // the toast reads exactly the summary.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
+    const toast = screen
+      .getByText(markReadyBatchFailureCopy(1, 2, "rejected"))
+      .closest('[data-state="visible"]');
+    expect(toast).not.toBeNull();
+    expect(toast?.textContent).toBe(
+      markReadyBatchFailureCopy(1, 2, "rejected"),
+    );
+  });
+
+  it("batch failure summary carries the failing cause's own recovery (401 sign-in, 409 reload)", async () => {
+    // Reviewer round 3 #2: batch mode suppresses the per-comment copy, so the
+    // summary is the ONLY message — a blanket "edit the draft" is wrong for a
+    // session expiry or a stale head. Each deterministic cause branches.
+    const cases = [
+      { kind: "unauthorized", copy: /sign in again to continue/ },
+      { kind: "stale", copy: /reload to post against the current diff/ },
+    ] as const;
+    for (const { kind, copy } of cases) {
+      cleanup();
+      window.sessionStorage.clear();
+      writeSnapshot({
+        briefId: "own-draft-test",
+        dispositions: {},
+        dominants: {},
+        reclassifiedGroupIds: [],
+        reviewedChunkIds: [],
+        checkedItems: {},
+        reviewComments: [comment("c1", "chunk-a", "draft")],
+        reviewOutcome: "comment",
+      });
+      const markReady = vi.fn(() =>
+        Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+      );
+      const postComment = vi.fn((_anchor, _body) =>
+        Promise.resolve<PostCommentResult>({ kind }),
+      );
+      renderBriefView({ markReady, postComment });
+      fireEvent.click(
+        screen.getByRole("button", { name: "Mark ready for review" }),
+      );
+      expect(
+        await screen.findByText("You have 1 unposted draft comment."),
+      ).toBeTruthy();
+      fireEvent.click(
+        screen.getByRole("checkbox", { name: /post my 1 draft comment/i }),
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Mark ready anyway" }),
+      );
+
+      const summary = markReadyBatchFailureCopy(0, 1, kind);
+      expect(await screen.findByText(summary)).toBeTruthy();
+      // The variant keeps the honest-counts prefix + NOT-marked-ready suffix
+      // and carries the cause's own guidance.
+      expect(summary).toMatch(/^Posted 0 of 1\./);
+      expect(summary).toMatch(/The PR was NOT marked ready\.$/);
+      expect(summary).toMatch(copy);
+      expect(markReady).toHaveBeenCalledTimes(0);
+    }
+  });
+
+  it("batch failure rescues focus from the closing gate onto the terminal-slot CTA", async () => {
+    // Reviewer round 3 #1: the failure branch closes the gate while the modal
+    // holds focus (the confirm CTA) — the box goes inert and focus drops with
+    // NEITHER sibling rescue firing (state didn't exit, head didn't advance).
+    writeSnapshot({
+      briefId: "own-draft-test",
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroupIds: [],
+      reviewedChunkIds: [],
+      checkedItems: {},
+      reviewComments: [
+        comment("c1", "chunk-a", "draft"),
+        comment("c2", "chunk-b", "draft"),
+      ],
+      reviewOutcome: "comment",
+    });
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const postComment = vi.fn((_anchor, _body) =>
+      Promise.resolve<PostCommentResult>({ kind: "upstream" }),
+    );
+    renderBriefView({ markReady, postComment });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(
+      await screen.findByText("You have 2 unposted draft comments."),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /post my 2 draft comments/i }),
+    );
+    const confirm = screen.getByRole("button", { name: "Mark ready anyway" });
+    confirm.focus();
+    fireEvent.click(confirm);
+
+    // The batch fails on the first post; the gate closes…
+    expect(
+      await screen.findByText(markReadyBatchFailureCopy(0, 2, "indeterminate")),
+    ).toBeTruthy();
+    expect(overlayState("Before marking ready")).toBe("closed");
+    // …and focus lands on the terminal-slot CTA, never silently on <body>.
+    await waitFor(() => expect(document.activeElement).toBe(markReadyCta()));
+  });
+
+  it("Escape is a no-op while the batch runs; the gate stays up with its progress", async () => {
+    // Reviewer round 1 #2: Modal wires Escape to close only when a handler is
+    // provided — mid-batch the gate withholds it, matching the disabled
+    // controls, so progress feedback cannot vanish while writes continue.
+    writeSnapshot({
+      briefId: "own-draft-test",
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroupIds: [],
+      reviewedChunkIds: [],
+      checkedItems: {},
+      reviewComments: [
+        comment("c1", "chunk-a", "draft"),
+        comment("c2", "chunk-b", "draft"),
+      ],
+      reviewOutcome: "comment",
+    });
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    // A post that never settles: the batch stays running while we hit Escape.
+    const postComment = vi.fn(
+      (_anchor, _body) => new Promise<PostCommentResult>(() => {}),
+    );
+    renderBriefView({ markReady, postComment });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(
+      await screen.findByText("You have 2 unposted draft comments."),
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /post my 2 draft comments/i }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+    // The batch is running: progress on the confirm button (the text also
+    // rides the modal's sr-only live region, hence findAllBy).
+    expect(
+      await screen.findByRole("button", { name: "Posting 1 of 2…" }),
+    ).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    // Still open, progress still visible.
+    expect(overlayState("Before marking ready")).toBe("open");
+    expect(
+      screen.getByRole("button", { name: "Posting 1 of 2…" }),
+    ).toBeTruthy();
+  });
+
+  it("batch (unchecked): marks ready WITHOUT posting anything (existing behavior)", async () => {
+    writeSnapshot({
+      briefId: "own-draft-test",
+      dispositions: {},
+      dominants: {},
+      reclassifiedGroupIds: [],
+      reviewedChunkIds: [],
+      checkedItems: {},
+      reviewComments: [
+        comment("c1", "chunk-a", "draft"),
+        comment("c2", "chunk-b", "draft"),
+      ],
+      reviewOutcome: "comment",
+    });
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    const postComment = vi.fn((_anchor, _body) =>
+      Promise.resolve<PostCommentResult>({ kind: "posted", commentId: 1 }),
+    );
+    renderBriefView({ markReady, postComment });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(
+      await screen.findByText("You have 2 unposted draft comments."),
+    ).toBeTruthy();
+    // Leave the checkbox unchecked — confirm posts nothing.
+    fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
+    await waitFor(() => expect(markReady).toHaveBeenCalledTimes(1));
+    expect(postComment).toHaveBeenCalledTimes(0);
   });
 
   it("plan without an action (historical revision): CTA reads disabled, click announces, gate never mounts", async () => {

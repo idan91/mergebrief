@@ -44,7 +44,7 @@ Read this whole guide once; the invariants make unattended loops safe.
    is the \`commitId\` your submit must pin. If \`briefAvailable\` is false,
    generation is webhook-driven: poll \`pr <n>\` with backoff; never try to
    trigger it.
-3. \`mergebrief groups <n> --json\` — the Brief: change groups, chunks,
+3. \`mergebrief groups <n> --json\` — the brief: change groups, chunks,
    risk-surface attributes. This is your reading order.
 4. \`mergebrief diff <n> --group <id>\` — the whole-hunk diff of one group
    (raw diff on stdout). Review group by group.
@@ -77,8 +77,8 @@ PR-meta and emits ONE of:
 
 Both arms are exit 0 — modeled unavailability is data, not failure.
 \`reason\` next-moves: \`no-checkpoint\` → you never submitted here, review
-the full Brief; \`pending\` → poll with backoff; \`baseline-unavailable\` →
-the baseline is gone (rewritten history), review the full Brief;
+the full brief; \`pending\` → poll with backoff; \`baseline-unavailable\` →
+the baseline is gone (rewritten history), review the full brief;
 \`delta-not-generated\` → marks exist but no rich delta (huge span), diff
 the span yourself with \`diff <n> --base <baselineSha> --head <headSha>\`.
 An explicit \`--baseline/--head\` pair skips resolution; a missing artifact

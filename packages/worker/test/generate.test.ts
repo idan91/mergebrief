@@ -310,7 +310,7 @@ describe("generate task", () => {
     // On ready: delete+repost — exactly one comment left, the ready body.
     expect(github.comments.size).toBe(1);
     const [readyId, readyBody] = [...github.comments.entries()][0] ?? [];
-    expect(readyBody).toContain("Read the Brief");
+    expect(readyBody).toContain("Read the brief");
     expect(readyBody).not.toContain("generating");
     const row = await forTenant(harness.handle, ctx).pullRequests.getById(pr.id);
     expect(row?.entryCommentId).toBe(readyId);
@@ -341,7 +341,7 @@ describe("generate task", () => {
     const rerunCalls = github.commentCalls.slice(afterFirstRun);
     const [newReadyId] = [...github.comments.entries()][0] ?? [];
     expect(rerunCalls).toEqual([`delete:${readyId}`, `post:${newReadyId}`]);
-    expect([...github.comments.values()][0]).toContain("Read the Brief");
+    expect([...github.comments.values()][0]).toContain("Read the brief");
   });
 
   it("second push replaces the Entry comment: old deleted, new posted, stored id rotated", async () => {

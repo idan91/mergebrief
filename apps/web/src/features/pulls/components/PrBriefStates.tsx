@@ -20,16 +20,25 @@ export interface WaitCardProps {
   prNumber: number;
 }
 
-/** Human label for the generation phase line. */
+/**
+ * Human label for the generation heading. "brief" is lowercase mid-sentence
+ * (house naming rule: the artifact noun capitalizes only at sentence start;
+ * product references say "MergeBrief"). A phase that is EXACTLY the verb
+ * ("generating") would read "Generating the brief — generating…", so that
+ * echo collapses to the phase-less heading; any other phase (writing,
+ * generating-summary) is informative and still shows after the em dash.
+ */
 export function waitLabel(
   status: "queued" | "running",
   phase: string | null,
 ): string {
   if (status === "queued")
-    return "Queued — the Brief will start generating shortly.";
-  return phase === null
-    ? "Generating the Brief…"
-    : `Generating the Brief — ${phase.replaceAll("-", " ")}…`;
+    return "Queued — the brief will start generating shortly.";
+  if (phase === null) return "Generating the brief…";
+  const phaseText = phase.replaceAll("-", " ");
+  return phaseText.toLowerCase() === "generating"
+    ? "Generating the brief…"
+    : `Generating the brief — ${phaseText}…`;
 }
 
 export function WaitCard({
@@ -47,8 +56,8 @@ export function WaitCard({
       <span aria-hidden="true" className={styles["spinner"]} />
       <p className={styles["copy"]}>
         {span === undefined
-          ? "The diff preview appears here once the span is known; the Brief replaces it when ready."
-          : "Read the raw diff while you wait — the Brief replaces it when ready."}
+          ? "The diff preview appears here once the span is known; the brief replaces it when ready."
+          : "Read the raw diff while you wait — the brief replaces it when ready."}
       </p>
       {span === undefined ? null : (
         <LiveDiffPreview prNumber={prNumber} repoId={repoId} span={span} />
@@ -88,7 +97,7 @@ export function SupersededCard() {
       </h1>
       <span aria-hidden="true" className={styles["spinner"]} />
       <p className={styles["copy"]}>
-        This push was superseded before its Brief finished; the Brief for the
+        This push was superseded before its brief finished; the brief for the
         newest push will appear here automatically.
       </p>
     </section>
@@ -99,7 +108,7 @@ export function EmptyCard() {
   return (
     <section aria-labelledby="empty-heading" className={styles["card"]}>
       <h1 className={styles["heading"]} id="empty-heading">
-        No Brief for this pull request yet
+        No brief for this pull request yet
       </h1>
       <p className={styles["copy"]}>
         Generation starts automatically on the next push (or a submitted review)
@@ -117,7 +126,7 @@ export interface HeadAdvancedBannerProps {
 export function HeadAdvancedBanner({ onNavigate }: HeadAdvancedBannerProps) {
   return (
     <div className={styles["banner"]} role="status">
-      <span>This pull request has new commits since this Brief's span.</span>
+      <span>This pull request has new commits since this brief's span.</span>
       <button className="btn" onClick={onNavigate} type="button">
         Go to the newest revision
       </button>

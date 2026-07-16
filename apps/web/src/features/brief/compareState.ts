@@ -45,7 +45,7 @@ export interface CompareOptionFlags {
 }
 
 export const PREVIOUS_BRIEF_UNAVAILABLE_TITLE =
-  "No previous Brief for this revision";
+  "No previous brief for this revision";
 export const LAST_REVIEW_UNAVAILABLE_TITLE =
   "No submitted review checkpoint yet";
 export const LAST_REVIEW_PENDING_TITLE = "Delta still generating";

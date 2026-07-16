@@ -27,7 +27,7 @@ export interface RawSpanDiffProps {
 // no meaningful comment anchors, so `DiffTable` is always read-only here (the
 // reason keeps the disabled rows keyboard-discoverable — BRIEF-23 pattern).
 const READ_ONLY_REASON =
-  "This is the raw diff for the comparison — comment from the Brief itself.";
+  "This is the raw diff for the comparison — comment from the brief itself.";
 // Shared inert singletons: a read-only table paints no overlay and no comments,
 // so these never mutate — hoisted so every file's table shares one identity
 // (no per-render allocation; perf review).

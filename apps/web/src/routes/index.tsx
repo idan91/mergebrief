@@ -56,9 +56,9 @@ function BriefPicker() {
         <div className={styles["eyebrow"]}>
           Open-source · self-hosted · BYOK
         </div>
-        <h1>Turn a PR into a Brief</h1>
+        <h1>Turn a PR into a brief</h1>
         <p className={styles["copy"]}>
-          A Brief re-unitizes a pull request into Change-groups, each with a
+          A brief re-unitizes a pull request into Change-groups, each with a
           plain-language summary, a Playbook of the known checks for that kind
           of change, and Risk Surface attributes: facts worth a closer look,
           never a verdict.

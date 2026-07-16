@@ -31,6 +31,7 @@ import {
   endInFlightPost,
   postInlineComment,
   recordFailedPost,
+  recordPostNotice,
   useInFlightPosts,
   type PostCommentPayload,
 } from "./postComment";
@@ -313,6 +314,88 @@ describe("commitPostedComment + applySettledPosts", () => {
     expect(stored?.reviewComments[0]?.status).toBe("submitted");
     expect(stored?.submittedReviewIds).toContain(555);
     consoleError.mockRestore();
+  });
+
+  it("suppressed entries (batch owns messaging): flips apply, nothing announced", () => {
+    // Reviewer round 1 #1: batch-initiated posts queue with a NULL copy — the
+    // drain applies every store flip (durable + live) but announces nothing,
+    // so the batch's summary toast stays the last live-region write instead
+    // of being overwritten by per-comment drain copy.
+    const briefId = "db:batch-silent:7:base:head";
+    writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
+    commitPostedComment(briefId, "a", 222, null);
+    recordFailedPost(briefId, "b", null);
+
+    const markCommentsSubmitted = vi.fn();
+    const recordSubmittedReview = vi.fn();
+    const announce = vi.fn();
+    applySettledPosts(
+      briefId,
+      { markCommentsSubmitted, recordSubmittedReview },
+      announce,
+    );
+    // The flips still land (durable snapshot + live store)…
+    expect(markCommentsSubmitted).toHaveBeenCalledWith(["a"]);
+    expect(recordSubmittedReview).toHaveBeenCalledWith(222);
+    expect(readSnapshot(briefId)?.reviewComments[0]?.status).toBe("submitted");
+    // …but the drain announces nothing: the batch owns messaging.
+    expect(announce).not.toHaveBeenCalled();
+  });
+
+  it("a batch notice is announced LAST (after per-comment entries) and drained once", () => {
+    // Reviewer round 1 #1 + security review: the mark-ready batch's failure
+    // summary rides the settled queue like every failure, so a remount-mid-
+    // batch cannot silently drop it — and the drain orders it after every
+    // per-comment entry, making it the live-region write that survives.
+    const briefId = "db:batch-notice:7:base:head";
+    writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
+    const summary =
+      "Posted 1 of 3. One comment may or may not have posted — check GitHub before retrying. The PR was NOT marked ready.";
+    commitPostedComment(briefId, "a", 333, null);
+    recordFailedPost(briefId, "b", null);
+    recordPostNotice(briefId, summary);
+
+    const markCommentsSubmitted = vi.fn();
+    const announce = vi.fn();
+    applySettledPosts(
+      briefId,
+      { markCommentsSubmitted, recordSubmittedReview: vi.fn() },
+      announce,
+    );
+    // Flips applied; the SUMMARY is the only (and last) announcement.
+    expect(markCommentsSubmitted).toHaveBeenCalledWith(["a"]);
+    expect(announce).toHaveBeenCalledExactlyOnceWith(summary);
+
+    // Drained: a later effect run announces nothing again.
+    applySettledPosts(
+      briefId,
+      { markCommentsSubmitted, recordSubmittedReview: vi.fn() },
+      announce,
+    );
+    expect(announce).toHaveBeenCalledTimes(1);
+  });
+
+  it("recordPostNotice wakes subscribers even without an in-flight transition", () => {
+    // A guard-path batch failure never touches the registry — the notice must
+    // still notify (fresh snapshot reference), or the drain effect would bail
+    // and the summary would sit queued until an unrelated post settled.
+    const briefId = "db:notice-wake:7:base:head";
+    const rendered = renderHook(({ id }) => useInFlightPosts(id), {
+      initialProps: { id: briefId },
+    });
+    const before = rendered.result.current;
+    act(() => {
+      recordPostNotice(briefId, "summary");
+    });
+    // A new snapshot reference: React re-renders and the drain effect re-runs.
+    expect(rendered.result.current).not.toBe(before);
+    rendered.unmount();
+    // Clean the queue so later suites see no leftover notice.
+    applySettledPosts(
+      briefId,
+      { markCommentsSubmitted: vi.fn(), recordSubmittedReview: vi.fn() },
+      vi.fn(),
+    );
   });
 
   it("concurrent-settle tick: the failure warning wins the last live-region read", () => {

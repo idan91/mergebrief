@@ -19,7 +19,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       {
         name: "description",
         content:
-          "Open-source, self-hostable comprehension layer for code review. Turns a PR into a Brief: categorized change-groups with plain-language summaries, per-category playbooks, and risk-surface attributes. BYOK, no telemetry.",
+          "Open-source, self-hostable comprehension layer for code review. Turns a PR into a brief: categorized change-groups with plain-language summaries, per-category playbooks, and risk-surface attributes. BYOK, no telemetry.",
       },
       {
         property: "og:title",
@@ -28,7 +28,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       {
         property: "og:description",
         content:
-          "Turns a pull request into a Brief: categorized change-groups, plain-language summaries, playbooks, and risk-as-facts. Open-source, self-hostable, BYOK.",
+          "Turns a pull request into a brief: categorized change-groups, plain-language summaries, playbooks, and risk-as-facts. Open-source, self-hostable, BYOK.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

@@ -80,6 +80,33 @@ describe("CommentThread", () => {
     expect(post).toHaveBeenCalledWith(draft);
   });
 
+  it("renders Post as a primary CTA anchored in the draft card footer", () => {
+    // BRIEF-43 UX follow-up: Post is promoted from a tiny inline text button to
+    // a primary CTA at the bottom-right of the footer. Asserted via the footer
+    // container + data attribute, never hashed class names.
+    const post = vi.fn();
+    render(
+      <CommentThread
+        comment={comment("draft")}
+        deleteComment={vi.fn()}
+        post={post}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    const button = screen.getByRole("button", { name: "Post" });
+    // Primary-styled and tagged as the post CTA.
+    expect(button.className).toContain("primary");
+    expect(button.hasAttribute("data-post-cta")).toBe(true);
+    // Lives inside the thread footer (the CTA slot), not loose in the DOM.
+    const footer = button.closest("[data-thread-footer]");
+    expect(footer).not.toBeNull();
+    // The secondary text actions (Edit/Collapse/Delete) share that footer.
+    expect(footer?.contains(screen.getByRole("button", { name: "Edit" }))).toBe(
+      true,
+    );
+  });
+
   it("disables Post/Edit/Delete with a pending label while posting", () => {
     // In-flight (4a): mutating controls disable so a mid-flight edit cannot
     // produce a submitted record whose body was never posted; Collapse (a

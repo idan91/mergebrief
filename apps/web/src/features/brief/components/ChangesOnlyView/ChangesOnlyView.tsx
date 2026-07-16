@@ -94,7 +94,7 @@ function PreviousBriefChanges({
   if (skipReason) {
     return (
       <EmptyState>
-        <b>No revision summary.</b> The change from the previous Brief was{" "}
+        <b>No revision summary.</b> The change from the previous brief was{" "}
         {skipReason === "span too large"
           ? "too large to summarize incrementally"
           : "not summarized (disabled by config)"}
@@ -188,7 +188,7 @@ function LastReviewChanges({ delta }: LastReviewChangesProps) {
   if (!delta) {
     return (
       <EmptyState>
-        <b>Changes summary unavailable.</b> The highlighted lines in Full Brief
+        <b>Changes summary unavailable.</b> The highlighted lines in Full brief
         still show what changed since your last review.
       </EmptyState>
     );

@@ -67,6 +67,21 @@
     justify-content: flex-end;
   }
 
+  /* Draft card footer: secondary text actions on the left, the primary Post
+     CTA anchored bottom-right (BRIEF-43 UX follow-up). */
+  .footer {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .postCta {
+    flex-shrink: 0;
+    padding-block: 0 12px;
+    padding-inline-end: 12px;
+  }
+
   .threadActions {
     padding-block-start: 0;
 

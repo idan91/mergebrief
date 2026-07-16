@@ -134,46 +134,53 @@ export function CommentThread({
       {postBlocked !== undefined ? (
         <p className={styles["postBlocked"]}>{postBlocked}</p>
       ) : null}
-      <div className={styles["threadActions"]}>
-        {/* Post-now (BRIEF-43): staged draft → GitHub, in own-draft state only.
-            A submitted comment is already on GitHub, so it never shows Post.
-            While in flight the button stays visible (pending label) but inert. */}
+      <div className={styles["footer"]} data-thread-footer="">
+        <div className={styles["threadActions"]}>
+          {submitted ? null : (
+            <button
+              disabled={posting}
+              type="button"
+              onClick={() => {
+                // Seed the editor from the current comment each time, so an edit
+                // never opens on a stale body if it changed since mount.
+                setBody(comment.body);
+                setEditing(true);
+              }}
+            >
+              Edit
+            </button>
+          )}
+          <button type="button" onClick={() => toggle(comment.id)}>
+            Collapse
+          </button>
+          {submitted ? null : (
+            <button
+              disabled={posting}
+              type="button"
+              onClick={() => deleteComment(comment.id)}
+            >
+              Delete
+            </button>
+          )}
+        </div>
+        {/* Post-now (BRIEF-43): promoted to a primary CTA anchored bottom-right
+            of the draft card footer. Own-draft state only — a submitted comment
+            is already on GitHub, so it never shows Post; while in flight the
+            button stays visible (pending label) but inert. All gating (blocked
+            reasons above, posting lock) is unchanged. */}
         {post !== undefined && !submitted ? (
-          <button
-            className="btn primary"
-            disabled={posting || postBlocked !== undefined}
-            type="button"
-            onClick={() => post(comment)}
-          >
-            {posting ? "Posting…" : "Post"}
-          </button>
+          <div className={styles["postCta"]}>
+            <button
+              className="btn primary"
+              data-post-cta=""
+              disabled={posting || postBlocked !== undefined}
+              type="button"
+              onClick={() => post(comment)}
+            >
+              {posting ? "Posting…" : "Post"}
+            </button>
+          </div>
         ) : null}
-        {submitted ? null : (
-          <button
-            disabled={posting}
-            type="button"
-            onClick={() => {
-              // Seed the editor from the current comment each time, so an edit
-              // never opens on a stale body if it changed since mount.
-              setBody(comment.body);
-              setEditing(true);
-            }}
-          >
-            Edit
-          </button>
-        )}
-        <button type="button" onClick={() => toggle(comment.id)}>
-          Collapse
-        </button>
-        {submitted ? null : (
-          <button
-            disabled={posting}
-            type="button"
-            onClick={() => deleteComment(comment.id)}
-          >
-            Delete
-          </button>
-        )}
       </div>
     </div>
   );
