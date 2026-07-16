@@ -157,3 +157,18 @@ gating real behavior.
   travels with draft-first activation.
 - The invisible-mode-gates rule graduates from FE feedback to a design
   invariant with an ADR to cite.
+
+### Amendment (2026-07-15, live testing)
+
+The mark-ready affordance runs GitHub's `markPullRequestReadyForReview`
+GraphQL mutation, which GitHub gates on the App holding **`contents: write`**
+— discovered in live testing. The self-host GitHub App therefore now requests
+Contents at **Read & write** (see
+[`../self-host/github-app.md`](../self-host/github-app.md)). This is a GitHub
+permission-granularity quirk, **not** a MergeBrief write path (the App still
+pushes no code) and **not** a new authz semantic: the "GitHub itself enforces
+author/maintainer, no MergeBrief role model" decision stands unchanged. It is
+an App *installation* permission, not a MergeBrief role. When the permission
+is missing, the mark-ready route surfaces a distinct `403 github-permission`
+(never the existence-hiding 404 collapse used for revoked repo access), and
+the FE tells the author to grant the permission and retry.

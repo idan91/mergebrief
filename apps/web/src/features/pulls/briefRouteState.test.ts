@@ -47,6 +47,61 @@ describe("deriveBriefRouteState", () => {
     expect(state).toEqual({ kind: "render", span: { base: "b1", head: "h1" } });
   });
 
+  it("an explicit span naming the CURRENT head degrades to the wait state while its first Brief is still generating (no 404)", () => {
+    // The Entry-comment "Brief is generating…" link points at the current
+    // head whose artifact does not exist yet; rendering it would 404 the
+    // page, so it degrades to the same diff-first wait a span-unknown load of a
+    // generating PR produces.
+    const state = deriveBriefRouteState(
+      meta({
+        briefAvailable: false,
+        baseSha: "b2",
+        headSha: "head-2",
+        generation: generation({ status: "running", phase: "generating" }),
+      }),
+      { base: "b2", head: "head-2" },
+    );
+    expect(state).toEqual({
+      kind: "waiting",
+      status: "running",
+      phase: "generating",
+      span: { base: "b2", head: "head-2" },
+    });
+  });
+
+  it("degrades on a matching head even when the explicit BASE mismatches the meta's (base drift must not veto)", () => {
+    // The link's base comes from the generation task's fresh PR fetch, while
+    // meta.baseSha falls back to the ingest-time row when no brief exists yet
+    // — a drift between the two must not re-open the 404 (head is the
+    // revision-selection key; base is a pinned convenience).
+    const state = deriveBriefRouteState(
+      meta({
+        briefAvailable: false,
+        baseSha: "b-ingest",
+        headSha: "head-2",
+        generation: generation({ status: "running", phase: "generating" }),
+      }),
+      { base: "b-fresh", head: "head-2" },
+    );
+    expect(state).toEqual({
+      kind: "waiting",
+      status: "running",
+      phase: "generating",
+      span: { base: "b-ingest", head: "head-2" },
+    });
+  });
+
+  it("an explicit span naming the current span STILL renders once its artifact exists", () => {
+    const state = deriveBriefRouteState(
+      meta({ briefAvailable: true, baseSha: "b2", headSha: "head-2" }),
+      { base: "b2", head: "head-2" },
+    );
+    expect(state).toEqual({
+      kind: "render",
+      span: { base: "b2", head: "head-2" },
+    });
+  });
+
   it("briefAvailable + known span renders even while generation still runs (artifact EXISTS beats status)", () => {
     const state = deriveBriefRouteState(
       meta({

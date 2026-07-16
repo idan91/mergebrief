@@ -111,6 +111,14 @@ function graphqlError(): Response {
   // NOT an HTTP 5xx, which octokit's retry plugin would back off and retry.
   return jsonResponse({ data: null, errors: [{ type: "INTERNAL", message: "boom" }] });
 }
+function forbiddenGraphql(): Response {
+  // GitHub's GraphQL FORBIDDEN envelope for the mark-ready MUTATION when the
+  // App lacks `contents: write` — the community-documented permission gap.
+  return jsonResponse({
+    data: null,
+    errors: [{ type: "FORBIDDEN", message: "Resource not accessible by integration" }],
+  });
+}
 function graphqlUnauthorized(): Response {
   // HTTP 401 → octokit.graphql throws a RequestError(401) → UNAUTHORIZED.
   return jsonResponse({ message: "Bad credentials" }, 401);
@@ -403,6 +411,48 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     expect(res.status).toBe(502);
     expect(res.headers.get("cache-control")).toBe("no-store");
     // Draft NOT flipped: GitHub is the source of truth and it rejected.
+    expect(await readDraft(harness.handle)).toBe(true);
+    expect(await markReadyAuditCount(harness)).toBe(0);
+  });
+
+  it("403 github-permission (NOT the 404 collapse) on a MUTATION-stage FORBIDDEN — the App lacks contents:write", async () => {
+    // The gate AND the fresh re-resolve both succeed (the viewer has proven
+    // repo access), then the node-id resolve succeeds and only the mutation
+    // 403s: an App permission gap, not an access revocation. It must be a
+    // distinct, honestly-actionable 403 — never the existence-hiding 404 —
+    // while leaving the row untouched, emitting no audit, and staying no-store.
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      graphql: (i) => (i === 0 ? nodeIdGraphql(true) : forbiddenGraphql()),
+    });
+    await seedDraftPr(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+
+    const res = await markReady(app, cookie);
+    expect(res.status).toBe(403);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ error: "github-permission" });
+    // Reached the mutation (resolve + mutation = 2 GraphQL calls).
+    expect(counts.graphql).toBe(2);
+    // Row untouched, no audit — GitHub rejected the write.
+    expect(await readDraft(harness.handle)).toBe(true);
+    expect(await markReadyAuditCount(harness)).toBe(0);
+  });
+
+  it("fresh-resolve FORBIDDEN still collapses to 404 (existence-leak posture unchanged)", async () => {
+    // Distinct from the mutation-stage 403 above: a FORBIDDEN at the in-route
+    // fresh /repositories/{id} resolve (BEFORE the viewer re-proves access this
+    // request) must keep collapsing to the gate's 404 posture.
+    const counts = stubGitHub({
+      repositories: (i) => (i === 0 ? repoOk() : repoStatus(403)),
+    });
+    await seedDraftPr(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+
+    const res = await markReady(app, cookie);
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ error: "not found" });
+    expect(counts.graphql).toBe(0);
     expect(await readDraft(harness.handle)).toBe(true);
     expect(await markReadyAuditCount(harness)).toBe(0);
   });

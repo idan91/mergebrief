@@ -54,6 +54,15 @@ describe("markPrReady", () => {
     await expect(run()).resolves.toEqual({ kind: "not-found" });
   });
 
+  it("maps a 403 to the github-permission kind (the App lacks contents:write)", async () => {
+    apiFetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ error: "github-permission" }), {
+        status: 403,
+      }),
+    );
+    await expect(run()).resolves.toEqual({ kind: "github-permission" });
+  });
+
   it("maps 502 (and the UI-unreachable 400) to the upstream kind", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ error: "upstream error" }), {
@@ -133,7 +142,12 @@ describe("createMarkReadyAction", () => {
   });
 
   it("failure kinds resolve without invalidating anything (stay in-state)", async () => {
-    for (const kind of ["unauthorized", "not-found", "upstream"] as const) {
+    for (const kind of [
+      "unauthorized",
+      "not-found",
+      "github-permission",
+      "upstream",
+    ] as const) {
       const invalidateQueries = vi.fn(() => Promise.resolve());
       const action = createMarkReadyAction(
         { invalidateQueries },

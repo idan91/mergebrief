@@ -53,7 +53,7 @@ const prNumberSchema = z.coerce.number().int().positive();
 function errorJson(
   c: Context<AuthzEnv>,
   message: string,
-  status: 400 | 401 | 404 | 502,
+  status: 400 | 401 | 403 | 404 | 502,
 ): Response {
   return c.json({ error: message }, status, { "cache-control": "no-store" });
 }
@@ -81,18 +81,47 @@ async function resolveSessionToken(
   return decrypted.ok ? decrypted.value : undefined;
 }
 
-/** Map a final mark-ready GitHub failure to the sanitized response posture. */
-function markReadyFailure(c: Context<AuthzEnv>, error: GitHubApiError): Response {
+/**
+ * Map a FRESH REPO RE-RESOLVE failure to the sanitized response posture. This
+ * runs BEFORE the viewer has proven access to the repo via this request's own
+ * fetch, so a 403/404 both collapse to the gate's 404 posture: a viewer whose
+ * access was revoked inside the positive-cache TTL must see exactly what a cold
+ * gate denial shows — no existence leak, no distinguishable status.
+ */
+function resolveRepoFailure(c: Context<AuthzEnv>, error: GitHubApiError): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
     return errorJson(c, "unauthorized", 401);
   }
-  // 403/404 both collapse to the gate's 404 posture: a viewer whose access was
-  // revoked inside the positive-cache TTL must see exactly what a cold gate
-  // denial shows — no existence leak, no distinguishable status.
   if (
     error.code === GitHubApiErrorCode.NOT_FOUND ||
     error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
+    return errorJson(c, "not found", 404);
+  }
+  return errorJson(c, "upstream error", 502);
+}
+
+/**
+ * Map a GraphQL MUTATION-stage failure to the sanitized response posture. This
+ * runs AFTER both the gate and the fresh re-resolve succeeded — the viewer has
+ * already proven they can see the repo, so there is no existence to leak by
+ * being specific. A FORBIDDEN here is a genuine App permission gap:
+ * `markPullRequestReadyForReview` requires the App to hold `contents: write`
+ * (GitHub's own permission granularity — MergeBrief never pushes code), so it
+ * surfaces as a distinct, honestly-actionable 403 instead of collapsing into
+ * "no longer accessible". A NOT_FOUND still means the PR is genuinely gone → 404.
+ */
+function markReadyMutationFailure(
+  c: Context<AuthzEnv>,
+  error: GitHubApiError,
+): Response {
+  if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+    return errorJson(c, "unauthorized", 401);
+  }
+  if (error.code === GitHubApiErrorCode.FORBIDDEN) {
+    return errorJson(c, "github-permission", 403);
+  }
+  if (error.code === GitHubApiErrorCode.NOT_FOUND) {
     return errorJson(c, "not found", 404);
   }
   return errorJson(c, "upstream error", 502);
@@ -165,7 +194,7 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), c.get("repoId"));
     }
     if (!repoInfo.ok) {
-      return markReadyFailure(c, repoInfo.error);
+      return resolveRepoFailure(c, repoInfo.error);
     }
     const target = splitRepoSlug(repoInfo.value.fullName);
     if (target === undefined) {
@@ -196,7 +225,7 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
     const marked = await markWithRefreshOnce();
     if (!marked.ok) {
-      return markReadyFailure(c, marked.error);
+      return markReadyMutationFailure(c, marked.error);
     }
 
     // Success (fresh flip OR already-ready convergence): mirror `draft=false`

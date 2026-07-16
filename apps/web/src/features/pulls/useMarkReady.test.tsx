@@ -63,6 +63,7 @@ describe("useMarkReady", () => {
     for (const [kind, copy] of [
       ["unauthorized", MARK_READY_COPY.unauthorized],
       ["not-found", MARK_READY_COPY.notFound],
+      ["github-permission", MARK_READY_COPY.githubPermission],
       ["upstream", MARK_READY_COPY.upstream],
     ] as const) {
       const announce = vi.fn();

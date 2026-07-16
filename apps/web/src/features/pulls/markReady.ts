@@ -21,6 +21,14 @@ export type MarkReadyResult =
   | { kind: "ready" }
   | { kind: "unauthorized" }
   | { kind: "not-found" }
+  /**
+   * GitHub blocked the mutation for lack of an App permission (the route's
+   * `403 {"error":"github-permission"}`): `markPullRequestReadyForReview`
+   * requires the App to hold `contents: write`. A distinct kind so the FE
+   * gives honest, actionable copy instead of the "no longer accessible" 404
+   * copy — the viewer proved repo access, so this is not an existence miss.
+   */
+  | { kind: "github-permission" }
   | { kind: "upstream" };
 
 /** The route-injected action shape the Brief screen's own-draft flow calls. */
@@ -46,6 +54,13 @@ export async function markPrReady(
   }
   if (response.status === 404) {
     return { kind: "not-found" };
+  }
+  // A 403 from this route is ONLY the mutation-stage `github-permission` gap
+  // (the fresh-resolve denial collapses to 404 server-side) — the App is
+  // missing `contents: write`. Distinct copy, recoverable after the owner
+  // updates the App's permissions.
+  if (response.status === 403) {
+    return { kind: "github-permission" };
   }
   if (!response.ok) {
     return { kind: "upstream" };

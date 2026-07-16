@@ -121,6 +121,11 @@ function assertRepoId(raw: string): string {
   return raw;
 }
 
+/** A read-API NOT_FOUND (the artifact/PR does not exist for this viewer). */
+function isNotFoundError(error: unknown): boolean {
+  return error instanceof ApiError && error.kind === ApiErrorKind.NOT_FOUND;
+}
+
 /**
  * Loader error mapping: an unauthenticated read sends the viewer to login; a
  * missing PR/brief becomes the router's 404 (a real HTTP 404 on SSR, not a
@@ -130,7 +135,7 @@ function mapLoaderError(error: unknown): never {
   if (error instanceof ApiError && error.kind === ApiErrorKind.UNAUTHORIZED) {
     throw redirect({ href: "/auth/github" });
   }
-  if (error instanceof ApiError && error.kind === ApiErrorKind.NOT_FOUND) {
+  if (isNotFoundError(error)) {
     throw notFound();
   }
   throw error;
@@ -167,8 +172,15 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     const explicit = spanFromSearch(deps);
     try {
       if (explicit !== undefined) {
-        // Deep link with a span: meta + brief in parallel — no waterfall.
-        await Promise.all([
+        // Deep link with a span: meta + brief in parallel — no waterfall. But
+        // while the PR's first Brief is still generating, the Entry-comment
+        // "Brief is generating…" link names a span whose artifact 404s; that
+        // must NOT 404 the page — the component renders the same diff-first
+        // wait state a span-unknown load produces (deriveBriefRouteState
+        // degrades the current-span-while-generating case). So swallow ONLY a
+        // brief-query NOT_FOUND here; a missing PR (meta NOT_FOUND) is still a
+        // real 404, and any other brief failure still propagates.
+        const [metaResult, briefResult] = await Promise.allSettled([
           context.queryClient.ensureQueryData(
             prMetaQueryOptions(repoId, prNumber),
           ),
@@ -176,6 +188,15 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
             dbBriefQueryOptions(repoId, prNumber, explicit.base, explicit.head),
           ),
         ]);
+        if (metaResult.status === "rejected") {
+          mapLoaderError(metaResult.reason);
+        }
+        if (
+          briefResult.status === "rejected" &&
+          !isNotFoundError(briefResult.reason)
+        ) {
+          mapLoaderError(briefResult.reason);
+        }
         return;
       }
       // Span unknown: the meta names it, then the brief prefetches only when

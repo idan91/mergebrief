@@ -15,7 +15,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "../brief/fixtures";
 import { routeTree } from "../../routeTree.gen";
@@ -540,5 +540,111 @@ describe("DB brief route", () => {
       await screen.findByText(/switch to the latest revision to mark/i),
     ).toBeTruthy();
     expect(screen.queryByText("Before marking ready")).toBeNull();
+  });
+});
+
+/**
+ * Build the route with a fetch stub and a recognizable not-found component, so
+ * a loader `notFound()` is observable in the DOM (the shared `renderRoute`
+ * helper above seeds every query and configures no not-found component).
+ */
+async function renderRouteWithFetch(
+  seed: (client: QueryClient) => void,
+  fetchStub: (path: string) => Response,
+  path: string,
+) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn((input: RequestInfo | URL) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      return Promise.resolve(fetchStub(url));
+    }),
+  );
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  seed(queryClient);
+  const router = createRouter({
+    routeTree,
+    context: { queryClient },
+    history: createMemoryHistory({ initialEntries: [path] }),
+    defaultNotFoundComponent: () => <div data-testid="nf">Not Found</div>,
+  });
+  await router.load();
+  render(
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  return router;
+}
+
+describe("DB brief route — explicit-span deep link while generating", () => {
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
+
+  const generatingMeta = meta({
+    briefAvailable: false,
+    generation: {
+      status: "running",
+      phase: "generating",
+      attempts: 0,
+      error: null,
+      updatedAt: "2026-07-06T12:00:00.000Z",
+    },
+  });
+
+  it("renders the diff-first wait state (NOT the not-found component) when the explicit-span brief 404s while generating", async () => {
+    await renderRouteWithFetch(
+      (client) => {
+        // Meta is seeded (present): the loader resolves it from cache and only
+        // the still-generating brief hits the network → 404.
+        client.setQueryData(
+          prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
+          generatingMeta,
+        );
+        client.setQueryData(
+          prDiffQueryOptions(REPO_ID, PR_NUMBER, SPAN.base, SPAN.head).queryKey,
+          "",
+        );
+      },
+      (url) =>
+        url.includes("/brief")
+          ? new Response("not found", { status: 404 })
+          : new Response("{}", { status: 200 }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    // The wait card renders exactly like a span-unknown generating load: the
+    // generation status heading + the diff-first "read the raw diff" copy.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /generating the brief/i }),
+      ).toBeTruthy(),
+    );
+    expect(screen.getByText(/read the raw diff while you wait/i)).toBeTruthy();
+    // Crucially NOT the router's not-found page.
+    expect(screen.queryByTestId("nf")).toBeNull();
+  });
+
+  it("still renders the not-found component when the PR meta 404s (a missing PR is a real 404)", async () => {
+    await renderRouteWithFetch(
+      () => {
+        // Nothing seeded: BOTH meta and brief hit the network → 404. A meta
+        // 404 must still 404 the page even on the explicit-span path.
+      },
+      () => new Response("not found", { status: 404 }),
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
+    );
+    await waitFor(() => expect(screen.getByTestId("nf")).toBeTruthy());
+    expect(
+      screen.queryByRole("heading", { name: /generating the brief/i }),
+    ).toBeNull();
   });
 });

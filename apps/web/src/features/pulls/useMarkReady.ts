@@ -29,6 +29,8 @@ export const MARK_READY_COPY = {
   unauthorized:
     "Your GitHub session expired — sign in again to mark this pull request ready.",
   notFound: "This pull request is no longer accessible on GitHub.",
+  githubPermission:
+    "GitHub blocked the action: the MergeBrief App needs the 'Contents: Read & write' repository permission to mark a PR ready. Update the App's permissions and retry.",
   upstream:
     "GitHub rejected the request or is unreachable — try again shortly.",
   // Marking ready is idempotent on GitHub's side (already-ready converges),
@@ -62,6 +64,10 @@ export function useMarkReady(input: UseMarkReadyInput): UseMarkReadyValue {
           }
           case "not-found": {
             announce(MARK_READY_COPY.notFound);
+            break;
+          }
+          case "github-permission": {
+            announce(MARK_READY_COPY.githubPermission);
             break;
           }
           case "upstream": {

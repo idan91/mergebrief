@@ -42,17 +42,39 @@ function metaSpan(meta: PrSummary): Span | undefined {
 }
 
 /**
- * Derive what the route shows. An explicit span always renders (a deep link
- * to an older span shows that brief; a missing artifact surfaces as the brief
- * query's 404, not as a wait state). Otherwise the CURRENT span renders
- * exactly when its artifact exists; the generation summary picks the wait
- * flavor for everything else.
+ * The explicit span names the PR's CURRENT head. Deliberately HEAD-only: the
+ * head is the revision-selection key (BRIEF-24) and both sides of the compare
+ * come from the same source (latestGeneration.headSha). The BASE must not
+ * veto — the Entry-comment link's base comes from the generation task's fresh
+ * PR fetch, while `meta.baseSha` falls back to the ingest-time row when no
+ * brief exists yet, so a base drift between ingest and generation start would
+ * make a both-halves compare miss and 404 the generating link again.
+ */
+function explicitNamesGeneratingHead(
+  meta: PrSummary,
+  explicitSpan: Span,
+): boolean {
+  return meta.headSha !== null && meta.headSha === explicitSpan.head;
+}
+
+/**
+ * Derive what the route shows. An explicit span renders its brief (a deep link
+ * to an older span shows that brief) — EXCEPT while the PR's first Brief is
+ * still generating: the Entry-comment "Brief is generating…" link names the
+ * CURRENT head whose artifact does not exist yet, so a `render` there would
+ * 404 the whole page. That one case degrades to the meta-derived wait state
+ * (identical to a span-unknown load of a generating PR — diff-first wait with
+ * the generation status). Otherwise the CURRENT span renders exactly when its
+ * artifact exists; the generation summary picks the wait flavor.
  */
 export function deriveBriefRouteState(
   meta: PrSummary,
   explicitSpan: ExplicitSpan,
 ): BriefRouteState {
-  if (explicitSpan !== undefined) {
+  if (
+    explicitSpan !== undefined &&
+    !(explicitNamesGeneratingHead(meta, explicitSpan) && !meta.briefAvailable)
+  ) {
     return { kind: "render", span: explicitSpan };
   }
   const span = metaSpan(meta);

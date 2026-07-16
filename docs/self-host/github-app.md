@@ -14,9 +14,16 @@ own account/org, wired to your own deployment. There is no shared hosted App.
 
 | Repository permission | Access | Why |
 |---|---|---|
-| **Contents** | Read-only | Read PR diffs. The App never writes code. |
+| **Contents** | Read & write | **Read** PR diffs. **Write** is required *only* because GitHub's `markPullRequestReadyForReview` GraphQL mutation (the "mark ready for review" author affordance, BRIEF-43 / ADR 0031) is gated on `contents: write` — that is GitHub's permission granularity for the mutation, not a MergeBrief code-write path. The App still **never pushes code, branches, or file contents**; the only write it performs is flipping a draft PR to ready. |
 | **Pull requests** | Read & write | Read PR data; post the one branded "brief ready" comment; also authorizes the reviewer's own review + inline comments. |
 | **Metadata** | Read-only | Mandatory baseline (auto-selected). |
+
+> **Why Contents is Read & write, not Read-only (discovered in live testing 2026-07-15):**
+> marking a draft PR ready via GitHub's GraphQL `markPullRequestReadyForReview` mutation returns
+> `FORBIDDEN` unless the App holds `contents: write`. This is a quirk of GitHub's own permission
+> mapping for that mutation — MergeBrief writes no code. If you keep Contents at Read-only, brief
+> generation and reads still work, but "Mark ready for review" fails with a permission error
+> (`403 github-permission`); the UI tells the author to grant this permission and retry.
 
 **Deliberately NOT enabled:**
 - **Issues** — a comment on the PR *conversation* timeline uses the issue-comments endpoint,
