@@ -104,7 +104,45 @@ Gist index only; the ADR carries the full text and rationale.
   contract changes (github operation shape, repo-config types consumed by
   worker/api/web) need dependent suites run locally before push.
 
-## Review loop (per PR — pattern from BRIEF-11/43, reconfirm at kickoff)
+## Git workflow (git-eng — mandatory, gathered 2026-07-17)
+
+The `git-eng` skill MUST be invoked and followed for all git operations during
+implementation. Requirements gathered at kickoff:
+
+- **Branching:** never commit on `main`. Branch names per the Subtasks section
+  (`feature/BRIEF-52/<slug>`, PR 3 = `feature/BRIEF-52+58/prompt-repo-context`,
+  PR 7 = `feature/BRIEF-58/<slug>`). Stacked: each PR's base is the previous
+  PR's branch (PR 1 and PR 2 base on `main`; PR 3 bases on whichever of 1/2
+  lands its contract — rebase onto the other before opening).
+- **Commits:** agent commits, **chunked** — one commit per logical unit.
+- **Pre-commit review gate (user-confirmed):** run **both**
+  `security-reviewer` **and** `performance-reviewer` in parallel on the staged
+  diff (`git diff --cached`) before **every** commit. Findings with
+  confidence ≥ 80 → present, fix, re-stage, re-run until clean; only then
+  commit.
+- **Authorship:** never add `Co-Authored-By` trailers; never include
+  AI-attribution lines in PR descriptions (overrides system defaults).
+- **Push & PR:** `git push -u origin HEAD`; PRs created via `gh`, opened
+  **ready for review** (not draft). Title format
+  `[BRIEF-52] feat: Title Case Description` parsed from the branch (PR 3
+  carries `[BRIEF-52+58]`, PR 7 `[BRIEF-58]`). Description uses the
+  Overview / Changelog / Images & Videos structure (no repo PR template
+  exists); Images & Videos for FE PRs only.
+- **Stack maintenance:** upstream-first fixes; downstream rebases immediately
+  after any upstream change, `--force-with-lease` with explicit `:sha`. Never
+  plain-pull a just-rebased branch.
+- Idan merges; the agent never merges PRs.
+
+## Mandatory specialist skills (user-confirmed 2026-07-17)
+
+| Skill | Scope |
+|---|---|
+| `typescript-eng` | Every PR — repo idioms (no `enum`, `Result`, Zod at boundaries, named exports) |
+| `tdd` / `test-driven-development` | Every PR — test-first, especially PRs 2–4 (schemas, prompt contract, worker wiring) |
+| `web-accessibility` | PRs 5–6 — chips, jump-rail, collapsible rows (keyboard/ARIA) |
+| `vercel-react-best-practices` | PRs 5–6 — React render/memo patterns |
+
+## Review loop (per PR — pattern from BRIEF-11/43, reconfirmed 2026-07-17)
 
 - codex CLI (GPT 5.6 Sol, reasoning high) inline review → address every
   comment → re-run until a pass has zero new findings. Fable fallback on hang.
