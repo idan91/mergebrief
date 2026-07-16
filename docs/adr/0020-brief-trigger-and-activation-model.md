@@ -2,6 +2,20 @@
 
 The word **"Activation"** conflated three independent things across the docs; this ADR splits it into **Trigger** (what fires a Brief compute), **Entry** (how a human reaches a computed Brief), and **Draft-first** (a per-repo opt-in that gates Entry). It fixes the single Trigger model — **eager-on-push, debounced; no lazy "compute-on-first-click" gate** — and reframes draft-first as a gate on *reviewer notification*, never on compute. Resolves the contradiction between ADR 0006 (eager-on-push generation) and the lazy-click "Activation" in `product-backend-epic.md` / the old CONTEXT.md glossary. Closes the reshape TODO item "new ADR — draft-first activation."
 
+> **Update (2026-07-16, ADR 0032 — repo-config grill):** two corrections. (1) The
+> "repo YAML" #5 references was killed as a *runtime-config* substrate by BRIEF-11
+> (ADR 0006/0013 amendments, 2026-07-12) and never amended here; repo-local files
+> now exist again under ADR 0032's different contract (`.mergebrief/`, default-branch
+> trust, fail-open). (2) **Draft-first as a distinct per-repo opt-in is retired as
+> absorbed**: #4's universal rule ("Entry posts only on ready") *is* the Entry-holding
+> semantics #5 described — there was no residual difference — and the author-side
+> residual shipped via BRIEF-43 (own-draft view, mark-ready CTA). #4 was verified
+> unbuilt at grill time (no draft gate in `generate.ts`); it is now implemented as the
+> default of **`entryCommentOnDrafts: false`** in `.mergebrief/settings.yaml`
+> (ADR 0032 #13) — the entry comment stays off draft PRs and posts on
+> `ready_for_review`; repos that review drafts opt in with `true`. The "org default +
+> per-repo override" layering in #5 is dead (no org config layer exists).
+
 ## Context
 
 "Activation" was load-bearing in three docs that meant different things by it:
