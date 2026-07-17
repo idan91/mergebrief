@@ -1,9 +1,10 @@
 # MergeBrief instance config — copy to `mergebrief.config.yaml` (gitignored)
-# and point MERGEBRIEF_CONFIG at it (worker + web). The categorizer CLIs take
-# it explicitly: `pnpm categorize --config ./mergebrief.config.yaml <pr-url>`.
+# and point MERGEBRIEF_CONFIG at it (worker + web/api). The categorizer CLIs
+# take it explicitly: `pnpm categorize --config ./mergebrief.config.yaml <pr-url>`.
 #
 # NO file at all = zero-config default: anthropic + ANTHROPIC_API_KEY +
-# claude-opus-4-8. Only create this file to change that.
+# claude-opus-4-8, and draft PRs generate with the normal debounce. Only
+# create this file to change that.
 #
 # Full reference: docs/self-host/generators.md. Unknown keys refuse boot
 # (root keys starting with `x-` are ignored — compose-style extension slot).
@@ -45,3 +46,16 @@ generator:
   #   hardMs: 900000                 #   hard wall-clock cap (default 15 min)
   #   inactivityMs: 180000           #   output-inactivity watchdog (default 3 min)
   #   killGraceMs: 5000              #   SIGINT → SIGKILL grace (default 5 s)
+
+# --- Draft-PR generation policy (spend knobs; BRIEF-64) ----------------------
+# Both keys optional; omit the whole block for the defaults shown.
+# drafts:
+#   # on | off — whether briefs generate for draft PRs at all. Default: on.
+#   # off = a draft gets its first brief when it's marked ready; the web view
+#   # still shows PR conversation/meta meanwhile.
+#   generate: on
+#
+#   # Trailing debounce window (seconds) for draft-PR REgenerations — damps
+#   # WIP push-storm spend. Unset = drafts use the normal window (60s).
+#   # A draft's FIRST brief always uses the normal window regardless.
+#   debounceSeconds: 900

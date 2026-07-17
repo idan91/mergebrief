@@ -42,8 +42,17 @@ generator:
   # referer: https://you.example   # openrouter attribution headers
   # title: MergeBrief
 
+# drafts: — the OTHER root block (BRIEF-64): draft-PR generation policy
+# (generate: on|off + optional draft regeneration debounceSeconds). Spend
+# knobs, read by the web/api process — see self-host/repo-config.md's
+# instance-block section for semantics.
+# drafts:
+#   generate: on
+#   debounceSeconds: 900
+
 # x-*: root keys starting with "x-" are ignored (compose-style extension
-# slot); ANY other unknown key — root or inside generator: — refuses boot.
+# slot); ANY other unknown key — root or inside generator:/drafts: —
+# refuses boot.
 x-notes: anything here is yours
 ```
 

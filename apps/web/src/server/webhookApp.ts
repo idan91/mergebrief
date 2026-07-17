@@ -7,6 +7,7 @@
 import "@tanstack/react-start/server-only";
 
 import { appConversationPort, createApp, migrateQueue } from "api";
+import { loadInstancePolicy } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import {
   createDb,
@@ -58,6 +59,18 @@ async function buildWebhookApp(): Promise<WebhookApp> {
     );
   }
 
+  // Instance draft policy (BRIEF-64): the NARROW loader — only the `drafts`
+  // block is read here; the generator block stays the worker's concern (this
+  // process needs no adapter validation and no provider keys). Same
+  // fail-loudly posture as the config parses above; unset MERGEBRIEF_CONFIG
+  // yields the zero-config default (drafts generate, no damping).
+  const instancePolicy = loadInstancePolicy(env);
+  if (!instancePolicy.ok) {
+    throw new Error(
+      `webhook composition: invalid instance draft policy — ${instancePolicy.error.issues.join("; ")}`,
+    );
+  }
+
   // The public origin the OAuth callback URL is built from (must match the
   // App's registered callback). Required for the reviewer-auth routes (PR C);
   // fail loudly if absent, same posture as the config parses above.
@@ -93,6 +106,8 @@ async function buildWebhookApp(): Promise<WebhookApp> {
   return createApp({
     handle,
     webhookSecret: githubConfig.value.webhookSecret,
+    // Draft-PR generation policy (BRIEF-64) — enforced at the enqueue path.
+    draftPolicy: instancePolicy.value.draftPolicy,
     // Skew visibility (ADR 0029 #8): surfaced by GET /api/version and the
     // CLI's `auth status`; the api changelog is keyed to it.
     serverVersion: process.env["SERVER_VERSION"] ?? "dev",

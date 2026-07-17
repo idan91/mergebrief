@@ -99,13 +99,28 @@ config (your own machine, your own trust context). **The CLI does not read
 default-branch fetch; `validateRepoConfig` is deliberately source-agnostic
 so the CLI mode can reuse it when built.
 
-## Related instance knob: `drafts:` (operator-side) — lands with BRIEF-64, not yet built
+## Related instance block: `drafts:` (operator-side, BRIEF-64)
 
-`mergebrief.config.yaml` (instance config, BRIEF-64 — formerly numbered BRIEF-53) is designed to carry
-`drafts: on | off` — whether briefs **generate** for draft PRs at all.
-Planned default **on**: the author-side surface (own-draft view, mark-ready
-CTA) depends on draft generations existing; operators who must not spend on
-drafts will set `off`, making the repo-level `entryCommentOnDrafts` above
-moot until ready. **Setting `drafts:` today is rejected at boot** (the
-instance loader accepts no such key yet). Spend knobs are instance config —
-a repo file may narrow instance behavior, never widen spend.
+`mergebrief.config.yaml` (instance config, BRIEF-64 — formerly numbered
+BRIEF-53) carries a `drafts` block — the operator's draft-PR spend knobs:
+
+```yaml
+drafts:
+  generate: on        # on|off — whether drafts generate at all (default on)
+  debounceSeconds: 900  # optional draft REgeneration window; unset = normal 60s
+```
+
+Default **on**: the author-side surface (own-draft view, mark-ready CTA)
+depends on draft generations existing. Under `generate: off` a draft PR is
+state-tracked only and gets its **first** brief when marked ready (the
+`ready_for_review` trigger); the web view still shows PR conversation and
+meta meanwhile. **Precedence:** `generate: off` makes the repo-level
+`entryCommentOnDrafts: true` above moot until ready — no generation means
+no entry comment, automatically. Spend knobs are instance config — a repo
+file may narrow instance behavior, never widen spend.
+
+`debounceSeconds` damps WIP push-storm spend: draft regenerations wait out
+the long trailing window instead of the normal one. A draft's first brief
+always uses the normal window, and `ready_for_review` always enqueues on a
+short (~10s) flip window so a just-readied PR is fresh when the reviewer
+arrives.

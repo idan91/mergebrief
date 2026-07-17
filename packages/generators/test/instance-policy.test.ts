@@ -1,0 +1,145 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { loadInstancePolicy } from "../src/config/instancePolicy";
+
+/**
+ * The narrow instance-policy loader (BRIEF-64 decision 1): the api process
+ * reads ONLY the `drafts` block out of mergebrief.config.yaml. It must
+ * succeed on files whose generator block would refuse the full loader —
+ * the api never validates adapters and never needs provider keys.
+ */
+
+const tempDirs: string[] = [];
+function configFile(contents: string): string {
+  const dir = mkdtempSync(join(tmpdir(), "mergebrief-policy-"));
+  tempDirs.push(dir);
+  const path = join(dir, "mergebrief.config.yaml");
+  writeFileSync(path, contents);
+  return path;
+}
+afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+const DEFAULT_POLICY = { generate: true, debounceSeconds: null };
+
+describe("loadInstancePolicy", () => {
+  it("returns the default policy when MERGEBRIEF_CONFIG is unset", () => {
+    const result = loadInstancePolicy({});
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ draftPolicy: DEFAULT_POLICY, source: null });
+  });
+
+  it("returns the default policy for a file without a drafts block", () => {
+    const path = configFile("generator:\n  provider: anthropic\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ draftPolicy: DEFAULT_POLICY, source: path });
+  });
+
+  it("parses generate: off", () => {
+    const path = configFile("drafts:\n  generate: off\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.draftPolicy).toEqual({ generate: false, debounceSeconds: null });
+  });
+
+  it("parses generate: on (YAML 1.2 string) and boolean true alike", () => {
+    for (const doc of ["drafts:\n  generate: on\n", "drafts:\n  generate: true\n"]) {
+      const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: configFile(doc) });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.value.draftPolicy.generate).toBe(true);
+    }
+  });
+
+  it("parses debounceSeconds", () => {
+    const path = configFile("drafts:\n  generate: on\n  debounceSeconds: 900\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.draftPolicy).toEqual({ generate: true, debounceSeconds: 900 });
+  });
+
+  it("defaults generate to on when only debounceSeconds is set", () => {
+    const path = configFile("drafts:\n  debounceSeconds: 600\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.draftPolicy).toEqual({ generate: true, debounceSeconds: 600 });
+  });
+
+  it("rejects a non-positive or non-finite debounceSeconds", () => {
+    for (const bad of ["0", "-60", "not-a-number"]) {
+      const result = loadInstancePolicy({
+        MERGEBRIEF_CONFIG: configFile(`drafts:\n  debounceSeconds: ${bad}\n`),
+      });
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.issues.join("; ")).toContain("drafts:");
+    }
+  });
+
+  it("rejects an unknown key inside the drafts block, echoing token-shaped keys", () => {
+    const path = configFile("drafts:\n  generate: on\n  debouceSeconds: 900\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("drafts:");
+    expect(text).toContain('"debouceSeconds"');
+  });
+
+  it("redacts secret-shaped unknown keys inside the drafts block", () => {
+    // A pasted credential used as a stray KEY must never echo (same posture
+    // as the full loader's root-key redaction).
+    const path = configFile('drafts:\n  "sk-ant-api03-SENTINEL999": true\n');
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("(redacted)");
+    expect(text).not.toContain("SENTINEL999");
+  });
+
+  it("succeeds on a file whose generator block is invalid (the narrow contract)", () => {
+    const path = configFile(
+      "generator:\n  provider: no-such-provider\ndrafts:\n  generate: off\n",
+    );
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.draftPolicy.generate).toBe(false);
+  });
+
+  it("ignores unknown root keys (the full loader owns strictness)", () => {
+    const path = configFile("mystery: 1\ndrafts:\n  generate: off\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.draftPolicy.generate).toBe(false);
+  });
+
+  it("fails fast on an unreadable path without echoing content", () => {
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: "/no/such/file.yaml" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("not readable");
+  });
+
+  it("fails fast on invalid YAML with position only", () => {
+    const path = configFile("drafts: [unclosed\n");
+    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("not valid YAML");
+    expect(result.error.issues.join("; ")).not.toContain("unclosed");
+  });
+});

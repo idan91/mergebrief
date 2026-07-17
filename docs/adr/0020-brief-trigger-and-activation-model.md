@@ -16,6 +16,23 @@ The word **"Activation"** conflated three independent things across the docs; th
 > `ready_for_review`; repos that review drafts opt in with `true`. The "org default +
 > per-repo override" layering in #5 is dead (no org config layer exists).
 
+> **Update (2026-07-17, BRIEF-64 — draft generation policy):** #2/#3 amended with
+> operator spend knobs, both **below the trigger** (the trigger model itself is
+> unchanged): instance config gains a **`drafts` block** — `generate: on|off`
+> (default on; off = draft events are state-only and the FIRST brief arrives on
+> `ready_for_review`) and optional `debounceSeconds` (a long trailing window for
+> draft **re**generations only — damping applies once a prior brief SUCCEEDED, so
+> a draft's first brief keeps the normal window; unset = no damping, the default
+> after Idan reversed the ticket's damp-by-default intent on UX grounds).
+> `ready_for_review` now always enqueues on a short constant (~10s) flip window —
+> a just-readied PR should be fresh when the reviewer arrives; supersession abort
+> (ADR 0006 #6) covers pushes landing after it. Mechanically:
+> `mergebrief.config.yaml` is now read by **two processes** — the worker's full
+> loader (which validates the whole file) and the web/api composition root via a
+> **narrow loader** (`loadInstancePolicy`: the `drafts` key only, no adapter
+> validation, no provider keys) — because the policy enforces at the ENQUEUE path
+> (api), not at drain. The `on-first-view` knob stays rejected/documented-only.
+
 ## Context
 
 "Activation" was load-bearing in three docs that meant different things by it:

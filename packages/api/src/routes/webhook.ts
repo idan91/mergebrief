@@ -18,7 +18,7 @@
 //   200 — handled or deliberately ignored
 //   500 — unexpected throw (sanitized body; internals stay in the log)
 import { Hono } from "hono";
-import type { Result } from "types";
+import type { DraftPolicy, Result } from "types";
 import {
   InstallationAction,
   InstallationRepositoriesAction,
@@ -40,13 +40,34 @@ import {
   purgeRoutines,
   type AppDatabase,
   type TenantContext,
+  type TriggerGenerationInput,
 } from "persistence";
 
 export interface WebhookRouteDeps {
   readonly handle: AppDatabase;
   /** `GITHUB_WEBHOOK_SECRET` — injected by the composition root (stage 5). */
   readonly webhookSecret: string;
+  /**
+   * Instance draft-PR policy (BRIEF-64), loaded from `mergebrief.config.yaml`
+   * by the composition root via `generators`' `loadInstancePolicy`. Omitted =
+   * the zero-config default (drafts generate, no damping) — the same behavior
+   * an unset `MERGEBRIEF_CONFIG` produces, so a root that doesn't wire it is
+   * running defaults, not silently misconfigured.
+   */
+  readonly draftPolicy?: DraftPolicy;
 }
+
+/** Mirrors `generators`' DEFAULT_DRAFT_POLICY (api cannot depend on that
+ * package — it would pull the adapter family into this process). */
+const DEFAULT_DRAFT_POLICY: DraftPolicy = { generate: true, debounceSeconds: null };
+
+/**
+ * The `ready_for_review` enqueue window (grill decision 7, constant — not a
+ * knob): short because the author is actively watching after mark-ready;
+ * still trailing so the common click-ready-then-push burst coalesces.
+ * Supersession abort (ADR 0006 #6) covers pushes landing after it fires.
+ */
+const READY_FLIP_DEBOUNCE_SECONDS = 10;
 
 /** Hard cap for public webhook bodies: enough for GitHub JSON, bounded for DoS. */
 const MAX_WEBHOOK_BODY_BYTES = 1024 * 1024;
@@ -71,6 +92,7 @@ async function handlePullRequest(
   handle: AppDatabase,
   ctx: TenantContext,
   event: ParsedPullRequestEvent,
+  policy: DraftPolicy,
 ): Promise<void> {
   if (event.action === PullRequestAction.CLOSED) {
     // Terminal state write, NO enqueue. `purgeAfter: null` = "never sweep":
@@ -111,14 +133,59 @@ async function handlePullRequest(
     return;
   }
   if (GENERATION_TRIGGER_ACTIONS.has(event.action)) {
-    await triggerGeneration(handle, ctx, event);
+    if (event.draft && !policy.generate) {
+      // Instance policy: drafts don't generate (BRIEF-64). State-only write,
+      // same shape as the converted_to_draft path — the PR stays current so
+      // the eventual `ready_for_review` (draft: false) takes the normal
+      // trigger path and produces the FIRST generation. A `reopened` draft
+      // must still leave the terminal state here (the reopen flag), or the
+      // row wedges closed forever — no later event carries the reopen intent.
+      await ingestRoutines(handle, ctx).recordState(
+        {
+          repoId: event.repoId,
+          prNumber: event.prNumber,
+          repoSlug: event.repoFullName,
+          title: event.title,
+          baseSha: event.baseSha,
+          draft: event.draft,
+          ...(event.authorLogin === undefined ? {} : { authorLogin: event.authorLogin }),
+          state: PrState.OPEN,
+        },
+        { reopen: event.action === PullRequestAction.REOPENED },
+      );
+      return;
+    }
+    await triggerGeneration(handle, ctx, event, windowOverrides(event, event.draft, policy));
   }
+}
+
+/**
+ * The enqueue-window rule (BRIEF-64 grill decision 7):
+ * `ready_for_review` → the short constant flip window (cancels a pending
+ * draft-damped job via job-key replace); a draft trigger under configured
+ * damping → the regeneration window (persistence applies it only once a
+ * prior brief SUCCEEDED, so a draft's first brief stays fast); everything
+ * else → no override (the ingest default).
+ */
+function windowOverrides(
+  event: ParsedPullRequestEvent,
+  isDraft: boolean,
+  policy: DraftPolicy,
+): Pick<TriggerGenerationInput, "debounceSeconds" | "regenerationDebounceSeconds"> {
+  if (event.action === PullRequestAction.READY_FOR_REVIEW) {
+    return { debounceSeconds: READY_FLIP_DEBOUNCE_SECONDS };
+  }
+  if (isDraft && policy.debounceSeconds !== null) {
+    return { regenerationDebounceSeconds: policy.debounceSeconds };
+  }
+  return {};
 }
 
 async function handlePullRequestReview(
   handle: AppDatabase,
   ctx: TenantContext,
   event: ParsedPullRequestReviewEvent,
+  policy: DraftPolicy,
 ): Promise<void> {
   // Generation gap-filler (plan decision #1): a submitted review re-queues
   // the brief for the current head — but only for a PR we have already
@@ -154,13 +221,23 @@ async function handlePullRequestReview(
       throw new Error(`checkpoint upsert failed: ${checkpointed.error.code}`);
     }
   }
-  await triggerGeneration(handle, ctx, event);
+  // Review events carry no draft flag; the STORED row (loaded above for the
+  // known-PR guard) supplies it. Under drafts-off the checkpoint still
+  // landed — it's reviewer-baseline state, not spend — but no job enqueues.
+  if (known.draft && !policy.generate) {
+    return;
+  }
+  // No window override: damping exists for WIP push storms, and a submitted
+  // review is deliberate human engagement — its gap-filler regeneration
+  // takes the normal window even on a damped draft.
+  await triggerGeneration(handle, ctx, event, {});
 }
 
 async function triggerGeneration(
   handle: AppDatabase,
   ctx: TenantContext,
   event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
+  overrides: Pick<TriggerGenerationInput, "debounceSeconds" | "regenerationDebounceSeconds">,
 ): Promise<void> {
   // Only a `reopened` pull_request event may transition a terminal PR back to
   // open; a review or any other trigger merely implies the PR is open and must
@@ -184,10 +261,12 @@ async function triggerGeneration(
     },
     headSha: event.headSha,
     reopen,
+    ...overrides,
   });
   if (!result.ok) {
-    // No debounce override is passed above, so an error here is a programmer
-    // error — surface it as the route's 500, never swallow it.
+    // Every override above is a validated constant or a loader-validated
+    // policy value, so an error here is a programmer error — surface it as
+    // the route's 500, never swallow it.
     throw new Error(`ingest trigger failed: ${result.error.code}`);
   }
 }
@@ -220,7 +299,11 @@ async function handleInstallationRepositories(
   await purgeRoutines(handle, ctx).purgeRepos(event.repoIdsRemoved);
 }
 
-async function dispatch(handle: AppDatabase, event: ParsedWebhookEvent): Promise<void> {
+async function dispatch(
+  handle: AppDatabase,
+  event: ParsedWebhookEvent,
+  policy: DraftPolicy,
+): Promise<void> {
   if (event.kind === ParsedWebhookEventKind.IGNORED) {
     return;
   }
@@ -229,9 +312,9 @@ async function dispatch(handle: AppDatabase, event: ParsedWebhookEvent): Promise
   const ctx = parseTenantContext({ installationId: event.installationId });
   switch (event.kind) {
     case ParsedWebhookEventKind.PULL_REQUEST:
-      return handlePullRequest(handle, ctx, event);
+      return handlePullRequest(handle, ctx, event, policy);
     case ParsedWebhookEventKind.PULL_REQUEST_REVIEW:
-      return handlePullRequestReview(handle, ctx, event);
+      return handlePullRequestReview(handle, ctx, event, policy);
     case ParsedWebhookEventKind.INSTALLATION:
       return handleInstallation(handle, ctx, event);
     case ParsedWebhookEventKind.INSTALLATION_REPOSITORIES:
@@ -321,7 +404,7 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono {
     // 6–8. Map the event to tenant-scoped writes. Unexpected throw → 500
     // with a sanitized body — internals never reach the caller.
     try {
-      await dispatch(deps.handle, parsed.value);
+      await dispatch(deps.handle, parsed.value, deps.draftPolicy ?? DEFAULT_DRAFT_POLICY);
     } catch (error) {
       console.error("webhook dispatch failed", error);
       return c.json({ error: "internal error" }, 500);

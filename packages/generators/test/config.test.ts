@@ -130,6 +130,24 @@ describe("loadGeneratorConfigFile", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("accepts and validates a drafts block (BRIEF-64 root key)", () => {
+    const result = loadGeneratorConfigFile(
+      configFile(
+        "generator:\n  provider: anthropic\ndrafts:\n  generate: on\n  debounceSeconds: 900\n",
+      ),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it("refuses boot on an invalid drafts block (bad values caught at worker too)", () => {
+    const result = loadGeneratorConfigFile(
+      configFile("generator:\n  provider: anthropic\ndrafts:\n  debounceSeconds: -5\n"),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("drafts:");
+  });
+
   it("defaults the generator when the block is absent", () => {
     const result = loadGeneratorConfigFile(configFile("x-notes: only extensions here\n"));
     expect(result.ok).toBe(true);

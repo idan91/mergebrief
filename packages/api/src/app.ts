@@ -9,6 +9,7 @@
 // (stage 6), and the authz-gated read API (stage 7).
 import { Hono } from "hono";
 import type { AppDatabase } from "persistence";
+import type { DraftPolicy } from "types";
 import { authRoute, type AuthDeps } from "./routes/auth";
 import { conversationRoutes, type ConversationGitHubPort } from "./routes/conversation";
 import { installationsRoute } from "./routes/installations";
@@ -34,6 +35,8 @@ export interface AppDeps {
   readonly github: ConversationGitHubPort;
   /** Exposed by GET /api/version (ADR 0029 #8 — skew visibility). */
   readonly serverVersion?: string;
+  /** Instance draft-PR policy (BRIEF-64); omitted = zero-config default. */
+  readonly draftPolicy?: DraftPolicy;
 }
 
 /** Build the API app over injected deps. */

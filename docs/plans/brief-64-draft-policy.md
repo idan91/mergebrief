@@ -1,6 +1,6 @@
 # Plan — BRIEF-64: Draft generation policy (draft-aware debounce + instance `drafts` block)
 
-> Status: **LOCKED — grill closed 2026-07-17, not started.**
+> Status: **LOCKED — grill closed 2026-07-17; PR 1 in flight.**
 > Ticket: Notion BRIEF-64 (formerly numbered BRIEF-53 — Notion auto-increment).
 > ADRs: **0020 amendment** (instance config read by api as well as worker;
 > `drafts:` reshaped from scalar to block). No new ADR.
@@ -58,6 +58,10 @@ adding any GitHub-comment noise.
      interaction, no logic.
    - Read paths unaffected (verified): `pr-view` supports
      `generation: null`, conversation display is live GitHub reads.
+   - **Reopened drafts (review-round fix):** a `reopened` delivery hitting
+     the drafts-off state-only path carries the reopen intent through
+     `recordState`'s `reopen` option — without it the terminal-preserving
+     upsert would wedge the row closed forever (no later event reopens).
 6. **FE visibility (narrow slice of backlog BRIEF-62).** `pr-view` response
    gains `draftPolicy: { generate: boolean, debounceSeconds: number | null }`
    (api holds the config per decision 1; rides the existing poll — no new
@@ -73,9 +77,11 @@ adding any GitHub-comment noise.
    abort (ADR 0006 #6) is the safety net for pushes landing after the 10s.
    Window-selection rule (one small function at the enqueue path):
    - `ready_for_review` → 10s;
-   - draft trigger + damping configured + a generation already exists →
-     `drafts.debounceSeconds`;
-   - everything else → default 60s (no override passed).
+   - draft `pull_request` trigger + damping configured + a prior brief
+     SUCCEEDED → `drafts.debounceSeconds`;
+   - everything else → default 60s (no override passed). **Review-round
+     clarification:** submitted-review triggers NEVER damp, draft or not —
+     damping exists for push storms; a review is deliberate engagement.
 8. **Example yaml + docs.** `mergebrief.config.example.yaml` gains the
    `drafts` block (commented `debounceSeconds`), header updated to
    "worker + web/api", zero-config sentence extended ("draft PRs generate

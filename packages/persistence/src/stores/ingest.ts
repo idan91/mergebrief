@@ -151,6 +151,16 @@ export interface TriggerGenerationInput {
   /** Trailing-debounce window; defaults to 60s (plan decision #1). */
   readonly debounceSeconds?: number;
   /**
+   * Trailing-debounce window applied INSTEAD of `debounceSeconds` when a
+   * prior brief generation for this PR has SUCCEEDED (BRIEF-64: draft
+   * push-storm damping). The condition is deliberately "a brief exists to
+   * look at": queued/failed/superseded priors don't damp — with no readable
+   * brief, the next attempt should fire on the normal window. Policy (which
+   * events pass this, and the window value) is the caller's; this store owns
+   * only the transactional prior-success check.
+   */
+  readonly regenerationDebounceSeconds?: number;
+  /**
    * True ONLY for a `reopened` event, which deliberately transitions a
    * closed/merged PR back to open. Every other trigger (`opened`,
    * `synchronize`, `ready_for_review`, `review_requested`, a submitted review)
@@ -186,9 +196,17 @@ export interface IngestRoutines {
    * that carry no regen rationale: re-triggering the worker's skip-path is not
    * a no-op (Entry-comment repost ping, compare-diff spend, phantom `queued`
    * status, and a full LLM re-run if the head's last generation failed).
-   * Terminal lifecycles are always preserved (state-only events never reopen).
+   * Terminal lifecycles are preserved unless `reopen` is set — the one
+   * state-only event that legitimately leaves a terminal state is a
+   * `reopened` delivery arriving where policy suppresses the enqueue
+   * (BRIEF-64 drafts-off): without the flag the row would wedge closed
+   * forever, since no later event passes through `triggerGeneration`'s
+   * reopen path either.
    */
-  recordState(input: PullRequestUpsertInput): Promise<PullRequestRow>;
+  recordState(
+    input: PullRequestUpsertInput,
+    options?: { readonly reopen?: boolean },
+  ): Promise<PullRequestRow>;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,17 +223,23 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
 
     async triggerGeneration(input) {
       const debounceSeconds = input.debounceSeconds ?? DEFAULT_DEBOUNCE_SECONDS;
-      // Guard the primitive itself (same reasoning as `purge.ts` graceDays):
-      // a negative/NaN debounce would enqueue a job that fires immediately or
-      // never — no upstream validation should be trusted to catch it.
-      if (!Number.isFinite(debounceSeconds) || debounceSeconds < 0) {
-        return {
-          ok: false,
-          error: {
-            code: IngestErrorCode.INVALID_DEBOUNCE,
-            message: `debounceSeconds must be a non-negative finite number, got ${debounceSeconds}`,
-          },
-        };
+      // Guard the primitives themselves (same reasoning as `purge.ts`
+      // graceDays): a negative/NaN debounce would enqueue a job that fires
+      // immediately or never — no upstream validation should be trusted to
+      // catch it.
+      for (const [name, value] of [
+        ["debounceSeconds", debounceSeconds],
+        ["regenerationDebounceSeconds", input.regenerationDebounceSeconds],
+      ] as const) {
+        if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+          return {
+            ok: false,
+            error: {
+              code: IngestErrorCode.INVALID_DEBOUNCE,
+              message: `${name} must be a non-negative finite number, got ${value}`,
+            },
+          };
+        }
       }
 
       return db.transaction(async (tx) => {
@@ -243,6 +267,28 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
           (prRow.state === PrState.CLOSED || prRow.state === PrState.MERGED)
         ) {
           return { ok: true, value: { pullRequest: prRow } };
+        }
+
+        // 1b. Pick the effective window (BRIEF-64): the regeneration window
+        // applies only when a prior brief for this PR SUCCEEDED — checked on
+        // THIS tx so the read and the enqueue can't interleave with another
+        // trigger's projection write. Runs before step 2, which would upsert
+        // the current head's own (queued) row.
+        let effectiveDebounceSeconds = debounceSeconds;
+        if (input.regenerationDebounceSeconds !== undefined) {
+          const prior = await tx
+            .select({ id: generation.id })
+            .from(generation)
+            .where(
+              sql`${generation.installationId} = ${installationId}
+                and ${generation.pullRequestId} = ${prRow.id}
+                and ${generation.kind} = ${GenerationKind.BRIEF}
+                and ${generation.status} = ${GenerationStatus.SUCCEEDED}`,
+            )
+            .limit(1);
+          if (prior.length > 0) {
+            effectiveDebounceSeconds = input.regenerationDebounceSeconds;
+          }
         }
 
         // 2. Project the brief generation as `queued` — replicates
@@ -302,7 +348,7 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
             ${GENERATE_TASK_IDENTIFIER},
             payload => ${payloadJson}::json,
             job_key => ${jobKey},
-            run_at => now() + make_interval(secs => ${debounceSeconds}),
+            run_at => now() + make_interval(secs => ${effectiveDebounceSeconds}),
             job_key_mode => ${"replace"}
           )
         `);
@@ -311,10 +357,10 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
       });
     },
 
-    async recordState(input) {
-      // One statement — atomic on its own, no tx needed. Always terminal-
-      // preserving: a state-only event never transitions a closed/merged PR.
-      return upsertPullRequestRow(db, installationId, input, true);
+    async recordState(input, options) {
+      // One statement — atomic on its own, no tx needed. Terminal-preserving
+      // unless the caller explicitly marks a reopen (see the interface doc).
+      return upsertPullRequestRow(db, installationId, input, options?.reopen !== true);
     },
   };
 }

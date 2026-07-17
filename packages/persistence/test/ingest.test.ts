@@ -59,8 +59,10 @@ describe("ingestRoutines.triggerGeneration", () => {
 
   async function trigger(overrides?: {
     debounceSeconds?: number;
+    regenerationDebounceSeconds?: number;
     reopen?: boolean;
     baseSha?: string;
+    headSha?: string;
   }): Promise<Result<IngestOutcome, { code: string; message: string }>> {
     return ingestRoutines(harness.handle, CTX).triggerGeneration({
       pullRequest: {
@@ -71,10 +73,13 @@ describe("ingestRoutines.triggerGeneration", () => {
         ...(overrides?.baseSha === undefined ? {} : { baseSha: overrides.baseSha }),
         state: PrState.OPEN,
       },
-      headSha: HEAD_SHA,
+      headSha: overrides?.headSha ?? HEAD_SHA,
       ...(overrides?.debounceSeconds === undefined
         ? {}
         : { debounceSeconds: overrides.debounceSeconds }),
+      ...(overrides?.regenerationDebounceSeconds === undefined
+        ? {}
+        : { regenerationDebounceSeconds: overrides.regenerationDebounceSeconds }),
       ...(overrides?.reopen === undefined ? {} : { reopen: overrides.reopen }),
     });
   }
@@ -285,6 +290,65 @@ describe("ingestRoutines.triggerGeneration", () => {
       expect(row.closedAt).not.toBeNull();
       // The non-lifecycle fields still refreshed.
       expect(row.draft).toBe(true);
+    });
+  });
+
+  describe("regeneration debounce (BRIEF-64)", () => {
+    /** Mark the PR's stored brief generation(s) succeeded, out-of-band. */
+    async function markSucceeded(): Promise<void> {
+      await harness.raw("update generation set status = 'succeeded'");
+    }
+
+    it("uses the normal window while no prior brief has succeeded", async () => {
+      const before = Date.now();
+      const result = await trigger({ regenerationDebounceSeconds: 900 });
+      expect(result.ok).toBe(true);
+      const jobs = await harness.raw("select run_at from graphile_worker.jobs");
+      const delta = epochMs(jobs[0]?.["run_at"]) - before;
+      expect(delta).toBeGreaterThan(50_000);
+      expect(delta).toBeLessThan(70_000);
+    });
+
+    it("still uses the normal window when the prior generation is merely queued", async () => {
+      await trigger();
+      const before = Date.now();
+      const result = await trigger({ regenerationDebounceSeconds: 900, headSha: "b".repeat(40) });
+      expect(result.ok).toBe(true);
+      const jobs = await harness.raw("select run_at from graphile_worker.jobs");
+      const delta = epochMs(jobs[0]?.["run_at"]) - before;
+      expect(delta).toBeLessThan(70_000);
+    });
+
+    it("applies regenerationDebounceSeconds once a prior brief succeeded", async () => {
+      await trigger();
+      await markSucceeded();
+      const before = Date.now();
+      const result = await trigger({ regenerationDebounceSeconds: 900, headSha: "b".repeat(40) });
+      expect(result.ok).toBe(true);
+      const jobs = await harness.raw("select run_at from graphile_worker.jobs");
+      const delta = epochMs(jobs[0]?.["run_at"]) - before;
+      expect(delta).toBeGreaterThan(890_000);
+      expect(delta).toBeLessThan(910_000);
+    });
+
+    it("a failed prior generation does not damp — the author has no brief to look at", async () => {
+      await trigger();
+      await harness.raw("update generation set status = 'failed'");
+      const before = Date.now();
+      const result = await trigger({ regenerationDebounceSeconds: 900, headSha: "b".repeat(40) });
+      expect(result.ok).toBe(true);
+      const jobs = await harness.raw("select run_at from graphile_worker.jobs");
+      const delta = epochMs(jobs[0]?.["run_at"]) - before;
+      expect(delta).toBeLessThan(70_000);
+    });
+
+    it("rejects a negative or non-finite regenerationDebounceSeconds", async () => {
+      for (const bad of [-1, Number.NaN]) {
+        const result = await trigger({ regenerationDebounceSeconds: bad });
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.error.code).toBe("invalid-debounce");
+      }
     });
   });
 });

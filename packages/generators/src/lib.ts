@@ -40,6 +40,11 @@ export {
   loadGeneratorConfigFile,
   type LoadedGeneratorConfig,
 } from "./config/loader";
+export {
+  DEFAULT_DRAFT_POLICY,
+  loadInstancePolicy,
+  type LoadedInstancePolicy,
+} from "./config/instancePolicy";
 
 // --- adapters/ — the five implementations -----------------------------------
 // (Constructed via createGenerator in normal use; exported for tests and
