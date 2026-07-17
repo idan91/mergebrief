@@ -1,6 +1,7 @@
 # Plan — BRIEF-52 + BRIEF-58: Repo-local config surface (`.mergebrief/`)
 
 > Status: **LOCKED — joint grill closed 2026-07-16, not started.**
+> Renumber note (2026-07-17): "BRIEF-53" below is now board ticket **BRIEF-64** (same ticket).
 > Tickets: Notion BRIEF-52 (repo-local risk policies) + BRIEF-58 (repo
 > instructions file); BRIEF-53 naming note resolved here.
 > ADRs: **0032** (repo-local config surface, new — the single source for every

@@ -1,5 +1,9 @@
 # Repo-Local Configuration Surface (`.mergebrief/`)
 
+> **Renumber note (2026-07-17):** the board ticket referenced below as **BRIEF-53**
+> (draft generation policy: draft-aware debounce + instance `drafts:` knob) was
+> renumbered to **BRIEF-64** by Notion's auto-increment; same ticket, same scope.
+
 Repos gain a single config namespace — the `.mergebrief/` directory — carrying **validated policy** (`policy.yaml`: custom risk attributes, display weight), **workflow settings** (`settings.yaml`), and **prose instructions to generation** (`instructions.md`, the CLAUDE.md idiom for the Brief generator). Every repo-local file is read from the **default branch only**, fetched fresh per generation, capped, fenced, and stamped onto the Brief's provenance. The surface is split from instance config by one line: **instance config is the operator's (pays and runs it); repo config is the code-owner's (owns the code it describes)** — no key exists in both. Decides the shared delivery mechanics for BRIEF-52 + BRIEF-58, fixes BRIEF-53's naming collision, and closes the per-repo-YAML dangling reference left in ADR 0020 by the BRIEF-11 amendments.
 
 ## Context

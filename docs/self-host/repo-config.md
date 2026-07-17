@@ -99,9 +99,9 @@ config (your own machine, your own trust context). **The CLI does not read
 default-branch fetch; `validateRepoConfig` is deliberately source-agnostic
 so the CLI mode can reuse it when built.
 
-## Related instance knob: `drafts:` (operator-side) — lands with BRIEF-53, not yet built
+## Related instance knob: `drafts:` (operator-side) — lands with BRIEF-64, not yet built
 
-`mergebrief.config.yaml` (instance config) is designed to carry
+`mergebrief.config.yaml` (instance config, BRIEF-64 — formerly numbered BRIEF-53) is designed to carry
 `drafts: on | off` — whether briefs **generate** for draft PRs at all.
 Planned default **on**: the author-side surface (own-draft view, mark-ready
 CTA) depends on draft generations existing; operators who must not spend on
