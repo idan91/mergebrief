@@ -89,6 +89,16 @@ adding any GitHub-comment noise.
    `repo-config.md` (the BRIEF-64 forward-reference section) updated;
    document the `generate: off` × `entryCommentOnDrafts` precedence.
 
+## Known bounded inaccuracy (PR 2 review round, accepted)
+
+The FE damped notice fires on `own draft + debounceSeconds configured +
+queued`, but cannot distinguish a damped regeneration from the two
+never-damped queued cases (first generation; review-triggered regen). The
+copy is therefore phrased as an UPPER BOUND ("can take up to …"), true in
+every case. Exact per-state copy requires the enqueue path to echo the
+applied window onto the generation summary (projection schema change) —
+deferred; see revisit triggers.
+
 ## Revisit triggers
 
 - Adopter asks for damping-by-default or a per-repo draft policy → revisit
@@ -97,6 +107,8 @@ adding any GitHub-comment noise.
   accepted edge.
 - BRIEF-62 (instance settings UI) builds → fold `draftPolicy` exposure into
   its general surface; pr-view field remains the compatibility path.
+- Upper-bound wait copy grates (user feedback) → echo the applied debounce
+  window on the generation projection at enqueue and key exact copy off it.
 
 ## Git requirements (git-eng — mandatory for ALL git operations)
 

@@ -45,7 +45,7 @@ import {
   type TokenRefreshPatch,
   type TokenRefreshRejection,
 } from "persistence";
-import type { Result, ValueOf } from "types";
+import type { DraftPolicy, Result, ValueOf } from "types";
 import { z } from "zod";
 
 // ---------------------------------------------------------------------------
@@ -74,6 +74,8 @@ export interface AuthDeps {
 export interface AuthRouteDeps {
   readonly handle: AppDatabase;
   readonly auth: AuthDeps;
+  /** Instance draft-PR policy (BRIEF-64); echoed on PR-meta for FE copy. */
+  readonly draftPolicy?: DraftPolicy;
 }
 
 // ---------------------------------------------------------------------------

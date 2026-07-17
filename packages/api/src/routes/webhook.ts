@@ -19,6 +19,7 @@
 //   500 — unexpected throw (sanitized body; internals stay in the log)
 import { Hono } from "hono";
 import type { DraftPolicy, Result } from "types";
+import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
 import {
   InstallationAction,
   InstallationRepositoriesAction,
@@ -56,10 +57,6 @@ export interface WebhookRouteDeps {
    */
   readonly draftPolicy?: DraftPolicy;
 }
-
-/** Mirrors `generators`' DEFAULT_DRAFT_POLICY (api cannot depend on that
- * package — it would pull the adapter family into this process). */
-const DEFAULT_DRAFT_POLICY: DraftPolicy = { generate: true, debounceSeconds: null };
 
 /**
  * The `ready_for_review` enqueue window (grill decision 7, constant — not a

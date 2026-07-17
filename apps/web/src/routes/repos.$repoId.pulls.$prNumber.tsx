@@ -57,7 +57,7 @@ import type { ThreadRevisionJump } from "../features/conversation/components/Con
 import { postConversationReply } from "../features/conversation/reply";
 import { createMarkReadyAction } from "../features/pulls/markReady";
 import { postInlineComment } from "../features/pulls/postComment";
-import { isOwnDraft } from "../features/pulls/ownDraft";
+import { draftPolicyNotice, isOwnDraft } from "../features/pulls/ownDraft";
 import { submitReview } from "../features/pulls/submitReview";
 import type { PrSummary } from "../features/pulls/types";
 import {
@@ -500,23 +500,35 @@ function timelineAnnouncement(
   return writable ? `${position}.` : `${position}. Read-only.`;
 }
 
+/** The BRIEF-64 policy notice for this meta (null for non-authors/defaults). */
+function metaPolicyNotice(meta: PrSummary) {
+  return draftPolicyNotice(meta.draftPolicy, meta);
+}
+
 function stateAnnouncement(
   state: ReturnType<typeof deriveBriefRouteState>,
   meta: PrSummary,
 ): string {
+  const notice = metaPolicyNotice(meta);
   switch (state.kind) {
     case "render":
       return comparisonsWarming(meta)
         ? "Brief ready. Comparisons are still warming."
         : "Brief ready.";
     case "waiting":
-      return waitLabel(state.status, state.phase);
+      return waitLabel(
+        state.status,
+        state.phase,
+        notice?.kind === "damped" ? notice.text : undefined,
+      );
     case "failed":
       return "Brief generation failed.";
     case "superseded":
       return "A newer revision is on the way.";
     case "empty":
-      return "No brief for this pull request yet.";
+      return notice?.kind === "drafts-off"
+        ? notice.text
+        : "No brief for this pull request yet.";
   }
 }
 
@@ -551,6 +563,7 @@ function PrBriefBody({
   revisionJump,
   conversationFocusThreadId,
 }: PrBriefBodyProps) {
+  const policyNotice = metaPolicyNotice(meta);
   switch (state.kind) {
     case "render":
       return (
@@ -574,6 +587,9 @@ function PrBriefBody({
           <WaitCard
             phase={state.phase}
             prNumber={prNumber}
+            queuedNotice={
+              policyNotice?.kind === "damped" ? policyNotice.text : undefined
+            }
             repoId={repoId}
             span={state.span}
             status={state.status}
@@ -595,7 +611,13 @@ function PrBriefBody({
     case "empty":
       return (
         <main className="main" id="main-content" tabIndex={-1}>
-          <EmptyCard />
+          <EmptyCard
+            copyOverride={
+              policyNotice?.kind === "drafts-off"
+                ? policyNotice.text
+                : undefined
+            }
+          />
         </main>
       );
   }

@@ -90,6 +90,14 @@ export interface RevisionSummary {
   readonly comparisons: PrComparisons;
 }
 
+/** The instance draft-PR policy slice the meta response echoes (BRIEF-64). */
+export interface DraftPolicySummary {
+  /** Whether briefs generate for draft PRs at all on this instance. */
+  readonly generate: boolean;
+  /** Draft regeneration damping window (seconds); null = normal window. */
+  readonly debounceSeconds: number | null;
+}
+
 /** One PR as the list and PR-meta endpoints return it. */
 export interface PrSummary {
   readonly repoId: string;
@@ -113,6 +121,12 @@ export interface PrSummary {
   readonly updatedAt: string;
   /** Present on PR-meta responses only; absent on list rows. */
   readonly comparisons?: PrComparisons;
+  /**
+   * Instance draft-PR policy (BRIEF-64) — PR-meta only. Drives the own-draft
+   * copy states; the refresh copy must state the CONFIGURED window, never a
+   * hardcoded duration.
+   */
+  readonly draftPolicy?: DraftPolicySummary;
   /**
    * The browsable revision timeline (BRIEF-24) — present on PR-meta only when
    * `briefAvailable` (no brief, no head, no history). Ordered by `headIndex`.
@@ -283,6 +297,27 @@ function parseLastReview(
   };
 }
 
+/** Absent (list rows) parses to undefined; present must be well-formed. */
+function parseDraftPolicy(
+  value: unknown,
+): Result<DraftPolicySummary | undefined> {
+  if (value === undefined) return { ok: true, value: undefined };
+  if (!isRecord(value)) {
+    return { ok: false, error: "draftPolicy must be an object" };
+  }
+  if (typeof value["generate"] !== "boolean") {
+    return { ok: false, error: "draftPolicy.generate must be a boolean" };
+  }
+  const debounceSeconds = value["debounceSeconds"];
+  if (debounceSeconds !== null && typeof debounceSeconds !== "number") {
+    return {
+      ok: false,
+      error: "draftPolicy.debounceSeconds must be a number or null",
+    };
+  }
+  return { ok: true, value: { generate: value["generate"], debounceSeconds } };
+}
+
 function parseComparisons(value: unknown): Result<PrComparisons | undefined> {
   if (value === undefined) return { ok: true, value: undefined };
   if (!isRecord(value))
@@ -394,6 +429,8 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (!comparisons.ok) return comparisons;
   const revisions = parseRevisions(value["revisions"]);
   if (!revisions.ok) return revisions;
+  const draftPolicy = parseDraftPolicy(value["draftPolicy"]);
+  if (!draftPolicy.ok) return draftPolicy;
   return {
     ok: true,
     value: {
@@ -413,6 +450,9 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
         ? {}
         : { comparisons: comparisons.value }),
       ...(revisions.value === undefined ? {} : { revisions: revisions.value }),
+      ...(draftPolicy.value === undefined
+        ? {}
+        : { draftPolicy: draftPolicy.value }),
     },
   };
 }

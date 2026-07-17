@@ -37,6 +37,7 @@ import {
   type ValueOf,
 } from "persistence";
 import { z } from "zod";
+import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
 import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { buildPrView } from "./pr-view";
@@ -236,7 +237,16 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       comparisons = revisions.at(-1)?.comparisons ?? {};
     }
     return c.json(
-      { ...view, comparisons, ...(revisions === undefined ? {} : { revisions }) },
+      {
+        ...view,
+        comparisons,
+        ...(revisions === undefined ? {} : { revisions }),
+        // Instance draft policy (BRIEF-64): meta-only (instance-wide, so the
+        // list would repeat it per row for nothing). Drives the own-draft
+        // view's copy — the FE must show the CONFIGURED window, never a
+        // hardcoded duration.
+        draftPolicy: deps.draftPolicy ?? DEFAULT_DRAFT_POLICY,
+      },
       200,
       { "cache-control": "no-store" },
     );

@@ -496,6 +496,33 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(body["authorLogin"]).toBeUndefined();
   });
 
+  it("meta: carries the instance draftPolicy — default and injected (BRIEF-64)", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, draft: true, authorLogin: "octocat" });
+
+    // Default app (no draftPolicy dep) → the zero-config policy.
+    const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body["draftPolicy"]).toEqual({ generate: true, debounceSeconds: null });
+
+    // Injected policy is echoed for the FE's copy states.
+    const policyApp = createApp({
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: authDeps(kp),
+      github: unusedConversationPort,
+      draftPolicy: { generate: false, debounceSeconds: 900 },
+    });
+    const policyRes = await policyApp.request(`/api/repos/${REPO_A}/pulls/7`, {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(policyRes.status).toBe(200);
+    const policyBody = (await policyRes.json()) as Record<string, unknown>;
+    expect(policyBody["draftPolicy"]).toEqual({ generate: false, debounceSeconds: 900 });
+  });
+
   it("meta: viewerIsAuthor=false for a non-author viewer and for a null author (BRIEF-43)", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);

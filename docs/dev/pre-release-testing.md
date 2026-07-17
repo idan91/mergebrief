@@ -86,6 +86,34 @@ Reviewer surface:
         pinned) and renders as a "yours" thread; the reviewer composer stays
         private-until-submit (ADR 0004 — a "Post" button in reviewer state is a
         hard regression).
+- [ ] Draft generation policy (BRIEF-64; needs a **draft** PR you author +
+      edits to `mergebrief.config.yaml`'s `drafts:` block — restart web AND
+      worker after each config change; both read the file):
+      - no `drafts:` block (or no file) → drafts generate on the normal
+        window; nothing changed from before;
+      - `drafts: { debounceSeconds: 900 }` → a FRESH draft's first brief
+        still arrives on the normal window; a push after that brief shows
+        the queued heading "can take up to about 15 minutes" (own-draft
+        view only) and the job's `run_at` sits ~15 min out (check
+        `graphile_worker.jobs`);
+      - mark ready (our CTA or GitHub's button) while the damped job is
+        pending → exactly ONE job remains, `run_at` ~10s out; brief is
+        fresh when the reviewer arrives;
+      - a submitted review on the damped draft re-queues on the NORMAL
+        window (reviews never damp);
+      - `drafts: { generate: off }` → a new draft push writes the PR row
+        but NO generation row and NO job; the PR page still renders
+        conversation/meta, and the author sees the "off on this instance —
+        …marked ready" empty-state copy; mark ready → the first brief
+        generates; a review on the draft writes its checkpoint but does
+        not enqueue; close then REOPEN the draft → the PR returns to open
+        (the wedge regression);
+      - `generate: off` beats repo `entryCommentOnDrafts: true` (no brief
+        → no entry comment on the draft, automatically);
+      - invalid values (e.g. `debounceSeconds: -5`, unknown key in
+        `drafts:`) → web and worker both REFUSE boot with a `drafts:`-
+        prefixed issue, secrets never echoed;
+      - a non-author viewing the same draft sees no policy copy anywhere.
 - [ ] Access control spot checks: `/api/*` 401 signed-out; inaccessible
       repo id → 404 (never 403); audit line in the web log.
 

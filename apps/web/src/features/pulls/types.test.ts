@@ -89,6 +89,53 @@ describe("parsePrSummary", () => {
   });
 });
 
+describe("parsePrSummary draftPolicy (PR-meta only, BRIEF-64)", () => {
+  it("accepts an absent draftPolicy (list rows)", () => {
+    const parsed = parsePrSummary(ROW);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.draftPolicy).toBeUndefined();
+  });
+
+  it("parses a present draftPolicy", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      draftPolicy: { generate: false, debounceSeconds: 900 },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.draftPolicy).toEqual({
+      generate: false,
+      debounceSeconds: 900,
+    });
+  });
+
+  it("parses the zero-config policy (null debounceSeconds)", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      draftPolicy: { generate: true, debounceSeconds: null },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.draftPolicy).toEqual({
+      generate: true,
+      debounceSeconds: null,
+    });
+  });
+
+  it("rejects a malformed draftPolicy", () => {
+    for (const bad of [
+      { generate: "off", debounceSeconds: null },
+      { generate: true, debounceSeconds: "900" },
+      { generate: true },
+      "off",
+    ]) {
+      const parsed = parsePrSummary({ ...ROW, draftPolicy: bad });
+      expect(parsed.ok).toBe(false);
+    }
+  });
+});
+
 describe("parsePrSummary comparisons (PR-meta only)", () => {
   it("accepts an absent comparisons key (list rows) and an empty envelope", () => {
     expect(parsePrSummary(ROW).ok).toBe(true);
