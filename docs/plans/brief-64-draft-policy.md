@@ -153,8 +153,10 @@ Invocation: **main thread, sequential after PR 1** (depends on loader +
 deps shape), **Fable 5, low/medium effort** — mostly mechanical; FE copy is
 product-visible so keep Fable rather than delegating.
 
-Review loop: codex quota exhausted until 2026-07-23 → Fable-subagent
-reviewer fallback if a pre-merge review pass is wanted; Idan merges.
+Review loop: **Fable-subagent reviewer** (codex too slow; quota out until
+2026-07-23 anyway). One pre-merge review round per PR on the branch diff —
+PR 1 at **high effort** (trust-boundary route + debounce/supersession
+races), PR 2 at **medium**. Findings fixed inline; Idan merges.
 
 ## Out of scope (recorded)
 
