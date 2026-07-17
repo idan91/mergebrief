@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { BriefSchema, DeltaBriefSchema, RevisionNarrativeSchema } from "../src/types";
+import { enumPreservingJsonSchema } from "generators";
+import {
+  BriefGenerationSchema,
+  BriefSchema,
+  briefGenerationSchemaWith,
+  DeltaBriefSchema,
+  RevisionNarrativeSchema,
+} from "../src/types";
 
 const validBrief = {
   pr: {
@@ -250,5 +257,63 @@ describe("ReviewCommentSchema", () => {
     if (!parsed.success) return;
     expect(parsed.data.startLine).toBe(10);
     expect(parsed.data.originalStartLine).toBe(8);
+  });
+});
+
+const chunk = (riskSurface: string[]) => ({
+  id: "c1",
+  changeGroupId: "g1",
+  file: "services/billing/invoice.ts",
+  concern: "implementation",
+  role: "carrier",
+  loc: { added: 1, deleted: 0 },
+  addedRanges: [{ start: 1, end: 1 }],
+  removedRanges: [],
+  riskSurface,
+});
+const briefGen = (riskSurface: string[]) => ({
+  summary: "s",
+  changeGroups: [
+    {
+      id: "g1",
+      title: "t",
+      summary: "s",
+      dominantCategory: "new-feature",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [chunk(riskSurface)],
+  concernView: [{ concern: "implementation", added: 1, deleted: 0 }],
+});
+
+describe("briefGenerationSchemaWith (ADR 0032 #11 — per-generation vocabulary)", () => {
+
+
+  it("returns the exact static schema when no custom names exist", () => {
+    expect(briefGenerationSchemaWith([])).toBe(BriefGenerationSchema);
+  });
+
+  it("accepts an injected custom name alongside built-ins", () => {
+    const schema = briefGenerationSchemaWith(["touches-billing"]);
+    const parsed = schema.safeParse(briefGen(["touches-auth", "touches-billing"]));
+    expect(parsed.success).toBe(true);
+  });
+
+  it("rejects a token that is neither built-in nor injected (closed vocabulary holds)", () => {
+    const schema = briefGenerationSchemaWith(["touches-billing"]);
+    expect(schema.safeParse(briefGen(["not-a-thing"])).success).toBe(false);
+    // The static schema rejects the custom name too — the extension is per-generation.
+    expect(BriefGenerationSchema.safeParse(briefGen(["touches-billing"])).success).toBe(false);
+  });
+
+  it("carries injected names into the enum-preserving json_schema (server-side enforcement)", () => {
+    const wire = JSON.stringify(enumPreservingJsonSchema(briefGenerationSchemaWith(["touches-billing"])));
+    expect(wire).toContain('"touches-billing"');
+    expect(wire).toContain('"touches-auth"');
+    // And the base schema's wire form does NOT know the custom name.
+    const baseWire = JSON.stringify(enumPreservingJsonSchema(briefGenerationSchemaWith([])));
+    expect(baseWire).not.toContain('"touches-billing"');
   });
 });

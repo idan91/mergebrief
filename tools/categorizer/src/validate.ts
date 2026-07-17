@@ -1,11 +1,13 @@
 import type { FileDiff } from "./diff";
+import { inAttributeScope, type CustomRiskAttributeInput } from "./repo-context";
 import type { RevisionChangeFile } from "./revchanges";
-import type {
-  ChangeGroup,
-  Chunk,
-  LineRange,
-  ReadingOrderStep,
-  RevisionNarrativeChunk,
+import {
+  RiskSurfaceAttributes,
+  type ChangeGroup,
+  type Chunk,
+  type LineRange,
+  type ReadingOrderStep,
+  type RevisionNarrativeChunk,
 } from "./types";
 
 /**
@@ -440,6 +442,70 @@ export function validateRiskAttributes<C extends Chunk>(
     if (drops.size === 0) return chunk;
     const riskSurface = chunk.riskSurface.filter((attr) => !drops.has(attr));
     const riskNotes = chunk.riskNotes?.filter((n) => !drops.has(n.attr));
+    return {
+      ...chunk,
+      riskSurface,
+      ...(riskNotes !== undefined && riskNotes.length > 0
+        ? { riskNotes }
+        : { riskNotes: undefined }),
+    };
+  });
+
+  return { chunks: sanitized, issues };
+}
+
+/**
+ * Validate risk tokens against THIS generation's vocabulary (built-ins ∪ the
+ * repo's injected custom names) and each custom attribute's path scope
+ * (ADR 0032 #11) — warn-and-drop, mirroring `validateRiskAttributes`. The
+ * extended enum already blocks unknown tokens at decode time on adapters
+ * with native enum enforcement; this is the harness-side floor that holds
+ * regardless of adapter (and the ONLY enforcement of path scopes, which no
+ * schema can express). Pure — returns sanitized copies.
+ */
+export function validateRepoAttributeTokens<C extends Chunk>(
+  chunks: C[],
+  customAttributes: readonly CustomRiskAttributeInput[],
+): { chunks: C[]; issues: string[] } {
+  const issues: string[] = [];
+  const customByName = new Map(customAttributes.map((attr) => [attr.name, attr]));
+  const builtIn = new Set<string>(RiskSurfaceAttributes);
+
+  // A token is bad on this chunk when it is unknown or a custom attribute
+  // fired outside its path scope — checked for riskSurface AND riskNotes
+  // independently, so a bad token cannot survive by hiding in a note whose
+  // attribute never appeared on the surface (codex round 1).
+  function badTokenReason(token: string, file: string): string | undefined {
+    if (builtIn.has(token)) return undefined;
+    const custom = customByName.get(token);
+    if (custom === undefined) {
+      return `unknown risk token "${token}" — not built-in and not defined by this repo's policy`;
+    }
+    if (!inAttributeScope(custom, file)) {
+      return `repo attribute "${token}" — file is outside its path scope`;
+    }
+    return undefined;
+  }
+
+  const sanitized = chunks.map((chunk) => {
+    const drops = new Set<string>();
+    for (const token of chunk.riskSurface) {
+      const reason = badTokenReason(token, chunk.file);
+      if (reason !== undefined && !drops.has(token)) {
+        drops.add(token);
+        issues.push(`chunk ${chunk.id} (${chunk.file}): dropped ${reason}`);
+      }
+    }
+    for (const note of chunk.riskNotes ?? []) {
+      const reason = badTokenReason(note.attr, chunk.file);
+      if (reason !== undefined && !drops.has(note.attr)) {
+        drops.add(note.attr);
+        issues.push(`chunk ${chunk.id} (${chunk.file}): dropped riskNotes ${reason}`);
+      }
+    }
+    if (drops.size === 0) return chunk;
+    const riskSurface = chunk.riskSurface.filter((token) => !drops.has(token));
+    const riskNotes = chunk.riskNotes?.filter((note) => !drops.has(note.attr));
     return {
       ...chunk,
       riskSurface,

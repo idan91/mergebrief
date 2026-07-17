@@ -86,7 +86,26 @@ export type RiskSurfaceAttribute = (typeof RiskSurfaceAttributes)[number];
 const categoryEnum = z.enum(Categories);
 const concernEnum = z.enum(Concerns);
 const roleEnum = z.enum(Roles);
-const riskSurfaceEnum = z.enum(RiskSurfaceAttributes);
+
+/**
+ * The risk-token vocabulary for ONE generation: the built-in attributes plus
+ * that repo's validated custom-attribute names (ADR 0032 #11). The closed
+ * enum stays enforced (server-side via the enum-preserving json_schema);
+ * only its membership is per-generation. The static exports below use the
+ * built-ins-only vocabulary — the CLI path and every existing caller are
+ * byte-for-byte unchanged.
+ *
+ * Typed `z.ZodType<string>` on purpose: a stored chunk's risk tokens are
+ * "built-in ∪ that generation's custom names", which the static type system
+ * cannot enumerate — the honest static type is `string`, with the enum doing
+ * the actual enforcement at parse time.
+ */
+function riskTokenEnum(customNames: readonly string[]): z.ZodType<string> {
+  const [first, ...rest] = RiskSurfaceAttributes;
+  return z.enum([first, ...rest, ...customNames]);
+}
+
+const riskSurfaceEnum = riskTokenEnum([]);
 
 // --- Brief shape ----------------------------------------------------------
 
@@ -118,18 +137,22 @@ export const LineRangeSchema = z.object({
  * objects, not a record: record keys compile to `additionalProperties` in
  * JSON schema, which strict structured-output modes reject.
  */
-export const RiskNoteSchema = z.object({
-  attr: riskSurfaceEnum.describe(
-    "the risk-surface attribute this note evidences (must also be in the chunk's riskSurface)",
-  ),
-  note: z
-    .string()
-    .describe(
-      "one short factual note. For `comment-contradicts-code` it MUST cite both sides: the comment line and the code line, e.g. \"comment says X (L12), code does Y (L15)\".",
+function buildRiskNoteSchema(riskToken: z.ZodType<string>) {
+  return z.object({
+    attr: riskToken.describe(
+      "the risk-surface attribute this note evidences (must also be in the chunk's riskSurface)",
     ),
-});
+    note: z
+      .string()
+      .describe(
+        "one short factual note. For `comment-contradicts-code` it MUST cite both sides: the comment line and the code line, e.g. \"comment says X (L12), code does Y (L15)\".",
+      ),
+  });
+}
 
-export const ChunkSchema = z.object({
+export const RiskNoteSchema = buildRiskNoteSchema(riskSurfaceEnum);
+
+const buildChunkSchema = (riskToken: z.ZodType<string>) => z.object({
   id: z.string().describe("stable chunk id, e.g. c1, c2, …"),
   changeGroupId: z
     .string()
@@ -162,17 +185,19 @@ export const ChunkSchema = z.object({
       "old-side (−) line-number ranges of the actual REMOVED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only adds.",
     ),
   riskSurface: z
-    .array(riskSurfaceEnum)
+    .array(riskToken)
     .describe(
       "factual attributes that apply to this chunk (empty if none). Never verdicts — severity emerges from combinations.",
     ),
   riskNotes: z
-    .array(RiskNoteSchema)
+    .array(buildRiskNoteSchema(riskToken))
     .optional()
     .describe(
       "optional short factual notes, one per risk-surface attribute on this chunk that needs evidence. REQUIRED for `comment-contradicts-code`: the note must cite both sides — the comment line and the code line, e.g. \"comment says X (L12), code does Y (L15)\". Omit entirely when no attribute needs a note.",
     ),
 });
+
+export const ChunkSchema = buildChunkSchema(riskSurfaceEnum);
 
 export const ChangeGroupSchema = z.object({
   id: z
@@ -328,6 +353,28 @@ export const BriefGenerationSchema = BriefSchema.omit({
   generation: true,
   generationWarnings: true,
 });
+
+export type BriefGeneration = z.infer<typeof BriefGenerationSchema>;
+
+/**
+ * The brief-generation schema for ONE generation, with the repo's validated
+ * custom-attribute names added to the closed risk vocabulary (ADR 0032 #11 /
+ * plan PR 3): the extended enum flows into the enum-preserving json_schema,
+ * so the model can only decode names the repo actually defined — built-in
+ * enforcement stays intact, and no custom names means the exact static
+ * schema. The inferred type is identical either way (risk tokens are
+ * statically `string` — see `riskTokenEnum`).
+ */
+export function briefGenerationSchemaWith(
+  customNames: readonly string[],
+): z.ZodType<BriefGeneration> {
+  if (customNames.length === 0) {
+    return BriefGenerationSchema;
+  }
+  return BriefGenerationSchema.extend({
+    chunks: z.array(buildChunkSchema(riskTokenEnum(customNames))),
+  });
+}
 
 /**
  * Delta brief — the re-review reload. This is the **delta core** only: the

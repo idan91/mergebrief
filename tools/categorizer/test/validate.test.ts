@@ -5,6 +5,7 @@ import {
   validateNarrativeMarksOverlap,
   validateReadingOrder,
   validateRiskAttributes,
+  validateRepoAttributeTokens,
 } from "../src/validate";
 import type { Chunk, RiskSurfaceAttribute } from "../src/types";
 
@@ -390,5 +391,83 @@ describe("validateNarrativeMarksOverlap", () => {
     ];
     const issues = validateNarrativeMarksOverlap(chunks, marksFiles);
     expect(issues.some((i) => i.includes("rc1"))).toBe(true);
+  });
+});
+
+function chunkWith(file: string, riskSurface: string[], withNote = false): Chunk {
+  return {
+    id: "c1",
+    changeGroupId: "g1",
+    file,
+    concern: "implementation",
+    role: "carrier",
+    loc: { added: 1, deleted: 0 },
+    addedRanges: [{ start: 1, end: 1 }],
+    removedRanges: [],
+    riskSurface,
+    ...(withNote
+      ? { riskNotes: riskSurface.map((attr) => ({ attr, note: "n" })) }
+      : {}),
+  };
+}
+
+describe("validateRepoAttributeTokens (ADR 0032 #11 — warn-and-drop floor)", () => {
+  const custom = [
+    { name: "touches-billing", criteria: "c", paths: ["services/billing/**"] },
+    { name: "raw-sql", criteria: "c" },
+  ];
+
+
+  it("keeps built-ins, in-scope customs, and scope-free customs", () => {
+    const { chunks, issues } = validateRepoAttributeTokens(
+      [chunkWith("services/billing/x.ts", ["touches-auth", "touches-billing", "raw-sql"])],
+      custom,
+    );
+    expect(chunks[0]?.riskSurface).toEqual(["touches-auth", "touches-billing", "raw-sql"]);
+    expect(issues).toEqual([]);
+  });
+
+  it("drops an unknown token with a warning", () => {
+    const { chunks, issues } = validateRepoAttributeTokens(
+      [chunkWith("a.ts", ["invented-token", "mutates-state"])],
+      custom,
+    );
+    expect(chunks[0]?.riskSurface).toEqual(["mutates-state"]);
+    expect(issues.join("\n")).toContain('unknown risk token "invented-token"');
+  });
+
+  it("drops an out-of-scope custom firing and its note; built-ins are never scope-checked", () => {
+    const { chunks, issues } = validateRepoAttributeTokens(
+      [chunkWith("apps/web/p.tsx", ["touches-billing", "touches-auth"], true)],
+      custom,
+    );
+    expect(chunks[0]?.riskSurface).toEqual(["touches-auth"]);
+    expect(chunks[0]?.riskNotes?.map((n) => n.attr)).toEqual(["touches-auth"]);
+    expect(issues.join("\n")).toContain("outside its path scope");
+  });
+
+  it("is pure — the input chunks are not mutated", () => {
+    const input = [chunkWith("a.ts", ["invented-token"])];
+    validateRepoAttributeTokens(input, custom);
+    expect(input[0]?.riskSurface).toEqual(["invented-token"]);
+  });
+});
+
+describe("validateRepoAttributeTokens — riskNotes cannot smuggle tokens (codex r1)", () => {
+  const custom = [
+    { name: "touches-billing", criteria: "c", paths: ["services/billing/**"] },
+  ];
+
+  it("drops a note whose attr never appeared on riskSurface but is out of scope or unknown", () => {
+    const chunk = {
+      ...chunkWith("apps/web/p.tsx", ["mutates-state"]),
+      riskNotes: [
+        { attr: "touches-billing", note: "out of scope, notes only" },
+        { attr: "mutates-state", note: "fine" },
+      ],
+    };
+    const { chunks, issues } = validateRepoAttributeTokens([chunk], custom);
+    expect(chunks[0]?.riskNotes?.map((n) => n.attr)).toEqual(["mutates-state"]);
+    expect(issues.join("\n")).toContain("riskNotes");
   });
 });

@@ -52,15 +52,29 @@ export {
 // Closed risk-surface vocabulary — the single source of truth (types.ts).
 // Re-exported so downstream packages (repo-config, ADR 0032) import the
 // built-in attribute list from here instead of duplicating it.
-export { RiskSurfaceAttributes, type RiskSurfaceAttribute } from "./types";
 export { isHugeSpan, hugeSpanRatio } from "./huge-span";
+export {
+  CUSTOM_ATTRIBUTE_NAME_PATTERN,
+  INSTRUCTIONS_INJECTION_BUDGET_BYTES,
+  PARKED_ATTRIBUTE_CANDIDATES,
+  REPO_INSTRUCTION_CLASSES,
+  RESERVED_ATTRIBUTE_WORDS,
+  inAttributeScope,
+  matchesGlob,
+  type CustomRiskAttributeInput,
+  type RepoContext,
+  type RepoInstructionsInput,
+} from "./repo-context";
 export { revisionNarrativeConfig, type RevisionNarrativeConfig } from "./config";
 export { generateAndWrite, type Range } from "./index";
-export type {
-  Brief,
-  CommitRange,
-  Effort,
-  RevisionNarrative,
-  RevisionNarrativeChunk,
-  RevisionNarrativeSkipped,
+export {
+  RiskSurfaceAttributes,
+  briefGenerationSchemaWith,
+  type Brief,
+  type CommitRange,
+  type Effort,
+  type RiskSurfaceAttribute,
+  type RevisionNarrative,
+  type RevisionNarrativeChunk,
+  type RevisionNarrativeSkipped,
 } from "./types";

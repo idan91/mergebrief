@@ -1,5 +1,5 @@
 import {
-  BriefGenerationSchema,
+  briefGenerationSchemaWith,
   DeltaBriefGenerationSchema,
   RevisionNarrativeGenerationSchema,
   type Brief,
@@ -9,6 +9,14 @@ import {
   type PrRef,
   type RevisionNarrative,
 } from "./types";
+import {
+  inAttributeScope,
+  renderCustomAttributes,
+  renderRepoInstructions,
+  sanitizeCustomAttributes,
+  stripForgedRepoFences,
+  type RepoContext,
+} from "./repo-context";
 import {
   AnthropicGenerator,
   type Generator,
@@ -24,6 +32,7 @@ import {
   validatePartition,
   validateNarrativeGroups,
   validateReadingOrder,
+  validateRepoAttributeTokens,
   validateRiskAttributes,
 } from "./validate";
 import type {
@@ -82,26 +91,91 @@ function renderLinked(links: LinkedContext[]): string {
 
 // --- Full brief -----------------------------------------------------------
 
-function renderUser(pr: FetchedPr): string {
+/**
+ * The repo context ACTUALLY in play for one generation, plus its pre-rendered
+ * data blocks — every consumer (system prompt, user message, schema names,
+ * post-parse validation) derives from the same accepted context, so a
+ * rejected artifact disappears from ALL of them at once (codex round 1: an
+ * over-budget instructions file must not leave its system contract behind).
+ *
+ * Acceptance pipeline (all fail-open, all ⚠-warned into generationWarnings):
+ *   1. custom-attribute name floor + collision/duplicate drop;
+ *   2. scope pre-filter — a path-scoped attribute matching NONE of the PR's
+ *      changed files is not injected at all (ADR 0032 #11 deterministic
+ *      pre-filtering; plain log, not a warning — it's the normal case);
+ *   3. instructions budget — over-budget means omitted whole.
+ */
+function acceptRepoContext(
+  repoContext: RepoContext | undefined,
+  files: readonly { path: string }[],
+  log: Logger,
+): { context: RepoContext | undefined; blocks: string } {
+  if (repoContext === undefined) return { context: undefined, blocks: "" };
+
+  const gated = sanitizeCustomAttributes(repoContext.customAttributes);
+  warnIssues(gated.issues, log, "repo attrs");
+  // No file list (rare) = no basis to pre-filter; keep everything.
+  const applicable =
+    files.length === 0
+      ? gated.attributes
+      : gated.attributes.filter((attr) => files.some((f) => inAttributeScope(attr, f.path)));
+  if (applicable.length < gated.attributes.length) {
+    log(
+      `repo context: ${gated.attributes.length - applicable.length} scoped custom attribute(s) match no changed file — not injected`,
+    );
+  }
+
+  const sections: string[] = [];
+  let instructions = repoContext.instructions;
+  if (instructions !== undefined) {
+    const rendered = renderRepoInstructions(instructions);
+    if (rendered.block === undefined) {
+      log(rendered.warning);
+      instructions = undefined;
+    } else {
+      sections.push(`## Repo instructions\n${rendered.block}`);
+    }
+  }
+  const attributeBlock = renderCustomAttributes(applicable);
+  if (attributeBlock !== undefined) {
+    sections.push(`## Repo-defined risk attributes\n${attributeBlock}`);
+  }
+
+  const context: RepoContext = {
+    ...(instructions === undefined ? {} : { instructions }),
+    customAttributes: applicable,
+  };
+  const inPlay = instructions !== undefined || applicable.length > 0;
+  return {
+    context: inPlay ? context : undefined,
+    blocks: sections.length === 0 ? "" : `\n\n${sections.join("\n\n")}`,
+  };
+}
+
+function renderUser(pr: FetchedPr, repoBlocks = "", defuseForgedFences = false): string {
+  // With repo context in play, forged fences anywhere else in the message
+  // (PR body, linked context, file paths, diff) are neutralized so a PR
+  // cannot impersonate default-branch config (ADR 0032 #3 trust rule).
+  const clean = defuseForgedFences ? stripForgedRepoFences : (text: string) => text;
   const fileList = pr.meta.files
-    .map((f) => `- ${f.path} (+${f.additions} -${f.deletions})`)
+    .map((f) => `- ${clean(f.path)} (+${f.additions} -${f.deletions})`)
     .join("\n");
   return `PR: ${pr.meta.url}
 Repo: ${pr.locator.owner}/${pr.locator.repo}
 Number: ${pr.locator.number}
-Title: ${pr.meta.title}
+Title: ${clean(pr.meta.title)}
 
 ## Description
-${pr.meta.body.trim() || "(no description)"}
+${clean(pr.meta.body.trim()) || "(no description)"}
 
 ## Linked context
-${renderLinked(pr.links)}
+${clean(renderLinked(pr.links))}${repoBlocks}
 
 ## Files changed
 ${fileList || "(none reported)"}
 
 ## Unified diff
-${pr.diff}`;
+${clean(pr.diff)}`;
 }
 
 export async function categorize(
@@ -110,14 +184,21 @@ export async function categorize(
   commitRange: CommitRange,
   generator: Generator = new AnthropicGenerator(),
   log: Logger = () => {},
+  repoContext?: RepoContext,
 ): Promise<Brief> {
   // The model produces analysis only; pr / index / commitRange / generation are
   // CLI-owned metadata it cannot know, filled in here (ADR 0012/0013).
   const collector = collectGenerationWarnings(log);
+  // Everything repo-context flows from ONE accepted view: name floor,
+  // collision drop, scope pre-filter, and the instructions budget all run
+  // BEFORE any name touches the schema enum or any text touches the prompt.
+  const accepted = acceptRepoContext(repoContext, pr.meta.files, collector.log);
+  const effectiveContext = accepted.context;
+  const customNames = effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
   const generated = await generator.generate({
-    schema: BriefGenerationSchema,
-    system: buildSystemPrompt(),
-    user: renderUser(pr),
+    schema: briefGenerationSchemaWith(customNames),
+    system: buildSystemPrompt(effectiveContext),
+    user: renderUser(pr, accepted.blocks, effectiveContext !== undefined),
     effort: EFFORT,
     label: "brief",
     salvageFields: SALVAGE_FIELDS,
@@ -128,7 +209,16 @@ export async function categorize(
   warnIssues(readingOrderIssues, collector.log, "reading order");
   const keepReadingOrder = readingOrder !== undefined && readingOrderIssues.length === 0;
 
-  const trio = validateRiskAttributes(generated.chunks, splitDiffByFile(pr.diff));
+  // Repo-attribute floor first (unknown tokens + path scopes, ADR 0032 #11),
+  // then the mechanical risk validation on the surviving tokens. Skipped
+  // entirely without repo context so the no-config path stays byte-identical.
+  const repoChecked =
+    effectiveContext === undefined
+      ? { chunks: generated.chunks, issues: [] }
+      : validateRepoAttributeTokens(generated.chunks, effectiveContext.customAttributes);
+  warnIssues(repoChecked.issues, collector.log, "repo attrs");
+
+  const trio = validateRiskAttributes(repoChecked.chunks, splitDiffByFile(pr.diff));
   warnIssues(trio.issues, collector.log, "risk attrs");
 
   const partial = {
