@@ -99,6 +99,7 @@ import type {
 } from "../../types";
 import { useKeyboardShortcuts } from "../../useKeyboardShortcuts";
 import {
+  buildAttributeRail,
   buildBriefViewModel,
   groupRiskByAttribute,
   type RiskFlag,
@@ -110,6 +111,7 @@ import { RiskDetailList } from "../Badge/RiskDetailList";
 import { ChangesOnlyView } from "../ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
+import { AttributeJumpRail } from "../AttributeJumpRail/AttributeJumpRail";
 import { GroupTocBar } from "../GroupTocBar/GroupTocBar";
 import { Header, type LayoutMode, type ViewMode } from "../Header/Header";
 import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress";
@@ -489,6 +491,7 @@ export function BriefView({
       <BriefScreen
         artifacts={artifacts}
         brief={brief}
+        repoConfig={repoConfig}
         briefId={briefId}
         comparisonPlan={comparisonPlan}
         conversation={conversation}
@@ -507,6 +510,7 @@ export function BriefView({
 interface BriefScreenProps {
   artifacts: LocalBriefSummary[];
   brief: Brief;
+  repoConfig?: RepoConfigContext | null | undefined;
   briefId: string;
   comparisonPlan?: BriefComparisonPlan | undefined;
   model: ReturnType<typeof buildBriefViewModel>;
@@ -526,6 +530,7 @@ interface BriefScreenProps {
 function BriefScreen({
   artifacts,
   brief,
+  repoConfig,
   briefId,
   comparisonPlan,
   model,
@@ -539,6 +544,7 @@ function BriefScreen({
 }: BriefScreenProps) {
   // Summary chip lane (BRIEF-52): one pass over the flags, memoized —
   // BriefScreen re-renders on nearly every interaction (perf gate r1).
+  const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
   const summaryRiskChips = useMemo(() => {
     const grouped = groupRiskByAttribute(model.flags);
     return grouped.map(({ attr, flags }) => {
@@ -881,8 +887,8 @@ function BriefScreen({
     ],
   );
   const receipt = useMemo(
-    () => buildReceipt(snapshot, brief, model),
-    [snapshot, brief, model],
+    () => buildReceipt(snapshot, brief, model, repoConfig),
+    [snapshot, brief, model, repoConfig],
   );
   useEffect(() => {
     if (!toast) return;
@@ -1885,6 +1891,7 @@ function BriefScreen({
     <>
       <Header
         brief={brief}
+        repoConfig={repoConfig}
         briefId={briefId}
         timeline={timeline}
         model={model}
@@ -2029,12 +2036,18 @@ function BriefScreen({
         ) : (
           <>
             {viewMode === "story" && !focusMode ? (
-              <GroupTocBar
-                activeGroupId={activeGroupId}
-                conversationGroupIds={conversationGroupIds}
-                groups={model.groups}
-                jumpToGroup={jumpToGroup}
-              />
+              <>
+                <AttributeJumpRail
+                  jumpToGroup={jumpToGroup}
+                  rail={attributeRail}
+                />
+                <GroupTocBar
+                  activeGroupId={activeGroupId}
+                  conversationGroupIds={conversationGroupIds}
+                  groups={model.groups}
+                  jumpToGroup={jumpToGroup}
+                />
+              </>
             ) : null}
 
             {conversation !== undefined ? (

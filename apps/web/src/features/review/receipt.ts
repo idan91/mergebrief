@@ -1,3 +1,4 @@
+import type { RepoConfigContext } from "../brief/repoConfig";
 import type { Brief } from "../brief/types";
 import type { BriefViewModel } from "../brief/viewModel";
 import type { CommentSide } from "./comments";
@@ -66,6 +67,14 @@ export interface ReceiptComment {
   status: "draft" | "submitted";
 }
 
+/** The permanent repo-config record on the Receipt (ADR 0032 #8). */
+export interface ReceiptRepoConfig {
+  files: { path: string; outcome: string; blobSha: string | null }[];
+  collisions: string[];
+  /** "N attribute(s) de-emphasized by repo policy @ sha" — null when none. */
+  deEmphasisLine: string | null;
+}
+
 export interface Receipt {
   subject: { repo: string; number: number; sha: string };
   progress: { reviewedChunks: number; chunkTotal: number; flagTotal: number };
@@ -75,6 +84,8 @@ export interface Receipt {
   open: ReceiptOpenFlag[];
   comments: ReceiptComment[];
   reclassifiedCount: number;
+  /** Present when the span had a repo-config surface (BRIEF-52). */
+  repoConfig?: ReceiptRepoConfig;
 }
 
 /** Mechanical scope the tool does NOT verify — a builder constant, not faked data. */
@@ -89,6 +100,7 @@ export function buildReceipt(
   snapshot: SessionSnapshot,
   brief: Brief,
   model: BriefViewModel,
+  repoConfig?: RepoConfigContext | null,
 ): Receipt {
   const flagIds = model.flags.map((flag) => flag.id);
   const counts = riskDispositionCounts(snapshot.dispositions, flagIds);
@@ -136,6 +148,7 @@ export function buildReceipt(
     status: comment.status,
   }));
 
+  const receiptRepoConfig = buildReceiptRepoConfig(repoConfig);
   return {
     subject: {
       repo: brief.pr.repo,
@@ -156,5 +169,45 @@ export function buildReceipt(
     open,
     comments,
     reclassifiedCount: snapshot.reclassifiedGroupIds.length,
+    ...(receiptRepoConfig === undefined
+      ? {}
+      : { repoConfig: receiptRepoConfig }),
+  };
+}
+
+/**
+ * The Receipt's permanent repo-config record (ADR 0032 #8): the per-file
+ * table plus the de-emphasis tuning in effect at generation time. Undefined
+ * when there was no surface at all (no snapshot, or all-absent + no
+ * collisions) — the Receipt stays byte-identical for repos without a
+ * `.mergebrief/`.
+ */
+function buildReceiptRepoConfig(
+  repoConfig: RepoConfigContext | null | undefined,
+): ReceiptRepoConfig | undefined {
+  if (repoConfig == null) return undefined;
+  const anyPresent =
+    repoConfig.files.some((file) => file.outcome !== "absent") ||
+    repoConfig.collisions.length > 0;
+  if (!anyPresent) return undefined;
+  const policySha =
+    repoConfig.files.find((file) => file.path.endsWith("policy.yaml"))
+      ?.blobSha ?? null;
+  // Count ATTRIBUTES, not rules — one attribute may carry several
+  // path-scoped rules (Fable r1 on this PR).
+  const deEmphasized = new Set(
+    (repoConfig.policy?.deEmphasize ?? []).map((rule) => rule.attribute),
+  ).size;
+  return {
+    files: repoConfig.files.map((file) => ({
+      path: file.path,
+      outcome: file.outcome,
+      blobSha: file.blobSha,
+    })),
+    collisions: [...repoConfig.collisions],
+    deEmphasisLine:
+      deEmphasized > 0
+        ? `${deEmphasized} attribute${deEmphasized === 1 ? "" : "s"} de-emphasized by repo policy${policySha ? ` @ ${policySha.slice(0, 7)}` : ""}`
+        : null,
   };
 }

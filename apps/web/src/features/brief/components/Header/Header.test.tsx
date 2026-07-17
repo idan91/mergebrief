@@ -516,3 +516,110 @@ describe("Header own-draft state (BRIEF-43)", () => {
     ]);
   });
 });
+
+describe("repo-config provenance chip (BRIEF-52, ADR 0032 #8)", () => {
+  const APPLIED = {
+    files: [
+      {
+        path: ".mergebrief/instructions.md",
+        blobSha: "a1b2c3d4e5f6",
+        outcome: "applied" as const,
+      },
+      {
+        path: ".mergebrief/settings.yaml",
+        blobSha: null,
+        outcome: "absent" as const,
+      },
+      {
+        path: ".mergebrief/policy.yaml",
+        blobSha: "p1p2p3p4",
+        outcome: "applied" as const,
+      },
+    ],
+    collisions: [],
+    policy: null,
+  };
+
+  it("renders the understated chip with the applied sha", () => {
+    renderHeader({ repoConfig: APPLIED });
+    const chip = document.querySelector("[data-repo-config-chip]");
+    expect(chip?.textContent).toContain("repo config @ a1b2c3d");
+    expect(chip?.getAttribute("data-state")).toBe("ok");
+  });
+
+  it("flips to the warning state on any error outcome", () => {
+    renderHeader({
+      repoConfig: {
+        ...APPLIED,
+        files: [
+          APPLIED.files[0]!,
+          {
+            path: ".mergebrief/settings.yaml",
+            blobSha: "bad",
+            outcome: "invalid" as const,
+          },
+          APPLIED.files[2]!,
+        ],
+      },
+    });
+    expect(
+      document
+        .querySelector("[data-repo-config-chip]")
+        ?.getAttribute("data-state"),
+    ).toBe("warning");
+  });
+
+  it("renders NO chip when every file is absent and nothing collided", () => {
+    renderHeader({
+      repoConfig: {
+        files: APPLIED.files.map((file) => ({
+          ...file,
+          blobSha: null,
+          outcome: "absent" as const,
+        })),
+        collisions: [],
+        policy: null,
+      },
+    });
+    expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
+  });
+
+  it("renders no chip at all without a snapshot", () => {
+    renderHeader({});
+    expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
+  });
+});
+
+describe("repo-config chip — applied-with-warning flips to warning state", () => {
+  it("a warning on an applied file is a config error the author must see", () => {
+    renderHeader({
+      repoConfig: {
+        files: [
+          {
+            path: ".mergebrief/instructions.md",
+            blobSha: null,
+            outcome: "absent" as const,
+          },
+          {
+            path: ".mergebrief/settings.yaml",
+            blobSha: null,
+            outcome: "absent" as const,
+          },
+          {
+            path: ".mergebrief/policy.yaml",
+            blobSha: "p1",
+            outcome: "applied" as const,
+            warning: "1 de-emphasis rule dropped — attribute not recognized",
+          },
+        ],
+        collisions: [],
+        policy: null,
+      },
+    });
+    expect(
+      document
+        .querySelector("[data-repo-config-chip]")
+        ?.getAttribute("data-state"),
+    ).toBe("warning");
+  });
+});

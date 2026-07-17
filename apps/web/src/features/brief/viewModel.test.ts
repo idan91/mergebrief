@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { Brief } from "./types";
 import { parseBrief } from "./validation";
-import { buildBriefViewModel, riskChipView } from "./viewModel";
+import {
+  buildAttributeRail,
+  buildBriefViewModel,
+  riskChipView,
+} from "./viewModel";
 
 function twoGroupBrief(readingOrder?: unknown) {
   return {
@@ -352,5 +356,59 @@ describe("buildBriefViewModel — repo-config display weight (BRIEF-52)", () => 
       "touches-billing",
       "widens-error-handling",
     ]);
+  });
+});
+
+describe("buildAttributeRail (ADR 0032 #11 — jump-rail)", () => {
+  const railSnapshot = {
+    files: [],
+    collisions: [],
+    policy: {
+      firedCustomAttributes: [{ name: "touches-billing", criteria: "c" }],
+      deEmphasize: [{ attribute: "widens-error-handling" }],
+    },
+  };
+
+  function railBrief() {
+    const base = twoGroupBrief();
+    const chunks: { riskSurface: string[] }[] = base.chunks;
+    // g1/c1: custom + quiet built-in; g2/c2: floor + the same custom.
+    chunks[0]?.riskSurface.push("touches-billing", "widens-error-handling");
+    chunks[1]?.riskSurface.push("touches-auth", "touches-billing");
+    const parsed = parseBrief(base);
+    if (!parsed.ok) throw new Error(parsed.error);
+    return parsed.value;
+  }
+
+  it("floor first, loud firings only, carrying groups in display order", () => {
+    const rail = buildAttributeRail(
+      buildBriefViewModel(railBrief(), railSnapshot),
+    );
+    expect(rail.floorFired).toBe(true);
+    expect(rail.entries.map((entry) => entry.attr)).toEqual([
+      "touches-auth",
+      "touches-billing",
+    ]);
+    // widens-error-handling: only firing is de-emphasized → excluded.
+    expect(rail.entries.some((e) => e.attr === "widens-error-handling")).toBe(
+      false,
+    );
+    const billing = rail.entries.find((e) => e.attr === "touches-billing");
+    expect(billing?.groupIds).toEqual(["g1", "g2"]);
+    expect(billing?.source).toBe("repo-policy");
+    expect(rail.entries.find((e) => e.attr === "touches-auth")?.floor).toBe(
+      true,
+    );
+  });
+
+  it("no floor firing → rail present but floorFired false (collapsed default)", () => {
+    const base = twoGroupBrief();
+    const chunks: { riskSurface: string[] }[] = base.chunks;
+    chunks[0]?.riskSurface.push("hot-path");
+    const parsed = parseBrief(base);
+    if (!parsed.ok) throw new Error(parsed.error);
+    const rail = buildAttributeRail(buildBriefViewModel(parsed.value));
+    expect(rail.floorFired).toBe(false);
+    expect(rail.entries).toHaveLength(1);
   });
 });

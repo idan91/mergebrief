@@ -80,7 +80,20 @@ ${addressed.map((flag) => `      addressed: ${flag.attr} @ ${shortFile(flag.file
 ${dismissed.map((flag) => `      dismissed: ${flag.attr} @ ${shortFile(flag.file)} — "${flag.reason}"`).join("\n")}
 ${openFlags.map((flag) => `      open: ${flag.attr} @ ${shortFile(flag.file)} — not addressed, not dismissed`).join("\n")}
 ${receipt.reclassifiedCount > 0 ? `\n  ${receipt.reclassifiedCount} group reclassified by reviewer` : ""}
-
+${
+  receipt.repoConfig
+    ? `\n  repo config (generation-time):\n${receipt.repoConfig.files
+        .map(
+          (file) =>
+            `      ${file.path} — ${file.outcome}${file.blobSha ? ` @ ${file.blobSha.slice(0, 7)}` : ""}`,
+        )
+        .join("\n")}${
+        receipt.repoConfig.collisions.length > 0
+          ? `\n      built-in wins over: ${receipt.repoConfig.collisions.join(", ")}`
+          : ""
+      }${receipt.repoConfig.deEmphasisLine ? `\n      ${receipt.repoConfig.deEmphasisLine}` : ""}`
+    : ""
+}
   not checked: ${RECEIPT_NOT_CHECKED.join(" · ")}`}</pre>
         <div className={styles["actions"]}>
           <button

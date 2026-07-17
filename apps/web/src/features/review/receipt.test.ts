@@ -172,3 +172,99 @@ describe("buildReceipt", () => {
     ]);
   });
 });
+
+describe("receipt repo-config record (BRIEF-52, ADR 0032 #8)", () => {
+  const SNAPSHOT = {
+    files: [
+      {
+        path: ".mergebrief/instructions.md",
+        blobSha: "i1i2i3i4",
+        outcome: "applied" as const,
+      },
+      {
+        path: ".mergebrief/settings.yaml",
+        blobSha: null,
+        outcome: "absent" as const,
+      },
+      {
+        path: ".mergebrief/policy.yaml",
+        blobSha: "p1p2p3p4p5",
+        outcome: "applied" as const,
+      },
+    ],
+    collisions: ["touches-auth"],
+    policy: {
+      firedCustomAttributes: [],
+      deEmphasize: [
+        { attribute: "widens-error-handling" },
+        { attribute: "no-tests" },
+      ],
+    },
+  };
+
+  it("carries the per-file table, collisions, and the de-emphasis line", () => {
+    const receipt = buildReceipt(snapshot(), briefFixture, model, SNAPSHOT);
+    expect(receipt.repoConfig?.files.map((f) => f.outcome)).toEqual([
+      "applied",
+      "absent",
+      "applied",
+    ]);
+    expect(receipt.repoConfig?.collisions).toEqual(["touches-auth"]);
+    expect(receipt.repoConfig?.deEmphasisLine).toBe(
+      "2 attributes de-emphasized by repo policy @ p1p2p3p",
+    );
+  });
+
+  it("stays absent without a snapshot or with an all-absent surface", () => {
+    expect(
+      buildReceipt(snapshot(), briefFixture, model).repoConfig,
+    ).toBeUndefined();
+    const allAbsent = {
+      files: SNAPSHOT.files.map((file) => ({
+        ...file,
+        blobSha: null,
+        outcome: "absent" as const,
+      })),
+      collisions: [],
+      policy: null,
+    };
+    expect(
+      buildReceipt(snapshot(), briefFixture, model, allAbsent).repoConfig,
+    ).toBeUndefined();
+  });
+});
+
+describe("receipt de-emphasis count dedupes path-scoped rules", () => {
+  it("two rules on one attribute count as one attribute", () => {
+    const receipt = buildReceipt(snapshot(), briefFixture, model, {
+      files: [
+        {
+          path: ".mergebrief/instructions.md",
+          blobSha: null,
+          outcome: "absent" as const,
+        },
+        {
+          path: ".mergebrief/settings.yaml",
+          blobSha: null,
+          outcome: "absent" as const,
+        },
+        {
+          path: ".mergebrief/policy.yaml",
+          blobSha: "p1p2p3p4",
+          outcome: "applied" as const,
+        },
+      ],
+      collisions: [],
+      policy: {
+        firedCustomAttributes: [],
+        deEmphasize: [
+          { attribute: "no-tests", paths: ["src/**"] },
+          { attribute: "no-tests", paths: ["docs/**"] },
+        ],
+      },
+    });
+    expect(receipt.repoConfig?.deEmphasisLine).toBe(
+      "1 attribute de-emphasized by repo policy @ p1p2p3p",
+    );
+  });
+});

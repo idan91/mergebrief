@@ -414,3 +414,54 @@ function uniqueConcerns(chunks: BriefChunk[]): Concern[] {
   }
   return CONCERN_ORDER.filter((concern) => seen.has(concern));
 }
+
+/** One jump-rail entry (ADR 0032 #11): an attribute + its carrying groups. */
+export interface AttributeRailEntry {
+  attr: RiskToken;
+  source: AttributeSource;
+  floor: boolean;
+  /** Groups with at least one LOUD firing, in story (display) order. */
+  groupIds: string[];
+}
+
+export interface AttributeRail {
+  entries: AttributeRailEntry[];
+  /** A floor attribute fired somewhere — the rail defaults open. */
+  floorFired: boolean;
+}
+
+/**
+ * Build the attribute-keyed jump-rail (ADR 0032 #11): fired attributes with
+ * their carrying groups in story order — floor pinned first, then first
+ * appearance; DE-EMPHASIZED firings are excluded entirely (a group carries
+ * an attribute only via a loud firing). Attribute-keyed, never group-ranked.
+ */
+export function buildAttributeRail(model: BriefViewModel): AttributeRail {
+  const groupsByAttr = new Map<RiskToken, string[]>();
+  const sourceByAttr = new Map<RiskToken, AttributeSource>();
+  for (const group of model.groups) {
+    for (const chunk of group.chunks) {
+      for (const attr of chunk.riskSurface) {
+        const meta = model.riskMetaByChunk.get(chunk.id)?.get(attr);
+        if (meta?.deEmphasized) continue;
+        const groupIds = groupsByAttr.get(attr) ?? [];
+        if (!groupIds.includes(group.id)) groupIds.push(group.id);
+        groupsByAttr.set(attr, groupIds);
+        if (!sourceByAttr.has(attr)) {
+          sourceByAttr.set(attr, meta?.source ?? "built-in");
+        }
+      }
+    }
+  }
+  const ordered = floorFirst([...groupsByAttr.keys()]);
+  const entries = ordered.map((attr) => ({
+    attr,
+    source: sourceByAttr.get(attr) ?? "built-in",
+    floor: isFloorAttribute(attr),
+    groupIds: groupsByAttr.get(attr) ?? [],
+  }));
+  return {
+    entries,
+    floorFired: entries.some((entry) => entry.floor),
+  };
+}

@@ -12,8 +12,10 @@ import {
 import type { BriefSearch, CompareOptionFlags } from "../../compareState";
 import type { ProgressTotals } from "../../progress";
 import type { BriefTimeline } from "../../timeline";
+import type { RepoConfigContext } from "../../repoConfig";
 import type { Brief } from "../../types";
 import type { BriefViewModel } from "../../viewModel";
+import { RiskChipDisclosure } from "../Badge/RiskChipDisclosure";
 import { TimelineNavigator } from "../TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
 
@@ -40,6 +42,12 @@ export interface OwnDraftHeaderProps {
 
 export interface HeaderProps {
   brief: Brief;
+  /**
+   * Repo-config snapshot for this span (BRIEF-52, ADR 0032 #8): drives the
+   * understated "repo config @ sha" chip with the per-file expansion;
+   * absent/null (or an all-absent surface) renders no chip.
+   */
+  repoConfig?: RepoConfigContext | null | undefined;
   briefId: string;
   timeline: BriefTimeline;
   model: BriefViewModel;
@@ -74,6 +82,7 @@ export interface HeaderProps {
 
 export function Header({
   brief,
+  repoConfig,
   briefId,
   timeline,
   model,
@@ -221,6 +230,7 @@ export function Header({
             )}
           </div>
         </div>
+        {repoConfig != null ? <RepoConfigChip repoConfig={repoConfig} /> : null}
         {ownDraft !== undefined ? <SelfReviewChip /> : null}
         {/* The terminal-action slot: it always holds the state's terminal
             action — Receipt (→ submit) on a reviewer view, Mark ready for
@@ -632,3 +642,80 @@ const PROVIDER_CLASS_LABEL: Record<string, string> = {
   "claude-code": "local CLI",
   codex: "local CLI",
 };
+
+/** Error-class outcomes that flip the provenance chip to its warning state. */
+const REPO_CONFIG_ERROR_OUTCOMES = new Set([
+  "invalid",
+  "over-budget",
+  "fetch-failed",
+]);
+
+/**
+ * The understated repo-config provenance chip (ADR 0032 #8): "repo config @
+ * sha", expandable to the per-file outcome table; warning state on any
+ * error outcome or collision — visible to author AND reviewer (the Receipt
+ * carries the permanent copy). Renders nothing when every file is absent
+ * and nothing collided (no `.mergebrief/` = no chip noise).
+ */
+function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
+  const anyPresent =
+    repoConfig.files.some((file) => file.outcome !== "absent") ||
+    repoConfig.collisions.length > 0;
+  if (!anyPresent) return null;
+  // Warning state also on applied-with-warning files (a dropped de-emphasis
+  // rule, near-cap usage): ADR 0032 #5 — "config errors surface to both
+  // author and reviewer (same chip, warning state)".
+  const anyError =
+    repoConfig.files.some(
+      (file) =>
+        REPO_CONFIG_ERROR_OUTCOMES.has(file.outcome) ||
+        file.warning !== undefined,
+    ) || repoConfig.collisions.length > 0;
+  const appliedSha = repoConfig.files.find(
+    (file) => file.outcome === "applied" && file.blobSha !== null,
+  )?.blobSha;
+  const label = appliedSha
+    ? `repo config @ ${appliedSha.slice(0, 7)}`
+    : "repo config";
+  return (
+    <RiskChipDisclosure
+      detail={
+        <span className={styles["repoConfigTable"]}>
+          {repoConfig.files.map((file) => (
+            <span className={styles["repoConfigRow"]} key={file.path}>
+              <code>{file.path}</code>
+              <span data-outcome={file.outcome}>{file.outcome}</span>
+              {file.blobSha ? <code>@ {file.blobSha.slice(0, 7)}</code> : null}
+              {file.bytesUsed !== undefined &&
+              file.bytesBudget !== undefined ? (
+                <span>
+                  {file.bytesUsed} of {file.bytesBudget} bytes
+                </span>
+              ) : null}
+              {file.detail ? <i>{file.detail}</i> : null}
+              {file.warning ? <i>{file.warning}</i> : null}
+            </span>
+          ))}
+          {repoConfig.collisions.length > 0 ? (
+            <span className={styles["repoConfigRow"]}>
+              <i>
+                built-in wins over custom name
+                {repoConfig.collisions.length === 1 ? "" : "s"}:{" "}
+                {repoConfig.collisions.join(", ")}
+              </i>
+            </span>
+          ) : null}
+        </span>
+      }
+    >
+      <span
+        className={styles["repoConfigChip"]}
+        data-repo-config-chip=""
+        data-state={anyError ? "warning" : "ok"}
+      >
+        {anyError ? "⚠ " : ""}
+        {label}
+      </span>
+    </RiskChipDisclosure>
+  );
+}

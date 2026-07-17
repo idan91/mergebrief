@@ -476,3 +476,34 @@
     transform: none;
   }
 }
+
+@layer components {
+  /* Repo-config provenance chip (BRIEF-52): understated, same register as
+     the generation provenance line; warning state gains the amber accent. */
+  .repoConfigChip {
+    border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
+    border-radius: 999px;
+    font-size: 0.78em;
+    padding: 2px 10px;
+    white-space: nowrap;
+  }
+
+  .repoConfigChip[data-state="warning"] {
+    border-color: color-mix(in srgb, var(--amber) 60%, transparent);
+    color: var(--amber);
+  }
+
+  .repoConfigTable {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 0.85em;
+  }
+
+  .repoConfigRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+  }
+}
