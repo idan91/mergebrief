@@ -78,6 +78,20 @@
       "when": 1784073977112,
       "tag": "0010_audit-action-mark-ready",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784251994684,
+      "tag": "0011_brief-repo-config",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784254004953,
+      "tag": "0012_generation-repo-config",
+      "breakpoints": true
     }
   ]
 }

@@ -342,6 +342,9 @@ importers:
       persistence:
         specifier: workspace:*
         version: link:../persistence
+      repo-config:
+        specifier: workspace:*
+        version: link:../repo-config
       types:
         specifier: workspace:*
         version: link:../types

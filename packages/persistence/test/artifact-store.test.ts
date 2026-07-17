@@ -77,6 +77,43 @@ describe("artifactStore.briefs — idempotent content-addressed write (D6)", () 
     const read = await store.briefs.get(pr.id, "base", "head");
     expect(read?.body).toBe("v2-longer");
   });
+
+  it("round-trips the repo-config provenance column, clearing it when a rewrite omits it", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const store: ArtifactStore = artifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 8, state: PrState.OPEN });
+
+    const snapshot = JSON.stringify({ files: [], collisions: [], policy: null });
+    const withConfig = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+      body: "v1",
+      repoConfig: snapshot,
+    });
+    expect(withConfig.ok).toBe(true);
+    if (!withConfig.ok) throw new Error("unreachable");
+    expect(withConfig.value.repoConfig).toBe(snapshot);
+
+    // A rewrite without repoConfig clears it — the column always reflects the
+    // LATEST generation of the span, never a stale earlier run's snapshot.
+    const without = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+      body: "v2",
+    });
+    expect(without.ok).toBe(true);
+    if (!without.ok) throw new Error("unreachable");
+    expect(without.value.repoConfig).toBeNull();
+  });
 });
 
 describe("artifactStore.deltas / diffSnapshots — same D6 write discipline", () => {

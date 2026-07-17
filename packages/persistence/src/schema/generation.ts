@@ -32,6 +32,13 @@ export const generation = pgTable(
     phase: text("phase").$type<GenerationPhase>(),
     /** Sanitized reason when failed. */
     error: text("error"),
+    /**
+     * Repo-config per-file provenance (ADR 0032 #8): JSON `{files, collisions}`
+     * written right after acquisition — BEFORE generation — so failed and
+     * superseded runs still show `invalid`/`over-budget`/`fetch-failed`
+     * outcomes. The policy snapshot lives on the brief artifact, not here.
+     */
+    repoConfig: text("repo_config"),
     attempts: integer("attempts").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -19,6 +19,7 @@
     "github": "workspace:^",
     "graphile-worker": "^0.16.6",
     "persistence": "workspace:*",
+    "repo-config": "workspace:*",
     "types": "workspace:*",
     "zod": "^3.25.0"
   },

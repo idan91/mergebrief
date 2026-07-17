@@ -50,3 +50,13 @@ export {
   type ValidatedRepoConfig,
   type ValidatedRepoPolicy,
 } from "./validate";
+
+// --- provenance.ts — the brief.repo_config artifact contract ----------------
+export {
+  repoConfigArtifactSchema,
+  repoConfigProvenanceSchema,
+  type FiredCustomAttribute,
+  type RepoConfigArtifact,
+  type RepoConfigArtifactFile,
+  type RepoConfigProvenance,
+} from "./provenance";

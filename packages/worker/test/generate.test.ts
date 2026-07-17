@@ -29,12 +29,28 @@ import { APIConnectionError } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
 import type { Effort, GenerateRequest, Generator } from "generators";
 import type { Result } from "types";
+import {
+  CUSTOM_ATTRIBUTE_NAME_PATTERN,
+  INSTRUCTIONS_INJECTION_BUDGET_BYTES,
+  PARKED_ATTRIBUTE_CANDIDATES as CAT_PARKED,
+  RESERVED_ATTRIBUTE_WORDS as CAT_RESERVED,
+} from "categorizer";
+import {
+  ATTRIBUTE_NAME_PATTERN,
+  INSTRUCTIONS_BUDGET_BYTES,
+  PARKED_ATTRIBUTE_CANDIDATES,
+  RepoConfigPaths,
+  repoConfigArtifactSchema,
+  repoConfigProvenanceSchema,
+  RESERVED_ATTRIBUTE_WORDS,
+} from "repo-config";
 import { createGenerateTask } from "../src/task/generate";
 import type {
   GitHubApiError,
   GitHubPort,
   PullRequestFile,
   PullRequestInfo,
+  RepoFileResult,
 } from "../src/task/github-port";
 
 // ---------------------------------------------------------------------------
@@ -77,11 +93,16 @@ function reviewerIdOf(value: bigint): ReviewerId {
 
 interface StubGenerator extends Generator {
   readonly calls: string[];
+  /** Canned outputs by label — tests may override an entry. */
+  readonly outputs: Record<string, unknown>;
+  /** Every request's prompt surfaces, for injection assertions. */
+  readonly requests: { label: string; system: string; user: string }[];
   failNextWith?: unknown;
 }
 
 function stubGenerator(): StubGenerator {
   const calls: string[] = [];
+  const requests: { label: string; system: string; user: string }[] = [];
   const outputs: Record<string, unknown> = {
     brief: { summary: "stub brief", changeGroups: [], chunks: [], concernView: [] },
     delta: {
@@ -95,6 +116,8 @@ function stubGenerator(): StubGenerator {
   };
   const generator: StubGenerator = {
     calls,
+    outputs,
+    requests,
     async generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>> {
       if (generator.failNextWith !== undefined) {
         const failure = generator.failNextWith;
@@ -102,6 +125,7 @@ function stubGenerator(): StubGenerator {
         throw failure;
       }
       calls.push(req.label);
+      requests.push({ label: req.label, system: req.system, user: req.user });
       const output = outputs[req.label];
       if (output === undefined) throw new Error(`no stub output for ${req.label}`);
       // Parsing through the request's own schema types the return without a
@@ -137,6 +161,12 @@ interface StubGitHub extends GitHubPort {
   deleteCommentError?: GitHubApiError;
   /** Test hook run after a successful post, before it returns (interleaving). */
   onPostEntryComment?: () => Promise<void>;
+  /** Repo-config files by path; missing = absent (404). */
+  repoFiles: Map<string, RepoFileResult>;
+  /** Per-path scripted fetchRepoFile failures. */
+  repoFileErrors: Map<string, GitHubApiError>;
+  /** Every fetchRepoFile path requested, in order. */
+  repoFileCalls: string[];
 }
 
 function ok<T>(value: T): Result<T, GitHubApiError> {
@@ -161,6 +191,9 @@ function stubGitHub(headSha: string): StubGitHub {
     nextHeads: [],
     comments: new Map(),
     commentCalls: [],
+    repoFiles: new Map(),
+    repoFileErrors: new Map(),
+    repoFileCalls: [],
     async forPullRequest() {
       return {
         fetchPullRequest: async () => {
@@ -174,6 +207,14 @@ function stubGitHub(headSha: string): StubGitHub {
         fetchDiff: async () => ok(stub.diff),
         fetchCompareDiff: async (base: string, head: string) =>
           ok(stub.compareDiffs.get(`${base}...${head}`) ?? SMALL_DIFF),
+        fetchRepoFile: async (path: string) => {
+          stub.repoFileCalls.push(path);
+          const scripted = stub.repoFileErrors.get(path);
+          if (scripted !== undefined) {
+            return { ok: false, error: scripted };
+          }
+          return ok(stub.repoFiles.get(path) ?? { kind: "absent" as const });
+        },
         postEntryComment: async (body: string) => {
           if (stub.postEntryCommentError) {
             return { ok: false, error: stub.postEntryCommentError };
@@ -873,5 +914,248 @@ describe("generate task", () => {
     row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
     expect(row?.status).toBe(GenerationStatus.FAILED);
     expect(row?.error).toContain("refused");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Repo-config phase (BRIEF-52, ADR 0032 — plan PR 4).
+// ---------------------------------------------------------------------------
+
+function fileOf(content: string, blobSha: string): RepoFileResult {
+  return { kind: "file", content, blobSha, size: Buffer.byteLength(content, "utf8") };
+}
+
+describe("generate task — repo-config phase", () => {
+  const POLICY_YAML = `version: 1
+attributes:
+  touches-billing:
+    criteria: modifies invoicing code
+    implication: needs finance review
+deEmphasize:
+  - attribute: widens-error-handling
+`;
+  const SETTINGS_YAML = "version: 1\nentryCommentOnDrafts: true\n";
+  const INSTRUCTIONS_MD = "Call the invoicing engine 'the biller'.";
+
+  /** A brief output whose one chunk fires the repo-defined attribute. */
+  const FIRING_BRIEF = {
+    summary: "stub brief",
+    changeGroups: [
+      {
+        id: "g1",
+        title: "billing",
+        summary: "s",
+        dominantCategory: "new-feature",
+        secondaryCategories: [],
+        uncertain: false,
+        uncertainBetween: [],
+      },
+    ],
+    chunks: [
+      {
+        id: "c1",
+        changeGroupId: "g1",
+        file: "a.ts",
+        concern: "implementation",
+        role: "carrier",
+        loc: { added: 1, deleted: 0 },
+        addedRanges: [{ start: 2, end: 2 }],
+        removedRanges: [],
+        riskSurface: ["touches-billing"],
+      },
+    ],
+    concernView: [{ concern: "implementation", added: 1, deleted: 0 }],
+  };
+
+  async function storedRepoConfig(pr: PullRequestRow, headSha: string) {
+    const brief = await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, headSha);
+    expect(brief?.repoConfig).toBeTruthy();
+    const parsed: unknown = JSON.parse(brief?.repoConfig ?? "null");
+    return repoConfigArtifactSchema.parse(parsed);
+  }
+
+  it("fetches the three fixed paths, injects the context, and snapshots applied outcomes + fired attributes", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.outputs["brief"] = FIRING_BRIEF;
+    const github = stubGitHub(HEAD_1);
+    github.repoFiles.set(RepoConfigPaths.INSTRUCTIONS, fileOf(INSTRUCTIONS_MD, "sha-i"));
+    github.repoFiles.set(RepoConfigPaths.SETTINGS, fileOf(SETTINGS_YAML, "sha-s"));
+    github.repoFiles.set(RepoConfigPaths.POLICY, fileOf(POLICY_YAML, "sha-p"));
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    expect(github.repoFileCalls.toSorted()).toEqual(
+      [RepoConfigPaths.INSTRUCTIONS, RepoConfigPaths.SETTINGS, RepoConfigPaths.POLICY].toSorted(),
+    );
+    // The brief request carried the injected context — fenced data + contract —
+    // and its schema ACCEPTED the custom token (the stub parses the canned
+    // output through the request's own schema, so this line having passed IS
+    // the enum-extension proof).
+    const request = generator.requests.find((r) => r.label === "brief");
+    expect(request?.user).toContain('<repo_instructions path=".mergebrief/instructions.md" sha="sha-i">');
+    expect(request?.user).toContain("the biller");
+    expect(request?.user).toContain("- `touches-billing`: modifies invoicing code");
+    expect(request?.system).toContain("## Repo instructions (semi-trusted, bounded)");
+
+    const artifact = await storedRepoConfig(pr, HEAD_1);
+    expect(artifact.files.map((f) => [f.path, f.outcome, f.blobSha])).toEqual([
+      [RepoConfigPaths.INSTRUCTIONS, "applied", "sha-i"],
+      [RepoConfigPaths.SETTINGS, "applied", "sha-s"],
+      [RepoConfigPaths.POLICY, "applied", "sha-p"],
+    ]);
+    expect(artifact.collisions).toEqual([]);
+    expect(artifact.policy?.firedCustomAttributes).toEqual([
+      { name: "touches-billing", criteria: "modifies invoicing code", implication: "needs finance review" },
+    ]);
+    expect(artifact.policy?.deEmphasize).toEqual([{ attribute: "widens-error-handling" }]);
+  });
+
+  it("records absent outcomes and a null policy when no .mergebrief/ exists (prompts untouched)", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    const artifact = await storedRepoConfig(pr, HEAD_1);
+    expect(artifact.files.every((f) => f.outcome === "absent" && f.blobSha === null)).toBe(true);
+    expect(artifact.policy).toBeNull();
+    const request = generator.requests.find((r) => r.label === "brief");
+    expect(request?.user).not.toContain("repo_instructions");
+    expect(request?.system).not.toContain("Repo instructions");
+  });
+
+  it("rejects an invalid settings file whole (invalid outcome) while others apply", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.repoFiles.set(RepoConfigPaths.SETTINGS, fileOf("version: 2\n", "sha-bad"));
+    github.repoFiles.set(RepoConfigPaths.INSTRUCTIONS, fileOf(INSTRUCTIONS_MD, "sha-i"));
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    const artifact = await storedRepoConfig(pr, HEAD_1);
+    const byPath = new Map(artifact.files.map((f) => [f.path, f]));
+    expect(byPath.get(RepoConfigPaths.SETTINGS)?.outcome).toBe("invalid");
+    expect(byPath.get(RepoConfigPaths.SETTINGS)?.blobSha).toBe("sha-bad");
+    expect(byPath.get(RepoConfigPaths.INSTRUCTIONS)?.outcome).toBe("applied");
+    // Job still succeeds — repo-config problems never fail a generation.
+    const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+  });
+
+  it("fail-open on a per-file fetch failure: loud fetch-failed outcome, generation succeeds", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.repoFileErrors.set(RepoConfigPaths.POLICY, {
+      code: "request-failed",
+      status: 502,
+      message: "failed to fetch repo file: GitHub API returned status 502",
+    });
+    github.repoFiles.set(RepoConfigPaths.SETTINGS, fileOf(SETTINGS_YAML, "sha-s"));
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    const artifact = await storedRepoConfig(pr, HEAD_1);
+    const byPath = new Map(artifact.files.map((f) => [f.path, f]));
+    expect(byPath.get(RepoConfigPaths.POLICY)?.outcome).toBe("fetch-failed");
+    expect(byPath.get(RepoConfigPaths.SETTINGS)?.outcome).toBe("applied");
+    const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+  });
+
+  it("maps a pre-decode oversize rejection to an over-budget outcome with fetch-level facts", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.repoFiles.set(RepoConfigPaths.INSTRUCTIONS, {
+      kind: "too-large",
+      blobSha: "sha-big",
+      size: 20_000,
+    });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    const artifact = await storedRepoConfig(pr, HEAD_1);
+    const instructions = artifact.files.find((f) => f.path === RepoConfigPaths.INSTRUCTIONS);
+    expect(instructions?.outcome).toBe("over-budget");
+    expect(instructions?.blobSha).toBe("sha-big");
+    expect(instructions?.bytesUsed).toBe(20_000);
+    expect(instructions?.bytesBudget).toBe(16 * 1024);
+  });
+
+  it("does not re-fetch repo config on the skip-if-stored path (no double fetch, snapshot preserved)", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.outputs["brief"] = FIRING_BRIEF;
+    const github = stubGitHub(HEAD_1);
+    github.repoFiles.set(RepoConfigPaths.POLICY, fileOf(POLICY_YAML, "sha-p"));
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+    await task(payload);
+    const fetchesAfterFirst = github.repoFileCalls.length;
+    const before = await storedRepoConfig(pr, HEAD_1);
+
+    await task(payload); // second drain: brief already stored → skip branch
+
+    expect(github.repoFileCalls.length).toBe(fetchesAfterFirst);
+    expect(await storedRepoConfig(pr, HEAD_1)).toEqual(before);
+  });
+});
+
+describe("vocabulary lockstep (categorizer ↔ repo-config)", () => {
+  it("parked/reserved lists, name pattern, and instructions budget agree across packages", () => {
+    expect([...CAT_PARKED]).toEqual([...PARKED_ATTRIBUTE_CANDIDATES]);
+    expect([...CAT_RESERVED]).toEqual([...RESERVED_ATTRIBUTE_WORDS]);
+    expect(CUSTOM_ATTRIBUTE_NAME_PATTERN.source).toBe(ATTRIBUTE_NAME_PATTERN.source);
+    expect(INSTRUCTIONS_INJECTION_BUDGET_BYTES).toBe(INSTRUCTIONS_BUDGET_BYTES);
+  });
+});
+
+describe("generate task — repo-config provenance on the generation record", () => {
+  it("records per-file outcomes on the projection row BEFORE generation, surviving a failed run", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    // Deterministic (permanent) generation failure AFTER acquisition.
+    generator.failNextWith = new Error("model refused");
+    const github = stubGitHub(HEAD_1);
+    github.repoFiles.set(RepoConfigPaths.SETTINGS, {
+      kind: "file",
+      content: "version: 2\n",
+      blobSha: "sha-bad",
+      size: 11,
+    });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatus.FAILED);
+    const provenance = repoConfigProvenanceSchema.parse(JSON.parse(row?.repoConfig ?? "null"));
+    const byPath = new Map(provenance.files.map((f) => [f.path, f]));
+    expect(byPath.get(RepoConfigPaths.SETTINGS)?.outcome).toBe("invalid");
+    expect(byPath.get(RepoConfigPaths.INSTRUCTIONS)?.outcome).toBe("absent");
+    // No brief artifact exists — the generation record is the only witness.
+    expect(await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1)).toBeUndefined();
+  });
+
+  it("also records outcomes on the successful path (both rows carry the table)", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
+    const provenance = repoConfigProvenanceSchema.parse(JSON.parse(row?.repoConfig ?? "null"));
+    expect(provenance.files.every((f) => f.outcome === "absent")).toBe(true);
+    expect(provenance.collisions).toEqual([]);
   });
 });

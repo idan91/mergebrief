@@ -273,6 +273,10 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
               attempts: sql`${generation.attempts} + 1`,
               phase: null,
               error: null,
+              // A fresh attempt re-acquires repo config; stale provenance
+              // from a prior drain must not survive the re-queue (same
+              // reset as generationProjection.upsertQueued).
+              repoConfig: null,
               updatedAt: new Date(),
             },
           })

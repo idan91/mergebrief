@@ -1,0 +1,1 @@
+ALTER TABLE "generation" ADD COLUMN "repo_config" text;

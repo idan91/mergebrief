@@ -163,6 +163,12 @@ export interface BriefWriteInput extends Provenance {
   readonly headIndex: number;
   readonly commitCount: number;
   readonly body: string;
+  /**
+   * Repo-config provenance + policy snapshot JSON (ADR 0032 #8/#11) — the
+   * worker serializes it; this layer stores it opaquely like `body`. Omit
+   * for generations that never ran the repo-config phase.
+   */
+  readonly repoConfig?: string;
 }
 
 export interface DeltaWriteInput extends Provenance {
@@ -357,6 +363,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
             effort: input.effort,
             body: input.body,
             byteSize: byteSize(input.body),
+            repoConfig: input.repoConfig ?? null,
           })
           .onConflictDoUpdate({
             target: [brief.installationId, brief.pullRequestId, brief.baseSha, brief.headSha],
@@ -368,6 +375,7 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
               effort: input.effort,
               body: input.body,
               byteSize: byteSize(input.body),
+              repoConfig: input.repoConfig ?? null,
             },
           })
           .returning();

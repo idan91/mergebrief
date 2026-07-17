@@ -75,6 +75,11 @@ import {
   type PullRequestSource,
 } from "./github-port";
 import { parseGeneratePayload, type ParsedGeneratePayload } from "./payload";
+import {
+  acquireRepoConfig,
+  buildRepoConfigArtifact,
+  buildRepoConfigProvenance,
+} from "./repo-config";
 
 export type Logger = (message: string) => void;
 
@@ -434,6 +439,14 @@ async function runGeneration(
   if (existing === undefined) {
     const headIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
     await projection.markRunning(target, GenerationPhase.GENERATING);
+    // Repo-config phase (ADR 0032 #4): three default-branch reads, fresh per
+    // generation, validated pure-side. NEVER fails the job — a fetch failure
+    // degrades to no-config with a loud `fetch-failed` outcome on the record.
+    const repoConfig = await acquireRepoConfig(source, log);
+    // Per-file outcomes land on the GENERATION record NOW — before the model
+    // call — so a failed or superseded run still shows its config outcomes
+    // (plan PR 4; codex round 2). The policy snapshot goes on the brief.
+    await projection.recordRepoConfig(target, buildRepoConfigProvenance(repoConfig));
     // Post the "generating" Entry comment before the (minutes-long) model
     // call: the deep link already renders the diff-first wait UX, so the
     // thread learns a Brief is coming while it is still being produced.
@@ -446,6 +459,7 @@ async function runGeneration(
         { base: info.baseSha, head: headSha, commitCount: info.commitCount },
         generator,
         log,
+        repoConfig.repoContext,
       ),
     );
     await projection.markRunning(target, GenerationPhase.WRITING);
@@ -457,6 +471,7 @@ async function runGeneration(
       commitCount: info.commitCount,
       ...provenanceOf(brief.generation),
       body: JSON.stringify(brief),
+      repoConfig: buildRepoConfigArtifact(repoConfig, brief.chunks),
     });
     if (!written.ok) {
       throw new PermanentJobError(written.error.message);

@@ -7,6 +7,7 @@ import {
   forTenant,
   generationProjection,
   GenerationErrorCode,
+  ingestRoutines,
   sanitizeGenerationError,
   type TenantContext,
 } from "../src/lib";
@@ -20,6 +21,7 @@ import {
   type InstallationId,
   type RepoId,
 } from "../src/types";
+import { createPgliteHarness } from "../src/testing";
 import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
@@ -273,5 +275,42 @@ describe("generationProjection — D10 transitions", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
     expect(result.error.code).toBe(GenerationErrorCode.NOT_FOUND);
+  });
+});
+
+describe("repo-config provenance on the generation row (ADR 0032 #8)", () => {
+  it("recordRepoConfig round-trips; a re-queue through ingest clears it", async () => {
+    // PGlite harness: the ingest enqueue needs the graphile_worker stub.
+    const harness = await createPgliteHarness();
+    const handle = harness.handle;
+    const ctx: TenantContext = { installationId: brandWith(isInstallationId, 4200n) };
+    const ingest = ingestRoutines(handle, ctx);
+    const first = await ingest.triggerGeneration({
+      pullRequest: { repoId: brandWith(isRepoId, 900n), prNumber: 3, state: PrState.OPEN },
+      headSha: "h1",
+      debounceSeconds: 0,
+    });
+    if (!first.ok) throw new Error(first.error.message);
+    const projection = generationProjection(handle, ctx);
+    const target = {
+      pullRequestId: first.value.pullRequest.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "h1",
+      baselineSha: null,
+    } as const;
+
+    const stamped = await projection.recordRepoConfig(target, '{"files":[],"collisions":[]}');
+    expect(stamped.ok).toBe(true);
+    expect((await projection.get(target))?.repoConfig).toBe('{"files":[],"collisions":[]}');
+
+    // Re-queue via the PRODUCTION ingest path (not the projection helper):
+    // stale provenance must not survive into the fresh attempt.
+    const second = await ingest.triggerGeneration({
+      pullRequest: { repoId: brandWith(isRepoId, 900n), prNumber: 3, state: PrState.OPEN },
+      headSha: "h1",
+      debounceSeconds: 0,
+    });
+    if (!second.ok) throw new Error(second.error.message);
+    expect((await projection.get(target))?.repoConfig).toBeNull();
   });
 });

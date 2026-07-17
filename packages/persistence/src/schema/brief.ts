@@ -26,6 +26,14 @@ export const brief = pgTable(
     provider: text("provider").notNull(),
     model: text("model").notNull(),
     effort: text("effort").notNull(),
+    /**
+     * Repo-config provenance + generation-time policy snapshot (ADR 0032 #8/
+     * #11): JSON — per-file `path + blob SHA + outcome` table, collision
+     * disclosures, and the fired custom-attribute definitions + de-emphasis
+     * rules in effect (the FE renders display weight from THIS snapshot,
+     * never live policy). Nullable: rows predating BRIEF-52.
+     */
+    repoConfig: text("repo_config"),
     ...artifactColumns(),
   },
   (table) => [

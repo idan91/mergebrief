@@ -134,6 +134,16 @@ export interface GenerationProjection {
     target: GenerationTarget,
     error: string,
   ): Promise<Result<GenerationRow, GenerationError>>;
+  /**
+   * Attach the repo-config per-file outcome table (ADR 0032 #8) — written
+   * right after acquisition, BEFORE generation, so failed and superseded
+   * runs still carry `invalid`/`over-budget`/`fetch-failed` outcomes. A
+   * re-queue clears it (the fresh attempt re-acquires).
+   */
+  recordRepoConfig(
+    target: GenerationTarget,
+    repoConfig: string,
+  ): Promise<Result<GenerationRow, GenerationError>>;
   /** Tenant-scoped read of the projection row; absence is `undefined`. */
   get(target: GenerationTarget): Promise<GenerationRow | undefined>;
   /**
@@ -247,6 +257,7 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
               attempts: sql`${generation.attempts} + 1`,
               phase: null,
               error: null,
+              repoConfig: null,
               updatedAt: new Date(),
             },
           })
@@ -280,6 +291,10 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
         status: GenerationStatus.FAILED,
         error: sanitizeGenerationError(error),
       });
+    },
+
+    async recordRepoConfig(target, repoConfig) {
+      return transition(target, { repoConfig });
     },
 
     async get(target) {
