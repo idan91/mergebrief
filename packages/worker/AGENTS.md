@@ -27,7 +27,11 @@ src/
     payload.ts          GenerateJobPayload boundary (string ids → branded)
     entry-comment.ts    Entry-comment pure builders (delete+repost lives
                         in generate.ts)
-    github-port.ts      the GitHub seam: four PR reads behind a testable port
+    github-port.ts      the GitHub seam: PR reads + repo-file read behind a
+                        testable port
+    repo-config.ts      the `.mergebrief/` phase (ADR 0032): fetch 3 default-
+                        branch paths → validateRepoConfig → RepoContext +
+                        provenance/artifact serialization. NEVER fails the job
 test/                 generate.test.ts = integration via persistence/testing
 ```
 
@@ -53,6 +57,16 @@ test/                 generate.test.ts = integration via persistence/testing
   (`MERGEBRIEF_CONFIG` → `mergebrief.config.yaml`, else zero-config
   defaults); BYOK keys resolve by env-var NAME (`generator.apiKeyEnv`) —
   never from DB or repo config (ADR 0013/BRIEF-11).
+- **Repo-config is fail-open (ADR 0032 #4/#5):** nothing in the
+  `.mergebrief/` phase may fail a generation — fetch failures become loud
+  `fetch-failed` outcomes, invalid files are rejected whole, and an
+  unexpected crash degrades to no-config. Per-file outcomes are recorded on
+  the generation row BEFORE the model call; the policy snapshot rides the
+  brief artifact.
+- **Entry-comment draft gate (ADR 0020 #4 as amended):** the Entry comment
+  stays off draft PRs unless `.mergebrief/settings.yaml` opts in; the
+  delete-only sweep runs ONLY on known-off settings (a settings fetch
+  failure suppresses posting but never deletes a live comment).
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema
   (`startWorker`); the `graphile_worker` schema stays graphile-owned.
 

@@ -1,7 +1,7 @@
 # code-review — repo-wide agent rules
 
 Package-specific conventions and invariants live in each package's
-`AGENTS.md` (persistence, github, api, apps/web). Rules here apply to the
+`AGENTS.md` (persistence, github, api, repo-config, apps/web). Rules here apply to the
 whole workspace.
 
 - **Extensionless relative imports everywhere** (`from "./tenant"`, never

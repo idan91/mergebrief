@@ -39,6 +39,8 @@ src/
     conversation.ts     GraphQL conversation primitive (BRIEF-25)
     mark-ready.ts       markPullRequestReadyForReview mutation (BRIEF-43)
     inline-comment.ts   standalone inline review-comment write (BRIEF-43 PR 4)
+    repo-file.ts        one-file contents-API read for `.mergebrief/` (BRIEF-52;
+                        ref unset = default branch — the ADR 0032 #3 trust rule)
 test/                 per-module suites; fixtures/ = sanitized webhook payloads
 ```
 

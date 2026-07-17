@@ -66,3 +66,19 @@ Useful probes:
 Tenant-scoped deletes only (the dev DB may hold real webhook-loop data), then
 `docker compose stop postgres` if it was down before. Blanket `DELETE FROM` is
 hook-blocked.
+
+## Seed-script gotchas (BRIEF-52 pass, 2026-07-17)
+
+- `createDb(databaseUrl)` and `migrateApp(databaseUrl)` take the URL STRING,
+  not an options object; `encryptToken(provider, keyRef, plaintext)` — provider
+  first.
+- Sessions have no high-level helper: `sessions.create` wants the sha256-hex
+  hash of a random token (cookie value = the raw token), reviewer id, BOTH
+  ciphertext fields, `keyRef`, `expiresAt`.
+- `SESSION_KEY_V1` must be base64-encoded 32 bytes (`openssl rand -base64 32`)
+  — hex is "wrong-length".
+- Use a REAL repo id the `gh` token can read (e.g. `gh api repos/<o>/<r> --jq
+  .id`): the authz gate resolves the id against GitHub, so a made-up id 404s
+  every read.
+- Browser pass: seed the interesting artifact on the LATEST head — `?head=`
+  deep-links degrade to latest when meta returns no revisions[].
