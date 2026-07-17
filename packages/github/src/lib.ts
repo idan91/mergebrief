@@ -80,6 +80,14 @@ export { postEntryComment, deleteComment } from "./operations/comments";
 export type { PostEntryCommentInput, DeleteCommentInput } from "./operations/comments";
 export { fetchRepositoryById, listInstallationRepositoriesForUser } from "./operations/repo";
 export type { RepositoryInfo } from "./operations/repo";
+export { getRepoFile, RepoFileKind } from "./operations/repo-file";
+export type {
+  GetRepoFileInput,
+  RepoFileAbsent,
+  RepoFileContent,
+  RepoFileResult,
+  RepoFileTooLarge,
+} from "./operations/repo-file";
 export {
   fetchPullRequest,
   fetchPullRequestFiles,
