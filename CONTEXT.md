@@ -201,6 +201,22 @@ _Avoid_: AI approval, double approval, sign-off (when referring to the tool)
 A reviewer finalizing their review on GitHub (the **Approval** plus any **Comments**). The only event that advances the reviewer's **Checkpoint**, freezes their **Dispositions** into the **Receipt**, and produces the static **Review Summary** — mere viewing never does.
 _Avoid_: send, post, finish (informal)
 
+**Repo instructions**:
+The `.mergebrief/instructions.md` file (ADR 0032) — repo-committed prose guidance to generation, read from the default branch only, honored strictly within the enumerated instruction classes (grouping boundaries, glossary/terminology, noise paths, reading conventions, summary phrasing). Semi-trusted: prose shapes presentation and comprehension; only validated `policy.yaml` creates facts — instructions can never mint a risk attribute, change a vocabulary, or alter the schema.
+_Avoid_: repo prompt, custom prompt, system prompt (it is data, never system-level)
+
+**De-emphasis**:
+Display-weight tuning from `.mergebrief/policy.yaml` (ADR 0032 #11): a non-floor risk attribute renders quiet (hue-shifted, excluded from the jump-rail, labeled "de-emphasized by repo policy") — detection always runs and every attribute still lands in the artifact and Receipt. Never suppression; applied from the generation-time policy snapshot stored with the artifact.
+_Avoid_: hide, suppress, mute (nothing is removed)
+
+**Floor**:
+The three risk attributes that can never be de-emphasized — `touches-auth`, `removes-validation`, `relaxes-permissions` (declared in `docs/mvp/risk-surface.md`). A de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted: the combination is the signal.
+_Avoid_: severity tier, critical attributes (the floor is a display guarantee, not a score)
+
+**Jump-rail**:
+The attribute-keyed navigation row beside the group TOC (ADR 0032 #11): fired attribute names with carrying-group counts; clicking cycles through the carrying groups in story order. Attribute-keyed, never group-ranked — a "high-risk groups" rail would be the banned ordering verdict rebuilt as navigation. Floor attributes pin first; de-emphasized firings are excluded; collapsed unless a floor attribute fired.
+_Avoid_: risk ranking, hotspot list
+
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.

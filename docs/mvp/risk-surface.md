@@ -8,6 +8,8 @@ This file is the source of truth for Phase 1 hand-labeling. Per-PR briefs refere
 
 **Status:** initial starter set. Expand opportunistically as labeling hits gaps.
 
+**Floor attributes (ADR 0032 #11).** Three attributes form the de-emphasis **floor**: `touches-auth`, `removes-validation`, `relaxes-permissions` — marked **Floor: yes** below. A repo's `.mergebrief/policy.yaml` can de-emphasize (quiet, never suppress) any non-floor attribute's display; floor attributes cannot even be de-emphasized, and a de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted (the combination is the signal).
+
 ---
 
 ## Bucket 1 — About the CODE
@@ -41,6 +43,8 @@ The chunk has high branching factor (deep nesting, multiple conditions per line,
 Properties of what this specific diff does (independent of where it sits in the codebase).
 
 ### `touches-auth`
+**Floor: yes** — cannot be de-emphasized by repo policy (ADR 0032 #11).
+
 The diff modifies authentication, authorization, session, or identity code.
 - **Detect:** imports/calls into auth modules (`@auth/*`, `passport`, `next-auth`, `clerk`, `withAuth`, JWT libraries), session middleware, identity-token handling.
 - **Playbook implication:** auth changes invalidate prior security assumptions. Reviewer must verify the new code doesn't widen access, leak tokens, or skip checks under any input.
@@ -51,6 +55,8 @@ The diff modifies code that writes to persistent state — DB writes, file write
 - **Playbook implication:** state mutations affect callers/observers downstream. Reviewer must verify ordering, idempotency, concurrency, and rollback semantics.
 
 ### `removes-validation`
+**Floor: yes** — cannot be de-emphasized by repo policy (ADR 0032 #11).
+
 The diff weakens a check, guard, type narrowing, schema validator, or assertion.
 - **Detect:** lines deleted that contained `if (!...)`, `throw`, `assert`, `zod`/`yup` schema constraints, type guards, range checks.
   Mechanically gated (warn-and-drop): the validator drops the attribute when the chunk deletes
@@ -60,6 +66,8 @@ The diff weakens a check, guard, type narrowing, schema validator, or assertion.
 - **Playbook implication:** weakening a check requires explicit justification. Reviewer must confirm the input space that was previously rejected is now safe to accept (or is rejected elsewhere).
 
 ### `relaxes-permissions`
+**Floor: yes** — cannot be de-emphasized by repo policy (ADR 0032 #11).
+
 The diff broadens an access check, role check, scope, or permission boundary.
 - **Detect:** changes from `admin-only` → `member-or-admin`, role list additions, scope additions, ACL widening.
 - **Playbook implication:** every previously-rejected actor is now potentially admitted. Reviewer must enumerate who newly has access and confirm intent.

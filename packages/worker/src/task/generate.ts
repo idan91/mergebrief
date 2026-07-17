@@ -75,6 +75,7 @@ import {
   type PullRequestSource,
 } from "./github-port";
 import { parseGeneratePayload, type ParsedGeneratePayload } from "./payload";
+import { RepoConfigOutcome, RepoConfigPaths } from "repo-config";
 import {
   acquireRepoConfig,
   buildRepoConfigArtifact,
@@ -436,22 +437,60 @@ async function runGeneration(
 
   let briefRef: { id: BriefRowId; headIndex: number };
   let generatedBrief: Brief | undefined;
+  // Repo-config phase (ADR 0032 #4): three default-branch reads, fresh per
+  // generation, validated pure-side. NEVER fails the job — a fetch failure
+  // degrades to no-config with a loud `fetch-failed` outcome on the record.
+  // ALSO acquired on a skip drain of a DRAFT PR: the entry gate below needs
+  // `settings.entryCommentOnDrafts`, and fail-open's undefined settings
+  // correctly default the gate CLOSED (no entry churn on drafts).
+  const repoConfig =
+    existing === undefined || info.draft
+      ? await acquireRepoConfig(source, log)
+      : undefined;
+  if (repoConfig !== undefined && existing === undefined) {
+    // Per-file outcomes land on the GENERATION record NOW — before the model
+    // call — so a failed or superseded run still shows its config outcomes
+    // (plan PR 4; codex round 2). GENERATION runs only: a draft SKIP drain
+    // acquires config for the entry gate, but recording it would overwrite
+    // the record with config that never shaped the stored brief (Fable r1).
+    await projection.recordRepoConfig(target, buildRepoConfigProvenance(repoConfig));
+  }
+  // Entry-comment draft gate (ADR 0020 #4 as amended / ADR 0032 #13): the
+  // branded Entry comment stays OFF draft PRs unless the repo opts in via
+  // `.mergebrief/settings.yaml` `entryCommentOnDrafts: true`. Generation
+  // itself is untouched — this gates the COMMENT only. The comment then
+  // posts when `ready_for_review` triggers the next drain (draft=false →
+  // the skip branch's ready flip posts it).
+  const entryCommentAllowed =
+    !info.draft || repoConfig?.settings?.entryCommentOnDrafts === true;
+  if (!entryCommentAllowed) {
+    log("generate: entry comment suppressed — draft PR without entryCommentOnDrafts");
+    // Suppression means OFF, not "leave whatever is there": a comment posted
+    // before the PR converted to draft (possibly a stale "Generating…" from
+    // a superseded run) must not linger through the draft phase (Fable r1).
+    // BUT the sweep is destructive, so it only runs on KNOWN-off settings —
+    // a settings fetch failure closes the POSTING gate (safe) without
+    // deleting a possibly-legitimate opt-in comment (Fable r2).
+    const settingsUnknown =
+      repoConfig?.files.some(
+        (file) =>
+          file.path === RepoConfigPaths.SETTINGS &&
+          file.outcome === RepoConfigOutcome.FETCH_FAILED,
+      ) ?? false;
+    if (!settingsUnknown) {
+      await removeEntryComment();
+    }
+  }
   if (existing === undefined) {
     const headIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
     await projection.markRunning(target, GenerationPhase.GENERATING);
-    // Repo-config phase (ADR 0032 #4): three default-branch reads, fresh per
-    // generation, validated pure-side. NEVER fails the job — a fetch failure
-    // degrades to no-config with a loud `fetch-failed` outcome on the record.
-    const repoConfig = await acquireRepoConfig(source, log);
-    // Per-file outcomes land on the GENERATION record NOW — before the model
-    // call — so a failed or superseded run still shows its config outcomes
-    // (plan PR 4; codex round 2). The policy snapshot goes on the brief.
-    await projection.recordRepoConfig(target, buildRepoConfigProvenance(repoConfig));
     // Post the "generating" Entry comment before the (minutes-long) model
     // call: the deep link already renders the diff-first wait UX, so the
     // thread learns a Brief is coming while it is still being produced.
     // Skip-branch reruns never reach here — no generating churn for them.
-    await refreshEntryComment(entryCommentGeneratingBody(deepLink()));
+    if (entryCommentAllowed) {
+      await refreshEntryComment(entryCommentGeneratingBody(deepLink()));
+    }
     const brief = await runGenerator(() =>
       categorize(
         { locator, meta, diff, links },
@@ -459,7 +498,7 @@ async function runGeneration(
         { base: info.baseSha, head: headSha, commitCount: info.commitCount },
         generator,
         log,
-        repoConfig.repoContext,
+        repoConfig?.repoContext,
       ),
     );
     await projection.markRunning(target, GenerationPhase.WRITING);
@@ -471,7 +510,9 @@ async function runGeneration(
       commitCount: info.commitCount,
       ...provenanceOf(brief.generation),
       body: JSON.stringify(brief),
-      repoConfig: buildRepoConfigArtifact(repoConfig, brief.chunks),
+      ...(repoConfig === undefined
+        ? {}
+        : { repoConfig: buildRepoConfigArtifact(repoConfig, brief.chunks) }),
     });
     if (!written.ok) {
       throw new PermanentJobError(written.error.message);
@@ -513,7 +554,9 @@ async function runGeneration(
   // work. Supersession gate first: a superseded run must post nothing (the
   // superseding head's own job will post for the newer revision).
   await watch.assertCurrent();
-  await refreshEntryComment(entryCommentBody(deepLink()));
+  if (entryCommentAllowed) {
+    await refreshEntryComment(entryCommentBody(deepLink()));
+  }
 
   // ---- Marks + revision narrative vs the previous briefed head ------------
   // The prevHead...head span diff is fetched ONCE and reused by the delta
@@ -589,6 +632,27 @@ async function runGeneration(
       baseSha: info.baseSha,
       headSha,
     };
+  }
+
+  /**
+   * Delete-only sweep for the suppressed state (BRIEF-58): remove the live
+   * Entry comment (404-tolerant) and clear the stored id. Failures never
+   * fail the job — the next drain retries naturally.
+   */
+  async function removeEntryComment(): Promise<void> {
+    if (liveEntryCommentId === null) {
+      return;
+    }
+    const deleted = await source.deleteComment(liveEntryCommentId);
+    if (!deleted.ok) {
+      log(`generate: stale entry comment delete failed (job unaffected) — ${deleted.error.message}`);
+      return;
+    }
+    liveEntryCommentId = null;
+    const cleared = await repo.pullRequests.setEntryComment(pullRequestId, null);
+    if (!cleared.ok) {
+      log(`generate: entry comment id not cleared (job unaffected) — ${cleared.error.message}`);
+    }
   }
 
   /**

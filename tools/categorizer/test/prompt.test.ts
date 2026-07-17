@@ -91,3 +91,30 @@ describe("repo-context prompt sections (ADR 0032 #10/#11/#12)", () => {
     expect(buildDeltaSystemPrompt()).not.toContain("repo_custom_attributes");
   });
 });
+
+describe("authoring docs stay lockstep with REPO_INSTRUCTION_CLASSES (ADR 0032 #10)", () => {
+  it("every class line appears verbatim in docs/repo-config/authoring.md", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const doc = await readFile(
+      new URL("../../../docs/repo-config/authoring.md", import.meta.url),
+      "utf8",
+    );
+    for (const line of [
+      ...REPO_INSTRUCTION_CLASSES.MAY_FOLLOW,
+      ...REPO_INSTRUCTION_CLASSES.MUST_IGNORE,
+    ]) {
+      expect(doc, `missing class line: ${line}`).toContain(`- ${line}`);
+    }
+  });
+
+  it("the template's class list is verbatim too (the file authors actually copy)", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const doc = await readFile(
+      new URL("../../../docs/repo-config/instructions-template.md", import.meta.url),
+      "utf8",
+    );
+    for (const line of REPO_INSTRUCTION_CLASSES.MAY_FOLLOW) {
+      expect(doc, `missing class line: ${line}`).toContain(`- ${line}`);
+    }
+  });
+});

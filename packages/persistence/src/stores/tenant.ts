@@ -251,7 +251,8 @@ export interface PullRequestRepository {
    */
   setEntryComment(
     pullRequestId: PullRequestRowId,
-    entryCommentId: bigint,
+    /** `null` clears the stored id (entry comment deleted, BRIEF-58 gate). */
+    entryCommentId: bigint | null,
   ): Promise<Result<PullRequestRow, RepositoryError>>;
   /**
    * Flip the local `draft` mirror after a mark-ready mutation (BRIEF-43). A

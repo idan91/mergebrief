@@ -92,6 +92,12 @@ backends attractive — so the deployed worker stays on API backends.
 Full config surface, per-provider notes, and the boundary reasoning:
 [`docs/self-host/generators.md`](./docs/self-host/generators.md).
 
+**Repos can shape their own briefs** by committing a `.mergebrief/`
+directory — custom risk attributes and display tuning (`policy.yaml`),
+prose guidance to generation (`instructions.md`), and workflow settings
+(`settings.yaml`), all read from the default branch with full provenance on
+every brief: [`docs/self-host/repo-config.md`](./docs/self-host/repo-config.md).
+
 ## The CLI (humans + agents)
 
 The same review loop, scriptable: **`mergebrief`** ([packages/cli](packages/cli/README.md))

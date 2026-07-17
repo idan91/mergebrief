@@ -1159,3 +1159,179 @@ describe("generate task — repo-config provenance on the generation record", ()
     expect(provenance.collisions).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Entry-comment draft gate (BRIEF-58, ADR 0020 #4 as amended / ADR 0032 #13).
+// ---------------------------------------------------------------------------
+
+describe("generate task — entry-comment draft gate", () => {
+  const OPT_IN_SETTINGS = "version: 1\nentryCommentOnDrafts: true\n";
+
+  it("suppresses BOTH entry comments on a draft PR without settings; generation itself runs", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, draft: true };
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    expect(github.commentCalls).toEqual([]);
+    expect(github.comments.size).toBe(0);
+    const brief = await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1);
+    expect(brief).toBeDefined();
+    const row = await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1));
+    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+  });
+
+  it("posts entry comments on a draft PR when the repo opts in via settings.yaml", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, draft: true };
+    github.repoFiles.set(
+      RepoConfigPaths.SETTINGS,
+      { kind: "file", content: OPT_IN_SETTINGS, blobSha: "sha-s", size: OPT_IN_SETTINGS.length },
+    );
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    // generating + ready = two posts (one delete in between).
+    expect(github.commentCalls.filter((c) => c.startsWith("post:"))).toHaveLength(2);
+    expect(github.comments.size).toBe(1);
+  });
+
+  it("ready_for_review drain posts the entry for a previously suppressed draft (skip path)", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, draft: true };
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+    await task(payload); // draft drain: brief stored, no comments
+    expect(github.comments.size).toBe(0);
+
+    // ready_for_review: same head, draft flips false, brief already stored.
+    github.info = { ...github.info, draft: false };
+    const second = await trigger(HEAD_1);
+    await task(second.payload);
+
+    expect(github.comments.size).toBe(1);
+    const [body] = [...github.comments.values()];
+    expect(body).toBeTruthy();
+  });
+
+  it("a draft SKIP drain stays silent without opt-in, posts with opt-in (settings fetched lazily)", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, draft: true };
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+    await task(payload); // fresh draft drain — silent
+    const fetchesAfterFirst = github.repoFileCalls.length;
+
+    // Re-drain (skip path) while STILL a draft: still silent, and settings
+    // were (re)acquired for the gate.
+    const again = await trigger(HEAD_1);
+    await task(again.payload);
+    expect(github.comments.size).toBe(0);
+    expect(github.repoFileCalls.length).toBeGreaterThan(fetchesAfterFirst);
+
+    // Opt in and re-drain (skip path): the ready-flip refresh now posts.
+    github.repoFiles.set(
+      RepoConfigPaths.SETTINGS,
+      { kind: "file", content: OPT_IN_SETTINGS, blobSha: "sha-s", size: OPT_IN_SETTINGS.length },
+    );
+    const third = await trigger(HEAD_1);
+    await task(third.payload);
+    expect(github.comments.size).toBe(1);
+  });
+
+  it("draft + settings FETCH FAILURE keeps the gate CLOSED (fail-open closes, never opens)", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, draft: true };
+    github.repoFileErrors.set(RepoConfigPaths.SETTINGS, {
+      code: "request-failed",
+      status: 502,
+      message: "failed to fetch repo file: GitHub API returned status 502",
+    });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    await task(payload);
+
+    expect(github.comments.size).toBe(0);
+    const row = await generationProjection(harness.handle, ctx).get(
+      target((await forTenant(harness.handle, ctx).pullRequests.getByNumber(repoIdOf(7n), 7))!, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+  });
+
+  it("converting to draft SWEEPS the lingering entry comment (suppression = off, not leave-as-is)", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+    await task(payload); // non-draft: entry comment live
+    expect(github.comments.size).toBe(1);
+
+    // Convert to draft, push a new head: fresh generation, gate closed —
+    // the stale comment (deep-linking the OLD head) must be deleted.
+    github.info = { ...github.info, draft: true, headSha: HEAD_2 };
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+
+    expect(github.comments.size).toBe(0);
+    const brief2 = await artifactStore(harness.handle, ctx).briefs.get(
+      second.pr.id,
+      BASE,
+      HEAD_2,
+    );
+    expect(brief2).toBeDefined();
+  });
+
+  it("a settings FETCH FAILURE never sweeps a live comment (destructive act needs KNOWN-off settings)", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    github.info = { ...github.info, draft: true };
+    github.repoFiles.set(RepoConfigPaths.SETTINGS, {
+      kind: "file",
+      content: OPT_IN_SETTINGS,
+      blobSha: "sha-s",
+      size: OPT_IN_SETTINGS.length,
+    });
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+    await task(payload); // opt-in draft: comment live
+    expect(github.comments.size).toBe(1);
+
+    // Next drain hits a 502 on settings: posting gate closes (nothing new
+    // posts) but the healthy opt-in comment SURVIVES.
+    github.repoFileErrors.set(RepoConfigPaths.SETTINGS, {
+      code: "request-failed",
+      status: 502,
+      message: "failed to fetch repo file: GitHub API returned status 502",
+    });
+    const postsBefore = github.commentCalls.filter((c) => c.startsWith("post:")).length;
+    const again = await trigger(HEAD_1);
+    await task(again.payload);
+
+    expect(github.comments.size).toBe(1);
+    expect(github.commentCalls.filter((c) => c.startsWith("post:")).length).toBe(postsBefore);
+  });
+
+  it("non-draft PRs are untouched: comments post exactly as before, no extra config fetch on skip", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+    await task(payload);
+    const fetchesAfterFirst = github.repoFileCalls.length;
+    expect(github.comments.size).toBe(1);
+
+    const again = await trigger(HEAD_1);
+    await task(again.payload); // skip drain, non-draft: no config fetch
+    expect(github.repoFileCalls.length).toBe(fetchesAfterFirst);
+  });
+});
