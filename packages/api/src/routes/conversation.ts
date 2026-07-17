@@ -212,7 +212,7 @@ export function conversationRoutes(deps: ConversationRouteDeps): ConversationRou
       }
       return errorJson(c, "upstream error", 502);
     }
-    const body = JSON.stringify(fetched.value);
+    const body = JSON.stringify(withoutEntryComment(fetched.value, pr.entryCommentId));
     cache.set(key, body, now + CONVERSATION_CACHE_TTL_MS, now);
     return conversationJson(c, body);
   });
@@ -359,6 +359,29 @@ export function conversationRoutes(deps: ConversationRouteDeps): ConversationRou
     evictConversation(installationId, repoId, prNumber) {
       cache.delete(cacheKey(installationId, repoId, prNumber));
     },
+  };
+}
+
+/**
+ * Drop OUR Entry comment from the PR-level comments (BRIEF-57): it is the
+ * product's front door on GitHub, not conversation — inside the app it would
+ * render as a bot comment linking to the page the viewer is already on.
+ * Filtered by the EXACT stored id (`pull_request.entry_comment_id`, rotated
+ * on every delete+repost) — never by author or body shape, so no other
+ * bot's comment and no human comment quoting ours can be swallowed. A
+ * mid-repost race (fetch between the new post and the row update) can show
+ * the comment for at most one cache TTL — accepted.
+ */
+function withoutEntryComment(
+  conversation: PrConversation,
+  entryCommentId: bigint | null,
+): PrConversation {
+  if (entryCommentId === null) return conversation;
+  return {
+    ...conversation,
+    prComments: conversation.prComments.filter(
+      (comment) => BigInt(comment.commentId) !== entryCommentId,
+    ),
   };
 }
 

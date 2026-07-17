@@ -300,6 +300,21 @@ async function seedPullRequest(handle: AppDatabase): Promise<void> {
   });
 }
 
+/** Seed + stamp the stored Entry-comment id (delete+repost tracking). */
+async function seedPullRequestWithEntryComment(
+  handle: AppDatabase,
+  entryCommentId: bigint,
+): Promise<void> {
+  await seedPullRequest(handle);
+  const row = await forTenant(handle, CTX).pullRequests.getByNumber(
+    brandRepo(BigInt(REPO_ID)),
+    PR_NUMBER,
+  );
+  if (row === undefined) throw new Error("seed row missing");
+  const set = await forTenant(handle, CTX).pullRequests.setEntryComment(row.id, entryCommentId);
+  if (!set.ok) throw new Error("setEntryComment failed in seed");
+}
+
 const CONVERSATION_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
 
 function replyPath(commentId: number | string = ROOT_COMMENT_ID): string {
@@ -407,6 +422,66 @@ describe("conversation surface", () => {
       expect(log.calls).toHaveLength(1);
       expect(log.calls[0]?.installationId).toBe(CTX.installationId);
       expect(log.calls[0]?.input).toEqual({ owner: "octo", repo: "hello", prNumber: PR_NUMBER });
+    });
+
+    it("filters the stored Entry comment out of prComments (BRIEF-57)", async () => {
+      const fixture = conversationFixture();
+      const withEntry = {
+        ok: true as const,
+        value: {
+          ...fixture,
+          prComments: [
+            ...fixture.prComments,
+            {
+              commentId: 424_242,
+              author: { login: "mergebrief[bot]", isBot: true },
+              body: "**[Read the brief for this push](https://mb.example/...)**",
+              createdAt: "2026-07-02T10:00:00Z",
+              url: "https://github.com/octo/hello/pull/7#issuecomment-424242",
+            },
+          ],
+        },
+      };
+      const { port } = stubPort([withEntry]);
+      stubGitHub({ repositories: () => repoOk() });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequestWithEntryComment(harness.handle, 424_242n);
+      const res = await getConversation(makeApp(port), cookie);
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as PrConversation;
+      // The human comment stays; OUR branded entry comment never renders in
+      // the collapsible (it is the front door, not conversation).
+      expect(body.prComments.map((comment) => comment.commentId)).toEqual([9001]);
+      // Only the exact stored id is filtered — pagination flag untouched.
+      expect(body.hasMorePrComments).toBe(false);
+    });
+
+    it("does not filter other bot comments — only the stored Entry id (BRIEF-57)", async () => {
+      const fixture = conversationFixture();
+      const withBots = {
+        ok: true as const,
+        value: {
+          ...fixture,
+          prComments: [
+            ...fixture.prComments,
+            {
+              commentId: 5_555,
+              author: { login: "coderabbitai[bot]", isBot: true },
+              body: "another bot's PR comment",
+              createdAt: "2026-07-02T11:00:00Z",
+              url: "https://github.com/octo/hello/pull/7#issuecomment-5555",
+            },
+          ],
+        },
+      };
+      const { port } = stubPort([withBots]);
+      stubGitHub({ repositories: () => repoOk() });
+      const { cookie } = await seedSession(harness.handle, kp);
+      // Stored id targets NEITHER comment (stale rotation) — nothing filters.
+      await seedPullRequestWithEntryComment(harness.handle, 999_999n);
+      const res = await getConversation(makeApp(port), cookie);
+      const body = (await res.json()) as PrConversation;
+      expect(body.prComments.map((comment) => comment.commentId)).toEqual([9001, 5_555]);
     });
 
     it("serves the second read from the per-PR cache (one port call inside the TTL)", async () => {
