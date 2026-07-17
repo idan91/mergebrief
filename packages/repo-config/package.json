@@ -1,0 +1,25 @@
+{
+  "name": "repo-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The .mergebrief/ repo-local config surface (ADR 0032): Zod schemas for settings.yaml/policy.yaml, budget caps, and the pure source-agnostic validateRepoConfig — reject-whole, collision resolution, outcome model.",
+  "exports": {
+    ".": "./src/lib.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "categorizer": "workspace:*",
+    "types": "workspace:*",
+    "yaml": "^2.9.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

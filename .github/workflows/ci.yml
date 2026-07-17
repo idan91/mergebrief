@@ -275,6 +275,60 @@ jobs:
         if: steps.changes.outputs.generators != 'true'
         run: echo "No generators package files changed; skipping generators package checks."
 
+  repo-config-checks:
+    name: Repo-config ${{ matrix.check }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        check: [typecheck, test]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect repo-config package changes
+        id: changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
+          repo_config_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/repo-config/|tools/categorizer/|packages/generators/|packages/types/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.npmrc$)' || true)"
+
+          if [ -n "$repo_config_files" ]; then
+            echo "repo_config=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "repo_config=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up pnpm
+        if: steps.changes.outputs.repo_config == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.0.0
+
+      - name: Set up Node.js
+        if: steps.changes.outputs.repo_config == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install repo-config dependencies
+        if: steps.changes.outputs.repo_config == 'true'
+        run: pnpm --filter repo-config... install --frozen-lockfile
+
+      - name: Run repo-config ${{ matrix.check }}
+        if: steps.changes.outputs.repo_config == 'true'
+        run: pnpm --dir packages/repo-config ${{ matrix.check }}
+
+      - name: Skip repo-config checks
+        if: steps.changes.outputs.repo_config != 'true'
+        run: echo "No repo-config package files changed; skipping repo-config checks."
+
   persistence-checks:
     name: Persistence ${{ matrix.check }}
     runs-on: ubuntu-latest

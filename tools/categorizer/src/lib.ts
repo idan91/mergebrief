@@ -49,6 +49,10 @@ export {
   type ComparisonMarksFile,
   type ComparisonBaselineLabel,
 } from "./comparison";
+// Closed risk-surface vocabulary — the single source of truth (types.ts).
+// Re-exported so downstream packages (repo-config, ADR 0032) import the
+// built-in attribute list from here instead of duplicating it.
+export { RiskSurfaceAttributes, type RiskSurfaceAttribute } from "./types";
 export { isHugeSpan, hugeSpanRatio } from "./huge-span";
 export { revisionNarrativeConfig, type RevisionNarrativeConfig } from "./config";
 export { generateAndWrite, type Range } from "./index";
