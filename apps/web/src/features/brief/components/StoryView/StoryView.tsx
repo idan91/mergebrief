@@ -11,6 +11,9 @@ import type { DigestRow } from "../../../conversation/digest";
 import type { ThreadComposerWiring } from "../../../conversation/components/ConversationSection/ConversationSection";
 import { ChunkCard } from "../ChunkCard/ChunkCard";
 import { GroupCard } from "../GroupCard/GroupCard";
+import { RiskBadge } from "../Badge/RiskBadge";
+import { RiskChipDisclosure } from "../Badge/RiskChipDisclosure";
+import { RiskDetailList } from "../Badge/RiskDetailList";
 import styles from "./StoryView.module.scss";
 
 const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
@@ -147,6 +150,7 @@ export function StoryView(props: StoryViewProps) {
                   key={chunk.id}
                   active={props.activeChunkId === chunk.id}
                   chunk={chunk}
+                  riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
                   comparison={props.comparison}
                   forceCollapsed={
                     props.collapseSupporting && chunk.role === "supporting"
@@ -309,11 +313,34 @@ function FocusGroupRail({
                 <div className={styles["railLabel"]}>Active chunk risks</div>
                 {activeChunk.riskSurface.length > 0 ? (
                   <div className={styles["railRiskChips"]}>
-                    {activeChunk.riskSurface.map((risk) => (
-                      <span className={styles["railRiskChip"]} key={risk}>
-                        {risk}
-                      </span>
-                    ))}
+                    {activeChunk.riskSurface.map((risk) => {
+                      const meta = model.riskMetaByChunk
+                        .get(activeChunk.id)
+                        ?.get(risk);
+                      if (
+                        meta?.source === "repo-policy" ||
+                        meta?.deEmphasized
+                      ) {
+                        return (
+                          <RiskChipDisclosure
+                            detail={
+                              <RiskDetailList
+                                attrs={[risk]}
+                                metaFor={() => meta}
+                              />
+                            }
+                            key={risk}
+                          >
+                            <RiskBadge meta={meta}>{risk}</RiskBadge>
+                          </RiskChipDisclosure>
+                        );
+                      }
+                      return (
+                        <RiskBadge key={risk} meta={meta}>
+                          {risk}
+                        </RiskBadge>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className={styles["railNoRisks"]}>

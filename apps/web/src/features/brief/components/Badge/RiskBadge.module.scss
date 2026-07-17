@@ -1,7 +1,24 @@
 @layer components {
+  /* Border follows the chip's CURRENT hue (currentcolor), so the component's
+     amber→neutral de-emphasis shift quiets the border with the text —
+     hard-coding amber here would leave loud borders on quiet chips. */
   .risk {
     text-transform: none;
     letter-spacing: 0;
-    border-color: color-mix(in srgb, var(--amber) 38%, transparent);
+    border-color: color-mix(in srgb, currentcolor 38%, transparent);
+  }
+
+  /* Repo-policy source variant (ADR 0032 #11): same anatomy, outlined —
+     a dashed border marks "this token came from .mergebrief/policy.yaml". */
+  .risk[data-source="repo-policy"] {
+    border-style: dashed;
+    border-color: color-mix(in srgb, currentcolor 55%, transparent);
+  }
+
+  /* De-emphasized by repo policy: quiet via the neutral hue (set by the
+     component) + a dotted border — text keeps full contrast (WCAG 1.4.3);
+     opacity must never carry this state. */
+  .risk[data-deemphasized] {
+    border-style: dotted;
   }
 }

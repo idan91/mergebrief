@@ -55,6 +55,15 @@ export type Concern = ValueOf<typeof Concerns>;
 export type Role = ValueOf<typeof Roles>;
 export type RiskSurfaceAttribute = ValueOf<typeof RiskSurfaceAttributes>;
 
+/**
+ * @description A risk-surface token on a stored chunk: a built-in
+ * `RiskSurfaceAttribute` or a repo-policy custom attribute name (BRIEF-52 —
+ * the closed vocabulary is per-generation and enum-enforced server-side, so
+ * the static type here is honestly `string`; source and display weight
+ * derive from the artifact's policy snapshot, see repoConfig.ts).
+ */
+export type RiskToken = string;
+
 export interface PrRef {
   repo: string;
   number: number;
@@ -116,7 +125,7 @@ export interface DiffLine {
  * `comment-contradicts-code`.
  */
 export interface RiskNote {
-  attr: RiskSurfaceAttribute;
+  attr: RiskToken;
   note: string;
 }
 
@@ -129,7 +138,7 @@ export interface BriefChunk {
   loc: ChunkLoc;
   addedRanges: LineRange[];
   removedRanges: LineRange[];
-  riskSurface: RiskSurfaceAttribute[];
+  riskSurface: RiskToken[];
   riskNotes?: RiskNote[];
   summary?: string;
   addressesComments?: string[];

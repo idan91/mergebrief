@@ -429,3 +429,40 @@
     line-height: 1.45;
   }
 }
+
+@layer components {
+  /* Group-header risk union row (BRIEF-52): compact chip lane under the
+     category row; wraps rather than truncates at narrow widths. */
+  .groupRiskRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+}
+
+@layer components {
+  /* De-emphasized flag rows (BRIEF-52): quiet via a dotted inline-start
+     marker — never whole-row opacity, which would drop child text and
+     controls below 4.5:1 (WCAG 1.4.3). The visible "De-emphasized by repo
+     policy" note carries the state textually. */
+  .flag[data-deemphasized] {
+    border-inline-start: 2px dotted
+      color-mix(in srgb, currentcolor 45%, transparent);
+    padding-inline-start: 8px;
+  }
+
+  @media (forced-colors: active) {
+    .flag[data-deemphasized] {
+      border-inline-start: 2px dotted ButtonText;
+    }
+  }
+}
+
+@layer components {
+  /* Fully-de-emphasized attribute sections: neutral title, keeping full
+     text contrast (hue shift, never opacity — WCAG 1.4.3). */
+  .riskGroup[data-deemphasized] .riskGroupTitle {
+    color: var(--dim, inherit);
+  }
+}

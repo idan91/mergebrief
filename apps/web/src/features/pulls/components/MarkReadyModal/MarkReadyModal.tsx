@@ -86,8 +86,27 @@ export function MarkReadyModal({
                 disabled={busy}
                 onClick={() => jumpToFlag(flag)}
               >
-                <span>{flag.attr}</span>
+                <span
+                  data-deemphasized={flag.deEmphasized ? "" : undefined}
+                  data-source={flag.source}
+                >
+                  {flag.attr}
+                </span>
                 <b>{flag.file}</b>
+                {flag.source === "repo-policy" || flag.deEmphasized ? (
+                  <i data-kind="risk-caption">
+                    {[
+                      ...(flag.source === "repo-policy"
+                        ? [
+                            `defined by repo policy${flag.implication ? ` — ${flag.implication}` : ""}`,
+                          ]
+                        : []),
+                      ...(flag.deEmphasized
+                        ? ["de-emphasized by repo policy"]
+                        : []),
+                    ].join(" · ")}
+                  </i>
+                ) : null}
               </button>
             ))}
           </div>

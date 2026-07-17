@@ -266,6 +266,37 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     return artifactJson(c, row.body);
   });
 
+  // GET brief-context — the brief's repo-config snapshot (ADR 0032 #8):
+  // per-file outcome table + collisions + policy snapshot, for the FE's
+  // source markers, de-emphasis weights, and provenance chip. A separate
+  // lean endpoint (never the multi-hundred-KB body) so the `/brief` wire
+  // shape — which the CLI also parses — stays untouched. `repoConfig` is
+  // null for rows predating BRIEF-52.
+  app.get("/api/repos/:repoId/pulls/:prNumber/brief-context", async (c) => {
+    const query = briefQuerySchema.safeParse({
+      base: c.req.query("base"),
+      head: c.req.query("head"),
+    });
+    if (!query.success) {
+      return c.json({ error: "invalid query parameters" }, 400);
+    }
+    const resolved = await resolvePr(c.get("ctx"), c.get("repoId"), c.req.param("prNumber"));
+    if (!resolved.ok) {
+      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
+    }
+    const repoConfig = await artifactStore(deps.handle, c.get("ctx")).briefs.getRepoConfig(
+      resolved.pr.id,
+      query.data.base,
+      query.data.head,
+    );
+    if (repoConfig === undefined) {
+      return c.json({ error: "not found" }, 404);
+    }
+    // The column already holds validated JSON — compose the envelope as a
+    // string so the snapshot is never re-parsed per request.
+    return artifactJson(c, `{"repoConfig":${repoConfig ?? "null"}}`);
+  });
+
   // GET marks — comparison marks (coordinates only) for (baseline, head).
   app.get("/api/repos/:repoId/pulls/:prNumber/marks", async (c) => {
     const query = marksQuerySchema.safeParse({

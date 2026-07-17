@@ -1,14 +1,14 @@
-import { memo, useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef } from "react";
 
-import { Callout } from "../../../../components/Callout";
 import { CopyButton } from "../../../../components/CopyButton/CopyButton";
 import { reviewCommentsForChunk } from "../../reviewComments";
 import { buildChunkComparisonView } from "../../comparison";
 import type {
   AddressedReviewComment,
   BriefChunk,
-  RiskSurfaceAttribute,
+  RiskToken,
 } from "../../types";
+import type { AttributeDisplayMeta } from "../../repoConfig";
 import type { ComparisonOverlayState } from "../../comparisonOverlay";
 import {
   AddressedComments,
@@ -19,6 +19,8 @@ import { useChunkReviewComments, useMindMap } from "../../../review/session";
 import { riskChipView } from "../../viewModel";
 import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
 import { RiskBadge } from "../Badge/RiskBadge";
+import { RiskChipDisclosure } from "../Badge/RiskChipDisclosure";
+import { RiskDetailList } from "../Badge/RiskDetailList";
 import { RoleBadge } from "../Badge/RoleBadge";
 import { splitInlineRows, type DigestRow } from "../../../conversation/digest";
 import { InlineThreads } from "../../../conversation/components/InlineThreads/InlineThreads";
@@ -53,6 +55,11 @@ export interface ChunkCardProps {
   conversationComposer?: ThreadComposerWiring | undefined;
   /** Read-only reason for the comment affordances (BRIEF-24); absent = writable. */
   composerDisabledReason?: string | undefined;
+  /**
+   * Per-attribute display meta for THIS chunk (BRIEF-52): source variant,
+   * de-emphasis, implication. Absent = plain built-in chips.
+   */
+  riskMeta?: ReadonlyMap<string, AttributeDisplayMeta> | undefined;
 }
 
 /**
@@ -62,24 +69,24 @@ export interface ChunkCardProps {
  * containing block can't swallow it) and stays open while the pointer is
  * inside it. Screen readers get the list inline via the hidden span.
  */
-function OverflowRiskChip({ attrs }: { attrs: RiskSurfaceAttribute[] }) {
-  const [anchor, setAnchor] = useState<Element | null>(null);
+function OverflowRiskChip({
+  attrs,
+  riskMeta,
+}: {
+  attrs: RiskToken[];
+  riskMeta?: ReadonlyMap<string, AttributeDisplayMeta> | undefined;
+}) {
   return (
-    <span onMouseEnter={(event) => setAnchor(event.currentTarget)}>
+    <RiskChipDisclosure
+      detail={
+        <RiskDetailList attrs={attrs} metaFor={(attr) => riskMeta?.get(attr)} />
+      }
+    >
       <RiskBadge>
         +{attrs.length}
         <ScreenReaderOnly>{` ${attrs.join(", ")}`}</ScreenReaderOnly>
       </RiskBadge>
-      {anchor ? (
-        <Callout anchor={anchor} fit onClose={() => setAnchor(null)}>
-          <span className={styles["tipChips"]}>
-            {attrs.map((attr) => (
-              <RiskBadge key={attr}>{attr}</RiskBadge>
-            ))}
-          </span>
-        </Callout>
-      ) : null}
-    </span>
+    </RiskChipDisclosure>
   );
 }
 
@@ -137,6 +144,7 @@ export const ChunkCard = memo(function ChunkCard({
   conversationRows,
   conversationComposer,
   composerDisabledReason,
+  riskMeta,
 }: ChunkCardProps) {
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
   // Selection identity when the toggle gesture started — only a selection
@@ -246,11 +254,34 @@ export const ChunkCard = memo(function ChunkCard({
         <span className={styles["chips"]}>
           {riskChips.shown.length > 0 ? (
             <span className={styles["riskLane"]}>
-              {riskChips.shown.map((risk) => (
-                <RiskBadge key={risk}>{risk}</RiskBadge>
-              ))}
+              {riskChips.shown.map((risk) => {
+                const meta = riskMeta?.get(risk);
+                if (meta?.source === "repo-policy" || meta?.deEmphasized) {
+                  // Repo-defined and de-emphasized chips carry a visible
+                  // expansion (source, implication, de-emphasis note)
+                  // reachable by keyboard/touch, not just title-hover.
+                  return (
+                    <RiskChipDisclosure
+                      detail={
+                        <RiskDetailList attrs={[risk]} metaFor={() => meta} />
+                      }
+                      key={risk}
+                    >
+                      <RiskBadge meta={meta}>{risk}</RiskBadge>
+                    </RiskChipDisclosure>
+                  );
+                }
+                return (
+                  <RiskBadge key={risk} meta={meta}>
+                    {risk}
+                  </RiskBadge>
+                );
+              })}
               {riskChips.overflow.length > 0 ? (
-                <OverflowRiskChip attrs={riskChips.overflow} />
+                <OverflowRiskChip
+                  attrs={riskChips.overflow}
+                  riskMeta={riskMeta}
+                />
               ) : null}
             </span>
           ) : null}

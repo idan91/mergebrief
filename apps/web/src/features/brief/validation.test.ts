@@ -271,3 +271,59 @@ describe("parseDeltaBrief", () => {
     expect(parsed.value.reviewComments?.[0]?.originalStartLine).toBe(38);
   });
 });
+
+function briefWith(riskSurface: unknown) {
+  return {
+    pr: {
+      repo: "o/r",
+      number: 1,
+      title: "t",
+      url: "https://github.com/o/r/pull/1",
+      sha: "deadbeef",
+      description: "d",
+    },
+    summary: "s",
+    changeGroups: [
+      {
+        id: "g1",
+        title: "t",
+        summary: "s",
+        dominantCategory: "new-feature",
+        secondaryCategories: [],
+        uncertain: false,
+        uncertainBetween: [],
+      },
+    ],
+    chunks: [
+      {
+        id: "c1",
+        changeGroupId: "g1",
+        file: "a.ts",
+        concern: "implementation",
+        role: "carrier",
+        loc: { added: 1, deleted: 0 },
+        addedRanges: [],
+        removedRanges: [],
+        riskSurface,
+      },
+    ],
+    concernView: [{ concern: "implementation", added: 1, deleted: 0 }],
+  };
+}
+
+describe("risk tokens (BRIEF-52 widened vocabulary)", () => {
+  it("accepts a repo-defined kebab-case token alongside built-ins", () => {
+    expect(parseBrief(briefWith(["touches-auth", "touches-billing"])).ok).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ["whitespace", ["has space"]],
+    ["uppercase", ["Bad-Case"]],
+    ["empty", [""]],
+    ["oversized", ["x".repeat(51)]],
+  ])("rejects a %s token", (_label, riskSurface) => {
+    expect(parseBrief(briefWith(riskSurface)).ok).toBe(false);
+  });
+});

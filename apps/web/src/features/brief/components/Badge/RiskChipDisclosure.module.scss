@@ -1,0 +1,25 @@
+@layer components {
+  /* Unstyled disclosure button: the chip inside carries the visuals; the
+     button contributes only a visible focus ring (WCAG 2.4.7). */
+  .chipButton {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    display: inline-flex;
+  }
+
+  .chipButton:focus-visible {
+    outline: 2px solid var(--accent, Highlight);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .detail {
+    display: block;
+    max-width: 36ch;
+  }
+}

@@ -107,3 +107,15 @@
     color: var(--faint);
   }
 }
+
+@layer components {
+  /* Chunk-row risk lane (BRIEF-52): display-only mirror of the Story view's
+     chips inside the jump button. */
+  .fileRisk {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-inline-start: 8px;
+    vertical-align: middle;
+  }
+}

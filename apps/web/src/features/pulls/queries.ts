@@ -19,6 +19,7 @@ import {
   parseDeltaBrief,
   parseRevisionNarrativeArtifact,
 } from "../brief/validation";
+import { parseBriefContext, type RepoConfigContext } from "../brief/repoConfig";
 import type {
   Brief,
   ComparisonMarks,
@@ -100,6 +101,34 @@ export function dbBriefQueryOptions(
       const path = `${prPath(repoId, prNumber)}/brief?${spanQuery(base, head)}`;
       const body = await apiFetchJson(path);
       const parsed = parseBrief(body);
+      if (!parsed.ok) {
+        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+      }
+      return parsed.value;
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 10 * 60 * 1000,
+    retry: false,
+  });
+}
+
+/**
+ * The span's repo-config snapshot (BRIEF-52) — provenance + policy display
+ * weights. Best-effort: a failure renders the Brief without source markers
+ * or de-emphasis, never blocks it. Immutable per span (like the brief).
+ */
+export function dbBriefContextQueryOptions(
+  repoId: string,
+  prNumber: number,
+  base: string,
+  head: string,
+) {
+  return queryOptions({
+    queryKey: ["brief-context", "db", repoId, prNumber, base, head],
+    queryFn: async (): Promise<RepoConfigContext | null> => {
+      const path = `${prPath(repoId, prNumber)}/brief-context?${spanQuery(base, head)}`;
+      const body = await apiFetchJson(path);
+      const parsed = parseBriefContext(body);
       if (!parsed.ok) {
         throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
       }

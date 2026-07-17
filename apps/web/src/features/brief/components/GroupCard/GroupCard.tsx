@@ -13,6 +13,10 @@ import {
   type GroupView,
   type RiskFlag,
 } from "../../viewModel";
+import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
+import { RiskBadge } from "../Badge/RiskBadge";
+import { RiskChipDisclosure } from "../Badge/RiskChipDisclosure";
+import { RiskDetailList } from "../Badge/RiskDetailList";
 import styles from "./GroupCard.module.scss";
 
 const EMPTY_RISK_FLAGS: RiskFlag[] = [];
@@ -117,6 +121,66 @@ export const GroupCard = memo(function GroupCard({
             </span>
           ) : null}
         </div>
+        {group.headerRisk.shown.length > 0 ||
+        group.headerRisk.deEmphasized.length > 0 ? (
+          /* Deduped union of member-chunk attributes (ADR 0032 #11): floor
+             first, fully-de-emphasized attributes behind "+n". Disclosure,
+             never a count-as-severity signal or an aggregate glyph. */
+          <div
+            aria-label="Risk-surface attributes in this group"
+            className={styles["groupRiskRow"]}
+            data-testid="group-risk-union"
+            role="group"
+          >
+            {group.headerRisk.shown.map((attr) => {
+              // A shown chip means at least one LOUD firing exists — take a
+              // loud firing's meta so a quiet-first chunk order can't render
+              // the header chip de-emphasized (codex r1).
+              const metas = group.chunks
+                .map((chunk) => model.riskMetaByChunk.get(chunk.id)?.get(attr))
+                .filter((m) => m !== undefined);
+              const meta = metas.find((m) => !m.deEmphasized) ?? metas[0];
+              if (meta?.source === "repo-policy") {
+                return (
+                  <RiskChipDisclosure
+                    detail={`Defined by repo policy${meta.implication ? ` — ${meta.implication}` : ""}`}
+                    key={attr}
+                  >
+                    <RiskBadge meta={meta}>{attr}</RiskBadge>
+                  </RiskChipDisclosure>
+                );
+              }
+              return (
+                <RiskBadge key={attr} meta={meta}>
+                  {attr}
+                </RiskBadge>
+              );
+            })}
+            {group.headerRisk.deEmphasized.length > 0 ? (
+              <RiskChipDisclosure
+                detail={
+                  <RiskDetailList
+                    attrs={group.headerRisk.deEmphasized}
+                    metaFor={(attr) =>
+                      group.chunks
+                        .map((chunk) =>
+                          model.riskMetaByChunk.get(chunk.id)?.get(attr),
+                        )
+                        .find((m) => m !== undefined)
+                    }
+                  />
+                }
+              >
+                <RiskBadge meta={{ source: "built-in", deEmphasized: true }}>
+                  +{group.headerRisk.deEmphasized.length} de-emphasized
+                  <ScreenReaderOnly>
+                    {`: ${group.headerRisk.deEmphasized.join(", ")} — de-emphasized by repo policy`}
+                  </ScreenReaderOnly>
+                </RiskBadge>
+              </RiskChipDisclosure>
+            ) : null}
+          </div>
+        ) : null}
         {group.group.uncertain && !isReclassified ? (
           <div className={styles["uncertainPanel"]}>
             <span className={styles["question"]}>
@@ -199,8 +263,15 @@ export const GroupCard = memo(function GroupCard({
               openRiskFlagIds.length > 0 &&
               selectedCount === openRiskFlagIds.length;
             const hasSelection = selectedCount > 0;
+            // Fully-quiet attribute section: every firing de-emphasized →
+            // the section title drops the amber prominence (codex r13).
+            const allQuiet = riskGroup.flags.every((flag) => flag.deEmphasized);
             return (
-              <div className={styles["riskGroup"]} key={riskGroup.attr}>
+              <div
+                className={styles["riskGroup"]}
+                data-deemphasized={allQuiet ? "" : undefined}
+                key={riskGroup.attr}
+              >
                 <div className={styles["riskGroupHead"]}>
                   {flagsReadOnly ? (
                     <span className={styles["riskCheck"]}>
@@ -269,6 +340,8 @@ export const GroupCard = memo(function GroupCard({
                       <div
                         className={styles["flag"]}
                         data-disposition={kind}
+                        data-source={flag.source}
+                        data-deemphasized={flag.deEmphasized ? "" : undefined}
                         data-state={isResolved ? "resolved" : "open"}
                         key={flag.id}
                       >
@@ -302,6 +375,25 @@ export const GroupCard = memo(function GroupCard({
                             <div className={styles["description"]}>
                               {flag.description}
                             </div>
+                            {flag.source === "repo-policy" ? (
+                              <div
+                                className={styles["description"]}
+                                data-kind="repo-policy-source"
+                              >
+                                Defined by repo policy
+                                {flag.implication
+                                  ? ` — ${flag.implication}`
+                                  : ""}
+                              </div>
+                            ) : null}
+                            {flag.deEmphasized ? (
+                              <div
+                                className={styles["description"]}
+                                data-kind="deemphasized-note"
+                              >
+                                De-emphasized by repo policy
+                              </div>
+                            ) : null}
                             {flag.note ? (
                               <div
                                 className={styles["description"]}

@@ -270,3 +270,87 @@ describe("buildBriefViewModel", () => {
     ).toBe(true);
   });
 });
+
+describe("buildBriefViewModel — repo-config display weight (BRIEF-52)", () => {
+  function briefWithRisk() {
+    const base = twoGroupBrief();
+    // The fixture's empty arrays infer never[]; push through a typed view.
+    const chunks: { riskSurface: string[] }[] = base.chunks;
+    chunks[0]?.riskSurface.push("touches-billing", "widens-error-handling");
+    chunks[1]?.riskSurface.push("touches-auth", "widens-error-handling");
+    const parsed = parseBrief(base);
+    if (!parsed.ok) throw new Error(parsed.error);
+    return parsed.value;
+  }
+
+  const snapshot = {
+    files: [],
+    collisions: [],
+    policy: {
+      firedCustomAttributes: [
+        {
+          name: "touches-billing",
+          criteria: "modifies invoicing code",
+          implication: "needs finance review",
+        },
+      ],
+      deEmphasize: [{ attribute: "widens-error-handling" }],
+    },
+  };
+
+  it("marks sources, quiets de-emphasized firings, and un-quiets on floor co-fire", () => {
+    const model = buildBriefViewModel(briefWithRisk(), snapshot);
+
+    const billing = model.flags.find((f) => f.attr === "touches-billing");
+    expect(billing?.source).toBe("repo-policy");
+    expect(billing?.implication).toBe("needs finance review");
+    expect(billing?.description).toContain("modifies invoicing code");
+
+    // c1 has no floor attribute → its widens-error-handling firing is quiet.
+    const quiet = model.flags.find(
+      (f) => f.attr === "widens-error-handling" && f.chunkId === "c1",
+    );
+    expect(quiet?.deEmphasized).toBe(true);
+    // c2 co-fires touches-auth (floor) → the same attribute renders loud there.
+    const loud = model.flags.find(
+      (f) => f.attr === "widens-error-handling" && f.chunkId === "c2",
+    );
+    expect(loud?.deEmphasized).toBe(false);
+    // Floor attribute itself is never quiet.
+    expect(
+      model.flags.find((f) => f.attr === "touches-auth")?.deEmphasized,
+    ).toBe(false);
+  });
+
+  it("group header union: floor first, fully-quiet attributes collapse, loud firings keep a chip", () => {
+    const model = buildBriefViewModel(briefWithRisk(), snapshot);
+    const byId = new Map(model.groups.map((g) => [g.id, g]));
+
+    // g1 (c1 only): billing loud, widens-error-handling fully quiet → +n bucket.
+    expect(byId.get("g1")?.headerRisk.shown).toEqual(["touches-billing"]);
+    expect(byId.get("g1")?.headerRisk.deEmphasized).toEqual([
+      "widens-error-handling",
+    ]);
+
+    // g2 (c2): touches-auth is floor → pinned first; widens-error-handling is
+    // loud there (co-fire) → stays a chip.
+    expect(byId.get("g2")?.headerRisk.shown).toEqual([
+      "touches-auth",
+      "widens-error-handling",
+    ]);
+    expect(byId.get("g2")?.headerRisk.deEmphasized).toEqual([]);
+  });
+
+  it("without a snapshot everything is a plain built-in loud chip (back-compat)", () => {
+    const model = buildBriefViewModel(briefWithRisk());
+    expect(
+      model.flags.every((f) => f.source === "built-in" && !f.deEmphasized),
+    ).toBe(true);
+    const g1 = model.groups.find((g) => g.id === "g1");
+    expect(g1?.headerRisk.deEmphasized).toEqual([]);
+    expect(g1?.headerRisk.shown).toEqual([
+      "touches-billing",
+      "widens-error-handling",
+    ]);
+  });
+});

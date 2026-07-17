@@ -1,5 +1,13 @@
 import { CONCERN_CHECKS } from "./playbooks";
 import {
+  attributeDisplayMeta,
+  floorFirst,
+  isFloorAttribute,
+  type AttributeDisplayMeta,
+  type AttributeSource,
+  type RepoConfigContext,
+} from "./repoConfig";
+import {
   Concerns,
   Roles,
   type Brief,
@@ -9,7 +17,20 @@ import {
   type Concern,
   type ReadingOrderStep,
   type RiskSurfaceAttribute,
+  type RiskToken,
 } from "./types";
+
+/**
+ * The group header's deduped union of member-chunk attribute chips (ADR
+ * 0032 #11 display): floor first, fully-de-emphasized attributes collapsed
+ * behind "+n". Never counts-as-severity, never an aggregate glyph.
+ */
+export interface GroupHeaderRisk {
+  /** Chips rendered individually — floor-first, then first appearance. */
+  shown: RiskToken[];
+  /** Attributes whose every firing in this group is de-emphasized ("+n"). */
+  deEmphasized: RiskToken[];
+}
 
 export interface GroupView {
   id: string;
@@ -21,6 +42,7 @@ export interface GroupView {
   added: number;
   deleted: number;
   supportConcerns: Concern[];
+  headerRisk: GroupHeaderRisk;
   /** 1-based position in the Brief's Reading order; unset without a valid one. */
   readingOrderStep?: number;
   /** The Reading-order step's why-line; unset without a valid Reading order. */
@@ -29,11 +51,17 @@ export interface GroupView {
 
 export interface RiskFlag {
   id: string;
-  attr: RiskSurfaceAttribute;
+  attr: RiskToken;
   chunkId: string;
   file: string;
   groupId: string;
   description: string;
+  /** built-in vs repo-policy (structural marker from the snapshot, BRIEF-52). */
+  source: AttributeSource;
+  /** Quiet render (repo de-emphasis); already false on floor co-fire chunks. */
+  deEmphasized: boolean;
+  /** Repo-authored reviewer hint (custom attributes only). */
+  implication?: string;
   /** Chunk-specific factual evidence from the chunk's `riskNotes` (ADR 0026). */
   note?: string;
 }
@@ -47,10 +75,12 @@ export interface BriefViewModel {
   totalDeleted: number;
   concernChunks: Map<Concern, BriefChunk[]>;
   chunkToGroup: Map<string, string>;
+  /** Per-chunk attribute display meta, keyed `chunkId` → `attr` (BRIEF-52). */
+  riskMetaByChunk: Map<string, Map<string, AttributeDisplayMeta>>;
 }
 
 export interface RiskAttributeGroup {
-  attr: RiskSurfaceAttribute;
+  attr: RiskToken;
   flags: RiskFlag[];
 }
 
@@ -104,8 +134,46 @@ const CONCERN_ORDER: Concern[] = [
   Concerns.Generated,
 ];
 
-export function buildBriefViewModel(brief: Brief): BriefViewModel {
+/** Description for a token: the built-in playbook line, or the repo's criteria. */
+export function riskDescription(
+  attr: RiskToken,
+  meta: AttributeDisplayMeta,
+): string {
+  if (isBuiltInAttribute(attr)) {
+    return RISK_DESCRIPTIONS[attr];
+  }
+  return meta.criteria ?? "Repo-defined risk attribute (see repo policy).";
+}
+
+const BUILT_IN_ATTRIBUTES: ReadonlySet<string> = new Set(
+  Object.keys(RISK_DESCRIPTIONS),
+);
+
+function isBuiltInAttribute(attr: string): attr is RiskSurfaceAttribute {
+  return BUILT_IN_ATTRIBUTES.has(attr);
+}
+
+export function buildBriefViewModel(
+  brief: Brief,
+  repoConfig?: RepoConfigContext | null,
+): BriefViewModel {
   const chunkToGroup = new Map<string, string>();
+
+  // Per-chunk display meta first (BRIEF-52): source, de-emphasis, and the
+  // floor co-fire un-quiet rule all resolve from the artifact's snapshot.
+  const riskMetaByChunk = new Map<string, Map<string, AttributeDisplayMeta>>();
+  for (const chunk of brief.chunks) {
+    const chunkFiresFloor = chunk.riskSurface.some(isFloorAttribute);
+    const metaByAttr = new Map<string, AttributeDisplayMeta>();
+    for (const attr of chunk.riskSurface) {
+      metaByAttr.set(
+        attr,
+        attributeDisplayMeta(repoConfig, attr, chunk.file, chunkFiresFloor),
+      );
+    }
+    riskMetaByChunk.set(chunk.id, metaByAttr);
+  }
+
   const sourceOrderGroups = brief.changeGroups.map((group, index) => {
     const id = group.id;
     const groupChunks = brief.chunks.filter(
@@ -130,6 +198,7 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
       added: sumLoc(groupChunks, "added"),
       deleted: sumLoc(groupChunks, "deleted"),
       supportConcerns,
+      headerRisk: buildGroupHeaderRisk(groupChunks, riskMetaByChunk),
     } satisfies GroupView;
   });
 
@@ -153,13 +222,24 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
     const groupId = chunkToGroup.get(chunk.id) ?? "g1";
     for (const [index, attr] of chunk.riskSurface.entries()) {
       const note = chunk.riskNotes?.find((n) => n.attr === attr)?.note;
+      const meta =
+        riskMetaByChunk.get(chunk.id)?.get(attr) ??
+        ({
+          source: "built-in",
+          deEmphasized: false,
+        } satisfies AttributeDisplayMeta);
       const flag = {
         id: `${chunk.id}-${attr}-${index}`,
         attr,
         chunkId: chunk.id,
         file: chunk.file,
         groupId,
-        description: RISK_DESCRIPTIONS[attr],
+        description: riskDescription(attr, meta),
+        source: meta.source,
+        deEmphasized: meta.deEmphasized,
+        ...(meta.implication !== undefined
+          ? { implication: meta.implication }
+          : {}),
         ...(note !== undefined ? { note } : {}),
       } satisfies RiskFlag;
       flags.push(flag);
@@ -179,6 +259,35 @@ export function buildBriefViewModel(brief: Brief): BriefViewModel {
     totalDeleted: sumLoc(brief.chunks, "deleted"),
     concernChunks,
     chunkToGroup,
+    riskMetaByChunk,
+  };
+}
+
+/**
+ * Deduped union of a group's member-chunk attributes: floor first, then
+ * first appearance; an attribute goes behind "+n" only when EVERY firing of
+ * it in this group is de-emphasized (one loud firing un-collapses it).
+ */
+function buildGroupHeaderRisk(
+  groupChunks: readonly BriefChunk[],
+  riskMetaByChunk: ReadonlyMap<
+    string,
+    ReadonlyMap<string, AttributeDisplayMeta>
+  >,
+): GroupHeaderRisk {
+  const seen: RiskToken[] = [];
+  const hasLoudFiring = new Set<string>();
+  for (const chunk of groupChunks) {
+    for (const attr of chunk.riskSurface) {
+      if (!seen.includes(attr)) seen.push(attr);
+      const meta = riskMetaByChunk.get(chunk.id)?.get(attr);
+      if (meta === undefined || !meta.deEmphasized) hasLoudFiring.add(attr);
+    }
+  }
+  const ordered = floorFirst(seen);
+  return {
+    shown: ordered.filter((attr) => hasLoudFiring.has(attr)),
+    deEmphasized: ordered.filter((attr) => !hasLoudFiring.has(attr)),
   };
 }
 
@@ -199,9 +308,9 @@ const MAX_HEADER_RISK_CHIPS = 2;
 
 export interface RiskChipView {
   /** Attributes rendered as individual chips (at most MAX_HEADER_RISK_CHIPS). */
-  shown: RiskSurfaceAttribute[];
+  shown: RiskToken[];
   /** Attributes folded into the "+N" overflow chip (empty when all fit). */
-  overflow: RiskSurfaceAttribute[];
+  overflow: RiskToken[];
 }
 
 /**
@@ -209,7 +318,7 @@ export interface RiskChipView {
  * the rest fold into a "+N" chip (full list in its tooltip). The rail stays
  * the canonical risk surface; the header only routes attention.
  */
-export function riskChipView(risks: RiskSurfaceAttribute[]): RiskChipView {
+export function riskChipView(risks: RiskToken[]): RiskChipView {
   if (risks.length <= MAX_HEADER_RISK_CHIPS) {
     return { shown: risks, overflow: [] };
   }
@@ -220,7 +329,7 @@ export function riskChipView(risks: RiskSurfaceAttribute[]): RiskChipView {
 }
 
 export function groupRiskByAttribute(flags: RiskFlag[]): RiskAttributeGroup[] {
-  const groups = new Map<RiskSurfaceAttribute, RiskFlag[]>();
+  const groups = new Map<RiskToken, RiskFlag[]>();
   for (const flag of flags) {
     const groupedFlags = groups.get(flag.attr);
     if (groupedFlags) groupedFlags.push(flag);

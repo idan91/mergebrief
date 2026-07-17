@@ -233,6 +233,17 @@ export interface BriefStore {
   latestForPullRequests(
     pullRequestIds: readonly PullRequestRowId[],
   ): Promise<ReadonlyMap<PullRequestRowId, BriefSpanRow>>;
+  /**
+   * Lean read of ONE span's repo-config snapshot (ADR 0032 #8) — the
+   * brief-context endpoint's backing query. Never loads `body` (multi-
+   * hundred-KB). `undefined` = no brief row for the span; `null` = the row
+   * exists but predates BRIEF-52 (or its generation recorded no snapshot).
+   */
+  getRepoConfig(
+    pullRequestId: PullRequestRowId,
+    baseSha: string,
+    headSha: string,
+  ): Promise<string | null | undefined>;
 }
 
 export interface DeltaStore {
@@ -401,6 +412,23 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         )
         .limit(1);
       return rows[0];
+    },
+
+    async getRepoConfig(pullRequestId, baseSha, headSha) {
+      const rows = await db
+        .select({ repoConfig: brief.repoConfig })
+        .from(brief)
+        .where(
+          and(
+            eq(brief.installationId, installationId),
+            eq(brief.pullRequestId, pullRequestId),
+            eq(brief.baseSha, baseSha),
+            eq(brief.headSha, headSha),
+          ),
+        )
+        .limit(1);
+      const row = rows[0];
+      return row === undefined ? undefined : row.repoConfig;
     },
 
     async listForPullRequest(pullRequestId) {

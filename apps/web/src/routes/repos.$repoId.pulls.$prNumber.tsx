@@ -44,6 +44,7 @@ import {
 } from "../features/pulls/components/PrBriefStates";
 import { attachLiveDiffs } from "../features/pulls/liveDiff";
 import {
+  dbBriefContextQueryOptions,
   dbBriefQueryOptions,
   dbComparisonMarksQueryOptions,
   dbDeltaQueryOptions,
@@ -630,6 +631,11 @@ function DbBrief({
   const brief = useSuspenseQuery(
     dbBriefQueryOptions(repoId, prNumber, span.base, span.head),
   ).data;
+  // Repo-config snapshot (BRIEF-52): best-effort — while loading or on
+  // failure the Brief renders without source markers/de-emphasis.
+  const repoConfig = useQuery(
+    dbBriefContextQueryOptions(repoId, prNumber, span.base, span.head),
+  );
   // The live diff arrives client-side and attaches per-chunk rows; while it
   // loads, chunks legally render without a diff (the renderer degrades).
   const diff = useQuery(
@@ -835,6 +841,7 @@ function DbBrief({
       <BriefView
         artifacts={[]}
         brief={assembled}
+        repoConfig={repoConfig.data ?? null}
         briefId={briefId}
         comparisonPlan={comparisonPlan}
         conversation={conversationPlan}

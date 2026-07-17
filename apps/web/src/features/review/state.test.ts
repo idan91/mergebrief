@@ -40,6 +40,8 @@ const riskFlag = {
   file: "src/a.ts",
   groupId: "g1",
   description: "Changed code path has no direct test coverage.",
+  source: "built-in",
+  deEmphasized: false,
 } satisfies RiskFlag;
 
 const reviewComment = {

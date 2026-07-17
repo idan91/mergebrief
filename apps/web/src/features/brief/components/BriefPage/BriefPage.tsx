@@ -98,8 +98,15 @@ import type {
   RevisionNarrativeArtifact,
 } from "../../types";
 import { useKeyboardShortcuts } from "../../useKeyboardShortcuts";
-import { buildBriefViewModel, type RiskFlag } from "../../viewModel";
+import {
+  buildBriefViewModel,
+  groupRiskByAttribute,
+  type RiskFlag,
+} from "../../viewModel";
+import type { RepoConfigContext } from "../../repoConfig";
 import { RiskBadge } from "../Badge/RiskBadge";
+import { RiskChipDisclosure } from "../Badge/RiskChipDisclosure";
+import { RiskDetailList } from "../Badge/RiskDetailList";
 import { ChangesOnlyView } from "../ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
@@ -445,6 +452,12 @@ export interface BriefViewProps extends BriefPageProps {
   headerControls?: ReactNode | undefined;
   /** Own-draft state plan (BRIEF-43); absent on every plain reviewer view. */
   ownDraft?: OwnDraftPlan | undefined;
+  /**
+   * Repo-config snapshot for this span (BRIEF-52): attribute source markers,
+   * de-emphasis weights, floor co-fire. Absent/null = render as if no repo
+   * config exists (local path, pre-BRIEF-52 rows, failed context fetch).
+   */
+  repoConfig?: RepoConfigContext | null | undefined;
 }
 
 /**
@@ -463,10 +476,14 @@ export function BriefView({
   headerControls,
   ownDraft,
   readOnly,
+  repoConfig,
   searchParams,
   submitReview,
 }: BriefViewProps) {
-  const model = useMemo(() => buildBriefViewModel(brief), [brief]);
+  const model = useMemo(
+    () => buildBriefViewModel(brief, repoConfig),
+    [brief, repoConfig],
+  );
   return (
     <MindMapProvider briefId={briefId} model={model}>
       <BriefScreen
@@ -520,6 +537,28 @@ function BriefScreen({
   readOnly,
   submitReview,
 }: BriefScreenProps) {
+  // Summary chip lane (BRIEF-52): one pass over the flags, memoized —
+  // BriefScreen re-renders on nearly every interaction (perf gate r1).
+  const summaryRiskChips = useMemo(() => {
+    const grouped = groupRiskByAttribute(model.flags);
+    return grouped.map(({ attr, flags }) => {
+      const loud = flags.find((flag) => !flag.deEmphasized);
+      const sample = loud ?? flags[0];
+      return {
+        attr,
+        meta:
+          sample === undefined
+            ? undefined
+            : {
+                source: sample.source,
+                deEmphasized: loud === undefined,
+                ...(sample.implication !== undefined
+                  ? { implication: sample.implication }
+                  : {}),
+              },
+      };
+    });
+  }, [model.flags]);
   const timeline = useMemo(
     () => buildBriefTimeline(artifacts, briefId),
     [artifacts, briefId],
@@ -1929,9 +1968,21 @@ function BriefScreen({
                   </span>
                 </h4>
                 <div className={styles["summaryRiskChips"]}>
-                  {[...new Set(model.flags.map((flag) => flag.attr))].map(
-                    (attr) => (
-                      <RiskBadge key={attr}>{attr}</RiskBadge>
+                  {summaryRiskChips.map(({ attr, meta }) =>
+                    meta !== undefined &&
+                    (meta.source === "repo-policy" || meta.deEmphasized) ? (
+                      <RiskChipDisclosure
+                        detail={
+                          <RiskDetailList attrs={[attr]} metaFor={() => meta} />
+                        }
+                        key={attr}
+                      >
+                        <RiskBadge meta={meta}>{attr}</RiskBadge>
+                      </RiskChipDisclosure>
+                    ) : (
+                      <RiskBadge key={attr} meta={meta}>
+                        {attr}
+                      </RiskBadge>
                     ),
                   )}
                 </div>

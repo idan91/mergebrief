@@ -1,7 +1,6 @@
 import {
   Categories,
   Concerns,
-  RiskSurfaceAttributes,
   Roles,
   type Brief,
   type BriefChunk,
@@ -24,14 +23,15 @@ import {
   type RevisionNarrativeChunk,
   type RevisionNarrativeSkipReason,
   type RiskNote,
-  type RiskSurfaceAttribute,
+  type RiskToken,
   type ValueOf,
 } from "./types";
 
+import { NAME_MAX_CHARS, NAME_PATTERN } from "./repoConfig";
 import type { Result as SharedResult } from "types";
 
 /** Shared `Result` with this module's fixed error type (a message string). */
-type Result<T> = SharedResult<T, string>;
+export type Result<T> = SharedResult<T, string>;
 
 interface ParsedChangeGroup {
   id?: string;
@@ -104,18 +104,26 @@ function categoryArray(value: unknown): Result<Category[]> {
   return { ok: true, value: parsed.value };
 }
 
-function riskSurfaceArray(value: unknown): Result<RiskSurfaceAttribute[]> {
+/**
+ * BRIEF-52: the risk vocabulary is per-generation (built-ins ∪ that repo's
+ * custom names, enum-enforced server-side at decode time), so the FE cannot
+ * enumerate it. It CAN enforce the token shape both sources share: lower
+ * kebab-case, ≤ 50 chars — imported from repoConfig.ts so there is exactly
+ * ONE lockstep-pinned mirror of the contract (Fable round 15).
+ */
+function isRiskToken(value: unknown): value is RiskToken {
+  return (
+    typeof value === "string" &&
+    value.length <= NAME_MAX_CHARS &&
+    NAME_PATTERN.test(value)
+  );
+}
+
+function riskSurfaceArray(value: unknown): Result<RiskToken[]> {
   const parsed = stringArray(value);
   if (!parsed.ok) return parsed;
-  if (
-    !parsed.value.every((item): item is RiskSurfaceAttribute =>
-      oneOf(RiskSurfaceAttributes, item),
-    )
-  ) {
-    return {
-      ok: false,
-      error: "Expected an array of known risk-surface attributes",
-    };
+  if (!parsed.value.every((item) => isRiskToken(item))) {
+    return { ok: false, error: "Expected kebab-case risk-surface tokens" };
   }
   return { ok: true, value: parsed.value };
 }
@@ -125,10 +133,10 @@ function parseRiskNote(value: unknown): Result<RiskNote> {
     return { ok: false, error: "Expected risk note to be an object" };
   const attr = value["attr"];
   const note = value["note"];
-  if (!oneOf(RiskSurfaceAttributes, attr) || !isString(note)) {
+  if (!isRiskToken(attr) || !isString(note)) {
     return {
       ok: false,
-      error: "Expected risk note attr (known attribute) and note string",
+      error: "Expected risk note attr (kebab-case token) and note string",
     };
   }
   return { ok: true, value: { attr, note } };

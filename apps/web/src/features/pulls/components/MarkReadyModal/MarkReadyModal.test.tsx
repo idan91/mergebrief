@@ -21,6 +21,8 @@ const FLAGS: RiskFlag[] = [
     chunkId: "chunk-a",
     groupId: "g1",
     description: "no-tests @ src/a.ts",
+    source: "built-in",
+    deEmphasized: false,
   },
   {
     id: "flag-2",
@@ -29,6 +31,8 @@ const FLAGS: RiskFlag[] = [
     chunkId: "chunk-b",
     groupId: "g1",
     description: "touches-auth @ src/b.ts",
+    source: "built-in",
+    deEmphasized: false,
   },
 ];
 

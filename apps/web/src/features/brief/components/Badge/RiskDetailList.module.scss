@@ -1,0 +1,19 @@
+@layer components {
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .caption {
+    font-size: 0.8em;
+    color: var(--dim, inherit);
+  }
+}

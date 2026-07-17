@@ -210,7 +210,12 @@ async function seedPullRequest(handle: AppDatabase): Promise<void> {
   });
 }
 
-async function seedBrief(handle: AppDatabase, base: string, head: string): Promise<void> {
+async function seedBrief(
+  handle: AppDatabase,
+  base: string,
+  head: string,
+  repoConfig?: string,
+): Promise<void> {
   const pr = await forTenant(handle, CTX).pullRequests.getByNumber(brandRepo(BigInt(REPO_ID)), PR_NUMBER);
   if (pr === undefined) throw new Error("seedBrief: pr missing");
   const written = await artifactStore(handle, CTX).briefs.write({
@@ -223,8 +228,13 @@ async function seedBrief(handle: AppDatabase, base: string, head: string): Promi
     model: "claude",
     effort: "high",
     body: BRIEF_BODY,
+    ...(repoConfig === undefined ? {} : { repoConfig }),
   });
   if (!written.ok) throw new Error(`seedBrief: write failed ${written.error.code}`);
+}
+
+function briefContextPath(base: string, head: string): string {
+  return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief-context?base=${base}&head=${head}`;
 }
 
 const DELTA_BODY = JSON.stringify({ summary: "the delta", changes: [] });
@@ -362,6 +372,39 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(missing.status).toBe(404);
+  });
+
+  it("brief-context returns the snapshot for a span, null for pre-BRIEF-52 rows, 404 for no row", async () => {
+    stubGitHub({ repositories: () => repoOk() });
+    const { cookie } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+    const snapshot = '{"files":[],"collisions":[],"policy":null}';
+    await seedBrief(harness.handle, "base1", "head1", snapshot);
+    await seedBrief(harness.handle, "base1", "head2"); // no snapshot column
+
+    const withConfig = await app.request(briefContextPath("base1", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(withConfig.status).toBe(200);
+    expect(withConfig.headers.get("cache-control")).toBe("no-store");
+    expect(await withConfig.text()).toBe(`{"repoConfig":${snapshot}}`);
+
+    const nullConfig = await app.request(briefContextPath("base1", "head2"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(nullConfig.status).toBe(200);
+    expect(await nullConfig.text()).toBe('{"repoConfig":null}');
+
+    const missing = await app.request(briefContextPath("base1", "nope"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(missing.status).toBe(404);
+
+    const malformed = await app.request(
+      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief-context?base=only`,
+      { headers: { Cookie: `rs_session=${cookie}` } },
+    );
+    expect(malformed.status).toBe(400);
   });
 
   it("200 authorized delta read returns the stored body; a missing span is 404 (BRIEF-21)", async () => {
