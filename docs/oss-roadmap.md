@@ -234,6 +234,49 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
 
 ---
 
+## V1 vs V2 (2026-07-18 split — aligned with the Notion board)
+
+> P0–P4 above are **done**; the P-sequence is history. This section is the live
+> prioritization: what must land before the OSS launch cutover (v1) vs what is
+> deliberately post-launch (v2). Board is the operational source of truth
+> (tickets/priority); this section is the narrative one — update both together.
+
+### V1 — path to launch (board: Next, then launch tail)
+
+The v1 product is what exists today: the Brief (story + risk + delta + conversation),
+author affordances, repo-config (`.mergebrief/`), the generator adapter family, CLI,
+self-host compose. Remaining v1 work is hardening and launch mechanics, not features:
+
+- **Quality/correctness:** eval harness (BRIEF-59) · categorizer precision misfires
+  (BRIEF-55) · comment box UX (BRIEF-56) · multi-column summary (BRIEF-4).
+- **Operational trust:** restore CI + backfill verification (BRIEF-37) ·
+  self-host hardening (BRIEF-20) · observability hooks (BRIEF-51) ·
+  pre-release manual testing pass (BRIEF-36).
+- **Launch tail (Later, pulled in at cutover time):** OSS launch cutover (BRIEF-38) ·
+  release engineering (BRIEF-49) · ghcr images (BRIEF-47) · GH App manifest flow
+  (BRIEF-60) · M1 system-design doc (BRIEF-39) · playbook governance grill (BRIEF-6).
+
+### V2 — post-launch, demand/evidence-triggered
+
+Parked deliberately — v1 doesn't ship everything. Each item keeps its trigger; none
+should start without it firing:
+
+- **Context enrichment** ([ADR 0033](./adr/0033-contextsource-contract-providers-parked.md)
+  — contract locked, providers parked): local/git retrieval provider (BRIEF-13;
+  trigger: briefs visibly starving on thin-PR-hygiene repos — killed by its gating
+  spike on this repo) · external context managers as MCP-client providers (BRIEF-61;
+  trigger: post-launch demand) · the ADR 0026 parked attributes ride whichever
+  provider revives.
+- **Agent-lane surfaces:** MCP server over the Analysis Layer (BRIEF-45) ·
+  comment-to-rule loop (BRIEF-48) · headless dual-consumer lane (ADR 0014 #3).
+- **Product depth:** Intent check (BRIEF-54) · cross-PR / temporal awareness
+  (BRIEF-12) · triage cascade + carry-over overlay (BRIEF-9/10) · scoped instruction
+  files (BRIEF-63).
+- **Operations at scale:** settings UI (BRIEF-62) · generation throughput (BRIEF-65) ·
+  deployed harness-CLI mode (BRIEF-32) · zero-install try path (BRIEF-46).
+
+---
+
 ## Progress log
 
 - 2026-06-30 — Doc created. OSS-only decision recorded; CodeRabbit Atlas overlap researched;
@@ -400,6 +443,17 @@ hosted arm, headless API, semantic/code-graph + diagram arms race.
   behind the same gate) — exactly the GitHub-compare view for the personal span. Slotted to
   BRIEF-24 (span navigation/views); BRIEF-21 shipped without it. Also add to the Notion
   BRIEF-24 ticket (agent write was permission-blocked).
+- 2026-07-18 — **BRIEF-13 design pass done → ADR 0033; providers parked; v1/v2 split
+  added above.** The ContextSource wayfinder map locked the provider contract (query
+  tiers, cited snippets, fail-open fan-out, registry) and the enrichment scope
+  (structure configuration-shaped never evidence-shaped; brief call only; every-brief
+  gate superseding ADR 0014 #5's escalation tier). The local/git retrieval provider was
+  **killed by its gating spike** — 12 briefs across 3 real PRs + a baseline variance
+  check showed every apparent improvement was run-to-run variance, not retrieval.
+  Context managers (BRIEF-61) deferred to v2 by scope. Board: BRIEF-13 Next → Backlog.
+  *(Log gap note: BRIEF-17 CLI, BRIEF-11 generator adapters, BRIEF-43 author
+  affordances, BRIEF-52/58 repo-config, BRIEF-64 draft policy all landed 2026-07-08 →
+  07-17 via board tickets — the board carried the log; see memory/ticket trail.)*
 - 2026-07-07 — **BRIEF-21 done (PRs #45 + #46, merged 2026-07-07).** Delta view over the read
   API: delta GET endpoint (same gate/404/no-store posture as the sibling artifact reads),
   PR-meta `comparisons.lastReview` union derived per-reviewer from the session's checkpoint

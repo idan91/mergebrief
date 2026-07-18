@@ -1,5 +1,13 @@
 # External Context and the AI-Review Boundary
 
+> **Amended 2026-07-18 ([ADR 0033](./0033-contextsource-contract-providers-parked.md)).**
+> The `ContextSource` seam in #5 now has a **locked contract** (query tiers, cited
+> snippets, fail-open fan-out, provider registry) — but **all providers are parked to
+> v2**: the local/git provider killed by its gating spike, context managers (BRIEF-61)
+> deferred by scope. #5's escalation-tier sequencing is superseded: when enrichment
+> ships, it runs on **every brief when providers are configured** (one capped fan-out
+> per generation), not per-change-group escalation. Decisions 1–4 stand unchanged.
+
 The tool does **not** consume an AI context manager (e.g. Unblocked) to hypothesize cross-context "issues" — that is the bug-bot the product is positioned against. External knowledge flows in exactly two narrow, honest ways, and AI *review* flows out a third: (1) external context may **enrich the Intent check and Risk Surface with cited facts only** (cite-or-stay-silent, never a verdict); (2) an org that wants AI review **hooks its own agent to consume our Brief** via the headless lane — that agent owns its verdicts, not us; (3) the **comment-to-rule loop** is the inverse arrow, where we *produce* repo-local agent context. Only (1) is a consume-side build, and it is deferred.
 
 ## Context
