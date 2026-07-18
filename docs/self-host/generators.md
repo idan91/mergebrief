@@ -63,6 +63,22 @@ How processes find it:
 | worker + web | `MERGEBRIEF_CONFIG=/path/to/mergebrief.config.yaml` (env var unset → zero-config default; set-but-empty or unreadable → refuses boot) |
 | categorizer CLIs | explicit `--config <path>` only — they never read `MERGEBRIEF_CONFIG` (`pnpm categorize --config ./mergebrief.config.yaml <pr-url>` also doubles as a fast config validator) |
 
+**Path form**: give `MERGEBRIEF_CONFIG` an absolute path. A relative value
+currently resolves against the process working directory, which differs per
+process (the worker runs from `packages/worker`, the web app from
+`apps/web`) — the same value can silently point at different files.
+BRIEF-70 changes this to workspace-root anchoring (walk up to the nearest
+`pnpm-workspace.yaml`), making `MERGEBRIEF_CONFIG=mergebrief.config.yaml`
+mean the repo-root file everywhere, local and dockerized alike — the
+docker image is a full workspace checkout, so the anchor holds there too.
+
+> **Packaged distributions (future)**: workspace-root anchoring assumes the
+> process runs inside a repo checkout. If MergeBrief ever ships as an
+> installed distribution (global npm package, prebuilt binary) running
+> outside a checkout, no anchor exists — relative values will refuse boot
+> with an explicit message and such deployments must use absolute paths.
+> Revisit the resolution rule when that distribution mode becomes real.
+
 Every boot-knowable problem **refuses boot with per-field issues** (values
 never echoed): unknown provider, unknown keys, a key env var that is unset,
 a CLI that is missing or not logged in. API keys are BYOK-by-env-NAME —
