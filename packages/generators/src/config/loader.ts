@@ -1,7 +1,7 @@
 import type { Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
 import { validateDraftsBlock } from "./instancePolicy";
-import { readConfigRoot, renderKey } from "./readRoot";
+import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 import {
   defaultGeneratorConfig,
   validateGeneratorConfig,
@@ -44,9 +44,13 @@ export function loadGeneratorConfig(
     };
   }
   // Set-but-empty is NOT unset (repo convention: loaders distinguish the
-  // two — an operator who set it believes it points somewhere). The empty
-  // path falls through to the file loader's sanitized read failure.
-  return loadGeneratorConfigFile(path);
+  // two — an operator who set it believes it points somewhere); the
+  // resolver rejects it with its own arm. Relative values are
+  // workspace-root-anchored (BRIEF-70) so the same env value names the
+  // same file in every process.
+  const resolved = resolveEnvConfigPath(path, process.cwd());
+  if (!resolved.ok) return resolved;
+  return loadGeneratorConfigFile(resolved.value);
 }
 
 /** Explicit-path load (categorizer `--config`; no ambient env honoring). */

@@ -1,7 +1,7 @@
 import { z } from "zod/v4";
 import type { DraftPolicy, Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
-import { readConfigRoot, renderKey } from "./readRoot";
+import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 
 /**
  * The narrow instance-policy loader (BRIEF-64 decision 1, ADR 0020 as
@@ -82,16 +82,20 @@ export function loadInstancePolicy(
       value: { draftPolicy: DEFAULT_DRAFT_POLICY, source: null },
     };
   }
-  const root = readConfigRoot(path);
+  // Same workspace-root anchoring as the generator loader (BRIEF-70) — the
+  // api and worker processes must read the SAME file for one env value.
+  const resolved = resolveEnvConfigPath(path, process.cwd());
+  if (!resolved.ok) return resolved;
+  const root = readConfigRoot(resolved.value);
   if (!root.ok) return root;
   const block = root.value === null ? undefined : root.value["drafts"];
   if (block === undefined) {
     return {
       ok: true,
-      value: { draftPolicy: DEFAULT_DRAFT_POLICY, source: path },
+      value: { draftPolicy: DEFAULT_DRAFT_POLICY, source: resolved.value },
     };
   }
   const policy = validateDraftsBlock(block);
   if (!policy.ok) return policy;
-  return { ok: true, value: { draftPolicy: policy.value, source: path } };
+  return { ok: true, value: { draftPolicy: policy.value, source: resolved.value } };
 }

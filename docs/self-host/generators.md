@@ -37,8 +37,8 @@ generator:
   #   hardMs: 900000
   #   inactivityMs: 180000
   #   killGraceMs: 5000
-  # providerRouting:           # openrouter only: routing options passthrough
-  #   order: ["anthropic"]
+  # providerRouting:           # openrouter only: routing options passthrough —
+  #   order: ["anthropic"]     # any key from openrouter.ai/docs/features/provider-routing
   # referer: https://you.example   # openrouter attribution headers
   # title: MergeBrief
 
@@ -60,23 +60,27 @@ How processes find it:
 
 | Surface | Mechanism |
 |---|---|
-| worker + web | `MERGEBRIEF_CONFIG=/path/to/mergebrief.config.yaml` (env var unset → zero-config default; set-but-empty or unreadable → refuses boot) |
+| worker + web | `MERGEBRIEF_CONFIG=mergebrief.config.yaml` — relative resolves against the workspace root (see path-form note); absolute also fine (env var unset → zero-config default; set-but-empty or unreadable → refuses boot) |
 | categorizer CLIs | explicit `--config <path>` only — they never read `MERGEBRIEF_CONFIG` (`pnpm categorize --config ./mergebrief.config.yaml <pr-url>` also doubles as a fast config validator) |
 
-**Path form**: give `MERGEBRIEF_CONFIG` an absolute path. A relative value
-currently resolves against the process working directory, which differs per
-process (the worker runs from `packages/worker`, the web app from
-`apps/web`) — the same value can silently point at different files.
-BRIEF-70 changes this to workspace-root anchoring (walk up to the nearest
-`pnpm-workspace.yaml`), making `MERGEBRIEF_CONFIG=mergebrief.config.yaml`
-mean the repo-root file everywhere, local and dockerized alike — the
-docker image is a full workspace checkout, so the anchor holds there too.
+**Path form** (BRIEF-70): a relative `MERGEBRIEF_CONFIG` is resolved
+against the **workspace root** — the nearest ancestor of the process
+working directory containing `pnpm-workspace.yaml` — never against bare
+cwd (the worker runs from `packages/worker`, the web app from `apps/web`;
+cwd-relative would let one env value silently name different files). So
+`MERGEBRIEF_CONFIG=mergebrief.config.yaml` in `.env` means the repo-root
+file everywhere, local and dockerized alike — the docker image is a full
+workspace checkout, so the anchor holds there too. Absolute paths pass
+through unchanged. No workspace root above cwd refuses boot and points at
+absolute paths. Dockerized live edits: uncomment the config mount in
+`docker-compose.yml` (both services) to shadow the baked copy so yaml
+changes apply on restart instead of rebuild.
 
 > **Packaged distributions (future)**: workspace-root anchoring assumes the
 > process runs inside a repo checkout. If MergeBrief ever ships as an
 > installed distribution (global npm package, prebuilt binary) running
-> outside a checkout, no anchor exists — relative values will refuse boot
-> with an explicit message and such deployments must use absolute paths.
+> outside a checkout, no anchor exists — relative values refuse boot with
+> an explicit message and such deployments must use absolute paths.
 > Revisit the resolution rule when that distribution mode becomes real.
 
 Every boot-knowable problem **refuses boot with per-field issues** (values

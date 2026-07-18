@@ -42,6 +42,12 @@ services:
       # In-network DSN overrides any host-oriented value from .env.
       DATABASE_URL: postgres://code_review:code_review@postgres:5432/code_review
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+    # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
+    # the image already bakes the repo-root file via `COPY . .`; this mount
+    # shadows it so edits apply on restart instead of rebuild. Uncomment
+    # here AND in the worker service — both read the same file.
+    # volumes:
+    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:3000/ || exit 1"]
       interval: 15s
@@ -63,6 +69,10 @@ services:
       DATABASE_URL: postgres://code_review:code_review@postgres:5432/code_review
       # The Entry comment's deep-link base — same value the web tier uses.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
+    # See the web service's mergebrief.config.yaml mount note — uncomment
+    # both together.
+    # volumes:
+    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # No HTTP surface to probe; liveness = the runner process itself.
     # Restart on crash so a transient boot race (e.g. Postgres restarting)
     # self-heals without an operator.

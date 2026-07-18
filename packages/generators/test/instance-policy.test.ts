@@ -1,7 +1,7 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadInstancePolicy } from "../src/config/instancePolicy";
 
 /**
@@ -20,6 +20,7 @@ function configFile(contents: string): string {
   return path;
 }
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -33,6 +34,29 @@ describe("loadInstancePolicy", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toEqual({ draftPolicy: DEFAULT_POLICY, source: null });
+  });
+
+  it("anchors a relative MERGEBRIEF_CONFIG at the workspace root, not cwd (BRIEF-70)", () => {
+    // The api process and the worker must resolve one env value to the
+    // SAME file — pin this loader to the shared resolver, not bare cwd.
+    const root = mkdtempSync(join(tmpdir(), "mergebrief-policy-ws-"));
+    tempDirs.push(root);
+    writeFileSync(join(root, "pnpm-workspace.yaml"), 'packages:\n  - "apps/*"\n');
+    writeFileSync(
+      join(root, "mergebrief.config.yaml"),
+      "drafts:\n  generate: off\n",
+    );
+    const nested = join(root, "apps", "web");
+    mkdirSync(nested, { recursive: true });
+    vi.spyOn(process, "cwd").mockReturnValue(nested);
+
+    const result = loadInstancePolicy({
+      MERGEBRIEF_CONFIG: "mergebrief.config.yaml",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.draftPolicy.generate).toBe(false);
+    expect(result.value.source).toBe(join(root, "mergebrief.config.yaml"));
   });
 
   it("returns the default policy for a file without a drafts block", () => {

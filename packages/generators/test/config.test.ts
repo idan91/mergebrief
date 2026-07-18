@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadGeneratorConfig, loadGeneratorConfigFile } from "../src/config/loader";
+import { resolveEnvConfigPath } from "../src/config/readRoot";
 
 /**
  * The instance-config loader table (BRIEF-11 decision 6): every fail-fast
@@ -20,6 +21,7 @@ function configFile(contents: string): string {
   return path;
 }
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dir of tempDirs.splice(0)) {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -40,7 +42,7 @@ describe("loadGeneratorConfig (env-driven)", () => {
     const result = loadGeneratorConfig({ MERGEBRIEF_CONFIG: "" });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.issues.join("; ")).toContain("not readable");
+    expect(result.error.issues.join("; ")).toContain("set but empty");
   });
 
   it("loads the file the env var points at", () => {
@@ -53,6 +55,64 @@ describe("loadGeneratorConfig (env-driven)", () => {
       model: "claude-sonnet-5",
     });
     expect(result.value.source).toBe(path);
+  });
+
+  it("anchors a relative MERGEBRIEF_CONFIG at the workspace root, not cwd", () => {
+    // Fake workspace: root marker + config at root, cwd deep inside a
+    // package dir — the exact worker/web shape (`pnpm --dir`).
+    const root = mkdtempSync(join(tmpdir(), "mergebrief-ws-"));
+    tempDirs.push(root);
+    writeFileSync(join(root, "pnpm-workspace.yaml"), 'packages:\n  - "packages/*"\n');
+    writeFileSync(
+      join(root, "mergebrief.config.yaml"),
+      "generator:\n  provider: anthropic\n  model: claude-sonnet-5\n",
+    );
+    const nested = join(root, "packages", "worker");
+    mkdirSync(nested, { recursive: true });
+    vi.spyOn(process, "cwd").mockReturnValue(nested);
+
+    const result = loadGeneratorConfig({
+      MERGEBRIEF_CONFIG: "mergebrief.config.yaml",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.generator).toEqual({
+      provider: "anthropic",
+      model: "claude-sonnet-5",
+    });
+    expect(result.value.source).toBe(join(root, "mergebrief.config.yaml"));
+  });
+});
+
+describe("resolveEnvConfigPath", () => {
+  it("passes absolute paths through untouched", () => {
+    const result = resolveEnvConfigPath("/etc/mergebrief.yaml", "/anywhere");
+    expect(result).toEqual({ ok: true, value: "/etc/mergebrief.yaml" });
+  });
+
+  it("resolves against the nearest ancestor with pnpm-workspace.yaml", () => {
+    const root = mkdtempSync(join(tmpdir(), "mergebrief-ws-"));
+    tempDirs.push(root);
+    writeFileSync(join(root, "pnpm-workspace.yaml"), "packages: []\n");
+    const nested = join(root, "apps", "web");
+    mkdirSync(nested, { recursive: true });
+
+    const result = resolveEnvConfigPath("mergebrief.config.yaml", nested);
+    expect(result).toEqual({
+      ok: true,
+      value: join(root, "mergebrief.config.yaml"),
+    });
+  });
+
+  it("refuses a relative path with no workspace root above cwd", () => {
+    const orphan = mkdtempSync(join(tmpdir(), "mergebrief-orphan-"));
+    tempDirs.push(orphan);
+
+    const result = resolveEnvConfigPath("mergebrief.config.yaml", orphan);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("workspace root");
+    expect(result.error.issues.join("; ")).toContain("absolute path");
   });
 });
 

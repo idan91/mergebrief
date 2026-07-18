@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { parse as parseYaml, YAMLParseError } from "yaml";
 import type { Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
@@ -13,6 +14,49 @@ import { configError, type ConfigError } from "../contract/errors";
 
 /** `null` root = empty file, a valid zero-config choice. */
 export type ConfigRoot = Record<string, unknown> | null;
+
+/**
+ * Resolves a `MERGEBRIEF_CONFIG` value to the file to read (BRIEF-70).
+ * Absolute paths pass through. A relative path is anchored at the
+ * WORKSPACE ROOT — the nearest ancestor of `cwd` containing
+ * `pnpm-workspace.yaml` — never at bare cwd: worker and web run with
+ * different working directories (`pnpm --dir`), so cwd-relative would make
+ * one env value silently mean a different file per process. Every runtime
+ * surface today (local pnpm, the docker images' `COPY . .`) is a full
+ * workspace checkout, so the anchor is well-defined; a packaged
+ * distribution outside a checkout has no anchor and must use an absolute
+ * path (docs/self-host/generators.md).
+ *
+ * CLI `--config` deliberately does NOT come through here — an interactive
+ * shell's cwd is unambiguous.
+ */
+export function resolveEnvConfigPath(
+  path: string,
+  cwd: string,
+): Result<string, ConfigError> {
+  // Set-but-empty is its own arm (unset ≠ empty, repo convention): calling
+  // it out beats the walk-up landing on the workspace root DIRECTORY and
+  // surfacing as a baffling EISDIR.
+  if (path === "") {
+    return configError([
+      "MERGEBRIEF_CONFIG: set but empty — unset it for zero-config defaults, or point it at a config file",
+    ]);
+  }
+  if (isAbsolute(path)) return { ok: true, value: path };
+  let dir = resolve(cwd);
+  for (;;) {
+    if (existsSync(join(dir, "pnpm-workspace.yaml"))) {
+      return { ok: true, value: join(dir, path) };
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      return configError([
+        "MERGEBRIEF_CONFIG: relative path, but no workspace root (pnpm-workspace.yaml) above the working directory — use an absolute path",
+      ]);
+    }
+    dir = parent;
+  }
+}
 
 export function readConfigRoot(path: string): Result<ConfigRoot, ConfigError> {
   let text: string;

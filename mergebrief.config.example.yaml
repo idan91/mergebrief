@@ -32,6 +32,9 @@ generator:
 
   # openrouter only: routing options passed through under `provider`
   # (require_parameters: true is always forced on top) + attribution headers.
+  # ANY key from OpenRouter's provider-routing docs works here — `order` is
+  # an example, not the menu (e.g. sort: throughput routes to the fastest
+  # host): https://openrouter.ai/docs/features/provider-routing
   # providerRouting:
   #   order: ["anthropic"]
   # referer: https://you.example
