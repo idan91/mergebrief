@@ -47,8 +47,14 @@ export const properties: EvalProperty[] = [
   },
   {
     id: "coherent-grouping",
-    description: "between 1 and 4 groups — a dedupe is one story, maybe split by foundation vs consumers",
-    check: (brief) =>
-      brief.changeGroups.length >= 1 && brief.changeGroups.length <= 4,
+    description:
+      "no more groups than touched top-level dirs + 1 — foundation-first plus one adopt-group per consumer package is legitimate story structure (observed and verified 2026-07-18); per-hunk fragmentation is not",
+    check: (brief) => {
+      const dirs = new Set(brief.chunks.map((chunk) => packageDir(chunk.file)));
+      return (
+        brief.changeGroups.length >= 1 &&
+        brief.changeGroups.length <= dirs.size + 1
+      );
+    },
   },
 ];
