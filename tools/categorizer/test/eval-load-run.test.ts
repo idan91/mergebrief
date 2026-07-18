@@ -19,6 +19,7 @@ describe("the shipped corpus", () => {
     expect(loaded.value.map((c) => c.id)).toEqual([
       "button-under-split",
       "copybutton-new-export",
+      "delta-read-api-contract",
       "multi-package-types",
       "pure-move-persistence",
       "schema-change-provenance",
@@ -62,6 +63,8 @@ describe("runCase", () => {
     });
     const result = await runCase(generate, 3);
     expect(result.briefs).toHaveLength(2);
+    // Provenance numbering survives the failed run — briefs[1] came from run 3.
+    expect(result.runNumbers).toEqual([1, 3]);
     expect(result.generationFailures).toBe(1);
     expect(result.failureMessages[0]).toContain("provider hiccup");
     expect(generate).toHaveBeenCalledTimes(3);

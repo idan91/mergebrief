@@ -8,6 +8,9 @@ import type { Brief } from "../src/types";
  */
 export interface CaseRunResult {
   briefs: Brief[];
+  /** 1-based run number that produced `briefs[i]` — briefs skip failed
+   * runs, so index+1 lies about provenance the moment any run fails. */
+  runNumbers: number[];
   generationFailures: number;
   failureMessages: string[];
 }
@@ -17,16 +20,23 @@ export async function runCase(
   runs: number,
 ): Promise<CaseRunResult> {
   const briefs: Brief[] = [];
+  const runNumbers: number[] = [];
   const failureMessages: string[] = [];
   for (let run = 1; run <= runs; run++) {
     try {
       // eslint-disable-next-line no-await-in-loop -- serial by design (see module doc)
       briefs.push(await generate());
+      runNumbers.push(run);
     } catch (error) {
       failureMessages.push(
         `run ${run}: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
-  return { briefs, generationFailures: failureMessages.length, failureMessages };
+  return {
+    briefs,
+    runNumbers,
+    generationFailures: failureMessages.length,
+    failureMessages,
+  };
 }

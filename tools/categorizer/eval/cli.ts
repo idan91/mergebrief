@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -151,6 +151,20 @@ async function evaluateCase(
     );
   };
   const result = await runCase(generate, runs);
+  // Persist every scored run's brief — flaky-property diagnosis needs
+  // specimens, not just pass counts (BRIEF-55's grouping drift was
+  // uninspectable). Wiped per CASE per invocation: `--case` iteration
+  // refreshes that case's specimens and leaves the other cases' (from an
+  // earlier full run) in place — check mtimes when reading across cases.
+  const runsDir = join(OUT_DIR, "eval-runs", evalCase.id);
+  rmSync(runsDir, { recursive: true, force: true });
+  mkdirSync(runsDir, { recursive: true });
+  result.briefs.forEach((brief, index) => {
+    writeFileSync(
+      join(runsDir, `run-${result.runNumbers[index]}.brief.json`),
+      `${JSON.stringify(brief, null, 2)}\n`,
+    );
+  });
   const scored = scoreRuns(evalCase.properties, result.briefs);
   const baselinePath = join(evalCase.dir, "baseline.json");
   let baseline: CaseOutcome["baseline"] = null;

@@ -15,7 +15,11 @@ pnpm -C tools/categorizer eval --prices <json> # non-default price table
 
 Exit codes: `0` clean · `1` ≥1 REGRESSION · `2` config/usage error.
 Reports land in `out/eval-report.json` + `out/eval-report.md` (paste the
-markdown block into the PR — see the convention gate below).
+markdown block into the PR — see the convention gate below). Every
+scored run's brief is persisted to `out/eval-runs/<case>/run-N.brief.json`
+(N = true run number; failed runs leave gaps) for flaky-property
+diagnosis — wiped per case per invocation, so a `--case` rerun refreshes
+that case and leaves the others' specimens from the last full run.
 
 ## When to run (convention gate — not CI)
 
@@ -61,6 +65,11 @@ the dormant `unresolved-reference` probe — App.tsx switches
 `{...props}` spread lets override `type="button"` while `variant`
 silently stops being passed) · `pure-move-persistence` ·
 `multi-package-types` · `schema-change-provenance`.
+
+Added post-seed: `delta-read-api-contract` (BRIEF-66 positive
+cross-service probe — modified EXISTING wire contracts from
+code-review#45; baselined at 1/5, the measured post-BRIEF-55 under-fire
+that a future gloss re-tune targets).
 
 ## Cost (decision 7)
 
