@@ -1,0 +1,7 @@
+{
+  "anthropic:claude-opus-4-8": {
+    "inputPerMTok": 5,
+    "outputPerMTok": 25,
+    "cacheReadPerMTok": 0.5
+  }
+}

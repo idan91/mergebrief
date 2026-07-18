@@ -1,0 +1,21 @@
+{
+  "pr": {
+    "locator": { "owner": "idan91", "repo": "fixture", "number": 1 },
+    "meta": {
+      "title": "Sample fixture PR",
+      "body": "Adds a thing.",
+      "url": "https://github.com/idan91/fixture/pull/1",
+      "sha": "headsha0000000000000000000000000000000000",
+      "baseSha": "basesha0000000000000000000000000000000000",
+      "commitCount": 1,
+      "files": [{ "path": "src/a.ts", "additions": 3, "deletions": 1 }]
+    },
+    "diff": "diff --git a/src/a.ts b/src/a.ts\n--- a/src/a.ts\n+++ b/src/a.ts\n@@ -1,2 +1,4 @@\n line\n-old\n+new\n+more\n+lines\n",
+    "links": []
+  },
+  "commitRange": {
+    "base": "basesha0000000000000000000000000000000000",
+    "head": "headsha0000000000000000000000000000000000",
+    "commitCount": 1
+  }
+}

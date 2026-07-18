@@ -379,6 +379,9 @@ importers:
       generators:
         specifier: workspace:*
         version: link:../../packages/generators
+      types:
+        specifier: workspace:*
+        version: link:../../packages/types
       zod:
         specifier: ^3.25.0
         version: 3.25.76

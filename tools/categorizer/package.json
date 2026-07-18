@@ -3,13 +3,14 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Turns a real PR diff into a usable review brief (story + concern + risk-surface), validated against hand-labels.",
+  "description": "Turns a real PR diff into a usable review brief (story + concern + risk-surface), validated against hand-labels. eval/ carries the BRIEF-59 generation-quality regression harness.",
   "exports": {
     ".": "./src/lib.ts"
   },
   "scripts": {
     "categorize": "tsx src/index.ts",
     "delta": "tsx src/delta-cli.ts",
+    "eval": "tsx eval/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "probe:enum": "tsx scripts/probe-enum-enforcement.ts"
@@ -17,6 +18,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
     "generators": "workspace:*",
+    "types": "workspace:*",
     "zod": "^3.25.0"
   },
   "devDependencies": {

@@ -110,7 +110,10 @@ fake. **Additive only — no call-site changes elsewhere in the monorepo.**
 
 `tools/categorizer/eval/`: case loader (fixture dir → generation inputs),
 run executor (N generations via the categorizer's real prompt/parse/validate
-path, serial; AbortSignal on Ctrl-C), property engine (run `expected.ts`
+path, serial; no cooperative AbortSignal — `categorize()` doesn't accept
+one, and threading it through is not worth the signature change for a
+local tool where Ctrl-C kills the process and serial runs bound waste to
+one in-flight call — amended at implementation), property engine (run `expected.ts`
 predicates over each parsed Brief), baseline load/compare/classify, verdict
 rules (decision 4), report rendering (terminal + `report.json` + markdown
 block), `--rebaseline`, `--runs`, pre-flight count line, cost accumulation
