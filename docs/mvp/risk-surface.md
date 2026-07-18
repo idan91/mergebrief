@@ -126,8 +126,8 @@ The diff calls external services, network endpoints, filesystem, OS, or third-pa
 - **Playbook implication:** external calls add failure modes (network errors, timeouts, partial state). Reviewer must verify retry/timeout/idempotency and what happens on outage.
 
 ### `cross-service`
-The chunk changes a contract an EXISTING external consumer already depends on across a service/deploy boundary — RPC, message-queue payloads, shared schemas, published API surfaces. Newly-added exports have no consumers yet and are NOT cross-service (BRIEF-55: "exported public API surface" alone is not this attribute).
-- **Detect:** changes to OpenAPI/GraphQL schema files, gRPC `.proto`, message-queue payload shapes, or an already-published API surface consumed by other repos.
+The chunk changes a contract another service or deployable consumes — API request/response bodies, RPC/message-queue payloads, shared DB schemas, a lib's published exported surface. Sibling services in the same repo count only when they are separate deployables sharing a schema or HTTP API (BRIEF-69) — compile-time imports between packages are NOT services (that is `widely-imported` territory). Modifying an existing consumed contract fires even when the change is additive; a wholly NEW endpoint/export has no consumers yet and is NOT cross-service (BRIEF-55: "exported public API surface" alone is not this attribute).
+- **Detect:** changes to OpenAPI/GraphQL schema files, gRPC `.proto`, message-queue payload shapes, an already-consumed route body or shared table, or an already-published API surface consumed by other repos.
 - **Playbook implication:** change is consumed elsewhere. Reviewer must verify backward compatibility, version negotiation, and consumer-side migration plan.
 
 ### `schema-adjacent`
