@@ -266,9 +266,9 @@ describe("brief screen characterization", () => {
     );
   });
 
-  it("lists unique risk-attribute names under the brief summary", async () => {
+  it("lists unique risk-attribute names in the attribute jump-rail", async () => {
     await renderBriefScreen();
-    const section = document.querySelector("[data-summary-risk]");
+    const section = document.querySelector("[data-attribute-jump-rail]");
     expect(section).not.toBeNull();
     expect(section?.textContent).toContain("no-tests");
     expect(section?.textContent).toContain("comment-contradicts-code");

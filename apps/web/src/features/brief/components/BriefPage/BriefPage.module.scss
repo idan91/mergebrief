@@ -1,7 +1,46 @@
 @layer components {
   .summary {
+    container-type: inline-size;
     max-inline-size: 68ch;
     margin-block-end: 30px;
+
+    // BRIEF-4: with a changelog split the section spans the container and the
+    // 68ch prose cap moves to each column; the description panel also spans
+    // and multi-columns (below); remaining children keep the cap.
+    &[data-summary-split] {
+      max-inline-size: none;
+
+      > :not(.summaryColumns, .description) {
+        max-inline-size: 68ch;
+      }
+    }
+  }
+
+  .summaryColumns {
+    display: grid;
+    align-items: start;
+    gap: 24px 48px;
+    grid-template-columns: minmax(0, 68ch);
+
+    // Engages only when two prose columns + gap genuinely fit. Placement is
+    // grid-only — DOM order (lead → changelog) never changes.
+    @container (min-inline-size: 120ch) {
+      grid-template-columns: minmax(0, 68ch) minmax(0, 68ch);
+    }
+  }
+
+  .summaryLead {
+    min-inline-size: 0;
+  }
+
+  .summaryAside {
+    min-inline-size: 0;
+
+    // Column tops align: the changelog h2 keeps its own-column rhythm but
+    // not the full mid-document heading margin.
+    :first-child :is(h1, h2, h3):first-child {
+      margin-block-start: 0;
+    }
   }
 
   .summaryDrawer {
@@ -36,34 +75,6 @@
     font-weight: 500;
   }
 
-  .summaryRisk {
-    display: grid;
-    gap: 2px;
-    margin-block-start: 16px;
-  }
-
-  // Two 1.25 hierarchy steps below the summary's "## Changelog" h2
-  // (23.25px → 18.6 → ~15px), so the section reads as an h4-level sibling
-  // of the summary's own headings.
-  .summaryRiskHeading {
-    margin-block: 0 8px;
-    color: var(--text);
-    font-size: 15px;
-    font-weight: 600;
-  }
-
-  // The trailing note reads as body copy, not part of the heading.
-  .summaryRiskNote {
-    color: var(--dim);
-    font-weight: 400;
-  }
-
-  .summaryRiskChips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
   .descriptionToggle {
     margin-block-start: 4px;
     border: 0;
@@ -87,6 +98,23 @@
     border-radius: 10px;
     margin-block-start: 18px;
     background: var(--panel2);
+
+    // BRIEF-4 follow-up: on the same wide container that engages the summary
+    // split, the panel spans and its prose flows into two columns. The query
+    // is against .summary (the inline-size container); unsplit summaries stay
+    // capped at 68ch so it never engages there.
+    @container (min-inline-size: 120ch) {
+      column-count: 2;
+      column-gap: 48px;
+
+      > .eyebrow {
+        column-span: all;
+      }
+
+      :is(pre, table, blockquote, li) {
+        break-inside: avoid;
+      }
+    }
   }
 
   .toast {

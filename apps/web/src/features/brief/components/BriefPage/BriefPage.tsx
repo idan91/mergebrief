@@ -101,13 +101,10 @@ import { useKeyboardShortcuts } from "../../useKeyboardShortcuts";
 import {
   buildAttributeRail,
   buildBriefViewModel,
-  groupRiskByAttribute,
+  splitSummaryAtChangelog,
   type RiskFlag,
 } from "../../viewModel";
 import type { RepoConfigContext } from "../../repoConfig";
-import { RiskBadge } from "../Badge/RiskBadge";
-import { RiskChipDisclosure } from "../Badge/RiskChipDisclosure";
-import { RiskDetailList } from "../Badge/RiskDetailList";
 import { ChangesOnlyView } from "../ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
@@ -542,29 +539,12 @@ function BriefScreen({
   readOnly,
   submitReview,
 }: BriefScreenProps) {
-  // Summary chip lane (BRIEF-52): one pass over the flags, memoized —
-  // BriefScreen re-renders on nearly every interaction (perf gate r1).
+  // The attribute jump-rail is the single risk-surface summary (ADR 0032
+  // #11); the summary section carries no risk chip lane of its own.
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
-  const summaryRiskChips = useMemo(() => {
-    const grouped = groupRiskByAttribute(model.flags);
-    return grouped.map(({ attr, flags }) => {
-      const loud = flags.find((flag) => !flag.deEmphasized);
-      const sample = loud ?? flags[0];
-      return {
-        attr,
-        meta:
-          sample === undefined
-            ? undefined
-            : {
-                source: sample.source,
-                deEmphasized: loud === undefined,
-                ...(sample.implication !== undefined
-                  ? { implication: sample.implication }
-                  : {}),
-              },
-      };
-    });
-  }, [model.flags]);
+  // BRIEF-4: two-column summary on wide containers — split at the optional
+  // "## Changelog" h2. No changelog → single-column render, unchanged DOM.
+  const summaryParts = splitSummaryAtChangelog(brief.summary);
   const timeline = useMemo(
     () => buildBriefTimeline(artifacts, briefId),
     [artifacts, briefId],
@@ -1961,41 +1941,36 @@ function BriefScreen({
         data-zen={focusMode ? "on" : undefined}
       >
         {focusMode ? null : (
-          <section className={`${styles["summary"]} reveal`}>
+          <section
+            className={`${styles["summary"]} reveal`}
+            data-summary-split={
+              summaryParts.changelog === undefined ? undefined : ""
+            }
+          >
             <div className={styles["eyebrow"]}>
               {brief.artifactKind === "delta" ? "Delta brief" : "Brief"}
             </div>
-            <Markdown content={brief.summary} />
-            {model.flags.length > 0 ? (
-              <div className={styles["summaryRisk"]} data-summary-risk="">
-                <h4 className={styles["summaryRiskHeading"]}>
-                  Risk surface{" "}
-                  <span className={styles["summaryRiskNote"]}>
-                    attributes, not verdicts
-                  </span>
-                </h4>
-                <div className={styles["summaryRiskChips"]}>
-                  {summaryRiskChips.map(({ attr, meta }) =>
-                    meta !== undefined &&
-                    (meta.source === "repo-policy" || meta.deEmphasized) ? (
-                      <RiskChipDisclosure
-                        detail={
-                          <RiskDetailList attrs={[attr]} metaFor={() => meta} />
-                        }
-                        key={attr}
-                      >
-                        <RiskBadge meta={meta}>{attr}</RiskBadge>
-                      </RiskChipDisclosure>
-                    ) : (
-                      <RiskBadge key={attr} meta={meta}>
-                        {attr}
-                      </RiskBadge>
-                    ),
-                  )}
+            {/* BRIEF-4: with a changelog the summary renders as two grid
+                regions — lead prose | changelog (+ delta context). DOM order
+                stays overview → what-it-does → changelog; wide-container
+                placement is grid-only (reading order, a11y). */}
+            {summaryParts.changelog === undefined ? (
+              <Markdown content={brief.summary} />
+            ) : (
+              <div className={styles["summaryColumns"]}>
+                <div className={styles["summaryLead"]}>
+                  <Markdown content={summaryParts.lead} />
+                </div>
+                <div className={styles["summaryAside"]}>
+                  <Markdown content={summaryParts.changelog} />
+                  {brief.artifactKind === "delta" ? (
+                    <DeltaContext brief={brief} />
+                  ) : null}
                 </div>
               </div>
-            ) : null}
-            {brief.artifactKind === "delta" ? (
+            )}
+            {summaryParts.changelog === undefined &&
+            brief.artifactKind === "delta" ? (
               <DeltaContext brief={brief} />
             ) : null}
             <button

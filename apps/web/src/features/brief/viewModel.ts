@@ -465,3 +465,37 @@ export function buildAttributeRail(model: BriefViewModel): AttributeRail {
     floorFired: entries.some((entry) => entry.floor),
   };
 }
+
+export interface SummarySplit {
+  /** Overview + what-it-does prose — always present. */
+  lead: string;
+  /** The `## Changelog` heading plus everything after it; absent when the
+      summary has no changelog section (BRIEF-4: no split, single column). */
+  changelog?: string;
+}
+
+const CHANGELOG_HEADING = /^##\s+changelog\s*$/i;
+const FENCE_LINE = /^\s{0,3}(?:```|~~~)/;
+
+/**
+ * Split the Brief summary markdown at its optional `## Changelog` h2 (BRIEF-4
+ * two-column layout). The categorizer contract puts the changelog last, so the
+ * changelog part runs to the end. A heading inside a code fence never splits;
+ * a changelog-first summary (empty lead) stays unsplit so the layout keeps its
+ * single-column fallback.
+ */
+export function splitSummaryAtChangelog(summary: string): SummarySplit {
+  const lines = summary.split("\n");
+  let inFence = false;
+  for (const [index, line] of lines.entries()) {
+    if (FENCE_LINE.test(line)) {
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence || !CHANGELOG_HEADING.test(line)) continue;
+    const lead = lines.slice(0, index).join("\n").trim();
+    if (lead === "") break;
+    return { lead, changelog: lines.slice(index).join("\n").trim() };
+  }
+  return { lead: summary };
+}

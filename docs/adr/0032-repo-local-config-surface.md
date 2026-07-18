@@ -140,3 +140,19 @@ One line — operator vs code-owner — decides every placement question this su
 - New ticket filed: **scoped instruction files** (Later) with the #10 sketch + revisit triggers.
 - Implementation plan: `docs/plans/repo-config-surface.md` (BRIEF-52 + BRIEF-58, one stack).
 - The comment-to-rule loop (v2+) inherits `.mergebrief/rules/` and the default-branch trust rule for free.
+
+### Amendment (2026-07-18, BRIEF-4 follow-up)
+
+The BRIEF-52 implementation had added a "Risk surface — attributes, not
+verdicts" chip lane to the Brief summary section alongside the #11 display
+surfaces. With the BRIEF-4 two-column summary it rendered directly above the
+(floor-fired, therefore open) jump-rail as a near-duplicate list. **Removed:
+the attribute jump-rail is now the single page-level risk-surface summary.**
+The #11 display decisions stand unchanged — group-header chip unions, chunk
+chips, and the rail's semantics (attribute-keyed, floor pinned, de-emphasized
+excluded, collapsed unless floor fired). Accepted consequences: de-emphasized
+attributes have no page-level surface (they remain on group/chunk chips), and
+the Changes Only view carries no page-level risk surface. Revisit trigger:
+reviewers reporting they miss quiet attributes at a glance, or a no-floor
+brief reading as "no risk surface" → reconsider a compact lane, not a
+second full list.
