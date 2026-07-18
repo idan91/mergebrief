@@ -63,11 +63,13 @@ const RISK_GLOSS: Record<RiskSurfaceAttribute, string> = {
   "external-io":
     "calls external services, network, filesystem, OS, or third-party APIs",
   "cross-service":
-    "part of a contract shared with another service (RPC, queue, schema, public API)",
+    "changes a contract an EXISTING external consumer already depends on across a service/deploy boundary (RPC, queue, shared schema, published API); newly-added exports have no consumers and are NOT cross-service",
   "schema-adjacent":
     "near (not in) a schema/migration/persistence layer (db/, models/, migrations/)",
-  "hot-path": "on a high-traffic / latency-critical / request-handling path",
-  "widely-imported": "the modified API has many call sites (~>=10 importers)",
+  "hot-path":
+    "on a demonstrably high-traffic or latency-critical path (serving loop, per-request middleware, tight inner loop) — not every request handler qualifies",
+  "widely-imported":
+    "the modified API has many EXISTING call sites in the repo (~>=10 importers); a newly-added API has zero importers and never qualifies",
   "release-imminent":
     "targets a release shipping soon, or is a backport/hotfix",
 };
@@ -168,7 +170,7 @@ Type, context, and CSS/style files are not automatically supporting. They are \`
 
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
 
-Severity is NOT your job — it emerges later from combinations. Attach an attribute only when the diff or repo context supports it. **Be consistent with your own prose: if you note a risk in the summary (a widened public API → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it — never describe a risk in prose without flagging it on a chunk.**
+Severity is NOT your job — it emerges later from combinations. Attach an attribute only when the diff or repo context supports it. **Be consistent with your own prose: if you note a risk in the summary (a changed contract with existing external consumers → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it — never describe a risk in prose without flagging it on a chunk.**
 
 ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
 
@@ -261,7 +263,7 @@ Type, context, and CSS/style files are not automatically supporting. They are \`
 
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
 
-Attach an attribute only when the incremental diff supports it — and **be consistent with your own prose: if you note a risk in the summary or \`wholePrImpact\` (a widened public API → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it. Never describe a risk without flagging it on a chunk.**
+Attach an attribute only when the incremental diff supports it — and **be consistent with your own prose: if you note a risk in the summary or \`wholePrImpact\` (a changed contract with existing external consumers → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it. Never describe a risk without flagging it on a chunk.**
 
 ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
 

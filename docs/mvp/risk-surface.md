@@ -126,8 +126,8 @@ The diff calls external services, network endpoints, filesystem, OS, or third-pa
 - **Playbook implication:** external calls add failure modes (network errors, timeouts, partial state). Reviewer must verify retry/timeout/idempotency and what happens on outage.
 
 ### `cross-service`
-The chunk is part of a contract shared with another service — RPC, message-queue payloads, shared schemas, public API surfaces.
-- **Detect:** changes to OpenAPI/GraphQL schema files, gRPC `.proto`, message-queue payload shapes, exported public API surfaces consumed by other repos.
+The chunk changes a contract an EXISTING external consumer already depends on across a service/deploy boundary — RPC, message-queue payloads, shared schemas, published API surfaces. Newly-added exports have no consumers yet and are NOT cross-service (BRIEF-55: "exported public API surface" alone is not this attribute).
+- **Detect:** changes to OpenAPI/GraphQL schema files, gRPC `.proto`, message-queue payload shapes, or an already-published API surface consumed by other repos.
 - **Playbook implication:** change is consumed elsewhere. Reviewer must verify backward compatibility, version negotiation, and consumer-side migration plan.
 
 ### `schema-adjacent`
@@ -136,13 +136,13 @@ The diff is near (but not in) a schema definition, migration, or persistence lay
 - **Playbook implication:** even if the diff itself doesn't change a schema, behavior may depend on schema invariants. Reviewer must confirm the change is consistent with the schema's intent.
 
 ### `hot-path`
-The chunk lives on a high-traffic / latency-critical / request-handling path.
-- **Detect:** the chunk is in (or directly called by) a middleware, request handler, hot loop, or path annotated `// hot-path` / per-team designation. (Hand-labeler judgment required when no annotation exists.)
+The chunk lives on a demonstrably high-traffic or latency-critical path — not every request handler qualifies.
+- **Detect:** the chunk is in (or directly called by) a serving loop, per-request middleware, hot loop, or path annotated `// hot-path` / per-team designation. (Hand-labeler judgment required when no annotation exists; a routine request handler with no traffic/latency evidence does not fire.)
 - **Playbook implication:** performance regressions amplify. Reviewer must verify no new allocations, sync I/O, or unbounded loops on this path.
 
 ### `widely-imported`
-The modified API has many call sites across the repo.
-- **Detect:** count call sites of the modified function/symbol. Threshold (rough): ≥10 importers OR exported from a package's public entry point.
+The modified API has many EXISTING call sites across the repo; a newly-added API has zero importers and never qualifies.
+- **Detect:** count existing call sites of the modified function/symbol. Threshold (rough): ≥10 importers. (Bare export from a package's public entry point is not, by itself, enough — that was the BRIEF-55 over-trigger.)
 - **Playbook implication:** any contract change ripples broadly. Reviewer must enumerate all callers and confirm each tolerates the new behavior.
 
 ### `release-imminent`
