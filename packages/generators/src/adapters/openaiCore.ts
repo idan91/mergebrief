@@ -33,6 +33,12 @@ export interface OpenAiStreamChunk {
     delta?: { content?: string | null; refusal?: string | null };
     finish_reason?: string | null;
   }[];
+  /** Final-chunk usage; present only when requested via stream_options. */
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    prompt_tokens_details?: { cached_tokens?: number } | null;
+  } | null;
 }
 
 /** The chat request the core issues (always streaming). */
@@ -49,6 +55,9 @@ export interface OpenAiChatRequest {
   };
   reasoning_effort?: Effort;
   stream: true;
+  /** Sent iff the caller passed onUsage (BRIEF-59) — zero wire change
+   * for callers that don't observe usage. */
+  stream_options?: { include_usage: true };
 }
 
 /**
@@ -230,6 +239,7 @@ export class OpenAiCompatibleCore implements Generator {
         ? { reasoning_effort: req.effort }
         : {}),
       stream: true,
+      ...(req.onUsage ? { stream_options: { include_usage: true } } : {}),
     };
 
     try {
@@ -278,6 +288,7 @@ export class OpenAiCompatibleCore implements Generator {
     let collected = "";
     let refusal = "";
     let finishReason: string | null = null;
+    let usage: OpenAiStreamChunk["usage"] = null;
     log(`requesting ${req.label} from ${this.provider}…`);
     const heartbeat = setInterval(() => {
       const size = collected.length > 0 ? `, ${collected.length} chars` : "";
@@ -292,6 +303,7 @@ export class OpenAiCompatibleCore implements Generator {
         ...(req.log ? { log: req.log } : {}),
       });
       for await (const chunk of stream) {
+        if (chunk.usage) usage = chunk.usage;
         const choice = chunk.choices?.[0];
         if (!choice) continue;
         if (typeof choice.delta?.content === "string") {
@@ -319,6 +331,22 @@ export class OpenAiCompatibleCore implements Generator {
       clearInterval(heartbeat);
     }
     log(`done in ${elapsed()} — ${collected.length} chars`);
+    // The chunk shape is DECLARED over unvalidated provider JSON — a
+    // self-hosted "compatible" server can emit anything here. Guard like
+    // the delta reads above; a malformed usage object reports nothing
+    // rather than NaN.
+    if (
+      usage &&
+      typeof usage.prompt_tokens === "number" &&
+      typeof usage.completion_tokens === "number"
+    ) {
+      const cached = usage.prompt_tokens_details?.cached_tokens;
+      req.onUsage?.({
+        inputTokens: usage.prompt_tokens,
+        outputTokens: usage.completion_tokens,
+        cacheReadTokens: typeof cached === "number" ? cached : 0,
+      });
+    }
     return { raw: collected, refusal: refusal === "" ? null : refusal, finishReason };
   }
 }

@@ -5,6 +5,20 @@ import type { Effort, Generation } from "./provenance";
 /** Progress sink — defaults to no-op so callers stay usable in tests. */
 export type Logger = (message: string) => void;
 
+/**
+ * Provider-reported token counts for ONE underlying request (BRIEF-59).
+ * Numbers are the provider's own accounting and their semantics differ:
+ * Anthropic's `inputTokens` EXCLUDES cache reads; OpenAI-compatible
+ * `inputTokens` (prompt_tokens) INCLUDES them. Consumers pricing these
+ * must apply per-provider rates accordingly.
+ */
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  /** Prompt tokens served from provider cache; 0 when unreported. */
+  cacheReadTokens: number;
+}
+
 /** One structured-generation request — the portable contract every adapter honors. */
 export interface GenerateRequest<S extends z.ZodType> {
   schema: S;
@@ -32,6 +46,15 @@ export interface GenerateRequest<S extends z.ZodType> {
    */
   signal?: AbortSignal;
   log?: Logger;
+  /**
+   * Usage observability (BRIEF-59): invoked once per underlying provider
+   * request that reports usage — feedback/knob retries included, so a
+   * caller totalling spend SUMS the calls. Best-effort: adapters without
+   * per-call usage (the CLI adapters) never invoke it, and a request that
+   * fails before usage is read reports nothing. Observability only — the
+   * callback must not throw and never affects generation flow.
+   */
+  onUsage?: (usage: TokenUsage) => void;
 }
 
 /**

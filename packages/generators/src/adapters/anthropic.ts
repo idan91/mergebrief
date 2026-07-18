@@ -199,8 +199,26 @@ export class AnthropicGenerator implements Generator {
     const elapsed = (): string => `${((Date.now() - start) / 1000).toFixed(0)}s`;
     let phase: "thinking" | "writing" = "thinking";
     let collected = "";
+    // Usage accumulated from stream events: the fallback source when the
+    // SDK's eager parse rejects finalMessage() — the truncated attempt is
+    // the EXPENSIVE one, and its spend must not vanish from onUsage sums.
+    // Boxed because closure writes don't survive TS's flow narrowing.
+    const streamUsage: {
+      current: { input: number; output: number; cacheRead: number } | null;
+    } = { current: null };
     stream.on("streamEvent", (event) => {
-      if (
+      if (event.type === "message_start") {
+        streamUsage.current = {
+          input: event.message.usage.input_tokens,
+          output: event.message.usage.output_tokens,
+          cacheRead: event.message.usage.cache_read_input_tokens ?? 0,
+        };
+      } else if (event.type === "message_delta") {
+        // Cumulative per the API: overwrite, never add.
+        if (streamUsage.current) {
+          streamUsage.current.output = event.usage.output_tokens;
+        }
+      } else if (
         event.type === "content_block_start" &&
         event.content_block.type === "text"
       ) {
@@ -227,6 +245,15 @@ export class AnthropicGenerator implements Generator {
         error instanceof AnthropicError &&
         error.message.startsWith("Failed to parse structured output")
       ) {
+        // The stream completed and was billed — the rejection is the SDK's
+        // parse, not the request. Report what the events carried.
+        if (streamUsage.current) {
+          req.onUsage?.({
+            inputTokens: streamUsage.current.input,
+            outputTokens: streamUsage.current.output,
+            cacheReadTokens: streamUsage.current.cacheRead,
+          });
+        }
         return { sdkParseFailure: error.message, raw: collected };
       }
       // Recognized SDK failures adopt the shared taxonomy (decision 5);
@@ -242,6 +269,11 @@ export class AnthropicGenerator implements Generator {
       `done in ${elapsed()} — tokens in:${u.input_tokens} out:${u.output_tokens} ` +
         `cache_read:${u.cache_read_input_tokens ?? 0}`,
     );
+    req.onUsage?.({
+      inputTokens: u.input_tokens,
+      outputTokens: u.output_tokens,
+      cacheReadTokens: u.cache_read_input_tokens ?? 0,
+    });
     return { response };
   }
 }
