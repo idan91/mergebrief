@@ -1,0 +1,10 @@
+{
+  "key": "anthropic:claude-opus-4-8",
+  "runs": 5,
+  "properties": {
+    "coherent-grouping": 0,
+    "manifests-are-config-concern": 5,
+    "spans-multiple-packages": 5,
+    "types-package-in-one-group": 5
+  }
+}

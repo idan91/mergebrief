@@ -1,0 +1,11 @@
+{
+  "key": "anthropic:claude-opus-4-8",
+  "runs": 5,
+  "properties": {
+    "coherent-grouping": 4,
+    "new-feature-dominant": 5,
+    "no-cross-service-anywhere": 4,
+    "no-cross-service-on-new-types-file": 5,
+    "test-file-is-test-concern": 5
+  }
+}

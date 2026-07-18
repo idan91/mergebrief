@@ -11,6 +11,25 @@ import { makeBrief } from "./eval-fixtures";
 const here = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(here, "fixtures");
 
+describe("the shipped corpus", () => {
+  it("loads every eval/cases entry: valid fixtures + well-formed checklists", async () => {
+    const loaded = await loadCases(join(here, "..", "eval", "cases"));
+    expect(loaded.ok).toBe(true);
+    if (!loaded.ok) return;
+    expect(loaded.value.map((c) => c.id)).toEqual([
+      "button-under-split",
+      "copybutton-new-export",
+      "multi-package-types",
+      "pure-move-persistence",
+      "schema-change-provenance",
+    ]);
+    for (const evalCase of loaded.value) {
+      expect(evalCase.properties.length).toBeGreaterThanOrEqual(4);
+      expect(evalCase.fixture.pr.diff.length).toBeGreaterThan(1000);
+    }
+  });
+});
+
 describe("loadCases", () => {
   it("loads a case dir: validated fixture + imported properties", async () => {
     const loaded = await loadCases(FIXTURES);
