@@ -21,6 +21,13 @@ generator:
   # The documented cost knob:
   model: claude-sonnet-5
 
+  # Reasoning effort for every generation: low | medium | high.
+  # Default: medium. Each provider maps it to its own setting; providers
+  # without the concept stay honest via provenance (`effort: null`). The
+  # committed eval baselines assume the default — a non-default effort is a
+  # deliberate divergence (docs/self-host/generators.md).
+  # effort: medium
+
   # --- API providers (anthropic / openai / openrouter) ---------------------
   # NAME of the env var holding the key. Defaults: ANTHROPIC_API_KEY /
   # OPENAI_API_KEY / OPENROUTER_API_KEY.

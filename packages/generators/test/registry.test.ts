@@ -4,7 +4,9 @@ import {
   defaultGeneratorConfig,
   GeneratorConfigSchema,
   Providers,
+  validateGeneratorConfig,
 } from "../src/config/registry";
+import { Efforts } from "../src/contract/provenance";
 
 /**
  * The registry + construction seam (BRIEF-11 decision 1): static compiled-in
@@ -133,6 +135,56 @@ describe("createGenerator", () => {
   it("rejects a non-object config with per-field issues", async () => {
     const result = await createGenerator("anthropic", deps);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("effort on the generator block (BRIEF-75)", () => {
+  // Minimal valid block per adapter; openai/openrouter require a model.
+  const minimalBlocks = [
+    { provider: Providers.ANTHROPIC },
+    { provider: Providers.CLAUDE_CODE },
+    { provider: Providers.CODEX },
+    { provider: Providers.OPENAI, model: "gpt-5.2" },
+    { provider: Providers.OPENROUTER, model: "anthropic/claude-opus-4.8" },
+  ] as const;
+
+  it.each(minimalBlocks)(
+    "parses every Efforts member on $provider",
+    (block) => {
+      for (const effort of Efforts) {
+        const parsed = GeneratorConfigSchema.safeParse({ ...block, effort });
+        expect(parsed.success).toBe(true);
+        if (!parsed.success) continue;
+        expect(parsed.data.effort).toBe(effort);
+      }
+    },
+  );
+
+  it.each(minimalBlocks)("leaves effort undefined when omitted on $provider", (block) => {
+    const parsed = GeneratorConfigSchema.safeParse(block);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.effort).toBeUndefined();
+  });
+
+  it("rejects an out-of-vocabulary effort with a per-field issue naming effort", () => {
+    const result = validateGeneratorConfig({ provider: "anthropic", effort: "max" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("effort");
+    expect(text).not.toContain("max");
+  });
+
+  it("still rejects unknown sibling keys next to a valid effort (strictness preserved)", () => {
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      effort: "low",
+      efort: "high",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("efort");
   });
 });
 

@@ -6,6 +6,7 @@ import {
   defaultGeneratorConfig,
   loadGeneratorConfigFile,
   Providers,
+  type Effort,
   type Generator,
   type Provider,
   type TokenUsage,
@@ -42,8 +43,12 @@ import { withUsageSink } from "./usageSink";
 const here = dirname(fileURLToPath(import.meta.url));
 const CASES_DIR = join(here, "cases");
 const OUT_DIR = "out";
-/** Mirrors categorize.ts's EFFORT — provenance key must match generation. */
-const EFFORT = "medium" as const;
+/**
+ * Mirrors brief-core's DEFAULT_EFFORT (BRIEF-75): with no configured effort
+ * the eval must request and record the same medium the engine defaults to —
+ * the provenance-derived baseline key and the generations must agree.
+ */
+const DEFAULT_EFFORT: Effort = "medium";
 /** Providers billed by subscription — no meterable marginal cost.
  * Construction is checked against the closed Provider vocabulary; lookup
  * takes the provenance's provider string. */
@@ -106,7 +111,7 @@ function loadEnv(): void {
 
 async function buildGenerator(
   configPath: string | null,
-): Promise<Result<Generator, string>> {
+): Promise<Result<{ generator: Generator; effort: Effort }, string>> {
   const loaded =
     configPath !== null
       ? loadGeneratorConfigFile(configPath)
@@ -119,7 +124,13 @@ async function buildGenerator(
   if (!constructed.ok) {
     return { ok: false, error: constructed.error.issues.join("; ") };
   }
-  return { ok: true, value: constructed.value };
+  return {
+    ok: true,
+    value: {
+      generator: constructed.value,
+      effort: loaded.value.generator.effort ?? DEFAULT_EFFORT,
+    },
+  };
 }
 
 interface EvaluatedCase {
@@ -131,6 +142,7 @@ interface EvaluatedCase {
 async function evaluateCase(
   evalCase: EvalCase,
   generator: Generator,
+  effort: Effort,
   runs: number,
   key: string,
   rebaseline: boolean,
@@ -148,6 +160,7 @@ async function evaluateCase(
       generator,
       () => {},
       fixture.repoContext,
+      effort,
     );
   };
   const result = await runCase(generate, runs);
@@ -223,7 +236,7 @@ async function main(): Promise<void> {
     console.error(generator.error);
     process.exit(2);
   }
-  const provenance = generator.value.provenance(EFFORT);
+  const provenance = generator.value.generator.provenance(generator.value.effort);
   const key = `${provenance.provider}:${provenance.model}`;
   const billingKind: BillingKind = SUBSCRIPTION_PROVIDERS.has(provenance.provider)
     ? BillingKinds.SUBSCRIPTION
@@ -263,7 +276,7 @@ async function main(): Promise<void> {
     totals.outputTokens += usage.outputTokens;
     totals.cacheReadTokens += usage.cacheReadTokens;
   };
-  const metered = withUsageSink(generator.value, sink);
+  const metered = withUsageSink(generator.value.generator, sink);
 
   const outcomes: CaseOutcome[] = [];
   const skippedRebaselines: string[] = [];
@@ -272,6 +285,7 @@ async function main(): Promise<void> {
     const evaluated = await evaluateCase(
       evalCase,
       metered,
+      generator.value.effort,
       args.runs,
       key,
       args.rebaseline,

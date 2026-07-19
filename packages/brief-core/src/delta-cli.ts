@@ -27,7 +27,7 @@ import {
   prStem,
   printDeltaSummary,
 } from "./output";
-import type { DeltaBrief } from "./types";
+import type { DeltaBrief, Effort } from "./types";
 
 const OUT_DIR = "out";
 
@@ -59,6 +59,7 @@ export async function generateAndWriteDelta(
   headSha: string,
   generator: Generator,
   log: (msg: string) => void,
+  effort?: Effort,
 ): Promise<DeltaBrief> {
   const locator = parsePrUrl(url);
 
@@ -110,6 +111,7 @@ export async function generateAndWriteDelta(
     },
     generator,
     log,
+    effort,
   );
 
   const file = join(outDir, deltaOutName(delta));
@@ -168,6 +170,7 @@ async function main(): Promise<void> {
     headSha,
     constructed.value,
     log,
+    loaded.value.generator.effort,
   );
 
   console.log("");

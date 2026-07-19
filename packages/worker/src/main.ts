@@ -61,11 +61,14 @@ async function main(): Promise<void> {
   }
 
   const handle = createDb(config.value.databaseUrl);
+  const configuredEffort = config.value.generator.effort;
   const generate = createGenerateTask({
     handle,
     generator: generator.value,
     github: appGitHubPort(createAppClient(githubConfig.value)),
     publicBaseUrl: config.value.publicBaseUrl,
+    // Instance-config effort (BRIEF-75); absent → brief-core's medium default.
+    ...(configuredEffort === undefined ? {} : { effort: configuredEffort }),
     log: (message) => console.error(`[worker] ${message}`),
   });
 

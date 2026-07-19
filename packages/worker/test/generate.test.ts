@@ -308,6 +308,27 @@ describe("generate task", () => {
     expect(generator.calls).toEqual(["brief"]);
   });
 
+  it("threads the instance-config effort into the stored brief's provenance (BRIEF-75)", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      effort: "low",
+    });
+
+    await task(payload);
+
+    const brief = await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1);
+    expect(brief?.effort).toBe("low");
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      generation: { provider: "stub", model: "stub-model", effort: "low" },
+    });
+  });
+
   it("posts the Entry comment with the exact-span deep link and stores its id", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
@@ -569,7 +590,14 @@ describe("generate task", () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+    // Non-default effort so the narrative-site threading is pinned too (BRIEF-75).
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      effort: "low",
+    });
     await task(first.payload);
 
     github.info = { ...github.info, headSha: HEAD_2 };
@@ -593,6 +621,7 @@ describe("generate task", () => {
       artifactKind: "revisionNarrative",
       prevIndex: 1,
       headIndex: 2,
+      generation: { effort: "low" },
     });
     expect(generator.calls).toEqual(["brief", "brief", "revision narrative"]);
   });
@@ -601,7 +630,14 @@ describe("generate task", () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+    // Non-default effort so the delta-warm threading is pinned too (BRIEF-75).
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      effort: "low",
+    });
     await task(first.payload);
 
     // Two reviewers sharing one checkpoint SHA → ONE delta core.
@@ -627,6 +663,7 @@ describe("generate task", () => {
       baselineSha: HEAD_1,
       headSha: HEAD_2,
       baselineIndex: 1,
+      generation: { effort: "low" },
     });
     // Checkpoint-span marks share the (HEAD_1, HEAD_2) span with the
     // previous-brief marks here — one content-addressed row.

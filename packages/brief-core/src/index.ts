@@ -38,7 +38,7 @@ import {
   revChangesName,
   revisionNarrativeName,
 } from "./output";
-import type { Brief, CommitRange, RevisionNarrativeSkipped } from "./types";
+import type { Brief, CommitRange, Effort, RevisionNarrativeSkipped } from "./types";
 
 const OUT_DIR = "out";
 
@@ -125,6 +125,7 @@ export async function generateAndWrite(
   range: Range | undefined,
   generator: Generator,
   log: (msg: string) => void,
+  effort?: Effort,
 ): Promise<Brief> {
   log(
     range
@@ -139,7 +140,7 @@ export async function generateAndWrite(
     `brief _${index}; ${pr.meta.files.length} files, ${pr.links.length} linked refs, ${comments.length} comments; categorizing…`,
   );
 
-  const brief = await categorize(pr, index, commitRange, generator, log);
+  const brief = await categorize(pr, index, commitRange, generator, log, undefined, effort);
 
   const briefFile = join(outDir, outName(brief));
   await writeFile(briefFile, `${JSON.stringify(brief, null, 2)}\n`);
@@ -202,6 +203,7 @@ export async function generateAndWrite(
         marksFiles: marks.files,
         generator,
         log,
+        effort,
       });
     }
   }
@@ -225,9 +227,20 @@ async function generateAndWriteRevisionNarrative(args: {
   marksFiles: ReturnType<typeof buildComparisonMarks>["files"];
   generator: Generator;
   log: (msg: string) => void;
+  effort: Effort | undefined;
 }): Promise<void> {
-  const { outDir, pr, brief, prevHeadSha, prevIndex, incrementalDiff, marksFiles, generator, log } =
-    args;
+  const {
+    outDir,
+    pr,
+    brief,
+    prevHeadSha,
+    prevIndex,
+    incrementalDiff,
+    marksFiles,
+    generator,
+    log,
+    effort,
+  } = args;
   const narrativeFile = join(outDir, revisionNarrativeName(brief));
   const skipStub = (skipped: RevisionNarrativeSkipped["skipped"]): RevisionNarrativeSkipped => ({
     artifactKind: "revisionNarrativeSkipped",
@@ -275,6 +288,7 @@ async function generateAndWriteRevisionNarrative(args: {
       },
       generator,
       log,
+      effort,
     );
     warnIssues(
       validateNarrativeMarksOverlap(narrative.chunks, marksFiles),
@@ -297,10 +311,11 @@ async function runOne(
   url: string,
   range: Range | undefined,
   generator: Generator,
+  effort: Effort | undefined,
 ): Promise<Brief> {
   const tag = prTag(url);
   const log = (msg: string): void => console.error(`[${tag}] ${msg}`);
-  return generateAndWrite(OUT_DIR, url, range, generator, log);
+  return generateAndWrite(OUT_DIR, url, range, generator, log, effort);
 }
 
 /**
@@ -365,13 +380,14 @@ async function main(): Promise<void> {
   // PRs are independent — run them in parallel, sharing one generator so the
   // SDK's connection pool is reused. A single bad URL must not kill the batch.
   const generator = constructed.value;
+  const effort = loaded.value.generator.effort;
   const results = await Promise.all(
     parsed.urls.map(
       async (
         url,
       ): Promise<{ url: string; brief: Brief } | { url: string; error: unknown }> => {
         try {
-          return { url, brief: await runOne(url, parsed.range, generator) };
+          return { url, brief: await runOne(url, parsed.range, generator, effort) };
         } catch (error) {
           return { url, error };
         }

@@ -14,6 +14,7 @@ import {
 import {
   createGenerator,
   loadGeneratorConfig,
+  type Effort,
   type Generator,
 } from "generators";
 
@@ -65,14 +66,20 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-let sharedGenerator: Promise<Generator> | undefined;
+/** The constructed generator plus the loaded config's effort (BRIEF-75). */
+interface SharedGeneration {
+  generator: Generator;
+  effort: Effort | undefined;
+}
+
+let sharedGenerator: Promise<SharedGeneration> | undefined;
 
 /**
  * Single-flighted async construction: concurrent first requests share one
  * client; a failed construction clears the slot so the next request retries
  * (e.g. after the operator sets the missing env var).
  */
-function sharedGeneratorOnce(): Promise<Generator> {
+function sharedGeneratorOnce(): Promise<SharedGeneration> {
   sharedGenerator ??= (async () => {
     // Instance config (BRIEF-11 decision 6): MERGEBRIEF_CONFIG →
     // mergebrief.config.yaml, else zero-config defaults. The web dogfood
@@ -93,7 +100,7 @@ function sharedGeneratorOnce(): Promise<Generator> {
         `${result.error.issues.join("; ")} — add it to the web app's environment (see tools/categorizer/.env.example).`,
       );
     }
-    return result.value;
+    return { generator: result.value, effort: loaded.value.generator.effort };
   })().catch((error: unknown) => {
     sharedGenerator = undefined;
     throw error;
@@ -106,13 +113,14 @@ function realEngine(): GenerateBriefEngine {
     fetchHeadSha: async (locator) => (await fetchPrMetadata(locator)).sha,
     lookupIndex: (stem, head) => lookupBriefIndex(OUT_DIR, stem, head),
     generate: async (url) => {
-      const generator = await sharedGeneratorOnce();
+      const { generator, effort } = await sharedGeneratorOnce();
       const brief = await generateAndWrite(
         OUT_DIR,
         url,
         undefined,
         generator,
         () => {},
+        effort,
       );
       return {
         repo: brief.pr.repo,

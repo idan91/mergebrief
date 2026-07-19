@@ -6,6 +6,7 @@ import { CodexGenerator, CODEX_PROBE } from "../adapters/codex";
 import { createOpenAiCore } from "../adapters/openai";
 import { createOpenRouterCore } from "../adapters/openrouter";
 import { configError, type ConfigError } from "../contract/errors";
+import { Efforts } from "../contract/provenance";
 import { AnthropicGenerator } from "../adapters/anthropic";
 import type { Generator, Logger } from "../contract/generator";
 import { probeHarnessCli } from "../harness/probe";
@@ -86,6 +87,15 @@ function resolveApiKey(
 
 const DEFAULT_ANTHROPIC_KEY_ENV = "ANTHROPIC_API_KEY";
 
+/**
+ * Normalized reasoning effort (BRIEF-75): the closed contract vocabulary
+ * (`low | medium | high`), requested per generation. Optional on every
+ * adapter — the DEFAULT (`medium`) lives at the consumption site in
+ * brief-core, not here. Adapters that cannot honor it stay honest via
+ * provenance (`effort: null`), never a config rejection.
+ */
+const effortOption = z.enum(Efforts).optional();
+
 const anthropicOptions = z
   .object({
     provider: z.literal(Providers.ANTHROPIC),
@@ -96,6 +106,7 @@ const anthropicOptions = z
     model: z.string().min(1).optional(),
     /** NAME of the env var holding the key (BYOK-by-env-name, ADR 0013). */
     apiKeyEnv: z.string().min(1).optional(),
+    effort: effortOption,
   })
   .strict();
 
@@ -116,6 +127,7 @@ const claudeCodeOptions = z
     /** Binary path or name; default "claude" (PATH-resolved). */
     command: z.string().min(1).optional(),
     timeouts: harnessTimeouts.optional(),
+    effort: effortOption,
   })
   .strict();
 
@@ -130,6 +142,7 @@ const codexOptions = z
     /** Binary path or name; default "codex" (PATH-resolved). */
     command: z.string().min(1).optional(),
     timeouts: harnessTimeouts.optional(),
+    effort: effortOption,
   })
   .strict();
 
@@ -150,6 +163,7 @@ const openaiOptions = z
      * implement it).
      */
     baseUrl: z.string().url().optional(),
+    effort: effortOption,
   })
   .strict();
 
@@ -170,6 +184,7 @@ const openrouterOptions = z
     /** Attribution headers. */
     referer: z.string().min(1).optional(),
     title: z.string().min(1).optional(),
+    effort: effortOption,
   })
   .strict();
 

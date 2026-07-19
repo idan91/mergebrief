@@ -29,6 +29,9 @@ at the repo root: [`mergebrief.config.example.yaml`](../../mergebrief.config.exa
 generator:
   provider: anthropic          # anthropic | claude-code | codex | openai | openrouter
   model: claude-sonnet-5       # optional here; REQUIRED for openai/openrouter
+  # effort: medium             # low | medium | high — reasoning effort for every
+  #                            # generation (default medium); see the effort-knob
+  #                            # column below for what each provider does with it
   # apiKeyEnv: MY_KEY_VAR      # API providers: NAME of the env var holding the key
   # baseUrl: https://your-server.example/v1   # openai only: OpenAI-compatible
   #                            # server escape hatch (preflight downgrades to warnings)
@@ -97,6 +100,11 @@ the key value never lives in this file, the DB, or repo config.
 | `openrouter` | API | `apiKeyEnv` (default `OPENROUTER_API_KEY`) | gated by the model's listed `reasoning` support | full slug required; boot requires the model to list `structured_outputs`; `require_parameters` is forced on every request |
 | `claude-code` | **local CLI** | your interactive `claude /login` (OAuth/keychain) | none (`effort: null` — honest gap) | lockdown: `--tools ""`, print mode, no `--bare`; served model verified from `modelUsage` post-run |
 | `codex` | **local CLI** | your interactive `codex login` | `model_reasoning_effort` | lockdown: `--sandbox read-only --skip-git-repo-check --ephemeral`; **provenance blind spot**: codex's JSONL carries no model id, so a silent server-side reroute is unobservable — the stamp records what you configured |
+
+`effort:` note: the committed eval baselines (`tools/categorizer/eval`)
+assume the default (anthropic at `medium`) — running an instance at a
+non-default effort is a deliberate divergence from them, same as running a
+non-default provider or model.
 
 ## Harness CLIs are LOCAL-ONLY in v1 — deliberately
 

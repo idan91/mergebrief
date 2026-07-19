@@ -41,7 +41,7 @@ import {
   type PrMetadata,
   type RevisionNarrativeSkipped,
 } from "brief-core";
-import { GeneratorError, GeneratorErrorKind, type Generator } from "generators";
+import { GeneratorError, GeneratorErrorKind, type Effort, type Generator } from "generators";
 import {
   artifactStore,
   audit,
@@ -92,6 +92,8 @@ export interface GenerateTaskDeps {
   readonly publicBaseUrl: string;
   /** Head-poll cadence during streaming (ADR 0006 #6); default ~20s. */
   readonly headPollIntervalMs?: number;
+  /** Instance-config reasoning effort (BRIEF-75); absent → engine default. */
+  readonly effort?: Effort;
   readonly log?: Logger;
 }
 
@@ -499,6 +501,7 @@ async function runGeneration(
         generator,
         log,
         repoConfig?.repoContext,
+        deps.effort,
       ),
     );
     await projection.markRunning(target, GenerationPhase.WRITING);
@@ -576,6 +579,7 @@ async function runGeneration(
       generatedBrief,
       generator,
       watch,
+      effort: deps.effort,
       wholePrChangedLines: churn(files),
       links,
       log,
@@ -593,6 +597,7 @@ async function runGeneration(
     prevSpan,
     generator,
     watch,
+    effort: deps.effort,
     briefHeadIndex: briefRef.headIndex,
     wholePrChangedLines: churn(files),
     links,
@@ -782,6 +787,8 @@ interface RevisionArtifactInputs {
   /** Signal-wrapped generator + the supersession watch gating its calls. */
   readonly generator: Generator;
   readonly watch: SupersessionWatch;
+  /** Instance-config reasoning effort (BRIEF-75); undefined → engine default. */
+  readonly effort: Effort | undefined;
   readonly wholePrChangedLines: number;
   readonly links: LinkedContext[];
   readonly log: Logger;
@@ -875,6 +882,7 @@ async function writeRevisionArtifacts(
       },
       inputs.generator,
       log,
+      inputs.effort,
     );
     await writeNarrative(JSON.stringify(narrative), narrative.generation);
   } catch (error) {
@@ -902,6 +910,8 @@ interface DeltaWarmInputs {
   /** Signal-wrapped generator + the supersession watch gating its calls. */
   readonly generator: Generator;
   readonly watch: SupersessionWatch;
+  /** Instance-config reasoning effort (BRIEF-75); undefined → engine default. */
+  readonly effort: Effort | undefined;
   readonly briefHeadIndex: number;
   readonly wholePrChangedLines: number;
   readonly links: LinkedContext[];
@@ -992,7 +1002,9 @@ async function warmDeltaCores(
     // eslint-disable-next-line no-await-in-loop
     await inputs.watch.assertCurrent();
     // eslint-disable-next-line no-await-in-loop
-    const delta = await runGenerator(() => categorizeDelta(deltaInput, inputs.generator, log));
+    const delta = await runGenerator(() =>
+      categorizeDelta(deltaInput, inputs.generator, log, inputs.effort),
+    );
     // eslint-disable-next-line no-await-in-loop
     const written = await store.deltas.write({
       pullRequestId,

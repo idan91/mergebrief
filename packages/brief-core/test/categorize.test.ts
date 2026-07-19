@@ -192,6 +192,34 @@ describe("categorize — generation warnings surfaced on the artifact (BRIEF-11)
   });
 });
 
+/** Captures the request's effort alongside parsing the fixture. */
+class EffortCapturingGenerator extends FakeGenerator {
+  lastEffort: Effort | undefined;
+
+  override async generate<S extends z.ZodType>(
+    req: GenerateRequest<S>,
+  ): Promise<z.infer<S>> {
+    this.lastEffort = req.effort;
+    return super.generate(req);
+  }
+}
+
+describe("categorize — effort threading (BRIEF-75)", () => {
+  it("requests medium and stamps medium provenance when no effort is given (byte-identical pin)", async () => {
+    const generator = new EffortCapturingGenerator(twoGroupBriefGen);
+    const brief = await categorize(pr, 1, commitRange, generator);
+    expect(generator.lastEffort).toBe("medium");
+    expect(brief.generation.effort).toBe("medium");
+  });
+
+  it("threads an explicit effort into the request AND the provenance stamp", async () => {
+    const generator = new EffortCapturingGenerator(twoGroupBriefGen);
+    const brief = await categorize(pr, 1, commitRange, generator, () => {}, undefined, "high");
+    expect(generator.lastEffort).toBe("high");
+    expect(brief.generation.effort).toBe("high");
+  });
+});
+
 // --- BRIEF-52/58 repo-context injection (golden + adversarial, ADR 0032 #12) —
 // the BRIEF-59 eval-harness graduation set. The FakeGenerator parses fixtures
 // through the REQUEST's own schema, so these also prove the per-generation

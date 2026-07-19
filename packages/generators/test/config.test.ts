@@ -57,6 +57,14 @@ describe("loadGeneratorConfig (env-driven)", () => {
     expect(result.value.source).toBe(path);
   });
 
+  it("surfaces a configured effort on the loaded generator block (BRIEF-75)", () => {
+    const path = configFile("generator:\n  provider: anthropic\n  effort: low\n");
+    const result = loadGeneratorConfig({ MERGEBRIEF_CONFIG: path });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.generator).toEqual({ provider: "anthropic", effort: "low" });
+  });
+
   it("anchors a relative MERGEBRIEF_CONFIG at the workspace root, not cwd", () => {
     // Fake workspace: root marker + config at root, cwd deep inside a
     // package dir — the exact worker/web shape (`pnpm --dir`).

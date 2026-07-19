@@ -45,8 +45,13 @@ import type {
 
 export type { Logger };
 
-/** Normalized reasoning effort the categorizer requests (each adapter maps it). */
-const EFFORT: Effort = "medium";
+/**
+ * Normalized reasoning-effort default (BRIEF-75): applied when a caller
+ * passes no explicit effort, keeping zero-config behavior byte-identical.
+ * The configured value arrives from the loaded generator block (worker,
+ * CLIs, eval harness); each adapter maps or honestly declines it.
+ */
+const DEFAULT_EFFORT: Effort = "medium";
 
 /**
  * Array fields where an out-of-vocabulary token may be dropped (warn) instead
@@ -185,6 +190,7 @@ export async function categorize(
   generator: Generator = new AnthropicGenerator(),
   log: Logger = () => {},
   repoContext?: RepoContext,
+  effort: Effort = DEFAULT_EFFORT,
 ): Promise<Brief> {
   // The model produces analysis only; pr / index / commitRange / generation are
   // CLI-owned metadata it cannot know, filled in here (ADR 0012/0013).
@@ -199,7 +205,7 @@ export async function categorize(
     schema: briefGenerationSchemaWith(customNames),
     system: buildSystemPrompt(effectiveContext),
     user: renderUser(pr, accepted.blocks, effectiveContext !== undefined),
-    effort: EFFORT,
+    effort,
     label: "brief",
     salvageFields: SALVAGE_FIELDS,
     log: collector.log,
@@ -228,7 +234,7 @@ export async function categorize(
     pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
     index,
     commitRange,
-    generation: generator.provenance(EFFORT),
+    generation: generator.provenance(effort),
   };
   warnIssues(validatePartition(partial.changeGroups, partial.chunks), collector.log);
   const warnings = collector.warnings();
@@ -341,6 +347,7 @@ export async function categorizeDelta(
   input: DeltaInput,
   generator: Generator = new AnthropicGenerator(),
   log: Logger = () => {},
+  effort: Effort = DEFAULT_EFFORT,
 ): Promise<DeltaBrief> {
   // The model produces analysis only; identifiers + endpoint indices + generation
   // are CLI-owned (ADR 0012/0013), filled in here.
@@ -349,7 +356,7 @@ export async function categorizeDelta(
     schema: DeltaBriefGenerationSchema,
     system: buildDeltaSystemPrompt(),
     user: renderDeltaUser(input),
-    effort: EFFORT,
+    effort,
     label: "delta",
     salvageFields: SALVAGE_FIELDS,
     log: collector.log,
@@ -368,7 +375,7 @@ export async function categorizeDelta(
     headSha: input.headSha,
     baselineIndex: input.baselineIndex ?? null,
     headIndex: input.headIndex ?? null,
-    generation: generator.provenance(EFFORT),
+    generation: generator.provenance(effort),
   };
   warnIssues(validatePartition(partial.changedGroups, partial.chunks), collector.log);
   const warnings = collector.warnings();
@@ -447,6 +454,7 @@ export async function categorizeRevisionNarrative(
   input: RevisionNarrativeInput,
   generator: Generator = new AnthropicGenerator(),
   log: Logger = () => {},
+  effort: Effort = DEFAULT_EFFORT,
 ): Promise<RevisionNarrative> {
   // The model produces overview + chunks only; the rest is CLI-owned metadata
   // it cannot know (ADR 0012/0013), filled in here.
@@ -454,7 +462,7 @@ export async function categorizeRevisionNarrative(
     schema: RevisionNarrativeGenerationSchema,
     system: buildRevisionNarrativeSystemPrompt(),
     user: renderRevisionNarrativeUser(input),
-    effort: EFFORT,
+    effort,
     label: "revision narrative",
     log,
   });
@@ -466,7 +474,7 @@ export async function categorizeRevisionNarrative(
     headSha: input.headSha,
     prevIndex: input.prevIndex,
     headIndex: input.headIndex,
-    generation: generator.provenance(EFFORT),
+    generation: generator.provenance(effort),
   };
   warnIssues(
     validateNarrativeGroups(narrative.chunks, input.brief.changeGroups),

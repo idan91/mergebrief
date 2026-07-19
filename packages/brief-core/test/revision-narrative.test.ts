@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod/v4";
-import { categorizeRevisionNarrative } from "../src/categorize";
+import { categorizeDelta, categorizeRevisionNarrative } from "../src/categorize";
 import type { GenerateRequest, Generator } from "generators";
-import type { Brief, Effort, Generation } from "../src/types";
+import { BriefSchema, type Brief, type Effort, type Generation } from "../src/types";
 import type * as GithubModule from "../src/github";
 import type { PrMetadata } from "../src/github";
 
@@ -171,6 +171,8 @@ const deltaGen = {
  */
 class FakeGenerator implements Generator {
   readonly labels: string[] = [];
+  /** Effort of each request, in call order (BRIEF-75 threading tests). */
+  readonly efforts: (Effort | undefined)[] = [];
   private readonly failLabels: Set<string>;
   private readonly onCall: ((label: string) => void) | undefined;
 
@@ -185,6 +187,7 @@ class FakeGenerator implements Generator {
 
   async generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>> {
     this.labels.push(req.label);
+    this.efforts.push(req.effort);
     this.onCall?.(req.label);
     if (this.failLabels.has(req.label)) {
       throw new Error(`simulated ${req.label} failure`);
@@ -252,6 +255,61 @@ describe("categorizeRevisionNarrative", () => {
     expect(logs.some((l) => l.includes("unknown brief change-group") && l.includes("g1"))).toBe(
       true,
     );
+  });
+});
+
+// --- effort threading (BRIEF-75) ----------------------------------------------
+
+describe("effort threading — delta + narrative (BRIEF-75)", () => {
+  const deltaInput = {
+    locator: { owner: "o", repo: "r", number: 1 },
+    meta: makeMeta(HEAD_2),
+    baselineSha: CHECKPOINT,
+    headSha: HEAD_2,
+    incrementalDiff,
+  };
+  const narrativeInput = {
+    locator: { owner: "o", repo: "r", number: 1 },
+    meta: makeMeta(HEAD_2),
+    prevHeadSha: HEAD_1,
+    headSha: HEAD_2,
+    prevIndex: 1,
+    headIndex: 2,
+    incrementalDiff,
+    // Parsed, not cast: the fixture must be a real Brief or fail loudly.
+    brief: BriefSchema.parse({
+      ...briefGen,
+      pr: { repo: "o/r", number: 1, title: "t", url: URL, sha: HEAD_2, description: "d" },
+      index: 2,
+      commitRange: { base: "base000000000000", head: HEAD_2, commitCount: 2 },
+      generation: { provider: "fake", model: "fake-model", effort: "medium" },
+    }),
+  };
+
+  it("delta defaults to medium in request and provenance (byte-identical pin)", async () => {
+    const generator = new FakeGenerator();
+    const delta = await categorizeDelta(deltaInput, generator);
+    expect(generator.efforts).toEqual(["medium"]);
+    expect(delta.generation.effort).toBe("medium");
+  });
+
+  it("delta threads an explicit effort into request AND provenance", async () => {
+    const generator = new FakeGenerator();
+    const delta = await categorizeDelta(deltaInput, generator, () => {}, "low");
+    expect(generator.efforts).toEqual(["low"]);
+    expect(delta.generation.effort).toBe("low");
+  });
+
+  it("narrative threads an explicit effort into request AND provenance", async () => {
+    const generator = new FakeGenerator();
+    const narrative = await categorizeRevisionNarrative(
+      narrativeInput,
+      generator,
+      () => {},
+      "high",
+    );
+    expect(generator.efforts).toEqual(["high"]);
+    expect(narrative.generation.effort).toBe("high");
   });
 });
 
