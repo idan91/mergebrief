@@ -40,7 +40,7 @@ import {
   type PrLocator,
   type PrMetadata,
   type RevisionNarrativeSkipped,
-} from "categorizer";
+} from "brief-core";
 import { GeneratorError, GeneratorErrorKind, type Generator } from "generators";
 import {
   artifactStore,

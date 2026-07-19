@@ -5,7 +5,8 @@ amended, 0013, 0015, 0016, 0018). Drains graphile-worker's `generate` jobs —
 the ones `persistence`'s `ingestRoutines` enqueues — and produces the PR's
 artifacts: shared Brief, comparison marks, revision narrative, and pre-warmed
 delta cores (one per distinct checkpoint SHA, huge-span skip honored). The
-generation engine is `categorizer`, reused as-is behind its `Generator` port.
+generation engine is `brief-core` (the Brief domain core, extracted from
+tools/categorizer in BRIEF-68), reused as-is behind its `Generator` port.
 
 ## Map
 

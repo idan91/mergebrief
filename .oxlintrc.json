@@ -93,8 +93,10 @@
       }
     },
     {
-      // The categorizer is a CLI: stdout printing is its interface.
-      "files": ["tools/categorizer/src/**"],
+      // The categorize/delta CLI entries (+ their output writer) live in
+      // brief-core since BRIEF-68 — same files, same carve-out as before the
+      // move: stdout printing is their interface.
+      "files": ["packages/brief-core/src/**"],
       "rules": {
         "no-console": "off"
       }

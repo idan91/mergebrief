@@ -1,4 +1,4 @@
-import type { Brief, Category, RiskSurfaceAttribute } from "../src/types";
+import type { Brief, Category, RiskSurfaceAttribute } from "brief-core/types";
 
 /**
  * Query helpers for property checklists (BRIEF-59 decision 2): anchor on

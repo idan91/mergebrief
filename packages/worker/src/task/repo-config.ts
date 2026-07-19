@@ -10,7 +10,7 @@
 // without repo config" with a LOUD `fetch-failed` outcome on the record. A
 // PR author cannot induce a GitHub 5xx, so fail-open is not a scrutiny-
 // evasion channel (ADR 0032 #4).
-import type { CustomRiskAttributeInput, RepoContext } from "categorizer";
+import type { CustomRiskAttributeInput, RepoContext } from "brief-core";
 import { RepoFileKind } from "github";
 import {
   INSTRUCTIONS_BUDGET_BYTES,

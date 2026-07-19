@@ -1,0 +1,26 @@
+{
+  "name": "brief-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Brief domain core: schema, taxonomy prompt, categorize engine, repo-context, delta/comparison logic. Extracted from tools/categorizer (BRIEF-68); the dev CLIs and the eval harness stay there and consume this package.",
+  "exports": {
+    ".": "./src/lib.ts",
+    "./types": "./src/types.ts",
+    "./cli-config": "./src/cliConfig.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "generators": "workspace:*",
+    "types": "workspace:*",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.8"
+  }
+}

@@ -1,4 +1,4 @@
-import type { Brief } from "../src/types";
+import type { Brief } from "brief-core/types";
 
 /**
  * The run executor's seam is an injected `generate` closure — the CLI

@@ -1,6 +1,6 @@
 # The web/API tier (TanStack Start + the mounted Hono app). Build context is
 # the REPO ROOT (see docker-compose.yml) — the app depends on workspace
-# packages (api, github, persistence, categorizer, types).
+# packages (api, github, persistence, brief-core, types).
 #
 # Serving model: `vite build` produces dist/server/server.js (the SSR + Hono
 # fetch entry) and dist/client (static assets); `vite preview` is TanStack

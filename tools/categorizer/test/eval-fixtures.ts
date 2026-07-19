@@ -1,4 +1,4 @@
-import type { Brief } from "../src/types";
+import type { Brief } from "brief-core/types";
 
 /**
  * Minimal schema-valid Brief factory for eval-harness tests. Runs entirely

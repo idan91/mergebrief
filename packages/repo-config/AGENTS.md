@@ -38,7 +38,7 @@ test/           per-concern vitest suites
   values, secrets, or raw `yaml`-lib parse messages (they can quote source).
   Zod issue paths/codes are fine; `received` values are NOT.
 - **Built-in vocabulary is imported, never duplicated:** `RiskSurfaceAttributes`
-  comes from `categorizer`. Collisions (custom name ∈ built-in ∪ parked ∪
+  comes from `brief-core`. Collisions (custom name ∈ built-in ∪ parked ∪
   reserved) fail TOWARD built-in semantics — drop the custom def, list it in
   `collisions`, file stays `applied`. Same behavior day-one vs upgrade-induced.
 - **Floor attributes cannot be de-emphasized (ADR 0032 #11):** any

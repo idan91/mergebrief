@@ -2,6 +2,12 @@
 
 Turns a real pull-request diff into a structured review **brief** — a *story* (what the PR does), *change groups* with an intent category, and per-chunk *concern* + *role* + *risk-surface* flags. The brief is meant to help a reviewer decide where to look; it never approves, rejects, or scores.
 
+> **Layout (BRIEF-68)**: the domain core (schema, prompt, categorize engine,
+> repo-context, delta/comparison — everything production consumes) lives in
+> `packages/brief-core`; this directory keeps the dev CLIs (`pnpm categorize`,
+> `pnpm delta` — thin entries into brief-core) and the BRIEF-59 eval harness
+> (`eval/`, `pnpm eval`).
+
 This is the dogfoodable thin slice that validates the categorizer (the unproven core) by building it and eyeballing its output against hand-labels. See `docs/plans/categorizer-thin-slice.md` and `docs/mvp/center-of-gravity.md`.
 
 ## How it works

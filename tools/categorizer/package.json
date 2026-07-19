@@ -3,13 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Turns a real PR diff into a usable review brief (story + concern + risk-surface), validated against hand-labels. eval/ carries the BRIEF-59 generation-quality regression harness.",
-  "exports": {
-    ".": "./src/lib.ts"
-  },
+  "description": "Dev CLIs + the BRIEF-59 generation-quality eval harness on top of brief-core (the Brief domain core lives there since BRIEF-68).",
   "scripts": {
-    "categorize": "tsx src/index.ts",
-    "delta": "tsx src/delta-cli.ts",
+    "categorize": "tsx ../../packages/brief-core/src/index.ts",
+    "delta": "tsx ../../packages/brief-core/src/delta-cli.ts",
     "eval": "tsx eval/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -17,6 +14,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
+    "brief-core": "workspace:*",
     "generators": "workspace:*",
     "types": "workspace:*",
     "zod": "^3.25.0"

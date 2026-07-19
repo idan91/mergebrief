@@ -11,8 +11,8 @@ import {
   type TokenUsage,
 } from "generators";
 import type { Result } from "types";
-import { categorize } from "../src/categorize";
-import { extractConfigFlag } from "../src/cliConfig";
+import { categorize } from "brief-core";
+import { extractConfigFlag } from "brief-core/cli-config";
 import { loadBaseline, saveBaseline } from "./baseline";
 import { loadPrices, priceUsage } from "./cost";
 import { loadCases, type EvalCase } from "./loadCase";

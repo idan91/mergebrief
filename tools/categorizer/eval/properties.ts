@@ -1,4 +1,4 @@
-import type { Brief } from "../src/types";
+import type { Brief } from "brief-core/types";
 import type { PropertyScore } from "./verdicts";
 
 /**

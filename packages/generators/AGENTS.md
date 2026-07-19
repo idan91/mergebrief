@@ -83,7 +83,7 @@ runs it through its own transport fake — a stub SDK client (anthropic, the
 characterization anchor), real fake-binary processes (claude-code/codex),
 fetch-level SSE fixtures (openai/openrouter). The generic pipeline
 mechanics are covered here; their integration with the real Brief schema
-stays in `tools/categorizer/test` (the domain schema lives there —
+stays in `packages/brief-core/test` (the domain schema lives there —
 importing it here would cycle).
 
 ## Verification

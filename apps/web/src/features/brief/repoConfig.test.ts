@@ -13,7 +13,7 @@ import {
   RepoConfigOutcome,
   RepoConfigPaths,
 } from "repo-config";
-import { matchesGlob as sourceMatchesGlob } from "categorizer";
+import { matchesGlob as sourceMatchesGlob } from "brief-core";
 import {
   attributeDisplayMeta,
   CRITERIA_MAX_CHARS,

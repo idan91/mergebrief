@@ -1,7 +1,7 @@
 # The long-lived generation worker (BRIEF-3, ADR 0015). Build context is the
 # REPO ROOT (see docker-compose.yml) — the worker is a workspace package and
 # needs its workspace siblings (persistence incl. drizzle/ migrations, github,
-# categorizer, types) present at runtime: packages run from TypeScript source
+# brief-core, types) present at runtime: packages run from TypeScript source
 # via tsx, so there is no emit step to prune down to.
 FROM node:22-alpine
 

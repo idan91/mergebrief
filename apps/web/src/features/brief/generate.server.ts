@@ -10,7 +10,7 @@ import {
   parsePrUrl,
   prStem,
   type PrLocator,
-} from "categorizer";
+} from "brief-core";
 import {
   createGenerator,
   loadGeneratorConfig,

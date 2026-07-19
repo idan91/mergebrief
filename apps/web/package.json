@@ -17,7 +17,7 @@
     "@tanstack/react-router-ssr-query": "^1.167.1",
     "@tanstack/react-start": "^1.168.25",
     "api": "workspace:*",
-    "categorizer": "workspace:*",
+    "brief-core": "workspace:*",
     "clsx": "2.1.1",
     "generators": "workspace:*",
     "github": "workspace:*",

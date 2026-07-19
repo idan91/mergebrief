@@ -3,9 +3,9 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { z } from "zod/v4";
 import type { Result } from "types";
-import type { FetchedPr } from "../src/github";
-import type { CommitRange } from "../src/types";
-import type { RepoContext } from "../src/repo-context";
+import type { FetchedPr } from "brief-core";
+import type { CommitRange } from "brief-core/types";
+import type { RepoContext } from "brief-core";
 import type { EvalProperty } from "./properties";
 
 /**

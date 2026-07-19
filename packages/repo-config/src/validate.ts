@@ -10,7 +10,7 @@
 // received values are NOT.
 
 import { parse as parseYaml } from "yaml";
-import { RiskSurfaceAttributes } from "categorizer";
+import { RiskSurfaceAttributes } from "brief-core";
 import type { Result } from "types";
 import type { z } from "zod/v4";
 import {

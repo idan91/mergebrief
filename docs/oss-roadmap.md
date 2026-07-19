@@ -373,7 +373,7 @@ should start without it firing:
   `schema-change` + `spec`/`config`/`generated` checks with failure-mode lists, synced
   `labeling-schema.md` statuses. README gained a Contributing section. Prose kept
   authorship-neutral per the 2026-07-04 positioning lock. Leftover (code, trivial): stale
-  "16 factual attributes" comment in `tools/categorizer/src/types.ts` header (actual: 19).
+  "16 factual attributes" comment in `packages/brief-core/src/types.ts` header (actual: 19).
   **Next: P4 (self-host backend) or the PR #20 `json_schema` enum spike.**
 - 2026-07-05 — **P4 WS1 done (BRIEF-1, PR #23).** `packages/persistence`: the 11-table M1
   schema (ADR 0018 as amended 2026-07-04 — `activated_at` dropped per ADR 0020;
