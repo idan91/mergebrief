@@ -122,8 +122,14 @@ function CalloutBody({ children }: { children: ReactNode }) {
   return <span className={styles["body"]}>{children}</span>;
 }
 
+/** De-emphasized provenance line under the payload ("In: <group>"). */
+function CalloutContext({ children }: { children: ReactNode }) {
+  return <span className={styles["context"]}>{children}</span>;
+}
+
 export const Callout = Object.assign(CalloutRoot, {
   Eyebrow: CalloutEyebrow,
   Title: CalloutTitle,
   Body: CalloutBody,
+  Context: CalloutContext,
 });

@@ -157,8 +157,8 @@ describe("Full Brief comparison overlay (step 7)", () => {
     expect(run).toBeDefined();
     expect(run?.kind).toBe("added");
 
-    // The callout body comes from the Revision narrative chunk; the title from
-    // the full Brief's Change-group.
+    // The prominent text comes from the Revision narrative chunk; the owning
+    // change-group renders as a de-emphasized "In:" provenance line under it.
     const source: ComparisonSource = {
       kind: "previous-brief",
       brief: fullBrief,
@@ -175,7 +175,7 @@ describe("Full Brief comparison overlay (step 7)", () => {
       />,
     );
     expect(screen.getByText("New this revision")).toBeTruthy();
-    expect(screen.getByText("Tighten validation")).toBeTruthy();
+    expect(screen.getByText("In: Tighten validation")).toBeTruthy();
     expect(
       screen.getByText("Adds the validate(a) guard on the shared path."),
     ).toBeTruthy();
@@ -198,7 +198,7 @@ describe("Full Brief comparison overlay (step 7)", () => {
       />,
     );
     expect(screen.getByText("New since your last review")).toBeTruthy();
-    expect(screen.getByText("Guarded shared path")).toBeTruthy();
+    expect(screen.getByText("In: Guarded shared path")).toBeTruthy();
     expect(screen.getByText("Delta chunk: adds the guard.")).toBeTruthy();
   });
 });

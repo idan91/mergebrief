@@ -42,10 +42,12 @@ export function ComparisonCallout({
       <Callout.Eyebrow>{eyebrow}</Callout.Eyebrow>
       {callout.available ? (
         <>
+          {/* Payload first: WHAT changed is the prominent text; the owning
+              change-group is a de-emphasized provenance line under it. */}
+          {callout.summary && <Callout.Title>{callout.summary}</Callout.Title>}
           {callout.groupTitle && (
-            <Callout.Title>{callout.groupTitle}</Callout.Title>
+            <Callout.Context>In: {callout.groupTitle}</Callout.Context>
           )}
-          {callout.summary && <Callout.Body>{callout.summary}</Callout.Body>}
         </>
       ) : (
         <Callout.Body>
