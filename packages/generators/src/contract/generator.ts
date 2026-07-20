@@ -17,6 +17,12 @@ export interface TokenUsage {
   outputTokens: number;
   /** Prompt tokens served from provider cache; 0 when unreported. */
   cacheReadTokens: number;
+  /**
+   * Reasoning tokens inside `outputTokens` (BRIEF-76): ABSENT when the
+   * provider reports none — a reported 0 (effort request not honored
+   * upstream) must stay distinguishable from no report at all.
+   */
+  reasoningTokens?: number;
 }
 
 /** One structured-generation request — the portable contract every adapter honors. */

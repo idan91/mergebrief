@@ -393,6 +393,59 @@ describe("openai-core usage reporting", () => {
     expect(seen).toEqual([]);
   });
 
+  it("reports reasoningTokens from completion_tokens_details when present", async () => {
+    const bodies: unknown[] = [];
+    const seen: TokenUsage[] = [];
+    const generator = await openAiGenerator(bodies, () =>
+      sse('{"ok":true}', {
+        prompt_tokens: 800,
+        completion_tokens: 120,
+        completion_tokens_details: { reasoning_tokens: 64 },
+      }),
+    );
+    await generator.generate({
+      schema: Schema,
+      system: "s",
+      user: "u",
+      effort: "medium",
+      label: "usage-reasoning",
+      onUsage: (usage) => seen.push(usage),
+    });
+    expect(seen).toEqual([
+      {
+        inputTokens: 800,
+        outputTokens: 120,
+        cacheReadTokens: 0,
+        reasoningTokens: 64,
+      },
+    ]);
+  });
+
+  it("omits reasoningTokens when unreported or malformed — 0 must stay distinguishable from unreported", async () => {
+    const bodies: unknown[] = [];
+    const seen: TokenUsage[] = [];
+    const generator = await openAiGenerator(bodies, (call) =>
+      call === 1
+        ? sse('{"ok":tru', { prompt_tokens: 10, completion_tokens: 2 })
+        : sse('{"ok":true}', {
+            prompt_tokens: 10,
+            completion_tokens: 2,
+            completion_tokens_details: { reasoning_tokens: "64" },
+          }),
+    );
+    await generator.generate({
+      schema: Schema,
+      system: "s",
+      user: "u",
+      effort: "medium",
+      label: "usage-reasoning-absent",
+      onUsage: (usage) => seen.push(usage),
+    });
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).not.toHaveProperty("reasoningTokens");
+    expect(seen[1]).not.toHaveProperty("reasoningTokens");
+  });
+
   it("keeps requesting usage on the knob-discovery retry", async () => {
     const bodies: unknown[] = [];
     const seen: TokenUsage[] = [];

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { APIUserAbortError } from "openai";
+import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
 import { createOpenRouterCore } from "../src/adapters/openrouter";
 import { createGenerator, Providers } from "../src/config/registry";
 import {
@@ -200,6 +201,121 @@ describe("OpenRouter reasoning backstop", () => {
     expect(scripted.bodies).toHaveLength(2);
     expect(scripted.bodies[1]?.["reasoning"]).toBeUndefined();
     expect(generator.provenance("high").effort).toBeNull();
+  });
+
+  it("recovers when the knob rejection arrives wrapped in metadata.raw", async () => {
+    // The catalog listed reasoning, the upstream provider rejects it — but
+    // OpenRouter wraps that as a generic 400 whose top-level message never
+    // names `reasoning`; only metadata.raw does. Without scanning the raw,
+    // this is a permanent CONFIG failure instead of an honest effort: null.
+    const scripted = scriptedFetch((body) =>
+      body["reasoning"] !== undefined
+        ? wrapped400(
+            '{"error": {"message": "reasoning is not supported for this model", "type": "invalid_request_error"}}',
+            "SomeLab",
+          )
+        : new Response(sse('{"ok":true}'), {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          }),
+    );
+    const generator = await mustCore(scripted);
+    await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+    expect(scripted.bodies).toHaveLength(2);
+    expect(scripted.bodies[1]?.["reasoning"]).toBeUndefined();
+    expect(generator.provenance("high").effort).toBeNull();
+  });
+});
+
+// The real failing body captured from a live Sol repro (BRIEF-76 step 0,
+// 2026-07-20): OpenRouter wraps the upstream rejection as a generic 400 —
+// the actual cause lives only in error.metadata.raw.
+const CAPTURED_RAW =
+  "{\n  \"error\": {\n    \"message\": \"Invalid schema for response_format 'brief': In context=('properties', 'chunks', 'items'), 'required' is required to be supplied and to be an array including every key in properties. Missing 'riskNotes'.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"text.format.schema\",\n    \"code\": \"invalid_json_schema\"\n  }\n}";
+
+function wrapped400(raw: string, providerName = "Azure"): Response {
+  return new Response(
+    JSON.stringify({
+      error: {
+        message: "Provider returned error",
+        code: 400,
+        metadata: {
+          raw,
+          provider_name: providerName,
+          is_byok: false,
+          previous_errors: [
+            { code: 400, message: "Provider returned error", provider_name: "OpenAI", raw },
+          ],
+        },
+      },
+      user_id: "user_test",
+    }),
+    { status: 400, headers: { "content-type": "application/json" } },
+  );
+}
+
+async function caughtFrom(generator: {
+  generate: (req: ReturnType<typeof request>) => Promise<unknown>;
+}): Promise<GeneratorError> {
+  const caught = await generator.generate(request()).then(
+    () => {
+      throw new Error("expected rejection");
+    },
+    (error: unknown) => error,
+  );
+  if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection type");
+  return caught;
+}
+
+describe("OpenRouter wrapped-400 metadata surfacing", () => {
+  it("folds metadata.raw and provider_name into the classified message", async () => {
+    const scripted = scriptedFetch(() => wrapped400(CAPTURED_RAW));
+    const generator = await mustCore(scripted);
+    const caught = await caughtFrom(generator);
+    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+    expect(caught.message).toContain("Azure");
+    expect(caught.message).toContain("Missing 'riskNotes'");
+  });
+
+  it("keeps today's message when the 400 carries no metadata", async () => {
+    const scripted = scriptedFetch(
+      () =>
+        new Response(
+          JSON.stringify({ error: { message: "plain bad request", code: 400 } }),
+          { status: 400, headers: { "content-type": "application/json" } },
+        ),
+    );
+    const generator = await mustCore(scripted);
+    const caught = await caughtFrom(generator);
+    expect(caught.kind).toBe(GeneratorErrorKind.CONFIG);
+    expect(caught.message).toContain("plain bad request");
+  });
+
+  it("redacts secrets inside the surfaced raw text", async () => {
+    const scripted = scriptedFetch(() =>
+      wrapped400("upstream rejected: api_key=sk-SENTINELSECRET123 is invalid"),
+    );
+    const generator = await mustCore(scripted);
+    const caught = await caughtFrom(generator);
+    expect(caught.message).toContain("(redacted)");
+    const chain: string[] = [];
+    let node: unknown = caught;
+    while (node instanceof Error) {
+      chain.push(node.message);
+      node = node.cause;
+    }
+    expect(chain.join("\n")).not.toContain("SENTINELSECRET123");
+  });
+
+  it("bounds the surfaced message even for a huge raw body", async () => {
+    // Short repeated words survive every redaction rule (a single long run
+    // would be collapsed by redactSecrets before the slice, making the
+    // bound assertion vacuous) — the 300 chars must come from the slice.
+    const scripted = scriptedFetch(() => wrapped400("missing key ".repeat(500)));
+    const generator = await mustCore(scripted);
+    const caught = await caughtFrom(generator);
+    expect(caught.message).toContain("missing key");
+    expect(caught.message.length).toBe(300);
   });
 });
 

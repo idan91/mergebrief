@@ -38,6 +38,7 @@ export interface OpenAiStreamChunk {
     prompt_tokens: number;
     completion_tokens: number;
     prompt_tokens_details?: { cached_tokens?: number } | null;
+    completion_tokens_details?: { reasoning_tokens?: number } | null;
   } | null;
 }
 
@@ -341,10 +342,13 @@ export class OpenAiCompatibleCore implements Generator {
       typeof usage.completion_tokens === "number"
     ) {
       const cached = usage.prompt_tokens_details?.cached_tokens;
+      const reasoning = usage.completion_tokens_details?.reasoning_tokens;
       req.onUsage?.({
         inputTokens: usage.prompt_tokens,
         outputTokens: usage.completion_tokens,
         cacheReadTokens: typeof cached === "number" ? cached : 0,
+        // Absent ≠ 0: only a numeric report enters the field.
+        ...(typeof reasoning === "number" ? { reasoningTokens: reasoning } : {}),
       });
     }
     return { raw: collected, refusal: refusal === "" ? null : refusal, finishReason };
@@ -353,12 +357,17 @@ export class OpenAiCompatibleCore implements Generator {
 
 /** True for a 400 whose provider message names the effort knob's wire
  * parameter. The text is PROVIDER-authored status prose (never model
- * output) — sniffing it is the documented discovery mechanism. */
+ * output) — sniffing it is the documented discovery mechanism. OpenRouter
+ * wraps upstream rejections behind a generic message, so the extracted
+ * metadata.raw is scanned too (BRIEF-76): a catalog-listed-but-broken
+ * knob degrades to honest effort: null, not a permanent CONFIG failure. */
 function isEffortKnobRejection(error: unknown, marker: string): boolean {
   if (typeof error !== "object" || error === null) return false;
   if (Reflect.get(error, "status") !== 400) return false;
   const message = Reflect.get(error, "message");
-  return typeof message === "string" && message.includes(marker);
+  if (typeof message === "string" && message.includes(marker)) return true;
+  const extracted = extractedProviderRaw(error);
+  return extracted !== null && extracted.raw.includes(marker);
 }
 
 /**
@@ -411,8 +420,11 @@ export function classifyOpenAiError(error: unknown): unknown {
   // Node's console.error prints cause chains recursively, so a raw cause
   // (whose .message and parsed .error body are unredacted) would undo the
   // redaction at any full-object log sink downstream.
+  const detail = providerErrorDetail(error);
   const message = safeProviderMessage(
-    error instanceof Error ? error.message : `transport error (status ${status})`,
+    (error instanceof Error
+      ? error.message
+      : `transport error (status ${status})`) + detail,
   );
   const cause = sanitizedCause(error, status);
   if (status === 401 || status === 403) {
@@ -427,6 +439,38 @@ export function classifyOpenAiError(error: unknown): unknown {
     });
   }
   return new GeneratorError(GeneratorErrorKind.OPAQUE, message, { cause });
+}
+
+/**
+ * OpenRouter wraps upstream provider rejections as a generic 400 ("Provider
+ * returned error") whose real cause lives in the parsed body's
+ * `error.metadata.raw` (+ `metadata.provider_name`) — text the SDK never
+ * folds into `.message` (BRIEF-76). The SDK parks the body's `error` field
+ * on the APIError's `.error` property; every field here is optional wire
+ * data, so absence degrades to "" and the caller keeps today's message.
+ * The returned text is provider-authored and untrusted — it must only enter
+ * messages through `safeProviderMessage`.
+ */
+function extractedProviderRaw(error: unknown): { raw: string; providerName: string | null } | null {
+  if (typeof error !== "object" || error === null) return null;
+  const body = Reflect.get(error, "error");
+  if (typeof body !== "object" || body === null) return null;
+  const metadata = Reflect.get(body, "metadata");
+  if (typeof metadata !== "object" || metadata === null) return null;
+  const raw = Reflect.get(metadata, "raw");
+  if (typeof raw !== "string" || raw === "") return null;
+  const provider = Reflect.get(metadata, "provider_name");
+  return {
+    raw,
+    providerName: typeof provider === "string" && provider !== "" ? provider : null,
+  };
+}
+
+/** ` — <provider>: <raw>` suffix for classified messages, or "". */
+function providerErrorDetail(error: unknown): string {
+  const extracted = extractedProviderRaw(error);
+  if (extracted === null) return "";
+  return ` — ${extracted.providerName ?? "upstream provider"}: ${extracted.raw}`;
 }
 
 /** Redact-then-bound provider message text before it enters app errors. */
