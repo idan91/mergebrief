@@ -255,6 +255,51 @@ describe("categorizeRevisionNarrative", () => {
     expect(logs.some((l) => l.includes("unknown brief change-group") && l.includes("g1"))).toBe(
       true,
     );
+    // The warning is artifact-bound too (BRIEF-73), not just a log line.
+    expect(
+      narrative.generationWarnings?.some((w) => w.includes("unknown brief change-group")),
+    ).toBe(true);
+  });
+
+  // Fixture narrative chunk: src/a.ts, addedRanges 6-7, no removedRanges.
+  it("attaches a coverage warning when a mark range has no narrative chunk (BRIEF-73)", async () => {
+    const narrative = await categorizeRevisionNarrative(
+      {
+        ...input,
+        marksFiles: [
+          {
+            file: "src/a.ts",
+            addedRanges: [
+              { start: 6, end: 7 },
+              { start: 30, end: 33 },
+            ],
+            removedRanges: [],
+          },
+        ],
+      },
+      new FakeGenerator(),
+    );
+    const warnings = narrative.generationWarnings ?? [];
+    expect(
+      warnings.some(
+        (w) => w.includes("revision narrative coverage") && w.includes("added 30-33"),
+      ),
+    ).toBe(true);
+    // The forward direction is clean, so only the reverse fires.
+    expect(warnings.some((w) => w.includes("marks overlap"))).toBe(false);
+  });
+
+  it("omits generationWarnings entirely when marks and narrative line up", async () => {
+    const narrative = await categorizeRevisionNarrative(
+      {
+        ...input,
+        marksFiles: [
+          { file: "src/a.ts", addedRanges: [{ start: 6, end: 7 }], removedRanges: [] },
+        ],
+      },
+      new FakeGenerator(),
+    );
+    expect("generationWarnings" in narrative).toBe(false);
   });
 });
 
@@ -372,6 +417,36 @@ describe("generateAndWrite comparison artifacts", () => {
     expect(narrative["artifactKind"]).toBe("revisionNarrative");
     expect(narrative["prevHeadSha"]).toBe(HEAD_1);
     expect(narrative["headIndex"]).toBe(2);
+  });
+
+  // Pins the CLI call-site wiring of `marksFiles` (BRIEF-73): if the caller
+  // drops it, both overlap directions silently stop running and no other
+  // assertion would notice — this one fails.
+  it("lands coverage warnings in the written narrative when the model under-covers the span", async () => {
+    class UnderCoveringGenerator extends FakeGenerator {
+      override async generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>> {
+        if (req.label === "revision narrative") {
+          return req.schema.parse({ overview: "sparse", chunks: [] });
+        }
+        return super.generate(req);
+      }
+    }
+    const generator = new UnderCoveringGenerator();
+    await firstBrief(generator);
+    fetched.meta = makeMeta(HEAD_2);
+    await generateAndWrite(dir, URL, undefined, generator, () => {});
+
+    const narrative = (await readJson(
+      join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
+    )) as Record<string, unknown>;
+    const warnings = narrative["generationWarnings"];
+    expect(Array.isArray(warnings)).toBe(true);
+    // Incremental-diff marks are src/a.ts added 6-7; the empty narrative covers nothing.
+    expect(
+      (warnings as string[]).some(
+        (w) => w.includes("revision narrative coverage") && w.includes("6-7"),
+      ),
+    ).toBe(true);
   });
 
   it("does not fail the brief when narrative generation fails; marks stay on disk", async () => {

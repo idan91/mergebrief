@@ -515,6 +515,12 @@ export const RevisionNarrativeSchema = z
     generation: GenerationSchema.describe(
       "which provider/model/effort produced this narrative. CLI-assigned.",
     ),
+    generationWarnings: z
+      .array(z.string())
+      .optional()
+      .describe(
+        "warning lines the generation pipeline emitted. CLI-collected (BRIEF-11 UI surfacing).",
+      ),
     overview: z
       .string()
       .describe(
@@ -538,6 +544,7 @@ export const RevisionNarrativeGenerationSchema = RevisionNarrativeSchema.omit({
   prevIndex: true,
   headIndex: true,
   generation: true,
+  generationWarnings: true,
 });
 
 /**

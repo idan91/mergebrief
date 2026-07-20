@@ -617,12 +617,21 @@ describe("generate task", () => {
 
     const narrative = await store.revisionNarratives.get(second.pr.id, HEAD_1, HEAD_2);
     expect(narrative).toBeDefined();
-    expect(JSON.parse(narrative?.body ?? "{}")).toMatchObject({
+    const narrativeBody = JSON.parse(narrative?.body ?? "{}") as Record<string, unknown>;
+    expect(narrativeBody).toMatchObject({
       artifactKind: "revisionNarrative",
       prevIndex: 1,
       headIndex: 2,
       generation: { effort: "low" },
     });
+    // Pins the worker call-site wiring of `marksFiles` (BRIEF-73): the stub
+    // narrative covers nothing, so the marks↔narrative coverage check must
+    // have run and landed its warning in the persisted artifact.
+    const narrativeWarnings = narrativeBody["generationWarnings"];
+    expect(Array.isArray(narrativeWarnings)).toBe(true);
+    expect(
+      (narrativeWarnings as string[]).some((w) => w.includes("revision narrative coverage")),
+    ).toBe(true);
     expect(generator.calls).toEqual(["brief", "brief", "revision narrative"]);
   });
 

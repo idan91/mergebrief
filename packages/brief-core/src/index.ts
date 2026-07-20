@@ -14,7 +14,7 @@ import {
   type FetchedPr,
   type ReviewComment,
 } from "./github";
-import { categorize, categorizeRevisionNarrative, warnIssues } from "./categorize";
+import { categorize, categorizeRevisionNarrative } from "./categorize";
 import {
   createGenerator,
   defaultGeneratorConfig,
@@ -28,7 +28,6 @@ import { countChangedLines, type RevisionChanges } from "./revchanges";
 import { buildComparisonMarks, writeComparisonMarks } from "./comparison";
 import { isHugeSpan } from "./huge-span";
 import { revisionNarrativeConfig } from "./config";
-import { validateNarrativeMarksOverlap } from "./validate";
 import {
   commentsName,
   diffsName,
@@ -285,15 +284,11 @@ async function generateAndWriteRevisionNarrative(args: {
         incrementalDiff,
         links: pr.links,
         brief,
+        marksFiles,
       },
       generator,
       log,
       effort,
-    );
-    warnIssues(
-      validateNarrativeMarksOverlap(narrative.chunks, marksFiles),
-      log,
-      "revision narrative marks overlap",
     );
     await writeFile(narrativeFile, `${JSON.stringify(narrative, null, 2)}\n`);
     log(`wrote ${narrativeFile}`);

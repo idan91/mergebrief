@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   validatePartition,
+  validateMarksNarrativeCoverage,
   validateNarrativeGroups,
   validateNarrativeMarksOverlap,
   validateReadingOrder,
@@ -391,6 +392,74 @@ describe("validateNarrativeMarksOverlap", () => {
     ];
     const issues = validateNarrativeMarksOverlap(chunks, marksFiles);
     expect(issues.some((i) => i.includes("rc1"))).toBe(true);
+  });
+});
+
+describe("validateMarksNarrativeCoverage (BRIEF-73 — reverse direction)", () => {
+  const marksFiles = [
+    {
+      file: "a.ts",
+      addedRanges: [
+        { start: 10, end: 15 },
+        { start: 40, end: 40 },
+      ],
+      removedRanges: [{ start: 3, end: 4 }],
+    },
+  ];
+
+  it("returns no issues when every mark range overlaps a chunk on its side", () => {
+    const chunks = [
+      {
+        file: "a.ts",
+        addedRanges: [
+          { start: 12, end: 16 },
+          { start: 40, end: 42 },
+        ],
+        removedRanges: [{ start: 4, end: 4 }],
+      },
+    ];
+    expect(validateMarksNarrativeCoverage(marksFiles, chunks)).toEqual([]);
+  });
+
+  it("flags uncovered added ranges, formatting single lines without a dash", () => {
+    const chunks = [
+      { file: "a.ts", addedRanges: [{ start: 10, end: 15 }], removedRanges: [{ start: 3, end: 4 }] },
+    ];
+    const issues = validateMarksNarrativeCoverage(marksFiles, chunks);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain("a.ts");
+    expect(issues[0]).toContain("added 40");
+    expect(issues[0]).not.toContain("removed");
+  });
+
+  it("flags a removed range only covered on the added side (sides never cross)", () => {
+    const chunks = [
+      {
+        file: "a.ts",
+        addedRanges: [
+          { start: 10, end: 15 },
+          { start: 40, end: 40 },
+          { start: 3, end: 4 },
+        ],
+        removedRanges: [],
+      },
+    ];
+    const issues = validateMarksNarrativeCoverage(marksFiles, chunks);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain("removed 3-4");
+  });
+
+  it("flags a marks file with no narrative chunks at all", () => {
+    const issues = validateMarksNarrativeCoverage(marksFiles, [
+      { file: "other.ts", addedRanges: [{ start: 10, end: 15 }], removedRanges: [] },
+    ]);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain("added 10-15, 40");
+    expect(issues[0]).toContain("removed 3-4");
+  });
+
+  it("is silent with no marks", () => {
+    expect(validateMarksNarrativeCoverage([], [])).toEqual([]);
   });
 });
 

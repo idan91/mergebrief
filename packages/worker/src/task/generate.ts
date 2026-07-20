@@ -879,6 +879,7 @@ async function writeRevisionArtifacts(
         incrementalDiff: revDiff,
         links,
         brief: generatedBrief,
+        marksFiles: marks.files,
       },
       inputs.generator,
       log,

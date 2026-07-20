@@ -29,12 +29,15 @@ import {
 } from "./prompt";
 import { splitDiffByFile } from "./diff";
 import {
-  validatePartition,
+  validateMarksNarrativeCoverage,
   validateNarrativeGroups,
+  validateNarrativeMarksOverlap,
+  validatePartition,
   validateReadingOrder,
   validateRepoAttributeTokens,
   validateRiskAttributes,
 } from "./validate";
+import type { RevisionChangeFile } from "./revchanges";
 import type {
   FetchedPr,
   LinkedContext,
@@ -402,6 +405,13 @@ export interface RevisionNarrativeInput {
   links?: LinkedContext[];
   /** The current full Brief, trimmed to alignment context by `renderBriefContext`. */
   brief: Brief;
+  /**
+   * The span's mechanical comparison-mark ranges, when the caller has them
+   * (both production paths build marks before the narrative call). Enables
+   * the marks↔narrative overlap validations in both directions (BRIEF-73) —
+   * warn-only, collected into `generationWarnings`.
+   */
+  marksFiles?: Pick<RevisionChangeFile, "file" | "addedRanges" | "removedRanges">[];
 }
 
 /**
@@ -458,14 +468,33 @@ export async function categorizeRevisionNarrative(
 ): Promise<RevisionNarrative> {
   // The model produces overview + chunks only; the rest is CLI-owned metadata
   // it cannot know (ADR 0012/0013), filled in here.
+  const collector = collectGenerationWarnings(log);
   const generated = await generator.generate({
     schema: RevisionNarrativeGenerationSchema,
     system: buildRevisionNarrativeSystemPrompt(),
     user: renderRevisionNarrativeUser(input),
     effort,
     label: "revision narrative",
-    log,
+    log: collector.log,
   });
+  warnIssues(
+    validateNarrativeGroups(generated.chunks, input.brief.changeGroups),
+    collector.log,
+    "revision narrative",
+  );
+  if (input.marksFiles !== undefined) {
+    warnIssues(
+      validateNarrativeMarksOverlap(generated.chunks, input.marksFiles),
+      collector.log,
+      "revision narrative marks overlap",
+    );
+    warnIssues(
+      validateMarksNarrativeCoverage(input.marksFiles, generated.chunks),
+      collector.log,
+      "revision narrative coverage",
+    );
+  }
+  const warnings = collector.warnings();
   const narrative: RevisionNarrative = {
     artifactKind: "revisionNarrative",
     ...generated,
@@ -475,11 +504,7 @@ export async function categorizeRevisionNarrative(
     prevIndex: input.prevIndex,
     headIndex: input.headIndex,
     generation: generator.provenance(effort),
+    ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
   };
-  warnIssues(
-    validateNarrativeGroups(narrative.chunks, input.brief.changeGroups),
-    log,
-    "revision narrative",
-  );
   return narrative;
 }

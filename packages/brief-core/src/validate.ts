@@ -553,3 +553,44 @@ export function validateNarrativeMarksOverlap(
   }
   return issues;
 }
+
+function formatRange(range: LineRange): string {
+  return range.start === range.end ? `${range.start}` : `${range.start}-${range.end}`;
+}
+
+/**
+ * The reverse direction of `validateNarrativeMarksOverlap` (BRIEF-73): every
+ * mechanical mark range should overlap some narrative chunk for the same file
+ * and side. The narrative prompt demands full span coverage but nothing
+ * enforced it, and weaker models under-cover routinely — an uncovered span
+ * has no span summary in the comparison overlay. Warn only, never retry: a
+ * regen costs a full narrative spend for what the FE degrades gracefully.
+ */
+export function validateMarksNarrativeCoverage(
+  marksFiles: Pick<RevisionChangeFile, "file" | "addedRanges" | "removedRanges">[],
+  chunks: Pick<RevisionNarrativeChunk, "file" | "addedRanges" | "removedRanges">[],
+): string[] {
+  const issues: string[] = [];
+  for (const marks of marksFiles) {
+    const chunksForFile = chunks.filter((c) => c.file === marks.file);
+    const uncoveredAdded = marks.addedRanges.filter(
+      (range) => !chunksForFile.some((c) => anyOverlap([range], c.addedRanges)),
+    );
+    const uncoveredRemoved = marks.removedRanges.filter(
+      (range) => !chunksForFile.some((c) => anyOverlap([range], c.removedRanges)),
+    );
+    if (uncoveredAdded.length === 0 && uncoveredRemoved.length === 0) continue;
+    const sides = [
+      ...(uncoveredAdded.length > 0
+        ? [`added ${uncoveredAdded.map(formatRange).join(", ")}`]
+        : []),
+      ...(uncoveredRemoved.length > 0
+        ? [`removed ${uncoveredRemoved.map(formatRange).join(", ")}`]
+        : []),
+    ];
+    issues.push(
+      `marks for ${marks.file}: no narrative chunk covers ${sides.join("; ")}`,
+    );
+  }
+  return issues;
+}
