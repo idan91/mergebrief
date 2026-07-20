@@ -88,6 +88,7 @@ Firing discipline for the observational trio (all three are about the change its
 ## Change-group boundary
 
 - One group = ONE title + ONE summary + ONE dominant category. If you need two unrelated summaries, split into two groups.
+- **One capability = one group, regardless of file anatomy.** An all-new feature or component is ONE group even though its parts live in separate files: its types/contract file, hook or facade, view, and styles all serve the same intent ("Add X") and are chunks of that one group — never per-file or per-layer groups. Its tests/stories and barrel exports are supporting chunks of that same group (rules below). Split a new capability only when the diff truly contains a second, separately-summarizable intent — never along file or layer boundaries.
 - The author's commit structure is a hint, never the boundary.
 - Intent lives on the carrier chunk(s); supporting chunks inherit it and are not independently categorized.
 - **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if a set of changes has no intent-holder of its own, those chunks are *supporting* chunks of the group whose intent they serve, not a group.
@@ -233,6 +234,7 @@ Firing discipline for the observational trio (all three are about the change its
 ## Change-group boundary
 
 - One group = ONE title + ONE summary + ONE dominant category. If you need two unrelated summaries, split into two groups.
+- **One capability = one group, regardless of file anatomy.** An all-new feature or component is ONE group even though its parts live in separate files: its types/contract file, hook or facade, view, and styles all serve the same intent ("Add X") and are chunks of that one group — never per-file or per-layer groups. Its tests/stories and barrel exports are supporting chunks of that same group (rules below). Split a new capability only when the diff truly contains a second, separately-summarizable intent — never along file or layer boundaries.
 - The author's commit structure is a hint, never the boundary.
 - Intent lives on the carrier chunk(s); supporting chunks inherit it and are not independently categorized.
 - **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if a set of changes has no intent-holder of its own, those chunks are *supporting* chunks of the group whose intent they serve, not a group.
