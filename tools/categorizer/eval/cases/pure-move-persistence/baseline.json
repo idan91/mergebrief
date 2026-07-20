@@ -2,7 +2,7 @@
   "key": "anthropic:claude-opus-4-8",
   "runs": 5,
   "properties": {
-    "coherent-grouping": 3,
+    "coherent-grouping": 2,
     "move-category-present": 5,
     "no-behavior-categories": 5,
     "no-new-abstraction": 5

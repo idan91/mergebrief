@@ -3,9 +3,9 @@
   "runs": 5,
   "properties": {
     "api-group-before-refactor-group": 0,
-    "app-callsite-rides-along": 1,
+    "app-callsite-rides-along": 0,
     "at-least-two-groups": 5,
     "no-per-hunk-oversplit": 5,
-    "scss-supports-the-refactor-group": 3
+    "scss-supports-the-refactor-group": 2
   }
 }
