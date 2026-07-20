@@ -247,11 +247,106 @@ describe("bindRevisionNarrativeCallout", () => {
     });
   });
 
-  it("drops the callout when the narrative chunk's group is not on the Brief", () => {
+  // The scenario chunk's own group, for the degraded fallback (BRIEF-73).
+  const briefWithOwnGroup: Brief = {
+    ...fullBrief,
+    changeGroups: [
+      ...fullBrief.changeGroups,
+      {
+        id: "g1",
+        title: "Owning group",
+        summary: "own group summary",
+        dominantCategory: "logic-refactor",
+        secondaryCategories: [],
+        uncertain: false,
+        uncertainBetween: [],
+      },
+    ],
+  };
+
+  it("degrades to the chunk's own group when no narrative chunk matches the span (BRIEF-73)", () => {
+    const elsewhere: RevisionNarrative = {
+      ...narrative,
+      chunks: [
+        { ...narrative.chunks[0]!, addedRanges: [{ start: 90, end: 95 }] },
+      ],
+    };
+    expect(
+      bindRevisionNarrativeCallout(
+        firstRun(),
+        scenario,
+        briefWithOwnGroup,
+        elsewhere,
+      ),
+    ).toEqual({
+      available: true,
+      degraded: true,
+      groupTitle: "Owning group",
+      summary: "own group summary", // scenario chunk has no summary → group's
+    });
+  });
+
+  it("prefers the chunk's own summary in the degraded fallback", () => {
+    const summarized = { ...scenario, summary: "chunk summary" };
+    expect(
+      bindRevisionNarrativeCallout(firstRun(), summarized, briefWithOwnGroup, {
+        ...narrative,
+        chunks: [],
+      }),
+    ).toEqual({
+      available: true,
+      degraded: true,
+      groupTitle: "Owning group",
+      summary: "chunk summary",
+    });
+  });
+
+  it("keeps the span summary under the chunk's own group when the narrative group is dangling (BRIEF-73)", () => {
     const orphan: RevisionNarrative = {
       ...narrative,
       chunks: [{ ...narrative.chunks[0]!, briefChangeGroupId: "missing" }],
     };
+    // The span summary is real — no degraded note, only the title is re-homed.
+    expect(
+      bindRevisionNarrativeCallout(
+        firstRun(),
+        scenario,
+        briefWithOwnGroup,
+        orphan,
+      ),
+    ).toEqual({
+      available: true,
+      groupTitle: "Owning group",
+      summary: "Adds the scroller hook.",
+    });
+  });
+
+  it("omits the summary in the removed-run degraded fallback (a net-change summary would misdescribe a deletion)", () => {
+    const removedRun = groupComparisonRuns(
+      scenario,
+      markComparisonRows(scenario, marks),
+    )[1];
+    if (!removedRun) throw new Error("expected the standalone-deletion run");
+    expect(removedRun.kind).toBe("removed");
+    const summarized = { ...scenario, summary: "Adds the scroller hook." };
+    expect(
+      bindRevisionNarrativeCallout(removedRun, summarized, briefWithOwnGroup, {
+        ...narrative,
+        chunks: [],
+      }),
+    ).toEqual({
+      available: true,
+      degraded: true,
+      groupTitle: "Owning group",
+    });
+  });
+
+  it("stays unavailable when the fallback group is also missing from the Brief", () => {
+    const orphan: RevisionNarrative = {
+      ...narrative,
+      chunks: [{ ...narrative.chunks[0]!, briefChangeGroupId: "missing" }],
+    };
+    // fullBrief has no "g1" (the scenario chunk's group) — nothing to degrade to.
     expect(
       bindRevisionNarrativeCallout(firstRun(), scenario, fullBrief, orphan),
     ).toEqual({ available: false });

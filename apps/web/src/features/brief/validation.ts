@@ -483,6 +483,9 @@ export function parseRevisionNarrativeArtifact(
     "chunks",
   );
   if (!chunks.ok) return chunks;
+  const generationWarnings = parseGenerationWarnings(
+    value["generationWarnings"],
+  );
   return {
     ok: true,
     value: {
@@ -493,6 +496,7 @@ export function parseRevisionNarrativeArtifact(
       prevIndex,
       headIndex,
       generation,
+      ...(generationWarnings ? { generationWarnings } : {}),
       overview,
       chunks: chunks.value,
     },

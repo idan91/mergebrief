@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { parseBrief, parseDeltaBrief } from "./validation";
+import {
+  parseBrief,
+  parseDeltaBrief,
+  parseRevisionNarrativeArtifact,
+} from "./validation";
 
 const pr = {
   repo: "Idan91/components",
@@ -78,7 +82,6 @@ describe("parseBrief", () => {
     if (!parsed.ok) return;
     expect("generationWarnings" in parsed.value).toBe(false);
   });
-
   it("rejects pr urls that are not http(s)", () => {
     const parsed = parseBrief({
       pr: { ...pr, url: "javascript:alert(1)" },
@@ -210,6 +213,42 @@ describe("parseBrief", () => {
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(parsed.value.readingOrder).toBeUndefined();
+  });
+});
+
+describe("parseRevisionNarrativeArtifact", () => {
+  const narrativeWire = {
+    artifactKind: "revisionNarrative",
+    pr,
+    prevHeadSha: "prev1234",
+    headSha: "head1234",
+    prevIndex: 1,
+    headIndex: 2,
+    generation: { provider: "anthropic", model: "m", effort: null },
+    overview: "o",
+    chunks: [],
+  };
+
+  it("carries generationWarnings through, dropping non-string entries (BRIEF-73)", () => {
+    const parsed = parseRevisionNarrativeArtifact({
+      ...narrativeWire,
+      generationWarnings: ["⚠ revision narrative coverage issues: …", 7],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    if (parsed.value.artifactKind !== "revisionNarrative") {
+      throw new Error("expected a narrative");
+    }
+    expect(parsed.value.generationWarnings).toEqual([
+      "⚠ revision narrative coverage issues: …",
+    ]);
+  });
+
+  it("omits generationWarnings when absent", () => {
+    const parsed = parseRevisionNarrativeArtifact(narrativeWire);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect("generationWarnings" in parsed.value).toBe(false);
   });
 });
 

@@ -181,6 +181,40 @@ describe("Full Brief comparison overlay (step 7)", () => {
     ).toBeTruthy();
   });
 
+  it("degrades to the chunk's group with a note when the narrative misses the span (BRIEF-73)", () => {
+    const view = buildChunkComparisonView(chunkA, previousBriefMarks);
+    const run = view.runs[0];
+    expect(run).toBeDefined();
+
+    const missing: RevisionNarrative = {
+      ...narrative,
+      chunks: [
+        { ...narrative.chunks[0]!, addedRanges: [{ start: 90, end: 95 }] },
+      ],
+    };
+    render(
+      <ComparisonCallout
+        anchor={document.body}
+        onClose={() => {}}
+        run={run!}
+        chunk={chunkA}
+        source={{
+          kind: "previous-brief",
+          brief: fullBrief,
+          narrative: missing,
+        }}
+        skipReason={null}
+      />,
+    );
+    // Degraded, not unavailable: chunk summary + owning group + the note.
+    expect(screen.getByText("Carrier chunk.")).toBeTruthy();
+    expect(screen.getByText("In: Tighten validation")).toBeTruthy();
+    expect(
+      screen.getByText("Span summary unavailable — showing group context."),
+    ).toBeTruthy();
+    expect(screen.queryByText("Summary unavailable for this span.")).toBeNull();
+  });
+
   it("Your last review uses checkpoint marks and Delta callouts", () => {
     const view = buildChunkComparisonView(chunkA, checkpointMarks);
     const run = view.runs[0];

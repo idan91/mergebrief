@@ -48,6 +48,13 @@ export function ComparisonCallout({
           {callout.groupTitle && (
             <Callout.Context>In: {callout.groupTitle}</Callout.Context>
           )}
+          {callout.degraded && (
+            <Callout.Context>
+              <span className={styles["unavailable"]}>
+                Span summary unavailable — showing group context.
+              </span>
+            </Callout.Context>
+          )}
         </>
       ) : (
         <Callout.Body>

@@ -63,6 +63,12 @@ export interface ComparisonCalloutContent {
   available: boolean;
   groupTitle?: string;
   summary?: string;
+  /**
+   * @description True when the span has no narrative coverage and the content
+   * degraded to the full Brief's chunk/group at that head line (BRIEF-73) —
+   * the callout renders, with a note that the span summary is missing.
+   */
+  degraded?: boolean;
 }
 
 /**
@@ -187,11 +193,44 @@ function runLines(
 }
 
 /**
+ * Degraded fallback (BRIEF-73): the run always lives inside a full-Brief
+ * chunk's rendered diff, so when the narrative under-covers the span the
+ * callout falls back to that chunk's own Change-group — group title plus the
+ * chunk's summary (or the group's, mirroring the Delta adapter's `??`) —
+ * instead of the unavailable copy. A removed run gets NO summary: chunk/group
+ * summaries describe the net base→head change ("Adds retry logic …"), which
+ * would affirmatively misdescribe a deletion under the "Removed this
+ * revision" eyebrow — group title + the degraded note is the honest floor.
+ * Only a Brief whose group reference is itself broken stays unavailable.
+ */
+function bindBriefChunkFallback(
+  run: ComparisonRun,
+  chunk: BriefChunk,
+  brief: Brief,
+): ComparisonCalloutContent {
+  const group = brief.changeGroups.find(
+    (candidate) => candidate.id === chunk.changeGroupId,
+  );
+  if (!group) return { available: false };
+  if (run.kind === "removed") {
+    return { available: true, degraded: true, groupTitle: group.title };
+  }
+  return {
+    available: true,
+    degraded: true,
+    groupTitle: group.title,
+    summary: chunk.summary ?? group.summary,
+  };
+}
+
+/**
  * Previous-Brief callout: title from the full Brief's Change-group, body from
  * the matching Revision narrative chunk summary (ADR 0024). Degrades honestly —
- * no narrative (null / failed) or no matching chunk → unavailable; a narrative
- * chunk whose `briefChangeGroupId` is not in the rendered Brief → drop the
- * callout gracefully (the rail still renders, marks never depend on this).
+ * no narrative at all (null / failed) → unavailable; no chunk matching the
+ * span → degraded fallback to the full Brief's own chunk/group; a matched
+ * chunk whose `briefChangeGroupId` is not in the rendered Brief keeps its span
+ * summary under the chunk's own group title (BRIEF-73; the rail still
+ * renders, marks never depend on this).
  */
 export function bindRevisionNarrativeCallout(
   run: ComparisonRun,
@@ -207,11 +246,25 @@ export function bindRevisionNarrativeCallout(
       (headLines.some((line) => lineInRanges(line, candidate.addedRanges)) ||
         oldLines.some((line) => lineInRanges(line, candidate.removedRanges))),
   );
-  if (!narrativeChunk) return { available: false };
+  if (!narrativeChunk) return bindBriefChunkFallback(run, chunk, brief);
   const group = brief.changeGroups.find(
     (candidate) => candidate.id === narrativeChunk.briefChangeGroupId,
   );
-  if (!group) return { available: false };
+  if (!group) {
+    // Dangling `briefChangeGroupId`: the span summary itself is real — keep
+    // it, titled by the chunk's own group, instead of dropping the callout.
+    // Not `degraded`: that note would claim the span summary is unavailable
+    // while showing it.
+    const ownGroup = brief.changeGroups.find(
+      (candidate) => candidate.id === chunk.changeGroupId,
+    );
+    if (!ownGroup) return { available: false };
+    return {
+      available: true,
+      groupTitle: ownGroup.title,
+      summary: narrativeChunk.summary,
+    };
+  }
   return {
     available: true,
     groupTitle: group.title,

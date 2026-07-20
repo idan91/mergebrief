@@ -286,6 +286,7 @@ export interface RevisionNarrative {
   prevIndex: number;
   headIndex: number;
   generation: Generation;
+  generationWarnings?: string[];
   overview: string;
   chunks: RevisionNarrativeChunk[];
 }
