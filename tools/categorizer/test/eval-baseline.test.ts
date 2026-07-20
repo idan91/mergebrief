@@ -2,7 +2,11 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadBaseline, saveBaseline } from "../eval/baseline";
+import {
+  loadBaseline,
+  preflightBaselineKeys,
+  saveBaseline,
+} from "../eval/baseline";
 
 /**
  * Baselines are checked-in snapshots keyed by provider:model (BRIEF-59
@@ -79,5 +83,58 @@ describe("baseline round-trip", () => {
     writeFileSync(path, '{"key":42}');
     const loaded = loadBaseline(path, "k:m");
     expect(loaded.ok).toBe(false);
+  });
+});
+
+describe("preflightBaselineKeys", () => {
+  /** Cross-model runs must be refused BEFORE any generation spends money
+   * (2026-07-20 incident: full spend, then exit 2 at the baseline lookup). */
+  it("passes when every case's baseline matches the run key", () => {
+    const a = tempDir();
+    const b = tempDir();
+    saveBaseline(join(a, "baseline.json"), { key: "k:m", runs: 5, properties: {} });
+    saveBaseline(join(b, "baseline.json"), { key: "k:m", runs: 5, properties: {} });
+    const result = preflightBaselineKeys(
+      [
+        { id: "case-a", dir: a },
+        { id: "case-b", dir: b },
+      ],
+      "k:m",
+    );
+    expect(result).toEqual({ ok: true, value: undefined });
+  });
+
+  it("allows a case with no baseline yet (new case)", () => {
+    const result = preflightBaselineKeys(
+      [{ id: "new-case", dir: tempDir() }],
+      "k:m",
+    );
+    expect(result).toEqual({ ok: true, value: undefined });
+  });
+
+  it("refuses a key mismatch before any spend, naming the case", () => {
+    const a = tempDir();
+    const b = tempDir();
+    saveBaseline(join(a, "baseline.json"), {
+      key: "openai:gpt",
+      runs: 5,
+      properties: {},
+    });
+    saveBaseline(join(b, "baseline.json"), {
+      key: "anthropic:opus",
+      runs: 5,
+      properties: {},
+    });
+    const result = preflightBaselineKeys(
+      [
+        { id: "case-a", dir: a },
+        { id: "case-b", dir: b },
+      ],
+      "openai:gpt",
+    );
+    const error = result.ok ? "" : result.error;
+    expect(result.ok).toBe(false);
+    expect(error).toContain("anthropic:opus");
+    expect(error).toContain("openai:gpt");
   });
 });

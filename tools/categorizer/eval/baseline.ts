@@ -1,4 +1,5 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { z } from "zod/v4";
 import type { Result } from "types";
 
@@ -56,6 +57,23 @@ export function loadBaseline(
     };
   }
   return { ok: true, value: parsed.data };
+}
+
+/**
+ * Refuse a cross-key run BEFORE any generation happens: `loadBaseline`'s
+ * key check used to fire only after a case's runs had already spent API
+ * money (2026-07-20 incident — full cross-model spend, then exit 2).
+ * A case with no baseline yet passes; the late per-case load still runs.
+ */
+export function preflightBaselineKeys(
+  cases: ReadonlyArray<{ id: string; dir: string }>,
+  expectedKey: string,
+): Result<void, string> {
+  for (const evalCase of cases) {
+    const loaded = loadBaseline(join(evalCase.dir, "baseline.json"), expectedKey);
+    if (!loaded.ok) return loaded;
+  }
+  return { ok: true, value: undefined };
 }
 
 export function saveBaseline(path: string, baseline: CaseBaseline): void {

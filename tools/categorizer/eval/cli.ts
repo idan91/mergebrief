@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -14,7 +14,7 @@ import {
 import type { Result } from "types";
 import { categorize } from "brief-core";
 import { extractConfigFlag } from "brief-core/cli-config";
-import { loadBaseline, saveBaseline } from "./baseline";
+import { loadBaseline, preflightBaselineKeys, saveBaseline } from "./baseline";
 import { loadPrices, priceUsage } from "./cost";
 import { loadCases, type EvalCase } from "./loadCase";
 import { scoreRuns } from "./properties";
@@ -27,6 +27,7 @@ import {
   type InvocationUsage,
 } from "./report";
 import { runCase } from "./run";
+import { persistRunBriefs } from "./specimens";
 import { withUsageSink } from "./usageSink";
 
 /**
@@ -164,20 +165,7 @@ async function evaluateCase(
     );
   };
   const result = await runCase(generate, runs);
-  // Persist every scored run's brief — flaky-property diagnosis needs
-  // specimens, not just pass counts (BRIEF-55's grouping drift was
-  // uninspectable). Wiped per CASE per invocation: `--case` iteration
-  // refreshes that case's specimens and leaves the other cases' (from an
-  // earlier full run) in place — check mtimes when reading across cases.
-  const runsDir = join(OUT_DIR, "eval-runs", evalCase.id);
-  rmSync(runsDir, { recursive: true, force: true });
-  mkdirSync(runsDir, { recursive: true });
-  result.briefs.forEach((brief, index) => {
-    writeFileSync(
-      join(runsDir, `run-${result.runNumbers[index]}.brief.json`),
-      `${JSON.stringify(brief, null, 2)}\n`,
-    );
-  });
+  persistRunBriefs(join(OUT_DIR, "eval-runs", evalCase.id), result);
   const scored = scoreRuns(evalCase.properties, result.briefs);
   const baselinePath = join(evalCase.dir, "baseline.json");
   let baseline: CaseOutcome["baseline"] = null;
@@ -256,6 +244,16 @@ async function main(): Promise<void> {
   if (!prices.ok) {
     console.error(prices.error);
     process.exit(2);
+  }
+
+  // Refuse cross-key runs before the first generation spends money.
+  // --rebaseline intends to overwrite keys, so it skips the preflight.
+  if (!args.rebaseline) {
+    const preflight = preflightBaselineKeys(cases.value, key);
+    if (!preflight.ok) {
+      console.error(preflight.error);
+      process.exit(2);
+    }
   }
 
   // Pre-flight: invocation size IS the spend control (decision 7).
