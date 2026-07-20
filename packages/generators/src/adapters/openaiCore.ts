@@ -5,6 +5,7 @@ import { runWithSchemaFloor, schemaFeedbackMessage } from "../validation/enforce
 import { redactSecrets } from "../harness/redact";
 import type { GenerateRequest, Generator, Logger } from "../contract/generator";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
+import { stripInjectedNulls, withAllRequired } from "../validation/openaiStrict";
 import type { Effort, Generation } from "../contract/provenance";
 
 /**
@@ -155,8 +156,13 @@ export class OpenAiCompatibleCore implements Generator {
     const log = req.log ?? (() => {});
 
     let wireSchema: Record<string, unknown>;
+    let openAiWireSchema: Record<string, unknown>;
     try {
       wireSchema = enumPreservingJsonSchema(req.schema);
+      // OpenAI-lineage strict mode rejects optional properties ("'required'
+      // ... must include every key in properties") — send the all-required
+      // null-union variant, and strip the stand-in nulls back out below.
+      openAiWireSchema = withAllRequired(wireSchema);
     } catch (error) {
       throw new GeneratorError(
         GeneratorErrorKind.CONFIG,
@@ -186,7 +192,7 @@ export class OpenAiCompatibleCore implements Generator {
               { role: "user", content: schemaFeedbackMessage(feedback.error) },
             ]
           : baseMessages;
-        const outcome = await this.request(req, wireSchema, messages, log);
+        const outcome = await this.request(req, openAiWireSchema, messages, log);
         if (outcome.refusal !== null) {
           throw new GeneratorError(
             GeneratorErrorKind.REFUSAL,
@@ -210,6 +216,21 @@ export class OpenAiCompatibleCore implements Generator {
           return {
             raw: "",
             invalidReason: `No output for ${req.label} (finish_reason=stop).`,
+          };
+        }
+        // The null-union wire schema means a compliant model may emit null
+        // where the domain schema says "absent" — hand the floor a stripped
+        // CANDIDATE (still validated there; the floor stays the mechanism).
+        let candidate: unknown;
+        try {
+          candidate = JSON.parse(outcome.raw);
+        } catch {
+          candidate = undefined; // malformed — let the floor report the parse error
+        }
+        if (candidate !== undefined) {
+          return {
+            raw: outcome.raw,
+            parsed: stripInjectedNulls(wireSchema, candidate),
           };
         }
         return { raw: outcome.raw };
@@ -475,7 +496,9 @@ function providerErrorDetail(error: unknown): string {
 
 /** Redact-then-bound provider message text before it enters app errors. */
 function safeProviderMessage(message: string): string {
-  return redactSecrets(message).slice(0, 300);
+  // 800 not 300: Azure's strict-schema 400 puts the decisive detail (which
+  // property broke the rule) past the 300-char mark (BRIEF-77).
+  return redactSecrets(message).slice(0, 800);
 }
 
 /** Status + redacted text only — the raw body is exactly what can leak. */

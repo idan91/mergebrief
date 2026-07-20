@@ -310,12 +310,12 @@ describe("OpenRouter wrapped-400 metadata surfacing", () => {
   it("bounds the surfaced message even for a huge raw body", async () => {
     // Short repeated words survive every redaction rule (a single long run
     // would be collapsed by redactSecrets before the slice, making the
-    // bound assertion vacuous) — the 300 chars must come from the slice.
+    // bound assertion vacuous) — the 800 chars must come from the slice.
     const scripted = scriptedFetch(() => wrapped400("missing key ".repeat(500)));
     const generator = await mustCore(scripted);
     const caught = await caughtFrom(generator);
     expect(caught.message).toContain("missing key");
-    expect(caught.message.length).toBe(300);
+    expect(caught.message.length).toBe(800);
   });
 });
 

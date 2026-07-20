@@ -565,3 +565,29 @@ describe("openai preflight and registry entry", () => {
     expect(result.error.issues.join("; ")).toContain("OPENAI_API_KEY");
   });
 });
+
+describe("OpenAiCompatibleCore strict-mode optionality (BRIEF-77)", () => {
+  const OptionalSchema = z.object({
+    ok: z.boolean(),
+    note: z.string().optional(),
+  });
+
+  it("sends every property as required, optionals as null-unions", async () => {
+    const { generator, recorded } = await coreWith(() => sse('{"ok":true}'));
+    await generator.generate({ ...request(), schema: OptionalSchema });
+    const body = recorded.bodies[0];
+    if (!body) throw new Error("no request recorded");
+    const wire = JSON.stringify(body["response_format"]);
+    expect(wire).toContain('"required":["ok","note"]');
+    expect(wire).toContain('{"type":"null"}');
+  });
+
+  it("accepts a null in a formerly-optional slot as absent", async () => {
+    const { generator } = await coreWith(() =>
+      sse('{"ok":true,"note":null}'),
+    );
+    await expect(
+      generator.generate({ ...request(), schema: OptionalSchema }),
+    ).resolves.toEqual({ ok: true });
+  });
+});

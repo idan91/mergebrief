@@ -1,0 +1,204 @@
+/**
+ * OpenAI strict-mode schema shims (BRIEF-77).
+ *
+ * OpenAI-lineage backends (openai, and OpenRouter routes that land on
+ * OpenAI/Azure) enforce a rule Anthropic does not: with `strict: true`,
+ * every object's `required` array must list EVERY key in `properties` —
+ * optional properties are rejected outright ("'required' is required to be
+ * supplied and to be an array including every key in properties"). The
+ * documented workaround is to mark everything required and express
+ * optionality as a null-union, then treat null as "absent" on the way back.
+ *
+ * Two halves, applied only by `openaiCore`:
+ *  - `withAllRequired`: rewrite the enum-preserving strict schema so every
+ *    property is required; formerly-optional properties become
+ *    `anyOf: [original, { type: "null" }]` (anyOf wrapping keeps `enum` /
+ *    `const` / `$ref` branches intact — a bare `type: [..., "null"]` widening
+ *    would let null through an enum's closed vocabulary unchecked).
+ *  - `stripInjectedNulls`: delete null-valued keys the ORIGINAL schema made
+ *    optional, so the Zod domain schema (which never saw the null-union)
+ *    validates the output unchanged. Nulls the original schema genuinely
+ *    allows are left alone.
+ *
+ * Both walk plain JSON-schema records; the input schema is never mutated.
+ */
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Does this (original) property schema already admit null? */
+function allowsNull(node: Record<string, unknown>): boolean {
+  const type = node["type"];
+  if (type === "null") return true;
+  if (Array.isArray(type) && type.includes("null")) return true;
+  const anyOf = node["anyOf"];
+  if (Array.isArray(anyOf)) {
+    return anyOf.some((branch) => isRecord(branch) && allowsNull(branch));
+  }
+  const enumValues = node["enum"];
+  if (Array.isArray(enumValues) && enumValues.includes(null)) return true;
+  return node["const"] === null;
+}
+
+function transformNode(node: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...node };
+
+  const defs = node["$defs"];
+  if (isRecord(defs)) {
+    out["$defs"] = Object.fromEntries(
+      Object.entries(defs).map(([name, def]) => [
+        name,
+        isRecord(def) ? transformNode(def) : def,
+      ]),
+    );
+  }
+
+  for (const combinator of ["anyOf", "oneOf", "allOf"] as const) {
+    const branches = node[combinator];
+    if (Array.isArray(branches)) {
+      out[combinator] = branches.map((branch) =>
+        isRecord(branch) ? transformNode(branch) : branch,
+      );
+    }
+  }
+
+  const items = node["items"];
+  if (isRecord(items)) out["items"] = transformNode(items);
+
+  const properties = node["properties"];
+  if (isRecord(properties)) {
+    const required = new Set(
+      Array.isArray(node["required"])
+        ? node["required"].filter((key): key is string => typeof key === "string")
+        : [],
+    );
+    out["properties"] = Object.fromEntries(
+      Object.entries(properties).map(([key, prop]) => {
+        if (!isRecord(prop)) return [key, prop];
+        const transformed = transformNode(prop);
+        if (required.has(key) || allowsNull(prop)) return [key, transformed];
+        return [key, { anyOf: [transformed, { type: "null" }] }];
+      }),
+    );
+    out["required"] = Object.keys(properties);
+  }
+
+  return out;
+}
+
+/**
+ * The OpenAI-strict variant of an (already enum-preserving strict) JSON
+ * schema: every object lists all properties as required, with formerly
+ * optional properties widened to a null-union. Wire-only — pair with
+ * `stripInjectedNulls` before domain validation.
+ */
+export function withAllRequired(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  return transformNode(schema);
+}
+
+/** Resolve `#/$defs/name` refs against the schema root; null on anything else. */
+function resolveRef(
+  root: Record<string, unknown>,
+  node: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const ref = node["$ref"];
+  if (typeof ref !== "string") return node;
+  const name = /^#\/\$defs\/(.+)$/.exec(ref)?.[1];
+  if (name === undefined) return null;
+  const defs = root["$defs"];
+  if (!isRecord(defs)) return null;
+  const target = defs[name];
+  return isRecord(target) ? target : null;
+}
+
+/** Is `key` required by this node or by ANY anyOf/oneOf/allOf branch? */
+function requiredSomewhere(
+  root: Record<string, unknown>,
+  node: Record<string, unknown>,
+  key: string,
+): boolean {
+  const required = node["required"];
+  if (Array.isArray(required) && required.includes(key)) return true;
+  for (const combinator of ["anyOf", "oneOf", "allOf"] as const) {
+    const branches = node[combinator];
+    if (!Array.isArray(branches)) continue;
+    for (const branch of branches) {
+      if (!isRecord(branch)) continue;
+      const resolved = resolveRef(root, branch);
+      if (resolved && requiredSomewhere(root, resolved, key)) return true;
+    }
+  }
+  return false;
+}
+
+/** The property schema for `key`, looking through combinator branches. */
+function propertySchema(
+  root: Record<string, unknown>,
+  node: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> | null {
+  const properties = node["properties"];
+  if (isRecord(properties) && isRecord(properties[key])) return properties[key];
+  for (const combinator of ["anyOf", "oneOf", "allOf"] as const) {
+    const branches = node[combinator];
+    if (!Array.isArray(branches)) continue;
+    for (const branch of branches) {
+      if (!isRecord(branch)) continue;
+      const resolved = resolveRef(root, branch);
+      if (!resolved) continue;
+      const found = propertySchema(root, resolved, key);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function stripNode(
+  root: Record<string, unknown>,
+  schema: Record<string, unknown>,
+  value: unknown,
+): unknown {
+  const resolved = resolveRef(root, schema);
+  if (!resolved) return value;
+
+  if (Array.isArray(value)) {
+    const items = resolved["items"];
+    if (!isRecord(items)) return value;
+    return value.map((element) => stripNode(root, items, element));
+  }
+
+  if (!isRecord(value)) return value;
+
+  // Combinator-only nodes (no direct properties) still need recursion into
+  // whichever branch describes this object — property lookup below handles
+  // both shapes via propertySchema/requiredSomewhere.
+  const out: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry === null && !requiredSomewhere(root, resolved, key)) {
+      // Null in a formerly-optional slot = the null-union stand-in for
+      // "absent". A null the original schema allows only appears under a
+      // required (or null-admitting) property and is kept above.
+      continue;
+    }
+    const propSchema = propertySchema(root, resolved, key);
+    out[key] = propSchema ? stripNode(root, propSchema, entry) : entry;
+  }
+  return out;
+}
+
+/**
+ * Remove null-valued keys that the ORIGINAL (pre-`withAllRequired`) schema
+ * marks optional, recursively, so the domain Zod schema sees "absent" where
+ * the wire protocol forced "null". Values are copied, never mutated; keys
+ * the original schema requires — including genuinely nullable ones — pass
+ * through untouched.
+ */
+export function stripInjectedNulls(
+  schema: Record<string, unknown>,
+  value: unknown,
+): unknown {
+  return stripNode(schema, schema, value);
+}
