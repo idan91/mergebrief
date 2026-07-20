@@ -121,6 +121,15 @@ CLI (`mergebrief`, BRIEF-17):
 - [ ] Mint a token in the web app → `pr` → `groups` → `diff --group` →
       `submit` round-trip against the deployment; `--json` exit codes per
       the contract table. Setup: [`../self-host/cli.md`](../self-host/cli.md).
+- [ ] Agent-driven pass: point an AI coding agent (e.g. Claude Code) at a
+      briefed PR with only the CLI on PATH, a minted token, and the prompt
+      "review this PR with mergebrief" — no other coaching. Pass = the
+      agent completes the `pr` → `groups` → `diff --group` → `submit`
+      round-trip unaided from `--help` and `--json` output alone, and never
+      needs a human to interpret an error. Anywhere it stalls or
+      misreads output (ambiguous help text, unparseable error, exit code
+      contradicting the contract table) is a CLI usability defect — file it
+      against the CLI, not the agent.
 
 ## Layer 2 — generator backends (BRIEF-11; live auth + spend, manual-only)
 
