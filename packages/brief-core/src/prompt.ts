@@ -74,6 +74,23 @@ const RISK_GLOSS: Record<RiskSurfaceAttribute, string> = {
     "targets a release shipping soon, or is a backport/hotfix",
 };
 
+/**
+ * Prose blocks shared VERBATIM by more than one builder (BRIEF-67): a gloss
+ * edit here lands in every prompt that states the rule — no manual sync,
+ * pinned byte-for-byte by prompt-snapshots.test.ts. Variants that differ on
+ * purpose (the delta prompt's condensed rules) stay inline in their builder.
+ */
+const RISK_NOTES_RULE = `**riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute. For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.`;
+
+const STYLE_FILES_CARRIER_RULE = `Type, context, and CSS/style files are not automatically supporting. They are \`carrier\` when they define the changed contract, state model, or visual behavior; they are \`supporting\` only when they merely accompany another carrier without carrying the group's intent.`;
+
+const STANDALONE_GROUP_RULE = `- **A standalone change with its own intent (e.g. dropping a CSS rule, a config tweak) is its own group with that chunk as the carrier** — don't fold it into an unrelated group.`;
+
+const LINE_RANGE_SIDES = `- \`addedRanges\` — **new-side** line numbers of \`+\` lines.
+- \`removedRanges\` — **old-side** line numbers of \`−\` lines.`;
+
+const LINE_RANGE_COMPUTE = `Compute absolute line numbers from each hunk header \`@@ -oldStart,oldCount +newStart,newCount @@\`: the new side starts numbering at \`newStart\`, the old side at \`oldStart\`, and context lines advance both counters. Record only the changed (\`+\`/\`−\`) lines, **never the surrounding context or the \`@@\` window**. Merge consecutive changed lines into one range; emit separate ranges when a gap of context splits them (many disjoint ranges = a scattered change). A pure-addition chunk has empty \`removedRanges\`; a pure-deletion chunk has empty \`addedRanges\`.`;
+
 function bullets<T extends string>(
   tokens: readonly T[],
   gloss: Record<T, string>,
@@ -166,7 +183,7 @@ ${bullets(Concerns, CONCERN_GLOSS)}
 
 Default from concern (implementation → carrier, else → supporting). **Flip** when a supporting artifact is itself the purpose (e.g. a flaky-test fix or a coverage backfill) — that chunk becomes the carrier and takes the group's intent.
 
-Type, context, and CSS/style files are not automatically supporting. They are \`carrier\` when they define the changed contract, state model, or visual behavior; they are \`supporting\` only when they merely accompany another carrier without carrying the group's intent.
+${STYLE_FILES_CARRIER_RULE}
 
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
 
@@ -182,7 +199,7 @@ Firing discipline for the observational trio (all three are about the change its
 
 \`removes-validation\` fires only when the diff deletes or rewrites an existing check — a chunk that only ADDS lines almost never qualifies (accepting a new optional field, adding a parser, or adding a stricter guard is NOT weakened validation).
 
-**riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute. For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.
+${RISK_NOTES_RULE}
 
 ## Change-group boundary
 
@@ -191,7 +208,7 @@ Firing discipline for the observational trio (all three are about the change its
 - Intent lives on the carrier chunk(s); supporting chunks inherit it and are not independently categorized.
 - **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if a set of changes has no intent-holder of its own, those chunks are *supporting* chunks of the group whose intent they serve, not a group.
 - **Export / barrel / re-export chunks (e.g. \`index.ts\`) are supporting** — attach each to the group whose feature it exports, never a catch-all "exports" group. If one file re-exports several features, split it into separate chunks (one per feature), each attached to its group.
-- **A standalone change with its own intent (e.g. dropping a CSS rule, a config tweak) is its own group with that chunk as the carrier** — don't fold it into an unrelated group.
+${STANDALONE_GROUP_RULE}
 
 ## Reading order (optional, over changeGroups)
 
@@ -213,10 +230,9 @@ Report git +added/−deleted per chunk. We treat git LoC as an approximation of 
 
 For each chunk give the **actual changed lines** by side, as inclusive 1-based ranges:
 
-- \`addedRanges\` — **new-side** line numbers of \`+\` lines.
-- \`removedRanges\` — **old-side** line numbers of \`−\` lines.
+${LINE_RANGE_SIDES}
 
-Compute absolute line numbers from each hunk header \`@@ -oldStart,oldCount +newStart,newCount @@\`: the new side starts numbering at \`newStart\`, the old side at \`oldStart\`, and context lines advance both counters. Record only the changed (\`+\`/\`−\`) lines, **never the surrounding context or the \`@@\` window**. Merge consecutive changed lines into one range; emit separate ranges when a gap of context splits them (many disjoint ranges = a scattered change). A pure-addition chunk has empty \`removedRanges\`; a pure-deletion chunk has empty \`addedRanges\`.${repoContextSections(repoContext)}`;
+${LINE_RANGE_COMPUTE}${repoContextSections(repoContext)}`;
 }
 
 /**
@@ -259,7 +275,7 @@ ${bullets(Concerns, CONCERN_GLOSS)}
 
 - \`carrier\`: holds the change-group's intent. \`supporting\`: serves it (tests, docs, specs, config). Default from concern; flip when a supporting artifact is itself the purpose.
 
-Type, context, and CSS/style files are not automatically supporting. They are \`carrier\` when they define the changed contract, state model, or visual behavior; they are \`supporting\` only when they merely accompany another carrier without carrying the group's intent.
+${STYLE_FILES_CARRIER_RULE}
 
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
 
@@ -269,7 +285,7 @@ ${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
 
 Firing discipline for the observational trio (about the change itself — never about who or what authored it): \`new-dependency\` fires only when a manifest gains a new direct dependency (a version-only bump is the \`lib-bump\` / \`dependency-update\` Category, not this attribute); \`new-abstraction\` fires on the *existence* of a new named abstraction only, never on relocations (\`pure-move\` / \`move-with-edits\`); \`comment-contradicts-code\` fires only when BOTH the comment and the code are visible in the incremental diff — else stay silent. \`removes-validation\` fires only when the diff deletes or rewrites an existing check — a chunk that only ADDS lines almost never qualifies.
 
-**riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute. For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.
+${RISK_NOTES_RULE}
 
 ## Chunks are sub-file
 
@@ -279,7 +295,7 @@ A chunk is a contiguous run of changed lines sharing ONE concern and ONE change-
 
 - **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if changes have no intent-holder of their own, they are *supporting* chunks of the group they serve, not a group.
 - **Export / barrel / re-export chunks (e.g. \`index.ts\`) are supporting** — attach each to the group whose feature it exports (split per feature when it exports several); never a catch-all "exports" group.
-- **A standalone change with its own intent (e.g. dropping a CSS rule, a config tweak) is its own group with that chunk as the carrier** — don't fold it into an unrelated group.
+${STANDALONE_GROUP_RULE}
 
 ## Line ranges (per chunk)
 
@@ -335,8 +351,7 @@ A chunk is a contiguous run of *incrementally* changed lines in one file, attach
 
 For each chunk give the actual changed lines by side, as inclusive 1-based ranges, computed from the **incremental** diff:
 
-- \`addedRanges\` — **new-side** line numbers of \`+\` lines.
-- \`removedRanges\` — **old-side** line numbers of \`−\` lines.
+${LINE_RANGE_SIDES}
 
-Compute absolute line numbers from each hunk header \`@@ -oldStart,oldCount +newStart,newCount @@\`: the new side starts numbering at \`newStart\`, the old side at \`oldStart\`, and context lines advance both counters. Record only the changed (\`+\`/\`−\`) lines, **never the surrounding context or the \`@@\` window**. Merge consecutive changed lines into one range; emit separate ranges when a gap of context splits them (many disjoint ranges = a scattered change). A pure-addition chunk has empty \`removedRanges\`; a pure-deletion chunk has empty \`addedRanges\`.`;
+${LINE_RANGE_COMPUTE}`;
 }
