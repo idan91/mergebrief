@@ -64,6 +64,13 @@ the model stream** (stopping token spend), records the run as `superseded`
 
 ## Verifying / troubleshooting
 
+The web healthcheck probes `GET /healthz` (static liveness — deliberately
+not `/readyz`, so a database blip degrades reads instead of restart-churning
+the web tier). Logs are structured JSON on stdout with `json-file` rotation
+defaults (`10m` × 3 per service); the event vocabulary, correlation ids,
+health-endpoint semantics, and Grafana/Datadog/CloudWatch recipes live in
+[`observability.md`](./observability.md).
+
 ```sh
 docker compose ps                     # web healthy, worker running
 docker compose logs -f worker        # job pickup, generation progress
