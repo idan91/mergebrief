@@ -46,7 +46,7 @@ Copy the `https://<sub>.ngrok-free.app` URL, then in the dev App's settings
 (github.com → Settings → Developer settings → GitHub Apps → your dev app):
 
 - **Webhook URL** → `https://<sub>.ngrok-free.app/api/webhooks/github`
-- **Callback URL** → `https://<sub>.ngrok-free.app/auth/github/callback`
+- **Callback URL** → `https://<sub>.ngrok-free.app/api/auth/github/callback`
 
 And make the running stack agree with the tunnel:
 
@@ -66,7 +66,7 @@ token, default-installation binding, and the `/api/pulls` happy path.
 1. Open `https://<sub>.ngrok-free.app/` (the ngrok URL, **not** localhost —
    the OAuth redirect returns to `PUBLIC_BASE_URL`).
 2. The picker's **Pull requests** section shows a **Sign in with GitHub**
-   button. Click it → you land on `/auth/github` → GitHub authorize screen →
+   button. Click it → you land on `/api/auth/github` → GitHub authorize screen →
    back to the picker.
 3. **Expect:** the login CTA is replaced by either PR rows or the
    "No pull requests yet" hint. An `rs_session` cookie is set.
@@ -75,7 +75,7 @@ Verify the plumbing directly if the UI looks off:
 
 ```sh
 # In the browser devtools console (has the cookie):
-await (await fetch("/auth/installations")).json()
+await (await fetch("/api/auth/installations")).json()
 # expect: { installations: [{ installationId, accountLogin, isCurrent, isDefault }...],
 #           currentInstallationId, defaultInstallationId }
 await (await fetch("/api/pulls")).json()
@@ -128,7 +128,7 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
    deep-linking the exact span — use it as the deep link for this step. (For
    a brief generated before #43, build the link by hand: copy the pinned
    brief URL.) Open it in a **fresh private window** (no session): **expect**
-   an immediate redirect to GitHub login (`/auth/github`), and after auth,
+   an immediate redirect to GitHub login (`/api/auth/github`), and after auth,
    the brief.
 2. In the signed-in window, copy the pinned URL
    (`/repos/<repoId>/pulls/<N>?base=...&head=...`) into a new tab:
@@ -173,11 +173,11 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
 - **Single installation:** just confirm the dropdown renders one entry and
   Escape returns focus to the trigger.
 
-Switch failure path (optional): `POST /auth/installation` with a bogus id
+Switch failure path (optional): `POST /api/auth/installation` with a bogus id
 from the console → **expect** 403 and no change:
 
 ```js
-await fetch("/auth/installation", { method: "POST",
+await fetch("/api/auth/installation", { method: "POST",
   headers: { "content-type": "application/json" },
   body: JSON.stringify({ installationId: "999999" }) })   // → 403
 ```
@@ -208,7 +208,7 @@ docker compose down          # keep volumes; `down -v` only if you want a clean 
 Fix-forward on `main` (small PR, or direct push for one-liners per the
 docs-on-main convention). Likely-trouble ranking, with first-look locations:
 
-1. **OAuth/binding** (step 3) — web log `evt` lines + `/auth/installations`
+1. **OAuth/binding** (step 3) — web log `evt` lines + `/api/auth/installations`
    response; `user_settings` table contents.
 2. **Poll → render transition** (step 5) — Network tab for the 4s PR-meta
    cadence; `briefAvailable` flag in the PR-meta JSON vs the worker log.

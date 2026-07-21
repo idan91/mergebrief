@@ -134,7 +134,7 @@ function isNotFoundError(error: unknown): boolean {
  */
 function mapLoaderError(error: unknown): never {
   if (error instanceof ApiError && error.kind === ApiErrorKind.UNAUTHORIZED) {
-    throw redirect({ href: "/auth/github" });
+    throw redirect({ href: "/api/auth/github" });
   }
   if (isNotFoundError(error)) {
     throw notFound();
@@ -895,7 +895,7 @@ function PrBriefError({ error }: { error: Error }) {
         <p>{detail}</p>
         {error instanceof ApiError &&
         error.kind === ApiErrorKind.UNAUTHORIZED ? (
-          <a className="btn primary" href="/auth/github">
+          <a className="btn primary" href="/api/auth/github">
             Sign in with GitHub
           </a>
         ) : null}

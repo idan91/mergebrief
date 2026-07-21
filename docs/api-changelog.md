@@ -1,7 +1,7 @@
 # API changelog
 
-Consumer-visible changes to the public HTTP surfaces — `/api/*` and the
-browser-managed `/auth/*` management routes — keyed to the
+Consumer-visible changes to the public HTTP surfaces — `/api/*`, including
+the browser-managed `/api/auth/*` management routes — keyed to the
 **server version** (`GET /api/version`; surfaced by
 `mergebrief auth status`). Entries name the version that shipped them —
 NOT a git SHA: releases are what adopters deploy, and the version string is
@@ -12,6 +12,20 @@ untagged build — key such entries to the merge date instead.)
 The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
+
+## dev (2026-07-21 — BRIEF-18)
+
+- **BREAKING** — all `/auth/*` routes moved under `/api/auth/*` so the app
+  registers ONE external path namespace: `/auth/github` →
+  `/api/auth/github`, `/auth/github/callback` → `/api/auth/github/callback`,
+  `/auth/logout` → `/api/auth/logout`, `/auth/tokens[/:id]` →
+  `/api/auth/tokens[/:id]`, `/auth/installation[s]` →
+  `/api/auth/installation[s]`. Old paths now 404 (SSR page router).
+  **Every registered GitHub App must update its OAuth callback URL** to
+  `<PUBLIC_BASE_URL>/api/auth/github/callback`.
+- Bearer presentation rule adjusted with the move (ADR 0016 #4 as
+  amended): Bearer is accepted on `/api/*` **except `/api/auth/*`** —
+  auth management stays cookie-only, as before.
 
 ## dev (2026-07-09 — BRIEF-17)
 

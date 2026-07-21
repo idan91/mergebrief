@@ -30,8 +30,10 @@ This is the SAME exemption the GitHub webhook needs
 (`/api/webhooks/github`), so most deployments already have half of it. The
 application enforces its own auth on every `/api/*` request (hint-free 401s;
 tokens are hashed at rest and installation-bound) — the IdP adds nothing on
-this path but breakage. `/auth/*` (login, token minting) stays browser-only
-and stays behind your IdP.
+this path but breakage. `/api/auth/*` (login, token minting) stays
+browser-only — Bearer tokens are ignored there — so if you want your IdP in
+front of auth management, scope the IdP exemption to exclude `/api/auth/*`
+rather than exempting all of `/api/*`.
 
 If your proxy can inject static headers and you keep it in the path anyway,
 per-profile `headers` in the CLI config are the escape hatch:

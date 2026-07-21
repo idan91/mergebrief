@@ -189,15 +189,19 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
   return async (c, next) => {
     const startedAt = Date.now();
 
-    // Bearer presentation (BRIEF-17, ADR 0016 #4 as amended): accepted on
-    // `/api/*` ONLY — `/auth/*` stays browser-only, so one IdP path-exemption
-    // rule covers webhooks + CLI traffic. Outside `/api/*` the header is
-    // IGNORED (falls through to the cookie path), never honored.
+    // Bearer presentation (BRIEF-17, ADR 0016 #4 as amended; BRIEF-18): the
+    // auth-management routes moved under `/api/auth/*` for one registered
+    // namespace, so the browser-only rule is now a carve-out — Bearer is
+    // accepted on `/api/*` EXCEPT `/api/auth/*` (login, logout, token
+    // mint/list/revoke, installation binding stay cookie-only: a stolen API
+    // token must never mint tokens or rebind sessions). Where not accepted,
+    // the header is IGNORED (falls through to the cookie path), never honored.
     const authorization = c.req.header("authorization");
     if (
       authorization !== undefined &&
       authorization.startsWith(BEARER_SCHEME) &&
-      c.req.path.startsWith("/api/")
+      c.req.path.startsWith("/api/") &&
+      !c.req.path.startsWith("/api/auth/")
     ) {
       const bearer = authorization.slice(BEARER_SCHEME.length);
       // Wrong prefix / miss / expired / revoked — the SAME hint-free 401.

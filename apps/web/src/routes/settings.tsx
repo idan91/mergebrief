@@ -36,7 +36,8 @@ function SettingsPage() {
         </p>
       ) : (
         <p className={styles["signedOut"]}>
-          <a href="/auth/github">Sign in with GitHub</a> to manage API tokens.
+          <a href="/api/auth/github">Sign in with GitHub</a> to manage API
+          tokens.
         </p>
       )}
     </main>

@@ -48,7 +48,7 @@ describe("tokensQueryOptions queryFn", () => {
     expect(view).toEqual({
       tokens: [expect.objectContaining({ id: "3", name: "ci-token" })],
     });
-    expect(apiFetchJsonMock).toHaveBeenCalledWith("/auth/tokens");
+    expect(apiFetchJsonMock).toHaveBeenCalledWith("/api/auth/tokens");
   });
 
   it("rejects a malformed 200 body with a typed MALFORMED error", async () => {

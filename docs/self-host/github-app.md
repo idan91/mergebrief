@@ -69,7 +69,13 @@ answer: it's code, not this form.
   localhost URL.
 - When developing BRIEF-2: **ngrok is the recommended tunnel** (`ngrok http PORT`). Set both
   the App's **Webhook URL** and the OAuth callback to the ngrok public URL, and set a
-  **Webhook secret** (`openssl rand -hex 32`).
+  **Webhook secret** (`openssl rand -hex 32`). The callback path is
+  `<PUBLIC_BASE_URL>/api/auth/github/callback` — one namespace with the webhook receiver
+  (`/api/webhooks/github`), so both App URLs share the `/api` shape.
+  > **Upgrading across BRIEF-18 (2026-07-21):** the callback path moved from
+  > `/auth/github/callback` to `/api/auth/github/callback`. Apps registered before then must
+  > update their **Callback URL** in the GitHub App settings or login breaks with a
+  > `redirect_uri` mismatch.
   - Why ngrok over `gh webhook forward`: BRIEF-2 needs *two* endpoints publicly reachable —
     the webhook receiver **and** the OAuth callback (GitHub redirects the browser there, so it
     can't be localhost). One ngrok tunnel serves both; `gh webhook forward` covers webhooks

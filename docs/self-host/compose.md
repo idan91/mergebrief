@@ -75,7 +75,7 @@ docker compose exec postgres psql -U code_review -d code_review \
   after a superseding push; `failed` carries a sanitized reason).
 - Misconfiguration surfaces differently per service: the **worker fails
   loudly at boot** (`docker compose logs worker` names the rejected env
-  var), while the **web tier composes lazily on the first `/api`/`/auth`
+  var), while the **web tier composes lazily on the first `/api`
   request** — it boots and reports healthy on bad env, then 503s the first
   webhook delivery or login with the config error in `docker compose logs
   web`. After `up`, hit `curl -i localhost:3000/api/repos/0/pulls/0/brief`

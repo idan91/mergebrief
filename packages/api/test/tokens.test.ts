@@ -5,7 +5,7 @@
 //      yields, on `/api/*` only. Miss/expired/revoked/garbage → hint-free 401.
 //      Refresh-once mid-request rides the same spendRefresh machinery; the
 //      token's own expiry never moves.
-//   2. `/auth/tokens` mint/list/revoke: cookie-authed ONLY (Bearer on /auth/*
+//   2. `/api/auth/tokens` mint/list/revoke: cookie-authed ONLY (Bearer on /api/auth/*
 //      is ignored), mint validates the installation against the viewer's LIVE
 //      accessible set, token material is returned exactly once.
 // Same harness as installations.test.ts: `app.request()` over PGlite, GitHub
@@ -241,12 +241,12 @@ describe("Bearer presentation on /api/*", () => {
     }
   });
 
-  it("ignores Bearer on /auth/* — the browser-only surface never resolves tokens", async () => {
+  it("ignores Bearer on /api/auth/* — the browser-only surface never resolves tokens", async () => {
     stubGitHub({
       userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
     });
     const bearer = await seedApiToken(harness.handle, kp);
-    const res = await app.request("/auth/installations", {
+    const res = await app.request("/api/auth/installations", {
       headers: { Authorization: `Bearer ${bearer}` },
     });
     expect(res.status).toBe(401);
@@ -307,7 +307,7 @@ describe("Bearer presentation on /api/*", () => {
   });
 });
 
-describe("/auth/tokens mint / list / revoke (cookie-only)", () => {
+describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
   let harness: PgliteHarness;
   let app: Hono;
   let kp: KeyProvider;
@@ -350,7 +350,7 @@ describe("/auth/tokens mint / list / revoke (cookie-only)", () => {
     body: unknown,
     cookie?: string,
   ): Promise<Response> {
-    return app.request("/auth/tokens", {
+    return app.request("/api/auth/tokens", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -398,7 +398,7 @@ describe("/auth/tokens mint / list / revoke (cookie-only)", () => {
     expect(read.status).toBe(200);
 
     // The list never re-surfaces token material.
-    const list = await app.request("/auth/tokens", {
+    const list = await app.request("/api/auth/tokens", {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(list.status).toBe(200);
@@ -446,7 +446,7 @@ describe("/auth/tokens mint / list / revoke (cookie-only)", () => {
     const bearer = await seedApiToken(harness.handle, kp);
 
     expect((await mint({ name: "x", installationId: INSTALLATION_ID })).status).toBe(401);
-    const viaBearerMint = await app.request("/auth/tokens", {
+    const viaBearerMint = await app.request("/api/auth/tokens", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -455,7 +455,7 @@ describe("/auth/tokens mint / list / revoke (cookie-only)", () => {
       body: JSON.stringify({ name: "x", installationId: INSTALLATION_ID }),
     });
     expect(viaBearerMint.status).toBe(401);
-    const viaBearerList = await app.request("/auth/tokens", {
+    const viaBearerList = await app.request("/api/auth/tokens", {
       headers: { Authorization: `Bearer ${bearer}` },
     });
     expect(viaBearerList.status).toBe(401);
@@ -494,7 +494,7 @@ describe("/auth/tokens mint / list / revoke (cookie-only)", () => {
         .status,
     ).toBe(200);
 
-    const revoke = await app.request(`/auth/tokens/${minted.apiToken.id}`, {
+    const revoke = await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
       method: "DELETE",
       headers: { Cookie: `rs_session=${cookie}` },
     });
@@ -506,7 +506,7 @@ describe("/auth/tokens mint / list / revoke (cookie-only)", () => {
         .status,
     ).toBe(401);
 
-    const list = await app.request("/auth/tokens", {
+    const list = await app.request("/api/auth/tokens", {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     const listed = (await list.json()) as { tokens: Array<Record<string, unknown>> };
@@ -514,13 +514,13 @@ describe("/auth/tokens mint / list / revoke (cookie-only)", () => {
 
     // Idempotent repeat; foreign/unknown id is an indistinguishable 404.
     expect(
-      (await app.request(`/auth/tokens/${minted.apiToken.id}`, {
+      (await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
         method: "DELETE",
         headers: { Cookie: `rs_session=${cookie}` },
       })).status,
     ).toBe(200);
     expect(
-      (await app.request("/auth/tokens/999999", {
+      (await app.request("/api/auth/tokens/999999", {
         method: "DELETE",
         headers: { Cookie: `rs_session=${cookie}` },
       })).status,

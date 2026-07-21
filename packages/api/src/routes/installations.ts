@@ -1,10 +1,10 @@
 // Multi-org session endpoints (BRIEF-19 PR 2.1 — ADR 0016 #4 as amended, ADR
 // 0018 D14). Two session-gated routes let a reviewer who spans installations
 // see and switch which one their session is bound to:
-//   GET  /auth/installations  → the LIVE accessible set (id + account login)
+//   GET  /api/auth/installations  → the LIVE accessible set (id + account login)
 //                               annotated with current (session) + default
 //                               (user_settings).
-//   POST /auth/installation   → { installationId, setDefault? } — rebind the
+//   POST /api/auth/installation   → { installationId, setDefault? } — rebind the
 //                               session to a DIFFERENT installation.
 //
 // TRUST SHAPE (the whole point): the accessible set is ALWAYS re-derived from
@@ -112,11 +112,11 @@ export async function resolveAccessibleInstallations(
 export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
 
-  app.use("/auth/installations", sessionLayer(deps), accessLogLayer());
-  app.use("/auth/installation", sessionLayer(deps), accessLogLayer());
+  app.use("/api/auth/installations", sessionLayer(deps), accessLogLayer());
+  app.use("/api/auth/installation", sessionLayer(deps), accessLogLayer());
 
   // GET: the accessible set annotated with current (session) + default (settings).
-  app.get("/auth/installations", async (c) => {
+  app.get("/api/auth/installations", async (c) => {
     const session = c.get("session");
     const resolved = await resolveAccessibleInstallations(deps, session);
     if (!resolved.ok) {
@@ -144,7 +144,7 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   });
 
   // POST: rebind the session to a different installation (validated live).
-  app.post("/auth/installation", async (c) => {
+  app.post("/api/auth/installation", async (c) => {
     const raw: unknown = await c.req.json().catch(() => undefined);
     const parsed = switchBodySchema.safeParse(raw);
     if (!parsed.success) {

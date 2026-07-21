@@ -15,7 +15,7 @@ export function tokensQueryOptions() {
   return queryOptions({
     queryKey: ["api-tokens"],
     queryFn: async (): Promise<TokensView> => {
-      const path = "/auth/tokens";
+      const path = "/api/auth/tokens";
       const body = await apiFetchJson(path);
       const parsed = parseTokensView(body);
       if (!parsed.ok) {
@@ -49,7 +49,7 @@ function kindForStatus(status: number): ApiErrorKind {
 
 /** POST the mint; the response is the ONE body carrying token material. */
 export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
-  const response = await fetch("/auth/tokens", {
+  const response = await fetch("/api/auth/tokens", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
@@ -58,7 +58,7 @@ export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
     throw new ApiError(
       kindForStatus(response.status),
       response.status,
-      "/auth/tokens",
+      "/api/auth/tokens",
     );
   }
   // The JSON parse is part of the boundary too (codex PR4 R2): a 201 with a
@@ -67,18 +67,26 @@ export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
   try {
     body = await response.json();
   } catch {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, "/auth/tokens");
+    throw new ApiError(
+      ApiErrorKind.MALFORMED,
+      response.status,
+      "/api/auth/tokens",
+    );
   }
   const parsed = parseMintedToken(body);
   if (!parsed.ok) {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, "/auth/tokens");
+    throw new ApiError(
+      ApiErrorKind.MALFORMED,
+      response.status,
+      "/api/auth/tokens",
+    );
   }
   return parsed.value;
 }
 
 /** DELETE = owner-scoped soft revoke; repeat revoke is an idempotent 200. */
 export async function revokeToken(tokenId: string): Promise<void> {
-  const path = `/auth/tokens/${tokenId}`;
+  const path = `/api/auth/tokens/${tokenId}`;
   const response = await fetch(path, { method: "DELETE" });
   if (!response.ok) {
     throw new ApiError(kindForStatus(response.status), response.status, path);

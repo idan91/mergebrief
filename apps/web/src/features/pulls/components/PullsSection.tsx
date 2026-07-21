@@ -53,7 +53,7 @@ export function PullsSection({ session }: PullsSectionProps) {
             Sign in with GitHub to read Briefs for the repositories where the
             App is installed.
           </p>
-          <a className="btn primary" href="/auth/github">
+          <a className="btn primary" href="/api/auth/github">
             Sign in with GitHub
           </a>
         </div>

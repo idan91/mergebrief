@@ -2,9 +2,10 @@
 // resolves `src/server.{ts,js}` as the server entry (overriding the framework
 // default) — verified via `@tanstack/start-plugin-core`'s `resolveStartEntryPlan`
 // (`defaultEntry: 'server'`). This entry mounts the webhook Hono app on the web
-// origin: `/api/*` and `/auth/*` (PR C adds OAuth + read routes to the SAME
-// app) are handed to `honoApp.fetch`; every other path falls through to Start's
-// default page handler, so `/` and `/briefs/*` are untouched.
+// origin: `/api/*` (ONE registered namespace since BRIEF-18 — OAuth + auth
+// management live under `/api/auth/*`) is handed to `honoApp.fetch`; every
+// other path falls through to Start's default page handler, so `/` and
+// `/briefs/*` are untouched.
 //
 // We do NOT use `createServerFn` here: that is RPC framing, whereas GitHub POSTs
 // a raw HMAC-signed body that must reach the webhook route byte-for-byte. Handing
@@ -22,7 +23,7 @@ const handleStartRequest = createStartHandler(defaultStreamHandler);
 
 /** Paths served by the Hono app rather than the page router. */
 function isHonoPath(pathname: string): boolean {
-  return pathname.startsWith("/api/") || pathname.startsWith("/auth/");
+  return pathname.startsWith("/api/");
 }
 
 /**

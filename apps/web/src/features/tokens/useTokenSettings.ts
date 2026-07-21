@@ -59,7 +59,7 @@ export interface TokenSettingsState {
 export function useTokenSettings(enabled: boolean): TokenSettingsState {
   const queryClient = useQueryClient();
   // `enabled` gates the fetches too (codex PR4 R1): a disabled mount must
-  // never hit the protected /auth/* endpoints.
+  // never hit the protected /api/auth/* endpoints.
   const tokensQuery = useQuery({ ...tokensQueryOptions(), enabled });
   const installationsQuery = useQuery({
     ...installationsQueryOptions(),

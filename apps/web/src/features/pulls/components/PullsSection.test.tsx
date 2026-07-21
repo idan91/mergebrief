@@ -36,7 +36,7 @@ describe("PullsSection", () => {
   it("logged out → login CTA pointing at the OAuth entry", () => {
     render(<PullsSection session={{ kind: "logged-out" }} />);
     const cta = screen.getByRole("link", { name: /sign in with github/i });
-    expect(cta.getAttribute("href")).toBe("/auth/github");
+    expect(cta.getAttribute("href")).toBe("/api/auth/github");
   });
 
   it("unavailable → degraded status note, no rows, no CTA", () => {

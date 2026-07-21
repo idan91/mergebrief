@@ -1,4 +1,4 @@
-// Shapes + boundary guards for the /auth/tokens endpoints (BRIEF-17 PR 4,
+// Shapes + boundary guards for the /api/auth/tokens endpoints (BRIEF-17 PR 4,
 // over PR 2's mint/list/revoke routes). Same hand-rolled Result-guard
 // convention as the other API boundaries in this bundle.
 import type { Result as SharedResult } from "types";

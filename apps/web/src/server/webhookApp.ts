@@ -2,8 +2,8 @@
 // injected libraries are wired to real env + a real database: `apps/web` reads
 // `process.env` here (mirroring `generate.server.ts`'s `loadEnv`), the `api`,
 // `github`, and `persistence` packages stay env-INJECTED (they never read env
-// themselves). The custom server entry (`src/server.ts`) delegates `/api/*` +
-// `/auth/*` to the Hono app this module builds.
+// themselves). The custom server entry (`src/server.ts`) delegates `/api/*` — the
+// app's ONE registered namespace (BRIEF-18) — to the Hono app this module builds.
 import "@tanstack/react-start/server-only";
 
 import { appConversationPort, createApp, migrateQueue } from "api";

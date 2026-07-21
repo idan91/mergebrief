@@ -1,5 +1,5 @@
 // Shapes + boundary guards for the multi-org session endpoints (BRIEF-19
-// PR 2.2, over PR 2.1's /auth/installations routes). Same hand-rolled
+// PR 2.2, over PR 2.1's /api/auth/installations routes). Same hand-rolled
 // Result-guard convention as the other API boundaries in this bundle.
 import type { Result as SharedResult } from "types";
 

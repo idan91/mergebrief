@@ -1,5 +1,5 @@
-// BRIEF-19 PR 2.1 multi-org endpoint tests: GET /auth/installations and
-// POST /auth/installation. Same harness as pulls.test.ts: `app.request()` over
+// BRIEF-19 PR 2.1 multi-org endpoint tests: GET /api/auth/installations and
+// POST /api/auth/installation. Same harness as pulls.test.ts: `app.request()` over
 // PGlite, GitHub stubbed at the global-fetch seam. The accessible set is ALWAYS
 // re-derived from GitHub (`GET /user/installations`, viewer token) — a switch
 // to anything outside it is a 403 with NO session/settings mutation (D14).
@@ -153,7 +153,7 @@ const unusedConversationPort = {
   },
 };
 
-describe("GET /auth/installations + POST /auth/installation", () => {
+describe("GET /api/auth/installations + POST /api/auth/installation", () => {
   let harness: PgliteHarness;
   let app: Hono;
   let kp: KeyProvider;
@@ -195,7 +195,7 @@ describe("GET /auth/installations + POST /auth/installation", () => {
 
   it("list: 401 without a session (no GitHub call)", async () => {
     const counts = stubGitHub({ installations: () => installationsOk([]) });
-    const res = await get("/auth/installations");
+    const res = await get("/api/auth/installations");
     expect(res.status).toBe(401);
     expect(counts.installations).toBe(0);
   });
@@ -215,7 +215,7 @@ describe("GET /auth/installations + POST /auth/installation", () => {
       brand(isInstallationId, OTHER_INSTALLATION_ID),
     );
 
-    const res = await get("/auth/installations", cookie);
+    const res = await get("/api/auth/installations", cookie);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = (await res.json()) as {
@@ -254,7 +254,7 @@ describe("GET /auth/installations + POST /auth/installation", () => {
     const cookie = await seedSession(harness.handle, kp);
     expect(await sessionInstallationId()).toBe(String(INSTALLATION_ID));
 
-    const res = await post("/auth/installation", { installationId: String(OTHER_INSTALLATION_ID) }, cookie);
+    const res = await post("/api/auth/installation", { installationId: String(OTHER_INSTALLATION_ID) }, cookie);
     expect(res.status).toBe(200);
     const body = (await res.json()) as { currentInstallationId: string; defaultInstallationId: string | null };
     expect(body.currentInstallationId).toBe(String(OTHER_INSTALLATION_ID));
@@ -295,7 +295,7 @@ describe("GET /auth/installations + POST /auth/installation", () => {
     expect(beforeBody.pulls.map((row) => row.title)).toEqual(["tenant-a-pr"]);
 
     const switched = await post(
-      "/auth/installation",
+      "/api/auth/installation",
       { installationId: String(OTHER_INSTALLATION_ID) },
       cookie,
     );
@@ -322,7 +322,7 @@ describe("GET /auth/installations + POST /auth/installation", () => {
     const cookie = await seedSession(harness.handle, kp);
 
     const res = await post(
-      "/auth/installation",
+      "/api/auth/installation",
       { installationId: OTHER_INSTALLATION_ID, setDefault: true },
       cookie,
     );
@@ -341,7 +341,7 @@ describe("GET /auth/installations + POST /auth/installation", () => {
     const cookie = await seedSession(harness.handle, kp);
 
     const res = await post(
-      "/auth/installation",
+      "/api/auth/installation",
       { installationId: UNREACHABLE_INSTALLATION_ID, setDefault: true },
       cookie,
     );
@@ -356,9 +356,9 @@ describe("GET /auth/installations + POST /auth/installation", () => {
     const counts = stubGitHub({ installations: () => installationsOk([]) });
     const cookie = await seedSession(harness.handle, kp);
 
-    expect((await post("/auth/installation", { setDefault: true }, cookie)).status).toBe(400);
-    expect((await post("/auth/installation", { installationId: "not-a-number" }, cookie)).status).toBe(400);
-    expect((await post("/auth/installation", { installationId: 0 }, cookie)).status).toBe(400);
+    expect((await post("/api/auth/installation", { setDefault: true }, cookie)).status).toBe(400);
+    expect((await post("/api/auth/installation", { installationId: "not-a-number" }, cookie)).status).toBe(400);
+    expect((await post("/api/auth/installation", { installationId: 0 }, cookie)).status).toBe(400);
     expect(counts.installations).toBe(0);
   });
 
@@ -372,7 +372,7 @@ describe("GET /auth/installations + POST /auth/installation", () => {
     });
     const cookie = await seedSession(harness.handle, kp);
 
-    const res = await post("/auth/installation", { installationId: OTHER_INSTALLATION_ID }, cookie);
+    const res = await post("/api/auth/installation", { installationId: OTHER_INSTALLATION_ID }, cookie);
     expect(res.status).toBe(200);
     expect(counts.token).toBe(1);
     expect(counts.installations).toBe(2);

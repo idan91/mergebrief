@@ -193,8 +193,8 @@ describe("reviewer auth routes", () => {
     await harness.close();
   });
 
-  it("GET /auth/github → 302 to GitHub with an HttpOnly state cookie", async () => {
-    const res = await app.request("/auth/github");
+  it("GET /api/auth/github → 302 to GitHub with an HttpOnly state cookie", async () => {
+    const res = await app.request("/api/auth/github");
     expect(res.status).toBe(302);
     expect(res.headers.get("location")).toContain("github.com/login/oauth/authorize");
     const setCookie = res.headers.get("set-cookie") ?? "";
@@ -205,7 +205,7 @@ describe("reviewer auth routes", () => {
   });
 
   it("callback with a mismatched state → 400 and clears the state cookie", async () => {
-    const res = await app.request("/auth/github/callback?code=abc&state=aaaa", {
+    const res = await app.request("/api/auth/github/callback?code=abc&state=aaaa", {
       headers: { Cookie: "rs_oauth_state=bbbb" },
     });
     expect(res.status).toBe(400);
@@ -219,7 +219,7 @@ describe("reviewer auth routes", () => {
     const state = "matching-state-nonce";
     const before = Date.now();
 
-    const res = await app.request(`/auth/github/callback?code=thecode&state=${state}`, {
+    const res = await app.request(`/api/auth/github/callback?code=thecode&state=${state}`, {
       headers: { Cookie: `rs_oauth_state=${state}` },
     });
     expect(res.status).toBe(302);
@@ -252,7 +252,7 @@ describe("reviewer auth routes", () => {
   it("callback → 403 when the reviewer has no accessible installation", async () => {
     stubGitHub({ token: tokenSuccess(ACCESS_TOKEN, REFRESH_TOKEN), installations: [] });
     const state = "state-no-install";
-    const res = await app.request(`/auth/github/callback?code=c&state=${state}`, {
+    const res = await app.request(`/api/auth/github/callback?code=c&state=${state}`, {
       headers: { Cookie: `rs_oauth_state=${state}` },
     });
     expect(res.status).toBe(403);
@@ -264,7 +264,7 @@ describe("reviewer auth routes", () => {
   // otherwise the first accessible one. `user_settings` is seeded before login.
   async function runCallbackAndReadInstallation(): Promise<string> {
     const state = "matching-state-nonce";
-    const res = await app.request(`/auth/github/callback?code=thecode&state=${state}`, {
+    const res = await app.request(`/api/auth/github/callback?code=thecode&state=${state}`, {
       headers: { Cookie: `rs_oauth_state=${state}` },
     });
     expect(res.status).toBe(302);
@@ -304,7 +304,7 @@ describe("reviewer auth routes", () => {
     expect(await runCallbackAndReadInstallation()).toBe(String(OTHER_INSTALLATION_ID));
   });
 
-  it("POST /auth/logout deletes the session and clears the cookie", async () => {
+  it("POST /api/auth/logout deletes the session and clears the cookie", async () => {
     const token = randomBytes(32).toString("base64url");
     const hash = sha256Hex(token);
     const sealed = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
@@ -323,7 +323,7 @@ describe("reviewer auth routes", () => {
     });
     expect(await countRows(harness, "reviewer_session")).toBe(1);
 
-    const res = await app.request("/auth/logout", {
+    const res = await app.request("/api/auth/logout", {
       method: "POST",
       headers: { Cookie: `rs_session=${token}` },
     });

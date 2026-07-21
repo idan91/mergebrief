@@ -1,13 +1,13 @@
 // API-token mint/list/revoke (BRIEF-17 PR 2 — ADR 0016 #4 as amended
 // 2026-07-09). The BROWSER-ONLY management surface for the second
 // presentation channel:
-//   POST   /auth/tokens      → mint (token material returned exactly ONCE)
-//   GET    /auth/tokens      → the viewer's tokens, metadata only
-//   DELETE /auth/tokens/:id  → owner-scoped soft revoke
-// Cookie-authed by construction: these live under `/auth/*`, where the
+//   POST   /api/auth/tokens      → mint (token material returned exactly ONCE)
+//   GET    /api/auth/tokens      → the viewer's tokens, metadata only
+//   DELETE /api/auth/tokens/:id  → owner-scoped soft revoke
+// Cookie-authed by construction: these live under `/api/auth/*`, where the
 // session layer IGNORES Bearer headers — a token can never mint tokens.
 //
-// TRUST SHAPE (mirrors POST /auth/installation): the installation a token
+// TRUST SHAPE (mirrors POST /api/auth/installation): the installation a token
 // binds to is validated against the viewer's LIVE accessible set from GitHub
 // (`GET /user/installations`, viewer token) — never caller-asserted. The
 // minted token wraps the SESSION's current encrypted GitHub credential pair
@@ -80,11 +80,11 @@ function parseTokenId(raw: string | undefined): ApiTokenRowId | undefined {
 export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
 
-  app.use("/auth/tokens", sessionLayer(deps), accessLogLayer());
-  app.use("/auth/tokens/:id", sessionLayer(deps), accessLogLayer());
+  app.use("/api/auth/tokens", sessionLayer(deps), accessLogLayer());
+  app.use("/api/auth/tokens/:id", sessionLayer(deps), accessLogLayer());
 
   // Mint. The ONE response that ever carries token material.
-  app.post("/auth/tokens", async (c) => {
+  app.post("/api/auth/tokens", async (c) => {
     const raw: unknown = await c.req.json().catch(() => undefined);
     const parsed = mintBodySchema.safeParse(raw);
     if (!parsed.success) {
@@ -94,7 +94,7 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
     // Validate the requested installation against the LIVE accessible set —
     // never the caller's word, never the session's current binding alone
-    // (same trust shape as POST /auth/installation).
+    // (same trust shape as POST /api/auth/installation).
     const resolved = await resolveAccessibleInstallations(deps, session);
     if (!resolved.ok) {
       return c.json(
@@ -151,7 +151,7 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
   // List — the viewer's tokens across installations, metadata only (the
   // secret-bearing columns are structurally absent from the row type).
-  app.get("/auth/tokens", async (c) => {
+  app.get("/api/auth/tokens", async (c) => {
     const session = c.get("session");
     const rows = await tokenAuth(deps.handle).listForUser(session.reviewerId);
     return c.json({ tokens: rows.map(tokenView) }, 200, NO_STORE);
@@ -159,7 +159,7 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
   // Revoke — owner-scoped; a foreign or unknown id is an indistinguishable
   // 404. Repeat revocation is an idempotent 200 (original revoked_at kept).
-  app.delete("/auth/tokens/:id", async (c) => {
+  app.delete("/api/auth/tokens/:id", async (c) => {
     const tokenId = parseTokenId(c.req.param("id"));
     if (tokenId === undefined) {
       return c.json({ error: "not found" }, 404, NO_STORE);

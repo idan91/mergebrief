@@ -17,7 +17,7 @@ const WIRE_TOKEN = {
 };
 
 describe("parseTokensView", () => {
-  it("parses the /auth/tokens list body", () => {
+  it("parses the /api/auth/tokens list body", () => {
     const parsed = parseTokensView({ tokens: [WIRE_TOKEN] });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) throw new Error("unreachable");

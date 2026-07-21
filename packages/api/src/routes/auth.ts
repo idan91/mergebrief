@@ -1,9 +1,9 @@
 // Reviewer authentication routes (BRIEF-2 stage 6, PR C — ADR 0016 #4 + ADR
 // 0018 D11, plan decision #3). GitHub OAuth (user-to-server) login:
-//   GET  /auth/github          → CSRF nonce cookie + 302 to GitHub
-//   GET  /auth/github/callback → verify state, exchange code, create the
+//   GET  /api/auth/github          → CSRF nonce cookie + 302 to GitHub
+//   GET  /api/auth/github/callback → verify state, exchange code, create the
 //                                encrypted session, set the session cookie
-//   POST /auth/logout          → delete the session + clear the cookie
+//   POST /api/auth/logout          → delete the session + clear the cookie
 // plus the serialized token-refresh orchestrator (`refreshSessionToken`) that
 // stage 7 calls on a 401 — built and tested here.
 //
@@ -442,7 +442,7 @@ export function authRoute(deps: AuthRouteDeps): Hono {
 
   // Login: mint a CSRF state nonce, stash it in a short-lived cookie, and
   // redirect the reviewer to GitHub's authorization page.
-  app.get("/auth/github", (c) => {
+  app.get("/api/auth/github", (c) => {
     const state = randomBytes(STATE_BYTES).toString("base64url");
     setCookie(c, STATE_COOKIE, state, {
       httpOnly: true,
@@ -453,14 +453,14 @@ export function authRoute(deps: AuthRouteDeps): Hono {
     });
     const { url } = buildAuthorizationUrl(oauthApp, {
       state,
-      redirectUrl: `${deps.auth.publicBaseUrl}/auth/github/callback`,
+      redirectUrl: `${deps.auth.publicBaseUrl}/api/auth/github/callback`,
     });
     return c.redirect(url, 302);
   });
 
   // Callback: verify the CSRF state, exchange the code, resolve the reviewer +
   // tenant, seal both tokens, create the session, and set the session cookie.
-  app.get("/auth/github/callback", async (c) => {
+  app.get("/api/auth/github/callback", async (c) => {
     const stateCookie = getCookie(c, STATE_COOKIE);
     // The state nonce is single-use: clear it regardless of the outcome.
     deleteCookie(c, STATE_COOKIE, { path: "/" });
@@ -472,7 +472,7 @@ export function authRoute(deps: AuthRouteDeps): Hono {
     if (!query.success) {
       return c.json({ error: "invalid callback parameters" }, 400);
     }
-    // CSRF: the returned state must match the cookie we set at /auth/github.
+    // CSRF: the returned state must match the cookie we set at /api/auth/github.
     if (stateCookie === undefined || stateCookie !== query.data.state) {
       return c.json({ error: "invalid oauth state" }, 400);
     }
@@ -556,7 +556,7 @@ export function authRoute(deps: AuthRouteDeps): Hono {
   });
 
   // Logout: delete the session row (if any) and clear the cookie.
-  app.post("/auth/logout", async (c) => {
+  app.post("/api/auth/logout", async (c) => {
     const token = getCookie(c, SESSION_COOKIE);
     if (token !== undefined) {
       await sessionAuth(deps.handle).deleteSession(sha256Hex(token));

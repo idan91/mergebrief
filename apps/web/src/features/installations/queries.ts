@@ -11,7 +11,7 @@ export function installationsQueryOptions() {
   return queryOptions({
     queryKey: ["installations"],
     queryFn: async (): Promise<InstallationsView> => {
-      const path = "/auth/installations";
+      const path = "/api/auth/installations";
       const body = await apiFetchJson(path);
       const parsed = parseInstallationsView(body);
       if (!parsed.ok) {
@@ -42,7 +42,7 @@ export function reloadToPicker(): void {
 export async function switchInstallation(
   input: SwitchInstallationInput,
 ): Promise<void> {
-  const response = await fetch("/auth/installation", {
+  const response = await fetch("/api/auth/installation", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(input),
@@ -54,6 +54,6 @@ export async function switchInstallation(
         : response.status === 403
           ? ApiErrorKind.FORBIDDEN
           : ApiErrorKind.UPSTREAM;
-    throw new ApiError(kind, response.status, "/auth/installation");
+    throw new ApiError(kind, response.status, "/api/auth/installation");
   }
 }
