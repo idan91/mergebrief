@@ -6,7 +6,6 @@
 // convergence, a hard GitHub failure leaving the row untouched, refresh-once
 // mid-request, and the double-POST idempotency guard.
 import { createHash, randomBytes } from "node:crypto";
-import type { Hono } from "hono";
 import {
   encryptToken,
   envKeyProvider,
@@ -23,7 +22,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { testLogger } from "./logging";
 
 // Some cases make several full requests over the PGlite harness (double-POST,
 // refresh-once). GraphQL is not throttled, but give the file headroom.
@@ -229,7 +229,7 @@ async function markReadyAuditCount(harness: PgliteHarness): Promise<number> {
 
 const READY_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/ready`;
 
-async function markReady(app: Hono, cookie: string | undefined, path = READY_PATH): Promise<Response> {
+async function markReady(app: ApiApp, cookie: string | undefined, path = READY_PATH): Promise<Response> {
   return await app.request(path, {
     method: "POST",
     headers: {
@@ -248,13 +248,13 @@ const unusedConversationPort = {
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
   });
 
   afterEach(async () => {

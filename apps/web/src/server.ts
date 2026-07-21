@@ -16,7 +16,9 @@ import {
 } from "@tanstack/react-start/server";
 import type { ServerEntry } from "@tanstack/react-start/server-entry";
 
-import { getWebhookApp } from "./server/webhookApp";
+import { handleHealthRequest } from "./server/health";
+import { getServerLogger } from "./server/logger";
+import { checkReadiness, getWebhookApp } from "./server/webhookApp";
 
 /** Start's default page/SSR + server-function handler (the framework fallthrough). */
 const handleStartRequest = createStartHandler(defaultStreamHandler);
@@ -49,6 +51,12 @@ function withNoStoreForDocuments(response: Response): Response {
 const serverEntry: ServerEntry = {
   async fetch(request, requestOpts) {
     const { pathname } = new URL(request.url);
+    // Health surface (BRIEF-51, ADR 0034 #7): answered BEFORE the Hono
+    // branch and the page router — unauthenticated, constant JSON.
+    const health = await handleHealthRequest(pathname, { checkReadiness });
+    if (health !== undefined) {
+      return health;
+    }
     if (isHonoPath(pathname)) {
       let app: Awaited<ReturnType<typeof getWebhookApp>>;
       try {
@@ -56,7 +64,9 @@ const serverEntry: ServerEntry = {
       } catch (error) {
         // Composition failed (misconfig / Postgres down). Answer 503 so GitHub
         // redelivers later; never surface the underlying error to the caller.
-        console.error("webhook app composition failed", error);
+        getServerLogger().error("webhook app composition failed", {
+          err: error,
+        });
         return new Response(JSON.stringify({ error: "service unavailable" }), {
           status: 503,
           headers: { "content-type": "application/json" },

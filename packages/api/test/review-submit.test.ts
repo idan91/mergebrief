@@ -6,7 +6,6 @@
 // fail-closed unknown-commit 409, audit-on-success, checkpoint NOT written by
 // the route (webhook-only writer), and double-submit = two reviews.
 import { createHash, randomBytes } from "node:crypto";
-import type { Hono } from "hono";
 import {
   encryptToken,
   envKeyProvider,
@@ -23,7 +22,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { testLogger } from "./logging";
 
 // POST /pulls/{n}/reviews is on octokit's `triggersNotification` list, so the
 // throttling plugin spaces consecutive create-review calls ~3s apart through
@@ -231,7 +231,7 @@ function validBody(): Record<string, unknown> {
   };
 }
 
-async function submit(app: Hono, cookie: string | undefined, body: unknown, path = SUBMIT_PATH): Promise<Response> {
+async function submit(app: ApiApp, cookie: string | undefined, body: unknown, path = SUBMIT_PATH): Promise<Response> {
   return await app.request(path, {
     method: "POST",
     headers: {
@@ -264,13 +264,13 @@ const unusedConversationPort = {
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
   });
 
   afterEach(async () => {

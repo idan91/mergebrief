@@ -6,7 +6,6 @@
 // GitHub failure must fail the list (401/502), NEVER degrade to a DB-only
 // (leaky) listing.
 import { randomBytes } from "node:crypto";
-import type { Hono } from "hono";
 import {
   artifactStore,
   encryptToken,
@@ -25,7 +24,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { testLogger } from "./logging";
 
 const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";
@@ -218,13 +218,13 @@ const unusedConversationPort = {
 
 describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
   });
 
   afterEach(async () => {
@@ -509,6 +509,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     // Injected policy is echoed for the FE's copy states.
     const policyApp = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: authDeps(kp),

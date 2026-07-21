@@ -45,6 +45,7 @@ import {
   type TokenRefreshPatch,
   type TokenRefreshRejection,
 } from "persistence";
+import type { Logger } from "logging";
 import type { DraftPolicy, Result, ValueOf } from "types";
 import { z } from "zod";
 
@@ -249,6 +250,7 @@ async function refreshApiTokenCredentials(
   deps: AuthRouteDeps,
   principal: ViewerPrincipal,
   oauthApp: GitHubOAuthApp,
+  log: Logger,
 ): Promise<Result<RefreshedSession, RefreshError>> {
   let rotatedAccessToken: string | undefined;
 
@@ -276,6 +278,10 @@ async function refreshApiTokenCredentials(
     }
     // REVOKED / EXPIRED / REFRESH_REJECTED — all collapse to the same
     // re-authenticate signal; the row is left for its owner to see and revoke.
+    log.error("api token refresh failed", {
+      evt: "token.refresh.fail",
+      reviewerId: String(principal.reviewerId),
+    });
     return {
       ok: false,
       error: {
@@ -300,6 +306,10 @@ async function refreshApiTokenCredentials(
     refreshed.value.ghTokenCiphertext,
   );
   if (!decryptedAccess.ok) {
+    log.error("stored api token credentials unreadable", {
+      evt: "token.refresh.fail",
+      reviewerId: String(principal.reviewerId),
+    });
     return {
       ok: false,
       error: {
@@ -335,6 +345,7 @@ async function refreshApiTokenCredentials(
 export async function refreshSessionToken(
   deps: AuthRouteDeps,
   session: ViewerPrincipal,
+  log: Logger,
 ): Promise<Result<RefreshedSession, RefreshError>> {
   const oauthApp = createOAuthApp({
     clientId: deps.auth.oauthClientId,
@@ -344,7 +355,7 @@ export async function refreshSessionToken(
   // The ONE channel fork (BRIEF-17): a Bearer principal refreshes its
   // api_token row; everything below is the cookie-session flow.
   if (session.channel === AuthChannel.BEARER) {
-    return refreshApiTokenCredentials(deps, session, oauthApp);
+    return refreshApiTokenCredentials(deps, session, oauthApp, log);
   }
 
   const auth = sessionAuth(deps.handle);
@@ -378,6 +389,10 @@ export async function refreshSessionToken(
     }
     // REFRESH_REJECTED: burn the session so the reviewer is bounced to re-login.
     await auth.deleteSession(sessionTokenHash);
+    log.error("session refresh failed; session deleted", {
+      evt: "token.refresh.fail",
+      reviewerId: String(session.reviewerId),
+    });
     return {
       ok: false,
       error: {
@@ -406,6 +421,10 @@ export async function refreshSessionToken(
   );
   if (!decryptedAccess.ok) {
     await auth.deleteSession(sessionTokenHash);
+    log.error("stored session token unreadable; session deleted", {
+      evt: "token.refresh.fail",
+      reviewerId: String(session.reviewerId),
+    });
     return {
       ok: false,
       error: {

@@ -5,7 +5,6 @@
 // (comment posted + audit emitted + conversation cache evicted), the stale-
 // anchor 409, the deterministic-400 set, refresh-once, and no-store.
 import { createHash, randomBytes } from "node:crypto";
-import type { Hono } from "hono";
 import {
   encryptToken,
   envKeyProvider,
@@ -22,7 +21,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { testLogger, testLogging } from "./logging";
 
 vi.setConfig({ testTimeout: 20_000 });
 
@@ -221,7 +221,7 @@ const VALID_BODY: CommentBody = {
 };
 
 async function post(
-  app: Hono,
+  app: ApiApp,
   cookie: string | undefined,
   body: CommentBody | string,
   path = PATH,
@@ -244,13 +244,14 @@ const unusedConversationPort = {
 
 describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
     app = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: authDeps(kp),
@@ -328,6 +329,30 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       body: "post now",
     });
     expect(await commentAuditCount(harness)).toBe(1);
+  });
+
+  it("201 kept and audit.fail logged when the audit write fails after the posted comment", async () => {
+    const capture = testLogging();
+    const captureApp = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: authDeps(kp),
+      github: unusedConversationPort,
+    });
+    stubGitHub({ repositories: () => repoOk(), comments: () => commentOk() });
+    await seedPr(harness.handle);
+    const { cookie } = await seedSession(harness.handle, kp);
+    // Poison ONLY the audit write: the GitHub post has already committed by
+    // the time the audit insert runs, so the response must stay a 201.
+    await harness.raw("alter table audit_log rename to audit_log_poisoned");
+
+    const res = await post(captureApp, cookie, VALID_BODY);
+    expect(res.status).toBe(201);
+    const line = capture.lines().find((l) => l["evt"] === "audit.fail");
+    expect(line?.["level"]).toBe("error");
+    expect(line?.["commentId"]).toBe("999");
+    expect(line?.["err"]).toBeDefined();
   });
 
   it("201 with reviewId omitted when GitHub assigns no wrapping review id", async () => {
@@ -429,6 +454,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       },
     };
     const evictionApp = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: authDeps(kp),

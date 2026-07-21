@@ -11,7 +11,6 @@
 // Same harness as installations.test.ts: `app.request()` over PGlite, GitHub
 // stubbed at the global-fetch seam.
 import { createHash, randomBytes } from "node:crypto";
-import type { Hono } from "hono";
 import {
   encryptToken,
   envKeyProvider,
@@ -28,7 +27,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { testLogger, testLogging } from "./logging";
 
 const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";
@@ -183,13 +183,14 @@ const unusedConversationPort = {
 
 describe("Bearer presentation on /api/*", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
     app = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: authDeps(kp),
@@ -284,6 +285,42 @@ describe("Bearer presentation on /api/*", () => {
     ]);
   });
 
+  it("emits token.refresh.fail on the bearer channel when GitHub rejects the rotation", async () => {
+    stubGitHub({
+      // Every data call 401s (expired access token) and the rotation itself
+      // is rejected — the refresh orchestrator's bearer-channel hard failure.
+      installationRepos: () => jsonResponse({ message: "Bad credentials" }, 401),
+      token: () =>
+        jsonResponse({
+          error: "bad_refresh_token",
+          error_description: "The refresh token is expired",
+          error_uri: "https://docs.github.com/",
+        }),
+    });
+    await seedPr(harness.handle);
+    const capture = testLogging();
+    const captureApp = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: authDeps(kp),
+      github: unusedConversationPort,
+    });
+    const bearer = await seedApiToken(harness.handle, kp);
+
+    const res = await captureApp.request("/api/pulls", {
+      headers: { Authorization: `Bearer ${bearer}` },
+    });
+    expect(res.status).toBe(401);
+    // Alert contract (ADR 0034): the bearer fork emits the same evt as the
+    // cookie flow — operators key alerts off token.refresh.fail.
+    const line = capture.lines().find((l) => l["evt"] === "token.refresh.fail");
+    expect(line?.["level"]).toBe("error");
+    expect(typeof line?.["reviewerId"]).toBe("string");
+    // The api_token row is NOT deleted on failure — user-managed credential.
+    expect(await harness.raw("select count(*)::int as n from api_token")).toEqual([{ n: 1 }]);
+  });
+
   it("touches last_used_at on use, throttled within the window", async () => {
     stubGitHub({
       installationRepos: () => installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
@@ -309,13 +346,14 @@ describe("Bearer presentation on /api/*", () => {
 
 describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
     app = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: authDeps(kp),

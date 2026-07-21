@@ -25,6 +25,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   web:
     build:
@@ -48,12 +53,19 @@ services:
     # here AND in the worker service — both read the same file.
     # volumes:
     #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+    # Liveness only (ADR 0034 #7): /healthz is static — never /readyz here,
+    # or a DB blip would trigger web restart churn.
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:3000/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:3000/healthz || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 20s
+    logging: &log-rotation
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   worker:
     build:
@@ -77,6 +89,7 @@ services:
     # Restart on crash so a transient boot race (e.g. Postgres restarting)
     # self-heals without an operator.
     restart: unless-stopped
+    logging: *log-rotation
 
 volumes:
   postgres_data:

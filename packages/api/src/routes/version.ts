@@ -7,13 +7,13 @@
 // per-CLI endpoint.
 import { Hono } from "hono";
 import type { AuthRouteDeps } from "./auth";
-import { accessLogLayer, sessionLayer, type AuthzEnv } from "./authz";
+import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
 export function versionRoute(deps: AuthRouteDeps, serverVersion: string): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
-  app.use("/api/version", sessionLayer(deps), accessLogLayer());
+  app.use("/api/version", sessionLayer(deps), accessStampLayer());
   app.get("/api/version", (c) =>
     c.json({ version: serverVersion }, 200, NO_STORE),
   );

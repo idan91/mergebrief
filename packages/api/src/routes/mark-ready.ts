@@ -172,7 +172,7 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
         return false;
       }
       refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession);
+      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
       if (!refreshed.ok) {
         return false;
       }

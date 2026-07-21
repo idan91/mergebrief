@@ -8,8 +8,11 @@
 // Routes here: the webhook trust boundary (stage 4), the reviewer OAuth routes
 // (stage 6), and the authz-gated read API (stage 7).
 import { Hono } from "hono";
+import { requestId } from "hono/request-id";
+import type { Logger } from "logging";
 import type { AppDatabase } from "persistence";
 import type { DraftPolicy } from "types";
+import { requestLogging, type RequestLogEnv } from "./request-logging";
 import { authRoute, type AuthDeps } from "./routes/auth";
 import { conversationRoutes, type ConversationGitHubPort } from "./routes/conversation";
 import { installationsRoute } from "./routes/installations";
@@ -29,6 +32,12 @@ export type { AuthDeps } from "./routes/auth";
 export interface AppDeps {
   readonly handle: AppDatabase;
   readonly webhookSecret: string;
+  /**
+   * The process logger (packages/logging seam, ADR 0034) — the composition
+   * root constructs it; routes reach the per-request child via
+   * `c.get("logger")`, never a global.
+   */
+  readonly logger: Logger;
   /** Reviewer-auth bundle (OAuth creds, crypto seam, cookie/redirect policy). */
   readonly auth: AuthDeps;
   /** Installation-octokit seam for the conversation read (BRIEF-25). */
@@ -39,9 +48,18 @@ export interface AppDeps {
   readonly draftPolicy?: DraftPolicy;
 }
 
+/** The built API app's concrete type (request-log env at the root). */
+export type ApiApp = Hono<RequestLogEnv>;
+
 /** Build the API app over injected deps. */
-export function createApp(deps: AppDeps): Hono {
-  const app = new Hono();
+export function createApp(deps: AppDeps): ApiApp {
+  const app = new Hono<RequestLogEnv>();
+  // Request id + the one api.access line per request (ADR 0034 #2/#6):
+  // inbound X-Request-Id accepted (length/charset-guarded), UUID otherwise,
+  // echoed on the response; every route below reads its child logger from
+  // context.
+  app.use(requestId());
+  app.use(requestLogging(deps.logger));
   app.route("/", webhookRoute(deps));
   app.route("/", authRoute(deps));
   app.route("/", installationsRoute(deps));

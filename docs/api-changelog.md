@@ -13,6 +13,25 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-07-21 — BRIEF-51)
+
+- **BREAKING** — the D9 access-log line renamed `evt: "read"` →
+  `evt: "api.access"` (ADR 0034; pre-OSS-cutover, zero adopters). The line
+  also gains `reqId` and a `msg` field, and levels render as string labels
+  (`"level":"info"`). Anything scripted against `evt:"read"` must move to
+  `evt:"api.access"`.
+- **BREAKING** — the compose web healthcheck moved `/` → `/healthz`.
+  Operator probes pointed at `/` still work (it serves the app) but the
+  documented health endpoint is now `/healthz`.
+- **Added** `GET /healthz` (static liveness) and `GET /readyz` (readiness:
+  app composition + `SELECT 1`) — bare top-level paths outside `/api`,
+  unauthenticated, constant `{"ok":bool}` JSON (ADR 0034 #7). `/readyz`
+  answers 503 when the database is unreachable; compose and orchestrators
+  must probe `/healthz`, never `/readyz`.
+- **Added** `X-Request-Id` handling on `/api/*`: a valid inbound id
+  (charset/length-guarded) is accepted and echoed on the response; a UUID is
+  minted and echoed otherwise.
+
 ## dev (2026-07-21 — BRIEF-18)
 
 - **BREAKING** — all `/auth/*` routes moved under `/api/auth/*` so the app

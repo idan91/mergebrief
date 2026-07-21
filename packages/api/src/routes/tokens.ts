@@ -30,7 +30,7 @@ import {
 } from "persistence";
 import { z } from "zod";
 import { sha256Hex, type AuthRouteDeps } from "./auth";
-import { accessLogLayer, API_TOKEN_PREFIX, sessionLayer, type AuthzEnv } from "./authz";
+import { accessStampLayer, API_TOKEN_PREFIX, sessionLayer, type AuthzEnv } from "./authz";
 import { resolveAccessibleInstallations } from "./installations";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -80,8 +80,8 @@ function parseTokenId(raw: string | undefined): ApiTokenRowId | undefined {
 export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
 
-  app.use("/api/auth/tokens", sessionLayer(deps), accessLogLayer());
-  app.use("/api/auth/tokens/:id", sessionLayer(deps), accessLogLayer());
+  app.use("/api/auth/tokens", sessionLayer(deps), accessStampLayer());
+  app.use("/api/auth/tokens/:id", sessionLayer(deps), accessStampLayer());
 
   // Mint. The ONE response that ever carries token material.
   app.post("/api/auth/tokens", async (c) => {
@@ -95,7 +95,7 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     // Validate the requested installation against the LIVE accessible set —
     // never the caller's word, never the session's current binding alone
     // (same trust shape as POST /api/auth/installation).
-    const resolved = await resolveAccessibleInstallations(deps, session);
+    const resolved = await resolveAccessibleInstallations(deps, session, c.get("logger"));
     if (!resolved.ok) {
       return c.json(
         { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },

@@ -9,7 +9,7 @@
 import { Hono } from "hono";
 import type { AuthRouteDeps } from "./auth";
 import type { AllowedRepoResolver } from "./allowed-repos";
-import { accessLogLayer, sessionLayer, type AuthzEnv } from "./authz";
+import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -21,10 +21,10 @@ export function reposRoute(
 ): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
 
-  app.use("/api/repos", sessionLayer(deps), accessLogLayer());
+  app.use("/api/repos", sessionLayer(deps), accessStampLayer());
 
   app.get("/api/repos", async (c) => {
-    const resolved = await allowedRepos.resolve(c.get("session"));
+    const resolved = await allowedRepos.resolve(c.get("session"), c.get("logger"));
     if (!resolved.ok) {
       return c.json(
         { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },

@@ -13,7 +13,6 @@
 // 401→refresh→retry (success and a refresh failure that deletes the session);
 // and the diff proxy per-session cache.
 import { createHash, randomBytes } from "node:crypto";
-import type { Hono } from "hono";
 import {
   artifactStore,
   encryptToken,
@@ -31,7 +30,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { testLogger } from "./logging";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -290,14 +290,14 @@ const unusedConversationPort = {
 
 describe("reviewer read API + authz gate", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     vi.spyOn(Date, "now").mockImplementation(() => realNow() + clockOffsetMs);
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
   });
 
   afterEach(async () => {

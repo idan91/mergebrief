@@ -6,7 +6,6 @@
 // `no-store`; a GitHub failure is a 401/502, NEVER a DB-only fallback.
 // Bearer and cookie both authenticate (it lives under /api/*).
 import { createHash, randomBytes } from "node:crypto";
-import type { Hono } from "hono";
 import {
   encryptToken,
   envKeyProvider,
@@ -22,7 +21,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { testLogger } from "./logging";
 
 const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";
@@ -105,13 +105,14 @@ const unusedConversationPort = {
 
 describe("GET /api/repos", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
     app = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: authDeps(kp),

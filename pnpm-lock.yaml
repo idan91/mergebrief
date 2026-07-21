@@ -47,6 +47,9 @@ importers:
       github:
         specifier: workspace:*
         version: link:../../packages/github
+      logging:
+        specifier: workspace:*
+        version: link:../../packages/logging
       persistence:
         specifier: workspace:*
         version: link:../../packages/persistence
@@ -126,6 +129,9 @@ importers:
       hono:
         specifier: ^4.9.10
         version: 4.12.27
+      logging:
+        specifier: workspace:*
+        version: link:../logging
       persistence:
         specifier: workspace:*
         version: link:../persistence

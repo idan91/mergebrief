@@ -13,7 +13,7 @@ import { artifactStore, forTenant, generationProjection } from "persistence";
 import { z } from "zod";
 import type { AuthRouteDeps } from "./auth";
 import type { AllowedRepoResolver } from "./allowed-repos";
-import { accessLogLayer, sessionLayer, type AuthzEnv } from "./authz";
+import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 import { buildPrView } from "./pr-view";
 
 // Per-viewer state on a gated route — no-store on EVERY response, error
@@ -34,7 +34,7 @@ export function pullsRoute(
 ): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
 
-  app.use("/api/pulls", sessionLayer(deps), accessLogLayer());
+  app.use("/api/pulls", sessionLayer(deps), accessStampLayer());
 
   app.get("/api/pulls", async (c) => {
     const query = listQuerySchema.safeParse({ limit: c.req.query("limit") ?? undefined });
@@ -43,7 +43,7 @@ export function pullsRoute(
     }
     const ctx = c.get("ctx");
 
-    const resolved = await allowedRepos.resolve(c.get("session"));
+    const resolved = await allowedRepos.resolve(c.get("session"), c.get("logger"));
     if (!resolved.ok) {
       return c.json(
         { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },

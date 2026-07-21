@@ -278,7 +278,7 @@ export function reviewSubmitRoute(
         return false;
       }
       refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession);
+      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
       if (!refreshed.ok) {
         return false;
       }

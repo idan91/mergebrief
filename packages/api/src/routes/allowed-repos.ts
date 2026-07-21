@@ -11,6 +11,7 @@ import {
   GitHubApiErrorCode,
   listInstallationRepositoriesForUser,
 } from "github";
+import type { Logger } from "logging";
 import { decryptToken, sessionAuth, type RepoId } from "persistence";
 import type { Result } from "types";
 import { refreshSessionToken, type AuthRouteDeps, type ViewerPrincipal } from "./auth";
@@ -36,7 +37,10 @@ export interface AllowedRepoResolver {
    * Failure carries the HTTP status the route must return: 401 (auth dead)
    * or 502 (GitHub upstream) — the caller NEVER falls back to the DB.
    */
-  resolve(session: ViewerPrincipal): Promise<Result<AllowedRepos, { status: 401 | 502 }>>;
+  resolve(
+    session: ViewerPrincipal,
+    log: Logger,
+  ): Promise<Result<AllowedRepos, { status: 401 | 502 }>>;
 }
 
 /**
@@ -49,7 +53,7 @@ export function createAllowedRepoResolver(deps: AuthRouteDeps): AllowedRepoResol
   const cache = createTtlCache<ReadonlyMap<RepoId, string>>(ALLOWED_SET_CACHE_MAX_ENTRIES);
 
   return {
-    async resolve(session) {
+    async resolve(session, log) {
       // Key includes the installation: an org switch rebinds the session row
       // without rotating the cookie, and the pre-switch allowed set must
       // never serve the new tenant.
@@ -79,7 +83,7 @@ export function createAllowedRepoResolver(deps: AuthRouteDeps): AllowedRepoResol
       );
       if (!repos.ok && repos.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
         // Expired ~8h access token → serialized refresh, retry ONCE.
-        const refreshed = await refreshSessionToken(deps, currentSession);
+        const refreshed = await refreshSessionToken(deps, currentSession, log);
         if (!refreshed.ok) {
           return { ok: false, error: { status: 401 } };
         }

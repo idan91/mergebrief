@@ -18,6 +18,7 @@
 //   200 — handled or deliberately ignored
 //   500 — unexpected throw (sanitized body; internals stay in the log)
 import { Hono } from "hono";
+import { type RequestLogEnv } from "../request-logging";
 import type { DraftPolicy, Result } from "types";
 import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
 import {
@@ -361,10 +362,26 @@ async function readRawBodyWithinLimit(request: Request): Promise<RawBodyResult> 
 }
 
 /** Mountable webhook route; deps injected so tests pass a PGlite handle. */
-export function webhookRoute(deps: WebhookRouteDeps): Hono {
-  const app = new Hono();
+export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
+  const app = new Hono<RequestLogEnv>();
 
   app.post("/api/webhooks/github", async (c) => {
+    // Correlation (ADR 0034 #6): GitHub's delivery id rides every webhook
+    // event line as a child binding — the operator's join key back to the
+    // delivery record in the App's dashboard. The header lands PRE-verify on
+    // a public endpoint, so it is guarded like the request id: GitHub sends
+    // a GUID, and anything outside that charset/length is dropped rather
+    // than bound (log-injection / volume-inflation control).
+    const rawDeliveryId = c.req.header("x-github-delivery");
+    const deliveryId =
+      rawDeliveryId !== undefined && /^[\w-]{1,64}$/.test(rawDeliveryId)
+        ? rawDeliveryId
+        : undefined;
+    const log =
+      deliveryId === undefined
+        ? c.get("logger")
+        : c.get("logger").child({ deliveryId });
+
     // 1–3. Verify the HMAC over the RAW body BEFORE any parsing — the exact
     // bytes GitHub signed, never a JSON re-encode.
     const rawBody = await readRawBodyWithinLimit(c.req.raw);
@@ -381,6 +398,12 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono {
       signature,
     });
     if (!verified.ok) {
+      // Previously a silent 401 (ADR 0034 #5): warn, not error — raw hits
+      // are scanner noise; a SUSTAINED rate (secret drift after rotation)
+      // is what an operator alerts on.
+      log.warn("webhook signature verification failed", {
+        evt: "webhook.verify.fail",
+      });
       return c.json({ error: "invalid signature" }, 401);
     }
 
@@ -403,7 +426,10 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono {
     try {
       await dispatch(deps.handle, parsed.value, deps.draftPolicy ?? DEFAULT_DRAFT_POLICY);
     } catch (error) {
-      console.error("webhook dispatch failed", error);
+      log.error("webhook dispatch failed", {
+        evt: "webhook.dispatch.fail",
+        err: error,
+      });
       return c.json({ error: "internal error" }, 500);
     }
     return c.json({ ok: true }, 200);

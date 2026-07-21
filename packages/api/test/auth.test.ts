@@ -14,7 +14,6 @@
 // NO GitHub token/secret leaks into any response beyond the opaque session cookie.
 import { randomBytes } from "node:crypto";
 import { createHash } from "node:crypto";
-import type { Hono } from "hono";
 import {
   decryptToken,
   encryptToken,
@@ -31,7 +30,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, refreshSessionToken, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, refreshSessionToken, type AuthDeps } from "../src/lib";
+import { testLogger, testLogging } from "./logging";
 
 // ---------------------------------------------------------------------------
 // Fixtures + deps.
@@ -179,13 +179,13 @@ const unusedConversationPort = {
 
 describe("reviewer auth routes", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
   });
 
   afterEach(async () => {
@@ -351,6 +351,7 @@ describe("reviewer auth routes", () => {
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: authDeps(kp) },
       { ...session, channel: "cookie" },
+      testLogger(),
     );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -388,14 +389,21 @@ describe("reviewer auth routes", () => {
 
     const session = await sessionAuth(harness.handle).findSession(hash);
     if (session === undefined) throw new Error("seeded session not found");
+    const capture = testLogging();
     const result = await refreshSessionToken(
       { handle: harness.handle, auth: authDeps(kp) },
       { ...session, channel: "cookie" },
+      capture.logger,
     );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     // Session burned → re-login required.
     expect(await countRows(harness, "reviewer_session")).toBe(0);
+    // The failure is operator-visible (ADR 0034 taxonomy): one
+    // token.refresh.fail error line, numeric ids only.
+    const line = capture.lines().find((l) => l["evt"] === "token.refresh.fail");
+    expect(line?.["level"]).toBe("error");
+    expect(line?.["reviewerId"]).toBe(String(session.reviewerId));
   });
 });
 

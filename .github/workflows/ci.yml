@@ -80,7 +80,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          web_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/web/|packages/types/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          web_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/web/|packages/logging/|packages/types/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$web_files" ]; then
             echo "web=true" >> "$GITHUB_OUTPUT"
@@ -570,7 +570,7 @@ jobs:
         shell: bash
         run: |
           changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          api_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/api/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          api_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/api/|packages/logging/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
 
           if [ -n "$api_files" ]; then
             echo "api=true" >> "$GITHUB_OUTPUT"

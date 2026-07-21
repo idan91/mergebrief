@@ -2,7 +2,6 @@
 // surface (its second job is the CLI's cheapest authenticated probe), the
 // injected version in the body, no-store, hint-free 401 without auth.
 import { createHash, randomBytes } from "node:crypto";
-import type { Hono } from "hono";
 import {
   encryptToken,
   envKeyProvider,
@@ -14,7 +13,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { testLogger } from "./logging";
 
 const KEY_REF = "SESSION_KEY_V1";
 
@@ -27,7 +27,7 @@ const CTX: TenantContext = { installationId: brand(isInstallationId, 987654) };
 
 describe("GET /api/version", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
@@ -42,6 +42,7 @@ describe("GET /api/version", () => {
       cookieSecure: true,
     };
     app = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: "test-webhook-secret",
       auth,

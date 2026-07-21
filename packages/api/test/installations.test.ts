@@ -4,7 +4,6 @@
 // re-derived from GitHub (`GET /user/installations`, viewer token) — a switch
 // to anything outside it is a 403 with NO session/settings mutation (D14).
 import { randomBytes, createHash } from "node:crypto";
-import type { Hono } from "hono";
 import {
   encryptToken,
   envKeyProvider,
@@ -21,7 +20,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { testLogger } from "./logging";
 
 const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";
@@ -155,13 +155,13 @@ const unusedConversationPort = {
 
 describe("GET /api/auth/installations + POST /api/auth/installation", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
   let kp: KeyProvider;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
   });
 
   afterEach(async () => {

@@ -39,9 +39,32 @@ export interface AppDatabase {
   readonly [INTERNAL]: DbCore;
 }
 
+export interface CreateDbOptions {
+  /**
+   * Pool-level error observer. pg's `Pool` emits `'error'` for failures on
+   * IDLE clients — e.g. the server terminating connections during a restart
+   * — and with no listener Node's unhandled-'error' default takes the whole
+   * process down, which the /healthz liveness contract forbids (ADR 0034
+   * #7: the web tier must stay alive through a DB blip; /readyz is what
+   * reports unavailability). Omitted → the error is dropped here on purpose:
+   * the NEXT query fails loudly through its own path, so nothing is lost
+   * except the crash.
+   */
+  readonly onError?: (error: Error) => void;
+}
+
 /** Production factory: pg `Pool` + node-postgres drizzle, wrapped opaque. */
-export function createDb(connectionString: string): AppDatabase {
+export function createDb(
+  connectionString: string,
+  options: CreateDbOptions = {},
+): AppDatabase {
   const pool = new Pool({ connectionString });
+  // The wrapper forwards ONLY the error: pg's listener also receives the
+  // live PoolClient (whose connection options carry the password), and a
+  // variadic consumer callback must never see it.
+  pool.on("error", (error) => {
+    options.onError?.(error);
+  });
   const db = drizzle(pool, { schema });
   return { [INTERNAL]: { db, pool } };
 }
@@ -63,4 +86,19 @@ export function internal(handle: AppDatabase): AppDrizzle {
 /** Close the owned pool, if any (a `fromDrizzle` handle owns none). */
 export async function closeDb(handle: AppDatabase): Promise<void> {
   await handle[INTERNAL].pool?.end();
+}
+
+/**
+ * Readiness probe (BRIEF-51, ADR 0034 #7): one `SELECT 1` round-trip through
+ * the handle. `false` — never a throw — when the database is unreachable; an
+ * unreachable database is the EXPECTED failure a /readyz caller reports as
+ * 503, not a programmer error.
+ */
+export async function pingDb(handle: AppDatabase): Promise<boolean> {
+  try {
+    await handle[INTERNAL].db.execute("select 1");
+    return true;
+  } catch {
+    return false;
+  }
 }

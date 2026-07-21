@@ -258,7 +258,7 @@ export function conversationRoutes(deps: ConversationRouteDeps): ConversationRou
         return false;
       }
       refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession);
+      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
       if (!refreshed.ok) {
         return false;
       }
@@ -346,7 +346,13 @@ export function conversationRoutes(deps: ConversationRouteDeps): ConversationRou
         targetId: BigInt(created.value.commentId),
       });
     } catch (auditError) {
-      console.error("reply audit failed after posted reply", auditError);
+      // Posted to GitHub, our audit write failed — a data-integrity signal
+      // the operator alerts on (ADR 0034 taxonomy).
+      c.get("logger").error("reply audit failed after posted reply", {
+        evt: "audit.fail",
+        commentId: String(created.value.commentId),
+        err: auditError,
+      });
     }
 
     return c.json({ commentId: created.value.commentId }, 201, {

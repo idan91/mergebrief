@@ -19,6 +19,7 @@
 // and the switch emits a D9 `auth` audit row (numeric-only metadata).
 import { Hono } from "hono";
 import { GitHubApiErrorCode, listUserInstallations, type UserInstallation } from "github";
+import type { Logger } from "logging";
 import {
   audit,
   AuditAction,
@@ -33,7 +34,7 @@ import {
 import type { Result } from "types";
 import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps, type ViewerPrincipal } from "./auth";
-import { accessLogLayer, sessionLayer, type AuthzEnv } from "./authz";
+import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 
 /** The switch body — `installationId` as a numeric string or JSON number. */
 const switchBodySchema = z.object({
@@ -73,6 +74,7 @@ interface AccessibleSet {
 export async function resolveAccessibleInstallations(
   deps: AuthRouteDeps,
   session: ViewerPrincipal,
+  log: Logger,
 ): Promise<Result<AccessibleSet, { status: 401 | 502 }>> {
   const decrypted = await decryptToken(
     deps.auth.keyProvider,
@@ -89,7 +91,7 @@ export async function resolveAccessibleInstallations(
   let accessToken = decrypted.value;
   let result = await listUserInstallations(accessToken);
   if (!result.ok && result.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    const refreshed = await refreshSessionToken(deps, currentSession);
+    const refreshed = await refreshSessionToken(deps, currentSession, log);
     if (!refreshed.ok) {
       // The orchestrator already burned the session on a hard failure.
       return { ok: false, error: { status: 401 } };
@@ -112,13 +114,13 @@ export async function resolveAccessibleInstallations(
 export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
 
-  app.use("/api/auth/installations", sessionLayer(deps), accessLogLayer());
-  app.use("/api/auth/installation", sessionLayer(deps), accessLogLayer());
+  app.use("/api/auth/installations", sessionLayer(deps), accessStampLayer());
+  app.use("/api/auth/installation", sessionLayer(deps), accessStampLayer());
 
   // GET: the accessible set annotated with current (session) + default (settings).
   app.get("/api/auth/installations", async (c) => {
     const session = c.get("session");
-    const resolved = await resolveAccessibleInstallations(deps, session);
+    const resolved = await resolveAccessibleInstallations(deps, session, c.get("logger"));
     if (!resolved.ok) {
       return c.json(
         { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },
@@ -156,7 +158,7 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     }
 
     const session = c.get("session");
-    const resolved = await resolveAccessibleInstallations(deps, session);
+    const resolved = await resolveAccessibleInstallations(deps, session, c.get("logger"));
     if (!resolved.ok) {
       return c.json(
         { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },

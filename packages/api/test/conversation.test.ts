@@ -9,7 +9,6 @@
 // fresh-repo re-resolve, audit-on-reply, and evict-on-write (reply AND
 // review submit).
 import { createHash, randomBytes } from "node:crypto";
-import type { Hono } from "hono";
 import type { FetchPullRequestConversationInput, PrConversation } from "github";
 import {
   encryptToken,
@@ -27,7 +26,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type AuthDeps, type ConversationGitHubPort } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps, type ConversationGitHubPort } from "../src/lib";
+import { testLogger, testLogging } from "./logging";
 
 // POST .../comments/{id}/replies is on octokit's `triggersNotification` list:
 // the throttling plugin spaces consecutive reply POSTs ~3s apart through
@@ -321,14 +321,14 @@ function replyPath(commentId: number | string = ROOT_COMMENT_ID): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${commentId}/replies`;
 }
 
-async function getConversation(app: Hono, cookie: string | undefined, path = CONVERSATION_PATH): Promise<Response> {
+async function getConversation(app: ApiApp, cookie: string | undefined, path = CONVERSATION_PATH): Promise<Response> {
   return await app.request(path, {
     headers: cookie === undefined ? {} : { cookie: `rs_session=${cookie}` },
   });
 }
 
 async function postReply(
-  app: Hono,
+  app: ApiApp,
   cookie: string | undefined,
   body: unknown,
   path = replyPath(),
@@ -370,8 +370,9 @@ describe("conversation surface", () => {
     await harness.close();
   });
 
-  function makeApp(port: ConversationGitHubPort): Hono {
+  function makeApp(port: ConversationGitHubPort): ApiApp {
     return createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: SECRET,
       auth: authDeps(kp),
@@ -634,7 +635,14 @@ describe("conversation surface", () => {
       stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
       const { cookie } = await seedSession(harness.handle, kp);
       await seedPullRequest(harness.handle);
-      const app = makeApp(port);
+      const capture = testLogging();
+      const app = createApp({
+        logger: capture.logger,
+        handle: harness.handle,
+        webhookSecret: SECRET,
+        auth: authDeps(kp),
+        github: port,
+      });
       // Sabotage the audit table: the GitHub write already happened, so a
       // local persistence failure must not read as "nothing was posted".
       await harness.raw("alter table audit_log rename to audit_log_hidden");
@@ -642,6 +650,12 @@ describe("conversation surface", () => {
         const res = await postReply(app, cookie, { body: "posted then audit dies" });
         expect(res.status).toBe(201);
         expect(await res.json()).toEqual({ commentId: REPLY_ID });
+        // The integrity failure is operator-visible (ADR 0034): one
+        // audit.fail error line carrying the posted artifact's id.
+        const line = capture.lines().find((l) => l["evt"] === "audit.fail");
+        expect(line?.["level"]).toBe("error");
+        expect(line?.["commentId"]).toBe(String(REPLY_ID));
+        expect(line?.["err"]).toBeDefined();
       } finally {
         await harness.raw("alter table audit_log_hidden rename to audit_log");
       }

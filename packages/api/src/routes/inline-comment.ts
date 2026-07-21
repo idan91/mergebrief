@@ -209,7 +209,7 @@ export function inlineCommentRoute(
         return false;
       }
       refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession);
+      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
       if (!refreshed.ok) {
         return false;
       }
@@ -289,7 +289,13 @@ export function inlineCommentRoute(
         targetId: posted.value.commentId,
       });
     } catch (auditError) {
-      console.error("post-now audit failed after posted comment", auditError);
+      // Posted to GitHub, our audit write failed — a data-integrity signal
+      // the operator alerts on (ADR 0034 taxonomy).
+      c.get("logger").error("post-now audit failed after posted comment", {
+        evt: "audit.fail",
+        commentId: String(posted.value.commentId),
+        err: auditError,
+      });
     }
 
     return c.json(

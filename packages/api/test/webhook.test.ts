@@ -5,7 +5,6 @@
 // imported), signed for real with `@octokit/webhooks-methods`. No network,
 // no LLM, no real Postgres.
 import { sign } from "@octokit/webhooks-methods";
-import type { Hono } from "hono";
 import {
   envKeyProvider,
   forTenant,
@@ -17,7 +16,8 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AuthDeps } from "../src/lib";
-import { createApp } from "../src/lib";
+import { createApp, type ApiApp } from "../src/lib";
+import { testLogger, testLogging } from "./logging";
 
 const SECRET = "test-webhook-secret";
 
@@ -62,11 +62,12 @@ function brandRepoId(value: bigint): RepoId {
 interface DeliverOptions {
   readonly secret?: string;
   readonly signature?: string;
+  readonly deliveryId?: string;
 }
 
 /** Sign `payload` (over the exact serialized bytes) and POST it. */
 async function deliver(
-  app: Hono,
+  app: ApiApp,
   eventName: string,
   payload: unknown,
   options?: DeliverOptions,
@@ -78,6 +79,7 @@ async function deliver(
     headers: {
       "x-hub-signature-256": signature,
       "x-github-event": eventName,
+      "x-github-delivery": options?.deliveryId ?? "delivery-123",
       "content-type": "application/json",
     },
     body,
@@ -197,11 +199,11 @@ const unusedConversationPort = {
 
 describe("POST /api/webhooks/github", () => {
   let harness: PgliteHarness;
-  let app: Hono;
+  let app: ApiApp;
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    app = createApp({ handle: harness.handle, webhookSecret: SECRET, auth: DUMMY_AUTH, github: unusedConversationPort });
+    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: DUMMY_AUTH, github: unusedConversationPort });
   });
 
   afterEach(async () => {
@@ -644,8 +646,9 @@ describe("POST /api/webhooks/github", () => {
   });
 
   describe("draft generation policy (BRIEF-64)", () => {
-    function appWithPolicy(policy: { generate: boolean; debounceSeconds: number | null }): Hono {
+    function appWithPolicy(policy: { generate: boolean; debounceSeconds: number | null }): ApiApp {
       return createApp({
+        logger: testLogger(),
         handle: harness.handle,
         webhookSecret: SECRET,
         auth: DUMMY_AUTH,
@@ -807,5 +810,81 @@ describe("POST /api/webhooks/github", () => {
       expect(res.status).toBe(200);
       expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
     });
+  });
+});
+
+describe("webhook event logging (BRIEF-51, ADR 0034)", () => {
+  let harness: PgliteHarness;
+
+  beforeEach(async () => {
+    harness = await createPgliteHarness();
+  });
+
+  afterEach(async () => {
+    await harness.close();
+  });
+
+  function appWithCapture() {
+    const capture = testLogging();
+    const app = createApp({
+      logger: capture.logger,
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: DUMMY_AUTH,
+      github: unusedConversationPort,
+    });
+    return { app, capture };
+  }
+
+  it("invalid signature emits webhook.verify.fail at warn with deliveryId + reqId", async () => {
+    const { app, capture } = appWithCapture();
+    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }), {
+      secret: "wrong-secret",
+      deliveryId: "delivery-verify-1",
+    });
+    expect(res.status).toBe(401);
+    const line = capture.lines().find((l) => l["evt"] === "webhook.verify.fail");
+    expect(line?.["level"]).toBe("warn");
+    expect(line?.["deliveryId"]).toBe("delivery-verify-1");
+    expect(typeof line?.["reqId"]).toBe("string");
+  });
+
+  it("dispatch failure emits webhook.dispatch.fail at error with deliveryId", async () => {
+    const { app, capture } = appWithCapture();
+    // Poison the write path AFTER app construction: the dispatch's first
+    // tenant write hits a missing table and throws — the route's 500 path.
+    await harness.raw("alter table pull_request rename to pull_request_poisoned");
+    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }), {
+      deliveryId: "delivery-dispatch-1",
+    });
+    expect(res.status).toBe(500);
+    const line = capture.lines().find((l) => l["evt"] === "webhook.dispatch.fail");
+    expect(line?.["level"]).toBe("error");
+    expect(line?.["deliveryId"]).toBe("delivery-dispatch-1");
+    expect(line?.["err"]).toBeDefined();
+  });
+
+  it("drops an out-of-format x-github-delivery instead of binding it", async () => {
+    const { app, capture } = appWithCapture();
+    // Pre-auth endpoint: the header is attacker-controlled, so anything
+    // outside GitHub's GUID shape (charset/length) must not ride the logs.
+    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }), {
+      secret: "wrong-secret",
+      deliveryId: `evil"}${"x".repeat(300)}`,
+    });
+    expect(res.status).toBe(401);
+    const line = capture.lines().find((l) => l["evt"] === "webhook.verify.fail");
+    expect(line).toBeDefined();
+    expect(line?.["deliveryId"]).toBeUndefined();
+    expect(capture.lines().every((l) => JSON.stringify(l).length < 1000)).toBe(true);
+  });
+
+  it("a handled delivery's api.access line carries the reqId for correlation", async () => {
+    const { app, capture } = appWithCapture();
+    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }));
+    expect(res.status).toBe(200);
+    const line = capture.lines().find((l) => l["evt"] === "api.access");
+    expect(line?.["status"]).toBe(200);
+    expect(typeof line?.["reqId"]).toBe("string");
   });
 });

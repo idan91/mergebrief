@@ -18,8 +18,8 @@ export * from "./types";
 
 // `AppDatabase` exposes no queryable shape; `AppDrizzle` and `internal()` are
 // intentionally absent from this surface.
-export { createDb, closeDb } from "./db/handle";
-export type { AppDatabase, AppSchema } from "./db/handle";
+export { createDb, closeDb, pingDb } from "./db/handle";
+export type { AppDatabase, AppSchema, CreateDbOptions } from "./db/handle";
 
 // Programmatic, idempotent app-schema migration for composition roots
 // (worker/compose boot). The graphile_worker schema stays graphile-owned.

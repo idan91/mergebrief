@@ -19,6 +19,7 @@ import {
 } from "generators";
 
 import { createSingleFlight } from "./singleFlight";
+import { getServerLogger } from "../../server/logger";
 
 const OUT_DIR = resolve(process.cwd(), "../../tools/categorizer/out");
 
@@ -155,10 +156,10 @@ export async function generateBriefFromUrl(
   try {
     head = await engine.fetchHeadSha(locator);
   } catch (error) {
-    // Message-only logging (BRIEF-11 defense in depth): console.error on a
-    // full error object prints the CAUSE CHAIN recursively — provider text
-    // there may carry request contents. The worker already logs this way.
-    console.error(
+    // Message-only logging (BRIEF-11 defense in depth): serializing the
+    // full error object exposes the CAUSE CHAIN recursively — provider text
+    // there may carry request contents. So no `err` field, message only.
+    getServerLogger().error(
       `generateBriefFromUrl: failed to fetch PR metadata — ${errorMessage(error)}`,
     );
     throw new Error(
@@ -177,7 +178,7 @@ export async function generateBriefFromUrl(
       result = await engine.generate(url);
     } catch (error) {
       if (error instanceof GeneratorConfigurationError) throw error;
-      console.error(
+      getServerLogger().error(
         `generateBriefFromUrl: generation failed — ${errorMessage(error)}`,
       );
       throw new Error(

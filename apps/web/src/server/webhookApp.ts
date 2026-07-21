@@ -14,13 +14,22 @@ import {
   envKeyProvider,
   loadConfig as loadPersistenceConfig,
   migrateApp,
+  pingDb,
+  type AppDatabase,
 } from "persistence";
+import { getServerLogger } from "./logger";
 
 /** The env var name the reviewer session tokens seal under (ADR 0018 D11). */
 const SESSION_KEY_REF = "SESSION_KEY_V1";
 
 /** The built Hono app (inferred so `apps/web` needs no direct `hono` dep). */
 type WebhookApp = ReturnType<typeof createApp>;
+
+/** The app plus the handle it was composed over (the /readyz probe target). */
+interface WebhookComposition {
+  readonly app: WebhookApp;
+  readonly handle: AppDatabase;
+}
 
 /**
  * Load `apps/web/.env` if present, then return the ambient env. Mirrors
@@ -42,7 +51,7 @@ function readEnv(): NodeJS.ProcessEnv {
  * webhook), open one pooled db handle, install the `graphile_worker` schema so
  * the enqueue side works, then compose the Hono app over the injected deps.
  */
-async function buildWebhookApp(): Promise<WebhookApp> {
+async function buildWebhookApp(): Promise<WebhookComposition> {
   const env = readEnv();
 
   const githubConfig = loadGitHubConfig(env);
@@ -101,11 +110,22 @@ async function buildWebhookApp(): Promise<WebhookApp> {
   // webhook writes to, then the graphile_worker schema `add_job` needs.
   await migrateApp(databaseUrl);
   await migrateQueue(databaseUrl);
-  const handle = createDb(databaseUrl);
+  // The pool error observer keeps a DB restart from crashing the process
+  // (liveness contract, ADR 0034 #7) — the blip surfaces as warn lines and
+  // a 503 /readyz, not a dead /healthz.
+  const handle = createDb(databaseUrl, {
+    onError: (error) =>
+      getServerLogger().warn("postgres pool error (idle client)", {
+        err: error,
+      }),
+  });
 
-  return createApp({
+  const app = createApp({
     handle,
     webhookSecret: githubConfig.value.webhookSecret,
+    // The process logger (ADR 0034): one instance for the whole web tier;
+    // the api package derives per-request children from it.
+    logger: getServerLogger(),
     // Draft-PR generation policy (BRIEF-64) — enforced at the enqueue path.
     draftPolicy: instancePolicy.value.draftPolicy,
     // Skew visibility (ADR 0029 #8): surfaced by GET /api/version and the
@@ -126,6 +146,7 @@ async function buildWebhookApp(): Promise<WebhookApp> {
       cookieSecure: true,
     },
   });
+  return { app, handle };
 }
 
 /**
@@ -139,19 +160,20 @@ async function buildWebhookApp(): Promise<WebhookApp> {
  */
 const FAILURE_COOLDOWN_MS = 5000;
 
-let appPromise: Promise<WebhookApp> | undefined;
+let compositionPromise: Promise<WebhookComposition> | undefined;
 let lastFailureAt: number | undefined;
 
 /**
- * Lazily-initialized singleton accessor for the webhook Hono app. The first
- * request builds it (one db handle, one migration); later requests reuse the
- * memoized promise. A build FAILURE is negative-cached for `FAILURE_COOLDOWN_MS`
- * (fail fast, no DB touch) so a transient fault self-heals on the next attempt
- * after the window without hammering the database in between.
+ * Lazily-initialized singleton accessor for the webhook composition. The
+ * first request builds it (one db handle, one migration); later requests
+ * reuse the memoized promise. A build FAILURE is negative-cached for
+ * `FAILURE_COOLDOWN_MS` (fail fast, no DB touch) so a transient fault
+ * self-heals on the next attempt after the window without hammering the
+ * database in between.
  */
-export function getWebhookApp(): Promise<WebhookApp> {
-  if (appPromise) {
-    return appPromise;
+function getComposition(): Promise<WebhookComposition> {
+  if (compositionPromise) {
+    return compositionPromise;
   }
   if (
     lastFailureAt !== undefined &&
@@ -162,16 +184,36 @@ export function getWebhookApp(): Promise<WebhookApp> {
       new Error("webhook composition unavailable; retry shortly"),
     );
   }
-  appPromise = buildWebhookApp().then(
-    (app) => {
+  compositionPromise = buildWebhookApp().then(
+    (composition) => {
       lastFailureAt = undefined;
-      return app;
+      return composition;
     },
     (error: unknown) => {
-      appPromise = undefined;
+      compositionPromise = undefined;
       lastFailureAt = Date.now();
       throw error;
     },
   );
-  return appPromise;
+  return compositionPromise;
+}
+
+/** The Hono app for `/api/*` dispatch (the entry + SSR's in-process path). */
+export function getWebhookApp(): Promise<WebhookApp> {
+  return getComposition().then((composition) => composition.app);
+}
+
+/**
+ * The /readyz probe (ADR 0034 #7): the composition resolves AND one
+ * `SELECT 1` round-trips through its handle. `false` covers both a failed
+ * composition (misconfig, cooldown window) and an unreachable database —
+ * the caller answers 503 either way, leaking neither distinction.
+ */
+export async function checkReadiness(): Promise<boolean> {
+  try {
+    const { handle } = await getComposition();
+    return await pingDb(handle);
+  } catch {
+    return false;
+  }
 }

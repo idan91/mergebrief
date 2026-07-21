@@ -431,7 +431,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     // token may be an expired ~8h access token → GitHub 401. Refresh once and
     // retry (mirrors the gate's verified path) before surfacing a failure.
     if (!diff.ok && diff.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-      const refreshed = await refreshSessionToken(deps, currentSession);
+      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
       if (!refreshed.ok) {
         return c.json({ error: "unauthorized" }, 401);
       }

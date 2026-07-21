@@ -26,13 +26,16 @@
 // the access check ONCE with the rotated token. A refresh failure has already
 // deleted the session, so it is a clean 401 → re-login.
 //
-// LOGGING (D9): each request emits ONE structured stdout access line
-// (method/path/status/latency + numeric repo/reviewer ids) — the purgeable web
-// access log, NOT the never-purged audit ledger, and NEVER any token/cookie/PII.
-// `sessionLayer` logs its own denials; the LAST layer in a composition logs the
-// allowed path after the handler. A session-only composition must therefore
-// emit its own success line (the list endpoint does).
-import type { Context, MiddlewareHandler } from "hono";
+// LOGGING (D9, as renamed by ADR 0034): each request gets ONE structured
+// `evt: "api.access"` line (method/path/status/latency/decision + numeric
+// repo/reviewer ids + reqId) — the purgeable web access log, NOT the
+// never-purged audit ledger, and NEVER any token/cookie/PII. The line itself
+// is emitted by the `requestLogging` middleware after the handler; the
+// layers here only STAMP the gate's decision (+ ids) into context via
+// `stampAccess`. `sessionLayer` stamps its own denials; the last layer in a
+// composition stamps the allowed path after the handler. A session-only
+// composition appends `accessStampLayer` so its line carries the reviewer id.
+import type { MiddlewareHandler } from "hono";
 import { every } from "hono/combine";
 import { getCookie } from "hono/cookie";
 import { createUserOctokit, fetchRepositoryById } from "github";
@@ -58,6 +61,7 @@ import {
   type AuthRouteDeps,
   type ViewerPrincipal,
 } from "./auth";
+import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
 
 // ---------------------------------------------------------------------------
@@ -68,7 +72,7 @@ import { createTtlCache } from "./ttl-cache";
 // `session` when it is absent).
 // ---------------------------------------------------------------------------
 
-export interface AuthzVariables {
+export interface AuthzVariables extends RequestLogVariables {
   readonly ctx: TenantContext;
   readonly session: ViewerPrincipal;
   readonly repoId: RepoId;
@@ -81,12 +85,6 @@ export interface AuthzVariables {
    */
   readonly repoFullName: string;
   readonly accessToken?: string;
-  /**
-   * Request start as recorded at gate entry by `sessionLayer` — keeps the one
-   * D9 access line's `durationMs` anchored to gate entry across the layer
-   * split, whichever layer ends up emitting it.
-   */
-  readonly gateStartedAt: number;
 }
 
 export interface AuthzEnv {
@@ -119,9 +117,6 @@ const TOKEN_TOUCH_THROTTLE_MS = 60 * 1000;
 /** Bounded like the positive cache: token hashes are long-lived but finite. */
 const TOUCH_THROTTLE_MAX_ENTRIES = 50_000;
 
-/** The access-check decision, as it appears in the stdout access log. */
-type AccessDecision = "200" | "401" | "404";
-
 /**
  * Keyed by session AND installation: an org switch rebinds the session row's
  * installation without rotating the cookie, so the hash alone would let a
@@ -145,41 +140,17 @@ function parseRepoId(raw: string | undefined): RepoId | undefined {
   return isRepoId(value) ? value : undefined;
 }
 
-/**
- * One purgeable stdout access line — numeric ids only, never a token.
- * `decision` is the GATE's outcome; `status` is the RESPONSE status. On deny
- * paths they coincide; on the allowed path this is called AFTER `next()`, so
- * `status` reflects what the handler actually returned and `durationMs`
- * includes handler time (the D9 log contract).
- */
-function logAccess(
-  c: Context<AuthzEnv>,
-  startedAt: number,
-  decision: AccessDecision,
-  fields: { repoId?: RepoId; reviewerId?: bigint },
-): void {
-  const line: Record<string, string | number> = {
-    evt: "read",
-    method: c.req.method,
-    path: c.req.path,
-    status: decision === "200" ? c.res.status : Number(decision),
-    durationMs: Date.now() - startedAt,
-    decision,
-  };
-  if (fields.repoId !== undefined) {
-    line["repoId"] = String(fields.repoId);
-  }
-  if (fields.reviewerId !== undefined) {
-    line["reviewerId"] = String(fields.reviewerId);
-  }
-  console.info(JSON.stringify(line));
-}
+// Gate outcomes reach the `api.access` line via `stampAccess` — numeric ids
+// only, never a token. `decision` is the GATE's outcome; the line's `status`
+// is the RESPONSE status (the `requestLogging` middleware reads both after
+// the handler). On deny paths they coincide; on the allowed path the stamp
+// lands AFTER `next()`, so `status`/`durationMs` reflect what the handler
+// actually returned (the D9 log contract).
 
 /**
  * Layer 1 — resolve the reviewer session and tenant ctx from the opaque
- * cookie. Denies with 401 (and logs its own access line); on success sets
- * `ctx`/`session`/`gateStartedAt` and defers logging to the composition's
- * last layer.
+ * cookie. Denies with 401 (stamping its own access decision); on success
+ * sets `ctx`/`session` and defers the stamp to the composition's last layer.
  */
 export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
   // Throttle for the Bearer `last_used_at` touch: at most one UPDATE per token
@@ -206,7 +177,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       const bearer = authorization.slice(BEARER_SCHEME.length);
       // Wrong prefix / miss / expired / revoked — the SAME hint-free 401.
       if (!bearer.startsWith(API_TOKEN_PREFIX)) {
-        logAccess(c, startedAt, "401", {});
+        stampAccess(c, "401", {});
         return c.json({ error: "unauthorized" }, 401, NO_STORE);
       }
       const tokenHash = sha256Hex(bearer);
@@ -215,7 +186,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
         new Date(startedAt),
       );
       if (!resolved.ok) {
-        logAccess(c, startedAt, "401", {});
+        stampAccess(c, "401", {});
         return c.json({ error: "unauthorized" }, 401, NO_STORE);
       }
       const principal = principalFromApiToken(resolved.value);
@@ -225,16 +196,17 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       // request path (its outcome cannot change the 401/200 decision).
       if (touchThrottle.get(tokenHash) === undefined) {
         touchThrottle.set(tokenHash, true, startedAt + TOKEN_TOUCH_THROTTLE_MS);
+        const log = c.get("logger");
         void tokenAuth(deps.handle)
           .touchLastUsed(tokenHash, new Date(startedAt))
           .catch((error: unknown) => {
-            console.error("api_token last_used_at touch failed", error);
+            // Visibility metadata only — degraded, not operator-actionable.
+            log.warn("api_token last_used_at touch failed", { err: error });
           });
       }
 
       c.set("ctx", { installationId: principal.installationId });
       c.set("session", principal);
-      c.set("gateStartedAt", startedAt);
       await next();
       return;
     }
@@ -243,13 +215,13 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     // repo-existence hint.
     const cookie = getCookie(c, SESSION_COOKIE);
     if (cookie === undefined) {
-      logAccess(c, startedAt, "401", {});
+      stampAccess(c, "401", {});
       return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
     const sessionTokenHash = sha256Hex(cookie);
     const session = await sessionAuth(deps.handle).findSession(sessionTokenHash);
     if (session === undefined) {
-      logAccess(c, startedAt, "401", {});
+      stampAccess(c, "401", {});
       return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
     // `findSession` is a plain resolver (it doesn't filter on expiry), so expiry
@@ -260,13 +232,12 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     // in `repoAuthzLayer`.)
     if (session.expiresAt.getTime() <= startedAt) {
       await sessionAuth(deps.handle).deleteSession(sessionTokenHash);
-      logAccess(c, startedAt, "401", { reviewerId: session.reviewerId });
+      stampAccess(c, "401", { reviewerId: session.reviewerId });
       return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
 
     c.set("ctx", { installationId: session.installationId });
     c.set("session", { ...session, channel: AuthChannel.COOKIE });
-    c.set("gateStartedAt", startedAt);
     await next();
   };
 }
@@ -286,14 +257,13 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
   const positiveCache = createTtlCache<string>(POSITIVE_CACHE_MAX_ENTRIES);
 
   return async (c, next) => {
-    const startedAt = c.get("gateStartedAt");
     const session = c.get("session");
 
     // Tenant is the session's installation; parse+brand the repo id. An
     // ill-shaped id is a 404 (never 400 — no shape leak either).
     const repoId = parseRepoId(c.req.param("repoId"));
     if (repoId === undefined) {
-      logAccess(c, startedAt, "404", { reviewerId: session.reviewerId });
+      stampAccess(c, "404", { reviewerId: session.reviewerId });
       return c.json({ error: "not found" }, 404, NO_STORE);
     }
 
@@ -307,7 +277,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
       c.set("repoId", repoId);
       c.set("repoFullName", cachedFullName);
       await next();
-      logAccess(c, startedAt, "200", { repoId, reviewerId: session.reviewerId });
+      stampAccess(c, "200", { repoId, reviewerId: session.reviewerId });
       return;
     }
 
@@ -320,7 +290,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     );
     if (!decrypted.ok) {
       await sessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
-      logAccess(c, startedAt, "401", { repoId, reviewerId: session.reviewerId });
+      stampAccess(c, "401", { repoId, reviewerId: session.reviewerId });
       return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
 
@@ -332,10 +302,10 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     // 401 from GitHub → the ~8h access token expired. Refresh (serialized) and
     // retry the access check ONCE with the rotated token.
     if (!repo.ok && repo.error.status === 401) {
-      const refreshed = await refreshSessionToken(deps, currentSession);
+      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
       if (!refreshed.ok) {
         // The orchestrator already deleted the session on a hard failure.
-        logAccess(c, startedAt, "401", { repoId, reviewerId: currentSession.reviewerId });
+        stampAccess(c, "401", { repoId, reviewerId: currentSession.reviewerId });
         return c.json({ error: "unauthorized" }, 401, NO_STORE);
       }
       currentSession = refreshed.value.session;
@@ -355,7 +325,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
         targetId: repoId,
         metadata: { [AuditMetadataKey.DECISION]: "404" },
       });
-      logAccess(c, startedAt, "404", { repoId, reviewerId: currentSession.reviewerId });
+      stampAccess(c, "404", { repoId, reviewerId: currentSession.reviewerId });
       return c.json({ error: "not found" }, 404, NO_STORE);
     }
 
@@ -367,7 +337,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     c.set("repoFullName", repo.value.fullName);
     c.set("accessToken", accessToken);
     await next();
-    logAccess(c, startedAt, "200", { repoId, reviewerId: currentSession.reviewerId });
+    stampAccess(c, "200", { repoId, reviewerId: currentSession.reviewerId });
   };
 }
 
@@ -380,23 +350,17 @@ export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<Au
 }
 
 /**
- * Success/deny access line for a session-only composition (the list endpoint):
- * `sessionLayer` logs its own 401s BEFORE the handler; this layer, mounted
- * after it, emits the one D9 line for everything that reached the handler —
- * decision = the response status the handler actually returned.
+ * Access stamp for a session-only composition (the list endpoint):
+ * `sessionLayer` stamps its own 401s BEFORE the handler; this layer, mounted
+ * after it, stamps everything that reached the handler — decision = the
+ * response status the handler actually returned, plus the resolved reviewer
+ * id the middleware's fallback wouldn't otherwise know.
  */
-export function accessLogLayer(): MiddlewareHandler<AuthzEnv> {
+export function accessStampLayer(): MiddlewareHandler<AuthzEnv> {
   return async (c, next) => {
     await next();
-    const line: Record<string, string | number> = {
-      evt: "read",
-      method: c.req.method,
-      path: c.req.path,
-      status: c.res.status,
-      durationMs: Date.now() - c.get("gateStartedAt"),
-      decision: String(c.res.status),
-      reviewerId: String(c.get("session").reviewerId),
-    };
-    console.info(JSON.stringify(line));
+    stampAccess(c, String(c.res.status), {
+      reviewerId: c.get("session").reviewerId,
+    });
   };
 }
