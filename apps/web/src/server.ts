@@ -20,6 +20,8 @@ import { handleHealthRequest } from "./server/health";
 import { getServerLogger } from "./server/logger";
 import { checkReadiness, getWebhookApp } from "./server/webhookApp";
 
+const logger = getServerLogger();
+
 /** Start's default page/SSR + server-function handler (the framework fallthrough). */
 const handleStartRequest = createStartHandler(defaultStreamHandler);
 
@@ -64,9 +66,7 @@ const serverEntry: ServerEntry = {
       } catch (error) {
         // Composition failed (misconfig / Postgres down). Answer 503 so GitHub
         // redelivers later; never surface the underlying error to the caller.
-        getServerLogger().error("webhook app composition failed", {
-          err: error,
-        });
+        logger.error("webhook app composition failed", { err: error });
         return new Response(JSON.stringify({ error: "service unavailable" }), {
           status: 503,
           headers: { "content-type": "application/json" },

@@ -53,6 +53,7 @@ function readEnv(): NodeJS.ProcessEnv {
  */
 async function buildWebhookApp(): Promise<WebhookComposition> {
   const env = readEnv();
+  const logger = getServerLogger();
 
   const githubConfig = loadGitHubConfig(env);
   if (!githubConfig.ok) {
@@ -115,9 +116,7 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
   // a 503 /readyz, not a dead /healthz.
   const handle = createDb(databaseUrl, {
     onError: (error) =>
-      getServerLogger().warn("postgres pool error (idle client)", {
-        err: error,
-      }),
+      logger.warn("postgres pool error (idle client)", { err: error }),
   });
 
   const app = createApp({
@@ -125,7 +124,7 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     webhookSecret: githubConfig.value.webhookSecret,
     // The process logger (ADR 0034): one instance for the whole web tier;
     // the api package derives per-request children from it.
-    logger: getServerLogger(),
+    logger,
     // Draft-PR generation policy (BRIEF-64) — enforced at the enqueue path.
     draftPolicy: instancePolicy.value.draftPolicy,
     // Skew visibility (ADR 0029 #8): surfaced by GET /api/version and the

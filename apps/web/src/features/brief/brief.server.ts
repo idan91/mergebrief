@@ -27,6 +27,8 @@ import {
 } from "./validation";
 import { getServerLogger } from "../../server/logger";
 
+const logger = getServerLogger();
+
 interface FileDiffSidecar {
   file: string;
   patch: string;
@@ -87,9 +89,7 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
       try {
         brief = await readBriefFile(briefId);
       } catch (error) {
-        getServerLogger().warn(
-          `Ignoring unreadable brief ${briefId}: ${String(error)}`,
-        );
+        logger.warn(`Ignoring unreadable brief ${briefId}: ${String(error)}`);
         return null;
       }
       return {
@@ -166,14 +166,14 @@ async function readLocalRevisionChangesEntries(
         const raw = await readFile(resolve(OUT_DIR, entry), "utf8");
         parsedJson = JSON.parse(raw);
       } catch (error) {
-        getServerLogger().warn(
+        logger.warn(
           `Ignoring unreadable revision-changes sidecar ${entry}: ${String(error)}`,
         );
         return null;
       }
       const result = parseRevisionChanges(parsedJson);
       if (!result.ok) {
-        getServerLogger().warn(
+        logger.warn(
           `Ignoring invalid revision-changes sidecar ${entry}: ${result.error}`,
         );
         return null;
@@ -211,14 +211,14 @@ async function readLocalComparisonMarksEntries(
         const raw = await readFile(resolve(OUT_DIR, entry), "utf8");
         parsedJson = JSON.parse(raw);
       } catch (error) {
-        getServerLogger().warn(
+        logger.warn(
           `Ignoring unreadable comparison marks ${entry}: ${String(error)}`,
         );
         return null;
       }
       const result = parseComparisonMarksSummary(parsedJson);
       if (!result.ok) {
-        getServerLogger().warn(
+        logger.warn(
           `Ignoring invalid comparison marks ${entry}: ${result.error}`,
         );
         return null;
@@ -350,14 +350,14 @@ export async function readRevisionChanges(
   try {
     const parsed = parseRevisionChanges(JSON.parse(raw));
     if (!parsed.ok) {
-      getServerLogger().warn(
+      logger.warn(
         `Ignoring invalid revision-changes sidecar for ${briefId}: ${parsed.error}`,
       );
       return null;
     }
     return parsed.value;
   } catch (error) {
-    getServerLogger().warn(
+    logger.warn(
       `Ignoring unreadable revision-changes sidecar for ${briefId}: ${String(error)}`,
     );
     return null;
@@ -390,14 +390,14 @@ export async function readComparisonMarks(
   try {
     const parsed = parseComparisonMarks(JSON.parse(raw));
     if (!parsed.ok) {
-      getServerLogger().warn(
+      logger.warn(
         `Ignoring invalid comparison marks for ${marksId}: ${parsed.error}`,
       );
       return null;
     }
     return parsed.value;
   } catch (error) {
-    getServerLogger().warn(
+    logger.warn(
       `Ignoring unreadable comparison marks for ${marksId}: ${String(error)}`,
     );
     return null;
@@ -451,14 +451,14 @@ export async function readRevisionNarrative(
   try {
     const parsed = parseRevisionNarrativeArtifact(JSON.parse(raw));
     if (!parsed.ok) {
-      getServerLogger().warn(
+      logger.warn(
         `Ignoring invalid revision narrative for ${narrativeId}: ${parsed.error}`,
       );
       return null;
     }
     return parsed.value;
   } catch (error) {
-    getServerLogger().warn(
+    logger.warn(
       `Ignoring unreadable revision narrative for ${narrativeId}: ${String(error)}`,
     );
     return null;

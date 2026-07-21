@@ -21,6 +21,8 @@ import {
 import { createSingleFlight } from "./singleFlight";
 import { getServerLogger } from "../../server/logger";
 
+const logger = getServerLogger();
+
 const OUT_DIR = resolve(process.cwd(), "../../tools/categorizer/out");
 
 /** Load apps/web/.env if present; otherwise rely on the ambient env (mirrors the CLI's loadEnv). */
@@ -159,7 +161,7 @@ export async function generateBriefFromUrl(
     // Message-only logging (BRIEF-11 defense in depth): serializing the
     // full error object exposes the CAUSE CHAIN recursively — provider text
     // there may carry request contents. So no `err` field, message only.
-    getServerLogger().error(
+    logger.error(
       `generateBriefFromUrl: failed to fetch PR metadata — ${errorMessage(error)}`,
     );
     throw new Error(
@@ -178,7 +180,7 @@ export async function generateBriefFromUrl(
       result = await engine.generate(url);
     } catch (error) {
       if (error instanceof GeneratorConfigurationError) throw error;
-      getServerLogger().error(
+      logger.error(
         `generateBriefFromUrl: generation failed — ${errorMessage(error)}`,
       );
       throw new Error(
