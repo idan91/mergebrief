@@ -14,7 +14,7 @@
 // Part 3 cancellation hook), and releases its pool. The composition root
 // awaits `runner.promise` and releases ITS resources (the persistence pool)
 // after — see `main.ts`.
-import { run, runMigrations, type Runner, type TaskList } from "graphile-worker";
+import { run, runMigrations, type Logger as GraphileLogger, type Runner, type TaskList } from "graphile-worker";
 import { migrateApp } from "persistence";
 
 /**
@@ -30,6 +30,8 @@ export interface StartWorkerOptions {
   /** The registered tasks — the `generate` task (Part 2) in production. */
   readonly taskList: TaskList;
   readonly concurrency?: number;
+  /** graphile logger (ADR 0034: the seam adapter) — omitted = graphile's console default. */
+  readonly logger?: GraphileLogger;
 }
 
 /**
@@ -44,5 +46,6 @@ export async function startWorker(options: StartWorkerOptions): Promise<Runner> 
     connectionString: options.databaseUrl,
     concurrency: options.concurrency ?? DEFAULT_CONCURRENCY,
     taskList: options.taskList,
+    ...(options.logger === undefined ? {} : { logger: options.logger }),
   });
 }

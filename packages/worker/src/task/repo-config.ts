@@ -81,7 +81,7 @@ export async function acquireRepoConfig(
     return validateAndShape(fetched, log);
   } catch (error) {
     const name = error instanceof Error ? error.name : "unknown";
-    log(`⚠ repo config: validation crashed (${name}) — generating without repo config`);
+    log.warn(`repo config: validation crashed (${name}) — generating without repo config`);
     const files = SLOTS.map(
       (slot): RepoConfigFileOutcome =>
         fetched.overrides.get(slot.path) ??
@@ -127,7 +127,7 @@ async function fetchSlots(source: PullRequestSource, log: Logger): Promise<Fetch
         outcome: RepoConfigOutcome.FETCH_FAILED,
         detail,
       });
-      log(`⚠ repo config: ${slot.path} fetch failed (${detail}) — continuing without it`);
+      log.warn(`repo config: ${slot.path} fetch failed (${detail}) — continuing without it`);
       continue;
     }
     const file = result.value;
@@ -145,7 +145,7 @@ async function fetchSlots(source: PullRequestSource, log: Logger): Promise<Fetch
         bytesBudget: slot.cap,
         detail: "file exceeds its byte cap",
       });
-      log(`⚠ repo config: ${slot.path} over its ${slot.cap}-byte cap (${file.size} bytes) — rejected whole`);
+      log.warn(`repo config: ${slot.path} over its ${slot.cap}-byte cap (${file.size} bytes) — rejected whole`);
       continue;
     }
     inputs[slot.key] = { path: slot.path, content: file.content, blobSha: file.blobSha };
@@ -160,7 +160,7 @@ function validateAndShape(fetched: FetchedSlots, log: Logger): AcquiredRepoConfi
   );
   for (const outcome of files) {
     if (outcome.outcome === RepoConfigOutcome.INVALID) {
-      log(`⚠ repo config: ${outcome.path} invalid — ${outcome.detail ?? "rejected whole"}`);
+      log.warn(`repo config: ${outcome.path} invalid — ${outcome.detail ?? "rejected whole"}`);
     }
   }
 

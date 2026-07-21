@@ -70,6 +70,14 @@ test/                 generate.test.ts = integration via persistence/testing
   failure suppresses posting but never deletes a live comment).
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema
   (`startWorker`); the `graphile_worker` schema stays graphile-owned.
+- **Logging goes through the `packages/logging` seam** (BRIEF-51, ADR 0034):
+  `main.ts` builds the one process logger; the task takes it via
+  `GenerateTaskDeps.log` and stamps `{prId, headSha}` child bindings on every
+  job line; graphile lifecycle logs ride `createGraphileLogFactory`. The
+  first-class `evt` names minted here — `job.fail`, `job.retries.exhausted`
+  (`attempts === max_attempts`), `provider.error` — come ONLY from the ADR
+  0034 taxonomy table. Failure logs are MESSAGE-ONLY (no `err` field):
+  provider cause chains may carry request contents (BRIEF-11).
 
 ## Conventions
 

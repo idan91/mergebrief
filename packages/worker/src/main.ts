@@ -5,6 +5,8 @@
 // LOUDLY at boot, never limp into draining jobs it cannot complete.
 import { createGenerator } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
+import { Logger as GraphileLogger } from "graphile-worker";
+import { createGraphileLogFactory, createLogger } from "logging";
 import { closeDb, createDb } from "persistence";
 import { loadConfig } from "./config";
 import { appGitHubPort } from "./task/github-port";
@@ -27,9 +29,12 @@ function readEnv(): NodeJS.ProcessEnv {
   return process.env;
 }
 
-async function main(): Promise<void> {
-  const env = readEnv();
+// The process logger (ADR 0034): built once from the loaded env; everything
+// in this process — composition, task, graphile lifecycle — logs through it.
+const env = readEnv();
+const logger = createLogger({ env });
 
+async function main(): Promise<void> {
   const config = loadConfig(env);
   if (!config.ok) {
     throw new Error(
@@ -52,7 +57,7 @@ async function main(): Promise<void> {
   const generator = await createGenerator(config.value.generator, {
     env,
     failureDir: FAILURE_DUMP_DIR,
-    log: (message) => console.error(`[worker] ${message}`),
+    log: (message) => logger.info(message),
   });
   if (!generator.ok) {
     throw new Error(
@@ -60,7 +65,11 @@ async function main(): Promise<void> {
     );
   }
 
-  const handle = createDb(config.value.databaseUrl);
+  // Pool error observer (ADR 0034 #7 posture, mirrors the web tier): a DB
+  // restart surfaces as warn lines, not an unhandled-'error' process crash.
+  const handle = createDb(config.value.databaseUrl, {
+    onError: (error) => logger.warn("postgres pool error (idle client)", { err: error }),
+  });
   const configuredEffort = config.value.generator.effort;
   const generate = createGenerateTask({
     handle,
@@ -69,17 +78,20 @@ async function main(): Promise<void> {
     publicBaseUrl: config.value.publicBaseUrl,
     // Instance-config effort (BRIEF-75); absent → brief-core's medium default.
     ...(configuredEffort === undefined ? {} : { effort: configuredEffort }),
-    log: (message) => console.error(`[worker] ${message}`),
+    log: logger,
   });
 
   const runner = await startWorker({
     databaseUrl: config.value.databaseUrl,
     // helpers.abortSignal is graphile's graceful-shutdown signal — threading
     // it through lets SIGTERM abort an in-flight stream (job back to queue)
-    // instead of riding out the kill grace into a stuck job lock.
+    // instead of riding out the kill grace into a stuck job lock. helpers.job
+    // carries the attempt counts the failure events read.
     taskList: { generate: (payload, helpers) => generate(payload, helpers) },
+    // graphile's lifecycle logs (jobId/workerId scope) flow through the seam.
+    logger: new GraphileLogger(createGraphileLogFactory(logger)),
   });
-  console.error("worker: listening for generate jobs");
+  logger.info("worker: listening for generate jobs");
 
   try {
     // Runs until a signal stops it; graphile owns the graceful part (stop
@@ -88,10 +100,12 @@ async function main(): Promise<void> {
   } finally {
     await closeDb(handle);
   }
-  console.error("worker: stopped");
+  logger.info("worker: stopped");
 }
 
 main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : String(error));
+  // Message-only (the BRIEF-11 rule): a boot failure's cause chain may carry
+  // provider or config detail that doesn't belong on one log line.
+  logger.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

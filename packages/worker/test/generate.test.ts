@@ -27,7 +27,8 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { APIConnectionError } from "@anthropic-ai/sdk";
 import type { z } from "zod/v4";
-import type { Effort, GenerateRequest, Generator } from "generators";
+import { GeneratorError, GeneratorErrorKind, type Effort, type GenerateRequest, type Generator } from "generators";
+import { createLogger } from "logging";
 import type { Result } from "types";
 import {
   CUSTOM_ATTRIBUTE_NAME_PATTERN,
@@ -461,7 +462,10 @@ describe("generate task", () => {
       publicBaseUrl: PUBLIC_URL,
       generator: stubGenerator(),
       github,
-      log: (message) => logs.push(message),
+      log: createLogger({
+        env: {},
+        destination: { write: (line: string) => void logs.push(line) },
+      }),
     });
 
     await task(payload);
@@ -492,7 +496,10 @@ describe("generate task", () => {
       publicBaseUrl: PUBLIC_URL,
       generator: stubGenerator(),
       github,
-      log: (message) => logs.push(message),
+      log: createLogger({
+        env: {},
+        destination: { write: (line: string) => void logs.push(line) },
+      }),
     });
 
     await task(payload);
@@ -1379,5 +1386,177 @@ describe("generate task — entry-comment draft gate", () => {
     const again = await trigger(HEAD_1);
     await task(again.payload); // skip drain, non-draft: no config fetch
     expect(github.repoFileCalls.length).toBe(fetchesAfterFirst);
+  });
+});
+
+function captureLogger() {
+  const written: string[] = [];
+  const logger = createLogger({
+    env: {},
+    destination: { write: (line: string) => void written.push(line) },
+  });
+  const lines = (): Array<Record<string, unknown>> =>
+    written.map((line) => {
+      const parsed: unknown = JSON.parse(line);
+      if (typeof parsed !== "object" || parsed === null) {
+        throw new Error(`expected NDJSON object: ${line}`);
+      }
+      return { ...parsed };
+    });
+  return { logger, lines };
+}
+
+describe("generate task — observability (BRIEF-51, ADR 0034)", () => {
+  it("a transient failure emits job.fail (permanent: false) with attempt counts and job bindings", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.fetchPullRequestError = {
+      code: "request-failed",
+      status: 502,
+      message: "failed to fetch pull request: GitHub API returned status 502",
+    };
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      log: logger,
+    });
+
+    await expect(
+      task(payload, { job: { attempts: 1, max_attempts: 25 } }),
+    ).rejects.toThrow("502");
+
+    const fail = lines().find((l) => l["evt"] === "job.fail");
+    expect(fail?.["level"]).toBe("error");
+    expect(fail?.["permanent"]).toBe(false);
+    expect(fail?.["attempt"]).toBe(1);
+    expect(fail?.["maxAttempts"]).toBe(25);
+    expect(fail?.["prId"]).toBe(String(pr.id));
+    expect(fail?.["headSha"]).toBe(HEAD_1);
+    expect(lines().some((l) => l["evt"] === "job.retries.exhausted")).toBe(false);
+  });
+
+  it("a permanent failure emits job.fail (permanent: true) without rethrowing", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.fetchPullRequestError = {
+      code: "not-found",
+      status: 404,
+      message: "failed to fetch pull request: GitHub API returned status 404",
+    };
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      log: logger,
+    });
+
+    await expect(task(payload, { job: { attempts: 1, max_attempts: 25 } })).resolves.toBeUndefined();
+
+    const fail = lines().find((l) => l["evt"] === "job.fail");
+    expect(fail?.["permanent"]).toBe(true);
+  });
+
+  it("mints job.retries.exhausted on the final attempt", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    github.fetchPullRequestError = {
+      code: "request-failed",
+      status: 502,
+      message: "failed to fetch pull request: GitHub API returned status 502",
+    };
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      log: logger,
+    });
+
+    await expect(
+      task(payload, { job: { attempts: 25, max_attempts: 25 } }),
+    ).rejects.toThrow("502");
+
+    const exhausted = lines().find((l) => l["evt"] === "job.retries.exhausted");
+    expect(exhausted?.["level"]).toBe("error");
+    expect(exhausted?.["attempt"]).toBe(25);
+    expect(exhausted?.["prId"]).toBe(String(pr.id));
+    expect(exhausted?.["headSha"]).toBe(HEAD_1);
+  });
+
+  it("a provider-call failure emits provider.error with provider and status", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    const throwing: Generator = {
+      async generate(): Promise<never> {
+        throw Object.assign(new Error("rate limited"), { status: 429 });
+      },
+      provenance: (effort: Effort) => ({ provider: "stub", model: "stub-model", effort }),
+    };
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
+      generator: throwing,
+      github,
+      log: logger,
+    });
+
+    await expect(task(payload, { job: { attempts: 1, max_attempts: 25 } })).rejects.toThrow(
+      "rate limited",
+    );
+
+    const provider = lines().find((l) => l["evt"] === "provider.error");
+    expect(provider?.["level"]).toBe("error");
+    expect(provider?.["provider"]).toBe("stub");
+    expect(provider?.["status"]).toBe(429);
+    expect(provider?.["headSha"]).toBe(HEAD_1);
+    expect(lines().some((l) => l["evt"] === "job.fail")).toBe(true);
+  });
+
+  it("a GeneratorError emits provider.error with its kind", async () => {
+    const { payload } = await trigger(HEAD_1);
+    const github = stubGitHub(HEAD_1);
+    const throwing: Generator = {
+      async generate(): Promise<never> {
+        throw new GeneratorError(GeneratorErrorKind.AUTH, "provider rejected the key");
+      },
+      provenance: (effort: Effort) => ({ provider: "stub", model: "stub-model", effort }),
+    };
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
+      generator: throwing,
+      github,
+      log: logger,
+    });
+
+    await expect(task(payload)).resolves.toBeUndefined();
+
+    const provider = lines().find((l) => l["evt"] === "provider.error");
+    expect(provider?.["provider"]).toBe("stub");
+    expect(provider?.["kind"]).toBe("auth");
+    const fail = lines().find((l) => l["evt"] === "job.fail");
+    expect(fail?.["permanent"]).toBe(true);
+  });
+
+  it("success-path lines ride the {prId, headSha} bindings", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle, publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github: stubGitHub(HEAD_1),
+      log: logger,
+    });
+
+    await task(payload);
+
+    const succeeded = lines().find(
+      (l) => typeof l["msg"] === "string" && l["msg"].includes("succeeded"),
+    );
+    expect(succeeded?.["prId"]).toBe(String(pr.id));
+    expect(succeeded?.["headSha"]).toBe(HEAD_1);
   });
 });

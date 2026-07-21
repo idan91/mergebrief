@@ -74,6 +74,7 @@ import {
   type GitHubPort,
   type PullRequestSource,
 } from "./github-port";
+import type { Logger } from "logging";
 import { parseGeneratePayload, type ParsedGeneratePayload } from "./payload";
 import { RepoConfigOutcome, RepoConfigPaths } from "repo-config";
 import {
@@ -82,7 +83,12 @@ import {
   buildRepoConfigProvenance,
 } from "./repo-config";
 
-export type Logger = (message: string) => void;
+// The structured seam (packages/logging, ADR 0034) — re-exported for the
+// worker's internal modules (repo-config) and `lib.ts`.
+export type { Logger };
+
+/** The message-only log shape brief-core and the generators contract take. */
+type CoreLog = (message: string) => void;
 
 export interface GenerateTaskDeps {
   readonly handle: AppDatabase;
@@ -274,6 +280,17 @@ function briefTarget(payload: ParsedGeneratePayload): GenerationTarget {
  */
 export interface GenerateTaskHelpers {
   readonly abortSignal?: AbortSignal;
+  /**
+   * The slice of graphile's `Job` row the failure events read (snake_case —
+   * graphile's own column shape rides through structurally). `attempts`
+   * INCLUDES the in-flight attempt; `job.retries.exhausted` is minted at
+   * `attempts === max_attempts` (ADR 0034 #5 — graphile has no distinct
+   * exhausted event).
+   */
+  readonly job?: {
+    readonly attempts: number;
+    readonly max_attempts: number;
+  };
 }
 
 /**
@@ -283,7 +300,7 @@ export interface GenerateTaskHelpers {
 export function createGenerateTask(
   deps: GenerateTaskDeps,
 ): (payload: unknown, helpers?: GenerateTaskHelpers) => Promise<void> {
-  const log = deps.log ?? (() => {});
+  const log = deps.log ?? noopLogger();
 
   return async function generate(
     rawPayload: unknown,
@@ -292,20 +309,27 @@ export function createGenerateTask(
     const parsed = parseGeneratePayload(rawPayload);
     if (!parsed.ok) {
       // Poisoned/foreign job: no projection row is addressable — drop it.
-      log(`generate: dropping malformed payload — ${parsed.error}`);
+      log.warn(`generate: dropping malformed payload — ${parsed.error}`);
       return;
     }
     const payload = parsed.value;
+    // The pipeline's correlation key (ADR 0034 #6): {prId, headSha} on every
+    // job line — the durable join to the webhook leg (deliveries coalesce,
+    // so no delivery id owns a job; the payload grows NO correlation fields).
+    const jobLog = log.child({
+      prId: String(payload.pullRequestId),
+      headSha: payload.headSha,
+    });
     const projection = generationProjection(deps.handle, payload.ctx);
     const target = briefTarget(payload);
 
     try {
-      await runGeneration(deps, payload, target, helpers?.abortSignal, log);
+      await runGeneration(deps, payload, target, helpers?.abortSignal, jobLog);
     } catch (error) {
       if (error instanceof SupersededSignal) {
         // Not a failure: terminal `superseded`, attempts untouched, no retry.
         await projection.markSuperseded(target);
-        log(`generate: superseded (${error.message})`);
+        jobLog.info(`generate: superseded (${error.message})`);
         return;
       }
       if (helpers?.abortSignal?.aborted === true) {
@@ -313,20 +337,90 @@ export function createGenerateTask(
         // (the head didn't move) and NOT a failure (nothing is wrong with the
         // job): leave the projection as-is and rethrow so graphile returns
         // the job to the queue for the next worker.
-        log("generate: aborted by shutdown — job returns to the queue");
+        jobLog.info("generate: aborted by shutdown — job returns to the queue");
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
       await projection.markFailed(target, message);
-      if (error instanceof PermanentJobError) {
+      emitProviderError(jobLog, deps, error);
+      const permanent = error instanceof PermanentJobError;
+      const attempt = helpers?.job?.attempts;
+      const maxAttempts = helpers?.job?.max_attempts;
+      // Message-only (BRIEF-11 defense in depth): no `err` field — provider
+      // cause chains may carry request contents.
+      jobLog.error(
+        permanent
+          ? `generate: permanent failure — ${message}`
+          : `generate: failed (${message}) — handing to graphile for retry`,
+        {
+          evt: "job.fail",
+          permanent,
+          ...(attempt === undefined ? {} : { attempt }),
+          ...(maxAttempts === undefined ? {} : { maxAttempts }),
+        },
+      );
+      if (attempt !== undefined && maxAttempts !== undefined && attempt >= maxAttempts) {
+        // THE worker alert (ADR 0034 #5): graphile is out of retries for
+        // this job — minted here because graphile has no distinct event.
+        jobLog.error("generate: retries exhausted", {
+          evt: "job.retries.exhausted",
+          attempt,
+        });
+      }
+      if (permanent) {
         // markFailed already recorded it; a graphile retry cannot help.
-        log(`generate: permanent failure — ${message}`);
         return;
       }
-      log(`generate: failed (${message}) — handing to graphile for retry`);
       throw error;
     }
   };
+}
+
+/** Inert seam logger for direct test invocations that pass no `log`. */
+function noopLogger(): Logger {
+  const inert: Logger = {
+    error: () => {},
+    warn: () => {},
+    info: () => {},
+    debug: () => {},
+    child: () => inert,
+  };
+  return inert;
+}
+
+/**
+ * `provider.error` (ADR 0034 #5): emitted when the failure is a provider
+ * call gone wrong — a `GeneratorError` (the adapters' own classification),
+ * the SDK's connection error, or any error carrying a numeric HTTP status.
+ * 401/403 = credentials/config broken (alert now); sustained 429/5xx =
+ * provider degraded. Message-only posture: fields carry classification,
+ * never the raw error object.
+ */
+function emitProviderError(log: Logger, deps: GenerateTaskDeps, thrown: unknown): void {
+  // A permanent classification wraps the original throw — read through it.
+  const error =
+    thrown instanceof PermanentJobError && thrown.cause !== undefined
+      ? thrown.cause
+      : thrown;
+  const status =
+    typeof error === "object" && error !== null
+      ? Reflect.get(error, "status")
+      : undefined;
+  const isProviderFailure =
+    error instanceof GeneratorError ||
+    error instanceof APIConnectionError ||
+    typeof status === "number";
+  if (!isProviderFailure) {
+    return;
+  }
+  // provenance() is pure metadata; any effort yields the same provider name.
+  const provider = deps.generator.provenance(deps.effort ?? "medium").provider;
+  log.error(error instanceof Error ? error.message : String(error), {
+    evt: "provider.error",
+    provider,
+    ...(typeof status === "number" ? { status } : {}),
+    ...(error instanceof GeneratorError ? { kind: error.kind } : {}),
+  });
 }
 
 /** Control-flow signal: the job's head is no longer the PR's head. */
@@ -348,7 +442,7 @@ async function runGeneration(
   const pr = await repo.pullRequests.getById(pullRequestId);
   if (pr === undefined) {
     // Row purged/never existed: nothing addressable, nothing to mark.
-    log(`generate: pull_request ${pullRequestId} not in tenant — dropping job`);
+    log.warn(`generate: pull_request ${pullRequestId} not in tenant — dropping job`);
     return;
   }
   if (pr.state === PrState.CLOSED || pr.state === PrState.MERGED) {
@@ -426,7 +520,8 @@ async function runGeneration(
     commitCount: info.commitCount,
     files,
   };
-  const links = await fetchLinkedContext(meta.body, log);
+  const coreLog: CoreLog = (message) => log.info(message);
+  const links = await fetchLinkedContext(meta.body, coreLog);
 
   // ---- The shared Brief (skip-if-exists: retries never re-spend) ----------
   const priorBriefs = await store.briefs.listForPullRequest(pullRequestId);
@@ -466,7 +561,7 @@ async function runGeneration(
   const entryCommentAllowed =
     !info.draft || repoConfig?.settings?.entryCommentOnDrafts === true;
   if (!entryCommentAllowed) {
-    log("generate: entry comment suppressed — draft PR without entryCommentOnDrafts");
+    log.info("generate: entry comment suppressed — draft PR without entryCommentOnDrafts");
     // Suppression means OFF, not "leave whatever is there": a comment posted
     // before the PR converted to draft (possibly a stale "Generating…" from
     // a superseded run) must not linger through the draft phase (Fable r1).
@@ -499,7 +594,7 @@ async function runGeneration(
         headIndex,
         { base: info.baseSha, head: headSha, commitCount: info.commitCount },
         generator,
-        log,
+        coreLog,
         repoConfig?.repoContext,
         deps.effort,
       ),
@@ -531,7 +626,7 @@ async function runGeneration(
       metadata: { [AuditMetadataKey.KIND]: GenerationKind.BRIEF },
     });
   } else {
-    log(`generate: brief for ${headSha.slice(0, 8)} already stored — skipping generation`);
+    log.info(`generate: brief for ${headSha.slice(0, 8)} already stored — skipping generation`);
     briefRef = { id: existing.id, headIndex: existing.headIndex };
     // Retry-resume: if a prior attempt wrote the brief but died before the
     // narrative, recover the Brief object from the stored body so the
@@ -623,9 +718,9 @@ async function runGeneration(
   // terminal-superseded applies to them the same as to a drained abort).
   const swept = await projection.supersedeStaleBriefs(pullRequestId, headSha);
   if (swept > 0) {
-    log(`generate: swept ${swept} stale queued brief projection(s)`);
+    log.info(`generate: swept ${swept} stale queued brief projection(s)`);
   }
-  log(`generate: succeeded for ${prRow.prNumber}@${headSha.slice(0, 8)}`);
+  log.info(`generate: succeeded for ${prRow.prNumber}@${headSha.slice(0, 8)}`);
   }
 
   /** The exact-span link both Entry comment bodies point at. */
@@ -650,13 +745,13 @@ async function runGeneration(
     }
     const deleted = await source.deleteComment(liveEntryCommentId);
     if (!deleted.ok) {
-      log(`generate: stale entry comment delete failed (job unaffected) — ${deleted.error.message}`);
+      log.warn(`generate: stale entry comment delete failed (job unaffected) — ${deleted.error.message}`);
       return;
     }
     liveEntryCommentId = null;
     const cleared = await repo.pullRequests.setEntryComment(pullRequestId, null);
     if (!cleared.ok) {
-      log(`generate: entry comment id not cleared (job unaffected) — ${cleared.error.message}`);
+      log.warn(`generate: entry comment id not cleared (job unaffected) — ${cleared.error.message}`);
     }
   }
 
@@ -675,7 +770,7 @@ async function runGeneration(
       if (!deleted.ok) {
         // Skip the repost: posting past a live comment we failed to delete
         // would leave two. The stored id survives for the next run's retry.
-        log(`generate: entry comment delete failed (job unaffected) — ${deleted.error.message}`);
+        log.warn(`generate: entry comment delete failed (job unaffected) — ${deleted.error.message}`);
         return;
       }
       liveEntryCommentId = null;
@@ -684,18 +779,18 @@ async function runGeneration(
     if (!posted.ok) {
       // The old comment is gone and the stored id now dangles; the next
       // refresh's 404-tolerant delete self-heals before reposting.
-      log(`generate: entry comment post failed (job unaffected) — ${posted.error.message}`);
+      log.warn(`generate: entry comment post failed (job unaffected) — ${posted.error.message}`);
       return;
     }
     const stored = await repo.pullRequests.setEntryComment(pullRequestId, posted.value.commentId);
     if (!stored.ok) {
-      log(`generate: entry comment id not stored (job unaffected) — ${stored.error.message}`);
+      log.warn(`generate: entry comment id not stored (job unaffected) — ${stored.error.message}`);
       // The new comment is untracked: a later run would delete only the OLD
       // stored id and post again, leaving this one behind — two comments.
       // Best-effort delete restores the ONE-comment invariant now.
       const cleanup = await source.deleteComment(posted.value.commentId);
       if (!cleanup.ok) {
-        log(
+        log.warn(
           `generate: untracked entry comment ${posted.value.commentId} not deleted — ${cleanup.error.message}`,
         );
       }
@@ -733,10 +828,10 @@ function recoverBrief(body: string, log: Logger): Brief | undefined {
     if (isBrief(parsed)) {
       return parsed;
     }
-    log("generate: stored brief body has an unexpected shape — narrative skipped");
+    log.warn("generate: stored brief body has an unexpected shape — narrative skipped");
     return undefined;
   } catch {
-    log("generate: stored brief body is not valid JSON — narrative skipped");
+    log.warn("generate: stored brief body is not valid JSON — narrative skipped");
     return undefined;
   }
 }
@@ -762,7 +857,11 @@ async function runGenerator<T>(call: () => Promise<T>): Promise<T> {
     if (isTransientGenerationError(error)) {
       throw error instanceof Error ? error : new Error(String(error));
     }
-    throw new PermanentJobError(error instanceof Error ? error.message : String(error));
+    // Preserve the original as `cause`: the provider.error event reads the
+    // classification (GeneratorError kind / HTTP status) off it.
+    throw new PermanentJobError(error instanceof Error ? error.message : String(error), {
+      cause: error,
+    });
   }
 }
 
@@ -859,7 +958,7 @@ async function writeRevisionArtifacts(
   }
   if (isHugeSpan(countChangedLines(revDiff), inputs.wholePrChangedLines)) {
     await writeNarrative(JSON.stringify(skipStub("span too large")), generatedBrief.generation);
-    log("generate: revision span too large; wrote skip stub");
+    log.info("generate: revision span too large; wrote skip stub");
     return;
   }
 
@@ -882,7 +981,7 @@ async function writeRevisionArtifacts(
         marksFiles: marks.files,
       },
       inputs.generator,
-      log,
+      (message) => log.info(message),
       inputs.effort,
     );
     await writeNarrative(JSON.stringify(narrative), narrative.generation);
@@ -891,7 +990,7 @@ async function writeRevisionArtifacts(
       // A mid-stream abort is a supersession, not a narrative failure.
       throw error;
     }
-    log(
+    log.warn(
       `generate: revision narrative failed (Brief unaffected): ${
         error instanceof Error ? error.message : String(error)
       }`,
@@ -960,7 +1059,7 @@ async function warmDeltaCores(
         if (isPermanentGitHubError(spanDiff.error)) {
           // A single unrenderable/GC'd span must not sink the whole job (the
           // brief is already stored); the view falls back to the full Brief.
-          log(`generate: delta span ${baselineSha.slice(0, 8)} unavailable — skipping`);
+          log.warn(`generate: delta span ${baselineSha.slice(0, 8)} unavailable — skipping`);
           continue;
         }
         throw new Error(spanDiff.error.message);
@@ -985,7 +1084,7 @@ async function warmDeltaCores(
     }
 
     if (isHugeSpan(countChangedLines(incrementalDiff), inputs.wholePrChangedLines)) {
-      log(`generate: delta span ${baselineSha.slice(0, 8)} is huge — full-brief fallback`);
+      log.info(`generate: delta span ${baselineSha.slice(0, 8)} is huge — full-brief fallback`);
       continue;
     }
 
@@ -1004,7 +1103,7 @@ async function warmDeltaCores(
     await inputs.watch.assertCurrent();
     // eslint-disable-next-line no-await-in-loop
     const delta = await runGenerator(() =>
-      categorizeDelta(deltaInput, inputs.generator, log, inputs.effort),
+      categorizeDelta(deltaInput, inputs.generator, (message) => log.info(message), inputs.effort),
     );
     // eslint-disable-next-line no-await-in-loop
     const written = await store.deltas.write({

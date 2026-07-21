@@ -392,6 +392,9 @@ importers:
       graphile-worker:
         specifier: ^0.16.6
         version: 0.16.6(typescript@5.9.3)
+      logging:
+        specifier: workspace:*
+        version: link:../logging
       persistence:
         specifier: workspace:*
         version: link:../persistence
