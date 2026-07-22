@@ -191,6 +191,12 @@ Intent check vocabulary in `CONTEXT.md`, possibly a new ADR) before any code.
 
 The OSS-native hook CodeRabbit structurally can't match (closed).
 
+> **Update (2026-07-23, BRIEF-6 — ADR 0035):** the playbook *layer* is parked to v2
+> (nothing consumed it; junior case rejected; prompt-side agent consumption ruled out
+> as bias risk). The commons retargets to the **taxonomy + risk-surface vocabulary**
+> the engine consumes; `CONTRIBUTING.md` rewritten accordingly. Governance grill
+> retargeted to token changes (successor ticket), still launch-blocking before BRIEF-38.
+
 - Document the **taxonomy + playbook schema**; add a `CONTRIBUTING` for playbooks with
   examples; frame it as the contribution surface ("ESLint-rules for code-review comprehension").
 

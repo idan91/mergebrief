@@ -24,7 +24,7 @@ A **Chunk** = a contiguous run of changed lines sharing one Concern and one Chan
 
 ## 1. Category — intent (attaches to Change-group)
 
-Closed set; expand deliberately. "Playbook" = status in `playbooks.md`.
+Closed set; expand deliberately. "Playbook" = status in `playbooks.md` (layer **parked to v2** — ADR 0035; column kept as the seed index).
 
 | Token | One-line gloss | Playbook |
 |---|---|---|
@@ -116,7 +116,7 @@ This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diff
 ## 7. Special tokens & expansion protocol
 
 - **`uncertain`** — valid output when confidence is below threshold on Category or a flag. Don't force a token; mark uncertain and move on.
-- **Expansion:** to add a Category / Concern / Risk-Surface attribute, register it *here first* (with status), then draft its playbook (`playbooks.md`) or detail (`risk-surface.md`). Never invent a token inline in a brief.
+- **Expansion:** to add a Category / Concern / Risk-Surface attribute, register it *here first* (with status), then draft its detail (`risk-surface.md`); playbook drafting is parked with the playbook layer (ADR 0035). Never invent a token inline in a brief.
 - **Deprecation:** drop a token here if it never fires across 10+ PRs or always co-fires with another (redundant) — and update the deep files.
 
 ---
@@ -124,6 +124,6 @@ This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diff
 ## Status
 
 - Stable axes: Concern, Role, Risk Surface (starter set), LoC rules, boundary rule.
-- Category: all 8 have playbooks (backfilled 2026-07-04 to match the shipped FE set).
+- Category: all 8 have playbooks (backfilled 2026-07-04; layer parked to v2 per ADR 0035).
 - Concern checks: all 5 supporting Concerns covered (`test`, `doc`, `spec`, `config`, `generated`).
-- Contribution rules for tokens, playbooks, and risk attributes: repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
+- Contribution rules for tokens and risk attributes: repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).

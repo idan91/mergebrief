@@ -13,6 +13,12 @@ Comprehension scaffolding for human reviewers of pull requests. Not another revi
 
 > **Emphasis note (2026-06-13 reshape):** the *terms* below are still valid, but their product weight changed — see `docs/mvp/center-of-gravity.md` for the current center of gravity (story + risk-surface + delta; velocity-through-quality). In short: **Playbook** is demoted (agent-facing + optional junior UI, not a human headline); **Mind-Map Space** shrinks to persistence only (the "thinking space" framing is cut); the **Analysis Layer** is the engine, not the moat. This file describes vocabulary, not priority.
 
+> **Park note (2026-07-23, BRIEF-6 — ADR 0035):** the **Playbook** layer is parked to
+> v2 entirely; no product code consumes it and the FE/product mentions were removed.
+> Entries below that mention playbooks attached to Briefs, groups, or Flags describe
+> the *parked design*, not v1 behavior. Any revival is bound to ADR 0035's rubric
+> identity (post-hoc coverage measurement; never prompt material).
+
 ## Language
 
 **Brief**:
@@ -106,7 +112,7 @@ Added/deleted line counts. Shown non-prominently (corner) per Category in the St
 _Avoid_: diff size, churn, lines-changed-as-quality-metric, raw LoC (as the default display)
 
 **Playbook**:
-A templated, domain-rule checklist of items to verify for a given category. Not AI-generated hypotheses — known engineering checklists per change type. Example for `lib-bump`: "verify breaking changes from changelog, all call sites updated."
+A templated, domain-rule checklist of items to verify for a given category. Not AI-generated hypotheses — known engineering checklists per change type. Example for `lib-bump`: "verify breaking changes from changelog, all call sites updated." **Parked to v2 (ADR 0035):** no v1 surface renders or consumes playbooks; if revived, the identity is a *coverage rubric* — post-hoc measurement of a finished review (check-off frozen into Receipts, or grading an agent's review), never prompt material for reviewers or agents.
 _Avoid_: checklist, rules, review template
 
 **Risk Surface**:
@@ -114,7 +120,7 @@ The set of factual attributes attached to a chunk. Attributes only — never ver
 _Avoid_: critical area, hot spot, risky code, severity tag
 
 **Flag**:
-A single AI-surfaced item from the brief that requires reviewer attention — either a risk-surface attribute on a specific hunk, or a playbook item that hasn't been visited.
+A single AI-surfaced item from the brief that requires reviewer attention. In v1 this means a risk-surface attribute on a specific hunk; unvisited-playbook-item flags are parked with the playbook layer (ADR 0035).
 _Avoid_: issue, warning, finding
 
 **Disposition**:

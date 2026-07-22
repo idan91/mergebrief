@@ -1,5 +1,12 @@
 # Playbook Library
 
+> **PARKED to v2 (2026-07-23, BRIEF-6 — see ADR 0035).** Nothing in the product
+> consumes this library; all code mentions were removed. The file is kept as the v2
+> seed. No new items are accepted while parked. Any revival is bound by ADR 0035's
+> rubric identity: playbooks are a **coverage rubric** (post-hoc measurement of
+> finished reviews — human check-off or agent-review grading), and items are
+> **never injected into generation prompts or agent system prompts**.
+
 Templated review checklists per **Category** (see `CONTEXT.md`). Items are action-shaped, mechanically checkable, category-specific, and grounded in known failure modes for that change type. Not AI hypotheses — engineering rules.
 
 This file is the source of truth. A Change-group's dominant **Category** pulls its items here. Supporting chunks pull from the **Concern checks** section at the bottom (keyed on Concern, e.g. `test`), not from a Category — see ADR 0005 for why intent lives on the group and `test`/`config`/`generated` are Concerns, not Categories.
