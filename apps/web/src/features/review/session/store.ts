@@ -1,15 +1,10 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 
-import type { Category, Concern } from "../../brief/types";
+import type { Category } from "../../brief/types";
 import type { BriefViewModel } from "../../brief/viewModel";
 import type { CommentAnchor, ReviewComment } from "../comments";
 import type { ReviewOutcome, RiskEvidence } from "../state";
 import type { BulkDisposition, Disposition } from "./disposition";
-
-/**
- * @description Playbook progress bucket: one per carrier group, or per support concern.
- */
-export type CheckBucket = `carrier:${string}` | `support:${string}:${Concern}`;
 
 /**
  * @description Session/domain state of the Mind-Map Space — the shared, persisted half.
@@ -23,7 +18,6 @@ export interface MindMapState {
   dominants: Record<string, Category>;
   reclassifiedGroups: Set<string>;
   reviewedChunks: Set<string>;
-  checkedItems: Record<CheckBucket, Set<number>>;
   reviewComments: ReviewComment[];
   reviewOutcome: ReviewOutcome;
   /**
@@ -54,10 +48,9 @@ export interface MindMapActions {
    */
   addressFlags(evidenceByFlagId: ReadonlyMap<string, RiskEvidence>): void;
   /**
-   * @description Sets the dominant category, marks the group reclassified, and resets carrier checks.
+   * @description Sets the dominant category and marks the group reclassified.
    */
   reclassifyGroup(groupId: string, category: Category): void;
-  checkPlaybookItem(bucket: CheckBucket, index: number): void;
   saveComment(comment: Omit<ReviewComment, "id">): void;
   updateComment(id: string, body: string): void;
   deleteComment(id: string): void;
@@ -132,7 +125,6 @@ export function deriveInitialState(model: BriefViewModel): MindMapState {
     dominants,
     reclassifiedGroups: new Set(),
     reviewedChunks: new Set(),
-    checkedItems: {},
     reviewComments: [],
     reviewOutcome: "comment",
     submittedReviewIds: [],
@@ -176,18 +168,6 @@ export function createMindMapStore(initial: MindMapState): MindMapStore {
         set((state) => ({
           dominants: { ...state.dominants, [groupId]: category },
           reclassifiedGroups: new Set(state.reclassifiedGroups).add(groupId),
-          checkedItems: {
-            ...state.checkedItems,
-            [`carrier:${groupId}`]: new Set<number>(),
-          },
-        }));
-      },
-      checkPlaybookItem(bucket, index) {
-        set((state) => ({
-          checkedItems: {
-            ...state.checkedItems,
-            [bucket]: toggle(state.checkedItems[bucket] ?? new Set(), index),
-          },
         }));
       },
       saveComment(comment) {

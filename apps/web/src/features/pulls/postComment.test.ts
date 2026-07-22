@@ -135,7 +135,6 @@ function persistedSnapshot(
     dominants: {},
     reclassifiedGroupIds: [],
     reviewedChunkIds: [],
-    checkedItems: {},
     reviewComments: comments,
     reviewOutcome: "comment",
     submittedReviewIds: [],

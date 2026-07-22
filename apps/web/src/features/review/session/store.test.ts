@@ -81,14 +81,11 @@ describe("addressFlags", () => {
 });
 
 describe("reclassifyGroup", () => {
-  it("sets the dominant, marks reclassified, and resets the group's carrier checks", () => {
+  it("sets the dominant and marks the group reclassified", () => {
     const store = freshStore();
-    store.getState().actions.checkPlaybookItem("carrier:g1", 2);
-    expect(store.getState().checkedItems["carrier:g1"]?.has(2)).toBe(true);
     store.getState().actions.reclassifyGroup("g1", "logic-refactor");
     expect(store.getState().dominants["g1"]).toBe("logic-refactor");
     expect(store.getState().reclassifiedGroups.has("g1")).toBe(true);
-    expect(store.getState().checkedItems["carrier:g1"]?.size).toBe(0);
   });
 });
 
@@ -197,7 +194,6 @@ describe("snapshot round-trip", () => {
     const store = freshStore();
     const actions = store.getState().actions;
     actions.reviewChunk("chunk-a");
-    actions.checkPlaybookItem("carrier:g1", 1);
     actions.disposeFlag([flagId], { kind: "dismissed", reason: "n/a here" });
     actions.reclassifyGroup("g1", "logic-refactor");
     actions.setOutcome("request-changes");
@@ -208,8 +204,6 @@ describe("snapshot round-trip", () => {
 
     const restored: MindMapState = snapshotToState(snapshot);
     expect(restored.reviewedChunks.has("chunk-a")).toBe(true);
-    // carrier:g1 was reset by the reclassify after the check.
-    expect(restored.checkedItems["carrier:g1"]?.size).toBe(0);
     expect(restored.dispositions[flagId]).toEqual({
       kind: "dismissed",
       reason: "n/a here",

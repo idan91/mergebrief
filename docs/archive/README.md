@@ -25,6 +25,11 @@ The live sources of truth are:
 - **`validation-todo.md`** — the former `docs/todo.md`, a checklist dominated by the Phase 1–3
   validation protocol. Retired with the validation track.
 
+- **`playbook-fe-condensed-items.md`** — different vintage: the FE's condensed playbook
+  item strings, frozen when the playbook layer was parked to v2 and its code removed
+  (BRIEF-6 / ADR 0035, 2026-07). Reference copy only; the source of truth remains
+  `../mvp/playbooks.md` (parked in place).
+
 > The product/domain thinking under `docs/mvp/` (labeling schema, risk surface, playbook
 > library, center-of-gravity) is **not** archived — it carries forward. Only the parts tied to
 > the *validation experiment* and *commercial go-to-market* are dead; those files now carry a

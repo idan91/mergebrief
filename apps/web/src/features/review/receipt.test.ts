@@ -16,7 +16,6 @@ function snapshot(overrides: Partial<SessionSnapshot> = {}): SessionSnapshot {
     dominants: { g1: "bugfix" },
     reclassifiedGroupIds: [],
     reviewedChunkIds: [],
-    checkedItems: {},
     reviewComments: [],
     reviewOutcome: "comment",
     ...overrides,

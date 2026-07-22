@@ -40,7 +40,6 @@ function snapshot(comments: ReviewComment[]): SessionSnapshot {
     dominants: {},
     reclassifiedGroupIds: [],
     reviewedChunkIds: [],
-    checkedItems: {},
     reviewComments: comments,
     reviewOutcome: "approve",
   };

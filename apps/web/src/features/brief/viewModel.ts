@@ -1,4 +1,3 @@
-import { CONCERN_CHECKS } from "./playbooks";
 import {
   attributeDisplayMeta,
   floorFirst,
@@ -41,7 +40,6 @@ export interface GroupView {
   supportingChunks: BriefChunk[];
   added: number;
   deleted: number;
-  supportConcerns: Concern[];
   headerRisk: GroupHeaderRisk;
   /** 1-based position in the Brief's Reading order; unset without a valid one. */
   readingOrderStep?: number;
@@ -134,7 +132,7 @@ const CONCERN_ORDER: Concern[] = [
   Concerns.Generated,
 ];
 
-/** Description for a token: the built-in playbook line, or the repo's criteria. */
+/** Description for a token: the built-in reviewer-implication line, or the repo's criteria. */
 export function riskDescription(
   attr: RiskToken,
   meta: AttributeDisplayMeta,
@@ -186,7 +184,6 @@ export function buildBriefViewModel(
     const supportingChunks = sortByConcern(
       groupChunks.filter((chunk) => chunk.role === Roles.Supporting),
     );
-    const supportConcerns = uniqueConcerns(supportingChunks);
 
     return {
       id,
@@ -197,7 +194,6 @@ export function buildBriefViewModel(
       supportingChunks,
       added: sumLoc(groupChunks, "added"),
       deleted: sumLoc(groupChunks, "deleted"),
-      supportConcerns,
       headerRisk: buildGroupHeaderRisk(groupChunks, riskMetaByChunk),
     } satisfies GroupView;
   });
@@ -289,10 +285,6 @@ function buildGroupHeaderRisk(
     shown: ordered.filter((attr) => hasLoudFiring.has(attr)),
     deEmphasized: ordered.filter((attr) => !hasLoudFiring.has(attr)),
   };
-}
-
-export function concernChecksFor(concern: Concern): string[] {
-  return CONCERN_CHECKS[concern] ?? [];
 }
 
 export function concernLabel(concern: Concern): string {
@@ -403,16 +395,6 @@ function orderGroupsByReadingOrder(
 
 function sumLoc(chunks: BriefChunk[], key: keyof BriefChunk["loc"]): number {
   return chunks.reduce((total, chunk) => total + chunk.loc[key], 0);
-}
-
-function uniqueConcerns(chunks: BriefChunk[]): Concern[] {
-  const seen = new Set<Concern>();
-  for (const chunk of chunks) {
-    if (concernChecksFor(chunk.concern).length > 0) {
-      seen.add(chunk.concern);
-    }
-  }
-  return CONCERN_ORDER.filter((concern) => seen.has(concern));
 }
 
 /** One jump-rail entry (ADR 0032 #11): an attribute + its carrying groups. */

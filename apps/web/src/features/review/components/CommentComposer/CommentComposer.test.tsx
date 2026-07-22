@@ -69,7 +69,6 @@ function snapshotWith(reviewComments: ReviewComment[]): SessionSnapshot {
     dominants: {},
     reclassifiedGroupIds: [],
     reviewedChunkIds: [],
-    checkedItems: {},
     reviewComments,
     reviewOutcome: "comment",
   };

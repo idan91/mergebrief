@@ -2,13 +2,13 @@ import type { Category } from "../../brief/types";
 import type { ReviewComment } from "../comments";
 import type { ReviewOutcome } from "../state";
 import type { Disposition } from "./disposition";
-import type { CheckBucket, MindMapState } from "./store";
+import type { MindMapState } from "./store";
 
 /**
  * The frozen, serializable session snapshot persisted per brief to
  * sessionStorage — Sets flattened to arrays. This is also the input the Receipt
  * builder (Slice E) consumes. Persists more than the old DemoReviewSnapshot
- * (dominants, reclassifications, playbook checks now survive refresh) and drops
+ * (dominants and reclassifications now survive refresh) and drops
  * the old review-perspective toggle (killed per ADR 0031; was local UI only).
  * The `v2` key avoids colliding with old `v1` data.
  */
@@ -18,7 +18,6 @@ export interface SessionSnapshot {
   dominants: Record<string, Category>;
   reclassifiedGroupIds: string[];
   reviewedChunkIds: string[];
-  checkedItems: Record<CheckBucket, number[]>;
   reviewComments: ReviewComment[];
   reviewOutcome: ReviewOutcome;
   /** Absent in pre-BRIEF-25 stored snapshots; hydrates to []. */
@@ -34,21 +33,12 @@ export function serializeSnapshot(
   briefId: string,
   state: MindMapState,
 ): SessionSnapshot {
-  // Template-literal-keyed record can't be built from dynamic keys without an
-  // assertion; the keys come straight from the in-memory CheckBucket record.
-  const checkedItems = Object.fromEntries(
-    Object.entries(state.checkedItems).map(([bucket, indexes]) => [
-      bucket,
-      [...indexes],
-    ]),
-  ) as Record<CheckBucket, number[]>;
   return {
     briefId,
     dispositions: state.dispositions,
     dominants: state.dominants,
     reclassifiedGroupIds: [...state.reclassifiedGroups],
     reviewedChunkIds: [...state.reviewedChunks],
-    checkedItems,
     reviewComments: state.reviewComments,
     reviewOutcome: state.reviewOutcome,
     submittedReviewIds: [...state.submittedReviewIds],
@@ -57,18 +47,11 @@ export function serializeSnapshot(
 }
 
 export function snapshotToState(snapshot: SessionSnapshot): MindMapState {
-  const checkedItems = Object.fromEntries(
-    Object.entries(snapshot.checkedItems).map(([bucket, indexes]) => [
-      bucket,
-      new Set(indexes),
-    ]),
-  ) as Record<CheckBucket, Set<number>>;
   return {
     dispositions: snapshot.dispositions,
     dominants: snapshot.dominants,
     reclassifiedGroups: new Set(snapshot.reclassifiedGroupIds),
     reviewedChunks: new Set(snapshot.reviewedChunkIds),
-    checkedItems,
     reviewComments: snapshot.reviewComments,
     reviewOutcome: snapshot.reviewOutcome,
     submittedReviewIds: snapshot.submittedReviewIds ?? [],
@@ -126,16 +109,6 @@ function isReviewComment(value: unknown): boolean {
   );
 }
 
-function isNumberArrayRecord(value: unknown): boolean {
-  return (
-    isObject(value) &&
-    Object.values(value).every(
-      (entry) =>
-        Array.isArray(entry) && entry.every((item) => typeof item === "number"),
-    )
-  );
-}
-
 function isSessionSnapshot(value: unknown): value is SessionSnapshot {
   if (!isObject(value)) return false;
   const dispositions = value["dispositions"];
@@ -148,7 +121,6 @@ function isSessionSnapshot(value: unknown): value is SessionSnapshot {
     Object.values(dominants).every((entry) => typeof entry === "string") &&
     isStringArray(value["reclassifiedGroupIds"]) &&
     isStringArray(value["reviewedChunkIds"]) &&
-    isNumberArrayRecord(value["checkedItems"]) &&
     Array.isArray(value["reviewComments"]) &&
     value["reviewComments"].every(isReviewComment) &&
     typeof value["reviewOutcome"] === "string" &&

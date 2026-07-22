@@ -61,8 +61,6 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     timeline: { points: [], selectedPoint: undefined },
     model: buildBriefViewModel(brief),
     totals: {
-      playbookChecked: 0,
-      playbookTotal: 0,
       reviewed: 1,
       chunkTotal: 2,
       flagsResolved: 0,
@@ -92,8 +90,6 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
     timeline: { points: [], selectedPoint: undefined },
     model: buildBriefViewModel(brief),
     totals: {
-      playbookChecked: 0,
-      playbookTotal: 0,
       reviewed: 1,
       chunkTotal: 2,
       flagsResolved: 0,

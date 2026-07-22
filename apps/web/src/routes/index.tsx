@@ -59,14 +59,13 @@ function BriefPicker() {
         <h1>Turn a PR into a brief</h1>
         <p className={styles["copy"]}>
           A brief re-unitizes a pull request into Change-groups, each with a
-          plain-language summary, a Playbook of the known checks for that kind
-          of change, and Risk Surface attributes: facts worth a closer look,
-          never a verdict.
+          plain-language summary and Risk Surface attributes: facts worth a
+          closer look, never a verdict.
         </p>
         <ul className={styles["pillars"]}>
           <li>Stable taxonomy, queryable across every PR you review</li>
           <li>Your model key, your infrastructure, nothing phones home</li>
-          <li>Plain-markdown Playbooks you can read, fork, and extend</li>
+          <li>Plain-markdown taxonomy you can read, fork, and extend</li>
         </ul>
         <form className={styles["form"]} onSubmit={handleGenerate}>
           <input

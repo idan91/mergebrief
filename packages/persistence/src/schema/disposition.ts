@@ -2,8 +2,7 @@
 // (D7). Table ships in M1; ROWS are written in M2 (engagement write-side).
 // Anchored by content coordinates (file/attribute/region/sha), never a
 // brief-local id — those dangle on regeneration. M1 shape covers only
-// region-anchored flags (region NOT NULL); playbook-item dispositions
-// (nullable region + flag_kind) are deferred to M2.
+// region-anchored flags (region NOT NULL).
 import { bigint, integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 import type { DispositionDecision, PullRequestRowId, ReviewerId } from "../types";
 import { tenantColumns } from "./columns";

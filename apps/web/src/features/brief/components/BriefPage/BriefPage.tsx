@@ -711,7 +711,6 @@ function BriefScreen({
   const dominants = useMindMap((state) => state.dominants);
   const reclassifiedGroups = useMindMap((state) => state.reclassifiedGroups);
   const reviewedChunks = useMindMap((state) => state.reviewedChunks);
-  const checkedItems = useMindMap((state) => state.checkedItems);
   const reviewComments = useMindMap((state) => state.reviewComments);
   const submittedReviewIds = useMindMap((state) => state.submittedReviewIds);
   const replyDrafts = useMindMap((state) => state.replyDrafts);
@@ -847,7 +846,6 @@ function BriefScreen({
         dominants,
         reclassifiedGroups,
         reviewedChunks,
-        checkedItems,
         reviewComments,
         reviewOutcome,
         submittedReviewIds,
@@ -855,7 +853,6 @@ function BriefScreen({
       }),
     [
       briefId,
-      checkedItems,
       dispositions,
       dominants,
       reclassifiedGroups,

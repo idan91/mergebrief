@@ -213,7 +213,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       dominants: {},
       reclassifiedGroupIds: [],
       reviewedChunkIds: [],
-      checkedItems: {},
       reviewComments: [
         comment("c1", "chunk-a", "draft"),
         comment("c2", "chunk-b", "draft"),
@@ -296,7 +295,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       dominants: {},
       reclassifiedGroupIds: [],
       reviewedChunkIds: [],
-      checkedItems: {},
       reviewComments: [
         comment("c1", "chunk-b", "draft"),
         comment("c2", "chunk-a", "draft"),
@@ -332,7 +330,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       dominants: {},
       reclassifiedGroupIds: [],
       reviewedChunkIds: [],
-      checkedItems: {},
       reviewComments: [
         comment("c1", "chunk-a", "draft"),
         comment("c2", "chunk-b", "draft"),
@@ -369,7 +366,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       dominants: {},
       reclassifiedGroupIds: [],
       reviewedChunkIds: [],
-      checkedItems: {},
       reviewComments: [
         comment("c1", "chunk-a", "draft"),
         comment("c2", "chunk-b", "draft"),
@@ -430,7 +426,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       dominants: {},
       reclassifiedGroupIds: [],
       reviewedChunkIds: [],
-      checkedItems: {},
       reviewComments: [
         comment("c1", "chunk-a", "draft"),
         comment("c2", "chunk-b", "draft"),
@@ -477,7 +472,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       dominants: {},
       reclassifiedGroupIds: [],
       reviewedChunkIds: [],
-      checkedItems: {},
       reviewComments: [
         comment("c1", "chunk-a", "draft"),
         { ...comment("c2", "chunk-b", "draft"), body: "x".repeat(65_537) },
@@ -540,7 +534,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
         dominants: {},
         reclassifiedGroupIds: [],
         reviewedChunkIds: [],
-        checkedItems: {},
         reviewComments: [comment("c1", "chunk-a", "draft")],
         reviewOutcome: "comment",
       });
@@ -585,7 +578,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       dominants: {},
       reclassifiedGroupIds: [],
       reviewedChunkIds: [],
-      checkedItems: {},
       reviewComments: [
         comment("c1", "chunk-a", "draft"),
         comment("c2", "chunk-b", "draft"),
@@ -631,7 +623,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       dominants: {},
       reclassifiedGroupIds: [],
       reviewedChunkIds: [],
-      checkedItems: {},
       reviewComments: [
         comment("c1", "chunk-a", "draft"),
         comment("c2", "chunk-b", "draft"),
@@ -677,7 +668,6 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       dominants: {},
       reclassifiedGroupIds: [],
       reviewedChunkIds: [],
-      checkedItems: {},
       reviewComments: [
         comment("c1", "chunk-a", "draft"),
         comment("c2", "chunk-b", "draft"),

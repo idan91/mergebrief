@@ -2,7 +2,6 @@ export type { Disposition, BulkDisposition } from "./disposition";
 export {
   createMindMapStore,
   deriveInitialState,
-  type CheckBucket,
   type MindMapActions,
   type MindMapState,
   type MindMapStore,

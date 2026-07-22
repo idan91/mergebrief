@@ -53,7 +53,6 @@ function emptySnapshot(briefId: string, brief: Brief): SessionSnapshot {
     dominants: {},
     reclassifiedGroupIds: [],
     reviewedChunkIds: [],
-    checkedItems: {},
     reviewComments: [],
     reviewOutcome: "comment",
   };
