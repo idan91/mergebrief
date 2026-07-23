@@ -134,11 +134,23 @@ code from the markdown is a welcome future contribution.
 
 ## Governance
 
-Small project, early days: contributions land by maintainer review, and the bar is the rules
-above. Because token changes rewrite the engine's prompt and output schema, they get the
-strictest review, gated by the eval harness. A fuller governance model for the taxonomy
-commons (who can approve vocabulary changes, how disputes resolve) is tracked as its own
-design ticket and will land before contributions are actively solicited.
+One maintainer, stated plainly: **final call on every contribution — vocabulary, code,
+docs — rests with the maintainer** (ADR 0036). What you can rely on in exchange:
+
+- **Reasons, always.** Every accept, reject, or park gets a short written reason in the
+  PR thread, tied to the published bars above (evidence rule, deprecation rule, the
+  Concern-vs-Category check). No silent closes.
+- **"Parked" is a real outcome.** Good ideas that need something the project doesn't
+  have yet (usually repo context the engine can't see) are parked with the reason
+  recorded, not rejected — see the worked examples in `risk-surface.md`.
+- **Token changes wait on a maintainer-run check.** Vocabulary PRs touch the generation
+  surface, so they merge only after the maintainer runs the eval harness (it needs API
+  spend and keys that fork PRs can't have). That step is on the maintainer, not you.
+
+There are no auto-accept windows, votes, or response-time promises. Disputes are argued
+in the PR or issue — convincing the maintainer is the process. This model has recorded
+loosening triggers (ADR 0036) and will be revisited when the project earns a second
+maintainer.
 
 ## Code contributions
 
