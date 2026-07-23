@@ -59,6 +59,16 @@ Gates (user-confirmed): **security-reviewer** on staged changes before each comm
 that touches auth/crypto/migration; **fable-reviewer** on the full branch diff before each
 PR goes up. Findings ≥80 confidence: fix, re-stage, re-run until clean.
 
+## Review loop
+
+1. **Pre-commit:** security-reviewer on staged changes (auth/crypto/migration chunks).
+2. **Pre-PR:** fable-reviewer on the full branch diff; fix ≥80-confidence findings before
+   the PR goes up.
+3. **Post-PR:** Idan reviews on GitHub. Fixes for review comments land **upstream-first**
+   (a comment on PR 1 code is fixed on PR 1's branch, PR 2 rebases on top) — never patched
+   downstream. Reply to each comment with the fixing commit SHA. Idan merges; agent
+   retargets the stack after each squash-merge.
+
 ## Mandated skills (user-confirmed)
 
 - `typescript-eng` — strict TS, no `enum`/`any`/bare `as`, named exports, extensionless
