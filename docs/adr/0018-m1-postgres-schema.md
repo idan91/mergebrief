@@ -21,6 +21,12 @@ Decisions D1–D11 below cover all six ADR 0008 entities plus the tenant scoping
 > **Amended 2026-07-06** (BRIEF-19 grill): **D14** (`user_settings`) added — the first
 > deliberately NON-tenant-scoped row kind besides `audit_log`, keyed by GitHub user id, so a
 > reviewer's default installation survives across sessions. Lands as a BRIEF-19 migration.
+>
+> **Amended 2026-07-23** (BRIEF-40 grill): **D15** (`github_grant`) added — the GitHub
+> credential pair moves out of `reviewer_session`/`api_token` into one grant row per
+> authorization, referenced by FK, making the token-refresh divergence unrepresentable
+> (ADR 0016 #4 as amended). The inventory also now records `api_token` (BRIEF-17), which
+> this ADR had missed. Lands as a BRIEF-40 migration.
 
 ## Decisions
 
@@ -342,6 +348,38 @@ user_settings
   `default_installation_id` — harmless by construction, and overwritten on next switch.
 - No FK to any tenant table (same isolation rationale as `audit_log`'s no-FK rule).
 
+### D15 — `github_grant` (added 2026-07-23, from BRIEF-40 grill)
+
+One row per GitHub user-to-server authorization; the ONLY holder of the encrypted GitHub
+token pair. `reviewer_session` and `api_token` drop `gh_token_ciphertext` /
+`gh_refresh_token_ciphertext` / `key_ref` and gain `grant_id` (FK, not null). Exists because
+GitHub refresh tokens are single-use: two rows carrying copies of one pair race each other's
+refresh and the loser is stranded (BRIEF-40); one physical copy makes that impossible.
+
+```
+github_grant
+  id                          bigint identity  PK
+  gh_token_ciphertext         text not null          -- access token, encrypted at rest
+  gh_refresh_token_ciphertext text not null          -- rotating refresh token, encrypted
+  key_ref                     text not null          -- provider-resolved key (ADR 0016 #7)
+  refresh_expires_at          timestamptz not null   -- the pair's outer bound (~6mo, rotating)
+  created_at / updated_at     timestamptz
+```
+
+- **Refresh = the same lazy, serialized CAS as D11**, re-anchored from the session row to the
+  grant row — both presentation channels (cookie, Bearer) converge on one rotation path.
+  Session `expires_at` keeps its D11 semantics, maintained from the grant's rotation.
+- **Deliberately NOT tenant-scoped** — third D2b exception after `audit_log` and
+  `user_settings`: the credential belongs to a GitHub *user* and spans installations; the
+  installation binding stays on the referencing session/token rows.
+- **Lifecycle: dies with its last referent**, deleted in the same transaction that removes the
+  last referencing session/token row — no orphan sweeper. Refresh failure keeps per-channel
+  postures (cookie deletes the session; a token row is never auto-deleted), so a dead grant
+  may linger behind a dead-but-unrevoked token — inert ciphertext, harmless.
+- **Migration backfill dedups by exact ciphertext match** (mint copied ciphertext verbatim,
+  so a not-yet-diverged token matches its source session byte-for-byte and joins its grant);
+  unmatched rows get their own grant.
+
 ## Consequences
 
 **Table inventory (M1, materialized):**
@@ -359,7 +397,9 @@ user_settings
 | `generation` | mutable CQRS status projection | poll target; not a domain entity |
 | `audit_log` | append-only seam | numeric-only, no FKs, never purged |
 | `user_settings` | per-user settings | NON-tenant-scoped (D14); keyed `gh_user_id`; typed columns only |
-| `reviewer_session` | secret-bearing | the only encrypted-token table |
+| `reviewer_session` | session (cookie channel) | credential via `grant_id` FK (D15) |
+| `api_token` | user-managed credential (Bearer channel) | ADR 0016 #4 as amended (BRIEF-17); hash-resolved, mint-chosen expiry, soft-revoke; credential via `grant_id` FK (D15) |
+| `github_grant` | secret-bearing | the ONE encrypted-token table (D15); NON-tenant-scoped; dies with last referent |
 
 `graphile_worker.*` is owned and migrated by graphile-worker — not ours.
 
