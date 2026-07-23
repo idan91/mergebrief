@@ -10,6 +10,7 @@ import {
   encryptToken,
   envKeyProvider,
   forTenant,
+  grantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -130,13 +131,17 @@ describe("GET /api/repos", () => {
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
     if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    const grant = await grantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
     await forTenant(harness.handle, CTX).sessions.create({
       sessionTokenHash: sha256Hex(cookie),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
+      grantId: grant.id,
       expiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     return cookie;
@@ -147,15 +152,19 @@ describe("GET /api/repos", () => {
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
     if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    const grant = await grantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
     await tokenAuth(harness.handle).mintToken({
       installationId: CTX.installationId,
       userId: REVIEWER,
       userLogin: "octocat",
       name: "ci-token",
       tokenHash: sha256Hex(plaintext),
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
+      grantId: grant.id,
       expiresAt: null,
     });
     return plaintext;

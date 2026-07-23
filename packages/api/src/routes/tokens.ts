@@ -128,10 +128,10 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     // The opaque secret: prefix + 32 random bytes; stored only as SHA-256.
     const token = `${API_TOKEN_PREFIX}${randomBytes(TOKEN_BYTES).toString("base64url")}`;
 
-    // Wrap the session's CURRENT encrypted GitHub pair — copied as sealed
-    // ciphertext, never decrypted here. The row refreshes independently
-    // afterwards (tokenAuth.refreshToken). The D9 mint audit is emitted by
-    // persistence INSIDE this same transaction (codex PR2 R1).
+    // LINK the session's grant — never copy credential material (D15,
+    // BRIEF-40): both channels now share one physical pair, rotated through
+    // `grantAuth.refreshGrant`'s serialized CAS. The D9 mint audit is emitted
+    // by persistence INSIDE this same transaction (codex PR2 R1).
     const minted = await tokenAuth(deps.handle).mintToken({
       installationId: target.installationId,
       userId: currentSession.reviewerId,
@@ -140,9 +140,7 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
         : { userLogin: currentSession.reviewerLogin }),
       name: parsed.data.name,
       tokenHash: sha256Hex(token),
-      ghTokenCiphertext: currentSession.ghTokenCiphertext,
-      ghRefreshTokenCiphertext: currentSession.ghRefreshTokenCiphertext,
-      keyRef: currentSession.keyRef,
+      grantId: currentSession.grantId,
       expiresAt,
     });
 

@@ -15,6 +15,7 @@ import {
   encryptToken,
   envKeyProvider,
   forTenant,
+  grantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -146,15 +147,19 @@ async function seedApiToken(
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
   if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  const grant = await grantAuth(handle).createGrant({
+    ghTokenCiphertext: sealedAccess.value,
+    ghRefreshTokenCiphertext: sealedRefresh.value,
+    keyRef: KEY_REF,
+    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+  });
   const minted = await tokenAuth(handle).mintToken({
     installationId: CTX.installationId,
     userId: REVIEWER,
     userLogin: "octocat",
     name: "ci-token",
     tokenHash: sha256Hex(plaintext),
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
+    grantId: grant.id,
     expiresAt: overrides.expiresAt === undefined ? new Date("2027-01-01T00:00:00Z") : overrides.expiresAt,
   });
   if (overrides.revoke === true) {
@@ -263,23 +268,24 @@ describe("Bearer presentation on /api/*", () => {
     });
     await seedPr(harness.handle);
     const bearer = await seedApiToken(harness.handle, kp);
-    const before = await harness.raw(
-      "select gh_token_ciphertext, expires_at from api_token limit 1",
+    const beforeGrant = await harness.raw(
+      "select gh_token_ciphertext from github_grant limit 1",
     );
+    const beforeToken = await harness.raw("select expires_at from api_token limit 1");
 
     const res = await getWithBearer("/api/pulls", bearer);
     expect(res.status).toBe(200);
     expect(counts.token).toBe(1);
     expect(counts.installationRepos).toBe(2);
 
-    const after = await harness.raw(
-      "select gh_token_ciphertext, gh_refresh_token_ciphertext, key_ref, expires_at from api_token limit 1",
+    const afterGrant = await harness.raw(
+      "select gh_token_ciphertext from github_grant limit 1",
     );
-    // Credentials rotated in the api_token row (not reviewer_session)...
-    expect(after[0]?.["gh_token_ciphertext"]).not.toBe(before[0]?.["gh_token_ciphertext"]);
-    // ...and the rotated ciphertext decrypts to the rotated access token.
-    // The mint-chosen expiry is untouched by GitHub rotation.
-    expect(after[0]?.["expires_at"]).toEqual(before[0]?.["expires_at"]);
+    const afterToken = await harness.raw("select expires_at from api_token limit 1");
+    // Credentials rotated on the grant row the api_token references...
+    expect(afterGrant[0]?.["gh_token_ciphertext"]).not.toBe(beforeGrant[0]?.["gh_token_ciphertext"]);
+    // ...while the mint-chosen expiry is untouched by GitHub rotation.
+    expect(afterToken[0]?.["expires_at"]).toEqual(beforeToken[0]?.["expires_at"]);
     expect(await harness.raw("select count(*)::int as n from reviewer_session")).toEqual([
       { n: 0 },
     ]);
@@ -372,13 +378,17 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
     if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    const grant = await grantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
     await forTenant(harness.handle, CTX).sessions.create({
       sessionTokenHash: sha256Hex(cookie),
       reviewerId: REVIEWER,
       reviewerLogin: "octocat",
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
+      grantId: grant.id,
       expiresAt: new Date("2027-01-01T00:00:00Z"),
     });
     return cookie;
@@ -418,9 +428,17 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     expect(body.token.startsWith("mergebrief_")).toBe(true);
 
     // Hash-only storage: the DB row carries sha256(token), never the token.
-    const rows = await harness.raw("select token_hash from api_token");
+    const rows = await harness.raw("select token_hash, grant_id from api_token");
     expect(rows).toHaveLength(1);
     expect(rows[0]?.["token_hash"]).toBe(sha256Hex(body.token));
+
+    // D15 link-never-copy: mint linked the SESSION's grant — one physical
+    // pair exists after the mint, and the token row points at it.
+    const grantRows = await harness.raw("select id from github_grant");
+    expect(grantRows).toHaveLength(1);
+    expect(String(rows[0]?.["grant_id"])).toBe(String(grantRows[0]?.["id"]));
+    const sessionRows = await harness.raw("select grant_id from reviewer_session");
+    expect(String(sessionRows[0]?.["grant_id"])).toBe(String(grantRows[0]?.["id"]));
 
     // Default expiry ≈ 90 days out.
     const expiresAt = body.apiToken.expiresAt;

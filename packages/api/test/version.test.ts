@@ -5,6 +5,7 @@ import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,
   envKeyProvider,
+  grantAuth,
   isInstallationId,
   isReviewerId,
   tokenAuth,
@@ -65,14 +66,18 @@ describe("GET /api/version", () => {
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
     if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    const grant = await grantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
     await tokenAuth(harness.handle).mintToken({
       installationId: CTX.installationId,
       userId: brand(isReviewerId, 555),
       name: "ci-token",
       tokenHash: createHash("sha256").update(plaintext).digest("hex"),
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
+      grantId: grant.id,
       expiresAt: null,
     });
 

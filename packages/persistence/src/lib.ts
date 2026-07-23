@@ -125,15 +125,27 @@ export type { UserSettingsStore, UserSettingsRow } from "./stores/user-settings"
 
 // --- auth/ — the PRE-tenant resolvers (they PRODUCE the tenant) --------------
 
+// The grant seam (BRIEF-40, D15) — ONE `github_grant` row per GitHub
+// authorization holds the encrypted pair; BOTH presentation channels rotate
+// through `refreshGrant`'s serialized CAS. Pre-tenant like its referents.
+export { grantAuth, GrantAuthErrorCode } from "./auth/grant";
+export type {
+  GithubGrantRow,
+  GrantAuth,
+  GrantAuthError,
+  GrantCreateInput,
+  GrantRefreshPatch,
+  GrantRefreshRejection,
+} from "./auth/grant";
+
 // The reviewer-session auth seam (BRIEF-2 stage 6, D11) — the PRE-TENANT,
-// token-hash-keyed session resolver (find / delete / serialized refresh). NOT
+// token-hash-keyed session resolver (find / delete / expiry mirror). NOT
 // ctx-bound: it PRODUCES the tenant, so it precedes `forTenant` scoping.
 export { sessionAuth, SessionAuthErrorCode } from "./auth/session";
 export type {
   SessionAuth,
   SessionAuthError,
-  SessionRefreshPatch,
-  SessionRefreshRejection,
+  SessionWithGrant,
 } from "./auth/session";
 
 // The API-token auth seam (BRIEF-17, ADR 0016 #4 as amended) — the SECOND
@@ -144,8 +156,7 @@ export type {
   TokenAuth,
   TokenAuthError,
   TokenMintInput,
-  TokenRefreshPatch,
-  TokenRefreshRejection,
+  TokenWithGrant,
   ApiTokenRow,
   ApiTokenMetadataRow,
 } from "./auth/token";

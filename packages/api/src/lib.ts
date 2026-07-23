@@ -12,7 +12,12 @@ export type { ConversationGitHubPort } from "./routes/conversation";
 
 // The serialized token-refresh orchestrator (BRIEF-2 stage 6, D11): built +
 // tested here, called by stage 7's authz middleware on a GitHub 401.
-export { refreshSessionToken, RefreshErrorCode } from "./routes/auth";
+export {
+  principalFromApiToken,
+  principalFromSession,
+  refreshSessionToken,
+  RefreshErrorCode,
+} from "./routes/auth";
 export type { RefreshError, RefreshedSession, AuthRouteDeps } from "./routes/auth";
 
 // Queue schema bootstrap — install/upgrade the `graphile_worker` schema so the

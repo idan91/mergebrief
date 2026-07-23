@@ -1,48 +1,49 @@
-// The API-token auth seam (BRIEF-17 PR 1 — ADR 0016 #4 as amended 2026-07-09).
-// Mirrors `session.ts`: this is the PRE-TENANT resolver for the SECOND
-// presentation channel (CLI/agent Bearer tokens over the same session
-// machinery). Nothing here is bound to an `installation_id` — resolution by
-// the globally UNIQUE `token_hash` (the opaque `mergebrief_...` token, stored
-// only as its SHA-256) is what PRODUCES the tenant, so it precedes `forTenant`
-// scoping, the same trust shape as `sessionAuth`.
+// The API-token auth seam (BRIEF-17 PR 1 — ADR 0016 #4 as amended, re-anchored
+// by D15/BRIEF-40). Mirrors `session.ts`: this is the PRE-TENANT resolver for
+// the SECOND presentation channel (CLI/agent Bearer tokens over the same
+// session machinery). Nothing here is bound to an `installation_id` —
+// resolution by the globally UNIQUE `token_hash` (the opaque `mergebrief_...`
+// token, stored only as its SHA-256) is what PRODUCES the tenant, so it
+// precedes `forTenant` scoping, the same trust shape as `sessionAuth`.
+//
+// Since D15 the token row carries NO credential material — mint LINKS the
+// minting session's `github_grant` row (never copies), and rotation lives in
+// `grantAuth.refreshGrant`. Resolution JOINs the grant; the soft revoke keeps
+// the grant reference (a revoked token stays listable), so only the
+// installation-purge hard delete orphan-cleans.
 //
 // This surface NEVER sees token plaintext: mint takes the caller-computed
 // `tokenHash`, and no operation accepts or returns token material. Mint's
 // `installationId` arrives pre-validated — the mint route derives it from the
 // viewer's cookie session and validates it against their LIVE accessible set
 // (never caller-asserted; ADR 0016 #4) before calling this seam.
-//
-// The write paths stay tenant-safe the way `session.ts`'s do: every UPDATE is
-// scoped by the locked/resolved row's own columns (`installation_id` + `id`,
-// or `user_id` + `id` for the owner-scoped revoke), never by an unscoped
-// caller argument.
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { insertAudit } from "../stores/audit";
 import { type AppDatabase, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
+import { githubGrant } from "../schema/github-grant";
 import {
   AuditAction,
   AuditActorType,
   type ApiTokenRowId,
+  type GrantRowId,
   type InstallationId,
   type Result,
   type ReviewerId,
   type ValueOf,
 } from "../types";
+import type { GithubGrantRow } from "./grant";
 
 export type ApiTokenRow = typeof apiToken.$inferSelect;
 
 /**
  * The settings-facing projection (codex R1): everything the mint/list/revoke
- * surfaces return. Deliberately excludes the secret-bearing columns
- * (`tokenHash`, both ciphertexts, `keyRef`) so a route serializing one of
- * these rows CANNOT leak credential material — only `resolveByHash` and
- * `refreshToken` (the Bearer path, which needs to decrypt) see the full row.
+ * surfaces return. Deliberately excludes `tokenHash` (secret-adjacent) and
+ * `grantId` (internal linkage) so a route serializing one of these rows
+ * CANNOT leak credential material — only `resolveByHash` (the Bearer path,
+ * which needs the grant to decrypt) sees the full row.
  */
-export type ApiTokenMetadataRow = Omit<
-  ApiTokenRow,
-  "tokenHash" | "ghTokenCiphertext" | "ghRefreshTokenCiphertext" | "keyRef"
->;
+export type ApiTokenMetadataRow = Omit<ApiTokenRow, "tokenHash" | "grantId">;
 
 /** The `.select()`/`.returning()` column set backing `ApiTokenMetadataRow`. */
 const metadataColumns = {
@@ -58,29 +59,6 @@ const metadataColumns = {
 };
 
 // ---------------------------------------------------------------------------
-// Refresh patch + rejection — compatible with the api layer's `spendRefresh`
-// machinery. Unlike `SessionRefreshPatch` there is deliberately NO
-// `expiresAt`: a session's expiry tracks its ~6mo GitHub refresh token, but a
-// token's expiry is chosen at mint (90d default / no-expiry) and must never
-// move when the wrapped GitHub credentials rotate.
-// ---------------------------------------------------------------------------
-
-/** New encrypted-credential columns to persist after a successful refresh. */
-export interface TokenRefreshPatch {
-  readonly ghTokenCiphertext: string;
-  readonly ghRefreshTokenCiphertext: string;
-  readonly keyRef: string;
-}
-
-/**
- * The caller's refresh failed (decrypt / GitHub rotation / re-encrypt). The
- * `reason` is opaque to persistence — it just signals "do not UPDATE".
- */
-export interface TokenRefreshRejection {
-  readonly reason: string;
-}
-
-// ---------------------------------------------------------------------------
 // Errors — expected failures. Programmer errors still `throw`. The api layer
 // collapses ALL of these to a hint-free 401 on the Bearer path.
 // ---------------------------------------------------------------------------
@@ -92,8 +70,6 @@ export const TokenAuthErrorCode = {
   EXPIRED: "expired",
   /** The row exists but was revoked (`revoked_at` set). */
   REVOKED: "revoked",
-  /** The caller's `refresh` callback rejected; the row is left untouched. */
-  REFRESH_REJECTED: "refresh-rejected",
 } as const;
 export type TokenAuthErrorCode = ValueOf<typeof TokenAuthErrorCode>;
 
@@ -136,11 +112,16 @@ export interface TokenMintInput {
   readonly userLogin?: string;
   readonly name: string;
   readonly tokenHash: string;
-  readonly ghTokenCiphertext: string;
-  readonly ghRefreshTokenCiphertext: string;
-  readonly keyRef: string;
+  /** The minting session's grant — LINKED, never copied (D15). */
+  readonly grantId: GrantRowId;
   /** `null` = no expiry (ADR 0016 #4: the adopter's call for self-host CI). */
   readonly expiresAt: Date | null;
+}
+
+/** A resolved token with the grant it references (one JOINed query). */
+export interface TokenWithGrant {
+  readonly token: ApiTokenRow;
+  readonly grant: GithubGrantRow;
 }
 
 export interface TokenAuth {
@@ -151,11 +132,11 @@ export interface TokenAuth {
    */
   mintToken(input: TokenMintInput): Promise<ApiTokenMetadataRow>;
   /**
-   * The Bearer-path resolver: hash → row → liveness (revoked, then expired).
-   * All misses are `Result` errors so the api layer maps every arm to the
-   * same hint-free 401.
+   * The Bearer-path resolver: hash → row (JOINed to its grant) → liveness
+   * (revoked, then expired). All misses are `Result` errors so the api layer
+   * maps every arm to the same hint-free 401.
    */
-  resolveByHash(tokenHash: string, now: Date): Promise<Result<ApiTokenRow, TokenAuthError>>;
+  resolveByHash(tokenHash: string, now: Date): Promise<Result<TokenWithGrant, TokenAuthError>>;
   /**
    * The settings-page list: ALL of a user's tokens (a person spans
    * installations, D14) — revoked and expired included, newest first.
@@ -178,29 +159,6 @@ export interface TokenAuth {
    * unconditional). Returns rows touched (0 for an unknown hash).
    */
   touchLastUsed(tokenHash: string, now: Date): Promise<number>;
-  /**
-   * Serialized, single-use-refresh-token-safe rotation — the exact D11 shape
-   * `sessionAuth.refreshSession` implements (see its doc for the full
-   * rationale). ONE transaction: `SELECT … FOR UPDATE` by hash, then:
-   *   - absent row → `NOT_FOUND`;
-   *   - revoked/expired row → `REVOKED`/`EXPIRED` WITHOUT calling `refresh`
-   *     (a dead token's credentials are never rotated — token guard, no
-   *     session analogue);
-   *   - compare-and-swap: `seenTokenCiphertext` ≠ the locked row's → another
-   *     request already rotated; return AS-IS without calling `refresh`;
-   *   - otherwise `refresh(lockedRow)` inside the lock; on ok apply the patch
-   *     (ciphertexts + keyRef ONLY — `expires_at` never moves) scoped by the
-   *     row's own `installation_id` + `id`; on rejection return
-   *     `REFRESH_REJECTED` with no write.
-   */
-  refreshToken(
-    tokenHash: string,
-    seenTokenCiphertext: string,
-    now: Date,
-    refresh: (
-      locked: ApiTokenRow,
-    ) => Promise<Result<TokenRefreshPatch, TokenRefreshRejection>>,
-  ): Promise<Result<ApiTokenRow, TokenAuthError>>;
 }
 
 /**
@@ -227,9 +185,7 @@ export function tokenAuth(handle: AppDatabase): TokenAuth {
             userLogin: input.userLogin,
             name: input.name,
             tokenHash: input.tokenHash,
-            ghTokenCiphertext: input.ghTokenCiphertext,
-            ghRefreshTokenCiphertext: input.ghRefreshTokenCiphertext,
-            keyRef: input.keyRef,
+            grantId: input.grantId,
             expiresAt: input.expiresAt,
           })
           .returning(metadataColumns);
@@ -252,8 +208,9 @@ export function tokenAuth(handle: AppDatabase): TokenAuth {
 
     async resolveByHash(tokenHash, now) {
       const rows = await db
-        .select()
+        .select({ token: apiToken, grant: githubGrant })
         .from(apiToken)
+        .innerJoin(githubGrant, eq(apiToken.grantId, githubGrant.id))
         .where(eq(apiToken.tokenHash, tokenHash))
         .limit(1);
       const row = rows[0];
@@ -263,7 +220,7 @@ export function tokenAuth(handle: AppDatabase): TokenAuth {
           "api_token not found for the given token hash",
         );
       }
-      const dead = livenessError(row, now);
+      const dead = livenessError(row.token, now);
       if (dead !== undefined) {
         return { ok: false, error: dead };
       }
@@ -322,67 +279,6 @@ export function tokenAuth(handle: AppDatabase): TokenAuth {
         .where(eq(apiToken.tokenHash, tokenHash))
         .returning({ id: apiToken.id });
       return rows.length;
-    },
-
-    async refreshToken(tokenHash, seenTokenCiphertext, now, refresh) {
-      return db.transaction(async (tx) => {
-        // FOR UPDATE: serialize concurrent refreshes of THIS token (GitHub
-        // refresh tokens are single-use; a lost race burns the token — D11).
-        const locked = await tx
-          .select()
-          .from(apiToken)
-          .where(eq(apiToken.tokenHash, tokenHash))
-          .for("update")
-          .limit(1);
-        const row = locked[0];
-        if (row === undefined) {
-          return fail(
-            TokenAuthErrorCode.NOT_FOUND,
-            "api_token not found for the given token hash",
-          );
-        }
-
-        // Never rotate a dead token's credentials.
-        const dead = livenessError(row, now);
-        if (dead !== undefined) {
-          return { ok: false, error: dead };
-        }
-
-        // Compare-and-swap: already rotated by another request while we
-        // waited for the lock → return AS-IS, no second exchange (D11).
-        if (row.ghTokenCiphertext !== seenTokenCiphertext) {
-          return { ok: true, value: row };
-        }
-
-        const patch = await refresh(row);
-        if (!patch.ok) {
-          // The tx commits cleanly with NO write — the caller 401s.
-          return fail(
-            TokenAuthErrorCode.REFRESH_REJECTED,
-            "api_token refresh was rejected by the caller",
-          );
-        }
-
-        const updated = await tx
-          .update(apiToken)
-          .set({
-            ghTokenCiphertext: patch.value.ghTokenCiphertext,
-            ghRefreshTokenCiphertext: patch.value.ghRefreshTokenCiphertext,
-            keyRef: patch.value.keyRef,
-          })
-          .where(
-            and(
-              eq(apiToken.installationId, row.installationId),
-              eq(apiToken.id, row.id),
-            ),
-          )
-          .returning();
-        const updatedRow = updated[0];
-        if (updatedRow === undefined) {
-          throw new Error("api_token refresh update returned no row");
-        }
-        return { ok: true, value: updatedRow };
-      });
     },
   };
 }

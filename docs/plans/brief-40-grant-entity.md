@@ -124,8 +124,13 @@ on its seams; same session carries context).
   (contract-consumer rule, CLAUDE.md).
 - After PR 2: `/verify` runtime pass — login (fresh grant row), mint token, force-expire
   access token, hit API via BOTH channels concurrently, confirm single rotation + both
-  channels live; logout session → grant survives (token refs it); revoke token → grant
-  gone.
+  channels live; logout session → grant survives (token refs it); then DELETE the token
+  row directly (simulating purge) → grant gone. NOTE (review finding, 2026-07-23): a
+  soft-REVOKED token keeps its `grant_id` — the FK is NOT NULL and the row stays
+  listable — so revocation does NOT release the stored pair; it lingers until
+  installation purge. Deliberate consequence of the ADR D15 lifecycle; the "grant
+  revocation hygiene" follow-up (outbound GitHub token DELETE) is what would let a
+  revoke actually shrink stored credential material.
 - Not a generation-surface change — NO eval harness run needed.
 
 ## Risks / notes

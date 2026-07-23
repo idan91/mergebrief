@@ -7,6 +7,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 import {
   createDb,
   forTenant,
+  grantAuth,
   parseTenantContext,
   RepositoryErrorCode,
   safeParseTenantContext,
@@ -27,6 +28,8 @@ import {
   type RepoId,
   type ReviewerId,
 } from "../src/types";
+import { internal } from "../src/db/handle";
+import { githubGrant } from "../src/schema/github-grant";
 import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
@@ -343,12 +346,16 @@ describe("forTenant — idempotent upserts", () => {
     const a = forTenant(handle, CTX_A);
     const b = forTenant(handle, CTX_B);
 
-    await a.sessions.create({
-      sessionTokenHash: "hash-a",
-      reviewerId: REVIEWER,
+    const grant = await grantAuth(handle).createGrant({
       ghTokenCiphertext: "cipher",
       ghRefreshTokenCiphertext: "refresh-cipher",
       keyRef: "env:K1",
+      refreshExpiresAt: new Date(Date.now() + 3_600_000),
+    });
+    await a.sessions.create({
+      sessionTokenHash: "hash-a",
+      reviewerId: REVIEWER,
+      grantId: grant.id,
       expiresAt: new Date(Date.now() + 3_600_000),
     });
 
@@ -356,12 +363,21 @@ describe("forTenant — idempotent upserts", () => {
     expect(await b.sessions.getByTokenHash("hash-a")).toBeUndefined();
     const aRow = await a.sessions.getByTokenHash("hash-a");
     expect(aRow).toBeDefined();
-    // The rotating refresh token (D11) round-trips through create → select.
-    expect(aRow?.ghRefreshTokenCiphertext).toBe("refresh-cipher");
+    // The grant reference (D15) round-trips through create → select.
+    expect(aRow?.grantId).toBe(grant.id);
 
     // B's delete-by-reviewer does not touch A's row.
     expect(await b.sessions.deleteByReviewer(REVIEWER)).toBe(0);
     expect(await a.sessions.getByTokenHash("hash-a")).toBeDefined();
+
+    // A's delete-by-reviewer removes the row AND orphan-cleans its grant
+    // in the same transaction (D15 last-referent lifecycle).
+    expect(await a.sessions.deleteByReviewer(REVIEWER)).toBe(1);
+    expect(await grantAuth(handle).deleteIfOrphaned(grant.id)).toBe(0); // already gone
+    const grantRows = await internal(handle)
+      .select({ id: githubGrant.id })
+      .from(githubGrant);
+    expect(grantRows).toHaveLength(0);
   });
 });
 

@@ -5,6 +5,7 @@
 import { describe, expect, it } from "vitest";
 import {
   forTenant,
+  grantAuth,
   userSettingsStore,
   type InstallationId,
   type ReviewerId,
@@ -44,12 +45,16 @@ describe("userSettingsStore — the non-tenant per-user seam (D14)", () => {
     const store = userSettingsStore(handle);
 
     // A session under installation A carrying this reviewer.
-    await forTenant(handle, { installationId: INSTALL_A }).sessions.create({
-      sessionTokenHash: "hash-x",
-      reviewerId: USER,
+    const grant = await grantAuth(handle).createGrant({
       ghTokenCiphertext: "cipher",
       ghRefreshTokenCiphertext: "refresh-cipher",
       keyRef: "env:K1",
+      refreshExpiresAt: new Date(Date.now() + 3_600_000),
+    });
+    await forTenant(handle, { installationId: INSTALL_A }).sessions.create({
+      sessionTokenHash: "hash-x",
+      reviewerId: USER,
+      grantId: grant.id,
       expiresAt: new Date(Date.now() + 3_600_000),
     });
     await store.setDefaultInstallation(USER, INSTALL_A);

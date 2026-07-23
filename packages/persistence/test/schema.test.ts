@@ -17,6 +17,7 @@ import {
   diffSnapshot,
   disposition,
   generation,
+  githubGrant,
   pullRequest,
   reviewerSession,
   revisionNarrative,
@@ -201,19 +202,29 @@ async function seedFullGraph(db: Db, pullRequestId: PullRequestRowId): Promise<v
     metadata: { kind: "brief" },
   });
 
+  const grants = await db
+    .insert(githubGrant)
+    .values({
+      ghTokenCiphertext: "ciphertext",
+      ghRefreshTokenCiphertext: "refresh-ciphertext",
+      keyRef: "env:SESSION_KEY_V1",
+      refreshExpiresAt: new Date(Date.now() + 3_600_000),
+    })
+    .returning({ id: githubGrant.id });
+  const grant = grants[0];
+  if (grant === undefined) throw new Error("grant insert returned no row");
   await db.insert(reviewerSession).values({
     installationId: INSTALLATION,
     sessionTokenHash: "sha256:deadbeef",
     reviewerId: REVIEWER,
     reviewerLogin: "octocat",
-    ghTokenCiphertext: "ciphertext",
-    ghRefreshTokenCiphertext: "refresh-ciphertext",
-    keyRef: "env:SESSION_KEY_V1",
+    grantId: grant.id,
     expiresAt: new Date(Date.now() + 3_600_000),
   });
 }
 
 const M1_TABLES = [
+  "api_token",
   "audit_log",
   "brief",
   "checkpoint",
@@ -222,6 +233,7 @@ const M1_TABLES = [
   "diff_snapshot",
   "disposition",
   "generation",
+  "github_grant",
   "pull_request",
   "reviewer_session",
   "revision_narrative",
@@ -229,7 +241,7 @@ const M1_TABLES = [
 ] as const;
 
 describe("M1 schema migrations", () => {
-  it("creates all 12 M1 tables", async () => {
+  it("creates all M1 tables", async () => {
     const db = await freshDb();
     const result = await db.execute(
       sql`select table_name from information_schema.tables where table_schema = 'public' order by table_name`,
@@ -463,11 +475,21 @@ describe("BRIEF-2 schema additions (migration 0003)", () => {
     expect(rows[0]?.entryCommentId).toBeNull();
   });
 
-  it("rejects a reviewer_session insert omitting gh_refresh_token_ciphertext (NOT NULL)", async () => {
+  it("rejects a reviewer_session insert omitting grant_id (NOT NULL, D15)", async () => {
     const db = await freshDb();
     await expectCheckViolation(
       db.execute(
-        sql`insert into reviewer_session (installation_id, session_token_hash, reviewer_id, gh_token_ciphertext, key_ref, expires_at) values (1000, 'h', 31337, 'ct', 'env:K', now())`,
+        sql`insert into reviewer_session (installation_id, session_token_hash, reviewer_id, expires_at) values (1000, 'h', 31337, now())`,
+      ),
+      "grant_id",
+    );
+  });
+
+  it("rejects a github_grant insert omitting gh_refresh_token_ciphertext (NOT NULL, D15)", async () => {
+    const db = await freshDb();
+    await expectCheckViolation(
+      db.execute(
+        sql`insert into github_grant (gh_token_ciphertext, key_ref, refresh_expires_at) values ('ct', 'env:K', now())`,
       ),
       "gh_refresh_token_ciphertext",
     );

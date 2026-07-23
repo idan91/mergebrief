@@ -1,9 +1,12 @@
-// `reviewer_session` — the ONE secret-bearing table (D11): the self-host
-// session adapter holding the encrypted GitHub OAuth token. Per
+// `reviewer_session` — the cookie-channel session adapter (D11). The
+// credential itself lives on `github_grant` (D15) — this row only references
+// it, so no ciphertext copy can diverge from the pair. Per
 // (installation, reviewer) — deliberately NOT FK'd to `pull_request`.
-// Cleared by TTL sweep, logout, and the installation-purge routine (D5).
+// Cleared by TTL sweep, logout, and the installation-purge routine (D5);
+// every delete path orphan-cleans the grant (auth/grant.ts).
 import { bigint, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import type { ReviewerId } from "../types";
+import type { GrantRowId, ReviewerId } from "../types";
+import { githubGrant } from "./github-grant";
 import { stampColumns, tenantColumns } from "./columns";
 
 export const reviewerSession = pgTable(
@@ -15,12 +18,11 @@ export const reviewerSession = pgTable(
     reviewerId: bigint("reviewer_id", { mode: "bigint" }).$type<ReviewerId>().notNull(),
     /** Purgeable display label (D1). */
     reviewerLogin: text("reviewer_login"),
-    /** The GitHub OAuth token, encrypted at rest. */
-    ghTokenCiphertext: text("gh_token_ciphertext").notNull(),
-    /** Rotating refresh token (D11), encrypted at rest. */
-    ghRefreshTokenCiphertext: text("gh_refresh_token_ciphertext").notNull(),
-    /** Key resolved via the provider interface (env→KMS, ADR 0016 #7). */
-    keyRef: text("key_ref").notNull(),
+    /** The GitHub credential pair lives on the grant row (D15). */
+    grantId: bigint("grant_id", { mode: "bigint" })
+      .$type<GrantRowId>()
+      .notNull()
+      .references(() => githubGrant.id),
     /** Short-lived; deleted on expiry/logout. */
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     ...stampColumns(),

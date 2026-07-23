@@ -8,6 +8,7 @@ import {
   encryptToken,
   envKeyProvider,
   forTenant,
+  grantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -123,13 +124,17 @@ async function seedSession(handle: AppDatabase, kp: KeyProvider): Promise<string
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
   if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  const grant = await grantAuth(handle).createGrant({
+    ghTokenCiphertext: sealedAccess.value,
+    ghRefreshTokenCiphertext: sealedRefresh.value,
+    keyRef: KEY_REF,
+    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+  });
   await forTenant(handle, CTX).sessions.create({
     sessionTokenHash: hash,
     reviewerId: REVIEWER,
     reviewerLogin: "octocat",
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
+    grantId: grant.id,
     expiresAt: new Date("2027-01-01T00:00:00Z"),
   });
   return cookie;

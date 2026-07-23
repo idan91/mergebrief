@@ -1,164 +1,153 @@
-// Session-auth seam tests (BRIEF-2 stage 6, D11). Exercises the PRE-TENANT,
-// token-hash-keyed resolver against real migrations on PGlite: find/delete by
-// hash, and the serialized `refreshSession` transaction in all four branches —
-// (a) refresh applies the patch, (b) compare-and-swap short-circuit when the
-// seen token ciphertext no longer matches (callback NOT called), (c) caller
-// rejection leaves the row untouched, (d)
-// absent hash → NOT_FOUND. Rows are seeded through the tenant repository so the
-// seam is tested exactly as production writes them.
-import { beforeEach, describe, expect, it, vi } from "vitest";
+// Session-auth seam tests (BRIEF-2 stage 6, D11 — re-anchored by D15/BRIEF-40).
+// Exercises the PRE-TENANT, token-hash-keyed resolver against real migrations
+// on PGlite: the grant-JOINed find, delete-by-hash with same-transaction
+// grant orphan-clean (shared grants survive, last-referent grants die), and
+// the `setExpiresAt` mirror the cookie channel writes after a rotation.
+// Rotation itself lives on the grant seam — see grant.test.ts. Rows are
+// seeded through the tenant repository so the seam is tested exactly as
+// production writes them.
+import { sql } from "drizzle-orm";
+import { beforeEach, describe, expect, it } from "vitest";
+import { grantAuth, type GithubGrantRow } from "../src/auth/grant";
+import { sessionAuth } from "../src/auth/session";
 import { forTenant } from "../src/stores/tenant";
-import {
-  sessionAuth,
-  SessionAuthErrorCode,
-  type SessionRefreshPatch,
-  type SessionRefreshRejection,
-} from "../src/auth/session";
+import { internal, type AppDatabase } from "../src/db/handle";
+import { githubGrant } from "../src/schema/github-grant";
 import {
   isInstallationId,
   isReviewerId,
   type InstallationId,
-  type Result,
   type ReviewerId,
 } from "../src/types";
-import { type AppDatabase } from "../src/db/handle";
 import { brandWith, freshDatabase } from "./helpers";
 
 const INSTALLATION_ID: InstallationId = brandWith(isInstallationId, 4242n);
 const REVIEWER_ID: ReviewerId = brandWith(isReviewerId, 777n);
 const HASH = "a".repeat(64); // shape of a sha256 hex digest
 const OTHER_HASH = "b".repeat(64);
+const EXPIRY = new Date("2027-01-01T00:00:00Z");
 
-/** Seed one session row via the tenant repository; returns its expiry. */
+/** Seed a grant + one session row referencing it (the production shape). */
 async function seedSession(
   handle: AppDatabase,
-  input: { hash?: string; expiresAt: Date },
-): Promise<void> {
+  input: { hash?: string; expiresAt?: Date; grant?: GithubGrantRow },
+): Promise<GithubGrantRow> {
+  const grant =
+    input.grant ??
+    (await grantAuth(handle).createGrant({
+      ghTokenCiphertext: "v1.enc-access",
+      ghRefreshTokenCiphertext: "v1.enc-refresh",
+      keyRef: "SESSION_KEY_V1",
+      refreshExpiresAt: input.expiresAt ?? EXPIRY,
+    }));
   await forTenant(handle, { installationId: INSTALLATION_ID }).sessions.create({
     sessionTokenHash: input.hash ?? HASH,
     reviewerId: REVIEWER_ID,
     reviewerLogin: "octocat",
-    ghTokenCiphertext: "v1.enc-access",
-    ghRefreshTokenCiphertext: "v1.enc-refresh",
-    keyRef: "SESSION_KEY_V1",
-    expiresAt: input.expiresAt,
+    grantId: grant.id,
+    expiresAt: input.expiresAt ?? EXPIRY,
   });
+  return grant;
 }
 
-const NEVER_CALLED = (): Promise<
-  Result<SessionRefreshPatch, SessionRefreshRejection>
-> => {
-  throw new Error("refresh callback must not be called");
-};
+async function grantCount(handle: AppDatabase): Promise<number> {
+  return (await internal(handle).select({ id: githubGrant.id }).from(githubGrant)).length;
+}
 
-describe("sessionAuth.findSession / deleteSession", () => {
+describe("sessionAuth.findSession", () => {
   let handle: AppDatabase;
   beforeEach(async () => {
     handle = await freshDatabase();
   });
 
-  it("finds a session by its globally-unique hash", async () => {
-    await seedSession(handle, { expiresAt: new Date("2027-01-01T00:00:00Z") });
-    const row = await sessionAuth(handle).findSession(HASH);
-    expect(row).toBeDefined();
-    expect(row?.sessionTokenHash).toBe(HASH);
-    expect(String(row?.installationId)).toBe(String(INSTALLATION_ID));
-    expect(String(row?.reviewerId)).toBe(String(REVIEWER_ID));
+  it("finds a session by its globally-unique hash, JOINed to its grant", async () => {
+    const grant = await seedSession(handle, {});
+    const resolved = await sessionAuth(handle).findSession(HASH);
+    expect(resolved).toBeDefined();
+    expect(resolved?.session.sessionTokenHash).toBe(HASH);
+    expect(String(resolved?.session.installationId)).toBe(String(INSTALLATION_ID));
+    expect(String(resolved?.session.reviewerId)).toBe(String(REVIEWER_ID));
+    // The credential material rides on the grant half only.
+    expect(resolved?.grant.id).toBe(grant.id);
+    expect(resolved?.grant.ghTokenCiphertext).toBe("v1.enc-access");
+    expect(resolved?.session).not.toHaveProperty("ghTokenCiphertext");
   });
 
   it("returns undefined for an unknown hash", async () => {
     expect(await sessionAuth(handle).findSession(OTHER_HASH)).toBeUndefined();
   });
-
-  it("deletes by hash and reports the count", async () => {
-    await seedSession(handle, { expiresAt: new Date("2027-01-01T00:00:00Z") });
-    expect(await sessionAuth(handle).deleteSession(HASH)).toBe(1);
-    expect(await sessionAuth(handle).findSession(HASH)).toBeUndefined();
-    // Idempotent: deleting an already-gone hash is a clean 0.
-    expect(await sessionAuth(handle).deleteSession(HASH)).toBe(0);
-  });
 });
 
-describe("sessionAuth.refreshSession", () => {
+describe("sessionAuth.deleteSession — D15 last-referent lifecycle", () => {
   let handle: AppDatabase;
   beforeEach(async () => {
     handle = await freshDatabase();
   });
 
-  it("(a) applies the patch and returns the updated row when stale", async () => {
-    await seedSession(handle, { expiresAt: new Date("2000-01-01T00:00:00Z") });
-    const newExpiry = new Date("2027-06-01T00:00:00Z");
-    const patch: SessionRefreshPatch = {
-      ghTokenCiphertext: "v1.rotated-access",
-      ghRefreshTokenCiphertext: "v1.rotated-refresh",
-      keyRef: "SESSION_KEY_V1",
-      expiresAt: newExpiry,
-    };
-    const refresh = vi.fn().mockResolvedValue({ ok: true, value: patch });
-
-    const result = await sessionAuth(handle).refreshSession(
-      HASH,
-      "v1.enc-access", // matches the stored ciphertext → refresh proceeds
-      refresh,
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
-    expect(refresh).toHaveBeenCalledTimes(1);
-    expect(result.value.ghTokenCiphertext).toBe("v1.rotated-access");
-    expect(result.value.ghRefreshTokenCiphertext).toBe("v1.rotated-refresh");
-    expect(result.value.expiresAt).toEqual(newExpiry);
-
-    // Persisted, not just returned.
-    const reread = await sessionAuth(handle).findSession(HASH);
-    expect(reread?.ghTokenCiphertext).toBe("v1.rotated-access");
-    expect(reread?.expiresAt).toEqual(newExpiry);
+  it("deletes by hash and orphan-cleans the grant in the same transaction", async () => {
+    await seedSession(handle, {});
+    expect(await grantCount(handle)).toBe(1);
+    expect(await sessionAuth(handle).deleteSession(HASH)).toBe(1);
+    expect(await sessionAuth(handle).findSession(HASH)).toBeUndefined();
+    // Last referent gone → the grant died with it.
+    expect(await grantCount(handle)).toBe(0);
+    // Idempotent: deleting an already-gone hash is a clean 0.
+    expect(await sessionAuth(handle).deleteSession(HASH)).toBe(0);
   });
 
-  it("(b) short-circuits when the token was already rotated under the lock (no callback)", async () => {
-    const freshExpiry = new Date("2027-01-01T00:00:00Z");
-    await seedSession(handle, { expiresAt: freshExpiry });
+  it("keeps a grant that another referent still shares", async () => {
+    const grant = await seedSession(handle, {});
+    await seedSession(handle, { hash: OTHER_HASH, grant });
+    expect(await sessionAuth(handle).deleteSession(HASH)).toBe(1);
+    // The sibling still holds the grant.
+    expect(await grantCount(handle)).toBe(1);
+    const resolved = await sessionAuth(handle).findSession(OTHER_HASH);
+    expect(resolved?.grant.id).toBe(grant.id);
+  });
+});
 
-    const result = await sessionAuth(handle).refreshSession(
-      HASH,
-      "v1.stale-access-we-had", // ≠ the stored ciphertext → already rotated
-      NEVER_CALLED,
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
-    // Returned as-is, untouched — the stored (fresh) token stands.
-    expect(result.value.ghTokenCiphertext).toBe("v1.enc-access");
-    expect(result.value.expiresAt).toEqual(freshExpiry);
+describe("sessionAuth.setExpiresAt", () => {
+  let handle: AppDatabase;
+  beforeEach(async () => {
+    handle = await freshDatabase();
   });
 
-  it("(c) leaves the row untouched and returns REFRESH_REJECTED on rejection", async () => {
-    await seedSession(handle, { expiresAt: new Date("2000-01-01T00:00:00Z") });
-    const refresh = vi
-      .fn()
-      .mockResolvedValue({ ok: false, error: { reason: "github-refresh-failed" } });
-
-    const result = await sessionAuth(handle).refreshSession(
-      HASH,
-      "v1.enc-access", // matches stored → refresh attempted (then rejected)
-      refresh,
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(SessionAuthErrorCode.REFRESH_REJECTED);
-
-    // Untouched: the original ciphertext + expiry survive.
-    const reread = await sessionAuth(handle).findSession(HASH);
-    expect(reread?.ghTokenCiphertext).toBe("v1.enc-access");
-    expect(reread?.expiresAt).toEqual(new Date("2000-01-01T00:00:00Z"));
+  it("mirrors a rotated refresh-token lifetime onto the session row", async () => {
+    await seedSession(handle, {});
+    const rotated = new Date("2027-06-01T00:00:00Z");
+    expect(await sessionAuth(handle).setExpiresAt(HASH, rotated)).toBe(1);
+    const resolved = await sessionAuth(handle).findSession(HASH);
+    expect(resolved?.session.expiresAt).toEqual(rotated);
+    // Unknown hash is a clean 0, not an error.
+    expect(await sessionAuth(handle).setExpiresAt(OTHER_HASH, rotated)).toBe(0);
   });
+});
 
-  it("(d) returns NOT_FOUND for an absent hash", async () => {
-    const result = await sessionAuth(handle).refreshSession(
-      OTHER_HASH,
-      "v1.enc-access",
-      NEVER_CALLED,
+describe("reviewer_session schema — no credential columns (D15)", () => {
+  it("the session table carries a grant FK and NO ciphertext columns", async () => {
+    const { PGlite } = await import("@electric-sql/pglite");
+    const { drizzle } = await import("drizzle-orm/pglite");
+    const { migrate } = await import("drizzle-orm/pglite/migrator");
+    const { fileURLToPath } = await import("node:url");
+    const db = drizzle(new PGlite());
+    await migrate(db, {
+      migrationsFolder: fileURLToPath(new URL("../drizzle", import.meta.url)),
+    });
+    const result = await db.execute(
+      sql`select column_name from information_schema.columns where table_schema = 'public' and table_name = 'reviewer_session' order by column_name`,
     );
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(SessionAuthErrorCode.NOT_FOUND);
+    const names = result.rows
+      .map((row) => row["column_name"])
+      .filter((name): name is string => typeof name === "string");
+    expect(names).toEqual([
+      "created_at",
+      "expires_at",
+      "grant_id",
+      "id",
+      "installation_id",
+      "reviewer_id",
+      "reviewer_login",
+      "session_token_hash",
+    ]);
   });
 });

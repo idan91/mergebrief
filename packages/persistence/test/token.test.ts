@@ -1,10 +1,13 @@
-// API-token seam tests (BRIEF-17 PR 1 — ADR 0016 #4 as amended 2026-07-09).
-// Exercises the `api_token` schema and the PRE-TENANT, hash-keyed `tokenAuth`
-// resolver against real migrations on PGlite, mirroring `session.test.ts`.
+// API-token seam tests (BRIEF-17 PR 1 — ADR 0016 #4 as amended, re-anchored
+// by D15/BRIEF-40). Exercises the `api_token` schema and the PRE-TENANT,
+// hash-keyed `tokenAuth` resolver against real migrations on PGlite,
+// mirroring `session.test.ts`. Credential rotation lives on the grant seam —
+// see grant.test.ts.
 //
 // The hash-only-storage assertion is structural: the table's exact column set
-// is pinned so a plaintext-token column cannot be added silently, and the
-// `tokenAuth` surface itself never accepts plaintext (mint takes `tokenHash`).
+// is pinned so a plaintext-token (or ciphertext) column cannot be added
+// silently, and the `tokenAuth` surface itself never accepts plaintext (mint
+// takes `tokenHash` + the session's `grantId`).
 import { fileURLToPath } from "node:url";
 import { PGlite } from "@electric-sql/pglite";
 import { sql } from "drizzle-orm";
@@ -13,18 +16,16 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
 import { apiToken } from "../src/schema/api-token";
 
+import { grantAuth, type GithubGrantRow } from "../src/auth/grant";
 import {
   tokenAuth,
   TokenAuthErrorCode,
   type TokenMintInput,
-  type TokenRefreshPatch,
-  type TokenRefreshRejection,
 } from "../src/auth/token";
 import {
   isInstallationId,
   isReviewerId,
   type InstallationId,
-  type Result,
   type ReviewerId,
 } from "../src/types";
 import type { AppDatabase } from "../src/db/handle";
@@ -42,15 +43,13 @@ async function freshDb(): Promise<Db> {
   return db;
 }
 
-/** The full column inventory — NO plaintext token column, only the hash. */
+/** The full column inventory — hash + grant FK, NO plaintext or ciphertext. */
 const API_TOKEN_COLUMNS = [
   "created_at",
   "expires_at",
-  "gh_refresh_token_ciphertext",
-  "gh_token_ciphertext",
+  "grant_id",
   "id",
   "installation_id",
-  "key_ref",
   "last_used_at",
   "name",
   "revoked_at",
@@ -65,7 +64,7 @@ describe("api_token schema", () => {
     db = await freshDb();
   });
 
-  it("stores ONLY the token hash — the exact column set has no plaintext column", async () => {
+  it("stores ONLY the token hash — the exact column set has no credential column", async () => {
     const result = await db.execute(
       sql`select column_name from information_schema.columns where table_schema = 'public' and table_name = 'api_token' order by column_name`,
     );
@@ -78,14 +77,18 @@ describe("api_token schema", () => {
   it("rejects two rows with the same token_hash (globally unique)", async () => {
     const tokenHash = "a".repeat(64); // shape of a sha256 hex digest
     await db.execute(sql`
-      insert into api_token (installation_id, token_hash, user_id, name, gh_token_ciphertext, gh_refresh_token_ciphertext, key_ref)
-      values (4242, ${tokenHash}, 777, 'ci-token', 'ct', 'rct', 'K')
+      insert into github_grant (gh_token_ciphertext, gh_refresh_token_ciphertext, key_ref, refresh_expires_at)
+      values ('ct', 'rct', 'K', now() + interval '6 months')
+    `);
+    await db.execute(sql`
+      insert into api_token (installation_id, token_hash, user_id, name, grant_id)
+      values (4242, ${tokenHash}, 777, 'ci-token', (select id from github_grant limit 1))
     `);
     let thrown: unknown;
     try {
       await db.execute(sql`
-        insert into api_token (installation_id, token_hash, user_id, name, gh_token_ciphertext, gh_refresh_token_ciphertext, key_ref)
-        values (9999, ${tokenHash}, 888, 'other', 'ct2', 'rct2', 'K')
+        insert into api_token (installation_id, token_hash, user_id, name, grant_id)
+        values (9999, ${tokenHash}, 888, 'other', (select id from github_grant limit 1))
       `);
     } catch (error) {
       thrown = error;
@@ -103,12 +106,13 @@ describe("api_token schema", () => {
     expect(found).toBe(true);
   });
 
-  it("is NOT FK'd to pull_request — token rows survive a PR-graph purge", async () => {
+  it("carries exactly ONE FK — the grant reference; still none to pull_request", async () => {
     const result = await db.execute(sql`
-      select count(*)::int as fk_count from information_schema.table_constraints
-      where table_schema = 'public' and table_name = 'api_token' and constraint_type = 'FOREIGN KEY'
+      select ccu.table_name as target from information_schema.table_constraints tc
+      join information_schema.constraint_column_usage ccu on ccu.constraint_name = tc.constraint_name
+      where tc.table_schema = 'public' and tc.table_name = 'api_token' and tc.constraint_type = 'FOREIGN KEY'
     `);
-    expect(result.rows[0]?.["fk_count"]).toBe(0);
+    expect(result.rows.map((row) => row["target"])).toEqual(["github_grant"]);
     // The table object is importable and queryable through drizzle.
     expect(await db.select({ id: apiToken.id }).from(apiToken)).toHaveLength(0);
   });
@@ -129,36 +133,42 @@ const NOW = new Date("2026-07-09T12:00:00Z");
 const PAST = new Date("2026-01-01T00:00:00Z");
 const FUTURE = new Date("2026-10-07T00:00:00Z");
 
-function mintInput(overrides: Partial<TokenMintInput> = {}): TokenMintInput {
+async function seedGrant(handle: AppDatabase): Promise<GithubGrantRow> {
+  return grantAuth(handle).createGrant({
+    ghTokenCiphertext: "v1.enc-access",
+    ghRefreshTokenCiphertext: "v1.enc-refresh",
+    keyRef: "SESSION_KEY_V1",
+    refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+  });
+}
+
+function mintInput(
+  grant: GithubGrantRow,
+  overrides: Partial<TokenMintInput> = {},
+): TokenMintInput {
   return {
     installationId: INSTALLATION,
     userId: USER,
     userLogin: "octocat",
     name: "ci-token",
     tokenHash: HASH,
-    ghTokenCiphertext: "v1.enc-access",
-    ghRefreshTokenCiphertext: "v1.enc-refresh",
-    keyRef: "SESSION_KEY_V1",
+    grantId: grant.id,
     expiresAt: FUTURE,
     ...overrides,
   };
 }
 
-const NEVER_CALLED = (): Promise<
-  Result<TokenRefreshPatch, TokenRefreshRejection>
-> => {
-  throw new Error("refresh callback must not be called");
-};
-
 describe("tokenAuth mint / resolve / touch", () => {
   let handle: AppDatabase;
+  let grant: GithubGrantRow;
   beforeEach(async () => {
     handle = await freshDatabase();
+    grant = await seedGrant(handle);
   });
 
-  it("mints a token row and resolves it by hash", async () => {
+  it("mints a token row linking the grant and resolves it by hash", async () => {
     const auth = tokenAuth(handle);
-    const minted = await auth.mintToken(mintInput());
+    const minted = await auth.mintToken(mintInput(grant));
     expect(String(minted.installationId)).toBe(String(INSTALLATION));
     expect(minted.revokedAt).toBeNull();
     expect(minted.lastUsedAt).toBeNull();
@@ -166,13 +176,17 @@ describe("tokenAuth mint / resolve / touch", () => {
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(true);
     if (!resolved.ok) throw new Error("unreachable");
-    expect(resolved.value.id).toBe(minted.id);
-    expect(resolved.value.name).toBe("ci-token");
+    expect(resolved.value.token.id).toBe(minted.id);
+    expect(resolved.value.token.name).toBe("ci-token");
+    // The credential material rides on the grant half — LINKED, not copied.
+    expect(resolved.value.grant.id).toBe(grant.id);
+    expect(resolved.value.grant.ghTokenCiphertext).toBe("v1.enc-access");
+    expect(resolved.value.token).not.toHaveProperty("ghTokenCiphertext");
   });
 
   it("settings-facing results carry NO secret-bearing columns (codex R1)", async () => {
     const auth = tokenAuth(handle);
-    const minted = await auth.mintToken(mintInput());
+    const minted = await auth.mintToken(mintInput(grant));
     const listed = await auth.listForUser(USER);
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
     if (!revoked.ok) throw new Error("expected revocation");
@@ -180,6 +194,7 @@ describe("tokenAuth mint / resolve / touch", () => {
     for (const row of [minted, listed[0], revoked.value]) {
       expect(row).toBeDefined();
       expect(row).not.toHaveProperty("tokenHash");
+      expect(row).not.toHaveProperty("grantId");
       expect(row).not.toHaveProperty("ghTokenCiphertext");
       expect(row).not.toHaveProperty("ghRefreshTokenCiphertext");
       expect(row).not.toHaveProperty("keyRef");
@@ -188,7 +203,7 @@ describe("tokenAuth mint / resolve / touch", () => {
 
   it("resolves a no-expiry token (expires_at null never expires)", async () => {
     const auth = tokenAuth(handle);
-    await auth.mintToken(mintInput({ expiresAt: null }));
+    await auth.mintToken(mintInput(grant, { expiresAt: null }));
     const resolved = await auth.resolveByHash(HASH, new Date("2099-01-01T00:00:00Z"));
     expect(resolved.ok).toBe(true);
   });
@@ -202,7 +217,7 @@ describe("tokenAuth mint / resolve / touch", () => {
 
   it("returns EXPIRED for a token past its expiry", async () => {
     const auth = tokenAuth(handle);
-    await auth.mintToken(mintInput({ expiresAt: PAST }));
+    await auth.mintToken(mintInput(grant, { expiresAt: PAST }));
     const resolved = await auth.resolveByHash(HASH, NOW);
     expect(resolved.ok).toBe(false);
     if (resolved.ok) throw new Error("unreachable");
@@ -211,11 +226,11 @@ describe("tokenAuth mint / resolve / touch", () => {
 
   it("touches last_used_at by hash", async () => {
     const auth = tokenAuth(handle);
-    await auth.mintToken(mintInput());
+    await auth.mintToken(mintInput(grant));
     expect(await auth.touchLastUsed(HASH, NOW)).toBe(1);
     const resolved = await auth.resolveByHash(HASH, NOW);
     if (!resolved.ok) throw new Error("expected resolution");
-    expect(resolved.value.lastUsedAt).toEqual(NOW);
+    expect(resolved.value.token.lastUsedAt).toEqual(NOW);
     // Unknown hash is a clean 0, not an error.
     expect(await auth.touchLastUsed(OTHER_HASH, NOW)).toBe(0);
   });
@@ -223,22 +238,24 @@ describe("tokenAuth mint / resolve / touch", () => {
 
 describe("tokenAuth list / revoke", () => {
   let handle: AppDatabase;
+  let grant: GithubGrantRow;
   beforeEach(async () => {
     handle = await freshDatabase();
+    grant = await seedGrant(handle);
   });
 
   it("lists a user's tokens across installations, not other users'", async () => {
     const auth = tokenAuth(handle);
-    await auth.mintToken(mintInput());
+    await auth.mintToken(mintInput(grant));
     await auth.mintToken(
-      mintInput({
+      mintInput(grant, {
         tokenHash: OTHER_HASH,
         name: "other-org",
         installationId: OTHER_INSTALLATION,
       }),
     );
     await auth.mintToken(
-      mintInput({ tokenHash: "c".repeat(64), userId: OTHER_USER, name: "not-mine" }),
+      mintInput(grant, { tokenHash: "c".repeat(64), userId: OTHER_USER, name: "not-mine" }),
     );
 
     const mine = await auth.listForUser(USER);
@@ -248,7 +265,7 @@ describe("tokenAuth list / revoke", () => {
 
   it("revokes an owned token; a revoked token stays listable but never resolves", async () => {
     const auth = tokenAuth(handle);
-    const minted = await auth.mintToken(mintInput());
+    const minted = await auth.mintToken(mintInput(grant));
 
     const revoked = await auth.revokeToken(USER, minted.id, NOW);
     expect(revoked.ok).toBe(true);
@@ -260,7 +277,9 @@ describe("tokenAuth list / revoke", () => {
     if (resolved.ok) throw new Error("unreachable");
     expect(resolved.error.code).toBe(TokenAuthErrorCode.REVOKED);
 
-    // Still listable (the settings list stays honest after revocation).
+    // Still listable (the settings list stays honest after revocation), and
+    // the soft revoke KEEPS the grant reference (D15: only hard deletes
+    // orphan-clean).
     const listed = await auth.listForUser(USER);
     expect(listed).toHaveLength(1);
     expect(listed[0]?.revokedAt).toEqual(NOW);
@@ -268,7 +287,7 @@ describe("tokenAuth list / revoke", () => {
 
   it("revocation is idempotent — the original revoked_at is preserved", async () => {
     const auth = tokenAuth(handle);
-    const minted = await auth.mintToken(mintInput());
+    const minted = await auth.mintToken(mintInput(grant));
     await auth.revokeToken(USER, minted.id, PAST);
     const again = await auth.revokeToken(USER, minted.id, NOW);
     expect(again.ok).toBe(true);
@@ -278,7 +297,7 @@ describe("tokenAuth list / revoke", () => {
 
   it("returns NOT_FOUND revoking a token the user does not own", async () => {
     const auth = tokenAuth(handle);
-    const minted = await auth.mintToken(mintInput());
+    const minted = await auth.mintToken(mintInput(grant));
     const result = await auth.revokeToken(OTHER_USER, minted.id, NOW);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -289,103 +308,11 @@ describe("tokenAuth list / revoke", () => {
   });
 });
 
-describe("tokenAuth.refreshToken", () => {
-  let handle: AppDatabase;
-  beforeEach(async () => {
-    handle = await freshDatabase();
-  });
-
-  it("(a) applies the patch WITHOUT touching the token's own expiry", async () => {
-    const auth = tokenAuth(handle);
-    await auth.mintToken(mintInput({ expiresAt: FUTURE }));
-    const patch: TokenRefreshPatch = {
-      ghTokenCiphertext: "v1.rotated-access",
-      ghRefreshTokenCiphertext: "v1.rotated-refresh",
-      keyRef: "SESSION_KEY_V1",
-    };
-
-    const result = await auth.refreshToken(
-      HASH,
-      "v1.enc-access", // matches the stored ciphertext → refresh proceeds
-      NOW,
-      () => Promise.resolve({ ok: true, value: patch }),
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
-    expect(result.value.ghTokenCiphertext).toBe("v1.rotated-access");
-    expect(result.value.ghRefreshTokenCiphertext).toBe("v1.rotated-refresh");
-    // The mint-chosen token expiry is independent of GitHub credential
-    // rotation — it must never move on refresh.
-    expect(result.value.expiresAt).toEqual(FUTURE);
-
-    // Persisted, not just returned.
-    const reread = await auth.resolveByHash(HASH, NOW);
-    if (!reread.ok) throw new Error("expected resolution");
-    expect(reread.value.ghTokenCiphertext).toBe("v1.rotated-access");
-  });
-
-  it("(b) short-circuits when the token was already rotated under the lock", async () => {
-    const auth = tokenAuth(handle);
-    await auth.mintToken(mintInput());
-    const result = await auth.refreshToken(
-      HASH,
-      "v1.stale-access-we-had", // ≠ stored → already rotated by another request
-      NOW,
-      NEVER_CALLED,
-    );
-    expect(result.ok).toBe(true);
-    if (!result.ok) throw new Error("unreachable");
-    expect(result.value.ghTokenCiphertext).toBe("v1.enc-access");
-  });
-
-  it("(c) leaves the row untouched and returns REFRESH_REJECTED on rejection", async () => {
-    const auth = tokenAuth(handle);
-    await auth.mintToken(mintInput());
-    const result = await auth.refreshToken(HASH, "v1.enc-access", NOW, () =>
-      Promise.resolve({ ok: false, error: { reason: "github-refresh-failed" } }),
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(TokenAuthErrorCode.REFRESH_REJECTED);
-
-    const reread = await auth.resolveByHash(HASH, NOW);
-    if (!reread.ok) throw new Error("expected resolution");
-    expect(reread.value.ghTokenCiphertext).toBe("v1.enc-access");
-  });
-
-  it("(d) returns NOT_FOUND for an absent hash", async () => {
-    const result = await tokenAuth(handle).refreshToken(
-      OTHER_HASH,
-      "v1.enc-access",
-      NOW,
-      NEVER_CALLED,
-    );
-    expect(result.ok).toBe(false);
-    if (result.ok) throw new Error("unreachable");
-    expect(result.error.code).toBe(TokenAuthErrorCode.NOT_FOUND);
-  });
-
-  it("(e) refuses to rotate credentials of a revoked or expired token", async () => {
-    const auth = tokenAuth(handle);
-    const minted = await auth.mintToken(mintInput());
-    await auth.revokeToken(USER, minted.id, PAST);
-    const revoked = await auth.refreshToken(HASH, "v1.enc-access", NOW, NEVER_CALLED);
-    expect(revoked.ok).toBe(false);
-    if (revoked.ok) throw new Error("unreachable");
-    expect(revoked.error.code).toBe(TokenAuthErrorCode.REVOKED);
-
-    await auth.mintToken(mintInput({ tokenHash: OTHER_HASH, expiresAt: PAST }));
-    const expired = await auth.refreshToken(OTHER_HASH, "v1.enc-access", NOW, NEVER_CALLED);
-    expect(expired.ok).toBe(false);
-    if (expired.ok) throw new Error("unreachable");
-    expect(expired.error.code).toBe(TokenAuthErrorCode.EXPIRED);
-  });
-});
-
 describe("tokenAuth.mintToken audit atomicity (codex PR2 R1)", () => {
   it("mint emits its D9 auth audit row in the same transaction", async () => {
     const handle = await freshDatabase();
-    await tokenAuth(handle).mintToken(mintInput());
+    const grant = await seedGrant(handle);
+    await tokenAuth(handle).mintToken(mintInput(grant));
     const { internal } = await import("../src/db/handle");
     const { auditLog } = await import("../src/schema/audit-log");
     const rows = await internal(handle).select().from(auditLog);

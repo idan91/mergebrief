@@ -375,7 +375,12 @@ github_grant
 - **Lifecycle: dies with its last referent**, deleted in the same transaction that removes the
   last referencing session/token row — no orphan sweeper. Refresh failure keeps per-channel
   postures (cookie deletes the session; a token row is never auto-deleted), so a dead grant
-  may linger behind a dead-but-unrevoked token — inert ciphertext, harmless.
+  may linger behind a dead-but-unrevoked token — inert ciphertext, harmless. The converse
+  also holds (noted 2026-07-23, BRIEF-40 review): a soft-REVOKED token keeps its `grant_id`
+  (NOT NULL FK; the row stays listable), so revocation retains the — possibly still-live —
+  encrypted pair until installation purge. Accepted: MergeBrief-side revoke severs access
+  through this instance; actually invalidating/releasing the GitHub credential is the
+  "grant revocation hygiene" follow-up (outbound per-token DELETE).
 - **Migration backfill dedups by exact ciphertext match** (mint copied ciphertext verbatim,
   so a not-yet-diverged token matches its source session byte-for-byte and joins its grant);
   unmatched rows get their own grant.

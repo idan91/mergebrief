@@ -16,10 +16,12 @@
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { type AppDatabase, internal } from "../db/handle";
+import { deleteOrphanedGrants } from "../auth/grant";
 import { checkpoint } from "../schema/checkpoint";
 import { pullRequest } from "../schema/pull-request";
 import { reviewerSession } from "../schema/reviewer-session";
 import {
+  type GrantRowId,
   type InstallationId,
   isInstallationId,
   PrState,
@@ -215,9 +217,8 @@ export interface SessionCreateInput {
   readonly sessionTokenHash: string;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin?: string;
-  readonly ghTokenCiphertext: string;
-  readonly ghRefreshTokenCiphertext: string;
-  readonly keyRef: string;
+  /** The GitHub credential pair lives on the grant row (D15) — link, never copy. */
+  readonly grantId: GrantRowId;
   readonly expiresAt: Date;
 }
 
@@ -561,9 +562,7 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           sessionTokenHash: input.sessionTokenHash,
           reviewerId: input.reviewerId,
           reviewerLogin: input.reviewerLogin,
-          ghTokenCiphertext: input.ghTokenCiphertext,
-          ghRefreshTokenCiphertext: input.ghRefreshTokenCiphertext,
-          keyRef: input.keyRef,
+          grantId: input.grantId,
           expiresAt: input.expiresAt,
         })
         .returning();
@@ -589,29 +588,43 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
     },
 
     async deleteExpired(now) {
-      const rows = await db
-        .delete(reviewerSession)
-        .where(
-          and(
-            eq(reviewerSession.installationId, installationId),
-            lt(reviewerSession.expiresAt, now),
-          ),
-        )
-        .returning({ id: reviewerSession.id });
-      return rows.length;
+      // D15: orphan-clean the grants of the deleted sessions, same tx.
+      return db.transaction(async (tx) => {
+        const rows = await tx
+          .delete(reviewerSession)
+          .where(
+            and(
+              eq(reviewerSession.installationId, installationId),
+              lt(reviewerSession.expiresAt, now),
+            ),
+          )
+          .returning({ grantId: reviewerSession.grantId });
+        await deleteOrphanedGrants(
+          tx,
+          rows.map((row) => row.grantId),
+        );
+        return rows.length;
+      });
     },
 
     async deleteByReviewer(reviewerId) {
-      const rows = await db
-        .delete(reviewerSession)
-        .where(
-          and(
-            eq(reviewerSession.installationId, installationId),
-            eq(reviewerSession.reviewerId, reviewerId),
-          ),
-        )
-        .returning({ id: reviewerSession.id });
-      return rows.length;
+      // D15: orphan-clean the grants of the deleted sessions, same tx.
+      return db.transaction(async (tx) => {
+        const rows = await tx
+          .delete(reviewerSession)
+          .where(
+            and(
+              eq(reviewerSession.installationId, installationId),
+              eq(reviewerSession.reviewerId, reviewerId),
+            ),
+          )
+          .returning({ grantId: reviewerSession.grantId });
+        await deleteOrphanedGrants(
+          tx,
+          rows.map((row) => row.grantId),
+        );
+        return rows.length;
+      });
     },
   };
 

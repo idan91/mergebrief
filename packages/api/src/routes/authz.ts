@@ -53,8 +53,8 @@ import {
   type TenantContext,
 } from "persistence";
 import {
-  AuthChannel,
   principalFromApiToken,
+  principalFromSession,
   refreshSessionToken,
   SESSION_COOKIE,
   sha256Hex,
@@ -219,8 +219,8 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
     const sessionTokenHash = sha256Hex(cookie);
-    const session = await sessionAuth(deps.handle).findSession(sessionTokenHash);
-    if (session === undefined) {
+    const resolved = await sessionAuth(deps.handle).findSession(sessionTokenHash);
+    if (resolved === undefined) {
       stampAccess(c, "401", {});
       return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
@@ -230,14 +230,14 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     // so there is no recovery — burn the row and force a fresh login. (An expired
     // ~8h ACCESS token is different — it still flows through the 401→refresh path
     // in `repoAuthzLayer`.)
-    if (session.expiresAt.getTime() <= startedAt) {
+    if (resolved.session.expiresAt.getTime() <= startedAt) {
       await sessionAuth(deps.handle).deleteSession(sessionTokenHash);
-      stampAccess(c, "401", { reviewerId: session.reviewerId });
+      stampAccess(c, "401", { reviewerId: resolved.session.reviewerId });
       return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
 
-    c.set("ctx", { installationId: session.installationId });
-    c.set("session", { ...session, channel: AuthChannel.COOKIE });
+    c.set("ctx", { installationId: resolved.session.installationId });
+    c.set("session", principalFromSession(resolved));
     await next();
   };
 }

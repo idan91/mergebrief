@@ -1,15 +1,16 @@
-// `api_token` — the SECOND secret-bearing table after `reviewer_session`
-// (ADR 0016 #4 as amended 2026-07-09, BRIEF-17): an opaque `mergebrief_...`
-// Bearer token for the CLI/agents, stored ONLY as its SHA-256 hex hash,
-// wrapping the same envelope-encrypted GitHub token + refresh token the
-// session row wraps. A token binds exactly ONE installation, chosen at mint
+// `api_token` — the Bearer presentation channel (ADR 0016 #4 as amended,
+// BRIEF-17): an opaque `mergebrief_...` Bearer token for the CLI/agents,
+// stored ONLY as its SHA-256 hex hash. The GitHub credential pair lives on
+// the `github_grant` row it references (D15, BRIEF-40) — mint LINKS the
+// session's grant, never copies. A token binds exactly ONE installation, chosen at mint
 // (tenancy invariant, ADR 0016 #6). Unlike `reviewer_session` it is
 // long-lived and user-managed: named, listable, revocable (`revoked_at` soft
 // flag so the settings list stays honest after revocation), with a nullable
 // `expires_at` (no-expiry allowed) and `last_used_at` tracking. Deliberately
 // NOT FK'd to `pull_request`; deleted explicitly on installation offboarding.
 import { bigint, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import type { ApiTokenRowId, ReviewerId } from "../types";
+import type { ApiTokenRowId, GrantRowId, ReviewerId } from "../types";
+import { githubGrant } from "./github-grant";
 import { stampColumns, tenantColumns } from "./columns";
 
 export const apiToken = pgTable(
@@ -24,12 +25,11 @@ export const apiToken = pgTable(
     userLogin: text("user_login"),
     /** User-chosen label shown in the settings list. */
     name: text("name").notNull(),
-    /** The GitHub OAuth token, encrypted at rest (same crypto seam as sessions). */
-    ghTokenCiphertext: text("gh_token_ciphertext").notNull(),
-    /** Rotating refresh token, encrypted at rest. */
-    ghRefreshTokenCiphertext: text("gh_refresh_token_ciphertext").notNull(),
-    /** Key resolved via the provider interface (env→KMS, ADR 0016 #7). */
-    keyRef: text("key_ref").notNull(),
+    /** The GitHub credential pair lives on the grant row (D15). */
+    grantId: bigint("grant_id", { mode: "bigint" })
+      .$type<GrantRowId>()
+      .notNull()
+      .references(() => githubGrant.id),
     /** Nullable: no-expiry allowed (self-host CI is the adopter's call). */
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     /** Touched (throttled, api-side) on Bearer use. */

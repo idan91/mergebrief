@@ -33,17 +33,19 @@ import {
   decryptToken,
   encryptToken,
   forTenant,
+  grantAuth,
+  GrantAuthErrorCode,
   sessionAuth,
-  SessionAuthErrorCode,
   tokenAuth,
-  TokenAuthErrorCode,
   userSettingsStore,
-  type ApiTokenRow,
   type AppDatabase,
+  type GithubGrantRow,
+  type GrantRefreshPatch,
+  type GrantRefreshRejection,
   type KeyProvider,
   type ReviewerSessionRow,
-  type TokenRefreshPatch,
-  type TokenRefreshRejection,
+  type SessionWithGrant,
+  type TokenWithGrant,
 } from "persistence";
 import type { Logger } from "logging";
 import type { DraftPolicy, Result, ValueOf } from "types";
@@ -122,9 +124,27 @@ export type AuthChannel = ValueOf<typeof AuthChannel>;
  * A resolved viewer. For `bearer`, `sessionTokenHash` carries the API token's
  * hash and `reviewerId`/`reviewerLogin` the minting user's — the field names
  * keep the session vocabulary so downstream cache keys, audit rows, and the
- * refresh CAS seed are channel-agnostic.
+ * refresh CAS seed are channel-agnostic. `ghTokenCiphertext`/`keyRef` come
+ * from the GRANT row at resolution (D15 — the referent rows carry no
+ * credential material): the ciphertext doubles as the refresh CAS seed (the
+ * value observed BEFORE a failing GitHub call), exactly as it did when it
+ * lived on the session row.
  */
-export type ViewerPrincipal = ReviewerSessionRow & { readonly channel: AuthChannel };
+export type ViewerPrincipal = ReviewerSessionRow & {
+  readonly channel: AuthChannel;
+  readonly ghTokenCiphertext: string;
+  readonly keyRef: string;
+};
+
+/** Shape a resolved cookie session (+ its grant) into the principal. */
+export function principalFromSession(resolved: SessionWithGrant): ViewerPrincipal {
+  return {
+    ...resolved.session,
+    ghTokenCiphertext: resolved.grant.ghTokenCiphertext,
+    keyRef: resolved.grant.keyRef,
+    channel: AuthChannel.COOKIE,
+  };
+}
 
 /**
  * Sentinel expiry for a no-expiry token's synthesized principal. The gate's
@@ -133,19 +153,19 @@ export type ViewerPrincipal = ReviewerSessionRow & { readonly channel: AuthChann
  */
 const NO_EXPIRY_SENTINEL = new Date(8_640_000_000_000_000);
 
-/** Shape an `api_token` row into the channel-agnostic principal. */
-export function principalFromApiToken(row: ApiTokenRow): ViewerPrincipal {
+/** Shape a resolved `api_token` (+ its grant) into the channel-agnostic principal. */
+export function principalFromApiToken({ token, grant }: TokenWithGrant): ViewerPrincipal {
   return {
-    id: row.id,
-    installationId: row.installationId,
-    sessionTokenHash: row.tokenHash,
-    reviewerId: row.userId,
-    reviewerLogin: row.userLogin,
-    ghTokenCiphertext: row.ghTokenCiphertext,
-    ghRefreshTokenCiphertext: row.ghRefreshTokenCiphertext,
-    keyRef: row.keyRef,
-    expiresAt: row.expiresAt ?? NO_EXPIRY_SENTINEL,
-    createdAt: row.createdAt,
+    id: token.id,
+    installationId: token.installationId,
+    sessionTokenHash: token.tokenHash,
+    reviewerId: token.userId,
+    reviewerLogin: token.userLogin,
+    grantId: token.grantId,
+    ghTokenCiphertext: grant.ghTokenCiphertext,
+    keyRef: grant.keyRef,
+    expiresAt: token.expiresAt ?? NO_EXPIRY_SENTINEL,
+    createdAt: token.createdAt,
     channel: AuthChannel.BEARER,
   };
 }
@@ -176,18 +196,17 @@ export interface RefreshedSession {
 
 /**
  * The GitHub rotation shared by both channels: decrypt the stored refresh
- * token, exchange it, seal the rotated pair. Returns the session-shaped patch
- * (the superset — token refresh drops `expiresAt`, see the dispatch) plus the
+ * token, exchange it, seal the rotated pair. Returns the grant patch plus the
  * rotated plaintext access token for immediate use.
  */
 async function rotateGitHubTokens(
   deps: AuthRouteDeps,
   oauthApp: GitHubOAuthApp,
-  locked: { readonly keyRef: string; readonly ghRefreshTokenCiphertext: string },
+  locked: GithubGrantRow,
 ): Promise<
   Result<
-    { patch: SessionRefreshPatchShape; accessToken: string },
-    { reason: string }
+    { patch: GrantRefreshPatch; accessToken: string },
+    GrantRefreshRejection
   >
 > {
   const decryptedRefresh = await decryptToken(
@@ -224,123 +243,35 @@ async function rotateGitHubTokens(
         ghTokenCiphertext: sealedAccess.value,
         ghRefreshTokenCiphertext: sealedRefresh.value,
         keyRef: deps.auth.sessionKeyRef,
-        expiresAt: tokens.value.refreshTokenExpiresAt,
+        refreshExpiresAt: tokens.value.refreshTokenExpiresAt,
       },
       accessToken: tokens.value.accessToken,
     },
   };
 }
 
-interface SessionRefreshPatchShape {
-  readonly ghTokenCiphertext: string;
-  readonly ghRefreshTokenCiphertext: string;
-  readonly keyRef: string;
-  readonly expiresAt: Date;
-}
-
 /**
- * Bearer-channel refresh: the same serialized CAS shape over `api_token`
- * (`tokenAuth.refreshToken`), with two deliberate differences from the cookie
- * flow: the patch NEVER carries `expiresAt` (a token's expiry is mint-chosen,
- * independent of GitHub rotation), and NOTHING is deleted on failure — an
+ * Refresh the viewer's GitHub user access token — ONE orchestrator for both
+ * presentation channels since D15 anchored rotation on the grant row. The
+ * caller passes the principal it ALREADY resolved (the stage-7 middleware
+ * read it to get the token that just 401'd), so `principal.ghTokenCiphertext`
+ * is the correct compare-and-swap seed: the ciphertext observed BEFORE the
+ * failing GitHub call. `grantAuth.refreshGrant` takes the grant row lock and,
+ * if that ciphertext no longer matches, another request (EITHER channel)
+ * already rotated → the short-circuit returns the stored (now fresh) access
+ * token, decrypted, WITHOUT a GitHub call (no double-spend of the single-use
+ * refresh token). Otherwise it decrypts the stored refresh token, calls
+ * GitHub `refreshUserToken`, re-encrypts BOTH rotated tokens, and applies the
+ * patch to the grant row.
+ *
+ * Failure postures stay per-channel (ADR 0016 #4 as amended): cookie →
+ * delete the session and force re-login; bearer → delete NOTHING (an
  * api_token is a user-managed, listable credential; a dead one keeps 401ing
- * until its owner revokes or re-mints, it is never silently removed.
- */
-async function refreshApiTokenCredentials(
-  deps: AuthRouteDeps,
-  principal: ViewerPrincipal,
-  oauthApp: GitHubOAuthApp,
-  log: Logger,
-): Promise<Result<RefreshedSession, RefreshError>> {
-  let rotatedAccessToken: string | undefined;
-
-  const refreshed = await tokenAuth(deps.handle).refreshToken(
-    principal.sessionTokenHash,
-    principal.ghTokenCiphertext,
-    new Date(),
-    async (locked): Promise<Result<TokenRefreshPatch, TokenRefreshRejection>> => {
-      const rotated = await rotateGitHubTokens(deps, oauthApp, locked);
-      if (!rotated.ok) {
-        return rotated;
-      }
-      rotatedAccessToken = rotated.value.accessToken;
-      const { ghTokenCiphertext, ghRefreshTokenCiphertext, keyRef } = rotated.value.patch;
-      return { ok: true, value: { ghTokenCiphertext, ghRefreshTokenCiphertext, keyRef } };
-    },
-  );
-
-  if (!refreshed.ok) {
-    if (refreshed.error.code === TokenAuthErrorCode.NOT_FOUND) {
-      return {
-        ok: false,
-        error: { code: RefreshErrorCode.NOT_FOUND, message: "api token not found" },
-      };
-    }
-    // REVOKED / EXPIRED / REFRESH_REJECTED — all collapse to the same
-    // re-authenticate signal; the row is left for its owner to see and revoke.
-    log.error("api token refresh failed", {
-      evt: "token.refresh.fail",
-      reviewerId: String(principal.reviewerId),
-    });
-    return {
-      ok: false,
-      error: {
-        code: RefreshErrorCode.REFRESH_FAILED,
-        message: "api token refresh failed",
-      },
-    };
-  }
-
-  if (rotatedAccessToken !== undefined) {
-    return {
-      ok: true,
-      value: { session: principalFromApiToken(refreshed.value), accessToken: rotatedAccessToken },
-    };
-  }
-
-  // CAS short-circuit: another request rotated under the lock — decrypt the
-  // stored (fresh) access token to return.
-  const decryptedAccess = await decryptToken(
-    deps.auth.keyProvider,
-    refreshed.value.keyRef,
-    refreshed.value.ghTokenCiphertext,
-  );
-  if (!decryptedAccess.ok) {
-    log.error("stored api token credentials unreadable", {
-      evt: "token.refresh.fail",
-      reviewerId: String(principal.reviewerId),
-    });
-    return {
-      ok: false,
-      error: {
-        code: RefreshErrorCode.REFRESH_FAILED,
-        message: "stored api token credentials unreadable",
-      },
-    };
-  }
-  return {
-    ok: true,
-    value: {
-      session: principalFromApiToken(refreshed.value),
-      accessToken: decryptedAccess.value,
-    },
-  };
-}
-
-/**
- * Refresh a session's user access token, serialized per session (D11). The
- * caller passes the session row it ALREADY read (the stage-7 middleware read it
- * to get the token that just 401'd) — so there is no redundant lookup here, and
- * `session.ghTokenCiphertext` is the correct compare-and-swap seed: it is the
- * ciphertext observed BEFORE the failing GitHub call. `sessionAuth.refreshSession`
- * takes the row lock and, if that ciphertext no longer matches, another request
- * already rotated the tokens → the short-circuit returns the stored (now fresh)
- * access token, decrypted, WITHOUT a GitHub call (no double-spend of the
- * single-use refresh token). Otherwise it decrypts the stored refresh token,
- * calls GitHub `refreshUserToken`, re-encrypts BOTH rotated tokens, and applies
- * the patch (session lifetime tracks the new refresh-token expiry). A vanished
- * row → `NOT_FOUND`; any decrypt / GitHub / re-encrypt failure deletes the
- * session and returns `REFRESH_FAILED` (both signal re-login).
+ * until its owner revokes or re-mints, it is never silently removed). On
+ * cookie success the session's `expires_at` mirrors the grant's rotated
+ * `refresh_expires_at` (D11 lifetime semantics) — including on the
+ * short-circuit path, because the rotation may have been won by the Bearer
+ * channel, which never mirrors.
  */
 export async function refreshSessionToken(
   deps: AuthRouteDeps,
@@ -351,22 +282,35 @@ export async function refreshSessionToken(
     clientId: deps.auth.oauthClientId,
     clientSecret: deps.auth.oauthClientSecret,
   });
+  const isCookie = session.channel === AuthChannel.COOKIE;
 
-  // The ONE channel fork (BRIEF-17): a Bearer principal refreshes its
-  // api_token row; everything below is the cookie-session flow.
-  if (session.channel === AuthChannel.BEARER) {
-    return refreshApiTokenCredentials(deps, session, oauthApp, log);
-  }
-
-  const auth = sessionAuth(deps.handle);
-  const sessionTokenHash = session.sessionTokenHash;
+  // The one posture fork: cookie burns its session on any unrecoverable arm;
+  // bearer leaves the row for its owner to see and revoke.
+  const failChannel = async (
+    message: string,
+  ): Promise<Result<RefreshedSession, RefreshError>> => {
+    if (isCookie) {
+      await sessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
+    }
+    log.error(isCookie ? `${message}; session deleted` : message, {
+      evt: "token.refresh.fail",
+      reviewerId: String(session.reviewerId),
+    });
+    return {
+      ok: false,
+      error: {
+        code: RefreshErrorCode.REFRESH_FAILED,
+        message: "refresh failed; re-authentication required",
+      },
+    };
+  };
 
   // Captured from a successful GitHub rotation so we can return the plaintext
   // access token without re-decrypting what we just sealed.
   let rotatedAccessToken: string | undefined;
 
-  const refreshed = await auth.refreshSession(
-    sessionTokenHash,
+  const refreshed = await grantAuth(deps.handle).refreshGrant(
+    session.grantId,
     session.ghTokenCiphertext,
     async (locked) => {
       const rotated = await rotateGitHubTokens(deps, oauthApp, locked);
@@ -379,66 +323,87 @@ export async function refreshSessionToken(
   );
 
   if (!refreshed.ok) {
-    if (refreshed.error.code === SessionAuthErrorCode.NOT_FOUND) {
-      // The row vanished between the caller's read and the lock (logout / sweep).
-      // Nothing to delete; the caller re-logs in.
+    if (refreshed.error.code === GrantAuthErrorCode.NOT_FOUND) {
+      // The grant vanished under us — its last referent (this very row) was
+      // deleted concurrently (logout / sweep / purge). Nothing to clean up;
+      // the caller re-authenticates.
+      return {
+        ok: false,
+        error: { code: RefreshErrorCode.NOT_FOUND, message: "grant not found" },
+      };
+    }
+    // REFRESH_REJECTED: decrypt / GitHub rotation / re-encrypt failed.
+    return failChannel("grant refresh failed");
+  }
+
+  const grant = refreshed.value;
+  // Re-verify the REFERENT after the rotation: the grant lock no longer sees
+  // session/token state (pre-D15 the per-row refresh re-checked liveness
+  // under its own lock), so a referent that died mid-request — logout, sweep,
+  // owner revoke — must not receive the fresh token. The rotation itself
+  // stands either way (it benefits the grant's surviving referents).
+  if (isCookie) {
+    // The expiry mirror doubles as the liveness check: 0 rows touched means
+    // the session vanished while we rotated → re-login, nothing to delete.
+    const touched = await sessionAuth(deps.handle).setExpiresAt(
+      session.sessionTokenHash,
+      grant.refreshExpiresAt,
+    );
+    if (touched === 0) {
       return {
         ok: false,
         error: { code: RefreshErrorCode.NOT_FOUND, message: "session not found" },
       };
     }
-    // REFRESH_REJECTED: burn the session so the reviewer is bounced to re-login.
-    await auth.deleteSession(sessionTokenHash);
-    log.error("session refresh failed; session deleted", {
-      evt: "token.refresh.fail",
-      reviewerId: String(session.reviewerId),
-    });
-    return {
-      ok: false,
-      error: {
-        code: RefreshErrorCode.REFRESH_FAILED,
-        message: "session refresh failed; re-login required",
-      },
-    };
+  } else {
+    const live = await tokenAuth(deps.handle).resolveByHash(
+      session.sessionTokenHash,
+      new Date(),
+    );
+    if (!live.ok) {
+      // Revoked/expired/deleted mid-request — same hint-free re-auth signal;
+      // the row (if any) is left for its owner, per the bearer posture.
+      log.error("api token died during refresh", {
+        evt: "token.refresh.fail",
+        reviewerId: String(session.reviewerId),
+      });
+      return {
+        ok: false,
+        error: {
+          code: RefreshErrorCode.REFRESH_FAILED,
+          message: "refresh failed; re-authentication required",
+        },
+      };
+    }
   }
+  const principal: ViewerPrincipal = {
+    ...session,
+    ghTokenCiphertext: grant.ghTokenCiphertext,
+    keyRef: grant.keyRef,
+    ...(isCookie ? { expiresAt: grant.refreshExpiresAt } : {}),
+  };
 
   if (rotatedAccessToken !== undefined) {
     return {
       ok: true,
-      value: {
-        session: { ...refreshed.value, channel: AuthChannel.COOKIE },
-        accessToken: rotatedAccessToken,
-      },
+      value: { session: principal, accessToken: rotatedAccessToken },
     };
   }
 
-  // Short-circuit path (another request refreshed it under the lock): decrypt
-  // the stored access token to return. An unreadable token forces re-login.
+  // Short-circuit path (another request rotated under the lock): decrypt the
+  // stored (fresh) access token to return. Unreadable → re-authentication
+  // (cookie: session deleted; bearer: 401s until its owner revokes).
   const decryptedAccess = await decryptToken(
     deps.auth.keyProvider,
-    refreshed.value.keyRef,
-    refreshed.value.ghTokenCiphertext,
+    grant.keyRef,
+    grant.ghTokenCiphertext,
   );
   if (!decryptedAccess.ok) {
-    await auth.deleteSession(sessionTokenHash);
-    log.error("stored session token unreadable; session deleted", {
-      evt: "token.refresh.fail",
-      reviewerId: String(session.reviewerId),
-    });
-    return {
-      ok: false,
-      error: {
-        code: RefreshErrorCode.REFRESH_FAILED,
-        message: "stored session token unreadable; re-login required",
-      },
-    };
+    return failChannel("stored grant credentials unreadable");
   }
   return {
     ok: true,
-    value: {
-      session: { ...refreshed.value, channel: AuthChannel.COOKIE },
-      accessToken: decryptedAccess.value,
-    },
+    value: { session: principal, accessToken: decryptedAccess.value },
   };
 }
 
@@ -553,17 +518,31 @@ export function authRoute(deps: AuthRouteDeps): Hono {
       return c.json({ error: "could not persist the session" }, 500);
     }
 
-    // Session lifetime = refresh-token lifetime; access-token freshness is
+    // D15: the credential pair lands on a fresh grant row; the session LINKS
+    // it. Session lifetime = refresh-token lifetime; access-token freshness is
     // handled by lazy refresh (`refreshSessionToken`, wired on a 401 in stage 7).
-    await forTenant(deps.handle, { installationId }).sessions.create({
-      sessionTokenHash,
-      reviewerId: user.value.reviewerId,
-      reviewerLogin: user.value.reviewerLogin,
+    const grants = grantAuth(deps.handle);
+    const grant = await grants.createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
       keyRef: deps.auth.sessionKeyRef,
-      expiresAt: tokens.value.refreshTokenExpiresAt,
+      refreshExpiresAt: tokens.value.refreshTokenExpiresAt,
     });
+    try {
+      await forTenant(deps.handle, { installationId }).sessions.create({
+        sessionTokenHash,
+        reviewerId: user.value.reviewerId,
+        reviewerLogin: user.value.reviewerLogin,
+        grantId: grant.id,
+        expiresAt: tokens.value.refreshTokenExpiresAt,
+      });
+    } catch (error) {
+      // Compensation: a grant that never gained its referent would linger
+      // forever (lifecycle cleanup only runs on referent DELETE). Best-effort
+      // — a failure here just leaves an inert, unreferenced ciphertext row.
+      await grants.deleteIfOrphaned(grant.id).catch(() => undefined);
+      throw error;
+    }
 
     setCookie(c, SESSION_COOKIE, sessionToken, {
       httpOnly: true,

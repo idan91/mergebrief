@@ -27,6 +27,7 @@ import {
   diffSnapshot,
   disposition,
   generation,
+  githubGrant,
   pullRequest,
   reviewerSession,
   revisionNarrative,
@@ -43,6 +44,7 @@ import {
   isRepoId,
   isReviewerId,
   PrState,
+  type GrantRowId,
   type InstallationId,
   type PullRequestRowId,
   type RepoId,
@@ -51,6 +53,22 @@ import {
 import { brandWith } from "./helpers";
 
 const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
+
+/** Seed one grant row (D15) so secret-bearing referents can link it. */
+async function insertGrant(db: Db): Promise<GrantRowId> {
+  const rows = await db
+    .insert(githubGrant)
+    .values({
+      ghTokenCiphertext: "ct",
+      ghRefreshTokenCiphertext: "rct",
+      keyRef: "SESSION_KEY_V1",
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    })
+    .returning({ id: githubGrant.id });
+  const row = rows[0];
+  if (row === undefined) throw new Error("grant insert returned no row");
+  return row.id;
+}
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -218,9 +236,7 @@ async function seedFullGraph(
     sessionTokenHash: `sha256:${installationId}:${pullRequestId}`,
     reviewerId: REVIEWER,
     reviewerLogin: "octocat",
-    ghTokenCiphertext: "ciphertext",
-    ghRefreshTokenCiphertext: "refresh-ciphertext",
-    keyRef: "env:SESSION_KEY_V1",
+    grantId: await insertGrant(db),
     expiresAt: new Date(Date.now() + 3_600_000),
   });
 }
@@ -387,9 +403,7 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D1
         tokenHash: hash,
         userId: REVIEWER,
         name: "ci-token",
-        ghTokenCiphertext: "ct",
-        ghRefreshTokenCiphertext: "rct",
-        keyRef: "SESSION_KEY_V1",
+        grantId: await insertGrant(raw),
         expiresAt: null,
       });
     }
@@ -410,6 +424,8 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D1
       .from(apiToken);
     expect(tokens).toHaveLength(1);
     expect(tokens[0]?.installationId).toBe(TENANT_B);
+    // D15: the purged referents' grants died with them; B's two remain.
+    expect(await raw.select({ id: githubGrant.id }).from(githubGrant)).toHaveLength(2);
 
     // Tenant B's child graph is intact.
     expect(await countChildTables(raw, bPr)).toBe(8);
@@ -570,9 +586,7 @@ describe("purgeRoutines.sweepExpiredSessions — TTL sweep (D11)", () => {
         installationId,
         sessionTokenHash: token,
         reviewerId: REVIEWER,
-        ghTokenCiphertext: "ciphertext",
-        ghRefreshTokenCiphertext: "refresh-ciphertext",
-        keyRef: "env:SESSION_KEY_V1",
+        grantId: await insertGrant(raw),
         expiresAt,
       });
     }
@@ -590,6 +604,8 @@ describe("purgeRoutines.sweepExpiredSessions — TTL sweep (D11)", () => {
       "a-live",
       "b-expired",
     ]);
+    // D15: the swept session's grant died with it; the live rows keep theirs.
+    expect(await raw.select({ id: githubGrant.id }).from(githubGrant)).toHaveLength(2);
 
     // No artifact-level audit for short-lived session churn (stated choice).
     expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);

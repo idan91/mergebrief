@@ -40,6 +40,7 @@
 // (`sweepExpired`) is `system`. `sweepExpiredSessions` emits NO audit entry —
 // see its doc comment.
 import { and, eq, inArray, isNotNull, lt } from "drizzle-orm";
+import { deleteOrphanedGrants } from "../auth/grant";
 import { insertAudit } from "./audit";
 import { type AppDatabase, internal } from "../db/handle";
 import { apiToken } from "../schema/api-token";
@@ -278,11 +279,16 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
         const purgedSessions = await tx
           .delete(reviewerSession)
           .where(eq(reviewerSession.installationId, installationId))
-          .returning({ id: reviewerSession.id });
+          .returning({ grantId: reviewerSession.grantId });
         const purgedTokens = await tx
           .delete(apiToken)
           .where(eq(apiToken.installationId, installationId))
-          .returning({ id: apiToken.id });
+          .returning({ grantId: apiToken.grantId });
+        // D15: orphan-clean the grants of every deleted referent, same tx.
+        await deleteOrphanedGrants(tx, [
+          ...purgedSessions.map((row) => row.grantId),
+          ...purgedTokens.map((row) => row.grantId),
+        ]);
         await insertAudit(tx, {
           installationId,
           actorType: AuditActorType.APP,
@@ -358,13 +364,20 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
       // of high-frequency, low-signal noise D9 routes to the purgeable web
       // access log instead. Session erasure of record happens at installation
       // offboarding (`purgeInstallation`), which IS audited.
-      const deleted = await db
-        .delete(reviewerSession)
-        .where(
-          and(eq(reviewerSession.installationId, installationId), lt(reviewerSession.expiresAt, now)),
-        )
-        .returning({ id: reviewerSession.id });
-      return deleted.length;
+      return db.transaction(async (tx) => {
+        const deleted = await tx
+          .delete(reviewerSession)
+          .where(
+            and(eq(reviewerSession.installationId, installationId), lt(reviewerSession.expiresAt, now)),
+          )
+          .returning({ grantId: reviewerSession.grantId });
+        // D15: orphan-clean the grants of the swept sessions, same tx.
+        await deleteOrphanedGrants(
+          tx,
+          deleted.map((row) => row.grantId),
+        );
+        return deleted.length;
+      });
     },
   };
 }

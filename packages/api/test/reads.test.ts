@@ -17,11 +17,15 @@ import {
   artifactStore,
   encryptToken,
   envKeyProvider,
+  decryptToken,
   forTenant,
+  grantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
   PrState,
+  sessionAuth,
+  tokenAuth,
   type AppDatabase,
   type InstallationId,
   type KeyProvider,
@@ -188,14 +192,19 @@ async function seedSession(
   const sealedAccess = await encryptToken(kp, KEY_REF, opts?.accessPlaintext ?? ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, opts?.refreshPlaintext ?? REFRESH_TOKEN);
   if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  const expiresAt = opts?.expiresAt ?? new Date("2027-01-01T00:00:00Z");
+  const grant = await grantAuth(handle).createGrant({
+    ghTokenCiphertext: sealedAccess.value,
+    ghRefreshTokenCiphertext: sealedRefresh.value,
+    keyRef: KEY_REF,
+    refreshExpiresAt: expiresAt,
+  });
   await forTenant(handle, CTX).sessions.create({
     sessionTokenHash: hash,
     reviewerId: brandReviewer(BigInt(REVIEWER_ID)),
     reviewerLogin: "octocat",
-    ghTokenCiphertext: sealedAccess.value,
-    ghRefreshTokenCiphertext: sealedRefresh.value,
-    keyRef: KEY_REF,
-    expiresAt: opts?.expiresAt ?? new Date("2027-01-01T00:00:00Z"),
+    grantId: grant.id,
+    expiresAt,
   });
   return { cookie, hash };
 }
@@ -506,12 +515,66 @@ describe("reviewer read API + authz gate", () => {
     expect(counts.repositories).toBe(2); // 401 then 200
     expect(counts.token).toBe(1); // one refresh
 
-    // The row's access ciphertext rotated to the refreshed token.
+    // The linked grant's access ciphertext rotated to the refreshed token —
+    // decrypt and compare, an existence check alone proves nothing.
     const rows = await harness.raw(
-      "select gh_token_ciphertext from reviewer_session where session_token_hash = $1",
+      "select g.gh_token_ciphertext from reviewer_session s join github_grant g on g.id = s.grant_id where s.session_token_hash = $1",
       [hash],
     );
     expect(rows).toHaveLength(1);
+    const decrypted = await decryptToken(kp, KEY_REF, String(rows[0]?.["gh_token_ciphertext"]));
+    if (!decrypted.ok) throw new Error("stored grant ciphertext unreadable");
+    expect(decrypted.value).toBe(ROTATED_ACCESS);
+  });
+
+  it("BRIEF-40: a browser-triggered rotation does NOT strand the Bearer channel sharing the grant", async () => {
+    // Pre-D15 this was the bug: mint copied the session's pair, the browser's
+    // refresh consumed the single-use refresh token, and the CLI token died on
+    // its own next refresh. Now both channels share ONE grant row, so the
+    // browser's rotation is the CLI's rotation.
+    const counts = stubGitHub({
+      // First access check 401s (expired access token); every later check —
+      // including the Bearer channel's own, made with the ROTATED token — 200s.
+      repositories: (call) => (call === 0 ? repoStatus(401) : repoOk()),
+      token: () => jsonResponse(tokenSuccess(ROTATED_ACCESS, ROTATED_REFRESH)),
+    });
+    const { cookie, hash } = await seedSession(harness.handle, kp);
+    await seedPullRequest(harness.handle);
+    await seedBrief(harness.handle, "base1", "head1");
+
+    // Mint a Bearer token LINKED to the session's grant — the route's exact
+    // link-never-copy semantics (tokens.ts passes currentSession.grantId).
+    const resolved = await sessionAuth(harness.handle).findSession(hash);
+    if (resolved === undefined) throw new Error("seeded session not found");
+    const bearer = `mergebrief_${randomBytes(32).toString("base64url")}`;
+    await tokenAuth(harness.handle).mintToken({
+      installationId: brandInstallation(BigInt(INSTALLATION_ID)),
+      userId: brandReviewer(BigInt(REVIEWER_ID)),
+      name: "cli-agent",
+      tokenHash: sha256Hex(bearer),
+      grantId: resolved.session.grantId,
+      expiresAt: null,
+    });
+
+    // 1. Browser request: 401 → refresh (consumes the single-use refresh
+    //    token) → retry succeeds. Exactly one exchange.
+    const viaCookie = await app.request(briefPath("base1", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    expect(viaCookie.status).toBe(200);
+    expect(counts.token).toBe(1);
+
+    // 2. CLI request afterwards: its authz gate runs a FRESH GitHub check
+    //    (different session-hash cache key) with the grant's ROTATED access
+    //    token — it succeeds with NO second exchange. Pre-BRIEF-40 this is
+    //    the request that silently died.
+    const viaBearer = await app.request(briefPath("base1", "head1"), {
+      headers: { Authorization: `Bearer ${bearer}` },
+    });
+    expect(viaBearer.status).toBe(200);
+    expect(await viaBearer.text()).toBe(BRIEF_BODY);
+    expect(counts.token).toBe(1); // STILL one — no second refresh spent
+    expect(counts.repositories).toBe(3); // 401, cookie-retry 200, bearer 200
   });
 
   it("401 from GitHub → refresh FAILS → 401 and the session is deleted", async () => {
