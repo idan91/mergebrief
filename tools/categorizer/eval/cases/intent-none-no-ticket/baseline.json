@@ -1,0 +1,10 @@
+{
+  "key": "anthropic:claude-opus-4-8",
+  "runs": 5,
+  "properties": {
+    "at-least-two-groups": 5,
+    "intent-none": 5,
+    "intent-not-precise": 5,
+    "no-per-hunk-oversplit": 5
+  }
+}

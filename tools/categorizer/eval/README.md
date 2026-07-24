@@ -49,8 +49,12 @@ detects cliffs, not drifts. Verdicts are withheld under 5 scored runs.
   captures — provenance lives in the PR that added each case.
 - `expected.ts` — `export const properties: EvalProperty[]`. Anchor on
   run-stable facts (files, group relations, attribute names, categories);
-  NEVER on chunk boundaries or prose text. A throwing predicate counts as
-  a fail with a note. Empty lists are rejected.
+  NEVER on chunk boundaries or prose text. One bounded exception
+  (BRIEF-54): intent-check items may be keyword-matched — their `quote`
+  fields are validator-tethered verbatim ticket substrings and the
+  regexes match planted markers in fixture-authored ticket text, not
+  free model prose. A throwing predicate counts as a fail with a note.
+  Empty lists are rejected.
 - `baseline.json` — pass counts from main, keyed `provider:model`.
   Cross-key comparison is refused; v1 maintains the Anthropic default key
   only. Re-baselining is an explicit reviewed commit.
@@ -70,7 +74,11 @@ silently stops being passed) · `pure-move-persistence` ·
 Added post-seed: `delta-read-api-contract` (BRIEF-66 positive
 cross-service probe — modified EXISTING wire contracts from
 code-review#45; baselined at 1/5, the measured post-BRIEF-55 under-fire
-that a future gloss re-tune targets).
+that a future gloss re-tune targets); the four `intent-*` cases
+(BRIEF-54 intent check — precise/broad/none specificity boundaries plus
+the adversarial ticket-injection posture; diffs reuse the published
+components#7/#10 fixtures, ticket texts are authored data on
+tasks.example URLs; all baselined stable-pass 5/5).
 
 ## Cost (decision 7)
 
