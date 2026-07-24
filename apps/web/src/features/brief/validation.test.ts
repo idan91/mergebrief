@@ -214,6 +214,115 @@ describe("parseBrief", () => {
     if (!parsed.ok) return;
     expect(parsed.value.readingOrder).toBeUndefined();
   });
+
+  const preciseIntentCheck = {
+    ticketUrls: ["https://tracker.example/T-1"],
+    specificity: "precise",
+    scopeNote: "",
+    accomplished: [
+      {
+        intent: "add the endpoint",
+        quote: "Add a widget endpoint",
+        sourceUrl: "https://tracker.example/T-1",
+        groupIds: ["g1"],
+      },
+    ],
+    statedButMissing: [
+      {
+        intent: "document it",
+        quote: "and document it",
+        sourceUrl: "https://tracker.example/T-1",
+        groupIds: [],
+      },
+    ],
+    doneButUnstated: [
+      { intent: "lint fix", quote: "", sourceUrl: "", groupIds: ["g2"] },
+    ],
+  };
+
+  it("keeps a well-formed intentCheck (full Brief)", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: preciseIntentCheck,
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck?.specificity).toBe("precise");
+    expect(parsed.value.intentCheck?.accomplished[0]?.groupIds).toEqual(["g1"]);
+    expect(parsed.value.intentCheck?.doneButUnstated[0]?.sourceUrl).toBe("");
+  });
+
+  it("keeps a broad/none intentCheck with empty buckets", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: {
+        ticketUrls: [],
+        specificity: "broad",
+        scopeNote: "parent epic",
+        accomplished: [],
+        statedButMissing: [],
+        doneButUnstated: [],
+      },
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck?.specificity).toBe("broad");
+  });
+
+  it("drops a malformed intentCheck (bad specificity) but keeps the Brief valid", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: { ...preciseIntentCheck, specificity: "vague" },
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck).toBeUndefined();
+  });
+
+  it("drops an intentCheck whose bucket item is missing groupIds", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: {
+        ...preciseIntentCheck,
+        accomplished: [{ intent: "x", quote: "y", sourceUrl: "" }],
+      },
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck).toBeUndefined();
+  });
+
+  it("omits intentCheck from the parsed value when the field is absent (pre-feature Brief)", () => {
+    const parsed = parseBrief(twoGroupBriefInput);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck).toBeUndefined();
+  });
+
+  it("never carries intentCheck onto a Delta Brief", () => {
+    const parsed = parseDeltaBrief({
+      pr,
+      baselineSha: "1111111",
+      headSha: "2222222",
+      summary: "since you last looked",
+      commentsAddressed: "",
+      changedGroups: [newShapeGroup],
+      chunks: [
+        { ...newShapeChunk, summary: "adds a test", addressesComments: [] },
+      ],
+      wholePrImpact: "completes the intent",
+      intentCheck: preciseIntentCheck,
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck).toBeUndefined();
+  });
 });
 
 describe("parseRevisionNarrativeArtifact", () => {

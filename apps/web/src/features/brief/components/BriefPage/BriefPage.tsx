@@ -109,6 +109,7 @@ import { ChangesOnlyView } from "../ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "../ConcernView/ConcernView";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { AttributeJumpRail } from "../AttributeJumpRail/AttributeJumpRail";
+import { IntentBar, type IntentBarHandle } from "../IntentBar/IntentBar";
 import { GroupTocBar } from "../GroupTocBar/GroupTocBar";
 import { Header, type LayoutMode, type ViewMode } from "../Header/Header";
 import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress";
@@ -1046,6 +1047,10 @@ function BriefScreen({
     },
     [jumpToChunk, model.groups],
   );
+
+  // The mark-ready soft gate (BRIEF-54 PR 4) reaches the expanded intent bar
+  // through this handle; null when the Brief carries no intentCheck.
+  const intentBarRef = useRef<IntentBarHandle>(null);
 
   // Active group derived from the active chunk — no second scroll listener.
   const activeGroupId = activeChunkId
@@ -2013,6 +2018,13 @@ function BriefScreen({
                   jumpToGroup={jumpToGroup}
                   rail={attributeRail}
                 />
+                {brief.intentCheck ? (
+                  <IntentBar
+                    intentCheck={brief.intentCheck}
+                    jumpToGroup={jumpToGroup}
+                    ref={intentBarRef}
+                  />
+                ) : null}
                 <GroupTocBar
                   activeGroupId={activeGroupId}
                   conversationGroupIds={conversationGroupIds}

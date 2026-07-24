@@ -171,6 +171,47 @@ export interface ConcernRollup {
   deleted: number;
 }
 
+/**
+ * @description How actionable the composite intent corpus is (BRIEF-54,
+ * ADR 0009 §2 as amended). `precise` populates the three buckets; `broad`
+ * and `none` render as "intent check unavailable". Plain union (the
+ * `ComparisonBaselineLabel` precedent) — a small closed set used only for
+ * typing.
+ */
+export type Specificity = "precise" | "broad" | "none";
+
+/**
+ * @description One item shared by all three intent buckets (BRIEF-54). The
+ * grill-locked three-shape factoring overflowed Anthropic's structured-
+ * output grammar, so one shape carries every bucket; the per-bucket field
+ * rules (statedButMissing has no `groupIds`; `doneButUnstated` has no
+ * `quote`/`sourceUrl`) are enforced server-side and mirrored in rendering.
+ * `sourceUrl` is `""` for a PR title/description citation.
+ */
+export interface IntentItem {
+  intent: string;
+  quote: string;
+  sourceUrl: string;
+  groupIds: string[];
+}
+
+/**
+ * @description The ticket-gated intent check (BRIEF-54): did this PR do what
+ * its stated intent asked? Factual buckets, never a verdict. Full Brief
+ * only — never present on a Delta Brief. Boundary-parsed defensively
+ * (`validation.ts`): a malformed field is dropped to `undefined`, so by the
+ * time a `Brief` reaches the app this is either well-formed or absent (a
+ * pre-feature Brief renders no intent bar).
+ */
+export interface IntentCheck {
+  ticketUrls: string[];
+  specificity: Specificity;
+  scopeNote: string;
+  accomplished: IntentItem[];
+  statedButMissing: IntentItem[];
+  doneButUnstated: IntentItem[];
+}
+
 export interface AddressedReviewComment {
   id: string;
   file: string;
@@ -228,6 +269,12 @@ export interface Brief {
    * verified permutation of `changeGroups` ids or `undefined`.
    */
   readingOrder?: ReadingOrderStep[];
+  /**
+   * @description The ticket-gated intent check (BRIEF-54), full Brief only.
+   * Absent on pre-feature Briefs and on Delta Briefs — the intent bar
+   * renders only when this is present.
+   */
+  intentCheck?: IntentCheck;
 }
 
 /** Which comparison baseline a mechanical marks sidecar is relative to (ADR 0024). */

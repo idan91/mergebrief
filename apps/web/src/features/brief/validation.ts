@@ -13,10 +13,13 @@ import {
   type ComparisonMarks,
   type ComparisonMarksSummary,
   type Generation,
+  type IntentCheck,
+  type IntentItem,
   type LineRange,
   type PrRef,
   type AddressedReviewComment,
   type ReadingOrderStep,
+  type Specificity,
   type RevisionChangeFile,
   type RevisionChanges,
   type RevisionNarrativeArtifact,
@@ -690,6 +693,96 @@ function parseReadingOrder(
   return parsed.value;
 }
 
+function isSpecificity(value: unknown): value is Specificity {
+  return value === "precise" || value === "broad" || value === "none";
+}
+
+function parseIntentItem(value: unknown): Result<IntentItem> {
+  if (!isRecord(value))
+    return { ok: false, error: "Expected intent item to be an object" };
+  const { intent, quote, sourceUrl } = value;
+  if (!isString(intent) || !isString(quote) || !isString(sourceUrl)) {
+    return {
+      ok: false,
+      error: "Expected intent item intent, quote, and sourceUrl",
+    };
+  }
+  const groupIds = stringArray(value["groupIds"]);
+  if (!groupIds.ok) return groupIds;
+  return {
+    ok: true,
+    value: { intent, quote, sourceUrl, groupIds: groupIds.value },
+  };
+}
+
+/**
+ * Parses an optional `intentCheck` (BRIEF-54), dropping it to `undefined`
+ * (with a console warning, never a hard failure) when malformed. Mirrors
+ * `parseReadingOrder`'s warn-and-drop posture: server-validated artifacts
+ * can still drift (old briefs, hand-edited demos), so the FE re-checks
+ * rather than trusting the field. Full Brief only — never wired into
+ * `parseDeltaBrief`. groupIds are NOT cross-validated here; the render-time
+ * jump guard (`jumpToGroup`) already ignores dangling ids.
+ */
+function parseIntentCheck(value: unknown): IntentCheck | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    console.warn("parseBrief: dropping intentCheck — not an object");
+    return undefined;
+  }
+  const { specificity, scopeNote } = value;
+  if (!isSpecificity(specificity) || !isString(scopeNote)) {
+    console.warn(
+      "parseBrief: dropping intentCheck — bad specificity or scopeNote",
+    );
+    return undefined;
+  }
+  const ticketUrls = stringArray(value["ticketUrls"]);
+  const accomplished = parseArray(
+    value["accomplished"],
+    parseIntentItem,
+    "accomplished",
+  );
+  const statedButMissing = parseArray(
+    value["statedButMissing"],
+    parseIntentItem,
+    "statedButMissing",
+  );
+  const doneButUnstated = parseArray(
+    value["doneButUnstated"],
+    parseIntentItem,
+    "doneButUnstated",
+  );
+  for (const parsed of [
+    ticketUrls,
+    accomplished,
+    statedButMissing,
+    doneButUnstated,
+  ]) {
+    if (!parsed.ok) {
+      console.warn(`parseBrief: dropping intentCheck — ${parsed.error}`);
+      return undefined;
+    }
+  }
+  // The loop guarantees every result is ok; re-narrow for the type system.
+  if (
+    !ticketUrls.ok ||
+    !accomplished.ok ||
+    !statedButMissing.ok ||
+    !doneButUnstated.ok
+  ) {
+    return undefined;
+  }
+  return {
+    ticketUrls: ticketUrls.value,
+    specificity,
+    scopeNote,
+    accomplished: accomplished.value,
+    statedButMissing: statedButMissing.value,
+    doneButUnstated: doneButUnstated.value,
+  };
+}
+
 function parseConcernRollup(value: unknown): Result<ConcernRollup> {
   if (!isRecord(value)) {
     return {
@@ -788,6 +881,7 @@ export function parseBrief(value: unknown): Result<Brief> {
     value["readingOrder"],
     normalized.value.changeGroups.map((group) => group.id),
   );
+  const intentCheck = parseIntentCheck(value["intentCheck"]);
   return {
     ok: true,
     value: {
@@ -799,6 +893,7 @@ export function parseBrief(value: unknown): Result<Brief> {
       ...(generation ? { generation } : {}),
       ...(generationWarnings ? { generationWarnings } : {}),
       ...(readingOrder ? { readingOrder } : {}),
+      ...(intentCheck ? { intentCheck } : {}),
       changeGroups: normalized.value.changeGroups,
       chunks: normalized.value.chunks,
       concernView: concernView.value,
