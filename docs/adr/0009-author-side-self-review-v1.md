@@ -9,6 +9,21 @@
 > the viewer's token. The shipped author/reviewer toggle is killed. This
 > ADR's analysis and decisions otherwise stand.
 
+> **Amended 2026-07-24 (BRIEF-54 grill):** #2's intent-source **fallback chain**
+> (linked ticket → PR description → none) is superseded by a **composite intent
+> corpus**: PR title + description + all ticket-like linked blocks are judged
+> *together*; the model resolves sources in-prompt and cites per-claim
+> (verbatim quote + source URL for ticket-side buckets, change-group ids for
+> diff-side). Specificity (precise/broad/none) is judged on the combined
+> corpus — a split or vague corpus is `broad` ⇒ unavailable, so
+> unavailable-over-provisional stands unchanged, as do the three buckets,
+> never-a-verdict, and de-emphasis. "De-emphasized" is realized as the
+> **intent bar**: an always-visible neutral-counts header row stacked with the
+> attribute jump-rail, body collapsed by default and never auto-expanded, with
+> fallible framing; the soft gate (#3) carries a count-only secondary line
+> (precise source + gaps only), never opening the gate by itself. See
+> `docs/plans/brief-54-intent-check.md`.
+
 The author view is the **same shared Brief**, shown one step earlier (pre-submit), with **no author-specific analysis engine and no persistent author state**. The only additions are two author-facing elements: an **Intent check** (a deliberately de-emphasized, ticket-gated section of the shared Brief) and a **Soft gate** (a transient, non-blocking pre-submit nudge). Post-review author flow is deferred to v2.
 
 ## Context
