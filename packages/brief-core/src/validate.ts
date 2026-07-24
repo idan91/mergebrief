@@ -5,6 +5,7 @@ import {
   RiskSurfaceAttributes,
   type ChangeGroup,
   type Chunk,
+  type IntentCheck,
   type LineRange,
   type ReadingOrderStep,
   type RevisionNarrativeChunk,
@@ -102,6 +103,194 @@ export function validateReadingOrder(
   }
 
   return issues;
+}
+
+/**
+ * One intent-corpus source the quote check can verify against: the PR
+ * title/description composite rides as `url: ""`, fetched linked context as
+ * its URL — mirroring the `sourceUrl` convention on the schema.
+ */
+export interface IntentSource {
+  url: string;
+  content: string;
+}
+
+/** Collapse all whitespace runs to single spaces for the quote substring check. */
+function normalizeWhitespace(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Validate a Brief's intent check (BRIEF-54, ADR 0009 §2 as amended) —
+ * warn-and-drop into `generationWarnings`, mirroring `validateReadingOrder`'s
+ * posture. Pure — returns a sanitized copy, never mutates.
+ *
+ * 1. broad/none with non-empty buckets → all three emptied + warn (the
+ *    mechanical "never a guessed gap" floor).
+ * 2. `ticketUrls` must be ⊆ the injected linked-context URLs → unknown URLs
+ *    dropped + warn; a ticket-side item's `sourceUrl` must be `""`
+ *    (title/description) or ∈ the surviving `ticketUrls` → dangling items
+ *    dropped + warn.
+ * 3. `groupIds` must reference emitted change-groups (readingOrder
+ *    precedent): dangling ids pruned + warn; stated-side items (accomplished)
+ *    survive with pruned ids — but an accomplished item left with ZERO valid
+ *    ids warns (kept: stated-side grounding is the citation, yet the drift
+ *    must be visible); `doneButUnstated` items with zero valid ids are
+ *    dropped — a diff-side claim with no group anchor has no grounding.
+ * 4. Per-bucket field rules for the SHARED item shape (all three buckets use
+ *    `IntentItemSchema` — the grammar-size constraint, see types.ts):
+ *    `statedButMissing` items must carry NO groupIds (emptied + warn — a
+ *    missing ask has no diff anchor); `doneButUnstated` items must carry NO
+ *    quote/sourceUrl (emptied + warn — no ticket side by definition).
+ * 5. Quote verification: each ticket-side quote must be a whitespace-
+ *    normalized substring of its source's fetched content — WARN-ONLY in v1
+ *    (revisit trigger: escalate to drop on fabrication evidence).
+ */
+export function validateIntentCheck(
+  intentCheck: IntentCheck,
+  changeGroups: Pick<ChangeGroup, "id">[],
+  injectedUrls: readonly string[],
+  fetchedContent: readonly IntentSource[],
+): { intentCheck: IntentCheck; issues: string[] } {
+  const issues: string[] = [];
+
+  if (intentCheck.specificity !== "precise") {
+    const counts =
+      intentCheck.accomplished.length +
+      intentCheck.statedButMissing.length +
+      intentCheck.doneButUnstated.length;
+    if (counts > 0) {
+      issues.push(
+        `intent check is ${intentCheck.specificity} but carries ${counts} bucket item(s) — buckets emptied (never a guessed gap)`,
+      );
+    }
+    // ticketUrls membership still holds on the unavailable path.
+    const known = intentCheck.ticketUrls.filter((url) => {
+      if (injectedUrls.includes(url)) return true;
+      issues.push(`intent check cites un-injected ticket URL "${url}" — dropped`);
+      return false;
+    });
+    return {
+      intentCheck: {
+        ...intentCheck,
+        ticketUrls: known,
+        accomplished: [],
+        statedButMissing: [],
+        doneButUnstated: [],
+      },
+      issues,
+    };
+  }
+
+  const ticketUrls = intentCheck.ticketUrls.filter((url) => {
+    if (injectedUrls.includes(url)) return true;
+    issues.push(`intent check cites un-injected ticket URL "${url}" — dropped`);
+    return false;
+  });
+  const allowedSources = new Set(["", ...ticketUrls]);
+  const contentByUrl = new Map(
+    fetchedContent.map((s) => [s.url, normalizeWhitespace(s.content)]),
+  );
+  const groupIds = new Set(changeGroups.map((g) => g.id));
+
+  function keepSource(bucket: string, item: { intent: string; sourceUrl: string }): boolean {
+    if (allowedSources.has(item.sourceUrl)) return true;
+    issues.push(
+      `${bucket} item "${item.intent}" cites unknown source "${item.sourceUrl}" — dropped`,
+    );
+    return false;
+  }
+
+  function checkQuote(bucket: string, item: { intent: string; quote: string; sourceUrl: string }): void {
+    const quote = normalizeWhitespace(item.quote);
+    if (quote === "") {
+      // Ticket-side buckets demand a verbatim citation; an empty quote is an
+      // uncited stated ask. Warn-only, same posture as the substring check.
+      issues.push(`${bucket} item "${item.intent}": empty quote — uncited stated ask`);
+      return;
+    }
+    const source = contentByUrl.get(item.sourceUrl);
+    if (source === undefined) {
+      issues.push(
+        `${bucket} item "${item.intent}": no fetched content for source "${item.sourceUrl}" — quote unverified`,
+      );
+      return;
+    }
+    if (!source.includes(quote)) {
+      issues.push(
+        `${bucket} item "${item.intent}": quote not found in its source (whitespace-normalized) — possible fabrication`,
+      );
+    }
+  }
+
+  function pruneGroups(bucket: string, label: string, ids: string[]): string[] {
+    return ids.filter((id) => {
+      if (groupIds.has(id)) return true;
+      issues.push(`${bucket} item "${label}" references unknown group "${id}" — pruned`);
+      return false;
+    });
+  }
+
+  const accomplished = intentCheck.accomplished
+    .filter((item) => keepSource("accomplished", item))
+    .map((item) => {
+      checkQuote("accomplished", item);
+      const prunedIds = pruneGroups("accomplished", item.intent, item.groupIds);
+      if (prunedIds.length === 0) {
+        // Warn, never drop: stated-side grounding is the citation, but an
+        // anchor-less accomplished row renders without jump-links — that
+        // drift must be visible on the artifact, not silent.
+        issues.push(
+          `accomplished item "${item.intent}" has no valid group anchor — kept (stated-side grounding is the citation)`,
+        );
+      }
+      return { ...item, groupIds: prunedIds };
+    });
+
+  const statedButMissing = intentCheck.statedButMissing
+    .filter((item) => keepSource("statedButMissing", item))
+    .map((item) => {
+      checkQuote("statedButMissing", item);
+      if (item.groupIds.length > 0) {
+        issues.push(
+          `statedButMissing item "${item.intent}" carries ${item.groupIds.length} groupId(s) — emptied (a missing ask has no diff anchor)`,
+        );
+      }
+      return { ...item, groupIds: [] };
+    });
+
+  const doneButUnstated = intentCheck.doneButUnstated
+    .map((item) => {
+      if (item.quote !== "" || item.sourceUrl !== "") {
+        issues.push(
+          `doneButUnstated item "${item.intent}" carries a quote/sourceUrl — emptied (no ticket side by definition)`,
+        );
+      }
+      return {
+        ...item,
+        quote: "",
+        sourceUrl: "",
+        groupIds: pruneGroups("doneButUnstated", item.intent, item.groupIds),
+      };
+    })
+    .filter((item) => {
+      if (item.groupIds.length > 0) return true;
+      issues.push(
+        `doneButUnstated item "${item.intent}" has no valid group anchor — dropped (no grounding)`,
+      );
+      return false;
+    });
+
+  return {
+    intentCheck: {
+      ...intentCheck,
+      ticketUrls,
+      accomplished,
+      statedButMissing,
+      doneButUnstated,
+    },
+    issues,
+  };
 }
 
 type ManifestFormat =

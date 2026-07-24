@@ -73,6 +73,8 @@ export {
   type Brief,
   type CommitRange,
   type Effort,
+  type IntentCheck,
+  type IntentItem,
   type RiskSurfaceAttribute,
   type RevisionNarrative,
   type RevisionNarrativeChunk,

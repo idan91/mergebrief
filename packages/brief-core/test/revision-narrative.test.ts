@@ -88,6 +88,14 @@ const incrementalDiff = `diff --git a/src/a.ts b/src/a.ts
 /** What the model "generates" for a full brief (CLI metadata omitted). */
 const briefGen = {
   summary: "s",
+  intentCheck: {
+    ticketUrls: [],
+    specificity: "none",
+    scopeNote: "",
+    accomplished: [],
+    statedButMissing: [],
+    doneButUnstated: [],
+  },
   changeGroups: [
     {
       id: "g1",

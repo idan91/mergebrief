@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { buildDeltaSystemPrompt, buildSystemPrompt } from "../src/prompt";
+import {
+  buildDeltaSystemPrompt,
+  buildRevisionNarrativeSystemPrompt,
+  buildSystemPrompt,
+} from "../src/prompt";
 import { REPO_INSTRUCTION_CLASSES, type RepoContext } from "../src/repo-context";
 
 describe("prompt role guidance", () => {
@@ -116,5 +120,48 @@ describe("authoring docs stay lockstep with REPO_INSTRUCTION_CLASSES (ADR 0032 #
     for (const line of REPO_INSTRUCTION_CLASSES.MAY_FOLLOW) {
       expect(doc, `missing class line: ${line}`).toContain(`- ${line}`);
     }
+  });
+});
+
+describe("intent-check prompt section (BRIEF-54, ADR 0009 §2 as amended)", () => {
+  const brief = buildSystemPrompt();
+
+  it("judges the composite corpus, never a fallback chain", () => {
+    expect(brief).toContain("## Intent check");
+    expect(brief).toMatch(/title.*description.*ticket-like/is);
+    expect(brief).toContain("judged together");
+  });
+
+  it("binds ticketUrls to the injected Linked context URLs", () => {
+    expect(brief).toMatch(/ticketUrls[\s\S]*?Linked context/);
+    expect(brief).toContain("never invent");
+  });
+
+  it("glosses all three specificity levels and forces empty buckets on broad/none", () => {
+    for (const token of ["precise", "broad", "none"]) {
+      expect(brief).toContain(`\`${token}\``);
+    }
+    expect(brief).toMatch(/broad.*none.*MUST be empty|MUST be empty.*broad|buckets MUST be empty/is);
+  });
+
+  it("demands verbatim quotes with the ~200-char bound and emitted groupIds", () => {
+    expect(brief).toContain("verbatim");
+    expect(brief).toContain("~200");
+    expect(brief).toMatch(/groupIds.*changeGroups|groupIds.*groups you (just )?produced|groupIds.*emitted/i);
+  });
+
+  it("bounds scopeNote to one sentence of scope facts", () => {
+    expect(brief).toMatch(/scopeNote.*one sentence/is);
+    expect(brief).toMatch(/scopeNote[\s\S]*?usually empty|usually.*""/i);
+  });
+
+  it("re-states the untrusted-ticket boundary for the intent buckets", () => {
+    expect(brief).toMatch(/<linked_context>[\s\S]*never[\s\S]*buckets|buckets[\s\S]*<linked_context>/i);
+  });
+
+  it("keeps the intent check out of the delta and revision-narrative prompts", () => {
+    expect(buildDeltaSystemPrompt()).not.toContain("Intent check");
+    expect(buildDeltaSystemPrompt()).not.toContain("intentCheck");
+    expect(buildRevisionNarrativeSystemPrompt()).not.toContain("intentCheck");
   });
 });

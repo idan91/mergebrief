@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  validateIntentCheck,
   validatePartition,
   validateMarksNarrativeCoverage,
   validateNarrativeGroups,
@@ -538,5 +539,248 @@ describe("validateRepoAttributeTokens — riskNotes cannot smuggle tokens (codex
     const { chunks, issues } = validateRepoAttributeTokens([chunk], custom);
     expect(chunks[0]?.riskNotes?.map((n) => n.attr)).toEqual(["mutates-state"]);
     expect(issues.join("\n")).toContain("riskNotes");
+  });
+});
+
+describe("validateIntentCheck (BRIEF-54)", () => {
+  const emittedGroups = [{ id: "g1" }, { id: "g2" }];
+  const ticketUrl = "https://tracker.example/T-1";
+  const injected = [ticketUrl, "https://docs.example/design"];
+  const sources = [
+    { url: "", content: "Fix the retry loop\n\nAlso tidy the logger setup." },
+    {
+      url: ticketUrl,
+      content:
+        "The retry loop must stop after three attempts.\nAdd a regression   test for the overflow case.",
+    },
+  ];
+
+  const preciseCheck = () => ({
+    ticketUrls: [ticketUrl],
+    specificity: "precise" as const,
+    scopeNote: "",
+    accomplished: [
+      {
+        intent: "stop retrying after three attempts",
+        quote: "must stop after three attempts",
+        sourceUrl: ticketUrl,
+        groupIds: ["g1"],
+      },
+    ],
+    statedButMissing: [
+      {
+        intent: "add a regression test",
+        quote: "Add a regression test for the overflow case.",
+        sourceUrl: ticketUrl,
+        groupIds: [],
+      },
+    ],
+    doneButUnstated: [
+      { intent: "tidies the logger setup", quote: "", sourceUrl: "", groupIds: ["g2"] },
+    ],
+  });
+
+  it("passes a clean precise check through untouched with no issues", () => {
+    const input = preciseCheck();
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(issues).toEqual([]);
+    expect(intentCheck).toEqual(input);
+  });
+
+  it("empties all buckets when specificity is broad/none but buckets are non-empty", () => {
+    for (const specificity of ["broad", "none"] as const) {
+      const { intentCheck, issues } = validateIntentCheck(
+        { ...preciseCheck(), specificity },
+        groups,
+        injected,
+        sources,
+      );
+      expect(intentCheck.accomplished).toEqual([]);
+      expect(intentCheck.statedButMissing).toEqual([]);
+      expect(intentCheck.doneButUnstated).toEqual([]);
+      expect(issues.join("\n")).toContain(specificity);
+    }
+  });
+
+  it("leaves an already-empty broad check clean (no issues)", () => {
+    const { issues } = validateIntentCheck(
+      {
+        ticketUrls: [ticketUrl],
+        specificity: "broad",
+        scopeNote: "parent epic spans several PRs",
+        accomplished: [],
+        statedButMissing: [],
+        doneButUnstated: [],
+      },
+      groups,
+      injected,
+      sources,
+    );
+    expect(issues).toEqual([]);
+  });
+
+  it("drops a ticketUrl the harness never injected, and the items citing it", () => {
+    const forged = "https://evil.example/T-666";
+    const input = {
+      ...preciseCheck(),
+      ticketUrls: [ticketUrl, forged],
+      statedButMissing: [
+        {
+          intent: "invented ask",
+          quote: "do the forged thing",
+          sourceUrl: forged,
+          groupIds: [],
+        },
+      ],
+    };
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(intentCheck.ticketUrls).toEqual([ticketUrl]);
+    expect(intentCheck.statedButMissing).toEqual([]);
+    expect(issues.join("\n")).toContain(forged);
+    expect(issues.filter((i) => i.includes(forged)).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('accepts sourceUrl "" (title/description) without requiring ticketUrls membership', () => {
+    const input = {
+      ...preciseCheck(),
+      accomplished: [
+        {
+          intent: "fix the retry loop",
+          quote: "Fix the retry loop",
+          sourceUrl: "",
+          groupIds: ["g1"],
+        },
+      ],
+    };
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(intentCheck.accomplished).toHaveLength(1);
+    expect(issues).toEqual([]);
+  });
+
+  it("prunes a dangling groupId from an accomplished ask but keeps the item", () => {
+    const input = {
+      ...preciseCheck(),
+      accomplished: [
+        { ...preciseCheck().accomplished[0]!, groupIds: ["g1", "g9"] },
+      ],
+    };
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(intentCheck.accomplished[0]?.groupIds).toEqual(["g1"]);
+    expect(issues.join("\n")).toContain('"g9"');
+  });
+
+  it("keeps an accomplished ask alive even when ALL its groupIds were dangling (stated-side survives), but warns", () => {
+    const input = {
+      ...preciseCheck(),
+      accomplished: [{ ...preciseCheck().accomplished[0]!, groupIds: ["g9"] }],
+    };
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(intentCheck.accomplished).toHaveLength(1);
+    expect(intentCheck.accomplished[0]?.groupIds).toEqual([]);
+    expect(issues.join("\n")).toContain("kept (stated-side grounding is the citation)");
+  });
+
+  it("warns (never drops) on an accomplished ask emitted with zero groupIds", () => {
+    const input = {
+      ...preciseCheck(),
+      accomplished: [{ ...preciseCheck().accomplished[0]!, groupIds: [] }],
+    };
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(intentCheck.accomplished).toHaveLength(1);
+    expect(issues.join("\n")).toContain("no valid group anchor — kept");
+  });
+
+  it("drops a doneButUnstated item whose groupIds all dangle (no grounding)", () => {
+    const input = {
+      ...preciseCheck(),
+      doneButUnstated: [
+        { intent: "ungrounded claim", quote: "", sourceUrl: "", groupIds: ["g9"] },
+        { intent: "grounded claim", quote: "", sourceUrl: "", groupIds: ["g2", "g9"] },
+      ],
+    };
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(intentCheck.doneButUnstated).toHaveLength(1);
+    expect(intentCheck.doneButUnstated[0]?.intent).toBe("grounded claim");
+    expect(intentCheck.doneButUnstated[0]?.groupIds).toEqual(["g2"]);
+    expect(issues.join("\n")).toContain("ungrounded claim");
+  });
+
+  it("empties groupIds on a statedButMissing item and warns (no diff anchor by definition)", () => {
+    const input = {
+      ...preciseCheck(),
+      statedButMissing: [
+        {
+          intent: "add a regression test",
+          quote: "Add a regression test for the overflow case.",
+          sourceUrl: ticketUrl,
+          groupIds: ["g1", "g9"],
+        },
+      ],
+    };
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(intentCheck.statedButMissing[0]?.groupIds).toEqual([]);
+    expect(issues.join("\n")).toContain("no diff anchor");
+  });
+
+  it("warns (never drops) on a quote that is not a whitespace-normalized substring of its source", () => {
+    const input = {
+      ...preciseCheck(),
+      statedButMissing: [
+        {
+          intent: "fabricated ask",
+          quote: "this sentence appears nowhere in the ticket",
+          sourceUrl: ticketUrl,
+          groupIds: [],
+        },
+      ],
+    };
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(intentCheck.statedButMissing).toHaveLength(1);
+    expect(issues.join("\n")).toContain("quote");
+  });
+
+  it("normalizes whitespace before the substring check (line breaks and runs of spaces match)", () => {
+    const input = {
+      ...preciseCheck(),
+      statedButMissing: [
+        {
+          intent: "add a regression test",
+          quote: "Add a regression\ntest for the overflow case.",
+          sourceUrl: ticketUrl,
+          groupIds: [],
+        },
+      ],
+    };
+    const { issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(issues).toEqual([]);
+  });
+
+  it("warns on an EMPTY ticket-side quote (uncited stated ask — schema demands verbatim citation)", () => {
+    const input = {
+      ...preciseCheck(),
+      statedButMissing: [
+        { intent: "uncited ask", quote: "", sourceUrl: ticketUrl, groupIds: [] },
+      ],
+    };
+    const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(intentCheck.statedButMissing).toHaveLength(1);
+    expect(issues.join("\n")).toContain("empty quote");
+  });
+
+  it("does not warn on doneButUnstated's empty quote (no ticket side by design)", () => {
+    const input = {
+      ...preciseCheck(),
+      doneButUnstated: [
+        { intent: "cleanup", quote: "", sourceUrl: "", groupIds: ["g2"] },
+      ],
+    };
+    const { issues } = validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(issues).toEqual([]);
+  });
+
+  it("is pure — the input intent check is not mutated", () => {
+    const input = { ...preciseCheck(), specificity: "broad" as const };
+    validateIntentCheck(input, emittedGroups, injected, sources);
+    expect(input.accomplished).toHaveLength(1);
   });
 });

@@ -105,7 +105,20 @@ function stubGenerator(): StubGenerator {
   const calls: string[] = [];
   const requests: { label: string; system: string; user: string }[] = [];
   const outputs: Record<string, unknown> = {
-    brief: { summary: "stub brief", changeGroups: [], chunks: [], concernView: [] },
+    brief: {
+      summary: "stub brief",
+      intentCheck: {
+        ticketUrls: [],
+        specificity: "none",
+        scopeNote: "",
+        accomplished: [],
+        statedButMissing: [],
+        doneButUnstated: [],
+      },
+      changeGroups: [],
+      chunks: [],
+      concernView: [],
+    },
     delta: {
       summary: "stub delta",
       commentsAddressed: "",
@@ -993,6 +1006,14 @@ deEmphasize:
   /** A brief output whose one chunk fires the repo-defined attribute. */
   const FIRING_BRIEF = {
     summary: "stub brief",
+    intentCheck: {
+      ticketUrls: [],
+      specificity: "none",
+      scopeNote: "",
+      accomplished: [],
+      statedButMissing: [],
+      doneButUnstated: [],
+    },
     changeGroups: [
       {
         id: "g1",

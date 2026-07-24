@@ -29,6 +29,7 @@ import {
 } from "./prompt";
 import { splitDiffByFile } from "./diff";
 import {
+  validateIntentCheck,
   validateMarksNarrativeCoverage,
   validateNarrativeGroups,
   validateNarrativeMarksOverlap,
@@ -86,12 +87,16 @@ function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
   };
 }
 
+/** Nested-fence strip shared by the prompt render AND the intent-check
+ * verification corpus — the two views must stay byte-identical. */
+const LINKED_CONTEXT_FENCE = /<\/?linked_context/gi;
+
 /** Render the untrusted linked-context section, fenced so it reads as data. */
 function renderLinked(links: LinkedContext[]): string {
   if (links.length === 0) return "(none)";
   return links
     .map((l) => {
-      const safe = l.content.replace(/<\/?linked_context/gi, "");
+      const safe = l.content.replace(LINKED_CONTEXT_FENCE, "");
       return `<linked_context url="${l.url}">\n${safe}\n</linked_context>`;
     })
     .join("\n\n");
@@ -218,6 +223,30 @@ export async function categorize(
   warnIssues(readingOrderIssues, collector.log, "reading order");
   const keepReadingOrder = readingOrder !== undefined && readingOrderIssues.length === 0;
 
+  // Intent check (BRIEF-54): ticketUrls ⊆ the URLs actually injected as
+  // linked context; quotes verify against the composite corpus — the PR
+  // title/description rides as the "" source, matching the sourceUrl
+  // convention. The corpus must be the SAME sanitized view the prompt
+  // rendered (linked_context fence strip + forged-fence defusal when repo
+  // context is in play) — verifying against raw text would flag a model
+  // quote as fabricated when the harness altered the text it read.
+  // Warn-and-drop, same register as readingOrder.
+  const corpusClean =
+    effectiveContext !== undefined ? stripForgedRepoFences : (text: string) => text;
+  const intentChecked = validateIntentCheck(
+    generated.intentCheck,
+    generated.changeGroups,
+    pr.links.map((l) => l.url),
+    [
+      { url: "", content: corpusClean(`${pr.meta.title}\n\n${pr.meta.body}`) },
+      ...pr.links.map((l) => ({
+        url: l.url,
+        content: corpusClean(l.content.replace(LINKED_CONTEXT_FENCE, "")),
+      })),
+    ],
+  );
+  warnIssues(intentChecked.issues, collector.log, "intent check");
+
   // Repo-attribute floor first (unknown tokens + path scopes, ADR 0032 #11),
   // then the mechanical risk validation on the surviving tokens. Skipped
   // entirely without repo context so the no-config path stays byte-identical.
@@ -233,6 +262,7 @@ export async function categorize(
   const partial = {
     ...rest,
     chunks: trio.chunks,
+    intentCheck: intentChecked.intentCheck,
     ...(keepReadingOrder ? { readingOrder } : {}),
     pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
     index,

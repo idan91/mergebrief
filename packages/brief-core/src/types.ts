@@ -303,6 +303,91 @@ export const ReviewCommentSchema = z.object({
     ),
 });
 
+// --- Intent check (BRIEF-54, ADR 0009 §2 as amended 2026-07-24) ------------
+
+/**
+ * ONE item shape shared by ALL THREE intent buckets. The grill locked a
+ * three-way factoring (StatedAsk base for the ticket-side buckets,
+ * AccomplishedAsk = StatedAsk + groupIds, a separate diff-side
+ * UnstatedWork) — but every distinct object shape beyond the base Brief
+ * schema pushes Anthropic's structured-output grammar over its compilation
+ * limit under the production request shape (adaptive thinking + streaming;
+ * `400 "The compiled grammar is too large"`, probed live 2026-07-24). The
+ * budget is STRUCTURAL — distinct object shapes, not bytes: the base schema
+ * passes with heavy descriptions while a leaner two-extra-shape variant
+ * fails. Exactly one additional shape fits, so all three buckets share it,
+ * and the per-bucket field rules moved to the mechanical floor
+ * (`validateIntentCheck`, warn-and-drop) + prompt:
+ *
+ * - accomplished: `quote`/`sourceUrl` cited; `groupIds` at least one.
+ * - statedButMissing: `quote`/`sourceUrl` cited; `groupIds` MUST be empty
+ *   (a missing ask has no diff anchor by definition).
+ * - doneButUnstated: `intent` describes the unstated work; `quote` and
+ *   `sourceUrl` MUST be "" (no ticket side by definition); `groupIds` at
+ *   least one.
+ */
+export const IntentItemSchema = z.object({
+  intent: z
+    .string()
+    .describe(
+      "one short line: the stated ask (accomplished/statedButMissing) or the unstated work done (doneButUnstated). What, not why.",
+    ),
+  quote: z
+    .string()
+    .describe(
+      'verbatim supporting quote from the intent corpus, at most ~200 chars — never paraphrased. "" on doneButUnstated (no ticket side)',
+    ),
+  sourceUrl: z
+    .string()
+    .describe(
+      'source of the quote: "" when it comes from the PR title/description, else one of ticketUrls. Always "" on doneButUnstated',
+    ),
+  groupIds: z
+    .array(z.string())
+    .describe(
+      "ids of the changeGroups delivering this item. accomplished and doneButUnstated: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+    ),
+});
+
+/**
+ * The ticket-gated intent check (ADR 0009 §2 as amended): did this PR do what
+ * its composite intent corpus (title + description + all ticket-like linked
+ * blocks, judged together) asked? Factual buckets, never a verdict.
+ * `specificity` is the master switch — broad/none means the buckets MUST be
+ * empty ("never a guessed gap"), enforced mechanically post-parse. No optional
+ * fields (strict structured-output; empty string / empty array = N/A).
+ */
+export const IntentCheckSchema = z.object({
+  ticketUrls: z
+    .array(z.string())
+    .describe(
+      "the linked-context URLs treated as ticket-like intent sources — ONLY URLs present in the Linked context section, never invented",
+    ),
+  specificity: z
+    .enum(["precise", "broad", "none"])
+    .describe(
+      "how actionable the combined intent corpus is: precise (defines this change), broad (epic/parent/support — too general), none (no usable stated intent). broad/none ⇒ all three buckets empty",
+    ),
+  scopeNote: z
+    .string()
+    .describe(
+      'one sentence of scope facts when the ticket deliberately spans beyond this PR (e.g. a stacked series); "" otherwise — usually empty',
+    ),
+  accomplished: z
+    .array(IntentItemSchema)
+    .describe("stated asks the diff accomplishes (empty when specificity is broad/none)"),
+  statedButMissing: z
+    .array(IntentItemSchema)
+    .describe(
+      "stated asks not found in the diff — groupIds MUST be empty on every item (whole array empty when specificity is broad/none)",
+    ),
+  doneButUnstated: z
+    .array(IntentItemSchema)
+    .describe(
+      'work the diff does that the corpus never asked for — quote and sourceUrl MUST be "" (empty when specificity is broad/none)',
+    ),
+});
+
 export const BriefSchema = z.object({
   pr: PrRefSchema,
   index: z
@@ -339,12 +424,18 @@ export const BriefSchema = z.object({
     .describe(
       "optional reading order over changeGroups (ADR 0025): a strict permutation of their ids — each group exactly once, no revisits — in foundation-first order (schema/types → logic → call sites/wiring), falling back to context-first/churn-last for independent groups. Omit when no clear order applies. Mechanically validated post-parse as a permutation of the emitted group ids; dropped with a warning (not a hard failure) if it isn't.",
     ),
+  intentCheck: IntentCheckSchema.optional().describe(
+    "the ticket-gated intent check (BRIEF-54). Optional on the read path only — pre-feature briefs lack it; generation always produces it (required on BriefGenerationSchema).",
+  ),
 });
 
 /**
  * What the model actually generates for a full brief: BriefSchema minus the
  * CLI-owned metadata (`pr`, `index`, `commitRange`), which the CLI fills after
  * generation so the model never echoes identifiers it cannot know (ADR 0012).
+ * `intentCheck` is REQUIRED here (the model always judges the corpus) while
+ * staying optional on the stored/read `BriefSchema` — pre-BRIEF-54 briefs
+ * simply have no intent bar.
  */
 export const BriefGenerationSchema = BriefSchema.omit({
   pr: true,
@@ -352,6 +443,8 @@ export const BriefGenerationSchema = BriefSchema.omit({
   commitRange: true,
   generation: true,
   generationWarnings: true,
+}).extend({
+  intentCheck: IntentCheckSchema,
 });
 
 export type BriefGeneration = z.infer<typeof BriefGenerationSchema>;
@@ -565,6 +658,8 @@ export interface RevisionNarrativeSkipped {
 }
 
 export type PrRef = z.infer<typeof PrRefSchema>;
+export type IntentItem = z.infer<typeof IntentItemSchema>;
+export type IntentCheck = z.infer<typeof IntentCheckSchema>;
 export type LineRange = z.infer<typeof LineRangeSchema>;
 export type RiskNote = z.infer<typeof RiskNoteSchema>;
 export type Chunk = z.infer<typeof ChunkSchema>;

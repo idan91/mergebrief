@@ -49,6 +49,24 @@ optional field).
    Factored exactly so (StatedAsk base for the two ticket-side buckets; no
    artificial universal base). Lives on `BriefGenerationSchema` **only** —
    delta and revision narrative never carry it.
+
+   > **Amended 2026-07-24 (PR 1 implementation):** the locked three-shape
+   > factoring is dead on arrival — under the production request shape
+   > (adaptive thinking + streaming) Anthropic's structured-output grammar
+   > compilation admits exactly ONE object shape beyond the base Brief
+   > schema (`400 "The compiled grammar is too large"`; probed live. The
+   > budget is **structural** — distinct object shapes, not bytes: the 7KB
+   > base schema passes with heavy descriptions while a leaner two-extra-
+   > shape variant fails; the budget is also tighter with thinking enabled
+   > than without, so probes must use the adapter's exact request shape).
+   > All three buckets now share ONE `IntentItemSchema`
+   > `{intent, quote, sourceUrl, groupIds}`; the per-bucket field rules
+   > moved to the mechanical floor (`validateIntentCheck`, warn-and-drop)
+   > and the prompt: `statedButMissing.groupIds` MUST be `[]` (emptied +
+   > warn), `doneButUnstated.quote`/`sourceUrl` MUST be `""` (emptied +
+   > warn; its description rides `intent`). Probed clean including the
+   > custom-attribute enum-widening path. The three top-level buckets,
+   > never-a-verdict, and everything else in this decision stand.
 3. **Enum enforcement**: `specificity` is a `z.enum` flowing through the
    existing enum-preserving hand-built json_schema (PR #22 / `enforceSchema`
    path). Structural field — schema-invalid takes hard-fail + one feedback

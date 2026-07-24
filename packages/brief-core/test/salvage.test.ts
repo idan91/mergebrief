@@ -13,6 +13,14 @@ const DROPPABLE = new Set([
 function validGeneration() {
   return {
     summary: "s",
+    intentCheck: {
+      ticketUrls: [],
+      specificity: "none",
+      scopeNote: "",
+      accomplished: [],
+      statedButMissing: [],
+      doneButUnstated: [],
+    },
     changeGroups: [
       {
         id: "g1",

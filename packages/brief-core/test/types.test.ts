@@ -5,6 +5,7 @@ import {
   BriefSchema,
   briefGenerationSchemaWith,
   DeltaBriefSchema,
+  IntentCheckSchema,
   RevisionNarrativeSchema,
 } from "../src/types";
 
@@ -273,6 +274,14 @@ const chunk = (riskSurface: string[]) => ({
 });
 const briefGen = (riskSurface: string[]) => ({
   summary: "s",
+  intentCheck: {
+    ticketUrls: [],
+    specificity: "none",
+    scopeNote: "",
+    accomplished: [],
+    statedButMissing: [],
+    doneButUnstated: [],
+  },
   changeGroups: [
     {
       id: "g1",
@@ -286,6 +295,139 @@ const briefGen = (riskSurface: string[]) => ({
   ],
   chunks: [chunk(riskSurface)],
   concernView: [{ concern: "implementation", added: 1, deleted: 0 }],
+});
+
+const validIntentCheck = {
+  ticketUrls: ["https://tracker.example/T-1"],
+  specificity: "precise",
+  scopeNote: "",
+  accomplished: [
+    {
+      intent: "add the widget endpoint",
+      quote: "Add a widget endpoint returning the list",
+      sourceUrl: "https://tracker.example/T-1",
+      groupIds: ["g1"],
+    },
+  ],
+  statedButMissing: [
+    {
+      intent: "document the endpoint",
+      quote: "and document it in the API guide",
+      sourceUrl: "https://tracker.example/T-1",
+      groupIds: [],
+    },
+  ],
+  doneButUnstated: [
+    { intent: "drive-by lint fix", quote: "", sourceUrl: "", groupIds: ["g1"] },
+  ],
+};
+
+describe("IntentCheckSchema (BRIEF-54)", () => {
+  it("accepts a well-formed intent check", () => {
+    expect(IntentCheckSchema.safeParse(validIntentCheck).success).toBe(true);
+  });
+
+  it("accepts broad/none specificity with empty buckets", () => {
+    for (const specificity of ["broad", "none"]) {
+      const parsed = IntentCheckSchema.safeParse({
+        ticketUrls: [],
+        specificity,
+        scopeNote: "",
+        accomplished: [],
+        statedButMissing: [],
+        doneButUnstated: [],
+      });
+      expect(parsed.success).toBe(true);
+    }
+  });
+
+  it("rejects an out-of-vocabulary specificity", () => {
+    const bad = { ...structuredClone(validIntentCheck), specificity: "vague" };
+    expect(IntentCheckSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects a stated ask missing its quote (no optionals — strict structured output)", () => {
+    const bad = structuredClone(validIntentCheck);
+    const target: Partial<(typeof bad.statedButMissing)[number]> = bad.statedButMissing[0];
+    delete target.quote;
+    expect(IntentCheckSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("requires groupIds on BOTH stated-side buckets (one shared shape — grammar budget)", () => {
+    const noAccomplishedIds = structuredClone(validIntentCheck);
+    const accomplished: Partial<(typeof noAccomplishedIds.accomplished)[number]> =
+      noAccomplishedIds.accomplished[0];
+    delete accomplished.groupIds;
+    expect(IntentCheckSchema.safeParse(noAccomplishedIds).success).toBe(false);
+
+    const noMissingIds = structuredClone(validIntentCheck);
+    const missing: Partial<(typeof noMissingIds.statedButMissing)[number]> =
+      noMissingIds.statedButMissing[0];
+    delete missing.groupIds;
+    expect(IntentCheckSchema.safeParse(noMissingIds).success).toBe(false);
+  });
+
+  it("all three buckets share ONE item shape (grammar budget — see IntentItemSchema)", () => {
+    // A doneButUnstated item parses with the same fields as a stated ask;
+    // the ticket-side fields must be "" there — enforced by the validator,
+    // not the schema (one shared shape is all the grammar budget allows).
+    const parsed = IntentCheckSchema.safeParse({
+      ...structuredClone(validIntentCheck),
+      doneButUnstated: [{ intent: "d", quote: "", sourceUrl: "", groupIds: ["g1"] }],
+    });
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(Object.keys(parsed.data.doneButUnstated[0] ?? {}).toSorted()).toEqual([
+      "groupIds",
+      "intent",
+      "quote",
+      "sourceUrl",
+    ]);
+  });
+});
+
+describe("intentCheck on the brief schemas (BRIEF-54 back-compat split)", () => {
+  it("BriefGenerationSchema REQUIRES intentCheck", () => {
+    const { intentCheck: _dropped, ...withoutIntent } = briefGen(["mutates-state"]);
+    expect(BriefGenerationSchema.safeParse(withoutIntent).success).toBe(false);
+    expect(
+      BriefGenerationSchema.safeParse({ ...withoutIntent, intentCheck: validIntentCheck })
+        .success,
+    ).toBe(true);
+  });
+
+  it("BriefSchema (read path) treats intentCheck as optional — pre-feature briefs parse", () => {
+    expect(BriefSchema.safeParse(validBrief).success).toBe(true);
+    const withIntent = { ...structuredClone(validBrief), intentCheck: validIntentCheck };
+    const parsed = BriefSchema.safeParse(withIntent);
+    expect(parsed.success).toBe(true);
+    if (!parsed.success) return;
+    expect(parsed.data.intentCheck?.specificity).toBe("precise");
+  });
+
+  it("delta and revision-narrative schemas never carry intentCheck", () => {
+    const delta = DeltaBriefSchema.safeParse({
+      ...structuredClone(validDelta),
+      intentCheck: validIntentCheck,
+    });
+    expect(delta.success).toBe(true);
+    if (!delta.success) return;
+    expect("intentCheck" in delta.data).toBe(false);
+    // RevisionNarrativeSchema is .strict() — an invented intentCheck hard-fails.
+    const narrative = RevisionNarrativeSchema.safeParse({
+      ...structuredClone(validRevisionNarrative),
+      intentCheck: validIntentCheck,
+    });
+    expect(narrative.success).toBe(false);
+  });
+
+  it("emits the specificity enum in the enum-preserving json_schema wire form", () => {
+    const wire = JSON.stringify(enumPreservingJsonSchema(BriefGenerationSchema));
+    expect(wire).toContain('"precise"');
+    expect(wire).toContain('"broad"');
+    // "none" is a common word — assert the full enum array to be safe.
+    expect(wire.replace(/\s/g, "")).toContain('"enum":["precise","broad","none"]');
+  });
 });
 
 describe("briefGenerationSchemaWith (ADR 0032 #11 — per-generation vocabulary)", () => {
