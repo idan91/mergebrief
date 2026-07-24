@@ -9,8 +9,8 @@
 main
 └─ feature/brief-54-intent-schema      PR 1  #147  brief-core schema/prompt/validation
    ├─ feature/brief-54-eval-cases      PR 2  #148  eval intent cases + adversarial fixture
-   └─ feature/brief-54-intent-bar      PR 3  web intent bar (Sonnet session)
-      └─ feature/brief-54-modal-line   PR 4  mark-ready modal line (Sonnet session)
+   └─ feature/brief-54-intent-bar      PR 3  #149  web intent bar
+      └─ feature/brief-54-modal-line   PR 4  #150  mark-ready modal line
 ```
 
 PR 2 and PR 3 are siblings on PR 1; PR 4 stacks on PR 3.

@@ -233,4 +233,48 @@ describe("MarkReadyModal", () => {
     fireEvent.click(confirm);
     expect(markReadyAnyway).toHaveBeenCalledTimes(1);
   });
+
+  // BRIEF-54 count-only intent line.
+  const intentLine = /stated ask.* not found in the diff/;
+
+  it("shows no intent line when there are no missing asks (absence, not a verdict)", () => {
+    renderModal();
+    expect(screen.queryByText(intentLine)).toBeNull();
+    cleanup();
+    renderModal({ intentGapCount: 0 });
+    expect(screen.queryByText(intentLine)).toBeNull();
+  });
+
+  it("renders one count-only line (plural) when precise asks are missing", () => {
+    renderModal({ intentGapCount: 3 });
+    expect(
+      screen.getByText("3 stated asks not found in the diff"),
+    ).toBeTruthy();
+  });
+
+  it("uses the singular for exactly one missing ask", () => {
+    renderModal({ intentGapCount: 1 });
+    expect(screen.getByText("1 stated ask not found in the diff")).toBeTruthy();
+  });
+
+  it("closes the modal and jumps to the expanded intent bar on click", () => {
+    const jumpToIntentGaps = vi.fn();
+    renderModal({ intentGapCount: 2, jumpToIntentGaps });
+    fireEvent.click(screen.getByText("2 stated asks not found in the diff"));
+    expect(jumpToIntentGaps).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the intent line while a draft batch is running", () => {
+    const jumpToIntentGaps = vi.fn();
+    renderModal({
+      intentGapCount: 2,
+      jumpToIntentGaps,
+      unpostedDraftCount: 3,
+      busyLabel: "Posting 1 of 3…",
+    });
+    const line = screen.getByText("2 stated asks not found in the diff");
+    expect(line).toHaveProperty("disabled", true);
+    fireEvent.click(line);
+    expect(jumpToIntentGaps).toHaveBeenCalledTimes(0);
+  });
 });

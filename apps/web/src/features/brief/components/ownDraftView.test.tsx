@@ -202,6 +202,93 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
+  it("soft gate: intent gaps ALONE never open the modal (BRIEF-54 — the fallible signal never drives the gate)", () => {
+    // A flagless, draft-free Brief that DOES carry precise stated-but-missing
+    // intent asks. The intent check is the AI's fallible read; it surfaces as
+    // a secondary line inside the gate, but must never be the thing that opens
+    // it — the CTA still acts directly.
+    const intentGapBrief: Brief = {
+      ...flaglessBrief,
+      intentCheck: {
+        ticketUrls: ["https://tracker.example/T-1"],
+        specificity: "precise",
+        scopeNote: "",
+        accomplished: [],
+        statedButMissing: [
+          {
+            intent: "document the endpoint",
+            quote: "and document it",
+            sourceUrl: "https://tracker.example/T-1",
+            groupIds: [],
+          },
+        ],
+        doneButUnstated: [],
+      },
+    };
+    const markReady = vi.fn(() =>
+      Promise.resolve<MarkReadyResult>({ kind: "ready" }),
+    );
+    renderBriefView({ markReady }, intentGapBrief);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(screen.queryByText("Before marking ready")).toBeNull();
+    expect(markReady).toHaveBeenCalledTimes(1);
+  });
+
+  it("soft gate: the intent line rides an open gate, and clicking it closes the gate AND expands the intent bar", () => {
+    // The gate opens because of the flags (briefFixture carries them); the
+    // BRIEF-54 intent line rides inside, proving the caller's computed
+    // intentGapCount flows through. Clicking it dismisses the gate and, after
+    // the deferred handle fires, lands the author on the EXPANDED intent bar —
+    // pinning the full jumpToIntentGapsFromGate glue (setViewMode/setFocusMode
+    // + setTimeout → expandAndScrollTo), not just the close.
+    vi.useFakeTimers();
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const briefWithGaps: Brief = {
+      ...briefFixture,
+      intentCheck: {
+        ticketUrls: ["https://tracker.example/T-1"],
+        specificity: "precise",
+        scopeNote: "",
+        accomplished: [],
+        statedButMissing: [
+          {
+            intent: "add the docs",
+            quote: "document it",
+            sourceUrl: "https://tracker.example/T-1",
+            groupIds: [],
+          },
+        ],
+        doneButUnstated: [],
+      },
+    };
+    renderBriefView({ markReady: vi.fn() }, briefWithGaps);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    // Scope to the mark-ready modal (several dialogs exist in the tree).
+    const gate = screen
+      .getByText("Before marking ready")
+      .closest("[data-state]");
+    expect(gate?.getAttribute("data-state")).toBe("open");
+    // The bar is mounted (story/full/non-focus default) but collapsed.
+    const barToggle = screen.getByRole("button", { name: /intent check/i });
+    expect(barToggle).toHaveProperty("ariaExpanded", "false");
+
+    fireEvent.click(screen.getByText("1 stated ask not found in the diff"));
+    // The Modal keeps its DOM but goes inert/closed; the gate is dismissed.
+    expect(gate?.getAttribute("data-state")).toBe("closed");
+    // The deferred handle fires on the next tick: bar expands + scrolls.
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+    expect(barToggle).toHaveProperty("ariaExpanded", "true");
+    expect(scrollIntoView).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
   it("soft gate: zero flags but unposted drafts → the gate OPENS with the checkbox, batch posts then mark-ready", async () => {
     // Owner amendment (live bug, PR 9 test): the flags-only bypass skipped
     // the gate on a zero-flag brief, so the post-my-drafts checkbox was

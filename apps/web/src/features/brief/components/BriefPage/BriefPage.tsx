@@ -1548,6 +1548,26 @@ function BriefScreen({
     const first = unpostedDraftComments[0];
     if (first) jumpToChunk(first.anchor.chunkId);
   }, [jumpToChunk, unpostedDraftComments]);
+  // BRIEF-54 soft-gate line: count of precise stated-but-missing asks. Zero
+  // on broad/none (the bar is unavailable) or a pre-feature Brief — the modal
+  // line renders only when this is > 0. This never feeds the gate's OPEN
+  // condition (below), so intent gaps alone never open the modal.
+  const intentGapCount =
+    brief.intentCheck?.specificity === "precise"
+      ? brief.intentCheck.statedButMissing.length
+      : 0;
+  // Close the gate and land on the expanded intent bar (PR 3 handle). The bar
+  // lives in the full-compare story view, so exit focus mode and story-view
+  // first, then defer the expand until that instrument cluster (re)mounts —
+  // mirroring the chunk-scroller's setTimeout(0). From the changes-only
+  // compare view (a URL-driven mode the author opted into) the bar stays
+  // unmounted and the expand no-ops; leaving that mode is the user's action.
+  const jumpToIntentGapsFromGate = useCallback(() => {
+    setMarkReadyGateOpen(false);
+    setFocusMode(false);
+    setViewMode("story");
+    window.setTimeout(() => intentBarRef.current?.expandAndScrollTo(), 0);
+  }, []);
   // Per-comment post-now (BRIEF-43, ADR 0031): post a staged draft NOW as a
   // standalone inline review comment. Present only in own-draft state at the
   // current head (`ownDraft.postComment`) — off the current head the composer
@@ -2202,6 +2222,8 @@ function BriefScreen({
           markReadyAnyway={markReadyAnyway}
           jumpToFlag={jumpToFlagFromGate}
           jumpToDrafts={jumpToDraftsFromGate}
+          intentGapCount={intentGapCount}
+          jumpToIntentGaps={jumpToIntentGapsFromGate}
           postDrafts={postDraftsOnReady}
           setPostDrafts={setPostDraftsOnReady}
           busyLabel={

@@ -41,6 +41,16 @@ export interface MarkReadyModalProps {
    * shows it and every control disables so a second batch cannot start.
    */
   busyLabel?: string | undefined;
+  /**
+   * BRIEF-54 soft-gate line: the count of precise stated-but-missing intent
+   * asks. Rendered as ONE count-only secondary line only when > 0 — never
+   * gap-first, and the fallible intent signal never drives the gate's OPEN
+   * condition (the caller's render gate ignores it, so gaps alone never open
+   * the modal). Absent/zero → no line (absence, not a green verdict).
+   */
+  intentGapCount?: number;
+  /** Close the modal and jump to the expanded intent bar (PR 3 handle). */
+  jumpToIntentGaps?: () => void;
 }
 
 export function MarkReadyModal({
@@ -54,6 +64,8 @@ export function MarkReadyModal({
   postDrafts = false,
   setPostDrafts,
   busyLabel,
+  intentGapCount = 0,
+  jumpToIntentGaps,
 }: MarkReadyModalProps) {
   const busy = busyLabel !== undefined;
   const draftLabel = `Post my ${String(unpostedDraftCount)} draft comment${unpostedDraftCount === 1 ? "" : "s"} before marking ready`;
@@ -117,6 +129,22 @@ export function MarkReadyModal({
           posted — post them first, or mark ready as-is.
         </p>
       )}
+      {/* BRIEF-54 count-only intent line: a quiet secondary affordance below
+          the flags list — factual count, never gap-first, only when the
+          intent source is precise and asks are missing (the caller gates it).
+          Click closes the modal and lands on the expanded intent bar. */}
+      {intentGapCount > 0 ? (
+        <p className={styles["copy"]}>
+          <button
+            className="btn"
+            type="button"
+            disabled={busy}
+            onClick={jumpToIntentGaps}
+          >
+            {`${String(intentGapCount)} stated ask${intentGapCount === 1 ? "" : "s"} not found in the diff`}
+          </button>
+        </p>
+      ) : null}
       {unpostedDraftCount > 0 ? (
         <>
           <p className={styles["copy"]}>

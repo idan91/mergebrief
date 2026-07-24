@@ -1,8 +1,10 @@
 # BRIEF-54 — Testing guide (manual smoke, /verify harness)
 
-> Living doc for the BRIEF-54 stack. Updated as PRs evolve; final after PR 4.
-> Run against the local /verify harness (see the `verify` skill: postgres,
-> env wiring, session seeding).
+> Finalized after PR 4 (all four PRs up: #147 schema/prompt/validation, #148
+> eval cases, #149 intent bar, PR 4 mark-ready line). Run against the local
+> /verify harness (see the `verify` skill: postgres, env wiring, session
+> seeding). A live intent bar needs a Brief generated after PR 1 merges on a
+> PR whose description links a ticket.
 
 ## Setup
 
@@ -54,11 +56,16 @@
       shows ONE count-only secondary line ("N stated asks not found in the
       diff") below the flags list, quiet styling.
 - [ ] Click the line: modal closes and the page jumps to the intent bar,
-      expanded.
+      expanded (in story view — the click exits focus mode / restores story
+      view first). Known limit: from the changes-only compare view the bar is
+      unmounted, so the expand no-ops.
 - [ ] **Clean intent** (no gaps): no secondary line (absence, not a green
       verdict).
-- [ ] **Gaps but NO unaddressed flags**: modal does NOT open — gaps alone
-      never trigger it (mark-ready proceeds directly).
+- [ ] **Gaps alone** (precise intent with missing asks, but NO unaddressed
+      flags AND NO unposted drafts): the modal does NOT open — the CTA acts
+      directly. Intent gaps never open the gate. (The gate still opens on
+      unposted drafts alone — the owner amendment — and the intent line rides
+      it there too.)
 - [ ] Broad/none intent: no line regardless of buckets.
 
 ## Cross-cutting
