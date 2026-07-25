@@ -262,6 +262,50 @@ describe("Changes Only rendering (step 8)", () => {
     );
   });
 
+  it("renders deduped narrative generationWarnings on the compare surface (BRIEF-78)", () => {
+    const warned: RevisionNarrative = {
+      ...narrative,
+      generationWarnings: [
+        "narrative missed 2 changed spans",
+        "narrative missed 2 changed spans",
+        "salvaged 1 chunk",
+      ],
+    };
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={fullBrief}
+        model={buildBriefViewModel(fullBrief)}
+        narrative={warned}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    const note = screen.getByRole("note");
+    expect(note.textContent).toContain("narrative missed 2 changed spans");
+    expect(note.textContent).toContain("salvaged 1 chunk");
+    // Duplicates collapse to one line.
+    expect(
+      screen.getAllByText("narrative missed 2 changed spans"),
+    ).toHaveLength(1);
+  });
+
+  it("renders no warnings block when generationWarnings is absent or empty", () => {
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={fullBrief}
+        model={buildBriefViewModel(fullBrief)}
+        narrative={{ ...narrative, generationWarnings: [] }}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
   it("Your last review renders the Delta artifact under Changes Only copy", () => {
     render(
       <ChangesOnlyView

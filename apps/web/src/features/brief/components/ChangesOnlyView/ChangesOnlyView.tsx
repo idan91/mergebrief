@@ -119,11 +119,24 @@ function PreviousBriefChanges({
       !brief.changeGroups.some((g) => g.id === chunk.briefChangeGroupId),
   );
 
+  // What narrative generation DID (BRIEF-78, mirroring the Header's Brief
+  // block): coverage gaps, dangling group ids, salvage — surfaced on the
+  // compare surface they degraded. Warn-only; no retry affordance. Deduped
+  // because the collector can emit the same line per direction.
+  const warnings = [...new Set(narrative.generationWarnings ?? [])];
+
   return (
     <div className={styles["changesOnly"]}>
       <div className={styles["eyebrow"]}>
         Changes Only · since the previous Brief
       </div>
+      {warnings.length > 0 ? (
+        <div className={styles["generationWarnings"]} role="note">
+          {warnings.map((warning) => (
+            <div key={warning}>{warning}</div>
+          ))}
+        </div>
+      ) : null}
       <p className={styles["overview"]}>{narrative.overview}</p>
       {model.groups.map((group) => {
         const chunks = narrative.chunks.filter(

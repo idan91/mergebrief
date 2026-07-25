@@ -1,3 +1,5 @@
+@use "functions" as functions;
+
 @layer components {
   .changesOnly {
     display: grid;
@@ -10,6 +12,14 @@
     font-weight: 500;
     letter-spacing: 0.02em;
     text-transform: uppercase;
+  }
+
+  // Narrative generation warnings (BRIEF-78): quiet amber, one line per
+  // event — same register as the Header's Brief warnings block.
+  .generationWarnings {
+    color: var(--amber);
+    font-size: functions.to-rem(11px);
+    line-height: 1.5;
   }
 
   .overview {
