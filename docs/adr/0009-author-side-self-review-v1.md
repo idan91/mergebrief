@@ -24,6 +24,43 @@
 > (precise source + gaps only), never opening the gate by itself. See
 > `docs/plans/brief-54-intent-check.md`.
 
+> **Amended 2026-07-25 (BRIEF-85 grill — second amendment to #2):** the
+> *precise* bucket grammar grows from three to **five factual buckets**; the
+> two additions are alarm-class:
+>
+> - **`deviations`** — the diff moves *against* an ask the composite corpus
+>   states and **nowhere retracts** (the retracted-nowhere rule: a reversal
+>   acknowledged in the PR description means the corpus no longer stands
+>   behind the ticket's ask). Each item carries `acknowledged: boolean` —
+>   when the description acknowledges the reversal the item is a quiet
+>   receipt, not an alarm. `acknowledged` lives on the shared item shape
+>   (structured-output shape budget) and is forced-`false` outside
+>   `deviations` (dead-field precedent).
+> - **`claimedButUnachieved`** — the corpus claims a fix/delivery while the
+>   diff operates only on the problem's *signal/check path* (log demotion,
+>   catch-and-swallow, test skip/delete, threshold bump). **Routing rule**:
+>   behavior moved against the ask ⇒ `deviations`; only the signal touched ⇒
+>   `claimedButUnachieved`; uncertain ⇒ `accomplished` — never a guessed
+>   alarm.
+>
+> Tradeoffs and partial delivery are NOT deviations (partial delivery stays
+> `statedButMissing`). Both alarm buckets are precise-only, like their
+> siblings. Their validation posture is deliberately stricter than the
+> warn-and-keep siblings: an alarm item lacking verified both-sides grounding
+> — empty quote, zero surviving groupIds, or failed quote verification — is
+> **dropped + warned**. FE realization: static bucket order (accomplished →
+> claimedButUnachieved → unacknowledged deviations → statedButMissing →
+> doneButUnstated → acknowledged deviations), one muted caution line per
+> non-empty alarm bucket, and **no yellow** — epistemic caution never borrows
+> the code-risk palette; header counts stay neutral/uncolored and grow to
+> five. The soft gate (#3) gains a second count-only line (unacknowledged
+> deviations + claimedButUnachieved), never blocking. The risk-surface link
+> is structural only — groupIds resolve to group cards where
+> `widens-error-handling` / `removes-validation` already render; no new risk
+> category in v1. Revisit triggers: flagrant-under-broad misses (eval
+> evidence) and a test-deletion risk attribute (labeling hits the gap). See
+> `docs/plans/brief-85-intent-deviations.md`.
+
 The author view is the **same shared Brief**, shown one step earlier (pre-submit), with **no author-specific analysis engine and no persistent author state**. The only additions are two author-facing elements: an **Intent check** (a deliberately de-emphasized, ticket-gated section of the shared Brief) and a **Soft gate** (a transient, non-blocking pre-submit nudge). Post-review author flow is deferred to v2.
 
 ## Context

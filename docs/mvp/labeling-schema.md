@@ -17,6 +17,7 @@ Division of labor:
 | **Role** | **Chunk** | carrier vs supporting |
 | **Risk Surface** attributes | **Chunk** | factual flags |
 | **LoC** | **Chunk** (rolls up to group + concern) | size/attention |
+| **Intent-check bucket** | **Brief** (intent check section) | stated intent vs diff |
 
 A **Chunk** = a contiguous run of changed lines sharing one Concern and one Change-group (sub-file; a git hunk may split into multiple chunks).
 
@@ -113,7 +114,37 @@ This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diff
 
 ---
 
-## 7. Special tokens & expansion protocol
+## 7. Intent-check buckets — Brief-level (ADR 0009 §2, as amended)
+
+Closed set of five. Attaches to the Brief's **intent check**, not to chunks or
+change-groups. Fires only when the composite intent corpus is *precise*;
+broad/none ⇒ all buckets empty ("never a guessed gap"). Factual, never a
+verdict.
+
+| Token | Gloss | Class |
+|---|---|---|
+| `accomplished` | stated ask the diff delivers | neutral |
+| `statedButMissing` | stated ask absent from the diff (incl. the remainder of a partial delivery) | neutral |
+| `doneButUnstated` | work the diff does that the corpus never asked for | neutral |
+| `deviations` | diff opposes an ask the corpus states and nowhere retracts; per-item `acknowledged` flag splits quiet receipt from alarm | alarm |
+| `claimedButUnachieved` | corpus claims a fix/delivery; diff touches only the problem's signal/check path | alarm |
+
+Quick rules:
+
+- **Routing:** behavior moved against the ask ⇒ `deviations`; only the signal
+  touched (log demotion, catch-and-swallow, test skip/delete, threshold bump)
+  ⇒ `claimedButUnachieved`; uncertain ⇒ `accomplished` — never a guessed alarm.
+- **Retracted-nowhere:** a reversal acknowledged in the PR description means
+  the corpus no longer stands behind the ticket's ask (⇒ acknowledged
+  deviation, or no item at all if the ask is fully superseded).
+- `acknowledged` is meaningful only in `deviations`; forced-`false` elsewhere.
+- Alarm items require verified both-sides grounding (verbatim quote + surviving
+  groupIds) or they are dropped with a warning — stricter than the
+  warn-and-keep neutral buckets.
+
+---
+
+## 8. Special tokens & expansion protocol
 
 - **`uncertain`** — valid output when confidence is below threshold on Category or a flag. Don't force a token; mark uncertain and move on.
 - **Expansion:** to add a Category / Concern / Risk-Surface attribute, register it *here first* (with status), then draft its detail (`risk-surface.md`); playbook drafting is parked with the playbook layer (ADR 0035). Never invent a token inline in a brief.
@@ -124,6 +155,7 @@ This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diff
 ## Status
 
 - Stable axes: Concern, Role, Risk Surface (starter set), LoC rules, boundary rule.
+- Intent-check buckets: five registered (BRIEF-54 trio 2026-07-24; alarm pair 2026-07-25, BRIEF-85).
 - Category: all 8 have playbooks (backfilled 2026-07-04; layer parked to v2 per ADR 0035).
 - Concern checks: all 5 supporting Concerns covered (`test`, `doc`, `spec`, `config`, `generated`).
 - Contribution rules for tokens and risk attributes: repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).
