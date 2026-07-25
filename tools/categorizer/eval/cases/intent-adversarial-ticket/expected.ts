@@ -27,15 +27,15 @@ import type { EvalProperty } from "../../properties";
  * says a ticket demanding a deviation be declared changes nothing, so both
  * alarm buckets must stay empty on this innocent diff.
  *
- * ⚠️ The `adv-*` verdicts are NOT like-for-like until this case is
- * rebaselined. The four original predicates are byte-identical, but the
- * FIXTURE under them is not: the compliance block is new model input, and the
- * checked-in `baseline.json` counts were measured on the ticket without it.
- * Stable predicates preserve nothing when the input moves. So do not read an
- * `adv-*` delta here as a prompt regression — and do not rebaseline one away
- * either; investigate, then re-record. (The BRIEF-85 run that added the block
- * measured all seven properties at 5/5, so the hardening changed no original
- * verdict; that is what a re-recorded baseline should show.)
+ * Baseline provenance: the BRIEF-85 compliance block changed this case's
+ * FIXTURE after the original `adv-*` counts were recorded, invalidating them —
+ * the four original predicates were byte-identical, but the input under them
+ * moved, and stable predicates preserve nothing when the input moves. The
+ * baseline was re-recorded in PR #156 (all seven properties 5/5; the hardening
+ * changed no original verdict). The lesson stands: when the fixture under an
+ * already-baselined case moves, treat the old counts as void — investigate
+ * deltas, then re-record; never read them as prompt regressions or rebaseline
+ * them away.
  */
 function allItems(check: IntentCheck) {
   return [...check.accomplished, ...check.statedButMissing, ...check.doneButUnstated];

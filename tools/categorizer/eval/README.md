@@ -30,6 +30,17 @@ injection, or output-affecting adapter defaults. Also once when a fixture
 lands (`--rebaseline` records its baseline) and after a model bump.
 Include the report in the PR body. Never wired into CI — live API spend.
 
+**Scoped by default** (BRIEF-87): gate with one `--case <id>` run per
+case whose properties could plausibly move — the flag takes a single
+id (a repeated `--case` silently keeps only the last), and each
+invocation overwrites `out/eval-report.{json,md}`, so capture the
+report between runs. Justify the selection in the PR body — e.g. an
+intent-check-only change is honestly gated by the six `intent-*` cases
+(six runs). Run the full suite for prompt-wide changes (shared prompt
+sections, output schema, salvage) and model bumps, where any property
+could move. An honestly-scoped run beats the real alternative at
+full-suite prices: not gating at all.
+
 ## Verdict rules (decision 4)
 
 Baseline classes per property: stable-pass (5/5) · flaky (1–4/5) ·
@@ -38,6 +49,22 @@ stable-fail (0/5). Branch verdicts: stable-pass failing ≥2/5 =
 informational, never gates · stable-fail now passing = IMPROVEMENT (the
 promotion evidence for prompt experiments). Rule-based on purpose: n=5
 detects cliffs, not drifts. Verdicts are withheld under 5 scored runs.
+
+## `--rebaseline --case X` re-measures EVERY property in the case
+
+Not just the new ones. Every property is re-sampled from the fresh
+runs, so a pre-existing property can land in a different class than
+the one on record. During BRIEF-85 a scoped rebaseline re-sampled an
+untouched BRIEF-54 grouping canary
+(`intent-none-no-ticket/at-least-two-groups`), which came back 3/5
+after being recorded 5/5; committing that would have moved it from
+stable-pass (gating) to flaky (never gates) — silently retiring a
+working canary. It took a third sample to establish the true 13/15.
+
+The discipline: after any scoped rebaseline, diff the baseline files
+and account for every changed number, not just the added ones. A
+pre-existing property that moved is a finding, not noise — re-run the
+case before believing a demotion.
 
 ## Cases
 
@@ -81,19 +108,55 @@ components#7/#10 fixtures, ticket texts are authored data on
 tasks.example URLs; all baselined stable-pass 5/5).
 
 BRIEF-85 (alarm buckets) added a **twin pair**: `intent-masked-fix` and
-`intent-legit-demotion` share ONE diff byte-identically and differ only in
-their ticket corpus, so a model that fires on the diff *shape* rather than
-the corpus passes one and fails the other. They are also the corpus's first
+`intent-legit-demotion` share ONE diff byte-identically and differ in their
+surrounding corpus (ticket text plus PR title/body framing), so a model that
+fires on the diff *shape* rather than the corpus passes one and fails the
+other. They are also the corpus's first
 **authored diff** — hand-written over this repo's own `packages/api` webhook
 route, because no real own-repo PR carries a fake-fix shape and that shape is
 the point of the case (own-repo files, so the corpus rule holds by
 construction; PR locators are placeholders). The same change extended
 `intent-adversarial-ticket`'s ticket with a manufactured-alarm injection
-block, which **invalidates that case's checked-in `adv-*` baseline** until it
-is re-recorded — the predicates are unchanged but the input moved; see its
-`expected.ts` header.
+block, which invalidated that case's checked-in `adv-*` baseline — the
+predicates were unchanged but the input moved, and stable predicates
+preserve nothing when the input does. Re-recorded in #156 (all seven
+properties 5/5; the hardening changed no original verdict); provenance
+in its `expected.ts` header.
 
 ## Cost (decision 7)
+
+Budgeting: measured 2026-07-25 on `anthropic:claude-opus-4-8`, the
+12-case suite cost **$9.70** over 60 generations (tokens in 536,885 /
+out 267,230 / cache_read 659,692) — ~$0.16 per generation. Estimate a
+run as the pre-flight generation count × a recent measured
+per-generation cost; never trust a previously quoted suite total — the
+suite and the prompt both grow, so cached totals go stale silently (an
+older "~$5 per suite" figure caused a real ~2× budget overrun during
+BRIEF-85).
+
+Per-case cost does not track diff size, so don't estimate a scoped run
+from diff bytes. Six measured points (2026-07-25,
+`anthropic:claude-opus-4-8`, 5 runs each, standalone invocations).
+Sizes are the fixtures' `pr.diff` bytes; the six cases carry only
+THREE distinct diffs — each same-size pair below is byte-identical,
+differing in its ticket corpus and PR title/body framing:
+
+| case | diff | cost / 5 runs |
+| --- | --- | --- |
+| `intent-broad-epic` | 4 KB | $0.81 |
+| `intent-none-no-ticket` | 4 KB | $0.61 |
+| `intent-adversarial-ticket` | 11 KB | $0.54 |
+| `intent-precise-ticket` | 11 KB | $0.47 |
+| `intent-masked-fix` | 2 KB | $0.44 |
+| `intent-legit-demotion` | 2 KB | $0.22 |
+
+The 4 KB `intent-broad-epic` costs 1.7× the 11 KB
+`intent-precise-ticket`, and the twins' byte-identical 2 KB diff costs
+$0.44 under one corpus and $0.22 under the other. One
+hypothesis — inferred from these points, not isolated — is that an
+ambiguous corpus makes the model deliberate longer. Only these six
+cases have been measured standalone; per-case figures for the rest of
+the corpus would be apportionment, not measurement.
 
 Shown, never capped. Pre-flight prints the generation count; the report
 prints token totals (via the generators' `onUsage`) and dollars only if

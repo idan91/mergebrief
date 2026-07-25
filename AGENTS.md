@@ -31,7 +31,11 @@ apps/web). Rules here apply to the whole workspace.
 - **Generation-surface changes run the eval harness** (BRIEF-59): touching
   `packages/brief-core/src/prompt.ts`, the output schema, validators/salvage,
   repo-config injection, or output-affecting adapter defaults ⇒ run
-  `pnpm -C tools/categorizer eval` (compares against the committed
-  baselines; `--rebaseline` on main only when the surface legitimately
-  moved) and include the report in the PR body. Convention gate, never
-  CI — live API spend. See `tools/categorizer/eval/README.md`.
+  `pnpm -C tools/categorizer eval`, **scoped by default** (BRIEF-87):
+  one `--case <id>` run per case whose properties could plausibly move
+  (the flag takes a single id), justify the selection in the PR body;
+  full suite (measured $9.70, 2026-07-25) for prompt-wide or model-bump
+  changes. Compares against the committed baselines; `--rebaseline` on
+  main only when the surface legitimately moved. Include the report in
+  the PR body. Convention gate, never CI — live API spend. See
+  `tools/categorizer/eval/README.md`.

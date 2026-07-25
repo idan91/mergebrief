@@ -31,7 +31,7 @@ Grill decisions, all final:
 | FE caution | one muted caution line per alarm bucket ("AI-inferred tension — verify against the diff and the ticket before acting on it"), only when non-empty; `◇` neutral label glyphs; **no yellow** (epistemic caution never borrows the code-risk palette); header counts stay neutral/uncolored, grow to five |
 | Soft gate | second count-only line in MarkReadyModal: "N intent tension(s) flagged" (unack deviations + claimedButUnachieved); acknowledged excluded; never blocks; same jump target |
 | Validation | alarm buckets require verified both-sides grounding or the item is **dropped + warned**: empty quote, zero surviving groupIds, or failed quote-verification all drop (stricter than warn-and-keep siblings, deliberately). `acknowledged` forced-false elsewhere (emptied + warn) |
-| Eval | 2 new cases + 2 extensions (below); suite → ~$5/run; rebaseline expected |
+| Eval | 2 new cases + 2 extensions (below); suite → ~$5/run *(stale estimate — measured $9.70, 2026-07-25; see `eval/README.md` Cost)*; rebaseline expected |
 | Cost | per-brief ~+5% input tokens, rare-fire output, single call unchanged — acceptable |
 
 Revisit triggers recorded: flagrant-under-broad (eval evidence);
@@ -128,7 +128,8 @@ commit.
 - Extend `intent-adversarial-ticket`: injection block manufacturing a fake
   deviation against an innocent diff ⇒ buckets unchanged.
 - Existing intent cases: empty-new-bucket expectations.
-- Run `pnpm -C tools/categorizer eval` (~$5); report in PR body; rebaseline
+- Run `pnpm -C tools/categorizer eval` (~$5 — stale estimate, measured
+  $9.70 on 2026-07-25; see `eval/README.md` Cost); report in PR body; rebaseline
   on main post-merge only if the surface legitimately moved (BRIEF-74
   pattern). Watch the vacuous-pass trap (BRIEF-59): assert the masked-fix
   case FAILS before Part 1's prompt lands if authored first.
