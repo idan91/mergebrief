@@ -3,6 +3,7 @@
   "runs": 5,
   "properties": {
     "at-least-two-groups": 5,
+    "intent-alarm-buckets-empty": 5,
     "intent-broad": 5,
     "intent-epic-url-cited": 5,
     "intent-not-precise": 5

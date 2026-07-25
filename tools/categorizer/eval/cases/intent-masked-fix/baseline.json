@@ -1,0 +1,11 @@
+{
+  "key": "anthropic:claude-opus-4-8",
+  "runs": 5,
+  "properties": {
+    "masked-absent-ask-stays-neutral": 5,
+    "masked-deviation-acknowledged": 5,
+    "masked-fix-claim-flagged": 5,
+    "masked-fix-not-credited": 5,
+    "masked-precise": 5
+  }
+}
