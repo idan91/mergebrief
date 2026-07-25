@@ -709,9 +709,14 @@ function parseIntentItem(value: unknown): Result<IntentItem> {
   }
   const groupIds = stringArray(value["groupIds"]);
   if (!groupIds.ok) return groupIds;
+  // `acknowledged` (BRIEF-85) is absent on every pre-BRIEF-85 item and dead in
+  // four of the five buckets — a missing or non-boolean value reads `false`
+  // rather than failing the whole check. Only `true` is load-bearing (it moves
+  // a deviation out of the alarm register), so anything else is safely false.
+  const acknowledged = value["acknowledged"] === true;
   return {
     ok: true,
-    value: { intent, quote, sourceUrl, groupIds: groupIds.value },
+    value: { intent, quote, sourceUrl, groupIds: groupIds.value, acknowledged },
   };
 }
 
@@ -753,11 +758,25 @@ function parseIntentCheck(value: unknown): IntentCheck | undefined {
     parseIntentItem,
     "doneButUnstated",
   );
+  // The BRIEF-85 alarm buckets are ABSENT on every pre-BRIEF-85 Brief, and
+  // those Briefs must keep rendering today's bar rather than losing the whole
+  // intent check. So a missing array reads as empty; a PRESENT-but-malformed
+  // one still drops the check, exactly like its four siblings.
+  const deviations = parseOptionalIntentBucket(
+    value["deviations"],
+    "deviations",
+  );
+  const claimedButUnachieved = parseOptionalIntentBucket(
+    value["claimedButUnachieved"],
+    "claimedButUnachieved",
+  );
   for (const parsed of [
     ticketUrls,
     accomplished,
     statedButMissing,
     doneButUnstated,
+    deviations,
+    claimedButUnachieved,
   ]) {
     if (!parsed.ok) {
       console.warn(`parseBrief: dropping intentCheck — ${parsed.error}`);
@@ -769,7 +788,9 @@ function parseIntentCheck(value: unknown): IntentCheck | undefined {
     !ticketUrls.ok ||
     !accomplished.ok ||
     !statedButMissing.ok ||
-    !doneButUnstated.ok
+    !doneButUnstated.ok ||
+    !deviations.ok ||
+    !claimedButUnachieved.ok
   ) {
     return undefined;
   }
@@ -777,10 +798,38 @@ function parseIntentCheck(value: unknown): IntentCheck | undefined {
     ticketUrls: ticketUrls.value,
     specificity,
     scopeNote,
-    accomplished: accomplished.value,
-    statedButMissing: statedButMissing.value,
-    doneButUnstated: doneButUnstated.value,
+    // `acknowledged` is meaningful ONLY in `deviations`. Generation forces it
+    // false elsewhere, but the file-backed demo path parses arbitrary local
+    // JSON — so mirror that sweep here rather than trusting it. Otherwise a
+    // hand-authored brief could render an "acknowledged" chip inside an alarm
+    // bucket, directly under the tension caution: a contradictory register the
+    // design forbids.
+    accomplished: unacknowledged(accomplished.value),
+    statedButMissing: unacknowledged(statedButMissing.value),
+    doneButUnstated: unacknowledged(doneButUnstated.value),
+    deviations: deviations.value,
+    claimedButUnachieved: unacknowledged(claimedButUnachieved.value),
   };
+}
+
+/** Dead-field sweep: `acknowledged` is only ever true in `deviations`. */
+function unacknowledged(items: IntentItem[]): IntentItem[] {
+  return items.map((item) =>
+    item.acknowledged ? { ...item, acknowledged: false } : item,
+  );
+}
+
+/**
+ * An intent bucket that may be absent (BRIEF-85's alarm pair on a
+ * pre-BRIEF-85 Brief) — `undefined` yields `[]`, anything else goes through
+ * the same per-item parser as the required buckets.
+ */
+function parseOptionalIntentBucket(
+  value: unknown,
+  label: string,
+): Result<IntentItem[]> {
+  if (value === undefined) return { ok: true, value: [] };
+  return parseArray(value, parseIntentItem, label);
 }
 
 function parseConcernRollup(value: unknown): Result<ConcernRollup> {

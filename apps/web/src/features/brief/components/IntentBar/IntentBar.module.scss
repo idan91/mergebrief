@@ -91,6 +91,33 @@
     margin-block: 0 4px;
   }
 
+  /* BRIEF-85 alarm buckets. Deliberately NO color of any kind — not yellow,
+     not the code-risk palette: an epistemic caution must never read as a
+     severity. Weight and a neutral glyph carry the emphasis instead. */
+  .alarmGlyph {
+    margin-inline-end: 6px;
+    opacity: 0.65;
+  }
+
+  .caution {
+    font-size: 0.8em;
+    font-style: italic;
+    opacity: 0.6;
+    margin-block: 0 6px;
+    max-width: 68ch;
+  }
+
+  .ackChip {
+    margin-inline-start: 6px;
+    border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
+    border-radius: 4px;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.7;
+    padding: 0 5px;
+  }
+
   .bucketList {
     list-style: none;
     margin: 0;

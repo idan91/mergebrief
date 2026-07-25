@@ -193,6 +193,13 @@ export interface IntentItem {
   quote: string;
   sourceUrl: string;
   groupIds: string[];
+  /**
+   * @description BRIEF-85: meaningful only on `deviations` — the PR
+   * description acknowledges the reversal, making the item a quiet receipt
+   * rather than an alarm. Generation forces it `false` in every other bucket;
+   * pre-BRIEF-85 Briefs have no such field and read as `false`.
+   */
+  acknowledged: boolean;
 }
 
 /**
@@ -210,6 +217,19 @@ export interface IntentCheck {
   accomplished: IntentItem[];
   statedButMissing: IntentItem[];
   doneButUnstated: IntentItem[];
+  /**
+   * @description BRIEF-85 alarm bucket: stated asks the diff moves AGAINST
+   * that the corpus nowhere retracts. Items whose `acknowledged` is true are
+   * quiet receipts (the description owns the reversal) and render at the tail,
+   * apart from the unacknowledged ones. Empty on a pre-BRIEF-85 Brief.
+   */
+  deviations: IntentItem[];
+  /**
+   * @description BRIEF-85 alarm bucket: asks the corpus claims are fixed
+   * while the diff touches only the problem's signal/check path. Empty on a
+   * pre-BRIEF-85 Brief.
+   */
+  claimedButUnachieved: IntentItem[];
 }
 
 export interface AddressedReviewComment {

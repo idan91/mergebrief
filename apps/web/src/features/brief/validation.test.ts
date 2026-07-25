@@ -271,6 +271,129 @@ describe("parseBrief", () => {
     expect(parsed.value.intentCheck?.specificity).toBe("broad");
   });
 
+  // BRIEF-85 back-compat: `preciseIntentCheck` above is deliberately a
+  // PRE-BRIEF-85 shape — no alarm arrays, no `acknowledged` on its items.
+  // Every one of these asserts that such a Brief keeps working.
+  it("defaults the BRIEF-85 alarm buckets to empty on a pre-BRIEF-85 intentCheck", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: preciseIntentCheck,
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    // Absent arrays must NOT drop the whole check — the bar still renders.
+    expect(parsed.value.intentCheck?.deviations).toEqual([]);
+    expect(parsed.value.intentCheck?.claimedButUnachieved).toEqual([]);
+  });
+
+  it("reads a missing `acknowledged` as false on every pre-BRIEF-85 item", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: preciseIntentCheck,
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck?.accomplished[0]?.acknowledged).toBe(false);
+    expect(parsed.value.intentCheck?.statedButMissing[0]?.acknowledged).toBe(
+      false,
+    );
+  });
+
+  it("keeps `acknowledged: true` on a deviation (the quiet-receipt signal)", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: {
+        ...preciseIntentCheck,
+        deviations: [
+          {
+            intent: "drops the cache",
+            quote: "keep the widget cache",
+            sourceUrl: "https://tracker.example/T-1",
+            groupIds: ["g1"],
+            acknowledged: true,
+          },
+        ],
+      },
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.intentCheck?.deviations[0]?.acknowledged).toBe(true);
+  });
+
+  it("reads a non-boolean `acknowledged` as false rather than dropping the check", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: {
+        ...preciseIntentCheck,
+        deviations: [
+          {
+            intent: "drops the cache",
+            quote: "keep the widget cache",
+            sourceUrl: "https://tracker.example/T-1",
+            groupIds: ["g1"],
+            acknowledged: "yes",
+          },
+        ],
+      },
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    // Only `true` is load-bearing; anything else is safely the alarm register.
+    expect(parsed.value.intentCheck?.deviations[0]?.acknowledged).toBe(false);
+  });
+
+  it("re-sweeps `acknowledged` off the four non-deviations buckets (dead field)", () => {
+    // Generation forces this, but the file-backed demo path parses arbitrary
+    // local JSON — so the read path re-sweeps rather than trusting it. Without
+    // this, a hand-authored brief renders an "acknowledged" chip inside an
+    // alarm bucket, directly under its AI-inferred-tension caution.
+    const ackEverywhere = {
+      intent: "x",
+      quote: "keep the widget cache",
+      sourceUrl: "https://tracker.example/T-1",
+      groupIds: ["g1"],
+      acknowledged: true,
+    };
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: {
+        ...preciseIntentCheck,
+        accomplished: [ackEverywhere],
+        statedButMissing: [{ ...ackEverywhere, groupIds: [] }],
+        doneButUnstated: [{ ...ackEverywhere, quote: "", sourceUrl: "" }],
+        deviations: [ackEverywhere],
+        claimedButUnachieved: [ackEverywhere],
+      },
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const check = parsed.value.intentCheck;
+    // Only `deviations` keeps it.
+    expect(check?.deviations[0]?.acknowledged).toBe(true);
+    expect(check?.accomplished[0]?.acknowledged).toBe(false);
+    expect(check?.statedButMissing[0]?.acknowledged).toBe(false);
+    expect(check?.doneButUnstated[0]?.acknowledged).toBe(false);
+    expect(check?.claimedButUnachieved[0]?.acknowledged).toBe(false);
+  });
+
+  it("still drops the check when a PRESENT alarm array is malformed", () => {
+    const parsed = parseBrief({
+      ...twoGroupBriefInput,
+      intentCheck: { ...preciseIntentCheck, claimedButUnachieved: "nope" },
+    });
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    // Absent is lenient; present-but-wrong is not — same posture as the four
+    // required buckets.
+    expect(parsed.value.intentCheck).toBeUndefined();
+  });
+
   it("drops a malformed intentCheck (bad specificity) but keeps the Brief valid", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,

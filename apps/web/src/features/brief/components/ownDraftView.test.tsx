@@ -220,9 +220,12 @@ describe("own-draft Brief view (BRIEF-43)", () => {
             quote: "and document it",
             sourceUrl: "https://tracker.example/T-1",
             groupIds: [],
+            acknowledged: false,
           },
         ],
         doneButUnstated: [],
+        deviations: [],
+        claimedButUnachieved: [],
       },
     };
     const markReady = vi.fn(() =>
@@ -259,9 +262,12 @@ describe("own-draft Brief view (BRIEF-43)", () => {
             quote: "document it",
             sourceUrl: "https://tracker.example/T-1",
             groupIds: [],
+            acknowledged: false,
           },
         ],
         doneButUnstated: [],
+        deviations: [],
+        claimedButUnachieved: [],
       },
     };
     renderBriefView({ markReady: vi.fn() }, briefWithGaps);
