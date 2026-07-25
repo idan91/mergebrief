@@ -17,9 +17,7 @@ function validGeneration() {
       ticketUrls: [],
       specificity: "none",
       scopeNote: "",
-      accomplished: [],
-      statedButMissing: [],
-      doneButUnstated: [],
+      items: [],
     },
     changeGroups: [
       {

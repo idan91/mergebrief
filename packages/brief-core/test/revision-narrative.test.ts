@@ -85,6 +85,22 @@ const incrementalDiff = `diff --git a/src/a.ts b/src/a.ts
  ctx2
 `;
 
+/**
+ * The STORED intent-check shape (five bucket arrays). Generation emits one
+ * tagged `items` array instead (grammar budget, BRIEF-85), so a fixture that
+ * plays both roles needs both shapes.
+ */
+const storedIntentCheck = {
+  ticketUrls: [],
+  specificity: "none" as const,
+  scopeNote: "",
+  accomplished: [],
+  statedButMissing: [],
+  doneButUnstated: [],
+  deviations: [],
+  claimedButUnachieved: [],
+};
+
 /** What the model "generates" for a full brief (CLI metadata omitted). */
 const briefGen = {
   summary: "s",
@@ -92,9 +108,7 @@ const briefGen = {
     ticketUrls: [],
     specificity: "none",
     scopeNote: "",
-    accomplished: [],
-    statedButMissing: [],
-    doneButUnstated: [],
+    items: [],
   },
   changeGroups: [
     {
@@ -228,6 +242,7 @@ describe("categorizeRevisionNarrative", () => {
     incrementalDiff,
     brief: {
       ...briefGen,
+      intentCheck: storedIntentCheck,
       pr: { repo: "o/r", number: 1, title: "t", url: URL, sha: HEAD_2, description: "d" },
       index: 2,
       commitRange: { base: "base000000000000", head: HEAD_2, commitCount: 2 },
@@ -332,6 +347,7 @@ describe("effort threading — delta + narrative (BRIEF-75)", () => {
     // Parsed, not cast: the fixture must be a real Brief or fail loudly.
     brief: BriefSchema.parse({
       ...briefGen,
+      intentCheck: storedIntentCheck,
       pr: { repo: "o/r", number: 1, title: "t", url: URL, sha: HEAD_2, description: "d" },
       index: 2,
       commitRange: { base: "base000000000000", head: HEAD_2, commitCount: 2 },

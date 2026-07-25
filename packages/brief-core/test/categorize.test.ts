@@ -43,9 +43,7 @@ const noneIntentCheck = {
   ticketUrls: [],
   specificity: "none",
   scopeNote: "",
-  accomplished: [],
-  statedButMissing: [],
-  doneButUnstated: [],
+  items: [],
 };
 
 const twoGroupBriefGen = {
@@ -162,22 +160,55 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
         ticketUrls: [ticketUrl],
         specificity: "precise",
         scopeNote: "",
-        accomplished: [
+        items: [
           {
+            bucket: "accomplished",
             intent: "stop retrying after three attempts",
             quote: "must stop after three attempts",
             sourceUrl: ticketUrl,
             groupIds: ["g1"],
+            acknowledged: false,
           },
-        ],
-        statedButMissing: [],
-        doneButUnstated: [
-          { intent: "extra logic cleanup", quote: "", sourceUrl: "", groupIds: ["g2"] },
+          {
+            bucket: "doneButUnstated",
+            intent: "extra logic cleanup",
+            quote: "",
+            sourceUrl: "",
+            groupIds: ["g2"],
+            acknowledged: false,
+          },
         ],
       },
     };
     const brief = await categorize(prWithLink, 1, commitRange, new FakeGenerator(fixture));
-    expect(brief.intentCheck).toEqual(fixture.intentCheck);
+    // The wire shape is one tagged array; the STORED shape is five buckets —
+    // the fan-out dispatches each item by its tag and drops the tag itself.
+    expect(brief.intentCheck).toEqual({
+      ticketUrls: [ticketUrl],
+      specificity: "precise",
+      scopeNote: "",
+      accomplished: [
+        {
+          intent: "stop retrying after three attempts",
+          quote: "must stop after three attempts",
+          sourceUrl: ticketUrl,
+          groupIds: ["g1"],
+          acknowledged: false,
+        },
+      ],
+      statedButMissing: [],
+      doneButUnstated: [
+        {
+          intent: "extra logic cleanup",
+          quote: "",
+          sourceUrl: "",
+          groupIds: ["g2"],
+          acknowledged: false,
+        },
+      ],
+      deviations: [],
+      claimedButUnachieved: [],
+    });
     expect(brief.generationWarnings).toBeUndefined();
   });
 
@@ -188,16 +219,16 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
         ticketUrls: [ticketUrl],
         specificity: "broad",
         scopeNote: "",
-        accomplished: [],
-        statedButMissing: [
+        items: [
           {
+            bucket: "statedButMissing",
             intent: "guessed gap",
             quote: "never said this",
             sourceUrl: ticketUrl,
             groupIds: [],
+            acknowledged: false,
           },
         ],
-        doneButUnstated: [],
       },
     };
     const logs: string[] = [];
@@ -235,16 +266,16 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
         ticketUrls: [ticketUrl],
         specificity: "precise",
         scopeNote: "",
-        accomplished: [
+        items: [
           {
+            bucket: "accomplished",
             intent: "stop retrying after three attempts",
             quote: "Docs: The retry loop must stop",
             sourceUrl: ticketUrl,
             groupIds: ["g1"],
+            acknowledged: false,
           },
         ],
-        statedButMissing: [],
-        doneButUnstated: [],
       },
     };
     const brief = await categorize(fencedPr, 1, commitRange, new FakeGenerator(fixture));
@@ -278,16 +309,16 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
         ticketUrls: [ticketUrl],
         specificity: "precise",
         scopeNote: "",
-        accomplished: [
+        items: [
           {
+            bucket: "accomplished",
             intent: "stop retrying after three attempts",
             quote: "policy says the retry loop must stop",
             sourceUrl: ticketUrl,
             groupIds: ["g1"],
+            acknowledged: false,
           },
         ],
-        statedButMissing: [],
-        doneButUnstated: [],
       },
     };
     const brief = await categorize(
@@ -310,16 +341,16 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
         ticketUrls: ["https://evil.example/T-666"],
         specificity: "precise",
         scopeNote: "",
-        accomplished: [
+        items: [
           {
+            bucket: "accomplished",
             intent: "fabricated",
             quote: "text that appears nowhere",
             sourceUrl: "",
             groupIds: ["g1"],
+            acknowledged: false,
           },
         ],
-        statedButMissing: [],
-        doneButUnstated: [],
       },
     };
     const brief = await categorize(prWithLink, 1, commitRange, new FakeGenerator(fixture));
@@ -329,6 +360,42 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
     const warnings = (brief.generationWarnings ?? []).join("\n");
     expect(warnings).toContain("evil.example");
     expect(warnings).toContain("quote");
+  });
+
+  it("carries a grounded deviation through but DROPS an unverifiable alarm item (BRIEF-85)", async () => {
+    const fixture = {
+      ...twoGroupBriefGen,
+      intentCheck: {
+        ticketUrls: [ticketUrl],
+        specificity: "precise",
+        scopeNote: "",
+        items: [
+          {
+            bucket: "deviations",
+            intent: "keeps retrying past three attempts",
+            quote: "must stop after three attempts",
+            sourceUrl: ticketUrl,
+            groupIds: ["g1"],
+            acknowledged: true,
+          },
+          {
+            bucket: "claimedButUnachieved",
+            intent: "claims the loop is fixed",
+            quote: "this claim appears nowhere in the corpus",
+            sourceUrl: ticketUrl,
+            groupIds: ["g2"],
+            acknowledged: false,
+          },
+        ],
+      },
+    };
+    const brief = await categorize(prWithLink, 1, commitRange, new FakeGenerator(fixture));
+    expect(brief.intentCheck?.deviations).toHaveLength(1);
+    expect(brief.intentCheck?.deviations[0]?.acknowledged).toBe(true);
+    expect(brief.intentCheck?.claimedButUnachieved).toEqual([]);
+    expect(
+      (brief.generationWarnings ?? []).join("\n"),
+    ).toContain("dropped (possible fabrication)");
   });
 });
 

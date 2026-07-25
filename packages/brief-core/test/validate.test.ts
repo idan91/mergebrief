@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  fanOutIntentCheck,
   validateIntentCheck,
   validatePartition,
   validateMarksNarrativeCoverage,
@@ -565,6 +566,7 @@ describe("validateIntentCheck (BRIEF-54)", () => {
         quote: "must stop after three attempts",
         sourceUrl: ticketUrl,
         groupIds: ["g1"],
+        acknowledged: false,
       },
     ],
     statedButMissing: [
@@ -573,11 +575,29 @@ describe("validateIntentCheck (BRIEF-54)", () => {
         quote: "Add a regression test for the overflow case.",
         sourceUrl: ticketUrl,
         groupIds: [],
+        acknowledged: false,
       },
     ],
     doneButUnstated: [
-      { intent: "tidies the logger setup", quote: "", sourceUrl: "", groupIds: ["g2"] },
+      {
+        intent: "tidies the logger setup",
+        quote: "",
+        sourceUrl: "",
+        groupIds: ["g2"],
+        acknowledged: false,
+      },
     ],
+    deviations: [],
+    claimedButUnachieved: [],
+  });
+
+  /** A grounded alarm-bucket item — verifiable quote + valid group anchor. */
+  const alarmItem = () => ({
+    intent: "reverses the retry-stop ask",
+    quote: "must stop after three attempts",
+    sourceUrl: ticketUrl,
+    groupIds: ["g1"],
+    acknowledged: false,
   });
 
   it("passes a clean precise check through untouched with no issues", () => {
@@ -611,6 +631,8 @@ describe("validateIntentCheck (BRIEF-54)", () => {
         accomplished: [],
         statedButMissing: [],
         doneButUnstated: [],
+        deviations: [],
+        claimedButUnachieved: [],
       },
       groups,
       injected,
@@ -630,6 +652,7 @@ describe("validateIntentCheck (BRIEF-54)", () => {
           quote: "do the forged thing",
           sourceUrl: forged,
           groupIds: [],
+          acknowledged: false,
         },
       ],
     };
@@ -649,6 +672,7 @@ describe("validateIntentCheck (BRIEF-54)", () => {
           quote: "Fix the retry loop",
           sourceUrl: "",
           groupIds: ["g1"],
+          acknowledged: false,
         },
       ],
     };
@@ -694,8 +718,20 @@ describe("validateIntentCheck (BRIEF-54)", () => {
     const input = {
       ...preciseCheck(),
       doneButUnstated: [
-        { intent: "ungrounded claim", quote: "", sourceUrl: "", groupIds: ["g9"] },
-        { intent: "grounded claim", quote: "", sourceUrl: "", groupIds: ["g2", "g9"] },
+        {
+          intent: "ungrounded claim",
+          quote: "",
+          sourceUrl: "",
+          groupIds: ["g9"],
+          acknowledged: false,
+        },
+        {
+          intent: "grounded claim",
+          quote: "",
+          sourceUrl: "",
+          groupIds: ["g2", "g9"],
+          acknowledged: false,
+        },
       ],
     };
     const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
@@ -714,6 +750,7 @@ describe("validateIntentCheck (BRIEF-54)", () => {
           quote: "Add a regression test for the overflow case.",
           sourceUrl: ticketUrl,
           groupIds: ["g1", "g9"],
+          acknowledged: false,
         },
       ],
     };
@@ -731,6 +768,7 @@ describe("validateIntentCheck (BRIEF-54)", () => {
           quote: "this sentence appears nowhere in the ticket",
           sourceUrl: ticketUrl,
           groupIds: [],
+          acknowledged: false,
         },
       ],
     };
@@ -748,6 +786,7 @@ describe("validateIntentCheck (BRIEF-54)", () => {
           quote: "Add a regression\ntest for the overflow case.",
           sourceUrl: ticketUrl,
           groupIds: [],
+          acknowledged: false,
         },
       ],
     };
@@ -759,7 +798,13 @@ describe("validateIntentCheck (BRIEF-54)", () => {
     const input = {
       ...preciseCheck(),
       statedButMissing: [
-        { intent: "uncited ask", quote: "", sourceUrl: ticketUrl, groupIds: [] },
+        {
+          intent: "uncited ask",
+          quote: "",
+          sourceUrl: ticketUrl,
+          groupIds: [],
+          acknowledged: false,
+        },
       ],
     };
     const { intentCheck, issues } = validateIntentCheck(input, emittedGroups, injected, sources);
@@ -771,7 +816,13 @@ describe("validateIntentCheck (BRIEF-54)", () => {
     const input = {
       ...preciseCheck(),
       doneButUnstated: [
-        { intent: "cleanup", quote: "", sourceUrl: "", groupIds: ["g2"] },
+        {
+          intent: "cleanup",
+          quote: "",
+          sourceUrl: "",
+          groupIds: ["g2"],
+          acknowledged: false,
+        },
       ],
     };
     const { issues } = validateIntentCheck(input, emittedGroups, injected, sources);
@@ -782,5 +833,258 @@ describe("validateIntentCheck (BRIEF-54)", () => {
     const input = { ...preciseCheck(), specificity: "broad" as const };
     validateIntentCheck(input, emittedGroups, injected, sources);
     expect(input.accomplished).toHaveLength(1);
+  });
+
+  describe("alarm buckets (BRIEF-85) — drop, never warn-and-keep", () => {
+    for (const bucket of ["deviations", "claimedButUnachieved"] as const) {
+      it(`keeps a fully grounded ${bucket} item untouched`, () => {
+        const input = { ...preciseCheck(), [bucket]: [alarmItem()] };
+        const { intentCheck, issues } = validateIntentCheck(
+          input,
+          emittedGroups,
+          injected,
+          sources,
+        );
+        expect(issues).toEqual([]);
+        expect(intentCheck[bucket]).toEqual([alarmItem()]);
+      });
+
+      it(`drops a ${bucket} item with an EMPTY quote (neutral siblings only warn)`, () => {
+        const input = {
+          ...preciseCheck(),
+          [bucket]: [{ ...alarmItem(), quote: "" }],
+        };
+        const { intentCheck, issues } = validateIntentCheck(
+          input,
+          emittedGroups,
+          injected,
+          sources,
+        );
+        expect(intentCheck[bucket]).toEqual([]);
+        expect(issues.join("\n")).toContain("empty quote");
+        expect(issues.join("\n")).toContain("dropped");
+      });
+
+      it(`drops a ${bucket} item whose quote is not found in its source`, () => {
+        const input = {
+          ...preciseCheck(),
+          [bucket]: [{ ...alarmItem(), quote: "this sentence appears nowhere" }],
+        };
+        const { intentCheck, issues } = validateIntentCheck(
+          input,
+          emittedGroups,
+          injected,
+          sources,
+        );
+        expect(intentCheck[bucket]).toEqual([]);
+        expect(issues.join("\n")).toContain("possible fabrication");
+      });
+
+      it(`drops a ${bucket} item whose quote source has no fetched content`, () => {
+        const input = { ...preciseCheck(), [bucket]: [alarmItem()] };
+        const sansTicketContent = sources.filter((s) => s.url !== ticketUrl);
+        const { intentCheck, issues } = validateIntentCheck(
+          input,
+          emittedGroups,
+          injected,
+          sansTicketContent,
+        );
+        expect(intentCheck[bucket]).toEqual([]);
+        expect(issues.join("\n")).toContain("unverifiable");
+      });
+
+      it(`drops a ${bucket} item once ALL its groupIds dangle (both-sides grounding)`, () => {
+        const input = {
+          ...preciseCheck(),
+          [bucket]: [{ ...alarmItem(), groupIds: ["g9"] }],
+        };
+        const { intentCheck, issues } = validateIntentCheck(
+          input,
+          emittedGroups,
+          injected,
+          sources,
+        );
+        expect(intentCheck[bucket]).toEqual([]);
+        expect(issues.join("\n")).toContain("both-sides grounding required");
+      });
+
+      it(`prunes dangling groupIds on a ${bucket} item but keeps it while one anchor survives`, () => {
+        const input = {
+          ...preciseCheck(),
+          [bucket]: [{ ...alarmItem(), groupIds: ["g1", "g9"] }],
+        };
+        const { intentCheck, issues } = validateIntentCheck(
+          input,
+          emittedGroups,
+          injected,
+          sources,
+        );
+        expect(intentCheck[bucket]).toHaveLength(1);
+        expect(intentCheck[bucket][0]?.groupIds).toEqual(["g1"]);
+        expect(issues.join("\n")).toContain('"g9"');
+      });
+
+      it(`drops a ${bucket} item citing an un-injected source`, () => {
+        const forged = "https://evil.example/T-666";
+        const input = {
+          ...preciseCheck(),
+          [bucket]: [{ ...alarmItem(), sourceUrl: forged }],
+        };
+        const { intentCheck, issues } = validateIntentCheck(
+          input,
+          emittedGroups,
+          injected,
+          sources,
+        );
+        expect(intentCheck[bucket]).toEqual([]);
+        expect(issues.join("\n")).toContain(forged);
+      });
+    }
+
+    it("accepts an acknowledged deviation untouched (quiet receipt)", () => {
+      const input = {
+        ...preciseCheck(),
+        deviations: [{ ...alarmItem(), acknowledged: true }],
+      };
+      const { intentCheck, issues } = validateIntentCheck(
+        input,
+        emittedGroups,
+        injected,
+        sources,
+      );
+      expect(issues).toEqual([]);
+      expect(intentCheck.deviations[0]?.acknowledged).toBe(true);
+    });
+
+    it("forces acknowledged=false outside deviations, on every other bucket, and warns", () => {
+      const input = {
+        ...preciseCheck(),
+        accomplished: [{ ...preciseCheck().accomplished[0]!, acknowledged: true }],
+        statedButMissing: [{ ...preciseCheck().statedButMissing[0]!, acknowledged: true }],
+        doneButUnstated: [{ ...preciseCheck().doneButUnstated[0]!, acknowledged: true }],
+        claimedButUnachieved: [{ ...alarmItem(), acknowledged: true }],
+      };
+      const { intentCheck, issues } = validateIntentCheck(
+        input,
+        emittedGroups,
+        injected,
+        sources,
+      );
+      expect(intentCheck.accomplished[0]?.acknowledged).toBe(false);
+      expect(intentCheck.statedButMissing[0]?.acknowledged).toBe(false);
+      expect(intentCheck.doneButUnstated[0]?.acknowledged).toBe(false);
+      expect(intentCheck.claimedButUnachieved[0]?.acknowledged).toBe(false);
+      const acknowledgedIssues = issues.filter((i) =>
+        i.includes("forced false (meaningful only in deviations)"),
+      );
+      expect(acknowledgedIssues).toHaveLength(4);
+    });
+
+    it("empties the alarm buckets too when specificity is broad/none", () => {
+      const input = {
+        ...preciseCheck(),
+        specificity: "broad" as const,
+        deviations: [alarmItem()],
+        claimedButUnachieved: [alarmItem()],
+      };
+      const { intentCheck, issues } = validateIntentCheck(
+        input,
+        emittedGroups,
+        injected,
+        sources,
+      );
+      expect(intentCheck.deviations).toEqual([]);
+      expect(intentCheck.claimedButUnachieved).toEqual([]);
+      expect(issues.join("\n")).toContain("never a guessed gap");
+    });
+  });
+});
+
+/** One tagged wire item — the shape generation actually emits. */
+const genItem = (bucket: string, intent: string, overrides = {}) => ({
+  bucket,
+  intent,
+  quote: "q",
+  sourceUrl: "",
+  groupIds: ["g1"],
+  acknowledged: false,
+  ...overrides,
+});
+
+describe("fanOutIntentCheck (BRIEF-85 grammar budget)", () => {
+  it("dispatches each tagged item into its stored bucket and drops the tag", () => {
+    const out = fanOutIntentCheck({
+      ticketUrls: ["https://tracker.example/T-1"],
+      specificity: "precise",
+      scopeNote: "note",
+      items: [
+        genItem("accomplished", "did the thing"),
+        genItem("statedButMissing", "missed the thing"),
+        genItem("doneButUnstated", "extra thing"),
+        genItem("deviations", "opposed the thing", { acknowledged: true }),
+        genItem("claimedButUnachieved", "masked the thing"),
+      ],
+    });
+    expect(out.accomplished.map((i) => i.intent)).toEqual(["did the thing"]);
+    expect(out.statedButMissing.map((i) => i.intent)).toEqual(["missed the thing"]);
+    expect(out.doneButUnstated.map((i) => i.intent)).toEqual(["extra thing"]);
+    expect(out.deviations.map((i) => i.intent)).toEqual(["opposed the thing"]);
+    expect(out.claimedButUnachieved.map((i) => i.intent)).toEqual(["masked the thing"]);
+    // The bucket tag is wire framing — it never reaches the stored artifact.
+    expect(out.accomplished[0]).not.toHaveProperty("bucket");
+    expect(out.deviations[0]?.acknowledged).toBe(true);
+    // Scalars ride through untouched.
+    expect(out.ticketUrls).toEqual(["https://tracker.example/T-1"]);
+    expect(out.specificity).toBe("precise");
+    expect(out.scopeNote).toBe("note");
+  });
+
+  it("preserves order within a bucket and keeps multiple items per bucket", () => {
+    const out = fanOutIntentCheck({
+      ticketUrls: [],
+      specificity: "precise",
+      scopeNote: "",
+      items: [
+        genItem("accomplished", "first"),
+        genItem("deviations", "dev"),
+        genItem("accomplished", "second"),
+      ],
+    });
+    expect(out.accomplished.map((i) => i.intent)).toEqual(["first", "second"]);
+    expect(out.deviations).toHaveLength(1);
+  });
+
+  it("yields five empty buckets for an empty items array (the broad/none path)", () => {
+    const out = fanOutIntentCheck({
+      ticketUrls: [],
+      specificity: "none",
+      scopeNote: "",
+      items: [],
+    });
+    expect(out.accomplished).toEqual([]);
+    expect(out.statedButMissing).toEqual([]);
+    expect(out.doneButUnstated).toEqual([]);
+    expect(out.deviations).toEqual([]);
+    expect(out.claimedButUnachieved).toEqual([]);
+  });
+
+  it("round-trips into the validator: a fanned-out check validates like a native one", () => {
+    const fanned = fanOutIntentCheck({
+      ticketUrls: [],
+      specificity: "precise",
+      scopeNote: "",
+      items: [
+        // Alarm item with an unverifiable quote — the validator must still drop it.
+        genItem("deviations", "ungrounded alarm", { quote: "nowhere in the corpus" }),
+      ],
+    });
+    const { intentCheck, issues } = validateIntentCheck(
+      fanned,
+      [{ id: "g1" }],
+      [],
+      [{ url: "", content: "the corpus text" }],
+    );
+    expect(intentCheck.deviations).toEqual([]);
+    expect(issues.join("\n")).toContain("possible fabrication");
   });
 });

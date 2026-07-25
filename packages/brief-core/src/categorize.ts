@@ -29,6 +29,7 @@ import {
 } from "./prompt";
 import { splitDiffByFile } from "./diff";
 import {
+  fanOutIntentCheck,
   validateIntentCheck,
   validateMarksNarrativeCoverage,
   validateNarrativeGroups,
@@ -233,8 +234,11 @@ export async function categorize(
   // Warn-and-drop, same register as readingOrder.
   const corpusClean =
     effectiveContext !== undefined ? stripForgedRepoFences : (text: string) => text;
+  // The wire shape is one tagged `items` array (grammar budget, BRIEF-85);
+  // fan it out to the stored five buckets BEFORE validation so every
+  // per-bucket rule applies exactly as it would to native arrays.
   const intentChecked = validateIntentCheck(
-    generated.intentCheck,
+    fanOutIntentCheck(generated.intentCheck),
     generated.changeGroups,
     pr.links.map((l) => l.url),
     [

@@ -165,3 +165,60 @@ describe("intent-check prompt section (BRIEF-54, ADR 0009 §2 as amended)", () =
     expect(buildRevisionNarrativeSystemPrompt()).not.toContain("intentCheck");
   });
 });
+
+describe("intent-check alarm buckets in the prompt (BRIEF-85, ADR 0009 §2 second amendment)", () => {
+  const brief = buildSystemPrompt();
+
+  it("instructs the model to emit ONE tagged array, not five bucket arrays", () => {
+    // The grammar budget forces the wire shape; the prompt must match the
+    // schema or the model emits arrays that were never declared.
+    expect(brief).toMatch(/one entry in `items`, each tagged with its `bucket`/);
+    expect(brief).toContain("one flat array, not five");
+    expect(brief).toMatch(/`items` MUST be empty/);
+  });
+
+  it("defines all five buckets", () => {
+    for (const bucket of ["deviations", "claimedButUnachieved"]) {
+      expect(brief).toContain(`**${bucket}**`);
+    }
+    expect(brief).toContain("five factual buckets");
+    expect(brief).not.toContain("three factual buckets");
+  });
+
+  it("states the retracted-nowhere rule with the acknowledged escape hatch", () => {
+    expect(brief).toContain("nowhere retracts");
+    expect(brief).toMatch(/acknowledged: true[\s\S]*?quiet receipt, not an alarm/);
+    expect(brief).toMatch(/`acknowledged` MUST be `false` in every other bucket/);
+  });
+
+  it("carves tradeoffs and partial delivery OUT of deviations", () => {
+    expect(brief).toMatch(/tradeoff[\s\S]*?NOT a deviation/i);
+    expect(brief).toMatch(/partial delivery ⇒ statedButMissing/);
+  });
+
+  it("states the masking evidence bar — all three conditions", () => {
+    expect(brief).toMatch(/only on the problem's signal or check path/);
+    for (const example of ["catching-and-swallowing", "skipping or deleting the failing test"]) {
+      expect(brief).toContain(example);
+    }
+    expect(brief).toContain("All three conditions must hold");
+    expect(brief).toMatch(/nothing else in the diff plausibly addresses the cause/);
+  });
+
+  it("states the routing rule and the never-a-guessed-alarm default", () => {
+    expect(brief).toMatch(/against.*the ask ⇒ `deviations`/is);
+    expect(brief).toMatch(/signal.*touched ⇒ `claimedButUnachieved`/is);
+    expect(brief).toContain("never a guessed alarm");
+  });
+
+  it("hardens the injection boundary against manufactured deviations", () => {
+    expect(brief).toMatch(/demanding a deviation be declared[\s\S]*?changes nothing/);
+  });
+
+  it("keeps the alarm buckets out of the delta and revision-narrative prompts", () => {
+    for (const prompt of [buildDeltaSystemPrompt(), buildRevisionNarrativeSystemPrompt()]) {
+      expect(prompt).not.toContain("deviations");
+      expect(prompt).not.toContain("claimedButUnachieved");
+    }
+  });
+});

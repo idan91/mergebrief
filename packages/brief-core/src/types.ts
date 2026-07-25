@@ -303,21 +303,32 @@ export const ReviewCommentSchema = z.object({
     ),
 });
 
-// --- Intent check (BRIEF-54, ADR 0009 §2 as amended 2026-07-24) ------------
+// --- Intent check (BRIEF-54 + BRIEF-85, ADR 0009 §2 as twice amended) ------
 
 /**
- * ONE item shape shared by ALL THREE intent buckets. The grill locked a
- * three-way factoring (StatedAsk base for the ticket-side buckets,
- * AccomplishedAsk = StatedAsk + groupIds, a separate diff-side
- * UnstatedWork) — but every distinct object shape beyond the base Brief
- * schema pushes Anthropic's structured-output grammar over its compilation
- * limit under the production request shape (adaptive thinking + streaming;
- * `400 "The compiled grammar is too large"`, probed live 2026-07-24). The
- * budget is STRUCTURAL — distinct object shapes, not bytes: the base schema
- * passes with heavy descriptions while a leaner two-extra-shape variant
- * fails. Exactly one additional shape fits, so all three buckets share it,
- * and the per-bucket field rules moved to the mechanical floor
- * (`validateIntentCheck`, warn-and-drop) + prompt:
+ * ONE item shape shared by ALL FIVE intent buckets, on the STORED/read side.
+ *
+ * Grammar budget (measured live 2026-07-24 and again 2026-07-25): Anthropic's
+ * structured-output grammar inlines the item shape at every `$ref` site, so
+ * its cost is (number of bucket arrays × fields per item), NOT the number of
+ * distinct object shapes as BRIEF-54's note assumed. Measured cliff on
+ * `anthropic:claude-opus-4-8`: four bucket arrays × four fields compiles;
+ * five arrays, or four arrays plus a fifth field, both `400 "The compiled
+ * grammar is too large"`. Neither a newer model (`claude-opus-5`) nor
+ * disabling thinking moves the limit — it is schema compilation, not the
+ * request shape.
+ *
+ * Five arrays therefore CANNOT be generated directly at any field count. The
+ * GENERATION side instead emits one tagged array
+ * (`IntentCheckGenerationSchema` below — a single `$ref` site, so the whole
+ * intent check costs less grammar than BRIEF-54's three arrays did) and
+ * `fanOutIntentCheck` splits it into these five arrays before validation.
+ * The stored shape below is unchanged from the locked design, so the read
+ * path, the shipped intent bar, and every BRIEF-54 brief already in the
+ * database are untouched.
+ *
+ * Per-bucket field rules live in the mechanical floor
+ * (`validateIntentCheck`) + prompt:
  *
  * - accomplished: `quote`/`sourceUrl` cited; `groupIds` at least one.
  * - statedButMissing: `quote`/`sourceUrl` cited; `groupIds` MUST be empty
@@ -325,12 +336,17 @@ export const ReviewCommentSchema = z.object({
  * - doneButUnstated: `intent` describes the unstated work; `quote` and
  *   `sourceUrl` MUST be "" (no ticket side by definition); `groupIds` at
  *   least one.
+ * - deviations / claimedButUnachieved (BRIEF-85, alarm-class): `quote`/
+ *   `sourceUrl` cited AND `groupIds` at least one — both-sides grounding,
+ *   enforced drop-not-warn (stricter than the neutral buckets).
+ * - `acknowledged` is meaningful ONLY in `deviations`; MUST be `false` in
+ *   every other bucket (dead-field precedent, forced by the validator).
  */
 export const IntentItemSchema = z.object({
   intent: z
     .string()
     .describe(
-      "one short line: the stated ask (accomplished/statedButMissing) or the unstated work done (doneButUnstated). What, not why.",
+      "one short line: the stated ask (accomplished/statedButMissing), the unstated work done (doneButUnstated), the opposed ask and what the diff does against it (deviations), or the claimed-but-masked ask (claimedButUnachieved). What, not why.",
     ),
   quote: z
     .string()
@@ -345,17 +361,28 @@ export const IntentItemSchema = z.object({
   groupIds: z
     .array(z.string())
     .describe(
-      "ids of the changeGroups delivering this item. accomplished and doneButUnstated: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+      "ids of the changeGroups delivering this item. accomplished, doneButUnstated, deviations, claimedButUnachieved: at least one; statedButMissing: MUST be empty — a missing ask has no diff anchor by definition",
+    ),
+  acknowledged: z
+    .boolean()
+    .describe(
+      "deviations ONLY: true when the PR description acknowledges this reversal (a quiet receipt, not an alarm). MUST be false in every other bucket — the field is dead there",
     ),
 });
 
 /**
- * The ticket-gated intent check (ADR 0009 §2 as amended): did this PR do what
- * its composite intent corpus (title + description + all ticket-like linked
- * blocks, judged together) asked? Factual buckets, never a verdict.
+ * The ticket-gated intent check (ADR 0009 §2 as twice amended): did this PR
+ * do what its composite intent corpus (title + description + all ticket-like
+ * linked blocks, judged together) asked? Factual buckets, never a verdict.
  * `specificity` is the master switch — broad/none means the buckets MUST be
  * empty ("never a guessed gap"), enforced mechanically post-parse. No optional
  * fields (strict structured-output; empty string / empty array = N/A).
+ *
+ * BRIEF-85 adds the alarm pair: `deviations` (diff opposes an ask the corpus
+ * states and nowhere retracts) + `claimedButUnachieved` (corpus claims a
+ * fix/delivery, diff touches only the signal/check path). Routing: behavior
+ * moved against the ask ⇒ deviations; only the signal touched ⇒
+ * claimedButUnachieved; uncertain ⇒ accomplished — never a guessed alarm.
  */
 export const IntentCheckSchema = z.object({
   ticketUrls: z
@@ -366,7 +393,7 @@ export const IntentCheckSchema = z.object({
   specificity: z
     .enum(["precise", "broad", "none"])
     .describe(
-      "how actionable the combined intent corpus is: precise (defines this change), broad (epic/parent/support — too general), none (no usable stated intent). broad/none ⇒ all three buckets empty",
+      "how actionable the combined intent corpus is: precise (defines this change), broad (epic/parent/support — too general), none (no usable stated intent). broad/none ⇒ all five buckets empty",
     ),
   scopeNote: z
     .string()
@@ -386,7 +413,63 @@ export const IntentCheckSchema = z.object({
     .describe(
       'work the diff does that the corpus never asked for — quote and sourceUrl MUST be "" (empty when specificity is broad/none)',
     ),
+  deviations: z
+    .array(IntentItemSchema)
+    .describe(
+      "stated asks the diff moves AGAINST that the corpus nowhere retracts (a reversal acknowledged in the PR description ⇒ acknowledged: true — quiet receipt, not alarm). Behavior moved against the ask belongs here; only its signal touched ⇒ claimedButUnachieved; uncertain ⇒ accomplished, never a guessed alarm. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
+    ),
+  claimedButUnachieved: z
+    .array(IntentItemSchema)
+    .describe(
+      "asks the corpus claims fixed/delivered while the diff operates only on the problem's signal/check path (log demotion, catch-and-swallow, test skip/delete, threshold bump) — nothing in the diff plausibly fixes the problem itself. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
+    ),
 });
+
+/**
+ * The five bucket names, as the generation-side `bucket` tag. Deliberately
+ * identical to the stored `IntentCheckSchema` array names so `fanOutIntentCheck`
+ * is a mechanical dispatch and the registered vocabulary
+ * (`docs/mvp/labeling-schema.md` §7) reads the same on both sides.
+ */
+export const IntentBuckets = [
+  "accomplished",
+  "statedButMissing",
+  "doneButUnstated",
+  "deviations",
+  "claimedButUnachieved",
+] as const;
+
+export type IntentBucket = (typeof IntentBuckets)[number];
+
+/**
+ * What the model actually emits for the intent check: ONE tagged array
+ * instead of five bucket arrays. The grammar inlines the item shape per
+ * `$ref` site, so five arrays cannot compile at any field count (see
+ * `IntentItemSchema`); one tagged array costs a single inlined copy and
+ * leaves headroom for future schema growth. `fanOutIntentCheck` converts
+ * this into the stored five-array `IntentCheckSchema` before validation, so
+ * nothing downstream of generation sees this shape.
+ */
+export const IntentGenerationItemSchema = IntentItemSchema.extend({
+  bucket: z
+    .enum(IntentBuckets)
+    .describe(
+      "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the corpus nowhere retracts. claimedButUnachieved: an ask the corpus claims is fixed while the diff touches only the problem's signal/check path",
+    ),
+});
+
+export const IntentCheckGenerationSchema = z.object({
+  ticketUrls: IntentCheckSchema.shape.ticketUrls,
+  specificity: IntentCheckSchema.shape.specificity,
+  scopeNote: IntentCheckSchema.shape.scopeNote,
+  items: z
+    .array(IntentGenerationItemSchema)
+    .describe(
+      "every intent-check finding, each tagged with its bucket. Empty when specificity is broad/none (never a guessed gap). Per-bucket field rules are in the Intent check section of the system prompt",
+    ),
+});
+
+export type IntentCheckGeneration = z.infer<typeof IntentCheckGenerationSchema>;
 
 export const BriefSchema = z.object({
   pr: PrRefSchema,
@@ -435,7 +518,9 @@ export const BriefSchema = z.object({
  * generation so the model never echoes identifiers it cannot know (ADR 0012).
  * `intentCheck` is REQUIRED here (the model always judges the corpus) while
  * staying optional on the stored/read `BriefSchema` — pre-BRIEF-54 briefs
- * simply have no intent bar.
+ * simply have no intent bar. It also uses the GENERATION shape (one tagged
+ * `items` array, a grammar-budget requirement — see `IntentItemSchema`);
+ * `fanOutIntentCheck` converts it to the stored five-array shape.
  */
 export const BriefGenerationSchema = BriefSchema.omit({
   pr: true,
@@ -444,7 +529,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   generation: true,
   generationWarnings: true,
 }).extend({
-  intentCheck: IntentCheckSchema,
+  intentCheck: IntentCheckGenerationSchema,
 });
 
 export type BriefGeneration = z.infer<typeof BriefGenerationSchema>;

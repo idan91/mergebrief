@@ -3,6 +3,8 @@ import { enumPreservingJsonSchema } from "generators";
 import {
   BriefGenerationSchema,
   BriefSchema,
+  IntentBuckets,
+  IntentCheckGenerationSchema,
   briefGenerationSchemaWith,
   DeltaBriefSchema,
   IntentCheckSchema,
@@ -278,9 +280,7 @@ const briefGen = (riskSurface: string[]) => ({
     ticketUrls: [],
     specificity: "none",
     scopeNote: "",
-    accomplished: [],
-    statedButMissing: [],
-    doneButUnstated: [],
+    items: [],
   },
   changeGroups: [
     {
@@ -307,6 +307,7 @@ const validIntentCheck = {
       quote: "Add a widget endpoint returning the list",
       sourceUrl: "https://tracker.example/T-1",
       groupIds: ["g1"],
+      acknowledged: false,
     },
   ],
   statedButMissing: [
@@ -315,10 +316,64 @@ const validIntentCheck = {
       quote: "and document it in the API guide",
       sourceUrl: "https://tracker.example/T-1",
       groupIds: [],
+      acknowledged: false,
     },
   ],
   doneButUnstated: [
-    { intent: "drive-by lint fix", quote: "", sourceUrl: "", groupIds: ["g1"] },
+    {
+      intent: "drive-by lint fix",
+      quote: "",
+      sourceUrl: "",
+      groupIds: ["g1"],
+      acknowledged: false,
+    },
+  ],
+  deviations: [
+    {
+      intent: "drops the widget cache the ticket asked to keep",
+      quote: "keep the widget cache",
+      sourceUrl: "https://tracker.example/T-1",
+      groupIds: ["g1"],
+      acknowledged: true,
+    },
+  ],
+  claimedButUnachieved: [
+    {
+      intent: "claims the flaky test is fixed but only skips it",
+      quote: "fixes the flaky widget test",
+      sourceUrl: "https://tracker.example/T-1",
+      groupIds: ["g1"],
+      acknowledged: false,
+    },
+  ],
+};
+
+/**
+ * The GENERATION shape of the same check: one tagged `items` array. Five
+ * bucket arrays cannot compile into Anthropic's grammar at any field count
+ * (BRIEF-85) — `fanOutIntentCheck` converts this to the stored shape above.
+ */
+const validGenerationIntentCheck = {
+  ticketUrls: ["https://tracker.example/T-1"],
+  specificity: "precise",
+  scopeNote: "",
+  items: [
+    {
+      bucket: "accomplished",
+      intent: "add the widget endpoint",
+      quote: "Add a widget endpoint returning the list",
+      sourceUrl: "https://tracker.example/T-1",
+      groupIds: ["g1"],
+      acknowledged: false,
+    },
+    {
+      bucket: "deviations",
+      intent: "drops the widget cache the ticket asked to keep",
+      quote: "keep the widget cache",
+      sourceUrl: "https://tracker.example/T-1",
+      groupIds: ["g1"],
+      acknowledged: true,
+    },
   ],
 };
 
@@ -336,9 +391,25 @@ describe("IntentCheckSchema (BRIEF-54)", () => {
         accomplished: [],
         statedButMissing: [],
         doneButUnstated: [],
+        deviations: [],
+        claimedButUnachieved: [],
       });
       expect(parsed.success).toBe(true);
     }
+  });
+
+  it("requires the BRIEF-85 alarm buckets (no optionals — strict structured output)", () => {
+    const { deviations: _d, ...noDeviations } = structuredClone(validIntentCheck);
+    expect(IntentCheckSchema.safeParse(noDeviations).success).toBe(false);
+    const { claimedButUnachieved: _c, ...noClaimed } = structuredClone(validIntentCheck);
+    expect(IntentCheckSchema.safeParse(noClaimed).success).toBe(false);
+  });
+
+  it("requires acknowledged on every bucket's items (one shared shape — grammar budget)", () => {
+    const bad = structuredClone(validIntentCheck);
+    const target: Partial<(typeof bad.accomplished)[number]> = bad.accomplished[0];
+    delete target.acknowledged;
+    expect(IntentCheckSchema.safeParse(bad).success).toBe(false);
   });
 
   it("rejects an out-of-vocabulary specificity", () => {
@@ -367,17 +438,21 @@ describe("IntentCheckSchema (BRIEF-54)", () => {
     expect(IntentCheckSchema.safeParse(noMissingIds).success).toBe(false);
   });
 
-  it("all three buckets share ONE item shape (grammar budget — see IntentItemSchema)", () => {
+  it("all five buckets share ONE item shape (grammar budget — see IntentItemSchema)", () => {
     // A doneButUnstated item parses with the same fields as a stated ask;
     // the ticket-side fields must be "" there — enforced by the validator,
     // not the schema (one shared shape is all the grammar budget allows).
+    // BRIEF-85: `acknowledged` rides on the same shared shape everywhere.
     const parsed = IntentCheckSchema.safeParse({
       ...structuredClone(validIntentCheck),
-      doneButUnstated: [{ intent: "d", quote: "", sourceUrl: "", groupIds: ["g1"] }],
+      doneButUnstated: [
+        { intent: "d", quote: "", sourceUrl: "", groupIds: ["g1"], acknowledged: false },
+      ],
     });
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
     expect(Object.keys(parsed.data.doneButUnstated[0] ?? {}).toSorted()).toEqual([
+      "acknowledged",
       "groupIds",
       "intent",
       "quote",
@@ -386,12 +461,60 @@ describe("IntentCheckSchema (BRIEF-54)", () => {
   });
 });
 
+describe("IntentCheckGenerationSchema (BRIEF-85 grammar budget)", () => {
+  it("accepts the tagged one-array wire shape", () => {
+    expect(
+      IntentCheckGenerationSchema.safeParse(validGenerationIntentCheck).success,
+    ).toBe(true);
+  });
+
+  it("rejects an item with no bucket tag (the fan-out has nowhere to dispatch it)", () => {
+    const bad = structuredClone(validGenerationIntentCheck);
+    const target: Partial<(typeof bad.items)[number]> = bad.items[0];
+    delete target.bucket;
+    expect(IntentCheckGenerationSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("rejects an out-of-vocabulary bucket tag (closed set)", () => {
+    const bad = structuredClone(validGenerationIntentCheck);
+    const target = bad.items[0];
+    if (target) target.bucket = "invented";
+    expect(IntentCheckGenerationSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("carries the five registered bucket names, matching the stored array names", () => {
+    expect([...IntentBuckets]).toEqual([
+      "accomplished",
+      "statedButMissing",
+      "doneButUnstated",
+      "deviations",
+      "claimedButUnachieved",
+    ]);
+    const storedArrays = Object.keys(IntentCheckSchema.shape).filter(
+      (key) => !["ticketUrls", "specificity", "scopeNote"].includes(key),
+    );
+    expect(storedArrays.toSorted()).toEqual([...IntentBuckets].toSorted());
+  });
+
+  it("keeps the generation shape leaner than five arrays (the whole point)", () => {
+    // One `$ref` site instead of five. The grammar inlines per site, so this
+    // is the property that makes the intent check compile at all.
+    const arrayFields = Object.entries(IntentCheckGenerationSchema.shape).filter(
+      ([, schema]) => schema.def.type === "array",
+    );
+    expect(arrayFields.map(([name]) => name).toSorted()).toEqual(["items", "ticketUrls"]);
+  });
+});
+
 describe("intentCheck on the brief schemas (BRIEF-54 back-compat split)", () => {
   it("BriefGenerationSchema REQUIRES intentCheck", () => {
     const { intentCheck: _dropped, ...withoutIntent } = briefGen(["mutates-state"]);
     expect(BriefGenerationSchema.safeParse(withoutIntent).success).toBe(false);
     expect(
-      BriefGenerationSchema.safeParse({ ...withoutIntent, intentCheck: validIntentCheck })
+      BriefGenerationSchema.safeParse({
+        ...withoutIntent,
+        intentCheck: validGenerationIntentCheck,
+      })
         .success,
     ).toBe(true);
   });
@@ -427,6 +550,25 @@ describe("intentCheck on the brief schemas (BRIEF-54 back-compat split)", () => 
     expect(wire).toContain('"broad"');
     // "none" is a common word — assert the full enum array to be safe.
     expect(wire.replace(/\s/g, "")).toContain('"enum":["precise","broad","none"]');
+  });
+
+  it("emits the bucket enum on the wire, and no five-array residue (BRIEF-85)", () => {
+    // The whole fan-out dispatches on `bucket`, so the closed vocabulary must
+    // reach the wire for server-side enforcement (enum-server-enforcement,
+    // PR #22) — not just the client-side Zod parse.
+    const wire = JSON.stringify(enumPreservingJsonSchema(BriefGenerationSchema)).replace(
+      /\s/g,
+      "",
+    );
+    expect(wire).toContain(
+      `"enum":[${IntentBuckets.map((b) => `"${b}"`).join(",")}]`,
+    );
+    expect(wire).toContain('"items"');
+    // The five stored bucket arrays must NOT appear as generation properties —
+    // five array `$ref` sites is exactly what blows the grammar budget.
+    for (const bucket of IntentBuckets) {
+      expect(wire).not.toContain(`"${bucket}":{"type":"array"`);
+    }
   });
 });
 

@@ -5,7 +5,10 @@ import {
   RiskSurfaceAttributes,
   type ChangeGroup,
   type Chunk,
+  type IntentBucket,
   type IntentCheck,
+  type IntentCheckGeneration,
+  type IntentItem,
   type LineRange,
   type ReadingOrderStep,
   type RevisionNarrativeChunk,
@@ -121,11 +124,42 @@ function normalizeWhitespace(text: string): string {
 }
 
 /**
- * Validate a Brief's intent check (BRIEF-54, ADR 0009 §2 as amended) —
- * warn-and-drop into `generationWarnings`, mirroring `validateReadingOrder`'s
- * posture. Pure — returns a sanitized copy, never mutates.
+ * Convert the generation-side tagged `items` array into the stored five-bucket
+ * shape (BRIEF-85). Purely mechanical dispatch on each item's `bucket` — the
+ * grammar budget forces one array on the wire (see `IntentItemSchema`), while
+ * everything downstream (validation, storage, the read path, the intent bar)
+ * keeps the five-array shape the design locked. The `bucket` tag itself is
+ * dropped: it is wire framing, not part of the stored artifact.
  *
- * 1. broad/none with non-empty buckets → all three emptied + warn (the
+ * Runs BEFORE `validateIntentCheck`, so every per-bucket rule the validator
+ * enforces applies exactly as it would have to natively-generated arrays.
+ */
+export function fanOutIntentCheck(generated: IntentCheckGeneration): IntentCheck {
+  const buckets: Record<IntentBucket, IntentItem[]> = {
+    accomplished: [],
+    statedButMissing: [],
+    doneButUnstated: [],
+    deviations: [],
+    claimedButUnachieved: [],
+  };
+  for (const { bucket, ...item } of generated.items) {
+    buckets[bucket].push(item);
+  }
+  return {
+    ticketUrls: generated.ticketUrls,
+    specificity: generated.specificity,
+    scopeNote: generated.scopeNote,
+    ...buckets,
+  };
+}
+
+/**
+ * Validate a Brief's intent check (BRIEF-54 + BRIEF-85, ADR 0009 §2 as twice
+ * amended) — warn-and-drop into `generationWarnings`, mirroring
+ * `validateReadingOrder`'s posture. Pure — returns a sanitized copy, never
+ * mutates.
+ *
+ * 1. broad/none with non-empty buckets → all five emptied + warn (the
  *    mechanical "never a guessed gap" floor).
  * 2. `ticketUrls` must be ⊆ the injected linked-context URLs → unknown URLs
  *    dropped + warn; a ticket-side item's `sourceUrl` must be `""`
@@ -137,14 +171,22 @@ function normalizeWhitespace(text: string): string {
  *    ids warns (kept: stated-side grounding is the citation, yet the drift
  *    must be visible); `doneButUnstated` items with zero valid ids are
  *    dropped — a diff-side claim with no group anchor has no grounding.
- * 4. Per-bucket field rules for the SHARED item shape (all three buckets use
+ * 4. Per-bucket field rules for the SHARED item shape (all five buckets use
  *    `IntentItemSchema` — the grammar-size constraint, see types.ts):
  *    `statedButMissing` items must carry NO groupIds (emptied + warn — a
  *    missing ask has no diff anchor); `doneButUnstated` items must carry NO
- *    quote/sourceUrl (emptied + warn — no ticket side by definition).
+ *    quote/sourceUrl (emptied + warn — no ticket side by definition);
+ *    `acknowledged` is meaningful ONLY in `deviations` — `true` anywhere
+ *    else is forced back to `false` + warn (dead-field precedent).
  * 5. Quote verification: each ticket-side quote must be a whitespace-
  *    normalized substring of its source's fetched content — WARN-ONLY in v1
- *    (revisit trigger: escalate to drop on fabrication evidence).
+ *    on the neutral buckets (revisit trigger: escalate to drop on
+ *    fabrication evidence).
+ * 6. ALARM buckets (`deviations`, `claimedButUnachieved`, BRIEF-85) are
+ *    deliberately stricter — verified both-sides grounding or the item is
+ *    DROPPED + warned: empty quote, unverifiable quote (no fetched source
+ *    content), quote not found in its source, or zero surviving groupIds
+ *    all drop. A false alarm costs more than a miss.
  */
 export function validateIntentCheck(
   intentCheck: IntentCheck,
@@ -158,7 +200,9 @@ export function validateIntentCheck(
     const counts =
       intentCheck.accomplished.length +
       intentCheck.statedButMissing.length +
-      intentCheck.doneButUnstated.length;
+      intentCheck.doneButUnstated.length +
+      intentCheck.deviations.length +
+      intentCheck.claimedButUnachieved.length;
     if (counts > 0) {
       issues.push(
         `intent check is ${intentCheck.specificity} but carries ${counts} bucket item(s) — buckets emptied (never a guessed gap)`,
@@ -177,6 +221,8 @@ export function validateIntentCheck(
         accomplished: [],
         statedButMissing: [],
         doneButUnstated: [],
+        deviations: [],
+        claimedButUnachieved: [],
       },
       issues,
     };
@@ -231,6 +277,76 @@ export function validateIntentCheck(
     });
   }
 
+  /**
+   * `acknowledged` is meaningful only in `deviations`; anywhere else `true`
+   * is forced back to `false` + warn (dead-field precedent — the shared item
+   * shape is the grammar-budget constraint, see types.ts).
+   */
+  function forceUnacknowledged<T extends { intent: string; acknowledged: boolean }>(
+    bucket: string,
+    item: T,
+  ): T {
+    if (!item.acknowledged) return item;
+    issues.push(
+      `${bucket} item "${item.intent}" carries acknowledged=true — forced false (meaningful only in deviations)`,
+    );
+    return { ...item, acknowledged: false };
+  }
+
+  /**
+   * The strict alarm-bucket quote check (BRIEF-85): where the neutral
+   * buckets warn-and-keep, an alarm item's quote must VERIFY — non-empty,
+   * fetched source content present, whitespace-normalized substring — or
+   * the item drops. A false alarm costs more than a miss.
+   */
+  function quoteVerifies(
+    bucket: string,
+    item: { intent: string; quote: string; sourceUrl: string },
+  ): boolean {
+    const quote = normalizeWhitespace(item.quote);
+    if (quote === "") {
+      issues.push(
+        `${bucket} item "${item.intent}": empty quote — dropped (alarm buckets require verified grounding)`,
+      );
+      return false;
+    }
+    const source = contentByUrl.get(item.sourceUrl);
+    if (source === undefined) {
+      issues.push(
+        `${bucket} item "${item.intent}": no fetched content for source "${item.sourceUrl}" — dropped (alarm quote unverifiable)`,
+      );
+      return false;
+    }
+    if (!source.includes(quote)) {
+      issues.push(
+        `${bucket} item "${item.intent}": quote not found in its source (whitespace-normalized) — dropped (possible fabrication)`,
+      );
+      return false;
+    }
+    return true;
+  }
+
+  /** Drop-not-warn sanitation shared by both alarm buckets (rule 6). */
+  function sanitizeAlarmBucket(
+    bucket: "deviations" | "claimedButUnachieved",
+    items: IntentCheck["deviations"],
+  ): IntentCheck["deviations"] {
+    return items
+      .filter((item) => keepSource(bucket, item))
+      .filter((item) => quoteVerifies(bucket, item))
+      .map((item) => ({
+        ...item,
+        groupIds: pruneGroups(bucket, item.intent, item.groupIds),
+      }))
+      .filter((item) => {
+        if (item.groupIds.length > 0) return true;
+        issues.push(
+          `${bucket} item "${item.intent}" has no valid group anchor — dropped (both-sides grounding required)`,
+        );
+        return false;
+      });
+  }
+
   const accomplished = intentCheck.accomplished
     .filter((item) => keepSource("accomplished", item))
     .map((item) => {
@@ -244,7 +360,7 @@ export function validateIntentCheck(
           `accomplished item "${item.intent}" has no valid group anchor — kept (stated-side grounding is the citation)`,
         );
       }
-      return { ...item, groupIds: prunedIds };
+      return forceUnacknowledged("accomplished", { ...item, groupIds: prunedIds });
     });
 
   const statedButMissing = intentCheck.statedButMissing
@@ -256,7 +372,7 @@ export function validateIntentCheck(
           `statedButMissing item "${item.intent}" carries ${item.groupIds.length} groupId(s) — emptied (a missing ask has no diff anchor)`,
         );
       }
-      return { ...item, groupIds: [] };
+      return forceUnacknowledged("statedButMissing", { ...item, groupIds: [] });
     });
 
   const doneButUnstated = intentCheck.doneButUnstated
@@ -266,12 +382,12 @@ export function validateIntentCheck(
           `doneButUnstated item "${item.intent}" carries a quote/sourceUrl — emptied (no ticket side by definition)`,
         );
       }
-      return {
+      return forceUnacknowledged("doneButUnstated", {
         ...item,
         quote: "",
         sourceUrl: "",
         groupIds: pruneGroups("doneButUnstated", item.intent, item.groupIds),
-      };
+      });
     })
     .filter((item) => {
       if (item.groupIds.length > 0) return true;
@@ -281,6 +397,13 @@ export function validateIntentCheck(
       return false;
     });
 
+  const deviations = sanitizeAlarmBucket("deviations", intentCheck.deviations);
+
+  const claimedButUnachieved = sanitizeAlarmBucket(
+    "claimedButUnachieved",
+    intentCheck.claimedButUnachieved,
+  ).map((item) => forceUnacknowledged("claimedButUnachieved", item));
+
   return {
     intentCheck: {
       ...intentCheck,
@@ -288,6 +411,8 @@ export function validateIntentCheck(
       accomplished,
       statedButMissing,
       doneButUnstated,
+      deviations,
+      claimedButUnachieved,
     },
     issues,
   };

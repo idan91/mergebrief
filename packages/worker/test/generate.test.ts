@@ -111,9 +111,7 @@ function stubGenerator(): StubGenerator {
         ticketUrls: [],
         specificity: "none",
         scopeNote: "",
-        accomplished: [],
-        statedButMissing: [],
-        doneButUnstated: [],
+        items: [],
       },
       changeGroups: [],
       chunks: [],
@@ -1010,9 +1008,7 @@ deEmphasize:
       ticketUrls: [],
       specificity: "none",
       scopeNote: "",
-      accomplished: [],
-      statedButMissing: [],
-      doneButUnstated: [],
+      items: [],
     },
     changeGroups: [
       {
