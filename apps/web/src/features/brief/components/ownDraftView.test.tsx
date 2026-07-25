@@ -202,11 +202,14 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: intent gaps ALONE never open the modal (BRIEF-54 — the fallible signal never drives the gate)", () => {
+  it("soft gate: intent gaps OR TENSIONS alone never open the modal (BRIEF-54/85 — the fallible signal never drives the gate)", () => {
     // A flagless, draft-free Brief that DOES carry precise stated-but-missing
-    // intent asks. The intent check is the AI's fallible read; it surfaces as
-    // a secondary line inside the gate, but must never be the thing that opens
-    // it — the CTA still acts directly.
+    // asks AND a precise unacknowledged deviation. The intent check is the
+    // AI's fallible read; both kinds of finding surface as secondary lines
+    // inside the gate, but neither may ever be the thing that OPENS it — the
+    // CTA still acts directly. Adding `|| intentTensionCount > 0` to
+    // `requestMarkReady` must fail here (ADR 0009 §2: never part of the gate's
+    // open condition).
     const intentGapBrief: Brief = {
       ...flaglessBrief,
       intentCheck: {
@@ -224,7 +227,15 @@ describe("own-draft Brief view (BRIEF-43)", () => {
           },
         ],
         doneButUnstated: [],
-        deviations: [],
+        deviations: [
+          {
+            intent: "silent reversal",
+            quote: "keep the cache",
+            sourceUrl: "https://tracker.example/T-1",
+            groupIds: ["g1"],
+            acknowledged: false,
+          },
+        ],
         claimedButUnachieved: [],
       },
     };
@@ -293,6 +304,89 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     expect(barToggle).toHaveProperty("ariaExpanded", "true");
     expect(scrollIntoView).toHaveBeenCalled();
     vi.useRealTimers();
+  });
+
+  it("soft gate: the tension line counts unacknowledged deviations + claimed-but-unachieved, and EXCLUDES acknowledged ones", () => {
+    // The caller derives the count (BRIEF-85), so this pins the derivation
+    // itself, not just the modal's rendering. An acknowledged deviation is a
+    // reversal the PR description already owns — nudging the author about
+    // their own words at the gate would be nagging, so it must not count.
+    const briefWithTensions: Brief = {
+      ...briefFixture,
+      intentCheck: {
+        ticketUrls: ["https://tracker.example/T-1"],
+        specificity: "precise",
+        scopeNote: "",
+        accomplished: [],
+        statedButMissing: [],
+        doneButUnstated: [],
+        deviations: [
+          {
+            intent: "silent reversal",
+            quote: "keep the cache",
+            sourceUrl: "https://tracker.example/T-1",
+            groupIds: ["g1"],
+            acknowledged: false,
+          },
+          {
+            intent: "reversal the description owns",
+            quote: "keep the cache",
+            sourceUrl: "https://tracker.example/T-1",
+            groupIds: ["g1"],
+            acknowledged: true,
+          },
+        ],
+        claimedButUnachieved: [
+          {
+            intent: "claims the flake is fixed but only skips it",
+            quote: "fixes the flaky test",
+            sourceUrl: "https://tracker.example/T-1",
+            groupIds: ["g1"],
+            acknowledged: false,
+          },
+        ],
+      },
+    };
+    renderBriefView({ markReady: vi.fn() }, briefWithTensions);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    // 1 unacknowledged deviation + 1 claimed-but-unachieved = 2. The
+    // acknowledged deviation is excluded, so this is NOT 3.
+    expect(screen.getByText("2 intent tensions flagged")).toBeTruthy();
+    // The gap line stays absent — the two lines are independent.
+    expect(screen.queryByText(/stated ask.* not found/)).toBeNull();
+  });
+
+  it("soft gate: a broad corpus contributes no tension count (precise-only, like the gap line)", () => {
+    const briefBroad: Brief = {
+      ...briefFixture,
+      intentCheck: {
+        ticketUrls: [],
+        specificity: "broad",
+        scopeNote: "parent epic",
+        accomplished: [],
+        statedButMissing: [],
+        doneButUnstated: [],
+        // Present but unavailable: the validator empties these in generation,
+        // and the caller gates on specificity regardless.
+        deviations: [
+          {
+            intent: "should not count",
+            quote: "q",
+            sourceUrl: "",
+            groupIds: ["g1"],
+            acknowledged: false,
+          },
+        ],
+        claimedButUnachieved: [],
+      },
+    };
+    renderBriefView({ markReady: vi.fn() }, briefBroad);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark ready for review" }),
+    );
+    expect(screen.queryByText(/intent tension.* flagged/)).toBeNull();
   });
 
   it("soft gate: zero flags but unposted drafts → the gate OPENS with the checkbox, batch posts then mark-ready", async () => {

@@ -49,6 +49,16 @@ export interface MarkReadyModalProps {
    * the modal). Absent/zero → no line (absence, not a green verdict).
    */
   intentGapCount?: number;
+  /**
+   * BRIEF-85 soft-gate line 2: the count of precise intent TENSIONS —
+   * unacknowledged deviations plus claimed-but-unachieved. A second
+   * count-only line under the gap line, on the same terms: rendered only when
+   * > 0, never gap-first, never part of the gate's OPEN condition, and never
+   * blocking. Acknowledged deviations are excluded by the caller (the
+   * description already owns that reversal). Shares the gap line's jump
+   * target — both land on the expanded intent bar.
+   */
+  intentTensionCount?: number;
   /** Close the modal and jump to the expanded intent bar (PR 3 handle). */
   jumpToIntentGaps?: () => void;
 }
@@ -65,6 +75,7 @@ export function MarkReadyModal({
   setPostDrafts,
   busyLabel,
   intentGapCount = 0,
+  intentTensionCount = 0,
   jumpToIntentGaps,
 }: MarkReadyModalProps) {
   const busy = busyLabel !== undefined;
@@ -142,6 +153,23 @@ export function MarkReadyModal({
             onClick={jumpToIntentGaps}
           >
             {`${String(intentGapCount)} stated ask${intentGapCount === 1 ? "" : "s"} not found in the diff`}
+          </button>
+        </p>
+      ) : null}
+      {/* BRIEF-85 second count-only line. Same register as the gap line above
+          and the same jump target — a tension is not more urgent than a gap
+          here, just a different kind of finding. Count only: naming which ask
+          is in tension at the gate would anchor the author on the shakiest
+          inference in the Brief at exactly the moment they are deciding. */}
+      {intentTensionCount > 0 ? (
+        <p className={styles["copy"]}>
+          <button
+            className="btn"
+            type="button"
+            disabled={busy}
+            onClick={jumpToIntentGaps}
+          >
+            {`${String(intentTensionCount)} intent tension${intentTensionCount === 1 ? "" : "s"} flagged`}
           </button>
         </p>
       ) : null}

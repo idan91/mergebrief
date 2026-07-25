@@ -277,4 +277,66 @@ describe("MarkReadyModal", () => {
     fireEvent.click(line);
     expect(jumpToIntentGaps).toHaveBeenCalledTimes(0);
   });
+
+  // BRIEF-85 second count-only line: intent tensions.
+  const tensionLine = /intent tension.* flagged/;
+
+  it("shows no tension line when there are none (absence, not a green verdict)", () => {
+    renderModal();
+    expect(screen.queryByText(tensionLine)).toBeNull();
+    cleanup();
+    renderModal({ intentTensionCount: 0 });
+    expect(screen.queryByText(tensionLine)).toBeNull();
+  });
+
+  it("renders one count-only tension line, plural and singular", () => {
+    renderModal({ intentTensionCount: 2 });
+    expect(screen.getByText("2 intent tensions flagged")).toBeTruthy();
+    cleanup();
+    renderModal({ intentTensionCount: 1 });
+    expect(screen.getByText("1 intent tension flagged")).toBeTruthy();
+  });
+
+  it("names nothing — the line is a count, never the tension itself", () => {
+    renderModal({ intentTensionCount: 3 });
+    const line = screen.getByText("3 intent tensions flagged");
+    // Anchoring the author on the shakiest inference in the Brief, at the
+    // moment they are deciding to ship, is exactly what the count-only
+    // affordance exists to avoid.
+    expect(line.textContent).toBe("3 intent tensions flagged");
+  });
+
+  it("shares the gap line's jump target and sits alongside it, not instead of it", () => {
+    const jumpToIntentGaps = vi.fn();
+    renderModal({ intentGapCount: 2, intentTensionCount: 1, jumpToIntentGaps });
+    // Both lines render; neither suppresses the other.
+    expect(
+      screen.getByText("2 stated asks not found in the diff"),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByText("1 intent tension flagged"));
+    expect(jumpToIntentGaps).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the tension line while a draft batch is running", () => {
+    const jumpToIntentGaps = vi.fn();
+    renderModal({
+      intentTensionCount: 2,
+      jumpToIntentGaps,
+      unpostedDraftCount: 3,
+      busyLabel: "Posting 1 of 3…",
+    });
+    const line = screen.getByText("2 intent tensions flagged");
+    expect(line).toHaveProperty("disabled", true);
+    fireEvent.click(line);
+    expect(jumpToIntentGaps).toHaveBeenCalledTimes(0);
+  });
+
+  it("never blocks the gate — confirm stays available with tensions flagged", () => {
+    const markReadyAnyway = vi.fn();
+    renderModal({ intentTensionCount: 4, markReadyAnyway });
+    const confirm = screen.getByRole("button", { name: /mark ready/i });
+    expect(confirm).toHaveProperty("disabled", false);
+    fireEvent.click(confirm);
+    expect(markReadyAnyway).toHaveBeenCalledTimes(1);
+  });
 });

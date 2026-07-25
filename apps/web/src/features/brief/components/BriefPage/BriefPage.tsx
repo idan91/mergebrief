@@ -1556,6 +1556,17 @@ function BriefScreen({
     brief.intentCheck?.specificity === "precise"
       ? brief.intentCheck.statedButMissing.length
       : 0;
+  // BRIEF-85 soft-gate line 2: count of precise intent TENSIONS — unacknowledged
+  // deviations plus claimed-but-unachieved. Acknowledged deviations are excluded
+  // on purpose: the description already owns that reversal, so nudging the author
+  // about it at the gate would be nagging them with their own words. Precise-only
+  // and caller-gated, exactly like `intentGapCount`, and equally never part of
+  // the gate's OPEN condition.
+  const intentTensionCount =
+    brief.intentCheck?.specificity === "precise"
+      ? brief.intentCheck.deviations.filter((item) => !item.acknowledged)
+          .length + brief.intentCheck.claimedButUnachieved.length
+      : 0;
   // Close the gate and land on the expanded intent bar (PR 3 handle). The bar
   // lives in the full-compare story view, so exit focus mode and story-view
   // first, then defer the expand until that instrument cluster (re)mounts —
@@ -2223,6 +2234,7 @@ function BriefScreen({
           jumpToFlag={jumpToFlagFromGate}
           jumpToDrafts={jumpToDraftsFromGate}
           intentGapCount={intentGapCount}
+          intentTensionCount={intentTensionCount}
           jumpToIntentGaps={jumpToIntentGapsFromGate}
           postDrafts={postDraftsOnReady}
           setPostDrafts={setPostDraftsOnReady}
