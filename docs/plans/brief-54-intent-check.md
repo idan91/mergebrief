@@ -51,14 +51,24 @@ optional field).
    delta and revision narrative never carry it.
 
    > **Amended 2026-07-24 (PR 1 implementation):** the locked three-shape
-   > factoring is dead on arrival — under the production request shape
-   > (adaptive thinking + streaming) Anthropic's structured-output grammar
-   > compilation admits exactly ONE object shape beyond the base Brief
-   > schema (`400 "The compiled grammar is too large"`; probed live. The
-   > budget is **structural** — distinct object shapes, not bytes: the 7KB
-   > base schema passes with heavy descriptions while a leaner two-extra-
-   > shape variant fails; the budget is also tighter with thinking enabled
-   > than without, so probes must use the adapter's exact request shape).
+   > factoring is dead on arrival — Anthropic's structured-output grammar
+   > compilation rejects it (`400 "The compiled grammar is too large"`;
+   > probed live).
+   >
+   > **Corrected 2026-07-25 (BRIEF-85, measured):** the mechanism recorded
+   > above — "exactly ONE object shape beyond the base schema", budget
+   > "structural — distinct object shapes, not bytes", tighter with thinking
+   > enabled — is **wrong**, and following it walks straight back into the
+   > cliff. What the grammar actually does is **inline the referenced shape
+   > at every `$ref` site**, so cost is (array `$ref` sites × fields per
+   > shape); `$defs` dedupe does not carry into the grammar. Measured on
+   > `claude-opus-4-8`: four bucket arrays × four fields compiles; five
+   > arrays, or four arrays plus a fifth field, both 400. Descriptions are
+   > ~free (trimming 10727 → 9968 bytes still failed). Thinking mode is
+   > irrelevant — `thinking: {type:"disabled"}` and `claude-opus-5` fail
+   > identically. Consequence: **five bucket arrays cannot be generated at
+   > any field count**, which is why BRIEF-85 emits ONE tagged `items` array
+   > and fans it out (ADR 0009 §2 wire-shape note).
    > All three buckets now share ONE `IntentItemSchema`
    > `{intent, quote, sourceUrl, groupIds}`; the per-bucket field rules
    > moved to the mechanical floor (`validateIntentCheck`, warn-and-drop)

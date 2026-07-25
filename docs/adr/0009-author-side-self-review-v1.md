@@ -34,8 +34,8 @@
 >   behind the ticket's ask). Each item carries `acknowledged: boolean` —
 >   when the description acknowledges the reversal the item is a quiet
 >   receipt, not an alarm. `acknowledged` lives on the shared item shape
->   (structured-output shape budget) and is forced-`false` outside
->   `deviations` (dead-field precedent).
+>   (which the grammar budget forces — see the wire-shape note below) and is
+>   forced-`false` outside `deviations` (dead-field precedent).
 > - **`claimedButUnachieved`** — the corpus claims a fix/delivery while the
 >   diff operates only on the problem's *signal/check path* (log demotion,
 >   catch-and-swallow, test skip/delete, threshold bump). **Routing rule**:
