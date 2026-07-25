@@ -51,7 +51,10 @@ test-deletion risk attribute (labeling hits the gap).
 - PR titles: `[BRIEF-85] <prefix>: Title Case`; ready-for-review (not
   draft); `fable-reviewer` inline pass per PR **looped until clean** —
   fix findings, re-run the reviewer, repeat; hand to Idan only on a
-  clean pass.
+  clean pass. **Clean = no critical/high/medium findings**: a pass whose
+  findings are all low-severity and/or nitpicks counts as clean (note
+  them in the PR body, don't iterate on them); any medium-or-above
+  finding ⇒ fix and run the next iteration.
 - Part 0 (docs) commits straight to main (authorized docs flow).
 
 ## Mandatory specialist skills
