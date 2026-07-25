@@ -60,6 +60,18 @@
 > category in v1. Revisit triggers: flagrant-under-broad misses (eval
 > evidence) and a test-deletion risk attribute (labeling hits the gap). See
 > `docs/plans/brief-85-intent-deviations.md`.
+>
+> **Wire-shape constraint (measured 2026-07-25).** Five bucket arrays cannot
+> be *generated*: Anthropic's structured-output grammar inlines the shared
+> item shape at every `$ref` site, so cost is (arrays × fields per item) —
+> not the count of distinct object shapes BRIEF-54's note assumed. Four
+> arrays × four fields compiles; five arrays, or four plus a fifth field,
+> both `400 "The compiled grammar is too large"`, and neither a newer model
+> nor disabling thinking moves the limit. Generation therefore emits **one
+> tagged `items` array** (each item carrying its `bucket`) and a mechanical
+> fan-out produces the five buckets before validation. This is a
+> representation detail, not a design change: the five buckets remain the
+> stored vocabulary, the validation posture, and the FE contract.
 
 The author view is the **same shared Brief**, shown one step earlier (pre-submit), with **no author-specific analysis engine and no persistent author state**. The only additions are two author-facing elements: an **Intent check** (a deliberately de-emphasized, ticket-gated section of the shared Brief) and a **Soft gate** (a transient, non-blocking pre-submit nudge). Post-review author flow is deferred to v2.
 

@@ -88,6 +88,13 @@ commit.
   in `deviations`, MUST be false elsewhere); `deviations` +
   `claimedButUnachieved` arrays on `IntentCheckSchema` with routing +
   retracted-nowhere descriptions; broad/none note updated to "all five".
+  **Amended during implementation (2026-07-25):** five bucket arrays do not
+  compile into Anthropic's structured-output grammar at any field count
+  (measured; see ADR 0009 §2's wire-shape note). `IntentCheckSchema` keeps the
+  five arrays as the STORED shape; a new `IntentCheckGenerationSchema` emits
+  one `items` array with a per-item `bucket` tag, and `fanOutIntentCheck`
+  converts it before validation. Read path, validator rules, and FE contract
+  are untouched.
 - `prompt.ts`: extend the Intent check section — two bucket definitions, the
   routing rule, retracted-nowhere, the masking evidence bar (corpus asks
   fix/eliminate + diff touches only signal path + nothing else plausibly

@@ -141,6 +141,10 @@ Quick rules:
 - Alarm items require verified both-sides grounding (verbatim quote + surviving
   groupIds) or they are dropped with a warning — stricter than the
   warn-and-keep neutral buckets.
+- **Wire shape ≠ stored shape.** The model emits one array of items each
+  tagged with its bucket (a structured-output grammar limit — see ADR 0009 §2);
+  a mechanical fan-out produces these five buckets before validation. The five
+  tokens above are the vocabulary either way.
 
 ---
 
