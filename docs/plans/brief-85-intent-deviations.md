@@ -49,7 +49,9 @@ test-deletion risk attribute (labeling hits the gap).
   ⇒ fix, re-stage, re-run until clean.
 - No `Co-Authored-By` trailers; no AI-attribution in PR bodies.
 - PR titles: `[BRIEF-85] <prefix>: Title Case`; ready-for-review (not
-  draft); `fable-reviewer` inline pass per PR before handing to Idan.
+  draft); `fable-reviewer` inline pass per PR **looped until clean** —
+  fix findings, re-run the reviewer, repeat; hand to Idan only on a
+  clean pass.
 - Part 0 (docs) commits straight to main (authorized docs flow).
 
 ## Mandatory specialist skills
