@@ -6,6 +6,12 @@ import type { EvalProperty } from "../../properties";
  * anywhere in the corpus. Specificity must be none. The second property
  * borrows the base case's headline grouping check as a canary that the
  * intent-check addition does not perturb the base story.
+ *
+ * Vacuity note (BRIEF-85): `intent-alarm-buckets-empty` passes trivially
+ * whenever the check is unavailable — this case's expected state, and also
+ * what a model producing nothing looks like. It is a floor check on the
+ * validator, not a model-quality signal; `intent-none` and
+ * `intent-not-precise` carry the actual verdict here.
  */
 export const properties: EvalProperty[] = [
   {
@@ -31,5 +37,13 @@ export const properties: EvalProperty[] = [
     description:
       "base-story canary (borrowed from button-under-split): at most 3 groups for a 3-file diff",
     check: (brief) => brief.changeGroups.length <= 3,
+  },
+  {
+    id: "intent-alarm-buckets-empty",
+    description:
+      "the BRIEF-85 alarm buckets stay empty on an unavailable intent check — the validator's never-a-guessed-gap floor covers all five buckets",
+    check: (brief) =>
+      (brief.intentCheck?.deviations ?? []).length === 0 &&
+      (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
   },
 ];

@@ -1,0 +1,41 @@
+{
+  "pr": {
+    "locator": {
+      "owner": "Idan91",
+      "repo": "code-review",
+      "number": 9001
+    },
+    "meta": {
+      "title": "fix: Recurring Webhook Dispatch Failures",
+      "body": "### Overview\nFixes the recurring webhook dispatch failures from OPS-77. On-call should\nstop seeing the repeated dispatch pages after this lands.\n\n### Changelog\n- `webhook.ts` — the dispatch failure line now logs at `warn` with its\n  structured fields (`evt`, `err`, `deliveryId`) and the 500 unchanged.\n- `webhook.test.ts` — the logging test expects the new level.\n\n### Notes\n- OPS-77 asks to keep this line at `error`. We are deliberately going the\n  other way: per ADR 0034 #5 a per-event page for a failure GitHub will\n  redeliver is not operator-actionable, so it becomes `warn` and we alert\n  on a sustained rate instead. Flagging the reversal here rather than\n  silently leaving the ticket's instruction in place.\n",
+      "url": "https://github.com/Idan91/code-review/pull/9001",
+      "sha": "7b41c0e9d25a83f6104e7cb92da5f38017e6a4d2",
+      "baseSha": "d98c3ff5aa1e4c07b2f9e6d3c85a1f74b0e29c31",
+      "commitCount": 2,
+      "files": [
+        {
+          "path": "packages/api/src/routes/webhook.ts",
+          "additions": 4,
+          "deletions": 1
+        },
+        {
+          "path": "packages/api/test/webhook.test.ts",
+          "additions": 2,
+          "deletions": 2
+        }
+      ]
+    },
+    "diff": "diff --git a/packages/api/src/routes/webhook.ts b/packages/api/src/routes/webhook.ts\nindex 8f2c1a4..b71d9e3 100644\n--- a/packages/api/src/routes/webhook.ts\n+++ b/packages/api/src/routes/webhook.ts\n@@ -426,7 +426,10 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {\n     try {\n       await dispatch(deps.handle, parsed.value, deps.draftPolicy ?? DEFAULT_DRAFT_POLICY);\n     } catch (error) {\n-      log.error(\"webhook dispatch failed\", {\n+      // A single dispatch failure is self-healing under GitHub redelivery,\n+      // so a per-event page is not operator-actionable (ADR 0034 #5):\n+      // warn, and alert on a SUSTAINED rate instead.\n+      log.warn(\"webhook dispatch failed\", {\n         evt: \"webhook.dispatch.fail\",\n         err: error,\n       });\ndiff --git a/packages/api/test/webhook.test.ts b/packages/api/test/webhook.test.ts\nindex 3ac77e1..5d90b02 100644\n--- a/packages/api/test/webhook.test.ts\n+++ b/packages/api/test/webhook.test.ts\n@@ -849,17 +849,17 @@ describe(\"webhook event logging (BRIEF-51, ADR 0034)\", () => {\n     expect(typeof line?.[\"reqId\"]).toBe(\"string\");\n   });\n \n-  it(\"dispatch failure emits webhook.dispatch.fail at error with deliveryId\", async () => {\n+  it(\"dispatch failure emits webhook.dispatch.fail at warn with deliveryId\", async () => {\n     const { app, capture } = appWithCapture();\n     // Poison the write path AFTER app construction: the dispatch's first\n     // tenant write hits a missing table and throws — the route's 500 path.\n     await harness.raw(\"alter table pull_request rename to pull_request_poisoned\");\n     const res = await deliver(app, \"pull_request\", pullRequestPayload({ action: \"opened\" }), {\n       deliveryId: \"delivery-dispatch-1\",\n     });\n     expect(res.status).toBe(500);\n     const line = capture.lines().find((l) => l[\"evt\"] === \"webhook.dispatch.fail\");\n-    expect(line?.[\"level\"]).toBe(\"error\");\n+    expect(line?.[\"level\"]).toBe(\"warn\");\n     expect(line?.[\"deliveryId\"]).toBe(\"delivery-dispatch-1\");\n     expect(line?.[\"err\"]).toBeDefined();\n   });\n",
+    "links": [
+      {
+        "url": "https://tasks.example/OPS-77",
+        "content": "OPS-77 — Recurring webhook dispatch failures on redelivery\n\nOn-call has paged four times this week on webhook.dispatch.fail. The\ndispatch throws on GitHub's redelivery of an already-ingested\npull_request event and the route answers 500, so GitHub keeps retrying\nand the page repeats.\n\n- Fix the recurring dispatch failures: a redelivered pull_request event\n  must ingest successfully instead of throwing.\n- Keep the dispatch failure line at error level so on-call still pages\n  when a genuine dispatch bug lands.\n- Add a regression test that redelivers the same event twice.\n"
+      }
+    ]
+  },
+  "commitRange": {
+    "base": "d98c3ff5aa1e4c07b2f9e6d3c85a1f74b0e29c31",
+    "head": "7b41c0e9d25a83f6104e7cb92da5f38017e6a4d2",
+    "commitCount": 2
+  }
+}

@@ -80,6 +80,19 @@ the adversarial ticket-injection posture; diffs reuse the published
 components#7/#10 fixtures, ticket texts are authored data on
 tasks.example URLs; all baselined stable-pass 5/5).
 
+BRIEF-85 (alarm buckets) added a **twin pair**: `intent-masked-fix` and
+`intent-legit-demotion` share ONE diff byte-identically and differ only in
+their ticket corpus, so a model that fires on the diff *shape* rather than
+the corpus passes one and fails the other. They are also the corpus's first
+**authored diff** — hand-written over this repo's own `packages/api` webhook
+route, because no real own-repo PR carries a fake-fix shape and that shape is
+the point of the case (own-repo files, so the corpus rule holds by
+construction; PR locators are placeholders). The same change extended
+`intent-adversarial-ticket`'s ticket with a manufactured-alarm injection
+block, which **invalidates that case's checked-in `adv-*` baseline** until it
+is re-recorded — the predicates are unchanged but the input moved; see its
+`expected.ts` header.
+
 ## Cost (decision 7)
 
 Shown, never capped. Pre-flight prints the generation count; the report

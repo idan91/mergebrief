@@ -22,6 +22,8 @@ describe("the shipped corpus", () => {
       "delta-read-api-contract",
       "intent-adversarial-ticket",
       "intent-broad-epic",
+      "intent-legit-demotion",
+      "intent-masked-fix",
       "intent-none-no-ticket",
       "intent-precise-ticket",
       "multi-package-types",

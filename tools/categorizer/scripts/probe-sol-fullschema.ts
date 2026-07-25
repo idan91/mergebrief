@@ -38,7 +38,12 @@ async function main(): Promise<void> {
     console.error(cases.error);
     process.exit(2);
   }
-  const { fixture } = cases.value[0];
+  const probeCase = cases.value[0];
+  if (probeCase === undefined) {
+    console.error("probe case not found in eval/cases");
+    process.exit(2);
+  }
+  const { fixture } = probeCase;
   console.error("[probe] generating…");
   try {
     const brief = await categorize(

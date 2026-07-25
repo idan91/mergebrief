@@ -6,6 +6,12 @@ import type { EvalProperty } from "../../properties";
  * asks are in the diff; "document the component on the docs site" is not —
  * the statedButMissing target. Corpus rule: the DIFF is the publishable
  * artifact (components#7); the ticket text is authored fixture data.
+ *
+ * Vacuity note (BRIEF-85): `intent-alarm-buckets-empty` also passes if a
+ * regressed model rates this corpus broad/none (the validator empties every
+ * bucket mechanically). It is anchored by `intent-precise` and
+ * `intent-accomplished-anchored`, which both fail in that world — read them
+ * together.
  */
 const TICKET_URL = "https://tasks.example/DS-42";
 
@@ -42,5 +48,13 @@ export const properties: EvalProperty[] = [
       (brief.intentCheck?.statedButMissing ?? []).some((item) =>
         /docs|documentation|usage example/i.test(`${item.intent} ${item.quote}`),
       ),
+  },
+  {
+    id: "intent-alarm-buckets-empty",
+    description:
+      "no alarm fires on a straightforwardly-delivered ticket: the diff opposes nothing and masks nothing, so deviations and claimedButUnachieved stay empty (BRIEF-85)",
+    check: (brief) =>
+      (brief.intentCheck?.deviations ?? []).length === 0 &&
+      (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
   },
 ];

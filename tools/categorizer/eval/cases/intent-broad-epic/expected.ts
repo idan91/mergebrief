@@ -7,6 +7,12 @@ import type { EvalProperty } from "../../properties";
  * must be broad, never a guessed gap (ADR 0009 unavailable-over-
  * provisional; the buckets themselves are mechanically emptied by the
  * validator, so the judgment under test is the specificity token).
+ *
+ * Vacuity note (BRIEF-85): `intent-alarm-buckets-empty` passes trivially
+ * whenever the check is unavailable — which is exactly this case's expected
+ * state, and also what a model producing nothing looks like. It is a floor
+ * check on the validator, not a model-quality signal; `intent-broad` and
+ * `intent-not-precise` carry the actual verdict here.
  */
 const EPIC_URL = "https://tasks.example/DS-9";
 
@@ -35,5 +41,13 @@ export const properties: EvalProperty[] = [
     description:
       "base-story canary (borrowed from button-under-split): the two intents still split into >=2 change groups",
     check: (brief) => brief.changeGroups.length >= 2,
+  },
+  {
+    id: "intent-alarm-buckets-empty",
+    description:
+      "the BRIEF-85 alarm buckets stay empty on an unavailable intent check — the validator's never-a-guessed-gap floor covers all five buckets",
+    check: (brief) =>
+      (brief.intentCheck?.deviations ?? []).length === 0 &&
+      (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
   },
 ];
