@@ -46,6 +46,16 @@
     --color-on-primary: #0a0a0c;
     --focus-ring: var(--blue);
 
+    // Legacy short aliases of the canonical --color-* family (ADR 0037 #6).
+    // They were consumed before they were ever declared, so each rendered as
+    // its fallback (or nothing): --accent as the browser `Highlight` system
+    // color on five focus rings, --muted as inherited text, --danger as an
+    // off-palette #e5484d. They point at canon and carry no values of their
+    // own; consumers retire onto --color-* file-by-file as the sweep lands.
+    --accent: var(--color-accent);
+    --muted: var(--color-text-muted);
+    --danger: var(--color-negative);
+
     // Height of the sticky page header; sticky chunk headers pin just below
     // it. Pre-hydration fallback — the Header's ResizeObserver publishes the
     // measured value. Keep in sync with Header.module.scss min-block-size.
