@@ -20,6 +20,13 @@ the mid-stack rework — replaced by #162 on a fresh branch. Scale mappings:
 the session's token-scale-spec (values recorded in the ADR 0037 amendment
 and the PR #160/#162 bodies).
 
+**Amendment 2 (2026-07-26, owner ruling).** Decisions 1 and 4's flat-by-default
+feature-root layout is superseded: every folder must show its main entry at a
+glance, with everything else visibly categorized (subcomponents nested by
+ownership, server/, wire/, utils). Repo-wide. ADR 0037 decisions 1/4 as
+amended are canonical; PR #168 applied it to apps/web; package trees are a
+follow-up ticket. Where this document's decision list conflicts, the ADR wins.
+
 ## Locked decisions (the convention)
 
 1. **Layers.** No pages layer: route files are glue only (data loading +
