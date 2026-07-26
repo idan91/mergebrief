@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .copyButton {
     display: inline-flex;
@@ -21,10 +23,7 @@
       color: var(--text);
     }
 
-    &:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 1px;
-    }
+    @include mixins.focus-visible;
 
     &[data-state="copied"] {
       color: var(--green);

@@ -1,19 +1,36 @@
 @use "functions" as functions;
 
-@mixin flex(
-  $justify-content: center,
-  $align-items: center,
-  $flex-direction: row,
-  $flex-wrap: wrap,
-  $gap: 0
-) {
-  align-items: $align-items;
-  display: flex;
-  flex-flow: $flex-direction $flex-wrap;
-  gap: $gap;
-  justify-content: $justify-content;
+// ONE focus ring, app-wide (owner ruling, 2026-07-26). The pre-sweep code
+// carried eleven per-site offset/width overrides; every one was checked
+// against its actual geometry and none was forced by a clipping ancestor or
+// a viewport edge, so the variation was drift, not design. The mixins take
+// NO geometry parameters on purpose — a parameter is how the drift regrows.
+// A site that genuinely needs a different ring re-adds an argument here with
+// the clipping evidence in its commit, and nowhere else.
+// `focus-ring` omits the state selector, for the sites that paint the ring on
+// a SIBLING of the focused control (`.input:focus-visible + .track`) or that
+// add their own declarations alongside it; everything else uses
+// `focus-visible`. Centralising both is what restores the prefers-contrast
+// width bump that every hand-rolled outline was missing.
+@mixin focus-ring {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+
+  @media (prefers-contrast: more) {
+    outline-width: 3px;
+  }
 }
 
+@mixin focus-visible {
+  &:focus-visible {
+    @include focus-ring;
+    @content;
+  }
+}
+
+// Reserved for the future responsiveness pass (owner call, 2026-07-26).
+// Existing media queries are hand-authored range-syntax; whether these become
+// the responsive vocabulary gets decided when that work is tackled.
 @mixin for-size($size, $limit-type: min, $size-type: width) {
   @if $size-type == width {
     @media (#{$limit-type}-width: $size) {
@@ -26,29 +43,10 @@
   }
 }
 
-@mixin for-mobile() {
-  @include for-size(functions.get-breakpoint("mobile"), max) {
+@mixin for-breakpoint($name, $limit-type: min) {
+  @include for-size(functions.get-breakpoint($name), $limit-type) {
     @content;
   }
-}
-
-@mixin focus-visible {
-  &:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-
-    @media (prefers-contrast: more) {
-      outline-width: 3px;
-    }
-  }
-}
-
-@mixin disabled-input {
-  box-shadow: none;
-  color: var(--faint);
-  cursor: not-allowed;
-  opacity: 0.5;
-  pointer-events: none;
 }
 
 // Vertical scroll region inside a sticky rail. Horizontal scrolling is hard-

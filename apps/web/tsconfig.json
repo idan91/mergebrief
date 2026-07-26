@@ -10,6 +10,7 @@
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
     "noUncheckedIndexedAccess": true,
+    "plugins": [{ "name": "typescript-plugin-css-modules" }],
     "skipLibCheck": true,
     "strict": true,
     "target": "ES2023",

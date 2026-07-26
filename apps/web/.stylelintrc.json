@@ -8,6 +8,36 @@
       {
         "ignoreAtRules": ["container"]
       }
+    ],
+    "declaration-property-value-allowed-list": [
+      {
+        "color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "background": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "background-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "background-image": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "border": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "outline": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "outline-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "box-shadow": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "text-shadow": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "fill": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "stroke": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "caret-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "accent-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "scrollbar-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "column-rule-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "text-decoration-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "text-emphasis-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
+        "/^border(-(block|inline))?(-(start|end|top|right|bottom|left))?-color$/": [
+          "/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"
+        ],
+        "/^border-(block-|inline-)?(start|end|top|right|bottom|left)$/": [
+          "/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"
+        ]
+      },
+      {
+        "message": "ADR 0037 token bar (BRIEF-44): no raw color literal — use a var(--color-*) token from src/styles/tokens.scss, or an earned component-local token declared in this file with a one-line justification."
+      }
     ]
   }
 }

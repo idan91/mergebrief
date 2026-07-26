@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .section {
     display: grid;
@@ -48,19 +50,16 @@
     padding-inline: 20px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: #101014;
+    background: var(--color-surface-1);
     color: inherit;
     text-decoration: none;
 
     &:hover {
       border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-      background: #15151a;
+      background: var(--color-surface-2);
     }
 
-    &:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 2px;
-    }
+    @include mixins.focus-visible;
   }
 
   .rowTitle {

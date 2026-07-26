@@ -64,12 +64,17 @@
   }
 
   .track {
+    // Earned oddities: the switch track and its knob are the only two
+    // controls on this scale; faithful to the pre-sweep values.
+    --track-fill: #26262d;
+    --track-knob: #6a6a74;
+
     position: relative;
     inline-size: 26px;
     block-size: 15px;
     border: 1px solid var(--line2);
     border-radius: 99px;
-    background: #26262d;
+    background: var(--track-fill);
 
     &::after {
       content: "";
@@ -79,7 +84,7 @@
       inline-size: 10px;
       block-size: 10px;
       border-radius: 50%;
-      background: #6a6a74;
+      background: var(--track-knob);
       transition:
         background 0.15s,
         inset-inline-start 0.15s;
@@ -92,8 +97,7 @@
   }
 
   .switchInput:focus-visible + .track {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
+    @include mixins.focus-ring;
   }
 
   .revisionJump {
@@ -310,7 +314,7 @@
     overflow-wrap: anywhere;
 
     &[data-kind="dominant"] {
-      background: #1e1e24;
+      background: var(--color-surface-3);
       color: var(--text);
     }
 
@@ -358,6 +362,10 @@
   }
 
   .railChunkButton {
+    // Earned oddity: hover fill for the rail's chunk buttons, a half-step off
+    // --color-surface-06/07; faithful to the pre-sweep value.
+    --chunk-hover-fill: #16161b;
+
     display: grid;
     gap: 3px;
     min-inline-size: 0;
@@ -372,7 +380,7 @@
 
     &:hover {
       border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-      background: #16161b;
+      background: var(--chunk-hover-fill);
       color: var(--text);
     }
 

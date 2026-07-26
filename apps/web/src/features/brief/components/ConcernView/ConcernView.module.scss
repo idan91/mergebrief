@@ -68,11 +68,15 @@
   }
 
   .bar {
+    // Earned oddity: the meter track sits one step off --color-surface-08
+    // (#1c1c22) — an accidental split the faithful sweep preserves.
+    --track-fill: #1c1c21;
+
     overflow: hidden;
     block-size: 4px;
     border-radius: 2px;
     margin-block-end: 14px;
-    background: #1c1c21;
+    background: var(--track-fill);
 
     i {
       display: block;

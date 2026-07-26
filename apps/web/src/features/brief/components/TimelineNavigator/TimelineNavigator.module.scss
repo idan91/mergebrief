@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   // One flat row in the header's lens toolbar (BRIEF-28 round 2): arrows +
   // picker + stepper dots, then the View and Compare lens groups — the same
@@ -81,8 +83,8 @@
 
     a:focus-visible,
     button:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 1px;
+      @include mixins.focus-ring;
+
       color: var(--text);
     }
 
@@ -129,7 +131,7 @@
       &[data-state="active"] {
         border-color: var(--text);
         background: var(--text);
-        box-shadow: 0 0 0 3px #30303a;
+        box-shadow: 0 0 0 3px var(--color-outline-2);
       }
     }
   }

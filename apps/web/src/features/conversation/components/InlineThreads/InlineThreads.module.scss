@@ -5,7 +5,7 @@
     padding: 10px;
     border: 1px solid var(--line);
     border-radius: 8px;
-    background: #101014;
+    background: var(--color-surface-1);
   }
 
   .label {
@@ -40,7 +40,7 @@
     padding-inline: 10px;
     border: 1px solid var(--line);
     border-radius: 7px;
-    background: #131318;
+    background: var(--color-surface-2);
     color: var(--text);
     cursor: pointer;
     font-size: 12.5px;

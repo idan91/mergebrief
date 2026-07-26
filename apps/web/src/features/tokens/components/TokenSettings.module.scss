@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .root {
     display: grid;
@@ -45,10 +47,7 @@
       color: var(--text);
       font-size: 13px;
 
-      &:focus-visible {
-        outline: 2px solid var(--focus-ring);
-        outline-offset: 2px;
-      }
+      @include mixins.focus-visible;
     }
   }
 
@@ -62,7 +61,7 @@
   .error {
     flex-basis: 100%;
     margin: 0;
-    color: var(--danger, #e5484d);
+    color: var(--color-negative);
     font-size: 12px;
   }
 
@@ -142,9 +141,6 @@
     font-size: 12px;
     cursor: pointer;
 
-    &:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 2px;
-    }
+    @include mixins.focus-visible;
   }
 }

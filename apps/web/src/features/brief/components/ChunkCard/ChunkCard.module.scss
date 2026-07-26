@@ -7,12 +7,16 @@
     background: var(--panel2);
 
     &[data-current] {
-      border-color: #41414c;
-      box-shadow: 0 0 0 1px #41414c;
+      // Earned oddity: the current-chunk border doubles as a 1px halo, a
+      // step above --color-border-emphasis; faithful to the pre-sweep value.
+      --current-edge: #41414c;
+
+      border-color: var(--current-edge);
+      box-shadow: 0 0 0 1px var(--current-edge);
     }
 
     &[data-reviewed] {
-      border-color: #303038;
+      border-color: var(--color-outline-2);
     }
 
     &[data-state="open"] .head {
@@ -138,7 +142,7 @@
   }
 
   .chip[data-concern="implementation"] .dot {
-    background: #d8d8de;
+    background: var(--color-fill-bright);
   }
 
   .chip[data-concern="test"] .dot {
@@ -181,7 +185,7 @@
     padding-block: 12px;
     padding-inline: 16px;
     border-block-end: 1px solid var(--line);
-    background: #0f0f12;
+    background: var(--color-surface-1);
     color: var(--dim);
     font-size: 12.5px;
 
@@ -222,7 +226,7 @@
 
 @keyframes conversation-flash {
   0% {
-    box-shadow: 0 0 0 2px #d9b36c;
+    box-shadow: 0 0 0 2px var(--color-comment-highlight);
   }
 
   100% {
@@ -233,6 +237,6 @@
 @media (prefers-reduced-motion: reduce) {
   .chunk[data-conversation-flash] {
     animation: none;
-    box-shadow: 0 0 0 2px #d9b36c;
+    box-shadow: 0 0 0 2px var(--color-comment-highlight);
   }
 }

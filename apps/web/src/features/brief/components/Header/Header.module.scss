@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   // Two-tier sticky header (BRIEF-28 round 2): tier 1 is the stable
   // identity/status row, tier 2 the lens toolbar — the controls that change
@@ -222,8 +224,7 @@
   }
 
   .viewControl:focus-visible + .viewLabel {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 1px;
+    @include mixins.focus-ring;
   }
 
   // Overflow for rare actions (BRIEF-28).
@@ -258,10 +259,7 @@
       color: var(--text);
     }
 
-    &:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 2px;
-    }
+    @include mixins.focus-visible;
   }
 
   .menu {
@@ -299,8 +297,8 @@
     }
 
     &:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: -2px;
+      @include mixins.focus-ring;
+
       color: var(--text);
     }
   }
@@ -312,7 +310,7 @@
     z-index: 51;
     inline-size: var(--progress-width);
     block-size: 1px;
-    background: #d8d8de;
+    background: var(--color-fill-bright);
     transition: inline-size 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
@@ -389,7 +387,7 @@
     padding: 12px;
     border: 1px solid var(--line2);
     border-radius: 8px;
-    background: #151519;
+    background: var(--color-surface-2);
     box-shadow: 0 18px 44px rgb(0 0 0 / 35%);
     color: var(--dim);
     font-size: 12px;

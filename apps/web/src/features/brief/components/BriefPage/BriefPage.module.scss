@@ -52,7 +52,7 @@
     max-block-size: 90vh;
     border-block-start: 1px solid var(--line2);
     border-radius: 14px 14px 0 0;
-    background: #101013;
+    background: var(--color-surface-1);
     box-shadow: 0 -24px 80px rgb(0 0 0 / 60%);
     transform: translateY(105%);
     transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -127,7 +127,7 @@
     padding-inline: 20px;
     border: 1px solid var(--line2);
     border-radius: 9px;
-    background: #1c1c22;
+    background: var(--color-surface-3);
     box-shadow: 0 12px 36px rgb(0 0 0 / 50%);
     color: var(--text);
     font-size: 13px;

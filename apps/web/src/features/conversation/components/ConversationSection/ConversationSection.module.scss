@@ -9,7 +9,7 @@
     padding: 16px;
     border: 1px solid var(--line);
     border-radius: 10px;
-    background: #101014;
+    background: var(--color-surface-1);
   }
 
   .head {
@@ -139,7 +139,7 @@
     padding-inline: 10px;
     border: 1px solid var(--line);
     border-radius: 7px;
-    background: #131318;
+    background: var(--color-surface-2);
     color: var(--text);
     cursor: pointer;
     font-size: 12.5px;
@@ -163,8 +163,12 @@
     letter-spacing: 0.02em;
 
     &[data-state="open"] {
-      border-color: #8a6d3b;
-      color: #d9b36c;
+      // Earned oddity: the open-thread chip's border is the comment-highlight
+      // amber darkened for a 1px edge; faithful to the pre-sweep value.
+      --chip-open-border: #8a6d3b;
+
+      border-color: var(--chip-open-border);
+      color: var(--color-comment-highlight);
     }
 
     &[data-state="resolved"],
@@ -291,7 +295,7 @@
     padding: 8px;
     border: 1px solid var(--line);
     border-radius: 7px;
-    background: #131318;
+    background: var(--color-surface-2);
     color: var(--text);
     font-family: var(--sans);
     font-size: 12.5px;
@@ -309,8 +313,12 @@
   }
 
   .error {
+    // Earned oddity: a warmer red than --color-negative (#e06c6c) for inline
+    // conversation errors; faithful to the pre-sweep value.
+    --error-text: #d9836c;
+
     margin: 0;
-    color: #d9836c;
+    color: var(--error-text);
     font-size: 12.5px;
   }
 

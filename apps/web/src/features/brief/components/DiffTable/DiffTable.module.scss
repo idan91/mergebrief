@@ -66,7 +66,7 @@
       background: color-mix(in srgb, var(--green) 5%, transparent);
 
       .code {
-        color: #c3e6d2;
+        color: var(--color-diff-add-text);
       }
 
       .lineNumber {
@@ -78,7 +78,7 @@
       background: color-mix(in srgb, var(--red) 5%, transparent);
 
       .code {
-        color: #e0bcbc;
+        color: var(--color-diff-del-text);
       }
 
       .lineNumber {
@@ -89,7 +89,7 @@
     &[data-line-kind="hunk"] td {
       padding-block: 6px;
       padding-inline: 14px;
-      background: #101013;
+      background: var(--color-surface-1);
       color: var(--faint);
       font-size: 11px;
     }
@@ -131,7 +131,7 @@
   .lineNumber {
     inline-size: 42px;
     min-inline-size: 42px;
-    color: #3b3b43;
+    color: var(--color-text-4);
     text-align: end;
 
     // Safari only honors the prefixed form (WebKit bug 208677); without it
@@ -142,7 +142,7 @@
   }
 
   .code {
-    color: #85858e;
+    color: var(--color-text-3);
 
     // Code text is selectable (BRIEF-14); the row keeps `cell` for the
     // gutter, where range anchoring starts.
@@ -212,14 +212,14 @@
   @media (prefers-reduced-motion: reduce) {
     .commentRow[data-conversation-flash] > td > * {
       animation: none;
-      box-shadow: 0 0 0 2px #d9b36c;
+      box-shadow: 0 0 0 2px var(--color-comment-highlight);
     }
   }
 }
 
 @keyframes conversation-row-flash {
   0% {
-    box-shadow: 0 0 0 2px #d9b36c;
+    box-shadow: 0 0 0 2px var(--color-comment-highlight);
   }
 
   100% {

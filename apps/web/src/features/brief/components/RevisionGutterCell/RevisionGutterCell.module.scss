@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .gutter {
     position: relative;
@@ -9,14 +11,21 @@
       cursor: pointer;
     }
 
+    // Hover, not focus: the ring is hand-rolled on purpose. The
+    // prefers-contrast bump that `focus-ring` adds belongs to focus states
+    // only, so this rule stays outside the mixin (BRIEF-44 PR 3a).
     &:hover .rail {
-      background: #9dc0e8;
+      background: var(--rail-active-fill);
       outline: 2px solid var(--blue);
       outline-offset: 2px;
     }
   }
 
   .rail {
+    // Earned oddity: the hover/focus lift of the revision rail — a lighter
+    // blue than --color-accent (#7da7d9); faithful to the pre-sweep value.
+    --rail-active-fill: #9dc0e8;
+
     position: absolute;
     inset-block: 0;
     inset-inline-start: 9px;
@@ -44,9 +53,9 @@
     cursor: pointer;
 
     &:focus-visible ~ .rail {
-      background: #9dc0e8;
-      outline: 2px solid var(--blue);
-      outline-offset: 2px;
+      background: var(--rail-active-fill);
+
+      @include mixins.focus-ring;
     }
   }
 }

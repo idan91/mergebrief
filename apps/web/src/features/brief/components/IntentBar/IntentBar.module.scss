@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   // Neutral instrument row — deliberately quiet: no warning colors, no
   // gap-first emphasis (BRIEF-54 / ADR 0009). Symmetric bucket counts.
@@ -22,8 +24,7 @@
   }
 
   .toggle:focus-visible {
-    outline: 2px solid var(--accent, Highlight);
-    outline-offset: 2px;
+    @include mixins.focus-ring;
   }
 
   .title {
@@ -167,7 +168,6 @@
   }
 
   .jump:focus-visible {
-    outline: 2px solid var(--accent, Highlight);
-    outline-offset: 2px;
+    @include mixins.focus-ring;
   }
 }

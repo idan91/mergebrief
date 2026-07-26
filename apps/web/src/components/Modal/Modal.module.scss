@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .modal {
     position: fixed;
@@ -15,13 +17,19 @@
   }
 
   .box {
+    // Earned oddities (ADR 0037 #5), faithful to the pre-sweep values: the
+    // dialog fill sits between surface rungs 05 and 06, and the textarea's
+    // focus border is a one-off lift above --color-border-emphasis.
+    --box-fill: #131316;
+    --textarea-focus-border: #45454f;
+
     inline-size: 460px;
     max-inline-size: 92vw;
     padding-block: 26px;
     padding-inline: 28px;
     border: 1px solid var(--line2);
     border-radius: 12px;
-    background: #131316;
+    background: var(--box-fill);
 
     h3 {
       margin-block-end: 3px;
@@ -44,9 +52,9 @@
       resize: vertical;
 
       &:focus-visible {
-        border-color: #45454f;
-        outline: 2px solid var(--focus-ring);
-        outline-offset: 2px;
+        border-color: var(--textarea-focus-border);
+
+        @include mixins.focus-ring;
       }
     }
   }

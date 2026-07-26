@@ -89,7 +89,7 @@
     &[data-state="active"]::after {
       border-color: var(--text);
       background: var(--text);
-      box-shadow: 0 0 0 3px #30303a;
+      box-shadow: 0 0 0 3px var(--color-outline-2);
     }
   }
 

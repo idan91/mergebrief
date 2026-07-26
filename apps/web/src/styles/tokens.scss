@@ -1,7 +1,12 @@
 // Global design tokens (CSS custom properties — runtime cascade, not module-scoped).
 // Loaded once at the root; component styles reference var(--token) with no import.
+// Three layers, in order: primitives (raw palette, barred from .module.scss by
+// stylelint), the canonical semantic families (what components consume), and
+// legacy aliases that point at canon and carry no values of their own
+// (ADR 0037 #6 — consumers retire onto --color-* file-by-file).
 @layer tokens {
   :root {
+    // ── Primitives ───────────────────────────────────────────────────────
     --gray-950: #0a0a0c;
     --gray-925: #0d0d10;
     --gray-900: #111114;
@@ -15,36 +20,91 @@
     --amber-400: #d9a45c;
     --blue-400: #7da7d9;
     --violet-400: #a98fd1;
-    --bg: #0a0a0c;
-    --panel: #111114;
-    --panel2: #0d0d10;
-    --line: #1f1f24;
-    --line2: #2b2b32;
-    --text: #ececee;
-    --dim: #9a9aa3;
-
-    // Faint text tier. Lightened from the raw gray-500 (#62626b, ~3.3:1 — fails
-    // WCAG AA) to ~5.8:1 on --bg, with margin to survive the top radial glow.
-    --faint: #8a8a93;
-    --green: #5fc88f;
-    --red: #e06c6c;
-    --amber: #d9a45c;
-    --blue: #7da7d9;
-    --violet: #a98fd1;
     --mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
     --sans: "Instrument Sans", -apple-system, "Helvetica Neue", sans-serif;
-    --color-surface: var(--panel);
-    --color-surface-raised: var(--panel2);
-    --color-border: var(--line);
-    --color-border-strong: var(--line2);
-    --color-text: var(--text);
-    --color-text-muted: var(--dim);
-    --color-text-faint: var(--faint);
-    --color-positive: var(--green);
-    --color-negative: var(--red);
-    --color-accent: var(--blue);
+
+    // ── Surfaces (BRIEF-44 phase 2) ──────────────────────────────────────
+    // Four tiers, deliberately. The whole #0d0d10–#111114 band collapsed into
+    // surface-1: ≤4/255 per channel was never a perceivable distinction, and
+    // "raised" was a fiction — panel2 is DARKER than panel. Sunken wells sit
+    // at page level rather than earning a fourth dark tier.
+    --color-background: var(--gray-950); // page bg AND sunken wells
+    --color-surface-1: var(--gray-900); // base panel / nested fill
+    --color-surface-2: #15151a; // raised: hovers, popovers, toolbars
+    --color-surface-3: #1c1c22; // top: toasts, chips, highest hovers
+
+    // ── Text ─────────────────────────────────────────────────────────────
+    --color-text-1: var(--gray-100); // primary
+    --color-text-2: var(--gray-400); // muted / secondary
+
+    // Faint floor for readable text. Lightened from the raw gray-500
+    // (#62626b, ~3.3:1 — fails WCAG AA) to ~5.8:1 on the page background,
+    // with margin to survive the top radial glow.
+    --color-text-3: #8a8a93;
+
+    // Ghost: diff line numbers. Deliberately below contrast — decorative
+    // only, never used for text a reader must parse.
+    --color-text-4: #3b3b43;
+
+    // ── Outline / border ─────────────────────────────────────────────────
+    --color-outline-1: var(--gray-800); // hairline dividers, default borders
+    --color-outline-2: var(--gray-700); // strong borders, frames, halos
+
+    // ── Status and accent ────────────────────────────────────────────────
+    --color-accent: var(--blue-400);
+    --color-positive: var(--green-400);
+    --color-negative: var(--red-400);
+    --color-warning: var(--amber-400);
+
+    // ── Other semantic colors ────────────────────────────────────────────
     --color-on-primary: #0a0a0c;
-    --focus-ring: var(--blue);
+
+    // The light-mode half of the two light-dark() pairs in base.scss. The app
+    // ships dark-only today; the pair is kept so a light scheme stays possible.
+    --color-inverse: #fff;
+
+    // Diff line text. Deliberately distinct from --color-positive/--color-
+    // negative: these are desaturated for long code runs, not status accents.
+    --color-diff-add-text: #c3e6d2;
+    --color-diff-del-text: #e0bcbc;
+
+    // Near-white fill for solid indicators (progress bar, concern dot).
+    // Earned: folding into --color-text-1 (Δ~20) would visibly brighten both.
+    --color-fill-bright: #d8d8de;
+
+    // The comment-highlight amber: the flash ring on a chunk/row jumped to
+    // from a conversation, the TOC marker, and the open-thread chip text.
+    --color-comment-highlight: #d9b36c;
+    --focus-ring: var(--color-accent);
+
+    // ── Legacy aliases (ADR 0037 #6) ─────────────────────────────────────
+    // Value-less pointers at canon, retiring file-by-file as sweeps touch
+    // each module. --accent/--muted/--danger were consumed before they were
+    // ever declared, so each rendered as its fallback (or nothing) until the
+    // BRIEF-44 defect fix; they stay pointed at canon.
+    --bg: var(--color-background);
+    --panel: var(--color-surface-1);
+    --panel2: var(--color-surface-1);
+    --line: var(--color-outline-1);
+    --line2: var(--color-outline-2);
+    --text: var(--color-text-1);
+    --dim: var(--color-text-2);
+    --faint: var(--color-text-3);
+    --blue: var(--color-accent);
+    --green: var(--color-positive);
+    --red: var(--color-negative);
+    --amber: var(--color-warning);
+    --violet: var(--violet-400);
+    --accent: var(--color-accent);
+    --muted: var(--color-text-2);
+    --danger: var(--color-negative);
+    --color-surface: var(--color-surface-1);
+    --color-surface-raised: var(--color-surface-1);
+    --color-text: var(--color-text-1);
+    --color-text-muted: var(--color-text-2);
+    --color-text-faint: var(--color-text-3);
+    --color-border: var(--color-outline-1);
+    --color-border-strong: var(--color-outline-2);
 
     // Legacy short aliases of the canonical --color-* family (ADR 0037 #6).
     // They were consumed before they were ever declared, so each rendered as

@@ -31,17 +31,24 @@
     }
 
     code {
+      // Earned oddity (ADR 0037 #5): inline-code fill, one step above
+      // --color-surface-09; faithful to the pre-sweep value.
+      --code-fill: #1a1a1f;
+
       padding-block: 1px;
       padding-inline: 6px;
       border-radius: 4px;
-      background: #1a1a1f;
+      background: var(--code-fill);
       color: var(--text);
       font-family: var(--mono);
       font-size: 0.88em;
     }
 
     strong {
-      color: #d7d7dc;
+      // Earned oddity: bold text sits just under --color-text (#ececee).
+      --strong-text: #d7d7dc;
+
+      color: var(--strong-text);
       font-weight: 600;
     }
   }

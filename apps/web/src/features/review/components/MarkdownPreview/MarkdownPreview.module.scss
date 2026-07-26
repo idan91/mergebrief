@@ -5,7 +5,7 @@
     border: 1px solid var(--line2);
     border-radius: 7px;
     margin: 10px;
-    background: #09090b;
+    background: var(--color-background);
     color: var(--dim);
     font-size: 13px;
     line-height: 1.6;
@@ -21,10 +21,14 @@
     }
 
     code {
+      // Earned oddity: inline-code fill inside the preview, above the
+      // surface ladder's top rung; faithful to the pre-sweep value.
+      --code-fill: #1d1d23;
+
       padding-block: 1px;
       padding-inline: 5px;
       border-radius: 4px;
-      background: #1d1d23;
+      background: var(--code-fill);
       color: var(--text);
       font-family: var(--mono);
     }
@@ -33,7 +37,7 @@
       overflow-x: auto;
       padding: 10px;
       border-radius: 6px;
-      background: #15151a;
+      background: var(--color-surface-2);
     }
   }
 
@@ -45,9 +49,13 @@
     margin-block-start: 12px;
     border: 1px solid var(--line2);
     border-radius: 8px;
-    background: #101014;
+    background: var(--color-surface-1);
 
     button {
+      // Earned oddity: the card's secondary button text is dimmer than
+      // --color-text-ghost's neighbours; faithful to the pre-sweep value.
+      --card-button-text: #5d5d66;
+
       padding-block: 5px;
       padding-inline: 10px;
       border: 1px solid var(--line);
@@ -55,7 +63,7 @@
       margin-block: 0 10px;
       margin-inline: 10px;
       background: transparent;
-      color: #5d5d66;
+      color: var(--card-button-text);
       font-size: 11.5px;
     }
   }
@@ -70,10 +78,14 @@
   }
 
   .suggestionDiff {
+    // Earned oddity: the suggestion diff sits one step below
+    // --color-surface-01 to separate it from the card it lives in.
+    --diff-fill: #0b0b0e;
+
     inline-size: 100%;
     border-collapse: collapse;
     border-block-end: 1px solid var(--line);
-    background: #0b0b0e;
+    background: var(--diff-fill);
     font-family: var(--mono);
     font-size: 12px;
     table-layout: fixed;
@@ -93,14 +105,14 @@
     inline-size: 32px;
     min-inline-size: 32px;
     padding-inline-end: 8px;
-    color: #3b3b43;
+    color: var(--color-text-4);
     text-align: end;
     user-select: none;
   }
 
   .code {
     padding-inline: 0 12px;
-    color: #85858e;
+    color: var(--color-text-3);
   }
 
   .sign {
@@ -113,7 +125,7 @@
     background: color-mix(in srgb, var(--green) 5%, transparent);
 
     .code {
-      color: #c3e6d2;
+      color: var(--color-diff-add-text);
     }
   }
 
@@ -121,7 +133,7 @@
     background: color-mix(in srgb, var(--red) 5%, transparent);
 
     .code {
-      color: #e0bcbc;
+      color: var(--color-diff-del-text);
     }
   }
 }

@@ -2,6 +2,10 @@
 @use "sass:math";
 
 $default-font-size: 16px;
+
+// Reserved for the future responsiveness pass (owner call, 2026-07-26): the
+// app's current media queries are hand-authored, but these values/helpers are
+// the starting point when responsive work is tackled deliberately.
 $breakpoints: (
   "mobile": 880px,
   "tablet": 1120px,

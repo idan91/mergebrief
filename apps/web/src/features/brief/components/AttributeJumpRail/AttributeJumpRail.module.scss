@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   .rail {
     display: flex;
@@ -19,8 +21,7 @@
   }
 
   .toggle:focus-visible {
-    outline: 2px solid var(--accent, Highlight);
-    outline-offset: 2px;
+    @include mixins.focus-ring;
   }
 
   .count {
@@ -46,8 +47,8 @@
   }
 
   .chipButton:focus-visible {
-    outline: 2px solid var(--accent, Highlight);
-    outline-offset: 2px;
+    @include mixins.focus-ring;
+
     border-radius: 4px;
   }
 

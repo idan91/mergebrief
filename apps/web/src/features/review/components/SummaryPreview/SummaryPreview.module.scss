@@ -101,7 +101,11 @@
       cursor: pointer;
 
       &[data-state="active"] {
-        background: #1f1f25;
+        // Earned oddity: the active pick sits one blue step off --line
+        // (#1f1f24) — an accidental split kept faithfully by the sweep.
+        --active-fill: #1f1f25;
+
+        background: var(--active-fill);
         color: var(--text);
       }
     }

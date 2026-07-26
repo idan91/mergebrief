@@ -2,10 +2,20 @@
 
 @layer components {
   .card {
+    // Earned oddities: the card's vertical gradient stops. They bracket
+    // --color-surface (#111114) rather than sitting on the surface ladder,
+    // so they stay local; faithful to the pre-sweep values.
+    --card-gradient-from: #121216;
+    --card-gradient-to: #0e0e11;
+
     margin-block-end: 40px;
     border: 1px solid var(--line);
     border-radius: 12px;
-    background: linear-gradient(180deg, #121216 0%, #0e0e11 100%);
+    background: linear-gradient(
+      180deg,
+      var(--card-gradient-from) 0%,
+      var(--card-gradient-to) 100%
+    );
   }
 
   // Normally content-sized and fixed; on very short viewports it shrinks
@@ -90,7 +100,7 @@
 
     &[data-kind="dominant"] {
       border-color: var(--line2);
-      background: #1e1e24;
+      background: var(--color-surface-3);
       color: var(--text);
     }
 
@@ -116,7 +126,7 @@
     border: 1px solid var(--line);
     border-radius: 9px;
     margin-block-start: 16px;
-    background: #101014;
+    background: var(--color-surface-1);
 
     b {
       color: var(--text);
@@ -150,7 +160,7 @@
 
     &:hover {
       border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-      background: #1c1c22;
+      background: var(--color-surface-3);
     }
   }
 
@@ -163,7 +173,7 @@
   // a viewport-capped flex column). Bottom corners follow the card's radius
   // so the scroller doesn't poke square corners out of the rounded card.
   .body {
-    --scroller-bg: #0f0f12;
+    --scroller-bg: var(--color-surface-1);
 
     @include mixins.rail-scroller;
 
@@ -237,7 +247,7 @@
     padding: 12px;
     border: 1px solid var(--line2);
     border-radius: 8px;
-    background: #151519;
+    background: var(--color-surface-2);
     box-shadow: 0 18px 44px rgb(0 0 0 / 35%);
     color: var(--dim);
     font-size: 12px;
@@ -326,8 +336,13 @@
     border-inline-start: 1px solid var(--line2);
 
     &[data-state="resolved"] {
+      // Earned oddities: the resolved flag's dimmed rule and file-button
+      // text; both faithful to the pre-sweep values.
+      --resolved-rule: #222229;
+      --resolved-text: #6f6f78;
+
       padding-block-end: 0;
-      border-inline-start-color: #222229;
+      border-inline-start-color: var(--resolved-rule);
       opacity: 0.62;
 
       &:hover {
@@ -339,7 +354,7 @@
       }
 
       .fileButton {
-        color: #6f6f78;
+        color: var(--resolved-text);
       }
     }
   }
@@ -384,6 +399,11 @@
   }
 
   .button {
+    // Earned oddities: the flag button's hover fill and its disabled text;
+    // both faithful to the pre-sweep values.
+    --button-hover-fill: #16161a;
+    --button-disabled-text: #4c4c54;
+
     padding-block: 5px;
     padding-inline: 12px;
     border: 1px solid var(--line2);
@@ -396,7 +416,7 @@
 
     &:hover {
       border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
-      background: #16161a;
+      background: var(--button-hover-fill);
       color: var(--text);
     }
 
@@ -404,7 +424,7 @@
     &:disabled:hover {
       border-color: var(--line);
       background: transparent;
-      color: #4c4c54;
+      color: var(--button-disabled-text);
       cursor: not-allowed;
     }
   }
@@ -416,7 +436,7 @@
     border: 1px solid var(--line);
     border-radius: 999px;
     margin-inline-start: auto;
-    color: #85858e;
+    color: var(--color-text-3);
     font-family: var(--mono);
     font-size: 10.5px;
     line-height: 1.4;

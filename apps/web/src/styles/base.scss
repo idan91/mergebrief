@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -35,8 +37,7 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
+    @include mixins.focus-ring;
   }
 
   // The routes programmatically focus the main region on state swaps to
@@ -50,7 +51,7 @@
 
   ::selection {
     background: color-mix(in srgb, var(--text) 18%, transparent);
-    color: light-dark(#111114, #fff);
+    color: light-dark(var(--color-surface-1), var(--color-inverse));
   }
 
   .green,
@@ -130,8 +131,8 @@
       color: var(--color-on-primary);
 
       &:hover {
-        border-color: light-dark(#0a0a0c, #fff);
-        background: light-dark(#0a0a0c, #fff);
+        border-color: light-dark(var(--color-background), var(--color-inverse));
+        background: light-dark(var(--color-background), var(--color-inverse));
       }
     }
   }

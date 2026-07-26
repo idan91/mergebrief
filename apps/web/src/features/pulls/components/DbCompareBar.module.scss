@@ -1,3 +1,5 @@
+@use "mixins";
+
 @layer components {
   // Lens groups in the header toolbar (BRIEF-28 round 2): the two segmented
   // controls sit co-linear on the lens row, same language as the local
@@ -67,10 +69,7 @@
         cursor: not-allowed;
       }
 
-      &:focus-visible {
-        outline: 2px solid var(--focus-ring);
-        outline-offset: 1px;
-      }
+      @include mixins.focus-visible;
     }
   }
 
