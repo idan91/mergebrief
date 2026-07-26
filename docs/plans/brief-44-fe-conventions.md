@@ -92,14 +92,19 @@ refactor PRs remain characterization-driven).
 
 ## PR spine
 
-Sequential in spine order. Invocation (decided 2026-07-26, no session-model
-switching): the orchestrating session runs on Fable 5 — Fable-tier PRs
-(1, 5a, 8) execute in the main thread; Opus-tier PRs dispatch to
-implementation subagents spawned with `model: opus`, prompted from this plan
-plus a short per-PR brief. The main thread always keeps: git operations
-(chunked commits + pre-commit reviewer gates), PR creation/bodies, and the
-fable-reviewer loops. Review-loop fixes: substantial ones go back to the
-implementing subagent; trivial ones the orchestrator applies directly.
+Sequential in spine order. Invocation (decided 2026-07-26, amended same day
+for context-window management — no session-model switching, no bloated main
+thread): ALL PRs dispatch to implementation subagents, spawned with the
+model column below (`model: fable` for 1/5a/8, `model: opus` for the rest),
+prompted from this plan plus a short per-PR brief. Context-heavy work (file
+reads, sweeps, the BriefPage split) stays inside each subagent's context.
+The orchestrating session (Fable 5) keeps only the compact parts: dispatch
+briefs, git operations (chunked commits + pre-commit reviewer gates, judged
+on `diff --stat` + reviewer verdicts), PR creation/bodies, and fable-reviewer
+loops. Review-loop fixes: substantial ones continue the implementing
+subagent (its context persists); trivial ones the orchestrator applies
+directly. If orchestrator context still grows long, session-break points are
+after PR 4 and after PR 5b — the memory note is the handoff.
 
 | PR | Content | Est. LOC | Model / effort |
 | --- | --- | --- | --- |
