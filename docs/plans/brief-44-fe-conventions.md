@@ -5,6 +5,21 @@ Status: plan locked (grill 2026-07-26). Inputs: the ticket's Research subpage
 Everything is in scope (owner call): convention + split + defects + styles
 sweep, chunked across PRs.
 
+**Amendment (2026-07-26, owner call during implementation).** Decision 5's
+two-phase token plan is superseded: value-named scaffolding tokens are
+banned; the sweeps go STRAIGHT to the deliberate semantic scale (type
+`--font-size-xs..3xl` + em steps; radius `xs/sm/md/lg/pill/circle`; shadow
+`elevation sm/md/lg` + specials; color `--color-surface/text/outline-N`
+numbered families). Off-scale values stay raw at the use site with a
+line-scoped stylelint disable + `TODO(BRIEF-44)` note, or earn a
+component-local token. Consequences: PR 8 is dead (collapse folded into
+3a/3b); the phase-2 `--fs-*` reservation is moot; owner screenshot review
+moved to the 3a/3b consolidation (strips delivered 2026-07-26). PR 3b's
+first incarnation (#161, faithful ladder) was closed unsalvageable after
+the mid-stack rework — replaced by #162 on a fresh branch. Scale mappings:
+the session's token-scale-spec (values recorded in the ADR 0037 amendment
+and the PR #160/#162 bodies).
+
 ## Locked decisions (the convention)
 
 1. **Layers.** No pages layer: route files are glue only (data loading +
