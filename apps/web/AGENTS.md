@@ -14,6 +14,21 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
   in-process through the SAME authz gate). Never reach persistence from a
   server function — that would be a second enforcement path.
 
+## Placement and styling (ADR 0037 — full rules + why live there)
+
+- New file placement: co-locate with its single consumer; on a second
+  consumer, promote to the nearest common ancestor of all consumers
+  (parent component → feature root → global, last resort). Lateral imports
+  into another subtree are forbidden — wanting one IS the promotion signal.
+  Anything touching a feature's store/queries never sits above that feature.
+- In-component functions are closure-dependent only; closure-free logic goes
+  to a co-located `<Component>/utils.ts` (directly unit-testable).
+- Zero raw colors/font-sizes/radii/shadows in `.module.scss` — tokens/mixins
+  only; off-scale values get a component-local token + one-line justification.
+- `data-testid` for test selection; `data-state`/`data-variant` for styling —
+  CSS targets attributes, not toggled classes. Extracted components adopt
+  both at birth.
+
 ## Async mutations against external systems (BRIEF-23 review loop — enforced)
 
 The submit flow earned each of these the hard way; any future mutation
