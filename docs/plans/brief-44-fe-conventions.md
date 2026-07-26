@@ -92,10 +92,14 @@ refactor PRs remain characterization-driven).
 
 ## PR spine
 
-Sequential, main-thread invocation throughout (each PR depends on its
-predecessor; reviewers are the only subagents). Model/effort per
-feedback-plan-model-selection: Fable 5 for design-thinking parts, Opus 5 for
-execution-heavy.
+Sequential in spine order. Invocation (decided 2026-07-26, no session-model
+switching): the orchestrating session runs on Fable 5 — Fable-tier PRs
+(1, 5a, 8) execute in the main thread; Opus-tier PRs dispatch to
+implementation subagents spawned with `model: opus`, prompted from this plan
+plus a short per-PR brief. The main thread always keeps: git operations
+(chunked commits + pre-commit reviewer gates), PR creation/bodies, and the
+fable-reviewer loops. Review-loop fixes: substantial ones go back to the
+implementing subagent; trivial ones the orchestrator applies directly.
 
 | PR | Content | Est. LOC | Model / effort |
 | --- | --- | --- | --- |
