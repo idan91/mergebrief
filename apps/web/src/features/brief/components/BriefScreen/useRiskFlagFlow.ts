@@ -1,7 +1,5 @@
-// The risk-disposition facade hook (BRIEF-44 split, plan decision 11): flag
-// selection, the dismiss-with-reason modal (short-reason warn-then-accept),
-// and the address-with-evidence modal. The screen wires props in; the hook
-// owns the selection/modal state and the disposition toast copy.
+// The risk-disposition facade hook: flag selection, the dismiss-with-reason
+// modal (short-reason warn-then-accept), and the address-with-evidence modal.
 import { useCallback, useState } from "react";
 
 import type { DismissTarget } from "@web/features/review";
@@ -12,6 +10,11 @@ import type {
   RiskEvidenceKind,
 } from "@web/features/review/state";
 import type { RiskFlag } from "../../utils/viewModel";
+import {
+  resolveRiskEvidence,
+  toggleGroupSelection,
+  toggleSetMember,
+} from "./utils";
 
 export interface UseRiskFlagFlowInput {
   actions: MindMapActions;
@@ -71,25 +74,11 @@ export function useRiskFlagFlow(
   }, []);
 
   const toggleRiskFlag = useCallback((flagId: string) => {
-    setSelectedRiskFlags((current) => {
-      const next = new Set(current);
-      if (next.has(flagId)) next.delete(flagId);
-      else next.add(flagId);
-      return next;
-    });
+    setSelectedRiskFlags((current) => toggleSetMember(current, flagId));
   }, []);
 
   const toggleRiskGroup = useCallback((flagIds: string[]) => {
-    setSelectedRiskFlags((current) => {
-      const allSelected =
-        flagIds.length > 0 && flagIds.every((flagId) => current.has(flagId));
-      const next = new Set(current);
-      for (const flagId of flagIds) {
-        if (allSelected) next.delete(flagId);
-        else next.add(flagId);
-      }
-      return next;
-    });
+    setSelectedRiskFlags((current) => toggleGroupSelection(current, flagIds));
   }, []);
 
   const addressWithEvidence = useCallback(
@@ -156,14 +145,9 @@ export function useRiskFlagFlow(
       note: string | undefined,
     ) => {
       if (!evidenceTarget) return;
-      addressWithEvidence(evidenceTarget.flagIds, (flag) => {
-        if (kind === "linked-comment")
-          return commentId
-            ? { kind, commentId }
-            : { kind: "chunk-reviewed", chunkId: flag.chunkId };
-        if (kind === "chunk-reviewed") return { kind, chunkId: flag.chunkId };
-        return note ? { kind, note } : { kind };
-      });
+      addressWithEvidence(evidenceTarget.flagIds, (flag) =>
+        resolveRiskEvidence(kind, commentId, note, flag.chunkId),
+      );
       setEvidenceTarget(null);
     },
     [addressWithEvidence, evidenceTarget],

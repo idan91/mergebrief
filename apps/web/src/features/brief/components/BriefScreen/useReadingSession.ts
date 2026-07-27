@@ -1,9 +1,7 @@
-// The reading-session facade hook (BRIEF-44 split, plan decision 11): the
-// per-brief Mind-Map store wiring, the progress/receipt derivation, and the
-// scroll/nav machinery (chunk scroller, scroll-spy, focus mode,
-// read-through). The screen wires props in and renders; this hook owns the
-// session's state and hides the store selector fan-out — only the members the
-// screen (or a sibling flow hook) actually consumes are exposed.
+// The reading-session facade hook: per-brief Mind-Map store wiring, the
+// progress/receipt derivation, and the scroll/nav machinery (chunk scroller,
+// scroll-spy, focus mode, read-through). Exposes only the members the screen
+// (or a sibling flow hook) consumes.
 import {
   useCallback,
   useEffect,
@@ -35,6 +33,11 @@ import type { Brief } from "../../types";
 import type { BriefViewModel, GroupView } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { LayoutMode, ViewMode } from "./Header/Header";
+import {
+  deriveBriefProgress,
+  groupStartIndexes,
+  toggleSetMember,
+} from "./utils";
 
 const EMPTY_CHUNK_IDS: string[] = [];
 
@@ -75,10 +78,6 @@ interface PendingChunkScroll {
   secondFrame: number | null;
 }
 
-/**
- * Single consumer of the pending-scroll choreography — stays co-located with
- * the reading session (ADR 0037, plan decision 11).
- */
 function useChunkScroller(): (
   chunkId: string,
   behavior?: ScrollBehavior,
@@ -223,11 +222,8 @@ export function useReadingSession(
   const reviewOutcome = useMindMap((state) => state.reviewOutcome);
   const actions = useMindMapActions();
   const scrollToChunk = useChunkScroller();
-  // Walk chunks in the rendered (grouped) order, not raw brief order — the
-  // StoryView lays chunks out by group, so J/K must follow the same sequence or
-  // it appears to jump backward and forward. Matches the openChunks seeding.
-  // The digest's chunk axis is the RENDERED order (grouped reading order),
-  // not raw brief order — same sequence J/K walks (codex round 1).
+  // RENDERED (grouped) order, not raw brief order — the StoryView lays chunks
+  // out by group, so J/K must follow the same sequence.
   const readingOrderedChunks = useMemo(
     () => model.groups.flatMap((group) => group.chunks),
     [model.groups],
@@ -238,18 +234,10 @@ export function useReadingSession(
       model.groups.flatMap((group) => group.chunks.map((chunk) => chunk.id)),
     [model.groups],
   );
-  // Index into `chunkIds` where each group starts, in the same order — feeds
-  // Shift+J/Shift+K (Read-through: jump to the next/prev group's first chunk
-  // in Reading order, or source order when no Reading order is present).
-  const groupBoundaries = useMemo(() => {
-    let offset = 0;
-    const boundaries: number[] = [];
-    for (const group of model.groups) {
-      boundaries.push(offset);
-      offset += group.chunks.length;
-    }
-    return boundaries;
-  }, [model.groups]);
+  const groupBoundaries = useMemo(
+    () => groupStartIndexes(model.groups),
+    [model.groups],
+  );
 
   // Transient UI state stays local and colocated.
   const [viewMode, setViewMode] = useState<ViewMode>("story");
@@ -263,10 +251,8 @@ export function useReadingSession(
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const activeChunkIdRef = useLatestRef(activeChunkId);
   const focusModeRef = useLatestRef(focusMode);
-  // Mirror of Header's --top-bar-h: publish the focus banner strip's measured
-  // height so sticky chunk headers (ChunkCard .head) and the focus rail can
-  // stack below the strip instead of pinning behind it. 0px whenever focus
-  // mode is off (the strip is unmounted).
+  // Publishes --focus-banner-h so sticky chunk headers and the focus rail
+  // stack below the strip; 0px whenever focus mode is off (strip unmounted).
   const focusBannerRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const setBannerHeight = (value: string) =>
@@ -291,16 +277,12 @@ export function useReadingSession(
     () => summarizeProgress(model, reviewedChunks, dispositions),
     [dispositions, model, reviewedChunks],
   );
-  // Own-draft state: flag dispositions are unreachable (read-only mirror), so
-  // counting them in the denominator would cap progress below 100% forever —
-  // progress is chunk read-through only there.
-  const totalWork = ownDraftActive
-    ? brief.chunks.length
-    : model.flags.length + brief.chunks.length;
-  const progressDone = ownDraftActive
-    ? totals.reviewed
-    : totals.reviewed + totals.flagsResolved;
-  const progress = totalWork === 0 ? 0 : (progressDone / totalWork) * 100;
+  const progress = deriveBriefProgress({
+    ownDraftActive,
+    totals,
+    flagCount: model.flags.length,
+    chunkCount: brief.chunks.length,
+  });
   const unresolvedItems = useMemo(
     () =>
       deriveUnresolvedItems({
@@ -361,29 +343,17 @@ export function useReadingSession(
   }, [scrollActiveChunkId]);
 
   const toggleChunk = useCallback((chunkId: string) => {
-    setOpenChunks((current) => {
-      const next = new Set(current);
-      if (next.has(chunkId)) next.delete(chunkId);
-      else next.add(chunkId);
-      return next;
-    });
+    setOpenChunks((current) => toggleSetMember(current, chunkId));
     setActiveChunkId(chunkId);
   }, []);
 
   const markReviewed = useCallback(
     (chunkId: string) => {
       const alreadyReviewed = reviewedChunks.has(chunkId);
-      // In ANY focus mode (Z or Start read-through — the two are visually
-      // identical, so gating on how it was entered read as broken), the
-      // Viewed control means "confirmed viewed → next": it must never stall
-      // the flow. An already-viewed chunk (viewed earlier in the session —
-      // snapshots persist across reloads — or revisited via K) is re-affirmed
-      // and advanced past, NOT un-checked; un-viewing stays available in the
-      // normal scrolling view, where bulk-marking happens. Advance is the
-      // strict next chunk in `chunkIds`; crossing a group boundary needs no
-      // special handling — FocusGroupRail renders for whichever group holds
-      // activeChunkId, so a plain chunk advance lands the reader on the next
-      // group's rail too. Never wraps past the last chunk.
+      // In ANY focus mode, Viewed means "confirmed viewed → next" and must
+      // never stall: an already-viewed chunk is re-affirmed and advanced past,
+      // NOT un-checked (un-viewing stays in the normal scrolling view).
+      // Advance is the strict next chunk in `chunkIds`; never wraps.
       if (focusModeRef.current) {
         if (!alreadyReviewed) {
           actions.reviewChunk(chunkId);
@@ -401,8 +371,7 @@ export function useReadingSession(
         }
         return;
       }
-      // reviewChunk is a pure store toggle; the collapse-on-review coupling lives
-      // here because openChunks is local UI — drop the chunk from it explicitly.
+      // Collapse-on-review lives here because openChunks is local UI.
       actions.reviewChunk(chunkId);
       setOpenChunks((current) => {
         const next = new Set(current);
@@ -440,13 +409,9 @@ export function useReadingSession(
     setFocusMode(entering);
     if (!entering) return;
     setViewMode("story");
-    // Re-anchor onto the chunk being focused so entering focus mode is always
-    // visible, even when that chunk was already at the top of the viewport.
-    // align="top" is required here (not the default "native" scrollIntoView):
-    // the focus banner only mounts once `focusMode` flips true, so the scroll
-    // that lands us on the chunk must already reserve its height via
-    // focusScrollOffset() — otherwise the banner renders on top of the chunk
-    // we just scrolled to.
+    // align="top" required: the focus banner only mounts once `focusMode`
+    // flips true, so the scroll must pre-reserve its height via
+    // focusScrollOffset() or the banner covers the chunk.
     const target = activeChunkIdRef.current ?? firstChunkId;
     if (!target) return;
     setActiveChunkId(target);
@@ -458,17 +423,13 @@ export function useReadingSession(
   );
   const closeShortcuts = useCallback(() => setShortcutsOpen(false), []);
 
-  // Read-through entry point: always starts at step 1 (the first chunk of
-  // the first group in Reading order — or source order without one),
-  // regardless of where the reader currently is. Distinct from Z/toggleFocus,
-  // which re-anchors focus mode onto whatever chunk is already active.
+  // Always starts at step 1, unlike Z/toggleFocus which re-anchors on the
+  // active chunk. align="top": see toggleFocusMode.
   const startReadThrough = useCallback(() => {
     if (!firstChunkId) return;
     setViewMode("story");
     setFocusMode(true);
     setActiveChunkId(firstChunkId);
-    // See toggleFocusMode: align="top" reserves the focus banner's height so
-    // it doesn't overlap the chunk we just entered focus mode on.
     scrollToChunk(firstChunkId, "smooth", "top");
   }, [firstChunkId, scrollToChunk]);
 
@@ -482,8 +443,8 @@ export function useReadingSession(
     [jumpToChunk, model.groups],
   );
 
-  // The intent-bar landing path (BRIEF-54 PR 4): the bar lives in the
-  // full-compare story view, so leave focus mode and return to story first.
+  // The intent bar lives in the full-compare story view, so leave focus mode
+  // and return to story first.
   const exitToStoryView = useCallback(() => {
     setFocusMode(false);
     setViewMode("story");

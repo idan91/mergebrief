@@ -71,7 +71,7 @@ import styles from "./BriefScreen.module.scss";
 export type { BriefComparisonPlan } from "./useComparisonOverlay";
 // The door for the copy constants: tests live outside this subtree and may
 // not reach into the hook files directly (ADR 0037 §2).
-export { markReadyBatchFailureCopy } from "./useMarkReadyFlow";
+export { markReadyBatchFailureCopy } from "./utils";
 export { POST_COMMENT_COPY } from "./useOwnDraftFlow";
 
 /**

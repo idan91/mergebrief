@@ -1,11 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import type { BriefChunk, ComparisonMarks, IntentCheck } from "../../types";
+import type { ProgressTotals } from "../../utils/progress";
+import type {
+  BriefChunk,
+  ComparisonAvailability,
+  ComparisonMarks,
+  IntentCheck,
+  RevisionNarrative,
+  RevisionNarrativeSkipped,
+} from "../../types";
 import {
   countComparisonRuns,
   countIntentGaps,
   countIntentTensions,
+  deriveBriefProgress,
   disabledComparisonQuery,
+  discriminateNarrativeArtifact,
+  groupStartIndexes,
+  markReadyBatchBusyLabel,
+  markReadyBatchFailureCopy,
+  resolveLocalComparisonIds,
+  resolveRiskEvidence,
+  toggleGroupSelection,
+  toggleSetMember,
 } from "./utils";
 
 function intentItem(overrides: { acknowledged?: boolean } = {}) {
@@ -144,6 +161,276 @@ describe("countComparisonRuns", () => {
       ),
     ).toBe(4);
     expect(countComparisonRuns([chunk("c3", "src/other.ts")], marks)).toBe(0);
+  });
+});
+
+describe("groupStartIndexes", () => {
+  it("returns [] for no groups", () => {
+    expect(groupStartIndexes([])).toEqual([]);
+  });
+
+  it("maps each group to the index its first chunk holds in the flat order", () => {
+    const groups = [
+      { chunks: ["a", "b"] },
+      { chunks: ["c"] },
+      { chunks: ["d", "e", "f"] },
+    ];
+    expect(groupStartIndexes(groups)).toEqual([0, 2, 3]);
+  });
+});
+
+describe("deriveBriefProgress", () => {
+  const totals: ProgressTotals = {
+    reviewed: 1,
+    chunkTotal: 4,
+    flagsResolved: 2,
+    flagTotal: 2,
+  };
+
+  it("returns 0 when there is no work at all", () => {
+    expect(
+      deriveBriefProgress({
+        ownDraftActive: false,
+        totals: { reviewed: 0, chunkTotal: 0, flagsResolved: 0, flagTotal: 0 },
+        flagCount: 0,
+        chunkCount: 0,
+      }),
+    ).toBe(0);
+  });
+
+  it("counts chunks and flag dispositions for a reviewer", () => {
+    expect(
+      deriveBriefProgress({
+        ownDraftActive: false,
+        totals,
+        flagCount: 2,
+        chunkCount: 4,
+      }),
+    ).toBe(50);
+  });
+
+  it("counts chunk read-through only in the own-draft state", () => {
+    expect(
+      deriveBriefProgress({
+        ownDraftActive: true,
+        totals,
+        flagCount: 2,
+        chunkCount: 4,
+      }),
+    ).toBe(25);
+  });
+});
+
+describe("resolveLocalComparisonIds", () => {
+  const comparisons: ComparisonAvailability = {
+    previousBrief: {
+      marksId: "prev-marks",
+      narrativeId: "prev-narrative",
+      baselineSha: "sha-prev",
+      baselineIndex: 0,
+    },
+    lastReview: {
+      marksId: "review-marks",
+      deltaId: "review-delta",
+      baselineSha: "sha-review",
+      baselineIndex: 1,
+    },
+  };
+
+  it("resolves nothing while Compare is off", () => {
+    expect(resolveLocalComparisonIds("off", comparisons)).toEqual({
+      marksId: undefined,
+      narrativeId: undefined,
+      deltaId: undefined,
+    });
+  });
+
+  it("resolves nothing without a selected point", () => {
+    expect(resolveLocalComparisonIds("previous-brief", undefined)).toEqual({
+      marksId: undefined,
+      narrativeId: undefined,
+      deltaId: undefined,
+    });
+  });
+
+  it("resolves previous-brief marks + narrative, never a delta", () => {
+    expect(resolveLocalComparisonIds("previous-brief", comparisons)).toEqual({
+      marksId: "prev-marks",
+      narrativeId: "prev-narrative",
+      deltaId: undefined,
+    });
+  });
+
+  it("resolves last-review marks + delta, never a narrative", () => {
+    expect(resolveLocalComparisonIds("last-review", comparisons)).toEqual({
+      marksId: "review-marks",
+      narrativeId: undefined,
+      deltaId: "review-delta",
+    });
+  });
+});
+
+describe("discriminateNarrativeArtifact", () => {
+  const pr = {
+    repo: "o/r",
+    number: 1,
+    title: "t",
+    url: "",
+    sha: "head",
+    description: "",
+  };
+  const narrative: RevisionNarrative = {
+    artifactKind: "revisionNarrative",
+    pr,
+    prevHeadSha: "prev",
+    headSha: "head",
+    prevIndex: 0,
+    headIndex: 1,
+    generation: { provider: "p", model: "m", effort: null },
+    overview: "what changed",
+    chunks: [],
+  };
+  const skipped: RevisionNarrativeSkipped = {
+    artifactKind: "revisionNarrativeSkipped",
+    pr,
+    prevHeadSha: "prev",
+    headSha: "head",
+    prevIndex: 0,
+    headIndex: 1,
+    skipped: "span too large",
+  };
+
+  it("returns neither for an absent artifact", () => {
+    expect(discriminateNarrativeArtifact(null)).toEqual({
+      narrative: null,
+      skipReason: null,
+    });
+  });
+
+  it("returns the narrative for a real narrative artifact", () => {
+    expect(discriminateNarrativeArtifact(narrative)).toEqual({
+      narrative,
+      skipReason: null,
+    });
+  });
+
+  it("returns only the skip reason for a skip stub", () => {
+    expect(discriminateNarrativeArtifact(skipped)).toEqual({
+      narrative: null,
+      skipReason: "span too large",
+    });
+  });
+});
+
+describe("markReadyBatchFailureCopy", () => {
+  it("always carries honest counts and the NOT-marked-ready suffix", () => {
+    for (const cause of [
+      "rejected",
+      "unauthorized",
+      "stale",
+      "not-found",
+      "indeterminate",
+    ] as const) {
+      const copy = markReadyBatchFailureCopy(1, 3, cause);
+      expect(copy).toContain("Posted 1 of 3.");
+      expect(copy).toContain("The PR was NOT marked ready.");
+    }
+  });
+
+  it("gives the cause's own recovery guidance", () => {
+    expect(markReadyBatchFailureCopy(0, 1, "rejected")).toContain(
+      "edit the draft and try again",
+    );
+    expect(markReadyBatchFailureCopy(0, 1, "unauthorized")).toContain(
+      "sign in again",
+    );
+    expect(markReadyBatchFailureCopy(0, 1, "stale")).toContain(
+      "reload to post against the current diff",
+    );
+    expect(markReadyBatchFailureCopy(0, 1, "not-found")).toContain(
+      "no longer accessible",
+    );
+  });
+
+  it("keeps the indeterminate cause indeterminate — never a confident 'not posted'", () => {
+    expect(markReadyBatchFailureCopy(2, 3, "indeterminate")).toContain(
+      "may or may not have posted — check GitHub before retrying",
+    );
+  });
+});
+
+describe("markReadyBatchBusyLabel", () => {
+  it("returns undefined while no batch runs", () => {
+    expect(markReadyBatchBusyLabel(null)).toBeUndefined();
+  });
+
+  it("labels the running batch's progress", () => {
+    expect(markReadyBatchBusyLabel({ current: 2, total: 3 })).toBe(
+      "Posting 2 of 3…",
+    );
+  });
+});
+
+describe("toggleSetMember", () => {
+  it("adds an absent member without mutating the input", () => {
+    const current = new Set(["a"]);
+    expect(toggleSetMember(current, "b")).toEqual(new Set(["a", "b"]));
+    expect(current).toEqual(new Set(["a"]));
+  });
+
+  it("removes a present member without mutating the input", () => {
+    const current = new Set(["a", "b"]);
+    expect(toggleSetMember(current, "b")).toEqual(new Set(["a"]));
+    expect(current).toEqual(new Set(["a", "b"]));
+  });
+});
+
+describe("toggleGroupSelection", () => {
+  it("selects the whole group when any member is unselected", () => {
+    expect(toggleGroupSelection(new Set(["f1"]), ["f1", "f2"])).toEqual(
+      new Set(["f1", "f2"]),
+    );
+  });
+
+  it("deselects the whole group when every member is selected", () => {
+    expect(
+      toggleGroupSelection(new Set(["f1", "f2", "other"]), ["f1", "f2"]),
+    ).toEqual(new Set(["other"]));
+  });
+
+  it("leaves the selection unchanged for an empty group", () => {
+    const current = new Set(["f1"]);
+    expect(toggleGroupSelection(current, [])).toEqual(new Set(["f1"]));
+    expect(current).toEqual(new Set(["f1"]));
+  });
+});
+
+describe("resolveRiskEvidence", () => {
+  it("links the comment when one is chosen", () => {
+    expect(
+      resolveRiskEvidence("linked-comment", "c1", undefined, "chunk-1"),
+    ).toEqual({ kind: "linked-comment", commentId: "c1" });
+  });
+
+  it("falls back to chunk-reviewed when linked-comment has no comment", () => {
+    expect(
+      resolveRiskEvidence("linked-comment", undefined, undefined, "chunk-1"),
+    ).toEqual({ kind: "chunk-reviewed", chunkId: "chunk-1" });
+  });
+
+  it("anchors chunk-reviewed evidence on the flag's chunk", () => {
+    expect(
+      resolveRiskEvidence("chunk-reviewed", undefined, undefined, "chunk-1"),
+    ).toEqual({ kind: "chunk-reviewed", chunkId: "chunk-1" });
+  });
+
+  it("carries the manual note only when one was written", () => {
+    expect(
+      resolveRiskEvidence("manual-note", undefined, "a note", "chunk-1"),
+    ).toEqual({ kind: "manual-note", note: "a note" });
+    expect(
+      resolveRiskEvidence("manual-note", undefined, undefined, "chunk-1"),
+    ).toEqual({ kind: "manual-note" });
   });
 });
 
