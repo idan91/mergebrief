@@ -3,7 +3,7 @@
    (decorative); the accessible, labelled control is the jump button inside
    it, which exposes the same preview via onFocus. */
 import type { BriefChunk } from "../../types";
-import type { ComparisonRun } from "../../comparison";
+import type { ComparisonRun } from "../../comparison/comparison";
 import styles from "./RevisionGutterCell.module.scss";
 
 export interface RevisionGutterCellProps {

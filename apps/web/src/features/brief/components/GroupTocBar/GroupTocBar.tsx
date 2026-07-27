@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { prefersReducedMotion } from "../../../../lib/motion";
+import { prefersReducedMotion } from "@web/utils/motion";
 import { categoryLabel } from "../../viewModel";
 import type { GroupView } from "../../viewModel";
 import styles from "./GroupTocBar.module.scss";

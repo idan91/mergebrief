@@ -1,4 +1,4 @@
-import { Drawer } from "../../../../components/Drawer/Drawer";
+import { Drawer } from "@web/components/Drawer/Drawer";
 import { RECEIPT_NOT_CHECKED, type Receipt } from "../../receipt";
 import styles from "./ReceiptDrawer.module.scss";
 

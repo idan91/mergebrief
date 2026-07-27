@@ -1,4 +1,4 @@
-import type { BriefSearch } from "./compareState";
+import type { BriefSearch } from "./comparison/compareState";
 import type { LocalBriefSummary } from "./types";
 
 export interface LegacyDeltaRedirect {

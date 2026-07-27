@@ -1,4 +1,4 @@
-import { Modal } from "../../../../components/Modal/Modal";
+import { Modal } from "@web/components/Modal/Modal";
 import type { UnresolvedItem } from "../../state";
 import styles from "../ModalContent.module.scss";
 

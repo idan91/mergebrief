@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type ReactNode } from "react";
 
-import { Callout } from "../../../../components/Callout";
+import { Callout } from "@web/components/Callout/Callout";
 import styles from "./RiskChipDisclosure.module.scss";
 
 export interface RiskChipDisclosureProps {

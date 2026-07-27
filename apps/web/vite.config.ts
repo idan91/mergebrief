@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
 /** The deployment's own public hostname, from PUBLIC_BASE_URL; undefined
@@ -60,6 +61,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "~": "/src",
+      "@web": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
   plugins: [tanstackStart(), viteReact()],

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { AttributeDisplayMeta } from "../../repoConfig";
 import { Badge, BadgeColors } from "./Badge";
 import styles from "./RiskBadge.module.scss";

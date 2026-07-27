@@ -6,28 +6,28 @@ import {
   type CSSProperties,
 } from "react";
 
-import { rangeBetween } from "../../../../lib/collections";
-import { CommentComposer } from "../../../review/components/CommentComposer/CommentComposer";
-import { CommentThread } from "../../../review/components/CommentThread/CommentThread";
+import { rangeBetween } from "@web/utils/collections";
+import { CommentComposer } from "@web/features/review/components/CommentComposer/CommentComposer";
+import { CommentThread } from "@web/features/review/components/CommentThread/CommentThread";
 import {
   ThreadRowView,
   type ThreadComposerWiring,
-} from "../../../conversation/components/ConversationSection/ConversationSection";
-import type { DigestThreadRow } from "../../../conversation/digest";
+} from "@web/features/conversation/components/ConversationSection/ConversationSection";
+import type { DigestThreadRow } from "@web/features/conversation/digest";
 
 // Row-level threads already sit AT their line — the detail's jump is hidden.
 const noJump = () => undefined;
-import { AddressedDiffComment } from "../../../review/components/AddressedDiffComment/AddressedDiffComment";
+import { AddressedDiffComment } from "@web/features/review/components/AddressedDiffComment/AddressedDiffComment";
 import {
   createCommentAnchor,
   type CommentAnchor,
   type ReviewComment,
-} from "../../../review/comments";
+} from "@web/features/review/comments";
 import {
   type ChunkComparisonView,
   type ComparisonRun,
   type ComparisonSource,
-} from "../../comparison";
+} from "../../comparison/comparison";
 import type {
   AddressedReviewComment,
   BriefChunk,

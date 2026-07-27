@@ -1,6 +1,6 @@
 import type { CompareParam } from "./compareState";
 import type { ComparisonMarkFiles, ComparisonSource } from "./comparison";
-import type { RevisionNarrativeSkipReason } from "./types";
+import type { RevisionNarrativeSkipReason } from "../types";
 
 /**
  * @description The comparison overlay state shared down the story view (ADR

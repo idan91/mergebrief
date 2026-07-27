@@ -10,9 +10,9 @@
 // (N>0), with a jump link and NO auto-post; "Mark ready anyway" is one click
 // and records nothing. The zero-flag bypass lives in the caller: the modal
 // shows iff flags exist.
-import { Modal } from "../../../../components/Modal/Modal";
-import type { RiskFlag } from "../../../brief/viewModel";
-import styles from "../../../review/components/ModalContent.module.scss";
+import { Modal } from "@web/components/Modal/Modal";
+import type { RiskFlag } from "@web/features/brief/viewModel";
+import styles from "@web/features/review/components/ModalContent.module.scss";
 
 export interface MarkReadyModalProps {
   open: boolean;

@@ -14,7 +14,7 @@ import type {
   DiffLine,
   RevisionChanges,
   RevisionNarrative,
-} from "./types";
+} from "../types";
 
 function chunk(file: string, diff: DiffLine[]): BriefChunk {
   return {

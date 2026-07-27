@@ -9,8 +9,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 
-import type { ChunkComparisonView } from "../../comparison";
-import type { ComparisonQuery } from "../../comparisonQuery";
+import type { ChunkComparisonView } from "../../comparison/comparison";
+import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import { buildRawSpanDiffChunks } from "../../rawSpanDiff";
 import type { BriefChunk } from "../../types";
 import { DiffTable } from "../DiffTable/DiffTable";

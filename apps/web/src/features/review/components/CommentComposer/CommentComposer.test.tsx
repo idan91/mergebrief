@@ -5,8 +5,8 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Brief } from "../../../brief/types";
-import { buildBriefViewModel } from "../../../brief/viewModel";
+import type { Brief } from "@web/features/brief/types";
+import { buildBriefViewModel } from "@web/features/brief/viewModel";
 import type { CommentAnchor, ReviewComment } from "../../comments";
 import { MindMapProvider, type SessionSnapshot } from "../../session";
 import { CommentComposer } from "./CommentComposer";

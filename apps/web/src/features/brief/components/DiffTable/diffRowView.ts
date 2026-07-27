@@ -2,13 +2,13 @@ import {
   rowId,
   type CommentAnchor,
   type ReviewComment,
-} from "../../../review/comments";
+} from "@web/features/review/comments";
 import { reviewCommentMatchesDiffLine } from "../../reviewComments";
 import {
   type ChunkComparisonView,
   type ComparisonRowKind,
   type ComparisonRun,
-} from "../../comparison";
+} from "../../comparison/comparison";
 import type { AddressedReviewComment, BriefChunk, DiffLine } from "../../types";
 
 export interface DiffRowViewParams {

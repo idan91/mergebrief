@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 
-import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { RiskBadge } from "../Badge/RiskBadge";
 import type { AttributeRail } from "../../viewModel";
 import styles from "./AttributeJumpRail.module.scss";

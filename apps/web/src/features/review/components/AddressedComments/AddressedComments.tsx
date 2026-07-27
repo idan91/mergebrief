@@ -1,5 +1,8 @@
-import { Markdown } from "../../../../components/Markdown/Markdown";
-import type { AddressedReviewComment, BriefChunk } from "../../../brief/types";
+import { Markdown } from "@web/components/Markdown/Markdown";
+import type {
+  AddressedReviewComment,
+  BriefChunk,
+} from "@web/features/brief/types";
 import styles from "./AddressedComments.module.scss";
 
 /** Formats the line range suffix for an addressed (shipped) review comment. */

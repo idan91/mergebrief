@@ -12,7 +12,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ComparisonQuery } from "../../comparisonQuery";
+import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import { RawSpanDiff } from "./RawSpanDiff";
 
 afterEach(cleanup);

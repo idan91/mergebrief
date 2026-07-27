@@ -9,7 +9,7 @@ import {
   type CompareParam,
   type CompareOptionFlags,
   type ViewParam,
-} from "../../compareState";
+} from "../../comparison/compareState";
 import type { BriefTimeline } from "../../timeline";
 import styles from "./TimelineNavigator.module.scss";
 

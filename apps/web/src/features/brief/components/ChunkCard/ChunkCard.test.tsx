@@ -12,8 +12,8 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MindMapProvider } from "../../../review/session";
-import type { ComparisonOverlayState } from "../../comparisonOverlay";
+import { MindMapProvider } from "@web/features/review/session";
+import type { ComparisonOverlayState } from "../../comparison/comparisonOverlay";
 import type { Brief, BriefChunk } from "../../types";
 import { buildBriefViewModel } from "../../viewModel";
 import { ChunkCard, type ChunkCardProps } from "./ChunkCard";

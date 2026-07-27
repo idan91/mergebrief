@@ -5,7 +5,7 @@ import type {
   LineRange,
   RevisionChangeFile,
   RevisionNarrative,
-} from "./types";
+} from "../types";
 
 /**
  * The full-Brief comparison overlay (ADR 0021/0024): join a baseline's shared,

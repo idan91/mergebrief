@@ -14,10 +14,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type * as SessionModule from "../../../review/session";
+import type * as SessionModule from "@web/features/review/session";
 
-import type { BriefChunk } from "../../../brief/types";
-import type { ReviewComment } from "../../../review/comments";
+import type { BriefChunk } from "@web/features/brief/types";
+import type { ReviewComment } from "@web/features/review/comments";
 import type { ConversationResult } from "../../queries";
 import type { PrConversation } from "../../types";
 import {
@@ -26,7 +26,7 @@ import {
   type ConversationSectionProps,
 } from "./ConversationSection";
 
-vi.mock("../../../review/session", async (importOriginal) => {
+vi.mock("@web/features/review/session", async (importOriginal) => {
   const actual = await importOriginal<typeof SessionModule>();
   return {
     ...actual,
@@ -438,7 +438,7 @@ describe("ReplyComposer", () => {
 
   it("clears the durable draft when success settles after unmount", async () => {
     const { markSnapshotCommentsSubmitted: _flip, persistReplyDraft } =
-      await import("../../../review/session");
+      await import("@web/features/review/session");
     const durable = vi.mocked(persistReplyDraft);
     durable.mockClear();
     const release: {

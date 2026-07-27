@@ -1,9 +1,9 @@
-import { Callout } from "../../../../components/Callout";
+import { Callout } from "@web/components/Callout/Callout";
 import {
   bindComparisonCallout,
   type ComparisonRun,
   type ComparisonSource,
-} from "../../comparison";
+} from "../../comparison/comparison";
 import type { BriefChunk, RevisionNarrativeSkipReason } from "../../types";
 
 import styles from "./ComparisonCallout.module.scss";

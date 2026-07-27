@@ -1,4 +1,4 @@
-import { Markdown } from "../../../../components/Markdown/Markdown";
+import { Markdown } from "@web/components/Markdown/Markdown";
 import { categoryLabel } from "../../viewModel";
 import type { BriefViewModel } from "../../viewModel";
 import { buildBriefViewModel } from "../../viewModel";
@@ -12,7 +12,7 @@ import type {
   RevisionNarrativeChunk,
   RevisionNarrativeSkipReason,
 } from "../../types";
-import type { ComparisonQuery } from "../../comparisonQuery";
+import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import { DeltaContext } from "../DeltaContext/DeltaContext";
 import { RawSpanDiff } from "../RawSpanDiff/RawSpanDiff";
 import styles from "./ChangesOnlyView.module.scss";

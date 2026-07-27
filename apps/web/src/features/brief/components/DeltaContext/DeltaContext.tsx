@@ -1,4 +1,4 @@
-import { Markdown } from "../../../../components/Markdown/Markdown";
+import { Markdown } from "@web/components/Markdown/Markdown";
 import type { Brief } from "../../types";
 import styles from "./DeltaContext.module.scss";
 

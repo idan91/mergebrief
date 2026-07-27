@@ -7,7 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { BriefChunk } from "../../../brief/types";
+import type { BriefChunk } from "@web/features/brief/types";
 import { buildInlineThreads } from "../../digest";
 import type { ConversationThread, PrConversation } from "../../types";
 import type { ThreadComposerWiring } from "../ConversationSection/ConversationSection";

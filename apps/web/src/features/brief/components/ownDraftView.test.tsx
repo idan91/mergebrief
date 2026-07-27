@@ -26,11 +26,9 @@ import { MARK_READY_COPY } from "../../pulls/useMarkReady";
 import type { ReviewComment } from "../../review/comments";
 import { writeSnapshot } from "../../review/session";
 import type { OwnDraftPlan } from "./BriefPage/BriefPage";
-import {
-  BriefView,
-  markReadyBatchFailureCopy,
-  POST_COMMENT_COPY,
-} from "./BriefPage/BriefPage";
+import { BriefView } from "./BriefPage/BriefPage";
+import { markReadyBatchFailureCopy } from "./BriefPage/useMarkReadyFlow";
+import { POST_COMMENT_COPY } from "./BriefPage/useOwnDraftFlow";
 import type { Brief } from "../types";
 import { briefFixture } from "../fixtures";
 

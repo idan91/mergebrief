@@ -13,14 +13,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { Markdown } from "../../../../components/Markdown/Markdown";
-import { prefersReducedMotion } from "../../../../lib/motion";
-import type { BriefChunk } from "../../../brief/types";
-import type { ReviewComment } from "../../../review/comments";
+import { Markdown } from "@web/components/Markdown/Markdown";
+import { prefersReducedMotion } from "@web/utils/motion";
+import type { BriefChunk } from "@web/features/brief/types";
+import type { ReviewComment } from "@web/features/review/comments";
 import {
   markSnapshotCommentsSubmitted,
   persistReplyDraft,
-} from "../../../review/session";
+} from "@web/features/review/session";
 import { deriveDigestLine } from "../../digestLine";
 import {
   buildConversationDigest,

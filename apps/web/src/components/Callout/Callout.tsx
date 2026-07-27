@@ -15,7 +15,7 @@ import {
 } from "@floating-ui/react";
 import { useRef, type ReactNode } from "react";
 
-import { prefersReducedMotion } from "../lib/motion";
+import { prefersReducedMotion } from "../../utils/motion";
 import styles from "./Callout.module.scss";
 
 export interface CalloutProps {

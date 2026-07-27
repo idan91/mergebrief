@@ -6,7 +6,7 @@ import {
   parseCompareParam,
   parseViewParam,
   type BriefSearchParams,
-} from "../features/brief/compareState";
+} from "../features/brief/comparison/compareState";
 import { resolveLegacyDeltaRedirect } from "../features/brief/legacyRedirect";
 import {
   localBriefQueryOptions,

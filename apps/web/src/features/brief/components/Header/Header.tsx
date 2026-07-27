@@ -9,7 +9,10 @@ import {
   type ReactNode,
 } from "react";
 
-import type { BriefSearch, CompareOptionFlags } from "../../compareState";
+import type {
+  BriefSearch,
+  CompareOptionFlags,
+} from "../../comparison/compareState";
 import type { ProgressTotals } from "../../progress";
 import type { BriefTimeline } from "../../timeline";
 import type { RepoConfigContext } from "../../repoConfig";

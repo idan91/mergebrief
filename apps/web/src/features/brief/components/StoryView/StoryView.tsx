@@ -1,14 +1,17 @@
 import { useId, useState } from "react";
 
-import type { CommentAnchor, ReviewComment } from "../../../review/comments";
-import type { DismissTarget } from "../../../review/components/DismissModal/DismissModal";
-import type { EvidenceTarget } from "../../../review/components/EvidenceModal/EvidenceModal";
+import type {
+  CommentAnchor,
+  ReviewComment,
+} from "@web/features/review/comments";
+import type { DismissTarget } from "@web/features/review/components/DismissModal/DismissModal";
+import type { EvidenceTarget } from "@web/features/review/components/EvidenceModal/EvidenceModal";
 import { useRevisionNavigation } from "../../useRevisionNavigation";
-import type { ComparisonOverlayState } from "../../comparisonOverlay";
+import type { ComparisonOverlayState } from "../../comparison/comparisonOverlay";
 import type { AddressedReviewComment, Brief } from "../../types";
 import type { BriefViewModel, RiskFlag } from "../../viewModel";
-import type { DigestRow } from "../../../conversation/digest";
-import type { ThreadComposerWiring } from "../../../conversation/components/ConversationSection/ConversationSection";
+import type { DigestRow } from "@web/features/conversation/digest";
+import type { ThreadComposerWiring } from "@web/features/conversation/components/ConversationSection/ConversationSection";
 import { ChunkCard } from "../ChunkCard/ChunkCard";
 import { GroupCard } from "../GroupCard/GroupCard";
 import { RiskBadge } from "../Badge/RiskBadge";

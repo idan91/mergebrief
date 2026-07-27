@@ -21,7 +21,7 @@ import {
   type BriefSearch,
   type BriefSearchParams,
   type CompareOptionFlags,
-} from "../features/brief/compareState";
+} from "../features/brief/comparison/compareState";
 import {
   BriefView,
   type BriefComparisonPlan,

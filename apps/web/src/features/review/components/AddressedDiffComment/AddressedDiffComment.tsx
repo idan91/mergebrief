@@ -1,5 +1,5 @@
-import { Markdown } from "../../../../components/Markdown/Markdown";
-import type { AddressedReviewComment } from "../../../brief/types";
+import { Markdown } from "@web/components/Markdown/Markdown";
+import type { AddressedReviewComment } from "@web/features/brief/types";
 import { addressedCommentRange } from "../AddressedComments/AddressedComments";
 import styles from "./AddressedDiffComment.module.scss";
 

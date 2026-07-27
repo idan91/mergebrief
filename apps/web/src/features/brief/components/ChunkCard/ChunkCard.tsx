@@ -1,30 +1,39 @@
 import { memo, useMemo, useRef } from "react";
 
-import { CopyButton } from "../../../../components/CopyButton/CopyButton";
+import { CopyButton } from "@web/components/CopyButton/CopyButton";
 import { reviewCommentsForChunk } from "../../reviewComments";
-import { buildChunkComparisonView } from "../../comparison";
+import { buildChunkComparisonView } from "../../comparison/comparison";
 import type {
   AddressedReviewComment,
   BriefChunk,
   RiskToken,
 } from "../../types";
 import type { AttributeDisplayMeta } from "../../repoConfig";
-import type { ComparisonOverlayState } from "../../comparisonOverlay";
+import type { ComparisonOverlayState } from "../../comparison/comparisonOverlay";
 import {
   AddressedComments,
   ReviewComments,
-} from "../../../review/components/AddressedComments/AddressedComments";
-import type { CommentAnchor, ReviewComment } from "../../../review/comments";
-import { useChunkReviewComments, useMindMap } from "../../../review/session";
+} from "@web/features/review/components/AddressedComments/AddressedComments";
+import type {
+  CommentAnchor,
+  ReviewComment,
+} from "@web/features/review/comments";
+import {
+  useChunkReviewComments,
+  useMindMap,
+} from "@web/features/review/session";
 import { riskChipView } from "../../viewModel";
-import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { RiskBadge } from "../Badge/RiskBadge";
 import { RiskChipDisclosure } from "../Badge/RiskChipDisclosure";
 import { RiskDetailList } from "../Badge/RiskDetailList";
 import { RoleBadge } from "../Badge/RoleBadge";
-import { splitInlineRows, type DigestRow } from "../../../conversation/digest";
-import { InlineThreads } from "../../../conversation/components/InlineThreads/InlineThreads";
-import type { ThreadComposerWiring } from "../../../conversation/components/ConversationSection/ConversationSection";
+import {
+  splitInlineRows,
+  type DigestRow,
+} from "@web/features/conversation/digest";
+import { InlineThreads } from "@web/features/conversation/components/InlineThreads/InlineThreads";
+import type { ThreadComposerWiring } from "@web/features/conversation/components/ConversationSection/ConversationSection";
 import { DiffTable } from "../DiffTable/DiffTable";
 import styles from "./ChunkCard.module.scss";
 

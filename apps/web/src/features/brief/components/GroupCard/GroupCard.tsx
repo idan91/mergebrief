@@ -1,11 +1,11 @@
 import { memo } from "react";
 
-import type { ReviewComment } from "../../../review/comments";
-import type { DismissTarget } from "../../../review/components/DismissModal/DismissModal";
-import type { EvidenceTarget } from "../../../review/components/EvidenceModal/EvidenceModal";
-import type { Disposition } from "../../../review/session";
-import { useMindMap, useMindMapActions } from "../../../review/session";
-import { riskEvidenceLabel } from "../../../review/state";
+import type { ReviewComment } from "@web/features/review/comments";
+import type { DismissTarget } from "@web/features/review/components/DismissModal/DismissModal";
+import type { EvidenceTarget } from "@web/features/review/components/EvidenceModal/EvidenceModal";
+import type { Disposition } from "@web/features/review/session";
+import { useMindMap, useMindMapActions } from "@web/features/review/session";
+import { riskEvidenceLabel } from "@web/features/review/state";
 import type { BriefChunk, Category } from "../../types";
 import {
   groupRiskByAttribute,
@@ -13,7 +13,7 @@ import {
   type GroupView,
   type RiskFlag,
 } from "../../viewModel";
-import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { RiskBadge } from "../Badge/RiskBadge";
 import { RiskChipDisclosure } from "../Badge/RiskChipDisclosure";
 import { RiskDetailList } from "../Badge/RiskDetailList";

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ScreenReaderOnly } from "../ScreenReaderOnly";
+import { ScreenReaderOnly } from "../ScreenReaderOnly/ScreenReaderOnly";
 import styles from "./CopyButton.module.scss";
 
 type CopyState = "idle" | "copied" | "failed";

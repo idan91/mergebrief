@@ -17,7 +17,7 @@ import {
   type CompareOptionFlags,
   type CompareParam,
   type ViewParam,
-} from "../../brief/compareState";
+} from "../../brief/comparison/compareState";
 import styles from "./DbCompareBar.module.scss";
 
 export interface DbCompareBarProps {

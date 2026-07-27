@@ -7,15 +7,15 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ThreadComposerWiring } from "../../../conversation/components/ConversationSection/ConversationSection";
+import type { ThreadComposerWiring } from "@web/features/conversation/components/ConversationSection/ConversationSection";
 import {
   buildInlineThreads,
   splitInlineRows,
-} from "../../../conversation/digest";
+} from "@web/features/conversation/digest";
 import type {
   ConversationThread,
   PrConversation,
-} from "../../../conversation/types";
+} from "@web/features/conversation/types";
 import type { BriefChunk } from "../../types";
 import { DiffTable, type DiffTableProps } from "./DiffTable";
 

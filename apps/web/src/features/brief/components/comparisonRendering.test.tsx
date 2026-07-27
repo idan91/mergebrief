@@ -4,8 +4,11 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { buildChunkComparisonView, type ComparisonSource } from "../comparison";
-import type { ComparisonQuery } from "../comparisonQuery";
+import {
+  buildChunkComparisonView,
+  type ComparisonSource,
+} from "../comparison/comparison";
+import type { ComparisonQuery } from "../comparison/comparisonQuery";
 import type {
   Brief,
   BriefChunk,

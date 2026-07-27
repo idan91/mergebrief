@@ -1,7 +1,7 @@
 import type { Brief } from "../../types";
 import { Fragment } from "react";
 
-import { ScreenReaderOnly } from "../../../../components/ScreenReaderOnly";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { riskChipView, type BriefViewModel } from "../../viewModel";
 import { RiskBadge } from "../Badge/RiskBadge";
 import { RiskChipDisclosure } from "../Badge/RiskChipDisclosure";
