@@ -75,7 +75,7 @@ function BriefRoute() {
 
 function BriefError({ error }: { error: Error }) {
   return (
-    <main className="main">
+    <main className="main" id="main-content" tabIndex={-1}>
       <section className={styles["errorState"]}>
         <h1>Brief failed to load</h1>
         <p>{error.message}</p>

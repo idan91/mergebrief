@@ -59,6 +59,7 @@ export function CommentComposer({
       </div>
       <div className={styles["tabs"]}>
         <button
+          aria-pressed={composer.mode === "write"}
           data-state={composer.mode === "write" ? "active" : undefined}
           type="button"
           onClick={() => composer.setMode("write")}
@@ -66,6 +67,7 @@ export function CommentComposer({
           Write
         </button>
         <button
+          aria-pressed={composer.mode === "preview"}
           data-state={composer.mode === "preview" ? "active" : undefined}
           type="button"
           onClick={() => composer.setMode("preview")}
@@ -76,10 +78,16 @@ export function CommentComposer({
       {composer.mode === "write" ? (
         <>
           <div className={styles["toolbar"]}>
-            <button type="button" onClick={composer.wrapBold}>
+            {/* Single-glyph buttons get real accessible names — "B" and "1."
+                are display, not names a screen reader can act on. */}
+            <button aria-label="Bold" type="button" onClick={composer.wrapBold}>
               B
             </button>
-            <button type="button" onClick={composer.wrapItalic}>
+            <button
+              aria-label="Italic"
+              type="button"
+              onClick={composer.wrapItalic}
+            >
               I
             </button>
             <button type="button" onClick={composer.wrapCode}>
@@ -91,7 +99,11 @@ export function CommentComposer({
             <button type="button" onClick={composer.insertList}>
               List
             </button>
-            <button type="button" onClick={composer.insertOrderedList}>
+            <button
+              aria-label="Numbered list"
+              type="button"
+              onClick={composer.insertOrderedList}
+            >
               1.
             </button>
             <button type="button" onClick={composer.insertTask}>
@@ -105,6 +117,7 @@ export function CommentComposer({
             </button>
           </div>
           <textarea
+            aria-label="Comment"
             className={styles["textarea"]}
             ref={composer.textareaRef}
             autoFocus
@@ -119,7 +132,9 @@ export function CommentComposer({
         <MarkdownPreview anchor={anchor} body={composer.body} />
       )}
       {composer.error ? (
-        <div className={styles["error"]}>{composer.error}</div>
+        <div className={styles["error"]} role="alert">
+          {composer.error}
+        </div>
       ) : null}
       <div className={styles["actions"]}>
         <button className="btn primary" type="button" onClick={composer.submit}>

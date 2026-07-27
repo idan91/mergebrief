@@ -20,7 +20,7 @@ function SettingsPage() {
 
   return (
     <main className={styles["main"]} id="main-content" tabIndex={-1}>
-      <nav className={styles["breadcrumb"]}>
+      <nav aria-label="Breadcrumb" className={styles["breadcrumb"]}>
         <Link to="/">← Back to Briefs</Link>
       </nav>
       <h1>Settings</h1>

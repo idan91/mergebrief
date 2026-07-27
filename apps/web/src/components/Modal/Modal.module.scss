@@ -37,6 +37,9 @@
       margin-block-end: 3px;
       font-size: var(--font-size-xl);
       font-weight: 600;
+
+      // Pre-scale body line-height pinned (base heading defaults set 1.35).
+      line-height: 1.55;
     }
 
     textarea {

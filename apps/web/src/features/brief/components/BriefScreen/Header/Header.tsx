@@ -18,6 +18,7 @@ import type { BriefTimeline } from "../../../utils/timeline";
 import type { RepoConfigContext } from "../../../utils/repoConfig";
 import type { Brief } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
@@ -301,7 +302,7 @@ export function Header({
           />
         )}
         <fieldset className={styles["viewbar"]}>
-          <legend className="sr-only">Review view</legend>
+          <ScreenReaderOnly as="legend">Review view</ScreenReaderOnly>
           <label className={styles["viewOption"]}>
             <input
               checked={viewMode === "story"}

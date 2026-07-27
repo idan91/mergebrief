@@ -36,6 +36,46 @@
     color: inherit;
   }
 
+  // The designed heading scale (owner call 2026-07-27): heading LEVEL is
+  // outline semantics — pick it for the document structure, never for the
+  // size. This scale is only the unstyled DEFAULT so a new heading can never
+  // explode to UA sizes; overriding per-site with tokens (as almost every
+  // existing heading does, from a 13px h1 in the Brief header to a 20px h2
+  // on a group card) is expected and normal.
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  h1 {
+    font-size: var(--font-size-3xl);
+  }
+
+  h2 {
+    font-size: var(--font-size-2xl);
+  }
+
+  h3 {
+    font-size: var(--font-size-xl);
+  }
+
+  h4 {
+    font-size: var(--font-size-lg);
+  }
+
+  h5 {
+    font-size: var(--font-size-md);
+  }
+
+  h6 {
+    font-size: var(--font-size-sm);
+  }
+
   :focus-visible {
     @include mixins.focus-ring;
   }

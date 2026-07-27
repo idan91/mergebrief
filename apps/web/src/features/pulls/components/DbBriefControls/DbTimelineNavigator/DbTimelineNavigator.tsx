@@ -13,6 +13,7 @@
 // buttons at the ends; the stepper is a capped window of dot buttons. The
 // polite selection announcement and focus-to-heading are the ROUTE's job
 // (one live region per page) — this component only emits the controls.
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { DbTimelinePoint } from "../../../dbTimeline";
 import styles from "./DbTimelineNavigator.module.scss";
 
@@ -84,7 +85,7 @@ export function DbTimelineNavigator({
         ←
       </button>
       <label className={styles["picker"]}>
-        <span className="sr-only">Select PR revision</span>
+        <ScreenReaderOnly>Select PR revision</ScreenReaderOnly>
         <select
           onChange={(event) => {
             const point = points[Number(event.target.value)];
@@ -127,7 +128,7 @@ export function DbTimelineNavigator({
                 onClick={() => onSelect(point)}
                 type="button"
               >
-                <span className="sr-only">Revision {point.headIndex}</span>
+                <ScreenReaderOnly>Revision {point.headIndex}</ScreenReaderOnly>
               </button>
             </li>
           );

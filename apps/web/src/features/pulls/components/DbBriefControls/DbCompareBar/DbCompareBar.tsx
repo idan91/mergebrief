@@ -18,6 +18,7 @@ import {
   type CompareParam,
   type ViewParam,
 } from "../../../../brief/comparison/compareState";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import styles from "./DbCompareBar.module.scss";
 
 export interface DbCompareBarProps {
@@ -97,7 +98,7 @@ export function DbCompareBar({
   return (
     <nav aria-label="Brief view and compare" className={styles["bar"]}>
       <fieldset className={styles["group"]}>
-        <legend className="sr-only">View</legend>
+        <ScreenReaderOnly as="legend">View</ScreenReaderOnly>
         <button
           aria-pressed={compareState.view === "full"}
           data-state={compareState.view === "full" ? "active" : undefined}
@@ -117,7 +118,7 @@ export function DbCompareBar({
         </button>
       </fieldset>
       <fieldset className={styles["labeledGroup"]}>
-        <legend className="sr-only">Compare</legend>
+        <ScreenReaderOnly as="legend">Compare</ScreenReaderOnly>
         {/* Outside the bordered group — inside it the label reads as a
             fourth (selectable) option. */}
         <span aria-hidden="true" className={styles["groupLabel"]}>

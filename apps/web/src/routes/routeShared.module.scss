@@ -8,6 +8,11 @@
     h1 {
       margin-block-end: 8px;
       font-size: var(--font-size-3xl);
+
+      // Pre-scale rendering pinned (implicit UA bold + body line-height
+      // before the base heading defaults landed).
+      font-weight: 700;
+      line-height: 1.55;
     }
 
     p {

@@ -53,6 +53,7 @@ export function ReceiptDrawer({
   return (
     <Drawer
       open={open}
+      label="Verification receipt"
       closeLabel="Close receipt"
       close={close}
       asideClassName={styles["receipt"]}

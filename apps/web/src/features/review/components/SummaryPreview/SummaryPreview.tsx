@@ -12,12 +12,19 @@ export interface SummaryPreviewProps {
   brief: Brief;
   snapshot: SessionSnapshot;
   setOutcome?: (outcome: ReviewOutcome) => void;
+  /**
+   * True on the standalone route only: makes this <main> the root skip-link
+   * target (`#main-content`). Never set inside the drawer — the brief page
+   * already has its own `main-content`, and ids must stay unique.
+   */
+  standalone?: boolean;
 }
 
 export function SummaryPreview({
   brief,
   snapshot,
   setOutcome,
+  standalone = false,
 }: SummaryPreviewProps) {
   const model = buildBriefViewModel(brief);
   const receipt = buildReceipt(snapshot, brief, model);
@@ -30,7 +37,11 @@ export function SummaryPreview({
   );
 
   return (
-    <main className={styles["page"]}>
+    <main
+      className={styles["page"]}
+      id={standalone ? "main-content" : undefined}
+      tabIndex={standalone ? -1 : undefined}
+    >
       <section className={styles["shell"]}>
         <div className={styles["kicker"]}>Frozen preview · interview demo</div>
         <div className={styles["head"]}>

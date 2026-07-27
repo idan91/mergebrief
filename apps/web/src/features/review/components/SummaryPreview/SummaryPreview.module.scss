@@ -28,6 +28,11 @@
     h1 {
       margin-block-end: 6px;
       font-size: 28px; /* stylelint-disable-line declaration-property-value-allowed-list -- TODO(BRIEF-44): off-scale — display numeral, single consumer, no scale membership earned; consolidate if a second appears */
+
+      // Pre-scale rendering pinned (implicit UA bold + body line-height
+      // before the base heading defaults landed).
+      font-weight: 700;
+      line-height: 1.55;
     }
 
     p {
@@ -57,12 +62,21 @@
     h2 {
       margin-block-end: 14px;
       font-size: var(--font-size-xl);
+
+      // Pre-scale rendering pinned (implicit UA bold + body line-height
+      // before the base heading defaults landed).
+      font-weight: 700;
+      line-height: 1.55;
     }
 
     h3 {
       margin-block: 16px 8px;
       color: var(--dim);
       font-size: var(--font-size-md);
+
+      // Same pre-scale pin as the h2 above.
+      font-weight: 700;
+      line-height: 1.55;
     }
   }
 

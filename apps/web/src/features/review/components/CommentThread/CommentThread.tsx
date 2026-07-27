@@ -94,6 +94,7 @@ export function CommentThread({
       {editing && !submitted ? (
         <>
           <textarea
+            aria-label="Edit comment"
             className={styles["textarea"]}
             suppressHydrationWarning
             value={body}

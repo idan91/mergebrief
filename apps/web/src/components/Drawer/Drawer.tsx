@@ -4,6 +4,12 @@ import styles from "./Drawer.module.scss";
 export interface DrawerProps {
   open: boolean;
   /**
+   * @description Accessible name for the drawer's complementary landmark —
+   * multiple drawers exist per page, and unnamed duplicate landmarks are
+   * indistinguishable in a screen reader's landmark list.
+   */
+  label: string;
+  /**
    * @description Accessible label for the scrim close button.
    */
   closeLabel: string;
@@ -15,6 +21,7 @@ export interface DrawerProps {
 /** Generic drawer shell: a scrim button + a sliding aside with data-state. */
 export function Drawer({
   open,
+  label,
   closeLabel,
   close,
   asideClassName,
@@ -33,6 +40,7 @@ export function Drawer({
         onClick={close}
       />
       <aside
+        aria-label={label}
         className={asideClassName}
         data-state={open ? "open" : "closed"}
         // Same for the panel's own controls — no tabbing into a hidden drawer.

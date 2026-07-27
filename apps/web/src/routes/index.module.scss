@@ -15,7 +15,12 @@
       margin-block: 18px 10px;
       color: var(--text);
       font-size: 34px; /* stylelint-disable-line declaration-property-value-allowed-list -- TODO(BRIEF-44): off-scale — hero display, the only display-size in the app shell; consolidate if a second consumer appears */
+
+      // Pre-scale rendering pinned (implicit UA bold + body line-height
+      // before the base heading defaults landed).
+      font-weight: 700;
       letter-spacing: 0;
+      line-height: 1.55;
     }
   }
 
@@ -133,17 +138,23 @@
   }
 
   .listLabel {
-    margin-block-end: 4px;
+    // 16px = the pre-a11y-sweep spacing (4px label margin + the 12px grid
+    // gap it sat inside before the heading moved out of the <ul>).
+    margin-block-end: 16px;
     color: var(--faint);
     font-size: var(--font-size-md);
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.02em;
+
+    // Pre-scale body line-height pinned (base heading defaults set 1.35).
+    line-height: 1.55;
   }
 
   .list {
     display: grid;
     gap: 12px;
+    list-style: none;
   }
 
   .link {

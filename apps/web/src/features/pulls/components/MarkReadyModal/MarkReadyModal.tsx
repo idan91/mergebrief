@@ -88,8 +88,9 @@ export function MarkReadyModal({
       open={open}
       boxClassName={styles["wideBox"]}
       close={busy ? undefined : close}
+      labelledBy="mark-ready-modal-heading"
     >
-      <h3>Before marking ready</h3>
+      <h3 id="mark-ready-modal-heading">Before marking ready</h3>
       {/* Zero flags (owner amendment): the gate can open for unposted drafts
           alone — no risk-flag copy over an empty list; the advisory line
           focuses on the drafts instead. */}

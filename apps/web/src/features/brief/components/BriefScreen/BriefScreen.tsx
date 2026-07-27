@@ -1018,6 +1018,7 @@ function SummaryPreviewDrawer({
   return (
     <Drawer
       open={open}
+      label="Summary preview"
       closeLabel="Close summary preview"
       close={close}
       asideClassName={styles["summaryDrawer"]}

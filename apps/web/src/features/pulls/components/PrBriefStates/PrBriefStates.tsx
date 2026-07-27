@@ -4,6 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { parseUnifiedDiffPatch } from "../../../brief/utils/diffSlicing";
 import type { DiffLine } from "../../../brief/types";
 import { prDiffQueryOptions } from "../../queries";
@@ -212,14 +213,14 @@ function LiveDiffPreview({ repoId, prNumber, span }: LiveDiffPreviewProps) {
         >
           <summary>{file}</summary>
           <table className={styles["diffTable"]}>
-            <caption className="sr-only">Diff for {file}</caption>
-            <thead className="sr-only">
+            <ScreenReaderOnly as="caption">Diff for {file}</ScreenReaderOnly>
+            <ScreenReaderOnly as="thead">
               <tr>
                 <th scope="col">Old line</th>
                 <th scope="col">New line</th>
                 <th scope="col">Content</th>
               </tr>
-            </thead>
+            </ScreenReaderOnly>
             <tbody>
               {rows.map((row, index) => (
                 <tr data-kind={row.kind} key={`${file}:${String(index)}`}>

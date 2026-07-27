@@ -10,6 +10,7 @@ import {
   type CompareOptionFlags,
   type ViewParam,
 } from "../../../../comparison/compareState";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { BriefTimeline } from "../../../../utils/timeline";
 import styles from "./TimelineNavigator.module.scss";
 
@@ -87,7 +88,7 @@ export function TimelineNavigator({
         </span>
       )}
       <label>
-        <span className="sr-only">Select PR revision</span>
+        <ScreenReaderOnly>Select PR revision</ScreenReaderOnly>
         <select
           value={selected.briefId}
           onChange={(event) =>
@@ -146,13 +147,13 @@ export function TimelineNavigator({
                 search={(prev) => prev}
                 to="/briefs/$briefId"
               >
-                <span className="sr-only">Brief {point.index}</span>
+                <ScreenReaderOnly>Brief {point.index}</ScreenReaderOnly>
               </Link>
             </li>
           ))}
       </ol>
       <fieldset className={styles["lens"]}>
-        <legend className="sr-only">View</legend>
+        <ScreenReaderOnly as="legend">View</ScreenReaderOnly>
         <button
           aria-pressed={compareState.view === "full"}
           data-state={compareState.view === "full" ? "active" : undefined}
@@ -171,7 +172,7 @@ export function TimelineNavigator({
         </button>
       </fieldset>
       <fieldset className={styles["labeledLens"]}>
-        <legend className="sr-only">Compare</legend>
+        <ScreenReaderOnly as="legend">Compare</ScreenReaderOnly>
         {/* Outside the bordered group — inside it the label reads as a
             fourth (selectable) option. */}
         <span aria-hidden="true" className={styles["lensLabel"]}>

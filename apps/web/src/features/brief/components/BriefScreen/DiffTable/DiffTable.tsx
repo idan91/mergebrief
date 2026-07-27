@@ -35,6 +35,7 @@ import type {
 } from "../../../types";
 import { ComparisonCallout } from "./ComparisonCallout/ComparisonCallout";
 import { RevisionGutterCell } from "./RevisionGutterCell/RevisionGutterCell";
+import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { getDiffRowView } from "./diffRowView";
 import styles from "./DiffTable.module.scss";
 
@@ -204,6 +205,19 @@ export function DiffTable({
       ) : null}
       <div className={styles["viewport"]} style={viewportStyle}>
         <table className={styles["diff"]}>
+          {/* Sr-only caption + column headers (the LiveDiffPreview pattern):
+              without them AT table navigation reads bare cell soup. */}
+          <ScreenReaderOnly as="caption">
+            Diff for {chunk.file}
+          </ScreenReaderOnly>
+          <ScreenReaderOnly as="thead">
+            <tr>
+              {overlayActive ? <th scope="col">Revision</th> : null}
+              <th scope="col">Old line</th>
+              <th scope="col">New line</th>
+              <th scope="col">Content</th>
+            </tr>
+          </ScreenReaderOnly>
           <tbody>
             {chunk.diff.map((line, index) => {
               if (line.kind === "hunk" || line.kind === "note") {

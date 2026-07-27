@@ -44,8 +44,9 @@ export function EvidenceModal({
       open={Boolean(target)}
       boxClassName={styles["wideBox"]}
       close={cancel}
+      labelledBy="evidence-modal-heading"
     >
-      <h3>Address risk with evidence</h3>
+      <h3 id="evidence-modal-heading">Address risk with evidence</h3>
       <div className={styles["target"]}>{target?.label}</div>
       <div className={styles["evidenceOptions"]}>
         <label>
@@ -79,6 +80,7 @@ export function EvidenceModal({
       </div>
       {kind === "linked-comment" ? (
         <select
+          aria-label="Linked comment"
           className={styles["select"]}
           value={commentId}
           onChange={(event) => setCommentId(event.target.value)}
@@ -98,6 +100,7 @@ export function EvidenceModal({
       ) : null}
       {kind === "manual-note" ? (
         <textarea
+          aria-label="What did you verify?"
           placeholder="What did you verify?"
           value={note}
           onChange={(event) => setNote(event.target.value)}

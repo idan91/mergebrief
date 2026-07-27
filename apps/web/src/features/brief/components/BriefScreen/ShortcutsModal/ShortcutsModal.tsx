@@ -30,16 +30,20 @@ const SHORTCUTS: ShortcutDefinition[] = [
 
 export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
   return (
-    <Modal open={open} close={close}>
-      <h3>Keyboard shortcuts</h3>
-      <div className={styles["list"]}>
+    <Modal open={open} close={close} labelledBy="shortcuts-modal-heading">
+      <h3 id="shortcuts-modal-heading">Keyboard shortcuts</h3>
+      {/* Key→description pairs are a definition list; <div> inside <dl> is
+          valid grouping markup and keeps the row layout untouched. */}
+      <dl className={styles["list"]}>
         {SHORTCUTS.map((shortcut) => (
           <div className={styles["row"]} key={shortcut.key}>
-            <span className={styles["key"]}>{shortcut.key}</span>
-            <span>{shortcut.description}</span>
+            <dt>
+              <kbd className={styles["key"]}>{shortcut.key}</kbd>
+            </dt>
+            <dd>{shortcut.description}</dd>
           </div>
         ))}
-      </div>
+      </dl>
       <button className="btn" type="button" onClick={close}>
         Close
       </button>

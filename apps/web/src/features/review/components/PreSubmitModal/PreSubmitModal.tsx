@@ -18,8 +18,13 @@ export function PreSubmitModal({
   unresolvedItems,
 }: PreSubmitModalProps) {
   return (
-    <Modal open={open} boxClassName={styles["wideBox"]} close={close}>
-      <h3>Before the receipt</h3>
+    <Modal
+      open={open}
+      boxClassName={styles["wideBox"]}
+      close={close}
+      labelledBy="pre-submit-modal-heading"
+    >
+      <h3 id="pre-submit-modal-heading">Before the receipt</h3>
       <p className={styles["copy"]}>
         This is advisory. You can continue, but the summary will show unresolved
         items exactly as they are.

@@ -80,7 +80,11 @@ function BriefPicker() {
             {pending ? "Generating…" : "Generate"}
           </button>
         </form>
-        {error ? <p className={styles["error"]}>{error}</p> : null}
+        {error ? (
+          <p className={styles["error"]} role="alert">
+            {error}
+          </p>
+        ) : null}
         <OrgSwitcher enabled={session.kind === "ready"} />
         <PullsSection session={session} />
         {briefs.length === 0 ? (
@@ -93,35 +97,38 @@ function BriefPicker() {
             </p>
           </div>
         ) : (
-          <div className={styles["list"]}>
-            <div className={styles["listLabel"]}>Local Briefs</div>
-            {briefs.map((brief) => (
-              <Link
-                className={styles["link"]}
-                key={brief.id}
-                params={{ briefId: brief.id }}
-                to="/briefs/$briefId"
-              >
-                <span className={styles["linkTitle"]}>
-                  <span
-                    className={styles["artifactPill"]}
-                    data-kind={brief.artifactKind}
+          <>
+            <h2 className={styles["listLabel"]}>Local Briefs</h2>
+            <ul className={styles["list"]}>
+              {briefs.map((brief) => (
+                <li key={brief.id}>
+                  <Link
+                    className={styles["link"]}
+                    params={{ briefId: brief.id }}
+                    to="/briefs/$briefId"
                   >
-                    {brief.artifactKind === "delta" ? "delta" : "brief"}
-                  </span>
-                  {brief.title}
-                </span>
-                <span className={styles["meta"]}>
-                  {brief.repo} #{brief.number} · {brief.id} ·{" "}
-                  {brief.artifactKind === "delta" &&
-                  brief.baselineSha &&
-                  brief.headSha
-                    ? `${brief.baselineSha.slice(0, 7)} → ${brief.headSha.slice(0, 7)}`
-                    : brief.sha.slice(0, 7)}
-                </span>
-              </Link>
-            ))}
-          </div>
+                    <span className={styles["linkTitle"]}>
+                      <span
+                        className={styles["artifactPill"]}
+                        data-kind={brief.artifactKind}
+                      >
+                        {brief.artifactKind === "delta" ? "delta" : "brief"}
+                      </span>
+                      {brief.title}
+                    </span>
+                    <span className={styles["meta"]}>
+                      {brief.repo} #{brief.number} · {brief.id} ·{" "}
+                      {brief.artifactKind === "delta" &&
+                      brief.baselineSha &&
+                      brief.headSha
+                        ? `${brief.baselineSha.slice(0, 7)} → ${brief.headSha.slice(0, 7)}`
+                        : brief.sha.slice(0, 7)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </section>
     </main>
@@ -130,7 +137,7 @@ function BriefPicker() {
 
 function BriefPickerError({ error }: { error: Error }) {
   return (
-    <main className="main">
+    <main className="main" id="main-content" tabIndex={-1}>
       <section className={sharedStyles["errorState"]}>
         <h1>Brief list failed to load</h1>
         <p>{error.message}</p>

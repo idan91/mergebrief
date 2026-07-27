@@ -24,22 +24,28 @@ export function DismissModal({
   setReason,
 }: DismissModalProps) {
   return (
-    <Modal open={Boolean(target)} close={cancel}>
-      <h3>Dismiss flag</h3>
+    <Modal
+      open={Boolean(target)}
+      close={cancel}
+      labelledBy="dismiss-modal-heading"
+    >
+      <h3 id="dismiss-modal-heading">Dismiss flag</h3>
       <div className={styles["target"]}>{target?.label}</div>
       <textarea
+        aria-label="Dismissal reason"
         suppressHydrationWarning
         value={reason}
         onChange={(event) => setReason(event.target.value)}
         placeholder="Why is this flag not actionable here? Your reason lands on the receipt, verbatim."
       />
-      <div
-        className={styles["warn"]}
-        data-state={warned ? "visible" : "hidden"}
-      >
-        Thin reason on a flag — it will appear on the receipt exactly as
-        written. Dismiss anyway?
-      </div>
+      {/* Conditionally rendered (not CSS-toggled) so its appearance is a DOM
+          change role="alert" announces; visible timing is unchanged. */}
+      {warned ? (
+        <div className={styles["warn"]} data-state="visible" role="alert">
+          Thin reason on a flag — it will appear on the receipt exactly as
+          written. Dismiss anyway?
+        </div>
+      ) : null}
       <div className={styles["actions"]}>
         <button className="btn" type="button" onClick={cancel}>
           Cancel
