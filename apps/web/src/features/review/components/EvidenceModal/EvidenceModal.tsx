@@ -2,13 +2,12 @@ import { useState } from "react";
 
 import { Modal } from "@web/components/Modal/Modal";
 import type { ReviewComment } from "../../comments";
-import { commentLocation, type RiskEvidenceKind } from "../../state";
+import {
+  commentLocation,
+  type EvidenceTarget,
+  type RiskEvidenceKind,
+} from "../../state";
 import styles from "@web/components/Modal/ModalContent.module.scss";
-
-export interface EvidenceTarget {
-  flagIds: string[];
-  label: string;
-}
 
 export interface EvidenceModalProps {
   cancel: () => void;

@@ -37,50 +37,50 @@ export interface MindMapActions {
    * @description Toggle chunk membership in the reviewed set.
    * Collapse-on-review is wired in the component; see briefs route handler.
    */
-  reviewChunk(chunkId: string): void;
+  reviewChunk: (chunkId: string) => void;
   /**
    * @description Open/dismissed dispositions share one payload across the batch.
    */
-  disposeFlag(flagIds: string[], disposition: BulkDisposition): void;
+  disposeFlag: (flagIds: string[], disposition: BulkDisposition) => void;
   /**
    * @description Addressed dispositions are resolved before mutation, keyed by
    * brief-local flag id.
    */
-  addressFlags(evidenceByFlagId: ReadonlyMap<string, RiskEvidence>): void;
+  addressFlags: (evidenceByFlagId: ReadonlyMap<string, RiskEvidence>) => void;
   /**
    * @description Sets the dominant category and marks the group reclassified.
    */
-  reclassifyGroup(groupId: string, category: Category): void;
-  saveComment(comment: Omit<ReviewComment, "id">): void;
-  updateComment(id: string, body: string): void;
-  deleteComment(id: string): void;
+  reclassifyGroup: (groupId: string, category: Category) => void;
+  saveComment: (comment: Omit<ReviewComment, "id">) => void;
+  updateComment: (id: string, body: string) => void;
+  deleteComment: (id: string) => void;
   /**
    * @description Toggles a draft comment's collapsed flag as part of its persisted lifecycle.
    */
-  toggleComment(id: string): void;
+  toggleComment: (id: string) => void;
   /**
    * @description After a successful submit: exactly the POSTED comments flip
    * to `submitted` (ids captured at click time — a draft added or edited
    * while the request was in flight stays a draft), so a later re-submit
    * ships only comments GitHub never saw (BRIEF-23).
    */
-  markCommentsSubmitted(ids: readonly string[]): void;
+  markCommentsSubmitted: (ids: readonly string[]) => void;
   /**
    * @description Record a successful submit's created review id — the
    * server-backed join key for own-comment reconciliation (BRIEF-25).
    */
-  recordSubmittedReview(reviewId: number): void;
+  recordSubmittedReview: (reviewId: number) => void;
   /**
    * @description Persist a conversation reply draft per thread; an empty
    * body clears the entry (posted or discarded).
    */
-  setReplyDraft(threadId: number, body: string): void;
-  setOutcome(outcome: ReviewOutcome): void;
+  setReplyDraft: (threadId: number, body: string) => void;
+  setOutcome: (outcome: ReviewOutcome) => void;
   /**
    * @description Resets the whole session to a fresh state (the "Clear local
    * drafts" action), so the live store matches the now-empty storage.
    */
-  reset(state: MindMapState): void;
+  reset: (state: MindMapState) => void;
 }
 
 export interface MindMapStoreValue extends MindMapState {

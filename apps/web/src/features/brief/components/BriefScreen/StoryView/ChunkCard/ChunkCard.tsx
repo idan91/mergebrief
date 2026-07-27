@@ -11,10 +11,6 @@ import type {
 import type { AttributeDisplayMeta } from "../../../../utils/repoConfig";
 import type { ComparisonOverlayState } from "../../../../comparison/comparisonOverlay";
 import { AddressedComments, ReviewComments } from "@web/features/review";
-import type {
-  CommentAnchor,
-  ReviewComment,
-} from "@web/features/review/comments";
 import {
   useChunkReviewComments,
   useMindMap,
@@ -40,27 +36,12 @@ export interface ChunkCardProps {
   active: boolean;
   open: boolean;
   forceCollapsed: boolean;
-  activeCommentAnchor: CommentAnchor | null;
   addressedReviewComments: AddressedReviewComment[];
-  cancelCommentComposer: () => void;
-  deleteReviewComment: (commentId: string) => void;
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
-  openCommentComposer: (anchor: CommentAnchor) => void;
-  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
-  /** Post a staged draft NOW (BRIEF-43 own-draft, current head); absent otherwise. */
-  postReviewComment?: ((comment: ReviewComment) => void) | undefined;
-  /** Comment ids with a post-now request in flight (state-backed, re-renders). */
-  postingCommentIds?: ReadonlySet<string> | undefined;
-  /** Wait-shaped reason every Post is blocked right now (submit in flight). */
-  postBlockedExternally?: string | undefined;
-  toggleReviewComment: (commentId: string) => void;
-  updateReviewComment: (commentId: string, body: string) => void;
   /** Inline conversation threads at this chunk (BRIEF-25); absent = none. */
   conversationRows?: DigestRow[] | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
-  /** Read-only reason for the comment affordances (BRIEF-24); absent = writable. */
-  composerDisabledReason?: string | undefined;
   /**
    * Per-attribute display meta for THIS chunk (BRIEF-52): source variant,
    * de-emphasis, implication. Absent = plain built-in chips.
@@ -134,22 +115,11 @@ export const ChunkCard = memo(function ChunkCard({
   active,
   open,
   forceCollapsed,
-  activeCommentAnchor,
   addressedReviewComments,
-  cancelCommentComposer,
-  deleteReviewComment,
   toggleChunk,
   markReviewed,
-  openCommentComposer,
-  saveReviewComment,
-  postReviewComment,
-  postingCommentIds,
-  postBlockedExternally,
-  toggleReviewComment,
-  updateReviewComment,
   conversationRows,
   conversationComposer,
-  composerDisabledReason,
   riskMeta,
 }: ChunkCardProps) {
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
@@ -350,28 +320,16 @@ export const ChunkCard = memo(function ChunkCard({
             />
           ) : null}
           <DiffTable
-            composerDisabledReason={composerDisabledReason}
             conversationComposer={conversationComposer}
             conversationThreadsByRow={conversationSplit.byRow}
-            activeCommentAnchor={activeCommentAnchor}
             addressedComments={inlineReviewComments}
-            cancelCommentComposer={cancelCommentComposer}
             chunk={chunk}
             comparisonView={comparisonView}
             comparisonSource={comparison.source}
             comparisonSkipReason={comparison.skipReason}
-            comments={comments}
-            deleteReviewComment={deleteReviewComment}
-            openCommentComposer={openCommentComposer}
             reviewCommentLabel={
               hasLinkedAddressedComments ? "addressed" : "review comment"
             }
-            saveReviewComment={saveReviewComment}
-            postReviewComment={postReviewComment}
-            postingCommentIds={postingCommentIds}
-            postBlockedExternally={postBlockedExternally}
-            toggleReviewComment={toggleReviewComment}
-            updateReviewComment={updateReviewComment}
           />
         </div>
       ) : null}

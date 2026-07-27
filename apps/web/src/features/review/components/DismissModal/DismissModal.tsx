@@ -1,10 +1,6 @@
 import { Modal } from "@web/components/Modal/Modal";
+import type { DismissTarget } from "../../state";
 import styles from "@web/components/Modal/ModalContent.module.scss";
-
-export interface DismissTarget {
-  flagIds: string[];
-  label: string;
-}
 
 export interface DismissModalProps {
   target: DismissTarget | null;

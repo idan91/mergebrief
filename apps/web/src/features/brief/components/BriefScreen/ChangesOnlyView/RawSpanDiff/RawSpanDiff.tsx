@@ -36,8 +36,6 @@ const EMPTY_COMPARISON_VIEW: ChunkComparisonView = {
   runs: [],
   runByRow: new Map(),
 };
-const NO_OP = (): void => {};
-
 interface RawSpanDiffState {
   showRaw: boolean;
   toggle: () => void;
@@ -160,21 +158,13 @@ interface ReadonlyDiffTableProps {
 function ReadonlyDiffTable({ chunk }: ReadonlyDiffTableProps) {
   return (
     <DiffTable
-      activeCommentAnchor={null}
       addressedComments={[]}
-      cancelCommentComposer={NO_OP}
       chunk={chunk}
-      comments={[]}
       comparisonSkipReason={null}
       comparisonSource={{ kind: "last-review", delta: null }}
       comparisonView={EMPTY_COMPARISON_VIEW}
-      composerDisabledReason={READ_ONLY_REASON}
-      deleteReviewComment={NO_OP}
-      openCommentComposer={NO_OP}
+      readOnlyReason={READ_ONLY_REASON}
       reviewCommentLabel=""
-      saveReviewComment={NO_OP}
-      toggleReviewComment={NO_OP}
-      updateReviewComment={NO_OP}
     />
   );
 }

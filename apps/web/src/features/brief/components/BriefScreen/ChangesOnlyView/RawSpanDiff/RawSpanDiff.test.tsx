@@ -12,7 +12,14 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  createReviewFlowStore,
+  MindMapProvider,
+  ReviewFlowProvider,
+} from "@web/features/review/session";
 import type { ComparisonQuery } from "../../../../comparison/comparisonQuery";
+import { briefFixture } from "../../../../utils/fixtures";
+import { buildBriefViewModel } from "../../../../utils/viewModel";
 import { RawSpanDiff } from "./RawSpanDiff";
 
 afterEach(cleanup);
@@ -44,11 +51,35 @@ function renderRaw(query: ComparisonQuery<string>, client?: QueryClient) {
   client ??= new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  // DiffTable reads the session stores even in its read-only stand-down, so
+  // the raw span renders under the same providers the screen supplies.
+  const flowStore = createReviewFlowStore(
+    {
+      saveComment: vi.fn(),
+      updateComment: vi.fn(),
+      deleteComment: vi.fn(),
+      toggleComment: vi.fn(),
+    },
+    {
+      composerDisabledReason: undefined,
+      flagsReadOnly: false,
+      postingCommentIds: new Set(),
+      postBlockedExternally: undefined,
+      postComment: undefined,
+    },
+  );
   return render(
     <QueryClientProvider client={client}>
-      <RawSpanDiff query={query}>
-        <p>Changes Only summary</p>
-      </RawSpanDiff>
+      <MindMapProvider
+        briefId="test-brief"
+        model={buildBriefViewModel(briefFixture)}
+      >
+        <ReviewFlowProvider store={flowStore}>
+          <RawSpanDiff query={query}>
+            <p>Changes Only summary</p>
+          </RawSpanDiff>
+        </ReviewFlowProvider>
+      </MindMapProvider>
     </QueryClientProvider>,
   );
 }

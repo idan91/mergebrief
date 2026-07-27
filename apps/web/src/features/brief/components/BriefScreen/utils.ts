@@ -197,24 +197,6 @@ export function toggleSetMember(
 }
 
 /**
- * Group toggle: every member selected → deselect them all; otherwise select
- * them all. Empty groups leave the selection unchanged.
- */
-export function toggleGroupSelection(
-  current: ReadonlySet<string>,
-  memberIds: readonly string[],
-): Set<string> {
-  const allSelected =
-    memberIds.length > 0 && memberIds.every((id) => current.has(id));
-  const next = new Set(current);
-  for (const id of memberIds) {
-    if (allSelected) next.delete(id);
-    else next.add(id);
-  }
-  return next;
-}
-
-/**
  * Address-with-evidence resolution: linked-comment without a chosen comment
  * falls back to chunk-reviewed on the flag's chunk.
  */

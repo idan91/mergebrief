@@ -1,10 +1,14 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import type { ReviewComment } from "@web/features/review/comments";
-import type { DismissTarget } from "@web/features/review";
-import type { EvidenceTarget } from "@web/features/review";
 import type { Disposition } from "@web/features/review/session";
-import { useMindMap, useMindMapActions } from "@web/features/review/session";
+import {
+  useMindMap,
+  useMindMapActions,
+  useReviewActions,
+  useReviewFlow,
+} from "@web/features/review/session";
 import { riskEvidenceLabel } from "@web/features/review/state";
 import type { BriefChunk, Category } from "../../../../types";
 import {
@@ -25,20 +29,7 @@ export interface GroupCardProps {
   group: GroupView;
   brief: { chunks: BriefChunk[] };
   model: BriefViewModel;
-  selectedRiskFlags: Set<string>;
   jumpToChunk: (chunkId: string) => void;
-  setDismissTarget: (target: DismissTarget) => void;
-  setEvidenceTarget: (target: EvidenceTarget) => void;
-  setToast: (message: string) => void;
-  toggleRiskFlag: (flagId: string) => void;
-  toggleRiskGroup: (flagIds: string[]) => void;
-  /**
-   * Own-draft state (BRIEF-43, ADR 0031): risk flags render as a read-only
-   * MIRROR — no author dispositions exist, so every disposition control
-   * (checkboxes, Address/Dismiss) disappears while the flags themselves stay
-   * fully visible. The author's disposition mechanism is code: fix and push.
-   */
-  flagsReadOnly?: boolean | undefined;
 }
 
 function evidenceText(
@@ -55,28 +46,49 @@ export const GroupCard = memo(function GroupCard({
   group,
   brief,
   model,
-  selectedRiskFlags,
   jumpToChunk,
-  setDismissTarget,
-  setEvidenceTarget,
-  setToast,
-  toggleRiskFlag,
-  toggleRiskGroup,
-  flagsReadOnly = false,
 }: GroupCardProps) {
   const dispositions = useMindMap((state) => state.dispositions);
   const dominants = useMindMap((state) => state.dominants);
   const reclassifiedGroups = useMindMap((state) => state.reclassifiedGroups);
   const reviewComments = useMindMap((state) => state.reviewComments);
   const actions = useMindMapActions();
+  const {
+    announce,
+    setDismissTarget,
+    setEvidenceTarget,
+    toggleRiskFlag,
+    toggleRiskGroup,
+  } = useReviewActions();
+  // Own-draft state (BRIEF-43, ADR 0031): risk flags render as a read-only
+  // MIRROR — no author dispositions exist, so every disposition control
+  // (checkboxes, Address/Dismiss) disappears while the flags themselves stay
+  // fully visible. The author's disposition mechanism is code: fix and push.
+  const flagsReadOnly = useReviewFlow((state) => state.flagsReadOnly);
 
   const dominant = dominants[group.id] ?? group.group.dominantCategory;
   const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
+  // Selection-intersection subscription: this card re-renders only when the
+  // selection WITHIN its own flags changes, not on any selection anywhere —
+  // the GroupCard memo boundary's win.
+  const groupFlagIds = useMemo(
+    () => groupFlags.map((flag) => flag.id),
+    [groupFlags],
+  );
+  const selectedRiskFlags = useReviewFlow(
+    useShallow((state) =>
+      groupFlagIds.filter((id) => state.selectedRiskFlags.has(id)),
+    ),
+  );
+  const selectedFlagSet = useMemo(
+    () => new Set(selectedRiskFlags),
+    [selectedRiskFlags],
+  );
   const isReclassified = reclassifiedGroups.has(group.id);
 
   function chooseDominant(category: Category) {
     actions.reclassifyGroup(group.id, category);
-    setToast(`Dominant category set to ${category} — recorded on the receipt.`);
+    announce(`Dominant category set to ${category} — recorded on the receipt.`);
   }
 
   return (
@@ -257,7 +269,7 @@ export const GroupCard = memo(function GroupCard({
               )
               .map((flag) => flag.id);
             const selectedCount = openRiskFlagIds.filter((flagId) =>
-              selectedRiskFlags.has(flagId),
+              selectedFlagSet.has(flagId),
             ).length;
             const allSelected =
               openRiskFlagIds.length > 0 &&
@@ -304,7 +316,7 @@ export const GroupCard = memo(function GroupCard({
                         onClick={() => {
                           setEvidenceTarget({
                             flagIds: openRiskFlagIds.filter((flagId) =>
-                              selectedRiskFlags.has(flagId),
+                              selectedFlagSet.has(flagId),
                             ),
                             label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
                           });
@@ -320,7 +332,7 @@ export const GroupCard = memo(function GroupCard({
                         onClick={() => {
                           setDismissTarget({
                             flagIds: openRiskFlagIds.filter((flagId) =>
-                              selectedRiskFlags.has(flagId),
+                              selectedFlagSet.has(flagId),
                             ),
                             label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
                           });
@@ -350,7 +362,7 @@ export const GroupCard = memo(function GroupCard({
                             <input
                               aria-label={`Select ${flag.attr} flag for ${flag.file}`}
                               checked={
-                                !isResolved && selectedRiskFlags.has(flag.id)
+                                !isResolved && selectedFlagSet.has(flag.id)
                               }
                               className={styles["checkbox"]}
                               disabled={isResolved}

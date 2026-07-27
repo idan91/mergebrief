@@ -21,7 +21,6 @@ import {
   markReadyBatchFailureCopy,
   resolveLocalComparisonIds,
   resolveRiskEvidence,
-  toggleGroupSelection,
   toggleSetMember,
 } from "./utils";
 
@@ -382,26 +381,6 @@ describe("toggleSetMember", () => {
     const current = new Set(["a", "b"]);
     expect(toggleSetMember(current, "b")).toEqual(new Set(["a"]));
     expect(current).toEqual(new Set(["a", "b"]));
-  });
-});
-
-describe("toggleGroupSelection", () => {
-  it("selects the whole group when any member is unselected", () => {
-    expect(toggleGroupSelection(new Set(["f1"]), ["f1", "f2"])).toEqual(
-      new Set(["f1", "f2"]),
-    );
-  });
-
-  it("deselects the whole group when every member is selected", () => {
-    expect(
-      toggleGroupSelection(new Set(["f1", "f2", "other"]), ["f1", "f2"]),
-    ).toEqual(new Set(["other"]));
-  });
-
-  it("leaves the selection unchanged for an empty group", () => {
-    const current = new Set(["f1"]);
-    expect(toggleGroupSelection(current, [])).toEqual(new Set(["f1"]));
-    expect(current).toEqual(new Set(["f1"]));
   });
 });
 

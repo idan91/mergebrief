@@ -1,0 +1,99 @@
+// @vitest-environment jsdom
+// Pins the dismiss-input choreography: reopening always starts blank, and a
+// short reason warns once then commits (warn-then-accept).
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
+import type { ReactNode } from "react";
+
+import {
+  createReviewFlowStore,
+  MindMapProvider,
+  ReviewFlowProvider,
+  type ReviewFlowStore,
+} from "@web/features/review/session";
+import { briefFixture } from "../../../utils/fixtures";
+import { buildBriefViewModel } from "../../../utils/viewModel";
+import { useRiskFlagModalsFacade } from "./useRiskFlagModalsFacade";
+
+afterEach(cleanup);
+
+const model = buildBriefViewModel(briefFixture);
+
+function setup() {
+  const flowStore: ReviewFlowStore = createReviewFlowStore(
+    {
+      saveComment: () => undefined,
+      updateComment: () => undefined,
+      deleteComment: () => undefined,
+      toggleComment: () => undefined,
+    },
+    {
+      composerDisabledReason: undefined,
+      flagsReadOnly: false,
+      postingCommentIds: new Set(),
+      postBlockedExternally: undefined,
+      postComment: undefined,
+    },
+  );
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <MindMapProvider briefId="test-brief" model={model}>
+      <ReviewFlowProvider store={flowStore}>{children}</ReviewFlowProvider>
+    </MindMapProvider>
+  );
+  const hook = renderHook(
+    () => useRiskFlagModalsFacade({ flagsById: model.flagsById }),
+    { wrapper },
+  );
+  return { flowStore, hook };
+}
+
+function firstFlagId(): string {
+  const flagId = [...model.flagsById.keys()][0];
+  if (flagId === undefined) throw new Error("fixture has no flags");
+  return flagId;
+}
+
+describe("useRiskFlagModalsFacade — dismiss input", () => {
+  it("warns once on a short reason, then commits on the second confirm", () => {
+    const { flowStore, hook } = setup();
+    const flagId = firstFlagId();
+    act(() => {
+      flowStore.getState().actions.setDismissTarget({
+        flagIds: [flagId],
+        label: "one flag",
+      });
+    });
+    act(() => hook.result.current.setDismissReason("too short"));
+    act(() => hook.result.current.confirmDismiss());
+    // First confirm: warned, nothing committed, modal stays open.
+    expect(hook.result.current.dismissWarned).toBe(true);
+    expect(flowStore.getState().dismissTarget).not.toBeNull();
+    act(() => hook.result.current.confirmDismiss());
+    // Second confirm goes through: target cleared, reason recorded verbatim.
+    expect(flowStore.getState().dismissTarget).toBeNull();
+  });
+
+  it("starts blank on reopen, even after a warned attempt", () => {
+    const { flowStore, hook } = setup();
+    const flagId = firstFlagId();
+    act(() => {
+      flowStore.getState().actions.setDismissTarget({
+        flagIds: [flagId],
+        label: "one flag",
+      });
+    });
+    act(() => hook.result.current.setDismissReason("meh"));
+    act(() => hook.result.current.confirmDismiss());
+    expect(hook.result.current.dismissWarned).toBe(true);
+    act(() => hook.result.current.cancelDismiss());
+    // Reopen: fresh target object → input resets to blank/unwarned.
+    act(() => {
+      flowStore.getState().actions.setDismissTarget({
+        flagIds: [flagId],
+        label: "one flag",
+      });
+    });
+    expect(hook.result.current.dismissReason).toBe("");
+    expect(hook.result.current.dismissWarned).toBe(false);
+  });
+});

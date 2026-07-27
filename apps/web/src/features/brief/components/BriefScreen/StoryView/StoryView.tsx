@@ -1,11 +1,5 @@
 import { useId, useState } from "react";
 
-import type {
-  CommentAnchor,
-  ReviewComment,
-} from "@web/features/review/comments";
-import type { DismissTarget } from "@web/features/review";
-import type { EvidenceTarget } from "@web/features/review";
 import { useRevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AddressedReviewComment, Brief } from "../../../types";
@@ -30,39 +24,16 @@ export interface StoryViewProps {
   collapseSupporting: boolean;
   focusMode: boolean;
   openChunks: Set<string>;
-  selectedRiskFlags: Set<string>;
-  activeCommentAnchor: CommentAnchor | null;
   addressedReviewComments: AddressedReviewComment[] | undefined;
-  cancelCommentComposer: () => void;
-  deleteReviewComment: (commentId: string) => void;
   jumpToChunk: (chunkId: string) => void;
   /** Enters Read-through at step 1; absent when unavailable (comparing, no chunks). */
   startReadThrough?: () => void;
   markReviewed: (chunkId: string) => void;
-  openCommentComposer: (anchor: CommentAnchor) => void;
-  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
-  /** Post a staged draft NOW (BRIEF-43 own-draft, current head); absent otherwise. */
-  postReviewComment?: ((comment: ReviewComment) => void) | undefined;
-  /** Comment ids with a post-now request in flight (state-backed, re-renders). */
-  postingCommentIds?: ReadonlySet<string> | undefined;
-  /** Wait-shaped reason every Post is blocked right now (submit in flight). */
-  postBlockedExternally?: string | undefined;
   setCollapseSupporting: (value: boolean) => void;
-  setDismissTarget: (target: DismissTarget) => void;
-  setEvidenceTarget: (target: EvidenceTarget) => void;
-  setToast: (message: string) => void;
   toggleChunk: (chunkId: string) => void;
-  toggleRiskFlag: (flagId: string) => void;
-  toggleRiskGroup: (flagIds: string[]) => void;
-  toggleReviewComment: (commentId: string) => void;
-  updateReviewComment: (commentId: string, body: string) => void;
   /** Inline conversation threads per chunk (BRIEF-25); absent on the local path. */
   conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
-  /** Read-only reason for the comment affordances (BRIEF-24); absent = writable. */
-  composerDisabledReason?: string | undefined;
-  /** Own-draft state (BRIEF-43): flags render as a read-only mirror. */
-  flagsReadOnly?: boolean | undefined;
 }
 
 export function StoryView(props: StoryViewProps) {
@@ -159,26 +130,11 @@ export function StoryView(props: StoryViewProps) {
                     props.collapseSupporting && chunk.role === "supporting"
                   }
                   open={props.openChunks.has(chunk.id)}
-                  activeCommentAnchor={
-                    props.activeCommentAnchor?.chunkId === chunk.id
-                      ? props.activeCommentAnchor
-                      : null
-                  }
                   addressedReviewComments={addressedReviewComments}
-                  cancelCommentComposer={props.cancelCommentComposer}
-                  deleteReviewComment={props.deleteReviewComment}
-                  composerDisabledReason={props.composerDisabledReason}
                   conversationComposer={props.conversationComposer}
                   conversationRows={props.conversationByChunk?.get(chunk.id)}
                   markReviewed={props.markReviewed}
-                  openCommentComposer={props.openCommentComposer}
-                  saveReviewComment={props.saveReviewComment}
-                  postReviewComment={props.postReviewComment}
-                  postingCommentIds={props.postingCommentIds}
-                  postBlockedExternally={props.postBlockedExternally}
                   toggleChunk={props.toggleChunk}
-                  toggleReviewComment={props.toggleReviewComment}
-                  updateReviewComment={props.updateReviewComment}
                 />
               ))}
             </div>
@@ -198,14 +154,7 @@ export function StoryView(props: StoryViewProps) {
                 group={group}
                 brief={props.brief}
                 model={props.model}
-                selectedRiskFlags={props.selectedRiskFlags}
                 jumpToChunk={props.jumpToChunk}
-                setDismissTarget={props.setDismissTarget}
-                setEvidenceTarget={props.setEvidenceTarget}
-                flagsReadOnly={props.flagsReadOnly}
-                setToast={props.setToast}
-                toggleRiskFlag={props.toggleRiskFlag}
-                toggleRiskGroup={props.toggleRiskGroup}
               />
             )}
           </section>

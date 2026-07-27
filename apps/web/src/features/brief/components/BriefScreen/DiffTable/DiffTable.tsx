@@ -5,6 +5,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
+import { useShallow } from "zustand/react/shallow";
 
 import { rangeBetween } from "@web/utils/collections";
 import { CommentComposer } from "@web/features/review";
@@ -18,11 +19,12 @@ import type { DigestThreadRow } from "@web/features/conversation/digest";
 // Row-level threads already sit AT their line — the detail's jump is hidden.
 const noJump = () => undefined;
 import { AddressedDiffComment } from "@web/features/review";
+import { createCommentAnchor } from "@web/features/review/comments";
 import {
-  createCommentAnchor,
-  type CommentAnchor,
-  type ReviewComment,
-} from "@web/features/review/comments";
+  useChunkReviewComments,
+  useReviewActions,
+  useReviewFlow,
+} from "@web/features/review/session";
 import {
   type ChunkComparisonView,
   type ComparisonRun,
@@ -45,38 +47,25 @@ interface DiffViewportStyle extends CSSProperties {
   "--diff-rows": number;
 }
 
+const EMPTY_REVIEW_COMMENTS: never[] = [];
+
 export interface DiffTableProps {
   chunk: BriefChunk;
   comparisonView: ChunkComparisonView;
   comparisonSource: ComparisonSource;
   comparisonSkipReason: RevisionNarrativeSkipReason | null;
-  activeCommentAnchor: CommentAnchor | null;
   addressedComments: AddressedReviewComment[];
-  /**
-   * Why comment composition is disabled (BRIEF-24 read-only posture on a
-   * historical revision). When set, the commentable rows stay focusable but
-   * carry `aria-disabled` + an `aria-describedby` reason (BRIEF-23 pattern —
-   * keyboard/SR users learn WHY before activation), and selection/composer
-   * entry is inert. Absent → rows are writable as usual.
-   */
-  composerDisabledReason?: string | undefined;
   /** Live conversation threads under their diff rows (BRIEF-25); optional. */
   conversationThreadsByRow?: ReadonlyMap<number, DigestThreadRow[]> | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
-  cancelCommentComposer: () => void;
-  comments: ReviewComment[];
-  deleteReviewComment: (commentId: string) => void;
-  openCommentComposer: (anchor: CommentAnchor) => void;
   reviewCommentLabel: string;
-  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
-  /** Post a staged draft NOW (BRIEF-43 own-draft, current head); absent otherwise. */
-  postReviewComment?: ((comment: ReviewComment) => void) | undefined;
-  /** Comment ids with a post-now request in flight (state-backed, re-renders). */
-  postingCommentIds?: ReadonlySet<string> | undefined;
-  /** Wait-shaped reason every Post is blocked right now (submit in flight). */
-  postBlockedExternally?: string | undefined;
-  toggleReviewComment: (commentId: string) => void;
-  updateReviewComment: (commentId: string, body: string) => void;
+  /**
+   * Hard read-only override (the RawSpanDiff case): every write affordance
+   * stands down with THIS reason regardless of the flow store's posture, and
+   * no review comments render — a raw-span chunk id could collide with a
+   * brief chunk id, so the store's chunk-keyed reads must not apply.
+   */
+  readOnlyReason?: string | undefined;
 }
 
 export function DiffTable({
@@ -84,23 +73,60 @@ export function DiffTable({
   comparisonView,
   comparisonSource,
   comparisonSkipReason,
-  activeCommentAnchor,
   addressedComments,
-  composerDisabledReason,
   conversationThreadsByRow,
   conversationComposer,
-  cancelCommentComposer,
-  comments,
-  deleteReviewComment,
-  openCommentComposer,
   reviewCommentLabel,
-  saveReviewComment,
-  postReviewComment,
-  postingCommentIds,
-  postBlockedExternally,
-  toggleReviewComment,
-  updateReviewComment,
+  readOnlyReason,
 }: DiffTableProps) {
+  const readOnly = readOnlyReason !== undefined;
+  // Review-flow wiring comes from the screen-provided store: the CRUD action
+  // object is stable, and every stateful read is chunk-scoped so this table
+  // re-renders for ITS composer/posts only, never a sibling's.
+  const {
+    openComposer,
+    cancelComposer,
+    saveComment,
+    deleteComment,
+    toggleComment,
+    updateComment,
+  } = useReviewActions();
+  const chunkComments = useChunkReviewComments(chunk.id);
+  const comments = readOnly ? EMPTY_REVIEW_COMMENTS : chunkComments;
+  // Anchor-match selector: null (stable) unless the composer is on THIS chunk.
+  const anchorForChunk = useReviewFlow((state) =>
+    state.composerAnchor?.chunkId === chunk.id ? state.composerAnchor : null,
+  );
+  const activeCommentAnchor = readOnly ? null : anchorForChunk;
+  /**
+   * Why comment composition is disabled (BRIEF-24 read-only posture on a
+   * historical revision). When set, the commentable rows stay focusable but
+   * carry `aria-disabled` + an `aria-describedby` reason (BRIEF-23 pattern —
+   * keyboard/SR users learn WHY before activation), and selection/composer
+   * entry is inert. Undefined → rows are writable as usual.
+   */
+  const postureDisabledReason = useReviewFlow(
+    (state) => state.composerDisabledReason,
+  );
+  const composerDisabledReason = readOnlyReason ?? postureDisabledReason;
+  // Post a staged draft NOW (BRIEF-43 own-draft, current head); undefined
+  // hides the Post affordance entirely.
+  const postComment = useReviewFlow((state) => state.postComment);
+  const postReviewComment = readOnly ? undefined : postComment;
+  // Wait-shaped reason every Post is blocked right now (submit in flight).
+  const postBlockedExternally = useReviewFlow(
+    (state) => state.postBlockedExternally,
+  );
+  // In-flight post-now ids scoped to THIS chunk's comments (the registry's
+  // set covers the whole brief — an unscoped read would re-render every
+  // expanded table on any post).
+  const postingCommentIds = useReviewFlow(
+    useShallow((state) =>
+      comments
+        .filter((comment) => state.postingCommentIds.has(comment.id))
+        .map((comment) => comment.id),
+    ),
+  );
   const [dragStart, setDragStart] = useState<number | null>(null);
   // Instance-scoped id for the read-only reason the disabled rows point at
   // (declared before the no-diff early return — hooks order).
@@ -185,7 +211,7 @@ export function DiffTable({
       chunk.diff ?? [],
       indexes,
     );
-    if (anchor) openCommentComposer(anchor);
+    if (anchor) openComposer(anchor);
   }
 
   const viewportStyle: DiffViewportStyle = {
@@ -365,8 +391,8 @@ export function DiffTable({
                       <td colSpan={metaColSpan}>
                         <CommentComposer
                           anchor={activeCommentAnchor}
-                          cancel={cancelCommentComposer}
-                          save={saveReviewComment}
+                          cancel={cancelComposer}
+                          save={saveComment}
                         />
                       </td>
                     </tr>
@@ -376,12 +402,12 @@ export function DiffTable({
                       <td colSpan={metaColSpan}>
                         <CommentThread
                           comment={comment}
-                          deleteComment={deleteReviewComment}
+                          deleteComment={deleteComment}
                           post={postReviewComment}
-                          posting={postingCommentIds?.has(comment.id) ?? false}
+                          posting={postingCommentIds.includes(comment.id)}
                           postBlockedExternally={postBlockedExternally}
-                          toggle={toggleReviewComment}
-                          update={updateReviewComment}
+                          toggle={toggleComment}
+                          update={updateComment}
                         />
                       </td>
                     </tr>

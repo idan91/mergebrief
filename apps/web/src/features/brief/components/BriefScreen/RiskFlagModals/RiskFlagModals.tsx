@@ -1,59 +1,36 @@
-// The flag-disposition modal pair (BRIEF-44 split, plan decision 11): the
-// dismiss-with-reason modal and the address-with-evidence modal, lifted out of
-// the screen's render tree. Wiring only — the disposition state lives in the
-// screen's `useRiskFlagFlow` facade hook, which passes its fields in as props
-// (sibling folders never reach into each other's implementation, ADR 0037 #2).
-import type { ReviewComment } from "@web/features/review/comments";
-import { DismissModal, type DismissTarget } from "@web/features/review";
-import { EvidenceModal, type EvidenceTarget } from "@web/features/review";
-import type { RiskEvidenceKind } from "@web/features/review/state";
+// The flag-disposition modal pair: the dismiss-with-reason modal and the
+// address-with-evidence modal. Targets and selection live in the ReviewFlow
+// store; the commit/warn choreography lives in the colocated facade hook.
+import { DismissModal } from "@web/features/review";
+import { EvidenceModal } from "@web/features/review";
+import { useMindMap } from "@web/features/review/session";
+import type { RiskFlag } from "../../../utils/viewModel";
+import { useRiskFlagModalsFacade } from "./useRiskFlagModalsFacade";
 
 export interface RiskFlagModalsProps {
-  /** Draft/submitted review comments — the evidence modal's link candidates. */
-  comments: ReviewComment[];
-  cancelDismiss: () => void;
-  cancelEvidence: () => void;
-  confirmDismiss: () => void;
-  confirmEvidence: (
-    kind: RiskEvidenceKind,
-    commentId: string | undefined,
-    note: string | undefined,
-  ) => void;
-  dismissReason: string;
-  /** Short-reason warn-then-accept: the second confirm goes through. */
-  dismissWarned: boolean;
-  dismissTarget: DismissTarget | null;
-  evidenceTarget: EvidenceTarget | null;
-  setDismissReason: (reason: string) => void;
+  /** The view model's flag lookup (evidence resolution). */
+  flagsById: Map<string, RiskFlag>;
 }
 
-export function RiskFlagModals({
-  comments,
-  cancelDismiss,
-  cancelEvidence,
-  confirmDismiss,
-  confirmEvidence,
-  dismissReason,
-  dismissWarned,
-  dismissTarget,
-  evidenceTarget,
-  setDismissReason,
-}: RiskFlagModalsProps) {
+export function RiskFlagModals({ flagsById }: RiskFlagModalsProps) {
+  // Draft/submitted review comments — the evidence modal's link candidates.
+  const comments = useMindMap((state) => state.reviewComments);
+  const facade = useRiskFlagModalsFacade({ flagsById });
   return (
     <>
       <DismissModal
-        target={dismissTarget}
-        reason={dismissReason}
-        warned={dismissWarned}
-        cancel={cancelDismiss}
-        confirm={confirmDismiss}
-        setReason={setDismissReason}
+        target={facade.dismissTarget}
+        reason={facade.dismissReason}
+        warned={facade.dismissWarned}
+        cancel={facade.cancelDismiss}
+        confirm={facade.confirmDismiss}
+        setReason={facade.setDismissReason}
       />
       <EvidenceModal
         comments={comments}
-        target={evidenceTarget}
-        cancel={cancelEvidence}
-        confirm={confirmEvidence}
+        target={facade.evidenceTarget}
+        cancel={facade.cancelEvidence}
+        confirm={facade.confirmEvidence}
       />
     </>
   );

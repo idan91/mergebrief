@@ -16,7 +16,15 @@ import type {
   ConversationThread,
   PrConversation,
 } from "@web/features/conversation/types";
-import type { BriefChunk } from "../../../types";
+import {
+  createReviewFlowStore,
+  initialReviewFlowState,
+  MindMapProvider,
+  ReviewFlowProvider,
+  type ReviewFlowState,
+} from "@web/features/review/session";
+import type { Brief, BriefChunk } from "../../../types";
+import { buildBriefViewModel } from "../../../utils/viewModel";
 import { DiffTable, type DiffTableProps } from "./DiffTable";
 
 afterEach(cleanup);
@@ -80,46 +88,97 @@ function composer(): ThreadComposerWiring {
   };
 }
 
-function renderTable(overrides: Partial<DiffTableProps> = {}) {
+const providerBrief: Brief = {
+  artifactKind: "brief",
+  pr: {
+    repo: "acme/widgets",
+    number: 7,
+    title: "t",
+    url: "https://example.com/pr/7",
+    sha: "head1234",
+    description: "",
+  },
+  summary: "s",
+  changeGroups: [
+    {
+      id: "g1",
+      title: "g",
+      summary: "g",
+      dominantCategory: "bugfix",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [chunk()],
+  concernView: [],
+};
+
+function renderTable(
+  overrides: Partial<DiffTableProps> = {},
+  flowState: Partial<ReviewFlowState> = {},
+) {
   const rows =
     buildInlineThreads({
       conversation: conversation(),
       chunks: [chunk()],
       ownThreadIds: new Set(),
     }).get("c1") ?? [];
-  const openCommentComposer = vi.fn();
+  const flowStore = createReviewFlowStore(
+    {
+      saveComment: vi.fn(),
+      updateComment: vi.fn(),
+      deleteComment: vi.fn(),
+      toggleComment: vi.fn(),
+    },
+    initialReviewFlowState({
+      composerDisabledReason: undefined,
+      flagsReadOnly: false,
+      postingCommentIds: new Set(),
+      postBlockedExternally: undefined,
+      postComment: undefined,
+    }),
+  );
+  flowStore.setState(flowState);
+  // Call-count observability for composer entry: wrap the real action.
+  const openCommentComposer = vi.fn(flowStore.getState().actions.openComposer);
+  flowStore.setState({
+    actions: {
+      ...flowStore.getState().actions,
+      openComposer: openCommentComposer,
+    },
+  });
   const props: DiffTableProps = {
     chunk: chunk(),
     comparisonView: { marks: new Map(), runs: [], runByRow: new Map() },
     comparisonSource: { kind: "last-review", delta: null },
     comparisonSkipReason: null,
-    activeCommentAnchor: null,
     addressedComments: [],
     conversationThreadsByRow: splitInlineRows(rows).byRow,
     conversationComposer: composer(),
-    cancelCommentComposer: vi.fn(),
-    comments: [],
-    deleteReviewComment: vi.fn(),
-    openCommentComposer,
     reviewCommentLabel: "review comment",
-    saveReviewComment: vi.fn(),
-    toggleReviewComment: vi.fn(),
-    updateReviewComment: vi.fn(),
     ...overrides,
   };
   const view = render(
     <QueryClientProvider client={new QueryClient()}>
-      <DiffTable {...props} />
+      <MindMapProvider
+        briefId="test-brief"
+        model={buildBriefViewModel(providerBrief)}
+      >
+        <ReviewFlowProvider store={flowStore}>
+          <DiffTable {...props} />
+        </ReviewFlowProvider>
+      </MindMapProvider>
     </QueryClientProvider>,
   );
-  return { view, openCommentComposer };
+  return { view, openCommentComposer, flowStore };
 }
 
 describe("DiffTable — read-only comment affordances (BRIEF-24)", () => {
   const REASON = "You're viewing an earlier revision.";
 
   it("rows stay focusable but are aria-disabled with a reachable reason", () => {
-    const { view } = renderTable({ composerDisabledReason: REASON });
+    const { view } = renderTable({}, { composerDisabledReason: REASON });
     const row = view.container.querySelector('tr[aria-disabled="true"]');
     expect(row).not.toBeNull();
     // Still keyboard-reachable — the reason is discoverable BEFORE activation.
@@ -131,9 +190,10 @@ describe("DiffTable — read-only comment affordances (BRIEF-24)", () => {
   });
 
   it("keeps composer entry inert on activation (Enter and click)", () => {
-    const { view, openCommentComposer } = renderTable({
-      composerDisabledReason: REASON,
-    });
+    const { view, openCommentComposer } = renderTable(
+      {},
+      { composerDisabledReason: REASON },
+    );
     const row = view.container.querySelector('tr[aria-disabled="true"]');
     if (!(row instanceof HTMLElement)) throw new Error("expected a diff row");
     fireEvent.keyDown(row, { key: "Enter" });

@@ -21,6 +21,22 @@ export interface FlagState {
   reason: string;
 }
 
+/**
+ * @description A batch of flags a dismiss modal is open FOR, with its display
+ * label. Owned here (disposition domain): the modal renders it, the flow
+ * store holds it — neither may reach into the other's subtree (ADR 0037).
+ */
+export interface DismissTarget {
+  flagIds: string[];
+  label: string;
+}
+
+/** @description The address-with-evidence twin of {@link DismissTarget}. */
+export interface EvidenceTarget {
+  flagIds: string[];
+  label: string;
+}
+
 export interface RiskEvidence {
   kind: RiskEvidenceKind;
   commentId?: string;

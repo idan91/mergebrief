@@ -24,13 +24,12 @@ export {
 export {
   DismissModal,
   type DismissModalProps,
-  type DismissTarget,
 } from "./components/DismissModal/DismissModal";
 export {
   EvidenceModal,
   type EvidenceModalProps,
-  type EvidenceTarget,
 } from "./components/EvidenceModal/EvidenceModal";
+export type { DismissTarget, EvidenceTarget } from "./state";
 export {
   PreSubmitModal,
   type PreSubmitModalProps,

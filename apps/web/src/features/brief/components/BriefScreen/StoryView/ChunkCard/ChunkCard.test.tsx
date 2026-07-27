@@ -12,7 +12,11 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MindMapProvider } from "@web/features/review/session";
+import {
+  createReviewFlowStore,
+  MindMapProvider,
+  ReviewFlowProvider,
+} from "@web/features/review/session";
 import type { ComparisonOverlayState } from "../../../../comparison/comparisonOverlay";
 import type { Brief, BriefChunk } from "../../../../types";
 import { buildBriefViewModel } from "../../../../utils/viewModel";
@@ -73,28 +77,38 @@ const comparison: ComparisonOverlayState = {
 
 function renderCard(overrides: Partial<ChunkCardProps> = {}) {
   const toggleChunk = vi.fn();
+  const flowStore = createReviewFlowStore(
+    {
+      saveComment: vi.fn(),
+      updateComment: vi.fn(),
+      deleteComment: vi.fn(),
+      toggleComment: vi.fn(),
+    },
+    {
+      composerDisabledReason: undefined,
+      flagsReadOnly: false,
+      postingCommentIds: new Set(),
+      postBlockedExternally: undefined,
+      postComment: undefined,
+    },
+  );
   const props: ChunkCardProps = {
     chunk,
     comparison,
     active: false,
     open: false,
     forceCollapsed: false,
-    activeCommentAnchor: null,
     addressedReviewComments: [],
-    cancelCommentComposer: vi.fn(),
-    deleteReviewComment: vi.fn(),
     toggleChunk,
     markReviewed: vi.fn(),
-    openCommentComposer: vi.fn(),
-    saveReviewComment: vi.fn(),
-    toggleReviewComment: vi.fn(),
-    updateReviewComment: vi.fn(),
     ...overrides,
   };
   render(
     <QueryClientProvider client={new QueryClient()}>
       <MindMapProvider briefId="test-brief" model={buildBriefViewModel(brief)}>
-        <ChunkCard {...props} />
+        <ReviewFlowProvider store={flowStore}>
+          <ChunkCard {...props} />
+        </ReviewFlowProvider>
       </MindMapProvider>
     </QueryClientProvider>,
   );

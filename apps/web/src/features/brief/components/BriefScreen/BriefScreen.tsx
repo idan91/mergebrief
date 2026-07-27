@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useStore } from "zustand";
 
 import { Drawer } from "@web/components/Drawer/Drawer";
 import { Markdown } from "@web/components/Markdown/Markdown";
@@ -28,6 +29,9 @@ import { useReviewSubmit } from "@web/features/review/useReviewSubmit";
 import {
   clearSnapshots,
   deriveInitialState,
+  ReviewFlowProvider,
+  useCreateReviewFlowStore,
+  useSyncReviewFlowPosture,
   type SessionSnapshot,
 } from "@web/features/review/session";
 import type { ReviewOutcome, UnresolvedItem } from "@web/features/review/state";
@@ -64,7 +68,6 @@ import {
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY, useOwnDraftFlow } from "./useOwnDraftFlow";
 import { useReadingSession } from "./useReadingSession";
-import { useRiskFlagFlow } from "./useRiskFlagFlow";
 import { disabledComparisonQuery } from "./utils";
 import styles from "./BriefScreen.module.scss";
 
@@ -210,98 +213,51 @@ export function BriefScreen({
   const [preSubmitOpen, setPreSubmitOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
   const [descriptionOpen, setDescriptionOpen] = useState(false);
-  const [activeCommentAnchor, setActiveCommentAnchor] =
-    useState<CommentAnchor | null>(null);
-  const [toast, setToast] = useState("");
 
-  // Risk-disposition UX (flag selection + dismiss/evidence modals) — see the
-  // hook; flags are a read-only mirror in the own-draft state (JSX below).
-  const riskFlow = useRiskFlagFlow({
-    actions,
-    flagsById: model.flagsById,
-    setToast,
+  // Post-now in-flight tracking (BRIEF-43) — the MODULE-LEVEL registry's
+  // per-brief view, subscribed here. Module state, not component state: a
+  // same-tab remount with the same briefId (historical-revision round trip)
+  // resets component state while the fetch closure survives — the registry
+  // keeps the lockdown and the submit block alive across it.
+  const postingCommentIds = useInFlightPosts(briefId);
+
+  // The ephemeral review-flow store (composer anchor, risk targets/selection,
+  // page toast): screen-created and screen-provided; the card tree subscribes
+  // through chunk-/group-scoped selectors so the ChunkCard/GroupCard memo
+  // boundaries keep their wins. Posture fields that affect first paint are
+  // correct at creation; the late-derived rest syncs below the submit flow.
+  const flowStore = useCreateReviewFlowStore({
+    composerDisabledReason: readOnly?.reason,
+    flagsReadOnly: ownDraftActive,
+    postingCommentIds,
+    postBlockedExternally: undefined,
+    postComment: undefined,
   });
+  // Stable for the store's lifetime — safe to read during render.
+  const flowActions = flowStore.getState().actions;
+  const announce = flowActions.announce;
+  // The screen sits above its own provider, so it subscribes to the store
+  // instance directly — booleans only, so a composer open re-renders the
+  // screen solely on the open/close transition, never per anchor change.
+  const toast = useStore(flowStore, (state) => state.toast);
+  const composerOpen = useStore(
+    flowStore,
+    (state) => state.composerAnchor !== null,
+  );
+  const riskModalOpen = useStore(
+    flowStore,
+    (state) => state.dismissTarget !== null || state.evidenceTarget !== null,
+  );
 
   useEffect(() => {
     if (!toast) return;
-    const timer = window.setTimeout(() => setToast(""), 4200);
+    const timer = window.setTimeout(() => flowActions.clearToast(), 4200);
     return () => window.clearTimeout(timer);
-  }, [toast]);
+  }, [flowActions, toast]);
 
-  const saveReviewComment = useCallback(
-    (anchor: CommentAnchor, body: string) => {
-      const trimmed = body.trim();
-      if (!trimmed) {
-        setToast("Comment cannot be empty.");
-        return;
-      }
-      actions.saveComment({
-        anchor,
-        body: trimmed,
-        status: "draft",
-        collapsed: false,
-      });
-      setActiveCommentAnchor(null);
-      setToast("Draft comment added to this review.");
-    },
-    [actions],
-  );
-
-  const updateReviewComment = useCallback(
-    (commentId: string, body: string) => {
-      const trimmed = body.trim();
-      if (!trimmed) {
-        setToast("Comment cannot be empty.");
-        return;
-      }
-      actions.updateComment(commentId, trimmed);
-      setToast("Draft comment updated.");
-    },
-    [actions],
-  );
-
-  const deleteReviewComment = useCallback(
-    (commentId: string) => {
-      actions.deleteComment(commentId);
-      setToast("Draft comment deleted.");
-    },
-    [actions],
-  );
-
-  const openCommentComposer = useCallback(
-    (anchor: CommentAnchor) => {
-      // Read-only posture (BRIEF-24): a historical head cannot take new draft
-      // comments (the submit would pin a stale commit_id). Surface the reason
-      // through the page live region instead of opening the composer.
-      if (readOnly !== undefined) {
-        setToast(readOnly.reason);
-        return;
-      }
-      setActiveCommentAnchor(anchor);
-    },
-    [readOnly],
-  );
-  const cancelCommentComposer = useCallback(() => {
-    setActiveCommentAnchor(null);
-  }, []);
-  const toggleReviewComment = useCallback(
-    (commentId: string) => actions.toggleComment(commentId),
-    [actions],
-  );
   const openPreSubmit = useCallback(() => setPreSubmitOpen(true), []);
   const closeReceipt = useCallback(() => setReceiptOpen(false), []);
   const openSummaryPreview = useCallback(() => setSummaryPreviewOpen(true), []);
-  // The DB submit flow (BRIEF-23): available only when the route injected a
-  // transport — the local demo path keeps the mock toast below.
-  //
-  // Announce via clear-then-set (two ticks): an identical repeat message
-  // still produces a DOM change — re-announced by the live region — and
-  // restarts the [toast]-keyed hide timer instead of dying on the first
-  // submit's timeout.
-  const announceSubmit = useCallback((message: string) => {
-    setToast("");
-    window.setTimeout(() => setToast(message), 30);
-  }, []);
   // The conversation section collapses to its summary header by default —
   // it sits ABOVE the change groups (Idan, smoke feedback 2026-07-08), so
   // expanded-by-default would push the Brief down. The C shortcut expands.
@@ -367,7 +323,7 @@ export function BriefScreen({
         : {
             briefId,
             post: conversation.postReply,
-            announce: announceSubmit,
+            announce,
             getDraft: (threadId: number) =>
               replyDraftsRef.current[String(threadId)] ?? "",
             setDraft: (threadId: number, body: string) =>
@@ -377,7 +333,7 @@ export function BriefScreen({
                 queryKey: conversation.queryOptions.queryKey,
               }),
           },
-    [actions, announceSubmit, briefId, conversation, queryClient],
+    [actions, announce, briefId, conversation, queryClient],
   );
   // Which groups carry conversation threads — the TocBar's markers.
   const conversationGroupIds = useMemo(() => {
@@ -462,13 +418,6 @@ export function BriefScreen({
     },
     [flashConversationTarget, jumpToChunk],
   );
-  // Post-now in-flight tracking (BRIEF-43) — the MODULE-LEVEL registry's
-  // per-brief view, subscribed here (above the submit flow, which consumes
-  // it). Module state, not component state: a same-tab remount with the same
-  // briefId (historical-revision round trip) resets component state while
-  // the fetch closure survives — the registry keeps the lockdown and the
-  // submit block alive across it. See `useOwnDraftFlow` below.
-  const postingCommentIds = useInFlightPosts(briefId);
   const submitFlow = useReviewSubmit({
     action: submitReview,
     briefId,
@@ -478,7 +427,7 @@ export function BriefScreen({
     markSubmitted: (ids) => actions.markCommentsSubmitted(ids),
     recordSubmittedReview: (reviewId) =>
       actions.recordSubmittedReview(reviewId),
-    announce: announceSubmit,
+    announce,
     closeReceipt,
     resetOutcome: () => actions.setOutcome("comment"),
     // Same-tab re-ship window (reviewer round 5): a post-now still settling
@@ -517,24 +466,35 @@ export function BriefScreen({
   // double-post guards in both directions) — see the hook.
   const { postDraftComment } = useOwnDraftFlow({
     actions,
-    announce: announceSubmit,
+    announce,
     briefId,
     invalidateConversation,
     postComment,
     postingCommentIds,
     submitPending,
   });
+  // The late-derived posture half: the post-now family exists only once the
+  // submit flow and own-draft flow above are wired (both need `announce`).
+  useSyncReviewFlowPosture(flowStore, {
+    composerDisabledReason: readOnly?.reason,
+    flagsReadOnly: ownDraftActive,
+    postingCommentIds,
+    postBlockedExternally: submitPending
+      ? POST_COMMENT_COPY.postWhileSubmitting
+      : undefined,
+    postComment: postComment !== undefined ? postDraftComment : undefined,
+  });
   // This render's reviewer-overlay-open snapshot + the entry reset the
   // mark-ready flow's own-draft entry/exit effect drives (see the hook).
   const reviewerOverlayOpen =
-    receiptOpen || summaryPreviewOpen || preSubmitOpen || riskFlow.modalOpen;
-  const closeRiskModals = riskFlow.closeModals;
+    receiptOpen || summaryPreviewOpen || preSubmitOpen || riskModalOpen;
   const closeReviewerOverlays = useCallback(() => {
     setReceiptOpen(false);
     setSummaryPreviewOpen(false);
     setPreSubmitOpen(false);
-    closeRiskModals();
-  }, [closeRiskModals]);
+    flowActions.setDismissTarget(null);
+    flowActions.setEvidenceTarget(null);
+  }, [flowActions]);
   // The mark-ready soft gate (BRIEF-54 PR 4) reaches the expanded intent bar
   // through this handle; null when the Brief carries no intentCheck.
   const intentBarRef = useRef<IntentBarHandle>(null);
@@ -547,7 +507,7 @@ export function BriefScreen({
   // entry/exit/head-advance focus rescues) — see the hook.
   const markReady = useMarkReadyFlow({
     action: ownDraft?.markReady,
-    announce: announceSubmit,
+    announce,
     briefId,
     closeReviewerOverlays,
     flagCount: model.flags.length,
@@ -568,8 +528,8 @@ export function BriefScreen({
     preSubmitOpen ||
     markReady.gateOpen ||
     session.shortcutsOpen ||
-    riskFlow.modalOpen ||
-    activeCommentAnchor !== null;
+    riskModalOpen ||
+    composerOpen;
   useKeyboardShortcuts({
     chunkIds,
     groupBoundaries,
@@ -587,7 +547,7 @@ export function BriefScreen({
     // Read-only posture (BRIEF-24): the submit control disables focusably with
     // the reason (below) — this guards the click path itself.
     if (readOnly !== undefined) {
-      announceSubmit(readOnly.reason);
+      announce(readOnly.reason);
       return;
     }
     if (liveSubmit) {
@@ -595,11 +555,11 @@ export function BriefScreen({
       return;
     }
     setReceiptOpen(false);
-    setToast(
+    announce(
       "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
     );
     // Dep on the stable `submit` callback, not the per-render hook object.
-  }, [announceSubmit, liveSubmit, readOnly, submitFlow.submit]);
+  }, [announce, liveSubmit, readOnly, submitFlow.submit]);
   const closeSummaryPreview = useCallback(
     () => setSummaryPreviewOpen(false),
     [],
@@ -626,7 +586,7 @@ export function BriefScreen({
   );
 
   return (
-    <>
+    <ReviewFlowProvider store={flowStore}>
       <Header
         brief={brief}
         repoConfig={repoConfig}
@@ -798,7 +758,7 @@ export function BriefScreen({
 
             {conversation !== undefined ? (
               <ConversationSection
-                announce={announceSubmit}
+                announce={announce}
                 briefId={briefId}
                 chunks={readingOrderedChunks}
                 focusThreadId={conversationFocusThreadId}
@@ -827,48 +787,13 @@ export function BriefScreen({
                 collapseSupporting={session.collapseSupporting}
                 focusMode={focusMode}
                 openChunks={session.openChunks}
-                selectedRiskFlags={riskFlow.selectedRiskFlags}
-                activeCommentAnchor={activeCommentAnchor}
                 addressedReviewComments={brief.reviewComments}
-                composerDisabledReason={readOnly?.reason}
                 conversationByChunk={conversationByChunk}
                 conversationComposer={conversationComposer}
-                cancelCommentComposer={cancelCommentComposer}
-                deleteReviewComment={deleteReviewComment}
                 jumpToChunk={jumpToChunk}
                 markReviewed={session.markReviewed}
-                openCommentComposer={openCommentComposer}
-                saveReviewComment={saveReviewComment}
-                postReviewComment={
-                  postComment !== undefined ? postDraftComment : undefined
-                }
-                /* Unconditional (empty set inert): if the own-draft state
-                   exits while a post is settling (mark-ready confirmed,
-                   same span so no remount), the ACTION vanishes with the
-                   plan but the lockdown must hold — Edit/Delete re-enabling
-                   on a still-posting draft could flip a submitted record
-                   whose edited body never posted, or orphan the GitHub
-                   comment on delete. */
-                postingCommentIds={postingCommentIds}
-                /* The reverse race's visible half (round 7 #2): while a
-                   Submit review is pending every Post disables with this
-                   wait-shaped reason — the review already captured the
-                   drafts it ships. */
-                postBlockedExternally={
-                  submitPending
-                    ? POST_COMMENT_COPY.postWhileSubmitting
-                    : undefined
-                }
                 setCollapseSupporting={session.setCollapseSupporting}
-                setDismissTarget={riskFlow.openDismiss}
-                setEvidenceTarget={riskFlow.openEvidence}
-                setToast={setToast}
-                flagsReadOnly={ownDraftActive}
                 toggleChunk={session.toggleChunk}
-                toggleRiskFlag={riskFlow.toggleRiskFlag}
-                toggleRiskGroup={riskFlow.toggleRiskGroup}
-                toggleReviewComment={toggleReviewComment}
-                updateReviewComment={updateReviewComment}
                 {...(compareState.view === "full" && chunkIds.length > 0
                   ? { startReadThrough: session.startReadThrough }
                   : {})}
@@ -928,20 +853,7 @@ export function BriefScreen({
       )}
       {/* Flag-disposition machinery: unmounted with its controls — flags are
           a read-only mirror in the own-draft state (no author dispositions). */}
-      {ownDraftActive ? null : (
-        <RiskFlagModals
-          comments={reviewComments}
-          cancelDismiss={riskFlow.cancelDismiss}
-          cancelEvidence={riskFlow.cancelEvidence}
-          confirmDismiss={riskFlow.confirmDismiss}
-          confirmEvidence={riskFlow.confirmEvidence}
-          dismissReason={riskFlow.dismissReason}
-          dismissWarned={riskFlow.dismissWarned}
-          dismissTarget={riskFlow.dismissTarget}
-          evidenceTarget={riskFlow.evidenceTarget}
-          setDismissReason={riskFlow.setDismissReason}
-        />
-      )}
+      {ownDraftActive ? null : <RiskFlagModals flagsById={model.flagsById} />}
       {/* The mark-ready soft gate (BRIEF-43): mounted only in the own-draft
           state, only while the action exists (current head in view — a
           historical revision's flags are not the gate's contract), and only
@@ -997,7 +909,7 @@ export function BriefScreen({
       >
         {toast}
       </div>
-    </>
+    </ReviewFlowProvider>
   );
 }
 
