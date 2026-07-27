@@ -9,8 +9,14 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
   return { ...actual, apiFetch: vi.fn(), apiFetchJson: vi.fn() };
 });
 
+// Mocked so these tests never construct the real process logger; the sink's
+// own branch logic is covered in `data/ssrWarnSink*.test.ts`.
+vi.mock("../../data/ssrWarnSink", () => ({ getSsrWarnSink: vi.fn() }));
+
 import { apiFetch, apiFetchJson, ApiError } from "../../data/apiFetch";
+import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
+  dbBriefQueryOptions,
   dbComparisonMarksQueryOptions,
   dbDeltaQueryOptions,
   pullsSessionQueryOptions,
@@ -18,6 +24,7 @@ import {
 
 const apiFetchMock = vi.mocked(apiFetch);
 const apiFetchJsonMock = vi.mocked(apiFetchJson);
+const getSsrWarnSinkMock = vi.mocked(getSsrWarnSink);
 
 function run(): Promise<unknown> {
   const options = pullsSessionQueryOptions();
@@ -97,6 +104,13 @@ describe("dbComparisonMarksQueryOptions queryFn", () => {
   });
 });
 
+function runBrief(): Promise<unknown> {
+  const options = dbBriefQueryOptions("424242", 7, "base-1", "head-1");
+  const queryFn = options.queryFn;
+  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  return (queryFn as () => Promise<unknown>)();
+}
+
 function runDelta(): Promise<unknown> {
   const options = dbDeltaQueryOptions("424242", 7, "cp-1", "head-1");
   const queryFn = options.queryFn;
@@ -144,5 +158,70 @@ describe("dbDeltaQueryOptions queryFn", () => {
       concernView: [],
     });
     await expect(runDelta()).rejects.toMatchObject({ kind: "malformed" });
+  });
+});
+
+describe("dbBriefQueryOptions queryFn — warn sink (BRIEF-44 PR 6)", () => {
+  const prRef = {
+    repo: "octo/hello",
+    number: 7,
+    title: "t",
+    url: "https://github.com/octo/hello/pull/7",
+    sha: "head-1",
+    description: "",
+  };
+
+  function briefBody(readingOrder: unknown) {
+    return {
+      pr: prRef,
+      summary: "s",
+      changeGroups: [
+        {
+          id: "g1",
+          title: "t",
+          summary: "s",
+          dominantCategory: "bugfix",
+          secondaryCategories: [],
+          uncertain: false,
+          uncertainBetween: [],
+        },
+      ],
+      chunks: [
+        {
+          id: "c1",
+          changeGroupId: "g1",
+          file: "a.ts",
+          concern: "implementation",
+          role: "carrier",
+          loc: { added: 1, deleted: 0 },
+          addedRanges: [],
+          removedRanges: [],
+          riskSurface: [],
+        },
+      ],
+      concernView: [{ concern: "implementation", added: 1, deleted: 0 }],
+      readingOrder,
+    };
+  }
+
+  it("routes a lenient drop to the SSR sink, so hosted-brief drift is not silent", async () => {
+    // The route loaders SSR-prefetch this queryFn
+    // (`repos.$repoId.pulls.$prNumber.tsx`), so this is the ONLY signal an
+    // operator gets when a stored Brief carries a malformed optional section.
+    const warn = vi.fn();
+    getSsrWarnSinkMock.mockResolvedValue({ warn });
+    apiFetchJsonMock.mockResolvedValue(briefBody("not an array"));
+
+    await expect(runBrief()).resolves.toMatchObject({ summary: "s" });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain(
+      "parseBrief: dropping readingOrder",
+    );
+  });
+
+  it("parses fine when the sink is absent (the browser refetch)", async () => {
+    getSsrWarnSinkMock.mockResolvedValue(undefined);
+    apiFetchJsonMock.mockResolvedValue(briefBody("not an array"));
+    await expect(runBrief()).resolves.toMatchObject({ summary: "s" });
   });
 });

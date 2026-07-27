@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   parseBrief,
   parseDeltaBrief,
   parseRevisionNarrativeArtifact,
+  type ParseWarnSink,
 } from "./validation";
 
 const pr = {
@@ -445,6 +446,68 @@ describe("parseBrief", () => {
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
     expect(parsed.value.intentCheck).toBeUndefined();
+  });
+
+  it("reports every warn-and-drop through the injected sink (ADR 0034)", () => {
+    const warn = vi.fn<ParseWarnSink["warn"]>(() => {});
+    const parsed = parseBrief(
+      {
+        ...twoGroupBriefInput,
+        readingOrder: "not an array",
+        intentCheck: { ...preciseIntentCheck, specificity: "vague" },
+      },
+      { warn },
+    );
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.readingOrder).toBeUndefined();
+    expect(parsed.value.intentCheck).toBeUndefined();
+    const messages = warn.mock.calls.map(([msg]) => msg);
+    expect(messages).toHaveLength(2);
+    expect(
+      messages.every((msg) => msg.startsWith("parseBrief: dropping")),
+    ).toBe(true);
+  });
+
+  it("stays silent when the caller injects no sink (the client path)", () => {
+    // No sink and no console noise. This is the BROWSER contract only — it is
+    // not a claim that the drop is reported elsewhere in general. Coverage is
+    // per call site: the local-file path passes the process logger
+    // (`brief.server.ts`), and the hosted path resolves one when it runs
+    // server-side (`features/pulls/queries.ts` via `getSsrWarnSink`). A future
+    // caller that passes nothing on the server gets NO signal — passing a sink
+    // is the caller's job.
+    const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const parsed = parseBrief({
+        ...twoGroupBriefInput,
+        readingOrder: "not an array",
+      });
+      expect(parsed.ok).toBe(true);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
+describe("parseRevisionNarrativeArtifact — reason narrowing", () => {
+  it("narrows the skip reason without a cast", () => {
+    // `oneOf` is a type predicate, so the parsed stub's `skipped` is already
+    // the union — this asserts the value survives the guard unchanged.
+    const parsed = parseRevisionNarrativeArtifact({
+      artifactKind: "revisionNarrativeSkipped",
+      pr,
+      prevHeadSha: "a".repeat(40),
+      headSha: "b".repeat(40),
+      prevIndex: 1,
+      headIndex: 2,
+      skipped: "span too large",
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value).toMatchObject({ skipped: "span too large" });
   });
 });
 

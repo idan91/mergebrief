@@ -23,10 +23,10 @@ export function SummaryPreview({
   const receipt = buildReceipt(snapshot, brief, model);
   const reviewedChunkIds = new Set(snapshot.reviewedChunkIds);
   const carrierChunks = brief.chunks.filter(
-    (chunk) => chunk.role === Roles.Carrier,
+    (chunk) => chunk.role === Roles.CARRIER,
   );
   const supportingChunks = brief.chunks.filter(
-    (chunk) => chunk.role === Roles.Supporting,
+    (chunk) => chunk.role === Roles.SUPPORTING,
   );
 
   return (

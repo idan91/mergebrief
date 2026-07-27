@@ -13,6 +13,15 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
 - Server data crosses `data/apiFetch` only (isomorphic: SSR dispatches
   in-process through the SAME authz gate). Never reach persistence from a
   server function — that would be a second enforcement path.
+- Isomorphic and shared client/server modules INJECT their log sink (a narrow
+  `{ warn }`/`{ error }` interface the `packages/logging` `Logger` satisfies);
+  they never import `server/logger`, which is `server-only`. No sink passed =
+  silent, which is the client default: a browser has no operator, so a
+  `console.*` nobody reads does not earn its level (ADR 0034 #5). Silence is
+  only correct client-side, so EVERY server-side caller must pass one —
+  `data/ssrWarnSink`'s `getSsrWarnSink()` is the resolver for call sites that
+  run on both sides (queryFns reached by route loaders). Forgetting it is
+  silent by construction, so it is a review checkpoint, not a lint error.
 
 ## Placement and styling (ADR 0037 — full rules + why live there)
 
@@ -79,4 +88,14 @@ against GitHub (or any external system) follows them:
 pnpm -C apps/web typecheck
 pnpm -C apps/web test      # characterization harness included
 pnpm -C apps/web lint      # prettier + stylelint; exit code is the judge
+pnpm -C apps/web build     # REQUIRED for isomorphic/server-only changes
 ```
+
+`build` is not optional paranoia: TanStack Start's `import-protection`
+plugin statically denies any CLIENT-graph edge reaching
+`@tanstack/react-start/server-only` — including through a dynamic
+`import()`, and including edges guarded by an unreachable `typeof window`
+branch. typecheck, test, and lint ALL pass on such a graph; only `build`
+fails it. Reaching server-only code from an isomorphic module means
+`createIsomorphicFn().server(...)` with the import inside the branch
+(`data/apiFetch.ts`, `data/ssrWarnSink.ts` are the templates).

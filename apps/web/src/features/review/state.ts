@@ -110,7 +110,7 @@ export function deriveUnresolvedItems(
   }
 
   for (const chunk of input.chunks) {
-    if (chunk.role === Roles.Carrier && !input.reviewedChunkIds.has(chunk.id)) {
+    if (chunk.role === Roles.CARRIER && !input.reviewedChunkIds.has(chunk.id)) {
       items.push({
         id: `carrier:${chunk.id}`,
         kind: "unreviewed-carrier",

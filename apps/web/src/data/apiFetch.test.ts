@@ -4,10 +4,21 @@
 // viewer's cookie is forwarded verbatim, and a composition failure maps to the
 // same sanitized 503 the server entry answers, never a thrown internal error.
 import { describe, expect, it, vi } from "vitest";
-import { ApiError, apiJsonFromResponse, dispatchInProcess } from "./apiFetch";
+import {
+  ApiError,
+  apiJsonFromResponse,
+  dispatchInProcess,
+  type DispatchLogSink,
+} from "./apiFetch";
 
 function fakeApp(handler: (request: Request) => Response) {
   return { fetch: vi.fn(async (request: Request) => handler(request)) };
+}
+
+function fakeLogSink() {
+  return {
+    error: vi.fn<DispatchLogSink["error"]>(() => {}),
+  };
 }
 
 describe("dispatchInProcess", () => {
@@ -21,6 +32,7 @@ describe("dispatchInProcess", () => {
       "/api/pulls",
       "rs_session=abc",
       async () => app,
+      fakeLogSink(),
     );
     expect(res.status).toBe(200);
     expect(app.fetch).toHaveBeenCalledTimes(1);
@@ -35,6 +47,7 @@ describe("dispatchInProcess", () => {
       "/api/pulls",
       undefined,
       async () => app,
+      fakeLogSink(),
     );
     expect(res.status).toBe(401);
   });
@@ -50,6 +63,7 @@ describe("dispatchInProcess", () => {
       "/api/repos/1/pulls/7/review",
       "rs_session=abc",
       async () => app,
+      fakeLogSink(),
       {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -73,19 +87,126 @@ describe("dispatchInProcess", () => {
       "/api/pulls",
       "rs_session=real",
       async () => app,
+      fakeLogSink(),
       { headers: { Cookie: "rs_session=stale" } },
     );
     expect(res.status).toBe(200);
   });
 
   it("maps a composition failure to the sanitized 503, never a throw", async () => {
-    const res = await dispatchInProcess("/api/pulls", undefined, async () => {
-      throw new Error("postgres://user:secret@host/db is down");
-    });
+    const res = await dispatchInProcess(
+      "/api/pulls",
+      undefined,
+      async () => {
+        throw new Error("postgres://user:secret@host/db is down");
+      },
+      fakeLogSink(),
+    );
     expect(res.status).toBe(503);
     const body = await res.text();
     expect(body).not.toContain("secret");
     expect(body).toContain("service unavailable");
+  });
+
+  it("reports a composition failure through the injected log sink, with the cause as a structured field (ADR 0034)", async () => {
+    // The seam is isomorphic, so the SSR branch cannot import the server
+    // logger at module scope — it is injected. `error` is the right level:
+    // the whole read surface is down until an operator acts.
+    const sink = fakeLogSink();
+    await dispatchInProcess(
+      "/api/pulls",
+      undefined,
+      async () => {
+        throw new Error("connect ECONNREFUSED 10.0.0.4:5432");
+      },
+      sink,
+    );
+    expect(sink.error).toHaveBeenCalledTimes(1);
+    const [msg, fields] = sink.error.mock.calls[0] ?? [];
+    expect(msg).toBe("apiFetch: webhook app composition failed");
+    expect(fields?.["err"]).toMatchObject({
+      name: "Error",
+      message: "connect ECONNREFUSED 10.0.0.4:5432",
+    });
+  });
+
+  it("redacts URL-shaped credentials from the LOGGED error message and stack", async () => {
+    // pino's `err` serializer writes message + stack VERBATIM, and
+    // `packages/logging`'s redaction is key-path based — it cannot reach a
+    // secret embedded in a STRING. Composition failures (migrate/createDb)
+    // realistically throw with DATABASE_URL in the message, so the sanitizing
+    // happens here, before the value ever reaches the logger.
+    const sink = fakeLogSink();
+    await dispatchInProcess(
+      "/api/pulls",
+      undefined,
+      async () => {
+        throw new Error("postgres://user:secret@host/db is down");
+      },
+      sink,
+    );
+    const [msg, fields] = sink.error.mock.calls[0] ?? [];
+    const logged = JSON.stringify({ msg, fields });
+    expect(logged).not.toContain("secret");
+    expect(logged).not.toContain("postgres://");
+    // Redacted, not dropped: the operator still gets a diagnosable line.
+    const err = fields?.["err"];
+    expect(err).toMatchObject({
+      name: "Error",
+      message: "[redacted-url] is down",
+    });
+    expect(typeof (err as { stack?: unknown } | undefined)?.stack).toBe(
+      "string",
+    );
+  });
+
+  it("keeps file:// stack frames intact while still redacting credentials", async () => {
+    // apps/web is `"type": "module"`, so Node renders EVERY frame as
+    // `file:///abs/path:10:5`. A blanket URL redaction would eat the whole
+    // stack and hand the operator a blank trace — the `file://` scheme
+    // carries no credentials and is exempt.
+    const sink = fakeLogSink();
+    const cause = new Error("postgres://user:secret@host/db is down");
+    cause.stack = [
+      "Error: postgres://user:secret@host/db is down",
+      "    at buildWebhookApp (file:///Users/idan/app/src/server/webhookApp.ts:42:11)",
+      "    at async dispatchInProcess (file:///Users/idan/app/src/data/apiFetch.ts:130:15)",
+    ].join("\n");
+    await dispatchInProcess(
+      "/api/pulls",
+      undefined,
+      async () => {
+        throw cause;
+      },
+      sink,
+    );
+    const [, fields] = sink.error.mock.calls[0] ?? [];
+    const stack = (fields?.["err"] as { stack?: string } | undefined)?.stack;
+    expect(stack).toContain(
+      "file:///Users/idan/app/src/server/webhookApp.ts:42:11",
+    );
+    expect(stack).toContain("file:///Users/idan/app/src/data/apiFetch.ts");
+    // The credential-bearing first line is still redacted.
+    expect(stack).not.toContain("secret");
+    expect(stack).not.toContain("postgres://");
+    expect(stack).toContain("[redacted-url]");
+  });
+
+  it("logs a non-Error throw without losing it", async () => {
+    const sink = fakeLogSink();
+    await dispatchInProcess(
+      "/api/pulls",
+      undefined,
+      async () => {
+        throw "postgres://user:secret@host/db is down";
+      },
+      sink,
+    );
+    const [, fields] = sink.error.mock.calls[0] ?? [];
+    expect(JSON.stringify(fields)).not.toContain("secret");
+    expect(fields?.["err"]).toMatchObject({
+      message: "[redacted-url] is down",
+    });
   });
 });
 

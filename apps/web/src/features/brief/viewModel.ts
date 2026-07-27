@@ -124,12 +124,12 @@ const RISK_DESCRIPTIONS: Record<RiskSurfaceAttribute, string> = {
 };
 
 const CONCERN_ORDER: Concern[] = [
-  Concerns.Implementation,
-  Concerns.Test,
-  Concerns.Doc,
-  Concerns.Spec,
-  Concerns.Config,
-  Concerns.Generated,
+  Concerns.IMPLEMENTATION,
+  Concerns.TEST,
+  Concerns.DOC,
+  Concerns.SPEC,
+  Concerns.CONFIG,
+  Concerns.GENERATED,
 ];
 
 /** Description for a token: the built-in reviewer-implication line, or the repo's criteria. */
@@ -179,10 +179,10 @@ export function buildBriefViewModel(
     );
     groupChunks.forEach((chunk) => chunkToGroup.set(chunk.id, id));
     const carrierChunks = sortByConcern(
-      groupChunks.filter((chunk) => chunk.role === Roles.Carrier),
+      groupChunks.filter((chunk) => chunk.role === Roles.CARRIER),
     );
     const supportingChunks = sortByConcern(
-      groupChunks.filter((chunk) => chunk.role === Roles.Supporting),
+      groupChunks.filter((chunk) => chunk.role === Roles.SUPPORTING),
     );
 
     return {

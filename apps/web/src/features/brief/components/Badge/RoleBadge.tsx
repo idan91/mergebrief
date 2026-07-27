@@ -11,7 +11,7 @@ export interface RoleBadgeProps {
  * collide with the concern-dot palette.
  */
 export function RoleBadge({ role }: RoleBadgeProps) {
-  return role === Roles.Carrier ? (
+  return role === Roles.CARRIER ? (
     <Badge color={BadgeColors.TEXT} fill>
       carrier
     </Badge>

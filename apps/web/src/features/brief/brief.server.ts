@@ -473,7 +473,7 @@ async function readBriefFile(briefId: string): Promise<Brief> {
       "utf8",
     );
     const parsedJson: unknown = JSON.parse(raw);
-    const parsedBrief = parseBrief(parsedJson);
+    const parsedBrief = parseBrief(parsedJson, logger);
     if (!parsedBrief.ok) {
       throw new Error(`Invalid local brief: ${parsedBrief.error}`);
     }

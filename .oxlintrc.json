@@ -37,6 +37,21 @@
     "typescript/no-explicit-any": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-non-null-assertion": "error",
+    // The root standard's "no bare `as`" rule (BRIEF-44). `as const` and
+    // `satisfies` are unaffected; boundaries narrow with Zod or a type guard,
+    // and a genuinely-unavoidable cast takes a line-scoped disable + reason.
+    "typescript/consistent-type-assertions": [
+      "error",
+      { "assertionStyle": "never" }
+    ],
+    // The closest oxlint gets to the root standard's `enum` ban: it covers
+    // `const enum` only. Plain `enum` is NOT expressible here — oxlint has no
+    // `no-enum` and no `no-restricted-syntax` (checked, oxlint 1.72), so that
+    // half of the rule stays prose (ADR 0037 #8).
+    "oxc/no-const-enum": "error",
+    // Named exports only; the four framework-required default exports are
+    // carved out per-path in the overrides.
+    "import/no-default-export": "error",
     "import/no-cycle": "error",
     // Side-effect imports are how Vite loads global styles and server
     // entrypoints register themselves.
@@ -69,6 +84,30 @@
   ],
   "overrides": [
     {
+      // ADR 0034's logging-seam scope, stated as paths: every line in these
+      // files goes through `packages/logging`, so NO console level survives
+      // (the global rule's warn/error/info allowance is client-side only).
+      "files": [
+        "packages/api/src/**",
+        "packages/worker/src/**",
+        "apps/web/src/server.ts",
+        "apps/web/src/server/**",
+        "apps/web/src/**/*.server.ts"
+      ],
+      "rules": {
+        "no-console": "error"
+      }
+    },
+    {
+      // Framework-required default exports: vite/tsup/drizzle read the
+      // default export of their config, and TanStack Start's server entry is
+      // resolved the same way.
+      "files": ["**/*.config.ts", "apps/web/src/server.ts"],
+      "rules": {
+        "import/no-default-export": "off"
+      }
+    },
+    {
       "files": ["**/*.test.ts", "**/*.test.tsx", "**/test/**"],
       "rules": {
         "typescript/no-non-null-assertion": "off",
@@ -83,6 +122,10 @@
         // casts flagged unsafe at one site, unnecessary at another).
         "typescript/no-unsafe-type-assertion": "off",
         "typescript/no-unnecessary-type-assertion": "off",
+        // Same reason the two rules above are off here: narrowing a fixture
+        // or a DOM query to the shape under test is the test's own setup,
+        // not an escape from a boundary contract.
+        "typescript/consistent-type-assertions": "off",
         // Mocks here pass implementations (vi.fn(async () => fixture)), which
         // already fully type them — explicit type parameters would be
         // redundant annotations, not added safety.

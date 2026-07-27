@@ -147,9 +147,14 @@ ESLint, no Biome):
 - **stylelint** `declaration-property-value-allowed-list` enforces the token
   bar per value family (colors, font-sizes, radii, shadows).
 - **oxlint** carries whatever it can express of the TS standards:
-  no-explicit-any, the enum ban, restricted assertions, named exports,
-  no-console in server dirs, import/no-cycle, and the lateral-import
-  restriction if its path patterns can state it.
+  `typescript/no-explicit-any`, `typescript/consistent-type-assertions`
+  with `assertionStyle: "never"` (the "no bare `as`" rule; `as const` and
+  `satisfies` are untouched), `import/no-default-export` (named exports,
+  with the framework config/entry files carved out per path),
+  `oxc/no-const-enum`, `no-console` re-tightened to ALL levels over ADR
+  0034's server paths, and `import/no-cycle`.
+  Landed in BRIEF-44 PR 6; each rule was verified red on a violation probe
+  before landing.
 - **Test-as-enforcement:** a guard test parses every `var(--x)` usage in
   `.module.scss` and asserts the token is defined in `tokens.scss` or
   locally in the same module — an undefined var is invisible at build time
@@ -161,7 +166,13 @@ What lint cannot express stays prose, listed honestly: the subtree
 ownership/promotion procedure (2), the inline-vs-utils split (3), the
 topic-folder threshold (4), earned-oddity justifications (5), and data-attr
 adoption at birth (7). These live in this ADR and, compressed, in
-`apps/web/AGENTS.md`.
+`apps/web/AGENTS.md`. Two more joined the list when the rules were built
+(oxlint 1.72): the **plain-`enum` ban** — oxlint ships neither a `no-enum`
+rule nor `no-restricted-syntax`, so only `const enum` is caught — and the
+**lateral-import restriction**, which needs a per-file *relative* path
+predicate (`no lateral import outside MY subtree`); oxlint's overrides only
+select which rules apply to a file, and `import/no-restricted-paths` does not
+exist, so the rule cannot be stated. Both remain prose + review.
 
 ### 9. Path alias
 

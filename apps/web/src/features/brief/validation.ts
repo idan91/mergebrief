@@ -24,7 +24,6 @@ import {
   type RevisionChanges,
   type RevisionNarrativeArtifact,
   type RevisionNarrativeChunk,
-  type RevisionNarrativeSkipReason,
   type RiskNote,
   type RiskToken,
   type ValueOf,
@@ -313,8 +312,8 @@ export function parseRevisionChanges(value: unknown): Result<RevisionChanges> {
 }
 
 const ComparisonBaselineLabels = {
-  PreviousBrief: "previous-brief",
-  Checkpoint: "checkpoint",
+  PREVIOUS_BRIEF: "previous-brief",
+  CHECKPOINT: "checkpoint",
 } as const;
 
 /**
@@ -416,8 +415,8 @@ function parseRevisionNarrativeChunk(
 }
 
 const RevisionNarrativeSkipReasons = {
-  SpanTooLarge: "span too large",
-  DisabledByConfig: "disabled by config",
+  SPAN_TOO_LARGE: "span too large",
+  DISABLED_BY_CONFIG: "disabled by config",
 } as const;
 
 /**
@@ -467,7 +466,7 @@ export function parseRevisionNarrativeArtifact(
         headSha,
         prevIndex,
         headIndex,
-        skipped: skipped as RevisionNarrativeSkipReason,
+        skipped,
       },
     };
   }
@@ -676,16 +675,17 @@ function isReadingOrderPermutation(
 function parseReadingOrder(
   value: unknown,
   groupIds: string[],
+  warnSink: ParseWarnSink | undefined,
 ): ReadingOrderStep[] | undefined {
   if (value === undefined) return undefined;
   const parsed = parseArray(value, parseReadingOrderStep, "readingOrder");
   if (!parsed.ok) {
-    console.warn(`parseBrief: dropping readingOrder — ${parsed.error}`);
+    warnSink?.warn(`parseBrief: dropping readingOrder — ${parsed.error}`);
     return undefined;
   }
   const stepGroupIds = parsed.value.map((step) => step.groupId);
   if (!isReadingOrderPermutation(stepGroupIds, groupIds)) {
-    console.warn(
+    warnSink?.warn(
       "parseBrief: dropping readingOrder — not a permutation of changeGroups ids",
     );
     return undefined;
@@ -729,15 +729,18 @@ function parseIntentItem(value: unknown): Result<IntentItem> {
  * `parseDeltaBrief`. groupIds are NOT cross-validated here; the render-time
  * jump guard (`jumpToGroup`) already ignores dangling ids.
  */
-function parseIntentCheck(value: unknown): IntentCheck | undefined {
+function parseIntentCheck(
+  value: unknown,
+  warnSink: ParseWarnSink | undefined,
+): IntentCheck | undefined {
   if (value === undefined) return undefined;
   if (!isRecord(value)) {
-    console.warn("parseBrief: dropping intentCheck — not an object");
+    warnSink?.warn("parseBrief: dropping intentCheck — not an object");
     return undefined;
   }
   const { specificity, scopeNote } = value;
   if (!isSpecificity(specificity) || !isString(scopeNote)) {
-    console.warn(
+    warnSink?.warn(
       "parseBrief: dropping intentCheck — bad specificity or scopeNote",
     );
     return undefined;
@@ -779,7 +782,7 @@ function parseIntentCheck(value: unknown): IntentCheck | undefined {
     claimedButUnachieved,
   ]) {
     if (!parsed.ok) {
-      console.warn(`parseBrief: dropping intentCheck — ${parsed.error}`);
+      warnSink?.warn(`parseBrief: dropping intentCheck — ${parsed.error}`);
       return undefined;
     }
   }
@@ -897,7 +900,22 @@ function parseGenerationWarnings(value: unknown): string[] | undefined {
   return entries.length > 0 ? entries : undefined;
 }
 
-export function parseBrief(value: unknown): Result<Brief> {
+/**
+ * The one log level `parseBrief` emits (ADR 0034): a dropped optional section
+ * is degraded output, never operator-actionable failure. INJECTED because
+ * this module is shared client/server — the server caller passes the process
+ * logger; the client passes nothing and the drops stay silent (a browser has
+ * no operator, and a `console.warn` nobody reads does not earn its level).
+ * `packages/logging`'s `Logger` satisfies this structurally.
+ */
+export interface ParseWarnSink {
+  warn(msg: string): void;
+}
+
+export function parseBrief(
+  value: unknown,
+  warnSink?: ParseWarnSink,
+): Result<Brief> {
   if (!isRecord(value))
     return { ok: false, error: "Expected brief to be an object" };
   const summary = value["summary"];
@@ -929,8 +947,9 @@ export function parseBrief(value: unknown): Result<Brief> {
   const readingOrder = parseReadingOrder(
     value["readingOrder"],
     normalized.value.changeGroups.map((group) => group.id),
+    warnSink,
   );
-  const intentCheck = parseIntentCheck(value["intentCheck"]);
+  const intentCheck = parseIntentCheck(value["intentCheck"], warnSink);
   return {
     ok: true,
     value: {

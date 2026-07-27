@@ -467,14 +467,7 @@ function ThreadDetail({
   );
 }
 
-export function ThreadRowView({
-  row,
-  expanded,
-  toggle,
-  jumpToChunk,
-  composer,
-  hideJump = false,
-}: {
+export interface ThreadRowViewProps {
   row: DigestThreadRow;
   expanded: boolean;
   toggle: (threadId: number) => void;
@@ -483,8 +476,18 @@ export function ThreadRowView({
     target?: { rowId: string; threadId: number },
   ) => void;
   composer: ThreadComposerWiring;
+  /** Marks the inline (at-chunk) renders, which suppress the jump action. */
   hideJump?: boolean;
-}) {
+}
+
+export function ThreadRowView({
+  row,
+  expanded,
+  toggle,
+  jumpToChunk,
+  composer,
+  hideJump = false,
+}: ThreadRowViewProps) {
   const { thread } = row;
   const author = thread.comments[0]?.author;
   return (

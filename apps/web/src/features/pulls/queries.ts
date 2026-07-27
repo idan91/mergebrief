@@ -13,6 +13,7 @@ import {
   apiFetchText,
   apiJsonFromResponse,
 } from "../../data/apiFetch";
+import { getSsrWarnSink } from "../../data/ssrWarnSink";
 import {
   parseBrief,
   parseComparisonMarks,
@@ -100,7 +101,11 @@ export function dbBriefQueryOptions(
     queryFn: async (): Promise<Brief> => {
       const path = `${prPath(repoId, prNumber)}/brief?${spanQuery(base, head)}`;
       const body = await apiFetchJson(path);
-      const parsed = parseBrief(body);
+      // Route loaders SSR-prefetch this queryFn, so the sink is what keeps a
+      // lenient drop (a malformed optional section on a STORED Brief —
+      // BRIEF-23-class contract drift) from shipping with zero signal. The
+      // browser refetch resolves no sink and stays silent by design.
+      const parsed = parseBrief(body, await getSsrWarnSink());
       if (!parsed.ok) {
         throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
       }
