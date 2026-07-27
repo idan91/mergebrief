@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { GenerationSchema } from "generators";
+import type { ValueOf } from "types";
 
 // Port vocabulary now lives in packages/generators (BRIEF-11); re-exported
 // here so the categorizer's own modules and downstream consumers keep their
@@ -43,6 +44,29 @@ export const Concerns = [
   "generated", // generated / vendored output (lockfiles, bundles)
 ] as const;
 
+/**
+ * Specificity — how actionable the composite intent corpus is (BRIEF-54,
+ * ADR 0009 §2 as amended). Named here rather than inlined in
+ * `IntentCheckSchema`'s `z.enum` so the FE's mirrored union can be pinned to
+ * it (BRIEF-44 PR 7); the enum's wire values are unchanged.
+ */
+export const Specificities = {
+  PRECISE: "precise",
+  BROAD: "broad",
+  NONE: "none",
+} as const;
+
+/**
+ * Why a Previous-Brief revision narrative was deliberately not generated
+ * (ADR 0024). Sentence-shaped values, not kebab tokens: these are the
+ * historical wire values written into `.revision-narrative.json` stubs, so
+ * they are pinned as-is and must not be "corrected".
+ */
+export const RevisionNarrativeSkipReasons = {
+  SPAN_TOO_LARGE: "span too large",
+  DISABLED_BY_CONFIG: "disabled by config",
+} as const;
+
 /** Role — carrier vs supporting. Attaches to a chunk. */
 export const Roles = [
   "carrier", // holds the change-group's intent
@@ -82,6 +106,8 @@ export type Category = (typeof Categories)[number];
 export type Concern = (typeof Concerns)[number];
 export type Role = (typeof Roles)[number];
 export type RiskSurfaceAttribute = (typeof RiskSurfaceAttributes)[number];
+export type Specificity = ValueOf<typeof Specificities>;
+export type RevisionNarrativeSkipReason = ValueOf<typeof RevisionNarrativeSkipReasons>;
 
 const categoryEnum = z.enum(Categories);
 const concernEnum = z.enum(Concerns);
@@ -391,7 +417,7 @@ export const IntentCheckSchema = z.object({
       "the linked-context URLs treated as ticket-like intent sources — ONLY URLs present in the Linked context section, never invented",
     ),
   specificity: z
-    .enum(["precise", "broad", "none"])
+    .enum([Specificities.PRECISE, Specificities.BROAD, Specificities.NONE])
     .describe(
       "how actionable the combined intent corpus is: precise (defines this change), broad (epic/parent/support — too general), none (no usable stated intent). broad/none ⇒ all five buckets empty",
     ),
@@ -739,7 +765,7 @@ export interface RevisionNarrativeSkipped {
   headSha: string;
   prevIndex: number;
   headIndex: number;
-  skipped: "span too large" | "disabled by config";
+  skipped: RevisionNarrativeSkipReason;
 }
 
 export type PrRef = z.infer<typeof PrRefSchema>;

@@ -20,6 +20,15 @@ export {
 } from "./routes/auth";
 export type { RefreshError, RefreshedSession, AuthRouteDeps } from "./routes/auth";
 
+// The PR-meta `comparisons.lastReview` response vocabulary and view shape
+// (BRIEF-21). Exported for the sole benefit of consumers that MIRROR this
+// contract: `apps/web` hand-rolls its own wire types, and its lockstep drift
+// pins assert against this source rather than a literal copy (BRIEF-44 PR 7) —
+// no route behavior depends on the re-export. One name, both meanings: the
+// first line carries the const map AND the same-named value union.
+export { LastReviewUnavailableReason } from "./routes/reads";
+export type { LastReviewComparisonView } from "./routes/reads";
+
 // Queue schema bootstrap — install/upgrade the `graphile_worker` schema so the
 // webhook's by-name `add_job` enqueue works against real Postgres. Composition
 // roots call this once at startup; BRIEF-2 installs only (worker = BRIEF-3).

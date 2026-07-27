@@ -68,9 +68,19 @@ export {
 export { revisionNarrativeConfig, type RevisionNarrativeConfig } from "./config";
 export { generateAndWrite, type Range } from "./index";
 export {
+  Categories,
+  Concerns,
+  Roles,
   RiskSurfaceAttributes,
+  Specificities,
+  RevisionNarrativeSkipReasons,
   briefGenerationSchemaWith,
   type Brief,
+  type Category,
+  type Concern,
+  type Role,
+  type Specificity,
+  type RevisionNarrativeSkipReason,
   type CommitRange,
   type Effort,
   type IntentBucket,

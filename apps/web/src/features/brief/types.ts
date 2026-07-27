@@ -1,3 +1,12 @@
+// Brief artifact shapes + closed vocabularies (ADR 0021/0024/0025/0026).
+// Mirrors brief-core's `types.ts`: the vocabularies below carry the SAME wire
+// values, re-declared here as as-const maps. Hand-rolled by design — this
+// feature parses artifacts with its own guards (`validation.ts`) rather than
+// importing the generator's Zod schemas, which would drag brief-core into the
+// client bundle. The mirrored vocabularies and unions are pinned to their
+// source by lockstep tests (`types.test.ts` imports brief-core at dev time and
+// asserts equality), because CI's per-package path filter would otherwise let
+// an upstream vocabulary change land green (BRIEF-23).
 export const Categories = {
   BUGFIX: "bugfix",
   LOGIC_REFACTOR: "logic-refactor",

@@ -2,7 +2,17 @@
 // is trusted infrastructure but still an external boundary to this bundle —
 // responses are parsed, never cast.
 import { describe, expect, it } from "vitest";
-import { parsePrSummary, parsePullsList } from "./types";
+import {
+  LastReviewUnavailableReason as SOURCE_LAST_REVIEW_UNAVAILABLE_REASON,
+  type LastReviewComparisonView,
+} from "api";
+import type { Equals } from "types";
+import {
+  LastReviewUnavailableReasons,
+  parsePrSummary,
+  parsePullsList,
+  type LastReviewComparison,
+} from "./types";
 
 const ROW = {
   repoId: "424242",
@@ -345,5 +355,44 @@ describe("parsePullsList", () => {
 
   it("rejects a list containing one malformed row", () => {
     expect(parsePullsList({ pulls: [ROW, { nope: true }] }).ok).toBe(false);
+  });
+});
+
+// The api route's `lastReview` union, minus its unavailable branch — the
+// payload the FE's `available` branch mirrors field for field.
+type SourceAvailableLastReview = Exclude<
+  LastReviewComparisonView,
+  { readonly unavailable: unknown }
+>;
+/**
+ * The FE re-shapes the wire union into a discriminated one (`kind`) so
+ * consumers switch without re-probing keys, so the two unions are NOT
+ * identical by design — but the available branch's PAYLOAD must be. `Equals`
+ * is exact: it fails on a renamed or retyped field, and unlike mutual
+ * assignability it also fails when the OPTIONAL `baselineIndex` half drifts.
+ */
+const availableBranchPin: Equals<
+  Omit<Extract<LastReviewComparison, { kind: "available" }>, "kind">,
+  SourceAvailableLastReview
+> = true;
+
+describe("lockstep pins (mirrored wire contract vs its api source)", () => {
+  it("LastReviewUnavailableReasons equals the api route's reason map", () => {
+    // The mirror is hand-rolled (no zod in this bundle) and CI is
+    // path-filtered per package, so an added or renamed reason in
+    // `packages/api/src/routes/reads.ts` would otherwise ship green while the
+    // picker's guard rejects the whole PR-meta response (BRIEF-23 incident).
+    // `toEqual` on the maps forgives declaration order (the two sides declare
+    // the keys in opposite order today) but catches a key rename, a dropped
+    // reason, and a changed wire value.
+    expect({ ...LastReviewUnavailableReasons }).toEqual({
+      ...SOURCE_LAST_REVIEW_UNAVAILABLE_REASON,
+    });
+  });
+
+  it("the available lastReview branch mirrors the api view's payload exactly", () => {
+    // Compile-time pin (gated by `pnpm -C apps/web typecheck`, which includes
+    // test files); asserted at runtime so it stays visible in the suite.
+    expect(availableBranchPin).toBe(true);
   });
 });

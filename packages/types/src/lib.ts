@@ -16,6 +16,37 @@
  */
 export type ValueOf<T> = T[keyof T];
 
+/** Exact key-set equality — both directions, so a renamed key is caught. */
+type SameKeys<A, B> = [keyof A] extends [keyof B]
+  ? [keyof B] extends [keyof A]
+    ? true
+    : false
+  : false;
+
+/**
+ * Compile-time EXACT type equality: mutual assignability AND the same key set,
+ * optional halves included. Strictly stronger than mutual assignability alone,
+ * which treats `{ a?: string }` and `{ b?: string }` as interchangeable and so
+ * cannot see an optional field being renamed — and optional fields are how
+ * wire contracts usually evolve.
+ *
+ * Its reason for existing is the hand-rolled wire MIRRORS (`apps/web` parses
+ * API responses with its own guards instead of importing workspace Zod
+ * schemas): a lockstep pin writes `true satisfies Equals<Mirror, Source>` so
+ * drift on EITHER side fails to compile. CI is path-filtered per package, so
+ * these pins are the cross-package gate (BRIEF-23).
+ *
+ * The key-set half is TOP-LEVEL only: an optional field renamed inside a
+ * NESTED shape still leaves the outer types mutually assignable. Pin each
+ * nested interface with its own `Equals` (see the conversation mirror's pins)
+ * rather than relying on the envelope's pin to see inside it.
+ */
+export type Equals<A, B> = [A] extends [B]
+  ? [B] extends [A]
+    ? SameKeys<A, B>
+    : false
+  : false;
+
 /**
  * Discriminated union for EXPECTED failures (bad env, missing row, upstream
  * refusal, ...). Reserve `throw` for programmer errors. Functions returning
