@@ -15,7 +15,7 @@
     margin-block-end: 10px;
     color: var(--faint);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--font-size-sm);
   }
 
   .head {
@@ -27,12 +27,12 @@
 
     h1 {
       margin-block-end: 6px;
-      font-size: 28px;
+      font-size: 28px; /* stylelint-disable-line declaration-property-value-allowed-list -- TODO(BRIEF-44): off-scale — display numeral, single consumer, no scale membership earned; consolidate if a second appears */
     }
 
     p {
       color: var(--dim);
-      font-size: 13px;
+      font-size: var(--font-size-lg);
     }
   }
 
@@ -41,28 +41,28 @@
     padding-block: 5px;
     padding-inline: 10px;
     border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     color: var(--amber);
-    font-size: 11px;
+    font-size: var(--font-size-sm);
     font-weight: 600;
   }
 
   .card {
     padding: 20px;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     margin-block-end: 16px;
     background: var(--panel2);
 
     h2 {
       margin-block-end: 14px;
-      font-size: 15px;
+      font-size: var(--font-size-xl);
     }
 
     h3 {
       margin-block: 16px 8px;
       color: var(--dim);
-      font-size: 12px;
+      font-size: var(--font-size-md);
     }
   }
 
@@ -78,12 +78,12 @@
     padding-block: 12px;
     padding-inline: 14px;
     border: 1px solid var(--line2);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     margin-block-start: 14px;
     background: var(--bg);
     color: var(--dim);
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--font-size-md);
     line-height: 1.5;
   }
 
@@ -95,7 +95,7 @@
       padding-block: 6px;
       padding-inline: 10px;
       border: 1px solid var(--line2);
-      border-radius: 7px;
+      border-radius: var(--radius-md);
       background: transparent;
       color: var(--faint);
       cursor: pointer;
@@ -125,12 +125,12 @@
     div {
       padding: 10px;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: var(--radius-md);
     }
 
     dt {
       color: var(--faint);
-      font-size: 11px;
+      font-size: var(--font-size-sm);
     }
 
     dd {
@@ -148,7 +148,7 @@
     span {
       color: var(--dim);
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: var(--font-size-sm);
     }
 
     p,
@@ -156,14 +156,14 @@
       display: block;
       margin-block-start: 5px;
       color: var(--faint);
-      font-size: 12px;
+      font-size: var(--font-size-md);
       line-height: 1.45;
     }
   }
 
   .empty {
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .notChecked {
@@ -175,9 +175,9 @@
       padding-block: 4px;
       padding-inline: 9px;
       border: 1px solid var(--line2);
-      border-radius: 999px;
+      border-radius: var(--radius-pill);
       color: var(--dim);
-      font-size: 12px;
+      font-size: var(--font-size-md);
     }
   }
 

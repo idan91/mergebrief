@@ -15,8 +15,8 @@
     gap: 14px;
     padding-block: 14px;
     padding-inline: 14px 10px;
-    border-start-start-radius: 12px;
-    border-end-start-radius: 12px;
+    border-start-start-radius: var(--radius-lg);
+    border-end-start-radius: var(--radius-lg);
     background: color-mix(in srgb, var(--bg) 55%, transparent);
     backdrop-filter: blur(8px);
     transform: translateY(-50%);
@@ -36,7 +36,7 @@
     block-size: 4px;
     padding: 0;
     border: 0;
-    border-radius: 2px;
+    border-radius: var(--radius-xs);
     background: color-mix(
       in srgb,
       var(--text) calc(var(--mag) * 100%),
@@ -77,9 +77,9 @@
     max-inline-size: 280px;
     padding: 8px 11px;
     border: 1px solid var(--line2);
-    border-radius: 9px;
+    border-radius: var(--radius-md);
     background: var(--color-surface-2);
-    box-shadow: 0 12px 32px rgb(0 0 0 / 50%);
+    box-shadow: var(--shadow-elevation-lg);
     font-family: var(--sans);
     pointer-events: none;
     transform: translateY(-50%);
@@ -88,14 +88,14 @@
   .calloutEyebrow {
     color: var(--blue);
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: var(--font-size-xs);
     letter-spacing: 0.07em;
     text-transform: uppercase;
   }
 
   .calloutName {
     overflow: hidden;
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     line-height: 1.35;
     text-overflow: ellipsis;
@@ -124,7 +124,7 @@
   left: -6px;
   width: 4px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--color-comment-highlight);
   transform: translateY(-50%);
 }

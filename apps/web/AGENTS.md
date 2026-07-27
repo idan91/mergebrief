@@ -23,8 +23,10 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
   Anything touching a feature's store/queries never sits above that feature.
 - In-component functions are closure-dependent only; closure-free logic goes
   to a co-located `<Component>/utils.ts` (directly unit-testable).
-- Zero raw colors/font-sizes/radii/shadows in `.module.scss` — tokens/mixins
-  only; off-scale values get a component-local token + one-line justification.
+- Zero raw colors/font-sizes/radii/shadows in `.module.scss` — semantic-scale
+  tokens/mixins only (no value-named tokens); off-scale values stay raw with a
+  line-scoped stylelint disable + TODO note, or earn a component-local token
+  with a one-line justification.
 - `data-testid` for test selection; `data-state`/`data-variant` for styling —
   CSS targets attributes, not toggled classes. Extracted components adopt
   both at birth.

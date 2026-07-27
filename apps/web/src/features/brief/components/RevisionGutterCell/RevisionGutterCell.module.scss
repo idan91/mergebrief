@@ -34,13 +34,13 @@
     pointer-events: none;
 
     &[data-start] {
-      border-start-start-radius: 3px;
-      border-start-end-radius: 3px;
+      border-start-start-radius: var(--radius-sm);
+      border-start-end-radius: var(--radius-sm);
     }
 
     &[data-end] {
-      border-end-start-radius: 3px;
-      border-end-end-radius: 3px;
+      border-end-start-radius: var(--radius-sm);
+      border-end-end-radius: var(--radius-sm);
     }
   }
 

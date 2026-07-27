@@ -17,7 +17,7 @@
   .chipButton:focus-visible {
     @include mixins.focus-ring;
 
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
   }
 
   .detail {

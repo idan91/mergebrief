@@ -17,10 +17,11 @@
     .arrow {
       min-block-size: 32px;
       border: 1px solid var(--line2);
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: var(--panel2);
       color: var(--dim);
-      font: 11px var(--mono);
+      font-family: var(--mono);
+      font-size: var(--font-size-sm);
     }
 
     select {
@@ -49,7 +50,7 @@
     display: flex;
     gap: 2px;
     border: 1px solid var(--line2);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     margin: 0;
     padding: 2px;
 
@@ -60,11 +61,11 @@
       padding-block: 3px;
       padding-inline: 10px;
       border: 0;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: none;
       color: var(--dim);
       cursor: pointer;
-      font-size: 12px;
+      font-size: var(--font-size-md);
       place-items: center;
       text-decoration: none;
       white-space: nowrap;
@@ -107,7 +108,7 @@
 
   .lensLabel {
     color: var(--faint);
-    font-size: 11px;
+    font-size: var(--font-size-sm);
     white-space: nowrap;
   }
 
@@ -122,7 +123,7 @@
       inline-size: 11px;
       block-size: 11px;
       border: 1px solid var(--faint);
-      border-radius: 50%;
+      border-radius: var(--radius-circle);
 
       &[data-comparable] {
         border-color: var(--blue);
@@ -131,7 +132,7 @@
       &[data-state="active"] {
         border-color: var(--text);
         background: var(--text);
-        box-shadow: 0 0 0 3px var(--color-outline-2);
+        box-shadow: var(--shadow-ring-muted);
       }
     }
   }

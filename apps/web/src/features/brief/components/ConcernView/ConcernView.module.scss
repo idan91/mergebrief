@@ -5,7 +5,7 @@
 
     p {
       color: var(--dim);
-      font-size: 15px;
+      font-size: var(--font-size-xl);
       line-height: 1.6;
     }
   }
@@ -13,14 +13,14 @@
   .eyebrow {
     margin-block-end: 8px;
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .bucket {
     padding-block: 20px;
     padding-inline: 24px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     margin-block-end: 12px;
     background: var(--panel2);
 
@@ -40,7 +40,7 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    font-size: 14.5px;
+    font-size: var(--font-size-xl);
     font-weight: 600;
 
     &[data-muted] {
@@ -51,37 +51,37 @@
   .dot {
     inline-size: 6px;
     block-size: 6px;
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     background: var(--blue);
   }
 
   .loc {
     color: var(--dim);
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .count {
     margin-inline-start: auto;
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .bar {
-    // Earned oddity: the meter track sits one step off --color-surface-08
-    // (#1c1c22) — an accidental split the faithful sweep preserves.
+    // Fold candidate: 1/255 off --color-surface-3 (#1c1c22) — kept local
+    // only because the faithful sweep never snapped it. Collapse on touch.
     --track-fill: #1c1c21;
 
     overflow: hidden;
     block-size: 4px;
-    border-radius: 2px;
+    border-radius: var(--radius-xs);
     margin-block-end: 14px;
     background: var(--track-fill);
 
     i {
       display: block;
       block-size: 100%;
-      border-radius: 2px;
+      border-radius: var(--radius-xs);
       background: var(--blue);
     }
   }
@@ -90,7 +90,7 @@
     display: grid;
     gap: 6px;
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--font-size-md);
 
     button {
       border: 0;

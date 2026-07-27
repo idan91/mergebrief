@@ -8,7 +8,7 @@
     margin-block: 20px 24px;
     padding: 16px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--color-surface-1);
   }
 
@@ -21,7 +21,7 @@
 
   .heading {
     margin: 0;
-    font-size: 15px;
+    font-size: var(--font-size-xl);
   }
 
   .headingToggle {
@@ -43,7 +43,7 @@
 
   .twist {
     color: var(--dim);
-    font-size: 10px;
+    font-size: var(--font-size-xs);
     transition: transform 0.15s ease;
 
     &[data-open] {
@@ -59,7 +59,7 @@
 
   .headSummary {
     color: var(--dim);
-    font-size: 12px;
+    font-size: var(--font-size-md);
     font-weight: 400;
   }
 
@@ -75,7 +75,7 @@
     display: flex;
     align-items: baseline;
     gap: 8px;
-    font-size: 12.5px;
+    font-size: var(--font-size-lg);
   }
 
   .group {
@@ -87,7 +87,7 @@
     margin: 0;
     color: var(--dim);
     font-family: var(--mono);
-    font-size: 11.5px;
+    font-size: var(--font-size-sm);
     font-weight: 500;
   }
 
@@ -138,11 +138,11 @@
     padding-block: 8px;
     padding-inline: 10px;
     border: 1px solid var(--line);
-    border-radius: 7px;
+    border-radius: var(--radius-md);
     background: var(--color-surface-2);
     color: var(--text);
     cursor: pointer;
-    font-size: 12.5px;
+    font-size: var(--font-size-lg);
     text-align: start;
 
     &[aria-expanded="true"] {
@@ -157,9 +157,9 @@
     padding-block: 1px;
     padding-inline: 7px;
     border: 1px solid var(--line);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-family: var(--mono);
-    font-size: 10.5px;
+    font-size: var(--font-size-xs);
     letter-spacing: 0.02em;
 
     &[data-state="open"] {
@@ -202,10 +202,10 @@
     margin-inline-start: 4px;
     padding-inline: 5px;
     border: 1px solid var(--line);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     color: var(--dim);
     font-family: var(--mono);
-    font-size: 10px;
+    font-size: var(--font-size-xs);
   }
 
   .revision,
@@ -214,7 +214,7 @@
     margin-inline-start: auto;
     color: var(--dim);
     font-family: var(--mono);
-    font-size: 10.5px;
+    font-size: var(--font-size-xs);
   }
 
   .detail {
@@ -228,7 +228,7 @@
   .comment {
     display: grid;
     gap: 4px;
-    font-size: 12.5px;
+    font-size: var(--font-size-lg);
   }
 
   .commentHead {
@@ -236,7 +236,7 @@
     justify-content: space-between;
     gap: 8px;
     color: var(--dim);
-    font-size: 11.5px;
+    font-size: var(--font-size-sm);
   }
 
   .author {
@@ -256,11 +256,11 @@
     padding-block: 4px;
     padding-inline: 10px;
     border: 1px solid var(--line);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     background: none;
     color: var(--text);
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--font-size-md);
     text-decoration: none;
 
     &:disabled {
@@ -287,18 +287,18 @@
 
   .composerLabel {
     color: var(--dim);
-    font-size: 11.5px;
+    font-size: var(--font-size-sm);
   }
 
   .composerInput {
     min-height: 64px;
     padding: 8px;
     border: 1px solid var(--line);
-    border-radius: 7px;
+    border-radius: var(--radius-md);
     background: var(--color-surface-2);
     color: var(--text);
     font-family: var(--sans);
-    font-size: 12.5px;
+    font-size: var(--font-size-lg);
     resize: vertical;
 
     &:disabled {
@@ -309,7 +309,7 @@
   .note {
     margin: 0;
     color: var(--dim);
-    font-size: 12.5px;
+    font-size: var(--font-size-lg);
   }
 
   .error {
@@ -319,7 +319,7 @@
 
     margin: 0;
     color: var(--error-text);
-    font-size: 12.5px;
+    font-size: var(--font-size-lg);
   }
 
   .srOnly {

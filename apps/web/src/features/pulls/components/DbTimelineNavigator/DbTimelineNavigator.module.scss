@@ -12,10 +12,11 @@
     .arrow {
       min-block-size: 32px;
       border: 1px solid var(--line2);
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: var(--panel2);
       color: var(--dim);
-      font: 11px var(--mono);
+      font-family: var(--mono);
+      font-size: var(--font-size-sm);
     }
 
     select {
@@ -75,7 +76,7 @@
       inline-size: 11px;
       block-size: 11px;
       border: 1px solid var(--faint);
-      border-radius: 50%;
+      border-radius: var(--radius-circle);
     }
 
     &:hover::after {
@@ -89,7 +90,7 @@
     &[data-state="active"]::after {
       border-color: var(--text);
       background: var(--text);
-      box-shadow: 0 0 0 3px var(--color-outline-2);
+      box-shadow: var(--shadow-ring-muted);
     }
   }
 

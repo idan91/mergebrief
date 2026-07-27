@@ -8,13 +8,13 @@
       padding-block: 16px;
       padding-inline: 18px;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       background: var(--panel2);
     }
 
     p {
       color: var(--dim);
-      font-size: 14px;
+      font-size: var(--font-size-xl);
       line-height: 1.65;
     }
   }
@@ -22,7 +22,7 @@
   .eyebrow {
     margin-block-end: 8px;
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--font-size-md);
     font-weight: 500;
   }
 }

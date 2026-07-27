@@ -11,21 +11,21 @@
     padding-block: 28px;
     padding-inline: 28px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--panel2);
   }
 
   .heading {
     margin: 0;
     color: var(--text);
-    font-size: 20px;
+    font-size: var(--font-size-3xl);
     line-height: 1.35;
   }
 
   .copy {
     margin: 0;
     color: var(--dim);
-    font-size: 14px;
+    font-size: var(--font-size-xl);
     line-height: 1.55;
   }
 
@@ -33,7 +33,7 @@
     margin: 0;
     color: var(--faint);
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .spinner {
@@ -41,7 +41,7 @@
     block-size: 18px;
     border: 2px solid var(--line2);
     border-block-start-color: var(--blue);
-    border-radius: 50%;
+    border-radius: var(--radius-circle);
     animation: pr-brief-spin 0.9s linear infinite;
 
     @media (prefers-reduced-motion: reduce) {
@@ -62,10 +62,10 @@
     padding-block: 10px;
     padding-inline: 16px;
     border: 1px solid color-mix(in srgb, var(--blue) 35%, transparent);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--blue) 8%, transparent);
     color: var(--text);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
   }
 
   .warmingChip {
@@ -76,11 +76,11 @@
     padding-block: 4px;
     padding-inline: 10px;
     border: 1px solid var(--line2);
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: var(--panel2);
     color: var(--faint);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--font-size-sm);
   }
 
   .diff {
@@ -91,7 +91,7 @@
 
   .diffFile {
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--color-surface-1);
 
     summary {
@@ -99,7 +99,7 @@
       padding-inline: 12px;
       color: var(--dim);
       font-family: var(--mono);
-      font-size: 12px;
+      font-size: var(--font-size-md);
       cursor: pointer;
 
       @include mixins.focus-visible;
@@ -110,7 +110,7 @@
     inline-size: 100%;
     border-collapse: collapse;
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--font-size-md);
     line-height: 1.5;
 
     // Earned oddities (ADR 0037 #5): the raw-PR diff table tints rows with

@@ -1,5 +1,3 @@
-@use "functions" as functions;
-
 @layer components {
   .changesOnly {
     display: grid;
@@ -8,7 +6,7 @@
 
   .eyebrow {
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--font-size-md);
     font-weight: 500;
     letter-spacing: 0.02em;
     text-transform: uppercase;
@@ -18,13 +16,13 @@
   // event — same register as the Header's Brief warnings block.
   .generationWarnings {
     color: var(--amber);
-    font-size: functions.to-rem(11px);
+    font-size: var(--font-size-sm);
     line-height: 1.5;
   }
 
   .overview {
     color: var(--dim);
-    font-size: 14px;
+    font-size: var(--font-size-xl);
     line-height: 1.65;
   }
 
@@ -32,7 +30,7 @@
     padding-block: 16px;
     padding-inline: 18px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--panel2);
   }
 
@@ -46,17 +44,17 @@
 
   .groupTitle {
     margin: 0;
-    font-size: 15px;
+    font-size: var(--font-size-xl);
     font-weight: 600;
   }
 
   .groupCategory {
     padding-block: 2px;
     padding-inline: 8px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: var(--panel);
     color: var(--dim);
-    font-size: 11px;
+    font-size: var(--font-size-sm);
   }
 
   .chunk {
@@ -74,12 +72,12 @@
   .chunkFile {
     color: var(--dim);
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .chunkSummary {
     margin: 0;
-    font-size: 14px;
+    font-size: var(--font-size-xl);
     line-height: 1.6;
   }
 
@@ -87,10 +85,10 @@
     margin: 0;
     overflow-x: auto;
     border: 1px solid var(--line2);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--panel);
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--font-size-md);
     line-height: 1.5;
   }
 
@@ -117,17 +115,17 @@
 
   .removedNote {
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .empty {
     padding-block: 20px;
     padding-inline: 18px;
     border: 1px dashed var(--line2);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--panel2);
     color: var(--dim);
-    font-size: 14px;
+    font-size: var(--font-size-xl);
     line-height: 1.6;
 
     b {

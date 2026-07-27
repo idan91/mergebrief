@@ -5,9 +5,9 @@
     overflow: hidden;
     margin-block: 8px 4px;
     border: 1px solid var(--color-outline-2);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--color-surface-1);
-    box-shadow: 0 12px 40px rgb(0 0 0 / 22%);
+    box-shadow: var(--shadow-elevation-md);
     font-family: var(--sans);
   }
 
@@ -20,7 +20,7 @@
     border-block-end: 1px solid var(--line);
     color: var(--faint);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--font-size-sm);
   }
 
   .tabs {
@@ -34,11 +34,11 @@
       padding-inline: 10px;
       border: 1px solid transparent;
       border-block-end: 0;
-      border-radius: 7px 7px 0 0;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
       background: transparent;
       color: var(--faint);
       cursor: pointer;
-      font-size: 12px;
+      font-size: var(--font-size-md);
       font-weight: 600;
 
       &[data-state="active"] {
@@ -61,11 +61,11 @@
       padding-block: 4px;
       padding-inline: 8px;
       border: 1px solid var(--line2);
-      border-radius: 5px;
+      border-radius: var(--radius-sm);
       background: var(--color-surface-1);
       color: var(--dim);
       cursor: pointer;
-      font-size: 11px;
+      font-size: var(--font-size-sm);
       font-weight: 600;
 
       &:hover {
@@ -81,12 +81,12 @@
     min-block-size: 118px;
     padding: 12px;
     border: 1px solid var(--line2);
-    border-radius: 7px;
+    border-radius: var(--radius-md);
     margin: 10px;
     background: var(--color-background);
     color: var(--text);
     font-family: var(--mono);
-    font-size: 12.5px;
+    font-size: var(--font-size-lg);
     line-height: 1.6;
     resize: vertical;
 
@@ -97,7 +97,7 @@
     padding-block: 0 10px;
     padding-inline: 12px;
     color: var(--red);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .actions {

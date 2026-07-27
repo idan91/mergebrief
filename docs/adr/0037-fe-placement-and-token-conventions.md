@@ -100,20 +100,28 @@ threshold is provisional (see revisit triggers).
 
 **Zero raw values in `.module.scss` for colors, font-sizes, border-radii,
 and box-shadows** — every such value goes through `var(...)` or a mixin.
-Two phases, deliberately separated:
 
-- **Phase 1 — faithful.** Tokenize existing values with zero visual change.
-  A tokenization PR that alters a pixel has failed its own gate.
-- **Phase 2 — scale collapse**, in its own screenshot-reviewed PR: the
-  accidental scales collapse into deliberate ones, named by semantic step
-  (`--fs-xs` … `--fs-xl`), because phase 2 is a visual decision, not a
-  refactor, and gets reviewed as one.
+*Amended 2026-07-26 (owner call, during implementation).* The original
+two-phase plan (faithful value-named tokens first, semantic collapse later)
+was superseded: value-named tokens (`--font-size-13`, `--radius-8`,
+`--color-surface-01`) are banned as scaffolding waste. Tokens exist only for
+the deliberate design-system scale:
 
-Off-scale oddities must be **earned**: declared as component-local tokens
-with a one-line justification comment, never added to the global scale. The
-global scale stays a decision surface, not a dumping ground. Spacing is out
-of scope for now (revisit trigger below); rem-vs-px unit policy is
-BRIEF-84's scope — coordinate, don't duplicate.
+- **Type:** semantic steps (`--font-size-xs` … `--font-size-3xl`, `md` =
+  body) plus em steps for parent-relative contexts.
+- **Radius / shadow:** small semantic sets (`--radius-xs/sm/md/lg/pill/
+  circle`; `--shadow-elevation-sm/md/lg` + special cases).
+- **Color:** small numbered families (`--color-surface-N`, `--color-text-N`,
+  `--color-outline-N`) plus role tokens (accent, warning, negative, …).
+
+Values that do not fit the scale stay as **raw values at the use site**
+with a line-scoped stylelint disable and a `TODO(BRIEF-44)` consolidation
+note — unless they earn locality: a component-local token with a one-line
+justification comment, never a global addition. The global scale stays a
+decision surface, not a dumping ground. Scale changes are visual decisions
+and get owner screenshot review. Spacing is out of scope for now (revisit
+trigger below); rem-vs-px unit policy is BRIEF-84's scope — coordinate,
+don't duplicate.
 
 ### 6. Token vocabulary
 
@@ -189,7 +197,7 @@ listed as prose, never assumed to be enforced when they aren't.
   generic React utility with no feature knowledge — the dependency cap is
   vacuously satisfied, and generic hooks live global); `useChunkScroller` stays with the reading-session
   hook (single consumer — co-location holds).
-- BRIEF-84 (px→rem) executes after the faithful sweep, against token
+- BRIEF-84 (px→rem) executes after the token sweeps, against token
   definitions only.
 
 ## Revisit Triggers

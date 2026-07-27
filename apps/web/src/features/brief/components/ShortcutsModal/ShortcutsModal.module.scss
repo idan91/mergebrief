@@ -10,7 +10,7 @@
     align-items: center;
     gap: 12px;
     color: var(--dim);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
   }
 
   .key {
@@ -22,11 +22,11 @@
     padding-block: 3px;
     padding-inline: 8px;
     border: 1px solid var(--line2);
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     background: var(--panel2);
     color: var(--text);
     font-family: var(--mono);
-    font-size: 12px;
+    font-size: var(--font-size-md);
     font-weight: 600;
   }
 }

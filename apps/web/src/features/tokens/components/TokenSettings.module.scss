@@ -8,14 +8,14 @@
 
     h2 {
       margin: 0;
-      font-size: 17px;
+      font-size: var(--font-size-2xl);
     }
   }
 
   .copy {
     margin: 0;
     color: var(--muted);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
   }
 
   .mintForm {
@@ -28,11 +28,11 @@
   .field {
     display: grid;
     gap: 4px;
-    font-size: 13px;
+    font-size: var(--font-size-lg);
 
     span {
       color: var(--faint);
-      font-size: 11px;
+      font-size: var(--font-size-sm);
       text-transform: uppercase;
       letter-spacing: 0.02em;
     }
@@ -42,10 +42,10 @@
       padding-block: 6px;
       padding-inline: 10px;
       border: 1px solid var(--line2);
-      border-radius: 7px;
+      border-radius: var(--radius-md);
       background: var(--panel2);
       color: var(--text);
-      font-size: 13px;
+      font-size: var(--font-size-lg);
 
       @include mixins.focus-visible;
     }
@@ -55,14 +55,14 @@
     flex-basis: 100%;
     margin: 0;
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .error {
     flex-basis: 100%;
     margin: 0;
     color: var(--color-negative);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .minted {
@@ -70,21 +70,21 @@
     gap: 10px;
     padding: 14px;
     border: 1px solid var(--line2);
-    border-radius: 9px;
+    border-radius: var(--radius-md);
     background: var(--panel2);
   }
 
   .mintedHeading {
     margin: 0;
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
   }
 
   .mintedValue {
     padding: 8px 10px;
     border: 1px dashed var(--line2);
-    border-radius: 7px;
-    font-size: 13px;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-lg);
     overflow-wrap: anywhere;
     user-select: all;
   }
@@ -92,7 +92,7 @@
   .mintedDisclaimer {
     margin: 0;
     color: var(--muted);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .list {
@@ -103,7 +103,7 @@
   .empty {
     margin: 0;
     color: var(--faint);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
   }
 
   .row {
@@ -113,7 +113,7 @@
     padding-block: 8px;
     padding-inline: 12px;
     border: 1px solid var(--line2);
-    border-radius: 7px;
+    border-radius: var(--radius-md);
 
     &[data-revoked="true"] {
       opacity: 0.6;
@@ -121,24 +121,24 @@
   }
 
   .rowName {
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
   }
 
   .rowMeta {
     flex: 1;
     color: var(--faint);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 
   .revoke {
     padding-block: 4px;
     padding-inline: 10px;
     border: 1px solid var(--line2);
-    border-radius: 7px;
+    border-radius: var(--radius-md);
     background: transparent;
     color: var(--text);
-    font-size: 12px;
+    font-size: var(--font-size-md);
     cursor: pointer;
 
     @include mixins.focus-visible;

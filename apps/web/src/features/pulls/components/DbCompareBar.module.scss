@@ -27,7 +27,7 @@
 
   .groupLabel {
     color: var(--faint);
-    font-size: 11px;
+    font-size: var(--font-size-sm);
     white-space: nowrap;
   }
 
@@ -37,7 +37,7 @@
     margin: 0;
     padding: 2px;
     border: 1px solid var(--line2);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
 
     // Disabled-with-tooltip options render inside a .tipAnchor wrapper; both
     // the direct buttons and the wrapper share the row equally.
@@ -52,10 +52,10 @@
       padding-block: 3px;
       padding-inline: 8px;
       border: 0;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: none;
       color: var(--dim);
-      font-size: 12px;
+      font-size: var(--font-size-md);
       white-space: nowrap;
       cursor: pointer;
 
@@ -102,10 +102,10 @@
       padding-block: 4px;
       padding-inline: 8px;
       border: 1px solid var(--line2);
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       background: var(--panel2);
       color: var(--text);
-      font-size: 12px;
+      font-size: var(--font-size-md);
       white-space: normal;
       inline-size: max-content;
       transform: translateX(-50%);

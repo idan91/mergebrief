@@ -22,7 +22,7 @@
     );
     color: var(--text);
     font-family: var(--sans);
-    font-size: clamp(14px, 0.8rem + 0.2vw, 15px);
+    font-size: var(--font-size-root);
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
@@ -88,10 +88,10 @@
     padding-block: 8px;
     padding-inline: 14px;
     border: 1px solid var(--line2);
-    border-radius: 7px;
+    border-radius: var(--radius-md);
     background: var(--panel);
     color: var(--text);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     text-decoration: none;
 
@@ -108,11 +108,11 @@
     padding-block: 8px;
     padding-inline: 16px;
     border: 1px solid var(--line2);
-    border-radius: 7px;
+    border-radius: var(--radius-md);
     background: transparent;
     color: var(--text);
     cursor: pointer;
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     font-weight: 600;
     transition:
       background 0.15s,

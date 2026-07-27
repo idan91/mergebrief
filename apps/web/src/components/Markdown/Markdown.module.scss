@@ -1,14 +1,14 @@
 @layer components {
   .markdown {
     color: var(--dim);
-    font-size: 15.5px;
+    font-size: var(--font-size-xl);
     line-height: 1.65;
 
     h3,
     h4 {
       margin-block: 18px 8px;
       color: var(--text);
-      font-size: 13px;
+      font-size: var(--font-size-lg);
       font-weight: 600;
     }
 
@@ -31,17 +31,23 @@
     }
 
     code {
-      // Earned oddity (ADR 0037 #5): inline-code fill, one step above
-      // --color-surface-09; faithful to the pre-sweep value.
+      // Earned oddity (ADR 0037 #5): inline-code fill. Sits above
+      // --color-surface-3 (#1c1c22) in hue but below it in luminance, so it
+      // reads as its own inline tier rather than a panel.
       --code-fill: #1a1a1f;
 
       padding-block: 1px;
       padding-inline: 6px;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       background: var(--code-fill);
       color: var(--text);
       font-family: var(--mono);
-      font-size: 0.88em;
+
+      // Earned em (ADR 0037 #5): inline code is sized by whichever prose
+      // element encloses it, and that varies WITHIN this component — p/li
+      // render at --font-size-xl, h3/h4 at --font-size-lg. A fixed step
+      // would shout inside a heading or shrink inside a paragraph.
+      font-size: 0.9em; /* stylelint-disable-line declaration-property-value-allowed-list -- earned parent-relative exception, justified above */
     }
 
     strong {

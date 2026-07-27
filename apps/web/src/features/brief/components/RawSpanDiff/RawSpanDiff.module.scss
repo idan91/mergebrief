@@ -13,10 +13,10 @@
     padding-block: 6px;
     padding-inline: 12px;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--panel2);
     color: var(--dim);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     font-weight: 500;
     cursor: pointer;
 
@@ -33,7 +33,7 @@
 
   .file {
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     background: var(--panel2);
     overflow: hidden;
   }
@@ -42,12 +42,12 @@
     padding-block: 10px;
     padding-inline: 14px;
     font-family: var(--mono, monospace);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     cursor: pointer;
   }
 
   .meta {
     color: var(--faint);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
   }
 }

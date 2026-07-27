@@ -2,12 +2,12 @@
   .errorState {
     padding: 28px;
     border: 1px solid var(--line);
-    border-radius: 12px;
+    border-radius: var(--radius-lg);
     background: var(--panel2);
 
     h1 {
       margin-block-end: 8px;
-      font-size: 20px;
+      font-size: var(--font-size-3xl);
     }
 
     p {
@@ -23,10 +23,10 @@
     padding-block: 10px;
     padding-inline: 14px;
     border: 1px solid var(--line2);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--color-surface-3);
     color: var(--text);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     text-decoration: none;
   }
 }

@@ -13,10 +13,10 @@
     padding-block: 6px;
     padding-inline: 12px;
     border: 1px solid var(--line2);
-    border-radius: 7px;
+    border-radius: var(--radius-md);
     background: var(--panel2);
     color: var(--text);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     cursor: pointer;
 
     @include mixins.focus-visible;
@@ -24,7 +24,7 @@
 
   .triggerLabel {
     color: var(--faint);
-    font-size: 11px;
+    font-size: var(--font-size-sm);
     text-transform: uppercase;
     letter-spacing: 0.02em;
   }
@@ -43,9 +43,9 @@
     min-inline-size: 260px;
     padding: 6px;
     border: 1px solid var(--line2);
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     background: var(--panel2);
-    box-shadow: 0 8px 24px rgb(0 0 0 / 40%);
+    box-shadow: var(--shadow-elevation-sm);
   }
 
   .item {
@@ -56,10 +56,10 @@
     padding-block: 8px;
     padding-inline: 10px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--radius-md);
     background: none;
     color: var(--text);
-    font-size: 13px;
+    font-size: var(--font-size-lg);
     text-align: start;
     cursor: pointer;
 
@@ -87,7 +87,7 @@
     flex: none;
     color: var(--faint);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: var(--font-size-sm);
   }
 
   .defaultToggle {
@@ -99,10 +99,10 @@
     padding-inline: 10px;
     border: 0;
     border-block-start: 1px solid var(--line);
-    border-radius: 0 0 6px 6px;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
     background: none;
     color: var(--dim);
-    font-size: 12px;
+    font-size: var(--font-size-md);
     text-align: start;
     cursor: pointer;
 
@@ -120,9 +120,9 @@
     inline-size: 14px;
     block-size: 14px;
     border: 1px solid var(--line2);
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     color: var(--blue);
-    font-size: 10px;
+    font-size: var(--font-size-xs);
 
     &[data-checked="true"] {
       border-color: color-mix(in srgb, var(--blue) 45%, transparent);
@@ -134,6 +134,6 @@
     padding-block: 6px;
     padding-inline: 10px;
     color: var(--red);
-    font-size: 12px;
+    font-size: var(--font-size-md);
   }
 }

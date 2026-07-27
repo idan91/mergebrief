@@ -1,7 +1,8 @@
 @layer components {
   .footer {
-    // Earned oddity: the page footer is the quietest text in the app, a step
-    // below --color-text-ghost's neighbours; faithful to the pre-sweep value.
+    // Earned oddity: the quietest text in the app — between --color-text-3
+    // (#8a8a93, the readable floor) and --color-text-4 (#3b3b43, the
+    // decorative ghost tier). Legibility here is deliberately marginal.
     --footer-text: #4a4a52;
 
     max-inline-size: 980px;
@@ -9,6 +10,6 @@
     padding-inline: 28px;
     margin-inline: auto;
     color: var(--footer-text);
-    font-size: 11.5px;
+    font-size: var(--font-size-sm);
   }
 }

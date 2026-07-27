@@ -8,11 +8,9 @@
   :root {
     // ── Primitives ───────────────────────────────────────────────────────
     --gray-950: #0a0a0c;
-    --gray-925: #0d0d10;
     --gray-900: #111114;
     --gray-800: #1f1f24;
     --gray-700: #2b2b32;
-    --gray-500: #62626b;
     --gray-400: #9a9aa3;
     --gray-100: #ececee;
     --green-400: #5fc88f;
@@ -37,8 +35,8 @@
     --color-text-1: var(--gray-100); // primary
     --color-text-2: var(--gray-400); // muted / secondary
 
-    // Faint floor for readable text. Lightened from the raw gray-500
-    // (#62626b, ~3.3:1 — fails WCAG AA) to ~5.8:1 on the page background,
+    // Faint floor for readable text. Lightened from the palette's original
+    // #62626b (~3.3:1 — fails WCAG AA) to ~5.8:1 on the page background,
     // with margin to survive the top radial glow.
     --color-text-3: #8a8a93;
 
@@ -57,7 +55,7 @@
     --color-warning: var(--amber-400);
 
     // ── Other semantic colors ────────────────────────────────────────────
-    --color-on-primary: #0a0a0c;
+    --color-on-primary: var(--gray-950);
 
     // The light-mode half of the two light-dark() pairs in base.scss. The app
     // ships dark-only today; the pair is kept so a light scheme stays possible.
@@ -106,15 +104,63 @@
     --color-border: var(--color-outline-1);
     --color-border-strong: var(--color-outline-2);
 
-    // Legacy short aliases of the canonical --color-* family (ADR 0037 #6).
-    // They were consumed before they were ever declared, so each rendered as
-    // its fallback (or nothing): --accent as the browser `Highlight` system
-    // color on five focus rings, --muted as inherited text, --danger as an
-    // off-palette #e5484d. They point at canon and carry no values of their
-    // own; consumers retire onto --color-* file-by-file as the sweep lands.
-    --accent: var(--color-accent);
-    --muted: var(--color-text-muted);
-    --danger: var(--color-negative);
+    // ── Type scale (BRIEF-44 phase 2) ────────────────────────────────────
+    // Seven deliberate steps, 10/11/12/13/15/17/20 — deltas 1,1,1,2,2,3, so
+    // the scale widens as it climbs. `md` is the body anchor: the unmarked
+    // choice is the right one. The pre-sweep drift (21 near-duplicate sizes,
+    // including half-pixel steps like 12.5 and 11.5) collapsed into these;
+    // roles never earn a token at an equal value (ADR 0037 #5).
+    // BRIEF-84 (px→rem) runs against THESE definitions only.
+    --font-size-xs: 10px; // micro labels, badges, gutter numerals
+    --font-size-sm: 11px; // secondary labels, meta rows
+    --font-size-md: 12px; // body (dominant)
+    --font-size-lg: 13px; // emphasized body, list titles
+    --font-size-xl: 15px; // subheads, section titles
+    --font-size-2xl: 17px; // panel / drawer titles
+    --font-size-3xl: 20px; // page titles
+
+    // The document base size (body in base.scss) — the measuring stick the
+    // steps above are chosen against, not a step itself. The only fluid
+    // value in the app; deliberately left alone.
+    --font-size-root: clamp(14px, 0.8rem + 0.2vw, 15px);
+
+    // There is deliberately no em token family. An em token pins nothing —
+    // it computes differently at every site — and four near-identical ratios
+    // was renamed drift, not a scale. Genuine parent-relative text (inline
+    // code in prose, a shared leaf rendered into hosts of differing size)
+    // writes its em value explicitly at the site, with a justification and a
+    // line-scoped stylelint disable. Everything else uses the px steps above.
+
+    // ── Radius scale (BRIEF-44 phase 2) ──────────────────────────────────
+    // Six steps. `md` kills the 6/7/8/9/10px drift band — those were one
+    // role (cards and panels) wearing five values. `xs` earns its own step
+    // because 2→4px visibly balls the 3–4px markers it is used on.
+    --radius-xs: 2px; // tiny bars, markers, inner slivers
+    --radius-sm: 4px; // chips, inputs, inner corners
+    --radius-md: 8px; // THE card / panel corner
+    --radius-lg: 12px; // modals, sheets, outer group frames
+    --radius-pill: 999px; // pills
+    --radius-circle: 50%; // avatars, dots, round icon buttons
+
+    // ── Elevation (BRIEF-44 phase 2) ─────────────────────────────────────
+    // Three steps plus the upward cast. sm and md are the exact pre-sweep
+    // values of their dominant members; lg is the midpoint of the
+    // dark-overlay cluster (50–60% → 55%) on the most common geometry.
+    --shadow-elevation-sm: 0 8px 24px rgb(0 0 0 / 40%); // small popovers
+    --shadow-elevation-md: 0 12px 40px rgb(0 0 0 / 22%); // soft raised cards
+    --shadow-elevation-lg: 0 16px 48px rgb(0 0 0 / 55%); // menus, drawers, modals
+
+    // Casts UPWARD (negative y) — bottom-anchored bars lifting off the page.
+    // Unique geometry; no step on the ladder above matches it.
+    --shadow-elevation-up: 0 -24px 80px rgb(0 0 0 / 60%);
+
+    // Rings. Already semantic, and the highlight/clear pair is animation
+    // load-bearing: --shadow-ring-clear is the transparent end-state of the
+    // comment-flash keyframes and must keep --shadow-ring-highlight's
+    // geometry or the animation would jump.
+    --shadow-ring-highlight: 0 0 0 2px var(--color-comment-highlight);
+    --shadow-ring-clear: 0 0 0 2px transparent;
+    --shadow-ring-muted: 0 0 0 3px var(--color-outline-2);
 
     // Height of the sticky page header; sticky chunk headers pin just below
     // it. Pre-hydration fallback — the Header's ResizeObserver publishes the

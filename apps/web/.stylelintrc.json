@@ -18,7 +18,6 @@
         "border": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
         "outline": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
         "outline-color": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
-        "box-shadow": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
         "text-shadow": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
         "fill": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
         "stroke": ["/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"],
@@ -33,10 +32,22 @@
         ],
         "/^border-(block-|inline-)?(start|end|top|right|bottom|left)$/": [
           "/^(?![\\s\\S]*#[0-9a-fA-F]{3})/"
+        ],
+        "font-size": [
+          "/^(?![\\s\\S]*\\d\\s*((px|r?em|pt|pc|in|cm|mm|q|vw|vh|vmin|vmax|ch|ex|cap|ic|lh|rlh|cqw|cqh|cqi|cqb|cqmin|cqmax)\\b|%))/"
+        ],
+        "font": [
+          "/^(inherit|initial|unset|revert(-layer)?|caption|icon|menu|message-box|small-caption|status-bar)$/"
+        ],
+        "/^border-radius$|^border-((start|end)-(start|end)|(top|bottom)-(left|right))-radius$/": [
+          "/^(?![\\s\\S]*\\d\\s*((px|r?em|pt|pc|in|cm|mm|q|vw|vh|vmin|vmax|ch|ex|cap|ic|lh|rlh|cqw|cqh|cqi|cqb|cqmin|cqmax)\\b|%))/"
+        ],
+        "box-shadow": [
+          "/^(?![\\s\\S]*(\\d\\s*(px|r?em|pt|pc|in|cm|mm|q|vw|vh|vmin|vmax|ch|ex|cap|ic|lh|rlh|cqw|cqh|cqi|cqb|cqmin|cqmax)\\b|rgba?\\(|hsla?\\(|#[0-9a-fA-F]{3}))/"
         ]
       },
       {
-        "message": "ADR 0037 token bar (BRIEF-44): no raw color literal — use a var(--color-*) token from src/styles/tokens.scss, or an earned component-local token declared in this file with a one-line justification."
+        "message": "ADR 0037 token bar (BRIEF-44): no raw color, font-size, border-radius, or box-shadow literal — use a semantic token from src/styles/tokens.scss (--color-*, --font-size-xs..3xl, --radius-xs..circle, --shadow-*), or an earned component-local token declared in this file with a one-line justification."
       }
     ]
   }
