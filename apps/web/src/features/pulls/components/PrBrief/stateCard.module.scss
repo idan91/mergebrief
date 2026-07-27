@@ -1,0 +1,63 @@
+// The wait/failed/empty/superseded state cards' shared visual language —
+// promoted to the PrBrief folder as the nearest common ancestor of the four
+// cards (ADR 0037 promotion rule); no card owns these atoms alone.
+@layer components {
+  .card {
+    display: grid;
+    justify-items: start;
+    gap: 14px;
+    max-inline-size: 860px;
+    margin-inline: auto;
+    margin-block: 64px;
+    padding-block: 28px;
+    padding-inline: 28px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--panel2);
+  }
+
+  .heading {
+    margin: 0;
+    color: var(--text);
+    font-size: var(--font-size-3xl);
+
+    // Pre-scale rendering pinned (was implicit UA bold before the base
+    // heading defaults landed).
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .copy {
+    margin: 0;
+    color: var(--dim);
+    font-size: var(--font-size-xl);
+    line-height: 1.55;
+  }
+
+  .meta {
+    margin: 0;
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+  }
+
+  .spinner {
+    inline-size: 18px;
+    block-size: 18px;
+    border: 2px solid var(--line2);
+    border-block-start-color: var(--blue);
+    border-radius: var(--radius-circle);
+    animation: pr-brief-spin 0.9s linear infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+      border-block-start-color: var(--line2);
+    }
+  }
+}
+
+@keyframes pr-brief-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

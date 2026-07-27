@@ -1,0 +1,68 @@
+@use "mixins";
+
+@layer components {
+  .diff {
+    display: grid;
+    gap: 8px;
+    inline-size: 100%;
+  }
+
+  .diffFile {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+
+    summary {
+      padding-block: 8px;
+      padding-inline: 12px;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: var(--font-size-md);
+      cursor: pointer;
+
+      @include mixins.focus-visible;
+    }
+  }
+
+  .diffTable {
+    inline-size: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+
+    // Earned oddities (ADR 0037 #5): the raw-PR diff table tints rows with
+    // GitHub's own add/del greens and reds, not the brief palette, so the
+    // fallback view reads like the diff it mirrors. Faithful to pre-sweep.
+    --gh-diff-add: #2ea043;
+    --gh-diff-del: #f85149;
+
+    tr[data-kind="add"] {
+      background: color-mix(in srgb, var(--gh-diff-add) 12%, transparent);
+    }
+
+    tr[data-kind="del"] {
+      background: color-mix(in srgb, var(--gh-diff-del) 10%, transparent);
+    }
+
+    tr[data-kind="hunk"] {
+      color: var(--faint);
+      background: var(--panel2);
+    }
+  }
+
+  .lineNo {
+    inline-size: 44px;
+    padding-inline: 8px;
+    color: var(--faint);
+    text-align: end;
+    user-select: none;
+  }
+
+  .lineContent {
+    padding-inline: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    color: var(--dim);
+  }
+}

@@ -31,7 +31,10 @@ import {
   useInFlightPosts,
   type PostCommentResult,
 } from "@web/features/pulls/postComment";
-import { MarkReadyModal } from "@web/features/pulls";
+// Direct component import, not the pulls barrel: the barrel now exports the
+// PrBrief tree, which renders BriefView — importing it from here would close
+// a brief -> pulls -> brief module cycle.
+import { MarkReadyModal } from "@web/features/pulls/components/MarkReadyModal/MarkReadyModal";
 import type { Brief, LocalBriefSummary } from "../../types";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import type { buildBriefViewModel } from "../../utils/viewModel";

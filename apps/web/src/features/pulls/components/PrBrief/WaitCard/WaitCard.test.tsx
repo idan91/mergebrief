@@ -2,7 +2,7 @@
 // the verb must not echo it, and "brief" is lowercase for this view.
 import { describe, expect, it } from "vitest";
 
-import { emptyCardCopy, waitLabel } from "./PrBriefStates";
+import { waitLabel } from "./WaitCard";
 
 describe("waitLabel", () => {
   it("collapses the verb-echo phase to the phase-less heading", () => {
@@ -22,7 +22,7 @@ describe("waitLabel", () => {
     );
   });
 
-  it("keeps informative phases that merely CONTAIN the verb (round 3 #3)", () => {
+  it("keeps informative phases that merely CONTAIN the verb", () => {
     // Only the exact echo collapses — a substring match would eat
     // "generating-summary", which is real signal.
     expect(waitLabel("running", "generating-summary")).toBe(
@@ -37,23 +37,16 @@ describe("waitLabel", () => {
       "Queued — the brief will start generating shortly.",
     );
   });
-});
 
-describe("draft-policy notice surfaces (BRIEF-64)", () => {
-  it("WaitCard: a queued notice replaces the misleading 'shortly' heading", () => {
+  it("a queued notice replaces the misleading 'shortly' heading (BRIEF-64)", () => {
     expect(waitLabel("queued", null, "Queued — draft mode note.")).toBe(
       "Queued — draft mode note.",
     );
   });
 
-  it("WaitCard: a queued notice never touches the running heading", () => {
+  it("a queued notice never touches the running heading", () => {
     expect(waitLabel("running", null, "Queued — draft mode note.")).toBe(
       "Generating the brief…",
     );
-  });
-
-  it("EmptyCard copy override is exported for the drafts-off state", () => {
-    expect(emptyCardCopy(undefined)).toContain("next push");
-    expect(emptyCardCopy("Drafts are off.")).toBe("Drafts are off.");
   });
 });

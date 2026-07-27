@@ -1,0 +1,16 @@
+@layer components {
+  .warmingChip {
+    position: fixed;
+    inset-block-end: 16px;
+    inset-inline-end: 16px;
+    z-index: 30;
+    padding-block: 4px;
+    padding-inline: 10px;
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-pill);
+    background: var(--panel2);
+    color: var(--faint);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+  }
+}
