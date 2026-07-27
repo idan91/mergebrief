@@ -23,7 +23,7 @@ import {
   localComparisonMarksQueryOptions,
   localRevisionNarrativeQueryOptions,
 } from "../../queries";
-import { buildBriefTimeline, type BriefTimeline } from "../../timeline";
+import { buildBriefTimeline, type BriefTimeline } from "../../utils/timeline";
 import type {
   Brief,
   ComparisonMarks,

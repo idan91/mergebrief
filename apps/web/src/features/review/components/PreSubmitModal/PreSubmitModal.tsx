@@ -1,6 +1,6 @@
 import { Modal } from "@web/components/Modal/Modal";
 import type { UnresolvedItem } from "../../state";
-import styles from "../ModalContent.module.scss";
+import styles from "@web/components/Modal/ModalContent.module.scss";
 
 export interface PreSubmitModalProps {
   close: () => void;

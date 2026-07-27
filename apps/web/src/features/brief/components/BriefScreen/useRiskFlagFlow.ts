@@ -4,14 +4,14 @@
 // owns the selection/modal state and the disposition toast copy.
 import { useCallback, useState } from "react";
 
-import type { DismissTarget } from "@web/features/review/components/DismissModal/DismissModal";
-import type { EvidenceTarget } from "@web/features/review/components/EvidenceModal/EvidenceModal";
+import type { DismissTarget } from "@web/features/review";
+import type { EvidenceTarget } from "@web/features/review";
 import type { MindMapActions } from "@web/features/review/session";
 import type {
   RiskEvidence,
   RiskEvidenceKind,
 } from "@web/features/review/state";
-import type { RiskFlag } from "../../viewModel";
+import type { RiskFlag } from "../../utils/viewModel";
 
 export interface UseRiskFlagFlowInput {
   actions: MindMapActions;

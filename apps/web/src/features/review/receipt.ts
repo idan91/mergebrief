@@ -1,6 +1,6 @@
-import type { RepoConfigContext } from "../brief/repoConfig";
+import type { RepoConfigContext } from "../brief/utils/repoConfig";
 import type { Brief } from "../brief/types";
-import type { BriefViewModel } from "../brief/viewModel";
+import type { BriefViewModel } from "@web/features/brief/utils";
 import type { CommentSide } from "./comments";
 import type { SessionSnapshot } from "./session";
 import {

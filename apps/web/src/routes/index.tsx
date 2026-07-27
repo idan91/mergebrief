@@ -2,10 +2,10 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
-import { generateBrief } from "../features/brief/brief.functions";
+import { generateBrief } from "../features/brief/server/brief.functions";
 import { localBriefsQueryOptions } from "../features/brief/queries";
-import { OrgSwitcher } from "../features/installations/components/OrgSwitcher";
-import { PullsSection } from "../features/pulls/components/PullsSection";
+import { OrgSwitcher } from "@web/features/installations";
+import { PullsSection } from "@web/features/pulls";
 import { pullsSessionQueryOptions } from "../features/pulls/queries";
 import sharedStyles from "./routeShared.module.scss";
 import styles from "./index.module.scss";

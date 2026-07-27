@@ -10,8 +10,8 @@
 // depends on — not a re-test of a single action in isolation.
 import { describe, expect, it } from "vitest";
 
-import { briefFixture } from "../brief/fixtures";
-import { buildBriefViewModel } from "../brief/viewModel";
+import { briefFixture } from "@web/features/brief/utils/fixtures";
+import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { CommentAnchor, ReviewComment } from "../review/comments";
 import { createMindMapStore, deriveInitialState } from "../review/session";
 

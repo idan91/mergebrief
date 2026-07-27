@@ -30,11 +30,11 @@ import {
   type ReviewOutcome,
   type UnresolvedItem,
 } from "@web/features/review/state";
-import { summarizeProgress, type ProgressTotals } from "../../progress";
+import { summarizeProgress, type ProgressTotals } from "../../utils/progress";
 import type { Brief } from "../../types";
-import type { BriefViewModel, GroupView } from "../../viewModel";
-import type { RepoConfigContext } from "../../repoConfig";
-import type { LayoutMode, ViewMode } from "../Header/Header";
+import type { BriefViewModel, GroupView } from "../../utils/viewModel";
+import type { RepoConfigContext } from "../../utils/repoConfig";
+import type { LayoutMode, ViewMode } from "./Header/Header";
 
 const EMPTY_CHUNK_IDS: string[] = [];
 

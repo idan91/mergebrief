@@ -3,6 +3,10 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "sideEffects": [
+    "*.scss",
+    "*.css"
+  ],
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Modal } from "@web/components/Modal/Modal";
 import type { ReviewComment } from "../../comments";
 import { commentLocation, type RiskEvidenceKind } from "../../state";
-import styles from "../ModalContent.module.scss";
+import styles from "@web/components/Modal/ModalContent.module.scss";
 
 export interface EvidenceTarget {
   flagIds: string[];

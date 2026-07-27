@@ -19,8 +19,11 @@ import {
   parseComparisonMarks,
   parseDeltaBrief,
   parseRevisionNarrativeArtifact,
-} from "../brief/validation";
-import { parseBriefContext, type RepoConfigContext } from "../brief/repoConfig";
+} from "../brief/utils/validation";
+import {
+  parseBriefContext,
+  type RepoConfigContext,
+} from "../brief/utils/repoConfig";
 import type {
   Brief,
   ComparisonMarks,

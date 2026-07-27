@@ -12,7 +12,7 @@ import type { MarkReadyAction } from "@web/features/pulls/markReady";
 import { recordPostNotice } from "@web/features/pulls/postComment";
 import { useMarkReady } from "@web/features/pulls/useMarkReady";
 import type { IntentCheck } from "../../types";
-import type { RiskFlag } from "../../viewModel";
+import type { RiskFlag } from "../../utils/viewModel";
 import type { PostDraftOutcome } from "./useOwnDraftFlow";
 import { countIntentGaps, countIntentTensions } from "./utils";
 

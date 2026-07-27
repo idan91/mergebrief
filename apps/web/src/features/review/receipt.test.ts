@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { briefFixture } from "../brief/fixtures";
-import { buildBriefViewModel } from "../brief/viewModel";
+import { briefFixture } from "@web/features/brief/utils/fixtures";
+import { buildBriefViewModel } from "@web/features/brief/utils";
 import { buildReceipt } from "./receipt";
 import type { SessionSnapshot } from "./session";
 

@@ -1,5 +1,5 @@
 import { Roles, type BriefChunk } from "../brief/types";
-import type { RiskFlag } from "../brief/viewModel";
+import type { RiskFlag } from "@web/features/brief/utils";
 import type { ReviewComment } from "./comments";
 import type { Disposition } from "./session/disposition";
 

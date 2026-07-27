@@ -52,11 +52,37 @@ part of the same module, never a lateral import surface.
 ### 1. Layers
 
 No pages layer. Route files are glue only: data loading + composition,
-nothing else. `features/<domain>/` is the domain layer — a feature root
-holds flat logic files (store, queries, derivations) with tests adjacent;
-`components/` inside it is the feature's UI subtree, folder-per-component.
-The global layer is `src/components/`, `src/hooks/`, `src/utils/` (renamed
-from `lib/`), and `src/styles/`.
+nothing else. `features/<domain>/` is the domain layer; the global layer is
+`src/components/`, `src/hooks/`, `src/utils/` (renamed from `lib/`), and
+`src/styles/`.
+
+_Amended 2026-07-26 (owner ruling — repo-wide, supersedes flat-by-default
+wherever the two conflict)._ Every folder must answer at a glance: (1) what
+is the MAIN entry point/component, and (2) everything else must be VISIBLY a
+support category (subcomponents, `utils/`, `hooks/`, `server/`, `types.ts`,
+…). A file sitting loose without an obvious category is a defect.
+Concretely, a feature's entry is **`index.tsx` at the feature root** — the
+entry component's actual JSX when it carries no co-located support files
+(brief's `BriefPage`), otherwise a curated re-export of the entry
+component(s). Inside `components/`, every component folder nests under its
+owning component, at the nearest common ancestor of its consumers — the
+subtree ownership of decision 2 made visible in the tree, not just implied
+by imports. The ownership rule itself (descendants import ancestors,
+lateral forbidden, NCA promotion, dependency cap) is unchanged.
+
+**Barrels are entry-level only** (this narrowly reverses the prior
+no-barrels stance): the feature `index.tsx`, plus a folder `index.ts`
+where it clarifies outside imports (`utils/`). No per-component barrels.
+Entry barrels are CURATED and follow two hard rules: (a) they never
+re-export anything that touches `server/` — a server edge through the
+barrel puts server-only code on the client graph and fails the
+import-protection build (brief's `queries.ts` stays out of the barrels for
+exactly this reason); (b) they exist for OUTSIDE consumers only — files
+inside the feature import their targets directly, never their own feature's
+index (`import/no-cycle` would flag the loop). Cross-feature component
+imports go through the target feature's entry (`@web/features/review`,
+`@web/features/brief/utils`); logic modules and `session/`-style state stay
+direct file imports.
 
 ### 2. Subtree ownership — one rule, four surfaces
 
@@ -92,16 +118,25 @@ single-function files.
 
 ### 4. Feature-root organization
 
-Feature roots are flat by default. A cluster of **≥4 related files** earns a
-topic folder; today only `features/brief/comparison/` qualifies. The
-threshold is provisional (see revisit triggers).
+_Rewritten 2026-07-26 (owner ruling, superseding the original
+flat-by-default text)._ A feature root holds the entry (`index.tsx`),
+`types.ts`, and visible support categories — `components/` (all UI below
+the entry), `hooks/`, `utils/` (derivations, parsers, fixtures —
+`validation` and `fixtures` are utils), `server/` (server functions +
+server-only IO), and topic folders like `comparison/`. The old
+≥4-related-files threshold is replaced by **a category earns a folder when
+it clarifies**. A file may stay flat at the feature root only with an
+explicit reason (`types.ts` by convention; brief's `queries.ts` because it
+touches `server/` and must stay out of the barrels); a generic name with no
+domain cue (`singleFlight`) is a defect — co-locate it with its consumer or
+fold it into a category.
 
 ### 5. Token bar
 
 **Zero raw values in `.module.scss` for colors, font-sizes, border-radii,
 and box-shadows** — every such value goes through `var(...)` or a mixin.
 
-*Amended 2026-07-26 (owner call, during implementation).* The original
+_Amended 2026-07-26 (owner call, during implementation)._ The original
 two-phase plan (faithful value-named tokens first, semantic collapse later)
 was superseded: value-named tokens (`--font-size-13`, `--radius-8`,
 `--color-surface-01`) are banned as scaffolding waste. Tokens exist only for
@@ -110,7 +145,7 @@ the deliberate design-system scale:
 - **Type:** semantic steps (`--font-size-xs` … `--font-size-3xl`, `md` =
   body) plus em steps for parent-relative contexts.
 - **Radius / shadow:** small semantic sets (`--radius-xs/sm/md/lg/pill/
-  circle`; `--shadow-elevation-sm/md/lg` + special cases).
+circle`; `--shadow-elevation-sm/md/lg` + special cases).
 - **Color:** small numbered families (`--color-surface-N`, `--color-text-N`,
   `--color-outline-N`) plus role tokens (accent, warning, negative, …).
 
@@ -169,7 +204,7 @@ adoption at birth (7). These live in this ADR and, compressed, in
 `apps/web/AGENTS.md`. Two more joined the list when the rules were built
 (oxlint 1.72): the **plain-`enum` ban** — oxlint ships neither a `no-enum`
 rule nor `no-restricted-syntax`, so only `const enum` is caught — and the
-**lateral-import restriction**, which needs a per-file *relative* path
+**lateral-import restriction**, which needs a per-file _relative_ path
 predicate (`no lateral import outside MY subtree`); oxlint's overrides only
 select which rules apply to a file, and `import/no-restricted-paths` does not
 exist, so the rule cannot be stated. Both remain prose + review.
@@ -213,8 +248,9 @@ listed as prose, never assumed to be enforced when they aren't.
 
 ## Revisit Triggers
 
-- **Topic-folder threshold** (≥4 files) — reassess after the first
-  structural PR (BRIEF-44 PR 4).
+- ~~**Topic-folder threshold** (≥4 files) — reassess after the first
+  structural PR (BRIEF-44 PR 4).~~ Superseded 2026-07-26: the threshold was
+  replaced by decision 4's "a category earns a folder when it clarifies".
 - **Spacing token scale** — when a spacing-related bug or a design pass
   warrants it; not before.
 - **Build-enforced typed CSS modules** — a wrong-classname bug shipping past

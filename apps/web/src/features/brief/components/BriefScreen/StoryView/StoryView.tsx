@@ -1,0 +1,379 @@
+import { useId, useState } from "react";
+
+import type {
+  CommentAnchor,
+  ReviewComment,
+} from "@web/features/review/comments";
+import type { DismissTarget } from "@web/features/review";
+import type { EvidenceTarget } from "@web/features/review";
+import { useRevisionNavigation } from "../../../hooks/useRevisionNavigation";
+import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
+import type { AddressedReviewComment, Brief } from "../../../types";
+import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
+import type { DigestRow } from "@web/features/conversation/digest";
+import type { ThreadComposerWiring } from "@web/features/conversation";
+import { ChunkCard } from "./ChunkCard/ChunkCard";
+import { GroupCard } from "./GroupCard/GroupCard";
+import { RiskBadge } from "../RiskBadge/RiskBadge";
+import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
+import { RiskDetailList } from "../RiskDetailList/RiskDetailList";
+import styles from "./StoryView.module.scss";
+
+const EMPTY_ADDRESSED_REVIEW_COMMENTS: AddressedReviewComment[] = [];
+const EMPTY_RISK_FLAGS: RiskFlag[] = [];
+
+export interface StoryViewProps {
+  brief: Brief;
+  model: BriefViewModel;
+  comparison: ComparisonOverlayState;
+  activeChunkId: string | null;
+  collapseSupporting: boolean;
+  focusMode: boolean;
+  openChunks: Set<string>;
+  selectedRiskFlags: Set<string>;
+  activeCommentAnchor: CommentAnchor | null;
+  addressedReviewComments: AddressedReviewComment[] | undefined;
+  cancelCommentComposer: () => void;
+  deleteReviewComment: (commentId: string) => void;
+  jumpToChunk: (chunkId: string) => void;
+  /** Enters Read-through at step 1; absent when unavailable (comparing, no chunks). */
+  startReadThrough?: () => void;
+  markReviewed: (chunkId: string) => void;
+  openCommentComposer: (anchor: CommentAnchor) => void;
+  saveReviewComment: (anchor: CommentAnchor, body: string) => void;
+  /** Post a staged draft NOW (BRIEF-43 own-draft, current head); absent otherwise. */
+  postReviewComment?: ((comment: ReviewComment) => void) | undefined;
+  /** Comment ids with a post-now request in flight (state-backed, re-renders). */
+  postingCommentIds?: ReadonlySet<string> | undefined;
+  /** Wait-shaped reason every Post is blocked right now (submit in flight). */
+  postBlockedExternally?: string | undefined;
+  setCollapseSupporting: (value: boolean) => void;
+  setDismissTarget: (target: DismissTarget) => void;
+  setEvidenceTarget: (target: EvidenceTarget) => void;
+  setToast: (message: string) => void;
+  toggleChunk: (chunkId: string) => void;
+  toggleRiskFlag: (flagId: string) => void;
+  toggleRiskGroup: (flagIds: string[]) => void;
+  toggleReviewComment: (commentId: string) => void;
+  updateReviewComment: (commentId: string, body: string) => void;
+  /** Inline conversation threads per chunk (BRIEF-25); absent on the local path. */
+  conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
+  conversationComposer?: ThreadComposerWiring | undefined;
+  /** Read-only reason for the comment affordances (BRIEF-24); absent = writable. */
+  composerDisabledReason?: string | undefined;
+  /** Own-draft state (BRIEF-43): flags render as a read-only mirror. */
+  flagsReadOnly?: boolean | undefined;
+}
+
+export function StoryView(props: StoryViewProps) {
+  const { jumpPrev, jumpNext } = useRevisionNavigation();
+  const [focusRailOpen, setFocusRailOpen] = useState(true);
+  const addressedReviewComments =
+    props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
+  return (
+    <div
+      className={styles["storyView"]}
+      data-zen={props.focusMode ? "on" : undefined}
+    >
+      <div className={`${styles["chunksLabel"]} reveal`}>
+        <span>{props.brief.chunks.length} chunks · grouped by intent</span>
+        <span className={styles["rule"]} />
+        <label className={styles["switch"]}>
+          <input
+            checked={props.collapseSupporting}
+            className={styles["switchInput"]}
+            suppressHydrationWarning
+            type="checkbox"
+            onChange={(event) =>
+              props.setCollapseSupporting(event.target.checked)
+            }
+          />
+          <span className={styles["track"]} />
+          Collapse supporting
+        </label>
+        {props.startReadThrough && !props.focusMode ? (
+          <button
+            className={styles["readThrough"]}
+            type="button"
+            onClick={props.startReadThrough}
+          >
+            Start read-through
+          </button>
+        ) : null}
+        {/* The Compare control (Header) selects the baseline; when it's active
+            and marks land, surface the run count + jump-nav here. The overlay
+            itself is on whenever a comparison is selected — no local toggle. */}
+        {props.comparison.available && props.comparison.runCount > 0 ? (
+          <span
+            className={styles["revisionJump"]}
+            role="group"
+            aria-label={
+              props.comparison.compare === "last-review"
+                ? "Jump between changes since your last review"
+                : "Jump between changes in this revision"
+            }
+          >
+            <span className={styles["count"]}>
+              {props.comparison.runCount} change
+              {props.comparison.runCount === 1 ? "" : "s"}
+            </span>
+            <button
+              aria-label="Previous change"
+              type="button"
+              onClick={jumpPrev}
+            >
+              ◂
+            </button>
+            <button aria-label="Next change" type="button" onClick={jumpNext}>
+              ▸
+            </button>
+          </span>
+        ) : null}
+      </div>
+      {props.model.groups.map((group) => {
+        const isActiveFocusGroup =
+          props.focusMode &&
+          group.chunks.some((chunk) => chunk.id === props.activeChunkId);
+        return (
+          <section
+            className="story-group reveal"
+            key={group.id}
+            data-active-group={isActiveFocusGroup ? "" : undefined}
+            data-focus-rail={
+              props.focusMode
+                ? focusRailOpen
+                  ? "open"
+                  : "collapsed"
+                : undefined
+            }
+          >
+            <div className="group-chunks">
+              {group.chunks.map((chunk) => (
+                <ChunkCard
+                  key={chunk.id}
+                  active={props.activeChunkId === chunk.id}
+                  chunk={chunk}
+                  riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
+                  comparison={props.comparison}
+                  forceCollapsed={
+                    props.collapseSupporting && chunk.role === "supporting"
+                  }
+                  open={props.openChunks.has(chunk.id)}
+                  activeCommentAnchor={
+                    props.activeCommentAnchor?.chunkId === chunk.id
+                      ? props.activeCommentAnchor
+                      : null
+                  }
+                  addressedReviewComments={addressedReviewComments}
+                  cancelCommentComposer={props.cancelCommentComposer}
+                  deleteReviewComment={props.deleteReviewComment}
+                  composerDisabledReason={props.composerDisabledReason}
+                  conversationComposer={props.conversationComposer}
+                  conversationRows={props.conversationByChunk?.get(chunk.id)}
+                  markReviewed={props.markReviewed}
+                  openCommentComposer={props.openCommentComposer}
+                  saveReviewComment={props.saveReviewComment}
+                  postReviewComment={props.postReviewComment}
+                  postingCommentIds={props.postingCommentIds}
+                  postBlockedExternally={props.postBlockedExternally}
+                  toggleChunk={props.toggleChunk}
+                  toggleReviewComment={props.toggleReviewComment}
+                  updateReviewComment={props.updateReviewComment}
+                />
+              ))}
+            </div>
+            {props.focusMode ? (
+              isActiveFocusGroup ? (
+                <FocusGroupRail
+                  activeChunkId={props.activeChunkId}
+                  group={group}
+                  model={props.model}
+                  open={focusRailOpen}
+                  setOpen={setFocusRailOpen}
+                  jumpToChunk={props.jumpToChunk}
+                />
+              ) : null
+            ) : (
+              <GroupCard
+                group={group}
+                brief={props.brief}
+                model={props.model}
+                selectedRiskFlags={props.selectedRiskFlags}
+                jumpToChunk={props.jumpToChunk}
+                setDismissTarget={props.setDismissTarget}
+                setEvidenceTarget={props.setEvidenceTarget}
+                flagsReadOnly={props.flagsReadOnly}
+                setToast={props.setToast}
+                toggleRiskFlag={props.toggleRiskFlag}
+                toggleRiskGroup={props.toggleRiskGroup}
+              />
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+interface FocusGroupRailProps {
+  activeChunkId: string | null;
+  group: BriefViewModel["groups"][number];
+  model: BriefViewModel;
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  jumpToChunk: (chunkId: string) => void;
+}
+
+function FocusGroupRail({
+  activeChunkId,
+  group,
+  model,
+  open,
+  setOpen,
+  jumpToChunk,
+}: FocusGroupRailProps) {
+  const panelId = useId();
+  const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
+  const dominant = group.group.dominantCategory;
+  const activeChunk =
+    group.chunks.find((chunk) => chunk.id === activeChunkId) ??
+    group.chunks[0] ??
+    null;
+
+  return (
+    <aside
+      aria-label="Focused change-group context"
+      className={`${styles["focusRail"]} focus-group-rail`}
+      data-state={open ? "open" : "collapsed"}
+    >
+      <button
+        aria-controls={panelId}
+        aria-expanded={open}
+        aria-label={open ? "Collapse group context" : "Expand group context"}
+        className={styles["railToggle"]}
+        type="button"
+        onClick={() => setOpen(!open)}
+      >
+        <span className={styles["railToggleText"]}>
+          {group.readingOrderStep !== undefined
+            ? `Step ${group.readingOrderStep}`
+            : `Group ${group.index + 1}`}
+        </span>
+        <span aria-hidden="true" className={styles["railToggleMark"]}>
+          {open ? "−" : "+"}
+        </span>
+      </button>
+      {open ? (
+        <div className={styles["railPanel"]} id={panelId}>
+          {/* Fixed header: everything above the stats divider stays put;
+              only the detail region below it scrolls. */}
+          <div className={styles["railHead"]}>
+            <div className={styles["railMeta"]}>
+              {group.readingOrderStep !== undefined
+                ? `Step ${group.readingOrderStep} of ${model.groups.length}`
+                : `Change-group ${group.index + 1} of ${model.groups.length}`}
+            </div>
+            <h2 className={styles["railTitle"]}>{group.group.title}</h2>
+            <p className={styles["railSummary"]}>{group.group.summary}</p>
+            {group.readingOrderWhy ? (
+              <p className={styles["railWhy"]}>{group.readingOrderWhy}</p>
+            ) : null}
+            <div className={styles["railChips"]}>
+              <span className={styles["railChip"]} data-kind="dominant">
+                dominant {dominant}
+              </span>
+              {group.group.secondaryCategories.map((category) => (
+                <span className={styles["railChip"]} key={category}>
+                  secondary {category}
+                </span>
+              ))}
+              {group.group.uncertain ? (
+                <span className={styles["railChip"]} data-kind="uncertain">
+                  uncertain
+                </span>
+              ) : null}
+            </div>
+          </div>
+          {/* The keyboard-reachable scroll region: tabindex + label live here,
+              on the element that actually scrolls, so they coincide. */}
+          <div
+            aria-label="Change-group details"
+            className={styles["railScroller"]}
+            role="region"
+            tabIndex={0}
+          >
+            <div className={styles["railStats"]}>
+              <span>
+                <span className="green">+{group.added}</span> /{" "}
+                <span className="red">−{group.deleted}</span>
+              </span>
+              <span>
+                {groupFlags.length} flag{groupFlags.length === 1 ? "" : "s"}
+              </span>
+            </div>
+            {activeChunk ? (
+              <div className={styles["railRiskFacts"]}>
+                <div className={styles["railLabel"]}>Active chunk risks</div>
+                {activeChunk.riskSurface.length > 0 ? (
+                  <div className={styles["railRiskChips"]}>
+                    {activeChunk.riskSurface.map((risk) => {
+                      const meta = model.riskMetaByChunk
+                        .get(activeChunk.id)
+                        ?.get(risk);
+                      if (
+                        meta?.source === "repo-policy" ||
+                        meta?.deEmphasized
+                      ) {
+                        return (
+                          <RiskChipDisclosure
+                            detail={
+                              <RiskDetailList
+                                attrs={[risk]}
+                                metaFor={() => meta}
+                              />
+                            }
+                            key={risk}
+                          >
+                            <RiskBadge meta={meta}>{risk}</RiskBadge>
+                          </RiskChipDisclosure>
+                        );
+                      }
+                      return (
+                        <RiskBadge key={risk} meta={meta}>
+                          {risk}
+                        </RiskBadge>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className={styles["railNoRisks"]}>
+                    No risk-surface attributes on this chunk.
+                  </p>
+                )}
+              </div>
+            ) : null}
+            <div className={styles["railChunkList"]}>
+              <div className={styles["railLabel"]}>Chunks</div>
+              {group.chunks.map((chunk) => (
+                <button
+                  className={styles["railChunkButton"]}
+                  data-current={chunk.id === activeChunkId ? "" : undefined}
+                  key={chunk.id}
+                  type="button"
+                  onClick={() => jumpToChunk(chunk.id)}
+                >
+                  <span className={styles["railChunkFile"]}>{chunk.file}</span>
+                  <span className={styles["railChunkMeta"]}>
+                    {chunk.role} ·{" "}
+                    <span className="green">+{chunk.loc.added}</span> /{" "}
+                    <span className="red">−{chunk.loc.deleted}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </aside>
+  );
+}

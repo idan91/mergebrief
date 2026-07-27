@@ -22,10 +22,7 @@ import {
   type BriefSearchParams,
   type CompareOptionFlags,
 } from "../features/brief/comparison/compareState";
-import {
-  BriefView,
-  type BriefComparisonPlan,
-} from "../features/brief/components/BriefView/BriefView";
+import { BriefView, type BriefComparisonPlan } from "@web/features/brief";
 import {
   comparisonsWarming,
   deriveBriefRouteState,
@@ -41,7 +38,7 @@ import {
   WaitCard,
   WarmingChip,
   waitLabel,
-} from "../features/pulls/components/PrBriefStates";
+} from "@web/features/pulls";
 import { attachLiveDiffs } from "../features/pulls/liveDiff";
 import {
   dbBriefContextQueryOptions,
@@ -53,7 +50,7 @@ import {
   prMetaQueryOptions,
 } from "../features/pulls/queries";
 import { conversationQueryOptions } from "../features/conversation/queries";
-import type { ThreadRevisionJump } from "../features/conversation/components/ConversationSection/ConversationSection";
+import type { ThreadRevisionJump } from "@web/features/conversation";
 import { postConversationReply } from "../features/conversation/reply";
 import { createMarkReadyAction } from "../features/pulls/markReady";
 import { postInlineComment } from "../features/pulls/postComment";
@@ -65,7 +62,7 @@ import {
   type DbTimelinePoint,
   type DbTimelineSelection,
 } from "../features/pulls/dbTimeline";
-import { DbBriefControls } from "../features/pulls/components/DbBriefControls/DbBriefControls";
+import { DbBriefControls } from "@web/features/pulls";
 import {
   buildSubmitPayload,
   mapAnchorToWire,

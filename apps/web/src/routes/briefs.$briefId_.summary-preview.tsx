@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 
 import { localBriefQueryOptions } from "../features/brief/queries";
 import type { Brief } from "../features/brief/types";
-import { buildBriefViewModel } from "../features/brief/viewModel";
-import { SummaryPreview } from "../features/review/components/SummaryPreview/SummaryPreview";
+import { buildBriefViewModel } from "@web/features/brief/utils";
+import { SummaryPreview } from "@web/features/review";
 import type { Disposition } from "../features/review/session";
 import { readSnapshot, type SessionSnapshot } from "../features/review/session";
 import styles from "./routeShared.module.scss";

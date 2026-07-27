@@ -1,13 +1,13 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { BriefPage } from "../features/brief/components/BriefPage/BriefPage";
+import { BriefPage } from "@web/features/brief";
 import {
   parseCompareParam,
   parseViewParam,
   type BriefSearchParams,
 } from "../features/brief/comparison/compareState";
-import { resolveLegacyDeltaRedirect } from "../features/brief/legacyRedirect";
+import { resolveLegacyDeltaRedirect } from "@web/features/brief/utils";
 import {
   localBriefQueryOptions,
   localBriefsQueryOptions,

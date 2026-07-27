@@ -6,7 +6,7 @@ import {
   getLocalComparisonMarks,
   getLocalRevisionChanges,
   getLocalRevisionNarrative,
-} from "./brief.functions";
+} from "./server/brief.functions";
 
 export function localBriefQueryOptions(briefId: string) {
   return queryOptions({

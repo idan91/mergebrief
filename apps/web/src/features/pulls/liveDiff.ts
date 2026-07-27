@@ -8,13 +8,13 @@ import {
   parseUnifiedDiffPatch,
   sliceChunkDiff,
   splitUnifiedDiffByFile,
-} from "../brief/diffSlicing";
+} from "../brief/utils/diffSlicing";
 import type { Brief } from "../brief/types";
 
 // `splitUnifiedDiffByFile` now lives in the shared pure diff module alongside
 // `parseUnifiedDiffPatch` — re-exported here so existing importers are
 // unchanged.
-export { splitUnifiedDiffByFile } from "../brief/diffSlicing";
+export { splitUnifiedDiffByFile } from "../brief/utils/diffSlicing";
 
 /**
  * Attach sliced per-chunk diff rows from the live whole-PR diff. Pure — the

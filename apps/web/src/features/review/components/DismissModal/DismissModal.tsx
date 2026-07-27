@@ -1,5 +1,5 @@
 import { Modal } from "@web/components/Modal/Modal";
-import styles from "../ModalContent.module.scss";
+import styles from "@web/components/Modal/ModalContent.module.scss";
 
 export interface DismissTarget {
   flagIds: string[];

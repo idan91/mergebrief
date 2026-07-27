@@ -19,7 +19,10 @@ import {
   localBriefsQueryOptions,
   localRevisionChangesQueryOptions,
 } from "../features/brief/queries";
-import { briefFixture, briefSummaryFixture } from "../features/brief/fixtures";
+import {
+  briefFixture,
+  briefSummaryFixture,
+} from "@web/features/brief/utils/fixtures";
 import { routeTree } from "../routeTree.gen";
 
 const BRIEF_ID = briefSummaryFixture.id;

@@ -1,12 +1,12 @@
 import { useMemo, type ReactNode } from "react";
 
-import type { ConversationPlan } from "@web/features/conversation/components/ConversationSection/ConversationSection";
+import type { ConversationPlan } from "@web/features/conversation";
 import { MindMapProvider } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/submit";
 import type { BriefSearchParams } from "../../comparison/compareState";
-import type { RepoConfigContext } from "../../repoConfig";
+import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { Brief, LocalBriefSummary } from "../../types";
-import { buildBriefViewModel } from "../../viewModel";
+import { buildBriefViewModel } from "../../utils/viewModel";
 import {
   BriefScreen,
   type BriefComparisonPlan,

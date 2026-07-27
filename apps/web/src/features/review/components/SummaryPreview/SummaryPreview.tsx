@@ -2,7 +2,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { Roles, type Brief } from "@web/features/brief/types";
-import { buildBriefViewModel } from "@web/features/brief/viewModel";
+import { buildBriefViewModel } from "@web/features/brief/utils";
 import { buildReceipt, RECEIPT_NOT_CHECKED, type Receipt } from "../../receipt";
 import type { SessionSnapshot } from "../../session";
 import { summarySignatureLine, type ReviewOutcome } from "../../state";

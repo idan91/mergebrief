@@ -12,17 +12,17 @@ import { Drawer } from "@web/components/Drawer/Drawer";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { prefersReducedMotion } from "@web/utils/motion";
 import type { CommentAnchor } from "@web/features/review/comments";
-import { PreSubmitModal } from "@web/features/review/components/PreSubmitModal/PreSubmitModal";
+import { PreSubmitModal } from "@web/features/review";
 import {
   ConversationSection,
   type ConversationPlan,
   type ThreadComposerWiring,
-} from "@web/features/conversation/components/ConversationSection/ConversationSection";
+} from "@web/features/conversation";
 import { buildInlineThreads } from "@web/features/conversation/digest";
 import { reconcileOwnComments } from "@web/features/conversation/ownComments";
 import type { ConversationResult } from "@web/features/conversation/queries";
-import { ReceiptDrawer } from "@web/features/review/components/ReceiptDrawer/ReceiptDrawer";
-import { SummaryPreview } from "@web/features/review/components/SummaryPreview/SummaryPreview";
+import { ReceiptDrawer } from "@web/features/review";
+import { SummaryPreview } from "@web/features/review";
 import type { SubmitReviewAction } from "@web/features/review/submit";
 import { useReviewSubmit } from "@web/features/review/useReviewSubmit";
 import {
@@ -37,23 +37,26 @@ import {
   useInFlightPosts,
   type PostCommentResult,
 } from "@web/features/pulls/postComment";
-import { MarkReadyModal } from "@web/features/pulls/components/MarkReadyModal/MarkReadyModal";
+import { MarkReadyModal } from "@web/features/pulls";
 import type { Brief, LocalBriefSummary } from "../../types";
-import { useKeyboardShortcuts } from "../../useKeyboardShortcuts";
-import type { buildBriefViewModel } from "../../viewModel";
-import { buildAttributeRail, splitSummaryAtChangelog } from "../../viewModel";
-import type { RepoConfigContext } from "../../repoConfig";
-import { ChangesOnlyView } from "../ChangesOnlyView/ChangesOnlyView";
-import { ConcernView } from "../ConcernView/ConcernView";
-import { DeltaContext } from "../DeltaContext/DeltaContext";
-import { AttributeJumpRail } from "../AttributeJumpRail/AttributeJumpRail";
-import { IntentBar, type IntentBarHandle } from "../IntentBar/IntentBar";
-import { GroupTocBar } from "../GroupTocBar/GroupTocBar";
-import { Header } from "../Header/Header";
-import { ReadThroughProgress } from "../ReadThroughProgress/ReadThroughProgress";
-import { RiskFlagModals } from "../RiskFlagModals/RiskFlagModals";
-import { ShortcutsModal } from "../ShortcutsModal/ShortcutsModal";
-import { StoryView } from "../StoryView/StoryView";
+import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import type { buildBriefViewModel } from "../../utils/viewModel";
+import {
+  buildAttributeRail,
+  splitSummaryAtChangelog,
+} from "../../utils/viewModel";
+import type { RepoConfigContext } from "../../utils/repoConfig";
+import { ChangesOnlyView } from "./ChangesOnlyView/ChangesOnlyView";
+import { ConcernView } from "./ConcernView/ConcernView";
+import { DeltaContext } from "./DeltaContext/DeltaContext";
+import { AttributeJumpRail } from "./AttributeJumpRail/AttributeJumpRail";
+import { IntentBar, type IntentBarHandle } from "./IntentBar/IntentBar";
+import { GroupTocBar } from "./GroupTocBar/GroupTocBar";
+import { Header } from "./Header/Header";
+import { ReadThroughProgress } from "./ReadThroughProgress/ReadThroughProgress";
+import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
+import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
+import { StoryView } from "./StoryView/StoryView";
 import {
   useComparisonOverlay,
   type BriefComparisonPlan,

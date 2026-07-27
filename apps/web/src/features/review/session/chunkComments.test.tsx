@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
 import type { Brief } from "../../brief/types";
-import { buildBriefViewModel } from "../../brief/viewModel";
+import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { CommentAnchor } from "../comments";
 import { MindMapProvider, useChunkReviewComments, useMindMap } from ".";
 

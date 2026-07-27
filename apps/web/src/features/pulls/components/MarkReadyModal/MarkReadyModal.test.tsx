@@ -8,7 +8,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { RiskFlag } from "@web/features/brief/viewModel";
+import type { RiskFlag } from "@web/features/brief/utils";
 import { MarkReadyModal } from "./MarkReadyModal";
 
 afterEach(cleanup);

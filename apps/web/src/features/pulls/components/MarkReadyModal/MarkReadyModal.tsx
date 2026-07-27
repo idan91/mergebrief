@@ -11,8 +11,8 @@
 // and records nothing. The zero-flag bypass lives in the caller: the modal
 // shows iff flags exist.
 import { Modal } from "@web/components/Modal/Modal";
-import type { RiskFlag } from "@web/features/brief/viewModel";
-import styles from "@web/features/review/components/ModalContent.module.scss";
+import type { RiskFlag } from "@web/features/brief/utils";
+import styles from "@web/components/Modal/ModalContent.module.scss";
 
 export interface MarkReadyModalProps {
   open: boolean;

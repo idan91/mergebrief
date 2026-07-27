@@ -6,8 +6,11 @@
 // controls stay reachable after the focus-to-heading selection effect
 // (ADR 0019 #7) instead of scrolling away.
 import type { DbTimelinePoint, DbTimelineSelection } from "../../dbTimeline";
-import { DbCompareBar, type DbCompareBarProps } from "../DbCompareBar";
-import { DbTimelineNavigator } from "../DbTimelineNavigator/DbTimelineNavigator";
+import {
+  DbCompareBar,
+  type DbCompareBarProps,
+} from "./DbCompareBar/DbCompareBar";
+import { DbTimelineNavigator } from "./DbTimelineNavigator/DbTimelineNavigator";
 import styles from "./DbBriefControls.module.scss";
 
 export interface DbBriefControlsProps {

@@ -25,6 +25,26 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
 
 ## Placement and styling (ADR 0037 — full rules + why live there)
 
+- Every folder answers at a glance: one visible MAIN entry, everything else
+  in a visible support category (2026-07-26 owner ruling, supersedes
+  flat-by-default). A feature root = `index.tsx` (THE entry: the entry
+  component's JSX, or a curated re-export when it has co-located support
+  files) + `types.ts` + `components/` / `hooks/` / `utils/` / `server/` /
+  topic folders. Inside `components/`, every component nests under its
+  owning component. A loose uncategorized file is a defect (except files
+  with an explicit in-ADR justification, e.g. `brief/queries.ts`).
+- Server-code split: `src/server/` = app-wide infrastructure only (logger,
+  webhook composition, health); a feature's server code lives in that
+  feature's `server/` (dependency cap — feature knowledge never sits in the
+  global layer). The real API surface is `packages/api`; web server functions
+  stay the thin demo/SSR residue. Inventory when needed: `**/*.server.ts` +
+  `**/*.functions.ts`. TanStack enforces the boundary by file suffix +
+  import-protection, not folder location.
+- Barrels are entry-level only: feature `index.tsx` + folder `index.ts`
+  where it clarifies outside imports; no per-component barrels. Curated —
+  NEVER re-export anything touching `server/` (import-protection breaks the
+  client build), and for outside consumers only: internal files import
+  targets directly, never their own feature's index (import/no-cycle).
 - New file placement: co-locate with its single consumer; on a second
   consumer, promote to the nearest common ancestor of all consumers
   (parent component → feature root → global, last resort). Lateral imports

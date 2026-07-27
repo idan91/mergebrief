@@ -1,4 +1,4 @@
-import type { BriefTimelinePoint } from "../timeline";
+import type { BriefTimelinePoint } from "../utils/timeline";
 
 /**
  * @description The **View** control (ADR 0024 plan step 6): `full` renders the

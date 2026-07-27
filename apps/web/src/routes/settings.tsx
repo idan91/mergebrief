@@ -5,7 +5,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { TokenSettings } from "../features/tokens/components/TokenSettings";
+import { TokenSettings } from "@web/features/tokens";
 import { pullsSessionQueryOptions } from "../features/pulls/queries";
 import styles from "./settings.module.scss";
 
