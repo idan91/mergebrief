@@ -6,11 +6,10 @@
 // chunk instance (visible state, never entry-path memory).
 import { useState } from "react";
 
+import { toggleSet } from "@web/utils/collections";
 import type { DigestRow } from "../../digest";
-import {
-  ThreadRowView,
-  type ThreadComposerWiring,
-} from "../ConversationSection/ConversationSection";
+import type { ThreadComposerWiring } from "../../wiring";
+import { ThreadRowView } from "../ThreadRowView/ThreadRowView";
 import styles from "./InlineThreads.module.scss";
 
 // Inline rows already sit at their chunk — the detail's jump is hidden, so
@@ -30,19 +29,9 @@ export function InlineThreads({ rows, composer }: InlineThreadsProps) {
     new Set(),
   );
   const toggleThread = (threadId: number) =>
-    setExpandedThreads((current) => {
-      const next = new Set(current);
-      if (next.has(threadId)) next.delete(threadId);
-      else next.add(threadId);
-      return next;
-    });
+    setExpandedThreads((current) => toggleSet(current, threadId));
   const toggleBot = (author: string) =>
-    setExpandedBots((current) => {
-      const next = new Set(current);
-      if (next.has(author)) next.delete(author);
-      else next.add(author);
-      return next;
-    });
+    setExpandedBots((current) => toggleSet(current, author));
   if (rows.length === 0) return null;
   return (
     <section

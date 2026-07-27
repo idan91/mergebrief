@@ -181,7 +181,6 @@ export function BriefScreen({
     jumpToGroup,
     readingOrderedChunks,
     receipt,
-    replyDrafts,
     reviewComments,
     reviewOutcome,
     snapshot,
@@ -243,15 +242,12 @@ export function BriefScreen({
   // The conversation glue (section open/landing state, shared query + digest,
   // composer wiring, digest→diff jump choreography) — see the hook.
   const conversationWiring = useConversationWiring({
-    announce,
     briefId,
     conversation,
     conversationFocusThreadId,
     jumpToChunk,
     model,
     readingOrderedChunks,
-    replyDrafts,
-    setReplyDraft: actions.setReplyDraft,
     submittedReviewIds,
   });
   const submitFlow = useReviewSubmit({
@@ -495,7 +491,6 @@ export function BriefScreen({
 
             {conversation !== undefined ? (
               <ConversationSection
-                announce={announce}
                 briefId={briefId}
                 chunks={readingOrderedChunks}
                 focusThreadId={conversationFocusThreadId}
@@ -507,8 +502,6 @@ export function BriefScreen({
                 open={conversationWiring.open}
                 onToggle={conversationWiring.toggleOpen}
                 plan={conversation}
-                replyDrafts={replyDrafts}
-                setReplyDraft={actions.setReplyDraft}
                 submittedReviewIds={submittedReviewIds}
               />
             ) : null}

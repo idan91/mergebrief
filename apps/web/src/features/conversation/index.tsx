@@ -1,15 +1,16 @@
-// Curated feature entry (ADR 0037): the two externally consumed entry
+// Curated feature entry (ADR 0037): the externally consumed entry
 // components. Internal conversation files import their targets directly,
 // never this index (import/no-cycle).
 export {
   ConversationSection,
   type ConversationPlan,
   type ConversationSectionProps,
-  type ThreadComposerWiring,
-  type ThreadRevisionJump,
+} from "./components/ConversationSection/ConversationSection";
+export {
   ThreadRowView,
   type ThreadRowViewProps,
-} from "./components/ConversationSection/ConversationSection";
+} from "./components/ThreadRowView/ThreadRowView";
+export type { ThreadComposerWiring, ThreadRevisionJump } from "./wiring";
 export {
   InlineThreads,
   type InlineThreadsProps,

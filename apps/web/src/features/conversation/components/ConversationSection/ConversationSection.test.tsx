@@ -6,6 +6,7 @@
 // empty state, and the reconciliation flip (server-backed wins).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -16,8 +17,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type * as SessionModule from "@web/features/review/session";
 
-import type { BriefChunk } from "@web/features/brief/types";
+import type { Brief, BriefChunk } from "@web/features/brief/types";
+import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { ReviewComment } from "@web/features/review/comments";
+import {
+  createReviewFlowStore,
+  MindMapProvider,
+  ReviewFlowProvider,
+  useMindMap,
+  useMindMapActions,
+  type MindMapActions,
+} from "@web/features/review/session";
 import type { ConversationResult } from "../../queries";
 import type { PrConversation } from "../../types";
 import {
@@ -35,7 +45,13 @@ vi.mock("@web/features/review/session", async (importOriginal) => {
   };
 });
 
-afterEach(cleanup);
+// One ordered hook: cleanup() unmounts the MindMapProvider, whose teardown
+// FLUSHES a pending snapshot write — the storage clear must run after it, or
+// one test's drafts hydrate into the next (every test shares a briefId).
+afterEach(() => {
+  cleanup();
+  sessionStorage.clear();
+});
 
 function chunk(id: string, file: string): BriefChunk {
   return {
@@ -137,12 +153,78 @@ function plan(results: ConversationResult[]): ConversationPlan {
   };
 }
 
+const providerBrief: Brief = {
+  artifactKind: "brief",
+  pr: {
+    repo: "acme/widgets",
+    number: 7,
+    title: "t",
+    url: "https://example.com/pr/7",
+    sha: "head1234",
+    description: "",
+  },
+  summary: "s",
+  changeGroups: [
+    {
+      id: "g1",
+      title: "g",
+      summary: "g",
+      dominantCategory: "bugfix",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [chunk("c1", "src/a.ts")],
+  concernView: [],
+};
+const providerModel = buildBriefViewModel(providerBrief);
+
+/** Live handles into the session store the composer reads (drafts, actions). */
+interface SessionTap {
+  actions: MindMapActions | undefined;
+  drafts: Readonly<Record<string, string>> | undefined;
+}
+
+function SessionTapProbe({ tap }: { tap: SessionTap }) {
+  tap.actions = useMindMapActions();
+  tap.drafts = useMindMap((state) => state.replyDrafts);
+  return null;
+}
+
 function renderSection(
-  overrides: Partial<ConversationSectionProps> & { plan: ConversationPlan },
+  overrides: Partial<ConversationSectionProps> & {
+    plan: ConversationPlan;
+    /** Seeded through the live session store (the composer's draft source). */
+    replyDrafts?: Record<string, string>;
+  },
 ) {
+  const { replyDrafts, ...propOverrides } = overrides;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  // The reply composer reads announce from the ReviewFlow store — wrap the
+  // real action so copy is observable as a call.
+  const flowStore = createReviewFlowStore(
+    {
+      saveComment: vi.fn(),
+      updateComment: vi.fn(),
+      deleteComment: vi.fn(),
+      toggleComment: vi.fn(),
+    },
+    {
+      composerDisabledReason: undefined,
+      flagsReadOnly: false,
+      postingCommentIds: new Set(),
+      postBlockedExternally: undefined,
+      postComment: undefined,
+    },
+  );
+  const announce = vi.fn(flowStore.getState().actions.announce);
+  flowStore.setState({
+    actions: { ...flowStore.getState().actions, announce },
+  });
+  const tap: SessionTap = { actions: undefined, drafts: undefined };
   const props: ConversationSectionProps = {
     briefId: "db:42:7:base:head",
     chunks: [chunk("c1", "src/a.ts")],
@@ -150,21 +232,31 @@ function renderSection(
     submittedReviewIds: [],
     jumpToChunk: vi.fn(),
     markCommentsSubmitted: vi.fn(),
-    announce: vi.fn(),
-    replyDrafts: {},
-    setReplyDraft: vi.fn(),
     // Tests exercise the EXPANDED section; the collapsed header is covered
     // by its own cases.
     open: true,
     onToggle: vi.fn(),
-    ...overrides,
+    ...propOverrides,
   };
-  const view = render(
+  const ui = (current: ConversationSectionProps) => (
     <QueryClientProvider client={client}>
-      <ConversationSection {...props} />
-    </QueryClientProvider>,
+      <MindMapProvider briefId={current.briefId} model={providerModel}>
+        <ReviewFlowProvider store={flowStore}>
+          <SessionTapProbe tap={tap} />
+          <ConversationSection {...current} />
+        </ReviewFlowProvider>
+      </MindMapProvider>
+    </QueryClientProvider>
   );
-  return { client, props, view };
+  const view = render(ui(props));
+  if (replyDrafts !== undefined) {
+    act(() => {
+      for (const [threadId, body] of Object.entries(replyDrafts)) {
+        tap.actions?.setReplyDraft(Number(threadId), body);
+      }
+    });
+  }
+  return { client, props, view, announce, tap };
 }
 
 function ready(): ConversationResult {
@@ -396,13 +488,9 @@ async function openThread() {
 
 describe("ReplyComposer", () => {
   it("posts a reply, clears the draft, announces, and refetches", async () => {
-    const setReplyDraft = vi.fn();
-    const announce = vi.fn();
-    const { props } = renderSection({
+    const { props, announce, tap } = renderSection({
       plan: plan([ready(), ready()]),
       replyDrafts: { "9001": "a follow-up" },
-      setReplyDraft,
-      announce,
     });
     await openThread();
     const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
@@ -411,7 +499,8 @@ describe("ReplyComposer", () => {
     await waitFor(() =>
       expect(props.plan.postReply).toHaveBeenCalledWith(9001, "a follow-up"),
     );
-    await waitFor(() => expect(setReplyDraft).toHaveBeenCalledWith(9001, ""));
+    // The store draft clears on the commit point (an empty body drops the key).
+    await waitFor(() => expect(tap.drafts?.["9001"]).toBeUndefined());
     expect(announce).toHaveBeenCalledWith(
       "Reply posted to GitHub under your account.",
     );
@@ -425,15 +514,14 @@ describe("ReplyComposer", () => {
   });
 
   it("persists the draft on blur, not per keystroke (perf: local typing)", async () => {
-    const setReplyDraft = vi.fn();
-    renderSection({ plan: plan([ready()]), setReplyDraft });
+    const { tap } = renderSection({ plan: plan([ready()]) });
     await openThread();
     const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
     fireEvent.change(textarea, { target: { value: "half a thought" } });
     // Typing stays local — no store churn per keystroke.
-    expect(setReplyDraft).not.toHaveBeenCalled();
+    expect(tap.drafts?.["9001"]).toBeUndefined();
     fireEvent.blur(textarea);
-    expect(setReplyDraft).toHaveBeenCalledWith(9001, "half a thought");
+    expect(tap.drafts?.["9001"]).toBe("half a thought");
   });
 
   it("clears the durable draft when success settles after unmount", async () => {
@@ -468,48 +556,49 @@ describe("ReplyComposer", () => {
     // REVERSED from an earlier round: re-persisting on unmount would also
     // resurrect a posted twin's text and let a stale twin clobber newer
     // edits — an EXPLICIT Clear local drafts beats the leftover display.
-    const setReplyDraft = vi.fn();
-    const { view, props } = renderSection({
+    const { persistReplyDraft } = await import("@web/features/review/session");
+    const durable = vi.mocked(persistReplyDraft);
+    const { view, tap } = renderSection({
       plan: plan([ready()]),
       replyDrafts: { "9001": "still visible" },
-      setReplyDraft,
     });
     await openThread();
-    view.rerender(
-      <QueryClientProvider
-        client={
-          new QueryClient({ defaultOptions: { queries: { retry: false } } })
-        }
-      >
-        <ConversationSection {...props} replyDrafts={{}} />
-      </QueryClientProvider>,
-    );
+    // The external reset (Clear local drafts) empties the store's drafts.
+    act(() => {
+      tap.actions?.setReplyDraft(9001, "");
+    });
+    durable.mockClear();
     view.unmount();
-    expect(setReplyDraft).not.toHaveBeenCalled();
+    // The untouched composer writes nothing on unmount — live or durable.
+    expect(durable).not.toHaveBeenCalled();
   });
 
   it("persists an unsynced draft on unmount (navigation survival)", async () => {
-    const setReplyDraft = vi.fn();
-    const { view } = renderSection({ plan: plan([ready()]), setReplyDraft });
+    const { persistReplyDraft } = await import("@web/features/review/session");
+    const durable = vi.mocked(persistReplyDraft);
+    durable.mockClear();
+    const { view } = renderSection({ plan: plan([ready()]) });
     await openThread();
     const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
     fireEvent.change(textarea, { target: { value: "leaving mid-thought" } });
     view.unmount();
-    expect(setReplyDraft).toHaveBeenCalledWith(9001, "leaving mid-thought");
+    // The live-store twin of this write is unobservable after unmount; the
+    // durable write carries the same payload.
+    expect(durable).toHaveBeenCalledWith(
+      "db:42:7:base:head",
+      9001,
+      "leaving mid-thought",
+    );
   });
 
   it("keeps the draft and announces on failure (indeterminate copy on throw)", async () => {
-    const setReplyDraft = vi.fn();
-    const announce = vi.fn();
     const failingPlan = plan([ready()]);
     (failingPlan.postReply as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("boom"),
     );
-    renderSection({
+    const { announce, tap } = renderSection({
       plan: failingPlan,
       replyDrafts: { "9001": "risky reply" },
-      setReplyDraft,
-      announce,
     });
     await openThread();
     fireEvent.click(screen.getByRole("button", { name: "Reply" }));
@@ -518,7 +607,8 @@ describe("ReplyComposer", () => {
         expect.stringContaining("may or may not have posted"),
       ),
     );
-    expect(setReplyDraft).not.toHaveBeenCalledWith(9001, "");
+    // The draft survives the failure.
+    expect(tap.drafts?.["9001"]).toBe("risky reply");
     expect(screen.getByRole("alert").textContent).toContain(
       "may or may not have posted",
     );
@@ -595,15 +685,16 @@ describe("Fable round fixes", () => {
     // The store holds a draft; this composer instance mounts WITH it and the
     // user never edits here (the twin at the chunk did the typing). Its
     // unmount must not write anything — especially not an empty body.
-    const setReplyDraft = vi.fn();
+    const { persistReplyDraft } = await import("@web/features/review/session");
+    const durable = vi.mocked(persistReplyDraft);
     const { view } = renderSection({
       plan: plan([ready()]),
       replyDrafts: { "9001": "typed at the chunk twin" },
-      setReplyDraft,
     });
     await openThread();
+    durable.mockClear();
     view.unmount();
-    expect(setReplyDraft).not.toHaveBeenCalled();
+    expect(durable).not.toHaveBeenCalled();
   });
 
   it("derives the composer input id per instance, not per thread", async () => {

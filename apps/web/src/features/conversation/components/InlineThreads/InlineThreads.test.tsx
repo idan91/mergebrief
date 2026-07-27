@@ -7,13 +7,25 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { BriefChunk } from "@web/features/brief/types";
+import type { Brief, BriefChunk } from "@web/features/brief/types";
+import { buildBriefViewModel } from "@web/features/brief/utils";
+import {
+  createReviewFlowStore,
+  MindMapProvider,
+  ReviewFlowProvider,
+} from "@web/features/review/session";
 import { buildInlineThreads } from "../../digest";
 import type { ConversationThread, PrConversation } from "../../types";
-import type { ThreadComposerWiring } from "../ConversationSection/ConversationSection";
+import type { ThreadComposerWiring } from "../../wiring";
 import { InlineThreads } from "./InlineThreads";
 
-afterEach(cleanup);
+// One ordered hook: cleanup() unmounts the MindMapProvider, whose teardown
+// FLUSHES a pending snapshot write — the storage clear must run after it, or
+// one test's drafts hydrate into the next (every test shares a briefId).
+afterEach(() => {
+  cleanup();
+  sessionStorage.clear();
+});
 
 function chunk(): BriefChunk {
   return {
@@ -81,12 +93,35 @@ function composer(): ThreadComposerWiring {
   return {
     briefId: "db:42:7:base:head",
     post: vi.fn(async () => ({ kind: "posted", commentId: 1 }) as const),
-    announce: vi.fn(),
-    getDraft: () => "",
-    setDraft: vi.fn(),
     onPosted: vi.fn(),
   };
 }
+
+const providerBrief: Brief = {
+  artifactKind: "brief",
+  pr: {
+    repo: "acme/widgets",
+    number: 7,
+    title: "t",
+    url: "https://example.com/pr/7",
+    sha: "head1234",
+    description: "",
+  },
+  summary: "s",
+  changeGroups: [
+    {
+      id: "g1",
+      title: "g",
+      summary: "g",
+      dominantCategory: "bugfix",
+      secondaryCategories: [],
+      uncertain: false,
+      uncertainBetween: [],
+    },
+  ],
+  chunks: [chunk()],
+  concernView: [],
+};
 
 function renderInline(threads: ConversationThread[]) {
   const rows =
@@ -95,9 +130,32 @@ function renderInline(threads: ConversationThread[]) {
       chunks: [chunk()],
       ownThreadIds: new Set(),
     }).get("c1") ?? [];
+  // The reply composer inside an expanded detail reads the session stores.
+  const flowStore = createReviewFlowStore(
+    {
+      saveComment: vi.fn(),
+      updateComment: vi.fn(),
+      deleteComment: vi.fn(),
+      toggleComment: vi.fn(),
+    },
+    {
+      composerDisabledReason: undefined,
+      flagsReadOnly: false,
+      postingCommentIds: new Set(),
+      postBlockedExternally: undefined,
+      postComment: undefined,
+    },
+  );
   return render(
     <QueryClientProvider client={new QueryClient()}>
-      <InlineThreads composer={composer()} rows={rows} />
+      <MindMapProvider
+        briefId="db:42:7:base:head"
+        model={buildBriefViewModel(providerBrief)}
+      >
+        <ReviewFlowProvider store={flowStore}>
+          <InlineThreads composer={composer()} rows={rows} />
+        </ReviewFlowProvider>
+      </MindMapProvider>
     </QueryClientProvider>,
   );
 }

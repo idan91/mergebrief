@@ -20,8 +20,6 @@ import type { BriefChunk } from "../../types";
 import { conversationGroupIds, disabledComparisonQuery } from "./utils";
 
 export interface UseConversationWiringInput {
-  /** Page live-region channel (the flow store's clear-then-set announce). */
-  announce: (message: string) => void;
   briefId: string;
   /** The route's conversation plan; absent on the local path — every output
    * then self-disables. */
@@ -32,8 +30,6 @@ export interface UseConversationWiringInput {
   jumpToChunk: (chunkId: string, behavior?: ScrollBehavior) => void;
   model: BriefViewModel;
   readingOrderedChunks: BriefChunk[];
-  replyDrafts: Record<string, string>;
-  setReplyDraft: (threadId: number, body: string) => void;
   submittedReviewIds: number[];
 }
 
@@ -58,15 +54,12 @@ export function useConversationWiring(
   input: UseConversationWiringInput,
 ): UseConversationWiringValue {
   const {
-    announce,
     briefId,
     conversation,
     conversationFocusThreadId,
     jumpToChunk,
     model,
     readingOrderedChunks,
-    replyDrafts,
-    setReplyDraft,
     submittedReviewIds,
   } = input;
 
@@ -125,10 +118,9 @@ export function useConversationWiring(
     });
   }, [conversationData, readingOrderedChunks, submittedReviewIds]);
 
-  // Drafts read through a ref: the wiring object's identity stays stable
-  // across draft syncs, so it never busts ChunkCard's memo.
-  const replyDraftsRef = useRef(replyDrafts);
-  replyDraftsRef.current = replyDrafts;
+  // Slim transport (draft reads/writes and announce copy live inside
+  // ReplyComposer's session-store reads): identity stable per plan, so it
+  // never busts ChunkCard's memo.
   const conversationComposer = useMemo<ThreadComposerWiring | undefined>(
     () =>
       conversation === undefined
@@ -136,16 +128,12 @@ export function useConversationWiring(
         : {
             briefId,
             post: conversation.postReply,
-            announce,
-            getDraft: (threadId: number) =>
-              replyDraftsRef.current[String(threadId)] ?? "",
-            setDraft: setReplyDraft,
             onPosted: () =>
               void queryClient.invalidateQueries({
                 queryKey: conversation.queryOptions.queryKey,
               }),
           },
-    [announce, briefId, conversation, queryClient, setReplyDraft],
+    [briefId, conversation, queryClient],
   );
 
   const groupIds = useMemo(

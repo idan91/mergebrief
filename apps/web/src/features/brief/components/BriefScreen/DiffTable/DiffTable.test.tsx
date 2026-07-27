@@ -81,9 +81,6 @@ function composer(): ThreadComposerWiring {
   return {
     briefId: "db:42:7:base:head",
     post: vi.fn(async () => ({ kind: "posted", commentId: 1 }) as const),
-    announce: vi.fn(),
-    getDraft: () => "",
-    setDraft: vi.fn(),
     onPosted: vi.fn(),
   };
 }

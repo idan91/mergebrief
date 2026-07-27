@@ -1,0 +1,45 @@
+@layer components {
+  .group {
+    display: grid;
+    gap: 6px;
+  }
+
+  .groupLabel {
+    margin: 0;
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+
+    // Pre-scale body line-height pinned (base heading defaults set 1.35).
+    line-height: 1.55;
+  }
+
+  .groupJump {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding-block: 4px;
+    padding-inline: 2px;
+    border: 0;
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--text);
+    }
+  }
+
+  /* The 44px AIM lands where fingers do; desktop keeps the compact 24px
+     floor (locked constraint: targets >=24px, aim 44). */
+  @media (pointer: coarse) {
+    .groupJump {
+      min-height: 44px;
+    }
+  }
+}

@@ -158,7 +158,6 @@ export interface UseReadingSessionValue {
   // — store surface the screen still wires directly —
   actions: MindMapActions;
   reviewComments: ReviewComment[];
-  replyDrafts: Record<string, string>;
   submittedReviewIds: number[];
   reviewOutcome: ReviewOutcome;
   // — progress / receipt derivation —
@@ -462,7 +461,6 @@ export function useReadingSession(
   return {
     actions,
     reviewComments,
-    replyDrafts,
     submittedReviewIds,
     reviewOutcome,
     totals,

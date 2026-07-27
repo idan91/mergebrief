@@ -11,42 +11,22 @@
 // keyed by thread id in component state, so it survives refetch (visible
 // state, never entry-path memory).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Markdown } from "@web/components/Markdown/Markdown";
 import { prefersReducedMotion } from "@web/utils/motion";
+import { toggleSet } from "@web/utils/collections";
 import type { BriefChunk } from "@web/features/brief/types";
 import type { ReviewComment } from "@web/features/review/comments";
-import {
-  markSnapshotCommentsSubmitted,
-  persistReplyDraft,
-} from "@web/features/review/session";
-import { deriveDigestLine } from "../../digestLine";
-import {
-  buildConversationDigest,
-  type DigestGroup,
-  type DigestRow,
-  type DigestThreadRow,
-} from "../../digest";
+import { markSnapshotCommentsSubmitted } from "@web/features/review/session";
+import { buildConversationDigest } from "../../digest";
 import { reconcileOwnComments } from "../../ownComments";
 import type { conversationQueryOptions } from "../../queries";
-import { MAX_REPLY_LENGTH, type ReplyResult } from "../../reply";
-import type { ConversationReview, ConversationThread } from "../../types";
+import type { ReplyResult } from "../../reply";
+import rowStyles from "../../rows.module.scss";
+import type { ConversationReview } from "../../types";
+import type { ThreadComposerWiring, ThreadRevisionJump } from "../../wiring";
+import { DigestGroupView } from "./DigestGroupView/DigestGroupView";
 import styles from "./ConversationSection.module.scss";
-
-/**
- * Outdated-thread → revision navigation (BRIEF-24 handoff). An outdated thread
- * is anchored on an EARLIER commit; when that commit was itself a briefed head,
- * the reviewer can jump to that revision (with the thread pre-targeted). Misses
- * are COMMON — debounce means many anchors were never briefed heads — so the
- * affordance only enables on a hit; the GitHub permalink is the fallback.
- */
-export interface ThreadRevisionJump {
-  /** Briefed revision head SHAs a thread anchor can navigate to. */
-  readonly knownHeads: ReadonlySet<string>;
-  /** Navigate the page to `anchorSha`, pre-targeting `threadId`. */
-  readonly onJump: (anchorSha: string, threadId: number) => void;
-}
 
 /** The route-injected data plan (absent on the local demo path). */
 export interface ConversationPlan {
@@ -77,14 +57,9 @@ export interface ConversationSectionProps {
   ) => void;
   /** Store flip for drafts the reconciliation proved posted (BRIEF-23 residual). */
   markCommentsSubmitted: (ids: readonly string[]) => void;
-  /** Page live region — result surfaces must outlive the disclosure. */
-  announce: (message: string) => void;
   /** Collapsed/expanded state is the PAGE's (the C shortcut expands it). */
   open: boolean;
   onToggle: () => void;
-  /** Reply drafts per thread root id (session store — survive navigation). */
-  replyDrafts: Readonly<Record<string, string>>;
-  setReplyDraft: (threadId: number, body: string) => void;
   /**
    * A thread to land on after an outdated-thread revision jump (BRIEF-24 reads
    * `?thread=`): once the conversation is loaded, its digest row expands,
@@ -93,648 +68,12 @@ export interface ConversationSectionProps {
   focusThreadId?: number | undefined;
 }
 
-/** Rows shown per digest group before "Show more" (locked decision 6). */
-const GROUP_ROW_CAP = 50;
-
 const VERDICT_LABEL: Record<ConversationReview["state"], string> = {
   APPROVED: "approved",
   CHANGES_REQUESTED: "changes requested",
   COMMENTED: "commented",
   DISMISSED: "dismissed",
 };
-
-function threadStateChip(thread: ConversationThread): string {
-  // GitHub facts wear GitHub words (locked decision 4). A resolved+outdated
-  // thread reads as outdated — that is why it left the code view.
-  if (thread.isOutdated) return "outdated";
-  return thread.isResolved ? "resolved" : "open";
-}
-
-const REPLY_COPY = {
-  posted: "Reply posted to GitHub under your account.",
-  unauthorized:
-    "Your GitHub session expired — sign in again. Your reply draft is saved locally.",
-  notFound:
-    "This thread is no longer on GitHub — it may have been deleted. Your draft is saved locally.",
-  invalid: "The reply was rejected as invalid — reload and try again.",
-  upstream: "GitHub rejected the reply or is unreachable — try again shortly.",
-  // INDETERMINATE (same discipline as submit): a throw can land after the
-  // POST reached GitHub — never claim "nothing was posted".
-  failed:
-    "Something went wrong posting the reply — it may or may not have posted. Check the thread on GitHub before retrying.",
-} as const;
-
-interface ReplyComposerProps {
-  briefId: string;
-  threadId: number;
-  draft: string;
-  setDraft: (threadId: number, body: string) => void;
-  post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
-  announce: (message: string) => void;
-  onPosted: () => void;
-}
-
-function ReplyComposer({
-  briefId,
-  threadId,
-  draft,
-  setDraft,
-  post,
-  announce,
-  onPosted,
-}: ReplyComposerProps) {
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // Synchronous double-click guard (same as useReviewSubmit): state updates
-  // are async, a ref is not — aria-disabled does not block the click event.
-  const inFlight = useRef(false);
-  // Typing stays LOCAL: a per-keystroke store write would re-render the
-  // whole digest and rebuild the receipt memo chain (perf review). The
-  // store draft syncs on blur, unmount, and post — the persistence points
-  // that matter for surviving navigation.
-  const [local, setLocal] = useState(draft);
-  const localRef = useRef(local);
-  localRef.current = local;
-  // Only a composer the user actually EDITED may sync outward: with the
-  // same thread rendered inline and in the section, an untouched twin's
-  // unmount/blur must never clobber the draft the edited one saved
-  // (Fable review).
-  const dirtyRef = useRef(false);
-  // Mirrors the STORE's current value (not "what this composer last wrote"):
-  // comparing against it means an external reset (Clear local drafts) can't
-  // silently un-persist text the user still SEES — behavior follows visible
-  // state (Fable review).
-  const draftRef = useRef(draft);
-  draftRef.current = draft;
-  useEffect(() => {
-    return () => {
-      if (dirtyRef.current && localRef.current !== draftRef.current) {
-        setDraftRef.current(threadId, localRef.current);
-        // The live-store write can race the provider's debounced
-        // sessionStorage flush on full navigation — write durably too
-        // (codex round 1), best-effort like every direct snapshot write.
-        try {
-          persistReplyDraft(briefId, threadId, localRef.current);
-        } catch (persistError) {
-          console.error("reply draft: durable write failed", persistError);
-        }
-      }
-    };
-    // Mount/unmount only — the refs carry current values.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  const setDraftRef = useRef(setDraft);
-  setDraftRef.current = setDraft;
-  const persist = () => {
-    if (dirtyRef.current && local !== draftRef.current) {
-      draftRef.current = local;
-      setDraft(threadId, local);
-    }
-  };
-  // Instance-scoped id: the same thread can render TWO composers (inline at
-  // its chunk AND in the section) — a thread-derived id would duplicate and
-  // break label/error association (Fable review).
-  const inputId = `${useId()}-reply`;
-  const overCap = local.length > MAX_REPLY_LENGTH;
-  const blocked = pending || local.trim() === "" || overCap;
-
-  const submit = () => {
-    if (blocked || inFlight.current) return;
-    inFlight.current = true;
-    setPending(true);
-    setError(null);
-    // Captured at click time — edits mid-flight never count as sent.
-    const body = local;
-    // The in-flight body is durable too (a navigation mid-post keeps it).
-    draftRef.current = body;
-    setDraft(threadId, body);
-    const fail = (copy: string) => {
-      setError(copy);
-      announce(copy);
-    };
-    void (async () => {
-      try {
-        let result: ReplyResult;
-        try {
-          result = await post(threadId, body);
-        } catch {
-          fail(REPLY_COPY.failed);
-          return;
-        }
-        switch (result.kind) {
-          case "posted": {
-            // The external write is the commit point: clear the draft (the
-            // reply is GitHub's record now) and let the caller refetch.
-            setLocal("");
-            localRef.current = "";
-            draftRef.current = "";
-            dirtyRef.current = false;
-            setDraft(threadId, "");
-            // Success must persist independent of component lifetime
-            // (BRIEF-23 rule): the provider may have unmounted while the
-            // POST was in flight — clear the DURABLE draft directly too.
-            try {
-              persistReplyDraft(briefId, threadId, "");
-            } catch (persistError) {
-              console.error("reply draft: durable clear failed", persistError);
-            }
-            announce(REPLY_COPY.posted);
-            onPosted();
-            break;
-          }
-          case "unauthorized": {
-            fail(REPLY_COPY.unauthorized);
-            break;
-          }
-          case "not-found": {
-            fail(REPLY_COPY.notFound);
-            break;
-          }
-          case "invalid": {
-            fail(REPLY_COPY.invalid);
-            break;
-          }
-          case "upstream": {
-            fail(REPLY_COPY.upstream);
-            break;
-          }
-        }
-      } finally {
-        inFlight.current = false;
-        setPending(false);
-      }
-    })();
-  };
-
-  return (
-    <div className={styles["composer"]}>
-      <label className={styles["composerLabel"]} htmlFor={inputId}>
-        Reply (posts to GitHub immediately)
-      </label>
-      <textarea
-        aria-busy={pending || undefined}
-        aria-describedby={
-          overCap || error !== null ? `${inputId}-error` : undefined
-        }
-        aria-invalid={overCap || undefined}
-        className={styles["composerInput"]}
-        id={inputId}
-        readOnly={pending}
-        rows={3}
-        value={local}
-        onBlur={persist}
-        onChange={(event) => {
-          dirtyRef.current = true;
-          setLocal(event.target.value);
-        }}
-      />
-      {overCap || error !== null ? (
-        <p className={styles["error"]} id={`${inputId}-error`} role="alert">
-          {overCap
-            ? `This reply is longer than GitHub allows (${MAX_REPLY_LENGTH.toLocaleString()} characters) — shorten it to post.`
-            : error}
-        </p>
-      ) : null}
-      <div className={styles["detailActions"]}>
-        {/* Focusable-disabled (ReceiptDrawer pattern): a hard `disabled`
-            would drop keyboard/SR focus to <body> the moment posting starts
-            — and strand it there on success (Fable review). The click guard
-            lives in submit(). */}
-        <button
-          aria-busy={pending || undefined}
-          aria-disabled={blocked || undefined}
-          className={styles["action"]}
-          type="button"
-          onClick={submit}
-        >
-          {pending ? "Posting…" : "Reply"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export interface ThreadComposerWiring {
-  readonly briefId: string;
-  readonly post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
-  readonly announce: (message: string) => void;
-  /**
-   * Reads the CURRENT store draft for a thread. A function (backed by a ref)
-   * instead of the drafts record keeps this object's identity stable across
-   * draft syncs — a record here would bust every memoized ChunkCard on each
-   * blur (perf review).
-   */
-  readonly getDraft: (threadId: number) => string;
-  readonly setDraft: (threadId: number, body: string) => void;
-  readonly onPosted: () => void;
-  /** Outdated-thread revision jump (BRIEF-24); absent inline / on the local path. */
-  readonly revisionJump?: ThreadRevisionJump;
-}
-
-const SHORT_SHA = 7;
-
-/**
- * The outdated-thread revision jump (BRIEF-24). Rendered only for an outdated
- * thread that carries an anchor commit AND a timeline is present. On a hit
- * (the anchor was a briefed head) it navigates to that revision; on a miss —
- * the common case — it stays disabled (focusable, with a reachable reason) and
- * the sibling "View on GitHub" permalink is the fallback. No nearest-revision
- * guessing.
- */
-function RevisionJumpAction({
-  thread,
-  composer,
-}: {
-  thread: ConversationThread;
-  composer: ThreadComposerWiring;
-}) {
-  const reasonId = `${useId()}-jump-reason`;
-  const jump = composer.revisionJump;
-  if (
-    !thread.isOutdated ||
-    thread.anchorSha === undefined ||
-    jump === undefined
-  ) {
-    return null;
-  }
-  const anchorSha = thread.anchorSha;
-  const label = `Jump to revision ${anchorSha.slice(0, SHORT_SHA)}`;
-  if (jump.knownHeads.has(anchorSha)) {
-    return (
-      <button
-        className={styles["action"]}
-        onClick={() => jump.onJump(anchorSha, thread.rootCommentId)}
-        type="button"
-      >
-        {label}
-      </button>
-    );
-  }
-  return (
-    <>
-      <button
-        aria-describedby={reasonId}
-        aria-disabled="true"
-        className={styles["action"]}
-        type="button"
-      >
-        {label}
-      </button>
-      <span className={styles["note"]} id={reasonId}>
-        This revision was never briefed — open it on GitHub.
-      </span>
-    </>
-  );
-}
-
-function ThreadDetail({
-  row,
-  jumpToChunk,
-  composer,
-  hideJump = false,
-}: {
-  row: DigestThreadRow;
-  jumpToChunk: (
-    chunkId: string,
-    target?: { rowId: string; threadId: number },
-  ) => void;
-  composer: ThreadComposerWiring;
-  /** True when the detail already renders AT its chunk (inline). */
-  hideJump?: boolean;
-}) {
-  const { thread, placement } = row;
-  return (
-    <div className={styles["detail"]}>
-      {thread.comments.map((comment) => (
-        <article
-          aria-label={`Comment by ${comment.author.login}`}
-          className={styles["comment"]}
-          key={comment.commentId}
-        >
-          <header className={styles["commentHead"]}>
-            <span className={styles["author"]}>
-              @{comment.author.login}
-              {comment.author.isBot ? (
-                <span className={styles["botTag"]}>bot</span>
-              ) : null}
-            </span>
-            <time dateTime={comment.createdAt}>
-              {new Date(comment.createdAt).toLocaleDateString()}
-            </time>
-          </header>
-          <Markdown content={comment.body} />
-        </article>
-      ))}
-      {thread.hasMoreComments ? (
-        <p className={styles["note"]}>Longer thread — the rest is on GitHub.</p>
-      ) : null}
-      <div className={styles["detailActions"]}>
-        {placement.kind === "chunk" && !hideJump ? (
-          <button
-            className={styles["action"]}
-            type="button"
-            onClick={() =>
-              jumpToChunk(placement.chunkId, {
-                rowId: placement.rowId,
-                threadId: thread.rootCommentId,
-              })
-            }
-          >
-            Jump to comment
-          </button>
-        ) : null}
-        <RevisionJumpAction composer={composer} thread={thread} />
-        <a
-          className={styles["action"]}
-          href={thread.comments[0]?.url}
-          rel="noreferrer"
-          target="_blank"
-        >
-          View on GitHub
-          <span className={styles["srOnly"]}> (opens in a new tab)</span>
-        </a>
-      </div>
-      <ReplyComposer
-        announce={composer.announce}
-        briefId={composer.briefId}
-        draft={composer.getDraft(thread.rootCommentId)}
-        onPosted={composer.onPosted}
-        post={composer.post}
-        setDraft={composer.setDraft}
-        threadId={thread.rootCommentId}
-      />
-    </div>
-  );
-}
-
-export interface ThreadRowViewProps {
-  row: DigestThreadRow;
-  expanded: boolean;
-  toggle: (threadId: number) => void;
-  jumpToChunk: (
-    chunkId: string,
-    target?: { rowId: string; threadId: number },
-  ) => void;
-  composer: ThreadComposerWiring;
-  /** Marks the inline (at-chunk) renders, which suppress the jump action. */
-  hideJump?: boolean;
-}
-
-export function ThreadRowView({
-  row,
-  expanded,
-  toggle,
-  jumpToChunk,
-  composer,
-  hideJump = false,
-}: ThreadRowViewProps) {
-  const { thread } = row;
-  const author = thread.comments[0]?.author;
-  return (
-    <li
-      className={styles["row"]}
-      // The ?thread= landing target — a DISTINCT attribute from the inline
-      // diff rows' `data-conversation-thread`. The section renders ABOVE the
-      // change groups, so sharing that name would shadow the diff row in
-      // document order and break the digest's "Jump to comment" landing on
-      // the thread's own row (codex round 5). Section rows only: `hideJump`
-      // marks the inline (at-chunk) renders of this same component.
-      data-conversation-section-thread={
-        hideJump ? undefined : thread.rootCommentId
-      }
-    >
-      <button
-        aria-expanded={expanded}
-        className={styles["rowButton"]}
-        type="button"
-        onClick={() => toggle(thread.rootCommentId)}
-      >
-        <span className={styles["chip"]} data-state={threadStateChip(thread)}>
-          {threadStateChip(thread)}
-        </span>
-        <span className={styles["rowAuthor"]}>@{author?.login}</span>
-        <span className={styles["rowLine"]}>{row.digestLine}</span>
-        {row.isOwn ? <span className={styles["ownTag"]}>yours</span> : null}
-        {row.anchorLabel !== undefined ? (
-          <span className={styles["revision"]}>at {row.anchorLabel}</span>
-        ) : null}
-        <span className={styles["count"]}>
-          {thread.comments.length > 1
-            ? `${thread.comments.length} comments`
-            : null}
-        </span>
-      </button>
-      {expanded ? (
-        <ThreadDetail
-          composer={composer}
-          hideJump={hideJump}
-          jumpToChunk={jumpToChunk}
-          row={row}
-        />
-      ) : null}
-    </li>
-  );
-}
-
-function BotGroupRowView({
-  row,
-  groupId,
-  expandedGroups,
-  toggleGroup,
-  expandedThreads,
-  toggleThread,
-  jumpToChunk,
-  composer,
-}: {
-  row: Extract<DigestRow, { kind: "bot-group" }>;
-  groupId: string;
-  expandedGroups: ReadonlySet<string>;
-  toggleGroup: (key: string) => void;
-  expandedThreads: ReadonlySet<number>;
-  toggleThread: (threadId: number) => void;
-  jumpToChunk: (
-    chunkId: string,
-    target?: { rowId: string; threadId: number },
-  ) => void;
-  composer: ThreadComposerWiring;
-}) {
-  const key = `${groupId}:${row.author}`;
-  const expanded = expandedGroups.has(key);
-  // The collapsed chip must stay factual for the WHOLE group (codex rounds
-  // 1-2): an all-outdated group reads outdated even when its threads are
-  // unresolved (outdated is WHY they left the code view); otherwise open
-  // wins over resolved.
-  const groupChip = row.threads.every(
-    (threadRow) => threadRow.thread.isOutdated,
-  )
-    ? "outdated"
-    : row.openCount > 0
-      ? "open"
-      : "resolved";
-  return (
-    <li className={styles["row"]}>
-      <button
-        aria-expanded={expanded}
-        className={styles["rowButton"]}
-        type="button"
-        onClick={() => toggleGroup(key)}
-      >
-        <span className={styles["chip"]} data-state={groupChip}>
-          {groupChip}
-        </span>
-        <span className={styles["rowAuthor"]}>
-          @{row.author}
-          <span className={styles["botTag"]}>bot</span>
-        </span>
-        <span className={styles["rowLine"]}>
-          {row.threads.length} threads · {row.openCount} open
-        </span>
-      </button>
-      {expanded ? (
-        <ul className={styles["nested"]}>
-          {row.threads.map((threadRow) => (
-            <ThreadRowView
-              composer={composer}
-              expanded={expandedThreads.has(threadRow.thread.rootCommentId)}
-              jumpToChunk={jumpToChunk}
-              key={threadRow.thread.rootCommentId}
-              row={threadRow}
-              toggle={toggleThread}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  );
-}
-
-function DigestGroupView({
-  group,
-  expandedThreads,
-  toggleThread,
-  expandedGroups,
-  toggleGroup,
-  shownAll,
-  showAll,
-  jumpToChunk,
-  composer,
-}: {
-  group: DigestGroup;
-  expandedThreads: ReadonlySet<number>;
-  toggleThread: (threadId: number) => void;
-  expandedGroups: ReadonlySet<string>;
-  toggleGroup: (key: string) => void;
-  shownAll: boolean;
-  showAll: (groupId: string) => void;
-  jumpToChunk: (
-    chunkId: string,
-    target?: { rowId: string; threadId: number },
-  ) => void;
-  composer: ThreadComposerWiring;
-}) {
-  const rows = shownAll ? group.rows : group.rows.slice(0, GROUP_ROW_CAP);
-  const hidden = group.rows.length - rows.length;
-  // PR-level comments share the group's ~50-row budget and the SAME
-  // disclosure pattern (codex round 3) — no second interaction model.
-  const allPrComments = group.prComments ?? [];
-  const prCommentBudget = Math.max(0, GROUP_ROW_CAP - rows.length);
-  const prComments = shownAll
-    ? allPrComments
-    : allPrComments.slice(0, prCommentBudget);
-  const hiddenPrComments = allPrComments.length - prComments.length;
-  return (
-    <section aria-label={group.label} className={styles["group"]}>
-      <h3 className={styles["groupLabel"]}>
-        {group.kind === "chunk" && group.chunkId !== undefined ? (
-          <button
-            className={styles["groupJump"]}
-            type="button"
-            onClick={() => {
-              if (group.chunkId !== undefined) jumpToChunk(group.chunkId);
-            }}
-          >
-            {group.label}
-          </button>
-        ) : (
-          group.label
-        )}
-      </h3>
-      <ul className={styles["rows"]}>
-        {rows.map((row) =>
-          row.kind === "thread" ? (
-            <ThreadRowView
-              composer={composer}
-              expanded={expandedThreads.has(row.thread.rootCommentId)}
-              jumpToChunk={jumpToChunk}
-              key={row.thread.rootCommentId}
-              row={row}
-              toggle={toggleThread}
-            />
-          ) : (
-            <BotGroupRowView
-              composer={composer}
-              expandedGroups={expandedGroups}
-              expandedThreads={expandedThreads}
-              groupId={group.id}
-              jumpToChunk={jumpToChunk}
-              key={`${group.id}:${row.author}`}
-              row={row}
-              toggleGroup={toggleGroup}
-              toggleThread={toggleThread}
-            />
-          ),
-        )}
-      </ul>
-      {hidden > 0 ? (
-        <button
-          className={styles["action"]}
-          type="button"
-          onClick={() => showAll(group.id)}
-        >
-          Show {hidden} more
-        </button>
-      ) : null}
-      {prComments.length > 0 ? (
-        <ul className={styles["rows"]}>
-          {prComments.map((comment) => (
-            <li className={styles["row"]} key={comment.commentId}>
-              <button
-                aria-expanded={expandedThreads.has(comment.commentId)}
-                className={styles["rowButton"]}
-                type="button"
-                onClick={() => toggleThread(comment.commentId)}
-              >
-                <span className={styles["rowAuthor"]}>
-                  @{comment.author.login}
-                  {comment.author.isBot ? (
-                    <span className={styles["botTag"]}>bot</span>
-                  ) : null}
-                </span>
-                <span className={styles["rowLine"]}>
-                  {deriveDigestLine(comment.body)}
-                </span>
-              </button>
-              {expandedThreads.has(comment.commentId) ? (
-                <div className={styles["detail"]}>
-                  <Markdown content={comment.body} />
-                </div>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {hiddenPrComments > 0 ? (
-        <button
-          className={styles["action"]}
-          type="button"
-          onClick={() => showAll(group.id)}
-        >
-          Show {hiddenPrComments} more
-        </button>
-      ) : null}
-    </section>
-  );
-}
 
 /**
  * The in-flow conversation section. Error states are SPECIFIC (locked
@@ -750,9 +89,6 @@ export function ConversationSection({
   submittedReviewIds,
   jumpToChunk,
   markCommentsSubmitted,
-  announce,
-  replyDrafts,
-  setReplyDraft,
   open,
   onToggle,
   focusThreadId,
@@ -817,19 +153,9 @@ export function ConversationSection({
   );
 
   const toggleThread = (threadId: number) =>
-    setExpandedThreads((current) => {
-      const next = new Set(current);
-      if (next.has(threadId)) next.delete(threadId);
-      else next.add(threadId);
-      return next;
-    });
+    setExpandedThreads((current) => toggleSet(current, threadId));
   const toggleGroup = (key: string) =>
-    setExpandedGroups((current) => {
-      const next = new Set(current);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
+    setExpandedGroups((current) => toggleSet(current, key));
   const showAll = (groupId: string) =>
     setShownAllGroups((current) => new Set(current).add(groupId));
 
@@ -844,7 +170,7 @@ export function ConversationSection({
   // re-yank focus while the reviewer reads), but the target is only marked
   // landed AFTER its row was actually found and focused — a row still hidden
   // (or data still settling) retries on the next conversation refetch instead
-  // of being silently spent (codex round 1).
+  // of being silently spent.
   const landedThreadRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (focusThreadId === undefined || !open || conversation === undefined) {
@@ -880,9 +206,9 @@ export function ConversationSection({
       if (row !== null) {
         // Found — only now is the target spent.
         landedThreadRef.current = focusThreadId;
-        // Reduced motion: land instantly (codex round 2). The flash side is
-        // already CSS-gated (`@media (prefers-reduced-motion: reduce)` swaps
-        // the animation for a static ring where the flash is styled).
+        // Reduced motion: land instantly. The flash side is already CSS-gated
+        // (`@media (prefers-reduced-motion: reduce)` swaps the animation for
+        // a static ring where the flash is styled).
         row.scrollIntoView({
           behavior: prefersReducedMotion() ? "auto" : "smooth",
           block: "center",
@@ -902,17 +228,12 @@ export function ConversationSection({
   }, [conversation, digest, focusThreadId, open]);
 
   // Every conversation write evicts server-side; the post-reply refetch
-  // makes the reply visible in-section (locked decision 9).
-  // Drafts read through a ref so the wiring object's identity never follows
-  // draft syncs (perf review — see ThreadComposerWiring.getDraft).
-  const replyDraftsRef = useRef(replyDrafts);
-  replyDraftsRef.current = replyDrafts;
+  // makes the reply visible in-section (locked decision 9). Draft reads,
+  // draft writes, and announce copy live INSIDE ReplyComposer (session-store
+  // reads) — only the transport rides here.
   const composer: ThreadComposerWiring = {
     briefId,
     post: plan.postReply,
-    announce,
-    getDraft: (threadId) => replyDraftsRef.current[String(threadId)] ?? "",
-    setDraft: setReplyDraft,
     onPosted: refresh,
     ...(plan.revisionJump === undefined
       ? {}
@@ -933,7 +254,7 @@ export function ConversationSection({
       <div className={styles["head"]}>
         {/* The heading IS the disclosure (summary counts stay visible;
             expanding reveals the digest). Also the C shortcut's focus
-            target — a button is natively focusable (Fable review). */}
+            target — a button is natively focusable. */}
         <h2 className={styles["heading"]}>
           <button
             aria-expanded={open}
@@ -965,7 +286,7 @@ export function ConversationSection({
         </h2>
         {open ? (
           <button
-            className={styles["action"]}
+            className={rowStyles["action"]}
             disabled={query.isFetching}
             type="button"
             onClick={refresh}
@@ -977,30 +298,30 @@ export function ConversationSection({
       {open ? (
         <>
           {query.isPending ? (
-            <p className={styles["note"]} role="status">
+            <p className={rowStyles["note"]} role="status">
               Loading the conversation…
             </p>
           ) : null}
           {query.isError ? (
-            <p className={styles["error"]} role="alert">
+            <p className={rowStyles["error"]} role="alert">
               The conversation could not be read (unexpected response). Refresh
               to retry.
             </p>
           ) : null}
           {query.data?.kind === "unauthorized" ? (
-            <p className={styles["error"]} role="alert">
+            <p className={rowStyles["error"]} role="alert">
               Your GitHub session expired — sign in again to see the
               conversation.
             </p>
           ) : null}
           {query.data?.kind === "not-found" ? (
-            <p className={styles["error"]} role="alert">
+            <p className={rowStyles["error"]} role="alert">
               This pull request&apos;s conversation is no longer accessible on
               GitHub.
             </p>
           ) : null}
           {query.data?.kind === "unavailable" ? (
-            <p className={styles["error"]} role="alert">
+            <p className={rowStyles["error"]} role="alert">
               GitHub (or the backend) is unreachable — the conversation could
               not be fetched. Refresh to retry.
             </p>
@@ -1012,20 +333,22 @@ export function ConversationSection({
                 <ul aria-label="Review verdicts" className={styles["verdicts"]}>
                   {verdicts.map((review) => (
                     <li className={styles["verdict"]} key={review.reviewId}>
-                      <span className={styles["author"]}>
+                      <span className={rowStyles["author"]}>
                         @{review.author.login}
                         {review.author.isBot ? (
-                          <span className={styles["botTag"]}>bot</span>
+                          <span className={rowStyles["botTag"]}>bot</span>
                         ) : null}
                       </span>
                       <span
-                        className={styles["chip"]}
+                        className={rowStyles["chip"]}
                         data-state={VERDICT_LABEL[review.state]}
                       >
                         {VERDICT_LABEL[review.state]}
                       </span>
                       {review.body.trim() !== "" ? (
-                        <span className={styles["rowLine"]}>{review.body}</span>
+                        <span className={rowStyles["rowLine"]}>
+                          {review.body}
+                        </span>
                       ) : null}
                     </li>
                   ))}
@@ -1033,7 +356,7 @@ export function ConversationSection({
               ) : null}
 
               {digest.length === 0 && verdicts.length === 0 ? (
-                <p className={styles["note"]}>
+                <p className={rowStyles["note"]}>
                   No conversation yet — comments land here as teammates review.
                 </p>
               ) : null}
@@ -1056,7 +379,7 @@ export function ConversationSection({
               {conversation.hasMoreThreads ||
               conversation.hasMoreReviews ||
               conversation.hasMorePrComments ? (
-                <p className={styles["note"]}>
+                <p className={rowStyles["note"]}>
                   This conversation is unusually large — some items are only on
                   GitHub.
                 </p>
