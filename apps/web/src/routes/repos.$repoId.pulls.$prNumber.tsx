@@ -260,7 +260,16 @@ function PrBriefRoute() {
   const prNumber = parsePrNumber(params.prNumber);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const explicit = spanFromSearch(search);
+  // Memoized on the primitives: `state`/`pinnedSpan` identity chains hang off
+  // this object, and a fresh literal per render re-runs the span-pinning
+  // effect whenever ?base=&head= are present.
+  const explicit = useMemo(
+    () =>
+      search.base !== undefined && search.head !== undefined
+        ? { base: search.base, head: search.head }
+        : undefined,
+    [search.base, search.head],
+  );
 
   const meta = useSuspenseQuery({
     ...prMetaQueryOptions(repoId, prNumber),

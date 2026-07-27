@@ -118,7 +118,12 @@ export function useMarkReadyFlow(
     total: number;
   } | null>(null);
 
-  const markReadyFlow = useMarkReady({ action, announce });
+  // Destructured because the hook returns a fresh object literal per render;
+  // `markReady` and `pending` are the stable/primitive dep-safe members.
+  const { markReady, pending: markReadyPending } = useMarkReady({
+    action,
+    announce,
+  });
   // Entering the own-draft state closes every reviewer overlay: the overlays
   // unmount, but their open flags are plain local state — left set, they keep
   // `shortcutsDisabled` stuck true and resurrect the overlay once the PR is
@@ -188,7 +193,7 @@ export function useMarkReadyFlow(
     }
     // The CTA is aria-disabled (not hard disabled) while pending, so a click
     // still lands here and would reopen the gate over the running mutation.
-    if (markReadyFlow.pending) return;
+    if (markReadyPending) return;
     // The gate opens for risk flags OR unposted drafts — a zero-flag brief
     // with staged drafts must still offer the post-my-drafts checkbox, or the
     // drafts silently stay local while the PR goes ready.
@@ -197,12 +202,13 @@ export function useMarkReadyFlow(
       setMarkReadyGateOpen(true);
       return;
     }
-    markReadyFlow.markReady();
+    markReady();
   }, [
     announce,
     flagCount,
+    markReady,
     markReadyAvailable,
-    markReadyFlow,
+    markReadyPending,
     unpostedDraftComments.length,
   ]);
   const closeMarkReadyGate = useCallback(() => setMarkReadyGateOpen(false), []);
@@ -283,12 +289,12 @@ export function useMarkReadyFlow(
         setMarkReadyGateOpen(false);
         // All posted → mark ready; its result copy is the terminal
         // live-region write (batch entries drained silently).
-        markReadyFlow.markReady();
+        markReady();
       } finally {
         batchInFlight.current = false;
       }
     },
-    [briefId, markReadyFlow, postDraft],
+    [briefId, markReady, postDraft],
   );
   const markReadyAnyway = useCallback(() => {
     if (postDraftsOnReady && unpostedDraftComments.length > 0) {
@@ -296,17 +302,12 @@ export function useMarkReadyFlow(
       return;
     }
     setMarkReadyGateOpen(false);
-    markReadyFlow.markReady();
-  }, [
-    markReadyFlow,
-    postDraftsOnReady,
-    runMarkReadyBatch,
-    unpostedDraftComments,
-  ]);
+    markReady();
+  }, [markReady, postDraftsOnReady, runMarkReadyBatch, unpostedDraftComments]);
 
   return {
     available: markReadyAvailable,
-    pending: markReadyFlow.pending,
+    pending: markReadyPending,
     request: requestMarkReady,
     gateOpen: markReadyGateOpen,
     closeGate: closeMarkReadyGate,

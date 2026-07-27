@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Modal } from "@web/components/Modal/Modal";
 import type { ReviewComment } from "../../comments";
@@ -27,18 +27,6 @@ export function EvidenceModal({
   confirm,
   target,
 }: EvidenceModalProps) {
-  const [kind, setKind] = useState<RiskEvidenceKind>("chunk-reviewed");
-  const [commentId, setCommentId] = useState("");
-  const [note, setNote] = useState("");
-
-  useEffect(() => {
-    if (!target) return;
-    setKind(comments.length > 0 ? "linked-comment" : "chunk-reviewed");
-    setCommentId(comments[0]?.id ?? "");
-    setNote("");
-  }, [comments, target]);
-
-  const linkedCommentDisabled = kind === "linked-comment" && !commentId;
   return (
     <Modal
       open={Boolean(target)}
@@ -46,8 +34,50 @@ export function EvidenceModal({
       close={cancel}
       labelledBy="evidence-modal-heading"
     >
+      {target ? (
+        <EvidenceForm
+          key={target.flagIds.join("\n")}
+          cancel={cancel}
+          comments={comments}
+          confirm={confirm}
+          target={target}
+        />
+      ) : null}
+    </Modal>
+  );
+}
+
+export interface EvidenceFormProps {
+  cancel: () => void;
+  comments: ReviewComment[];
+  confirm: (
+    kind: RiskEvidenceKind,
+    commentId: string | undefined,
+    note: string | undefined,
+  ) => void;
+  target: EvidenceTarget;
+}
+
+// Mounted only while the modal is open: initializers seed from the comments
+// present at open time, and mid-flow comment-list churn (e.g. a settled
+// post-now drain) can no longer wipe the user's typed note.
+function EvidenceForm({
+  cancel,
+  comments,
+  confirm,
+  target,
+}: EvidenceFormProps) {
+  const [kind, setKind] = useState<RiskEvidenceKind>(
+    comments.length > 0 ? "linked-comment" : "chunk-reviewed",
+  );
+  const [commentId, setCommentId] = useState(comments[0]?.id ?? "");
+  const [note, setNote] = useState("");
+
+  const linkedCommentDisabled = kind === "linked-comment" && !commentId;
+  return (
+    <>
       <h3 id="evidence-modal-heading">Address risk with evidence</h3>
-      <div className={styles["target"]}>{target?.label}</div>
+      <div className={styles["target"]}>{target.label}</div>
       <div className={styles["evidenceOptions"]}>
         <label>
           <input
@@ -121,6 +151,6 @@ export function EvidenceModal({
           Mark addressed
         </button>
       </div>
-    </Modal>
+    </>
   );
 }

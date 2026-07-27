@@ -251,6 +251,10 @@ export function useReadingSession(
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const activeChunkIdRef = useLatestRef(activeChunkId);
   const focusModeRef = useLatestRef(focusMode);
+  // markReviewed is a ChunkCard memo-boundary prop: reading reviewedChunks
+  // through a ref keeps its identity stable across review actions (a Set dep
+  // would re-render every memoized card per click).
+  const reviewedChunksRef = useLatestRef(reviewedChunks);
   // Publishes --focus-banner-h so sticky chunk headers and the focus rail
   // stack below the strip; 0px whenever focus mode is off (strip unmounted).
   const focusBannerRef = useRef<HTMLDivElement | null>(null);
@@ -349,7 +353,7 @@ export function useReadingSession(
 
   const markReviewed = useCallback(
     (chunkId: string) => {
-      const alreadyReviewed = reviewedChunks.has(chunkId);
+      const alreadyReviewed = reviewedChunksRef.current.has(chunkId);
       // In ANY focus mode, Viewed means "confirmed viewed → next" and must
       // never stall: an already-viewed chunk is re-affirmed and advanced past,
       // NOT un-checked (un-viewing stays in the normal scrolling view).
@@ -379,7 +383,7 @@ export function useReadingSession(
         return next;
       });
     },
-    [actions, chunkIds, focusModeRef, reviewedChunks, scrollToChunk],
+    [actions, chunkIds, focusModeRef, reviewedChunksRef, scrollToChunk],
   );
 
   const jumpToChunk = useCallback(

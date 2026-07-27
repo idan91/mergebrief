@@ -598,7 +598,8 @@ export function BriefScreen({
     setToast(
       "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
     );
-  }, [announceSubmit, liveSubmit, readOnly, submitFlow]);
+    // Dep on the stable `submit` callback, not the per-render hook object.
+  }, [announceSubmit, liveSubmit, readOnly, submitFlow.submit]);
   const closeSummaryPreview = useCallback(
     () => setSummaryPreviewOpen(false),
     [],
