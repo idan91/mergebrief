@@ -19,7 +19,7 @@ import type * as SessionModule from "@web/features/review/session";
 
 import type { Brief, BriefChunk } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { ReviewComment } from "@web/features/review/comments";
+import type { ReviewComment } from "@web/features/review/utils/comments";
 import {
   createReviewFlowStore,
   MindMapProvider,

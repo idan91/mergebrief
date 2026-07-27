@@ -9,7 +9,7 @@ import { useStore } from "zustand";
 import { useShallow } from "zustand/react/shallow";
 
 import type { BriefViewModel } from "@web/features/brief/utils";
-import type { ReviewComment } from "../comments";
+import type { ReviewComment } from "../utils/comments";
 import {
   createMindMapStore,
   deriveInitialState,

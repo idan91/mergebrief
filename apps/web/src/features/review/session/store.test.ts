@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/utils/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { ReviewComment } from "../comments";
-import type { RiskEvidence } from "../state";
+import type { ReviewComment } from "../utils/comments";
+import type { RiskEvidence } from "../utils/state";
 import {
   createMindMapStore,
   deriveInitialState,

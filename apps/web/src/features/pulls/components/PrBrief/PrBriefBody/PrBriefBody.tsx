@@ -7,10 +7,13 @@ import type {
   BriefSearchParams,
 } from "../../../../brief/comparison/compareState";
 import type { ThreadRevisionJump } from "@web/features/conversation";
-import type { deriveBriefRouteState } from "../../../briefRouteState";
-import { comparisonsWarming } from "../../../briefRouteState";
-import type { DbTimelinePoint, DbTimelineSelection } from "../../../dbTimeline";
-import { draftPolicyNotice } from "../../../ownDraft";
+import type { deriveBriefRouteState } from "../../../utils/briefRouteState";
+import { comparisonsWarming } from "../../../utils/briefRouteState";
+import type {
+  DbTimelinePoint,
+  DbTimelineSelection,
+} from "../../../utils/dbTimeline";
+import { draftPolicyNotice } from "../../../utils/ownDraft";
 import type { PrSummary } from "../../../types";
 import { EmptyCard } from "../EmptyCard/EmptyCard";
 import { FailedCard } from "../FailedCard/FailedCard";

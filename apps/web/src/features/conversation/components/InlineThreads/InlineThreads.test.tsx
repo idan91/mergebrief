@@ -14,7 +14,7 @@ import {
   MindMapProvider,
   ReviewFlowProvider,
 } from "@web/features/review/session";
-import { buildInlineThreads } from "../../digest";
+import { buildInlineThreads } from "../../utils/digest";
 import type { ConversationThread, PrConversation } from "../../types";
 import type { ThreadComposerWiring } from "../../wiring";
 import { InlineThreads } from "./InlineThreads";

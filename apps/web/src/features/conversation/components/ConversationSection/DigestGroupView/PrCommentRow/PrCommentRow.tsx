@@ -1,5 +1,5 @@
 import { Markdown } from "@web/components/Markdown/Markdown";
-import { deriveDigestLine } from "../../../../digestLine";
+import { deriveDigestLine } from "../../../../utils/digestLine";
 import rowStyles from "../../../../rows.module.scss";
 import type { PrLevelComment } from "../../../../types";
 

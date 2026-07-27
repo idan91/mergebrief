@@ -1,5 +1,5 @@
 import { Drawer } from "@web/components/Drawer/Drawer";
-import { RECEIPT_NOT_CHECKED, type Receipt } from "../../receipt";
+import { RECEIPT_NOT_CHECKED, type Receipt } from "../../utils/receipt";
 import styles from "./ReceiptDrawer.module.scss";
 
 export interface ReceiptDrawerProps {

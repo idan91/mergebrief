@@ -12,10 +12,13 @@ import type {
 } from "../../../../brief/comparison/compareState";
 import { resolveBriefSearch } from "../../../../brief/comparison/compareState";
 import type { ThreadRevisionJump } from "@web/features/conversation";
-import type { Span } from "../../../briefRouteState";
-import { comparisonsWarming } from "../../../briefRouteState";
-import { attachLiveDiffs } from "../../../liveDiff";
-import type { DbTimelinePoint, DbTimelineSelection } from "../../../dbTimeline";
+import type { Span } from "../../../utils/briefRouteState";
+import { comparisonsWarming } from "../../../utils/briefRouteState";
+import { attachLiveDiffs } from "../../../utils/liveDiff";
+import type {
+  DbTimelinePoint,
+  DbTimelineSelection,
+} from "../../../utils/dbTimeline";
 import { usePrBriefPlans } from "../../../hooks/usePrBriefPlans";
 import {
   dbBriefContextQueryOptions,
@@ -23,7 +26,7 @@ import {
   prDiffQueryOptions,
 } from "../../../queries";
 import type { PrSummary } from "../../../types";
-import { DbBriefControls } from "../../DbBriefControls/DbBriefControls";
+import { DbBriefControls } from "./DbBriefControls/DbBriefControls";
 import { WarmingChip } from "../WarmingChip/WarmingChip";
 
 export interface PrBriefContentProps {

@@ -15,7 +15,7 @@ import {
 import type {
   RiskEvidence,
   RiskEvidenceKind,
-} from "@web/features/review/state";
+} from "@web/features/review/utils/state";
 import type { RiskFlag } from "../../../utils/viewModel";
 import { resolveRiskEvidence } from "../utils";
 

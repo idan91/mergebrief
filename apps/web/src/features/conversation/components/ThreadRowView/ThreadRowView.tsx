@@ -1,5 +1,5 @@
-import { threadStateChip } from "../../chips";
-import type { DigestThreadRow } from "../../digest";
+import { threadStateChip } from "../../utils/chips";
+import type { DigestThreadRow } from "../../utils/digest";
 import rowStyles from "../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../wiring";
 import { ThreadDetail } from "./ThreadDetail/ThreadDetail";

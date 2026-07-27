@@ -1,6 +1,6 @@
 import type { Category } from "../../brief/types";
-import type { ReviewComment } from "../comments";
-import type { ReviewOutcome } from "../state";
+import type { ReviewComment } from "../utils/comments";
+import type { ReviewOutcome } from "../utils/state";
 import type { Disposition } from "./disposition";
 import type { MindMapState } from "./store";
 

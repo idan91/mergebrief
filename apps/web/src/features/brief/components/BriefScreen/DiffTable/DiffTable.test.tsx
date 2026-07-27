@@ -11,7 +11,7 @@ import type { ThreadComposerWiring } from "@web/features/conversation";
 import {
   buildInlineThreads,
   splitInlineRows,
-} from "@web/features/conversation/digest";
+} from "@web/features/conversation/utils/digest";
 import type {
   ConversationThread,
   PrConversation,

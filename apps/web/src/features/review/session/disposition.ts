@@ -1,4 +1,4 @@
-import type { RiskEvidence } from "../state";
+import type { RiskEvidence } from "../utils/state";
 
 /**
  * A flag's Disposition (CONTEXT.md) as one discriminated union, replacing the

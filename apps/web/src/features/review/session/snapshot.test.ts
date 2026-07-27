@@ -5,7 +5,7 @@
 // the same comments as drafts and double-posts them.
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { ReviewComment } from "../comments";
+import type { ReviewComment } from "../utils/comments";
 import {
   markSnapshotCommentsSubmitted,
   readSnapshot,

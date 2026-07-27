@@ -5,7 +5,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ReviewComment } from "../../comments";
+import type { ReviewComment } from "../../utils/comments";
 import { CommentThread } from "./CommentThread";
 
 function comment(status: ReviewComment["status"]): ReviewComment {

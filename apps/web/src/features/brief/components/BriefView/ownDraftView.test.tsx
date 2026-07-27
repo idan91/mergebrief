@@ -20,10 +20,10 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { MarkReadyResult } from "../../../pulls/markReady";
-import type { PostCommentResult } from "../../../pulls/postComment";
-import { MARK_READY_COPY } from "../../../pulls/useMarkReady";
-import type { ReviewComment } from "../../../review/comments";
+import type { MarkReadyResult } from "../../../pulls/transport/markReady";
+import type { PostCommentResult } from "../../../pulls/transport/postComment";
+import { MARK_READY_COPY } from "../../../pulls/hooks/useMarkReady";
+import type { ReviewComment } from "../../../review/utils/comments";
 import { writeSnapshot } from "../../../review/session";
 import type { OwnDraftPlan } from "./BriefView";
 import { BriefView } from "./BriefView";

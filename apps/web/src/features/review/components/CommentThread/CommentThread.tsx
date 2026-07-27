@@ -1,6 +1,9 @@
 import { useState } from "react";
 
-import { postCommentBlockedReason, type ReviewComment } from "../../comments";
+import {
+  postCommentBlockedReason,
+  type ReviewComment,
+} from "../../utils/comments";
 import { MarkdownPreview } from "../MarkdownPreview/MarkdownPreview";
 import styles from "./CommentThread.module.scss";
 

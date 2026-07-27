@@ -4,7 +4,7 @@ import {
   applyMarkdownWrap,
   replaceSelectionWithSuggestion,
   type CommentAnchor,
-} from "../../comments";
+} from "../../utils/comments";
 
 export type ComposerMode = "write" | "preview";
 

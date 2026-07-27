@@ -1,4 +1,4 @@
-import type { DigestGroup } from "../../../digest";
+import type { DigestGroup } from "../../../utils/digest";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { ThreadRowView } from "../../ThreadRowView/ThreadRowView";

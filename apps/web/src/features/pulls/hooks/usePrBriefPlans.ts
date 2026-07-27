@@ -11,31 +11,31 @@ import {
   lastReviewUnavailableReasonTitle,
   type CompareOptionFlags,
 } from "../../brief/comparison/compareState";
-import type { CommentAnchor } from "../../review/comments";
+import type { CommentAnchor } from "../../review/utils/comments";
 import {
   buildSubmitPayload,
   mapAnchorToWire,
   type SubmitDraftInput,
   type SubmitReviewAction,
-} from "../../review/submit";
+} from "../../review/utils/submit";
 import type {
   ConversationPlan,
   ThreadRevisionJump,
 } from "@web/features/conversation";
 import { conversationQueryOptions } from "../../conversation/queries";
 import { postConversationReply } from "../../conversation/reply";
-import type { Span } from "../briefRouteState";
-import type { DbTimelineSelection } from "../dbTimeline";
-import { createMarkReadyAction } from "../markReady";
-import { isOwnDraft } from "../ownDraft";
-import { postInlineComment } from "../postComment";
+import type { Span } from "../utils/briefRouteState";
+import type { DbTimelineSelection } from "../utils/dbTimeline";
+import { createMarkReadyAction } from "../transport/markReady";
+import { isOwnDraft } from "../utils/ownDraft";
+import { postInlineComment } from "../transport/postComment";
 import {
   dbComparisonMarksQueryOptions,
   dbDeltaQueryOptions,
   dbRevisionNarrativeQueryOptions,
   prDiffQueryOptions,
 } from "../queries";
-import { submitReview } from "../submitReview";
+import { submitReview } from "../transport/submitReview";
 import type { PrSummary } from "../types";
 
 export interface UsePrBriefPlansInput {

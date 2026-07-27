@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { CommentAnchor, ReviewComment } from "../../comments";
+import type { CommentAnchor, ReviewComment } from "../../utils/comments";
 import { MindMapProvider, type SessionSnapshot } from "../../session";
 import { CommentComposer } from "./CommentComposer";
 

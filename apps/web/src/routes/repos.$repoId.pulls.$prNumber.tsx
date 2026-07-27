@@ -20,7 +20,7 @@ import {
   headAdvanced,
   shouldPollMeta,
   type Span,
-} from "../features/pulls/briefRouteState";
+} from "../features/pulls/utils/briefRouteState";
 import {
   HeadAdvancedBanner,
   PrBriefBody,
@@ -33,7 +33,7 @@ import {
 import {
   resolveDbTimeline,
   type DbTimelinePoint,
-} from "../features/pulls/dbTimeline";
+} from "../features/pulls/utils/dbTimeline";
 
 /** 3–5s window per the plan; one lightweight PR-meta read per tick. */
 const META_POLL_MS = 4000;

@@ -7,15 +7,15 @@ import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
-import type * as PostCommentModule from "../postComment";
+import type * as PostCommentModule from "../transport/postComment";
 
-import type { CommentAnchor } from "../../review/comments";
-import type { Span } from "../briefRouteState";
+import type { CommentAnchor } from "../../review/utils/comments";
+import type { Span } from "../utils/briefRouteState";
 import type { PrSummary } from "../types";
 import { usePrBriefPlans } from "./usePrBriefPlans";
 
-vi.mock("../submitReview", () => ({ submitReview: vi.fn() }));
-vi.mock("../postComment", async (importOriginal) => ({
+vi.mock("../transport/submitReview", () => ({ submitReview: vi.fn() }));
+vi.mock("../transport/postComment", async (importOriginal) => ({
   ...(await importOriginal<typeof PostCommentModule>()),
   postInlineComment: vi.fn(),
 }));
@@ -87,7 +87,9 @@ describe("usePrBriefPlans", () => {
   });
 
   it("pins the submit commit_id to the RENDERED span's head, never meta's", async () => {
-    const { submitReview } = vi.mocked(await import("../submitReview"));
+    const { submitReview } = vi.mocked(
+      await import("../transport/submitReview"),
+    );
     const { result } = renderPlans({ span: historicalSpan });
     void result.current.submitAction({
       outcome: "comment",
@@ -99,7 +101,9 @@ describe("usePrBriefPlans", () => {
   });
 
   it("pins the post-now commit_id to the rendered span's head", async () => {
-    const { postInlineComment } = vi.mocked(await import("../postComment"));
+    const { postInlineComment } = vi.mocked(
+      await import("../transport/postComment"),
+    );
     const { result } = renderPlans({
       meta: meta({ draft: true, viewerIsAuthor: true }),
     });

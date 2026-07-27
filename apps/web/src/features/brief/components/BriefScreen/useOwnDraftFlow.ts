@@ -7,8 +7,8 @@ import { useCallback, useEffect } from "react";
 import type {
   CommentAnchor,
   ReviewComment,
-} from "@web/features/review/comments";
-import { postCommentBlockedReason } from "@web/features/review/comments";
+} from "@web/features/review/utils/comments";
+import { postCommentBlockedReason } from "@web/features/review/utils/comments";
 import type { MindMapActions } from "@web/features/review/session";
 import {
   applySettledPosts,
@@ -17,7 +17,7 @@ import {
   endInFlightPost,
   recordFailedPost,
   type PostCommentResult,
-} from "@web/features/pulls/postComment";
+} from "@web/features/pulls/transport/postComment";
 
 /** Toast copy for per-comment post-now (BRIEF-43): failures always keep the draft. */
 export const POST_COMMENT_COPY = {

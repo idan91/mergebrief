@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import type { ReviewComment } from "@web/features/review/comments";
+import type { ReviewComment } from "@web/features/review/utils/comments";
 import type { Disposition } from "@web/features/review/session";
 import {
   useMindMap,
@@ -9,7 +9,7 @@ import {
   useReviewActions,
   useReviewFlow,
 } from "@web/features/review/session";
-import { riskEvidenceLabel } from "@web/features/review/state";
+import { riskEvidenceLabel } from "@web/features/review/utils/state";
 import type { BriefChunk, Category } from "../../../../types";
 import {
   groupRiskByAttribute,

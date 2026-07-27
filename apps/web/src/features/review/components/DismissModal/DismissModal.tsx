@@ -1,6 +1,6 @@
 import { Modal } from "@web/components/Modal/Modal";
-import type { DismissTarget } from "../../state";
-import styles from "@web/components/Modal/ModalContent.module.scss";
+import type { DismissTarget } from "../../utils/state";
+import styles from "@web/components/Modal/Modal.module.scss";
 
 export interface DismissModalProps {
   target: DismissTarget | null;

@@ -7,7 +7,7 @@
 import { useState } from "react";
 
 import { toggleSet } from "@web/utils/collections";
-import type { DigestRow } from "../../digest";
+import type { DigestRow } from "../../utils/digest";
 import type { ThreadComposerWiring } from "../../wiring";
 import { ThreadRowView } from "../ThreadRowView/ThreadRowView";
 import styles from "./InlineThreads.module.scss";

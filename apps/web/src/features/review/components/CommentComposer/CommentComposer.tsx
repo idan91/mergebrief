@@ -8,7 +8,7 @@ import {
   commentAnchorLabel,
   reviewCommentSubmitLabel,
   type CommentAnchor,
-} from "../../comments";
+} from "../../utils/comments";
 import { useMindMap } from "../../session";
 import { MarkdownPreview } from "../MarkdownPreview/MarkdownPreview";
 import { useCommentComposerFacade } from "./useCommentComposerFacade";

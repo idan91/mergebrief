@@ -2,8 +2,8 @@ import { createStore, type StoreApi } from "zustand/vanilla";
 
 import type { Category } from "../../brief/types";
 import type { BriefViewModel } from "@web/features/brief/utils";
-import type { CommentAnchor, ReviewComment } from "../comments";
-import type { ReviewOutcome, RiskEvidence } from "../state";
+import type { CommentAnchor, ReviewComment } from "../utils/comments";
+import type { ReviewOutcome, RiskEvidence } from "../utils/state";
 import type { BulkDisposition, Disposition } from "./disposition";
 
 /**

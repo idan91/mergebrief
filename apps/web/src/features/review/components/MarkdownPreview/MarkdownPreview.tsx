@@ -6,7 +6,7 @@ import {
   parseSuggestionBlocks,
   stripSuggestionBlocks,
   type CommentAnchor,
-} from "../../comments";
+} from "../../utils/comments";
 import styles from "./MarkdownPreview.module.scss";
 
 export interface MarkdownPreviewProps {

@@ -1,8 +1,8 @@
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { toggleSet } from "@web/utils/collections";
-import type { CommentAnchor, ReviewComment } from "../../comments";
-import type { DismissTarget, EvidenceTarget } from "../../state";
+import type { CommentAnchor, ReviewComment } from "../../utils/comments";
+import type { DismissTarget, EvidenceTarget } from "../../utils/state";
 import type { MindMapActions } from "../store";
 
 /** How long the announce clear tick holds before the message lands (two-tick

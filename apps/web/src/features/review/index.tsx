@@ -29,7 +29,7 @@ export {
   EvidenceModal,
   type EvidenceModalProps,
 } from "./components/EvidenceModal/EvidenceModal";
-export type { DismissTarget, EvidenceTarget } from "./state";
+export type { DismissTarget, EvidenceTarget } from "./utils/state";
 export {
   PreSubmitModal,
   type PreSubmitModalProps,

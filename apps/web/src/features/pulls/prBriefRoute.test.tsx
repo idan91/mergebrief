@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+// Flat at the feature root with reason (ADR 0037 SS4): route-level tests -
+// their subject is src/routes' file-based route, where a .test file could
+// trip route generation; they exercise it from the owning feature instead.
 // DB-brief route states through the real router (BRIEF-19 PR 3.2): a seeded
 // cache renders the brief via BriefView with EMPTY local artifacts (the DB
 // path's shape), and meta-only states render the wait/failed cards.

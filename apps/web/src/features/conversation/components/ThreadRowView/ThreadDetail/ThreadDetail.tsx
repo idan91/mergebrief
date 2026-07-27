@@ -1,5 +1,5 @@
 import { Markdown } from "@web/components/Markdown/Markdown";
-import type { DigestThreadRow } from "../../../digest";
+import type { DigestThreadRow } from "../../../utils/digest";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { RevisionJumpAction } from "../RevisionJumpAction/RevisionJumpAction";

@@ -1,4 +1,7 @@
 // @vitest-environment jsdom
+// Flat at the feature root with reason (ADR 0037 SS4): route-level tests -
+// their subject is src/routes' file-based route, where a .test file could
+// trip route generation; they exercise it from the owning feature instead.
 // The BRIEF-24 revision-timeline path through the real router: a multi-revision
 // PR-meta exposes the navigator, `?head=` selects a historical revision (with
 // ITS OWN base), unknown heads degrade to latest with a note, and a historical

@@ -1,6 +1,6 @@
 // The wait surface for the DB-brief route (BRIEF-19, ADR 0006 #10 diff-first
 // wait). Announced via the polite live region the body owns; presentational.
-import type { Span } from "../../../briefRouteState";
+import type { Span } from "../../../utils/briefRouteState";
 import cardStyles from "../stateCard.module.scss";
 import { LiveDiffPreview } from "./LiveDiffPreview/LiveDiffPreview";
 

@@ -2,7 +2,7 @@ import {
   rowId,
   type CommentAnchor,
   type ReviewComment,
-} from "@web/features/review/comments";
+} from "@web/features/review/utils/comments";
 import { reviewCommentMatchesDiffLine } from "../../../utils/reviewComments";
 import {
   type ChunkComparisonView,

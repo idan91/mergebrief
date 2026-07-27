@@ -1,0 +1,115 @@
+// Own-comment reconciliation (BRIEF-25, locked decision 8): server-backed
+// wins, exact join on review id. The submit flow records each created
+// review's id; fetched threads whose ROOT comment carries a recorded id are
+// the reviewer's own. Per-comment linkage joins on (path, line, side) with a
+// body tiebreak — collision worst case is display-level only.
+//
+// This closes BRIEF-23's accepted M1 residual: the durable sessionStorage
+// "submitted" flip stops being load-bearing after the first refetch — a
+// local DRAFT matching an own server thread is reported for flipping, so a
+// missed flip can no longer re-ship posted comments.
+import type { ReviewComment } from "../../review/utils/comments";
+import type { ConversationThread, ThreadSide } from "../types";
+
+export interface OwnCommentReconciliation {
+  /** Root comment ids of threads created by this reviewer's recorded submits. */
+  readonly ownThreadIds: ReadonlySet<number>;
+  /**
+   * Local comment id → own thread root id. The local record demotes to this
+   * pointer after the first refetch: the server thread renders, the pointer
+   * keeps disposition/evidence links working.
+   */
+  readonly pointers: ReadonlyMap<string, number>;
+  /**
+   * Local DRAFTS that matched an own server thread — posted on GitHub but
+   * never flipped locally (navigate-away mid-submit). The caller flips them
+   * to `submitted` so they never re-ship.
+   */
+  readonly resurrectedDraftIds: readonly string[];
+}
+
+const LOCAL_SIDE_TO_WIRE: Record<ReviewComment["anchor"]["side"], ThreadSide> =
+  {
+    old: "LEFT",
+    new: "RIGHT",
+  };
+
+function anchorMatchesThread(
+  comment: ReviewComment,
+  thread: ConversationThread,
+): boolean {
+  return (
+    comment.anchor.file === thread.path &&
+    thread.line !== undefined &&
+    // The outbound map anchors on endLine; the thread's line IS that anchor.
+    comment.anchor.endLine === thread.line &&
+    // Exact side join — our submits always send side, so a side-less thread
+    // never matches (a default here could false-flip a draft; codex round 2).
+    thread.side !== undefined &&
+    LOCAL_SIDE_TO_WIRE[comment.anchor.side] === thread.side
+  );
+}
+
+/** Reconcile local session comments against the fetched conversation. */
+export function reconcileOwnComments(
+  localComments: readonly ReviewComment[],
+  threads: readonly ConversationThread[],
+  submittedReviewIds: readonly number[],
+): OwnCommentReconciliation {
+  const recorded = new Set(submittedReviewIds);
+  const ownThreads = threads.filter((thread) => {
+    const rootReview = thread.comments[0]?.reviewId;
+    return rootReview !== undefined && recorded.has(rootReview);
+  });
+  const ownThreadIds = new Set(
+    ownThreads.map((thread) => thread.rootCommentId),
+  );
+
+  const pointers = new Map<string, number>();
+  const resurrectedDraftIds: string[] = [];
+  const claimedThreads = new Set<number>();
+  const claimedLocals = new Set<string>();
+
+  const claim = (commentId: string, threadId: number, isDraft: boolean) => {
+    claimedThreads.add(threadId);
+    claimedLocals.add(commentId);
+    pointers.set(commentId, threadId);
+    if (isDraft) {
+      resurrectedDraftIds.push(commentId);
+    }
+  };
+
+  // PASS 1 — exact (anchor AND body) matches claim first, globally: an
+  // earlier local's anchor-only fallback must never steal a thread whose
+  // body exactly matches a later local (codex round 3 — the stolen draft
+  // would never flip and could re-ship).
+  for (const comment of localComments) {
+    const exact = ownThreads.find(
+      (thread) =>
+        !claimedThreads.has(thread.rootCommentId) &&
+        anchorMatchesThread(comment, thread) &&
+        thread.comments[0]?.body === comment.body,
+    );
+    if (exact !== undefined) {
+      claim(comment.id, exact.rootCommentId, comment.status === "draft");
+    }
+  }
+
+  // PASS 2 — anchor-only fallback over what remains (collision worst case
+  // is display-level only, per the locked decision).
+  for (const comment of localComments) {
+    if (claimedLocals.has(comment.id)) {
+      continue;
+    }
+    const fallback = ownThreads.find(
+      (thread) =>
+        !claimedThreads.has(thread.rootCommentId) &&
+        anchorMatchesThread(comment, thread),
+    );
+    if (fallback !== undefined) {
+      claim(comment.id, fallback.rootCommentId, comment.status === "draft");
+    }
+  }
+
+  return { ownThreadIds, pointers, resurrectedDraftIds };
+}

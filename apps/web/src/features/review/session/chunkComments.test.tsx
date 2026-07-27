@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import type { Brief } from "../../brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import type { CommentAnchor } from "../comments";
+import type { CommentAnchor } from "../utils/comments";
 import { MindMapProvider, useChunkReviewComments, useMindMap } from ".";
 
 afterEach(cleanup);

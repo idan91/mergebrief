@@ -7,7 +7,7 @@ import {
   useTokenSettings,
   ExpiryChoice,
   TOKEN_NAME_MAX,
-} from "../../useTokenSettings";
+} from "../../hooks/useTokenSettings";
 import styles from "./TokenSettings.module.scss";
 
 export interface TokenSettingsProps {

@@ -1,3 +1,5 @@
+// Flat at the feature root by the queries.ts convention (brief/queries.ts
+// precedent): the feature's queryOptions door, referenced by routes.
 // react-query descriptor for the live conversation GET (BRIEF-25, ADR 0027).
 // Refresh policy: refetch on navigation and window-focus (react-query
 // defaults over a short staleTime) plus a manual refresh control (the

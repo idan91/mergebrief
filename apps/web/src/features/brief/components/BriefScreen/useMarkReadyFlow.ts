@@ -5,10 +5,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
-import type { ReviewComment } from "@web/features/review/comments";
-import type { MarkReadyAction } from "@web/features/pulls/markReady";
-import { recordPostNotice } from "@web/features/pulls/postComment";
-import { useMarkReady } from "@web/features/pulls/useMarkReady";
+import type { ReviewComment } from "@web/features/review/utils/comments";
+import type { MarkReadyAction } from "@web/features/pulls/transport/markReady";
+import { recordPostNotice } from "@web/features/pulls/transport/postComment";
+import { useMarkReady } from "@web/features/pulls/hooks/useMarkReady";
 import type { IntentCheck } from "../../types";
 import type { RiskFlag } from "../../utils/viewModel";
 import type { PostDraftOutcome } from "./useOwnDraftFlow";

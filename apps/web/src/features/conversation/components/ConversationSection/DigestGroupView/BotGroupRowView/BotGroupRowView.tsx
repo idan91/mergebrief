@@ -1,5 +1,5 @@
-import { botGroupChip } from "../../../../chips";
-import type { DigestRow } from "../../../../digest";
+import { botGroupChip } from "../../../../utils/chips";
+import type { DigestRow } from "../../../../utils/digest";
 import rowStyles from "../../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../../wiring";
 import { ThreadRowView } from "../../../ThreadRowView/ThreadRowView";

@@ -14,8 +14,8 @@ import {
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import { useScrollSpy } from "@web/hooks/useScrollSpy";
 import { prefersReducedMotion } from "@web/utils/motion";
-import type { ReviewComment } from "@web/features/review/comments";
-import { buildReceipt, type Receipt } from "@web/features/review/receipt";
+import type { ReviewComment } from "@web/features/review/utils/comments";
+import { buildReceipt, type Receipt } from "@web/features/review/utils/receipt";
 import {
   serializeSnapshot,
   useMindMap,
@@ -27,7 +27,7 @@ import {
   deriveUnresolvedItems,
   type ReviewOutcome,
   type UnresolvedItem,
-} from "@web/features/review/state";
+} from "@web/features/review/utils/state";
 import { summarizeProgress, type ProgressTotals } from "../../utils/progress";
 import type { Brief } from "../../types";
 import type { BriefViewModel, GroupView } from "../../utils/viewModel";

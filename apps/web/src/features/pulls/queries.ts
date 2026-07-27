@@ -1,3 +1,5 @@
+// Flat at the feature root by the queries.ts convention (brief/queries.ts
+// precedent): the feature's queryOptions door, referenced by routes.
 // react-query descriptors for the DB-backed read API (BRIEF-19 PR 3.1), all
 // over the isomorphic `apiFetch` seam so loaders can SSR-prefetch them and the
 // client refetches through the same gate. Artifact bodies are immutable per

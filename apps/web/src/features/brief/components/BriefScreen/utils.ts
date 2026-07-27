@@ -3,7 +3,7 @@
 import type {
   RiskEvidence,
   RiskEvidenceKind,
-} from "@web/features/review/state";
+} from "@web/features/review/utils/state";
 import type { CompareParam } from "../../comparison/compareState";
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import {

@@ -8,15 +8,15 @@ import {
 } from "react";
 import { useStore } from "zustand";
 
-import type { CommentAnchor } from "@web/features/review/comments";
+import type { CommentAnchor } from "@web/features/review/utils/comments";
 import { PreSubmitModal } from "@web/features/review";
 import {
   ConversationSection,
   type ConversationPlan,
 } from "@web/features/conversation";
 import { ReceiptDrawer } from "@web/features/review";
-import type { SubmitReviewAction } from "@web/features/review/submit";
-import { useReviewSubmit } from "@web/features/review/useReviewSubmit";
+import type { SubmitReviewAction } from "@web/features/review/utils/submit";
+import { useReviewSubmit } from "@web/features/review/hooks/useReviewSubmit";
 import {
   clearSnapshots,
   deriveInitialState,
@@ -24,13 +24,13 @@ import {
   useCreateReviewFlowStore,
   useSyncReviewFlowPosture,
 } from "@web/features/review/session";
-import type { UnresolvedItem } from "@web/features/review/state";
+import type { UnresolvedItem } from "@web/features/review/utils/state";
 import type { BriefSearchParams } from "../../comparison/compareState";
-import type { MarkReadyAction } from "@web/features/pulls/markReady";
+import type { MarkReadyAction } from "@web/features/pulls/transport/markReady";
 import {
   useInFlightPosts,
   type PostCommentResult,
-} from "@web/features/pulls/postComment";
+} from "@web/features/pulls/transport/postComment";
 // Direct component import, not the pulls barrel: the barrel now exports the
 // PrBrief tree, which renders BriefView — importing it from here would close
 // a brief -> pulls -> brief module cycle.

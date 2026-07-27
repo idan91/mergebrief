@@ -11,8 +11,8 @@ import type {
 import {
   buildInlineThreads,
   type DigestRow,
-} from "@web/features/conversation/digest";
-import { reconcileOwnComments } from "@web/features/conversation/ownComments";
+} from "@web/features/conversation/utils/digest";
+import { reconcileOwnComments } from "@web/features/conversation/utils/ownComments";
 import type { ConversationResult } from "@web/features/conversation/queries";
 import { prefersReducedMotion } from "@web/utils/motion";
 import type { BriefViewModel } from "../../utils/viewModel";

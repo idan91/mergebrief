@@ -1,3 +1,5 @@
+// Flat at the feature root by the queries.ts convention (brief/queries.ts
+// precedent): the feature's queryOptions door, referenced by routes.
 // Query + mutation for the org switcher (BRIEF-19 PR 2.2). The read goes
 // through the isomorphic seam; the switch is a client-only POST (mutations
 // never run during SSR), after which the caller invalidates EVERYTHING — a

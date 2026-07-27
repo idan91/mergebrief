@@ -14,12 +14,12 @@ import {
   ThreadRowView,
   type ThreadComposerWiring,
 } from "@web/features/conversation";
-import type { DigestThreadRow } from "@web/features/conversation/digest";
+import type { DigestThreadRow } from "@web/features/conversation/utils/digest";
 
 // Row-level threads already sit AT their line — the detail's jump is hidden.
 const noJump = () => undefined;
 import { AddressedDiffComment } from "@web/features/review";
-import { createCommentAnchor } from "@web/features/review/comments";
+import { createCommentAnchor } from "@web/features/review/utils/comments";
 import {
   useChunkReviewComments,
   useReviewActions,

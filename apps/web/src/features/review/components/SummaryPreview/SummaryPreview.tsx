@@ -3,9 +3,13 @@ import remarkGfm from "remark-gfm";
 
 import { Roles, type Brief } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
-import { buildReceipt, RECEIPT_NOT_CHECKED, type Receipt } from "../../receipt";
+import {
+  buildReceipt,
+  RECEIPT_NOT_CHECKED,
+  type Receipt,
+} from "../../utils/receipt";
 import type { SessionSnapshot } from "../../session";
-import { summarySignatureLine, type ReviewOutcome } from "../../state";
+import { summarySignatureLine, type ReviewOutcome } from "../../utils/state";
 import styles from "./SummaryPreview.module.scss";
 
 export interface SummaryPreviewProps {

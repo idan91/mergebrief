@@ -1,7 +1,7 @@
 import { Drawer } from "@web/components/Drawer/Drawer";
 import { SummaryPreview } from "@web/features/review";
 import type { SessionSnapshot } from "@web/features/review/session";
-import type { ReviewOutcome } from "@web/features/review/state";
+import type { ReviewOutcome } from "@web/features/review/utils/state";
 import type { Brief } from "../../../types";
 import styles from "./SummaryPreviewDrawer.module.scss";
 

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CommentAnchor } from "../../comments";
+import type { CommentAnchor } from "../../utils/comments";
 import {
   createReviewFlowStore,
   type ReviewFlowPosture,

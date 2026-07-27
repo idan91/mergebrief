@@ -24,7 +24,7 @@ import { RoleBadge } from "./RoleBadge/RoleBadge";
 import {
   splitInlineRows,
   type DigestRow,
-} from "@web/features/conversation/digest";
+} from "@web/features/conversation/utils/digest";
 import { InlineThreads } from "@web/features/conversation";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { DiffTable } from "../../DiffTable/DiffTable";

@@ -1,3 +1,5 @@
+// Flat at the feature root with reason (ADR 0037 SS4, the in-ADR precedent):
+// it touches server/ and must stay out of the barrels.
 import { queryOptions } from "@tanstack/react-query";
 
 import {

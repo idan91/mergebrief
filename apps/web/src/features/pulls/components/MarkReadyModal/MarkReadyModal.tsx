@@ -12,7 +12,7 @@
 // shows iff flags exist.
 import { Modal } from "@web/components/Modal/Modal";
 import type { RiskFlag } from "@web/features/brief/utils";
-import styles from "@web/components/Modal/ModalContent.module.scss";
+import styles from "@web/components/Modal/Modal.module.scss";
 
 export interface MarkReadyModalProps {
   open: boolean;

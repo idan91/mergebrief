@@ -4,7 +4,7 @@ import { useRevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AddressedReviewComment, Brief } from "../../../types";
 import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
-import type { DigestRow } from "@web/features/conversation/digest";
+import type { DigestRow } from "@web/features/conversation/utils/digest";
 import type { ThreadComposerWiring } from "@web/features/conversation";
 import { ChunkCard } from "./ChunkCard/ChunkCard";
 import { GroupCard } from "./GroupCard/GroupCard";
