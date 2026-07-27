@@ -1,4 +1,3 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   useCallback,
   useEffect,
@@ -9,21 +8,13 @@ import {
 } from "react";
 import { useStore } from "zustand";
 
-import { Drawer } from "@web/components/Drawer/Drawer";
-import { Markdown } from "@web/components/Markdown/Markdown";
-import { prefersReducedMotion } from "@web/utils/motion";
 import type { CommentAnchor } from "@web/features/review/comments";
 import { PreSubmitModal } from "@web/features/review";
 import {
   ConversationSection,
   type ConversationPlan,
-  type ThreadComposerWiring,
 } from "@web/features/conversation";
-import { buildInlineThreads } from "@web/features/conversation/digest";
-import { reconcileOwnComments } from "@web/features/conversation/ownComments";
-import type { ConversationResult } from "@web/features/conversation/queries";
 import { ReceiptDrawer } from "@web/features/review";
-import { SummaryPreview } from "@web/features/review";
 import type { SubmitReviewAction } from "@web/features/review/submit";
 import { useReviewSubmit } from "@web/features/review/useReviewSubmit";
 import {
@@ -32,9 +23,8 @@ import {
   ReviewFlowProvider,
   useCreateReviewFlowStore,
   useSyncReviewFlowPosture,
-  type SessionSnapshot,
 } from "@web/features/review/session";
-import type { ReviewOutcome, UnresolvedItem } from "@web/features/review/state";
+import type { UnresolvedItem } from "@web/features/review/state";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { MarkReadyAction } from "@web/features/pulls/markReady";
 import {
@@ -45,30 +35,28 @@ import { MarkReadyModal } from "@web/features/pulls";
 import type { Brief, LocalBriefSummary } from "../../types";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import type { buildBriefViewModel } from "../../utils/viewModel";
-import {
-  buildAttributeRail,
-  splitSummaryAtChangelog,
-} from "../../utils/viewModel";
+import { buildAttributeRail } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import { ChangesOnlyView } from "./ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "./ConcernView/ConcernView";
-import { DeltaContext } from "./DeltaContext/DeltaContext";
 import { AttributeJumpRail } from "./AttributeJumpRail/AttributeJumpRail";
+import { FocusBanner } from "./FocusBanner/FocusBanner";
 import { IntentBar, type IntentBarHandle } from "./IntentBar/IntentBar";
 import { GroupTocBar } from "./GroupTocBar/GroupTocBar";
 import { Header } from "./Header/Header";
-import { ReadThroughProgress } from "./ReadThroughProgress/ReadThroughProgress";
 import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
 import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
 import { StoryView } from "./StoryView/StoryView";
+import { SummaryPreviewDrawer } from "./SummaryPreviewDrawer/SummaryPreviewDrawer";
+import { SummarySection } from "./SummarySection/SummarySection";
 import {
   useComparisonOverlay,
   type BriefComparisonPlan,
 } from "./useComparisonOverlay";
+import { useConversationWiring } from "./useConversationWiring";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY, useOwnDraftFlow } from "./useOwnDraftFlow";
 import { useReadingSession } from "./useReadingSession";
-import { disabledComparisonQuery } from "./utils";
 import styles from "./BriefScreen.module.scss";
 
 export type { BriefComparisonPlan } from "./useComparisonOverlay";
@@ -146,12 +134,7 @@ export function BriefScreen({
   readOnly,
   submitReview,
 }: BriefScreenProps) {
-  // The attribute jump-rail is the single risk-surface summary (ADR 0032
-  // #11); the summary section carries no risk chip lane of its own.
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
-  // BRIEF-4: two-column summary on wide containers — split at the optional
-  // "## Changelog" h2. No changelog → single-column render, unchanged DOM.
-  const summaryParts = splitSummaryAtChangelog(brief.summary);
 
   // Comparison overlay (ADR 0024): timeline, View/Compare resolution, and
   // the active baseline's marks/narrative/delta — see the hook.
@@ -212,7 +195,6 @@ export function BriefScreen({
   const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
   const [preSubmitOpen, setPreSubmitOpen] = useState(false);
   const [locOpen, setLocOpen] = useState(false);
-  const [descriptionOpen, setDescriptionOpen] = useState(false);
 
   // Post-now in-flight tracking (BRIEF-43) — the MODULE-LEVEL registry's
   // per-brief view, subscribed here. Module state, not component state: a
@@ -255,169 +237,23 @@ export function BriefScreen({
     return () => window.clearTimeout(timer);
   }, [flowActions, toast]);
 
-  const openPreSubmit = useCallback(() => setPreSubmitOpen(true), []);
+  const openPreSubmit = () => setPreSubmitOpen(true);
   const closeReceipt = useCallback(() => setReceiptOpen(false), []);
-  const openSummaryPreview = useCallback(() => setSummaryPreviewOpen(true), []);
-  // The conversation section collapses to its summary header by default —
-  // it sits ABOVE the change groups (Idan, smoke feedback 2026-07-08), so
-  // expanded-by-default would push the Brief down. The C shortcut expands.
-  // A `?thread=` landing (BRIEF-24) opens it so its target is reachable —
-  // including when the param arrives via in-app navigation AFTER mount (an
-  // initializer alone would leave the section collapsed; codex round 1). The
-  // user can still collapse it afterwards: the effect re-fires only when the
-  // TARGET changes, not on every render (navigation event, not state sync).
-  const [conversationOpen, setConversationOpen] = useState(
-    conversationFocusThreadId !== undefined,
-  );
-  useEffect(() => {
-    if (conversationFocusThreadId !== undefined) setConversationOpen(true);
-  }, [conversationFocusThreadId]);
-  const jumpToConversation = useCallback(() => {
-    setConversationOpen(true);
-    // The heading exists regardless of expansion; focus + scroll land on it
-    // after the expand renders.
-    window.requestAnimationFrame(() => {
-      const heading = document.getElementById("conversation-heading");
-      if (!(heading instanceof HTMLElement)) return;
-      heading.scrollIntoView({ block: "start" });
-      heading.focus({ preventScroll: true });
-    });
-  }, []);
-  // Inline conversation threads (BRIEF-25): the same query the section runs
-  // (react-query dedupes on the key), disabled on the local path.
-  const queryClient = useQueryClient();
-  const conversationQuery = useQuery({
-    ...(conversation?.queryOptions ??
-      disabledComparisonQuery<ConversationResult>("conversation")),
-    enabled: conversation !== undefined,
+  const openSummaryPreview = () => setSummaryPreviewOpen(true);
+  // The conversation glue (section open/landing state, shared query + digest,
+  // composer wiring, digest→diff jump choreography) — see the hook.
+  const conversationWiring = useConversationWiring({
+    announce,
+    briefId,
+    conversation,
+    conversationFocusThreadId,
+    jumpToChunk,
+    model,
+    readingOrderedChunks,
+    replyDrafts,
+    setReplyDraft: actions.setReplyDraft,
+    submittedReviewIds,
   });
-  const conversationData =
-    conversationQuery.data?.kind === "ready"
-      ? conversationQuery.data.conversation
-      : undefined;
-  const conversationByChunk = useMemo(() => {
-    if (conversationData === undefined) return undefined;
-    // Ownership is the review-id join alone — local comments feed only the
-    // pointer/resurrection outputs, so they stay OUT of these deps: a comment
-    // save/toggle must not rebuild every chunk's inline rows and bust the
-    // ChunkCard memo boundary (perf review).
-    const ownThreadIds = reconcileOwnComments(
-      [],
-      conversationData.threads,
-      submittedReviewIds,
-    ).ownThreadIds;
-    return buildInlineThreads({
-      conversation: conversationData,
-      chunks: readingOrderedChunks,
-      ownThreadIds,
-    });
-  }, [conversationData, readingOrderedChunks, submittedReviewIds]);
-  // Drafts read through a ref: the wiring object's identity stays stable
-  // across draft syncs, so it never busts ChunkCard's memo (perf review).
-  const replyDraftsRef = useRef(replyDrafts);
-  replyDraftsRef.current = replyDrafts;
-  const conversationComposer = useMemo<ThreadComposerWiring | undefined>(
-    () =>
-      conversation === undefined
-        ? undefined
-        : {
-            briefId,
-            post: conversation.postReply,
-            announce,
-            getDraft: (threadId: number) =>
-              replyDraftsRef.current[String(threadId)] ?? "",
-            setDraft: (threadId: number, body: string) =>
-              actions.setReplyDraft(threadId, body),
-            onPosted: () =>
-              void queryClient.invalidateQueries({
-                queryKey: conversation.queryOptions.queryKey,
-              }),
-          },
-    [actions, announce, briefId, conversation, queryClient],
-  );
-  // Which groups carry conversation threads — the TocBar's markers.
-  const conversationGroupIds = useMemo(() => {
-    if (conversationByChunk === undefined || conversationByChunk.size === 0)
-      return undefined;
-    const ids = new Set<string>();
-    for (const group of model.groups) {
-      if (group.chunks.some((chunk) => conversationByChunk.has(chunk.id))) {
-        ids.add(group.id);
-      }
-    }
-    return ids;
-  }, [conversationByChunk, model.groups]);
-  // The conversation jump contract (BRIEF-25): move focus WITH the scroll
-  // and flash the target (reduced-motion respected in CSS). When the digest
-  // hands us a row target, land on the thread's OWN row inside the diff —
-  // the chunk top is only the fallback (bot threads aggregate at the chunk;
-  // a resolved bot thread has no row at all).
-  // One live flash timer: a repeat jump inside the window must RESTART the
-  // flash (remove → reflow → re-add; a matching attribute never restarts a
-  // CSS animation) instead of letting the first jump's timer cut it short
-  // (Fable review).
-  const flashTimerRef = useRef<{ el: HTMLElement; timer: number } | null>(null);
-  const flashConversationTarget = useCallback((target: HTMLElement) => {
-    const pending = flashTimerRef.current;
-    if (pending !== null) {
-      window.clearTimeout(pending.timer);
-      pending.el.removeAttribute("data-conversation-flash");
-      flashTimerRef.current = null;
-    }
-    target.removeAttribute("data-conversation-flash");
-    window.requestAnimationFrame(() => {
-      target.setAttribute("data-conversation-flash", "");
-      flashTimerRef.current = {
-        el: target,
-        timer: window.setTimeout(() => {
-          target.removeAttribute("data-conversation-flash");
-          flashTimerRef.current = null;
-        }, 1600),
-      };
-    });
-  }, []);
-  const jumpToChunkFromConversation = useCallback(
-    (chunkId: string, target?: { rowId: string; threadId: number }) => {
-      const landOnChunk = () => {
-        const el = document.getElementById(chunkId);
-        if (!(el instanceof HTMLElement)) return;
-        el.focus({ preventScroll: true });
-        flashConversationTarget(el);
-      };
-      if (target === undefined) {
-        jumpToChunk(chunkId);
-        window.requestAnimationFrame(landOnChunk);
-        return;
-      }
-      // Instant coarse jump (expands the chunk), then settle on the row. The
-      // row renders only once the chunk is open, so poll a few frames before
-      // conceding to the chunk top.
-      jumpToChunk(chunkId, "auto");
-      let attempts = 8;
-      const landOnRow = () => {
-        const row = document.querySelector(
-          `[data-conversation-thread="${target.threadId}"]`,
-        );
-        if (row instanceof HTMLElement) {
-          // Same reduced-motion gate as every other programmatic scroll
-          // (codex round 2 — the section's landing twin).
-          row.scrollIntoView({
-            behavior: prefersReducedMotion() ? "auto" : "smooth",
-            block: "center",
-          });
-          const disclosure = row.querySelector("button");
-          (disclosure ?? row).focus({ preventScroll: true });
-          flashConversationTarget(row);
-          return;
-        }
-        attempts -= 1;
-        if (attempts > 0) window.requestAnimationFrame(landOnRow);
-        else landOnChunk();
-      };
-      window.requestAnimationFrame(landOnRow);
-    },
-    [flashConversationTarget, jumpToChunk],
-  );
   const submitFlow = useReviewSubmit({
     action: submitReview,
     briefId,
@@ -430,11 +266,11 @@ export function BriefScreen({
     announce,
     closeReceipt,
     resetOutcome: () => actions.setOutcome("comment"),
-    // Same-tab re-ship window (reviewer round 5): a post-now still settling
-    // when the own-draft state exits (ready flip mid-request) is invisible to
-    // the payload capture — the review would ship the still-draft comment and
-    // the 201 would flip it only afterwards, a duplicate on GitHub. Submit
-    // blocks (reason + hard guard) until every post settles.
+    // Same-tab re-ship window: a post-now still settling when the own-draft
+    // state exits (ready flip mid-request) is invisible to the payload
+    // capture — the review would ship the still-draft comment and the 201
+    // would flip it only afterwards, a duplicate on GitHub. Submit blocks
+    // (reason + hard guard) until every post settles.
     blockedExternally:
       postingCommentIds.size > 0
         ? POST_COMMENT_COPY.submitWhilePosting
@@ -449,26 +285,13 @@ export function BriefScreen({
   // state at the current head (`ownDraft.postComment`) — off the current head
   // the composer is already read-only, so no draft can be staged to post.
   const postComment = ownDraft?.postComment;
-  // A posted inline comment is a conversation write — refetch so the new
-  // thread renders. The query client is app-level, not mount-level, so
-  // invalidating from the post path's closure is remount-safe.
-  const invalidateConversation = useMemo(
-    () =>
-      conversation === undefined
-        ? undefined
-        : () =>
-            void queryClient.invalidateQueries({
-              queryKey: conversation.queryOptions.queryKey,
-            }),
-    [conversation, queryClient],
-  );
   // The own-draft post-now flow (registry choreography, settled-post drain,
   // double-post guards in both directions) — see the hook.
   const { postDraftComment } = useOwnDraftFlow({
     actions,
     announce,
     briefId,
-    invalidateConversation,
+    invalidateConversation: conversationWiring.invalidateConversation,
     postComment,
     postingCommentIds,
     submitPending,
@@ -495,7 +318,7 @@ export function BriefScreen({
     flowActions.setDismissTarget(null);
     flowActions.setEvidenceTarget(null);
   }, [flowActions]);
-  // The mark-ready soft gate (BRIEF-54 PR 4) reaches the expanded intent bar
+  // The mark-ready soft gate (BRIEF-54) reaches the expanded intent bar
   // through this handle; null when the Brief carries no intentCheck.
   const intentBarRef = useRef<IntentBarHandle>(null);
   const exitToStoryView = session.exitToStoryView;
@@ -540,10 +363,14 @@ export function BriefScreen({
     toggleFocusMode,
     toggleHelp: session.toggleShortcuts,
     jumpToConversation:
-      conversation !== undefined ? jumpToConversation : undefined,
+      conversation !== undefined
+        ? conversationWiring.jumpToConversation
+        : undefined,
   });
 
-  const submitReceipt = useCallback(() => {
+  // Plain handlers: every consumer below is non-memoized, so useCallback
+  // would buy nothing (the memo boundary lives at ChunkCard/GroupCard).
+  const submitReceipt = () => {
     // Read-only posture (BRIEF-24): the submit control disables focusably with
     // the reason (below) — this guards the click path itself.
     if (readOnly !== undefined) {
@@ -558,32 +385,21 @@ export function BriefScreen({
     announce(
       "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
     );
-    // Dep on the stable `submit` callback, not the per-render hook object.
-  }, [announce, liveSubmit, readOnly, submitFlow.submit]);
-  const closeSummaryPreview = useCallback(
-    () => setSummaryPreviewOpen(false),
-    [],
-  );
-  const closePreSubmit = useCallback(() => setPreSubmitOpen(false), []);
-  const continuePreSubmitToReceipt = useCallback(() => {
+  };
+  const closeSummaryPreview = () => setSummaryPreviewOpen(false);
+  const closePreSubmit = () => setPreSubmitOpen(false);
+  const continuePreSubmitToReceipt = () => {
     setPreSubmitOpen(false);
     setReceiptOpen(true);
-  }, []);
-  const jumpToPreSubmitItem = useCallback(
-    (item: UnresolvedItem) => {
-      setPreSubmitOpen(false);
-      jumpToChunk(item.targetId);
-    },
-    [jumpToChunk],
-  );
-  const clearDrafts = useCallback(() => {
+  };
+  const jumpToPreSubmitItem = (item: UnresolvedItem) => {
+    setPreSubmitOpen(false);
+    jumpToChunk(item.targetId);
+  };
+  const clearDrafts = () => {
     clearSnapshots();
     actions.reset(deriveInitialState(model));
-  }, [actions, model]);
-  const toggleDescription = useCallback(
-    () => setDescriptionOpen((current) => !current),
-    [],
-  );
+  };
 
   return (
     <ReviewFlowProvider store={flowStore}>
@@ -619,35 +435,14 @@ export function BriefScreen({
             : undefined
         }
       />
-      {/* Focus mode (Z) strips the page chrome and centers a single chunk in
-          a narrow reading column — the visible payoff of "focus". The banner
-          is a sibling of <main> (not inside it) so it is a true full-bleed
-          strip like the top bar; sticky chunk headers stack below it via the
-          measured --focus-banner-h. data-focus-banner sits on the strip:
-          focusScrollOffset() must measure it whole, padding included. */}
       {focusMode ? (
-        <div
-          className={styles["focusBannerWrap"]}
-          data-focus-banner=""
-          data-testid="focus-banner"
-          ref={session.focusBannerRef}
-          role="status"
-        >
-          <div className={styles["focusBanner"]}>
-            <span>
-              <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
-              <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
-            </span>
-            <ReadThroughProgress
-              activeChunkId={activeChunkId}
-              groups={model.groups}
-              jumpToChunk={jumpToChunk}
-            />
-            <button className="btn" type="button" onClick={toggleFocusMode}>
-              Exit focus
-            </button>
-          </div>
-        </div>
+        <FocusBanner
+          activeChunkId={activeChunkId}
+          bannerRef={session.focusBannerRef}
+          groups={model.groups}
+          jumpToChunk={jumpToChunk}
+          toggleFocusMode={toggleFocusMode}
+        />
       ) : null}
       <main
         className={
@@ -659,65 +454,7 @@ export function BriefScreen({
         tabIndex={-1}
         data-zen={focusMode ? "on" : undefined}
       >
-        {focusMode ? null : (
-          <section
-            className={`${styles["summary"]} reveal`}
-            data-testid="brief-summary"
-            data-summary-split={
-              summaryParts.changelog === undefined ? undefined : ""
-            }
-          >
-            <div className={styles["eyebrow"]}>
-              {brief.artifactKind === "delta" ? "Delta brief" : "Brief"}
-            </div>
-            {/* BRIEF-4: with a changelog the summary renders as two grid
-                regions — lead prose | changelog (+ delta context). DOM order
-                stays overview → what-it-does → changelog; wide-container
-                placement is grid-only (reading order, a11y). */}
-            {summaryParts.changelog === undefined ? (
-              <Markdown content={brief.summary} />
-            ) : (
-              <div className={styles["summaryColumns"]}>
-                <div className={styles["summaryLead"]}>
-                  <Markdown content={summaryParts.lead} />
-                </div>
-                <div className={styles["summaryAside"]}>
-                  <Markdown content={summaryParts.changelog} />
-                  {brief.artifactKind === "delta" ? (
-                    <DeltaContext brief={brief} />
-                  ) : null}
-                </div>
-              </div>
-            )}
-            {summaryParts.changelog === undefined &&
-            brief.artifactKind === "delta" ? (
-              <DeltaContext brief={brief} />
-            ) : null}
-            <button
-              className={styles["descriptionToggle"]}
-              data-testid="pr-description-toggle"
-              type="button"
-              onClick={toggleDescription}
-            >
-              {descriptionOpen
-                ? "Hide original PR description"
-                : "Show original PR description"}
-            </button>
-            {descriptionOpen ? (
-              <div
-                className={styles["description"]}
-                data-testid="pr-description"
-              >
-                <div className={styles["eyebrow"]}>Original PR description</div>
-                <Markdown
-                  content={
-                    brief.pr.description || "_No PR description provided._"
-                  }
-                />
-              </div>
-            ) : null}
-          </section>
-        )}
+        {focusMode ? null : <SummarySection brief={brief} />}
 
         {compareState.view === "changes" ? (
           <ChangesOnlyView
@@ -749,7 +486,7 @@ export function BriefScreen({
                 ) : null}
                 <GroupTocBar
                   activeGroupId={session.activeGroupId}
-                  conversationGroupIds={conversationGroupIds}
+                  conversationGroupIds={conversationWiring.conversationGroupIds}
                   groups={model.groups}
                   jumpToGroup={jumpToGroup}
                 />
@@ -762,18 +499,16 @@ export function BriefScreen({
                 briefId={briefId}
                 chunks={readingOrderedChunks}
                 focusThreadId={conversationFocusThreadId}
-                jumpToChunk={jumpToChunkFromConversation}
+                jumpToChunk={conversationWiring.jumpToChunkFromConversation}
                 localComments={reviewComments}
                 markCommentsSubmitted={(ids) =>
                   actions.markCommentsSubmitted(ids)
                 }
-                open={conversationOpen}
-                onToggle={() => setConversationOpen((current) => !current)}
+                open={conversationWiring.open}
+                onToggle={conversationWiring.toggleOpen}
                 plan={conversation}
                 replyDrafts={replyDrafts}
-                setReplyDraft={(threadId, body) =>
-                  actions.setReplyDraft(threadId, body)
-                }
+                setReplyDraft={actions.setReplyDraft}
                 submittedReviewIds={submittedReviewIds}
               />
             ) : null}
@@ -788,8 +523,8 @@ export function BriefScreen({
                 focusMode={focusMode}
                 openChunks={session.openChunks}
                 addressedReviewComments={brief.reviewComments}
-                conversationByChunk={conversationByChunk}
-                conversationComposer={conversationComposer}
+                conversationByChunk={conversationWiring.conversationByChunk}
+                conversationComposer={conversationWiring.conversationComposer}
                 jumpToChunk={jumpToChunk}
                 markReviewed={session.markReviewed}
                 setCollapseSupporting={session.setCollapseSupporting}
@@ -858,9 +593,9 @@ export function BriefScreen({
           state, only while the action exists (current head in view — a
           historical revision's flags are not the gate's contract), and only
           when there is something to gate ON — risk flags OR unposted drafts
-          (owner amendment: the batch expectation is global, not flags-only).
-          Both zero skips the modal entirely (the CTA acts directly, and
-          nothing gate-shaped exists in the DOM). */}
+          (the batch expectation is global, not flags-only). Both zero skips
+          the modal entirely (the CTA acts directly, and nothing gate-shaped
+          exists in the DOM). */}
       {ownDraftActive &&
       markReady.available &&
       (model.flags.length > 0 || markReady.unpostedDraftCount > 0) ? (
@@ -910,37 +645,5 @@ export function BriefScreen({
         {toast}
       </div>
     </ReviewFlowProvider>
-  );
-}
-
-interface SummaryPreviewDrawerProps {
-  brief: Brief;
-  close: () => void;
-  open: boolean;
-  setOutcome: (outcome: ReviewOutcome) => void;
-  snapshot: SessionSnapshot;
-}
-
-function SummaryPreviewDrawer({
-  brief,
-  close,
-  open,
-  setOutcome,
-  snapshot,
-}: SummaryPreviewDrawerProps) {
-  return (
-    <Drawer
-      open={open}
-      label="Summary preview"
-      closeLabel="Close summary preview"
-      close={close}
-      asideClassName={styles["summaryDrawer"]}
-    >
-      <SummaryPreview
-        brief={brief}
-        snapshot={snapshot}
-        setOutcome={setOutcome}
-      />
-    </Drawer>
   );
 }

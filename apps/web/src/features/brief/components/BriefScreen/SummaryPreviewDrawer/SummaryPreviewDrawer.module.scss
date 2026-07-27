@@ -1,0 +1,26 @@
+@layer components {
+  .summaryDrawer {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    z-index: 95;
+    overflow-y: auto;
+    max-block-size: 90vh;
+    border-block-start: 1px solid var(--line2);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: var(--color-surface-1);
+    box-shadow: var(--shadow-elevation-up);
+    transform: translateY(105%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+
+    &[data-state="open"] {
+      transform: none;
+    }
+
+    main {
+      min-block-size: auto;
+      padding: 0;
+      background: transparent;
+    }
+  }
+}

@@ -10,6 +10,7 @@ import type {
   RevisionNarrativeSkipped,
 } from "../../types";
 import {
+  conversationGroupIds,
   countComparisonRuns,
   countIntentGaps,
   countIntentTensions,
@@ -420,5 +421,25 @@ describe("disabledComparisonQuery", () => {
     await expect(
       (query.queryFn as () => Promise<string>)(),
     ).rejects.toThrowError("comparison query disabled");
+  });
+});
+
+describe("conversationGroupIds", () => {
+  const groups = [
+    { id: "g1", chunks: [{ id: "c1" }, { id: "c2" }] },
+    { id: "g2", chunks: [{ id: "c3" }] },
+  ];
+
+  it("returns the groups whose chunks carry conversation threads", () => {
+    const byChunk = new Map([["c3", []]]);
+    expect(conversationGroupIds(byChunk, groups)).toEqual(new Set(["g2"]));
+  });
+
+  it("returns undefined without a conversation", () => {
+    expect(conversationGroupIds(undefined, groups)).toBeUndefined();
+  });
+
+  it("returns undefined for an empty digest (no TocBar markers)", () => {
+    expect(conversationGroupIds(new Map(), groups)).toBeUndefined();
   });
 });

@@ -70,6 +70,25 @@ export function countIntentTensions(
     : 0;
 }
 
+/**
+ * Which groups carry conversation threads — the TocBar's markers. Undefined
+ * when there is no conversation (or none of it landed on a chunk).
+ */
+export function conversationGroupIds(
+  conversationByChunk: ReadonlyMap<string, unknown> | undefined,
+  groups: readonly { id: string; chunks: readonly { id: string }[] }[],
+): Set<string> | undefined {
+  if (conversationByChunk === undefined || conversationByChunk.size === 0)
+    return undefined;
+  const ids = new Set<string>();
+  for (const group of groups) {
+    if (group.chunks.some((chunk) => conversationByChunk.has(chunk.id))) {
+      ids.add(group.id);
+    }
+  }
+  return ids;
+}
+
 /** Index where each group's first chunk lands in the flat reading order. */
 export function groupStartIndexes(
   groups: readonly { chunks: readonly unknown[] }[],
