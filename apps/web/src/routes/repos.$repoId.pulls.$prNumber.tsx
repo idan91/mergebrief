@@ -25,7 +25,7 @@ import {
 import {
   BriefView,
   type BriefComparisonPlan,
-} from "../features/brief/components/BriefPage/BriefPage";
+} from "../features/brief/components/BriefView/BriefView";
 import {
   comparisonsWarming,
   deriveBriefRouteState,

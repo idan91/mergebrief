@@ -156,7 +156,7 @@
   // diff content scrolling past slides under a solid-reading band — the
   // rounded banner box alone left visible gaps above and beside it.
   // Sibling of <main>, not inside it: a true full-bleed strip under the top
-  // bar. Publishes its measured height as --focus-banner-h (BriefPage) so
+  // bar. Publishes its measured height as --focus-banner-h (BriefScreen) so
   // sticky chunk headers and the focus rail stack below it.
   .focusBannerWrap {
     position: sticky;

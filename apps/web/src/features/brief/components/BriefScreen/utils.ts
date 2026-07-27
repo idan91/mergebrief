@@ -1,4 +1,4 @@
-// Closure-free BriefPage logic (ADR 0037 decision 3): derivations extracted
+// Closure-free BriefScreen logic (ADR 0037 decision 3): derivations extracted
 // from the screen/hooks so they are unit-testable directly, without rendering.
 import type { ComparisonQuery } from "../../comparison/comparisonQuery";
 import {
