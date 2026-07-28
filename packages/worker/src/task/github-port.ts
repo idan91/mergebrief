@@ -5,6 +5,7 @@
 // App, never as a user); tests substitute an in-memory port.
 import {
   deleteComment,
+  fetchComment,
   fetchCompareDiff,
   fetchDiff,
   fetchPullRequest,
@@ -41,6 +42,10 @@ export interface PullRequestSource {
   postEntryComment(body: string): Promise<Result<{ readonly commentId: bigint }, GitHubApiError>>;
   /** Delete a prior Entry comment; a 404 (already gone) maps to ok. */
   deleteComment(commentId: bigint): Promise<Result<void, GitHubApiError>>;
+  /** Read a prior Entry comment's live body; a 404 (gone) maps to ok undefined. */
+  fetchComment(
+    commentId: bigint,
+  ): Promise<Result<{ readonly body: string } | undefined, GitHubApiError>>;
 }
 
 export interface GitHubPort {
@@ -88,6 +93,8 @@ export function appGitHubPort(app: AppClient): GitHubPort {
           postEntryComment(octokit, { owner: ref.owner, repo: ref.repo, prNumber, body }),
         deleteComment: (commentId) =>
           deleteComment(octokit, { owner: ref.owner, repo: ref.repo, commentId }),
+        fetchComment: (commentId) =>
+          fetchComment(octokit, { owner: ref.owner, repo: ref.repo, commentId }),
       };
     },
   };

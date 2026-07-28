@@ -24,6 +24,37 @@ export interface DeleteCommentInput {
   readonly commentId: bigint;
 }
 
+export interface FetchCommentInput {
+  readonly owner: string;
+  readonly repo: string;
+  /** The comment id returned by a prior `postEntryComment`. */
+  readonly commentId: bigint;
+}
+
+/**
+ * Read a previously posted Entry comment's current body. A 404 (comment
+ * deleted, or the PR/repo removed) is an expected state for the
+ * delete-and-repost flow — it maps to `ok` with `undefined`, never an error.
+ */
+export async function fetchComment(
+  octokit: Octokit,
+  input: FetchCommentInput,
+): Promise<Result<{ readonly body: string } | undefined, GitHubApiError>> {
+  try {
+    const response = await octokit.rest.issues.getComment({
+      owner: input.owner,
+      repo: input.repo,
+      comment_id: Number(input.commentId),
+    });
+    return { ok: true, value: { body: response.data.body ?? "" } };
+  } catch (error) {
+    if (error instanceof RequestError && error.status === 404) {
+      return { ok: true, value: undefined };
+    }
+    return { ok: false, error: mapRequestError(error, "fetch comment") };
+  }
+}
+
 /**
  * Post the Entry comment on a PR's conversation timeline and return its id
  * (branded downstream by persistence, a plain `bigint` here). Uses

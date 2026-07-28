@@ -32,7 +32,7 @@ src/
     verify.ts           HMAC verification (raw body, constant-time)
     events.ts           Zod-parsed discriminated ParsedWebhookEvent
   operations/         what we CALL on GitHub (REST + GraphQL)
-    comments.ts         Entry-comment post/delete
+    comments.ts         Entry-comment post/delete/fetch
     repo.ts             repo lookup + installation-repo listing
     pull-request.ts     PR + files + diff/compare fetch
     review.ts           grouped formal review submit (BRIEF-23)

@@ -171,6 +171,7 @@ interface StubGitHub extends GitHubPort {
   commentCalls: string[];
   postEntryCommentError?: GitHubApiError;
   deleteCommentError?: GitHubApiError;
+  fetchCommentError?: GitHubApiError;
   /** Test hook run after a successful post, before it returns (interleaving). */
   onPostEntryComment?: () => Promise<void>;
   /** Repo-config files by path; missing = absent (404). */
@@ -245,6 +246,15 @@ function stubGitHub(headSha: string): StubGitHub {
           stub.comments.delete(commentId);
           stub.commentCalls.push(`delete:${commentId}`);
           return ok(undefined);
+        },
+        fetchComment: async (commentId: bigint) => {
+          if (stub.fetchCommentError) {
+            return { ok: false, error: stub.fetchCommentError };
+          }
+          stub.commentCalls.push(`fetch:${commentId}`);
+          const body = stub.comments.get(commentId);
+          // Mirrors the real adapter: a 404 (unknown id) maps to ok undefined.
+          return ok(body === undefined ? undefined : { body });
         },
       };
     },
@@ -396,7 +406,7 @@ describe("generate task", () => {
     expect(github.commentCalls).toEqual([`post:${genId}`, `delete:${genId}`, `post:${readyId}`]);
   });
 
-  it("a rerun for an already-briefed head posts no generating comment", async () => {
+  it("a rerun for an already-briefed head leaves the live ready comment alone (no re-ping)", async () => {
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
     const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
@@ -407,11 +417,84 @@ describe("generate task", () => {
     const [readyId] = [...github.comments.entries()][0] ?? [];
 
     // Same head re-queued (review-submitted gap-filler / redelivery): the
-    // brief is already stored, so no generation and no generating comment —
-    // only the ready refresh.
+    // brief is already stored and the ready comment is already live — the
+    // rerun verifies the body via one fetch and posts NOTHING (BRIEF-41:
+    // delete+repost here would re-ping the thread with no new information).
     const second = await trigger(HEAD_1);
     await task(second.payload);
 
+    const rerunCalls = github.commentCalls.slice(afterFirstRun);
+    expect(rerunCalls).toEqual([`fetch:${readyId}`]);
+    expect(github.comments.get(readyId ?? -1n)).toContain("Read the brief");
+  });
+
+  it("a rerun with a stuck generating comment still flips it to ready", async () => {
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    const first = await trigger(HEAD_1);
+    await task(first.payload);
+    const [readyId] = [...github.comments.entries()][0] ?? [];
+    // Simulate a prior attempt that died before the ready flip: the live
+    // comment still says "generating" for this head.
+    if (readyId === undefined) throw new Error("expected a live comment");
+    github.comments.set(readyId, "Brief is generating for this push…");
+    const afterFirstRun = github.commentCalls.length;
+
+    const second = await trigger(HEAD_1);
+    await task(second.payload);
+
+    // Mismatch → the normal delete+repost self-heal runs.
+    const rerunCalls = github.commentCalls.slice(afterFirstRun);
+    const [newReadyId] = [...github.comments.entries()][0] ?? [];
+    expect(rerunCalls).toEqual([`fetch:${readyId}`, `delete:${readyId}`, `post:${newReadyId}`]);
+    expect([...github.comments.values()][0]).toContain("Read the brief");
+  });
+
+  it("a rerun whose tracked comment was manually deleted reposts it", async () => {
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    const first = await trigger(HEAD_1);
+    await task(first.payload);
+    const [readyId] = [...github.comments.entries()][0] ?? [];
+    if (readyId === undefined) throw new Error("expected a live comment");
+    // Someone deleted the Entry comment on GitHub; the stored id dangles.
+    github.comments.delete(readyId);
+    const afterFirstRun = github.commentCalls.length;
+
+    const second = await trigger(HEAD_1);
+    await task(second.payload);
+
+    // Gone (fetch → ok undefined) → the self-heal reposts; the 404-tolerant
+    // delete of the dangling id precedes the post.
+    const rerunCalls = github.commentCalls.slice(afterFirstRun);
+    const [newReadyId] = [...github.comments.entries()][0] ?? [];
+    expect(rerunCalls).toEqual([`fetch:${readyId}`, `delete:${readyId}`, `post:${newReadyId}`]);
+    expect([...github.comments.values()][0]).toContain("Read the brief");
+  });
+
+  it("a rerun whose comment-body fetch fails falls back to the repost cycle", async () => {
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({ handle: harness.handle, publicBaseUrl: PUBLIC_URL, generator, github });
+
+    const first = await trigger(HEAD_1);
+    await task(first.payload);
+    const afterFirstRun = github.commentCalls.length;
+    const [readyId] = [...github.comments.entries()][0] ?? [];
+    github.fetchCommentError = {
+      code: "request-failed",
+      status: 500,
+      message: "failed to fetch comment: GitHub API returned status 500",
+    };
+
+    const second = await trigger(HEAD_1);
+    await task(second.payload);
+
+    // Uncertainty never suppresses the flip: the delete+repost runs as before.
     const rerunCalls = github.commentCalls.slice(afterFirstRun);
     const [newReadyId] = [...github.comments.entries()][0] ?? [];
     expect(rerunCalls).toEqual([`delete:${readyId}`, `post:${newReadyId}`]);

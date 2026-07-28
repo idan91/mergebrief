@@ -76,8 +76,12 @@ export type {
 // --- operations/ — what we CALL on GitHub (REST + GraphQL) -------------------
 
 // GitHub REST primitives: Entry-comment ops, repo lookup, PR + diff fetch.
-export { postEntryComment, deleteComment } from "./operations/comments";
-export type { PostEntryCommentInput, DeleteCommentInput } from "./operations/comments";
+export { postEntryComment, deleteComment, fetchComment } from "./operations/comments";
+export type {
+  PostEntryCommentInput,
+  DeleteCommentInput,
+  FetchCommentInput,
+} from "./operations/comments";
 export { fetchRepositoryById, listInstallationRepositoriesForUser } from "./operations/repo";
 export type { RepositoryInfo } from "./operations/repo";
 export { getRepoFile, RepoFileKind } from "./operations/repo-file";

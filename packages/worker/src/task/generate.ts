@@ -651,9 +651,22 @@ async function runGeneration(
   // delete+repost IS the "ready" ping) before the slower revision/delta
   // work. Supersession gate first: a superseded run must post nothing (the
   // superseding head's own job will post for the newer revision).
+  // Skip-branch reruns (review-submitted gap-filler on an already-briefed
+  // head, BRIEF-41): when the live comment already carries this head's ready
+  // body, reposting would only re-ping the thread — leave it in place. The
+  // check is skip-branch-only (a fresh generation's comment says
+  // "generating", so a GET would always mismatch), and any miss — stuck
+  // generating body, swept draft comment, manual deletion, fetch failure —
+  // falls through to the normal refresh.
   await watch.assertCurrent();
   if (entryCommentAllowed) {
-    await refreshEntryComment(entryCommentBody(deepLink()));
+    const readyBody = entryCommentBody(deepLink());
+    const alreadyLive = existing !== undefined && (await entryCommentMatches(readyBody));
+    if (alreadyLive) {
+      log.info("generate: entry comment already current — skipping repost (no re-ping)");
+    } else {
+      await refreshEntryComment(readyBody);
+    }
   }
 
   // ---- Marks + revision narrative vs the previous briefed head ------------
@@ -753,6 +766,24 @@ async function runGeneration(
     if (!cleared.ok) {
       log.warn(`generate: entry comment id not cleared (job unaffected) — ${cleared.error.message}`);
     }
+  }
+
+  /**
+   * True when the tracked Entry comment exists and its live body already
+   * equals `body`. Any uncertainty (no tracked id, comment gone, fetch
+   * failure) reports false so the caller falls back to the delete+repost
+   * cycle — the self-heals stay intact.
+   */
+  async function entryCommentMatches(body: string): Promise<boolean> {
+    if (liveEntryCommentId === null) {
+      return false;
+    }
+    const fetched = await source.fetchComment(liveEntryCommentId);
+    if (!fetched.ok) {
+      log.warn(`generate: entry comment fetch failed (job unaffected) — ${fetched.error.message}`);
+      return false;
+    }
+    return fetched.value !== undefined && fetched.value.body === body;
   }
 
   /**

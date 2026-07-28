@@ -4,7 +4,7 @@
 // fetch maps to a sanitized Result error that leaks NO token/header/body.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
-import { deleteComment, postEntryComment } from "../src/operations/comments";
+import { deleteComment, fetchComment, postEntryComment } from "../src/operations/comments";
 import { GitHubApiErrorCode } from "../src/errors";
 import { fetchPullRequest, fetchPullRequestFiles, fetchDiff, fetchCompareDiff } from "../src/operations/pull-request";
 import {
@@ -45,6 +45,7 @@ function requestError(
 function mockOctokit(overrides: {
   createComment?: ReturnType<typeof vi.fn>;
   deleteComment?: ReturnType<typeof vi.fn>;
+  getComment?: ReturnType<typeof vi.fn>;
   pullsGet?: ReturnType<typeof vi.fn>;
   createReview?: ReturnType<typeof vi.fn>;
   compareBasehead?: ReturnType<typeof vi.fn>;
@@ -58,6 +59,7 @@ function mockOctokit(overrides: {
       issues: {
         createComment: overrides.createComment ?? vi.fn(),
         deleteComment: overrides.deleteComment ?? vi.fn(),
+        getComment: overrides.getComment ?? vi.fn(),
       },
       pulls: {
         get: overrides.pullsGet ?? vi.fn(),
@@ -166,6 +168,54 @@ describe("deleteComment", () => {
     const deleteFn = vi.fn().mockRejectedValue(requestError(500));
     const octokit = mockOctokit({ deleteComment: deleteFn });
     const result = await deleteComment(octokit, {
+      owner: "o",
+      repo: "r",
+      commentId: 99n,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
+    expect(result.error.status).toBe(500);
+    expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+});
+
+describe("fetchComment", () => {
+  it("returns the comment body on success", async () => {
+    const getComment = vi.fn().mockResolvedValue({ data: { id: 99, body: "brief ready" } });
+    const octokit = mockOctokit({ getComment });
+    const result = await fetchComment(octokit, {
+      owner: "o",
+      repo: "r",
+      commentId: 99n,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toEqual({ body: "brief ready" });
+    expect(getComment).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      comment_id: 99,
+    });
+  });
+
+  it("maps a 404 (comment gone) to ok undefined", async () => {
+    const getComment = vi.fn().mockRejectedValue(requestError(404));
+    const octokit = mockOctokit({ getComment });
+    const result = await fetchComment(octokit, {
+      owner: "o",
+      repo: "r",
+      commentId: 99n,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toBeUndefined();
+  });
+
+  it("maps a non-404 failure to a sanitized error", async () => {
+    const getComment = vi.fn().mockRejectedValue(requestError(500));
+    const octokit = mockOctokit({ getComment });
+    const result = await fetchComment(octokit, {
       owner: "o",
       repo: "r",
       commentId: 99n,
