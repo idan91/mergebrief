@@ -9,15 +9,20 @@ afterEach(cleanup);
 
 function Harness({
   initial = "",
+  label = "Comment",
+  readOnly = false,
   suggestionSeed,
 }: {
   initial?: string;
+  label?: string;
+  readOnly?: boolean;
   suggestionSeed?: string | undefined;
 }) {
   const [value, setValue] = useState(initial);
   return (
     <MarkdownTextarea
-      label="Comment"
+      label={label}
+      readOnly={readOnly}
       suggestionSeed={suggestionSeed}
       value={value}
       onChange={setValue}
@@ -100,6 +105,29 @@ describe("MarkdownTextarea", () => {
     input.setSelectionRange(0, 5);
     fireEvent.keyDown(input, { key: "b", metaKey: true });
     expect(input.value).toBe("**hello** world");
+  });
+
+  it("is inert while read-only: toolbar and shortcuts must not mutate", () => {
+    render(<Harness initial="hello" readOnly />);
+    const input = textarea();
+    input.setSelectionRange(0, 5);
+    fireEvent.click(screen.getByRole("button", { name: "Bold" }));
+    expect(input.value).toBe("hello");
+    fireEvent.keyDown(input, { key: "b", metaKey: true });
+    expect(input.value).toBe("hello");
+  });
+
+  it("scopes textarea ids per instance", () => {
+    render(
+      <>
+        <Harness label="First" />
+        <Harness label="Second" />
+      </>,
+    );
+    const first = screen.getByLabelText("First");
+    const second = screen.getByLabelText("Second");
+    expect(first.id).not.toBe(second.id);
+    expect(first.id.length).toBeGreaterThan(0);
   });
 
   it("only offers Insert suggestion when seeded", () => {

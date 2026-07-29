@@ -627,7 +627,6 @@ describe("ReplyComposer", () => {
     const describedBy = textarea.getAttribute("aria-describedby");
     const alert = screen.getByRole("alert");
     expect(describedBy).toBe(alert.id);
-    expect(alert.id).toBe(`${textarea.id}-error`);
     expect(alert.textContent).toContain("longer than GitHub allows");
     const button = screen.getByRole("button", { name: "Reply" });
     expect(button.getAttribute("aria-disabled")).toBe("true");
@@ -704,10 +703,11 @@ describe("Fable round fixes", () => {
     });
     await openThread();
     const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
-    // Instance-scoped (useId) — a thread-derived id would duplicate when the
-    // same thread renders inline at its chunk and in the section.
+    // Instance-scoped (useId, now inside MarkdownTextarea) — a thread-derived
+    // id would duplicate when the same thread renders inline at its chunk and
+    // in the section. Distinctness across instances is pinned in
+    // MarkdownTextarea.test.tsx.
     expect(textarea.id).not.toBe("reply-9001");
-    expect(textarea.id.endsWith("-reply")).toBe(true);
   });
 });
 

@@ -1,5 +1,10 @@
+/* eslint-disable jsx-a11y/no-autofocus --
+   Single deliberate use: the edit surface mounts in response to an explicit
+   Edit click, so moving focus into the textarea is the expected next
+   action — not a page-load focus steal. */
 import { useState } from "react";
 
+import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import {
   postCommentBlockedReason,
   type ReviewComment,
@@ -96,12 +101,15 @@ export function CommentThread({
           textarea is up, the posted record renders read-only regardless. */}
       {editing && !submitted ? (
         <>
-          <textarea
-            aria-label="Edit comment"
-            className={styles["textarea"]}
-            suppressHydrationWarning
+          <MarkdownTextarea
+            autoFocus
+            label="Edit comment"
+            renderPreview={(previewBody) => (
+              <MarkdownPreview anchor={comment.anchor} body={previewBody} />
+            )}
+            suggestionSeed={comment.anchor.selectedText}
             value={body}
-            onChange={(event) => setBody(event.target.value)}
+            onChange={setBody}
           />
           <div className={styles["actions"]}>
             {/* An editor already open when a Post starts must not save

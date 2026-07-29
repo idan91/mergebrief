@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 
+import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import {
   persistReplyDraft,
   useMindMap,
@@ -162,24 +163,19 @@ export function ReplyComposer({
 
   return (
     <div className={styles["composer"]}>
-      <label className={styles["composerLabel"]} htmlFor={inputId}>
-        Reply (posts to GitHub immediately)
-      </label>
-      <textarea
-        aria-busy={pending || undefined}
-        aria-describedby={
-          overCap || error !== null ? `${inputId}-error` : undefined
-        }
-        aria-invalid={overCap || undefined}
-        className={styles["composerInput"]}
-        id={inputId}
+      <MarkdownTextarea
+        ariaBusy={pending}
+        ariaInvalid={overCap}
+        describedBy={overCap || error !== null ? `${inputId}-error` : undefined}
+        label="Reply (posts to GitHub immediately)"
+        labelClassName={styles["composerLabel"]}
+        labelVisible
         readOnly={pending}
-        rows={3}
         value={local}
         onBlur={persist}
-        onChange={(event) => {
+        onChange={(value) => {
           dirtyRef.current = true;
-          setLocal(event.target.value);
+          setLocal(value);
         }}
       />
       {overCap || error !== null ? (

@@ -35,6 +35,8 @@ export interface MarkdownTextareaProps {
   ariaInvalid?: boolean;
   /** id of the error/hint element associated with the textarea. */
   describedBy?: string | undefined;
+  /** Blur hook for consumers that persist drafts on focus loss. */
+  onBlur?: (() => void) | undefined;
   /** Enables the Insert-suggestion action, pre-filled with this text. */
   suggestionSeed?: string | undefined;
   /** Preview-tab renderer; defaults to the shared Markdown component. */
@@ -65,10 +67,16 @@ export function MarkdownTextarea({
   ariaBusy = false,
   ariaInvalid = false,
   describedBy,
+  onBlur,
   suggestionSeed,
   renderPreview,
 }: MarkdownTextareaProps) {
-  const facade = useMarkdownTextareaFacade({ value, onChange, suggestionSeed });
+  const facade = useMarkdownTextareaFacade({
+    value,
+    onChange,
+    readOnly,
+    suggestionSeed,
+  });
   const baseId = useId();
   const textareaId = `${baseId}-input`;
   const tabId = (mode: MarkdownTextareaMode) => `${baseId}-tab-${mode}`;
@@ -145,7 +153,9 @@ export function MarkdownTextarea({
         <ScreenReaderOnly>{labelElement}</ScreenReaderOnly>
       )}
       <div
-        aria-label={`${label} mode`}
+        // Deliberately NOT derived from `label`: a substring match on the
+        // textarea's label must find exactly one element (label queries).
+        aria-label="Editor mode"
         className={styles["tabs"]}
         role="tablist"
         tabIndex={-1}
@@ -183,6 +193,7 @@ export function MarkdownTextarea({
         >
           {facade.toolbarActions.map((action, index) => (
             <button
+              aria-disabled={readOnly || undefined}
               aria-label={action.label}
               key={action.icon}
               tabIndex={index === toolbarTabStop ? 0 : -1}
@@ -206,9 +217,11 @@ export function MarkdownTextarea({
           ref={facade.textareaRef}
           suppressHydrationWarning
           value={value}
+          onBlur={onBlur}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={facade.onTextareaKeyDown}
         />
+        <div className={styles["hint"]}>Markdown is supported</div>
       </div>
       <div
         aria-labelledby={tabId("preview")}

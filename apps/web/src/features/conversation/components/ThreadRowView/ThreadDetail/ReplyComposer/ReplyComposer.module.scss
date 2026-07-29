@@ -9,20 +9,4 @@
     color: var(--dim);
     font-size: var(--font-size-sm);
   }
-
-  .composerInput {
-    min-height: 64px;
-    padding: 8px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-2);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: var(--font-size-lg);
-    resize: vertical;
-
-    &:disabled {
-      color: var(--dim);
-    }
-  }
 }

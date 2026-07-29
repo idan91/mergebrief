@@ -48,6 +48,12 @@ describe("CommentThread", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeDefined();
   });
 
+  it("moves focus into the editor when Edit opens it (BRIEF-56)", () => {
+    renderThread("draft");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(document.activeElement).toBe(screen.getByLabelText("Edit comment"));
+  });
+
   it("is read-only once submitted — no Edit/Delete, posted label", () => {
     renderThread("submitted");
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();

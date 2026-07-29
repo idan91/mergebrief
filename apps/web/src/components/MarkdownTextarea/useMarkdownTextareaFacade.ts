@@ -31,6 +31,13 @@ export interface MarkdownTextareaFacadeArgs {
   value: string;
   onChange: (value: string) => void;
   /**
+   * A read-only surface must be INERT, not just visually locked: toolbar
+   * clicks and formatting shortcuts still fire on a read-only textarea, and
+   * a mid-flight mutation would diverge from what the pending request ships
+   * (capture-at-initiation rule).
+   */
+  readOnly: boolean;
+  /**
    * Pre-fill for the Insert-suggestion action (the anchored lines' text).
    * The action only exists when this is provided — suggestions are
    * meaningless off a diff anchor.
@@ -45,6 +52,7 @@ export interface MarkdownTextareaFacadeArgs {
 export function useMarkdownTextareaFacade({
   value,
   onChange,
+  readOnly,
   suggestionSeed,
 }: MarkdownTextareaFacadeArgs): MarkdownTextareaFacade {
   const [mode, setMode] = useState<MarkdownTextareaMode>("write");
@@ -53,6 +61,7 @@ export function useMarkdownTextareaFacade({
   function applyTextEdit(
     edit: (text: string, start: number, end: number) => TextEdit,
   ) {
+    if (readOnly) return;
     const textarea = textareaRef.current;
     const start = textarea?.selectionStart ?? value.length;
     const end = textarea?.selectionEnd ?? value.length;

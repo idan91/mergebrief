@@ -59,6 +59,11 @@
         color: var(--text);
       }
 
+      &[aria-disabled="true"] {
+        cursor: default;
+        opacity: 0.5;
+      }
+
       @include mixins.focus-visible;
     }
   }
@@ -67,18 +72,35 @@
     display: block;
     inline-size: calc(100% - 20px);
     min-block-size: 118px;
+    max-block-size: 400px;
     padding: 12px;
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     margin: 10px;
     background: var(--color-background);
     color: var(--text);
-    font-family: var(--mono);
+
+    // Comments are prose-first (grill decision 6): the body composes in the
+    // UI sans; code stays mono inside fences and the suggestion diff card.
+    font-family: var(--sans);
     font-size: var(--font-size-lg);
     line-height: 1.6;
+
+    // Autogrow with typing (Chromium; a fixed min elsewhere), capped so a
+    // long comment scrolls instead of swallowing the page; the manual
+    // resize grip stays.
+    field-sizing: content;
+    overflow-y: auto;
     resize: vertical;
 
     @include mixins.focus-visible;
+  }
+
+  .hint {
+    padding-block: 0 8px;
+    padding-inline: 12px;
+    color: var(--faint);
+    font-size: var(--font-size-sm);
   }
 
   .previewPanel {
