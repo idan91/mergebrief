@@ -96,6 +96,31 @@
     @include mixins.focus-visible;
   }
 
+  .mentionPopup {
+    margin-block: 0 8px;
+    margin-inline: 10px;
+    padding: 4px;
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+    box-shadow: var(--shadow-elevation-md);
+    list-style: none;
+  }
+
+  .mentionOption {
+    padding-block: 5px;
+    padding-inline: 8px;
+    border-radius: var(--radius-sm);
+    color: var(--dim);
+    cursor: pointer;
+    font-size: var(--font-size-md);
+
+    &[data-state="active"] {
+      background: var(--color-surface-2);
+      color: var(--text);
+    }
+  }
+
   .hint {
     padding-block: 0 8px;
     padding-inline: 12px;

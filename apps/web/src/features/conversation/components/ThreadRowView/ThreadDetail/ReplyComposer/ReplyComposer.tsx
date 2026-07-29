@@ -41,6 +41,8 @@ export interface ReplyComposerProps {
   threadId: number;
   post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   onPosted: () => void;
+  /** Mention-autocomplete pool (thread participants — BRIEF-56). */
+  mentionCandidates?: readonly string[] | undefined;
 }
 
 export function ReplyComposer({
@@ -48,6 +50,7 @@ export function ReplyComposer({
   threadId,
   post,
   onPosted,
+  mentionCandidates,
 }: ReplyComposerProps) {
   // Draft reads/writes go straight to the session stores (the PR 3 wiring
   // re-shape): no draft prop chain through the digest tree.
@@ -170,6 +173,7 @@ export function ReplyComposer({
         label="Reply (posts to GitHub immediately)"
         labelClassName={styles["composerLabel"]}
         labelVisible
+        mentionCandidates={mentionCandidates}
         readOnly={pending}
         value={local}
         onBlur={persist}

@@ -3,6 +3,7 @@ import type { DigestThreadRow } from "../../../utils/digest";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { RevisionJumpAction } from "../RevisionJumpAction/RevisionJumpAction";
+import { mentionCandidatesFromThread } from "../../../utils/mentions";
 import { ReplyComposer } from "./ReplyComposer/ReplyComposer";
 
 export interface ThreadDetailProps {
@@ -78,6 +79,7 @@ export function ThreadDetail({
       </div>
       <ReplyComposer
         briefId={composer.briefId}
+        mentionCandidates={mentionCandidatesFromThread(thread)}
         onPosted={composer.onPosted}
         post={composer.post}
         threadId={thread.rootCommentId}

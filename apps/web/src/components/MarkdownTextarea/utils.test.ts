@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  activeMentionQuery,
   applyLinePrefix,
   applyLinkTemplate,
   applyMarkdownWrap,
   applyOrderedListPrefix,
   continueListOnEnter,
   indentListSelection,
+  insertMention,
   replaceSelectionWithSuggestion,
 } from "./utils";
 
@@ -178,6 +180,48 @@ describe("applyOrderedListPrefix", () => {
       text: "1. a\n2. b",
       selectionStart: 0,
       selectionEnd: 9,
+    });
+  });
+});
+
+describe("activeMentionQuery", () => {
+  it("finds the mention being typed at the caret", () => {
+    expect(activeMentionQuery("hi @al", 6)).toEqual({ start: 3, query: "al" });
+    expect(activeMentionQuery("@", 1)).toEqual({ start: 0, query: "" });
+  });
+
+  it("requires a boundary before the @ (emails are not mentions)", () => {
+    expect(activeMentionQuery("mail me a@b", 11)).toBeNull();
+  });
+
+  it("declines when the caret has left the mention", () => {
+    expect(activeMentionQuery("@alice done", 11)).toBeNull();
+  });
+
+  it("suppresses mentions inside an open code fence (``` and ~~~)", () => {
+    expect(activeMentionQuery("```\n@al", 7)).toBeNull();
+    expect(activeMentionQuery("~~~\n@al", 7)).toBeNull();
+    expect(activeMentionQuery("```\ncode\n```\n@al", 16)).toEqual({
+      start: 13,
+      query: "al",
+    });
+  });
+});
+
+describe("insertMention", () => {
+  it("replaces the typed query with the login and a trailing space", () => {
+    expect(insertMention("hi @al there", 3, 6, "alice")).toEqual({
+      text: "hi @alice  there",
+      selectionStart: 10,
+      selectionEnd: 10,
+    });
+  });
+
+  it("consumes the token tail on a mid-token accept", () => {
+    expect(insertMention("@albert", 0, 3, "alice")).toEqual({
+      text: "@alice ",
+      selectionStart: 7,
+      selectionEnd: 7,
     });
   });
 });

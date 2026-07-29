@@ -21,6 +21,7 @@ import {
   useMarkdownTextareaFacade,
   type MarkdownTextareaMode,
 } from "./useMarkdownTextareaFacade";
+import { useMentionAutocomplete } from "./useMentionAutocomplete";
 import styles from "./MarkdownTextarea.module.scss";
 
 export interface MarkdownTextareaProps {
@@ -50,6 +51,12 @@ export interface MarkdownTextareaProps {
   onEscape?: (() => void) | undefined;
   /** Enables the Insert-suggestion action, pre-filled with this text. */
   suggestionSeed?: string | undefined;
+  /**
+   * Candidate logins for `@`-mention autocomplete; empty/absent disables
+   * it. The pool is injected (participants today, collaborators later) —
+   * the component never fetches.
+   */
+  mentionCandidates?: readonly string[] | undefined;
   /** Preview-tab renderer; defaults to the shared Markdown component. */
   renderPreview?: ((value: string) => ReactNode) | undefined;
 }
@@ -82,6 +89,7 @@ export function MarkdownTextarea({
   onSubmit,
   onEscape,
   suggestionSeed,
+  mentionCandidates,
   renderPreview,
 }: MarkdownTextareaProps) {
   const facade = useMarkdownTextareaFacade({
@@ -91,6 +99,14 @@ export function MarkdownTextarea({
     suggestionSeed,
   });
   const baseId = useId();
+  const mentions = useMentionAutocomplete({
+    value,
+    onChange,
+    candidates: mentionCandidates ?? [],
+    readOnly,
+    textareaRef: facade.textareaRef,
+    baseId,
+  });
   const textareaId = `${baseId}-input`;
   const tabId = (mode: MarkdownTextareaMode) => `${baseId}-tab-${mode}`;
   const panelId = (mode: MarkdownTextareaMode) => `${baseId}-panel-${mode}`;
@@ -264,7 +280,9 @@ export function MarkdownTextarea({
           ))}
         </div>
         <textarea
+          aria-activedescendant={mentions.activeOptionId}
           aria-busy={ariaBusy || undefined}
+          aria-controls={mentions.open ? mentions.listId : undefined}
           aria-describedby={describedBy}
           aria-invalid={ariaInvalid || undefined}
           autoFocus={autoFocus}
@@ -275,10 +293,56 @@ export function MarkdownTextarea({
           ref={facade.textareaRef}
           suppressHydrationWarning
           value={value}
-          onBlur={onBlur}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={facade.onTextareaKeyDown}
+          onBlur={() => {
+            mentions.onBlur();
+            onBlur?.();
+          }}
+          onChange={(event) => {
+            mentions.onCaretMove(event.target.selectionStart);
+            onChange(event.target.value);
+          }}
+          onKeyDown={(event) => {
+            // The open popup owns navigation/accept/dismiss keys; every
+            // other key falls through to the editing shortcuts.
+            if (mentions.onKeyDown(event)) return;
+            facade.onTextareaKeyDown(event);
+          }}
+          onSelect={(event) =>
+            mentions.onCaretMove(event.currentTarget.selectionStart)
+          }
         />
+        {mentions.open ? (
+          <div
+            aria-label="Mention suggestions"
+            className={styles["mentionPopup"]}
+            id={mentions.listId}
+            role="listbox"
+          >
+            {mentions.options.map((login, index) => (
+              <div
+                aria-selected={index === mentions.activeIndex}
+                className={styles["mentionOption"]}
+                data-state={
+                  index === mentions.activeIndex ? "active" : undefined
+                }
+                id={mentions.optionId(index)}
+                key={login}
+                role="option"
+                // Focus stays in the textarea (aria-activedescendant
+                // pattern); -1 satisfies focusability without a tab stop.
+                tabIndex={-1}
+                // mousedown, not click: click fires after the textarea's
+                // blur, and blur-persist consumers would race the insert.
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  mentions.select(login);
+                }}
+              >
+                @{login}
+              </div>
+            ))}
+          </div>
+        ) : null}
         <div className={styles["hint"]}>Markdown is supported</div>
       </div>
       <div

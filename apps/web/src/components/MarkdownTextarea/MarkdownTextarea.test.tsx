@@ -12,6 +12,7 @@ function Harness({
   label = "Comment",
   readOnly = false,
   suggestionSeed,
+  mentionCandidates,
   onEscape,
   onSubmit,
 }: {
@@ -19,6 +20,7 @@ function Harness({
   label?: string;
   readOnly?: boolean;
   suggestionSeed?: string | undefined;
+  mentionCandidates?: readonly string[] | undefined;
   onEscape?: (() => void) | undefined;
   onSubmit?: (() => void) | undefined;
 }) {
@@ -26,6 +28,7 @@ function Harness({
   return (
     <MarkdownTextarea
       label={label}
+      mentionCandidates={mentionCandidates}
       readOnly={readOnly}
       suggestionSeed={suggestionSeed}
       value={value}
@@ -232,6 +235,125 @@ describe("MarkdownTextarea", () => {
     render(<Harness onEscape={onEscape} />);
     fireEvent.keyDown(textarea(), { key: "Escape" });
     expect(onEscape).toHaveBeenCalledTimes(1);
+  });
+
+  describe("mention autocomplete", () => {
+    const CANDIDATES = ["alice", "albert", "bob"];
+
+    function typeMention(text: string) {
+      const input = textarea();
+      fireEvent.change(input, { target: { value: text } });
+      return input;
+    }
+
+    it("opens a filtered listbox while typing a mention", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      typeMention("hi @al");
+      const options = screen.getAllByRole("option");
+      expect(options.map((option) => option.textContent)).toEqual([
+        "@alice",
+        "@albert",
+      ]);
+      expect(options[0]?.getAttribute("aria-selected")).toBe("true");
+    });
+
+    it("stays closed with no candidate pool", () => {
+      render(<Harness />);
+      typeMention("hi @al");
+      expect(screen.queryByRole("listbox")).toBeNull();
+    });
+
+    it("inserts the highlighted login on Enter and closes", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      const input = typeMention("hi @al");
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(input.value).toBe("hi @albert ");
+      expect(screen.queryByRole("listbox")).toBeNull();
+    });
+
+    it("inserts on mousedown selection", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      const input = typeMention("@b");
+      fireEvent.mouseDown(screen.getByRole("option", { name: "@bob" }));
+      expect(input.value).toBe("@bob ");
+    });
+
+    it("Escape dismisses the popup without firing the consumer hook", () => {
+      const onEscape = vi.fn();
+      render(<Harness mentionCandidates={CANDIDATES} onEscape={onEscape} />);
+      const input = typeMention("@al");
+      fireEvent.keyDown(input, { key: "Escape" });
+      expect(screen.queryByRole("listbox")).toBeNull();
+      expect(onEscape).not.toHaveBeenCalled();
+      // A second Escape (popup closed) reaches the consumer hook.
+      fireEvent.keyDown(input, { key: "Escape" });
+      expect(onEscape).toHaveBeenCalledTimes(1);
+    });
+
+    it("modified Enter belongs to the editor: Cmd+Enter submits what the user sees", () => {
+      const onSubmit = vi.fn();
+      render(<Harness mentionCandidates={CANDIDATES} onSubmit={onSubmit} />);
+      const input = typeMention("hi @al");
+      fireEvent.keyDown(input, { key: "Enter", metaKey: true });
+      // No insertion — the submit captures the body exactly as displayed.
+      expect(input.value).toBe("hi @al");
+      expect(onSubmit).toHaveBeenCalledTimes(1);
+    });
+
+    it("accepts with Tab too", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      const input = typeMention("@b");
+      fireEvent.keyDown(input, { key: "Tab" });
+      expect(input.value).toBe("@bob ");
+    });
+
+    it("stays inert while read-only", () => {
+      render(<Harness initial="@al" mentionCandidates={CANDIDATES} readOnly />);
+      const input = textarea();
+      input.setSelectionRange(3, 3);
+      fireEvent.select(input);
+      expect(screen.queryByRole("listbox")).toBeNull();
+    });
+
+    it("ignores keydowns from an IME composition", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      const input = typeMention("@al");
+      fireEvent.keyDown(input, { key: "ArrowDown", isComposing: true });
+      expect(
+        screen
+          .getByRole("option", { name: "@alice" })
+          .getAttribute("aria-selected"),
+      ).toBe("true");
+    });
+
+    it("closes on blur and reopens on the next caret activity", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      const input = typeMention("@al");
+      expect(screen.getByRole("listbox")).toBeTruthy();
+      fireEvent.blur(input);
+      expect(screen.queryByRole("listbox")).toBeNull();
+      typeMention("@ali");
+      expect(screen.getByRole("listbox")).toBeTruthy();
+    });
+
+    it("an Escape dismissal dies with the mention: retyping reopens", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      const input = typeMention("@a");
+      fireEvent.keyDown(input, { key: "Escape" });
+      expect(screen.queryByRole("listbox")).toBeNull();
+      typeMention("");
+      typeMention("@b");
+      expect(screen.getByRole("listbox")).toBeTruthy();
+    });
+
+    it("Enter falls through to list continuation when the popup is closed", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      const input = typeMention("- item");
+      input.setSelectionRange(6, 6);
+      fireEvent.keyDown(input, { key: "Enter" });
+      expect(input.value).toBe("- item\n- ");
+    });
   });
 
   it("only offers Insert suggestion when seeded", () => {

@@ -210,6 +210,54 @@ export function applyOrderedListPrefix(
   };
 }
 
+export interface MentionQuery {
+  /** Index of the `@` character. */
+  start: number;
+  /** Text typed after the `@` so far (may be empty). */
+  query: string;
+}
+
+const MENTION_PATTERN = /(?:^|[\s([{])@([a-zA-Z0-9-]*)$/;
+
+/**
+ * The mention being typed at the caret, or null when the caret is not in
+ * one — including inside a code fence, where `@` is code, not a mention.
+ */
+export function activeMentionQuery(
+  text: string,
+  caret: number,
+): MentionQuery | null {
+  const before = text.slice(0, caret);
+  // An odd number of fence delimiters before the caret = inside a fence.
+  const fences = before.match(/^(?:```|~~~)/gm);
+  if (fences !== null && fences.length % 2 === 1) return null;
+  const match = MENTION_PATTERN.exec(before);
+  if (match === null) return null;
+  const query = match[1] ?? "";
+  return { start: caret - query.length - 1, query };
+}
+
+/**
+ * Replaces the typed `@query` with `@login ` and parks the caret after.
+ * A mid-token accept (caret inside `@albert` after `@al`) consumes the
+ * rest of the token too — `@alice bert` residue is never right.
+ */
+export function insertMention(
+  text: string,
+  mentionStart: number,
+  caret: number,
+  login: string,
+): TextEdit {
+  const tail = /^[a-zA-Z0-9-]*/.exec(text.slice(caret))?.[0] ?? "";
+  const inserted = `@${login} `;
+  const position = mentionStart + inserted.length;
+  return {
+    text: `${text.slice(0, mentionStart)}${inserted}${text.slice(caret + tail.length)}`,
+    selectionStart: position,
+    selectionEnd: position,
+  };
+}
+
 export function replaceSelectionWithSuggestion(
   text: string,
   selectionStart: number,
