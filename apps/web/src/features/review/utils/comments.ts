@@ -1,3 +1,4 @@
+import type { SuggestionDiffRow } from "@web/components/Markdown/utils";
 import type { DiffLine } from "../../brief/types";
 
 export type CommentSide = "old" | "new";
@@ -10,18 +11,6 @@ export interface CommentAnchor {
   endLine: number;
   rowIds: string[];
   selectedText: string;
-}
-
-export interface SuggestionBlock {
-  body: string;
-  index: number;
-}
-
-export interface SuggestionDiffRow {
-  kind: "del" | "add";
-  oldLine?: number;
-  newLine?: number;
-  content: string;
 }
 
 export interface ReviewComment {
@@ -80,25 +69,6 @@ export function createCommentAnchor(
 
 export function rowId(chunkId: string, rowIndex: number): string {
   return `${chunkId}:${rowIndex}`;
-}
-
-export function parseSuggestionBlocks(markdown: string): SuggestionBlock[] {
-  const suggestions: SuggestionBlock[] = [];
-  const pattern = /```suggestion\n([\s\S]*?)\n```/g;
-  for (const match of markdown.matchAll(pattern)) {
-    suggestions.push({
-      body: match[1] ?? "",
-      index: suggestions.length,
-    });
-  }
-  return suggestions;
-}
-
-export function stripSuggestionBlocks(markdown: string): string {
-  return markdown
-    .replace(/\n?```suggestion\n[\s\S]*?\n```/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
 }
 
 export function buildSuggestionDiffRows(

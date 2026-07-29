@@ -39,6 +39,14 @@ export interface UseReviewSubmitInput {
    * closed (and inert) by the time the request settles.
    */
   announce: (message: string) => void;
+  /**
+   * Refetches the live conversation after a successful submit so the posted
+   * comments render as their GitHub threads (and the local submitted cards
+   * demote) without waiting for an unrelated refetch. Undefined off the
+   * DB path. The demotion bridges GitHub's read-after-write lag: local
+   * cards keep rendering until the refetched threads actually contain them.
+   */
+  invalidateConversation: (() => void) | undefined;
   closeReceipt: () => void;
   /**
    * Resets the session outcome to `comment` after a VERDICT was delivered —
@@ -107,6 +115,7 @@ export function useReviewSubmit(
     markSubmitted,
     recordSubmittedReview,
     announce,
+    invalidateConversation,
     closeReceipt,
     resetOutcome,
     blockedExternally,
@@ -193,6 +202,9 @@ export function useReviewSubmit(
               console.error("submit: local persistence failed", persistError);
             }
             closeReceipt();
+            // The review is live on GitHub — refetch the conversation so
+            // the posted comments render as their real threads.
+            invalidateConversation?.();
             if (result.commentsDegraded) {
               setNote(COPY.degradedNote);
               announce(COPY.postedDegraded);
@@ -238,6 +250,7 @@ export function useReviewSubmit(
     briefId,
     closeReceipt,
     comments,
+    invalidateConversation,
     markSubmitted,
     outcome,
     receipt,

@@ -24,7 +24,7 @@ export function AddressedDiffComment({
         </span>
       </summary>
       <div className={styles["preview"]}>
-        <Markdown content={comment.body} />
+        <Markdown content={comment.body} renderSuggestions />
       </div>
       {comment.inReplyToId ? (
         <div className={styles["replyNote"]}>

@@ -263,6 +263,7 @@ export function BriefScreen({
     recordSubmittedReview: (reviewId) =>
       actions.recordSubmittedReview(reviewId),
     announce,
+    invalidateConversation: conversationWiring.invalidateConversation,
     closeReceipt,
     resetOutcome: () => actions.setOutcome("comment"),
     // Same-tab re-ship window: a post-now still settling when the own-draft

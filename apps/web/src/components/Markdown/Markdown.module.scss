@@ -44,12 +44,42 @@
     }
 
     p,
-    ul {
+    ul,
+    ol {
       margin-block-end: 12px;
     }
 
-    ul {
-      padding-inline-start: 20px;
+    // Flush marker column (owner call, 2026-07-29): markers positioned
+    // INSIDE start exactly at the content edge — outside markers
+    // right-align against the text column, so a "2." can never sit flush
+    // with a bullet. The hanging indent keeps wrapped lines off the
+    // marker column.
+    ul,
+    ol {
+      padding-inline-start: 0;
+      list-style-position: inside;
+    }
+
+    li {
+      padding-inline-start: 28px;
+      text-indent: -28px;
+    }
+
+    // Nested lists indent one step under their parent item.
+    li ul,
+    li ol {
+      margin-block: 3px 0;
+      padding-inline-start: 28px;
+    }
+
+    // GFM task items: the checkbox IS the marker — no bullet beside it.
+    li:has(> input[type="checkbox"]),
+    li:has(> p:first-child > input[type="checkbox"]) {
+      list-style: none;
+    }
+
+    li input[type="checkbox"] {
+      margin-inline-end: 6px;
     }
 
     li + li {
@@ -82,6 +112,14 @@
 
       color: var(--strong-text);
       font-weight: 600;
+    }
+
+    blockquote {
+      margin-block: 0 12px;
+      margin-inline: 0;
+      padding-inline-start: 12px;
+      border-inline-start: 3px solid var(--line2);
+      color: var(--faint);
     }
   }
 }

@@ -37,7 +37,7 @@ export function ReviewComments({ comments, label }: ReviewCommentsProps) {
             </em>
           </summary>
           <div className={styles["body"]}>
-            <Markdown content={comment.body} />
+            <Markdown content={comment.body} renderSuggestions />
           </div>
           {comment.inReplyToId ? (
             <div className={styles["replyNote"]}>

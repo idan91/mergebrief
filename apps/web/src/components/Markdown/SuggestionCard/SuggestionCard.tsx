@@ -1,0 +1,56 @@
+import type { SuggestionDiffRow } from "../utils";
+import styles from "./SuggestionCard.module.scss";
+
+export interface SuggestionCardProps {
+  rows: SuggestionDiffRow[];
+}
+
+/**
+ * The one "Suggested change" card (BRIEF-56): anchored consumers pass
+ * del+add rows with line numbers; anchor-less consumers (comments pulled
+ * from GitHub) pass addition-only rows and the number columns collapse.
+ */
+export function SuggestionCard({ rows }: SuggestionCardProps) {
+  const withNumbers = rows.some(
+    (row) => row.oldLine !== undefined || row.newLine !== undefined,
+  );
+  return (
+    <div className={styles["suggestionCard"]}>
+      <div className={styles["suggestionTitle"]}>Suggested change</div>
+      <table
+        className={styles["suggestionDiff"]}
+        aria-label="Suggested change diff"
+      >
+        {withNumbers ? (
+          <colgroup>
+            <col className={styles["lineCol"]} />
+            <col className={styles["lineCol"]} />
+            <col />
+          </colgroup>
+        ) : null}
+        <tbody>
+          {rows.map((row, index) => (
+            <tr
+              className={styles["line"]}
+              data-line-kind={row.kind}
+              key={`${row.kind}-${index}`}
+            >
+              {withNumbers ? (
+                <>
+                  <td className={styles["lineNumber"]}>{row.oldLine ?? ""}</td>
+                  <td className={styles["lineNumber"]}>{row.newLine ?? ""}</td>
+                </>
+              ) : null}
+              <td className={styles["code"]}>
+                <span className={styles["sign"]}>
+                  {row.kind === "add" ? "+" : "−"}
+                </span>
+                {row.content}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

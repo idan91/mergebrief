@@ -31,19 +31,27 @@ describe("applyMarkdownWrap", () => {
 });
 
 describe("applyLinePrefix", () => {
-  it("prefixes every selected line", () => {
+  it("prefixes every selected line and collapses the caret to the end", () => {
     expect(applyLinePrefix("one\ntwo", 0, 7, "- ")).toEqual({
       text: "- one\n- two",
-      selectionStart: 0,
+      selectionStart: 11,
       selectionEnd: 11,
     });
   });
 
-  it("inserts a placeholder item at a collapsed selection", () => {
+  it("inserts only the marker at a collapsed selection — no placeholder", () => {
     expect(applyLinePrefix("", 0, 0, "- [ ] ")).toEqual({
-      text: "- [ ] list item",
-      selectionStart: 0,
-      selectionEnd: 15,
+      text: "- [ ] ",
+      selectionStart: 6,
+      selectionEnd: 6,
+    });
+  });
+
+  it("puts the marker at the line start when the caret sits mid-line", () => {
+    expect(applyLinePrefix("note", 4, 4, "> ")).toEqual({
+      text: "> note",
+      selectionStart: 6,
+      selectionEnd: 6,
     });
   });
 });
@@ -160,17 +168,29 @@ describe("applyOrderedListPrefix", () => {
   it("starts at 1 with no numbered context", () => {
     expect(applyOrderedListPrefix("alpha", 0, 5)).toEqual({
       text: "1. alpha",
-      selectionStart: 0,
+      selectionStart: 8,
       selectionEnd: 8,
     });
   });
 
-  it("continues numbering from the line above", () => {
-    const text = "1. one\ntwo";
-    expect(applyOrderedListPrefix(text, 7, 10)).toEqual({
+  it("inserts only the marker at a collapsed selection — no placeholder", () => {
+    expect(applyOrderedListPrefix("", 0, 0)).toEqual({
+      text: "1. ",
+      selectionStart: 3,
+      selectionEnd: 3,
+    });
+  });
+
+  it("continues numbering from the line above, collapsed caret included", () => {
+    expect(applyOrderedListPrefix("1. one\ntwo", 7, 10)).toEqual({
       text: "1. one\n2. two",
-      selectionStart: 7,
+      selectionStart: 13,
       selectionEnd: 13,
+    });
+    expect(applyOrderedListPrefix("1. one\n", 7, 7)).toEqual({
+      text: "1. one\n2. ",
+      selectionStart: 10,
+      selectionEnd: 10,
     });
   });
 
@@ -178,7 +198,7 @@ describe("applyOrderedListPrefix", () => {
     const text = "a\nb";
     expect(applyOrderedListPrefix(text, 0, 3)).toEqual({
       text: "1. a\n2. b",
-      selectionStart: 0,
+      selectionStart: 9,
       selectionEnd: 9,
     });
   });

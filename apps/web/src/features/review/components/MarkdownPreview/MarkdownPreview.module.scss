@@ -14,10 +14,33 @@
       margin-block: 0 10px;
     }
 
+    // Flush marker column, matching the shared Markdown renderer: inside
+    // markers start at the content edge; the hanging indent keeps wrapped
+    // lines off the marker column; task-item checkboxes replace bullets.
     ul,
     ol {
       margin-block: 8px 10px;
-      margin-inline-start: 20px;
+      padding-inline-start: 0;
+      list-style-position: inside;
+    }
+
+    li {
+      padding-inline-start: 28px;
+      text-indent: -28px;
+    }
+
+    li ul,
+    li ol {
+      padding-inline-start: 28px;
+    }
+
+    li:has(> input[type="checkbox"]),
+    li:has(> p:first-child > input[type="checkbox"]) {
+      list-style: none;
+    }
+
+    li input[type="checkbox"] {
+      margin-inline-end: 6px;
     }
 
     code {
@@ -39,86 +62,17 @@
       border-radius: var(--radius-md);
       background: var(--color-surface-2);
     }
+
+    blockquote {
+      margin-block: 0 10px;
+      margin-inline: 0;
+      padding-inline-start: 12px;
+      border-inline-start: 3px solid var(--line2);
+      color: var(--faint);
+    }
   }
 
   .empty {
     color: var(--faint);
-  }
-
-  .suggestionCard {
-    overflow: hidden;
-    margin-block-start: 12px;
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
-    background: var(--color-surface-1);
-  }
-
-  .suggestionTitle {
-    padding-block: 9px;
-    padding-inline: 10px;
-    border-block-end: 1px solid var(--line);
-    color: var(--text);
-    font-size: var(--font-size-md);
-    font-weight: 650;
-  }
-
-  .suggestionDiff {
-    // Earned oddity: the suggestion diff sits one step below
-    // --color-background (#0a0a0c) so it reads as sunken inside the card it
-    // lives in — the only surface in the app darker than the page.
-    --diff-fill: #0b0b0e;
-
-    inline-size: 100%;
-    border-collapse: collapse;
-    background: var(--diff-fill);
-    font-family: var(--mono);
-    font-size: var(--font-size-md);
-    table-layout: fixed;
-
-    td {
-      padding-block: 1px;
-      padding-inline: 0;
-      white-space: pre;
-    }
-  }
-
-  .lineCol {
-    inline-size: 32px;
-  }
-
-  .lineNumber {
-    inline-size: 32px;
-    min-inline-size: 32px;
-    padding-inline-end: 8px;
-    color: var(--color-text-4);
-    text-align: end;
-    user-select: none;
-  }
-
-  .code {
-    padding-inline: 0 12px;
-    color: var(--color-text-3);
-  }
-
-  .sign {
-    display: inline-block;
-    inline-size: 18px;
-    opacity: 0.6;
-  }
-
-  .line[data-line-kind="add"] {
-    background: color-mix(in srgb, var(--green) 5%, transparent);
-
-    .code {
-      color: var(--color-diff-add-text);
-    }
-  }
-
-  .line[data-line-kind="del"] {
-    background: color-mix(in srgb, var(--red) 5%, transparent);
-
-    .code {
-      color: var(--color-diff-del-text);
-    }
   }
 }

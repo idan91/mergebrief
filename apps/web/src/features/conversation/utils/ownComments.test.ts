@@ -8,7 +8,10 @@
 import { describe, expect, it } from "vitest";
 import type { ReviewComment } from "../../review/utils/comments";
 import type { ConversationThread } from "../types";
-import { reconcileOwnComments } from "./ownComments";
+import {
+  demotedSubmittedCommentIds,
+  reconcileOwnComments,
+} from "./ownComments";
 
 function localComment(overrides: {
   id: string;
@@ -227,5 +230,37 @@ describe("reconcileOwnComments", () => {
     );
     expect(result.ownThreadIds.size).toBe(0);
     expect(result.pointers.size).toBe(0);
+  });
+});
+
+describe("demotedSubmittedCommentIds (BRIEF-56 display half)", () => {
+  it("demotes a submitted record whose own server thread renders", () => {
+    expect(
+      demotedSubmittedCommentIds(
+        [localComment({ id: "local-1", status: "submitted" })],
+        [serverThread({ rootCommentId: 9001, reviewId: MY_REVIEW })],
+      ),
+    ).toEqual(new Set(["local-1"]));
+  });
+
+  it("never demotes drafts, and keeps unmatched submitted records", () => {
+    expect(
+      demotedSubmittedCommentIds(
+        [
+          localComment({ id: "draft-1", status: "draft" }),
+          localComment({ id: "other-line", status: "submitted", endLine: 40 }),
+        ],
+        [serverThread({ rootCommentId: 9001, reviewId: MY_REVIEW })],
+      ),
+    ).toEqual(new Set());
+  });
+
+  it("demotes nothing with no own threads (conversation not loaded)", () => {
+    expect(
+      demotedSubmittedCommentIds(
+        [localComment({ id: "local-1", status: "submitted" })],
+        [],
+      ),
+    ).toEqual(new Set());
   });
 });

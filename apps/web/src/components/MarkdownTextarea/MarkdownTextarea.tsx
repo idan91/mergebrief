@@ -176,7 +176,7 @@ export function MarkdownTextarea({
     renderPreview !== undefined ? (
       renderPreview(value)
     ) : value.trim() ? (
-      <Markdown content={value} />
+      <Markdown content={value} renderSuggestions />
     ) : (
       <p className={styles["empty"]}>Nothing to preview.</p>
     );
@@ -294,6 +294,8 @@ export function MarkdownTextarea({
           aria-invalid={ariaInvalid || undefined}
           autoFocus={autoFocus}
           className={styles["textarea"]}
+          // RTL-first content right-aligns (browser-resolved from the text).
+          dir="auto"
           id={textareaId}
           placeholder={placeholder}
           readOnly={readOnly}

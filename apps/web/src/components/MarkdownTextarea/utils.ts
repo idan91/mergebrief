@@ -19,21 +19,37 @@ export function applyMarkdownWrap(
   };
 }
 
+/**
+ * No selection: the marker lands at the current line's start and the caret
+ * stays in the text, ready to type — never a placeholder the user must
+ * delete, never a selection typing would overwrite. With a selection: every
+ * selected line is prefixed and the caret collapses to the end.
+ */
 export function applyLinePrefix(
   text: string,
   selectionStart: number,
   selectionEnd: number,
   prefix: string,
 ): TextEdit {
-  const selected = text.slice(selectionStart, selectionEnd) || "list item";
+  if (selectionStart === selectionEnd) {
+    const lineStart = lineStartAt(text, selectionStart);
+    const caret = selectionStart + prefix.length;
+    return {
+      text: `${text.slice(0, lineStart)}${prefix}${text.slice(lineStart)}`,
+      selectionStart: caret,
+      selectionEnd: caret,
+    };
+  }
+  const selected = text.slice(selectionStart, selectionEnd);
   const replacement = selected
     .split("\n")
     .map((line) => `${prefix}${line}`)
     .join("\n");
+  const caret = selectionStart + replacement.length;
   return {
     text: `${text.slice(0, selectionStart)}${replacement}${text.slice(selectionEnd)}`,
-    selectionStart,
-    selectionEnd: selectionStart + replacement.length,
+    selectionStart: caret,
+    selectionEnd: caret,
   };
 }
 
@@ -198,15 +214,28 @@ export function applyOrderedListPrefix(
       start = Number(numbered[1]) + 1;
     }
   }
-  const selected = text.slice(selectionStart, selectionEnd) || "list item";
+  // Same no-placeholder contract as applyLinePrefix: collapsed → marker at
+  // line start, caret in the text; selection → numbered, caret at the end.
+  if (selectionStart === selectionEnd) {
+    const lineStart = lineStartAt(text, selectionStart);
+    const prefix = `${start}. `;
+    const caret = selectionStart + prefix.length;
+    return {
+      text: `${text.slice(0, lineStart)}${prefix}${text.slice(lineStart)}`,
+      selectionStart: caret,
+      selectionEnd: caret,
+    };
+  }
+  const selected = text.slice(selectionStart, selectionEnd);
   const replacement = selected
     .split("\n")
     .map((line, index) => `${start + index}. ${line}`)
     .join("\n");
+  const caret = selectionStart + replacement.length;
   return {
     text: `${text.slice(0, selectionStart)}${replacement}${text.slice(selectionEnd)}`,
-    selectionStart,
-    selectionEnd: selectionStart + replacement.length,
+    selectionStart: caret,
+    selectionEnd: caret,
   };
 }
 

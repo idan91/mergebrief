@@ -2,6 +2,7 @@ import {
   Fragment,
   useEffect,
   useId,
+  useMemo,
   useState,
   type CSSProperties,
 } from "react";
@@ -15,6 +16,7 @@ import {
   type ThreadComposerWiring,
 } from "@web/features/conversation";
 import type { DigestThreadRow } from "@web/features/conversation/utils/digest";
+import { demotedSubmittedCommentIds } from "@web/features/conversation/utils/ownComments";
 
 // Row-level threads already sit AT their line — the detail's jump is hidden.
 const noJump = () => undefined;
@@ -92,7 +94,27 @@ export function DiffTable({
     updateComment,
   } = useReviewActions();
   const chunkComments = useChunkReviewComments(chunk.id);
-  const comments = readOnly ? EMPTY_REVIEW_COMMENTS : chunkComments;
+  const allComments = readOnly ? EMPTY_REVIEW_COMMENTS : chunkComments;
+  // Server-backed wins (BRIEF-25 locked decision 8, display half): once a
+  // posted comment's own GitHub thread renders in this chunk, the local
+  // submitted card demotes out of display — one copy, the live one. With
+  // no conversation loaded (local briefs, pre-fetch) there are no own
+  // threads here, so local cards keep rendering as the only copy.
+  const ownChunkThreads = useMemo(
+    () =>
+      [...(conversationThreadsByRow?.values() ?? [])]
+        .flat()
+        .filter((row) => row.isOwn)
+        .map((row) => row.thread),
+    [conversationThreadsByRow],
+  );
+  const comments = useMemo(() => {
+    if (ownChunkThreads.length === 0) return allComments;
+    const demoted = demotedSubmittedCommentIds(allComments, ownChunkThreads);
+    return demoted.size === 0
+      ? allComments
+      : allComments.filter((comment) => !demoted.has(comment.id));
+  }, [allComments, ownChunkThreads]);
   // Anchor-match selector: null (stable) unless the composer is on THIS chunk.
   const anchorForChunk = useReviewFlow((state) =>
     state.composerAnchor?.chunkId === chunk.id ? state.composerAnchor : null,

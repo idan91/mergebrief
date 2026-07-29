@@ -1,0 +1,82 @@
+@layer components {
+  .suggestionCard {
+    overflow: hidden;
+    margin-block-start: 12px;
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+  }
+
+  .suggestionTitle {
+    padding-block: 9px;
+    padding-inline: 10px;
+    border-block-end: 1px solid var(--line);
+    color: var(--text);
+    font-size: var(--font-size-md);
+    font-weight: 650;
+  }
+
+  .suggestionDiff {
+    // Earned oddity: the suggestion diff sits one step below
+    // --color-background (#0a0a0c) so it reads as sunken inside the card it
+    // lives in — the only surface in the app darker than the page.
+    --diff-fill: #0b0b0e;
+
+    inline-size: 100%;
+    border-collapse: collapse;
+    background: var(--diff-fill);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+
+    // Diff rows are code, not prose: without this the enclosing renderer's
+    // prose line-height (1.6+) leaks in and inflates every row.
+    line-height: 1.45;
+    table-layout: fixed;
+
+    td {
+      padding-block: 1px;
+      padding-inline: 0;
+      white-space: pre;
+    }
+  }
+
+  .lineCol {
+    inline-size: 32px;
+  }
+
+  .lineNumber {
+    inline-size: 32px;
+    min-inline-size: 32px;
+    padding-inline-end: 8px;
+    color: var(--color-text-4);
+    text-align: end;
+    user-select: none;
+  }
+
+  .code {
+    padding-inline: 8px 12px;
+    color: var(--color-text-3);
+  }
+
+  .sign {
+    display: inline-block;
+    inline-size: 18px;
+    opacity: 0.6;
+  }
+
+  .line[data-line-kind="add"] {
+    background: color-mix(in srgb, var(--green) 5%, transparent);
+
+    .code {
+      color: var(--color-diff-add-text);
+    }
+  }
+
+  .line[data-line-kind="del"] {
+    background: color-mix(in srgb, var(--red) 5%, transparent);
+
+    .code {
+      color: var(--color-diff-del-text);
+    }
+  }
+}

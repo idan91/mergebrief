@@ -55,6 +55,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
   const markSubmitted = vi.fn();
   const recordSubmittedReview = vi.fn();
   const announce = vi.fn();
+  const invalidateConversation = vi.fn();
   const closeReceipt = vi.fn();
   const resetOutcome = vi.fn();
   const action = vi.fn<(draftInput: unknown) => Promise<SubmitReviewResult>>();
@@ -67,6 +68,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     markSubmitted,
     recordSubmittedReview,
     announce,
+    invalidateConversation,
     closeReceipt,
     resetOutcome,
     ...overrides,
@@ -82,6 +84,7 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     markSubmitted,
     recordSubmittedReview,
     announce,
+    invalidateConversation,
     closeReceipt,
     resetOutcome,
   };
@@ -132,6 +135,7 @@ describe("useReviewSubmit", () => {
       markSubmitted,
       recordSubmittedReview,
       announce,
+      invalidateConversation,
       closeReceipt,
     } = setup();
     action.mockResolvedValue({
@@ -160,6 +164,9 @@ describe("useReviewSubmit", () => {
     );
     expect(recordSubmittedReview).toHaveBeenCalledWith(5);
     expect(closeReceipt).toHaveBeenCalledTimes(1);
+    // The review is live: the conversation refetches so the posted comments
+    // render as their GitHub threads (BRIEF-56 feedback round).
+    expect(invalidateConversation).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith(expect.stringMatching(/posted/i));
     expect(rendered.result.current.error).toBeNull();
   });

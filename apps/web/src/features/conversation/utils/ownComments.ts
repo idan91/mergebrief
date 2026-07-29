@@ -65,24 +65,30 @@ export function reconcileOwnComments(
     ownThreads.map((thread) => thread.rootCommentId),
   );
 
+  const pointers = matchLocalsToOwnThreads(localComments, ownThreads);
+  const resurrectedDraftIds = localComments
+    .filter((comment) => comment.status === "draft" && pointers.has(comment.id))
+    .map((comment) => comment.id);
+
+  return { ownThreadIds, pointers, resurrectedDraftIds };
+}
+
+/**
+ * The two-pass claim shared by reconciliation and display demotion.
+ * PASS 1 — exact (anchor AND body) matches claim first, globally: an
+ * earlier local's anchor-only fallback must never steal a thread whose
+ * body exactly matches a later local (codex round 3 — the stolen draft
+ * would never flip and could re-ship). PASS 2 — anchor-only fallback over
+ * what remains (collision worst case is display-level only, per the
+ * locked decision).
+ */
+function matchLocalsToOwnThreads(
+  localComments: readonly ReviewComment[],
+  ownThreads: readonly ConversationThread[],
+): Map<string, number> {
   const pointers = new Map<string, number>();
-  const resurrectedDraftIds: string[] = [];
   const claimedThreads = new Set<number>();
-  const claimedLocals = new Set<string>();
 
-  const claim = (commentId: string, threadId: number, isDraft: boolean) => {
-    claimedThreads.add(threadId);
-    claimedLocals.add(commentId);
-    pointers.set(commentId, threadId);
-    if (isDraft) {
-      resurrectedDraftIds.push(commentId);
-    }
-  };
-
-  // PASS 1 — exact (anchor AND body) matches claim first, globally: an
-  // earlier local's anchor-only fallback must never steal a thread whose
-  // body exactly matches a later local (codex round 3 — the stolen draft
-  // would never flip and could re-ship).
   for (const comment of localComments) {
     const exact = ownThreads.find(
       (thread) =>
@@ -91,14 +97,13 @@ export function reconcileOwnComments(
         thread.comments[0]?.body === comment.body,
     );
     if (exact !== undefined) {
-      claim(comment.id, exact.rootCommentId, comment.status === "draft");
+      claimedThreads.add(exact.rootCommentId);
+      pointers.set(comment.id, exact.rootCommentId);
     }
   }
 
-  // PASS 2 — anchor-only fallback over what remains (collision worst case
-  // is display-level only, per the locked decision).
   for (const comment of localComments) {
-    if (claimedLocals.has(comment.id)) {
+    if (pointers.has(comment.id)) {
       continue;
     }
     const fallback = ownThreads.find(
@@ -107,9 +112,28 @@ export function reconcileOwnComments(
         anchorMatchesThread(comment, thread),
     );
     if (fallback !== undefined) {
-      claim(comment.id, fallback.rootCommentId, comment.status === "draft");
+      claimedThreads.add(fallback.rootCommentId);
+      pointers.set(comment.id, fallback.rootCommentId);
     }
   }
 
-  return { ownThreadIds, pointers, resurrectedDraftIds };
+  return pointers;
+}
+
+/**
+ * Local SUBMITTED records whose own server thread already renders at the
+ * same anchor — the server copy wins (BRIEF-25 locked decision 8) and the
+ * local card demotes out of display. Drafts never demote: they are not on
+ * GitHub yet (a matched draft is the resurrection path's business), and
+ * with the conversation not loaded the caller passes no threads, so local
+ * cards keep rendering as the only copy.
+ */
+export function demotedSubmittedCommentIds(
+  localComments: readonly ReviewComment[],
+  ownThreads: readonly ConversationThread[],
+): ReadonlySet<string> {
+  const submitted = localComments.filter(
+    (comment) => comment.status === "submitted",
+  );
+  return new Set(matchLocalsToOwnThreads(submitted, ownThreads).keys());
 }

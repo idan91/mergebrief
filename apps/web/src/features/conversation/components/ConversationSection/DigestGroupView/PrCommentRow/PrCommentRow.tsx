@@ -34,7 +34,7 @@ export function PrCommentRow({ comment, expanded, toggle }: PrCommentRowProps) {
       </button>
       {expanded ? (
         <div className={rowStyles["detail"]}>
-          <Markdown content={comment.body} />
+          <Markdown content={comment.body} renderSuggestions />
         </div>
       ) : null}
     </li>

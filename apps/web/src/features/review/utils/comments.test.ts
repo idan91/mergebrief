@@ -5,9 +5,7 @@ import {
   buildSuggestionDiffRows,
   commentAnchorLabel,
   createCommentAnchor,
-  parseSuggestionBlocks,
   reviewCommentSubmitLabel,
-  stripSuggestionBlocks,
 } from "./comments";
 
 const diffRows: DiffLine[] = [
@@ -51,25 +49,6 @@ describe("createCommentAnchor", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [2, 3]),
     ).toBeNull();
-  });
-});
-
-describe("parseSuggestionBlocks", () => {
-  it("extracts every suggestion fence from comment markdown", () => {
-    expect(
-      parseSuggestionBlocks(
-        "Looks good\n```suggestion\nreturn next;\n```\nAnd\n```suggestion\nreturn fallback;\n```",
-      ),
-    ).toEqual([
-      { body: "return next;", index: 0 },
-      { body: "return fallback;", index: 1 },
-    ]);
-  });
-
-  it("removes suggestion fences from the regular markdown preview", () => {
-    expect(
-      stripSuggestionBlocks("Before\n```suggestion\nreturn next;\n```\nAfter"),
-    ).toBe("Before\nAfter");
   });
 });
 

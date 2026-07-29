@@ -122,7 +122,7 @@ export function ThreadDetail({
               Quote reply
             </button>
           </header>
-          <Markdown content={comment.body} />
+          <Markdown content={comment.body} renderSuggestions />
         </article>
       ))}
       {thread.hasMoreComments ? (
