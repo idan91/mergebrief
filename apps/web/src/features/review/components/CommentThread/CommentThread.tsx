@@ -54,6 +54,19 @@ export function CommentThread({
 }: CommentThreadProps) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(comment.body);
+  // Shared by the Save/Cancel buttons and the editor's keyboard paths
+  // (Cmd+Enter saves, Escape cancels). Save keeps the posting guard: an
+  // editor already open when a Post starts must not save mid-flight
+  // (capture-at-initiation rule).
+  const saveEdit = () => {
+    if (posting) return;
+    update(comment.id, body);
+    setEditing(false);
+  };
+  const cancelEdit = () => {
+    setBody(comment.body);
+    setEditing(false);
+  };
   // A submitted comment was posted to GitHub — GitHub holds the text now, so
   // the local record is read-only (an edit here would silently diverge: a
   // re-submit ships drafts only). BRIEF-23.
@@ -110,30 +123,19 @@ export function CommentThread({
             suggestionSeed={comment.anchor.selectedText}
             value={body}
             onChange={setBody}
+            onEscape={cancelEdit}
+            onSubmit={saveEdit}
           />
           <div className={styles["actions"]}>
-            {/* An editor already open when a Post starts must not save
-                mid-flight: the local record would flip to `submitted` with a
-                body the request never shipped (capture-at-initiation rule). */}
             <button
               className="btn primary"
               disabled={posting}
               type="button"
-              onClick={() => {
-                update(comment.id, body);
-                setEditing(false);
-              }}
+              onClick={saveEdit}
             >
               Save
             </button>
-            <button
-              className="btn"
-              type="button"
-              onClick={() => {
-                setBody(comment.body);
-                setEditing(false);
-              }}
-            >
+            <button className="btn" type="button" onClick={cancelEdit}>
               Cancel
             </button>
           </div>

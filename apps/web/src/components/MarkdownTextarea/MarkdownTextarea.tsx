@@ -2,6 +2,10 @@
    autoFocus is an opt-in prop: consumers that mount in response to an
    explicit user action (clicking a diff line opens the composer) pass it;
    nothing focuses on page load. */
+/* eslint-disable jsx-a11y/no-noninteractive-element-interactions --
+   The root group's keydown is a composite-widget shortcut scope
+   (Cmd+Shift+P / Escape from the textarea, tabs, and focused preview
+   panel alike); the wrapper itself is not focusable and traps nothing. */
 import {
   useId,
   useRef,
@@ -37,6 +41,13 @@ export interface MarkdownTextareaProps {
   describedBy?: string | undefined;
   /** Blur hook for consumers that persist drafts on focus loss. */
   onBlur?: (() => void) | undefined;
+  /**
+   * Primary action for Cmd/Ctrl+Enter. The consumer's own submit guards
+   * (empty body, pending, over-cap) apply — this only routes the shortcut.
+   */
+  onSubmit?: (() => void) | undefined;
+  /** Escape hook (cancel an edit, blur a reply). */
+  onEscape?: (() => void) | undefined;
   /** Enables the Insert-suggestion action, pre-filled with this text. */
   suggestionSeed?: string | undefined;
   /** Preview-tab renderer; defaults to the shared Markdown component. */
@@ -68,6 +79,8 @@ export function MarkdownTextarea({
   ariaInvalid = false,
   describedBy,
   onBlur,
+  onSubmit,
+  onEscape,
   suggestionSeed,
   renderPreview,
 }: MarkdownTextareaProps) {
@@ -145,8 +158,53 @@ export function MarkdownTextarea({
       <p className={styles["empty"]}>Nothing to preview.</p>
     );
 
+  // Root-level shortcut scope — these must work from the textarea, the
+  // tabs, AND the focused preview panel (a textarea-only handler would die
+  // the moment the write panel hides): Cmd/Ctrl+Enter submit,
+  // Cmd/Ctrl+Shift+P mode toggle, Escape to the consumer's cancel/blur.
+  const onRootKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    // IME commit/cancel keys are never editor commands.
+    if (event.nativeEvent.isComposing) return;
+    const meta = event.metaKey || event.ctrlKey;
+    if (meta && event.key === "Enter" && onSubmit !== undefined) {
+      // The consumer's own submit guards (empty, pending, over-cap) apply.
+      event.preventDefault();
+      onSubmit();
+      return;
+    }
+    if (meta && event.shiftKey && event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      const next = facade.mode === "write" ? "preview" : "write";
+      facade.setMode(next);
+      // Hiding the panel that holds focus drops it to <body>, which would
+      // kill this very handler — move focus WITH the mode, both ways.
+      window.setTimeout(() => {
+        if (next === "write") facade.textareaRef.current?.focus();
+        else document.getElementById(panelId("preview"))?.focus();
+      }, 0);
+      return;
+    }
+    if (event.key === "Escape" && onEscape !== undefined) {
+      // Consumed here: without stopPropagation an Escape meant to cancel
+      // this editor would also reach window-level listeners (e.g. an open
+      // CommentComposer's close handler) and dismiss surfaces beyond it.
+      event.stopPropagation();
+      onEscape();
+    }
+  };
+
   return (
-    <div className={styles["markdownTextarea"]} data-testid="markdown-textarea">
+    <div
+      // Group role names the editor region for SR users; the keydown is a
+      // composite-widget shortcut scope (Cmd+Shift+P / Escape work from the
+      // textarea, tabs, and focused preview panel alike) — it adds no
+      // keyboard-only interaction a non-focusable wrapper would trap.
+      aria-label="Markdown editor"
+      className={styles["markdownTextarea"]}
+      data-testid="markdown-textarea"
+      role="group"
+      onKeyDown={onRootKeyDown}
+    >
       {labelVisible ? (
         labelElement
       ) : (

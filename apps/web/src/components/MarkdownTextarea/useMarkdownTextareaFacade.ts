@@ -4,6 +4,9 @@ import {
   applyLinePrefix,
   applyLinkTemplate,
   applyMarkdownWrap,
+  applyOrderedListPrefix,
+  continueListOnEnter,
+  indentListSelection,
   replaceSelectionWithSuggestion,
   type TextEdit,
 } from "./utils";
@@ -58,14 +61,16 @@ export function useMarkdownTextareaFacade({
   const [mode, setMode] = useState<MarkdownTextareaMode>("write");
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  function applyTextEdit(
-    edit: (text: string, start: number, end: number) => TextEdit,
-  ) {
-    if (readOnly) return;
+  /** Applies the edit unless read-only or the edit declines (null). */
+  function applyMaybeTextEdit(
+    edit: (text: string, start: number, end: number) => TextEdit | null,
+  ): boolean {
+    if (readOnly) return false;
     const textarea = textareaRef.current;
     const start = textarea?.selectionStart ?? value.length;
     const end = textarea?.selectionEnd ?? value.length;
     const next = edit(value, start, end);
+    if (next === null) return false;
     onChange(next.text);
     window.setTimeout(() => {
       textareaRef.current?.focus();
@@ -74,6 +79,13 @@ export function useMarkdownTextareaFacade({
         next.selectionEnd,
       );
     }, 0);
+    return true;
+  }
+
+  function applyTextEdit(
+    edit: (text: string, start: number, end: number) => TextEdit,
+  ) {
+    applyMaybeTextEdit(edit);
   }
 
   const wrap = (marker: string) =>
@@ -116,7 +128,7 @@ export function useMarkdownTextareaFacade({
       icon: "numberedList",
       label: "Numbered list",
       title: "Numbered list",
-      run: () => prefix("1. "),
+      run: () => applyTextEdit(applyOrderedListPrefix),
     },
     {
       icon: "taskList",
@@ -131,20 +143,24 @@ export function useMarkdownTextareaFacade({
       run: insertLink,
     },
   ];
-  if (suggestionSeed !== undefined) {
+  const insertSuggestion =
+    suggestionSeed !== undefined
+      ? () =>
+          applyTextEdit((text, start, end) =>
+            replaceSelectionWithSuggestion(
+              text,
+              start,
+              end,
+              text.slice(start, end) || suggestionSeed,
+            ),
+          )
+      : undefined;
+  if (insertSuggestion !== undefined) {
     toolbarActions.push({
       icon: "suggestion",
       label: "Insert suggestion",
-      title: "Insert suggestion",
-      run: () =>
-        applyTextEdit((text, start, end) =>
-          replaceSelectionWithSuggestion(
-            text,
-            start,
-            end,
-            text.slice(start, end) || suggestionSeed,
-          ),
-        ),
+      title: "Insert suggestion (Ctrl/Cmd+G)",
+      run: insertSuggestion,
     });
   }
 
@@ -154,7 +170,33 @@ export function useMarkdownTextareaFacade({
     textareaRef,
     toolbarActions,
     onTextareaKeyDown: (event) => {
+      // A keydown that commits/cancels an IME candidate must never be
+      // treated as an editor command (Enter would splice the list marker
+      // into a half-composed candidate).
+      if (event.nativeEvent.isComposing) return;
       const meta = event.metaKey || event.ctrlKey;
+      if (event.key === "Enter") {
+        // Cmd/Ctrl+Enter bubbles to the root submit handler; Shift+Enter is
+        // the escape hatch (always a plain newline, via the browser
+        // default); bare Enter continues a list item.
+        if (!meta && !event.shiftKey) {
+          if (applyMaybeTextEdit(continueListOnEnter)) event.preventDefault();
+        }
+        return;
+      }
+      if (event.key === "Tab" && !meta && !event.altKey) {
+        // Indent/outdent only inside a list — everywhere else Tab must keep
+        // its default focus-move behavior (keyboard users need the exit).
+        const direction = event.shiftKey ? "outdent" : "indent";
+        if (
+          applyMaybeTextEdit((text, start, end) =>
+            indentListSelection(text, start, end, direction),
+          )
+        ) {
+          event.preventDefault();
+        }
+        return;
+      }
       if (!meta) return;
       const key = event.key.toLowerCase();
       if (key === "b") {
@@ -163,9 +205,15 @@ export function useMarkdownTextareaFacade({
       } else if (key === "i") {
         event.preventDefault();
         wrap("_");
+      } else if (key === "e") {
+        event.preventDefault();
+        wrap("`");
       } else if (key === "k") {
         event.preventDefault();
         insertLink();
+      } else if (key === "g" && insertSuggestion !== undefined) {
+        event.preventDefault();
+        insertSuggestion();
       }
     },
   };

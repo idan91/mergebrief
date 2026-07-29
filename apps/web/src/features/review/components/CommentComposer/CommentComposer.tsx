@@ -71,6 +71,7 @@ export function CommentComposer({
         suggestionSeed={anchor.selectedText}
         value={composer.body}
         onChange={composer.onBodyChange}
+        onSubmit={composer.submit}
       />
       {composer.error ? (
         <div className={styles["error"]} id={errorId} role="alert">

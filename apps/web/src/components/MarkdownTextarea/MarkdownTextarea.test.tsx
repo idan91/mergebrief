@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { useState } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MarkdownTextarea } from "./MarkdownTextarea";
 
@@ -12,11 +12,15 @@ function Harness({
   label = "Comment",
   readOnly = false,
   suggestionSeed,
+  onEscape,
+  onSubmit,
 }: {
   initial?: string;
   label?: string;
   readOnly?: boolean;
   suggestionSeed?: string | undefined;
+  onEscape?: (() => void) | undefined;
+  onSubmit?: (() => void) | undefined;
 }) {
   const [value, setValue] = useState(initial);
   return (
@@ -26,6 +30,8 @@ function Harness({
       suggestionSeed={suggestionSeed}
       value={value}
       onChange={setValue}
+      onEscape={onEscape}
+      onSubmit={onSubmit}
     />
   );
 }
@@ -128,6 +134,104 @@ describe("MarkdownTextarea", () => {
     const second = screen.getByLabelText("Second");
     expect(first.id).not.toBe(second.id);
     expect(first.id.length).toBeGreaterThan(0);
+  });
+
+  it("continues a list on Enter; Shift+Enter stays a plain newline", () => {
+    render(<Harness initial="- item" />);
+    const input = textarea();
+    input.setSelectionRange(6, 6);
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(input.value).toBe("- item\n- ");
+    // Shift+Enter falls through to the browser default (no marker insert).
+    input.setSelectionRange(input.value.length, input.value.length);
+    fireEvent.keyDown(input, { key: "Enter", shiftKey: true });
+    expect(input.value).toBe("- item\n- ");
+  });
+
+  it("indents and outdents list lines with Tab/Shift+Tab", () => {
+    render(<Harness initial="- item" />);
+    const input = textarea();
+    input.setSelectionRange(3, 3);
+    fireEvent.keyDown(input, { key: "Tab" });
+    expect(input.value).toBe("  - item");
+    fireEvent.keyDown(input, { key: "Tab", shiftKey: true });
+    expect(input.value).toBe("- item");
+  });
+
+  it("submits on Cmd/Ctrl+Enter", () => {
+    const onSubmit = vi.fn();
+    render(<Harness initial="ready" onSubmit={onSubmit} />);
+    fireEvent.keyDown(textarea(), { key: "Enter", metaKey: true });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("submits on Cmd/Ctrl+Enter from the preview panel too", () => {
+    const onSubmit = vi.fn();
+    render(<Harness initial="ready" onSubmit={onSubmit} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
+    fireEvent.keyDown(screen.getByRole("tabpanel"), {
+      key: "Enter",
+      metaKey: true,
+    });
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores keydowns that commit an IME composition", () => {
+    const onSubmit = vi.fn();
+    render(<Harness initial="- item" onSubmit={onSubmit} />);
+    const input = textarea();
+    input.setSelectionRange(6, 6);
+    fireEvent.keyDown(input, { key: "Enter", isComposing: true });
+    expect(input.value).toBe("- item");
+    fireEvent.keyDown(input, {
+      key: "Enter",
+      metaKey: true,
+      isComposing: true,
+    });
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("stops Escape propagation only when a consumer hook handles it", () => {
+    const windowListener = vi.fn();
+    window.addEventListener("keydown", windowListener);
+    try {
+      const onEscape = vi.fn();
+      const { unmount } = render(<Harness onEscape={onEscape} />);
+      fireEvent.keyDown(textarea(), { key: "Escape" });
+      expect(onEscape).toHaveBeenCalledTimes(1);
+      expect(windowListener).not.toHaveBeenCalled();
+      unmount();
+      // Without the hook, Escape must keep bubbling (CommentComposer's
+      // window-level close listener depends on it).
+      render(<Harness />);
+      fireEvent.keyDown(textarea(), { key: "Escape" });
+      expect(windowListener).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener("keydown", windowListener);
+    }
+  });
+
+  it("wraps inline code on Cmd/Ctrl+E", () => {
+    render(<Harness initial="hello world" />);
+    const input = textarea();
+    input.setSelectionRange(0, 5);
+    fireEvent.keyDown(input, { key: "e", metaKey: true });
+    expect(input.value).toBe("`hello` world");
+  });
+
+  it("toggles Write/Preview on Cmd/Ctrl+Shift+P", () => {
+    render(<Harness initial="text" />);
+    fireEvent.keyDown(textarea(), { key: "p", metaKey: true, shiftKey: true });
+    expect(
+      screen.getByRole("tab", { name: "Preview", selected: true }),
+    ).toBeTruthy();
+  });
+
+  it("routes Escape to the consumer's hook", () => {
+    const onEscape = vi.fn();
+    render(<Harness onEscape={onEscape} />);
+    fireEvent.keyDown(textarea(), { key: "Escape" });
+    expect(onEscape).toHaveBeenCalledTimes(1);
   });
 
   it("only offers Insert suggestion when seeded", () => {

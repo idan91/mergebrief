@@ -4,6 +4,9 @@ import {
   applyLinePrefix,
   applyLinkTemplate,
   applyMarkdownWrap,
+  applyOrderedListPrefix,
+  continueListOnEnter,
+  indentListSelection,
   replaceSelectionWithSuggestion,
 } from "./utils";
 
@@ -48,6 +51,132 @@ describe("applyLinkTemplate", () => {
     expect(applyLinkTemplate("see docs", 4, 8)).toEqual({
       text: "see [docs](https://example.com)",
       selectionStart: 5,
+      selectionEnd: 9,
+    });
+  });
+});
+
+describe("continueListOnEnter", () => {
+  it("continues a bulleted item", () => {
+    const text = "- first";
+    expect(continueListOnEnter(text, 7, 7)).toEqual({
+      text: "- first\n- ",
+      selectionStart: 10,
+      selectionEnd: 10,
+    });
+  });
+
+  it("increments a numbered item", () => {
+    const text = "1. one\n2. two";
+    expect(continueListOnEnter(text, 13, 13)).toEqual({
+      text: "1. one\n2. two\n3. ",
+      selectionStart: 17,
+      selectionEnd: 17,
+    });
+  });
+
+  it("continues a task item unchecked, even from a checked one", () => {
+    const text = "- [x] done";
+    expect(continueListOnEnter(text, 10, 10)).toEqual({
+      text: "- [x] done\n- [ ] ",
+      selectionStart: 17,
+      selectionEnd: 17,
+    });
+  });
+
+  it("keeps the indent and splits text after the caret into the new item", () => {
+    const text = "  - abcd";
+    expect(continueListOnEnter(text, 6, 6)).toEqual({
+      text: "  - ab\n  - cd",
+      selectionStart: 11,
+      selectionEnd: 11,
+    });
+  });
+
+  it("terminates the list on an empty item", () => {
+    const text = "- one\n- ";
+    expect(continueListOnEnter(text, 8, 8)).toEqual({
+      text: "- one\n",
+      selectionStart: 6,
+      selectionEnd: 6,
+    });
+  });
+
+  it("declines outside lists and on non-collapsed selections", () => {
+    expect(continueListOnEnter("plain text", 5, 5)).toBeNull();
+    expect(continueListOnEnter("- item", 2, 4)).toBeNull();
+  });
+
+  it("declines when the caret sits inside the marker", () => {
+    expect(continueListOnEnter("- item", 1, 1)).toBeNull();
+  });
+});
+
+describe("indentListSelection", () => {
+  it("indents a single list line and moves the caret with it", () => {
+    expect(indentListSelection("- item", 3, 3, "indent")).toEqual({
+      text: "  - item",
+      selectionStart: 5,
+      selectionEnd: 5,
+    });
+  });
+
+  it("outdents back to the margin", () => {
+    expect(indentListSelection("  - item", 5, 5, "outdent")).toEqual({
+      text: "- item",
+      selectionStart: 3,
+      selectionEnd: 3,
+    });
+  });
+
+  it("indents every list line in a multi-line selection", () => {
+    const text = "- one\n- two";
+    expect(indentListSelection(text, 0, 11, "indent")).toEqual({
+      text: "  - one\n  - two",
+      selectionStart: 2,
+      selectionEnd: 15,
+    });
+  });
+
+  it("declines when no selected line is a list item", () => {
+    expect(indentListSelection("plain", 2, 2, "indent")).toBeNull();
+  });
+
+  it("declines an at-margin outdent instead of consuming a no-op", () => {
+    expect(indentListSelection("- item", 3, 3, "outdent")).toBeNull();
+  });
+
+  it("excludes a line the selection only touches at column 0", () => {
+    // Selection ends at the start of line 2 (shift-down selection): line 2
+    // is not visibly selected, so outdent must not touch it — and line 1
+    // is already at the margin, so the whole edit declines.
+    expect(indentListSelection("- a\n  - b", 0, 4, "outdent")).toBeNull();
+  });
+});
+
+describe("applyOrderedListPrefix", () => {
+  it("starts at 1 with no numbered context", () => {
+    expect(applyOrderedListPrefix("alpha", 0, 5)).toEqual({
+      text: "1. alpha",
+      selectionStart: 0,
+      selectionEnd: 8,
+    });
+  });
+
+  it("continues numbering from the line above", () => {
+    const text = "1. one\ntwo";
+    expect(applyOrderedListPrefix(text, 7, 10)).toEqual({
+      text: "1. one\n2. two",
+      selectionStart: 7,
+      selectionEnd: 13,
+    });
+  });
+
+  it("numbers a multi-line selection sequentially", () => {
+    const text = "a\nb";
+    expect(applyOrderedListPrefix(text, 0, 3)).toEqual({
+      text: "1. a\n2. b",
+      selectionStart: 0,
       selectionEnd: 9,
     });
   });

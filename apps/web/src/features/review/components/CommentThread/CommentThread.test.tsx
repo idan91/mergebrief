@@ -54,6 +54,35 @@ describe("CommentThread", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("Edit comment"));
   });
 
+  it("Cmd+Enter must not save while a Post is in flight", () => {
+    // The Save button disables while posting, but Cmd+Enter reaches
+    // saveEdit directly — the guard lives in the handler, not the button
+    // (capture-at-initiation rule: a mid-flight save would flip the record
+    // to `submitted` with a body the request never shipped).
+    const update = vi.fn();
+    const props = {
+      comment: comment("draft"),
+      deleteComment: vi.fn(),
+      post: vi.fn(),
+      toggle: vi.fn(),
+      update,
+    };
+    const view = render(<CommentThread {...props} posting={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    view.rerender(<CommentThread {...props} posting />);
+    fireEvent.keyDown(screen.getByLabelText("Edit comment"), {
+      key: "Enter",
+      metaKey: true,
+    });
+    expect(update).not.toHaveBeenCalled();
+    view.rerender(<CommentThread {...props} posting={false} />);
+    fireEvent.keyDown(screen.getByLabelText("Edit comment"), {
+      key: "Enter",
+      metaKey: true,
+    });
+    expect(update).toHaveBeenCalledWith("c1", "note");
+  });
+
   it("is read-only once submitted — no Edit/Delete, posted label", () => {
     renderThread("submitted");
     expect(screen.queryByRole("button", { name: "Edit" })).toBeNull();

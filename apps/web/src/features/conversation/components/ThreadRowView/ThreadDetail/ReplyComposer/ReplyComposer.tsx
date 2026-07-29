@@ -177,6 +177,14 @@ export function ReplyComposer({
           dirtyRef.current = true;
           setLocal(value);
         }}
+        // Escape blurs the reply (the blur persists the draft); the text
+        // itself is never cleared — the draft is the recovery path.
+        onEscape={() => {
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+        }}
+        onSubmit={submit}
       />
       {overCap || error !== null ? (
         <p className={rowStyles["error"]} id={`${inputId}-error`} role="alert">
