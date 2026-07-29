@@ -5,6 +5,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import type { ReviewComment } from "../../utils/comments";
 import { CommentThread } from "./CommentThread";
 
@@ -52,6 +53,38 @@ describe("CommentThread", () => {
     renderThread("draft");
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     expect(document.activeElement).toBe(screen.getByLabelText("Edit comment"));
+  });
+
+  it("registers a diverged edit with the navigation guard; Cancel releases", () => {
+    renderThread("draft");
+    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    expect(hasUnsavedComposerText()).toBe(false);
+    fireEvent.change(screen.getByLabelText("Edit comment"), {
+      target: { value: "note, amended" },
+    });
+    expect(hasUnsavedComposerText()).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(hasUnsavedComposerText()).toBe(false);
+  });
+
+  it("Delete asks for confirmation; Keep aborts, Delete draft proceeds", () => {
+    const deleteComment = vi.fn();
+    render(
+      <CommentThread
+        comment={comment("draft")}
+        deleteComment={deleteComment}
+        toggle={vi.fn()}
+        update={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    expect(deleteComment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+    expect(screen.queryByText("Delete this draft?")).toBeNull();
+    expect(deleteComment).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Delete" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete draft" }));
+    expect(deleteComment).toHaveBeenCalledWith("c1");
   });
 
   it("Cmd+Enter must not save while a Post is in flight", () => {

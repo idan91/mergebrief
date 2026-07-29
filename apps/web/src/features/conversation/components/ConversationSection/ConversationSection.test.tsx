@@ -486,6 +486,52 @@ async function openThread() {
   return row;
 }
 
+describe("quote reply (BRIEF-56)", () => {
+  it("Quote reply prefills the reply box with the quoted comment", async () => {
+    renderSection({ plan: plan([ready()]) });
+    await openThread();
+    const quoteButton = screen
+      .getAllByRole("button", { name: /Quote reply to @/ })
+      .at(0);
+    if (quoteButton === undefined) throw new Error("Quote reply not rendered");
+    fireEvent.click(quoteButton);
+    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
+    expect((textarea as HTMLTextAreaElement).value).toBe(
+      "> This null check looks inverted.\n\n",
+    );
+    // Quoting again appends again (nonce-triggered, not text-triggered).
+    fireEvent.click(quoteButton);
+    expect((textarea as HTMLTextAreaElement).value).toBe(
+      "> This null check looks inverted.\n\n> This null check looks inverted.\n\n",
+    );
+  });
+
+  it("R with a selection inside the thread quotes it; no selection, no-op", async () => {
+    renderSection({ plan: plan([ready()]) });
+    await openThread();
+    const textarea = screen.getByLabelText(/Reply \(posts to GitHub/);
+    // No selection: R must do nothing.
+    fireEvent.keyDown(window, { key: "r" });
+    expect((textarea as HTMLTextAreaElement).value).toBe("");
+    // Select the comment text inside the detail (the markdown-rendered <p>,
+    // not the row-summary span), then press R.
+    const commentText = screen
+      .getAllByText("This null check looks inverted.")
+      .find((element) => element.tagName === "P");
+    if (commentText === undefined) throw new Error("comment body not found");
+    const range = document.createRange();
+    range.selectNodeContents(commentText);
+    const selection = window.getSelection();
+    if (selection === null) throw new Error("jsdom selection unavailable");
+    selection.removeAllRanges();
+    selection.addRange(range);
+    fireEvent.keyDown(window, { key: "r" });
+    expect((textarea as HTMLTextAreaElement).value).toBe(
+      "> This null check looks inverted.\n\n",
+    );
+  });
+});
+
 describe("ReplyComposer", () => {
   it("posts a reply, clears the draft, announces, and refetches", async () => {
     const { props, announce, tap } = renderSection({

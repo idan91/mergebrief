@@ -2,9 +2,10 @@
    Single deliberate use: the edit surface mounts in response to an explicit
    Edit click, so moving focus into the textarea is the expected next
    action — not a page-load focus steal. */
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
+import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
   postCommentBlockedReason,
   type ReviewComment,
@@ -54,6 +55,13 @@ export function CommentThread({
 }: CommentThreadProps) {
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(comment.body);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // Never-saved text = an open editor whose body diverged from the draft;
+  // Save/Cancel both clear it (BRIEF-56 navigation guard).
+  useUnsavedComposerText(
+    useId(),
+    editing && comment.status !== "submitted" && body !== comment.body,
+  );
   // Shared by the Save/Cancel buttons and the editor's keyboard paths
   // (Cmd+Enter saves, Escape cancels). Save keeps the posting guard: an
   // editor already open when a Post starts must not save mid-flight
@@ -164,19 +172,53 @@ export function CommentThread({
               Edit
             </button>
           )}
-          <button type="button" onClick={() => toggle(comment.id)}>
+          <button
+            type="button"
+            onClick={() => {
+              // A confirmation must not resurface (and re-announce) on a
+              // later expand without fresh intent.
+              setConfirmingDelete(false);
+              toggle(comment.id);
+            }}
+          >
             Collapse
           </button>
           {submitted ? null : (
             <button
               disabled={posting}
               type="button"
-              onClick={() => deleteComment(comment.id)}
+              onClick={() => setConfirmingDelete(true)}
             >
               Delete
             </button>
           )}
         </div>
+        {/* Inline two-step confirm (grill decision: the page toast is a
+            text-only live region, so an undo BUTTON has no surface — a
+            confirmation before the destructive action instead). */}
+        {confirmingDelete && !submitted ? (
+          <div className={styles["deleteConfirm"]} role="alert">
+            <span>Delete this draft?</span>
+            <button
+              className="btn"
+              disabled={posting}
+              type="button"
+              onClick={() => {
+                setConfirmingDelete(false);
+                deleteComment(comment.id);
+              }}
+            >
+              Delete draft
+            </button>
+            <button
+              className="btn"
+              type="button"
+              onClick={() => setConfirmingDelete(false)}
+            >
+              Keep
+            </button>
+          </div>
+        ) : null}
         {/* Post-now (BRIEF-43): promoted to a primary CTA anchored bottom-right
             of the draft card footer. Own-draft state only — a submitted comment
             is already on GitHub, so it never shows Post; while in flight the

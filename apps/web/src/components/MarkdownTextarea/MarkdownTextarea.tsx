@@ -59,6 +59,12 @@ export interface MarkdownTextareaProps {
   mentionCandidates?: readonly string[] | undefined;
   /** Preview-tab renderer; defaults to the shared Markdown component. */
   renderPreview?: ((value: string) => ReactNode) | undefined;
+  /**
+   * Hands the consumer the inner textarea element (quote-reply focuses it
+   * after an external prefill). Ref-callback shape — called with null on
+   * unmount.
+   */
+  exposeTextarea?: ((element: HTMLTextAreaElement | null) => void) | undefined;
 }
 
 const MODES: MarkdownTextareaMode[] = ["write", "preview"];
@@ -91,6 +97,7 @@ export function MarkdownTextarea({
   suggestionSeed,
   mentionCandidates,
   renderPreview,
+  exposeTextarea,
 }: MarkdownTextareaProps) {
   const facade = useMarkdownTextareaFacade({
     value,
@@ -290,7 +297,10 @@ export function MarkdownTextarea({
           id={textareaId}
           placeholder={placeholder}
           readOnly={readOnly}
-          ref={facade.textareaRef}
+          ref={(element) => {
+            facade.textareaRef.current = element;
+            exposeTextarea?.(element);
+          }}
           suppressHydrationWarning
           value={value}
           onBlur={() => {

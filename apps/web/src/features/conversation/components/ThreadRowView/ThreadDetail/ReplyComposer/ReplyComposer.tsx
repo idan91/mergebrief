@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
+import { appendQuote } from "../../../../utils/quote";
 import {
   persistReplyDraft,
   useMindMap,
@@ -43,6 +44,12 @@ export interface ReplyComposerProps {
   onPosted: () => void;
   /** Mention-autocomplete pool (thread participants — BRIEF-56). */
   mentionCandidates?: readonly string[] | undefined;
+  /**
+   * Quote-reply prefill: a new nonce appends the (already `> `-prefixed)
+   * block to the draft and focuses the box. Nonce, not text, is the
+   * trigger — quoting the same comment twice must append twice.
+   */
+  quote?: { block: string; nonce: number } | undefined;
 }
 
 export function ReplyComposer({
@@ -51,6 +58,7 @@ export function ReplyComposer({
   post,
   onPosted,
   mentionCandidates,
+  quote,
 }: ReplyComposerProps) {
   // Draft reads/writes go straight to the session stores (the PR 3 wiring
   // re-shape): no draft prop chain through the digest tree.
@@ -113,6 +121,28 @@ export function ReplyComposer({
   const overCap = local.length > MAX_REPLY_LENGTH;
   const blocked = pending || local.trim() === "" || overCap;
 
+  // Quote-reply prefill (BRIEF-56): appended to the LOCAL draft only —
+  // same persistence path as typing (blur/unmount/post). Skipped while a
+  // post is in flight: the composer is read-only and a mutation would
+  // diverge from the captured request body.
+  const textareaElement = useRef<HTMLTextAreaElement | null>(null);
+  const consumedQuoteNonce = useRef(0);
+  useEffect(() => {
+    if (quote === undefined || quote.nonce === consumedQuoteNonce.current) {
+      return;
+    }
+    consumedQuoteNonce.current = quote.nonce;
+    if (inFlight.current) return;
+    dirtyRef.current = true;
+    setLocal((current) => appendQuote(current, quote.block));
+    window.setTimeout(() => {
+      const element = textareaElement.current;
+      if (element === null) return;
+      element.focus();
+      element.setSelectionRange(element.value.length, element.value.length);
+    }, 0);
+  }, [quote]);
+
   const submit = () => {
     if (blocked || inFlight.current) return;
     inFlight.current = true;
@@ -172,6 +202,9 @@ export function ReplyComposer({
         describedBy={overCap || error !== null ? `${inputId}-error` : undefined}
         label="Reply (posts to GitHub immediately)"
         labelClassName={styles["composerLabel"]}
+        exposeTextarea={(element) => {
+          textareaElement.current = element;
+        }}
         labelVisible
         mentionCandidates={mentionCandidates}
         readOnly={pending}

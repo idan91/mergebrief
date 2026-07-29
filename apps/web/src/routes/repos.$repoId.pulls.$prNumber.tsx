@@ -34,6 +34,7 @@ import {
   resolveDbTimeline,
   type DbTimelinePoint,
 } from "../features/pulls/utils/dbTimeline";
+import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 
 /** 3–5s window per the plan; one lightweight PR-meta read per tick. */
 const META_POLL_MS = 4000;
@@ -235,6 +236,10 @@ function readOnlyReason(
 }
 
 function PrBriefRoute() {
+  // Navigation guard (BRIEF-56): in-app navigation and hard unloads
+  // confirm while any composer on this screen holds never-saved text.
+  // Route-level so BriefScreen itself stays renderable without a router.
+  useUnsavedComposerBlocker();
   const params = Route.useParams();
   const repoId = params.repoId;
   const prNumber = parsePrNumber(params.prNumber);

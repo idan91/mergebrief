@@ -1,9 +1,12 @@
+import { useEffect, useRef, useState } from "react";
+
 import { Markdown } from "@web/components/Markdown/Markdown";
 import type { DigestThreadRow } from "../../../utils/digest";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { RevisionJumpAction } from "../RevisionJumpAction/RevisionJumpAction";
 import { mentionCandidatesFromThread } from "../../../utils/mentions";
+import { buildQuoteBlock } from "../../../utils/quote";
 import { ReplyComposer } from "./ReplyComposer/ReplyComposer";
 
 export interface ThreadDetailProps {
@@ -24,8 +27,76 @@ export function ThreadDetail({
   hideJump = false,
 }: ThreadDetailProps) {
   const { thread, placement } = row;
+  // Quote-reply (BRIEF-56): the button quotes the selection when one lives
+  // inside THIS detail, else the whole comment; `R` requires a selection.
+  // Nonce-triggered so quoting the same text twice appends twice.
+  const detailRef = useRef<HTMLDivElement | null>(null);
+  const [quote, setQuote] = useState<
+    { block: string; nonce: number } | undefined
+  >(undefined);
+  const pushQuote = (text: string) => {
+    if (text.trim() === "") return;
+    setQuote((current) => ({
+      block: buildQuoteBlock(text),
+      nonce: (current?.nonce ?? 0) + 1,
+    }));
+  };
+  const selectionRef = useRef<() => string | null>(() => null);
+  // Both ends must sit inside THIS detail: an anchored-inside selection
+  // dragged past the thread would otherwise quote unrelated page content
+  // (and chrome like action labels) into the reply.
+  selectionRef.current = () => {
+    const selection = window.getSelection();
+    if (
+      selection === null ||
+      selection.isCollapsed ||
+      !detailRef.current?.contains(selection.anchorNode) ||
+      !detailRef.current?.contains(selection.focusNode)
+    ) {
+      return null;
+    }
+    return selection.toString();
+  };
+  const selectionInsideDetail = () => selectionRef.current();
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key.toLowerCase() !== "r" ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.altKey ||
+        event.shiftKey
+      ) {
+        return;
+      }
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === "TEXTAREA" ||
+          target.tagName === "INPUT" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+      // Overlay stand-down, same convention as the page shortcuts: an open
+      // modal owns the keyboard — R must not append-and-yank-focus behind it.
+      if (document.querySelector('[aria-modal="true"]') !== null) return;
+      // Containment scopes the shortcut: with the same thread rendered
+      // inline AND in the section, only the detail holding the selection
+      // reacts.
+      const text = selectionRef.current();
+      if (text === null || text.trim() === "") return;
+      event.preventDefault();
+      setQuote((current) => ({
+        block: buildQuoteBlock(text),
+        nonce: (current?.nonce ?? 0) + 1,
+      }));
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
   return (
-    <div className={rowStyles["detail"]}>
+    <div className={rowStyles["detail"]} ref={detailRef}>
       {thread.comments.map((comment) => (
         <article
           aria-label={`Comment by ${comment.author.login}`}
@@ -42,6 +113,14 @@ export function ThreadDetail({
             <time dateTime={comment.createdAt}>
               {new Date(comment.createdAt).toLocaleDateString()}
             </time>
+            <button
+              aria-label={`Quote reply to @${comment.author.login}`}
+              className={rowStyles["action"]}
+              type="button"
+              onClick={() => pushQuote(selectionInsideDetail() ?? comment.body)}
+            >
+              Quote reply
+            </button>
           </header>
           <Markdown content={comment.body} />
         </article>
@@ -80,6 +159,7 @@ export function ThreadDetail({
       <ReplyComposer
         briefId={composer.briefId}
         mentionCandidates={mentionCandidatesFromThread(thread)}
+        quote={quote}
         onPosted={composer.onPosted}
         post={composer.post}
         threadId={thread.rootCommentId}

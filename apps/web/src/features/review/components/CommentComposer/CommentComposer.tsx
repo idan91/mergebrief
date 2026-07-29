@@ -5,6 +5,7 @@
 import { useEffect, useId } from "react";
 
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
+import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
   commentAnchorLabel,
   reviewCommentSubmitLabel,
@@ -28,6 +29,10 @@ export function CommentComposer({
 }: CommentComposerProps) {
   const composer = useCommentComposerFacade(anchor, save);
   const errorId = useId();
+  const guardId = useId();
+  // The composer's text exists nowhere else until saved as a draft —
+  // navigation would destroy it (BRIEF-56 navigation guard).
+  useUnsavedComposerText(guardId, composer.body.trim() !== "");
   // Selected here — the only consumer — so the count doesn't thread
   // through four component layers and bust every ChunkCard's memo on
   // save/delete; only a mounted (open) composer subscribes (BRIEF-27).

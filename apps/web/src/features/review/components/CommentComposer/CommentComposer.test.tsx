@@ -5,6 +5,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { hasUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import type { Brief } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import type { CommentAnchor, ReviewComment } from "../../utils/comments";
@@ -105,6 +106,19 @@ describe("CommentComposer — store-backed submit label (BRIEF-27)", () => {
     expect(
       screen.getByRole("button", { name: "Add review comment" }),
     ).toBeTruthy();
+  });
+});
+
+describe("CommentComposer — navigation-guard registration (BRIEF-56)", () => {
+  it("registers while holding never-saved text, releases on unmount", () => {
+    renderComposer([]);
+    expect(hasUnsavedComposerText()).toBe(false);
+    fireEvent.change(screen.getByLabelText("Comment"), {
+      target: { value: "wip thought" },
+    });
+    expect(hasUnsavedComposerText()).toBe(true);
+    cleanup();
+    expect(hasUnsavedComposerText()).toBe(false);
   });
 });
 

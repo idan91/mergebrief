@@ -24,6 +24,10 @@ const SHORTCUTS: ShortcutDefinition[] = [
   },
   { key: "Z", description: "Focus mode — isolate the current chunk" },
   { key: "C", description: "Jump to the Conversation section (DB path)" },
+  {
+    key: "R",
+    description: "Quote selected thread text into the reply box",
+  },
   { key: "?", description: "Toggle this shortcuts list" },
   { key: "Esc", description: "Close focus mode or a dialog" },
 ];

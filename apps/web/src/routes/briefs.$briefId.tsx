@@ -14,6 +14,7 @@ import {
   localRevisionChangesQueryOptions,
 } from "../features/brief/queries";
 import styles from "./routeShared.module.scss";
+import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 
 export const Route = createFileRoute("/briefs/$briefId")({
   // View/Compare (ADR 0024): session-only, URL-carried state. Keys are
@@ -60,6 +61,9 @@ export const Route = createFileRoute("/briefs/$briefId")({
 });
 
 function BriefRoute() {
+  // Navigation guard (BRIEF-56) — see PrBriefRoute; same composers render
+  // on the local-brief path.
+  useUnsavedComposerBlocker();
   const { briefId } = Route.useParams();
   const searchParams = Route.useSearch();
   const artifacts = useSuspenseQuery(localBriefsQueryOptions()).data;

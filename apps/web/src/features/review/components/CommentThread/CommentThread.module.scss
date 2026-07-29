@@ -34,6 +34,16 @@
     font-size: var(--font-size-sm);
   }
 
+  .deleteConfirm {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-block: 0 10px;
+    padding-inline: 12px;
+    color: var(--text);
+    font-size: var(--font-size-md);
+  }
+
   .actions,
   .threadActions {
     display: flex;
