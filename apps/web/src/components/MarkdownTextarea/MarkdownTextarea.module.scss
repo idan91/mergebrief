@@ -1,0 +1,95 @@
+@use "mixins";
+
+@layer components {
+  .markdownTextarea {
+    display: block;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding-block: 8px 0;
+    padding-inline: 10px;
+
+    button {
+      padding-block: 6px;
+      padding-inline: 10px;
+      border: 1px solid transparent;
+      border-block-end: 0;
+      border-radius: var(--radius-md) var(--radius-md) 0 0;
+      background: transparent;
+      color: var(--faint);
+      cursor: pointer;
+      font-size: var(--font-size-md);
+      font-weight: 600;
+
+      &[data-state="active"] {
+        border-color: var(--line2);
+        background: var(--color-surface-2);
+        color: var(--text);
+      }
+
+      @include mixins.focus-visible;
+    }
+  }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 10px;
+    border-block-start: 1px solid var(--line);
+    background: var(--color-surface-2);
+
+    button {
+      display: grid;
+      place-items: center;
+      inline-size: 26px;
+      block-size: 26px;
+      padding: 0;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--dim);
+      cursor: pointer;
+
+      &:hover {
+        border-color: var(--line2);
+        background: var(--color-surface-1);
+        color: var(--text);
+      }
+
+      @include mixins.focus-visible;
+    }
+  }
+
+  .textarea {
+    display: block;
+    inline-size: calc(100% - 20px);
+    min-block-size: 118px;
+    padding: 12px;
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    margin: 10px;
+    background: var(--color-background);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: var(--font-size-lg);
+    line-height: 1.6;
+    resize: vertical;
+
+    @include mixins.focus-visible;
+  }
+
+  .previewPanel {
+    &[hidden] {
+      display: none;
+    }
+  }
+
+  .empty {
+    padding: 12px;
+    color: var(--faint);
+    font-size: var(--font-size-md);
+  }
+}

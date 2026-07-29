@@ -12,12 +12,6 @@ export interface CommentAnchor {
   selectedText: string;
 }
 
-export interface TextEditResult {
-  text: string;
-  selectionStart: number;
-  selectionEnd: number;
-}
-
 export interface SuggestionBlock {
   body: string;
   index: number;
@@ -86,37 +80,6 @@ export function createCommentAnchor(
 
 export function rowId(chunkId: string, rowIndex: number): string {
   return `${chunkId}:${rowIndex}`;
-}
-
-export function applyMarkdownWrap(
-  text: string,
-  selectionStart: number,
-  selectionEnd: number,
-  marker: string,
-): TextEditResult {
-  const selected = text.slice(selectionStart, selectionEnd);
-  const nextText = `${text.slice(0, selectionStart)}${marker}${selected}${marker}${text.slice(selectionEnd)}`;
-  return {
-    text: nextText,
-    selectionStart: selectionStart + marker.length,
-    selectionEnd: selectionEnd + marker.length,
-  };
-}
-
-export function replaceSelectionWithSuggestion(
-  text: string,
-  selectionStart: number,
-  selectionEnd: number,
-  replacement: string,
-): TextEditResult {
-  const block = `\`\`\`suggestion\n${replacement}\n\`\`\``;
-  const nextText = `${text.slice(0, selectionStart)}${block}${text.slice(selectionEnd)}`;
-  return {
-    text: nextText,
-    selectionStart: selectionStart + "```suggestion\n".length,
-    selectionEnd:
-      selectionStart + "```suggestion\n".length + replacement.length,
-  };
 }
 
 export function parseSuggestionBlocks(markdown: string): SuggestionBlock[] {

@@ -2,8 +2,9 @@
    Single deliberate use: the composer mounts in response to an explicit
    click on a diff line, so moving focus into the textarea is the expected
    next action — not a page-load focus steal. */
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 
+import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
 import {
   commentAnchorLabel,
   reviewCommentSubmitLabel,
@@ -26,6 +27,7 @@ export function CommentComposer({
   save,
 }: CommentComposerProps) {
   const composer = useCommentComposerFacade(anchor, save);
+  const errorId = useId();
   // Selected here — the only consumer — so the count doesn't thread
   // through four component layers and bust every ChunkCard's memo on
   // save/delete; only a mounted (open) composer subscribes (BRIEF-27).
@@ -57,82 +59,21 @@ export function CommentComposer({
           {anchor.rowIds.length} line{anchor.rowIds.length === 1 ? "" : "s"}
         </span>
       </div>
-      <div className={styles["tabs"]}>
-        <button
-          aria-pressed={composer.mode === "write"}
-          data-state={composer.mode === "write" ? "active" : undefined}
-          type="button"
-          onClick={() => composer.setMode("write")}
-        >
-          Write
-        </button>
-        <button
-          aria-pressed={composer.mode === "preview"}
-          data-state={composer.mode === "preview" ? "active" : undefined}
-          type="button"
-          onClick={() => composer.setMode("preview")}
-        >
-          Preview
-        </button>
-      </div>
-      {composer.mode === "write" ? (
-        <>
-          <div className={styles["toolbar"]}>
-            {/* Single-glyph buttons get real accessible names — "B" and "1."
-                are display, not names a screen reader can act on. */}
-            <button aria-label="Bold" type="button" onClick={composer.wrapBold}>
-              B
-            </button>
-            <button
-              aria-label="Italic"
-              type="button"
-              onClick={composer.wrapItalic}
-            >
-              I
-            </button>
-            <button type="button" onClick={composer.wrapCode}>
-              Code
-            </button>
-            <button type="button" onClick={composer.insertQuote}>
-              Quote
-            </button>
-            <button type="button" onClick={composer.insertList}>
-              List
-            </button>
-            <button
-              aria-label="Numbered list"
-              type="button"
-              onClick={composer.insertOrderedList}
-            >
-              1.
-            </button>
-            <button type="button" onClick={composer.insertTask}>
-              Task
-            </button>
-            <button type="button" onClick={composer.insertLink}>
-              Link
-            </button>
-            <button type="button" onClick={composer.insertSuggestion}>
-              Suggestion
-            </button>
-          </div>
-          <textarea
-            aria-label="Comment"
-            className={styles["textarea"]}
-            ref={composer.textareaRef}
-            autoFocus
-            onChange={(event) => composer.onBodyChange(event.target.value)}
-            onKeyDown={composer.onKeyDown}
-            placeholder="Leave a comment"
-            suppressHydrationWarning
-            value={composer.body}
-          />
-        </>
-      ) : (
-        <MarkdownPreview anchor={anchor} body={composer.body} />
-      )}
+      <MarkdownTextarea
+        ariaInvalid={composer.error !== ""}
+        autoFocus
+        describedBy={composer.error !== "" ? errorId : undefined}
+        label="Comment"
+        placeholder="Leave a comment"
+        renderPreview={(body) => (
+          <MarkdownPreview anchor={anchor} body={body} />
+        )}
+        suggestionSeed={anchor.selectedText}
+        value={composer.body}
+        onChange={composer.onBodyChange}
+      />
       {composer.error ? (
-        <div className={styles["error"]} role="alert">
+        <div className={styles["error"]} id={errorId} role="alert">
           {composer.error}
         </div>
       ) : null}

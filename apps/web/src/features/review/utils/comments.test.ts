@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import type { DiffLine } from "../../brief/types";
 import {
-  applyMarkdownWrap,
   buildSuggestionDiffRows,
   commentAnchorLabel,
   createCommentAnchor,
   parseSuggestionBlocks,
-  replaceSelectionWithSuggestion,
   reviewCommentSubmitLabel,
   stripSuggestionBlocks,
 } from "./comments";
@@ -53,26 +51,6 @@ describe("createCommentAnchor", () => {
     expect(
       createCommentAnchor("chunk-1", "src/a.ts", diffRows, [2, 3]),
     ).toBeNull();
-  });
-});
-
-describe("markdown helpers", () => {
-  it("wraps selected text with markdown markers", () => {
-    expect(applyMarkdownWrap("hello world", 6, 11, "**")).toEqual({
-      text: "hello **world**",
-      selectionStart: 8,
-      selectionEnd: 13,
-    });
-  });
-
-  it("replaces a selected range with a suggestion fence", () => {
-    expect(
-      replaceSelectionWithSuggestion("Before\nAfter", 7, 12, "next();"),
-    ).toEqual({
-      text: "Before\n```suggestion\nnext();\n```",
-      selectionStart: 21,
-      selectionEnd: 28,
-    });
   });
 });
 

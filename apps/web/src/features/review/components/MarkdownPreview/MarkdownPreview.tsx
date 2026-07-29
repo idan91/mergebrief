@@ -61,9 +61,6 @@ export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
               )}
             </tbody>
           </table>
-          <button disabled type="button">
-            Apply suggestion unavailable in mockup
-          </button>
         </div>
       ))}
     </div>

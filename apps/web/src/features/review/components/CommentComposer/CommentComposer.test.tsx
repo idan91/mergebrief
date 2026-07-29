@@ -2,7 +2,7 @@
 // BRIEF-27: the submit label's count is selected from the store inside the
 // composer — this pins the store-to-label wiring itself, not just the
 // reviewCommentSubmitLabel helper.
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Brief } from "@web/features/brief/types";
@@ -105,5 +105,17 @@ describe("CommentComposer — store-backed submit label (BRIEF-27)", () => {
     expect(
       screen.getByRole("button", { name: "Add review comment" }),
     ).toBeTruthy();
+  });
+});
+
+describe("CommentComposer — error association (BRIEF-56)", () => {
+  it("associates the empty-body error with the textarea", () => {
+    renderComposer([]);
+    fireEvent.click(screen.getByRole("button", { name: "Start review" }));
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("Comment cannot be empty.");
+    const input = screen.getByLabelText("Comment");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(input.getAttribute("aria-describedby")).toBe(alert.id);
   });
 });

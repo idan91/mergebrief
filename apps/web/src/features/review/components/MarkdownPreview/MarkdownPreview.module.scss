@@ -46,27 +46,11 @@
   }
 
   .suggestionCard {
+    overflow: hidden;
     margin-block-start: 12px;
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
-
-    button {
-      // Earned oddity: the card's secondary button text sits between
-      // --color-text-3 (#8a8a93) and --color-text-4 (#3b3b43) — quieter than
-      // the readable floor because the button is a secondary affordance.
-      --card-button-text: #5d5d66;
-
-      padding-block: 5px;
-      padding-inline: 10px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius-md);
-      margin-block: 0 10px;
-      margin-inline: 10px;
-      background: transparent;
-      color: var(--card-button-text);
-      font-size: var(--font-size-sm);
-    }
   }
 
   .suggestionTitle {
@@ -86,7 +70,6 @@
 
     inline-size: 100%;
     border-collapse: collapse;
-    border-block-end: 1px solid var(--line);
     background: var(--diff-fill);
     font-family: var(--mono);
     font-size: var(--font-size-md);

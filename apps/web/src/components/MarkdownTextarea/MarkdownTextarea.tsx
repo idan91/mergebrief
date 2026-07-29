@@ -1,0 +1,229 @@
+/* eslint-disable jsx-a11y/no-autofocus --
+   autoFocus is an opt-in prop: consumers that mount in response to an
+   explicit user action (clicking a diff line opens the composer) pass it;
+   nothing focuses on page load. */
+import {
+  useId,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+
+import { Markdown } from "../Markdown/Markdown";
+import { ScreenReaderOnly } from "../ScreenReaderOnly/ScreenReaderOnly";
+import { TOOLBAR_ICONS } from "./icons";
+import {
+  useMarkdownTextareaFacade,
+  type MarkdownTextareaMode,
+} from "./useMarkdownTextareaFacade";
+import styles from "./MarkdownTextarea.module.scss";
+
+export interface MarkdownTextareaProps {
+  value: string;
+  onChange: (value: string) => void;
+  /** Accessible name for the textarea; rendered as a real `<label>`. */
+  label: string;
+  /** Show the label visually (default: screen-reader only). */
+  labelVisible?: boolean;
+  /** Extra class for the visible label (call-site typography). */
+  labelClassName?: string | undefined;
+  placeholder?: string | undefined;
+  autoFocus?: boolean;
+  readOnly?: boolean;
+  ariaBusy?: boolean;
+  ariaInvalid?: boolean;
+  /** id of the error/hint element associated with the textarea. */
+  describedBy?: string | undefined;
+  /** Enables the Insert-suggestion action, pre-filled with this text. */
+  suggestionSeed?: string | undefined;
+  /** Preview-tab renderer; defaults to the shared Markdown component. */
+  renderPreview?: ((value: string) => ReactNode) | undefined;
+}
+
+const MODES: MarkdownTextareaMode[] = ["write", "preview"];
+const MODE_LABELS: Record<MarkdownTextareaMode, string> = {
+  write: "Write",
+  preview: "Preview",
+};
+
+/**
+ * The one markdown composing surface (BRIEF-56): Write/Preview tabs, a
+ * formatting toolbar, and keyboard shortcuts around a plain controlled
+ * textarea. Consumers own the value, submission, error copy, and any
+ * surrounding card chrome; this component owns editing affordances only.
+ */
+export function MarkdownTextarea({
+  value,
+  onChange,
+  label,
+  labelVisible = false,
+  labelClassName,
+  placeholder,
+  autoFocus = false,
+  readOnly = false,
+  ariaBusy = false,
+  ariaInvalid = false,
+  describedBy,
+  suggestionSeed,
+  renderPreview,
+}: MarkdownTextareaProps) {
+  const facade = useMarkdownTextareaFacade({ value, onChange, suggestionSeed });
+  const baseId = useId();
+  const textareaId = `${baseId}-input`;
+  const tabId = (mode: MarkdownTextareaMode) => `${baseId}-tab-${mode}`;
+  const panelId = (mode: MarkdownTextareaMode) => `${baseId}-panel-${mode}`;
+
+  const onTablistKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const index = MODES.indexOf(facade.mode);
+    let next = index;
+    if (event.key === "ArrowRight") next = (index + 1) % MODES.length;
+    else if (event.key === "ArrowLeft")
+      next = (index - 1 + MODES.length) % MODES.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = MODES.length - 1;
+    else return;
+    event.preventDefault();
+    const mode = MODES[next];
+    if (!mode) return;
+    facade.setMode(mode);
+    document.getElementById(tabId(mode))?.focus();
+  };
+
+  // Roving tabindex across the toolbar: one tab stop for the group, arrows
+  // move within it, and Tab re-enters at the last-focused control (toolbar
+  // pattern) — so the focused index is state, not just DOM focus.
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [toolbarIndex, setToolbarIndex] = useState(0);
+  const toolbarTabStop = Math.min(
+    toolbarIndex,
+    facade.toolbarActions.length - 1,
+  );
+  const onToolbarKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const buttons = toolbarRef.current
+      ? [...toolbarRef.current.querySelectorAll("button")]
+      : [];
+    if (buttons.length === 0) return;
+    const current = buttons.findIndex(
+      (button) => button === document.activeElement,
+    );
+    const index = current === -1 ? toolbarTabStop : current;
+    let next = index;
+    if (event.key === "ArrowRight") next = (index + 1) % buttons.length;
+    else if (event.key === "ArrowLeft")
+      next = (index - 1 + buttons.length) % buttons.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = buttons.length - 1;
+    else return;
+    event.preventDefault();
+    setToolbarIndex(next);
+    buttons[next]?.focus();
+  };
+
+  const labelElement = (
+    <label className={labelClassName} htmlFor={textareaId}>
+      {label}
+    </label>
+  );
+
+  // Branch on the prop, not its return value: a custom preview that
+  // legitimately renders null must not fall back to the default renderer.
+  const renderPreviewPanel = () =>
+    renderPreview !== undefined ? (
+      renderPreview(value)
+    ) : value.trim() ? (
+      <Markdown content={value} />
+    ) : (
+      <p className={styles["empty"]}>Nothing to preview.</p>
+    );
+
+  return (
+    <div className={styles["markdownTextarea"]} data-testid="markdown-textarea">
+      {labelVisible ? (
+        labelElement
+      ) : (
+        <ScreenReaderOnly>{labelElement}</ScreenReaderOnly>
+      )}
+      <div
+        aria-label={`${label} mode`}
+        className={styles["tabs"]}
+        role="tablist"
+        tabIndex={-1}
+        onKeyDown={onTablistKeyDown}
+      >
+        {MODES.map((mode) => (
+          <button
+            aria-controls={panelId(mode)}
+            aria-selected={facade.mode === mode}
+            data-state={facade.mode === mode ? "active" : undefined}
+            id={tabId(mode)}
+            key={mode}
+            role="tab"
+            tabIndex={facade.mode === mode ? 0 : -1}
+            type="button"
+            onClick={() => facade.setMode(mode)}
+          >
+            {MODE_LABELS[mode]}
+          </button>
+        ))}
+      </div>
+      <div
+        aria-labelledby={tabId("write")}
+        hidden={facade.mode !== "write"}
+        id={panelId("write")}
+        role="tabpanel"
+      >
+        <div
+          aria-label="Formatting"
+          className={styles["toolbar"]}
+          ref={toolbarRef}
+          role="toolbar"
+          tabIndex={-1}
+          onKeyDown={onToolbarKeyDown}
+        >
+          {facade.toolbarActions.map((action, index) => (
+            <button
+              aria-label={action.label}
+              key={action.icon}
+              tabIndex={index === toolbarTabStop ? 0 : -1}
+              title={action.title}
+              type="button"
+              onClick={action.run}
+            >
+              {TOOLBAR_ICONS[action.icon]}
+            </button>
+          ))}
+        </div>
+        <textarea
+          aria-busy={ariaBusy || undefined}
+          aria-describedby={describedBy}
+          aria-invalid={ariaInvalid || undefined}
+          autoFocus={autoFocus}
+          className={styles["textarea"]}
+          id={textareaId}
+          placeholder={placeholder}
+          readOnly={readOnly}
+          ref={facade.textareaRef}
+          suppressHydrationWarning
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={facade.onTextareaKeyDown}
+        />
+      </div>
+      <div
+        aria-labelledby={tabId("preview")}
+        className={styles["previewPanel"]}
+        hidden={facade.mode !== "preview"}
+        id={panelId("preview")}
+        role="tabpanel"
+        // Rendered markdown usually has no focusables — make the panel
+        // itself the tab stop so keyboard users can reach and scroll it
+        // (APG tabs pattern recommendation for content-only panels).
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        tabIndex={0}
+      >
+        {facade.mode === "preview" ? renderPreviewPanel() : null}
+      </div>
+    </div>
+  );
+}
