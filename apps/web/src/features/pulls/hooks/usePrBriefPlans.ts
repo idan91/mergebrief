@@ -252,14 +252,18 @@ export function usePrBriefPlans(
   const briefId = `db:${repoId}:${String(prNumber)}:${span.base}:${span.head}`;
   // The live-conversation plan (BRIEF-25): always fetched fresh per PR —
   // resolution flips and replies happen outside our generation cycle.
+  // The SELECTED revision's generation start (BRIEF-95): a primitive dep, so
+  // poll-tick timeline rebuilds with unchanged content never rebuild the plan.
+  const briefGeneratedAt = timeline?.selected.generatedAt;
   const conversationPlan = useMemo(
     () => ({
       queryOptions: conversationQueryOptions(repoId, prNumber),
       postReply: (rootCommentId: number, body: string) =>
         postConversationReply(repoId, prNumber, rootCommentId, body),
       ...(revisionJump === undefined ? {} : { revisionJump }),
+      ...(briefGeneratedAt === undefined ? {} : { briefGeneratedAt }),
     }),
-    [prNumber, repoId, revisionJump],
+    [briefGeneratedAt, prNumber, repoId, revisionJump],
   );
 
   return {

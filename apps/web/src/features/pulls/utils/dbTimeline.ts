@@ -14,6 +14,8 @@ export interface DbTimelinePoint {
   /** This revision's OWN base — the brief GET is an exact (pr, base, head). */
   readonly baseSha: string;
   readonly headIndex: number;
+  /** This revision's generation start (BRIEF-95) — the conversation cutoff. */
+  readonly generatedAt?: string;
   readonly comparisons: PrComparisons;
 }
 
@@ -40,6 +42,9 @@ function toPoint(revision: RevisionSummary): DbTimelinePoint {
     headSha: revision.headSha,
     baseSha: revision.baseSha,
     headIndex: revision.headIndex,
+    ...(revision.generatedAt === undefined
+      ? {}
+      : { generatedAt: revision.generatedAt }),
     comparisons: revision.comparisons,
   };
 }

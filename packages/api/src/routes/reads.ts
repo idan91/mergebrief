@@ -179,13 +179,22 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (view.briefAvailable && view.headSha !== null) {
       const headSha = view.headSha;
       const pullRequestId = resolved.pr.id;
-      const [briefs, markRows, deltaRows, narrativeRows, checkpoint] = await Promise.all([
-        store.briefs.listForPullRequest(pullRequestId),
-        store.comparisonMarks.listForPullRequest(pullRequestId),
-        store.deltas.listForPullRequest(pullRequestId),
-        store.revisionNarratives.listForPullRequest(pullRequestId),
-        forTenant(deps.handle, ctx).checkpoints.get(pullRequestId, c.get("session").reviewerId),
-      ]);
+      const [briefs, markRows, deltaRows, narrativeRows, checkpoint, briefGenerations] =
+        await Promise.all([
+          store.briefs.listForPullRequest(pullRequestId),
+          store.comparisonMarks.listForPullRequest(pullRequestId),
+          store.deltas.listForPullRequest(pullRequestId),
+          store.revisionNarratives.listForPullRequest(pullRequestId),
+          forTenant(deps.handle, ctx).checkpoints.get(pullRequestId, c.get("session").reviewerId),
+          generationProjection(deps.handle, ctx).listBriefsForPullRequest(pullRequestId),
+        ]);
+      // Per-head generation start times (BRIEF-95): `created_at` is the first
+      // enqueue for that head — the earliest bound of what the brief's
+      // acquisition could have seen. One row per head (natural key), shared by
+      // duplicate-head (retarget) revisions.
+      const generatedAtByHead = new Map(
+        briefGenerations.map((row) => [row.headSha, row.createdAt]),
+      );
       const markSpans = comparisonSpanSet(markRows);
       const deltaSpans = comparisonSpanSet(deltaRows);
       const narrativeSpans = narrativeSpanSet(narrativeRows);
@@ -225,6 +234,10 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
             baseSha: entry.baseSha,
             headIndex: entry.headIndex,
             createdAt: entry.createdAt.toISOString(),
+            // Missing projection row (purged / pre-D10 data): the artifact's
+            // own write time is the honest late fallback — never earlier than
+            // the real generation start, so it can only under-mark.
+            generatedAt: (generatedAtByHead.get(entry.headSha) ?? entry.createdAt).toISOString(),
             comparisons: {
               ...(previousBrief === undefined ? {} : { previousBrief }),
               ...(lastReview === undefined ? {} : { lastReview }),
@@ -489,6 +502,13 @@ interface RevisionView {
   readonly baseSha: string;
   readonly headIndex: number;
   readonly createdAt: string;
+  /**
+   * When this revision's brief generation STARTED (the generation row's
+   * `created_at`, BRIEF-95) — the conversation cutoff: comments newer than
+   * this postdate the brief. Falls back to `createdAt` (the artifact write,
+   * strictly later) when the projection row is gone.
+   */
+  readonly generatedAt: string;
   readonly comparisons: RevisionComparisons;
 }
 

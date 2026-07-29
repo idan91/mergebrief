@@ -26,6 +26,12 @@ export interface DigestThreadRow {
   readonly isOwn: boolean;
   /** Short anchor revision label — outdated rows only. */
   readonly anchorLabel?: string;
+  /**
+   * The viewed revision's generation cutoff (BRIEF-95), stamped on every
+   * row so the detail renderers — section and inline alike — can mark
+   * comments that postdate the brief without new prop plumbing.
+   */
+  readonly briefGeneratedAt?: string;
 }
 
 export interface DigestBotGroupRow {
@@ -53,6 +59,8 @@ export interface BuildConversationDigestInput {
   readonly conversation: PrConversation;
   readonly chunks: readonly BriefChunk[];
   readonly ownThreadIds: ReadonlySet<number>;
+  /** The viewed revision's generation cutoff (BRIEF-95); absent marks nothing. */
+  readonly briefGeneratedAt?: string | undefined;
 }
 
 const SHORT_SHA_LENGTH = 7;
@@ -61,6 +69,7 @@ function threadRow(
   thread: ConversationThread,
   placement: ThreadPlacement,
   ownThreadIds: ReadonlySet<number>,
+  briefGeneratedAt: string | undefined,
 ): DigestThreadRow {
   const rootBody = thread.comments[0]?.body ?? "";
   const anchorLabel =
@@ -74,6 +83,7 @@ function threadRow(
     placement,
     isOwn: ownThreadIds.has(thread.rootCommentId),
     ...(anchorLabel === undefined ? {} : { anchorLabel }),
+    ...(briefGeneratedAt === undefined ? {} : { briefGeneratedAt }),
   };
 }
 
@@ -146,14 +156,14 @@ function toRows(rows: readonly DigestThreadRow[]): DigestRow[] {
 export function buildConversationDigest(
   input: BuildConversationDigestInput,
 ): DigestGroup[] {
-  const { conversation, chunks, ownThreadIds } = input;
+  const { conversation, chunks, ownThreadIds, briefGeneratedAt } = input;
   const byChunk = new Map<string, DigestThreadRow[]>();
   const outdated: DigestThreadRow[] = [];
   const general: DigestThreadRow[] = [];
 
   for (const thread of conversation.threads) {
     const placement = placeThread(thread, chunks);
-    const row = threadRow(thread, placement, ownThreadIds);
+    const row = threadRow(thread, placement, ownThreadIds, briefGeneratedAt);
     if (placement.kind === "chunk") {
       const list = byChunk.get(placement.chunkId) ?? [];
       list.push(row);

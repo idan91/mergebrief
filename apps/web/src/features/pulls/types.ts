@@ -87,6 +87,12 @@ export interface RevisionSummary {
   readonly baseSha: string;
   readonly headIndex: number;
   readonly createdAt: string;
+  /**
+   * When this revision's brief generation started (BRIEF-95) — the
+   * conversation cutoff: comments newer than this postdate the brief.
+   * Absent on wire bodies from servers predating the field.
+   */
+  readonly generatedAt?: string;
   readonly comparisons: PrComparisons;
 }
 
@@ -354,6 +360,10 @@ function parseRevision(value: unknown): Result<RevisionSummary> {
   if (typeof value["createdAt"] !== "string") {
     return { ok: false, error: "revision.createdAt must be a string" };
   }
+  const generatedAt = value["generatedAt"];
+  if (generatedAt !== undefined && typeof generatedAt !== "string") {
+    return { ok: false, error: "revision.generatedAt must be a string" };
+  }
   // A revision's `comparisons` is the SAME envelope as the top-level one
   // (empty object when neither baseline has marks) — reuse its guard so the
   // two can never drift.
@@ -366,6 +376,7 @@ function parseRevision(value: unknown): Result<RevisionSummary> {
       baseSha: value["baseSha"],
       headIndex: value["headIndex"],
       createdAt: value["createdAt"],
+      ...(generatedAt === undefined ? {} : { generatedAt }),
       comparisons: comparisons.value ?? {},
     },
   };

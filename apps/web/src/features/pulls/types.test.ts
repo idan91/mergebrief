@@ -326,6 +326,28 @@ describe("parsePrSummary revisions (BRIEF-24 PR-meta only)", () => {
     });
   });
 
+  it("carries generatedAt through, tolerates its absence, rejects a non-string (BRIEF-95)", () => {
+    const withCutoff = parsePrSummary({
+      ...ROW,
+      revisions: [{ ...REVISION, generatedAt: "2026-07-06T11:58:00.000Z" }],
+    });
+    expect(withCutoff.ok).toBe(true);
+    if (!withCutoff.ok) throw new Error("unreachable");
+    expect(withCutoff.value.revisions?.[0]?.generatedAt).toBe(
+      "2026-07-06T11:58:00.000Z",
+    );
+
+    const absent = parsePrSummary({ ...ROW, revisions: [REVISION] });
+    expect(absent.ok).toBe(true);
+    if (!absent.ok) throw new Error("unreachable");
+    expect(absent.value.revisions?.[0]?.generatedAt).toBeUndefined();
+
+    expect(
+      parsePrSummary({ ...ROW, revisions: [{ ...REVISION, generatedAt: 5 }] })
+        .ok,
+    ).toBe(false);
+  });
+
   it("rejects a non-array revisions and a malformed entry", () => {
     expect(parsePrSummary({ ...ROW, revisions: {} }).ok).toBe(false);
     expect(

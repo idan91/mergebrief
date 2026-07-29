@@ -157,6 +157,16 @@ export interface GenerationProjection {
     pullRequestIds: readonly PullRequestRowId[],
   ): Promise<ReadonlyMap<PullRequestRowId, GenerationRow>>;
   /**
+   * ALL brief-kind projection rows for ONE PR — the per-revision
+   * "generated at" join (BRIEF-95). One row per briefed head (the natural
+   * key), and `created_at` is the FIRST enqueue for that head: a re-queue
+   * conflicts and updates in place, so the timestamp stays the earliest
+   * bound of what the brief's acquisition could have seen.
+   */
+  listBriefsForPullRequest(
+    pullRequestId: PullRequestRowId,
+  ): Promise<readonly GenerationRow[]>;
+  /**
    * Terminalize STALE brief projections after a newer head succeeded: any
    * brief-kind row on the PR whose head differs and is still non-terminal
    * (`queued`/`running`) becomes `superseded`. Covers the pre-drain replace
@@ -332,6 +342,20 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
           desc(generation.id),
         );
       return new Map(rows.map((row) => [row.pullRequestId, row]));
+    },
+
+    async listBriefsForPullRequest(pullRequestId) {
+      return db
+        .select()
+        .from(generation)
+        .where(
+          and(
+            eq(generation.installationId, installationId),
+            eq(generation.kind, GenerationKind.BRIEF),
+            eq(generation.pullRequestId, pullRequestId),
+          ),
+        )
+        .orderBy(asc(generation.id));
     },
 
     async supersedeStaleBriefs(pullRequestId, currentHeadSha) {

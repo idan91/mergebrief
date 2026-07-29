@@ -22,6 +22,9 @@ export interface DigestGroupViewProps {
     target?: { rowId: string; threadId: number },
   ) => void;
   composer: ThreadComposerWiring;
+  /** The viewed revision's generation cutoff (BRIEF-95) — PR-level rows only;
+   * thread rows carry it stamped on the digest row itself. */
+  briefGeneratedAt?: string | undefined;
 }
 
 /**
@@ -40,6 +43,7 @@ export function DigestGroupView({
   showAll,
   jumpToChunk,
   composer,
+  briefGeneratedAt,
 }: DigestGroupViewProps) {
   const rows = shownAll ? group.rows : group.rows.slice(0, GROUP_ROW_CAP);
   const hidden = group.rows.length - rows.length;
@@ -105,6 +109,7 @@ export function DigestGroupView({
         <ul className={rowStyles["rows"]}>
           {prComments.map((comment) => (
             <PrCommentRow
+              briefGeneratedAt={briefGeneratedAt}
               comment={comment}
               expanded={expandedThreads.has(comment.commentId)}
               key={comment.commentId}

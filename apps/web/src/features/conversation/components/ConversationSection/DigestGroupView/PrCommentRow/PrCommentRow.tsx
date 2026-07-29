@@ -1,5 +1,6 @@
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { deriveDigestLine } from "../../../../utils/digestLine";
+import { postdatesBrief } from "../../../../utils/postdate";
 import rowStyles from "../../../../rows.module.scss";
 import type { PrLevelComment } from "../../../../types";
 
@@ -7,13 +8,20 @@ export interface PrCommentRowProps {
   comment: PrLevelComment;
   expanded: boolean;
   toggle: (commentId: number) => void;
+  /** The viewed revision's generation cutoff (BRIEF-95); absent marks nothing. */
+  briefGeneratedAt?: string | undefined;
 }
 
 /**
  * A PR-level (non-thread) comment row — the same disclosure pattern as the
  * thread rows (one interaction model), with the comment body as its detail.
  */
-export function PrCommentRow({ comment, expanded, toggle }: PrCommentRowProps) {
+export function PrCommentRow({
+  comment,
+  expanded,
+  toggle,
+  briefGeneratedAt,
+}: PrCommentRowProps) {
   return (
     <li className={rowStyles["row"]}>
       <button
@@ -31,6 +39,11 @@ export function PrCommentRow({ comment, expanded, toggle }: PrCommentRowProps) {
         <span className={rowStyles["rowLine"]}>
           {deriveDigestLine(comment.body)}
         </span>
+        {postdatesBrief(comment.createdAt, briefGeneratedAt) ? (
+          <span className={rowStyles["chip"]} data-state="after-brief">
+            after this brief
+          </span>
+        ) : null}
       </button>
       {expanded ? (
         <div className={rowStyles["detail"]}>

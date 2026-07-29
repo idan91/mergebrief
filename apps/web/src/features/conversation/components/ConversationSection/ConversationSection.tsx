@@ -19,6 +19,7 @@ import type { BriefChunk } from "@web/features/brief/types";
 import type { ReviewComment } from "@web/features/review/utils/comments";
 import { markSnapshotCommentsSubmitted } from "@web/features/review/session";
 import { buildConversationDigest } from "../../utils/digest";
+import { countCommentsAfterBrief } from "../../utils/postdate";
 import { reconcileOwnComments } from "../../utils/ownComments";
 import type { conversationQueryOptions } from "../../queries";
 import type { ReplyResult } from "../../reply";
@@ -38,6 +39,13 @@ export interface ConversationPlan {
   ) => Promise<ReplyResult>;
   /** Outdated-thread revision jump (BRIEF-24); absent when there is no timeline. */
   readonly revisionJump?: ThreadRevisionJump;
+  /**
+   * The VIEWED revision's generation start (BRIEF-95): comments newer than
+   * this postdate the brief and get marked — per revision, so an older
+   * revision honestly marks more. Absent (local path, legacy metas) marks
+   * nothing.
+   */
+  readonly briefGeneratedAt?: string;
 }
 
 export interface ConversationSectionProps {
@@ -148,8 +156,9 @@ export function ConversationSection({
             conversation,
             chunks,
             ownThreadIds: reconciliation?.ownThreadIds ?? new Set(),
+            briefGeneratedAt: plan.briefGeneratedAt,
           }),
-    [chunks, conversation, reconciliation],
+    [chunks, conversation, plan.briefGeneratedAt, reconciliation],
   );
 
   const toggleThread = (threadId: number) =>
@@ -240,6 +249,17 @@ export function ConversationSection({
       : { revisionJump: plan.revisionJump }),
   };
 
+  // BRIEF-95: comments the viewed revision's brief cannot account for. Per
+  // revision — an older revision honestly counts more; zero (or no cutoff)
+  // renders nothing.
+  const afterBriefCount = useMemo(
+    () =>
+      conversation === undefined
+        ? 0
+        : countCommentsAfterBrief(conversation, plan.briefGeneratedAt),
+    [conversation, plan.briefGeneratedAt],
+  );
+
   const verdicts =
     conversation?.reviews.filter(
       (review) => review.state !== "COMMENTED" || review.body.trim() !== "",
@@ -295,6 +315,12 @@ export function ConversationSection({
           </button>
         ) : null}
       </div>
+      {afterBriefCount > 0 ? (
+        <p className={styles["afterBriefNote"]}>
+          {afterBriefCount} comment{afterBriefCount === 1 ? "" : "s"} arrived
+          after this brief was generated
+        </p>
+      ) : null}
       {open ? (
         <>
           {query.isPending ? (
@@ -363,6 +389,7 @@ export function ConversationSection({
 
               {digest.map((group) => (
                 <DigestGroupView
+                  briefGeneratedAt={plan.briefGeneratedAt}
                   composer={composer}
                   expandedGroups={expandedGroups}
                   expandedThreads={expandedThreads}

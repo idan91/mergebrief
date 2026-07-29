@@ -260,6 +260,31 @@ describe("generationProjection — D10 transitions", () => {
     expect(latest?.status).toBe(GenerationStatus.SUCCEEDED);
   });
 
+  it("listBriefsForPullRequest: brief-kind rows only, tenant-scoped, created_at survives a re-queue", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const gen = generationProjection(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+
+    const briefA = { pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-a", baselineSha: null };
+    const briefB = { pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-b", baselineSha: null };
+    const delta = { pullRequestId: pr.id, kind: GenerationKind.DELTA, headSha: "head-b", baselineSha: "head-a" };
+    const first = await gen.upsertQueued(briefA);
+    if (!first.ok) throw new Error("queue failed");
+    await gen.upsertQueued(briefB);
+    await gen.upsertQueued(delta);
+    // Re-queue of head-a: same row, created_at must stay the first enqueue.
+    await gen.upsertQueued(briefA);
+
+    const rows = await gen.listBriefsForPullRequest(pr.id);
+    expect(rows.map((row) => row.headSha)).toEqual(["head-a", "head-b"]);
+    const rowA = rows.find((row) => row.headSha === "head-a");
+    expect(rowA?.createdAt.getTime()).toBe(first.value.createdAt.getTime());
+
+    // Another tenant sees nothing.
+    expect(await generationProjection(handle, CTX_B).listBriefsForPullRequest(pr.id)).toEqual([]);
+  });
+
   it("a transition on a missing projection row returns notFound", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);

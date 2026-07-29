@@ -41,6 +41,22 @@ describe("resolveDbTimeline", () => {
     expect(selection?.previous?.headSha).toBe("h2");
   });
 
+  it("carries a revision's generatedAt onto its point (BRIEF-95)", () => {
+    const selection = resolveDbTimeline(
+      [
+        revision({ headSha: "h1", headIndex: 1 }),
+        revision({
+          headSha: "h2",
+          headIndex: 2,
+          generatedAt: "2026-07-06T11:58:00.000Z",
+        }),
+      ],
+      "h2",
+    );
+    expect(selection?.selected.generatedAt).toBe("2026-07-06T11:58:00.000Z");
+    expect(selection?.points[0]?.generatedAt).toBeUndefined();
+  });
+
   it("selects a historical head with ITS OWN base, exposing prev/next", () => {
     const selection = resolveDbTimeline(REVISIONS, "h1");
     expect(selection?.selected.headSha).toBe("h1");

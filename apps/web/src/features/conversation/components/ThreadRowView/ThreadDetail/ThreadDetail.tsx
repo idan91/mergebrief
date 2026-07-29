@@ -6,6 +6,7 @@ import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { RevisionJumpAction } from "../RevisionJumpAction/RevisionJumpAction";
 import { mentionCandidatesFromThread } from "../../../utils/mentions";
+import { postdatesBrief } from "../../../utils/postdate";
 import { buildQuoteBlock } from "../../../utils/quote";
 import { ReplyComposer } from "./ReplyComposer/ReplyComposer";
 
@@ -113,6 +114,11 @@ export function ThreadDetail({
             <time dateTime={comment.createdAt}>
               {new Date(comment.createdAt).toLocaleDateString()}
             </time>
+            {postdatesBrief(comment.createdAt, row.briefGeneratedAt) ? (
+              <span className={rowStyles["chip"]} data-state="after-brief">
+                after this brief
+              </span>
+            ) : null}
             <button
               aria-label={`Quote reply to @${comment.author.login}`}
               className={rowStyles["action"]}

@@ -68,6 +68,13 @@
       color: var(--dim);
     }
 
+    /* BRIEF-95: the comment postdates the viewed brief. Accent, not amber —
+       provenance must not read as the open-thread state. */
+    &[data-state="after-brief"] {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+    }
+
     &[data-state="approved"],
     &[data-state="changes requested"],
     &[data-state="commented"],
@@ -123,12 +130,19 @@
     font-size: var(--font-size-lg);
   }
 
+  /* Author · date · chips read as ONE baseline-aligned run on the left;
+     only the quote action floats right (space-between would scatter the
+     run — and default stretch inflates pills to the action's height). */
   .commentHead {
     display: flex;
-    justify-content: space-between;
+    align-items: baseline;
     gap: 8px;
     color: var(--dim);
     font-size: var(--font-size-sm);
+
+    .action {
+      margin-inline-start: auto;
+    }
   }
 
   .author {

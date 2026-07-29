@@ -174,6 +174,7 @@ interface RevisionEntry {
   readonly baseSha: string;
   readonly headIndex: number;
   readonly createdAt: string;
+  readonly generatedAt: string;
   readonly comparisons: {
     readonly previousBrief?: Record<string, unknown>;
     readonly lastReview?: Record<string, unknown>;
@@ -198,6 +199,7 @@ function isRevisionEntry(value: unknown): value is RevisionEntry {
     typeof value["baseSha"] === "string" &&
     typeof value["headIndex"] === "number" &&
     typeof value["createdAt"] === "string" &&
+    typeof value["generatedAt"] === "string" &&
     isPlainRecord(comparisons)
   );
 }
@@ -811,11 +813,20 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       [2, "head-2", "base-b"],
       [3, "head-3", "base-c"],
     ]);
-    // Each entry carries a serialized createdAt timestamp.
+    // Each entry carries serialized createdAt/generatedAt timestamps.
     for (const rev of body.revisions ?? []) {
       expect(typeof rev.createdAt).toBe("string");
       expect(Number.isNaN(Date.parse(rev.createdAt))).toBe(false);
+      expect(Number.isNaN(Date.parse(rev.generatedAt))).toBe(false);
     }
+    // generatedAt is the generation row's created_at (BRIEF-95): head-1 was
+    // enqueued BEFORE its brief artifact was written, so its cutoff is never
+    // later than the artifact write; head-2 has no projection row and falls
+    // back to the artifact's own createdAt.
+    const [rev1, rev2] = body.revisions ?? [];
+    if (rev1 === undefined || rev2 === undefined) throw new Error("revisions missing");
+    expect(Date.parse(rev1.generatedAt)).toBeLessThanOrEqual(Date.parse(rev1.createdAt));
+    expect(rev2.generatedAt).toBe(rev2.createdAt);
   });
 
   it("meta: per-revision previousBrief joins consecutive briefed pairs only", async () => {

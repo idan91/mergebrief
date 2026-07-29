@@ -272,6 +272,50 @@ describe("ConversationSection", () => {
     expect(screen.getByText("open")).toBeDefined();
   });
 
+  it("counts comments past the generation cutoff in the header line (BRIEF-95)", async () => {
+    // Cutoff between the fixtures' 10:00 and 11:00 comments → exactly one.
+    renderSection({
+      plan: {
+        ...plan([ready()]),
+        briefGeneratedAt: "2026-07-01T10:30:00Z",
+      },
+    });
+    expect(
+      await screen.findByText(
+        "1 comment arrived after this brief was generated",
+      ),
+    ).toBeDefined();
+  });
+
+  it("omits the count line without a cutoff and marks nothing (local path)", async () => {
+    renderSection({ plan: plan([ready()]) });
+    await screen.findByText("changes requested");
+    expect(screen.queryByText(/arrived after this brief/)).toBeNull();
+    expect(screen.queryByText("after this brief")).toBeNull();
+  });
+
+  it("chips a postdating comment inside the expanded thread detail (BRIEF-95)", async () => {
+    renderSection({
+      plan: {
+        ...plan([ready()]),
+        briefGeneratedAt: "2026-07-01T09:00:00Z",
+      },
+    });
+    // Both fixture comments postdate the cutoff.
+    expect(
+      await screen.findByText(
+        "2 comments arrived after this brief was generated",
+      ),
+    ).toBeDefined();
+    // Expand alice's (human) thread row — its detail chips the comment.
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /This null check looks inverted/,
+      }),
+    );
+    expect(await screen.findByText("after this brief")).toBeDefined();
+  });
+
   it("expands a thread row via aria-expanded disclosure and jumps to its chunk", async () => {
     const { props } = renderSection({ plan: plan([ready()]) });
     const row = await screen.findByRole("button", {

@@ -68,6 +68,14 @@
     font-weight: 400;
   }
 
+  /* BRIEF-95: how much of the conversation postdates the viewed brief.
+     Factual dim note, visible collapsed too — that is when it matters. */
+  .afterBriefNote {
+    margin: 0;
+    color: var(--dim);
+    font-size: var(--font-size-md);
+  }
+
   .verdicts {
     display: grid;
     gap: 6px;

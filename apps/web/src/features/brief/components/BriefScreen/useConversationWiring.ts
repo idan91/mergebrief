@@ -115,8 +115,16 @@ export function useConversationWiring(
       conversation: conversationData,
       chunks: readingOrderedChunks,
       ownThreadIds,
+      // The cutoff is a primitive dep (not the plan object): the plan is
+      // route-memoized, but only this field affects the rows.
+      briefGeneratedAt: conversation?.briefGeneratedAt,
     });
-  }, [conversationData, readingOrderedChunks, submittedReviewIds]);
+  }, [
+    conversationData,
+    readingOrderedChunks,
+    submittedReviewIds,
+    conversation?.briefGeneratedAt,
+  ]);
 
   // Slim transport (draft reads/writes and announce copy live inside
   // ReplyComposer's session-store reads): identity stable per plan, so it
