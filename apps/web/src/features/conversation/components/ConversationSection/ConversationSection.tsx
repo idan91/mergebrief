@@ -25,7 +25,11 @@ import type { conversationQueryOptions } from "../../queries";
 import type { ReplyResult } from "../../reply";
 import rowStyles from "../../rows.module.scss";
 import type { ConversationReview } from "../../types";
-import type { ThreadComposerWiring, ThreadRevisionJump } from "../../wiring";
+import type {
+  ConversationResolutionPlan,
+  ThreadComposerWiring,
+  ThreadRevisionJump,
+} from "../../wiring";
 import { DigestGroupView } from "./DigestGroupView/DigestGroupView";
 import styles from "./ConversationSection.module.scss";
 
@@ -37,6 +41,11 @@ export interface ConversationPlan {
     rootCommentId: number,
     body: string,
   ) => Promise<ReplyResult>;
+  /**
+   * Resolve/unresolve transport + the PR-level capability (BRIEF-93). Absent on
+   * the local demo path — no affordance renders at all.
+   */
+  readonly resolution?: ConversationResolutionPlan;
   /** Outdated-thread revision jump (BRIEF-24); absent when there is no timeline. */
   readonly revisionJump?: ThreadRevisionJump;
   /**
@@ -247,6 +256,13 @@ export function ConversationSection({
     ...(plan.revisionJump === undefined
       ? {}
       : { revisionJump: plan.revisionJump }),
+    // A resolution flip is a conversation write too: the row's slim/full
+    // transition comes from THIS section's refetch, not a local edit.
+    ...(plan.resolution === undefined
+      ? {}
+      : {
+          resolution: { ...plan.resolution, refetchConversation: refresh },
+        }),
   };
 
   // BRIEF-95: comments the viewed revision's brief cannot account for. Per

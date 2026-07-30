@@ -24,6 +24,7 @@ import type {
 } from "@web/features/conversation";
 import { conversationQueryOptions } from "../../conversation/queries";
 import { postConversationReply } from "../../conversation/reply";
+import { setThreadResolution } from "../../conversation/resolve";
 import type { Span } from "../utils/briefRouteState";
 import type { DbTimelineSelection } from "../utils/dbTimeline";
 import { createMarkReadyAction } from "../transport/markReady";
@@ -34,6 +35,7 @@ import {
   dbDeltaQueryOptions,
   dbRevisionNarrativeQueryOptions,
   prDiffQueryOptions,
+  prMetaQueryOptions,
 } from "../queries";
 import { submitReview } from "../transport/submitReview";
 import type { PrSummary } from "../types";
@@ -255,15 +257,37 @@ export function usePrBriefPlans(
   // The SELECTED revision's generation start (BRIEF-95): a primitive dep, so
   // poll-tick timeline rebuilds with unchanged content never rebuild the plan.
   const briefGeneratedAt = timeline?.selected.generatedAt;
+  // Thread resolution (BRIEF-93): the capability is PR-LEVEL and comes off PR
+  // META (`viewerCanResolve`) — never the list payload, whose value is an
+  // authorship-only fallback. It rides every revision on purpose: a thread
+  // belongs to the PR, not to the head that happens to be rendered, so an
+  // older revision resolves the same thread the current one would.
+  const viewerCanResolve = meta.viewerCanResolve;
   const conversationPlan = useMemo(
     () => ({
       queryOptions: conversationQueryOptions(repoId, prNumber),
       postReply: (rootCommentId: number, body: string) =>
         postConversationReply(repoId, prNumber, rootCommentId, body),
+      resolution: {
+        canResolve: viewerCanResolve,
+        setResolved: (rootCommentId: number, resolved: boolean) =>
+          setThreadResolution(repoId, prNumber, rootCommentId, resolved),
+        refetchCapability: () =>
+          void queryClient.invalidateQueries({
+            queryKey: prMetaQueryOptions(repoId, prNumber).queryKey,
+          }),
+      },
       ...(revisionJump === undefined ? {} : { revisionJump }),
       ...(briefGeneratedAt === undefined ? {} : { briefGeneratedAt }),
     }),
-    [briefGeneratedAt, prNumber, repoId, revisionJump],
+    [
+      briefGeneratedAt,
+      prNumber,
+      queryClient,
+      repoId,
+      revisionJump,
+      viewerCanResolve,
+    ],
   );
 
   return {

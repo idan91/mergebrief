@@ -15,6 +15,13 @@ import type { PrSummary } from "../types";
 import { usePrBriefPlans } from "./usePrBriefPlans";
 
 vi.mock("../transport/submitReview", () => ({ submitReview: vi.fn() }));
+vi.mock("../../conversation/resolve", () => ({
+  setThreadResolution: vi.fn(async () => ({
+    kind: "done",
+    resolved: true,
+    alreadyInTargetState: false,
+  })),
+}));
 vi.mock("../transport/postComment", async (importOriginal) => ({
   ...(await importOriginal<typeof PostCommentModule>()),
   postInlineComment: vi.fn(),
@@ -30,6 +37,15 @@ function wrapper({ children }: { children: ReactNode }) {
   );
 }
 
+/** A wrapper over a CALLER-OWNED client, so invalidations are observable. */
+function wrapperWith(client: QueryClient) {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    );
+  };
+}
+
 function meta(overrides: Partial<PrSummary> = {}): PrSummary {
   return {
     repoId: "424242",
@@ -42,6 +58,7 @@ function meta(overrides: Partial<PrSummary> = {}): PrSummary {
     briefAvailable: true,
     draft: false,
     viewerIsAuthor: false,
+    viewerCanResolve: false,
     generation: null,
     updatedAt: "2026-07-06T12:00:00.000Z",
     ...overrides,
@@ -209,6 +226,65 @@ describe("usePrBriefPlans", () => {
       });
       expect(result.current.availability.lastReview).toBe(false);
       expect(result.current.lastReviewDisabledReason).toBeDefined();
+    });
+  });
+
+  describe("thread resolution (BRIEF-93)", () => {
+    it("carries the PR-META capability onto the conversation plan", () => {
+      expect(
+        renderPlans({}).result.current.conversationPlan.resolution?.canResolve,
+      ).toBe(false);
+      expect(
+        renderPlans({ meta: meta({ viewerCanResolve: true }) }).result.current
+          .conversationPlan.resolution?.canResolve,
+      ).toBe(true);
+    });
+
+    it("routes the transport at this repo + PR, in the requested direction", async () => {
+      const { setThreadResolution } = vi.mocked(
+        await import("../../conversation/resolve"),
+      );
+      const { result } = renderPlans({
+        meta: meta({ viewerCanResolve: true }),
+      });
+      void result.current.conversationPlan.resolution?.setResolved(9001, false);
+      expect(setThreadResolution).toHaveBeenCalledWith(
+        "424242",
+        7,
+        9001,
+        false,
+      );
+    });
+
+    it("refetches PR META when the capability goes stale (the 403 path)", () => {
+      const client = new QueryClient();
+      const invalidate = vi.spyOn(client, "invalidateQueries");
+      const { result } = renderHook(
+        () =>
+          usePrBriefPlans({
+            repoId: "424242",
+            prNumber: 7,
+            span: currentSpan,
+            meta: meta({ viewerCanResolve: true }),
+            timeline: undefined,
+            revisionJump: undefined,
+          }),
+        { wrapper: wrapperWith(client) },
+      );
+      result.current.conversationPlan.resolution?.refetchCapability();
+      // The capability lives on pr-meta: refreshing it is what makes the
+      // buttons follow GitHub's answer instead of the boolean that offered them.
+      expect(invalidate).toHaveBeenCalledWith({
+        queryKey: ["pr-meta", "424242", 7],
+      });
+    });
+
+    it("is offered on a historical revision too — threads are PR-level", () => {
+      const { result } = renderPlans({
+        span: historicalSpan,
+        meta: meta({ viewerCanResolve: true }),
+      });
+      expect(result.current.conversationPlan.resolution?.canResolve).toBe(true);
     });
   });
 });

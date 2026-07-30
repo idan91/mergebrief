@@ -63,6 +63,29 @@ describe("parsePrSummary", () => {
     expect(parsePrSummary({ ...ROW, viewerIsAuthor: "true" }).ok).toBe(false);
   });
 
+  it("parses viewerCanResolve and FAILS CLOSED when it is absent (BRIEF-93)", () => {
+    const capable = parsePrSummary({ ...ROW, viewerCanResolve: true });
+    expect(capable.ok).toBe(true);
+    if (!capable.ok) throw new Error("unreachable");
+    expect(capable.value.viewerCanResolve).toBe(true);
+
+    const denied = parsePrSummary({ ...ROW, viewerCanResolve: false });
+    if (!denied.ok) throw new Error("unreachable");
+    expect(denied.value.viewerCanResolve).toBe(false);
+
+    // Absent = a server predating the field: no capability, so no affordance.
+    // Unlike draft/viewerIsAuthor this is NOT a contract violation — the row
+    // parses, it just carries no permission.
+    const older = parsePrSummary(ROW);
+    if (!older.ok) throw new Error("unreachable");
+    expect(older.value.viewerCanResolve).toBe(false);
+
+    // Present but not a boolean IS malformed — coercing a truthy string into a
+    // capability would hand out affordances the server never granted.
+    expect(parsePrSummary({ ...ROW, viewerCanResolve: "true" }).ok).toBe(false);
+    expect(parsePrSummary({ ...ROW, viewerCanResolve: null }).ok).toBe(false);
+  });
+
   it("accepts nullable fields (waiting row: no brief, no title, null span)", () => {
     const parsed = parsePrSummary({
       ...ROW,

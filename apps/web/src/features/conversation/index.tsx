@@ -10,7 +10,11 @@ export {
   ThreadRowView,
   type ThreadRowViewProps,
 } from "./components/ThreadRowView/ThreadRowView";
-export type { ThreadComposerWiring, ThreadRevisionJump } from "./wiring";
+export type {
+  ConversationResolutionPlan,
+  ThreadComposerWiring,
+  ThreadRevisionJump,
+} from "./wiring";
 export {
   InlineThreads,
   type InlineThreadsProps,

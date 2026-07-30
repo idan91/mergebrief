@@ -19,6 +19,7 @@ import {
   dbBriefQueryOptions,
   dbComparisonMarksQueryOptions,
   dbDeltaQueryOptions,
+  prMetaQueryOptions,
   pullsSessionQueryOptions,
 } from "./queries";
 
@@ -101,6 +102,65 @@ describe("dbComparisonMarksQueryOptions queryFn", () => {
   it("throws typed malformed on a bad body", async () => {
     apiFetchJsonMock.mockResolvedValue({ nope: true });
     await expect(runMarks()).rejects.toMatchObject({ kind: "malformed" });
+  });
+});
+
+function runPrMeta(): Promise<unknown> {
+  const options = prMetaQueryOptions("424242", 7);
+  const queryFn = options.queryFn;
+  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  return (queryFn as () => Promise<unknown>)();
+}
+
+// The resolve capability reaches the affordances THROUGH this queryFn, and the
+// route tests that seed the cache bypass the parser entirely (BRIEF-21
+// lesson) — so the wire body is exercised here, shaped like the real pr-view
+// response.
+describe("prMetaQueryOptions queryFn — viewerCanResolve (BRIEF-93)", () => {
+  const META_BODY = {
+    repoId: "424242",
+    repoSlug: "octo/hello",
+    prNumber: 7,
+    title: "feat: widgets",
+    state: "open",
+    baseSha: "base-1",
+    headSha: "head-1",
+    briefAvailable: true,
+    draft: false,
+    viewerIsAuthor: false,
+    viewerCanResolve: true,
+    generation: {
+      status: "succeeded",
+      phase: null,
+      attempts: 0,
+      error: null,
+      updatedAt: "2026-07-30T12:00:00.000Z",
+    },
+    updatedAt: "2026-07-30T12:00:00.000Z",
+    comparisons: {},
+  };
+
+  it("carries the capability off a realistic pr-view body", async () => {
+    apiFetchJsonMock.mockResolvedValue(META_BODY);
+    await expect(runPrMeta()).resolves.toMatchObject({
+      viewerCanResolve: true,
+    });
+  });
+
+  it("fails closed on a body from a server predating the field", async () => {
+    const { viewerCanResolve: _absent, ...older } = META_BODY;
+    apiFetchJsonMock.mockResolvedValue(older);
+    await expect(runPrMeta()).resolves.toMatchObject({
+      viewerCanResolve: false,
+    });
+  });
+
+  it("throws typed malformed when the capability is not a boolean", async () => {
+    apiFetchJsonMock.mockResolvedValue({
+      ...META_BODY,
+      viewerCanResolve: "yes",
+    });
+    await expect(runPrMeta()).rejects.toBeInstanceOf(ApiError);
   });
 });
 

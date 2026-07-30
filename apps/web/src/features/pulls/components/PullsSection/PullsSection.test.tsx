@@ -20,6 +20,7 @@ function pull(overrides: Partial<PrSummary>): PrSummary {
     briefAvailable: true,
     draft: false,
     viewerIsAuthor: false,
+    viewerCanResolve: false,
     generation: {
       status: "succeeded",
       phase: null,

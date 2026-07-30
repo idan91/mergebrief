@@ -140,6 +140,20 @@ export function useConversationWiring(
               void queryClient.invalidateQueries({
                 queryKey: conversation.queryOptions.queryKey,
               }),
+            // Resolution rides the inline (at-chunk) threads too (BRIEF-93):
+            // the same thread, the same capability, refetched through the same
+            // shared query key.
+            ...(conversation.resolution === undefined
+              ? {}
+              : {
+                  resolution: {
+                    ...conversation.resolution,
+                    refetchConversation: () =>
+                      void queryClient.invalidateQueries({
+                        queryKey: conversation.queryOptions.queryKey,
+                      }),
+                  },
+                }),
           },
     [briefId, conversation, queryClient],
   );

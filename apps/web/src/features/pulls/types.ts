@@ -123,6 +123,15 @@ export interface PrSummary {
    * server-side per request; the author login itself never crosses the wire.
    */
   readonly viewerIsAuthor: boolean;
+  /**
+   * Whether the viewer may resolve/unresolve this PR's review threads
+   * (BRIEF-93) — GitHub's own rule (push permission OR authorship), derived
+   * server-side. Read it from PR META ONLY: the list payload falls back to
+   * authorship alone (no per-repo access check runs there), so a `false` on a
+   * list row is not a capability denial. Affordance only — GitHub's
+   * mutation-time enforcement stays the truth.
+   */
+  readonly viewerCanResolve: boolean;
   readonly generation: GenerationSummary | null;
   readonly updatedAt: string;
   /** Present on PR-meta responses only; absent on list rows. */
@@ -431,6 +440,17 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (typeof value["viewerIsAuthor"] !== "boolean") {
     return { ok: false, error: "viewerIsAuthor must be a boolean" };
   }
+  // BRIEF-93, deliberately NOT required: a server predating the field parses
+  // fine and yields `false` — fail closed, the affordance simply never shows.
+  // Present-but-not-a-boolean is still malformed: coercing a truthy string
+  // would hand out a capability the server never granted.
+  const viewerCanResolve = value["viewerCanResolve"];
+  if (viewerCanResolve !== undefined && typeof viewerCanResolve !== "boolean") {
+    return {
+      ok: false,
+      error: "viewerCanResolve must be a boolean when present",
+    };
+  }
   const generation = parseGenerationSummary(value["generation"]);
   if (!generation.ok) return generation;
   if (typeof value["updatedAt"] !== "string") {
@@ -455,6 +475,7 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
       briefAvailable: value["briefAvailable"],
       draft: value["draft"],
       viewerIsAuthor: value["viewerIsAuthor"],
+      viewerCanResolve: viewerCanResolve ?? false,
       generation: generation.value,
       updatedAt: value["updatedAt"],
       ...(comparisons.value === undefined
