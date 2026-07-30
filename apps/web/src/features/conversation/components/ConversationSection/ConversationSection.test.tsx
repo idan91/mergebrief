@@ -530,6 +530,57 @@ async function openThread() {
   return row;
 }
 
+describe("thread resolution wiring (BRIEF-93)", () => {
+  it("offers no resolve action when the plan carries no resolution", async () => {
+    renderSection({ plan: plan([ready()]) });
+    await openThread();
+    expect(screen.queryByTestId("thread-resolve")).toBeNull();
+  });
+
+  it("resolves through the plan and refetches THIS section's query", async () => {
+    const setResolved = vi.fn(async () => ({
+      kind: "done" as const,
+      resolved: true,
+      alreadyInTargetState: false,
+    }));
+    renderSection({
+      plan: {
+        ...plan([ready(), ready()]),
+        resolution: {
+          canResolve: true,
+          setResolved,
+          refetchCapability: vi.fn(),
+        },
+      },
+    });
+    await openThread();
+    fireEvent.click(screen.getByTestId("thread-resolve"));
+    await waitFor(() => expect(setResolved).toHaveBeenCalledWith(9001, true));
+    // The slim-row transition is refetched truth: the shared query must run
+    // again (the route evicted the server cache on the write).
+    await waitFor(() =>
+      expect((planQueryCalls.count as () => number)()).toBeGreaterThanOrEqual(
+        2,
+      ),
+    );
+  });
+
+  it("hides the action when the viewer cannot resolve", async () => {
+    renderSection({
+      plan: {
+        ...plan([ready()]),
+        resolution: {
+          canResolve: false,
+          setResolved: vi.fn(),
+          refetchCapability: vi.fn(),
+        },
+      },
+    });
+    await openThread();
+    expect(screen.queryByTestId("thread-resolve")).toBeNull();
+  });
+});
+
 describe("quote reply (BRIEF-56)", () => {
   it("Quote reply prefills the reply box with the quoted comment", async () => {
     renderSection({ plan: plan([ready()]) });

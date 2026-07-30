@@ -9,6 +9,7 @@ import {
   useReviewActions,
 } from "@web/features/review/session";
 import { MAX_REPLY_LENGTH, type ReplyResult } from "../../../../reply";
+import type { ResolveAttempt } from "../useThreadResolution";
 import rowStyles from "../../../../rows.module.scss";
 import styles from "./ReplyComposer.module.scss";
 
@@ -37,6 +38,33 @@ const REPLY_FAILURE_COPY: Record<
   upstream: REPLY_COPY.upstream,
 };
 
+/**
+ * Reply & resolve outcomes (BRIEF-93). The two legs are sequenced FE-side
+ * (reply, then resolve), so the compound action has three honest ends and each
+ * one names exactly what did and did not happen. Never a shared "failed":
+ * whether the reply landed decides whether retrying is safe.
+ */
+const COMBO_COPY = {
+  both: "Reply posted and the thread resolved.",
+  /**
+   * The reply LANDED and the resolve did not. The reply is GitHub's record now
+   * — the copy must send the reviewer to the standalone Resolve button, never
+   * back through this composer (that would double-post).
+   */
+  partial:
+    "Your reply posted, but resolving the thread failed. The reply is on GitHub — use Resolve on the thread to finish.",
+  /**
+   * The reply landed and the resolve THREW — it may have reached GitHub before
+   * the connection died. Same discipline as every other throw around a write:
+   * never assert a failure that may not have happened, and never invite a blind
+   * retry of a possibly-applied change.
+   */
+  partialIndeterminate:
+    "Your reply posted; the thread may or may not have been resolved. The conversation was refreshed — check the thread before resolving it again.",
+  /** Appended to the reply's own failure copy: the resolve leg never ran. */
+  replyFailedSuffix: "The thread was left unresolved.",
+} as const;
+
 export interface ReplyComposerProps {
   briefId: string;
   threadId: number;
@@ -50,6 +78,19 @@ export interface ReplyComposerProps {
    * trigger — quoting the same comment twice must append twice.
    */
   quote?: { block: string; nonce: number } | undefined;
+  /**
+   * The Reply & resolve leg (BRIEF-93): resolves the thread AFTER the reply
+   * lands, reporting the attempt's outcome. Absent = no capability or an
+   * already-resolved thread, and the secondary action never renders. The
+   * primary action stays a plain reply either way.
+   */
+  resolveAfterPost?: (() => Promise<ResolveAttempt>) | undefined;
+  /**
+   * Moves focus to the thread's standalone resolve control. Called when the
+   * combo button RETIRES while holding focus (the reply cleared the draft), so
+   * the keyboard lands on the retry path instead of on `<body>`.
+   */
+  focusResolveAction?: (() => void) | undefined;
 }
 
 export function ReplyComposer({
@@ -59,6 +100,8 @@ export function ReplyComposer({
   onPosted,
   mentionCandidates,
   quote,
+  resolveAfterPost,
+  focusResolveAction,
 }: ReplyComposerProps) {
   // Draft reads/writes go straight to the session stores (the PR 3 wiring
   // re-shape): no draft prop chain through the digest tree.
@@ -67,7 +110,14 @@ export function ReplyComposer({
   );
   const { setReplyDraft } = useMindMapActions();
   const { announce } = useReviewActions();
-  const [pending, setPending] = useState(false);
+  // WHICH action is running, not just whether one is: both buttons go busy
+  // together (one draft, one request), but only the clicked one wears the
+  // pending label — a "Posting…" on the plain Reply button would misreport a
+  // running combo.
+  const [pendingAction, setPendingAction] = useState<
+    "reply" | "reply-and-resolve" | null
+  >(null);
+  const pending = pendingAction !== null;
   const [error, setError] = useState<string | null>(null);
   // Synchronous double-click guard (same as useReviewSubmit): state updates
   // are async, a ref is not — aria-disabled does not block the click event.
@@ -143,10 +193,32 @@ export function ReplyComposer({
     }, 0);
   }, [quote]);
 
-  const submit = () => {
+  // The combo button's node (focus-handoff subject) and the flag saying its
+  // retirement stranded focus. The effect runs AFTER the unmount commits, so
+  // the handoff target is reachable and nothing re-steals focus behind it.
+  const comboButtonRef = useRef<HTMLButtonElement | null>(null);
+  const handoffFocusRef = useRef(false);
+  useEffect(() => {
+    if (pendingAction !== null || !handoffFocusRef.current) return;
+    handoffFocusRef.current = false;
+    // Only hand over focus we actually stranded: anything the settle already
+    // moved focus to (a rescue elsewhere, the reviewer clicking on) keeps it.
+    if (
+      document.activeElement !== null &&
+      document.activeElement !== document.body
+    ) {
+      return;
+    }
+    focusResolveAction?.();
+  }, [focusResolveAction, pendingAction]);
+
+  const submit = (alsoResolve: boolean) => {
     if (blocked || inFlight.current) return;
+    // The combo is only reachable while the leg exists; guard anyway so a
+    // stale closure can never take the compound path without it.
+    const resolveLeg = alsoResolve ? resolveAfterPost : undefined;
     inFlight.current = true;
-    setPending(true);
+    setPendingAction(resolveLeg === undefined ? "reply" : "reply-and-resolve");
     setError(null);
     // Captured at click time — edits mid-flight never count as sent.
     const body = local;
@@ -157,17 +229,24 @@ export function ReplyComposer({
       setError(copy);
       announce(copy);
     };
+    // Outcome (b) of the combo: the reply never landed, so the resolve leg was
+    // never reached — say both halves, or the reviewer is left guessing whether
+    // the thread closed anyway.
+    const replyFailureCopy = (copy: string) =>
+      resolveLeg === undefined
+        ? copy
+        : `${copy} ${COMBO_COPY.replyFailedSuffix}`;
     void (async () => {
       try {
         let result: ReplyResult;
         try {
           result = await post(threadId, body);
         } catch {
-          fail(REPLY_COPY.failed);
+          fail(replyFailureCopy(REPLY_COPY.failed));
           return;
         }
         if (result.kind !== "posted") {
-          fail(REPLY_FAILURE_COPY[result.kind]);
+          fail(replyFailureCopy(REPLY_FAILURE_COPY[result.kind]));
           return;
         }
         // The external write is the commit point: clear the draft (the
@@ -185,11 +264,44 @@ export function ReplyComposer({
         } catch (persistError) {
           console.error("reply draft: durable clear failed", persistError);
         }
-        announce(REPLY_COPY.posted);
+        if (resolveLeg === undefined) {
+          announce(REPLY_COPY.posted);
+          onPosted();
+          return;
+        }
+        // Sequenced, never parallel: the reply is the commit point and the
+        // resolve only makes sense once it landed. The reply leg is NEVER
+        // retried from here — a landed reply retried is a double post.
+        const outcome = await resolveLeg();
+        if (outcome === "resolved") {
+          announce(COMBO_COPY.both);
+        } else {
+          // Outcome (c): partial. The inline copy stays put next to the
+          // Resolve button that finishes the job — and stays honest about
+          // whether the resolve is KNOWN to have failed or merely unproven.
+          fail(
+            outcome === "indeterminate"
+              ? COMBO_COPY.partialIndeterminate
+              : COMBO_COPY.partial,
+          );
+        }
+        // The reply landed either way, so the conversation is stale either
+        // way. A same-key invalidation while the resolve leg's own refetch is
+        // in flight is deduped by react-query.
         onPosted();
       } finally {
         inFlight.current = false;
-        setPending(false);
+        // Focus handoff, decided BEFORE the state update that unmounts the
+        // button: the combo retires as soon as it is neither busy nor holding
+        // text, and an unmount under the caret drops focus to <body> (Tab then
+        // restarts from the top of the page). Recorded here, performed in the
+        // effect below — focusing now would land on a node React is about to
+        // remove.
+        handoffFocusRef.current =
+          comboButtonRef.current !== null &&
+          document.activeElement === comboButtonRef.current &&
+          localRef.current.trim() === "";
+        setPendingAction(null);
       }
     })();
   };
@@ -221,7 +333,9 @@ export function ReplyComposer({
             document.activeElement.blur();
           }
         }}
-        onSubmit={submit}
+        // The keyboard shortcut is the PRIMARY action only — a compound
+        // outward write is never implicit.
+        onSubmit={() => submit(false)}
       />
       {overCap || error !== null ? (
         <p className={rowStyles["error"]} id={`${inputId}-error`} role="alert">
@@ -236,14 +350,35 @@ export function ReplyComposer({
             — and strand it there on success. The click guard lives in
             submit(). */}
         <button
-          aria-busy={pending || undefined}
+          aria-busy={pendingAction === "reply" || undefined}
           aria-disabled={blocked || undefined}
           className={rowStyles["action"]}
           type="button"
-          onClick={submit}
+          onClick={() => submit(false)}
         >
-          {pending ? "Posting…" : "Reply"}
+          {pendingAction === "reply" ? "Posting…" : "Reply"}
         </button>
+        {/* SECONDARY, and only with text in the box: closing a thread you have
+            nothing to say on is the standalone Resolve button's job. It also
+            stays mounted for its OWN run — the reply leg clears the draft at
+            the commit point, and a busy control that vanishes mid-request
+            drops both the aria-busy state and the focus sitting on it. */}
+        {resolveAfterPost !== undefined &&
+        (local.trim() !== "" || pendingAction === "reply-and-resolve") ? (
+          <button
+            aria-busy={pendingAction === "reply-and-resolve" || undefined}
+            aria-disabled={blocked || undefined}
+            className={rowStyles["action"]}
+            data-testid="reply-and-resolve"
+            ref={comboButtonRef}
+            type="button"
+            onClick={() => submit(true)}
+          >
+            {pendingAction === "reply-and-resolve"
+              ? "Posting & resolving…"
+              : "Reply & resolve"}
+          </button>
+        ) : null}
       </div>
     </div>
   );

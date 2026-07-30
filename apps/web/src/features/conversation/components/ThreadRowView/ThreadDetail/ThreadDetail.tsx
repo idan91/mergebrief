@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Markdown } from "@web/components/Markdown/Markdown";
 import type { DigestThreadRow } from "../../../utils/digest";
@@ -9,6 +9,8 @@ import { mentionCandidatesFromThread } from "../../../utils/mentions";
 import { postdatesBrief } from "../../../utils/postdate";
 import { buildQuoteBlock } from "../../../utils/quote";
 import { ReplyComposer } from "./ReplyComposer/ReplyComposer";
+import { ThreadResolveAction } from "./ThreadResolveAction/ThreadResolveAction";
+import { useThreadResolution } from "./useThreadResolution";
 
 export interface ThreadDetailProps {
   row: DigestThreadRow;
@@ -28,6 +30,20 @@ export function ThreadDetail({
   hideJump = false,
 }: ThreadDetailProps) {
   const { thread, placement } = row;
+  // Resolution flow state (BRIEF-93) lives in the facade hook; this detail is
+  // the nearest common ancestor of its two consumers — the standalone action
+  // below and the composer's Reply & resolve leg.
+  const resolution = useThreadResolution({
+    threadId: thread.rootCommentId,
+    isResolved: thread.isResolved,
+    resolution: composer.resolution,
+  });
+  // The standalone control's node, handed to the composer as its focus rescue
+  // target — this detail is the only place that knows both controls exist.
+  const resolveButtonRef = useRef<HTMLButtonElement | null>(null);
+  const focusResolveAction = useCallback(() => {
+    resolveButtonRef.current?.focus();
+  }, []);
   // Quote-reply (BRIEF-56): the button quotes the selection when one lives
   // inside THIS detail, else the whole comment; `R` requires a selection.
   // Nonce-triggered so quoting the same text twice appends twice.
@@ -168,8 +184,31 @@ export function ThreadDetail({
         quote={quote}
         onPosted={composer.onPosted}
         post={composer.post}
+        // The combo closes an open thread — never offered on a resolved one
+        // (Unresolve is that thread's action) nor without the capability.
+        resolveAfterPost={
+          resolution.available && !thread.isResolved
+            ? resolution.resolveAfterReply
+            : undefined
+        }
+        // Focus destination when the combo button retires mid-flow: the
+        // standalone control is mounted for the whole combo (both outcomes
+        // leave it on screen), and on a partial it IS the retry path.
+        focusResolveAction={focusResolveAction}
         threadId={thread.rootCommentId}
       />
+      {/* Bottom of the expanded thread, next to the composer (locked design). */}
+      {resolution.available ? (
+        <ThreadResolveAction
+          error={resolution.error}
+          exposeButton={(element) => {
+            resolveButtonRef.current = element;
+          }}
+          pending={resolution.pending}
+          resolved={thread.isResolved}
+          onToggle={resolution.toggle}
+        />
+      ) : null}
     </div>
   );
 }
