@@ -17,10 +17,23 @@ export interface ThreadRowViewProps {
   hideJump?: boolean;
 }
 
+/** Decorative run separator — aria-hidden, so it stays out of the row's name. */
+function SlimSeparator() {
+  return (
+    <span aria-hidden="true" className={rowStyles["slimSep"]}>
+      ·
+    </span>
+  );
+}
+
 /**
  * One thread's digest row: a plain `<button aria-expanded>` disclosure over
  * the thread detail. Promoted to a ConversationSection sibling — DiffTable
  * and InlineThreads render it at the chunk (ADR 0037 promotion rule).
+ *
+ * A settled thread collapses to the SLIM variant (BRIEF-93): one faint line
+ * instead of a framed row. Same single button, same handler — the collapsed
+ * row carries no actions of its own.
  */
 export function ThreadRowView({
   row,
@@ -32,6 +45,11 @@ export function ThreadRowView({
 }: ThreadRowViewProps) {
   const { thread } = row;
   const author = thread.comments[0]?.author;
+  const commentCount = thread.comments.length;
+  // Outdated wins over resolved (the chip's rule, unchanged): outdated is WHY
+  // the thread left the code view, and that fact outranks settledness — so
+  // those rows stay full. Expanding any thread restores the full row too.
+  const slim = thread.isResolved && !thread.isOutdated && !expanded;
   return (
     <li
       className={rowStyles["row"]}
@@ -48,26 +66,52 @@ export function ThreadRowView({
       <button
         aria-expanded={expanded}
         className={rowStyles["rowButton"]}
+        data-testid="thread-row"
+        data-variant={slim ? "slim" : "full"}
         type="button"
         onClick={() => toggle(thread.rootCommentId)}
       >
-        <span
-          className={rowStyles["chip"]}
-          data-state={threadStateChip(thread)}
-        >
-          {threadStateChip(thread)}
-        </span>
-        <span className={rowStyles["rowAuthor"]}>@{author?.login}</span>
-        <span className={rowStyles["rowLine"]}>{row.digestLine}</span>
-        {row.isOwn ? <span className={rowStyles["ownTag"]}>yours</span> : null}
-        {row.anchorLabel !== undefined ? (
-          <span className={rowStyles["revision"]}>at {row.anchorLabel}</span>
-        ) : null}
-        <span className={rowStyles["count"]}>
-          {thread.comments.length > 1
-            ? `${thread.comments.length} comments`
-            : null}
-        </span>
+        {slim ? (
+          <>
+            {/* The literal, not the chip: a settled row's whole point is to
+                stop competing for attention. */}
+            <span className={rowStyles["slimLabel"]}>resolved</span>
+            <SlimSeparator />
+            <span className={rowStyles["rowAuthor"]}>@{author?.login}</span>
+            <SlimSeparator />
+            <span className={rowStyles["rowLine"]}>{row.digestLine}</span>
+            {commentCount > 1 ? (
+              <>
+                <SlimSeparator />
+                <span className={rowStyles["count"]}>
+                  {commentCount} comments
+                </span>
+              </>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <span
+              className={rowStyles["chip"]}
+              data-state={threadStateChip(thread)}
+            >
+              {threadStateChip(thread)}
+            </span>
+            <span className={rowStyles["rowAuthor"]}>@{author?.login}</span>
+            <span className={rowStyles["rowLine"]}>{row.digestLine}</span>
+            {row.isOwn ? (
+              <span className={rowStyles["ownTag"]}>yours</span>
+            ) : null}
+            {row.anchorLabel !== undefined ? (
+              <span className={rowStyles["revision"]}>
+                at {row.anchorLabel}
+              </span>
+            ) : null}
+            <span className={rowStyles["count"]}>
+              {commentCount > 1 ? `${commentCount} comments` : null}
+            </span>
+          </>
+        )}
       </button>
       {expanded ? (
         <ThreadDetail
