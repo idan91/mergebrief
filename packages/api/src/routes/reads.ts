@@ -164,6 +164,9 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       // Per-request author derivation (BRIEF-43): the viewer's verified login
       // from the session. `viewerIsAuthor` is computed here, never cached.
       c.get("session").reviewerLogin,
+      // Push capability from the gate's access check (BRIEF-93) — ≤60s stale
+      // via the positive cache, same budget as `repoFullName`.
+      c.get("viewerCanPush"),
     );
     // Compare availability + the browsable revision timeline (BRIEF-24). Both
     // are derived from ONE lean listing per artifact kind, joined in memory —

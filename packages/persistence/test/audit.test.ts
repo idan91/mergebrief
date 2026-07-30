@@ -54,6 +54,30 @@ describe("audit — append-only emit (D9)", () => {
     expect(row.action).toBe("submit");
   });
 
+  it("records thread resolution flips against the CHECK vocabulary (BRIEF-93)", async () => {
+    // Both directions must clear the DB CHECK constraint (migration 0014, in
+    // lockstep with `AuditAction` — the 0007/0010 pattern).
+    const handle = await freshDatabase();
+    const resolved = await audit(handle, {
+      installationId: TENANT,
+      actorType: AuditActorType.REVIEWER,
+      actorId: 31337n,
+      action: AuditAction.RESOLVE_THREAD,
+      targetType: "review_comment",
+      targetId: 12345n,
+    });
+    expect(resolved.action).toBe("resolve-thread");
+    const unresolved = await audit(handle, {
+      installationId: TENANT,
+      actorType: AuditActorType.REVIEWER,
+      actorId: 31337n,
+      action: AuditAction.UNRESOLVE_THREAD,
+      targetType: "review_comment",
+      targetId: 12345n,
+    });
+    expect(unresolved.action).toBe("unresolve-thread");
+  });
+
   it("metadata keys are a closed allowlist — unknown key rejected", () => {
     // `audit()` runs this same schema with `.parse()`, so these throw there.
     expect(AuditMetadataSchema.safeParse({ email: "x" }).success).toBe(false);

@@ -84,6 +84,13 @@ export interface AuthzVariables extends RequestLogVariables {
    * repo than the numeric id the gate authorized.
    */
   readonly repoFullName: string;
+  /**
+   * Whether GITHUB reported push (write) permission for the viewer on this
+   * repo during the access check (BRIEF-93) — cached with the positive entry,
+   * so ≤60s stale like `repoFullName`. Affordance signal only: GitHub's
+   * mutation-time enforcement stays the truth for any write it gates.
+   */
+  readonly viewerCanPush: boolean;
   readonly accessToken?: string;
 }
 
@@ -249,12 +256,17 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
  * app instances.
  */
 export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
-  // key `${sessionTokenHash}:${repoId}` → the GitHub-verified `owner/name`,
-  // until expiry. Positive only, bounded (never-reused keys can't be allowed
-  // to grow unbounded). Storing the verified full name (not just `true`) lets
-  // name-addressed GitHub calls downstream reuse the authz check's result
-  // instead of trusting the row's possibly-stale `repo_slug`.
-  const positiveCache = createTtlCache<string>(POSITIVE_CACHE_MAX_ENTRIES);
+  // key `${sessionTokenHash}:${repoId}` → the GitHub-verified `owner/name` +
+  // the viewer's push capability, until expiry. Positive only, bounded
+  // (never-reused keys can't be allowed to grow unbounded). Storing the
+  // verified full name (not just `true`) lets name-addressed GitHub calls
+  // downstream reuse the authz check's result instead of trusting the row's
+  // possibly-stale `repo_slug`; the capability rides the same entry so a
+  // cache-hit request still knows it (BRIEF-93).
+  const positiveCache = createTtlCache<{
+    readonly fullName: string;
+    readonly viewerCanPush: boolean;
+  }>(POSITIVE_CACHE_MAX_ENTRIES);
 
   return async (c, next) => {
     const session = c.get("session");
@@ -272,10 +284,11 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     // it, so no access token is set here. The cached value IS the verified
     // full name from the check that populated the entry (≤60s old).
     const cacheKey = positiveCacheKey(session.sessionTokenHash, session.installationId, repoId);
-    const cachedFullName = positiveCache.get(cacheKey);
-    if (cachedFullName !== undefined) {
+    const cachedEntry = positiveCache.get(cacheKey);
+    if (cachedEntry !== undefined) {
       c.set("repoId", repoId);
-      c.set("repoFullName", cachedFullName);
+      c.set("repoFullName", cachedEntry.fullName);
+      c.set("viewerCanPush", cachedEntry.viewerCanPush);
       await next();
       stampAccess(c, "200", { repoId, reviewerId: session.reviewerId });
       return;
@@ -331,10 +344,15 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
 
     // 2xx → authorized. Cache the verified full name, hand the token to the
     // route, and log AFTER the handler so status/duration reflect it.
-    positiveCache.set(cacheKey, repo.value.fullName, Date.now() + AUTHZ_CACHE_TTL_MS);
+    positiveCache.set(
+      cacheKey,
+      { fullName: repo.value.fullName, viewerCanPush: repo.value.viewerCanPush },
+      Date.now() + AUTHZ_CACHE_TTL_MS,
+    );
     c.set("session", currentSession);
     c.set("repoId", repoId);
     c.set("repoFullName", repo.value.fullName);
+    c.set("viewerCanPush", repo.value.viewerCanPush);
     c.set("accessToken", accessToken);
     await next();
     stampAccess(c, "200", { repoId, reviewerId: currentSession.reviewerId });

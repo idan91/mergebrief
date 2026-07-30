@@ -52,6 +52,17 @@ export interface PrView {
    * any null/missing author or viewer login.
    */
   readonly viewerIsAuthor: boolean;
+  /**
+   * Whether the requesting viewer may resolve/unresolve review threads on
+   * this PR (BRIEF-93): GitHub push permission OR PR authorship — GitHub's
+   * own rule for `resolveReviewThread`. PR-level and viewer-derived
+   * server-side; affordance only (buttons hidden without it, ADR 0031), with
+   * GitHub's mutation-time enforcement as the truth. On the LIST path the
+   * per-repo capability is unknown (no per-repo access check runs there), so
+   * rows fall back to authorship-only — the brief page must read this from
+   * PR meta, not the list.
+   */
+  readonly viewerCanResolve: boolean;
   readonly generation: GenerationSummaryView | null;
   readonly updatedAt: string;
 }
@@ -79,9 +90,11 @@ export function buildPrView(
   latestGeneration: GenerationRow | undefined,
   verifiedSlug: string | undefined,
   viewerLogin: string | null,
+  viewerCanPush: boolean,
 ): PrView {
   const headSha = latestGeneration?.headSha ?? latestBrief?.headSha ?? null;
   const briefAvailable = latestBrief !== undefined && latestBrief.headSha === headSha;
+  const viewerIsAuthor = deriveViewerIsAuthor(viewerLogin, row.authorLogin);
   return {
     repoId: String(row.repoId),
     repoSlug: verifiedSlug ?? row.repoSlug,
@@ -92,7 +105,8 @@ export function buildPrView(
     headSha,
     briefAvailable,
     draft: row.draft,
-    viewerIsAuthor: deriveViewerIsAuthor(viewerLogin, row.authorLogin),
+    viewerIsAuthor,
+    viewerCanResolve: viewerCanPush || viewerIsAuthor,
     generation:
       latestGeneration === undefined
         ? null

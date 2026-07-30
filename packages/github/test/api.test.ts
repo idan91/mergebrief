@@ -243,6 +243,64 @@ describe("fetchRepositoryById", () => {
     expect(request).toHaveBeenCalledWith("GET /repositories/{id}", { id: 1 });
   });
 
+  it("captures permissions.push as viewerCanPush when GitHub returns permissions", async () => {
+    // A user-to-server read includes the VIEWER's effective `permissions`
+    // block — `push` is the write-capability signal (BRIEF-93).
+    const request = vi.fn().mockResolvedValue({
+      data: {
+        id: 1,
+        full_name: "o/r",
+        private: true,
+        permissions: { admin: false, push: true, pull: true },
+      },
+    });
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.viewerCanPush).toBe(true);
+  });
+
+  it("viewerCanPush is false when the permissions block is absent (fail closed)", async () => {
+    const request = vi.fn().mockResolvedValue({
+      data: { id: 1, full_name: "o/r", private: true },
+    });
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.viewerCanPush).toBe(false);
+  });
+
+  it("a permissions block WITHOUT push degrades to false, never fails the parse", async () => {
+    // This fetch is the authz gate's only probe — a capability-signal glitch
+    // must not become a full access denial.
+    const request = vi.fn().mockResolvedValue({
+      data: { id: 1, full_name: "o/r", private: true, permissions: { admin: false } },
+    });
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.viewerCanPush).toBe(false);
+  });
+
+  it("viewerCanPush is false when permissions.push is false", async () => {
+    const request = vi.fn().mockResolvedValue({
+      data: {
+        id: 1,
+        full_name: "o/r",
+        private: true,
+        permissions: { admin: false, push: false, pull: true },
+      },
+    });
+    const octokit = mockOctokit({ request });
+    const result = await fetchRepositoryById(octokit, toRepoId(1n));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.viewerCanPush).toBe(false);
+  });
+
   it("maps a 404 to a sanitized not-found error with no leaked token", async () => {
     const request = vi.fn().mockRejectedValue(requestError(404));
     const octokit = mockOctokit({ request });

@@ -20,11 +20,23 @@ export interface RepositoryInfo {
   readonly repoId: RepoId;
   readonly fullName: string;
   readonly private: boolean;
+  /**
+   * Whether the AUTHENTICATED viewer holds write (`push`) permission on the
+   * repo (BRIEF-93). Only meaningful on a user-to-server read — GitHub scopes
+   * the `permissions` block to the requesting identity; absent (installation
+   * token, defensive) parses as `false`, never as a capability grant.
+   */
+  readonly viewerCanPush: boolean;
 }
 
 const repositoryResponseSchema = z.object({
   full_name: z.string().min(1),
   private: z.boolean(),
+  // `push` itself is tolerant-optional: a permissions block missing it must
+  // degrade to no-capability (false), never fail the whole repo parse — this
+  // fetch is the authz gate's only probe, and a capability-signal glitch must
+  // not turn into a full access denial.
+  permissions: z.object({ push: z.boolean().optional() }).optional(),
 });
 
 /**
@@ -52,6 +64,7 @@ export async function fetchRepositoryById(
         repoId,
         fullName: parsed.data.full_name,
         private: parsed.data.private,
+        viewerCanPush: parsed.data.permissions?.push ?? false,
       },
     };
   } catch (error) {

@@ -122,6 +122,8 @@ export const AuditAction = {
   AUTH: "auth",
   SUBMIT: "submit",
   MARK_READY: "mark-ready",
+  RESOLVE_THREAD: "resolve-thread",
+  UNRESOLVE_THREAD: "unresolve-thread",
 } as const;
 export type AuditAction = ValueOf<typeof AuditAction>;
 

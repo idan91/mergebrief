@@ -309,6 +309,26 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(raw).not.toContain("not-octocat");
   });
 
+  it("list: viewerCanResolve derives from authorship ONLY — no per-repo capability on the list path (BRIEF-93)", async () => {
+    // The list endpoint's allowed-set intersection carries no permissions
+    // block, so push capability is unknown there. Fail closed: the field is
+    // authorship-only on list rows; the brief page reads the real capability
+    // from PR meta (per-repo gate path).
+    stubGitHub({
+      installations: () => installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
+    });
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1, authorLogin: "octocat" });
+    await new Promise((r) => setTimeout(r, 5));
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 2, authorLogin: "not-octocat" });
+
+    const res = await get("/api/pulls", cookie);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { pulls: Array<Record<string, unknown>> };
+    expect(body.pulls[1]).toMatchObject({ viewerIsAuthor: true, viewerCanResolve: true });
+    expect(body.pulls[0]).toMatchObject({ viewerIsAuthor: false, viewerCanResolve: false });
+  });
+
   it("list: current-span enrichment — generation summary + briefAvailable per row", async () => {
     stubGitHub({
       installations: () => installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
@@ -430,8 +450,16 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   // --------------------------------------------------------------- PR meta
 
-  function repoOk(): Response {
-    return jsonResponse({ id: REPO_A, full_name: "octo/verified-a", private: true });
+  function repoOk(canPush?: boolean): Response {
+    // `canPush` undefined = no permissions block at all (fail-closed parse).
+    return jsonResponse({
+      id: REPO_A,
+      full_name: "octo/verified-a",
+      private: true,
+      ...(canPush === undefined
+        ? {}
+        : { permissions: { admin: false, push: canPush, pull: true } }),
+    });
   }
 
   it("meta: 404 posture identical to artifact GETs (no access / unknown PR / bad number)", async () => {
@@ -545,6 +573,58 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const noAuthorBody = (await noAuthor.json()) as Record<string, unknown>;
     expect(noAuthorBody["viewerIsAuthor"]).toBe(false);
     expect(noAuthorBody["draft"]).toBe(false);
+  });
+
+  it("meta: viewerCanResolve=true from push permission, and it rides the gate's positive cache (BRIEF-93)", async () => {
+    const counts = stubGitHub({ repositories: () => repoOk(true) });
+    const cookie = await seedSession(harness.handle, kp);
+    // Not the author — capability comes from `permissions.push` alone.
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, authorLogin: "not-octocat" });
+
+    const first = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(first.status).toBe(200);
+    const firstBody = (await first.json()) as Record<string, unknown>;
+    expect(firstBody["viewerCanResolve"]).toBe(true);
+    expect(firstBody["viewerIsAuthor"]).toBe(false);
+
+    // Second read inside the 60s TTL: NO second GitHub access check — the
+    // capability must come from the positive-cache entry, not a re-fetch.
+    const second = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(second.status).toBe(200);
+    expect(((await second.json()) as Record<string, unknown>)["viewerCanResolve"]).toBe(true);
+    expect(counts.repositories).toBe(1);
+  });
+
+  it("meta: viewerCanResolve=true for the PR author without push permission (BRIEF-93)", async () => {
+    stubGitHub({ repositories: () => repoOk(false) });
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, authorLogin: "octocat" });
+
+    const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body["viewerCanResolve"]).toBe(true);
+    expect(body["viewerIsAuthor"]).toBe(true);
+  });
+
+  it("meta: viewerCanResolve=false without push or authorship; an absent permissions block fails closed (BRIEF-93)", async () => {
+    // No permissions block in the repo payload at all — must parse as no
+    // capability, never as a grant.
+    const counts = stubGitHub({ repositories: () => repoOk() });
+    const cookie = await seedSession(harness.handle, kp);
+    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, authorLogin: "not-octocat" });
+
+    const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body["viewerCanResolve"]).toBe(false);
+
+    // The cache-hit path must stay fail-closed too — a second read inside the
+    // TTL (no re-fetch) may not invent a capability the check never saw.
+    const second = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
+    expect(second.status).toBe(200);
+    expect(((await second.json()) as Record<string, unknown>)["viewerCanResolve"]).toBe(false);
+    expect(counts.repositories).toBe(1);
   });
 
   it("meta: previous-brief comparison availability derives from marks + narrative rows", async () => {

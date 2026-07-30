@@ -63,7 +63,10 @@ export function pullsRoute(
 
     const viewerLogin = c.get("session").reviewerLogin;
     const pulls = rows.map((row) =>
-      buildPrView(row, latestBriefs.get(row.id), latestGenerations.get(row.id), allowed.get(row.repoId), viewerLogin),
+      // List path: the allowed-set intersection proves access but carries no
+      // permissions block, so push capability is UNKNOWN here — fail closed
+      // (authorship-only viewerCanResolve; the brief page reads PR meta).
+      buildPrView(row, latestBriefs.get(row.id), latestGenerations.get(row.id), allowed.get(row.repoId), viewerLogin, false),
     );
     return c.json({ pulls }, 200, NO_STORE);
   });
