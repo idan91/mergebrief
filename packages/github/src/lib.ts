@@ -139,6 +139,17 @@ export type {
   MarkReadyResult,
 } from "./operations/mark-ready";
 
+// Thread-resolution mutations (BRIEF-93): resolve/unresolve one PR review
+// thread with the viewer's own token. GraphQL-only (REST has no
+// thread-resolution surface); the thread's node id is resolved internally from
+// its root comment id and never leaves the module. A thread already in the
+// requested state converges instead of failing.
+export { setReviewThreadResolution } from "./operations/resolve-thread";
+export type {
+  SetReviewThreadResolutionInput,
+  SetReviewThreadResolutionResult,
+} from "./operations/resolve-thread";
+
 // PR-conversation primitive (BRIEF-25, ADR 0027): the package's first GraphQL
 // surface — pre-threaded review threads with first-class resolution state,
 // review verdicts, PR-level comments. Domain ids are REST `databaseId`
