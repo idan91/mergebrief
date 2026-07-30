@@ -25,6 +25,7 @@ import { versionRoute } from "./routes/version";
 import { reviewSubmitRoute } from "./routes/review-submit";
 import { markReadyRoute } from "./routes/mark-ready";
 import { inlineCommentRoute } from "./routes/inline-comment";
+import { resolveThreadRoute } from "./routes/resolve-thread";
 import { webhookRoute } from "./routes/webhook";
 
 export type { AuthDeps } from "./routes/auth";
@@ -91,6 +92,12 @@ export function createApp(deps: AppDeps): ApiApp {
   // write, so its success evicts the PR's conversation cache. Own per-repo
   // gate, mounted BEFORE readsRoute for the same single-gate reason.
   app.route("/", inlineCommentRoute(deps, (installationId, repoId, prNumber) =>
+    conversation.evictConversation(installationId, repoId, prNumber),
+  ));
+  // Thread resolution (BRIEF-93): a resolved/unresolved thread is a
+  // conversation write, so success evicts the PR's conversation cache. Own
+  // per-repo gate, mounted BEFORE readsRoute for the same single-gate reason.
+  app.route("/", resolveThreadRoute(deps, (installationId, repoId, prNumber) =>
     conversation.evictConversation(installationId, repoId, prNumber),
   ));
   app.route("/", conversation.app);

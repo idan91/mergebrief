@@ -48,9 +48,16 @@ graphile composition root (stage 5); any worker/LLM code (BRIEF-3).
   is ≤60s stale — fine for reads, not for outward writes (a rename +
   name-reuse inside the window would target the wrong repo). A mutating
   route fetches `GET /repositories/{id}` with the viewer token immediately
-  before the write. Any in-route GitHub denial (403/404) collapses to the
+  before the write. A denial at the fresh re-resolve itself (403/404 BEFORE
+  the viewer has re-proven access this request) always collapses to the
   gate's 404 posture — no existence leak, no status distinguishable from a
-  cold denial.
+  cold denial. AFTER a successful re-resolve there is no existence left to
+  hide, so the mutation-stage posture is a per-route judgment: where a
+  FORBIDDEN carries a real, FE-actionable capability signal it surfaces as
+  an honest 403 `github-permission` (mark-ready's App-permission gap,
+  resolve-thread's viewer capability); where it carries none it keeps
+  collapsing to 404 (the reply POST — any repo reader may reply, so its 403
+  is indistinguishable from gone). NOT_FOUND collapses to 404 everywhere.
 - **`no-store` on every response of a gated route** — error paths included;
   it is all per-viewer state (`errorJson` in `review-submit.ts`).
 - **One refresh-once budget per REQUEST**, shared across every GitHub call
