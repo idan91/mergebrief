@@ -84,7 +84,7 @@ import {
 } from "./repo-config";
 
 // The structured seam (packages/logging, ADR 0034) — re-exported for the
-// worker's internal modules (repo-config) and `lib.ts`.
+// worker's internal modules (repo-config) and `index.ts`.
 export type { Logger };
 
 /** The message-only log shape brief-core and the generators contract take. */

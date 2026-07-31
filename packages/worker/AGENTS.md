@@ -10,13 +10,13 @@ tools/categorizer in BRIEF-68), reused as-is behind its `Generator` port.
 
 ## Map
 
-**Entry points: `src/lib.ts`** (the public surface, `exports["."]` — tests +
+**Entry points: `src/index.ts`** (the public surface, `exports["."]` — tests +
 future embedding) and **`src/main.ts`** (the runnable composition root,
 `pnpm start` — deliberately not exported).
 
 ```
 src/
-  lib.ts              ENTRY — sectioned re-exports = the public surface
+  index.ts            ENTRY — sectioned re-exports = the public surface
   main.ts             composition root — the ONE place env is read + deps wired
   config.ts           Zod env config (DATABASE_URL, MERGEBRIEF_CONFIG,
                       PUBLIC_BASE_URL, GitHub App creds)

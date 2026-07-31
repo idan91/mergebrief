@@ -108,7 +108,7 @@ export interface AuditEntry {
 
 /**
  * Emit one append-only audit row on the given drizzle executor. In-package
- * seam (NOT re-exported from `lib.ts`): a transaction `tx` is assignable to
+ * seam (NOT re-exported from `index.ts`): a transaction `tx` is assignable to
  * `AppDrizzle`, so a purge routine can append its `delete` entry in the SAME
  * transaction as the deletes it records (D5/D9 — the ledger survives because
  * `audit_log` has no FK, and the emit commits atomically with the cascade).

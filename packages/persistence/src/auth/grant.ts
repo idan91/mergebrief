@@ -10,7 +10,7 @@
 //
 // Lifecycle: a grant dies with its LAST referent, in the same transaction —
 // every referent-deleting seam calls `deleteOrphanedGrants` on the ids it
-// unlinked (module-internal helper, never on the `lib.ts` surface). A
+// unlinked (module-internal helper, never on the `index.ts` surface). A
 // concurrent mint racing the last referent's delete resolves benignly in
 // BOTH interleavings, at the cost of one failed transaction: if the delete
 // locks the grant first, the mint's FK check blocks and fails after the
@@ -205,7 +205,7 @@ export function grantAuth(handle: AppDatabase): GrantAuth {
  * anymore. MUST run on the same transaction that deleted the referents
  * (D15 lifecycle: a grant dies with its last referent, atomically) — hence
  * the raw `AppDrizzle` executor, same in-package pattern as `insertAudit`.
- * Module-internal: NOT re-exported from `lib.ts`.
+ * Module-internal: NOT re-exported from `index.ts`.
  */
 export async function deleteOrphanedGrants(
   executor: AppDrizzle,

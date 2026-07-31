@@ -5,7 +5,7 @@
   "type": "module",
   "description": "The Generator port and its adapter family (ADR 0013/0030): structured generation behind one contract — Anthropic SDK adapter, shared schema-floor pipeline, provenance vocabulary.",
   "exports": {
-    ".": "./src/lib.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

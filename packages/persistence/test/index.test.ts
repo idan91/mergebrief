@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createDb, forTenant, parseTenantContext } from "../src/lib";
+import { createDb, forTenant, parseTenantContext } from "../src/index";
 
 describe("persistence package surface", () => {
   it("exposes the tenant repository factory and context boundary", () => {

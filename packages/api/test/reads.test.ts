@@ -34,7 +34,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger } from "./logging";
 
 // ---------------------------------------------------------------------------

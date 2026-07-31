@@ -27,7 +27,7 @@ import { Pool } from "pg";
  * (b) this module was BUNDLED into a consumer's server build (the web app's
  *     vite SSR bundle), where `import.meta.url` points into the consumer's
  *     dist — then resolve the package itself through node's resolver and
- *     take `drizzle/` beside its entry (`src/lib.ts`).
+ *     take `drizzle/` beside its entry (`src/index.ts`).
  */
 function migrationsFolder(): string {
   const fromModule = fileURLToPath(new URL("../drizzle", import.meta.url));

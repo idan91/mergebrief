@@ -10,7 +10,7 @@ import {
   forTenant,
   generationProjection,
   type TenantContext,
-} from "../src/lib";
+} from "../src/index";
 import {
   GenerationKind,
   GenerationStatus,

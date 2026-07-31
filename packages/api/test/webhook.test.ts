@@ -15,8 +15,8 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import type { AuthDeps } from "../src/lib";
-import { createApp, type ApiApp } from "../src/lib";
+import type { AuthDeps } from "../src/index";
+import { createApp, type ApiApp } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 
 const SECRET = "test-webhook-secret";

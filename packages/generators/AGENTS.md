@@ -6,13 +6,13 @@ schema` — behind one contract, with five interchangeable adapters.
 
 ## Map
 
-**Entry point: `src/lib.ts`** — the package's only export
+**Entry point: `src/index.ts`** — the package's only export
 (`package.json` `exports["."]`); every public symbol is re-exported there,
 grouped by folder. Start reading there.
 
 ```
 src/
-  lib.ts                  ENTRY — sectioned re-exports = the public surface
+  index.ts                ENTRY — sectioned re-exports = the public surface
   contract/               what an adapter IS
     generator.ts            Generator interface, GenerateRequest, Logger
     provenance.ts           Effort, Generation (the provenance stamp)

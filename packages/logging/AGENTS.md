@@ -7,12 +7,12 @@ composition root and injects it; call sites depend on this package only.
 
 ## Map
 
-**Entry point: `src/lib.ts`** — the package's only export
+**Entry point: `src/index.ts`** — the package's only export
 (`package.json` `exports["."]`).
 
 ```
 src/
-  lib.ts      ENTRY — sectioned re-exports = the public surface
+  index.ts    ENTRY — sectioned re-exports = the public surface
   logger.ts   Logger interface (error/warn/info/debug + child),
               createLogger, resolveLoggerConfig (pure env → level/format),
               redaction paths, err serializer

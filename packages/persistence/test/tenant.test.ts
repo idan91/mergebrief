@@ -18,7 +18,7 @@ import {
   type TenantContext,
   type TenantRepository,
   type UserSettingsStore,
-} from "../src/lib";
+} from "../src/index";
 import {
   isInstallationId,
   isRepoId,

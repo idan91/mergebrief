@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Shared TYPE-ONLY package (ValueOf, Result, Brand, MaybePromise; room for shared domain types). Zero runtime exports, zero dependencies.",
   "exports": {
-    ".": "./src/lib.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

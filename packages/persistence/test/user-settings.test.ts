@@ -9,7 +9,7 @@ import {
   userSettingsStore,
   type InstallationId,
   type ReviewerId,
-} from "../src/lib";
+} from "../src/index";
 import { isInstallationId, isReviewerId } from "../src/types";
 import { brandWith, freshDatabase } from "./helpers";
 

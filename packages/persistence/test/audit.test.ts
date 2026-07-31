@@ -1,7 +1,7 @@
 // Stage 4 audit-emit tests (PGlite). Prove the D9 append-only emit inserts with
 // dangling (non-FK) targets and validates metadata.
 import { describe, expect, it } from "vitest";
-import { audit, AuditMetadataSchema, AuditTargetTypeSchema, type AuditEntry } from "../src/lib";
+import { audit, AuditMetadataSchema, AuditTargetTypeSchema, type AuditEntry } from "../src/index";
 import { AuditAction, AuditActorType, isInstallationId, type InstallationId } from "../src/types";
 import { brandWith, freshDatabase } from "./helpers";
 

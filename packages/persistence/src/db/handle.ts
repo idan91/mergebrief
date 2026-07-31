@@ -6,7 +6,7 @@
 // do with an `AppDatabase` is hand it to `forTenant`. `internal()` (the unwrap)
 // is exported for the package's own tenant-scoped surface (`tenant.ts`, and the
 // stage-4 `artifact-store.ts`) but is deliberately NOT re-exported from
-// `lib.ts`, so it never reaches package consumers.
+// `index.ts`, so it never reaches package consumers.
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
@@ -19,7 +19,7 @@ export type AppSchema = typeof schema;
  * The internal drizzle handle type. Typed as the driver-agnostic `PgDatabase`
  * base so both the node-postgres handle (`createDb`, production) and the PGlite
  * handle (`fromDrizzle`, tests) satisfy it. Exported for in-package consumers
- * only — `lib.ts` never re-exports it, so callers cannot name it.
+ * only — `index.ts` never re-exports it, so callers cannot name it.
  */
 export type AppDrizzle = PgDatabase<PgQueryResultHKT, AppSchema>;
 
@@ -72,13 +72,13 @@ export function createDb(
 /**
  * Wrap an already-constructed drizzle handle (e.g. the PGlite driver in tests,
  * or a future alternate driver) as an `AppDatabase`. In-package seam; not
- * re-exported from `lib.ts`.
+ * re-exported from `index.ts`.
  */
 export function fromDrizzle(db: AppDrizzle): AppDatabase {
   return { [INTERNAL]: { db, pool: undefined } };
 }
 
-/** Unwrap to the raw drizzle handle. In-package only (never via `lib.ts`). */
+/** Unwrap to the raw drizzle handle. In-package only (never via `index.ts`). */
 export function internal(handle: AppDatabase): AppDrizzle {
   return handle[INTERNAL].db;
 }

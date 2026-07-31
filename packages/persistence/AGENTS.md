@@ -7,14 +7,14 @@ plan: `docs/plans/brief-1-persistence-layer.md`.
 
 ## Map
 
-**Entry points: `src/lib.ts`** (the public surface, `exports["."]`) and
+**Entry points: `src/index.ts`** (the public surface, `exports["."]`) and
 **`src/testing.ts`** (the PGlite cross-package test harness,
 `exports["./testing"]` — dev-only). Every public symbol is re-exported from
-`lib.ts`, grouped by folder. Start reading there.
+`index.ts`, grouped by folder. Start reading there.
 
 ```
 src/
-  lib.ts              ENTRY — sectioned re-exports = the public surface
+  index.ts            ENTRY — sectioned re-exports = the public surface
   testing.ts          ENTRY (persistence/testing) — PGlite harness + graphile stub
   types.ts            branded ids + Result/ValueOf re-export (zero-runtime)
   db/                 the opaque handle + its lifecycle
@@ -43,7 +43,7 @@ drizzle/              generated SQL migrations — append-only
 
 - **Tenancy (D2b):** `forTenant(db, ctx)` is the only DB surface. The raw drizzle handle is
   hidden behind the opaque `AppDatabase` (module-private symbol in `src/db/handle.ts`); `internal()`
-  is the in-package unwrap and must never be re-exported from `lib.ts`. Every read filters
+  is the in-package unwrap and must never be re-exported from `index.ts`. Every read filters
   and every write stamps `installation_id` from ctx; per-PR child writes verify the parent
   `pull_request` belongs to the tenant inside the same transaction. Type-level containment
   tests in `test/tenant.test.ts` guard this — keep them passing.

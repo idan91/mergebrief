@@ -39,7 +39,7 @@ import {
   refreshSessionToken,
   type ApiApp,
   type AuthDeps,
-} from "../src/lib";
+} from "../src/index";
 import { testLogger, testLogging } from "./logging";
 
 // ---------------------------------------------------------------------------

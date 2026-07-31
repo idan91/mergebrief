@@ -1,5 +1,5 @@
 // Shared utility types live in `types` (types-only, zero runtime);
-// re-exported here so this package's public contract (`lib.ts` re-exports
+// re-exported here so this package's public contract (`index.ts` re-exports
 // `Result`/`ValueOf` to consumers) is unchanged.
 import type { Brand, ValueOf } from "types";
 

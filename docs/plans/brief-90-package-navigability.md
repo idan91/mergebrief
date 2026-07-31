@@ -45,9 +45,11 @@
 PR 2 depends on it). Est. ~9 renames + ~30 edited lines. Chunks: (1) renames +
 export targets, (2) docs.
 
-1. `git mv src/lib.ts src/index.ts` in all 9 packages (api, brief-core,
-   generators, github, logging, persistence, repo-config, types, worker;
-   cli has no lib.ts — its entry is `bin.ts`, unchanged).
+1. `git mv src/lib.ts src/index.ts` in 8 packages (api, generators, github,
+   logging, persistence, repo-config, types, worker; cli has no lib.ts — its
+   entry is `bin.ts`, unchanged). brief-core's entry rename rides PR 2: its
+   `src/index.ts` is occupied by the CLI pipeline until that PR moves it to
+   `cli/categorize.ts`.
 2. Update `"."` export target in each package.json (`./src/lib.ts` →
    `./src/index.ts`).
 3. Update the 8 AGENTS.md `lib.ts` mentions + add the repo CLAUDE.md rule line

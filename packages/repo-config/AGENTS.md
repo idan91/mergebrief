@@ -8,13 +8,13 @@ filesystem, never talks to GitHub. It takes strings in and returns outcomes.
 
 ## Map
 
-**Entry point: `src/lib.ts`** — the package's only export
+**Entry point: `src/index.ts`** — the package's only export
 (`package.json` `exports["."]`); every public symbol is re-exported there,
 grouped by module. Start reading there.
 
 ```
 src/
-  lib.ts        ENTRY — sectioned re-exports = the public surface
+  index.ts      ENTRY — sectioned re-exports = the public surface
   constants.ts  fixed paths, budget caps (schema constants, versioned with
                 the schema), floor attributes, parked/reserved vocabulary,
                 the RepoConfigOutcome map

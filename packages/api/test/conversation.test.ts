@@ -27,7 +27,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps, type ConversationGitHubPort } from "../src/lib";
+import { createApp, type ApiApp, type AuthDeps, type ConversationGitHubPort } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 
 // POST .../comments/{id}/replies is on octokit's `triggersNotification` list:

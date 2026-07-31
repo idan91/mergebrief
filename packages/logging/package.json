@@ -5,7 +5,7 @@
   "type": "module",
   "description": "The structured-logging seam (ADR 0034): a minimal Logger interface + createLogger over pino. Call sites depend on this package only — pino types never leak; a later OTel/metrics addition reimplements the interface without touching call sites.",
   "exports": {
-    ".": "./src/lib.ts"
+    ".": "./src/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

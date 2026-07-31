@@ -12,13 +12,13 @@ Deliberately NOT here: the event→state mapping / enqueue / tenant writes
 
 ## Map
 
-**Entry point: `src/lib.ts`** — the package's only export
+**Entry point: `src/index.ts`** — the package's only export
 (`package.json` `exports["."]`); every public symbol is re-exported there,
 grouped by folder. Start reading there.
 
 ```
 src/
-  lib.ts              ENTRY — sectioned re-exports = the public surface
+  index.ts            ENTRY — sectioned re-exports = the public surface
   types.ts            Result/ValueOf re-export (zero-runtime `types` pkg)
   config.ts           Zod env config (App creds, webhook secret, OAuth client)
   errors.ts           single sanitization chokepoint (mapRequestError +

@@ -10,7 +10,7 @@ import {
   forTenant,
   type ArtifactStore,
   type TenantContext,
-} from "../src/lib";
+} from "../src/index";
 import {
   isInstallationId,
   isRepoId,

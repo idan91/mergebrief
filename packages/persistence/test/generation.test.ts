@@ -10,7 +10,7 @@ import {
   ingestRoutines,
   sanitizeGenerationError,
   type TenantContext,
-} from "../src/lib";
+} from "../src/index";
 import {
   GenerationKind,
   GenerationPhase,

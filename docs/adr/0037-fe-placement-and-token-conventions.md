@@ -246,6 +246,14 @@ listed as prose, never assumed to be enforced when they aren't.
 - BRIEF-84 (px→rem) executes after the token sweeps, against token
   definitions only.
 
+_Amended 2026-07-31 (BRIEF-90): decision 1's entry-point rule extends to
+`packages/*` trees — package entry is `src/index.ts` (a curated barrel,
+renamed from the historical `lib.ts`; ecosystem-convention survey in the
+BRIEF-90 ticket), `types.ts` stays flat by convention, and a package root
+conforms with ≤ ~5 domain-cued loose files. `index.tsx` feature barrels and
+everything else in this ADR remain apps/web-scoped. Rule recorded in the
+repo-wide `AGENTS.md`._
+
 ## Revisit Triggers
 
 - ~~**Topic-folder threshold** (≥4 files) — reassess after the first

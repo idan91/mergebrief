@@ -15,6 +15,12 @@ apps/web). Rules here apply to the whole workspace.
 - Expected failures return `Result`; `throw` is for programmer/infra errors.
   Error messages never carry secrets, tokens, or connection strings.
 - Named exports only (default exports only where a framework requires them).
+- **Package entry = `src/index.ts`** — a curated barrel, the package's
+  `exports["."]` target (BRIEF-90; extends ADR 0037 decision 1 to package
+  trees). A package root conforms when every file is the entry, `types.ts`,
+  or a small domain-cued support file (loose count ≤ ~5); a category earns a
+  folder only when it clarifies; generic names are defects. `index.tsx`
+  feature barrels remain an apps/web convention (ADR 0037).
 - **Logging goes through the `packages/logging` seam** (ADR 0034) — no bare
   `console.*` in `packages/api`, `packages/worker`, or server-side
   `apps/web` code. Secrets ride as structured fields (redacted by path),

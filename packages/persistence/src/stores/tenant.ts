@@ -192,7 +192,7 @@ export type PullRequestStatePatch = PullRequestLifecycle;
  * OPEN always writes NULLs (drizzle skips `undefined`, and a reopened PR
  * must disarm the retention sweep), terminal states write what they carry.
  * Exported for IN-PACKAGE reuse only (`ingest.ts` replicates the upsert
- * inside its transaction); `lib.ts` never re-exports it.
+ * inside its transaction); `index.ts` never re-exports it.
  */
 export function lifecycleColumns(lc: PullRequestLifecycle): {
   state: PrState;
