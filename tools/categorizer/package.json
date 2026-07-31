@@ -5,8 +5,8 @@
   "type": "module",
   "description": "Dev CLIs + the BRIEF-59 generation-quality eval harness on top of brief-core (the Brief domain core lives there since BRIEF-68).",
   "scripts": {
-    "categorize": "tsx ../../packages/brief-core/src/index.ts",
-    "delta": "tsx ../../packages/brief-core/src/delta-cli.ts",
+    "categorize": "tsx ../../packages/brief-core/src/cli/categorize.ts",
+    "delta": "tsx ../../packages/brief-core/src/cli/delta.ts",
     "eval": "tsx eval/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

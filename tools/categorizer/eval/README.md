@@ -24,7 +24,7 @@ that case and leaves the others' specimens from the last full run.
 ## When to run (convention gate — not CI)
 
 Run before merging any change to the generation surface:
-`packages/brief-core/src/prompt.ts`, the output schema
+`packages/brief-core/src/generation/prompt.ts`, the output schema
 (`packages/brief-core/src/types.ts`), validators/salvage, repo-config
 injection, or output-affecting adapter defaults. Also once when a fixture
 lands (`--rebaseline` records its baseline) and after a model bump.

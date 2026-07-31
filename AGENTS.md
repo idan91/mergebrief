@@ -35,7 +35,7 @@ apps/web). Rules here apply to the whole workspace.
   dependents' suites in CI — run them locally before pushing. (BRIEF-23: a
   github parser change broke two api tests under a green CI.)
 - **Generation-surface changes run the eval harness** (BRIEF-59): touching
-  `packages/brief-core/src/prompt.ts`, the output schema, validators/salvage,
+  `packages/brief-core/src/generation/prompt.ts`, the output schema, validators/salvage,
   repo-config injection, or output-affecting adapter defaults ⇒ run
   `pnpm -C tools/categorizer eval`, **scoped by default** (BRIEF-87):
   one `--case <id>` run per case whose properties could plausibly move

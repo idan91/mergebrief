@@ -104,7 +104,7 @@ The markdown is the source of truth; the code mirrors it. A PR that changes *tok
 renames, or removes one) must update the mirrors in the same PR:
 
 - `packages/brief-core/src/types.ts` — the closed enums the output schema validates against.
-- `packages/brief-core/src/prompt.ts` — the gloss maps interpolated into the prompt.
+- `packages/brief-core/src/generation/prompt.ts` — the gloss maps interpolated into the prompt.
 - `apps/web/src/features/brief/types.ts` — the FE copy of the vocabularies.
 
 Token changes touch the generation surface, so the eval harness applies

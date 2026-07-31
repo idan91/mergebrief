@@ -97,17 +97,17 @@ pnpm typecheck   # tsc --noEmit (strict)
 pnpm test        # vitest run
 ```
 
-Tests cover the pure logic: PR-URL parsing edge cases (`src/github.ts`), output filename + summary rendering (`src/output.ts`), and brief-schema vocabulary enforcement (`src/types.ts`). The network/LLM paths are exercised by the manual gold check.
+Tests cover the pure logic: PR-URL parsing edge cases (`src/github/`), output filename + summary rendering (`src/artifacts/output.ts`), and brief-schema vocabulary enforcement (`src/types.ts`). The network/LLM paths are exercised by the manual gold check.
 
 ### Files
 
 | File | Purpose |
 |---|---|
 | `src/types.ts` | Zod brief + delta schemas — the closed vocabulary, the heart |
-| `src/github.ts` | parse PR URL → `gh pr diff` / `gh pr view` / `gh api …/compare` (no shell; validated) |
-| `src/prompt.ts` | brief + delta system prompts, assembled from the schema constants so they can't drift |
-| `src/categorize.ts` | shared streaming helper → `categorize()` (brief) + `categorizeDelta()` (delta core) |
-| `src/output.ts` | output filenames (index/head-versioned) + stdout summary rendering (brief + delta) |
-| `src/manifest.ts` | per-PR brief manifest (head SHA → PR-global index); the stateless stand-in for the product DB |
-| `src/index.ts` | brief CLI: args (whole PR or explicit span) → fetch → categorize → write brief + diffs + comments sidecars |
-| `src/delta-cli.ts` | delta CLI: url + base/head SHAs → compare diff → categorizeDelta → write delta + diffs + comments sidecars |
+| `src/github/` | parse PR URL → `gh pr diff` / `gh pr view` / `gh api …/compare` (no shell; validated) |
+| `src/generation/prompt.ts` | brief + delta system prompts, assembled from the schema constants so they can't drift |
+| `src/generation/categorize.ts` | shared streaming helper → `categorize()` (brief) + `categorizeDelta()` (delta core) |
+| `src/artifacts/output.ts` | output filenames (index/head-versioned) + stdout summary rendering (brief + delta) |
+| `src/artifacts/manifest.ts` | per-PR brief manifest (head SHA → PR-global index); the stateless stand-in for the product DB |
+| `src/cli/categorize.ts` | brief CLI: args (whole PR or explicit span) → fetch → categorize → write brief + diffs + comments sidecars |
+| `src/cli/delta.ts` | delta CLI: url + base/head SHAs → compare diff → categorizeDelta → write delta + diffs + comments sidecars |
