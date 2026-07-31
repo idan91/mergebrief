@@ -3,6 +3,7 @@
 // invariants that make SSR *not* a second authz path (ADR 0016 #5c): the
 // viewer's cookie is forwarded verbatim, and a composition failure maps to the
 // same sanitized 503 the server entry answers, never a thrown internal error.
+import { createLogger } from "logging";
 import { describe, expect, it, vi } from "vitest";
 import {
   ApiError,
@@ -108,64 +109,37 @@ describe("dispatchInProcess", () => {
     expect(body).toContain("service unavailable");
   });
 
-  it("reports a composition failure through the injected log sink, with the cause as a structured field (ADR 0034)", async () => {
+  it("reports a composition failure through the injected log sink, with the raw cause as the err field (ADR 0034)", async () => {
     // The seam is isomorphic, so the SSR branch cannot import the server
-    // logger at module scope — it is injected. `error` is the right level:
-    // the whole read surface is down until an operator acts.
+    // logger at module scope — it is injected. The RAW error rides `err`:
+    // scrubbing is the logging seam's job (BRIEF-88), not this call site's.
+    // `error` is the right level: the whole read surface is down until an
+    // operator acts.
     const sink = fakeLogSink();
+    const cause = new Error("connect ECONNREFUSED 10.0.0.4:5432");
     await dispatchInProcess(
       "/api/pulls",
       undefined,
       async () => {
-        throw new Error("connect ECONNREFUSED 10.0.0.4:5432");
+        throw cause;
       },
       sink,
     );
     expect(sink.error).toHaveBeenCalledTimes(1);
     const [msg, fields] = sink.error.mock.calls[0] ?? [];
     expect(msg).toBe("apiFetch: webhook app composition failed");
-    expect(fields?.["err"]).toMatchObject({
-      name: "Error",
-      message: "connect ECONNREFUSED 10.0.0.4:5432",
-    });
+    expect(fields?.["err"]).toBe(cause);
   });
 
-  it("redacts URL-shaped credentials from the LOGGED error message and stack", async () => {
-    // pino's `err` serializer writes message + stack VERBATIM, and
-    // `packages/logging`'s redaction is key-path based — it cannot reach a
-    // secret embedded in a STRING. Composition failures (migrate/createDb)
-    // realistically throw with DATABASE_URL in the message, so the sanitizing
-    // happens here, before the value ever reaches the logger.
-    const sink = fakeLogSink();
-    await dispatchInProcess(
-      "/api/pulls",
-      undefined,
-      async () => {
-        throw new Error("postgres://user:secret@host/db is down");
-      },
-      sink,
-    );
-    const [msg, fields] = sink.error.mock.calls[0] ?? [];
-    const logged = JSON.stringify({ msg, fields });
-    expect(logged).not.toContain("secret");
-    expect(logged).not.toContain("postgres://");
-    // Redacted, not dropped: the operator still gets a diagnosable line.
-    const err = fields?.["err"];
-    expect(err).toMatchObject({
-      name: "Error",
-      message: "[redacted-url] is down",
+  // End-to-end guarantee (BRIEF-88): with the REAL logger injected, the
+  // seam's err serializer scrubs URL-shaped credentials before the line
+  // is emitted — this call site no longer sanitizes anything itself.
+  it("emits no credentials through the real logging seam", async () => {
+    const written: string[] = [];
+    const logger = createLogger({
+      env: {},
+      destination: { write: (line: string) => written.push(line) },
     });
-    expect(typeof (err as { stack?: unknown } | undefined)?.stack).toBe(
-      "string",
-    );
-  });
-
-  it("keeps file:// stack frames intact while still redacting credentials", async () => {
-    // apps/web is `"type": "module"`, so Node renders EVERY frame as
-    // `file:///abs/path:10:5`. A blanket URL redaction would eat the whole
-    // stack and hand the operator a blank trace — the `file://` scheme
-    // carries no credentials and is exempt.
-    const sink = fakeLogSink();
     const cause = new Error("postgres://user:secret@host/db is down");
     cause.stack = [
       "Error: postgres://user:secret@host/db is down",
@@ -178,35 +152,39 @@ describe("dispatchInProcess", () => {
       async () => {
         throw cause;
       },
-      sink,
+      logger,
     );
-    const [, fields] = sink.error.mock.calls[0] ?? [];
-    const stack = (fields?.["err"] as { stack?: string } | undefined)?.stack;
-    expect(stack).toContain(
+    const line = written[0];
+    if (line === undefined) {
+      throw new Error("expected an emitted log line");
+    }
+    expect(line).not.toContain("secret");
+    expect(line).not.toContain("postgres://");
+    expect(line).toContain("[redacted-url]");
+    // ESM stack frames survive — the operator keeps a usable trace.
+    expect(line).toContain(
       "file:///Users/idan/app/src/server/webhookApp.ts:42:11",
     );
-    expect(stack).toContain("file:///Users/idan/app/src/data/apiFetch.ts");
-    // The credential-bearing first line is still redacted.
-    expect(stack).not.toContain("secret");
-    expect(stack).not.toContain("postgres://");
-    expect(stack).toContain("[redacted-url]");
   });
 
-  it("logs a non-Error throw without losing it", async () => {
-    const sink = fakeLogSink();
+  it("logs a non-Error throw without losing it, scrubbed by the seam", async () => {
+    const written: string[] = [];
+    const logger = createLogger({
+      env: {},
+      destination: { write: (line: string) => written.push(line) },
+    });
     await dispatchInProcess(
       "/api/pulls",
       undefined,
       async () => {
         throw "postgres://user:secret@host/db is down";
       },
-      sink,
+      logger,
     );
-    const [, fields] = sink.error.mock.calls[0] ?? [];
-    expect(JSON.stringify(fields)).not.toContain("secret");
-    expect(fields?.["err"]).toMatchObject({
-      message: "[redacted-url] is down",
-    });
+    const line = written[0];
+    expect(line).toBeDefined();
+    expect(line).not.toContain("secret");
+    expect(line).toContain("[redacted-url] is down");
   });
 });
 

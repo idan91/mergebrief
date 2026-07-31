@@ -196,3 +196,202 @@ describe("createLogger error serialization", () => {
     expect(err).toHaveProperty("stack");
   });
 });
+
+const LEAKY_URL = "postgres://user:hunter2@db.internal:5432/app";
+
+function serializedErr(destination: ReturnType<typeof captureDestination>): {
+  [key: string]: unknown;
+} {
+  const err = destination.lines()[0]?.["err"];
+  if (typeof err !== "object" || err === null || Array.isArray(err)) {
+    throw new Error("expected a serialized err object on the line");
+  }
+  return { ...err };
+}
+
+describe("createLogger URL scrubbing — err serializer", () => {
+  it("redacts a URL-shaped substring in err.message", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("boom", { err: new Error(`connect failed for ${LEAKY_URL}`) });
+    const err = serializedErr(destination);
+    expect(err["message"]).toBe("connect failed for [redacted-url]");
+    expect(destination.raw()[0]).not.toContain("hunter2");
+  });
+
+  it("redacts the stack's quoted message but keeps ESM file:// frames", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const err = new Error(`refused: ${LEAKY_URL}`);
+    // Deterministic ESM-style stack: Node renders frames as file:// URLs.
+    err.stack = `Error: refused: ${LEAKY_URL}\n    at boot (file:///app/packages/worker/src/main.ts:10:5)`;
+    log.error("boom", { err });
+    const serialized = serializedErr(destination);
+    const stack = serialized["stack"];
+    if (typeof stack !== "string") {
+      throw new Error("expected a stack string");
+    }
+    expect(stack).toContain("[redacted-url]");
+    expect(stack).toContain(
+      "at boot (file:///app/packages/worker/src/main.ts:10:5)",
+    );
+    expect(stack).not.toContain("hunter2");
+  });
+
+  it("redacts URLs riding a cause chain (folded into message/stack)", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const cause = new Error(`migrate failed against ${LEAKY_URL}`);
+    log.error("boom", { err: new Error("boot failed", { cause }) });
+    expect(destination.raw()[0]).not.toContain("hunter2");
+    expect(destination.raw()[0]).toContain("[redacted-url]");
+  });
+
+  it("redacts URLs in copied enumerable props (pg-style detail)", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const err = new Error("password authentication failed");
+    Object.assign(err, { detail: `tried ${LEAKY_URL}` });
+    log.error("boom", { err });
+    const serialized = serializedErr(destination);
+    expect(serialized["detail"]).toBe("tried [redacted-url]");
+  });
+
+  it("redacts URLs inside nested object props (octokit-style request)", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const err = new Error("Not Found");
+    Object.assign(err, {
+      request: { method: "GET", url: "https://api.github.com/repos/x/y" },
+    });
+    log.error("boom", { err });
+    const serialized = serializedErr(destination);
+    expect(serialized["request"]).toEqual({
+      method: "GET",
+      url: "[redacted-url]",
+    });
+  });
+
+  it("redacts URLs in aggregate errors", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const aggregate = new AggregateError(
+      [new Error(`member leak ${LEAKY_URL}`)],
+      "several failures",
+    );
+    log.error("boom", { err: aggregate });
+    expect(destination.raw()[0]).not.toContain("hunter2");
+    expect(destination.raw()[0]).toContain("[redacted-url]");
+  });
+
+  it("survives a circular reference without throwing", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const err = new Error(`loop ${LEAKY_URL}`);
+    const context: { [key: string]: unknown } = { url: LEAKY_URL };
+    context["self"] = context;
+    Object.assign(err, { context });
+    log.error("boom", { err });
+    const raw = destination.raw()[0];
+    expect(raw).toBeDefined();
+    expect(raw).not.toContain("hunter2");
+  });
+
+  it("scrubs a non-Error err value (thrown string)", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("boom", { err: `connect ${LEAKY_URL} refused` });
+    const line = destination.lines()[0];
+    expect(line?.["err"]).toBe("connect [redacted-url] refused");
+  });
+
+  it("folds a duck-typed error-like's cause chain, scrubbed", () => {
+    // A hand-built `{message, cause}` (no Error prototype) must route
+    // through pino's serializer like a real Error — otherwise the cause's
+    // non-enumerable message/stack vanish in the deep copy.
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("boom", {
+      err: {
+        message: "wrapper failed",
+        cause: new Error(`inner ${LEAKY_URL} down`),
+      },
+    });
+    const err = serializedErr(destination);
+    expect(err["message"]).toBe("wrapper failed: inner [redacted-url] down");
+    expect(destination.raw()[0]).not.toContain("hunter2");
+  });
+
+  it("survives a frozen error-like without throwing, still scrubbed", () => {
+    // pino's serializer tags its input with a symbol; on a frozen object
+    // that write throws, and pino runs serializers uncaught — the logger
+    // must degrade (no cause folding), never crash the call site.
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("boom", {
+      err: Object.freeze({ message: `frozen ${LEAKY_URL}` }),
+    });
+    const line = destination.raw()[0];
+    expect(line).toBeDefined();
+    expect(line).not.toContain("hunter2");
+    expect(line).toContain("[redacted-url]");
+  });
+
+  it("does not mutate the caller's non-Error err object", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const original = { message: `raw ${LEAKY_URL}` };
+    log.error("boom", { err: original });
+    expect(original.message).toBe(`raw ${LEAKY_URL}`);
+    expect(destination.raw()[0]).not.toContain("hunter2");
+  });
+
+  it("also serializes and scrubs the error key", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("boom", { error: new Error(`via error key ${LEAKY_URL}`) });
+    const line = destination.lines()[0];
+    expect(line?.["error"]).toMatchObject({
+      message: "via error key [redacted-url]",
+    });
+    expect(line?.["error"]).toHaveProperty("stack");
+    expect(destination.raw()[0]).not.toContain("hunter2");
+  });
+
+  it("leaves a URL-free error byte-identical", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("boom", { err: new Error("plain failure, no secrets") });
+    const err = serializedErr(destination);
+    expect(err["message"]).toBe("plain failure, no secrets");
+  });
+});
+
+describe("createLogger URL scrubbing — msg", () => {
+  it("redacts a URL-shaped substring interpolated into msg", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.warn(`pool error — connect failed for ${LEAKY_URL}`);
+    const line = destination.lines()[0];
+    expect(line?.["msg"]).toBe("pool error — connect failed for [redacted-url]");
+    expect(destination.raw()[0]).not.toContain("hunter2");
+  });
+
+  it("leaves a URL-free msg untouched", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.info("generate: succeeded for 1234abcd");
+    expect(destination.lines()[0]?.["msg"]).toBe(
+      "generate: succeeded for 1234abcd",
+    );
+  });
+
+  it("scrubs msg on child loggers too", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.child({ prId: "pr-1" }).error(`boot: ${LEAKY_URL} unreachable`);
+    expect(destination.lines()[0]?.["msg"]).toBe(
+      "boot: [redacted-url] unreachable",
+    );
+  });
+});

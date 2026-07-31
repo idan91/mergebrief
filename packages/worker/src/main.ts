@@ -104,8 +104,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  // Message-only (the BRIEF-11 rule): a boot failure's cause chain may carry
-  // provider or config detail that doesn't belong on one log line.
-  logger.error(error instanceof Error ? error.message : String(error));
+  // Structured `err`, not message-into-msg: the seam's serializer scrubs
+  // URL-shaped secrets (BRIEF-88) — a drizzle migrate failure quotes
+  // DATABASE_URL back, which the old message-only line emitted verbatim.
+  logger.error("worker: boot failed", { err: error });
   process.exit(1);
 });

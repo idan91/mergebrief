@@ -15,7 +15,10 @@ Grafana/Loki, Datadog, and CloudWatch.
 - `level` — string label: `error`, `warn`, `info`, `debug`.
 - `msg` — human-readable message. Secrets never ride here (or anywhere:
   sensitive fields are removed at the logger, not masked — a redacted key
-  is simply absent).
+  is simply absent). One exception is masked in place: URL-shaped
+  substrings inside `msg` or a serialized `err`/`error` field are replaced
+  with the greppable marker `[redacted-url]` (`file://` stack frames are
+  exempt).
 - `evt` — present only on the first-class events below. Everything else
   (boot/shutdown, graphile lifecycle, progress lines) is plain leveled
   logging with no `evt`; grep and alert on `evt` and levels, not on `msg`

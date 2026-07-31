@@ -86,51 +86,6 @@ export interface DispatchLogSink {
 }
 
 /**
- * Mirrors `sanitizeGenerationError`'s pattern (kept local — no new dep), with
- * one addition it does not need: `file://` is EXEMPT. apps/web is
- * `"type": "module"`, so Node renders every stack frame as
- * `file:///abs/path:10:5` — a blanket URL redaction would erase the entire
- * stack and leave the operator a blank trace. The `\b` anchor keeps the
- * lookahead from sliding one character right and matching `ile://`.
- */
-const URL_SHAPED = /\b(?!file:\/\/)\w+:\/\/\S+/g;
-
-/** The shape handed to the logger's `err` field: a de-secreted error view. */
-interface SanitizedError {
-  name: string;
-  message: string;
-  stack?: string;
-}
-
-/**
- * Strip URL-shaped substrings (the realistic leak: `postgres://user:pass@…`
- * from a `DATABASE_URL` a migrate/createDb failure quotes back) out of an
- * error before it is logged.
- *
- * This CANNOT be delegated to `packages/logging`'s redaction: that is pino
- * `redact` over key PATHS, so it removes a `connectionString` FIELD but is
- * blind to a connection string embedded in `err.message`/`err.stack`, which
- * pino's stock `err` serializer writes verbatim. Sanitizing at the call site
- * is the only place the string is still ours to rewrite.
- */
-function sanitizeDispatchError(error: unknown): SanitizedError {
-  const redact = (text: string): string =>
-    text.replace(URL_SHAPED, "[redacted-url]");
-  if (error instanceof Error) {
-    return {
-      name: error.name,
-      message: redact(error.message),
-      // The stack quotes the message on its first line, so it leaks the same
-      // credentials; keep the frames, redact the text.
-      ...(error.stack === undefined ? {} : { stack: redact(error.stack) }),
-    };
-  }
-  // A non-Error throw still has to survive — losing it would leave the 503
-  // undiagnosable.
-  return { name: "NonError", message: redact(String(error)) };
-}
-
-/**
  * SSR dispatch, factored for tests: synthesize a Request against the
  * in-process app with the viewer's cookie forwarded verbatim (plus any
  * mutation method/body). A composition failure becomes the sanitized 503
@@ -147,14 +102,11 @@ export async function dispatchInProcess(
   try {
     app = await getApp();
   } catch (error) {
-    // `error` can quote DATABASE_URL back on a Postgres misconfig, so it is
-    // SANITIZED here before it becomes the `err` field — the logger's own
-    // redaction is key-path based and cannot see inside a message string
-    // (ADR 0034 #4). Never interpolated into `msg`. Level `error`: every read
-    // is 503ing until an operator fixes the composition.
-    logger.error("apiFetch: webhook app composition failed", {
-      err: sanitizeDispatchError(error),
-    });
+    // `error` can quote DATABASE_URL back on a Postgres misconfig — the
+    // logging seam's `err` serializer scrubs URL-shaped substrings from every
+    // string field (BRIEF-88), so the raw error rides `err` as-is. Level
+    // `error`: every read is 503ing until an operator fixes the composition.
+    logger.error("apiFetch: webhook app composition failed", { err: error });
     return new Response(JSON.stringify({ error: "service unavailable" }), {
       status: 503,
       headers: { "content-type": "application/json" },

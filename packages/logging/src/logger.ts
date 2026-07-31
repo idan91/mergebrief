@@ -83,6 +83,89 @@ const REDACT_PATHS = [
   ...SECRET_KEYS.map((key) => `*.${key}`),
 ];
 
+// Substring scrub (BRIEF-88): key-path redaction removes secret-named FIELDS
+// but is structurally blind to secrets embedded in strings — a pg/drizzle
+// error quotes DATABASE_URL back inside `err.message`/`err.stack`, and pino's
+// stock err serializer also copies every enumerable own prop verbatim.
+// Scope is `err`/`error` values (every string field of the serialized error,
+// post-serialization) plus `msg` — NOT the rest of the LogFields bag, which
+// stays key-path redaction's job: a secret placed under an arbitrary field
+// name still emits verbatim, so structured secrets must ride the SECRET_KEYS
+// vocabulary. Full-URL redaction on purpose: query-string tokens
+// (`?access_token=…`) have no userinfo shape a narrower regex could target.
+// `file://` is EXEMPT: every consumer is ESM, so Node renders stack frames
+// as `file:///abs/path:10:5` — blanket redaction would erase the entire
+// stack (path disclosure to the operator's own logs is acceptable). The `\b`
+// keeps the lookahead from sliding one character right and matching `ile://`.
+const URL_SHAPED = /\b(?!file:\/\/)\w+:\/\/\S+/g;
+const REDACTED_URL = "[redacted-url]";
+
+function scrubString(text: string): string {
+  return text.replace(URL_SHAPED, REDACTED_URL);
+}
+
+// Copy-on-write: the non-Error path hands us the CALLER's object, which must
+// not be mutated. `seen` breaks cycles the serializer's own guard cannot see
+// (it only tags error-like values, not plain nested objects).
+function scrubValue(value: unknown, seen: WeakSet<object>): unknown {
+  if (typeof value === "string") {
+    return scrubString(value);
+  }
+  if (Array.isArray(value)) {
+    if (seen.has(value)) {
+      return "[circular]";
+    }
+    seen.add(value);
+    return value.map((entry) => scrubValue(entry, seen));
+  }
+  if (typeof value === "object" && value !== null) {
+    if (seen.has(value)) {
+      return "[circular]";
+    }
+    seen.add(value);
+    const copy: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      copy[key] = scrubValue(entry, seen);
+    }
+    return copy;
+  }
+  return value;
+}
+
+// Mirrors pino-std-serializers' own guard EXACTLY (`err-helpers.js`): routing
+// must match what the serializer would do internally, or duck-typed
+// error-likes (a hand-built `{message, cause}`, a cross-realm Error) skip the
+// cause-chain folding and lose their diagnostics to the plain deep-copy.
+function isErrorLike(value: unknown): value is Error {
+  if (value instanceof Error) {
+    return true;
+  }
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "message" in value &&
+    typeof value.message === "string"
+  );
+}
+
+// Error-likes go through pino's serializer first (cause chains fold into
+// message/stack); anything else — a thrown string, a number — is deep-scrubbed
+// as-is, so the scrub holds regardless of input shape.
+function scrubbedErrSerializer(value: unknown): unknown {
+  let serialized = value;
+  if (isErrorLike(value)) {
+    try {
+      serialized = stdSerializers.err(value);
+    } catch {
+      // A frozen/non-extensible error-like makes pino's cycle-tag write
+      // throw, and pino calls serializers with no try/catch — a logger must
+      // never crash its call site. Fall back to deep-scrubbing the raw
+      // value: diagnostics degrade (no cause folding), secrets still die.
+    }
+  }
+  return scrubValue(serialized, new WeakSet());
+}
+
 /** Anything with a sonic-boom-compatible `write` — injectable for tests. */
 export interface LogDestination {
   write(line: string): void;
@@ -107,19 +190,19 @@ interface PinoLike {
 
 function wrap(instance: PinoLike): Logger {
   return {
-    error: (msg, fields) => instance.error(fields ?? {}, msg),
-    warn: (msg, fields) => instance.warn(fields ?? {}, msg),
-    info: (msg, fields) => instance.info(fields ?? {}, msg),
-    debug: (msg, fields) => instance.debug(fields ?? {}, msg),
+    error: (msg, fields) => instance.error(fields ?? {}, scrubString(msg)),
+    warn: (msg, fields) => instance.warn(fields ?? {}, scrubString(msg)),
+    info: (msg, fields) => instance.info(fields ?? {}, scrubString(msg)),
+    debug: (msg, fields) => instance.debug(fields ?? {}, scrubString(msg)),
     child: (bindings) => wrap(instance.child(bindings)),
   };
 }
 
 /**
  * The ONE place pino is constructed. Level + format from the injected env
- * (`resolveLoggerConfig`); secret redaction with `remove: true`; pino's
- * stock `err` serializer; string level labels (`"level":"warn"`) for a
- * greppable operator contract.
+ * (`resolveLoggerConfig`); secret redaction with `remove: true`; the
+ * URL-scrubbing `err`/`error` serializer (BRIEF-88); string level labels
+ * (`"level":"warn"`) for a greppable operator contract.
  */
 export function createLogger(options: CreateLoggerOptions = {}): Logger {
   const { env = {}, base, destination } = options;
@@ -128,7 +211,10 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
   const pinoOptions = {
     level,
     redact: { paths: REDACT_PATHS, remove: true },
-    serializers: { err: stdSerializers.err },
+    // Both keys on purpose: all call sites use `err:` today, but an `error:`
+    // slip-up under pino's default path would DROP message/stack (non-
+    // enumerable) while emitting enumerable props — the exact leak shape.
+    serializers: { err: scrubbedErrSerializer, error: scrubbedErrSerializer },
     formatters: {
       level: (label: string) => ({ level: label }),
     },

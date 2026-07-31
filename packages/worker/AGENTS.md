@@ -76,8 +76,12 @@ test/                 generate.test.ts = integration via persistence/testing
   job line; graphile lifecycle logs ride `createGraphileLogFactory`. The
   first-class `evt` names minted here — `job.fail`, `job.retries.exhausted`
   (`attempts === max_attempts`), `provider.error` — come ONLY from the ADR
-  0034 taxonomy table. Failure logs are MESSAGE-ONLY (no `err` field):
-  provider cause chains may carry request contents (BRIEF-11).
+  0034 taxonomy table. JOB/PROVIDER failure logs are MESSAGE-ONLY (no `err`
+  field): provider cause chains may carry request contents (BRIEF-11) — and
+  the logging seam's URL scrub (BRIEF-88) targets URL-shaped secrets, not
+  prompt/diff payloads, so it is no substitute. Boot failures (`main.ts`
+  catch) are exempt: nothing provider-shaped reaches them, and the `err`
+  field keeps the stack the operator needs.
 
 ## Conventions
 
