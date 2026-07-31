@@ -1,9 +1,12 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 
 import { generateBrief } from "../features/brief/server/brief.functions";
-import { localBriefsQueryOptions } from "../features/brief/queries";
+import {
+  generateBriefViaApi,
+  localBriefsQueryOptions,
+} from "../features/brief/queries";
 import { OrgSwitcher } from "@web/features/installations";
 import { PullsSection } from "@web/features/pulls";
 import { pullsSessionQueryOptions } from "../features/pulls/queries";
@@ -25,6 +28,7 @@ export const Route = createFileRoute("/")({
 function BriefPicker() {
   const briefs = useSuspenseQuery(localBriefsQueryOptions()).data;
   const session = useSuspenseQuery(pullsSessionQueryOptions()).data;
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);
@@ -35,7 +39,16 @@ function BriefPicker() {
     setPending(true);
     setError(null);
     try {
-      const briefId = await generateBrief({ data: { url } });
+      // Behavior follows the visible auth state (BRIEF-97): signed in →
+      // the api route generates with the VIEWER's token (works with no gh
+      // CLI and no App installation); signed out → the local gh-CLI path.
+      const briefId =
+        session.kind === "ready"
+          ? await generateBriefViaApi(url)
+          : await generateBrief({ data: { url } });
+      // The list is cached forever (staleTime: Infinity) — a fresh brief
+      // must invalidate it or the picker shows the load-time snapshot.
+      await queryClient.invalidateQueries({ queryKey: ["briefs", "local"] });
       await navigate({ to: "/briefs/$briefId", params: { briefId } });
     } catch (caught) {
       setError(

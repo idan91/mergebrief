@@ -47,12 +47,16 @@ services:
       # In-network DSN overrides any host-oriented value from .env.
       DATABASE_URL: postgres://code_review:code_review@postgres:5432/code_review
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
-    # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
-    # the image already bakes the repo-root file via `COPY . .`; this mount
-    # shadows it so edits apply on restart instead of rebuild. Uncomment
-    # here AND in the worker service — both read the same file.
-    # volumes:
-    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+    volumes:
+      # URL-box/demo brief artifacts (BRIEF-97): host-persisted so a rebuild
+      # or recreate never wipes generated briefs, and host-side CLI runs
+      # (`pnpm categorize`) show up in the composed web app too.
+      - ./tools/categorizer/out:/app/tools/categorizer/out
+      # Instance config (mergebrief.config.yaml + MERGEBRIEF_CONFIG in .env):
+      # the image already bakes the repo-root file via `COPY . .`; this mount
+      # shadows it so edits apply on restart instead of rebuild. Uncomment
+      # here AND in the worker service — both read the same file.
+      # - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # Liveness only (ADR 0034 #7): /healthz is static — never /readyz here,
     # or a DB blip would trigger web restart churn.
     healthcheck:

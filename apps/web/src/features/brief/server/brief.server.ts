@@ -3,6 +3,8 @@ import "@tanstack/react-start/server-only";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
+// ONE artifact store: the workspace-root-anchored dir generation writes to.
+import { OUT_DIR } from "./generate.server";
 import { parseUnifiedDiffPatch, sliceChunkDiff } from "../utils/diffSlicing";
 import type {
   AddressedReviewComment,
@@ -39,7 +41,6 @@ interface ParsedFileDiff {
   rows: DiffLine[];
 }
 
-const OUT_DIR = resolve(process.cwd(), "../../tools/categorizer/out");
 const BRIEF_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 let localBriefSummaries: Promise<LocalBriefSummary[]> | undefined;
 

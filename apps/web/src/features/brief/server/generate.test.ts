@@ -72,6 +72,50 @@ describe("generateBriefFromUrl", () => {
     );
   });
 
+  it("maps a missing gh binary (spawn ENOENT) to the sign-in copy", async () => {
+    const enoent = Object.assign(new Error("spawn gh ENOENT"), {
+      code: "ENOENT",
+    });
+    const engine = fakeEngine({
+      fetchHeadSha: vi.fn().mockRejectedValue(enoent),
+    });
+
+    await expect(generateBriefFromUrl(URL, engine)).rejects.toThrow(
+      /no gh CLI — sign in with GitHub/,
+    );
+  });
+
+  it("never attaches the raw error as cause — server-fn errors serialize cause to the browser", async () => {
+    // TanStack's server-fn serializer walks NON-enumerable own props, so a
+    // `cause` would ship spawn args / stderr / provider text to an
+    // unauthenticated browser (BRIEF-97 security-gate finding).
+    const rawFetch = Object.assign(new Error("spawn gh ENOENT"), {
+      code: "ENOENT",
+      spawnargs: ["pr", "view"],
+    });
+    const fetchFail = await generateBriefFromUrl(
+      URL,
+      fakeEngine({ fetchHeadSha: vi.fn().mockRejectedValue(rawFetch) }),
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(fetchFail).toBeInstanceOf(Error);
+    expect((fetchFail as Error).cause).toBeUndefined();
+
+    const generateFail = await generateBriefFromUrl(
+      URL,
+      fakeEngine({
+        generate: vi.fn().mockRejectedValue(new Error("stderr: secret dsn")),
+      }),
+    ).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(generateFail).toBeInstanceOf(Error);
+    expect((generateFail as Error).cause).toBeUndefined();
+  });
+
   it("surfaces a generic message when generation fails, not the raw error", async () => {
     const engine = fakeEngine({
       generate: vi

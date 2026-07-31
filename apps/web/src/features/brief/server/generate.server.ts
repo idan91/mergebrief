@@ -1,6 +1,7 @@
 import "@tanstack/react-start/server-only";
 
-import { resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 
 import {
   briefId,
@@ -23,7 +24,30 @@ import { getServerLogger } from "../../../server/logger";
 
 const logger = getServerLogger();
 
-const OUT_DIR = resolve(process.cwd(), "../../tools/categorizer/out");
+/**
+ * Anchor at the WORKSPACE ROOT, never bare cwd (the BRIEF-70 rule): web and
+ * worker run with different working directories, and in the docker image
+ * cwd is `/app` — `resolve(cwd, "../..")` silently escaped the image into
+ * `/tools/...`, so every composed artifact landed on the container's root
+ * FS and died with it (found live, BRIEF-97).
+ */
+function workspaceRoot(): string {
+  let dir = resolve(process.cwd());
+  for (;;) {
+    if (existsSync(join(dir, "pnpm-workspace.yaml"))) {
+      return dir;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) {
+      // No checkout anchor (packaged distribution) — cwd is the best left.
+      return resolve(process.cwd());
+    }
+    dir = parent;
+  }
+}
+
+/** Shared with `urlBriefEngine.server` and `brief.server` — ONE store. */
+export const OUT_DIR = join(workspaceRoot(), "tools/categorizer/out");
 
 /** Load apps/web/.env if present; otherwise rely on the ambient env (mirrors the CLI's loadEnv). */
 function loadEnv(): void {
@@ -69,8 +93,18 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** Node's execFile surfaces a missing binary as an Error with `code: "ENOENT"`. */
+function isSpawnGhMissing(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    "code" in error &&
+    error.code === "ENOENT" &&
+    error.message.includes("gh")
+  );
+}
+
 /** The constructed generator plus the loaded config's effort (BRIEF-75). */
-interface SharedGeneration {
+export interface SharedGeneration {
   generator: Generator;
   effort: Effort | undefined;
 }
@@ -80,9 +114,10 @@ let sharedGenerator: Promise<SharedGeneration> | undefined;
 /**
  * Single-flighted async construction: concurrent first requests share one
  * client; a failed construction clears the slot so the next request retries
- * (e.g. after the operator sets the missing env var).
+ * (e.g. after the operator sets the missing env var). Shared with
+ * `urlBriefEngine.server` — one generator client per process, either door.
  */
-function sharedGeneratorOnce(): Promise<SharedGeneration> {
+export function sharedGeneratorOnce(): Promise<SharedGeneration> {
   sharedGenerator ??= (async () => {
     // Instance config (BRIEF-11 decision 6): MERGEBRIEF_CONFIG →
     // mergebrief.config.yaml, else zero-config defaults. The web dogfood
@@ -164,9 +199,24 @@ export async function generateBriefFromUrl(
     logger.error(
       `generateBriefFromUrl: failed to fetch PR metadata — ${errorMessage(error)}`,
     );
+    // NEVER attach `{ cause: error }` here: this Error crosses the
+    // createServerFn boundary, and TanStack's serializer walks non-enumerable
+    // own props — a `cause` ships the raw spawn/stderr/provider text to an
+    // unauthenticated browser. The server log line above is the only place
+    // the raw content belongs.
+    //
+    // `spawn gh ENOENT` = no gh binary in this deployment (the compose
+    // containers, BRIEF-97) — blaming the URL or gh auth misleads; the
+    // signed-in path is the one that works here.
+    if (isSpawnGhMissing(error)) {
+      // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
+      throw new Error(
+        "This deployment has no gh CLI — sign in with GitHub to generate with your account.",
+      );
+    }
+    // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
     throw new Error(
       "Couldn't fetch this PR — is it public, and are you `gh auth login`'d?",
-      { cause: error },
     );
   }
 
@@ -183,9 +233,11 @@ export async function generateBriefFromUrl(
       logger.error(
         `generateBriefFromUrl: generation failed — ${errorMessage(error)}`,
       );
+      // No `{ cause: error }` — serialized to the browser (see the fetch
+      // catch above); the raw failure is already in the server log.
+      // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
       throw new Error(
         "Couldn't generate the brief for this PR — check the server logs and try again.",
-        { cause: error },
       );
     }
     return briefId(

@@ -17,6 +17,7 @@ import {
   pingDb,
   type AppDatabase,
 } from "persistence";
+import { createUrlBriefEngine } from "../features/brief/server/urlBriefEngine.server";
 import { getServerLogger } from "./logger";
 
 /** The env var name the reviewer session tokens seal under (ADR 0018 D11). */
@@ -133,6 +134,10 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     // Conversation reads run as the App on the installation token (ADR 0027):
     // one rate budget and one cache entry per PR, gate-authorized per viewer.
     github: appConversationPort(createAppClient(githubConfig.value)),
+    // Generate-from-URL engine (BRIEF-97): the octokit-PrSource pipeline over
+    // the VIEWER's token. Composition-root wiring — the one place feature
+    // server code legitimately meets the global layer.
+    urlBriefEngine: createUrlBriefEngine(),
     // Reviewer-auth bundle (PR C): OAuth creds from the GitHub config, the
     // env-backed key provider for token sealing (validated eagerly above), and
     // the cookie/redirect policy.
