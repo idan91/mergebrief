@@ -25,6 +25,7 @@ import { versionRoute } from "./routes/version";
 import { reviewSubmitRoute } from "./routes/review-submit";
 import { markReadyRoute } from "./routes/mark-ready";
 import { inlineCommentRoute } from "./routes/inline-comment";
+import { generateRoute, type UrlBriefEngine } from "./routes/generate";
 import { resolveThreadRoute } from "./routes/resolve-thread";
 import { webhookRoute } from "./routes/webhook";
 
@@ -47,6 +48,11 @@ export interface AppDeps {
   readonly serverVersion?: string;
   /** Instance draft-PR policy (BRIEF-64); omitted = zero-config default. */
   readonly draftPolicy?: DraftPolicy;
+  /**
+   * Viewer-token generate-from-URL engine (BRIEF-97). Omitted (worker-less /
+   * test deployments) ⇒ POST /api/generate answers a curated 503.
+   */
+  readonly urlBriefEngine?: UrlBriefEngine;
 }
 
 /** The built API app's concrete type (request-log env at the root). */
@@ -100,6 +106,10 @@ export function createApp(deps: AppDeps): ApiApp {
   app.route("/", resolveThreadRoute(deps, (installationId, repoId, prNumber) =>
     conversation.evictConversation(installationId, repoId, prNumber),
   ));
+  // Generate-from-URL (BRIEF-97): session-gated only — the pasted URL's repo
+  // is outside the installation model; the engine's viewer-token fetch is the
+  // access check. Mounted before readsRoute like every session-authed route.
+  app.route("/", generateRoute(deps, deps.urlBriefEngine));
   app.route("/", conversation.app);
   app.route("/", readsRoute(deps));
   return app;

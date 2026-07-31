@@ -123,6 +123,9 @@ importers:
 
   packages/api:
     dependencies:
+      brief-core:
+        specifier: workspace:*
+        version: link:../brief-core
       github:
         specifier: workspace:*
         version: link:../github

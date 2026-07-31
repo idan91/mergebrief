@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "brief-core": "workspace:*",
     "github": "workspace:*",
     "graphile-worker": "^0.16.6",
     "hono": "^4.9.10",

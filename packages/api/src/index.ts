@@ -3,6 +3,14 @@
 // stage 5) build deps and hand them in; routes are internal wiring.
 export { createApp } from "./app";
 export type { ApiApp, AppDeps, AuthDeps } from "./app";
+// Generate-from-URL port (BRIEF-97): the web composition root implements
+// UrlBriefEngine; the error vocabulary is part of the port contract.
+export { UrlBriefErrorKind } from "./routes/generate";
+export type {
+  GeneratedBriefRef,
+  UrlBriefEngine,
+  UrlBriefError,
+} from "./routes/generate";
 
 // The conversation surface's installation-octokit seam (BRIEF-25): the
 // composition root wires `appConversationPort` over the App-JWT client;
