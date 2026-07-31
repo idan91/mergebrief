@@ -21,6 +21,20 @@ works for any repo the **signed-in viewer** can read, via their
 Env-token (`GH_TOKEN` in compose) shortcut considered and **rejected** by
 Idan — straight to the viewer-token end state.
 
+## Correction (2026-07-31, live testing)
+
+GitHub App **user tokens are installation-scoped by GitHub's design** — the
+viewer token cannot read a private repo the App is not installed on, even
+for the repo's owner. Decision 6's "whatever the viewer's account can read"
+therefore holds only for public repos and App-installed repos. The
+private-uninstalled case is covered by an opt-in operator PAT
+(`MERGEBRIEF_URL_BOX_TOKEN`, `.env.example`) tried only after a
+viewer-token NOT_FOUND — the env-token idea returns deliberately narrowed,
+with the access-control caveat documented (single-operator instances).
+Also found live: cwd-relative OUT_DIR escaped `/app` in-container (fixed —
+workspace-root anchor + compose bind mount), and the serverfn
+`{ cause }` browser leak (pre-existing critical, fixed in PR 4).
+
 ## Locked decisions
 
 1. **PrSource port in brief-core.** Interface mirroring the six gh calls
