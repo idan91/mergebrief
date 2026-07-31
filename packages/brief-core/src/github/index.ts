@@ -28,5 +28,7 @@ export {
 export {
   fetchReviewComments,
   isCommentOutdated,
+  MAX_COMMENTS,
   normalizeReviewComment,
 } from "./comments";
+export { ghPrSource, type PrSource } from "./source";

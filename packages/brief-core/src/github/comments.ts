@@ -2,7 +2,9 @@ import { z } from "zod/v4";
 import { execFileAsync, MAX_BUFFER, repoSlug } from "./fetch";
 import type { PrLocator, ReviewComment } from "./types";
 
-const MAX_COMMENTS = 100;
+/** Cap on comments fed to generation (prompt-cost bound) — every PrSource
+ * implementation must apply it (the octokit source slices with it too). */
+export const MAX_COMMENTS = 100;
 const MAX_COMMENT_CHARS = 2_000;
 
 const GhCommentSchema = z.object({

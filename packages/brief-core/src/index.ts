@@ -9,11 +9,16 @@ export {
   fetchPr,
   fetchPrMetadata,
   fetchLinkedContext,
+  ghPrSource,
+  MAX_COMMENTS,
+  normalizeReviewComment,
   type PrLocator,
   type PrFile,
   type PrMetadata,
+  type PrSource,
   type FetchedPr,
   type LinkedContext,
+  type ReviewComment,
 } from "./github";
 export {
   categorize,

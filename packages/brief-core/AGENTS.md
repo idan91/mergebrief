@@ -39,10 +39,13 @@ src/
     categorize.ts generateAndWrite + the `pnpm categorize` CLI entry
     delta.ts      the `pnpm delta` CLI entry
     config.ts     `--config` flag extraction (`brief-core/cli-config`)
-  github/         gh-CLI PR fetch (CLI/dev + web generate-from-URL; the
+  github/         PR fetch surface (CLI/dev + web generate-from-URL; the
                   worker uses its own github-port); folder barrel re-exports
+    source.ts     PrSource port (BRIEF-97) — the transport seam buildInputs
+                  reads through; ghPrSource (gh CLI) is the default impl
     fetch.ts      gh exec + PR/compare fetching
-    linked-context.ts  PR-description link chasing + SSRF guard
+    linked-context.ts  PR-description link chasing + SSRF guard (HTTP, not
+                  part of the PrSource port)
     comments.ts   review-comment fetch + normalization
     types.ts      wire shapes (PrLocator, PrMetadata, FetchedPr, …)
 test/             unit suites, mirroring the src/ folders

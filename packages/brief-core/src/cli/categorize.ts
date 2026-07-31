@@ -2,16 +2,12 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  fetchCompareCommitCount,
-  fetchCompareDiff,
   fetchLinkedContext,
-  fetchPrDiff,
-  fetchPrMetadata,
-  fetchReviewComments,
+  ghPrSource,
   isCommitish,
   parsePrUrl,
-  resolveFullSha,
   type FetchedPr,
+  type PrSource,
   type ReviewComment,
 } from "../github";
 import { categorize, categorizeRevisionNarrative } from "../generation/categorize";
@@ -76,25 +72,26 @@ async function buildInputs(
   url: string,
   range: Range | undefined,
   log: (msg: string) => void,
+  source: PrSource,
 ): Promise<{ pr: FetchedPr; comments: ReviewComment[]; commitRange: CommitRange }> {
   const locator = parsePrUrl(url);
   // Range SHAs may arrive abbreviated from the CLI; artifacts must be keyed
   // by full SHAs or the FE's exact-equality joins silently never match.
   if (range) {
     const [base, head] = await Promise.all([
-      resolveFullSha(locator, range.base),
-      resolveFullSha(locator, range.head),
+      source.resolveFullSha(locator, range.base),
+      source.resolveFullSha(locator, range.head),
     ]);
     range = { base, head };
   }
-  const meta = await fetchPrMetadata(locator);
+  const meta = await source.fetchPrMetadata(locator);
   const [diff, comments, commitRange] = await Promise.all([
     range
-      ? fetchCompareDiff(locator, range.base, range.head)
-      : fetchPrDiff(locator),
-    fetchReviewComments(locator),
+      ? source.fetchCompareDiff(locator, range.base, range.head)
+      : source.fetchPrDiff(locator),
+    source.fetchReviewComments(locator),
     range
-      ? fetchCompareCommitCount(locator, range.base, range.head).then(
+      ? source.fetchCompareCommitCount(locator, range.base, range.head).then(
           (commitCount): CommitRange => ({
             base: range.base,
             head: range.head,
@@ -125,13 +122,14 @@ export async function generateAndWrite(
   generator: Generator,
   log: (msg: string) => void,
   effort?: Effort,
+  source: PrSource = ghPrSource,
 ): Promise<Brief> {
   log(
     range
       ? `fetching compare ${range.base.slice(0, 8)}..${range.head.slice(0, 8)} + metadata…`
       : "fetching diff + metadata…",
   );
-  const { pr, comments, commitRange } = await buildInputs(url, range, log);
+  const { pr, comments, commitRange } = await buildInputs(url, range, log, source);
 
   const stem = prStem(`${pr.locator.owner}/${pr.locator.repo}`, pr.locator.number);
   const index = await assignBriefIndex(outDir, stem, commitRange.head);
@@ -163,7 +161,7 @@ export async function generateAndWrite(
   if (index > 1) {
     const prevHeadSha = await lookupBriefShaByIndex(outDir, stem, index - 1);
     if (prevHeadSha) {
-      const revDiff = await fetchCompareDiff(pr.locator, prevHeadSha, commitRange.head);
+      const revDiff = await source.fetchCompareDiff(pr.locator, prevHeadSha, commitRange.head);
 
       // Mechanical comparison marks: always written first, and never caught —
       // per the plan, a marks failure means comparison data is unavailable and

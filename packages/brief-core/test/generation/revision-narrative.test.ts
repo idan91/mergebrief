@@ -20,8 +20,7 @@ const fetched = vi.hoisted(() => ({
 }));
 vi.mock("../../src/github", async (importOriginal) => {
   const actual = await importOriginal<typeof GithubModule>();
-  return {
-    ...actual,
+  const mocked = {
     fetchPrMetadata: vi.fn(async () => fetched.meta),
     fetchPrDiff: vi.fn(async () => fetched.prDiff),
     fetchCompareDiff: vi.fn(async () => fetched.compareDiff),
@@ -30,6 +29,13 @@ vi.mock("../../src/github", async (importOriginal) => {
     fetchLinkedContext: vi.fn(async () => []),
     // Fixture SHAs are 16-char; pass them through instead of hitting `gh`.
     resolveFullSha: vi.fn(async (_loc: unknown, ref: string) => ref),
+  };
+  return {
+    ...actual,
+    ...mocked,
+    // The default PrSource must ride the SAME mocks — the real `ghPrSource`
+    // binds the unmocked gh functions at module init (BRIEF-97).
+    ghPrSource: { ...actual.ghPrSource, ...mocked },
   };
 });
 
