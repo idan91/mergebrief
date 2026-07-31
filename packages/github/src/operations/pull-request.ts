@@ -135,6 +135,79 @@ export async function fetchDiff(
 }
 
 /**
+ * List a PR's review comments as RAW wire objects, fully paginated
+ * (BRIEF-97). Deliberately unvalidated here: brief-core's
+ * `normalizeReviewComment` is the single boundary parser for this shape
+ * (outdated-semantics rules, ADR 0007) — declaring a second Zod shape in
+ * this package would drift from it. Callers normalize, never trust.
+ */
+export async function fetchReviewCommentsRaw(
+  octokit: Octokit,
+  ref: PullRequestRef,
+): Promise<Result<unknown[], GitHubApiError>> {
+  try {
+    const comments = await octokit.paginate(octokit.rest.pulls.listReviewComments, {
+      owner: ref.owner,
+      repo: ref.repo,
+      pull_number: ref.prNumber,
+      per_page: 100,
+    });
+    return { ok: true, value: comments };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "list review comments") };
+  }
+}
+
+/**
+ * Count the commits in a `base...head` span (BRIEF-97). `total_commits` is
+ * the span total independent of pagination — `per_page: 1` keeps the
+ * response minimal since the commit list itself is unused.
+ */
+export async function fetchCompareCommitCount(
+  octokit: Octokit,
+  ref: CompareDiffRef,
+): Promise<Result<number, GitHubApiError>> {
+  try {
+    const response = await octokit.rest.repos.compareCommitsWithBasehead({
+      owner: ref.owner,
+      repo: ref.repo,
+      basehead: `${ref.base}...${ref.head}`,
+      per_page: 1,
+    });
+    return { ok: true, value: response.data.total_commits };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "fetch compare commit count") };
+  }
+}
+
+export interface CommitRef {
+  readonly owner: string;
+  readonly repo: string;
+  /** A commit-ish (possibly abbreviated SHA) to resolve. */
+  readonly ref: string;
+}
+
+/**
+ * Resolve a possibly-abbreviated commit-ish to its full 40-char SHA
+ * (BRIEF-97) — artifacts are keyed by full SHAs (exact-equality FE joins).
+ */
+export async function resolveCommitSha(
+  octokit: Octokit,
+  ref: CommitRef,
+): Promise<Result<string, GitHubApiError>> {
+  try {
+    const response = await octokit.rest.repos.getCommit({
+      owner: ref.owner,
+      repo: ref.repo,
+      ref: ref.ref,
+    });
+    return { ok: true, value: response.data.sha };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "resolve commit sha") };
+  }
+}
+
+/**
  * Fetch the unified diff for an explicit `base...head` span via the compare
  * endpoint (`GET /repos/{owner}/{repo}/compare/{base}...{head}`) with the diff
  * media type, so the response is exactly the requested range rather than the

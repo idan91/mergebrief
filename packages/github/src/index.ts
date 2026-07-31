@@ -97,12 +97,16 @@ export {
   fetchPullRequestFiles,
   fetchDiff,
   fetchCompareDiff,
+  fetchCompareCommitCount,
+  fetchReviewCommentsRaw,
+  resolveCommitSha,
 } from "./operations/pull-request";
 export type {
   PullRequestRef,
   PullRequestInfo,
   PullRequestFile,
   CompareDiffRef,
+  CommitRef,
 } from "./operations/pull-request";
 
 // Review-submit primitive (BRIEF-23): one grouped formal review, pinned to

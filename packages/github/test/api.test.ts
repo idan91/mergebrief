@@ -6,7 +6,15 @@ import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { deleteComment, fetchComment, postEntryComment } from "../src/operations/comments";
 import { GitHubApiErrorCode } from "../src/errors";
-import { fetchPullRequest, fetchPullRequestFiles, fetchDiff, fetchCompareDiff } from "../src/operations/pull-request";
+import {
+  fetchPullRequest,
+  fetchPullRequestFiles,
+  fetchDiff,
+  fetchCompareDiff,
+  fetchCompareCommitCount,
+  fetchReviewCommentsRaw,
+  resolveCommitSha,
+} from "../src/operations/pull-request";
 import {
   createPullRequestReview,
   ReviewCommentSide,
@@ -49,6 +57,8 @@ function mockOctokit(overrides: {
   pullsGet?: ReturnType<typeof vi.fn>;
   createReview?: ReturnType<typeof vi.fn>;
   compareBasehead?: ReturnType<typeof vi.fn>;
+  getCommit?: ReturnType<typeof vi.fn>;
+  listReviewComments?: ReturnType<typeof vi.fn>;
   request?: ReturnType<typeof vi.fn>;
   paginate?: ReturnType<typeof vi.fn>;
 }): Octokit {
@@ -65,9 +75,11 @@ function mockOctokit(overrides: {
         get: overrides.pullsGet ?? vi.fn(),
         listFiles: vi.fn(),
         createReview: overrides.createReview ?? vi.fn(),
+        listReviewComments: overrides.listReviewComments ?? vi.fn(),
       },
       repos: {
         compareCommitsWithBasehead: overrides.compareBasehead ?? vi.fn(),
+        getCommit: overrides.getCommit ?? vi.fn(),
       },
     },
   };
@@ -564,6 +576,114 @@ describe("fetchPullRequest / fetchDiff", () => {
       owner: "o",
       repo: "r",
       prNumber: 3,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+});
+
+describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha (BRIEF-97)", () => {
+  it("pages through review comments and returns the raw wire objects", async () => {
+    const wire = [{ id: 1, body: "b1" }, { id: 2, body: "b2" }];
+    const paginate = vi.fn().mockResolvedValue(wire);
+    const listReviewComments = vi.fn();
+    const octokit = mockOctokit({ paginate, listReviewComments });
+    const result = await fetchReviewCommentsRaw(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 3,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toEqual(wire);
+    expect(paginate).toHaveBeenCalledWith(listReviewComments, {
+      owner: "o",
+      repo: "r",
+      pull_number: 3,
+      per_page: 100,
+    });
+  });
+
+  it("maps a review-comments failure to a sanitized error", async () => {
+    const paginate = vi.fn().mockRejectedValue(requestError(403));
+    const octokit = mockOctokit({ paginate });
+    const result = await fetchReviewCommentsRaw(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 3,
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
+    expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+
+  it("returns total_commits for a compare span", async () => {
+    const compareBasehead = vi
+      .fn()
+      .mockResolvedValue({ data: { total_commits: 5 } });
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareCommitCount(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "b1",
+      head: "h1",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toBe(5);
+    expect(compareBasehead).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      basehead: "b1...h1",
+      per_page: 1,
+    });
+  });
+
+  it("maps a compare-count failure to a sanitized error", async () => {
+    const compareBasehead = vi.fn().mockRejectedValue(requestError(404));
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareCommitCount(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "b1",
+      head: "h1",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+
+  it("resolves a commit-ish to the full sha", async () => {
+    const getCommit = vi
+      .fn()
+      .mockResolvedValue({ data: { sha: "f".repeat(40) } });
+    const octokit = mockOctokit({ getCommit });
+    const result = await resolveCommitSha(octokit, {
+      owner: "o",
+      repo: "r",
+      ref: "abc1234",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toBe("f".repeat(40));
+    expect(getCommit).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      ref: "abc1234",
+    });
+  });
+
+  it("maps a commit-resolve failure to a sanitized error", async () => {
+    const getCommit = vi.fn().mockRejectedValue(requestError(404));
+    const octokit = mockOctokit({ getCommit });
+    const result = await resolveCommitSha(octokit, {
+      owner: "o",
+      repo: "r",
+      ref: "abc1234",
     });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
