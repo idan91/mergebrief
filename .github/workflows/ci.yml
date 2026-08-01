@@ -35,8 +35,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.lint == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.lint == 'true'
@@ -91,8 +89,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.web == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.web == 'true'
@@ -145,8 +141,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.categorizer == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.categorizer == 'true'
@@ -203,8 +197,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.cli == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.cli == 'true'
@@ -257,8 +249,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.generators == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.generators == 'true'
@@ -311,8 +301,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.repo_config == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.repo_config == 'true'
@@ -365,8 +353,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.logging == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.logging == 'true'
@@ -419,8 +405,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.persistence == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.persistence == 'true'
@@ -473,8 +457,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.github == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.github == 'true'
@@ -527,8 +509,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.worker == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.worker == 'true'
@@ -581,8 +561,6 @@ jobs:
       - name: Set up pnpm
         if: steps.changes.outputs.api == 'true'
         uses: pnpm/action-setup@v4
-        with:
-          version: 10.0.0
 
       - name: Set up Node.js
         if: steps.changes.outputs.api == 'true'

@@ -37,6 +37,8 @@ src/
     pull-request.ts     PR + files + diff/compare fetch
     review.ts           grouped formal review submit (BRIEF-23)
     conversation.ts     GraphQL conversation primitive (BRIEF-25)
+    collaborators.ts    GraphQL repo-collaborators list for the @mention pool
+                        (BRIEF-94; affiliation ALL = org/team-granted included)
     mark-ready.ts       markPullRequestReadyForReview mutation (BRIEF-43)
     inline-comment.ts   standalone inline review-comment write (BRIEF-43 PR 4)
     resolve-thread.ts   resolve/unresolveReviewThread mutations (BRIEF-93; walks

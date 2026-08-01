@@ -154,6 +154,16 @@ export type {
   SetReviewThreadResolutionResult,
 } from "./operations/resolve-thread";
 
+// Collaborators primitive (BRIEF-94): the @mention candidate pool — everyone
+// who can collaborate on the repo (`affiliation: ALL` covers org/team-granted
+// members). GraphQL because REST's list carries no display name.
+export { listRepoCollaborators } from "./operations/collaborators";
+export type {
+  ListRepoCollaboratorsInput,
+  RepoCollaborator,
+  RepoCollaborators,
+} from "./operations/collaborators";
+
 // PR-conversation primitive (BRIEF-25, ADR 0027): the package's first GraphQL
 // surface — pre-threaded review threads with first-class resolution state,
 // review verdicts, PR-level comments. Domain ids are REST `databaseId`
