@@ -11,6 +11,7 @@ import { createApp, type AuthDeps } from "api";
 import {
   encryptToken,
   envKeyProvider,
+  grantAuth,
   isInstallationId,
   isReviewerId,
   tokenAuth,
@@ -21,6 +22,7 @@ import {
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCode } from "../src/exit";
+import { testLogger } from "./logging";
 import { runCli, type CliDeps } from "../src/program";
 
 const KEY_REF = "SESSION_KEY_V1";
@@ -88,6 +90,7 @@ describe("mergebrief commands over the real api app", () => {
       cookieSecure: true,
     };
     const app = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: "test-webhook-secret",
       auth,
@@ -114,15 +117,19 @@ describe("mergebrief commands over the real api app", () => {
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
     if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    const grant = await grantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
     await tokenAuth(harness.handle).mintToken({
       installationId: CTX.installationId,
       userId: REVIEWER,
       userLogin: "octocat",
       name: "ci-token",
       tokenHash: hash,
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
+      grantId: grant.id,
       expiresAt: null,
     });
     return plaintext;
@@ -227,6 +234,7 @@ describe("auth login profile selection + verification (codex PR5 R1)", () => {
     harness = await createPgliteHarness();
     kp = envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
     const app = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: "test-webhook-secret",
       auth: {
@@ -280,14 +288,18 @@ describe("auth login profile selection + verification (codex PR5 R1)", () => {
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
     if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    const grant = await grantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
     await tokenAuth(harness.handle).mintToken({
       installationId: CTX.installationId,
       userId: REVIEWER,
       name: "live",
       tokenHash: hash,
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
+      grantId: grant.id,
       expiresAt: null,
     });
 

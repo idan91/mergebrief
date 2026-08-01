@@ -204,6 +204,9 @@ importers:
       api:
         specifier: workspace:*
         version: link:../api
+      logging:
+        specifier: workspace:*
+        version: link:../logging
       persistence:
         specifier: workspace:*
         version: link:../persistence

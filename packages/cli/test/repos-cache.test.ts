@@ -16,6 +16,7 @@ import { createApp, type AuthDeps } from "api";
 import {
   encryptToken,
   envKeyProvider,
+  grantAuth,
   isInstallationId,
   isReviewerId,
   tokenAuth,
@@ -29,6 +30,7 @@ import { createApiClient } from "../src/client";
 import { ExitCode } from "../src/exit";
 import { resolveRepoId, type RepoCacheDeps } from "../src/profile/repos";
 import { runCli, type CliDeps } from "../src/program";
+import { testLogger } from "./logging";
 
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -95,6 +97,7 @@ describe("mergebrief repos command + cache", () => {
       cookieSecure: true,
     };
     const app = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: "test-webhook-secret",
       auth,
@@ -121,15 +124,19 @@ describe("mergebrief repos command + cache", () => {
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
     if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    const grant = await grantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
     await tokenAuth(harness.handle).mintToken({
       installationId: CTX.installationId,
       userId: REVIEWER,
       userLogin: "octocat",
       name: "ci-token",
       tokenHash: hash,
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
+      grantId: grant.id,
       expiresAt: null,
     });
     return plaintext;

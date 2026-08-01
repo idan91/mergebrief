@@ -15,6 +15,7 @@ import {
   encryptToken,
   envKeyProvider,
   forTenant,
+  grantAuth,
   isInstallationId,
   isRepoId,
   isReviewerId,
@@ -29,6 +30,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ExitCode } from "../src/exit";
 import { buildSubmitPayload } from "../src/commands/write";
 import { runCli, type CliDeps } from "../src/program";
+import { testLogger } from "./logging";
 
 const KEY_REF = "SESSION_KEY_V1";
 const INSTALLATION_ID = 987654;
@@ -114,6 +116,7 @@ describe("write commands over the real api app", () => {
       cookieSecure: true,
     };
     const app = createApp({
+      logger: testLogger(),
       handle: harness.handle,
       webhookSecret: "test-webhook-secret",
       auth,
@@ -162,14 +165,18 @@ describe("write commands over the real api app", () => {
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
     if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    const grant = await grantAuth(harness.handle).createGrant({
+      ghTokenCiphertext: sealedAccess.value,
+      ghRefreshTokenCiphertext: sealedRefresh.value,
+      keyRef: KEY_REF,
+      refreshExpiresAt: new Date("2027-01-01T00:00:00Z"),
+    });
     await tokenAuth(harness.handle).mintToken({
       installationId: CTX.installationId,
       userId: REVIEWER,
       name: "ci-token",
       tokenHash: createHash("sha256").update(plaintext).digest("hex"),
-      ghTokenCiphertext: sealedAccess.value,
-      ghRefreshTokenCiphertext: sealedRefresh.value,
-      keyRef: KEY_REF,
+      grantId: grant.id,
       expiresAt: null,
     });
     return plaintext;
