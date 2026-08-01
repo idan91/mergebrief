@@ -22,7 +22,10 @@ import type {
   ConversationPlan,
   ThreadRevisionJump,
 } from "@web/features/conversation";
-import { conversationQueryOptions } from "../../conversation/queries";
+import {
+  collaboratorsQueryOptions,
+  conversationQueryOptions,
+} from "../../conversation/queries";
 import { postConversationReply } from "../../conversation/reply";
 import { setThreadResolution } from "../../conversation/resolve";
 import type { Span } from "../utils/briefRouteState";
@@ -266,6 +269,9 @@ export function usePrBriefPlans(
   const conversationPlan = useMemo(
     () => ({
       queryOptions: conversationQueryOptions(repoId, prNumber),
+      // Collaborator mention pool (BRIEF-94): repo-scoped, shared by the
+      // section and the inline composers through one query key.
+      collaborators: collaboratorsQueryOptions(repoId),
       postReply: (rootCommentId: number, body: string) =>
         postConversationReply(repoId, prNumber, rootCommentId, body),
       resolution: {

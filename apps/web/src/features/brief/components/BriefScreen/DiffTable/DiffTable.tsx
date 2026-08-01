@@ -414,6 +414,7 @@ export function DiffTable({
                         <CommentComposer
                           anchor={activeCommentAnchor}
                           cancel={cancelComposer}
+                          mentionCandidates={conversationComposer?.mentionPool}
                           save={saveComment}
                         />
                       </td>
@@ -425,6 +426,7 @@ export function DiffTable({
                         <CommentThread
                           comment={comment}
                           deleteComment={deleteComment}
+                          mentionCandidates={conversationComposer?.mentionPool}
                           post={postReviewComment}
                           posting={postingCommentIds.includes(comment.id)}
                           postBlockedExternally={postBlockedExternally}

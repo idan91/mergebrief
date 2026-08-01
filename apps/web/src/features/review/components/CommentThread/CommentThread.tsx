@@ -5,6 +5,7 @@
 import { useId, useState } from "react";
 
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
+import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
   postCommentBlockedReason,
@@ -16,6 +17,8 @@ import styles from "./CommentThread.module.scss";
 export interface CommentThreadProps {
   comment: ReviewComment;
   deleteComment: (commentId: string) => void;
+  /** Mention-autocomplete pool (repo collaborators — BRIEF-94); absent on the local path. */
+  mentionCandidates?: readonly MentionCandidate[] | undefined;
   /**
    * Post this staged draft NOW as a standalone inline review comment (BRIEF-43
    * own-draft state, current head). Absent everywhere else — its presence is
@@ -47,6 +50,7 @@ export interface CommentThreadProps {
 export function CommentThread({
   comment,
   deleteComment,
+  mentionCandidates,
   post,
   posting = false,
   postBlockedExternally,
@@ -125,6 +129,7 @@ export function CommentThread({
           <MarkdownTextarea
             autoFocus
             label="Edit comment"
+            mentionCandidates={mentionCandidates}
             renderPreview={(previewBody) => (
               <MarkdownPreview anchor={comment.anchor} body={previewBody} />
             )}

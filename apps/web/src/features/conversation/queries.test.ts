@@ -13,7 +13,7 @@ vi.mock("../../data/apiFetch", async (importOriginal) => {
 });
 
 import { apiFetch, ApiError } from "../../data/apiFetch";
-import { conversationQueryOptions } from "./queries";
+import { collaboratorsQueryOptions, conversationQueryOptions } from "./queries";
 
 const apiFetchMock = vi.mocked(apiFetch);
 
@@ -93,6 +93,82 @@ describe("conversationQueryOptions queryFn", () => {
 
   it("never polls: no refetchInterval on the descriptor", () => {
     const options = conversationQueryOptions("42", 7);
+    expect(
+      "refetchInterval" in options && options.refetchInterval !== undefined,
+    ).toBe(false);
+  });
+});
+
+function runCollaborators(): Promise<unknown> {
+  const options = collaboratorsQueryOptions("42");
+  const queryFn = options.queryFn;
+  if (typeof queryFn !== "function") throw new Error("expected a queryFn");
+  return (queryFn as () => Promise<unknown>)();
+}
+
+describe("collaboratorsQueryOptions queryFn", () => {
+  it("parses a 200 into alphabetically-ordered candidates (order = ranking)", async () => {
+    apiFetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          collaborators: [
+            { login: "zed", avatarUrl: "https://avatars.example/zed.png" },
+            { login: "alice", name: "Alice Example" },
+          ],
+          hasMore: false,
+        }),
+        { status: 200 },
+      ),
+    );
+    await expect(runCollaborators()).resolves.toEqual({
+      kind: "ready",
+      candidates: [
+        { login: "alice", name: "Alice Example" },
+        { login: "zed", avatarUrl: "https://avatars.example/zed.png" },
+      ],
+    });
+    expect(apiFetchMock).toHaveBeenCalledWith("/api/repos/42/collaborators");
+  });
+
+  it("drops a non-https avatarUrl but keeps the entry (img-src defense)", async () => {
+    apiFetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          collaborators: [
+            // eslint-disable-next-line no-script-url
+            { login: "mallory", avatarUrl: "javascript:alert(1)" },
+          ],
+          hasMore: false,
+        }),
+        { status: 200 },
+      ),
+    );
+    await expect(runCollaborators()).resolves.toEqual({
+      kind: "ready",
+      candidates: [{ login: "mallory" }],
+    });
+  });
+
+  it("maps every expected failure status to unavailable (404 = viewerCanPush denial)", async () => {
+    for (const status of [401, 404, 502, 503]) {
+      apiFetchMock.mockResolvedValue(new Response("{}", { status }));
+      await expect(runCollaborators()).resolves.toEqual({
+        kind: "unavailable",
+      });
+    }
+  });
+
+  it("throws a typed malformed error on a 200 with a bad shape", async () => {
+    apiFetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ nope: true }), { status: 200 }),
+    );
+    await expect(runCollaborators()).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it("locks the refresh policy: long staleTime, no retry, no poll", () => {
+    const options = collaboratorsQueryOptions("42");
+    expect(options.staleTime).toBe(5 * 60 * 1000);
+    expect(options.retry).toBe(false);
     expect(
       "refetchInterval" in options && options.refetchInterval !== undefined,
     ).toBe(false);

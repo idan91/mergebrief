@@ -5,7 +5,10 @@ import type { DigestThreadRow } from "../../../utils/digest";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
 import { RevisionJumpAction } from "../RevisionJumpAction/RevisionJumpAction";
-import { mentionCandidatesFromThread } from "../../../utils/mentions";
+import {
+  mentionCandidatesFromThread,
+  mergeMentionCandidates,
+} from "../../../utils/mentions";
 import { postdatesBrief } from "../../../utils/postdate";
 import { buildQuoteBlock } from "../../../utils/quote";
 import { ReplyComposer } from "./ReplyComposer/ReplyComposer";
@@ -180,7 +183,10 @@ export function ThreadDetail({
       </div>
       <ReplyComposer
         briefId={composer.briefId}
-        mentionCandidates={mentionCandidatesFromThread(thread)}
+        mentionCandidates={mergeMentionCandidates(
+          mentionCandidatesFromThread(thread),
+          composer.mentionPool ?? [],
+        )}
         quote={quote}
         onPosted={composer.onPosted}
         post={composer.post}

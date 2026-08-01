@@ -124,6 +124,8 @@ interface RenderOptions {
   isResolved?: boolean;
   /** Absent = no resolution wiring at all (the local demo path). */
   canResolve?: boolean | undefined;
+  /** Repo-collaborator mention pool riding the composer wiring (BRIEF-94). */
+  mentionPool?: ThreadComposerWiring["mentionPool"];
   reply?: ReplyResult | (() => Promise<ReplyResult>);
   resolve?: ResolveThreadResult | (() => Promise<ResolveThreadResult>);
 }
@@ -166,6 +168,9 @@ function renderDetail(options: RenderOptions = {}) {
     briefId: BRIEF_ID,
     post,
     onPosted: vi.fn(),
+    ...(options.mentionPool === undefined
+      ? {}
+      : { mentionPool: options.mentionPool }),
     ...(resolution === undefined ? {} : { resolution }),
   };
   const flowStore = createReviewFlowStore(
@@ -611,5 +616,40 @@ describe("ThreadDetail — Reply & resolve combo (BRIEF-93)", () => {
       ),
     );
     expect(h.setResolved).not.toHaveBeenCalled();
+  });
+});
+
+describe("ThreadDetail — mention pool hand-off (BRIEF-94)", () => {
+  it("merges the composer's roster after the thread's participants (order = ranking)", () => {
+    renderDetail({
+      mentionPool: [
+        {
+          login: "alice",
+          name: "Alice Example",
+          avatarUrl: "https://avatars.example/alice.png",
+        },
+        { login: "bob", name: "Bob Builder" },
+      ],
+    });
+    type("@");
+    const options = screen.getAllByRole("option");
+    // Participant alice first, ENRICHED from the roster entry; then the
+    // non-participant collaborator. A dropped hand-off would render alice
+    // login-only and no bob at all.
+    expect(options.map((option) => option.textContent)).toEqual([
+      "@aliceAlice Example",
+      "@bobBob Builder",
+    ]);
+    expect(options[0]?.querySelector("img")?.getAttribute("src")).toBe(
+      "https://avatars.example/alice.png",
+    );
+  });
+
+  it("falls back to participants-only without a pool", () => {
+    renderDetail({});
+    type("@");
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["@alice"]);
   });
 });

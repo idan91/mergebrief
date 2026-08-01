@@ -5,6 +5,7 @@
 import { useEffect, useId } from "react";
 
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
+import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { useUnsavedComposerText } from "@web/hooks/useUnsavedComposerGuard";
 import {
   commentAnchorLabel,
@@ -19,12 +20,15 @@ import styles from "./CommentComposer.module.scss";
 export interface CommentComposerProps {
   anchor: CommentAnchor;
   cancel: () => void;
+  /** Mention-autocomplete pool (repo collaborators — BRIEF-94); absent on the local path. */
+  mentionCandidates?: readonly MentionCandidate[] | undefined;
   save: (anchor: CommentAnchor, body: string) => void;
 }
 
 export function CommentComposer({
   anchor,
   cancel,
+  mentionCandidates,
   save,
 }: CommentComposerProps) {
   const composer = useCommentComposerFacade(anchor, save);
@@ -69,6 +73,7 @@ export function CommentComposer({
         autoFocus
         describedBy={composer.error !== "" ? errorId : undefined}
         label="Comment"
+        mentionCandidates={mentionCandidates}
         placeholder="Leave a comment"
         renderPreview={(body) => (
           <MarkdownPreview anchor={anchor} body={body} />

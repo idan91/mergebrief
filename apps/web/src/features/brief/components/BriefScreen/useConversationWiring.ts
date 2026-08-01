@@ -14,6 +14,7 @@ import {
 } from "@web/features/conversation/utils/digest";
 import { reconcileOwnComments } from "@web/features/conversation/utils/ownComments";
 import type { ConversationResult } from "@web/features/conversation/queries";
+import { useMentionPool } from "@web/features/conversation/hooks/useMentionPool";
 import { prefersReducedMotion } from "@web/utils/motion";
 import type { BriefViewModel } from "../../utils/viewModel";
 import type { BriefChunk } from "../../types";
@@ -129,6 +130,10 @@ export function useConversationWiring(
   // Slim transport (draft reads/writes and announce copy live inside
   // ReplyComposer's session-store reads): identity stable per plan, so it
   // never busts ChunkCard's memo.
+  // Collaborator mention pool (BRIEF-94): same query key as the section's —
+  // one fetch serves both surfaces.
+  const mentionPool = useMentionPool(conversation?.collaborators);
+
   const conversationComposer = useMemo<ThreadComposerWiring | undefined>(
     () =>
       conversation === undefined
@@ -136,6 +141,7 @@ export function useConversationWiring(
         : {
             briefId,
             post: conversation.postReply,
+            mentionPool,
             onPosted: () =>
               void queryClient.invalidateQueries({
                 queryKey: conversation.queryOptions.queryKey,
@@ -155,7 +161,7 @@ export function useConversationWiring(
                   },
                 }),
           },
-    [briefId, conversation, queryClient],
+    [briefId, conversation, mentionPool, queryClient],
   );
 
   const groupIds = useMemo(

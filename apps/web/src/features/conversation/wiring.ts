@@ -1,6 +1,7 @@
 // UI wiring shapes shared by the section digest, the promoted ThreadRowView,
 // and the inline (at-chunk) renders — the nearest common ancestor of all
 // three subtrees (ADR 0037). Wire shapes stay in `types.ts`.
+import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import type { ReplyResult } from "./reply";
 import type { ResolveThreadResult } from "./resolve";
 
@@ -72,6 +73,12 @@ export interface ThreadComposerWiring {
   readonly post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   /** Refetch after a posted reply — every conversation write evicts server-side. */
   readonly onPosted: () => void;
+  /**
+   * Repo-collaborator mention candidates (BRIEF-94), alphabetical. The
+   * thread detail merges them AFTER its own participants (order = ranking);
+   * absent/empty = participants-only autocomplete.
+   */
+  readonly mentionPool?: readonly MentionCandidate[];
   /** Outdated-thread revision jump (BRIEF-24); absent inline / on the local path. */
   readonly revisionJump?: ThreadRevisionJump;
   /** Resolve/unresolve + the Reply & resolve combo (BRIEF-93); absent = no affordance. */

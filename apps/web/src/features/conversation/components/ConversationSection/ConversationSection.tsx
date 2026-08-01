@@ -21,7 +21,11 @@ import { markSnapshotCommentsSubmitted } from "@web/features/review/session";
 import { buildConversationDigest } from "../../utils/digest";
 import { countCommentsAfterBrief } from "../../utils/postdate";
 import { reconcileOwnComments } from "../../utils/ownComments";
-import type { conversationQueryOptions } from "../../queries";
+import type {
+  collaboratorsQueryOptions,
+  conversationQueryOptions,
+} from "../../queries";
+import { useMentionPool } from "../../hooks/useMentionPool";
 import type { ReplyResult } from "../../reply";
 import rowStyles from "../../rows.module.scss";
 import type { ConversationReview } from "../../types";
@@ -36,6 +40,12 @@ import styles from "./ConversationSection.module.scss";
 /** The route-injected data plan (absent on the local demo path). */
 export interface ConversationPlan {
   readonly queryOptions: ReturnType<typeof conversationQueryOptions>;
+  /**
+   * The repo's collaborator roster for mention autocomplete (BRIEF-94).
+   * Absent on the local demo path; a non-ready result (viewerCanPush 404,
+   * upstream blip) degrades to participants-only silently.
+   */
+  readonly collaborators?: ReturnType<typeof collaboratorsQueryOptions>;
   /** Immediate viewer-token reply to a thread's root comment (BRIEF-25 #7). */
   readonly postReply: (
     rootCommentId: number,
@@ -112,6 +122,9 @@ export function ConversationSection({
 }: ConversationSectionProps) {
   const queryClient = useQueryClient();
   const query = useQuery(plan.queryOptions);
+  // Collaborator mention pool (BRIEF-94) — shared query key with the inline
+  // wiring; non-ready = empty = participants-only autocomplete.
+  const mentionPool = useMentionPool(plan.collaborators);
   const [expandedThreads, setExpandedThreads] = useState<ReadonlySet<number>>(
     new Set(),
   );
@@ -253,6 +266,7 @@ export function ConversationSection({
     briefId,
     post: plan.postReply,
     onPosted: refresh,
+    mentionPool,
     ...(plan.revisionJump === undefined
       ? {}
       : { revisionJump: plan.revisionJump }),

@@ -9,6 +9,7 @@
 // open / resolved / outdated; review states are GitHub's SHOUT literals.
 // Mind-map dispositions keep the product's words; `linked-comment` evidence
 // is the bridge.
+import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import type { Result as SharedResult, ValueOf } from "types";
 
 type Result<T> = SharedResult<T, string>;
@@ -253,6 +254,44 @@ function parsePrLevelComment(value: unknown): PrLevelComment | undefined {
     createdAt: value["createdAt"],
     url: value["url"],
   };
+}
+
+/**
+ * Parse the collaborators GET's body (BRIEF-94) into mention candidates;
+ * `ok: false` = contract violation. `hasMore` is parsed (contract) but not
+ * surfaced — a truncated pool is still a pool. `avatarUrl` is defensively
+ * https-gated: a non-https value drops the FIELD (the entry stays) — this
+ * string lands in an `<img src>`.
+ */
+export function parseCollaborators(
+  value: unknown,
+): Result<readonly MentionCandidate[]> {
+  if (!isObject(value))
+    return { ok: false, error: "collaborators: not an object" };
+  const raw = value["collaborators"];
+  if (!Array.isArray(raw))
+    return { ok: false, error: "collaborators: collaborators" };
+  if (typeof value["hasMore"] !== "boolean")
+    return { ok: false, error: "collaborators: hasMore" };
+  const candidates: MentionCandidate[] = [];
+  for (const entry of raw) {
+    if (!isObject(entry) || typeof entry["login"] !== "string")
+      return { ok: false, error: "collaborators: entry shape" };
+    const name = entry["name"];
+    const avatarUrl = entry["avatarUrl"];
+    if (!optionalString(name) || !optionalString(avatarUrl))
+      return { ok: false, error: "collaborators: entry shape" };
+    const safeAvatar =
+      avatarUrl !== undefined && avatarUrl.startsWith("https://")
+        ? avatarUrl
+        : undefined;
+    candidates.push({
+      login: entry["login"],
+      ...(name === undefined ? {} : { name }),
+      ...(safeAvatar === undefined ? {} : { avatarUrl: safeAvatar }),
+    });
+  }
+  return { ok: true, value: candidates };
 }
 
 /** Parse the conversation GET's body; `ok: false` = contract violation. */
