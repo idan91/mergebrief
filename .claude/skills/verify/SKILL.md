@@ -63,9 +63,20 @@ Useful probes:
 
 ## Cleanup
 
-Tenant-scoped deletes only (the dev DB may hold real webhook-loop data), then
-`docker compose stop postgres` if it was down before. Blanket `DELETE FROM` is
-hook-blocked.
+Once the verify passes are done, KILL the dev servers — the whole tree, not
+just the launched PID: `pnpm dev` leaves a pnpm wrapper (sometimes two) plus
+the vite child running after the parent dies. Find and kill them all, then
+confirm zero remain:
+
+```sh
+ps aux | grep -iE "vite|pnpm.*dev" | grep -v grep   # expect pnpm wrapper(s) + vite
+kill <pids>
+ps aux | grep -iE "vite|pnpm.*dev" | grep -v grep | wc -l   # must print 0
+```
+
+Then tenant-scoped deletes only (the dev DB may hold real webhook-loop data),
+then `docker compose stop postgres` if it was down before. Blanket
+`DELETE FROM` is hook-blocked.
 
 ## Seed-script gotchas (BRIEF-52 pass, 2026-07-17)
 
