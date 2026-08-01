@@ -6,7 +6,7 @@
 // app's ONE registered namespace (BRIEF-18) — to the Hono app this module builds.
 import "@tanstack/react-start/server-only";
 
-import { appConversationPort, createApp, migrateQueue } from "api";
+import { appInstallationPort, createApp, migrateQueue } from "api";
 import { loadInstancePolicy } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import {
@@ -131,9 +131,9 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     // Skew visibility (ADR 0029 #8): surfaced by GET /api/version and the
     // CLI's `auth status`; the api changelog is keyed to it.
     serverVersion: process.env["SERVER_VERSION"] ?? "dev",
-    // Conversation reads run as the App on the installation token (ADR 0027):
+    // Installation-token reads (conversation, collaborators) run as the App on the installation token (ADR 0027):
     // one rate budget and one cache entry per PR, gate-authorized per viewer.
-    github: appConversationPort(createAppClient(githubConfig.value)),
+    github: appInstallationPort(createAppClient(githubConfig.value)),
     // Generate-from-URL engine (BRIEF-97): the octokit-PrSource pipeline over
     // the VIEWER's token. Composition-root wiring — the one place feature
     // server code legitimately meets the global layer.

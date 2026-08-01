@@ -87,8 +87,13 @@ export interface AuthzVariables extends RequestLogVariables {
   /**
    * Whether GITHUB reported push (write) permission for the viewer on this
    * repo during the access check (BRIEF-93) — cached with the positive entry,
-   * so ≤60s stale like `repoFullName`. Affordance signal only: GitHub's
-   * mutation-time enforcement stays the truth for any write it gates.
+   * so ≤60s stale like `repoFullName`. For writes it is an affordance signal
+   * only: GitHub's mutation-time enforcement stays the truth. BRIEF-94 also
+   * makes it a SECURITY GATE on the collaborators read (an installation-token
+   * fetch has no GitHub-side backstop), so a probe shape without a
+   * `permissions` block must keep parsing as `false` — never loosen the
+   * default. A just-revoked push viewer keeps roster access for at most the
+   * gate's own ≤60s revocation window (accepted posture).
    */
   readonly viewerCanPush: boolean;
   readonly accessToken?: string;

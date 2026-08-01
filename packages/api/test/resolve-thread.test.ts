@@ -257,6 +257,7 @@ function countingConversationPort(): {
       installationId: InstallationId,
       input: FetchPullRequestConversationInput,
     ): Promise<Result<PrConversation, GitHubApiError>>;
+    listRepoCollaborators(): Promise<never>;
   };
   calls: () => number;
 } {
@@ -266,6 +267,9 @@ function countingConversationPort(): {
       fetchPullRequestConversation: async () => {
         calls += 1;
         return { ok: true, value: EMPTY_CONVERSATION };
+      },
+      listRepoCollaborators: async () => {
+        throw new Error("collaborators port must not be called in this suite");
       },
     },
     calls: () => calls,

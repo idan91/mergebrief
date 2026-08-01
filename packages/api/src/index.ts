@@ -12,11 +12,11 @@ export type {
   UrlBriefError,
 } from "./routes/generate";
 
-// The conversation surface's installation-octokit seam (BRIEF-25): the
-// composition root wires `appConversationPort` over the App-JWT client;
-// tests substitute the port.
-export { appConversationPort } from "./routes/conversation";
-export type { ConversationGitHubPort } from "./routes/conversation";
+// The installation-octokit seam (BRIEF-25; widened by BRIEF-94 with the
+// collaborators read): the composition root wires `appInstallationPort` over
+// the App-JWT client; tests substitute the port.
+export { appInstallationPort } from "./routes/github-port";
+export type { InstallationGitHubPort } from "./routes/github-port";
 
 // The serialized token-refresh orchestrator (BRIEF-2 stage 6, D11): built +
 // tested here, called by stage 7's authz middleware on a GitHub 401.

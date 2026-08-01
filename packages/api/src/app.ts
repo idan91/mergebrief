@@ -14,7 +14,9 @@ import type { AppDatabase } from "persistence";
 import type { DraftPolicy } from "types";
 import { requestLogging, type RequestLogEnv } from "./request-logging";
 import { authRoute, type AuthDeps } from "./routes/auth";
-import { conversationRoutes, type ConversationGitHubPort } from "./routes/conversation";
+import { collaboratorsRoute } from "./routes/collaborators";
+import { conversationRoutes } from "./routes/conversation";
+import type { InstallationGitHubPort } from "./routes/github-port";
 import { installationsRoute } from "./routes/installations";
 import { createAllowedRepoResolver } from "./routes/allowed-repos";
 import { pullsRoute } from "./routes/pulls";
@@ -42,8 +44,11 @@ export interface AppDeps {
   readonly logger: Logger;
   /** Reviewer-auth bundle (OAuth creds, crypto seam, cookie/redirect policy). */
   readonly auth: AuthDeps;
-  /** Installation-octokit seam for the conversation read (BRIEF-25). */
-  readonly github: ConversationGitHubPort;
+  /**
+   * Installation-octokit seam for the installation-token reads: the
+   * conversation fetch (BRIEF-25) and the collaborators list (BRIEF-94).
+   */
+  readonly github: InstallationGitHubPort;
   /** Exposed by GET /api/version (ADR 0029 #8 — skew visibility). */
   readonly serverVersion?: string;
   /** Instance draft-PR policy (BRIEF-64); omitted = zero-config default. */
@@ -106,6 +111,10 @@ export function createApp(deps: AppDeps): ApiApp {
   app.route("/", resolveThreadRoute(deps, (installationId, repoId, prNumber) =>
     conversation.evictConversation(installationId, repoId, prNumber),
   ));
+  // Collaborators read (BRIEF-94): own per-repo gate instance + the
+  // viewerCanPush guard, mounted BEFORE readsRoute for the same single-gate
+  // reason as the other /api/repos/:repoId/* modules.
+  app.route("/", collaboratorsRoute(deps));
   // Generate-from-URL (BRIEF-97): session-gated only — the pasted URL's repo
   // is outside the installation model; the engine's viewer-token fetch is the
   // access check. Mounted before readsRoute like every session-authed route.

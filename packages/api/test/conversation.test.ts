@@ -1,6 +1,6 @@
 // Conversation-surface integration tests (BRIEF-25): `app.request()` against
 // `createApp` over the PGlite harness. The installation-token GraphQL read
-// enters through the injected `ConversationGitHubPort` (stubbed here — the
+// enters through the injected `InstallationGitHubPort` (stubbed here — the
 // wire→domain mapping is the github package's suite); the viewer-token reply
 // POST and the gate's access check hit the global-fetch stub (same pattern as
 // review-submit.test.ts). Covers: gate posture (401/404), the 60s per-PR
@@ -27,7 +27,7 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps, type ConversationGitHubPort } from "../src/index";
+import { createApp, type ApiApp, type AuthDeps, type InstallationGitHubPort } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 
 // POST .../comments/{id}/replies is on octokit's `triggersNotification` list:
@@ -161,8 +161,8 @@ interface PortLog {
 }
 
 function stubPort(
-  results: Array<Awaited<ReturnType<ConversationGitHubPort["fetchPullRequestConversation"]>>>,
-): { port: ConversationGitHubPort; log: PortLog } {
+  results: Array<Awaited<ReturnType<InstallationGitHubPort["fetchPullRequestConversation"]>>>,
+): { port: InstallationGitHubPort; log: PortLog } {
   const log: PortLog = { calls: [] };
   let call = 0;
   return {
@@ -174,6 +174,9 @@ function stubPort(
         call += 1;
         if (result === undefined) throw new Error("port stub exhausted");
         return result;
+      },
+      listRepoCollaborators: async () => {
+        throw new Error("collaborators port must not be called in this suite");
       },
     },
   };
@@ -375,7 +378,7 @@ describe("conversation surface", () => {
     await harness.close();
   });
 
-  function makeApp(port: ConversationGitHubPort): ApiApp {
+  function makeApp(port: InstallationGitHubPort): ApiApp {
     return createApp({
       logger: testLogger(),
       handle: harness.handle,
@@ -735,15 +738,15 @@ describe("conversation surface", () => {
   });
 });
 
-describe("appConversationPort", () => {
-  it("maps an installation-client mint rejection to a sanitized Result error", async () => {
-    const { appConversationPort } = await import("../src/routes/conversation");
+describe("appInstallationPort", () => {
+  it("maps an installation-client mint rejection to a sanitized Result error on both reads", async () => {
+    const { appInstallationPort } = await import("../src/routes/github-port");
     const app = {
       getInstallationOctokit: async () => {
         throw new Error("mint failed: token endpoint unreachable ghs_SECRET");
       },
-    } as unknown as Parameters<typeof appConversationPort>[0];
-    const port = appConversationPort(app);
+    } as unknown as Parameters<typeof appInstallationPort>[0];
+    const port = appInstallationPort(app);
     const result = await port.fetchPullRequestConversation(CTX.installationId, {
       owner: "o",
       repo: "r",
@@ -753,5 +756,14 @@ describe("appConversationPort", () => {
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe("request-failed");
     expect(JSON.stringify(result.error)).not.toContain("ghs_SECRET");
+
+    const collaborators = await port.listRepoCollaborators(CTX.installationId, {
+      owner: "o",
+      repo: "r",
+    });
+    expect(collaborators.ok).toBe(false);
+    if (collaborators.ok) throw new Error("unreachable");
+    expect(collaborators.error.code).toBe("request-failed");
+    expect(JSON.stringify(collaborators.error)).not.toContain("ghs_SECRET");
   });
 });

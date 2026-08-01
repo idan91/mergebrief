@@ -13,20 +13,16 @@
 // repo re-resolve before the mutating call (gated-route rule), and the PR's
 // conversation cache key is evicted on success so the next read reflects it.
 //
-// The installation octokit enters through `ConversationGitHubPort` — injected
-// by the composition root (`appConversationPort` over the App-JWT client),
-// substituted in tests. This package never constructs App auth itself.
+// The installation octokit enters through `InstallationGitHubPort`
+// (`./github-port` — injected by the composition root over the App-JWT
+// client, substituted in tests). This package never constructs App auth
+// itself.
 import { Hono, type Context } from "hono";
 import {
   createReviewCommentReply,
   createUserOctokit,
   fetchRepositoryById,
-  fetchPullRequestConversation,
-  getInstallationClient,
   GitHubApiErrorCode,
-  type AppClient,
-  type FetchPullRequestConversationInput,
-  type GitHubApiError,
   type PrConversation,
 } from "github";
 import {
@@ -38,49 +34,11 @@ import {
   type InstallationId,
   type RepoId,
 } from "persistence";
-import type { Result } from "types";
 import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
+import type { InstallationGitHubPort } from "./github-port";
 import { createTtlCache } from "./ttl-cache";
-
-// ---------------------------------------------------------------------------
-// The installation-octokit seam.
-// ---------------------------------------------------------------------------
-
-/** The one installation-token read this surface performs (test seam). */
-export interface ConversationGitHubPort {
-  fetchPullRequestConversation(
-    installationId: InstallationId,
-    input: FetchPullRequestConversationInput,
-  ): Promise<Result<PrConversation, GitHubApiError>>;
-}
-
-/** The production port over `github`'s App-JWT client. */
-export function appConversationPort(app: AppClient): ConversationGitHubPort {
-  return {
-    async fetchPullRequestConversation(installationId, input) {
-      // Minting the installation token talks to GitHub and can reject — that
-      // rejection must become a sanitized Result (the route's 502), never an
-      // unhandled 500 outside the no-store policy (codex round 1). The static
-      // message carries nothing from the thrown error.
-      let octokit: Awaited<ReturnType<typeof getInstallationClient>>;
-      try {
-        octokit = await getInstallationClient(app, installationId);
-      } catch {
-        return {
-          ok: false,
-          error: {
-            code: GitHubApiErrorCode.REQUEST_FAILED,
-            message:
-              "failed to fetch pull request conversation: installation client unavailable",
-          },
-        };
-      }
-      return fetchPullRequestConversation(octokit, input);
-    },
-  };
-}
 
 // ---------------------------------------------------------------------------
 // Boundary schemas + constants.
@@ -150,7 +108,7 @@ async function resolveSessionToken(
 // ---------------------------------------------------------------------------
 
 export interface ConversationRouteDeps extends AuthRouteDeps {
-  readonly github: ConversationGitHubPort;
+  readonly github: InstallationGitHubPort;
 }
 
 export interface ConversationRoutes {
