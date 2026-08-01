@@ -34,6 +34,6 @@ describe("mentionCandidatesFromThread", () => {
           { login: "alice" },
         ]),
       ),
-    ).toEqual(["alice", "bob"]);
+    ).toEqual([{ login: "alice" }, { login: "bob" }]);
   });
 });

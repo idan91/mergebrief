@@ -108,6 +108,9 @@
   }
 
   .mentionOption {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     padding-block: 5px;
     padding-inline: 8px;
     border-radius: var(--radius-sm);
@@ -119,6 +122,33 @@
       background: var(--color-surface-2);
       color: var(--text);
     }
+  }
+
+  // Fixed slot whether or not the source carried an avatar, so login
+  // columns align across mixed (participant/collaborator) pools.
+  .mentionAvatar,
+  .mentionAvatarSlot {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-circle);
+  }
+
+  .mentionAvatarSlot {
+    background: var(--color-surface-2);
+  }
+
+  // A long display name truncates; the login never squeezes.
+  .mentionLogin {
+    flex-shrink: 0;
+  }
+
+  .mentionName {
+    overflow: hidden;
+    color: var(--faint);
+    font-size: var(--font-size-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .hint {

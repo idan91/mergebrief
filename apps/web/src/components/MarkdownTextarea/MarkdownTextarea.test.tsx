@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MarkdownTextarea } from "./MarkdownTextarea";
+import type { MentionCandidate } from "./useMentionAutocomplete";
 
 afterEach(cleanup);
 
@@ -20,7 +21,7 @@ function Harness({
   label?: string;
   readOnly?: boolean;
   suggestionSeed?: string | undefined;
-  mentionCandidates?: readonly string[] | undefined;
+  mentionCandidates?: readonly MentionCandidate[] | undefined;
   onEscape?: (() => void) | undefined;
   onSubmit?: (() => void) | undefined;
 }) {
@@ -238,7 +239,15 @@ describe("MarkdownTextarea", () => {
   });
 
   describe("mention autocomplete", () => {
-    const CANDIDATES = ["alice", "albert", "bob"];
+    const CANDIDATES: readonly MentionCandidate[] = [
+      {
+        login: "alice",
+        name: "Alice Example",
+        avatarUrl: "https://avatars.example/alice.png",
+      },
+      { login: "albert" },
+      { login: "bob", avatarUrl: "https://avatars.example/bob.png" },
+    ];
 
     function typeMention(text: string) {
       const input = textarea();
@@ -251,10 +260,39 @@ describe("MarkdownTextarea", () => {
       typeMention("hi @al");
       const options = screen.getAllByRole("option");
       expect(options.map((option) => option.textContent)).toEqual([
-        "@alice",
+        "@aliceAlice Example",
         "@albert",
       ]);
       expect(options[0]?.getAttribute("aria-selected")).toBe("true");
+    });
+
+    it("renders avatar and display name when the candidate carries them", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      typeMention("hi @al");
+      const [alice, albert] = screen.getAllByRole("option");
+      if (alice === undefined || albert === undefined) {
+        throw new Error("expected two options");
+      }
+      // Rich candidate: avatar image + login + muted display name.
+      const avatar = alice.querySelector("img");
+      expect(avatar?.getAttribute("src")).toBe(
+        "https://avatars.example/alice.png",
+      );
+      // Decorative — the option text already carries the identity.
+      expect(avatar?.getAttribute("alt")).toBe("");
+      expect(alice.textContent).toBe("@aliceAlice Example");
+      // Login-only candidate: no img, no name, still a valid option.
+      expect(albert.querySelector("img")).toBeNull();
+      expect(albert.textContent).toBe("@albert");
+    });
+
+    it("renders the avatar even when the candidate has no display name", () => {
+      render(<Harness mentionCandidates={CANDIDATES} />);
+      typeMention("@b");
+      const bob = screen.getByRole("option", { name: "@bob" });
+      expect(bob.querySelector("img")?.getAttribute("src")).toBe(
+        "https://avatars.example/bob.png",
+      );
     });
 
     it("stays closed with no candidate pool", () => {
@@ -322,7 +360,7 @@ describe("MarkdownTextarea", () => {
       fireEvent.keyDown(input, { key: "ArrowDown", isComposing: true });
       expect(
         screen
-          .getByRole("option", { name: "@alice" })
+          .getByRole("option", { name: /@alice/ })
           .getAttribute("aria-selected"),
       ).toBe("true");
     });

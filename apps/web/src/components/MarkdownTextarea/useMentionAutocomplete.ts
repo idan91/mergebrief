@@ -4,9 +4,21 @@ import { activeMentionQuery, insertMention } from "./utils";
 
 const MAX_MENTION_OPTIONS = 5;
 
+/**
+ * One entry of the injected candidate pool (BRIEF-94). `name`/`avatarUrl`
+ * are optional so thread participants (login-only today) and collaborators
+ * (rich) ride the same pool; insertion always uses the login.
+ */
+export interface MentionCandidate {
+  readonly login: string;
+  /** Display name; absent when the user never set one (or the source lacks it). */
+  readonly name?: string | undefined;
+  readonly avatarUrl?: string | undefined;
+}
+
 export interface MentionAutocomplete {
   open: boolean;
-  options: readonly string[];
+  options: readonly MentionCandidate[];
   activeIndex: number;
   listId: string;
   optionId: (index: number) => string;
@@ -27,7 +39,7 @@ export interface MentionAutocomplete {
 export interface MentionAutocompleteArgs {
   value: string;
   onChange: (value: string) => void;
-  candidates: readonly string[];
+  candidates: readonly MentionCandidate[];
   /** A read-only surface is inert — the popup must not open or insert. */
   readOnly: boolean;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -36,9 +48,10 @@ export interface MentionAutocompleteArgs {
 
 /**
  * `@`-mention autocomplete over an injected candidate pool (BRIEF-56
- * decision 7: participants-seeded; the source widens — collaborators
- * endpoint — without touching this hook). Combobox-with-listbox keyboard
- * contract; suppressed inside code fences.
+ * decision 7: participants-seeded; BRIEF-94 widened the entry shape to
+ * carry name/avatar for the collaborators source). Filtering is
+ * prefix-on-login in POOL ORDER — the caller's ordering IS the ranking.
+ * Combobox-with-listbox keyboard contract; suppressed inside code fences.
  */
 export function useMentionAutocomplete({
   value,
@@ -66,7 +79,9 @@ export function useMentionAutocomplete({
     mention === null
       ? []
       : candidates
-          .filter((candidate) => candidate.toLowerCase().startsWith(query))
+          .filter((candidate) =>
+            candidate.login.toLowerCase().startsWith(query),
+          )
           .slice(0, MAX_MENTION_OPTIONS);
   const open =
     mention !== null &&
@@ -137,10 +152,10 @@ export function useMentionAutocomplete({
         return true;
       }
       if (event.key === "Enter" || event.key === "Tab") {
-        const login = options[clampedIndex];
-        if (login === undefined) return false;
+        const candidate = options[clampedIndex];
+        if (candidate === undefined) return false;
         event.preventDefault();
-        select(login);
+        select(candidate.login);
         return true;
       }
       if (event.key === "Escape") {

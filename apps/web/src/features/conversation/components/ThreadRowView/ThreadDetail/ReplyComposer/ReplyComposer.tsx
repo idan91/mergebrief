@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
+import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import { appendQuote } from "../../../../utils/quote";
 import {
   persistReplyDraft,
@@ -70,8 +71,8 @@ export interface ReplyComposerProps {
   threadId: number;
   post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   onPosted: () => void;
-  /** Mention-autocomplete pool (thread participants — BRIEF-56). */
-  mentionCandidates?: readonly string[] | undefined;
+  /** Mention-autocomplete pool (participants + collaborators — BRIEF-56/94). */
+  mentionCandidates?: readonly MentionCandidate[] | undefined;
   /**
    * Quote-reply prefill: a new nonce appends the (already `> `-prefixed)
    * block to the draft and focuses the box. Nonce, not text, is the

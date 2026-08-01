@@ -21,7 +21,10 @@ import {
   useMarkdownTextareaFacade,
   type MarkdownTextareaMode,
 } from "./useMarkdownTextareaFacade";
-import { useMentionAutocomplete } from "./useMentionAutocomplete";
+import {
+  useMentionAutocomplete,
+  type MentionCandidate,
+} from "./useMentionAutocomplete";
 import styles from "./MarkdownTextarea.module.scss";
 
 export interface MarkdownTextareaProps {
@@ -52,11 +55,12 @@ export interface MarkdownTextareaProps {
   /** Enables the Insert-suggestion action, pre-filled with this text. */
   suggestionSeed?: string | undefined;
   /**
-   * Candidate logins for `@`-mention autocomplete; empty/absent disables
-   * it. The pool is injected (participants today, collaborators later) —
-   * the component never fetches.
+   * Candidate pool for `@`-mention autocomplete; empty/absent disables it.
+   * The pool is injected (thread participants, repo collaborators) — the
+   * component never fetches. Pool order is the ranking (BRIEF-94
+   * decision 6): the hook prefix-filters in array order and caps the list.
    */
-  mentionCandidates?: readonly string[] | undefined;
+  mentionCandidates?: readonly MentionCandidate[] | undefined;
   /** Preview-tab renderer; defaults to the shared Markdown component. */
   renderPreview?: ((value: string) => ReactNode) | undefined;
   /**
@@ -330,7 +334,7 @@ export function MarkdownTextarea({
             id={mentions.listId}
             role="listbox"
           >
-            {mentions.options.map((login, index) => (
+            {mentions.options.map((candidate, index) => (
               <div
                 aria-selected={index === mentions.activeIndex}
                 className={styles["mentionOption"]}
@@ -338,7 +342,7 @@ export function MarkdownTextarea({
                   index === mentions.activeIndex ? "active" : undefined
                 }
                 id={mentions.optionId(index)}
-                key={login}
+                key={candidate.login}
                 role="option"
                 // Focus stays in the textarea (aria-activedescendant
                 // pattern); -1 satisfies focusability without a tab stop.
@@ -347,10 +351,27 @@ export function MarkdownTextarea({
                 // blur, and blur-persist consumers would race the insert.
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  mentions.select(login);
+                  mentions.select(candidate.login);
                 }}
               >
-                @{login}
+                {candidate.avatarUrl === undefined ? (
+                  <span aria-hidden className={styles["mentionAvatarSlot"]} />
+                ) : (
+                  // Decorative — the option text carries the identity.
+                  <img
+                    alt=""
+                    className={styles["mentionAvatar"]}
+                    src={candidate.avatarUrl}
+                  />
+                )}
+                <span className={styles["mentionLogin"]}>
+                  @{candidate.login}
+                </span>
+                {candidate.name === undefined ? null : (
+                  <span className={styles["mentionName"]}>
+                    {candidate.name}
+                  </span>
+                )}
               </div>
             ))}
           </div>
