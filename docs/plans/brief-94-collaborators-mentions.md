@@ -11,11 +11,15 @@
 
 ## Goal
 
-Can you @mention someone who hasn't spoken in the thread yet? Today the
-autocomplete pool is thread participants only — anyone else on the repo must
-be typed from memory, and the draft-path composers have no autocomplete at
-all. BRIEF-94 adds a collaborators endpoint and widens the pool everywhere a
-comment can be written, with GitHub-style rich rendering (avatar + name).
+Can you @mention anyone who could collaborate on this PR? The candidate
+pool should be everyone with access to the repo — direct collaborators and
+org members whose access comes via org/team grants (in practice mostly the
+org) — not merely people who already spoke in the thread. Today the pool is
+thread participants only, and the draft-path composers have no autocomplete
+at all. BRIEF-94 adds a collaborators endpoint (GraphQL collaborators
+connection, `affiliation: ALL` — which includes org/team-granted access)
+and widens the pool everywhere a comment can be written, with GitHub-style
+rich rendering (avatar + name).
 
 ## Locked decisions (grill 2026-08-01)
 
@@ -61,7 +65,9 @@ comment can be written, with GitHub-style rich rendering (avatar + name).
 - Fork-PR author who isn't a collaborator (decision 1 — self-heals).
 - Draft-composer mention *rendering* beyond what MarkdownTextarea already
   does; this ticket only supplies candidates.
-- Org-members-beyond-collaborators, teams, or `#`-reference autocomplete.
+- Org members with NO access to this repo (can't collaborate on the PR;
+  `affiliation: ALL` already covers every org member who can), team
+  mentions (`@org/team`), or `#`-reference autocomplete.
 
 ## Git requirements (git-eng — mandatory for ALL git operations)
 
@@ -100,7 +106,10 @@ low/nitpick-only = clean with a note in the PR body. Idan merges.
 
 1. `packages/github/src/operations/collaborators.ts`:
    `listRepoCollaborators(octokit, {owner, repo})` → GraphQL
-   `repository.collaborators(first: 100)` selecting `login name avatarUrl`
+   `repository.collaborators(first: 100, affiliation: ALL)` — ALL is
+   load-bearing: it includes org members whose access comes through
+   org/team grants, the bulk of the intended pool — selecting
+   `login name avatarUrl`
    (+ `__typename`/bot detection for the server-side bot filter), manual
    cursor loop, `MAX_COLLABORATOR_PAGES = 3`, `hasMore` flag on cap,
    Zod-parsed nodes, `unexpectedResponseError` on parse failure,
