@@ -124,6 +124,16 @@ export function ThreadDetail({
           key={comment.commentId}
         >
           <header className={rowStyles["commentHead"]}>
+            {comment.author.avatarUrl === undefined ? null : (
+              // Decorative — the adjacent login carries the identity.
+              <img
+                alt=""
+                className={rowStyles["commentAvatar"]}
+                decoding="async"
+                loading="lazy"
+                src={comment.author.avatarUrl}
+              />
+            )}
             <span className={rowStyles["author"]}>
               @{comment.author.login}
               {comment.author.isBot ? (

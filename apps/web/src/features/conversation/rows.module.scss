@@ -167,6 +167,16 @@
     }
   }
 
+  /* Open/outdated rows only — the slim resolved run stays text-only by
+     design (a settled row stops competing for attention). */
+  .rowAvatar {
+    flex-shrink: 0;
+    align-self: center;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-circle);
+  }
+
   .rowAuthor {
     flex-shrink: 0;
     font-weight: 600;
@@ -227,6 +237,15 @@
     .action {
       margin-inline-start: auto;
     }
+  }
+
+  /* The head is a baseline run; the avatar opts out to center against it. */
+  .commentAvatar {
+    flex-shrink: 0;
+    align-self: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-circle);
   }
 
   .author {

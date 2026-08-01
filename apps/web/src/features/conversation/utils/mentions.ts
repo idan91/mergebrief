@@ -5,20 +5,23 @@ import type { ConversationThread } from "../types";
  * Mention-autocomplete pool for a thread's reply box (BRIEF-56 decision 7):
  * the humans already in the conversation, first-seen order, deduped. Bots
  * are excluded — mentioning one from a review reply is never the intent.
- * Login-only entries (the conversation payload carries no name/avatar);
- * the collaborators merge enriches them (BRIEF-94).
+ * Entries carry the payload's author avatar; display names come only from
+ * the collaborators merge (BRIEF-94 — the conversation payload has none).
  */
 export function mentionCandidatesFromThread(
   thread: ConversationThread,
 ): readonly MentionCandidate[] {
-  const logins = [
-    ...new Set(
-      thread.comments
-        .filter((comment) => !comment.author.isBot)
-        .map((comment) => comment.author.login),
-    ),
-  ];
-  return logins.map((login) => ({ login }));
+  const byLogin = new Map<string, MentionCandidate>();
+  for (const comment of thread.comments) {
+    if (comment.author.isBot || byLogin.has(comment.author.login)) continue;
+    byLogin.set(comment.author.login, {
+      login: comment.author.login,
+      ...(comment.author.avatarUrl === undefined
+        ? {}
+        : { avatarUrl: comment.author.avatarUrl }),
+    });
+  }
+  return [...byLogin.values()];
 }
 
 /**

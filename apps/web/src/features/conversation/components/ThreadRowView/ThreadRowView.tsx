@@ -97,6 +97,16 @@ export function ThreadRowView({
             >
               {threadStateChip(thread)}
             </span>
+            {author?.avatarUrl === undefined ? null : (
+              // Decorative — the adjacent login carries the identity.
+              <img
+                alt=""
+                className={rowStyles["rowAvatar"]}
+                decoding="async"
+                loading="lazy"
+                src={author.avatarUrl}
+              />
+            )}
             <span className={rowStyles["rowAuthor"]}>@{author?.login}</span>
             <span className={rowStyles["rowLine"]}>{row.digestLine}</span>
             {row.isOwn ? (

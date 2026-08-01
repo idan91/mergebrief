@@ -39,6 +39,12 @@ export type ReviewVerdictState = ValueOf<typeof ReviewVerdictStates>;
 export interface ConversationAuthor {
   readonly login: string;
   readonly isBot: boolean;
+  /**
+   * GitHub-CDN avatar; absent for ghost authors and https-gated at the
+   * parse boundary (it lands in an `<img src>`) — a non-https value drops
+   * the field, never the author.
+   */
+  readonly avatarUrl?: string;
 }
 
 export interface ConversationComment {
@@ -115,18 +121,33 @@ const THREAD_SIDES: readonly string[] = Object.values(ThreadSides);
 const SUBJECT_TYPES: readonly string[] = Object.values(ThreadSubjectTypes);
 const VERDICT_STATES: readonly string[] = Object.values(ReviewVerdictStates);
 
-function parseAuthor(value: unknown): value is ConversationAuthor {
-  return (
-    isObject(value) &&
-    typeof value["login"] === "string" &&
-    typeof value["isBot"] === "boolean"
-  );
+/** Parse-and-map an author; https-gates `avatarUrl` (img-src defense). */
+function parseAuthor(value: unknown): ConversationAuthor | undefined {
+  if (
+    !isObject(value) ||
+    typeof value["login"] !== "string" ||
+    typeof value["isBot"] !== "boolean" ||
+    !optionalString(value["avatarUrl"])
+  ) {
+    return undefined;
+  }
+  const avatarUrl = value["avatarUrl"];
+  const safeAvatar =
+    avatarUrl !== undefined && avatarUrl.startsWith("https://")
+      ? avatarUrl
+      : undefined;
+  return {
+    login: value["login"],
+    isBot: value["isBot"],
+    ...(safeAvatar === undefined ? {} : { avatarUrl: safeAvatar }),
+  };
 }
 
 function parseComment(value: unknown): ConversationComment | undefined {
   if (!isObject(value)) return undefined;
   if (!isSafeId(value["commentId"])) return undefined;
-  if (!parseAuthor(value["author"])) return undefined;
+  const author = parseAuthor(value["author"]);
+  if (author === undefined) return undefined;
   if (typeof value["body"] !== "string") return undefined;
   if (typeof value["createdAt"] !== "string") return undefined;
   if (typeof value["url"] !== "string") return undefined;
@@ -134,7 +155,7 @@ function parseComment(value: unknown): ConversationComment | undefined {
   if (reviewId !== undefined && !isSafeId(reviewId)) return undefined;
   return {
     commentId: value["commentId"],
-    author: value["author"],
+    author,
     body: value["body"],
     createdAt: value["createdAt"],
     url: value["url"],
@@ -216,7 +237,8 @@ function parseThread(value: unknown): ConversationThread | undefined {
 function parseReview(value: unknown): ConversationReview | undefined {
   if (!isObject(value)) return undefined;
   if (!isSafeId(value["reviewId"])) return undefined;
-  if (!parseAuthor(value["author"])) return undefined;
+  const author = parseAuthor(value["author"]);
+  if (author === undefined) return undefined;
   const state = value["state"];
   if (typeof state !== "string" || !VERDICT_STATES.includes(state))
     return undefined;
@@ -225,7 +247,7 @@ function parseReview(value: unknown): ConversationReview | undefined {
   if (typeof value["url"] !== "string") return undefined;
   return {
     reviewId: value["reviewId"],
-    author: value["author"],
+    author,
     state:
       state === ReviewVerdictStates.APPROVED ||
       state === ReviewVerdictStates.CHANGES_REQUESTED ||
@@ -243,13 +265,14 @@ function parseReview(value: unknown): ConversationReview | undefined {
 function parsePrLevelComment(value: unknown): PrLevelComment | undefined {
   if (!isObject(value)) return undefined;
   if (!isSafeId(value["commentId"])) return undefined;
-  if (!parseAuthor(value["author"])) return undefined;
+  const author = parseAuthor(value["author"]);
+  if (author === undefined) return undefined;
   if (typeof value["body"] !== "string") return undefined;
   if (typeof value["createdAt"] !== "string") return undefined;
   if (typeof value["url"] !== "string") return undefined;
   return {
     commentId: value["commentId"],
-    author: value["author"],
+    author,
     body: value["body"],
     createdAt: value["createdAt"],
     url: value["url"],

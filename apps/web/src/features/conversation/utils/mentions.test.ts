@@ -39,6 +39,27 @@ describe("mentionCandidatesFromThread", () => {
       ),
     ).toEqual([{ login: "alice" }, { login: "bob" }]);
   });
+
+  it("carries the author's payload avatar into the candidate", () => {
+    const withAvatar = thread([{ login: "alice" }]);
+    const comment = withAvatar.comments[0];
+    if (comment === undefined) throw new Error("fixture");
+    const enriched: ConversationThread = {
+      ...withAvatar,
+      comments: [
+        {
+          ...comment,
+          author: {
+            ...comment.author,
+            avatarUrl: "https://avatars.example/alice.png",
+          },
+        },
+      ],
+    };
+    expect(mentionCandidatesFromThread(enriched)).toEqual([
+      { login: "alice", avatarUrl: "https://avatars.example/alice.png" },
+    ]);
+  });
 });
 
 describe("mergeMentionCandidates", () => {

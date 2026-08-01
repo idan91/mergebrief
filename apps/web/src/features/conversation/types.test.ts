@@ -122,6 +122,39 @@ describe("parseConversation", () => {
     expect(conversation.hasMorePrComments).toBe(true);
   });
 
+  it("passes an author's https avatarUrl through and drops a non-https one", () => {
+    const body = wireConversation();
+    if (typeof body !== "object" || body === null) throw new Error("fixture");
+    const threads = (body as { threads: Array<Record<string, unknown>> })
+      .threads;
+    const comments = threads[0]?.["comments"] as Array<Record<string, unknown>>;
+    comments[0] = {
+      ...comments[0],
+      author: {
+        login: "alice",
+        isBot: false,
+        avatarUrl: "https://avatars.example/alice.png",
+      },
+    };
+    comments[1] = {
+      ...comments[1],
+      author: {
+        login: "mallory",
+        isBot: false,
+        // eslint-disable-next-line no-script-url
+        avatarUrl: "javascript:alert(1)",
+      },
+    };
+    const parsed = parseConversation(body);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    const [root, reply] = parsed.value.threads[0]?.comments ?? [];
+    expect(root?.author.avatarUrl).toBe("https://avatars.example/alice.png");
+    // Entry survives, the field doesn't — img-src defense.
+    expect(reply?.author.login).toBe("mallory");
+    expect(reply?.author.avatarUrl).toBeUndefined();
+  });
+
   it("rejects a body missing a thread's root id", () => {
     const body = wireConversation();
     if (typeof body !== "object" || body === null) throw new Error("fixture");

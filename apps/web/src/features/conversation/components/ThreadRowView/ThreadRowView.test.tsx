@@ -97,7 +97,11 @@ function threadRow(overrides: RowOverrides = {}): DigestThreadRow {
     isOutdated: overrides.isOutdated ?? false,
     comments: Array.from({ length: count }, (_, index) => ({
       commentId: 9001 + index,
-      author: { login: index === 0 ? "alice" : "bob", isBot: false },
+      author: {
+        login: index === 0 ? "alice" : "bob",
+        isBot: false,
+        avatarUrl: `https://avatars.example/${index === 0 ? "alice" : "bob"}.png`,
+      },
       body: index === 0 ? DIGEST_LINE : "and a follow-up",
       createdAt: "2026-07-01T10:00:00Z",
       url: `https://example.test/c/${String(9001 + index)}`,
@@ -290,5 +294,33 @@ describe("ThreadRowView — slim resolved rows (BRIEF-93)", () => {
     expect(
       container.querySelector("[data-conversation-section-thread]"),
     ).toBeNull();
+  });
+});
+
+describe("ThreadRowView — author avatars", () => {
+  it("shows the root author's avatar on the full row", () => {
+    renderRow(threadRow({}));
+    const row = screen.getByTestId("thread-row");
+    expect(row.querySelector("img")?.getAttribute("src")).toBe(
+      "https://avatars.example/alice.png",
+    );
+    // Decorative — the login text carries the identity.
+    expect(row.querySelector("img")?.getAttribute("alt")).toBe("");
+  });
+
+  it("keeps the slim resolved row text-only (no avatar)", () => {
+    renderRow(threadRow({ isResolved: true }));
+    expect(screen.getByTestId("thread-row").querySelector("img")).toBeNull();
+  });
+
+  it("shows per-comment avatars in the expanded detail", () => {
+    renderRow(threadRow({ comments: 2 }), true);
+    const detailAvatars = [...document.querySelectorAll("article img")].map(
+      (img) => img.getAttribute("src"),
+    );
+    expect(detailAvatars).toEqual([
+      "https://avatars.example/alice.png",
+      "https://avatars.example/bob.png",
+    ]);
   });
 });

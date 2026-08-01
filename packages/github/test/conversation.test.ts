@@ -60,7 +60,11 @@ describe("fetchPullRequestConversation — mapping", () => {
     expect(thread.comments.map((comment) => comment.commentId)).toEqual([1001, 1002]);
     expect(thread.comments[0]?.reviewId).toBe(500);
     expect(thread.comments[1]?.reviewId).toBeUndefined();
-    expect(thread.comments[0]?.author).toEqual({ login: "alice", isBot: false });
+    expect(thread.comments[0]?.author).toEqual({
+      login: "alice",
+      isBot: false,
+      avatarUrl: "https://avatars.example/alice.png",
+    });
     // Variables travel as GraphQL variables, never interpolated into the query.
     const [query, variables] = graphql.mock.calls[0] ?? [];
     expect(String(query)).toContain("$owner");
@@ -120,7 +124,11 @@ describe("fetchPullRequestConversation — mapping", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     const thread = result.value.threads[0];
-    expect(thread?.comments[0]?.author).toEqual({ login: "coderabbitai", isBot: true });
+    expect(thread?.comments[0]?.author).toEqual({
+      login: "coderabbitai",
+      isBot: true,
+      avatarUrl: "https://avatars.example/coderabbitai.png",
+    });
     expect(thread?.subjectType).toBe("FILE");
     expect(thread?.line).toBeUndefined();
   });

@@ -31,6 +31,7 @@ export function gqlComment(overrides: GqlCommentOverrides = {}) {
       : {
           login: overrides.login ?? "alice",
           __typename: overrides.typename ?? "User",
+          avatarUrl: `https://avatars.example/${overrides.login ?? "alice"}.png`,
         },
     body: overrides.body ?? "a human comment",
     createdAt: "2026-07-01T10:00:00Z",
@@ -89,7 +90,11 @@ interface GqlReviewOverrides {
 export function gqlReview(overrides: GqlReviewOverrides = {}) {
   return {
     fullDatabaseId: fullId(overrides.databaseId, overrides.rawFullDatabaseId, 500),
-    author: { login: overrides.login ?? "alice", __typename: overrides.typename ?? "User" },
+    author: {
+      login: overrides.login ?? "alice",
+      __typename: overrides.typename ?? "User",
+      avatarUrl: `https://avatars.example/${overrides.login ?? "alice"}.png`,
+    },
     state: overrides.state ?? "COMMENTED",
     body: overrides.body ?? "",
     submittedAt:
@@ -108,7 +113,11 @@ interface GqlIssueCommentOverrides {
 export function gqlIssueComment(overrides: GqlIssueCommentOverrides = {}) {
   return {
     fullDatabaseId: String(overrides.databaseId ?? 9001),
-    author: { login: overrides.login ?? "carol", __typename: overrides.typename ?? "User" },
+    author: {
+      login: overrides.login ?? "carol",
+      __typename: overrides.typename ?? "User",
+      avatarUrl: `https://avatars.example/${overrides.login ?? "carol"}.png`,
+    },
     body: overrides.body ?? "a PR-level remark",
     createdAt: "2026-07-02T09:00:00Z",
     url: "https://github.com/o/r/pull/7#issuecomment-9001",

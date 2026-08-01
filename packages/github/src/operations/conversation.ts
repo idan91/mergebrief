@@ -42,6 +42,8 @@ export interface ConversationAuthor {
   readonly login: string;
   /** True when the author is a GitHub App bot (GraphQL `__typename: "Bot"`). */
   readonly isBot: boolean;
+  /** GitHub-CDN avatar (Actor.avatarUrl); absent only for ghost authors. */
+  readonly avatarUrl?: string;
 }
 
 export interface ConversationComment {
@@ -123,8 +125,16 @@ export interface FetchPullRequestConversationInput {
 // Wire schemas — Zod-validated at the boundary (no bare `as` off the wire).
 // ---------------------------------------------------------------------------
 
+// `avatarUrl` is `URI!` on Actor and every implementer, so github.com cannot
+// omit it — but it is DECORATIVE, and an author-field defect is node-level
+// by this module's own posture: optional keeps a hypothetical omission
+// (GHES, schema drift) from failing the whole conversation fetch.
 const authorSchema = z
-  .object({ login: z.string(), __typename: z.string() })
+  .object({
+    login: z.string(),
+    __typename: z.string(),
+    avatarUrl: z.string().optional(),
+  })
   .nullable();
 
 // `fullDatabaseId` is GitHub's BigInt scalar (serialized as a string; the
@@ -239,7 +249,7 @@ const THREAD_PAGE_FIELDS = `
       pageInfo { hasNextPage }
       nodes {
         fullDatabaseId
-        author { login __typename }
+        author { login __typename avatarUrl }
         body
         createdAt
         url
@@ -259,7 +269,7 @@ query PullRequestConversation($owner: String!, $repo: String!, $prNumber: Int!) 
         pageInfo { hasNextPage }
         nodes {
           fullDatabaseId
-          author { login __typename }
+          author { login __typename avatarUrl }
           state
           body
           submittedAt
@@ -270,7 +280,7 @@ query PullRequestConversation($owner: String!, $repo: String!, $prNumber: Int!) 
         pageInfo { hasNextPage }
         nodes {
           fullDatabaseId
-          author { login __typename }
+          author { login __typename avatarUrl }
           body
           createdAt
           url
@@ -329,7 +339,11 @@ function mapAuthor(author: z.infer<typeof authorSchema>): ConversationAuthor {
   if (author === null) {
     return { login: "ghost", isBot: false };
   }
-  return { login: author.login, isBot: author.__typename === "Bot" };
+  return {
+    login: author.login,
+    isBot: author.__typename === "Bot",
+    ...(author.avatarUrl === undefined ? {} : { avatarUrl: author.avatarUrl }),
+  };
 }
 
 function mapComment(
