@@ -5,3 +5,31 @@ packages:
 allowBuilds:
   "@parcel/watcher": true
   esbuild: true
+
+# `pnpm audit --prod --audit-level=high` is a blocking gate (ADR 0038 §9).
+# Every entry below is an advisory we have read and accepted, with the reason
+# — an unexplained id is a defect. Keyed by GHSA because none of these carry
+# a CVE id. Re-check an entry whenever the owning dependency is bumped; the
+# fix is to drop the line, not to widen the list.
+auditConfig:
+  ignoreGhsas:
+    # js-yaml — YAML merge-key chains cause quadratic CPU use. Reached only
+    # via @tanstack/start-plugin-core's build-time xmlbuilder2 and
+    # graphile-worker's cosmiconfig config load (our own config file). No
+    # path parses third-party YAML.
+    - GHSA-52cp-r559-cp3m
+    # immutable — List 32-bit trie overflow DoS. Transitive through
+    # vite > sass, i.e. compilation of our own SCSS at build time. Never
+    # sees request data.
+    - GHSA-v56q-mh7h-f735
+    # immutable — hash-collision complexity DoS in Map/Set. Same build-time
+    # vite > sass path as the entry above.
+    - GHSA-xvcm-6775-5m9r
+    # postcss — path traversal via sourceMappingURL auto-loading discloses
+    # arbitrary .map files. Transitive through vite; it processes only our
+    # own stylesheets during the build. Waiting on the upstream vite bump.
+    - GHSA-r28c-9q8g-f849
+    # brace-expansion — unbounded expansion OOM. Reached through
+    # vite > stylus > glob > minimatch; we compile no Stylus, so the code is
+    # loaded but never fed a pattern.
+    - GHSA-mh99-v99m-4gvg

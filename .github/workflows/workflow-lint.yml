@@ -1,0 +1,66 @@
+name: Workflow lint
+
+# actionlint + zizmor over .github/workflows (ADR 0038 §8). actionlint
+# catches expression/schema/shell mistakes; zizmor catches the CI security
+# classes the fork-safety bundle exists to prevent — unpinned actions,
+# credential persistence, template injection, over-broad permissions.
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: workflow-lint-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  workflow-lint:
+    name: actionlint + zizmor
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Version-pinned release asset + checksum instead of a third-party
+      # action: nothing to trust beyond the tarball we verified, and no
+      # GitHub API token is involved.
+      - name: Install actionlint
+        env:
+          ACTIONLINT_VERSION: "1.7.12"
+          ACTIONLINT_SHA256: "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --location \
+            --output "$RUNNER_TEMP/actionlint.tar.gz" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  $RUNNER_TEMP/actionlint.tar.gz" | sha256sum --check -
+          tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
+
+      # shellcheck ships on the runner image, so actionlint lints the `run:`
+      # bodies too rather than only the YAML around them. (actionlint's
+      # python linting needs pyflakes, which the image does not carry — no
+      # workflow here embeds python, so we do not install it.)
+      - name: Run actionlint
+        run: |
+          "$RUNNER_TEMP/actionlint" -color
+
+      # pipx is preinstalled on the runner; installing from PyPI keeps this
+      # tokenless and version-pinned without another action in the trust set.
+      - name: Install zizmor
+        env:
+          ZIZMOR_VERSION: "1.29.0"
+        run: pipx install "zizmor==${ZIZMOR_VERSION}"
+
+      # `--offline` disables the audits that would need a GitHub API token
+      # (stale-action / known-vulnerable-action lookups); everything the
+      # fork-safety bundle is made of is checked statically.
+      - name: Run zizmor
+        run: zizmor --offline --no-progress --format=github .github/workflows

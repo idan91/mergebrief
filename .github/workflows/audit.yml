@@ -1,0 +1,63 @@
+name: Audit
+
+# Supply-chain gate (ADR 0038 §9). Blocking, and deliberately narrow: only
+# a dependency-graph change can introduce a new advisory, so PRs that do not
+# touch a manifest or the lockfile have nothing to check. The weekly run is
+# what catches advisories published against dependencies we already have.
+on:
+  pull_request:
+    paths:
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - "apps/*/package.json"
+      - "packages/*/package.json"
+      - "tools/*/package.json"
+      - ".github/workflows/audit.yml"
+  schedule:
+    # Monday 06:17 UTC — offset off the hour to dodge the cron stampede.
+    - cron: "17 6 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: pnpm audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+
+      # No install: `pnpm audit` resolves the graph from pnpm-lock.yaml, so
+      # the gate costs one registry round trip instead of a full workspace
+      # install.
+      #
+      # `--prod` scopes to the dependency graph that ships. CAVEAT (review,
+      # #210): today's runtime images install the FULL graph, and both prod
+      # entrypoints (`vite preview`, worker's `tsx`) are devDependencies that
+      # happen to ride the audited prod graph via react-start→vite — if that
+      # edge ever drops, they exit audit scope silently. The structural fix
+      # is reclassifying them as dependencies (deploy-model decision, see PR).
+      # `--audit-level=high` is the blocking floor. Accepted advisories live
+      # in `pnpm.auditConfig.ignoreGhsas` in pnpm-workspace.yaml, each with
+      # its reason.
+      - name: Run pnpm audit
+        run: pnpm audit --prod --audit-level=high
