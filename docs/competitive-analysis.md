@@ -137,6 +137,51 @@ annotation API).
 **Watch:** whether Change Stack gets a delta brief / re-review mental-model reload —
 that's the last piece of our wedge they haven't copied. Include in quarterly re-scan.
 
+### Addendum (2026-08-02) — tuicr and the terminal-review lane
+
+Analyzed a 16-min review (DevOps Toolbox) of **tuicr** (pronounced "tweaker"; Rust,
+~1k stars, solo dev, sponsored) and, in passing, **Hunk** (`modem-dev/hunk`, hunk.dev,
+5.6k stars, MIT — "review-first terminal diff viewer for agentic coders"). Neither is a
+competitor — no AI generation, pure review mechanics in the terminal — but tuicr's
+human↔agent loop matters to us. What tuicr does: vim-motion TUI over git/jj/hg; reviews
+local working-tree changes, commit ranges, or fetched GitHub/GitLab PRs; **typed inline
+comments** (note / suggestion / issue / **praise**, color-coded, vocabulary restrictable
+in config); multi-line visual-block anchors; mark-reviewed folds the hunk; persisted
+**review sessions as JSON**; submits real reviews via `gh`/`glab`; "yank review" copies
+the whole review as agent-ready markdown ("I've reviewed your code, please address...");
+and ships an **agent skill** (`pi-tuicr`) so an agent discovers active sessions, reads
+the human's comments, and adds its own inline — review session as a shared
+human/agent artifact.
+
+**Read:** strong validation of our dual-consumer lane (ADR 0014) — the reviewer's
+terminal-native workflow now *expects* review artifacts agents can consume and extend.
+Our CLI already covers most of it (`--json`, `groups`/`conversation`/`delta`, `--agents`
+guide, ADR 0029 contract).
+
+**Take:**
+1. **Ship a packaged agent skill** (the `pi-tuicr` move): a skill that teaches any
+   agent to pull the brief + conversation via our CLI and leave inline comments —
+   distribution into the agent-skills ecosystem, near-zero product surface.
+2. **Export the receipt via CLI** — today the receipt exists only client-side
+   (`receipt.ts`); `submit` returns bare ids. The receipt IS the artifact; agents and
+   scripts should be able to read it.
+3. **"Copy review for agent"** — one-click yank of comments+receipt as
+   agent-addressed markdown. Cheap, and matches how AI-authored-PR teams actually work.
+4. **Typed human comments** (note/suggestion/issue/praise) — metadata on
+   human-authored comments (authorship stays human, on-thesis); feeds the future
+   comment-to-rule surface (BRIEF-48); vocabulary restrictable via repo config.
+5. **Mark-reviewed folds the chunk** — small UI pattern on our existing
+   reviewed-chunk state.
+
+**Grill question, not a take:** generation-time file excludes (their `.tuicrignore`).
+Our deliberate stance is "de-emphasis quiets display; it never removes anything from
+the artifact" — but an exclude also cuts tokens (intersects the config-toggles ticket).
+Completeness-vs-cost belongs to a grill.
+
+**Already-parked, unchanged:** local/working-tree briefs (their strongest feature)
+— our ContextSource local/git provider is parked to v2 (ADR 0033); tuicr validates
+demand but doesn't change the sequencing.
+
 ## 3. Favorability synthesis — the universal pain *is* our wedge
 
 The single most-repeated complaint across **every** tier: **false positives / noise.** Best-tuned tools sit at 5–15% FP; untuned LLM reviewers 40–80%. The failure mode is named explicitly in the literature: *"flags 100 issues, 70 wrong → devs hit dismiss reflexively → the tool becomes noise nobody reads."*
