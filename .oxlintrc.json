@@ -100,9 +100,10 @@
     },
     {
       // Framework-required default exports: vite/tsup/drizzle read the
-      // default export of their config, and TanStack Start's server entry is
+      // default export of their config, ESLint's flat config is the default
+      // export of `eslint.config.js`, and TanStack Start's server entry is
       // resolved the same way.
-      "files": ["**/*.config.ts", "apps/web/src/server.ts"],
+      "files": ["**/*.config.ts", "eslint.config.js", "apps/web/src/server.ts"],
       "rules": {
         "import/no-default-export": "off"
       }

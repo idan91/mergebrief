@@ -22,7 +22,6 @@ export const ContractSchema = z.object({
   title: z.string(),
   tags: z.array(z.enum(["bugfix", "new-feature"])),
 });
-export type ContractValue = z.infer<typeof ContractSchema>;
 
 /** Canned payloads the cases feed through the transport. */
 export const contractPayloads = {

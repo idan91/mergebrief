@@ -46,7 +46,7 @@ export interface CreateGeneratorDeps {
 
 // ConfigError lives in ./errors (shared with the harness boot probe);
 // re-exported here so config-focused consumers keep one import site.
-export { configError, type ConfigError } from "../contract/errors";
+export type { ConfigError } from "../contract/errors";
 
 interface RegistryEntry<O extends z.ZodType> {
   options: O;

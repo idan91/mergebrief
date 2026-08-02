@@ -242,7 +242,7 @@ describe("RevisionNarrativeSchema", () => {
 
 describe("ReviewCommentSchema", () => {
   it("accepts GitHub-style range anchors", async () => {
-    const { ReviewCommentSchema } = await import("../src/types.js");
+    const { ReviewCommentSchema } = await import("../src/types");
     const parsed = ReviewCommentSchema.safeParse({
       id: "101",
       file: "src/a.ts",

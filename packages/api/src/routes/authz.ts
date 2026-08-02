@@ -251,6 +251,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     c.set("ctx", { installationId: resolved.session.installationId });
     c.set("session", principalFromSession(resolved));
     await next();
+    return;
   };
 }
 
@@ -361,6 +362,7 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     c.set("accessToken", accessToken);
     await next();
     stampAccess(c, "200", { repoId, reviewerId: currentSession.reviewerId });
+    return;
   };
 }
 

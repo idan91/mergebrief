@@ -287,10 +287,6 @@ function buildGroupHeaderRisk(
   };
 }
 
-export function concernLabel(concern: Concern): string {
-  return concern.replace("-", " ");
-}
-
 export function categoryLabel(category: Category): string {
   return category.replace("-", " ");
 }

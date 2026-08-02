@@ -124,6 +124,16 @@ adopted (regenerate `routeTree.gen.ts` + drizzle state in CI, fail on
 porcelain diff). Result-not-throw, entry-barrel policy, and
 types-owner-first remain prose — no tool expresses them honestly.
 
+_Amended 2026-08-02 (BRIEF-111 implementation)._ Two verdicts moved on
+contact with the tree: (a) the sliver ships the enum ban and the
+extensionless-import rule only — exported const-map casing has no
+non-type-aware expression that can tell a vocabulary map from a config
+record or a fixture bundle (measured: 8 reports, 8 false positives, 0 true),
+so it joins the prose rules; (b) `noUncheckedIndexedAccess` needed no
+adoption decision — it was already `true` in all twelve package tsconfigs,
+measured at 0 errors, and the rest of the strictness trio cost two
+`noImplicitReturns` fixes.
+
 ### 8. CI structure
 
 **pnpm-native affected filters** (`--filter "...[origin/main]"`) replace

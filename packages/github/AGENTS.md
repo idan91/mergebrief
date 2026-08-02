@@ -113,8 +113,9 @@ test/                 per-module suites; fixtures/ = sanitized webhook payloads
 
 `test/fixtures/*.json` are sanitized, trimmed webhook payloads sourced from
 `@octokit/webhooks-examples` (GitHub's documented example payloads) — the
-recorded-fixture DoD. They are copied in, not imported at test time
-(`@octokit/webhooks-examples` is a build-only devDependency). PR B's live smoke
+recorded-fixture DoD. They are copied in, not imported at test time (the
+`@octokit/webhooks-examples` devDependency was removed once the copies
+landed — BRIEF-111 knip pass). PR B's live smoke
 re-verifies parsing against real ngrok-captured deliveries.
 
 ## Verification

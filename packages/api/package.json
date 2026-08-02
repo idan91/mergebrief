@@ -22,7 +22,6 @@
     "zod": "^3.25.0"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.4",
     "@octokit/webhooks-methods": "^5.1.1",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^4.1.8",

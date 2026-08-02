@@ -3,7 +3,6 @@ import type { RiskFlag } from "@web/features/brief/utils";
 import type { ReviewComment } from "./comments";
 import type { Disposition } from "../session/disposition";
 
-export type FlagStatus = "open" | "addressed" | "dismissed";
 export type ReviewOutcome = "comment" | "approve" | "request-changes";
 export type RiskEvidenceKind =
   | "linked-comment"
@@ -15,11 +14,6 @@ export type UnresolvedItemKind =
   | "unreviewed-carrier"
   | "draft-comment"
   | "thin-dismissal";
-
-export interface FlagState {
-  status: FlagStatus;
-  reason: string;
-}
 
 /**
  * @description A batch of flags a dismiss modal is open FOR, with its display
