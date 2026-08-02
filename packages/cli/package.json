@@ -15,7 +15,7 @@
   ],
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "build": "tsup",
     "link-dev": "pnpm build && pnpm link --global",
     "docs:appendix": "tsx scripts/embed-help.ts",
@@ -28,13 +28,14 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^4.1.8",
     "api": "workspace:*",
     "logging": "workspace:*",
     "persistence": "workspace:*",
     "tsup": "^8.5.0",
+    "tsx": "^4.19.0",
     "types": "workspace:*",
     "typescript": "^5.7.0",
-    "vitest": "^4.1.8",
-    "tsx": "^4.19.0"
+    "vitest": "^4.1.8"
   }
 }

@@ -98,6 +98,9 @@ describe("mergebrief commands over the real api app", () => {
         fetchPullRequestConversation: async () => {
           throw new Error("conversation port must not be called in this suite");
         },
+        listRepoCollaborators: async () => {
+          throw new Error("collaborators port must not be called in this suite");
+        },
       },
       serverVersion: "test-version",
     });
@@ -248,6 +251,9 @@ describe("auth login profile selection + verification (codex PR5 R1)", () => {
       github: {
         fetchPullRequestConversation: async () => {
           throw new Error("conversation port must not be called in this suite");
+        },
+        listRepoCollaborators: async () => {
+          throw new Error("collaborators port must not be called in this suite");
         },
       },
       serverVersion: "test-version",

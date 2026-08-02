@@ -4,6 +4,8 @@ import viteReact from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
+import { coverageExclude, coverageReporter } from "../../vitest.shared";
+
 /** The deployment's own public hostname, from PUBLIC_BASE_URL; undefined
  * (→ vite's rebinding-guard defaults) when unset or unparseable. */
 function previewAllowedHosts(): string[] | undefined {
@@ -24,6 +26,15 @@ function previewAllowedHosts(): string[] | undefined {
 export default defineConfig({
   test: {
     setupFiles: ["./src/test/setup.ts"],
+    coverage: {
+      // Whole-tree measurement: without an explicit `include`, vitest 4 only
+      // reports files a test happened to import, so untested modules would
+      // not count against the floor at all.
+      include: ["src/**"],
+      exclude: coverageExclude,
+      reporter: coverageReporter,
+      thresholds: { lines: 75 },
+    },
   },
   css: {
     preprocessorOptions: {

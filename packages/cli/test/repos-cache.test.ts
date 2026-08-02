@@ -105,6 +105,9 @@ describe("mergebrief repos command + cache", () => {
         fetchPullRequestConversation: async () => {
           throw new Error("conversation port must not be called in this suite");
         },
+        listRepoCollaborators: async () => {
+          throw new Error("collaborators port must not be called in this suite");
+        },
       },
       serverVersion: "test-version",
     });

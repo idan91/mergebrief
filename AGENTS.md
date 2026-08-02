@@ -30,6 +30,11 @@ apps/web). Rules here apply to the whole workspace.
   sustained rate; `info` = terse operational signal; otherwise `debug` or
   delete the line. First-class `evt` names come ONLY from the ADR 0034
   taxonomy table — everything else stays plain leveled logging.
+- **Coverage floors ride inside `pnpm test`** (ADR 0038 §3): every package's
+  vitest config commits a lines threshold — 75% is the standard, and a package
+  still under it carries a temporary floor plus a catch-up ticket. Never lower
+  a floor to absorb a drop. A `v8 ignore` comment needs a stated reason, and is
+  reviewed like a lint-disable.
 - **CI is path-filtered per package**: changing a contract another package
   consumes (parser shapes, route bodies, exported types) does NOT run the
   dependents' suites in CI — run them locally before pushing. (BRIEF-23: a

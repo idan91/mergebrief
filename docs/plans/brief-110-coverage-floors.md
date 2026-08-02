@@ -18,9 +18,12 @@ floor fails that package's tests.
   level** (rounded DOWN to the nearest whole %) + one catch-up board ticket
   per package.
 - Exclusions: generated artifacts (`drizzle/` output, `routeTree.gen.ts`,
-  `*.gen.*`), type-only files (`types.ts`, `*.d.ts`), re-export-only entry
-  barrels, vitest defaults. Per-file `v8 ignore` comments require a stated
-  reason (treated like a lint-disable in review).
+  `*.gen.*`), type-only files (`*.d.ts`), re-export-only entry barrels,
+  vitest defaults. Per-file `v8 ignore` comments require a stated reason
+  (treated like a lint-disable in review). **Amended in review (PR #205):**
+  `**/types.ts` is NOT excluded — types-owner-first puts Zod parsers and
+  brand guards in `types.ts`, and a genuinely type-only module already
+  reports 0/0 lines (100%), so the pattern only hid runtime code.
 - Gate location: each package's `test` script becomes
   `vitest run --coverage`; thresholds live in that package's vitest config.
 - Ratchet/autoUpdate deliberately NOT adopted (revisit trigger recorded in

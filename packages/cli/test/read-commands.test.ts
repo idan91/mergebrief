@@ -152,6 +152,9 @@ describe("read commands over the real api app", () => {
       auth,
       github: {
         fetchPullRequestConversation: async () => ({ ok: true as const, value: CONVERSATION_BODY }),
+        listRepoCollaborators: async () => {
+          throw new Error("collaborators port must not be called in this suite");
+        },
       },
       serverVersion: "test-version",
     });

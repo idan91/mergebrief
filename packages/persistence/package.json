@@ -10,7 +10,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "migrate": "drizzle-kit migrate",
     "generate": "drizzle-kit generate"
   },
@@ -24,6 +24,7 @@
     "@electric-sql/pglite": "^0.5.4",
     "@types/node": "^22.10.0",
     "@types/pg": "^8.20.0",
+    "@vitest/coverage-v8": "^4.1.8",
     "drizzle-kit": "^0.31.10",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
