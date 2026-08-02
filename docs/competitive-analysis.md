@@ -102,12 +102,35 @@ best-distributed pure-play. What it shows:
 4. **Explicit per-group since-marker** ("changed since `<sha>`") — we have the delta
    substrate; surface it in group headers.
 
+**Take, round 2 (2026-08-02, UI/copy — decided with the round-1 list):**
+5. **Header density** — theirs is concise and packed; ours is messy pre-group-dive.
+   Simplify: submit button whose copy is the receipt (receipt semantics unchanged),
+   PR state badge (open/draft/closed/merged — `state`+`draft` already stored), clean up
+   the metadata strip (SHAs, model, etc. — spacing/multiline). Inspired, not cloned.
+6. **State bar with counts** (Approve 0 · Comment 1 · Request changes 0) — folds into
+   the reviewer filter bar (take #1).
+7. **Succinct generated PR summary/changelog** — 1–3 lines + collapsible original
+   description (both they and we collapse). Prompt change ⇒ **eval-harness gate**
+   (scoped `--case` runs).
+8. **Promote the intent check in the UI** — deviation-from-stated-ticket surface
+   (BRIEF-85) is a differentiator nobody in the field has; currently under-sold.
+9. **Consider later:** unified activity timeline (theirs is good; ours is split
+   revision-timeline + conversation).
+
+**Diff rendering note:** their diff viewer matches **`@pierre/diffs`** (diffs.com, Pierre
+Computer's open-source Shiki-based library — stacked/split views, Shadow DOM + CSS Grid,
+annotation framework for line comments; SSR). No acquisition — it's OSS, so equally
+available to us. Spike: evaluate replacing the hand-rolled `DiffTable` with it (would buy
+split view + perf; must carry our inline comments + chunk semantics through its
+annotation API).
+
 **Reject / reframe (positioning):**
 - **Naked complexity score** — a severity label, non-gap (same reasoning as Unblocked's
   risk score). *Reframe:* a **review-depth recommendation** per group ("deep read /
-  standard / skim") derived deterministically from existing blast-radius attributes +
-  LOC — allocation-of-attention, not a verdict, and a surface they don't have (score
-  without recommendation).
+  standard / skim") plus **factual static signals** (nesting depth, branch/`if-else`
+  depth, cyclomatic-style counts) — deterministic AST metrics presented as facts in the
+  attributes lane, not a verdict. Allocation-of-attention + signals is a surface they
+  don't have (score without recommendation).
 - ⌘K palette (our J/K reading flow is deliberate), diagrams tab (cost/taste), deploy
   events in feed (webhook scope creep).
 
