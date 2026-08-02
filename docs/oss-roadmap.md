@@ -258,6 +258,11 @@ self-host compose. Remaining v1 work is hardening and launch mechanics, not feat
 - **Operational trust:** restore CI + backfill verification (BRIEF-37) ·
   self-host hardening (BRIEF-20) · observability hooks (BRIEF-51) ·
   pre-release manual testing pass (BRIEF-36).
+- **Constraint mesh v1 gate** ([ADR 0038](./adr/0038-constraint-mesh-test-quality-gates.md),
+  BRIEF-82): coverage floors · static-constraints bundle · CI overhaul incl.
+  fork safety (prereq BRIEF-37; absorbs BRIEF-26) · E2E v1 dummy-brief suite ·
+  PGlite flake fix + QA-doc triage. Post-v1 ratchets (fast-check, mutation
+  one-shot, lychee, E2E v2) deliberately NOT gating.
 - **Launch tail (Later, pulled in at cutover time):** OSS launch cutover (BRIEF-38) ·
   release engineering (BRIEF-49) · ghcr images (BRIEF-47) · GH App manifest flow
   (BRIEF-60) · M1 system-design doc (BRIEF-39) · playbook governance grill (BRIEF-6).
