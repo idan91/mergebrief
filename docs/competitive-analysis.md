@@ -20,7 +20,7 @@ Snapshot: **2026-06-18.** Supersedes the preliminary scan in `docs/next-steps.md
 
 | Tool | Funding / valuation | Positioning | Favorability |
 |---|---|---|---|
-| **CodeRabbit** | $88M raised; **$550M** val (Series B, Sep 2025); ~$40M ARR; 8k+ customers; top GitHub-Marketplace AI app | **Breadth / workflow leader.** Summaries, walkthroughs, inline comments, linters; all 4 hosts; $24/dev | **High but cracking** — "invaluable", low-noise praised; **poor support + security/data-handling complaints** |
+| **CodeRabbit** | $88M raised; **$550M** val (Series B, Sep 2025); ~$40M ARR; 8k+ customers; top GitHub-Marketplace AI app | **Breadth / workflow leader.** Summaries, walkthroughs, inline comments, linters; all 4 hosts; $24/dev. **2026-08: "Change Stack" standalone review UI — see addendum below; now pitching comprehension** | **High but cracking** — "invaluable", low-noise praised; **poor support + security/data-handling complaints** |
 | **Greptile** | $29M raised; **$180M** val (Series A, Benchmark, Sep 2025) | **Depth leader** — full-codebase graph context. 82% bug-catch (vs CodeRabbit 44%)… | **Mixed** — praised for catching hidden cross-file issues; **noisy (11 false-positives/run)**, single-repo |
 | **Qodo** (ex-CodiumAI) | **$120M** raised ($70M Series B) | **Governance / policy-first**, test-generation tie-in; Gartner Visionary; enterprise (Walmart, NVIDIA, Ford) | **Solid in enterprise**; less loved by individual devs; heavier |
 | **Graphite** (was *Diamond*) | $81M raised; ~$290M val → **acquired by Cursor/Anysphere** Dec 2025 | **Stacked PRs + review**; "Diamond" deprecated Oct 2025 into Graphite Agent | **High** — **< 5% of comments get negative feedback** (low-noise benchmark); Shopify/Snowflake/Figma |
@@ -65,6 +65,54 @@ attention*.
   tier examples (`auth-highest`, `DB-high`, `deps-medium`) are facts we already surface as
   attributes (`touches-auth`, `mutates-state`, …) without the verdict.
 - **Watch:** include Unblocked in the quarterly re-scan going forward.
+
+### Addendum (2026-08-02) — CodeRabbit "Change Stack"
+
+CodeRabbit shipped **Change Stack** (`app.coderabbit.ai/change-stack/...`), a standalone
+review web app (seen via sponsored Theo segment, ~41s; UI + transcript analyzed frame by
+frame). Pitch line: *"It's time to understand your code again."* **They are now marketing
+comprehension, not bug-catching** — direct convergence on our lane, from the
+best-distributed pure-play. What it shows:
+
+- **Layers**: PR decomposed into numbered cross-file semantic layers, each with
+  title/summary/file+comment counts; per-layer diff view. (= our change-groups; grouping
+  substrate now fully commodity, confirming the Linear Diffs read.)
+- **Per-layer delta header**: "1 file changed since `<sha>`" — incremental review vs a
+  since-marker. (= our checkpoint/delta core.)
+- **Overview**: mergeability state, "Merge blockers needing your attention" vs
+  "Doesn't block merge, but may warrant attention" — an editorial blocking/non-blocking
+  split.
+- **Review filter bar**: state chips with counts (Approve/Comment/Request changes),
+  human-vs-**Bots** split, per-reviewer chips (they list cursor/greptile/vercel/etc. bots
+  as peer reviewers), recency toggle "only most recent from each reviewer".
+- **Diff niceties**: inline blame per hunk (author+date), symbol-level hunk labels
+  ("constant `MessageNavigationItemValidator` added · 278-283"), per-file complexity
+  meter (score only, **no recommendation**), Files/**Diagrams** tabs, mark-viewed,
+  activity feed with deploy events, review-history "Stale" marker, ⌘K.
+
+**Take** (prioritized 2026-08-02):
+1. **Reviewer filter bar w/ counts + "most recent per reviewer"** — pure FE on the
+   existing conversation digest; our bot grouping already exists, add per-reviewer chips.
+2. **Mergeability/blocker aggregation** — `reviewDecision` + `statusCheckRollup` +
+   `mergeStateStatus` via GraphQL; deterministic, zero LLM tokens. Their
+   blocking/"warrant attention" split is attention-allocation phrased our way — adopt the
+   frame, not a verdict.
+3. **Symbol-level hunk labels** — deterministic-first (git hunk function context /
+   light AST), LLM only as opt-in fallback; compounds the Story view.
+4. **Explicit per-group since-marker** ("changed since `<sha>`") — we have the delta
+   substrate; surface it in group headers.
+
+**Reject / reframe (positioning):**
+- **Naked complexity score** — a severity label, non-gap (same reasoning as Unblocked's
+  risk score). *Reframe:* a **review-depth recommendation** per group ("deep read /
+  standard / skim") derived deterministically from existing blast-radius attributes +
+  LOC — allocation-of-attention, not a verdict, and a surface they don't have (score
+  without recommendation).
+- ⌘K palette (our J/K reading flow is deliberate), diagrams tab (cost/taste), deploy
+  events in feed (webhook scope creep).
+
+**Watch:** whether Change Stack gets a delta brief / re-review mental-model reload —
+that's the last piece of our wedge they haven't copied. Include in quarterly re-scan.
 
 ## 3. Favorability synthesis — the universal pain *is* our wedge
 
