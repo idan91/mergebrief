@@ -3,580 +3,212 @@ name: CI
 on:
   pull_request:
 
-permissions:
-  contents: read
+# Fork-safety bundle (ADR 0038 §8). No ambient scopes: every job re-grants
+# the minimum it needs, no checkout leaves credentials in .git/config for a
+# later step to reuse, and every action is pinned to a commit SHA.
+# `pull_request_target` is banned in this repo — it would run fork code with
+# a write-scoped token.
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  # The workspace root is a pnpm project too, and pnpm's `...[<ref>]` filter
+  # attributes every file outside a package directory to it. Its scripts are
+  # thin aliases for package scripts (`test` = categorizer, `typecheck` =
+  # apps/web), so leaving it selected would re-run those suites under a
+  # second name on any docs- or config-only change.
+  WORKSPACE_ROOT_PROJECT: code-review
 
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-
-      - name: Detect lintable changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
-        run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          lint_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/|tools/|packages/|\.oxlintrc\.json$|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$)' || true)"
-
-          if [ -n "$lint_files" ]; then
-            echo "lint=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "lint=false" >> "$GITHUB_OUTPUT"
-          fi
+          persist-credentials: false
 
       - name: Set up pnpm
-        if: steps.changes.outputs.lint == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Set up Node.js
-        if: steps.changes.outputs.lint == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
       # Full workspace install: --type-aware needs each package's tsconfig
       # and dependency types, not just the oxlint binary.
       - name: Install dependencies
-        if: steps.changes.outputs.lint == 'true'
         run: pnpm install --frozen-lockfile
 
+      # Unfiltered on purpose: `pnpm lint` is a whole-repo gate (oxlint,
+      # eslint, knip, `prettier --check .`, stylelint). Prettier and knip
+      # read files no package owns — docs, root config — so there is no
+      # change set that provably cannot break it.
       - name: Run lint
-        if: steps.changes.outputs.lint == 'true'
         run: pnpm lint
 
-      - name: Skip lint
-        if: steps.changes.outputs.lint != 'true'
-        run: echo "No lintable files changed; skipping lint."
-
-  webapp-checks:
-    name: Web app ${{ matrix.check }}
+  checks:
+    name: ${{ matrix.check }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
-        check: [test, typecheck, build]
+        # `slug` mirrors `check` with a filename-safe spelling: artifact
+        # names reject `:`.
+        include:
+          - check: typecheck
+            slug: typecheck
+          - check: test
+            slug: test
+          - check: build
+            slug: build
+          - check: docs:check
+            slug: docs-check
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # pnpm's `...[<ref>]` filter resolves the ref in the local repo, so
+          # the base branch's history has to be there.
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Detect web app changes
-        id: changes
+      - name: Select affected packages
+        id: affected
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
         run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          web_files="$(printf '%s\n' "$changed_files" | grep -E '^(apps/web/|packages/logging/|packages/types/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          set -euo pipefail
 
-          if [ -n "$web_files" ]; then
-            echo "web=true" >> "$GITHUB_OUTPUT"
+          # A `pull_request` run checks out the merge ref, whose second
+          # parent is the base tip, so BASE_SHA is an ancestor of HEAD and
+          # merge-base returns it directly — an ancestor pnpm's TWO-dot
+          # since-filter can safely diff against (a non-ancestor would report
+          # the base branch's own commits as changes and over-select). If
+          # base.sha is stale after the base advances, the result is the old
+          # base tip: over-selection, never under-selection.
+          base="$(git merge-base "$BASE_SHA" HEAD)"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+
+          # Files no package owns but every package depends on. pnpm maps
+          # these to the workspace root only, which the filter excludes — so
+          # without this escape hatch a lockfile bump would run nothing.
+          # Buffered into a variable first: `git diff | grep -q` under
+          # pipefail dies of SIGPIPE on >64KB diffs the moment grep exits,
+          # silently flipping run_all to false — the escape hatch disarmed
+          # exactly when a huge change needs it most.
+          changed="$(git diff --name-only "$base" HEAD)"
+          if grep -qE '^(\.github/workflows/|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|package\.json$|\.npmrc$|vitest\.shared\.ts$|tsconfig[^/]*\.json$)' <<<"$changed"; then
+            echo "run_all=true" >> "$GITHUB_OUTPUT"
           else
-            echo "web=false" >> "$GITHUB_OUTPUT"
+            echo "run_all=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Set up pnpm
-        if: steps.changes.outputs.web == 'true'
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Set up Node.js
-        if: steps.changes.outputs.web == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
-      - name: Install web app dependencies
-        if: steps.changes.outputs.web == 'true'
-        run: pnpm --filter @code-review/web... install --frozen-lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Run web app ${{ matrix.check }}
-        if: steps.changes.outputs.web == 'true'
-        run: pnpm --dir apps/web ${{ matrix.check }}
+      - name: Run ${{ matrix.check }} on affected packages
+        env:
+          CHECK: ${{ matrix.check }}
+          SLUG: ${{ matrix.slug }}
+          BASE: ${{ steps.affected.outputs.base }}
+          RUN_ALL: ${{ steps.affected.outputs.run_all }}
+        run: |
+          set -euo pipefail
 
-      - name: Skip web app checks
-        if: steps.changes.outputs.web != 'true'
-        run: echo "No web app files changed; skipping web app checks."
+          # `...[<ref>]` = packages changed since <ref> PLUS every package
+          # that depends on them, read off the real workspace graph. That is
+          # the BRIEF-23/26 hole: a github-package change now runs api's
+          # suite too.
+          filters=(--filter "!$WORKSPACE_ROOT_PROJECT")
+          if [ "$RUN_ALL" = "true" ]; then
+            echo "Root-level change detected; running the full workspace."
+          else
+            filters+=(--filter "...[$BASE]")
+          fi
 
-  categorizer-checks:
-    name: Categorizer ${{ matrix.check }}
+          # `--if-present` because the matrix is one script name across the
+          # whole selection: only apps/web and the CLI have `build`, only the
+          # CLI has `docs:check`. An empty selection exits 0 — that is the
+          # skip.
+          #
+          # `pipefail` is already set, so `tee` cannot mask a failing suite.
+          mkdir -p ci-logs
+          pnpm -r "${filters[@]}" run --if-present "$CHECK" 2>&1 | tee "ci-logs/$SLUG.log"
+
+      # Failure only: a green run's logs are already in the job output, and
+      # a 7-day window is long enough to triage a red PR without paying
+      # storage for every merge.
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ci-${{ matrix.slug }}-diagnostics
+          # Anchored to the workspace globs in pnpm-workspace.yaml. An
+          # unanchored `**/coverage/**` would make the uploader stat the
+          # whole pnpm node_modules tree on every red run.
+          path: |
+            ci-logs/
+            apps/*/coverage/**
+            packages/*/coverage/**
+            tools/*/coverage/**
+            !**/node_modules/**
+          retention-days: 7
+          if-no-files-found: ignore
+
+  required-checks-passed:
+    name: required-checks-passed
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [typecheck, test]
+    timeout-minutes: 5
+    permissions: {}
+    # The single branch-protection check. Path/graph filtering means the
+    # per-check jobs legitimately skip, and a skipped required check blocks
+    # a PR forever — so the gate is this one job, which always reports.
+    if: always()
+    needs:
+      - lint
+      - checks
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect categorizer changes
-        id: changes
+      - name: Verify every required job passed
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
+          NEEDS: ${{ toJSON(needs) }}
         run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          categorizer_files="$(printf '%s\n' "$changed_files" | grep -E '^(tools/categorizer/|packages/brief-core/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
+          set -euo pipefail
 
-          if [ -n "$categorizer_files" ]; then
-            echo "categorizer=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "categorizer=false" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$NEEDS"
+
+          # `success` or `skipped` is fine; `failure` and `cancelled` are not.
+          failed="$(printf '%s' "$NEEDS" \
+            | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key)=\(.value.result)"')"
+
+          if [ -n "$failed" ]; then
+            echo "::error::Required jobs did not pass: $(printf '%s' "$failed" | tr '\n' ' ')"
+            exit 1
           fi
 
-      - name: Set up pnpm
-        if: steps.changes.outputs.categorizer == 'true'
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.categorizer == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install categorizer dependencies
-        if: steps.changes.outputs.categorizer == 'true'
-        run: pnpm --filter categorizer... install --frozen-lockfile
-
-      - name: Run brief-core ${{ matrix.check }}
-        if: steps.changes.outputs.categorizer == 'true'
-        run: pnpm --dir packages/brief-core ${{ matrix.check }}
-
-      - name: Run categorizer ${{ matrix.check }}
-        if: steps.changes.outputs.categorizer == 'true'
-        run: pnpm --dir tools/categorizer ${{ matrix.check }}
-
-      - name: Skip categorizer checks
-        if: steps.changes.outputs.categorizer != 'true'
-        run: echo "No categorizer files changed; skipping categorizer checks."
-
-  cli-checks:
-    name: CLI ${{ matrix.check }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [typecheck, test, "docs:check"]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect CLI changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
-        run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          cli_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/cli/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
-
-          if [ -n "$cli_files" ]; then
-            echo "cli=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "cli=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up pnpm
-        if: steps.changes.outputs.cli == 'true'
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.cli == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install CLI dependencies
-        if: steps.changes.outputs.cli == 'true'
-        run: pnpm --filter mergebrief... install --frozen-lockfile
-
-      - name: Run CLI ${{ matrix.check }}
-        if: steps.changes.outputs.cli == 'true'
-        run: pnpm --dir packages/cli ${{ matrix.check }}
-
-      - name: Skip CLI checks
-        if: steps.changes.outputs.cli != 'true'
-        run: echo "No CLI files changed; skipping CLI checks."
-
-  generators-checks:
-    name: Generators ${{ matrix.check }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [typecheck, test]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect generators package changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
-        run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          generators_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
-
-          if [ -n "$generators_files" ]; then
-            echo "generators=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "generators=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up pnpm
-        if: steps.changes.outputs.generators == 'true'
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.generators == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install generators package dependencies
-        if: steps.changes.outputs.generators == 'true'
-        run: pnpm --filter generators... install --frozen-lockfile
-
-      - name: Run generators package ${{ matrix.check }}
-        if: steps.changes.outputs.generators == 'true'
-        run: pnpm --dir packages/generators ${{ matrix.check }}
-
-      - name: Skip generators package checks
-        if: steps.changes.outputs.generators != 'true'
-        run: echo "No generators package files changed; skipping generators package checks."
-
-  repo-config-checks:
-    name: Repo-config ${{ matrix.check }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [typecheck, test]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect repo-config package changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
-        run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          repo_config_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/repo-config/|packages/brief-core/|packages/generators/|packages/types/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.npmrc$)' || true)"
-
-          if [ -n "$repo_config_files" ]; then
-            echo "repo_config=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "repo_config=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up pnpm
-        if: steps.changes.outputs.repo_config == 'true'
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.repo_config == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install repo-config dependencies
-        if: steps.changes.outputs.repo_config == 'true'
-        run: pnpm --filter repo-config... install --frozen-lockfile
-
-      - name: Run repo-config ${{ matrix.check }}
-        if: steps.changes.outputs.repo_config == 'true'
-        run: pnpm --dir packages/repo-config ${{ matrix.check }}
-
-      - name: Skip repo-config checks
-        if: steps.changes.outputs.repo_config != 'true'
-        run: echo "No repo-config package files changed; skipping repo-config checks."
-
-  logging-checks:
-    name: Logging ${{ matrix.check }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [typecheck, test]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect logging package changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
-        run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          logging_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/logging/|packages/types/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.npmrc$)' || true)"
-
-          if [ -n "$logging_files" ]; then
-            echo "logging=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "logging=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up pnpm
-        if: steps.changes.outputs.logging == 'true'
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.logging == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install logging package dependencies
-        if: steps.changes.outputs.logging == 'true'
-        run: pnpm --filter logging... install --frozen-lockfile
-
-      - name: Run logging package ${{ matrix.check }}
-        if: steps.changes.outputs.logging == 'true'
-        run: pnpm --dir packages/logging ${{ matrix.check }}
-
-      - name: Skip logging package checks
-        if: steps.changes.outputs.logging != 'true'
-        run: echo "No logging package files changed; skipping logging package checks."
-
-  persistence-checks:
-    name: Persistence ${{ matrix.check }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [typecheck, test]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect persistence changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
-        run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          persistence_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/persistence/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
-
-          if [ -n "$persistence_files" ]; then
-            echo "persistence=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "persistence=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up pnpm
-        if: steps.changes.outputs.persistence == 'true'
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.persistence == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install persistence dependencies
-        if: steps.changes.outputs.persistence == 'true'
-        run: pnpm --filter persistence... install --frozen-lockfile
-
-      - name: Run persistence ${{ matrix.check }}
-        if: steps.changes.outputs.persistence == 'true'
-        run: pnpm --dir packages/persistence ${{ matrix.check }}
-
-      - name: Skip persistence checks
-        if: steps.changes.outputs.persistence != 'true'
-        run: echo "No persistence files changed; skipping persistence checks."
-
-  github-checks:
-    name: GitHub client ${{ matrix.check }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [typecheck, test]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect github package changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
-        run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          github_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/github/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
-
-          if [ -n "$github_files" ]; then
-            echo "github=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "github=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up pnpm
-        if: steps.changes.outputs.github == 'true'
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.github == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install github package dependencies
-        if: steps.changes.outputs.github == 'true'
-        run: pnpm --filter github... install --frozen-lockfile
-
-      - name: Run github package ${{ matrix.check }}
-        if: steps.changes.outputs.github == 'true'
-        run: pnpm --dir packages/github ${{ matrix.check }}
-
-      - name: Skip github package checks
-        if: steps.changes.outputs.github != 'true'
-        run: echo "No github package files changed; skipping github package checks."
-
-  worker-checks:
-    name: Worker ${{ matrix.check }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [typecheck, test]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect worker package changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
-        run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          worker_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/worker/|packages/types/|packages/generators/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
-
-          if [ -n "$worker_files" ]; then
-            echo "worker=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "worker=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up pnpm
-        if: steps.changes.outputs.worker == 'true'
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.worker == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install worker package dependencies
-        if: steps.changes.outputs.worker == 'true'
-        run: pnpm --filter worker... install --frozen-lockfile
-
-      - name: Run worker package ${{ matrix.check }}
-        if: steps.changes.outputs.worker == 'true'
-        run: pnpm --dir packages/worker ${{ matrix.check }}
-
-      - name: Skip worker package checks
-        if: steps.changes.outputs.worker != 'true'
-        run: echo "No worker package files changed; skipping worker package checks."
-
-  api-checks:
-    name: API ${{ matrix.check }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        check: [typecheck, test]
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect api package changes
-        id: changes
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        shell: bash
-        run: |
-          changed_files="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$GITHUB_SHA")"
-          api_files="$(printf '%s\n' "$changed_files" | grep -E '^(packages/api/|packages/logging/|packages/types/|package.json$|pnpm-lock.yaml$|pnpm-workspace.yaml$|\.npmrc$)' || true)"
-
-          if [ -n "$api_files" ]; then
-            echo "api=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "api=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set up pnpm
-        if: steps.changes.outputs.api == 'true'
-        uses: pnpm/action-setup@v4
-
-      - name: Set up Node.js
-        if: steps.changes.outputs.api == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
-
-      - name: Install api package dependencies
-        if: steps.changes.outputs.api == 'true'
-        run: pnpm --filter api... install --frozen-lockfile
-
-      - name: Run api package ${{ matrix.check }}
-        if: steps.changes.outputs.api == 'true'
-        run: pnpm --dir packages/api ${{ matrix.check }}
-
-      - name: Skip api package checks
-        if: steps.changes.outputs.api != 'true'
-        run: echo "No api package files changed; skipping api package checks."
+          echo "All required jobs passed."
