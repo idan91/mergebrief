@@ -32,7 +32,10 @@ import type { Result } from "types";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 
-vi.setConfig({ testTimeout: 20_000 });
+// Every case drives a full request over the PGlite harness. Since BRIEF-114
+// amortized the migrations the slowest measures 3.0s, cold snapshot cache
+// included.
+vi.setConfig({ testTimeout: 10_000 });
 
 const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";

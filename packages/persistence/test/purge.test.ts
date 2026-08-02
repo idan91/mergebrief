@@ -10,11 +10,8 @@
 // Seeds via a RAW drizzle handle (so tables with no store — e.g. disposition —
 // can be populated) over the SAME PGlite the ctx-bound `purgeRoutines` runs on
 // (`fromDrizzle` wraps it as the opaque handle).
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeEach, describe, expect, it } from "vitest";
 import { type AppDatabase, fromDrizzle } from "../src/db/handle";
 import {
@@ -50,9 +47,7 @@ import {
   type RepoId,
   type ReviewerId,
 } from "../src/types";
-import { brandWith } from "./helpers";
-
-const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
+import { brandWith, freshPglite } from "./helpers";
 
 /** Seed one grant row (D15) so secret-bearing referents can link it. */
 async function insertGrant(db: Db): Promise<GrantRowId> {
@@ -78,9 +73,7 @@ interface Pair {
 }
 
 async function freshPair(): Promise<Pair> {
-  const client = new PGlite();
-  const raw = drizzle(client, { schema });
-  await migrate(raw, { migrationsFolder: MIGRATIONS_FOLDER });
+  const raw = drizzle(await freshPglite(), { schema });
   return { raw, handle: fromDrizzle(raw) };
 }
 

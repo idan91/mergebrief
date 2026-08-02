@@ -108,11 +108,11 @@ per Idan's round-count feedback), then N post-push rounds.
   machines are where the reviewer earns its keep; the round-count lever
   above (invariants first, race-matrix self-pass, round 0 on local diff)
   is aimed exactly here.
-- **packages/persistence has a dev-db timeout flake** (freshDatabase 5s
-  timeouts; DIFFERENT tests fail each run; postgres container 11h old).
-  Unrelated to BRIEF-11 (stack touches zero persistence files) — likely
-  the stale-dev-db accumulation; restart/refresh compose before trusting
-  persistence results.
+- **packages/persistence timeouts seen during this stack** (`freshDatabase`
+  5s; DIFFERENT tests each run) were read as a stale-dev-db problem at the
+  time. That reading was wrong — the suite is hermetic PGlite and never
+  touches the dev database. BRIEF-114 found the real causes (per-test
+  migration cost plus leaked PGlite instances) and fixed both.
 - **PR 2 ran ELEVEN rounds to a genuine `[]`**: rounds 1–2 surfaced real
   bugs (headline: the SDK eager-parse salvage bypass), rounds 7–10 were
   guards-of-guards epsilon (`Symbol.toPrimitive`-throwing candidates).

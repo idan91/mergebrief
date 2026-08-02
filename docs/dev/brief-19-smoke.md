@@ -6,9 +6,21 @@ exact URL/command, what you must see, and where to look when it doesn't.
 
 Estimated time: ~30–40 min including two generation waits.
 
+Every section below carries one disposition tag (ADR 0038 §11). The whole
+document sits on the far side of the automated wall by construction: it needs
+a real GitHub App, a public tunnel, real webhook deliveries and real token
+spend. Nothing here was deleted as `automated:` — what the suites now prove on
+their own is listed in the gates index of
+[`pre-release-testing.md`](./pre-release-testing.md), and the assertions that
+overlap are called out per step so this pass stays about the wiring rather
+than the logic.
+
 ---
 
 ## 0. Prerequisites
+
+`manual-forever: a registered dev GitHub App, a test repo it is installed
+on, and an ngrok tunnel — none of it reproducible hermetically.`
 
 - Dev GitHub App registered (`docs/self-host/github-app.md`), with OAuth
   client id/secret — the same App you used for the BRIEF-2/3 loops.
@@ -19,6 +31,9 @@ Estimated time: ~30–40 min including two generation waits.
 - ngrok installed.
 
 ## 1. Start the stack
+
+`manual-until: full-loop E2E (ADR 0038 §4 park — trigger: the first
+webhook-spine regression the integration tests miss).`
 
 ```sh
 # Foreground build — keychain credential helpers fail in sandboxed/backgrounded
@@ -37,6 +52,9 @@ Migrations 0004 (`pull_request.title`) and 0005 (`user_settings`) apply on the
 web container's first request — you'll see them in the web log.
 
 ## 2. Tunnel + App URLs
+
+`manual-forever: a public tunnel origin written into a real App's webhook
+and callback settings.`
 
 ```sh
 ngrok http 3000
@@ -59,6 +77,9 @@ docker compose up -d web
 ngrok's inspector at http://127.0.0.1:4040 shows every webhook delivery.
 
 ## 3. Login (highest-value step — never live-tested)
+
+`manual-forever: a real user-to-server OAuth consent and installation
+binding; no hermetic surface can mint one.`
 
 This is the one path no probe could exercise: a real user-to-server OAuth
 token, default-installation binding, and the `/api/pulls` happy path.
@@ -89,6 +110,8 @@ installed for your user?).
 
 ## 4. Picker list
 
+`manual-until: BRIEF-113` (E2E v2 seeded-session slice).
+
 On `/` while signed in, **expect per row**: PR title (new rows only —
 pre-migration rows say `PR #N` until their next webhook refreshes the title),
 `owner/repo #N · state · short-sha`, a status pill (`brief ready` /
@@ -96,6 +119,9 @@ pre-migration rows say `PR #N` until their next webhook refreshes the title),
 `/repos/<repoId>/pulls/<N>`. The Local Briefs section still works below.
 
 ## 5. Fresh generation + wait UX (live transition)
+
+`manual-until: full-loop E2E (ADR 0038 §4 park)` — and real spend until a
+fake generator adapter exists.
 
 1. Push a trivial commit to `TESTREPO` PR `#N`:
    ```sh
@@ -123,6 +149,9 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
 
 ## 6. Deep link + SSR
 
+`manual-until: BRIEF-113` (E2E v1 covers first paint, span pinning and the
+malformed-link arms; the private-window redirect waits for v2).
+
 1. Entry comment posting ships in BRIEF-22 (PR #43): after a settled push,
    **expect exactly one** branded App comment at the bottom of the PR thread,
    deep-linking the exact span — use it as the deep link for this step. (For
@@ -141,6 +170,8 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
      current span; URL normalizes to the full pinned span.
 
 ## 7. Second revision → previous-brief comparison
+
+`manual-until: BRIEF-113` (E2E v2 compare-bar slice).
 
 1. Push another commit to the same PR; wait for the new brief (step 5 repeats).
    With BRIEF-22 merged, also **expect** the Entry comment REPLACED (old one
@@ -164,6 +195,8 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
 
 ## 8. Org switcher
 
+`manual-forever: needs two real installations on one account.`
+
 - **Two+ installations:** picker → `Organization` dropdown → arrow keys roam
   the orgs, the current one is marked. Tick `Remember my choice as default`
   (it's a menu item — Space/Enter toggles), pick the other org: **expect** a
@@ -182,20 +215,16 @@ await fetch("/api/auth/installation", { method: "POST",
   body: JSON.stringify({ installationId: "999999" }) })   // → 403
 ```
 
-## 9. Access-control spot checks (2 min)
+## 9. Access-control spot checks
 
-In a private window (no session):
-
-```sh
-curl -s -o /dev/null -w "%{http_code}\n" https://<sub>.ngrok-free.app/api/pulls          # 401
-curl -s -o /dev/null -w "%{http_code}\n" "https://<sub>.ngrok-free.app/api/repos/<repoId>/pulls/<N>"  # 401
-```
-
-Signed in, a repo id you can't access:
-`/repos/99999999999/pulls/1` → 404 (never 403 — no existence leak), and the
-web log shows the `auth`/`decision:"404"` audit line.
+`automated: pnpm -r test` — the 401-without-session, 404-not-403 for an
+inaccessible repo id, and the matching `auth` audit row are asserted against
+the real Hono app in `packages/api` (`reads.test.ts`, `repos.test.ts`).
+Nothing left to click here.
 
 ## 10. Teardown
+
+`manual-forever: tears down the real compose stack this pass stood up.`
 
 ```sh
 docker compose down          # keep volumes; `down -v` only if you want a clean DB

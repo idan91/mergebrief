@@ -1,10 +1,11 @@
 // Cross-package test harness (BRIEF-2 stage 4) — exported via the dedicated
 // `persistence/testing` subpath so consumer packages (`api`, later the worker)
 // can integration-test against a real migrated schema without reaching this
-// package's internals. Generalizes `test/helpers.ts`: a fresh in-memory PGlite,
-// the checked-in `drizzle/` app migrations applied, wrapped as the opaque
-// `AppDatabase` — plus a `graphile_worker` STUB so `add_job` calls succeed and
-// enqueued jobs are assertable as rows.
+// package's internals. Generalizes `test/helpers.ts`: a fresh in-memory PGlite
+// carrying the checked-in `drizzle/` app migrations (via the per-process
+// snapshot in `pglite-snapshot`), wrapped as the opaque `AppDatabase` — plus a
+// `graphile_worker` STUB so `add_job` calls succeed and enqueued jobs are
+// assertable as rows.
 //
 // WHY A STUB: the real graphile-worker needs a real Postgres (LISTEN/NOTIFY,
 // advisory locks) and cannot run on PGlite. The stub reproduces exactly the
@@ -19,14 +20,15 @@
 // only (counting rows across tenants, inspecting `graphile_worker.jobs`). It
 // is the harness's escape hatch, not a query API; production code never sees
 // this module (dev-only subpath, `@electric-sql/pglite` is a devDependency).
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { type AppDatabase, fromDrizzle } from "./db/handle";
+import { migratedPglite } from "./pglite-snapshot";
 import * as schema from "./schema/index";
 
-const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
+// For consumers' vitest `globalSetup`: builds the migrated snapshot once,
+// before workers fork, so a cold cache is paid sequentially instead of by
+// every worker at once under coverage instrumentation.
+export { warmPgliteSnapshot } from "./pglite-snapshot";
 
 // Faithful to the `job_key_mode => 'replace'` semantics BRIEF-2 relies on;
 // parameter names match our named-notation call in `ingest.ts`. `language
@@ -70,12 +72,13 @@ export interface PgliteHarness {
  * wrapped as the opaque `AppDatabase`, with a raw assertion window.
  */
 export async function createPgliteHarness(): Promise<PgliteHarness> {
-  const client = new PGlite();
-  const db = drizzle(client, { schema });
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
+  // The stub is applied per instance rather than baked into the snapshot:
+  // measured at ~0ms next to the ~120ms restore, and it keeps the snapshot a
+  // faithful picture of the migrated app schema alone.
+  const client = await migratedPglite();
   await client.exec(GRAPHILE_WORKER_STUB_SQL);
   return {
-    handle: fromDrizzle(db),
+    handle: fromDrizzle(drizzle(client, { schema })),
     async raw(query, params) {
       const result = await client.query<Record<string, unknown>>(query, params);
       return result.rows;

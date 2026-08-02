@@ -25,7 +25,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 
-vi.setConfig({ testTimeout: 20_000 });
+// Not the harness: POST .../comments is on octokit's `triggersNotification`
+// list, so consecutive writes are spaced ~3s by module-global Bottleneck
+// groups, and the hard-failure case rides the retry ladder on top — measured
+// at 17.0s, i.e. 85% of the 20s this file used to allow. Matched to the 30s
+// its two throttle-bound siblings carry rather than left one bad day from a
+// flake (ADR 0038 §2).
+vi.setConfig({ testTimeout: 30_000 });
 
 const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";

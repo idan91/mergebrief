@@ -2,7 +2,7 @@
 // (queued→running→succeeded) with attempts/updated_at maintenance, and the
 // NULLS-NOT-DISTINCT proof: a brief-kind re-queue (null baseline_sha) conflicts
 // on the natural key rather than inserting a second row.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, onTestFinished } from "vitest";
 import {
   forTenant,
   generationProjection,
@@ -364,6 +364,7 @@ describe("repo-config provenance on the generation row (ADR 0032 #8)", () => {
   it("recordRepoConfig round-trips; a re-queue through ingest clears it", async () => {
     // PGlite harness: the ingest enqueue needs the graphile_worker stub.
     const harness = await createPgliteHarness();
+    onTestFinished(() => harness.close());
     const handle = harness.handle;
     const ctx: TenantContext = {
       installationId: brandWith(isInstallationId, 4200n),

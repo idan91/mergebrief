@@ -7,6 +7,12 @@
 > envelope drift across CLI upgrades, real auth surfaces, and the real
 > providers' structured-output enforcement.
 
+Every step in this file is `manual-forever: live provider auth and real
+spend` — ADR 0038 keeps live-spend surfaces out of CI permanently, so no
+trigger retires them. The disposition tags (ADR 0038 §11) are therefore
+stated once, here, rather than repeated per step; the one exception is
+tagged where it sits.
+
 ## When to run
 
 - **Before a release** — one pass over every adapter you ship.
@@ -50,8 +56,10 @@ Per-adapter checklist (each run):
 
 ## The deliberate hung-run kill (once per release)
 
-The watchdog + kill ladder run against fake binaries in CI; confirm them
-against a REAL CLI once:
+The watchdog, the kill ladder and the stderr redaction are already
+`automated: pnpm -r test` against the shims in `packages/generators`
+(`harness.test.ts`). What stays `manual-forever` is the last mile the shims
+cannot fake — a REAL CLI's process tree, grandchildren included:
 
 1. Start a smoke run against a CLI adapter, and mid-run put the CLI's
    backend out of reach (drop the network, or `kill -STOP` the CLI process

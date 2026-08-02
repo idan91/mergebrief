@@ -27,8 +27,10 @@ import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger } from "./logging";
 
 // Some cases make several full requests over the PGlite harness (double-POST,
-// refresh-once). GraphQL is not throttled, but give the file headroom.
-vi.setConfig({ testTimeout: 20_000 });
+// refresh-once). GraphQL is not throttled, so the only real cost is the
+// harness; since BRIEF-114 amortized the migrations the slowest case here
+// measures 3.0s, cold snapshot cache included.
+vi.setConfig({ testTimeout: 10_000 });
 
 const SECRET = "test-webhook-secret";
 const KEY_REF = "SESSION_KEY_V1";

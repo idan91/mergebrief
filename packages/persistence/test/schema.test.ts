@@ -2,11 +2,8 @@
 // instance and prove the ADR 0018 decisions — table inventory, natural-key
 // uniqueness, the D5 erasure cascade (and its deliberate survivors), the
 // D12 brief_id cascade, and the D9 no-FK audit ledger.
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
-import { migrate } from "drizzle-orm/pglite/migrator";
 import { describe, expect, it } from "vitest";
 import {
   auditLog,
@@ -39,8 +36,7 @@ import {
   isRepoId,
   isReviewerId,
 } from "../src/types";
-
-const MIGRATIONS_FOLDER = fileURLToPath(new URL("../drizzle", import.meta.url));
+import { freshPglite } from "./helpers";
 
 /**
  * Drizzle wraps driver errors (DrizzleQueryError) — walk the `cause` chain
@@ -80,10 +76,7 @@ const CHECKPOINT_SHA = "d".repeat(40);
 type Db = ReturnType<typeof drizzle>;
 
 async function freshDb(): Promise<Db> {
-  const client = new PGlite();
-  const db = drizzle(client);
-  await migrate(db, { migrationsFolder: MIGRATIONS_FOLDER });
-  return db;
+  return drizzle(await freshPglite());
 }
 
 async function insertPullRequest(db: Db): Promise<PullRequestRowId> {
