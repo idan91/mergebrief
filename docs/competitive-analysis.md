@@ -137,6 +137,72 @@ annotation API).
 **Watch:** whether Change Stack gets a delta brief / re-review mental-model reload —
 that's the last piece of our wedge they haven't copied. Include in quarterly re-scan.
 
+#### Platform deep-dive (2026-08-02, docs + blog pass)
+
+Sources: [Change Stack docs](https://docs.coderabbit.ai/pr-reviews/change-stack),
+[Change Stack blog](https://www.coderabbit.ai/blog/introducing-atlas-the-first-ai-native-code-review-interface),
+[Overview blog](https://www.coderabbit.ai/blog/introducing-overview),
+[Semantic Diff](https://www.coderabbit.ai/blog/introducing-semantic-diff),
+[context engine](https://www.coderabbit.ai/blog/explainable-reviews-coderabbit-review-context-engine),
+[intent blog](https://www.coderabbit.ai/blog/bottleneck-in-code-review-is-understanding-intent),
+[review overview guide](https://docs.coderabbit.ai/guides/code-review-overview).
+
+**Structure facts.** Cohorts = independent change units; layers = ordered *reading
+order* within a cohort ("foundational changes (data structures, contracts) precede
+dependent code (consumers, tests)"), range-anchored, per-layer AI summaries; diagrams
+(sequence/state/ERD) only "when a visual earns its place". Three-panel layout; J/K/Z
+shortcuts (convergent with ours). **Snapshots per commit** with a cross-push compare
+dropdown, and commenting is *disabled while a new snapshot generates* — stale-feedback
+protection. **Semantic diff** mode (move detection, token-level edits) beside
+unified/split. **Code Peek** (definition/usage lookup via host code search). Path
+filters/ignore rules mean Change Stack "reflects CodeRabbit's review scope, not
+necessarily the full pull request file list" — they chose excludes-from-artifact.
+Overview page: deterministic blocker/CI/decision aggregation + a plain-language
+mergeability verdict + a ranked four-tier **"Needs Your Attention"** list
+(author-lens; empty tiers hidden). Hosts: GitHub/GitLab/Bitbucket/Azure. **Pricing:
+free during early access, then Pro+ plan** — their comprehension UI is headed behind
+a paywall.
+
+**Do (adjustments to our board, not new lanes):**
+- **Stale-comment protection** — adopt the invariant: when the head advances past the
+  brief's span, gate comment submission against the stale view (we show
+  HeadAdvancedBanner; they *block* the footgun). Small addition to the brief screen.
+- **Reading-order rationale inside groups** — "foundations before consumers" is a
+  prompt-level ordering heuristic for our story view; evaluate in the grouping prompt
+  (eval-gated).
+- **Author-lens triage tiers** — fold the ranked needs-your-attention idea into the
+  filed mergeability/blocker ticket: reviewer-lens (blockers vs warrant-attention) AND
+  author-lens (what do I fix first) are different orderings of the same facts.
+- **Excludes grill now has a comparator** — CodeRabbit excludes filtered files from
+  the artifact entirely; our "never removes anything" stance is now a live
+  differentiator or a live cost liability. The grill should decide with this on the
+  table.
+
+**Don't (confirmed anti-thesis or out-of-lane):** severity-ranked findings
+(critical/major/minor — the verdict lane), review-UI chat agent (engagement surface,
+v2 at best), bundled linter/SAST breadth, Code Peek-style host-search navigation
+(platform-coupled, heavy; revisit only on user pull), diagrams (unchanged).
+
+**Our edge, sharpened by this pass:**
+1. **Delta is still uncopied.** Snapshots compare *pushes*; nothing compares against
+   *your last review checkpoint* — no re-review reload, no delta brief. Their roadmap
+   language ("show why it changed", "follow the story of the software as it evolves")
+   says they're heading here — treat the quarterly watch as a fast clock.
+2. **Intent: they claim it, we ship it.** The intent blog runs our thesis verbatim
+   ("Code is no longer the bottleneck. Understanding is.") and gestures at "did the
+   system build what we intended?" — but no ticket-vs-diff mechanism exists in the
+   product. BRIEF-54 is concrete; the promote-intent-check ticket just got more
+   urgent, and external copy should stake this ground before their marketing does.
+3. **No-verdict stays structural.** Their surface is severity labels + verdicts +
+   auto-generated review prose — everything the noise complaint (§3) is about. Our
+   anti-noise stance can't be bolted onto their architecture.
+4. **Open vs paywall.** Their best comprehension UI is going Pro+; ours is OSS +
+   self-host + BYOK. "The good review UI is free and yours" is now a direct,
+   checkable contrast — use it in positioning.
+5. **Receipt vs claims.** Their explainability is trust-us assertions (sandbox, evals,
+   verification agents); our receipt is an inspectable artifact. Enterprise framing
+   writes itself.
+
 ### Addendum (2026-08-02) — tuicr and the terminal-review lane
 
 Analyzed a 16-min review (DevOps Toolbox) of **tuicr** (pronounced "tweaker"; Rust,
