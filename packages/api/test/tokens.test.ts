@@ -42,13 +42,18 @@ const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
-function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
   const asBigInt = BigInt(value);
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
 }
 
-const CTX: TenantContext = { installationId: brand(isInstallationId, INSTALLATION_ID) };
+const CTX: TenantContext = {
+  installationId: brand(isInstallationId, INSTALLATION_ID),
+};
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function keyProvider(): KeyProvider {
@@ -69,7 +74,10 @@ function authDeps(kp: KeyProvider): AuthDeps {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -81,10 +89,15 @@ function installationReposOk(
 }
 
 /** `GET /user/installations` (the live accessible set for minting). */
-function userInstallationsOk(items: ReadonlyArray<{ id: number; login: string }>): Response {
+function userInstallationsOk(
+  items: ReadonlyArray<{ id: number; login: string }>,
+): Response {
   return jsonResponse({
     total_count: items.length,
-    installations: items.map((i) => ({ id: i.id, account: { login: i.login } })),
+    installations: items.map((i) => ({
+      id: i.id,
+      account: { login: i.login },
+    })),
   });
 }
 
@@ -112,23 +125,43 @@ interface StubCounts {
 }
 
 function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = { installationRepos: 0, userInstallations: 0, token: 0 };
-  const fetchFn = vi.fn(async (input: string | URL | Request): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes("/login/oauth/access_token")) {
-      const i = counts.token++;
-      return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
-    }
-    if (url.includes("/user/installations/") && url.includes("/repositories")) {
-      const i = counts.installationRepos++;
-      return cfg.installationRepos ? cfg.installationRepos(i) : jsonResponse({ message: "nope" }, 500);
-    }
-    if (url.includes("/user/installations")) {
-      const i = counts.userInstallations++;
-      return cfg.userInstallations ? cfg.userInstallations(i) : jsonResponse({ message: "nope" }, 500);
-    }
-    return jsonResponse({ message: "unexpected endpoint" }, 404);
-  });
+  const counts: StubCounts = {
+    installationRepos: 0,
+    userInstallations: 0,
+    token: 0,
+  };
+  const fetchFn = vi.fn(
+    async (input: string | URL | Request): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/login/oauth/access_token")) {
+        const i = counts.token++;
+        return cfg.token
+          ? cfg.token(i)
+          : jsonResponse({ error: "unexpected_token" }, 500);
+      }
+      if (
+        url.includes("/user/installations/") &&
+        url.includes("/repositories")
+      ) {
+        const i = counts.installationRepos++;
+        return cfg.installationRepos
+          ? cfg.installationRepos(i)
+          : jsonResponse({ message: "nope" }, 500);
+      }
+      if (url.includes("/user/installations")) {
+        const i = counts.userInstallations++;
+        return cfg.userInstallations
+          ? cfg.userInstallations(i)
+          : jsonResponse({ message: "nope" }, 500);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
   vi.stubGlobal("fetch", fetchFn);
   return counts;
 }
@@ -146,7 +179,8 @@ async function seedApiToken(
   const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -160,10 +194,17 @@ async function seedApiToken(
     name: "ci-token",
     tokenHash: sha256Hex(plaintext),
     grantId: grant.id,
-    expiresAt: overrides.expiresAt === undefined ? new Date("2027-01-01T00:00:00Z") : overrides.expiresAt,
+    expiresAt:
+      overrides.expiresAt === undefined
+        ? new Date("2027-01-01T00:00:00Z")
+        : overrides.expiresAt,
   });
   if (overrides.revoke === true) {
-    const revoked = await tokenAuth(handle).revokeToken(REVIEWER, minted.id, new Date());
+    const revoked = await tokenAuth(handle).revokeToken(
+      REVIEWER,
+      minted.id,
+      new Date(),
+    );
     if (!revoked.ok) throw new Error("seed revoke failed");
   }
   return plaintext;
@@ -211,13 +252,19 @@ describe("Bearer presentation on /api/*", () => {
     await harness.close();
   });
 
-  async function getWithBearer(path: string, bearer: string): Promise<Response> {
-    return app.request(path, { headers: { Authorization: `Bearer ${bearer}` } });
+  async function getWithBearer(
+    path: string,
+    bearer: string,
+  ): Promise<Response> {
+    return app.request(path, {
+      headers: { Authorization: `Bearer ${bearer}` },
+    });
   }
 
   it("authenticates a valid token through the full gate to a real read", async () => {
     stubGitHub({
-      installationRepos: () => installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
     await seedPr(harness.handle);
     const bearer = await seedApiToken(harness.handle, kp);
@@ -252,7 +299,8 @@ describe("Bearer presentation on /api/*", () => {
 
   it("ignores Bearer on /api/auth/* — the browser-only surface never resolves tokens", async () => {
     stubGitHub({
-      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
     });
     const bearer = await seedApiToken(harness.handle, kp);
     const res = await app.request("/api/auth/installations", {
@@ -274,7 +322,9 @@ describe("Bearer presentation on /api/*", () => {
     const beforeGrant = await harness.raw(
       "select gh_token_ciphertext from github_grant limit 1",
     );
-    const beforeToken = await harness.raw("select expires_at from api_token limit 1");
+    const beforeToken = await harness.raw(
+      "select expires_at from api_token limit 1",
+    );
 
     const res = await getWithBearer("/api/pulls", bearer);
     expect(res.status).toBe(200);
@@ -284,21 +334,28 @@ describe("Bearer presentation on /api/*", () => {
     const afterGrant = await harness.raw(
       "select gh_token_ciphertext from github_grant limit 1",
     );
-    const afterToken = await harness.raw("select expires_at from api_token limit 1");
+    const afterToken = await harness.raw(
+      "select expires_at from api_token limit 1",
+    );
     // Credentials rotated on the grant row the api_token references...
-    expect(afterGrant[0]?.["gh_token_ciphertext"]).not.toBe(beforeGrant[0]?.["gh_token_ciphertext"]);
+    expect(afterGrant[0]?.["gh_token_ciphertext"]).not.toBe(
+      beforeGrant[0]?.["gh_token_ciphertext"],
+    );
     // ...while the mint-chosen expiry is untouched by GitHub rotation.
-    expect(afterToken[0]?.["expires_at"]).toEqual(beforeToken[0]?.["expires_at"]);
-    expect(await harness.raw("select count(*)::int as n from reviewer_session")).toEqual([
-      { n: 0 },
-    ]);
+    expect(afterToken[0]?.["expires_at"]).toEqual(
+      beforeToken[0]?.["expires_at"],
+    );
+    expect(
+      await harness.raw("select count(*)::int as n from reviewer_session"),
+    ).toEqual([{ n: 0 }]);
   });
 
   it("emits token.refresh.fail on the bearer channel when GitHub rejects the rotation", async () => {
     stubGitHub({
       // Every data call 401s (expired access token) and the rotation itself
       // is rejected — the refresh orchestrator's bearer-channel hard failure.
-      installationRepos: () => jsonResponse({ message: "Bad credentials" }, 401),
+      installationRepos: () =>
+        jsonResponse({ message: "Bad credentials" }, 401),
       token: () =>
         jsonResponse({
           error: "bad_refresh_token",
@@ -327,12 +384,15 @@ describe("Bearer presentation on /api/*", () => {
     expect(line?.["level"]).toBe("error");
     expect(typeof line?.["reviewerId"]).toBe("string");
     // The api_token row is NOT deleted on failure — user-managed credential.
-    expect(await harness.raw("select count(*)::int as n from api_token")).toEqual([{ n: 1 }]);
+    expect(
+      await harness.raw("select count(*)::int as n from api_token"),
+    ).toEqual([{ n: 1 }]);
   });
 
   it("touches last_used_at on use, throttled within the window", async () => {
     stubGitHub({
-      installationRepos: () => installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
     await seedPr(harness.handle);
     const bearer = await seedApiToken(harness.handle, kp);
@@ -340,7 +400,9 @@ describe("Bearer presentation on /api/*", () => {
     expect((await getWithBearer("/api/pulls", bearer)).status).toBe(200);
     // The touch is fire-and-forget (never awaited on the request path) — poll.
     await vi.waitFor(async () => {
-      const touched = await harness.raw("select last_used_at from api_token limit 1");
+      const touched = await harness.raw(
+        "select last_used_at from api_token limit 1",
+      );
       expect(touched[0]?.["last_used_at"]).not.toBeNull();
     });
 
@@ -348,7 +410,9 @@ describe("Bearer presentation on /api/*", () => {
     // must NOT re-touch (the throttle, not the DB write, is under test).
     await harness.raw("update api_token set last_used_at = null");
     expect((await getWithBearer("/api/pulls", bearer)).status).toBe(200);
-    const throttled = await harness.raw("select last_used_at from api_token limit 1");
+    const throttled = await harness.raw(
+      "select last_used_at from api_token limit 1",
+    );
     expect(throttled[0]?.["last_used_at"]).toBeNull();
   });
 });
@@ -380,7 +444,8 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     const cookie = randomBytes(32).toString("base64url");
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
     const grant = await grantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -397,10 +462,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     return cookie;
   }
 
-  async function mint(
-    body: unknown,
-    cookie?: string,
-  ): Promise<Response> {
+  async function mint(body: unknown, cookie?: string): Promise<Response> {
     return app.request("/api/auth/tokens", {
       method: "POST",
       headers: {
@@ -413,25 +475,35 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
 
   interface MintedBody {
     readonly token: string;
-    readonly apiToken: { readonly id: string; readonly expiresAt: string | null };
+    readonly apiToken: {
+      readonly id: string;
+      readonly expiresAt: string | null;
+    };
   }
 
   it("mints a token shown exactly once, stored hash-only, usable as Bearer", async () => {
     stubGitHub({
-      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
-      installationRepos: () => installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
     await seedPr(harness.handle);
     const cookie = await seedSession();
 
-    const res = await mint({ name: "ci-token", installationId: INSTALLATION_ID }, cookie);
+    const res = await mint(
+      { name: "ci-token", installationId: INSTALLATION_ID },
+      cookie,
+    );
     expect(res.status).toBe(201);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = (await res.json()) as MintedBody;
     expect(body.token.startsWith("mergebrief_")).toBe(true);
 
     // Hash-only storage: the DB row carries sha256(token), never the token.
-    const rows = await harness.raw("select token_hash, grant_id from api_token");
+    const rows = await harness.raw(
+      "select token_hash, grant_id from api_token",
+    );
     expect(rows).toHaveLength(1);
     expect(rows[0]?.["token_hash"]).toBe(sha256Hex(body.token));
 
@@ -440,8 +512,12 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     const grantRows = await harness.raw("select id from github_grant");
     expect(grantRows).toHaveLength(1);
     expect(String(rows[0]?.["grant_id"])).toBe(String(grantRows[0]?.["id"]));
-    const sessionRows = await harness.raw("select grant_id from reviewer_session");
-    expect(String(sessionRows[0]?.["grant_id"])).toBe(String(grantRows[0]?.["id"]));
+    const sessionRows = await harness.raw(
+      "select grant_id from reviewer_session",
+    );
+    expect(String(sessionRows[0]?.["grant_id"])).toBe(
+      String(grantRows[0]?.["id"]),
+    );
 
     // Default expiry ≈ 90 days out.
     const expiresAt = body.apiToken.expiresAt;
@@ -461,7 +537,9 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(list.status).toBe(200);
-    const listed = (await list.json()) as { tokens: Array<Record<string, unknown>> };
+    const listed = (await list.json()) as {
+      tokens: Array<Record<string, unknown>>;
+    };
     expect(listed.tokens).toHaveLength(1);
     const entry = listed.tokens[0];
     expect(entry?.["name"]).toBe("ci-token");
@@ -473,7 +551,8 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
 
   it("supports the no-expiry choice", async () => {
     stubGitHub({
-      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
     });
     const cookie = await seedSession();
     const res = await mint(
@@ -487,24 +566,27 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
 
   it("validates the installation against the viewer's LIVE set — 403, nothing minted", async () => {
     stubGitHub({
-      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
     });
     const cookie = await seedSession();
-    const res = await mint(
-      { name: "sneaky", installationId: 424242 },
-      cookie,
-    );
+    const res = await mint({ name: "sneaky", installationId: 424242 }, cookie);
     expect(res.status).toBe(403);
-    expect(await harness.raw("select count(*)::int as n from api_token")).toEqual([{ n: 0 }]);
+    expect(
+      await harness.raw("select count(*)::int as n from api_token"),
+    ).toEqual([{ n: 0 }]);
   });
 
   it("is cookie-only: no cookie → 401; a Bearer token cannot mint or list", async () => {
     stubGitHub({
-      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
     });
     const bearer = await seedApiToken(harness.handle, kp);
 
-    expect((await mint({ name: "x", installationId: INSTALLATION_ID })).status).toBe(401);
+    expect(
+      (await mint({ name: "x", installationId: INSTALLATION_ID })).status,
+    ).toBe(401);
     const viaBearerMint = await app.request("/api/auth/tokens", {
       method: "POST",
       headers: {
@@ -519,7 +601,9 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     });
     expect(viaBearerList.status).toBe(401);
     // Exactly the seeded row — nothing minted through either path.
-    expect(await harness.raw("select count(*)::int as n from api_token")).toEqual([{ n: 1 }]);
+    expect(
+      await harness.raw("select count(*)::int as n from api_token"),
+    ).toEqual([{ n: 1 }]);
   });
 
   it("rejects malformed bodies deterministically", async () => {
@@ -540,17 +624,24 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
 
   it("revokes: Bearer dies, list shows revoked_at, repeat revoke is idempotent, foreign id is 404", async () => {
     stubGitHub({
-      userInstallations: () => userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
-      installationRepos: () => installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+      userInstallations: () =>
+        userInstallationsOk([{ id: INSTALLATION_ID, login: "octo" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
     await seedPr(harness.handle);
     const cookie = await seedSession();
-    const minted = (await (await mint({ name: "doomed", installationId: INSTALLATION_ID }, cookie)).json()) as MintedBody;
+    const minted = (await (
+      await mint({ name: "doomed", installationId: INSTALLATION_ID }, cookie)
+    ).json()) as MintedBody;
 
     // Works before revocation.
     expect(
-      (await app.request("/api/pulls", { headers: { Authorization: `Bearer ${minted.token}` } }))
-        .status,
+      (
+        await app.request("/api/pulls", {
+          headers: { Authorization: `Bearer ${minted.token}` },
+        })
+      ).status,
     ).toBe(200);
 
     const revoke = await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
@@ -561,28 +652,37 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
 
     // Bearer is dead immediately (liveness is checked per request, uncached).
     expect(
-      (await app.request("/api/pulls", { headers: { Authorization: `Bearer ${minted.token}` } }))
-        .status,
+      (
+        await app.request("/api/pulls", {
+          headers: { Authorization: `Bearer ${minted.token}` },
+        })
+      ).status,
     ).toBe(401);
 
     const list = await app.request("/api/auth/tokens", {
       headers: { Cookie: `rs_session=${cookie}` },
     });
-    const listed = (await list.json()) as { tokens: Array<Record<string, unknown>> };
+    const listed = (await list.json()) as {
+      tokens: Array<Record<string, unknown>>;
+    };
     expect(listed.tokens[0]?.["revokedAt"]).not.toBeNull();
 
     // Idempotent repeat; foreign/unknown id is an indistinguishable 404.
     expect(
-      (await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
-        method: "DELETE",
-        headers: { Cookie: `rs_session=${cookie}` },
-      })).status,
+      (
+        await app.request(`/api/auth/tokens/${minted.apiToken.id}`, {
+          method: "DELETE",
+          headers: { Cookie: `rs_session=${cookie}` },
+        })
+      ).status,
     ).toBe(200);
     expect(
-      (await app.request("/api/auth/tokens/999999", {
-        method: "DELETE",
-        headers: { Cookie: `rs_session=${cookie}` },
-      })).status,
+      (
+        await app.request("/api/auth/tokens/999999", {
+          method: "DELETE",
+          headers: { Cookie: `rs_session=${cookie}` },
+        })
+      ).status,
     ).toBe(404);
   });
 });

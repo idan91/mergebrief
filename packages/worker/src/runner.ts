@@ -14,7 +14,13 @@
 // Part 3 cancellation hook), and releases its pool. The composition root
 // awaits `runner.promise` and releases ITS resources (the persistence pool)
 // after — see `main.ts`.
-import { run, runMigrations, type Logger as GraphileLogger, type Runner, type TaskList } from "graphile-worker";
+import {
+  run,
+  runMigrations,
+  type Logger as GraphileLogger,
+  type Runner,
+  type TaskList,
+} from "graphile-worker";
 import { migrateApp } from "persistence";
 
 /**
@@ -39,7 +45,9 @@ export interface StartWorkerOptions {
  * long-lived runner. Resolves once the runner is LISTENING; the returned
  * `Runner.promise` settles when it stops (signal-driven graceful shutdown).
  */
-export async function startWorker(options: StartWorkerOptions): Promise<Runner> {
+export async function startWorker(
+  options: StartWorkerOptions,
+): Promise<Runner> {
   await migrateApp(options.databaseUrl);
   await runMigrations({ connectionString: options.databaseUrl });
   return run({

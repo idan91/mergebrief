@@ -2,10 +2,7 @@ import OpenAI from "openai";
 import type { Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
 import type { Logger } from "../contract/generator";
-import {
-  OpenAiCompatibleCore,
-  type OpenAiChatTransport,
-} from "./openaiCore";
+import { OpenAiCompatibleCore, type OpenAiChatTransport } from "./openaiCore";
 
 /**
  * The openai-provider assembly on the shared core: official SDK client,
@@ -51,7 +48,9 @@ export async function createOpenAiCore(
   const client = new OpenAI({
     apiKey: options.apiKey,
     ...(options.baseUrl ? { baseURL: options.baseUrl } : {}),
-    ...(options.defaultHeaders ? { defaultHeaders: options.defaultHeaders } : {}),
+    ...(options.defaultHeaders
+      ? { defaultHeaders: options.defaultHeaders }
+      : {}),
     ...(options.fetch ? { fetch: options.fetch } : {}),
   });
   const log = options.log ?? (() => {});
@@ -100,9 +99,10 @@ async function modelPreflight(
     await client.models.retrieve(model);
     return { ok: true, value: undefined };
   } catch (error) {
-    const status = typeof error === "object" && error !== null
-      ? Reflect.get(error, "status")
-      : undefined;
+    const status =
+      typeof error === "object" && error !== null
+        ? Reflect.get(error, "status")
+        : undefined;
     if (status === 401 || status === 403) {
       return configError([
         "provider API key was rejected (401/403) — check the configured apiKeyEnv variable's value",

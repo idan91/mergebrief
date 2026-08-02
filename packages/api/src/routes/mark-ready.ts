@@ -59,10 +59,18 @@ function errorJson(
 }
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
-function splitRepoSlug(fullName: string): { owner: string; repo: string } | undefined {
+function splitRepoSlug(
+  fullName: string,
+): { owner: string; repo: string } | undefined {
   const parts = fullName.split("/");
   const [owner, repo] = parts;
-  if (parts.length !== 2 || owner === undefined || owner === "" || repo === undefined || repo === "") {
+  if (
+    parts.length !== 2 ||
+    owner === undefined ||
+    owner === "" ||
+    repo === undefined ||
+    repo === ""
+  ) {
     return undefined;
   }
   return { owner, repo };
@@ -88,7 +96,10 @@ async function resolveSessionToken(
  * access was revoked inside the positive-cache TTL must see exactly what a cold
  * gate denial shows — no existence leak, no distinguishable status.
  */
-function resolveRepoFailure(c: Context<AuthzEnv>, error: GitHubApiError): Response {
+function resolveRepoFailure(
+  c: Context<AuthzEnv>,
+  error: GitHubApiError,
+): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
     return errorJson(c, "unauthorized", 401);
   }
@@ -172,7 +183,11 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
         return false;
       }
       refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
+      const refreshed = await refreshSessionToken(
+        deps,
+        currentSession,
+        c.get("logger"),
+      );
       if (!refreshed.ok) {
         return false;
       }
@@ -185,13 +200,19 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     // the mutating write. The gate's cached `repoFullName` may be up to 60s
     // stale — a rename + name-reuse inside that window would target the wrong
     // repository.
-    let repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), c.get("repoId"));
+    let repoInfo = await fetchRepositoryById(
+      createUserOctokit(accessToken),
+      c.get("repoId"),
+    );
     if (
       !repoInfo.ok &&
       repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
       (await spendRefresh())
     ) {
-      repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), c.get("repoId"));
+      repoInfo = await fetchRepositoryById(
+        createUserOctokit(accessToken),
+        c.get("repoId"),
+      );
     }
     if (!repoInfo.ok) {
       return resolveRepoFailure(c, repoInfo.error);
@@ -203,22 +224,30 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
     // A 401'd GraphQL call performed no write, so a refreshed retry cannot
     // double-mark; the operation is idempotent regardless (converged states).
-    const markWithRefreshOnce = async (): Promise<Result<MarkReadyResult, GitHubApiError>> => {
-      let result = await markPullRequestReadyForReview(createUserOctokit(accessToken), {
-        owner: target.owner,
-        repo: target.repo,
-        prNumber: pr.prNumber,
-      });
+    const markWithRefreshOnce = async (): Promise<
+      Result<MarkReadyResult, GitHubApiError>
+    > => {
+      let result = await markPullRequestReadyForReview(
+        createUserOctokit(accessToken),
+        {
+          owner: target.owner,
+          repo: target.repo,
+          prNumber: pr.prNumber,
+        },
+      );
       if (
         !result.ok &&
         result.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
         (await spendRefresh())
       ) {
-        result = await markPullRequestReadyForReview(createUserOctokit(accessToken), {
-          owner: target.owner,
-          repo: target.repo,
-          prNumber: pr.prNumber,
-        });
+        result = await markPullRequestReadyForReview(
+          createUserOctokit(accessToken),
+          {
+            owner: target.owner,
+            repo: target.repo,
+            prNumber: pr.prNumber,
+          },
+        );
       }
       return result;
     };

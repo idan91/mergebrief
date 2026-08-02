@@ -76,7 +76,9 @@ describe("migration 0013 — grant backfill (D15)", () => {
       select token_hash as hash, grant_id::text from api_token
     `);
     const byHash = new Map(links.rows.map((row) => [row.hash, row.grant_id]));
-    const grantByPair = new Map(grants.rows.map((row) => [row.gh_token_ciphertext, row.id]));
+    const grantByPair = new Map(
+      grants.rows.map((row) => [row.gh_token_ciphertext, row.id]),
+    );
 
     // Shared pair → shared grant; diverged/own pairs → own grants.
     expect(byHash.get("hash-s1")).toBe(grantByPair.get("P1.access"));
@@ -87,10 +89,17 @@ describe("migration 0013 — grant backfill (D15)", () => {
     // refresh_expires_at: session-carried for P1/P3; ~6mo fallback for P2
     // (token-only triple — its mint expiry must NOT leak into the grant).
     const expiryByPair = new Map(
-      grants.rows.map((row) => [row.gh_token_ciphertext, new Date(row.refresh_expires_at)]),
+      grants.rows.map((row) => [
+        row.gh_token_ciphertext,
+        new Date(row.refresh_expires_at),
+      ]),
     );
-    expect(expiryByPair.get("P1.access")).toEqual(new Date("2027-01-01T00:00:00Z"));
-    expect(expiryByPair.get("P3.access")).toEqual(new Date("2027-03-01T00:00:00Z"));
+    expect(expiryByPair.get("P1.access")).toEqual(
+      new Date("2027-01-01T00:00:00Z"),
+    );
+    expect(expiryByPair.get("P3.access")).toEqual(
+      new Date("2027-03-01T00:00:00Z"),
+    );
     const fallback = expiryByPair.get("P2.access");
     if (fallback === undefined) throw new Error("missing P2 grant");
     const monthsOut = (fallback.getTime() - Date.now()) / (30 * 24 * 3_600_000);
@@ -98,7 +107,10 @@ describe("migration 0013 — grant backfill (D15)", () => {
     expect(monthsOut).toBeLessThan(7);
 
     // The old columns are gone from both referent tables.
-    const oldColumns = await client.query<{ table_name: string; column_name: string }>(`
+    const oldColumns = await client.query<{
+      table_name: string;
+      column_name: string;
+    }>(`
       select table_name, column_name from information_schema.columns
       where table_schema = 'public'
         and table_name in ('reviewer_session', 'api_token')

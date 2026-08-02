@@ -24,7 +24,12 @@ const NO_STORE = { "cache-control": "no-store" } as const;
 const LIST_MAX_ROWS = 100;
 
 const listQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(LIST_MAX_ROWS).default(LIST_MAX_ROWS),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(LIST_MAX_ROWS)
+    .default(LIST_MAX_ROWS),
 });
 
 /** Mount the list endpoint over the shared allowed-set resolver. */
@@ -37,16 +42,24 @@ export function pullsRoute(
   app.use("/api/pulls", sessionLayer(deps), accessStampLayer());
 
   app.get("/api/pulls", async (c) => {
-    const query = listQuerySchema.safeParse({ limit: c.req.query("limit") ?? undefined });
+    const query = listQuerySchema.safeParse({
+      limit: c.req.query("limit") ?? undefined,
+    });
     if (!query.success) {
       return c.json({ error: "invalid query parameters" }, 400, NO_STORE);
     }
     const ctx = c.get("ctx");
 
-    const resolved = await allowedRepos.resolve(c.get("session"), c.get("logger"));
+    const resolved = await allowedRepos.resolve(
+      c.get("session"),
+      c.get("logger"),
+    );
     if (!resolved.ok) {
       return c.json(
-        { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },
+        {
+          error:
+            resolved.error.status === 401 ? "unauthorized" : "upstream error",
+        },
         resolved.error.status,
         NO_STORE,
       );
@@ -54,7 +67,10 @@ export function pullsRoute(
     const allowed = resolved.value.allowed;
 
     const tenant = forTenant(deps.handle, ctx);
-    const rows = await tenant.pullRequests.listForRepos([...allowed.keys()], query.data.limit);
+    const rows = await tenant.pullRequests.listForRepos(
+      [...allowed.keys()],
+      query.data.limit,
+    );
     const ids = rows.map((row) => row.id);
     const [latestBriefs, latestGenerations] = await Promise.all([
       artifactStore(deps.handle, ctx).briefs.latestForPullRequests(ids),
@@ -66,7 +82,14 @@ export function pullsRoute(
       // List path: the allowed-set intersection proves access but carries no
       // permissions block, so push capability is UNKNOWN here — fail closed
       // (authorship-only viewerCanResolve; the brief page reads PR meta).
-      buildPrView(row, latestBriefs.get(row.id), latestGenerations.get(row.id), allowed.get(row.repoId), viewerLogin, false),
+      buildPrView(
+        row,
+        latestBriefs.get(row.id),
+        latestGenerations.get(row.id),
+        allowed.get(row.repoId),
+        viewerLogin,
+        false,
+      ),
     );
     return c.json({ pulls }, 200, NO_STORE);
   });

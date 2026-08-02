@@ -60,16 +60,21 @@ describe("config — loadConfig", () => {
     // per-field schema checks all pass, so an empty env surfaces the plain
     // per-field "required" issues; exclusivity is covered by its own tests
     // below (against an otherwise-valid env).
-    const fields = ["GITHUB_APP_ID", "GITHUB_WEBHOOK_SECRET", "GITHUB_OAUTH_CLIENT_ID", "GITHUB_OAUTH_CLIENT_SECRET"];
+    const fields = [
+      "GITHUB_APP_ID",
+      "GITHUB_WEBHOOK_SECRET",
+      "GITHUB_OAUTH_CLIENT_ID",
+      "GITHUB_OAUTH_CLIENT_SECRET",
+    ];
     for (const field of fields) {
-      expect(error.issues.some((issue) => issue.startsWith(field))).toBe(
-        true,
-      );
+      expect(error.issues.some((issue) => issue.startsWith(field))).toBe(true);
     }
   });
 
   it("rejects a non-numeric GITHUB_APP_ID", () => {
-    const error = err(loadConfig({ ...BASE_ENV, GITHUB_APP_ID: "not-a-number" }));
+    const error = err(
+      loadConfig({ ...BASE_ENV, GITHUB_APP_ID: "not-a-number" }),
+    );
     expect(
       error.issues.some((issue) => issue.startsWith("GITHUB_APP_ID")),
     ).toBe(true);

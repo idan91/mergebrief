@@ -97,5 +97,8 @@ export function loadInstancePolicy(
   }
   const policy = validateDraftsBlock(block);
   if (!policy.ok) return policy;
-  return { ok: true, value: { draftPolicy: policy.value, source: resolved.value } };
+  return {
+    ok: true,
+    value: { draftPolicy: policy.value, source: resolved.value },
+  };
 }

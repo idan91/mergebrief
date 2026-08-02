@@ -3,7 +3,11 @@ import { RepoConfigPaths } from "../src/constants";
 import type { RepoConfigFileInput } from "../src/validate";
 
 /** A file input with a deterministic fake blob SHA. */
-export function file(path: string, content: string, blobSha = "sha-fake"): RepoConfigFileInput {
+export function file(
+  path: string,
+  content: string,
+  blobSha = "sha-fake",
+): RepoConfigFileInput {
   return { path, content, blobSha };
 }
 
@@ -34,6 +38,7 @@ export function padYamlToBytes(base: string, target: number): string {
   const prefix = "# ";
   const current = Buffer.byteLength(withNewline + prefix, "utf8");
   const needed = target - current;
-  if (needed < 0) throw new Error(`base (${current} bytes) already exceeds target ${target}`);
+  if (needed < 0)
+    throw new Error(`base (${current} bytes) already exceeds target ${target}`);
   return withNewline + prefix + "x".repeat(needed);
 }

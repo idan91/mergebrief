@@ -14,7 +14,11 @@ import {
 import type { Logger } from "logging";
 import { decryptToken, sessionAuth, type RepoId } from "persistence";
 import type { Result } from "types";
-import { refreshSessionToken, type AuthRouteDeps, type ViewerPrincipal } from "./auth";
+import {
+  refreshSessionToken,
+  type AuthRouteDeps,
+  type ViewerPrincipal,
+} from "./auth";
 import { AUTHZ_CACHE_TTL_MS } from "./authz";
 import { createTtlCache } from "./ttl-cache";
 
@@ -47,10 +51,14 @@ export interface AllowedRepoResolver {
  * Build the shared resolver. ONE instance per app (`createApp`) — the cache
  * identity is what makes `/api/pulls` and `/api/repos` share fetches.
  */
-export function createAllowedRepoResolver(deps: AuthRouteDeps): AllowedRepoResolver {
+export function createAllowedRepoResolver(
+  deps: AuthRouteDeps,
+): AllowedRepoResolver {
   // POSITIVE results only (a failed fetch is never cached), 60s — the same
   // revocation-staleness budget as the per-repo positive cache.
-  const cache = createTtlCache<ReadonlyMap<RepoId, string>>(ALLOWED_SET_CACHE_MAX_ENTRIES);
+  const cache = createTtlCache<ReadonlyMap<RepoId, string>>(
+    ALLOWED_SET_CACHE_MAX_ENTRIES,
+  );
 
   return {
     async resolve(session, log) {
@@ -96,11 +104,15 @@ export function createAllowedRepoResolver(deps: AuthRouteDeps): AllowedRepoResol
       }
       if (!repos.ok) {
         // Fail closed — a DB-only fallback would leak rows (ADR 0016 #5b).
-        const status = repos.error.code === GitHubApiErrorCode.UNAUTHORIZED ? 401 : 502;
+        const status =
+          repos.error.code === GitHubApiErrorCode.UNAUTHORIZED ? 401 : 502;
         return { ok: false, error: { status } };
       }
       cache.set(cacheKey, repos.value, Date.now() + AUTHZ_CACHE_TTL_MS);
-      return { ok: true, value: { allowed: repos.value, session: currentSession } };
+      return {
+        ok: true,
+        value: { allowed: repos.value, session: currentSession },
+      };
     },
   };
 }

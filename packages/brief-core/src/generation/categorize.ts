@@ -17,11 +17,7 @@ import {
   stripForgedRepoFences,
   type RepoContext,
 } from "./repo-context";
-import {
-  AnthropicGenerator,
-  type Generator,
-  type Logger,
-} from "generators";
+import { AnthropicGenerator, type Generator, type Logger } from "generators";
 import {
   buildSystemPrompt,
   buildDeltaSystemPrompt,
@@ -132,7 +128,9 @@ function acceptRepoContext(
   const applicable =
     files.length === 0
       ? gated.attributes
-      : gated.attributes.filter((attr) => files.some((f) => inAttributeScope(attr, f.path)));
+      : gated.attributes.filter((attr) =>
+          files.some((f) => inAttributeScope(attr, f.path)),
+        );
   if (applicable.length < gated.attributes.length) {
     log(
       `repo context: ${gated.attributes.length - applicable.length} scoped custom attribute(s) match no changed file — not injected`,
@@ -166,11 +164,17 @@ function acceptRepoContext(
   };
 }
 
-function renderUser(pr: FetchedPr, repoBlocks = "", defuseForgedFences = false): string {
+function renderUser(
+  pr: FetchedPr,
+  repoBlocks = "",
+  defuseForgedFences = false,
+): string {
   // With repo context in play, forged fences anywhere else in the message
   // (PR body, linked context, file paths, diff) are neutralized so a PR
   // cannot impersonate default-branch config (ADR 0032 #3 trust rule).
-  const clean = defuseForgedFences ? stripForgedRepoFences : (text: string) => text;
+  const clean = defuseForgedFences
+    ? stripForgedRepoFences
+    : (text: string) => text;
   const fileList = pr.meta.files
     .map((f) => `- ${clean(f.path)} (+${f.additions} -${f.deletions})`)
     .join("\n");
@@ -209,7 +213,8 @@ export async function categorize(
   // BEFORE any name touches the schema enum or any text touches the prompt.
   const accepted = acceptRepoContext(repoContext, pr.meta.files, collector.log);
   const effectiveContext = accepted.context;
-  const customNames = effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
+  const customNames =
+    effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
   const generated = await generator.generate({
     schema: briefGenerationSchemaWith(customNames),
     system: buildSystemPrompt(effectiveContext),
@@ -220,9 +225,13 @@ export async function categorize(
     log: collector.log,
   });
   const { readingOrder, ...rest } = generated;
-  const readingOrderIssues = validateReadingOrder(readingOrder, generated.changeGroups);
+  const readingOrderIssues = validateReadingOrder(
+    readingOrder,
+    generated.changeGroups,
+  );
   warnIssues(readingOrderIssues, collector.log, "reading order");
-  const keepReadingOrder = readingOrder !== undefined && readingOrderIssues.length === 0;
+  const keepReadingOrder =
+    readingOrder !== undefined && readingOrderIssues.length === 0;
 
   // Intent check (BRIEF-54): ticketUrls ⊆ the URLs actually injected as
   // linked context; quotes verify against the composite corpus — the PR
@@ -233,7 +242,9 @@ export async function categorize(
   // quote as fabricated when the harness altered the text it read.
   // Warn-and-drop, same register as readingOrder.
   const corpusClean =
-    effectiveContext !== undefined ? stripForgedRepoFences : (text: string) => text;
+    effectiveContext !== undefined
+      ? stripForgedRepoFences
+      : (text: string) => text;
   // The wire shape is one tagged `items` array (grammar budget, BRIEF-85);
   // fan it out to the stored five buckets BEFORE validation so every
   // per-bucket rule applies exactly as it would to native arrays.
@@ -257,10 +268,16 @@ export async function categorize(
   const repoChecked =
     effectiveContext === undefined
       ? { chunks: generated.chunks, issues: [] }
-      : validateRepoAttributeTokens(generated.chunks, effectiveContext.customAttributes);
+      : validateRepoAttributeTokens(
+          generated.chunks,
+          effectiveContext.customAttributes,
+        );
   warnIssues(repoChecked.issues, collector.log, "repo attrs");
 
-  const trio = validateRiskAttributes(repoChecked.chunks, splitDiffByFile(pr.diff));
+  const trio = validateRiskAttributes(
+    repoChecked.chunks,
+    splitDiffByFile(pr.diff),
+  );
   warnIssues(trio.issues, collector.log, "risk attrs");
 
   const partial = {
@@ -273,7 +290,10 @@ export async function categorize(
     commitRange,
     generation: generator.provenance(effort),
   };
-  warnIssues(validatePartition(partial.changeGroups, partial.chunks), collector.log);
+  warnIssues(
+    validatePartition(partial.changeGroups, partial.chunks),
+    collector.log,
+  );
   const warnings = collector.warnings();
   const brief: Brief = {
     ...partial,
@@ -283,7 +303,11 @@ export async function categorize(
 }
 
 /** Log-and-continue for warn-only validation issues (never a throw). */
-export function warnIssues(issues: string[], log: Logger, label = "partition"): void {
+export function warnIssues(
+  issues: string[],
+  log: Logger,
+  label = "partition",
+): void {
   if (issues.length > 0) {
     log(`⚠ ${label} issues: ${issues.join("; ")}`);
   }
@@ -414,7 +438,10 @@ export async function categorizeDelta(
     headIndex: input.headIndex ?? null,
     generation: generator.provenance(effort),
   };
-  warnIssues(validatePartition(partial.changedGroups, partial.chunks), collector.log);
+  warnIssues(
+    validatePartition(partial.changedGroups, partial.chunks),
+    collector.log,
+  );
   const warnings = collector.warnings();
   const delta: DeltaBrief = {
     ...partial,
@@ -445,7 +472,10 @@ export interface RevisionNarrativeInput {
    * the marks↔narrative overlap validations in both directions (BRIEF-73) —
    * warn-only, collected into `generationWarnings`.
    */
-  marksFiles?: Pick<RevisionChangeFile, "file" | "addedRanges" | "removedRanges">[];
+  marksFiles?: Pick<
+    RevisionChangeFile,
+    "file" | "addedRanges" | "removedRanges"
+  >[];
 }
 
 /**
@@ -458,15 +488,20 @@ function renderBriefContext(brief: Brief): string {
   const groups =
     brief.changeGroups
       .map((g) => {
-        const categories = [g.dominantCategory, ...g.secondaryCategories].join(", ");
+        const categories = [g.dominantCategory, ...g.secondaryCategories].join(
+          ", ",
+        );
         return `- ${g.id} [${categories}] ${g.title} — ${g.summary}`;
       })
       .join("\n") || "(none)";
   const chunks =
     brief.chunks
       .map((c) => {
-        const added = c.addedRanges.map((r) => `+${r.start}-${r.end}`).join(",") || "none";
-        const removed = c.removedRanges.map((r) => `-${r.start}-${r.end}`).join(",") || "none";
+        const added =
+          c.addedRanges.map((r) => `+${r.start}-${r.end}`).join(",") || "none";
+        const removed =
+          c.removedRanges.map((r) => `-${r.start}-${r.end}`).join(",") ||
+          "none";
         return `- ${c.id} (group ${c.changeGroupId}) ${c.file} added:${added} removed:${removed}`;
       })
       .join("\n") || "(none)";

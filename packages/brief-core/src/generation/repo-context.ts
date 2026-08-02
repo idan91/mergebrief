@@ -119,8 +119,7 @@ export function renderRepoInstructions(
   const bytes = byteLength(instructions.content);
   if (bytes > INSTRUCTIONS_INJECTION_BUDGET_BYTES) {
     return {
-      warning:
-        `⚠ repo instructions (${instructions.path} @ ${instructions.blobSha}) over the ${INSTRUCTIONS_INJECTION_BUDGET_BYTES}-byte budget at assembly (${bytes} bytes) — omitted whole`,
+      warning: `⚠ repo instructions (${instructions.path} @ ${instructions.blobSha}) over the ${INSTRUCTIONS_INJECTION_BUDGET_BYTES}-byte budget at assembly (${bytes} bytes) — omitted whole`,
     };
   }
   const path = attributeSafe(instructions.path);
@@ -151,7 +150,9 @@ export function renderCustomAttributes(
           : [`  implication: ${stripFences(attr.implication)}`]),
         ...(attr.paths === undefined || attr.paths.length === 0
           ? []
-          : [`  paths: ${attr.paths.map((p) => `\`${stripFences(p)}\``).join(", ")}`]),
+          : [
+              `  paths: ${attr.paths.map((p) => `\`${stripFences(p)}\``).join(", ")}`,
+            ]),
       ];
       return lines.join("\n");
     })
@@ -284,7 +285,8 @@ export function matchesGlob(pattern: string, filePath: string): boolean {
     switch (token.kind) {
       case "literal": {
         for (let j = 0; j < n; j++) {
-          if (reachable[j] === true && filePath[j] === token.char) next[j + 1] = true;
+          if (reachable[j] === true && filePath[j] === token.char)
+            next[j + 1] = true;
         }
         break;
       }
@@ -301,7 +303,9 @@ export function matchesGlob(pattern: string, filePath: string): boolean {
         // inner scan was quadratic after a globstar).
         let active = false;
         for (let j = 0; j <= n; j++) {
-          active = (active && j > 0 && filePath[j - 1] !== "/") || reachable[j] === true;
+          active =
+            (active && j > 0 && filePath[j - 1] !== "/") ||
+            reachable[j] === true;
           if (active) next[j] = true;
         }
         break;
@@ -337,6 +341,7 @@ export function inAttributeScope(
   attribute: Pick<CustomRiskAttributeInput, "paths">,
   filePath: string,
 ): boolean {
-  if (attribute.paths === undefined || attribute.paths.length === 0) return true;
+  if (attribute.paths === undefined || attribute.paths.length === 0)
+    return true;
   return attribute.paths.some((pattern) => matchesGlob(pattern, filePath));
 }

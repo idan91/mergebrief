@@ -70,7 +70,9 @@ function transformNode(node: Record<string, unknown>): Record<string, unknown> {
   if (isRecord(properties)) {
     const required = new Set(
       Array.isArray(node["required"])
-        ? node["required"].filter((key): key is string => typeof key === "string")
+        ? node["required"].filter(
+            (key): key is string => typeof key === "string",
+          )
         : [],
     );
     out["properties"] = Object.fromEntries(

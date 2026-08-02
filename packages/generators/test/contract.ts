@@ -39,7 +39,10 @@ export const contractPayloads = {
  * rejection, or a provider refusal (only for harnesses that declare
  * `supportsRefusal` — not every transport has a refusal signal).
  */
-export type ContractTurn = { raw: string } | { abort: true } | { refusal: true };
+export type ContractTurn =
+  | { raw: string }
+  | { abort: true }
+  | { refusal: true };
 
 /** What a harness hands back for one scripted generator. */
 export interface ContractGeneratorHandle {
@@ -140,7 +143,9 @@ export function describeGeneratorContract(
       expect(feedback).toContain(contractPayloads.invalid);
       // Pin the shared retry wording (schemaFeedbackMessage), not just a
       // fragment: preamble + full closing instruction.
-      expect(feedback).toContain("Your previous response failed schema validation:");
+      expect(feedback).toContain(
+        "Your previous response failed schema validation:",
+      );
       expect(feedback).toContain(
         "Produce the corrected JSON object conforming exactly to the schema. " +
           "Use ONLY tokens from the closed vocabularies — never invent a token.",
@@ -150,7 +155,9 @@ export function describeGeneratorContract(
       expect(files).toHaveLength(1);
       const first = files[0];
       if (!first) throw new Error("expected a dump file");
-      const dumped: unknown = JSON.parse(readFileSync(join(dir, first), "utf8"));
+      const dumped: unknown = JSON.parse(
+        readFileSync(join(dir, first), "utf8"),
+      );
       expect(dumped).toMatchObject({ raw: contractPayloads.invalid });
     });
 
@@ -172,8 +179,14 @@ export function describeGeneratorContract(
         // Label-prefixed name and the exact {error, raw} shape — no extra
         // fields, raw byte-identical to the failed output.
         expect(file).toMatch(/^contract-/);
-        const dumped: unknown = JSON.parse(readFileSync(join(dir, file), "utf8"));
-        if (typeof dumped !== "object" || dumped === null || Array.isArray(dumped)) {
+        const dumped: unknown = JSON.parse(
+          readFileSync(join(dir, file), "utf8"),
+        );
+        if (
+          typeof dumped !== "object" ||
+          dumped === null ||
+          Array.isArray(dumped)
+        ) {
           throw new Error(`dump ${file} is not an object`);
         }
         expect(Object.keys(dumped).toSorted()).toEqual(["error", "raw"]);
@@ -194,7 +207,9 @@ export function describeGeneratorContract(
       expect(files).toHaveLength(1);
       const first = files[0];
       if (!first) throw new Error("expected a dump file");
-      const dumped: unknown = JSON.parse(readFileSync(join(dir, first), "utf8"));
+      const dumped: unknown = JSON.parse(
+        readFileSync(join(dir, first), "utf8"),
+      );
       expect(dumped).toMatchObject({ raw: "" });
     });
 

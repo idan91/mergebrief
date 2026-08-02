@@ -2,7 +2,15 @@
 // immutable per-PR artifact; the retention/cascade anchor. No `activated_at`
 // (dropped 2026-07-04, ADR 0020). The partial index on `purge_after`
 // (sweep target) is raw SQL in the hardening migration.
-import { bigint, boolean, integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core";
 import type { PrState, PullRequestRowId, RepoId } from "../types";
 import { tenantColumns } from "./columns";
 
@@ -55,10 +63,18 @@ export const pullRequest = pgTable(
     closedAt: timestamp("closed_at", { withTimezone: true }),
     /** Nullable: null while open or when retention is "never" (D5). */
     purgeAfter: timestamp("purge_after", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
-    unique("pull_request_natural_key").on(table.installationId, table.repoId, table.prNumber),
+    unique("pull_request_natural_key").on(
+      table.installationId,
+      table.repoId,
+      table.prNumber,
+    ),
   ],
 );

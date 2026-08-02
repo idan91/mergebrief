@@ -42,7 +42,8 @@ function makeClaudeCodeHarness(): GeneratorContractHarness {
       scriptDir = mkdtempSync(join(failureDir, "script-"));
       const scripted = turns.map((turn) => {
         if ("abort" in turn) return { hang: true };
-        if ("refusal" in turn) throw new Error("claude-code has no refusal turn");
+        if ("refusal" in turn)
+          throw new Error("claude-code has no refusal turn");
         return { output: turn.raw };
       });
       writeFileSync(join(scriptDir, "turns.json"), JSON.stringify(scripted));
@@ -83,7 +84,9 @@ function makeClaudeCodeHarness(): GeneratorContractHarness {
         ...(wantsAbort ? { signal: controller.signal } : {}),
         attempts: () => {
           const counter = join(scriptDir, "counter");
-          return existsSync(counter) ? Number(readFileSync(counter, "utf8")) : 0;
+          return existsSync(counter)
+            ? Number(readFileSync(counter, "utf8"))
+            : 0;
         },
         feedbackSeen: () => {
           const stdin = join(scriptDir, "stdin-1.txt");
@@ -94,4 +97,7 @@ function makeClaudeCodeHarness(): GeneratorContractHarness {
   };
 }
 
-describeGeneratorContract("claude-code (fake-claude shim)", makeClaudeCodeHarness);
+describeGeneratorContract(
+  "claude-code (fake-claude shim)",
+  makeClaudeCodeHarness,
+);

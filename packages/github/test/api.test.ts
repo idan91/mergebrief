@@ -4,7 +4,11 @@
 // fetch maps to a sanitized Result error that leaks NO token/header/body.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
-import { deleteComment, fetchComment, postEntryComment } from "../src/operations/comments";
+import {
+  deleteComment,
+  fetchComment,
+  postEntryComment,
+} from "../src/operations/comments";
 import { GitHubApiErrorCode } from "../src/errors";
 import {
   fetchPullRequest,
@@ -21,7 +25,10 @@ import {
   ReviewEvent,
   ReviewValidationClass,
 } from "../src/operations/review";
-import { fetchRepositoryById, listInstallationRepositoriesForUser } from "../src/operations/repo";
+import {
+  fetchRepositoryById,
+  listInstallationRepositoriesForUser,
+} from "../src/operations/repo";
 import { isInstallationId, isRepoId } from "../src/ids";
 
 // A leaked auth header/token must never surface in a sanitized error. We plant
@@ -92,7 +99,8 @@ function toRepoId(value: bigint) {
 }
 
 function toInstallationId(value: bigint) {
-  if (!isInstallationId(value)) throw new Error("expected a positive installation id");
+  if (!isInstallationId(value))
+    throw new Error("expected a positive installation id");
   return value;
 }
 
@@ -118,7 +126,9 @@ describe("postEntryComment", () => {
   });
 
   it("rejects a comment id past the safe-integer range (rounded by JSON.parse)", async () => {
-    const createComment = vi.fn().mockResolvedValue({ data: { id: 9007199254740992 } });
+    const createComment = vi
+      .fn()
+      .mockResolvedValue({ data: { id: 9007199254740992 } });
     const octokit = mockOctokit({ createComment });
     const result = await postEntryComment(octokit, {
       owner: "o",
@@ -194,7 +204,9 @@ describe("deleteComment", () => {
 
 describe("fetchComment", () => {
   it("returns the comment body on success", async () => {
-    const getComment = vi.fn().mockResolvedValue({ data: { id: 99, body: "brief ready" } });
+    const getComment = vi
+      .fn()
+      .mockResolvedValue({ data: { id: 99, body: "brief ready" } });
     const octokit = mockOctokit({ getComment });
     const result = await fetchComment(octokit, {
       owner: "o",
@@ -288,7 +300,12 @@ describe("fetchRepositoryById", () => {
     // This fetch is the authz gate's only probe — a capability-signal glitch
     // must not become a full access denial.
     const request = vi.fn().mockResolvedValue({
-      data: { id: 1, full_name: "o/r", private: true, permissions: { admin: false } },
+      data: {
+        id: 1,
+        full_name: "o/r",
+        private: true,
+        permissions: { admin: false },
+      },
     });
     const octokit = mockOctokit({ request });
     const result = await fetchRepositoryById(octokit, toRepoId(1n));
@@ -349,7 +366,10 @@ describe("listInstallationRepositoriesForUser", () => {
       { id: 303, full_name: "octo/page-two" },
     ]);
     const octokit = mockOctokit({ paginate });
-    const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
+    const result = await listInstallationRepositoriesForUser(
+      octokit,
+      INSTALLATION,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.size).toBe(3);
@@ -357,14 +377,19 @@ describe("listInstallationRepositoriesForUser", () => {
     expect(result.value.get(toRepoId(303n))).toBe("octo/page-two");
     expect(paginate).toHaveBeenCalledTimes(1);
     const [route, params] = paginate.mock.calls[0] ?? [];
-    expect(String(route)).toContain("/user/installations/{installation_id}/repositories");
+    expect(String(route)).toContain(
+      "/user/installations/{installation_id}/repositories",
+    );
     expect(params).toMatchObject({ installation_id: 987654, per_page: 100 });
   });
 
   it("maps a 401 to a sanitized unauthorized error (refresh trigger)", async () => {
     const paginate = vi.fn().mockRejectedValue(requestError(401));
     const octokit = mockOctokit({ paginate });
-    const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
+    const result = await listInstallationRepositoriesForUser(
+      octokit,
+      INSTALLATION,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.UNAUTHORIZED);
@@ -374,18 +399,26 @@ describe("listInstallationRepositoriesForUser", () => {
   it("maps an unexpected 2xx body to a request-failed error", async () => {
     const paginate = vi.fn().mockResolvedValue([{ nope: true }]);
     const octokit = mockOctokit({ paginate });
-    const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
+    const result = await listInstallationRepositoriesForUser(
+      octokit,
+      INSTALLATION,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
   });
 
   it("rejects a repo id past the safe-integer range", async () => {
-    const paginate = vi.fn().mockResolvedValue([
-      { id: Number.MAX_SAFE_INTEGER + 2, full_name: "octo/huge" },
-    ]);
+    const paginate = vi
+      .fn()
+      .mockResolvedValue([
+        { id: Number.MAX_SAFE_INTEGER + 2, full_name: "octo/huge" },
+      ]);
     const octokit = mockOctokit({ paginate });
-    const result = await listInstallationRepositoriesForUser(octokit, INSTALLATION);
+    const result = await listInstallationRepositoriesForUser(
+      octokit,
+      INSTALLATION,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
@@ -477,21 +510,27 @@ describe("fetchPullRequest / fetchDiff", () => {
       },
     });
     const octokit = mockOctokit({ pullsGet });
-    const result = await fetchPullRequest(octokit, { owner: "o", repo: "r", prNumber: 3 });
+    const result = await fetchPullRequest(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 3,
+    });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.body).toBe("");
   });
 
   it("lists changed files via pagination, mapping path + churn", async () => {
-    const paginate = vi
-      .fn()
-      .mockResolvedValue([
-        { filename: "src/a.ts", additions: 3, deletions: 1, status: "modified" },
-        { filename: "src/b.ts", additions: 10, deletions: 0, status: "added" },
-      ]);
+    const paginate = vi.fn().mockResolvedValue([
+      { filename: "src/a.ts", additions: 3, deletions: 1, status: "modified" },
+      { filename: "src/b.ts", additions: 10, deletions: 0, status: "added" },
+    ]);
     const octokit = mockOctokit({ paginate });
-    const result = await fetchPullRequestFiles(octokit, { owner: "o", repo: "r", prNumber: 3 });
+    const result = await fetchPullRequestFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 3,
+    });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value).toEqual([
@@ -500,14 +539,23 @@ describe("fetchPullRequest / fetchDiff", () => {
     ]);
     expect(paginate).toHaveBeenCalledWith(
       octokit.rest.pulls.listFiles,
-      expect.objectContaining({ owner: "o", repo: "r", pull_number: 3, per_page: 100 }),
+      expect.objectContaining({
+        owner: "o",
+        repo: "r",
+        pull_number: 3,
+        per_page: 100,
+      }),
     );
   });
 
   it("sanitizes a listFiles failure", async () => {
     const paginate = vi.fn().mockRejectedValue(requestError(404));
     const octokit = mockOctokit({ paginate });
-    const result = await fetchPullRequestFiles(octokit, { owner: "o", repo: "r", prNumber: 3 });
+    const result = await fetchPullRequestFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 3,
+    });
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
@@ -586,7 +634,10 @@ describe("fetchPullRequest / fetchDiff", () => {
 
 describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha (BRIEF-97)", () => {
   it("pages through review comments and returns the raw wire objects", async () => {
-    const wire = [{ id: 1, body: "b1" }, { id: 2, body: "b2" }];
+    const wire = [
+      { id: 1, body: "b1" },
+      { id: 2, body: "b2" },
+    ];
     const paginate = vi.fn().mockResolvedValue(wire);
     const listReviewComments = vi.fn();
     const octokit = mockOctokit({ paginate, listReviewComments });
@@ -789,7 +840,9 @@ describe("createPullRequestReview", () => {
   });
 
   it("rejects a review id past the safe-integer range", async () => {
-    const createReview = vi.fn().mockResolvedValue({ data: { id: 9007199254740992 } });
+    const createReview = vi
+      .fn()
+      .mockResolvedValue({ data: { id: 9007199254740992 } });
     const octokit = mockOctokit({ createReview });
     const result = await createPullRequestReview(octokit, baseInput);
     expect(result.ok).toBe(false);
@@ -800,7 +853,11 @@ describe("createPullRequestReview", () => {
   it("classifies a commit_id 422 as unknown-commit without leaking the body", async () => {
     const createReview = vi.fn().mockRejectedValue(
       validation422([
-        { resource: "PullRequestReview", code: "invalid", field: "commit_id" },
+        {
+          resource: "PullRequestReview",
+          code: "invalid",
+          field: "commit_id",
+        },
       ]),
     );
     const octokit = mockOctokit({ createReview });
@@ -816,14 +873,20 @@ describe("createPullRequestReview", () => {
   });
 
   it("classifies an anchoring 422 (string errors) as invalid-comments", async () => {
-    const createReview = vi.fn().mockRejectedValue(
-      validation422(["Pull request review thread line must be part of the diff"]),
-    );
+    const createReview = vi
+      .fn()
+      .mockRejectedValue(
+        validation422([
+          "Pull request review thread line must be part of the diff",
+        ]),
+      );
     const octokit = mockOctokit({ createReview });
     const result = await createPullRequestReview(octokit, baseInput);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
-    expect(result.error.validation).toBe(ReviewValidationClass.INVALID_COMMENTS);
+    expect(result.error.validation).toBe(
+      ReviewValidationClass.INVALID_COMMENTS,
+    );
     expect(JSON.stringify(result.error)).not.toContain("thread line");
   });
 

@@ -6,7 +6,11 @@ import { describe, expect, it } from "vitest";
 import { FLOOR_ATTRIBUTES, RepoConfigPaths } from "../src/constants";
 import { repoConfigArtifactSchema } from "../src/provenance";
 
-const APPLIED = (path: string) => ({ path, blobSha: "abc", outcome: "applied" });
+const APPLIED = (path: string) => ({
+  path,
+  blobSha: "abc",
+  outcome: "applied",
+});
 const CANONICAL = [
   APPLIED(RepoConfigPaths.INSTRUCTIONS),
   APPLIED(RepoConfigPaths.SETTINGS),
@@ -27,9 +31,14 @@ describe("repoConfigArtifactSchema — slot tuple", () => {
     ["missing a slot", CANONICAL.slice(0, 2)],
     ["reordered", [CANONICAL[1], CANONICAL[0], CANONICAL[2]]],
     ["duplicated", [CANONICAL[0], CANONICAL[0], CANONICAL[2]]],
-    ["foreign path", [CANONICAL[0], CANONICAL[1], APPLIED(".mergebrief/evil.yaml")]],
+    [
+      "foreign path",
+      [CANONICAL[0], CANONICAL[1], APPLIED(".mergebrief/evil.yaml")],
+    ],
   ])("rejects a %s files table", (_label, files) => {
-    expect(repoConfigArtifactSchema.safeParse(artifact({ files })).success).toBe(false);
+    expect(
+      repoConfigArtifactSchema.safeParse(artifact({ files })).success,
+    ).toBe(false);
   });
 });
 
@@ -42,7 +51,12 @@ describe("repoConfigArtifactSchema — policy snapshot constraints", () => {
     const parsed = repoConfigArtifactSchema.safeParse(
       withPolicy({
         firedCustomAttributes: [
-          { name: "touches-billing", criteria: "c", implication: "i", paths: ["a/**"] },
+          {
+            name: "touches-billing",
+            criteria: "c",
+            implication: "i",
+            paths: ["a/**"],
+          },
         ],
         deEmphasize: [{ attribute: "widens-error-handling" }],
       }),
@@ -54,7 +68,10 @@ describe("repoConfigArtifactSchema — policy snapshot constraints", () => {
     ["off-charset name", { name: "Bad Name", criteria: "c" }],
     ["empty criteria", { name: "ok-name", criteria: "" }],
     ["over-cap criteria", { name: "ok-name", criteria: "x".repeat(4001) }],
-    ["over-cap implication", { name: "ok-name", criteria: "c", implication: "x".repeat(501) }],
+    [
+      "over-cap implication",
+      { name: "ok-name", criteria: "c", implication: "x".repeat(501) },
+    ],
     ["over-cap name", { name: "x".repeat(51), criteria: "c" }],
     ["empty path glob", { name: "ok-name", criteria: "c", paths: [""] }],
   ])("rejects a fired definition with %s", (_label, fired) => {
@@ -68,7 +85,10 @@ describe("repoConfigArtifactSchema — policy snapshot constraints", () => {
     "rejects a stored snapshot de-emphasizing floor attribute %s",
     (floor) => {
       const parsed = repoConfigArtifactSchema.safeParse(
-        withPolicy({ firedCustomAttributes: [], deEmphasize: [{ attribute: floor }] }),
+        withPolicy({
+          firedCustomAttributes: [],
+          deEmphasize: [{ attribute: floor }],
+        }),
       );
       expect(parsed.success).toBe(false);
     },

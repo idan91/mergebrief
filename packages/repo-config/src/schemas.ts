@@ -89,13 +89,18 @@ export const policyV1Schema = z
     deEmphasize: z.array(deEmphasisRuleSchema).optional(),
   })
   .strict()
-  .refine((policy) => Object.keys(policy.attributes).length <= MAX_CUSTOM_ATTRIBUTES, {
-    error: `at most ${MAX_CUSTOM_ATTRIBUTES} custom attributes allowed`,
-    path: ["attributes"],
-  })
+  .refine(
+    (policy) => Object.keys(policy.attributes).length <= MAX_CUSTOM_ATTRIBUTES,
+    {
+      error: `at most ${MAX_CUSTOM_ATTRIBUTES} custom attributes allowed`,
+      path: ["attributes"],
+    },
+  )
   .refine(
     (policy) =>
-      !(policy.deEmphasize ?? []).some((rule) => FLOOR_ATTRIBUTE_SET.has(rule.attribute)),
+      !(policy.deEmphasize ?? []).some((rule) =>
+        FLOOR_ATTRIBUTE_SET.has(rule.attribute),
+      ),
     {
       error: "a floor attribute cannot be de-emphasized",
       path: ["deEmphasize"],

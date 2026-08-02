@@ -15,7 +15,12 @@
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
-import type { AuditAction, AuditActorType, InstallationId, ValueOf } from "../types";
+import type {
+  AuditAction,
+  AuditActorType,
+  InstallationId,
+  ValueOf,
+} from "../types";
 
 export type AuditLogRow = typeof auditLog.$inferSelect;
 
@@ -79,13 +84,18 @@ export const AuditMetadataSchema = z.record(
 export const AuditTargetTypeSchema = z
   .string()
   .max(64)
-  .regex(/^[a-z][a-z0-9_]*$/, "targetType must be a lowercase snake_case class token");
+  .regex(
+    /^[a-z][a-z0-9_]*$/,
+    "targetType must be a lowercase snake_case class token",
+  );
 /**
  * Declared as a partial record (any subset of the allowlisted keys) — zod v3's
  * `z.record` with a literal key schema would infer every key as required,
  * which is not the runtime contract.
  */
-export type AuditMetadata = Partial<Record<AuditMetadataKey, string | number | boolean>>;
+export type AuditMetadata = Partial<
+  Record<AuditMetadataKey, string | number | boolean>
+>;
 
 /**
  * An audit entry. Compile-time numeric-only guarantee: no string *name* fields
@@ -115,10 +125,18 @@ export interface AuditEntry {
  * Validates `metadata` against the non-PII scalar schema (Zod boundary) —
  * malformed metadata is a programmer error and throws.
  */
-export async function insertAudit(executor: AppDrizzle, entry: AuditEntry): Promise<AuditLogRow> {
-  const metadata = entry.metadata === undefined ? null : AuditMetadataSchema.parse(entry.metadata);
+export async function insertAudit(
+  executor: AppDrizzle,
+  entry: AuditEntry,
+): Promise<AuditLogRow> {
+  const metadata =
+    entry.metadata === undefined
+      ? null
+      : AuditMetadataSchema.parse(entry.metadata);
   const targetType =
-    entry.targetType === undefined ? undefined : AuditTargetTypeSchema.parse(entry.targetType);
+    entry.targetType === undefined
+      ? undefined
+      : AuditTargetTypeSchema.parse(entry.targetType);
   const rows = await executor
     .insert(auditLog)
     .values({
@@ -143,6 +161,9 @@ export async function insertAudit(executor: AppDrizzle, entry: AuditEntry): Prom
  * in-package so no raw handle escapes (D2b). Convenience over `insertAudit` for
  * single-shot, non-transactional emits (`generate` / `config` / auth-denial).
  */
-export async function audit(handle: AppDatabase, entry: AuditEntry): Promise<AuditLogRow> {
+export async function audit(
+  handle: AppDatabase,
+  entry: AuditEntry,
+): Promise<AuditLogRow> {
   return insertAudit(internal(handle), entry);
 }

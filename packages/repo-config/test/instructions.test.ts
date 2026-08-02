@@ -10,7 +10,8 @@ function validate(content: string) {
 /** instructions.md (ADR 0032 #10): no schema, budget check only, carried whole. */
 describe("instructions.md validation", () => {
   it("carries the prose whole when within budget", () => {
-    const content = "# Repo instructions\n\nGroup the `db/` tree as one unit.\n";
+    const content =
+      "# Repo instructions\n\nGroup the `db/` tree as one unit.\n";
     const result = validate(content);
     expect(result.instructions?.content).toBe(content);
     expect(result.instructions?.blobSha).toBe("sha-fake");
@@ -50,6 +51,8 @@ describe("instructions.md validation", () => {
     const at = "🎉".repeat(INSTRUCTIONS_BUDGET_BYTES / 4);
     expect(validate(at).outcomes[0]?.outcome).toBe(RepoConfigOutcome.APPLIED);
     const over = `${at}🎉`;
-    expect(validate(over).outcomes[0]?.outcome).toBe(RepoConfigOutcome.OVER_BUDGET);
+    expect(validate(over).outcomes[0]?.outcome).toBe(
+      RepoConfigOutcome.OVER_BUDGET,
+    );
   });
 });

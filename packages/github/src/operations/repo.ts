@@ -108,7 +108,10 @@ export async function listInstallationRepositoriesForUser(
     );
     const parsed = z.array(installationRepositoryItemSchema).safeParse(items);
     if (!parsed.success) {
-      return { ok: false, error: unexpectedResponseError("list installation repositories") };
+      return {
+        ok: false,
+        error: unexpectedResponseError("list installation repositories"),
+      };
     }
     const repos = new Map<RepoId, string>();
     for (const repo of parsed.data) {
@@ -116,6 +119,9 @@ export async function listInstallationRepositoriesForUser(
     }
     return { ok: true, value: repos };
   } catch (error) {
-    return { ok: false, error: mapRequestError(error, "list installation repositories") };
+    return {
+      ok: false,
+      error: mapRequestError(error, "list installation repositories"),
+    };
   }
 }

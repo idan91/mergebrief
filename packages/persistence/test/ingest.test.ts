@@ -22,13 +22,17 @@ const HEAD_SHA = "ec26c3e57ca3a959ca5aad62de7213c562f8c821";
 
 function unwrap<T, E>(result: Result<T, E>): T {
   if (!result.ok) {
-    throw new Error(`expected ok result, got error: ${JSON.stringify(result.error)}`);
+    throw new Error(
+      `expected ok result, got error: ${JSON.stringify(result.error)}`,
+    );
   }
   return result.value;
 }
 
 /** Narrow the now-optional generation (absent only on a terminal-preserved trigger). */
-function expectGeneration(outcome: IngestOutcome): NonNullable<IngestOutcome["generation"]> {
+function expectGeneration(
+  outcome: IngestOutcome,
+): NonNullable<IngestOutcome["generation"]> {
   if (outcome.generation === undefined) {
     throw new Error("expected a generation row on this trigger");
   }
@@ -70,7 +74,9 @@ describe("ingestRoutines.triggerGeneration", () => {
         prNumber: 7,
         repoSlug: "acme/widgets",
         title: "feat: add widgets",
-        ...(overrides?.baseSha === undefined ? {} : { baseSha: overrides.baseSha }),
+        ...(overrides?.baseSha === undefined
+          ? {}
+          : { baseSha: overrides.baseSha }),
         state: PrState.OPEN,
       },
       headSha: overrides?.headSha ?? HEAD_SHA,
@@ -79,7 +85,9 @@ describe("ingestRoutines.triggerGeneration", () => {
         : { debounceSeconds: overrides.debounceSeconds }),
       ...(overrides?.regenerationDebounceSeconds === undefined
         ? {}
-        : { regenerationDebounceSeconds: overrides.regenerationDebounceSeconds }),
+        : {
+            regenerationDebounceSeconds: overrides.regenerationDebounceSeconds,
+          }),
       ...(overrides?.reopen === undefined ? {} : { reopen: overrides.reopen }),
     });
   }
@@ -154,7 +162,9 @@ describe("ingestRoutines.triggerGeneration", () => {
 
   it("is idempotent on redelivery: same PR row, attempts++, ONE job with a pushed run_at", async () => {
     const first = unwrap(await trigger());
-    const firstJobs = await harness.raw("select run_at from graphile_worker.jobs");
+    const firstJobs = await harness.raw(
+      "select run_at from graphile_worker.jobs",
+    );
     const firstRunAt = epochMs(firstJobs[0]?.["run_at"]);
 
     // Let the clock move so the replaced run_at is strictly later.
@@ -170,7 +180,9 @@ describe("ingestRoutines.triggerGeneration", () => {
 
     const prs = await harness.raw("select id from pull_request");
     const generations = await harness.raw("select id from generation");
-    const jobs = await harness.raw("select job_key, run_at from graphile_worker.jobs");
+    const jobs = await harness.raw(
+      "select job_key, run_at from graphile_worker.jobs",
+    );
     expect(prs).toHaveLength(1);
     expect(generations).toHaveLength(1);
     expect(jobs).toHaveLength(1);
@@ -182,7 +194,9 @@ describe("ingestRoutines.triggerGeneration", () => {
 
   it("does NOT resurrect a closed PR on a stale (non-reopen) trigger, and skips the enqueue", async () => {
     unwrap(await trigger());
-    const jobsBefore = await harness.raw("select run_at from graphile_worker.jobs");
+    const jobsBefore = await harness.raw(
+      "select run_at from graphile_worker.jobs",
+    );
     await closePr();
 
     // A redelivered synchronize / a review on the now-closed PR: writes
@@ -203,9 +217,13 @@ describe("ingestRoutines.triggerGeneration", () => {
     const generations = await harness.raw("select attempts from generation");
     expect(generations).toHaveLength(1);
     expect(generations[0]?.["attempts"]).toBe(0);
-    const jobsAfter = await harness.raw("select run_at from graphile_worker.jobs");
+    const jobsAfter = await harness.raw(
+      "select run_at from graphile_worker.jobs",
+    );
     expect(jobsAfter).toHaveLength(1);
-    expect(epochMs(jobsAfter[0]?.["run_at"])).toBe(epochMs(jobsBefore[0]?.["run_at"]));
+    expect(epochMs(jobsAfter[0]?.["run_at"])).toBe(
+      epochMs(jobsBefore[0]?.["run_at"]),
+    );
   });
 
   it("transitions a closed PR back to open on an explicit reopen", async () => {
@@ -255,12 +273,16 @@ describe("ingestRoutines.triggerGeneration", () => {
       expect(row.authorLogin).toBe("author-octocat");
       expect(await harness.raw("select id from pull_request")).toHaveLength(1);
       expect(await harness.raw("select id from generation")).toHaveLength(0);
-      expect(await harness.raw("select id from graphile_worker.jobs")).toHaveLength(0);
+      expect(
+        await harness.raw("select id from graphile_worker.jobs"),
+      ).toHaveLength(0);
     });
 
     it("leaves an existing generation projection untouched", async () => {
       unwrap(await trigger());
-      const before = await harness.raw("select status, attempts from generation");
+      const before = await harness.raw(
+        "select status, attempts from generation",
+      );
 
       await ingestRoutines(harness.handle, CTX).recordState({
         repoId: REPO_ID,
@@ -269,10 +291,14 @@ describe("ingestRoutines.triggerGeneration", () => {
         draft: true,
         state: PrState.OPEN,
       });
-      const after = await harness.raw("select status, attempts from generation");
+      const after = await harness.raw(
+        "select status, attempts from generation",
+      );
       expect(after).toEqual(before);
       // Still exactly the one job from the trigger — no new enqueue.
-      expect(await harness.raw("select id from graphile_worker.jobs")).toHaveLength(1);
+      expect(
+        await harness.raw("select id from graphile_worker.jobs"),
+      ).toHaveLength(1);
     });
 
     it("preserves a terminal lifecycle (never resurrects a closed PR)", async () => {
@@ -312,7 +338,10 @@ describe("ingestRoutines.triggerGeneration", () => {
     it("still uses the normal window when the prior generation is merely queued", async () => {
       await trigger();
       const before = Date.now();
-      const result = await trigger({ regenerationDebounceSeconds: 900, headSha: "b".repeat(40) });
+      const result = await trigger({
+        regenerationDebounceSeconds: 900,
+        headSha: "b".repeat(40),
+      });
       expect(result.ok).toBe(true);
       const jobs = await harness.raw("select run_at from graphile_worker.jobs");
       const delta = epochMs(jobs[0]?.["run_at"]) - before;
@@ -323,7 +352,10 @@ describe("ingestRoutines.triggerGeneration", () => {
       await trigger();
       await markSucceeded();
       const before = Date.now();
-      const result = await trigger({ regenerationDebounceSeconds: 900, headSha: "b".repeat(40) });
+      const result = await trigger({
+        regenerationDebounceSeconds: 900,
+        headSha: "b".repeat(40),
+      });
       expect(result.ok).toBe(true);
       const jobs = await harness.raw("select run_at from graphile_worker.jobs");
       const delta = epochMs(jobs[0]?.["run_at"]) - before;
@@ -335,7 +367,10 @@ describe("ingestRoutines.triggerGeneration", () => {
       await trigger();
       await harness.raw("update generation set status = 'failed'");
       const before = Date.now();
-      const result = await trigger({ regenerationDebounceSeconds: 900, headSha: "b".repeat(40) });
+      const result = await trigger({
+        regenerationDebounceSeconds: 900,
+        headSha: "b".repeat(40),
+      });
       expect(result.ok).toBe(true);
       const jobs = await harness.raw("select run_at from graphile_worker.jobs");
       const delta = epochMs(jobs[0]?.["run_at"]) - before;

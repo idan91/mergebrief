@@ -140,8 +140,12 @@ The user message includes a \`<repo_custom_attributes>\` block: additional risk-
 function repoContextSections(repoContext: RepoContext | undefined): string {
   if (repoContext === undefined) return "";
   const sections = [
-    ...(repoContext.instructions === undefined ? [] : [repoInstructionsSection()]),
-    ...(repoContext.customAttributes.length === 0 ? [] : [repoCustomAttributesSection()]),
+    ...(repoContext.instructions === undefined
+      ? []
+      : [repoInstructionsSection()]),
+    ...(repoContext.customAttributes.length === 0
+      ? []
+      : [repoCustomAttributesSection()]),
   ];
   return sections.length === 0 ? "" : `\n\n${sections.join("\n\n")}`;
 }

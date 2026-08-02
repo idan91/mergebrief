@@ -1,8 +1,18 @@
 // Stage 4 audit-emit tests (PGlite). Prove the D9 append-only emit inserts with
 // dangling (non-FK) targets and validates metadata.
 import { describe, expect, it } from "vitest";
-import { audit, AuditMetadataSchema, AuditTargetTypeSchema, type AuditEntry } from "../src/index";
-import { AuditAction, AuditActorType, isInstallationId, type InstallationId } from "../src/types";
+import {
+  audit,
+  AuditMetadataSchema,
+  AuditTargetTypeSchema,
+  type AuditEntry,
+} from "../src/index";
+import {
+  AuditAction,
+  AuditActorType,
+  isInstallationId,
+  type InstallationId,
+} from "../src/types";
 import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
@@ -81,35 +91,60 @@ describe("audit — append-only emit (D9)", () => {
   it("metadata keys are a closed allowlist — unknown key rejected", () => {
     // `audit()` runs this same schema with `.parse()`, so these throw there.
     expect(AuditMetadataSchema.safeParse({ email: "x" }).success).toBe(false);
-    expect(AuditMetadataSchema.safeParse({ ip: "1.2.3.4" }).success).toBe(false);
-    expect(AuditMetadataSchema.safeParse({ decision: "403" }).success).toBe(true);
-    expect(AuditMetadataSchema.safeParse({ decision: "403", count: 2 }).success).toBe(true);
+    expect(AuditMetadataSchema.safeParse({ ip: "1.2.3.4" }).success).toBe(
+      false,
+    );
+    expect(AuditMetadataSchema.safeParse({ decision: "403" }).success).toBe(
+      true,
+    );
+    expect(
+      AuditMetadataSchema.safeParse({ decision: "403", count: 2 }).success,
+    ).toBe(true);
   });
 
   it("rejects values that could carry PII into the un-erasable ledger", () => {
     // "@" guard — no legitimate value in a numeric-id ledger contains an email.
-    expect(AuditMetadataSchema.safeParse({ "reason-code": "user@example.com" }).success).toBe(false);
+    expect(
+      AuditMetadataSchema.safeParse({ "reason-code": "user@example.com" })
+        .success,
+    ).toBe(false);
     // Over-long values rejected (max 64).
-    expect(AuditMetadataSchema.safeParse({ kind: "x".repeat(65) }).success).toBe(false);
+    expect(
+      AuditMetadataSchema.safeParse({ kind: "x".repeat(65) }).success,
+    ).toBe(false);
     // Non-printable-ASCII rejected (control chars, non-ASCII).
     expect(AuditMetadataSchema.safeParse({ kind: "a\nb" }).success).toBe(false);
-    expect(AuditMetadataSchema.safeParse({ kind: "na\u00efve" }).success).toBe(false);
+    expect(AuditMetadataSchema.safeParse({ kind: "na\u00efve" }).success).toBe(
+      false,
+    );
     // Nested objects still rejected.
-    expect(AuditMetadataSchema.safeParse({ decision: { nested: true } }).success).toBe(false);
+    expect(
+      AuditMetadataSchema.safeParse({ decision: { nested: true } }).success,
+    ).toBe(false);
   });
 
   it("rejects non-finite numbers (JSON would silently null them in jsonb)", () => {
-    expect(AuditMetadataSchema.safeParse({ count: Infinity }).success).toBe(false);
-    expect(AuditMetadataSchema.safeParse({ count: -Infinity }).success).toBe(false);
-    expect(AuditMetadataSchema.safeParse({ count: Number.NaN }).success).toBe(false);
+    expect(AuditMetadataSchema.safeParse({ count: Infinity }).success).toBe(
+      false,
+    );
+    expect(AuditMetadataSchema.safeParse({ count: -Infinity }).success).toBe(
+      false,
+    );
+    expect(AuditMetadataSchema.safeParse({ count: Number.NaN }).success).toBe(
+      false,
+    );
     expect(AuditMetadataSchema.safeParse({ count: 42 }).success).toBe(true);
   });
 
   it("targetType must be a class token, never identifying text", async () => {
     expect(AuditTargetTypeSchema.safeParse("pull_request").success).toBe(true);
-    expect(AuditTargetTypeSchema.safeParse("revision_narrative2").success).toBe(true);
+    expect(AuditTargetTypeSchema.safeParse("revision_narrative2").success).toBe(
+      true,
+    );
     expect(AuditTargetTypeSchema.safeParse("acme/widgets").success).toBe(false);
-    expect(AuditTargetTypeSchema.safeParse("user@example.com").success).toBe(false);
+    expect(AuditTargetTypeSchema.safeParse("user@example.com").success).toBe(
+      false,
+    );
     expect(AuditTargetTypeSchema.safeParse("PullRequest").success).toBe(false);
     expect(AuditTargetTypeSchema.safeParse("a".repeat(65)).success).toBe(false);
 

@@ -89,7 +89,10 @@ const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -102,7 +105,10 @@ function repoStatus(status: number): Response {
 function reviewCreated(id = 987001): Response {
   return jsonResponse({ id }, 200);
 }
-function reviewStatus(status: number, body: unknown = { message: "denied" }): Response {
+function reviewStatus(
+  status: number,
+  body: unknown = { message: "denied" },
+): Response {
   return jsonResponse(body, status);
 }
 function anchoring422(): Response {
@@ -114,7 +120,9 @@ function anchoring422(): Response {
 function unknownCommit422(): Response {
   return reviewStatus(422, {
     message: "Validation Failed",
-    errors: [{ resource: "PullRequestReview", code: "invalid", field: "commit_id" }],
+    errors: [
+      { resource: "PullRequestReview", code: "invalid", field: "commit_id" },
+    ],
   });
 }
 function tokenSuccess(): Response {
@@ -151,27 +159,41 @@ function stubGitHub(cfg: StubConfig): StubCounts {
     reviewBodies: [],
     reviewUrls: [],
   };
-  const fetchFn = vi.fn(async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes("/login/oauth/access_token")) {
-      const i = counts.token++;
-      return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
-    }
-    if (url.includes("/repositories/")) {
-      const i = counts.repositories++;
-      return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-    }
-    if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
-      const i = counts.createReview++;
-      counts.reviewUrls.push(url);
-      const raw = init?.body ?? (input instanceof Request ? await input.text() : undefined);
-      if (typeof raw === "string") {
-        counts.reviewBodies.push(JSON.parse(raw));
+  const fetchFn = vi.fn(
+    async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/login/oauth/access_token")) {
+        const i = counts.token++;
+        return cfg.token
+          ? cfg.token(i)
+          : jsonResponse({ error: "unexpected_token" }, 500);
       }
-      return cfg.createReview ? cfg.createReview(i) : reviewStatus(500);
-    }
-    return jsonResponse({ message: "unexpected endpoint" }, 404);
-  });
+      if (url.includes("/repositories/")) {
+        const i = counts.repositories++;
+        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
+      }
+      if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
+        const i = counts.createReview++;
+        counts.reviewUrls.push(url);
+        const raw =
+          init?.body ??
+          (input instanceof Request ? await input.text() : undefined);
+        if (typeof raw === "string") {
+          counts.reviewBodies.push(JSON.parse(raw));
+        }
+        return cfg.createReview ? cfg.createReview(i) : reviewStatus(500);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
   vi.stubGlobal("fetch", fetchFn);
   return counts;
 }
@@ -180,11 +202,15 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // Seeding.
 // ---------------------------------------------------------------------------
 
-async function seedSession(handle: AppDatabase, kp: KeyProvider): Promise<{ cookie: string }> {
+async function seedSession(
+  handle: AppDatabase,
+  kp: KeyProvider,
+): Promise<{ cookie: string }> {
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -236,7 +262,12 @@ function validBody(): Record<string, unknown> {
   };
 }
 
-async function submit(app: ApiApp, cookie: string | undefined, body: unknown, path = SUBMIT_PATH): Promise<Response> {
+async function submit(
+  app: ApiApp,
+  cookie: string | undefined,
+  body: unknown,
+  path = SUBMIT_PATH,
+): Promise<Response> {
   return await app.request(path, {
     method: "POST",
     headers: {
@@ -248,7 +279,9 @@ async function submit(app: ApiApp, cookie: string | undefined, body: unknown, pa
 }
 
 async function submitAuditCount(harness: PgliteHarness): Promise<number> {
-  const rows = await harness.raw("select count(*)::int as n from audit_log where action = 'submit'");
+  const rows = await harness.raw(
+    "select count(*)::int as n from audit_log where action = 'submit'",
+  );
   const n = rows[0]?.["n"];
   if (typeof n !== "number") throw new Error("unexpected count result");
   return n;
@@ -257,7 +290,6 @@ async function submitAuditCount(harness: PgliteHarness): Promise<number> {
 // ---------------------------------------------------------------------------
 // Suite.
 // ---------------------------------------------------------------------------
-
 
 // Conversation port stub (BRIEF-25): these tests never exercise the
 // conversation read; a hit here is a test bug.
@@ -278,7 +310,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: authDeps(kp),
+      github: unusedConversationPort,
+    });
   });
 
   afterEach(async () => {
@@ -311,8 +349,14 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     for (const bad of [
       { ...validBody(), outcome: "ship-it" },
       { ...validBody(), commitId: "main" },
-      { ...validBody(), comments: [{ path: "a", line: 1, side: "old", body: "x" }] },
-      { ...validBody(), comments: [{ path: "a", line: 0, side: "RIGHT", body: "x" }] },
+      {
+        ...validBody(),
+        comments: [{ path: "a", line: 1, side: "old", body: "x" }],
+      },
+      {
+        ...validBody(),
+        comments: [{ path: "a", line: 0, side: "RIGHT", body: "x" }],
+      },
     ]) {
       const res = await submit(app, cookie, bad);
       expect(res.status).toBe(400);
@@ -324,7 +368,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     stubGitHub({ repositories: () => repoOk() });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
-    const res = await submit(app, cookie, { outcome: "comment", commitId: COMMIT_ID, comments: [] });
+    const res = await submit(app, cookie, {
+      outcome: "comment",
+      commitId: COMMIT_ID,
+      comments: [],
+    });
     expect(res.status).toBe(400);
   });
 
@@ -407,7 +455,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     // Audit: one `submit` row. Checkpoint: NONE — the webhook is the only
     // checkpoint writer; the route must never write it.
     expect(await submitAuditCount(harness)).toBe(1);
-    const checkpoints = await harness.raw("select count(*)::int as n from checkpoint");
+    const checkpoints = await harness.raw(
+      "select count(*)::int as n from checkpoint",
+    );
     expect(checkpoints[0]?.["n"]).toBe(0);
   });
 
@@ -419,7 +469,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       repositories: (call) =>
         call === 0
           ? repoOk() // the gate's access check caches octo/hello
-          : jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
+          : jsonResponse({
+              id: REPO_ID,
+              full_name: "octo/renamed",
+              private: true,
+            }),
       createReview: () => reviewCreated(),
     });
     await seedPullRequest(harness.handle);
@@ -427,7 +481,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
 
     const res = await submit(app, cookie, validBody());
     expect(res.status).toBe(201);
-    expect(counts.reviewUrls[0]).toContain("/repos/octo/renamed/pulls/7/reviews");
+    expect(counts.reviewUrls[0]).toContain(
+      "/repos/octo/renamed/pulls/7/reviews",
+    );
   });
 
   it("404 collapse when the fresh resolve is denied (revoked inside the cache TTL)", async () => {
@@ -450,7 +506,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
       token: () => tokenSuccess(),
-      createReview: (call) => (call === 0 ? reviewStatus(401) : reviewCreated()),
+      createReview: (call) =>
+        call === 0 ? reviewStatus(401) : reviewCreated(),
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -465,7 +522,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
   it("anchoring 422 → ONE degradation retry with comments folded into the body", async () => {
     const counts = stubGitHub({
       repositories: () => repoOk(),
-      createReview: (call) => (call === 0 ? anchoring422() : reviewCreated(987002)),
+      createReview: (call) =>
+        call === 0 ? anchoring422() : reviewCreated(987002),
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -477,7 +535,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
 
     expect(counts.createReview).toBe(2);
     const retry = counts.reviewBodies[1];
-    if (typeof retry !== "object" || retry === null) throw new Error("expected a retry body");
+    if (typeof retry !== "object" || retry === null)
+      throw new Error("expected a retry body");
     // No anchored comments on the retry; everything folded into the body.
     expect("comments" in retry).toBe(false);
     const record = retry as Record<string, unknown>;
@@ -500,7 +559,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/review", () => {
       // Anchoring 422 → degradation retry hits an expired token (401) → one
       // refresh → the folded retry lands.
       createReview: (call) =>
-        call === 0 ? anchoring422() : call === 1 ? reviewStatus(401) : reviewCreated(987003),
+        call === 0
+          ? anchoring422()
+          : call === 1
+            ? reviewStatus(401)
+            : reviewCreated(987003),
     });
     await seedPullRequest(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);

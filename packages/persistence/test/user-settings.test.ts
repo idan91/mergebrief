@@ -35,7 +35,9 @@ describe("userSettingsStore — the non-tenant per-user seam (D14)", () => {
     // Same PK → one row, updated in place.
     expect(second.ghUserId).toBe(USER);
     expect(second.defaultInstallationId).toBe(INSTALL_B);
-    expect(second.updatedAt.getTime()).toBeGreaterThanOrEqual(first.updatedAt.getTime());
+    expect(second.updatedAt.getTime()).toBeGreaterThanOrEqual(
+      first.updatedAt.getTime(),
+    );
 
     expect((await store.get(USER))?.defaultInstallationId).toBe(INSTALL_B);
   });
@@ -60,7 +62,11 @@ describe("userSettingsStore — the non-tenant per-user seam (D14)", () => {
     await store.setDefaultInstallation(USER, INSTALL_A);
 
     // Delete every session for the reviewer (logout / offboarding).
-    expect(await forTenant(handle, { installationId: INSTALL_A }).sessions.deleteByReviewer(USER)).toBe(1);
+    expect(
+      await forTenant(handle, {
+        installationId: INSTALL_A,
+      }).sessions.deleteByReviewer(USER),
+    ).toBe(1);
 
     // The settings row is untouched — no FK, no tenant scope (D14).
     expect((await store.get(USER))?.defaultInstallationId).toBe(INSTALL_A);

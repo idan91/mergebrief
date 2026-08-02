@@ -67,7 +67,11 @@ const CONVERSATION_CACHE_TTL_MS = 60 * 1000;
  */
 const CONVERSATION_CACHE_MAX_ENTRIES = 2_000;
 
-function cacheKey(installationId: InstallationId, repoId: RepoId, prNumber: number): string {
+function cacheKey(
+  installationId: InstallationId,
+  repoId: RepoId,
+  prNumber: number,
+): string {
   return `${String(installationId)}:${String(repoId)}:${prNumber}`;
 }
 
@@ -81,10 +85,18 @@ function errorJson(
 }
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
-function splitRepoSlug(fullName: string): { owner: string; repo: string } | undefined {
+function splitRepoSlug(
+  fullName: string,
+): { owner: string; repo: string } | undefined {
   const parts = fullName.split("/");
   const [owner, repo] = parts;
-  if (parts.length !== 2 || owner === undefined || owner === "" || repo === undefined || repo === "") {
+  if (
+    parts.length !== 2 ||
+    owner === undefined ||
+    owner === "" ||
+    repo === undefined ||
+    repo === ""
+  ) {
     return undefined;
   }
   return { owner, repo };
@@ -118,11 +130,17 @@ export interface ConversationRoutes {
    * the reply POST below, and the review-submit route's success path — so a
    * post-write refetch reflects the write inside the 60s TTL.
    */
-  evictConversation(installationId: InstallationId, repoId: RepoId, prNumber: number): void;
+  evictConversation(
+    installationId: InstallationId,
+    repoId: RepoId,
+    prNumber: number,
+  ): void;
 }
 
 /** Mount the conversation surface behind its own per-repo gate instance. */
-export function conversationRoutes(deps: ConversationRouteDeps): ConversationRoutes {
+export function conversationRoutes(
+  deps: ConversationRouteDeps,
+): ConversationRoutes {
   const app = new Hono<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
   // Serialized response bodies, keyed installation:repo:pr (one entry per PR
@@ -130,7 +148,10 @@ export function conversationRoutes(deps: ConversationRouteDeps): ConversationRou
   const cache = createTtlCache<string>(CONVERSATION_CACHE_MAX_ENTRIES);
 
   app.use("/api/repos/:repoId/pulls/:prNumber/conversation", authz);
-  app.use("/api/repos/:repoId/pulls/:prNumber/comments/:commentId/replies", authz);
+  app.use(
+    "/api/repos/:repoId/pulls/:prNumber/comments/:commentId/replies",
+    authz,
+  );
 
   app.get("/api/repos/:repoId/pulls/:prNumber/conversation", async (c) => {
     const ctx = c.get("ctx");
@@ -139,7 +160,10 @@ export function conversationRoutes(deps: ConversationRouteDeps): ConversationRou
     if (!parsedPr.success) {
       return errorJson(c, "invalid request", 400);
     }
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(repoId, parsedPr.data);
+    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+      repoId,
+      parsedPr.data,
+    );
     if (pr === undefined) {
       return errorJson(c, "not found", 404);
     }
@@ -157,11 +181,14 @@ export function conversationRoutes(deps: ConversationRouteDeps): ConversationRou
     if (target === undefined) {
       return errorJson(c, "not found", 404);
     }
-    const fetched = await deps.github.fetchPullRequestConversation(ctx.installationId, {
-      owner: target.owner,
-      repo: target.repo,
-      prNumber: pr.prNumber,
-    });
+    const fetched = await deps.github.fetchPullRequestConversation(
+      ctx.installationId,
+      {
+        owner: target.owner,
+        repo: target.repo,
+        prNumber: pr.prNumber,
+      },
+    );
     if (!fetched.ok) {
       // 404-collapse posture identical to the other reads; everything else is
       // an honest upstream error (no REST fallback tier — ADR 0027).
@@ -170,153 +197,178 @@ export function conversationRoutes(deps: ConversationRouteDeps): ConversationRou
       }
       return errorJson(c, "upstream error", 502);
     }
-    const body = JSON.stringify(withoutEntryComment(fetched.value, pr.entryCommentId));
+    const body = JSON.stringify(
+      withoutEntryComment(fetched.value, pr.entryCommentId),
+    );
     cache.set(key, body, now + CONVERSATION_CACHE_TTL_MS, now);
     return conversationJson(c, body);
   });
 
-  app.post("/api/repos/:repoId/pulls/:prNumber/comments/:commentId/replies", async (c) => {
-    let rawBody: unknown;
-    try {
-      rawBody = await c.req.json();
-    } catch {
-      return errorJson(c, "invalid request", 400);
-    }
-    const parsedBody = replyBodySchema.safeParse(rawBody);
-    if (!parsedBody.success) {
-      return errorJson(c, "invalid request", 400);
-    }
-    const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
-    const parsedComment = commentIdSchema.safeParse(c.req.param("commentId"));
-    if (!parsedPr.success || !parsedComment.success) {
-      return errorJson(c, "invalid request", 400);
-    }
-
-    const ctx = c.get("ctx");
-    const repoId = c.get("repoId");
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(repoId, parsedPr.data);
-    if (pr === undefined) {
-      return errorJson(c, "not found", 404);
-    }
-
-    // Viewer token: set by the gate on the verified path; on a positive-cache
-    // hit decrypt lazily (same pattern as the diff proxy / submit route).
-    let currentSession = c.get("session");
-    const resolvedToken =
-      c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
-    if (resolvedToken === undefined) {
-      return errorJson(c, "unauthorized", 401);
-    }
-    let accessToken: string = resolvedToken;
-
-    // One refresh budget per REQUEST, shared across both GitHub calls.
-    let refreshSpent = false;
-    const spendRefresh = async (): Promise<boolean> => {
-      if (refreshSpent) {
-        return false;
+  app.post(
+    "/api/repos/:repoId/pulls/:prNumber/comments/:commentId/replies",
+    async (c) => {
+      let rawBody: unknown;
+      try {
+        rawBody = await c.req.json();
+      } catch {
+        return errorJson(c, "invalid request", 400);
       }
-      refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
-      if (!refreshed.ok) {
-        return false;
+      const parsedBody = replyBodySchema.safeParse(rawBody);
+      if (!parsedBody.success) {
+        return errorJson(c, "invalid request", 400);
       }
-      currentSession = refreshed.value.session;
-      accessToken = refreshed.value.accessToken;
-      return true;
-    };
+      const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
+      const parsedComment = commentIdSchema.safeParse(c.req.param("commentId"));
+      if (!parsedPr.success || !parsedComment.success) {
+        return errorJson(c, "invalid request", 400);
+      }
 
-    // Mutations re-resolve the repo FRESH by numeric id (gated-route rule):
-    // the gate's cached full name is ≤60s stale, and a rename + name-reuse
-    // inside that window would point the reply at the wrong repository.
-    let repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
-    if (
-      !repoInfo.ok &&
-      repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
-      (await spendRefresh())
-    ) {
-      repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
-    }
-    if (!repoInfo.ok) {
-      if (repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-        return errorJson(c, "unauthorized", 401);
-      }
-      // 403/404 collapse to the gate's 404 posture — no existence leak.
-      if (
-        repoInfo.error.code === GitHubApiErrorCode.NOT_FOUND ||
-        repoInfo.error.code === GitHubApiErrorCode.FORBIDDEN
-      ) {
+      const ctx = c.get("ctx");
+      const repoId = c.get("repoId");
+      const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+        repoId,
+        parsedPr.data,
+      );
+      if (pr === undefined) {
         return errorJson(c, "not found", 404);
       }
-      return errorJson(c, "upstream error", 502);
-    }
-    const target = splitRepoSlug(repoInfo.value.fullName);
-    if (target === undefined) {
-      return errorJson(c, "not found", 404);
-    }
 
-    const replyInput = {
-      owner: target.owner,
-      repo: target.repo,
-      prNumber: pr.prNumber,
-      commentId: parsedComment.data,
-      body: parsedBody.data.body,
-    };
-    let created = await createReviewCommentReply(createUserOctokit(accessToken), replyInput);
-    if (
-      !created.ok &&
-      created.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
-      (await spendRefresh())
-    ) {
-      created = await createReviewCommentReply(createUserOctokit(accessToken), replyInput);
-    }
-    if (!created.ok) {
-      if (created.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+      // Viewer token: set by the gate on the verified path; on a positive-cache
+      // hit decrypt lazily (same pattern as the diff proxy / submit route).
+      let currentSession = c.get("session");
+      const resolvedToken =
+        c.get("accessToken") ??
+        (await resolveSessionToken(deps, currentSession));
+      if (resolvedToken === undefined) {
         return errorJson(c, "unauthorized", 401);
       }
-      // Gated-route rule: ANY in-route GitHub denial (403/404) collapses to
-      // the gate's 404 posture — a root comment gone and a permission denial
-      // must be indistinguishable from a cold denial (codex round 1).
+      let accessToken: string = resolvedToken;
+
+      // One refresh budget per REQUEST, shared across both GitHub calls.
+      let refreshSpent = false;
+      const spendRefresh = async (): Promise<boolean> => {
+        if (refreshSpent) {
+          return false;
+        }
+        refreshSpent = true;
+        const refreshed = await refreshSessionToken(
+          deps,
+          currentSession,
+          c.get("logger"),
+        );
+        if (!refreshed.ok) {
+          return false;
+        }
+        currentSession = refreshed.value.session;
+        accessToken = refreshed.value.accessToken;
+        return true;
+      };
+
+      // Mutations re-resolve the repo FRESH by numeric id (gated-route rule):
+      // the gate's cached full name is ≤60s stale, and a rename + name-reuse
+      // inside that window would point the reply at the wrong repository.
+      let repoInfo = await fetchRepositoryById(
+        createUserOctokit(accessToken),
+        repoId,
+      );
       if (
-        created.error.code === GitHubApiErrorCode.NOT_FOUND ||
-        created.error.code === GitHubApiErrorCode.FORBIDDEN
+        !repoInfo.ok &&
+        repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
+        (await spendRefresh())
       ) {
+        repoInfo = await fetchRepositoryById(
+          createUserOctokit(accessToken),
+          repoId,
+        );
+      }
+      if (!repoInfo.ok) {
+        if (repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+          return errorJson(c, "unauthorized", 401);
+        }
+        // 403/404 collapse to the gate's 404 posture — no existence leak.
+        if (
+          repoInfo.error.code === GitHubApiErrorCode.NOT_FOUND ||
+          repoInfo.error.code === GitHubApiErrorCode.FORBIDDEN
+        ) {
+          return errorJson(c, "not found", 404);
+        }
+        return errorJson(c, "upstream error", 502);
+      }
+      const target = splitRepoSlug(repoInfo.value.fullName);
+      if (target === undefined) {
         return errorJson(c, "not found", 404);
       }
-      return errorJson(c, "upstream error", 502);
-    }
 
-    // The write happened: the cached conversation is stale — drop it so the
-    // FE's post-reply refetch reflects the reply inside the TTL.
-    cache.delete(cacheKey(ctx.installationId, repoId, pr.prNumber));
+      const replyInput = {
+        owner: target.owner,
+        repo: target.repo,
+        prNumber: pr.prNumber,
+        commentId: parsedComment.data,
+        body: parsedBody.data.body,
+      };
+      let created = await createReviewCommentReply(
+        createUserOctokit(accessToken),
+        replyInput,
+      );
+      if (
+        !created.ok &&
+        created.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
+        (await spendRefresh())
+      ) {
+        created = await createReviewCommentReply(
+          createUserOctokit(accessToken),
+          replyInput,
+        );
+      }
+      if (!created.ok) {
+        if (created.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
+          return errorJson(c, "unauthorized", 401);
+        }
+        // Gated-route rule: ANY in-route GitHub denial (403/404) collapses to
+        // the gate's 404 posture — a root comment gone and a permission denial
+        // must be indistinguishable from a cold denial (codex round 1).
+        if (
+          created.error.code === GitHubApiErrorCode.NOT_FOUND ||
+          created.error.code === GitHubApiErrorCode.FORBIDDEN
+        ) {
+          return errorJson(c, "not found", 404);
+        }
+        return errorJson(c, "upstream error", 502);
+      }
 
-    // Audit posture consistent with submit (D9: numeric-only) — but the
-    // GitHub write above is the COMMIT POINT: a local audit failure must
-    // never turn a posted reply into an error response (the composer's
-    // upstream copy invites a retry, which would double-post). Best-effort:
-    // log and keep the 201 (codex on the reply-UI PR).
-    try {
-      await audit(deps.handle, {
-        installationId: ctx.installationId,
-        actorType: AuditActorType.REVIEWER,
-        actorId: currentSession.reviewerId,
-        action: AuditAction.SUBMIT,
-        targetType: "review_comment",
-        targetId: BigInt(created.value.commentId),
+      // The write happened: the cached conversation is stale — drop it so the
+      // FE's post-reply refetch reflects the reply inside the TTL.
+      cache.delete(cacheKey(ctx.installationId, repoId, pr.prNumber));
+
+      // Audit posture consistent with submit (D9: numeric-only) — but the
+      // GitHub write above is the COMMIT POINT: a local audit failure must
+      // never turn a posted reply into an error response (the composer's
+      // upstream copy invites a retry, which would double-post). Best-effort:
+      // log and keep the 201 (codex on the reply-UI PR).
+      try {
+        await audit(deps.handle, {
+          installationId: ctx.installationId,
+          actorType: AuditActorType.REVIEWER,
+          actorId: currentSession.reviewerId,
+          action: AuditAction.SUBMIT,
+          targetType: "review_comment",
+          targetId: BigInt(created.value.commentId),
+        });
+      } catch (auditError) {
+        // Posted to GitHub, our audit write failed — a data-integrity signal
+        // the operator alerts on (ADR 0034 taxonomy).
+        c.get("logger").error("reply audit failed after posted reply", {
+          evt: "audit.fail",
+          commentId: String(created.value.commentId),
+          err: auditError,
+        });
+      }
+
+      return c.json({ commentId: created.value.commentId }, 201, {
+        "cache-control": "no-store",
       });
-    } catch (auditError) {
-      // Posted to GitHub, our audit write failed — a data-integrity signal
-      // the operator alerts on (ADR 0034 taxonomy).
-      c.get("logger").error("reply audit failed after posted reply", {
-        evt: "audit.fail",
-        commentId: String(created.value.commentId),
-        err: auditError,
-      });
-    }
-
-    return c.json({ commentId: created.value.commentId }, 201, {
-      "cache-control": "no-store",
-    });
-  });
+    },
+  );
 
   return {
     app,

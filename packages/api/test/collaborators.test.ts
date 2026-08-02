@@ -22,7 +22,12 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps, type InstallationGitHubPort } from "../src/index";
+import {
+  createApp,
+  type ApiApp,
+  type AuthDeps,
+  type InstallationGitHubPort,
+} from "../src/index";
 import { testLogger } from "./logging";
 
 const SECRET = "test-webhook-secret";
@@ -66,7 +71,11 @@ const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
 function rosterFixture(): RepoCollaborators {
   return {
     collaborators: [
-      { login: "alice", name: "Alice Example", avatarUrl: "https://avatars.example/alice.png" },
+      {
+        login: "alice",
+        name: "Alice Example",
+        avatarUrl: "https://avatars.example/alice.png",
+      },
       { login: "bob", avatarUrl: "https://avatars.example/bob.png" },
     ],
     hasMore: false,
@@ -74,11 +83,16 @@ function rosterFixture(): RepoCollaborators {
 }
 
 interface PortLog {
-  readonly calls: Array<{ installationId: InstallationId; input: ListRepoCollaboratorsInput }>;
+  readonly calls: Array<{
+    installationId: InstallationId;
+    input: ListRepoCollaboratorsInput;
+  }>;
 }
 
 function stubPort(
-  results: Array<Awaited<ReturnType<InstallationGitHubPort["listRepoCollaborators"]>>>,
+  results: Array<
+    Awaited<ReturnType<InstallationGitHubPort["listRepoCollaborators"]>>
+  >,
 ): { port: InstallationGitHubPort; log: PortLog } {
   const log: PortLog = { calls: [] };
   let call = 0;
@@ -106,7 +120,10 @@ function stubPort(
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -120,16 +137,25 @@ function repoOk(push: boolean): Response {
   });
 }
 
-function stubGitHub(repositories: (call: number) => Response): { counts: { repositories: number } } {
+function stubGitHub(repositories: (call: number) => Response): {
+  counts: { repositories: number };
+} {
   const counts = { repositories: 0 };
-  const fetchFn = vi.fn(async (input: string | URL | Request): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes("/repositories/")) {
-      const i = counts.repositories++;
-      return repositories(i);
-    }
-    return jsonResponse({ message: "unexpected endpoint" }, 404);
-  });
+  const fetchFn = vi.fn(
+    async (input: string | URL | Request): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/repositories/")) {
+        const i = counts.repositories++;
+        return repositories(i);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
   vi.stubGlobal("fetch", fetchFn);
   return { counts };
 }
@@ -141,12 +167,20 @@ function stubGitHub(repositories: (call: number) => Response): { counts: { repos
 async function seedSession(
   handle: AppDatabase,
   kp: KeyProvider,
-  reviewer: { id: number; login: string } = { id: REVIEWER_ID, login: "octocat" },
+  reviewer: { id: number; login: string } = {
+    id: REVIEWER_ID,
+    login: "octocat",
+  },
 ): Promise<{ cookie: string }> {
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH_TOKEN_PLAINTEXT");
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  const sealedRefresh = await encryptToken(
+    kp,
+    KEY_REF,
+    "ghr_REFRESH_TOKEN_PLAINTEXT",
+  );
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -246,7 +280,11 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     const body: unknown = await res.json();
     expect(body).toEqual({
       collaborators: [
-        { login: "alice", name: "Alice Example", avatarUrl: "https://avatars.example/alice.png" },
+        {
+          login: "alice",
+          name: "Alice Example",
+          avatarUrl: "https://avatars.example/alice.png",
+        },
         { login: "bob", avatarUrl: "https://avatars.example/bob.png" },
       ],
       hasMore: false,
@@ -300,11 +338,17 @@ describe("GET /api/repos/:repoId/collaborators", () => {
   it("collapses a port NOT_FOUND to 404 and maps other failures to 502", async () => {
     const notFound = {
       ok: false as const,
-      error: { code: "not-found" as const, message: "failed to list repo collaborators: x" },
+      error: {
+        code: "not-found" as const,
+        message: "failed to list repo collaborators: x",
+      },
     };
     const failed = {
       ok: false as const,
-      error: { code: "request-failed" as const, message: "failed to list repo collaborators: y" },
+      error: {
+        code: "request-failed" as const,
+        message: "failed to list repo collaborators: y",
+      },
     };
     stubGitHub(() => repoOk(true));
     const { cookie } = await seedSession(harness.handle, kp);
@@ -323,7 +367,10 @@ describe("GET /api/repos/:repoId/collaborators", () => {
   it("does not cache failures (a later read retries the port)", async () => {
     const failed = {
       ok: false as const,
-      error: { code: "request-failed" as const, message: "failed to list repo collaborators: y" },
+      error: {
+        code: "request-failed" as const,
+        message: "failed to list repo collaborators: y",
+      },
     };
     const { port, log } = stubPort([failed, okResult()]);
     stubGitHub(() => repoOk(true));

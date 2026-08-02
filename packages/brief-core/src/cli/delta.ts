@@ -71,7 +71,9 @@ export async function generateAndWriteDelta(
     resolveFullSha(locator, headSha),
   ]);
 
-  log(`fetching metadata + compare ${baselineSha.slice(0, 8)}..${headSha.slice(0, 8)}…`);
+  log(
+    `fetching metadata + compare ${baselineSha.slice(0, 8)}..${headSha.slice(0, 8)}…`,
+  );
   const [meta, incrementalDiff, comments] = await Promise.all([
     fetchPrMetadata(locator),
     fetchCompareDiff(locator, baselineSha, headSha),
@@ -90,7 +92,13 @@ export async function generateAndWriteDelta(
   const fileDiffs = splitDiffByFile(incrementalDiff);
 
   await mkdir(outDir, { recursive: true });
-  const marks = buildComparisonMarks(headSha, baselineSha, "checkpoint", baselineIndex, fileDiffs);
+  const marks = buildComparisonMarks(
+    headSha,
+    baselineSha,
+    "checkpoint",
+    baselineIndex,
+    fileDiffs,
+  );
   await writeComparisonMarks(outDir, stem, marks, log);
 
   log(

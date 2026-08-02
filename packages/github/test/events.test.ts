@@ -28,7 +28,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** The submitted-review fixture with its `review` object mutated in a copy. */
-function reviewFixtureWith(patch: (review: Record<string, unknown>) => void): unknown {
+function reviewFixtureWith(
+  patch: (review: Record<string, unknown>) => void,
+): unknown {
   const fixture = jsonFixture("pull_request_review.submitted.json");
   if (!isRecord(fixture) || !isRecord(fixture["review"])) {
     throw new Error("fixture shape changed");
@@ -81,12 +83,8 @@ describe("parseWebhookEvent — pull_request", () => {
       expect(event.repoId).toBe(186853002n);
       expect(event.repoFullName).toBe("Codertocat/Hello-World");
       expect(event.prNumber).toBe(2);
-      expect(event.headSha).toBe(
-        "ec26c3e57ca3a959ca5aad62de7213c562f8c821",
-      );
-      expect(event.baseSha).toBe(
-        "f95f852bd8fca8fcc58a9a2d6c842781e32a215e",
-      );
+      expect(event.headSha).toBe("ec26c3e57ca3a959ca5aad62de7213c562f8c821");
+      expect(event.baseSha).toBe("f95f852bd8fca8fcc58a9a2d6c842781e32a215e");
       expect(event.draft).toBe(false);
       // The PR author login rides every handled pull_request payload —
       // persisted so `viewerIsAuthor` can be derived server-side (BRIEF-43).
@@ -330,7 +328,9 @@ describe("parseWebhookEvent — pull_request_review", () => {
       }),
     );
     expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
-    expect(error.issues?.some((i) => i.startsWith("review.commit_id"))).toBe(true);
+    expect(error.issues?.some((i) => i.startsWith("review.commit_id"))).toBe(
+      true,
+    );
   });
 
   it("errors on a non-timestamp submitted_at", () => {
@@ -343,7 +343,9 @@ describe("parseWebhookEvent — pull_request_review", () => {
       }),
     );
     expect(error.code).toBe(EventParseErrorCode.INVALID_PAYLOAD);
-    expect(error.issues?.some((i) => i.startsWith("review.submitted_at"))).toBe(true);
+    expect(error.issues?.some((i) => i.startsWith("review.submitted_at"))).toBe(
+      true,
+    );
   });
 
   it("ignores a non-submitted review action", () => {
@@ -444,9 +446,7 @@ describe("parseWebhookEvent — envelope handling", () => {
   });
 
   it("errors on a missing event name", () => {
-    const error = expectErr(
-      parseWebhookEvent({ eventName: "", payload: {} }),
-    );
+    const error = expectErr(parseWebhookEvent({ eventName: "", payload: {} }));
     expect(error.code).toBe(EventParseErrorCode.MISSING_EVENT_NAME);
   });
 });

@@ -287,7 +287,10 @@ function invalidPayload(
   };
 }
 
-function ignored(eventName: string, action: string | undefined): ParsedWebhookEvent {
+function ignored(
+  eventName: string,
+  action: string | undefined,
+): ParsedWebhookEvent {
   return action === undefined
     ? { kind: ParsedWebhookEventKind.IGNORED, eventName }
     : { kind: ParsedWebhookEventKind.IGNORED, eventName, action };
@@ -335,7 +338,10 @@ function parsePullRequestReview(
 ): Result<ParsedWebhookEvent, EventParseError> {
   const parsed = pullRequestReviewEventSchema.safeParse(payload);
   if (!parsed.success) {
-    return invalidPayload(HANDLED_EVENT_NAMES.PULL_REQUEST_REVIEW, parsed.error);
+    return invalidPayload(
+      HANDLED_EVENT_NAMES.PULL_REQUEST_REVIEW,
+      parsed.error,
+    );
   }
   const data = parsed.data;
   return {
@@ -457,7 +463,9 @@ export function parseWebhookEvent(
     }
     case HANDLED_EVENT_NAMES.INSTALLATION: {
       const action =
-        rawAction === undefined ? undefined : RAW_INSTALLATION_ACTION[rawAction];
+        rawAction === undefined
+          ? undefined
+          : RAW_INSTALLATION_ACTION[rawAction];
       if (action === undefined) {
         return { ok: true, value: ignored(eventName, rawAction) };
       }

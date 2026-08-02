@@ -51,7 +51,9 @@ async function seedSession(
 }
 
 async function grantCount(handle: AppDatabase): Promise<number> {
-  return (await internal(handle).select({ id: githubGrant.id }).from(githubGrant)).length;
+  return (
+    await internal(handle).select({ id: githubGrant.id }).from(githubGrant)
+  ).length;
 }
 
 describe("sessionAuth.findSession", () => {
@@ -65,7 +67,9 @@ describe("sessionAuth.findSession", () => {
     const resolved = await sessionAuth(handle).findSession(HASH);
     expect(resolved).toBeDefined();
     expect(resolved?.session.sessionTokenHash).toBe(HASH);
-    expect(String(resolved?.session.installationId)).toBe(String(INSTALLATION_ID));
+    expect(String(resolved?.session.installationId)).toBe(
+      String(INSTALLATION_ID),
+    );
     expect(String(resolved?.session.reviewerId)).toBe(String(REVIEWER_ID));
     // The credential material rides on the grant half only.
     expect(resolved?.grant.id).toBe(grant.id);

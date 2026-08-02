@@ -74,7 +74,9 @@ export const properties: EvalProperty[] = [
       (brief.intentCheck?.deviations ?? []).some(
         (item) =>
           item.acknowledged &&
-          /error level|at error|on-call|page/i.test(`${item.intent} ${item.quote}`),
+          /error level|at error|on-call|page/i.test(
+            `${item.intent} ${item.quote}`,
+          ),
       ),
   },
   {

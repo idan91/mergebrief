@@ -1,5 +1,8 @@
 import type { FileDiff } from "../diff/diff";
-import { inAttributeScope, type CustomRiskAttributeInput } from "./repo-context";
+import {
+  inAttributeScope,
+  type CustomRiskAttributeInput,
+} from "./repo-context";
 import type { RevisionChangeFile } from "../diff/revchanges";
 import {
   RiskSurfaceAttributes,
@@ -31,7 +34,9 @@ export function validatePartition(
 
   for (const c of chunks) {
     if (!groupIds.has(c.changeGroupId)) {
-      issues.push(`chunk ${c.id} references unknown group "${c.changeGroupId}"`);
+      issues.push(
+        `chunk ${c.id} references unknown group "${c.changeGroupId}"`,
+      );
     }
   }
 
@@ -134,7 +139,9 @@ function normalizeWhitespace(text: string): string {
  * Runs BEFORE `validateIntentCheck`, so every per-bucket rule the validator
  * enforces applies exactly as it would have to natively-generated arrays.
  */
-export function fanOutIntentCheck(generated: IntentCheckGeneration): IntentCheck {
+export function fanOutIntentCheck(
+  generated: IntentCheckGeneration,
+): IntentCheck {
   const buckets: Record<IntentBucket, IntentItem[]> = {
     accomplished: [],
     statedButMissing: [],
@@ -211,7 +218,9 @@ export function validateIntentCheck(
     // ticketUrls membership still holds on the unavailable path.
     const known = intentCheck.ticketUrls.filter((url) => {
       if (injectedUrls.includes(url)) return true;
-      issues.push(`intent check cites un-injected ticket URL "${url}" — dropped`);
+      issues.push(
+        `intent check cites un-injected ticket URL "${url}" — dropped`,
+      );
       return false;
     });
     return {
@@ -239,7 +248,10 @@ export function validateIntentCheck(
   );
   const groupIds = new Set(changeGroups.map((g) => g.id));
 
-  function keepSource(bucket: string, item: { intent: string; sourceUrl: string }): boolean {
+  function keepSource(
+    bucket: string,
+    item: { intent: string; sourceUrl: string },
+  ): boolean {
     if (allowedSources.has(item.sourceUrl)) return true;
     issues.push(
       `${bucket} item "${item.intent}" cites unknown source "${item.sourceUrl}" — dropped`,
@@ -247,12 +259,17 @@ export function validateIntentCheck(
     return false;
   }
 
-  function checkQuote(bucket: string, item: { intent: string; quote: string; sourceUrl: string }): void {
+  function checkQuote(
+    bucket: string,
+    item: { intent: string; quote: string; sourceUrl: string },
+  ): void {
     const quote = normalizeWhitespace(item.quote);
     if (quote === "") {
       // Ticket-side buckets demand a verbatim citation; an empty quote is an
       // uncited stated ask. Warn-only, same posture as the substring check.
-      issues.push(`${bucket} item "${item.intent}": empty quote — uncited stated ask`);
+      issues.push(
+        `${bucket} item "${item.intent}": empty quote — uncited stated ask`,
+      );
       return;
     }
     const source = contentByUrl.get(item.sourceUrl);
@@ -272,7 +289,9 @@ export function validateIntentCheck(
   function pruneGroups(bucket: string, label: string, ids: string[]): string[] {
     return ids.filter((id) => {
       if (groupIds.has(id)) return true;
-      issues.push(`${bucket} item "${label}" references unknown group "${id}" — pruned`);
+      issues.push(
+        `${bucket} item "${label}" references unknown group "${id}" — pruned`,
+      );
       return false;
     });
   }
@@ -282,10 +301,9 @@ export function validateIntentCheck(
    * is forced back to `false` + warn (dead-field precedent — the shared item
    * shape is the grammar-budget constraint, see types.ts).
    */
-  function forceUnacknowledged<T extends { intent: string; acknowledged: boolean }>(
-    bucket: string,
-    item: T,
-  ): T {
+  function forceUnacknowledged<
+    T extends { intent: string; acknowledged: boolean },
+  >(bucket: string, item: T): T {
     if (!item.acknowledged) return item;
     issues.push(
       `${bucket} item "${item.intent}" carries acknowledged=true — forced false (meaningful only in deviations)`,
@@ -360,7 +378,10 @@ export function validateIntentCheck(
           `accomplished item "${item.intent}" has no valid group anchor — kept (stated-side grounding is the citation)`,
         );
       }
-      return forceUnacknowledged("accomplished", { ...item, groupIds: prunedIds });
+      return forceUnacknowledged("accomplished", {
+        ...item,
+        groupIds: prunedIds,
+      });
     });
 
   const statedButMissing = intentCheck.statedButMissing
@@ -551,11 +572,15 @@ function depKeyFromLine(
       if (line === "" || line.startsWith("#") || line.startsWith("-")) {
         return undefined;
       }
-      const m = /^([A-Za-z0-9][\w.-]*)(?:\[[^\]]*\])?\s*(?:[=<>!~;@ ]|$)/.exec(line);
+      const m = /^([A-Za-z0-9][\w.-]*)(?:\[[^\]]*\])?\s*(?:[=<>!~;@ ]|$)/.exec(
+        line,
+      );
       return m?.[1];
     }
     case "gomod": {
-      const m = /^\s*(?:require\s+)?([\w.-]+(?:\/[\w.-]+)+)\s+v\d/.exec(content);
+      const m = /^\s*(?:require\s+)?([\w.-]+(?:\/[\w.-]+)+)\s+v\d/.exec(
+        content,
+      );
       return m?.[1];
     }
     case "gemfile": {
@@ -782,7 +807,9 @@ export function validateRepoAttributeTokens<C extends Chunk>(
   customAttributes: readonly CustomRiskAttributeInput[],
 ): { chunks: C[]; issues: string[] } {
   const issues: string[] = [];
-  const customByName = new Map(customAttributes.map((attr) => [attr.name, attr]));
+  const customByName = new Map(
+    customAttributes.map((attr) => [attr.name, attr]),
+  );
   const builtIn = new Set<string>(RiskSurfaceAttributes);
 
   // A token is bad on this chunk when it is unknown or a custom attribute
@@ -814,7 +841,9 @@ export function validateRepoAttributeTokens<C extends Chunk>(
       const reason = badTokenReason(note.attr, chunk.file);
       if (reason !== undefined && !drops.has(note.attr)) {
         drops.add(note.attr);
-        issues.push(`chunk ${chunk.id} (${chunk.file}): dropped riskNotes ${reason}`);
+        issues.push(
+          `chunk ${chunk.id} (${chunk.file}): dropped riskNotes ${reason}`,
+        );
       }
     }
     if (drops.size === 0) return chunk;
@@ -850,8 +879,14 @@ function anyOverlap(as: LineRange[], bs: LineRange[]): boolean {
  * (which aliases it), for either baseline label.
  */
 export function validateNarrativeMarksOverlap(
-  chunks: Pick<RevisionNarrativeChunk, "id" | "file" | "addedRanges" | "removedRanges">[],
-  marksFiles: Pick<RevisionChangeFile, "file" | "addedRanges" | "removedRanges">[],
+  chunks: Pick<
+    RevisionNarrativeChunk,
+    "id" | "file" | "addedRanges" | "removedRanges"
+  >[],
+  marksFiles: Pick<
+    RevisionChangeFile,
+    "file" | "addedRanges" | "removedRanges"
+  >[],
 ): string[] {
   const issues: string[] = [];
   for (const c of chunks) {
@@ -869,7 +904,9 @@ export function validateNarrativeMarksOverlap(
 }
 
 function formatRange(range: LineRange): string {
-  return range.start === range.end ? `${range.start}` : `${range.start}-${range.end}`;
+  return range.start === range.end
+    ? `${range.start}`
+    : `${range.start}-${range.end}`;
 }
 
 /**
@@ -881,8 +918,14 @@ function formatRange(range: LineRange): string {
  * regen costs a full narrative spend for what the FE degrades gracefully.
  */
 export function validateMarksNarrativeCoverage(
-  marksFiles: Pick<RevisionChangeFile, "file" | "addedRanges" | "removedRanges">[],
-  chunks: Pick<RevisionNarrativeChunk, "file" | "addedRanges" | "removedRanges">[],
+  marksFiles: Pick<
+    RevisionChangeFile,
+    "file" | "addedRanges" | "removedRanges"
+  >[],
+  chunks: Pick<
+    RevisionNarrativeChunk,
+    "file" | "addedRanges" | "removedRanges"
+  >[],
 ): string[] {
   const issues: string[] = [];
   for (const marks of marksFiles) {
@@ -891,7 +934,8 @@ export function validateMarksNarrativeCoverage(
       (range) => !chunksForFile.some((c) => anyOverlap([range], c.addedRanges)),
     );
     const uncoveredRemoved = marks.removedRanges.filter(
-      (range) => !chunksForFile.some((c) => anyOverlap([range], c.removedRanges)),
+      (range) =>
+        !chunksForFile.some((c) => anyOverlap([range], c.removedRanges)),
     );
     if (uncoveredAdded.length === 0 && uncoveredRemoved.length === 0) continue;
     const sides = [

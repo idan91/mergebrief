@@ -68,7 +68,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  */
 export function buildSubmitPayload(input: SubmitInput): unknown {
   const hasFlags =
-    input.outcome !== undefined || input.body !== undefined || input.commit !== undefined;
+    input.outcome !== undefined ||
+    input.body !== undefined ||
+    input.commit !== undefined;
   if (input.payload !== undefined && hasFlags) {
     throw new CliError(
       ExitCode.USAGE,

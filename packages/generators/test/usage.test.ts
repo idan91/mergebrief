@@ -192,7 +192,9 @@ describe("anthropic usage reporting", () => {
       label: "usage-nocache",
       onUsage: (usage) => seen.push(usage),
     });
-    expect(seen).toEqual([{ inputTokens: 10, outputTokens: 5, cacheReadTokens: 0 }]);
+    expect(seen).toEqual([
+      { inputTokens: 10, outputTokens: 5, cacheReadTokens: 0 },
+    ]);
   });
 
   it("reports once per attempt across a feedback retry — callers sum", async () => {
@@ -230,7 +232,10 @@ describe("anthropic usage reporting", () => {
             },
           },
         },
-        { raw: '{"ok":true}', usage: { input_tokens: 2000, output_tokens: 20 } },
+        {
+          raw: '{"ok":true}',
+          usage: { input_tokens: 2000, output_tokens: 20 },
+        },
       ]),
       tempDir(),
     );
@@ -468,7 +473,9 @@ describe("openai-core usage reporting", () => {
     expect(retry["reasoning_effort"]).toBeUndefined();
     expect(retry["stream_options"]).toEqual({ include_usage: true });
     // The 400'd first request streamed nothing → exactly one report.
-    expect(seen).toEqual([{ inputTokens: 50, outputTokens: 5, cacheReadTokens: 0 }]);
+    expect(seen).toEqual([
+      { inputTokens: 50, outputTokens: 5, cacheReadTokens: 0 },
+    ]);
   });
 });
 
@@ -528,6 +535,8 @@ describe("openrouter usage passthrough", () => {
     });
     expect(bodies).toHaveLength(1);
     expect(bodies[0]?.["stream_options"]).toEqual({ include_usage: true });
-    expect(seen).toEqual([{ inputTokens: 70, outputTokens: 9, cacheReadTokens: 0 }]);
+    expect(seen).toEqual([
+      { inputTokens: 70, outputTokens: 9, cacheReadTokens: 0 },
+    ]);
   });
 });

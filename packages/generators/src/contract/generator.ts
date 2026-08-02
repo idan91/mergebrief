@@ -1,7 +1,6 @@
 import type { z } from "zod/v4";
 import type { Effort, Generation } from "./provenance";
 
-
 /** Progress sink — defaults to no-op so callers stay usable in tests. */
 export type Logger = (message: string) => void;
 
@@ -75,4 +74,3 @@ export interface Generator {
   /** Provenance for an artifact this generator produced at the given effort. */
   provenance(effort: Effort): Generation;
 }
-

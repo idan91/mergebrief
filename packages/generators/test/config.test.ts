@@ -2,7 +2,10 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadGeneratorConfig, loadGeneratorConfigFile } from "../src/config/loader";
+import {
+  loadGeneratorConfig,
+  loadGeneratorConfigFile,
+} from "../src/config/loader";
 import { resolveEnvConfigPath } from "../src/config/readRoot";
 
 /**
@@ -46,7 +49,9 @@ describe("loadGeneratorConfig (env-driven)", () => {
   });
 
   it("loads the file the env var points at", () => {
-    const path = configFile("generator:\n  provider: anthropic\n  model: claude-sonnet-5\n");
+    const path = configFile(
+      "generator:\n  provider: anthropic\n  model: claude-sonnet-5\n",
+    );
     const result = loadGeneratorConfig({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -58,11 +63,16 @@ describe("loadGeneratorConfig (env-driven)", () => {
   });
 
   it("surfaces a configured effort on the loaded generator block (BRIEF-75)", () => {
-    const path = configFile("generator:\n  provider: anthropic\n  effort: low\n");
+    const path = configFile(
+      "generator:\n  provider: anthropic\n  effort: low\n",
+    );
     const result = loadGeneratorConfig({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.generator).toEqual({ provider: "anthropic", effort: "low" });
+    expect(result.value.generator).toEqual({
+      provider: "anthropic",
+      effort: "low",
+    });
   });
 
   it("anchors a relative MERGEBRIEF_CONFIG at the workspace root, not cwd", () => {
@@ -70,7 +80,10 @@ describe("loadGeneratorConfig (env-driven)", () => {
     // package dir — the exact worker/web shape (`pnpm --dir`).
     const root = mkdtempSync(join(tmpdir(), "mergebrief-ws-"));
     tempDirs.push(root);
-    writeFileSync(join(root, "pnpm-workspace.yaml"), 'packages:\n  - "packages/*"\n');
+    writeFileSync(
+      join(root, "pnpm-workspace.yaml"),
+      'packages:\n  - "packages/*"\n',
+    );
     writeFileSync(
       join(root, "mergebrief.config.yaml"),
       "generator:\n  provider: anthropic\n  model: claude-sonnet-5\n",
@@ -126,14 +139,18 @@ describe("resolveEnvConfigPath", () => {
 
 describe("loadGeneratorConfigFile", () => {
   it("fails fast on an unreadable path without echoing content", () => {
-    const result = loadGeneratorConfigFile("/nonexistent/mergebrief.config.yaml");
+    const result = loadGeneratorConfigFile(
+      "/nonexistent/mergebrief.config.yaml",
+    );
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.issues.join("; ")).toContain("not readable (ENOENT)");
   });
 
   it("reports invalid YAML by position only", () => {
-    const path = configFile("generator:\n  provider: [unclosed\nsk-secret-SENTINEL: x\n");
+    const path = configFile(
+      "generator:\n  provider: [unclosed\nsk-secret-SENTINEL: x\n",
+    );
     const result = loadGeneratorConfigFile(path);
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -156,7 +173,10 @@ describe("loadGeneratorConfigFile", () => {
         configFile("x-note: !mystery sk-live-SENTINEL-000\n"),
       );
       expect(result.ok).toBe(true);
-      const seen = JSON.stringify([...warnSpy.mock.calls, ...emitSpy.mock.calls]);
+      const seen = JSON.stringify([
+        ...warnSpy.mock.calls,
+        ...emitSpy.mock.calls,
+      ]);
       expect(seen).not.toContain("SENTINEL");
     } finally {
       warnSpy.mockRestore();
@@ -176,12 +196,16 @@ describe("loadGeneratorConfigFile", () => {
     const result = loadGeneratorConfigFile(configFile("- just\n- a list\n"));
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.issues.join("; ")).toContain("root must be a YAML mapping");
+    expect(result.error.issues.join("; ")).toContain(
+      "root must be a YAML mapping",
+    );
   });
 
   it("rejects unknown root keys, echoing token-shaped names only", () => {
     const result = loadGeneratorConfigFile(
-      configFile('generator:\n  provider: anthropic\ngeneraotr: typo\n"sk-or-abc123456789": x\n'),
+      configFile(
+        'generator:\n  provider: anthropic\ngeneraotr: typo\n"sk-or-abc123456789": x\n',
+      ),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -193,7 +217,9 @@ describe("loadGeneratorConfigFile", () => {
 
   it("lets x-* root keys pass (compose convention)", () => {
     const result = loadGeneratorConfigFile(
-      configFile("x-anchors:\n  shared: 1\ngenerator:\n  provider: anthropic\n"),
+      configFile(
+        "x-anchors:\n  shared: 1\ngenerator:\n  provider: anthropic\n",
+      ),
     );
     expect(result.ok).toBe(true);
   });
@@ -209,7 +235,9 @@ describe("loadGeneratorConfigFile", () => {
 
   it("refuses boot on an invalid drafts block (bad values caught at worker too)", () => {
     const result = loadGeneratorConfigFile(
-      configFile("generator:\n  provider: anthropic\ndrafts:\n  debounceSeconds: -5\n"),
+      configFile(
+        "generator:\n  provider: anthropic\ndrafts:\n  debounceSeconds: -5\n",
+      ),
     );
     expect(result.ok).toBe(false);
     if (result.ok) return;
@@ -217,7 +245,9 @@ describe("loadGeneratorConfigFile", () => {
   });
 
   it("defaults the generator when the block is absent", () => {
-    const result = loadGeneratorConfigFile(configFile("x-notes: only extensions here\n"));
+    const result = loadGeneratorConfigFile(
+      configFile("x-notes: only extensions here\n"),
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.generator).toEqual({ provider: "anthropic" });

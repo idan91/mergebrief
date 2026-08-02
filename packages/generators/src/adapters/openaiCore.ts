@@ -1,11 +1,17 @@
 import { APIConnectionError, APIUserAbortError, OpenAIError } from "openai";
 import type { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
-import { runWithSchemaFloor, schemaFeedbackMessage } from "../validation/enforceSchema";
+import {
+  runWithSchemaFloor,
+  schemaFeedbackMessage,
+} from "../validation/enforceSchema";
 import { redactSecrets } from "../harness/redact";
 import type { GenerateRequest, Generator, Logger } from "../contract/generator";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
-import { stripInjectedNulls, withAllRequired } from "../validation/openaiStrict";
+import {
+  stripInjectedNulls,
+  withAllRequired,
+} from "../validation/openaiStrict";
 import type { Effort, Generation } from "../contract/provenance";
 
 /**
@@ -139,7 +145,8 @@ export class OpenAiCompatibleCore implements Generator {
     this.model = options.model;
     this.failureDir = options.failureDir;
     this.effortSupported = options.initialEffortSupported ?? null;
-    this.knobRejectionMarker = options.knobRejectionMarker ?? "reasoning_effort";
+    this.knobRejectionMarker =
+      options.knobRejectionMarker ?? "reasoning_effort";
   }
 
   provenance(effort: Effort): Generation {
@@ -192,7 +199,12 @@ export class OpenAiCompatibleCore implements Generator {
               { role: "user", content: schemaFeedbackMessage(feedback.error) },
             ]
           : baseMessages;
-        const outcome = await this.request(req, openAiWireSchema, messages, log);
+        const outcome = await this.request(
+          req,
+          openAiWireSchema,
+          messages,
+          log,
+        );
         if (outcome.refusal !== null) {
           throw new GeneratorError(
             GeneratorErrorKind.REFUSAL,
@@ -245,7 +257,11 @@ export class OpenAiCompatibleCore implements Generator {
     wireSchema: Record<string, unknown>,
     messages: OpenAiChatRequest["messages"],
     log: Logger,
-  ): Promise<{ raw: string; refusal: string | null; finishReason: string | null }> {
+  ): Promise<{
+    raw: string;
+    refusal: string | null;
+    finishReason: string | null;
+  }> {
     const body: OpenAiChatRequest = {
       model: this.model,
       messages,
@@ -304,9 +320,14 @@ export class OpenAiCompatibleCore implements Generator {
     req: GenerateRequest<S>,
     body: OpenAiChatRequest,
     log: Logger,
-  ): Promise<{ raw: string; refusal: string | null; finishReason: string | null }> {
+  ): Promise<{
+    raw: string;
+    refusal: string | null;
+    finishReason: string | null;
+  }> {
     const start = Date.now();
-    const elapsed = (): string => `${((Date.now() - start) / 1000).toFixed(0)}s`;
+    const elapsed = (): string =>
+      `${((Date.now() - start) / 1000).toFixed(0)}s`;
     let collected = "";
     let refusal = "";
     let finishReason: string | null = null;
@@ -346,7 +367,10 @@ export class OpenAiCompatibleCore implements Generator {
       }
       // A mark-effort-supported discovery: the request carried the knob and
       // the provider accepted it.
-      if (this.effortSupported === null && body.reasoning_effort !== undefined) {
+      if (
+        this.effortSupported === null &&
+        body.reasoning_effort !== undefined
+      ) {
         this.effortSupported = true;
       }
     } finally {
@@ -369,10 +393,16 @@ export class OpenAiCompatibleCore implements Generator {
         outputTokens: usage.completion_tokens,
         cacheReadTokens: typeof cached === "number" ? cached : 0,
         // Absent ≠ 0: only a numeric report enters the field.
-        ...(typeof reasoning === "number" ? { reasoningTokens: reasoning } : {}),
+        ...(typeof reasoning === "number"
+          ? { reasoningTokens: reasoning }
+          : {}),
       });
     }
-    return { raw: collected, refusal: refusal === "" ? null : refusal, finishReason };
+    return {
+      raw: collected,
+      refusal: refusal === "" ? null : refusal,
+      finishReason,
+    };
   }
 }
 
@@ -412,10 +442,7 @@ export function classifyOpenAiError(error: unknown): unknown {
   // TypeError CARRYING A CAUSE (undici attaches the socket error) — those
   // are transient. A causeless TypeError is a programmer error and must
   // not be retried into a storm.
-  if (
-    error instanceof TypeError &&
-    Reflect.get(error, "cause") !== undefined
-  ) {
+  if (error instanceof TypeError && Reflect.get(error, "cause") !== undefined) {
     return new GeneratorError(
       GeneratorErrorKind.PROVIDER_TRANSIENT,
       "network failure while reading the provider response",
@@ -472,7 +499,9 @@ export function classifyOpenAiError(error: unknown): unknown {
  * The returned text is provider-authored and untrusted — it must only enter
  * messages through `safeProviderMessage`.
  */
-function extractedProviderRaw(error: unknown): { raw: string; providerName: string | null } | null {
+function extractedProviderRaw(
+  error: unknown,
+): { raw: string; providerName: string | null } | null {
   if (typeof error !== "object" || error === null) return null;
   const body = Reflect.get(error, "error");
   if (typeof body !== "object" || body === null) return null;
@@ -483,7 +512,8 @@ function extractedProviderRaw(error: unknown): { raw: string; providerName: stri
   const provider = Reflect.get(metadata, "provider_name");
   return {
     raw,
-    providerName: typeof provider === "string" && provider !== "" ? provider : null,
+    providerName:
+      typeof provider === "string" && provider !== "" ? provider : null,
   };
 }
 
@@ -506,7 +536,9 @@ function sanitizedCause(error: unknown, status: number): Error {
   const name =
     error instanceof Error ? error.constructor.name : "TransportError";
   const message = error instanceof Error ? error.message : "";
-  return new Error(`${name} (status ${status}): ${safeProviderMessage(message)}`);
+  return new Error(
+    `${name} (status ${status}): ${safeProviderMessage(message)}`,
+  );
 }
 
 /** Same, for statusless failures — the nested chain is dropped entirely. */

@@ -38,31 +38,49 @@ const REVIEWER_ID = 555;
 const REPO_A = 42001;
 const BASE_URL = "https://mb.example";
 
-function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
   const asBigInt = BigInt(value);
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
 }
-const CTX: TenantContext = { installationId: brand(isInstallationId, INSTALLATION_ID) };
+const CTX: TenantContext = {
+  installationId: brand(isInstallationId, INSTALLATION_ID),
+};
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
 /** GitHub stub at the GLOBAL fetch seam (the api app's octokit uses it). */
-function stubGitHub(repos: () => ReadonlyArray<{ id: number; full_name: string }>): {
+function stubGitHub(
+  repos: () => ReadonlyArray<{ id: number; full_name: string }>,
+): {
   counts: { installationRepos: number };
 } {
   const counts = { installationRepos: 0 };
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      if (url.includes("/user/installations/") && url.includes("/repositories")) {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (
+        url.includes("/user/installations/") &&
+        url.includes("/repositories")
+      ) {
         counts.installationRepos += 1;
         const list = repos();
         return jsonResponse({ total_count: list.length, repositories: list });
@@ -106,7 +124,9 @@ describe("mergebrief repos command + cache", () => {
           throw new Error("conversation port must not be called in this suite");
         },
         listRepoCollaborators: async () => {
-          throw new Error("collaborators port must not be called in this suite");
+          throw new Error(
+            "collaborators port must not be called in this suite",
+          );
         },
       },
       serverVersion: "test-version",
@@ -126,7 +146,8 @@ describe("mergebrief repos command + cache", () => {
     const hash = createHash("sha256").update(plaintext).digest("hex");
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
     const grant = await grantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -145,7 +166,10 @@ describe("mergebrief repos command + cache", () => {
     return plaintext;
   }
 
-  function deps(overrides: Partial<CliDeps> = {}): { deps: CliDeps; io: Captured } {
+  function deps(overrides: Partial<CliDeps> = {}): {
+    deps: CliDeps;
+    io: Captured;
+  } {
     const io: Captured = { out: [], err: [] };
     return {
       io,
@@ -209,7 +233,9 @@ describe("mergebrief repos command + cache", () => {
 
     // --refresh bypasses the disk cache.
     const third = deps({ fetch: countingFetch });
-    expect(await runCli(["repos", "--refresh", "--json"], third.deps)).toBe(ExitCode.OK);
+    expect(await runCli(["repos", "--refresh", "--json"], third.deps)).toBe(
+      ExitCode.OK,
+    );
     expect(apiRepoHits).toBe(2);
   });
 
@@ -217,7 +243,9 @@ describe("mergebrief repos command + cache", () => {
     stubGitHub(() => []);
     const token = await seedToken();
     await login(token);
-    const rows = await harness.raw("update api_token set revoked_at = now() returning id");
+    const rows = await harness.raw(
+      "update api_token set revoked_at = now() returning id",
+    );
     expect(rows).toHaveLength(1);
 
     const { deps: d, io } = deps();
@@ -234,7 +262,9 @@ describe("mergebrief repos command + cache", () => {
     // the server's own 60s allowed-set cache masks a rename within its TTL —
     // that seam belongs to the api suite; the real-app path is covered by
     // the command tests above.)
-    function controlled(bodies: () => { repos: { repoId: string; fullName: string }[] }): {
+    function controlled(
+      bodies: () => { repos: { repoId: string; fullName: string }[] },
+    ): {
       d: RepoCacheDeps;
       hits: () => number;
     } {
@@ -245,7 +275,11 @@ describe("mergebrief repos command + cache", () => {
       };
       return {
         d: {
-          client: createApiClient({ fetch: fetchStub, baseUrl: BASE_URL, token: "mergebrief_x" }),
+          client: createApiClient({
+            fetch: fetchStub,
+            baseUrl: BASE_URL,
+            token: "mergebrief_x",
+          }),
           cacheDir,
           profileName: "default",
         },
@@ -267,7 +301,10 @@ describe("mergebrief repos command + cache", () => {
       let renamed = false;
       const { d, hits } = controlled(() => ({
         repos: [
-          { repoId: String(REPO_A), fullName: renamed ? "octo/renamed" : "octo/hello" },
+          {
+            repoId: String(REPO_A),
+            fullName: renamed ? "octo/renamed" : "octo/hello",
+          },
         ],
       }));
       expect(await resolveRepoId(d, "octo/hello")).toBe(String(REPO_A));

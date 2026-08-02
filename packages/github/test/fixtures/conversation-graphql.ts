@@ -17,7 +17,11 @@ interface GqlCommentOverrides {
   readonly oid?: string | null;
 }
 
-function fullId(id: number | null | undefined, raw: string | null | undefined, fallback: number): string | null {
+function fullId(
+  id: number | null | undefined,
+  raw: string | null | undefined,
+  fallback: number,
+): string | null {
   if (raw !== undefined) return raw;
   const value = id === undefined ? fallback : id;
   return value === null ? null : String(value);
@@ -25,7 +29,11 @@ function fullId(id: number | null | undefined, raw: string | null | undefined, f
 
 export function gqlComment(overrides: GqlCommentOverrides = {}) {
   return {
-    fullDatabaseId: fullId(overrides.databaseId, overrides.rawFullDatabaseId, 1001),
+    fullDatabaseId: fullId(
+      overrides.databaseId,
+      overrides.rawFullDatabaseId,
+      1001,
+    ),
     author: overrides.ghost
       ? null
       : {
@@ -41,7 +49,8 @@ export function gqlComment(overrides: GqlCommentOverrides = {}) {
       : {
           fullDatabaseId: fullId(overrides.reviewDatabaseId, undefined, 500),
         },
-    originalCommit: overrides.oid === null ? null : { oid: overrides.oid ?? "a".repeat(40) },
+    originalCommit:
+      overrides.oid === null ? null : { oid: overrides.oid ?? "a".repeat(40) },
   };
 }
 
@@ -89,7 +98,11 @@ interface GqlReviewOverrides {
 
 export function gqlReview(overrides: GqlReviewOverrides = {}) {
   return {
-    fullDatabaseId: fullId(overrides.databaseId, overrides.rawFullDatabaseId, 500),
+    fullDatabaseId: fullId(
+      overrides.databaseId,
+      overrides.rawFullDatabaseId,
+      500,
+    ),
     author: {
       login: overrides.login ?? "alice",
       __typename: overrides.typename ?? "User",
@@ -98,7 +111,9 @@ export function gqlReview(overrides: GqlReviewOverrides = {}) {
     state: overrides.state ?? "COMMENTED",
     body: overrides.body ?? "",
     submittedAt:
-      overrides.submittedAt === undefined ? "2026-07-01T10:00:00Z" : overrides.submittedAt,
+      overrides.submittedAt === undefined
+        ? "2026-07-01T10:00:00Z"
+        : overrides.submittedAt,
     url: "https://github.com/o/r/pull/7#pullrequestreview-500",
   };
 }
@@ -150,7 +165,9 @@ export function conversationResponse(overrides: GqlResponseOverrides = {}) {
           nodes: overrides.reviews ?? [gqlReview()],
         },
         comments: {
-          pageInfo: { hasNextPage: overrides.issueCommentsHasNextPage ?? false },
+          pageInfo: {
+            hasNextPage: overrides.issueCommentsHasNextPage ?? false,
+          },
           nodes: overrides.issueComments ?? [gqlIssueComment()],
         },
       },

@@ -1,7 +1,11 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { AnthropicError, APIConnectionError, RetryableError } from "@anthropic-ai/sdk";
+import {
+  AnthropicError,
+  APIConnectionError,
+  RetryableError,
+} from "@anthropic-ai/sdk";
 import type Anthropic from "@anthropic-ai/sdk";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
@@ -183,7 +187,9 @@ describe("AnthropicGenerator SDK error classification (decision 5)", () => {
   });
 
   it("maps a connection-level failure to provider-transient", async () => {
-    const connectionError = new APIConnectionError({ cause: new Error("boom") });
+    const connectionError = new APIConnectionError({
+      cause: new Error("boom"),
+    });
     const error = await rejectionFor(connectionError);
     expect(error).toMatchObject({
       kind: GeneratorErrorKind.PROVIDER_TRANSIENT,

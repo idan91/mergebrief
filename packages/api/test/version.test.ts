@@ -19,7 +19,10 @@ import { testLogger } from "./logging";
 
 const KEY_REF = "SESSION_KEY_V1";
 
-function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
   const asBigInt = BigInt(value);
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
@@ -52,7 +55,9 @@ describe("GET /api/version", () => {
           throw new Error("conversation port must not be called in this suite");
         },
         listRepoCollaborators: async () => {
-          throw new Error("collaborators port must not be called in this suite");
+          throw new Error(
+            "collaborators port must not be called in this suite",
+          );
         },
       },
       serverVersion: "1.2.3-test",
@@ -68,7 +73,8 @@ describe("GET /api/version", () => {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
     const grant = await grantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,

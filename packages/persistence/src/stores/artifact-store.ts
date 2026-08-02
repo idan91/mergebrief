@@ -57,7 +57,10 @@ export interface ArtifactError {
   readonly message: string;
 }
 
-function fail(code: ArtifactErrorCode, message: string): Result<never, ArtifactError> {
+function fail(
+  code: ArtifactErrorCode,
+  message: string,
+): Result<never, ArtifactError> {
   return { ok: false, error: { code, message } };
 }
 
@@ -264,16 +267,25 @@ export interface DeltaStore {
    * One query backs the per-revision lastReview join; existence is derived in
    * memory, never one probe per revision.
    */
-  listForPullRequest(pullRequestId: PullRequestRowId): Promise<ComparisonSpanRow[]>;
+  listForPullRequest(
+    pullRequestId: PullRequestRowId,
+  ): Promise<ComparisonSpanRow[]>;
 }
 
 export interface DiffSnapshotStore {
-  write(input: DiffSnapshotWriteInput): Promise<Result<DiffSnapshotRow, ArtifactError>>;
-  get(pullRequestId: PullRequestRowId, sha: string): Promise<DiffSnapshotRow | undefined>;
+  write(
+    input: DiffSnapshotWriteInput,
+  ): Promise<Result<DiffSnapshotRow, ArtifactError>>;
+  get(
+    pullRequestId: PullRequestRowId,
+    sha: string,
+  ): Promise<DiffSnapshotRow | undefined>;
 }
 
 export interface RevisionNarrativeStore {
-  write(input: RevisionNarrativeWriteInput): Promise<Result<RevisionNarrativeRow, ArtifactError>>;
+  write(
+    input: RevisionNarrativeWriteInput,
+  ): Promise<Result<RevisionNarrativeRow, ArtifactError>>;
   get(
     pullRequestId: PullRequestRowId,
     prevHeadSha: string,
@@ -289,11 +301,15 @@ export interface RevisionNarrativeStore {
    * All narrative spans on a PR — the prevHead/head pair only, never the body
    * (BRIEF-24). One query backs the per-revision previousBrief narrative join.
    */
-  listForPullRequest(pullRequestId: PullRequestRowId): Promise<NarrativeSpanRow[]>;
+  listForPullRequest(
+    pullRequestId: PullRequestRowId,
+  ): Promise<NarrativeSpanRow[]>;
 }
 
 export interface ComparisonMarksStore {
-  write(input: ComparisonMarksWriteInput): Promise<Result<ComparisonMarksRow, ArtifactError>>;
+  write(
+    input: ComparisonMarksWriteInput,
+  ): Promise<Result<ComparisonMarksRow, ArtifactError>>;
   get(
     pullRequestId: PullRequestRowId,
     baselineSha: string,
@@ -310,7 +326,9 @@ export interface ComparisonMarksStore {
    * One query backs BOTH per-revision joins (previousBrief marks, lastReview
    * marks); existence is derived in memory, never one probe per revision.
    */
-  listForPullRequest(pullRequestId: PullRequestRowId): Promise<ComparisonSpanRow[]>;
+  listForPullRequest(
+    pullRequestId: PullRequestRowId,
+  ): Promise<ComparisonSpanRow[]>;
 }
 
 export interface ArtifactStore {
@@ -337,16 +355,27 @@ type Tx = Parameters<Parameters<AppDrizzle["transaction"]>[0]>[0];
  * Constructed alongside `forTenant`; same containment rules — `ctx` is the one
  * place an `installation_id` enters.
  */
-export function artifactStore(handle: AppDatabase, ctx: TenantContext): ArtifactStore {
+export function artifactStore(
+  handle: AppDatabase,
+  ctx: TenantContext,
+): ArtifactStore {
   const db = internal(handle);
   const { installationId } = ctx;
 
   /** Invariant (a): parent PR resolved within ctx's tenant BEFORE any write. */
-  async function parentInTenant(tx: Tx, pullRequestId: PullRequestRowId): Promise<boolean> {
+  async function parentInTenant(
+    tx: Tx,
+    pullRequestId: PullRequestRowId,
+  ): Promise<boolean> {
     const rows = await tx
       .select({ id: pullRequest.id })
       .from(pullRequest)
-      .where(and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)))
+      .where(
+        and(
+          eq(pullRequest.installationId, installationId),
+          eq(pullRequest.id, pullRequestId),
+        ),
+      )
       .limit(1);
     return rows[0] !== undefined;
   }
@@ -377,7 +406,12 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
             repoConfig: input.repoConfig ?? null,
           })
           .onConflictDoUpdate({
-            target: [brief.installationId, brief.pullRequestId, brief.baseSha, brief.headSha],
+            target: [
+              brief.installationId,
+              brief.pullRequestId,
+              brief.baseSha,
+              brief.headSha,
+            ],
             set: {
               headIndex: input.headIndex,
               commitCount: input.commitCount,
@@ -442,7 +476,10 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         })
         .from(brief)
         .where(
-          and(eq(brief.installationId, installationId), eq(brief.pullRequestId, pullRequestId)),
+          and(
+            eq(brief.installationId, installationId),
+            eq(brief.pullRequestId, pullRequestId),
+          ),
         )
         .orderBy(brief.headIndex);
     },
@@ -508,7 +545,12 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
             byteSize: byteSize(input.body),
           })
           .onConflictDoUpdate({
-            target: [delta.installationId, delta.pullRequestId, delta.baselineSha, delta.headSha],
+            target: [
+              delta.installationId,
+              delta.pullRequestId,
+              delta.baselineSha,
+              delta.headSha,
+            ],
             set: {
               provider: input.provider,
               model: input.model,
@@ -563,7 +605,10 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
         .select({ baselineSha: delta.baselineSha, headSha: delta.headSha })
         .from(delta)
         .where(
-          and(eq(delta.installationId, installationId), eq(delta.pullRequestId, pullRequestId)),
+          and(
+            eq(delta.installationId, installationId),
+            eq(delta.pullRequestId, pullRequestId),
+          ),
         );
     },
   };
@@ -587,7 +632,11 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
             byteSize: byteSize(input.body),
           })
           .onConflictDoUpdate({
-            target: [diffSnapshot.installationId, diffSnapshot.pullRequestId, diffSnapshot.sha],
+            target: [
+              diffSnapshot.installationId,
+              diffSnapshot.pullRequestId,
+              diffSnapshot.sha,
+            ],
             set: {
               body: input.body,
               byteSize: byteSize(input.body),
@@ -718,7 +767,10 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
 
     async listForPullRequest(pullRequestId) {
       return db
-        .select({ prevHeadSha: revisionNarrative.prevHeadSha, headSha: revisionNarrative.headSha })
+        .select({
+          prevHeadSha: revisionNarrative.prevHeadSha,
+          headSha: revisionNarrative.headSha,
+        })
         .from(revisionNarrative)
         .where(
           and(
@@ -810,7 +862,10 @@ export function artifactStore(handle: AppDatabase, ctx: TenantContext): Artifact
 
     async listForPullRequest(pullRequestId) {
       return db
-        .select({ baselineSha: comparisonMarks.baselineSha, headSha: comparisonMarks.headSha })
+        .select({
+          baselineSha: comparisonMarks.baselineSha,
+          headSha: comparisonMarks.headSha,
+        })
         .from(comparisonMarks)
         .where(
           and(

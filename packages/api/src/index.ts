@@ -26,7 +26,11 @@ export {
   refreshSessionToken,
   RefreshErrorCode,
 } from "./routes/auth";
-export type { RefreshError, RefreshedSession, AuthRouteDeps } from "./routes/auth";
+export type {
+  RefreshError,
+  RefreshedSession,
+  AuthRouteDeps,
+} from "./routes/auth";
 
 // The PR-meta `comparisons.lastReview` response vocabulary and view shape
 // (BRIEF-21). Exported for the sole benefit of consumers that MIRROR this

@@ -27,8 +27,12 @@ export const githubGrant = pgTable("github_grant", {
   /** Key resolved via the provider interface (env→KMS, ADR 0016 #7). */
   keyRef: text("key_ref").notNull(),
   /** The pair's outer bound (~6mo rotating refresh token), moved on rotation. */
-  refreshExpiresAt: timestamp("refresh_expires_at", { withTimezone: true }).notNull(),
+  refreshExpiresAt: timestamp("refresh_expires_at", {
+    withTimezone: true,
+  }).notNull(),
   /** Set explicitly by `refreshGrant` on every rotation. */
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   ...stampColumns(),
 });

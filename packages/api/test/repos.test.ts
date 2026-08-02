@@ -35,13 +35,18 @@ const REPO_B = 42002;
 const ACCESS_TOKEN = "ghu_ACCESS_TOKEN_PLAINTEXT";
 const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 
-function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
   const asBigInt = BigInt(value);
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
 }
 
-const CTX: TenantContext = { installationId: brand(isInstallationId, INSTALLATION_ID) };
+const CTX: TenantContext = {
+  installationId: brand(isInstallationId, INSTALLATION_ID),
+};
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function keyProvider(): KeyProvider {
@@ -62,7 +67,10 @@ function authDeps(kp: KeyProvider): AuthDeps {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -81,14 +89,26 @@ interface StubCounts {
 
 function stubGitHub(cfg: StubConfig): StubCounts {
   const counts: StubCounts = { installationRepos: 0 };
-  const fetchFn = vi.fn(async (input: string | URL | Request): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes("/user/installations/") && url.includes("/repositories")) {
-      const i = counts.installationRepos++;
-      return cfg.installationRepos ? cfg.installationRepos(i) : jsonResponse({ message: "nope" }, 500);
-    }
-    return jsonResponse({ message: "unexpected endpoint" }, 404);
-  });
+  const fetchFn = vi.fn(
+    async (input: string | URL | Request): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (
+        url.includes("/user/installations/") &&
+        url.includes("/repositories")
+      ) {
+        const i = counts.installationRepos++;
+        return cfg.installationRepos
+          ? cfg.installationRepos(i)
+          : jsonResponse({ message: "nope" }, 500);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
   vi.stubGlobal("fetch", fetchFn);
   return counts;
 }
@@ -133,7 +153,8 @@ describe("GET /api/repos", () => {
     const cookie = randomBytes(32).toString("base64url");
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
     const grant = await grantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -154,7 +175,8 @@ describe("GET /api/repos", () => {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
     const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
     const grant = await grantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -189,7 +211,9 @@ describe("GET /api/repos", () => {
     const res = await getRepos({ Cookie: `rs_session=${cookie}` });
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    const body = (await res.json()) as { repos: Array<{ repoId: string; fullName: string }> };
+    const body = (await res.json()) as {
+      repos: Array<{ repoId: string; fullName: string }>;
+    };
     // Deterministic order (fullName ascending); ids are STRINGS.
     expect(body.repos).toEqual([
       { repoId: String(REPO_A), fullName: "octo/hello" },
@@ -199,7 +223,8 @@ describe("GET /api/repos", () => {
 
   it("authenticates via Bearer too (it lives under /api/*)", async () => {
     stubGitHub({
-      installationRepos: () => installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
     const bearer = await seedApiToken();
     const res = await getRepos({ Authorization: `Bearer ${bearer}` });
@@ -210,35 +235,50 @@ describe("GET /api/repos", () => {
 
   it("SHARES the allowed-set cache with /api/pulls — one GitHub fetch inside the TTL", async () => {
     const counts = stubGitHub({
-      installationRepos: () => installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
+      installationRepos: () =>
+        installationReposOk([{ id: REPO_A, full_name: "octo/hello" }]),
     });
     const cookie = await seedSession();
-    expect((await app.request("/api/pulls", { headers: { Cookie: `rs_session=${cookie}` } })).status).toBe(200);
-    expect((await getRepos({ Cookie: `rs_session=${cookie}` })).status).toBe(200);
-    expect((await getRepos({ Cookie: `rs_session=${cookie}` })).status).toBe(200);
+    expect(
+      (
+        await app.request("/api/pulls", {
+          headers: { Cookie: `rs_session=${cookie}` },
+        })
+      ).status,
+    ).toBe(200);
+    expect((await getRepos({ Cookie: `rs_session=${cookie}` })).status).toBe(
+      200,
+    );
+    expect((await getRepos({ Cookie: `rs_session=${cookie}` })).status).toBe(
+      200,
+    );
     expect(counts.installationRepos).toBe(1);
   });
 
   // Long timeout: octokit's retry plugin retries the 500 with backoff before
   // the route sees the failure.
-  it("fails closed on GitHub errors — 502, never a DB-derived listing", { timeout: 20_000 }, async () => {
-    stubGitHub({
-      installationRepos: () => jsonResponse({ message: "kaboom" }, 500),
-    });
-    // Rows in the DB that a leaky fallback would surface.
-    await forTenant(harness.handle, CTX).pullRequests.upsert({
-      repoId: brand(isRepoId, REPO_A),
-      prNumber: 7,
-      repoSlug: "octo/hello",
-      state: PrState.OPEN,
-    });
-    const cookie = await seedSession();
-    const res = await getRepos({ Cookie: `rs_session=${cookie}` });
-    expect(res.status).toBe(502);
-    const text = await res.text();
-    expect(text).not.toContain("octo/hello");
-    expect(text).not.toContain(String(REPO_A));
-  });
+  it(
+    "fails closed on GitHub errors — 502, never a DB-derived listing",
+    { timeout: 20_000 },
+    async () => {
+      stubGitHub({
+        installationRepos: () => jsonResponse({ message: "kaboom" }, 500),
+      });
+      // Rows in the DB that a leaky fallback would surface.
+      await forTenant(harness.handle, CTX).pullRequests.upsert({
+        repoId: brand(isRepoId, REPO_A),
+        prNumber: 7,
+        repoSlug: "octo/hello",
+        state: PrState.OPEN,
+      });
+      const cookie = await seedSession();
+      const res = await getRepos({ Cookie: `rs_session=${cookie}` });
+      expect(res.status).toBe(502);
+      const text = await res.text();
+      expect(text).not.toContain("octo/hello");
+      expect(text).not.toContain(String(REPO_A));
+    },
+  );
 
   it("401s an unauthenticated request without touching GitHub", async () => {
     const counts = stubGitHub({});

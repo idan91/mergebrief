@@ -16,7 +16,11 @@ import { Hono, type Context } from "hono";
 import type { Result, ValueOf } from "types";
 import { decryptToken } from "persistence";
 import { z } from "zod";
-import { refreshSessionToken, type AuthRouteDeps, type ViewerPrincipal } from "./auth";
+import {
+  refreshSessionToken,
+  type AuthRouteDeps,
+  type ViewerPrincipal,
+} from "./auth";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 
 // Deliberately NO "forbidden" kind: an engine implementation maps a GitHub
@@ -103,7 +107,9 @@ const URL_SHAPED = /\w+:\/\/\S+/g;
 
 function clampConfigMessage(message: string): string {
   const firstLine = message.split("\n", 1)[0] ?? "";
-  const clamped = firstLine.replace(URL_SHAPED, "[redacted-url]").slice(0, CONFIG_MESSAGE_MAX);
+  const clamped = firstLine
+    .replace(URL_SHAPED, "[redacted-url]")
+    .slice(0, CONFIG_MESSAGE_MAX);
   return clamped === "" ? "generator configuration invalid" : clamped;
 }
 
@@ -151,7 +157,9 @@ export function generateRoute(
       return errorJson(c, "url generation unavailable", 503);
     }
 
-    const body = bodySchema.safeParse(await c.req.json().catch(() => undefined));
+    const body = bodySchema.safeParse(
+      await c.req.json().catch(() => undefined),
+    );
     if (!body.success) {
       return errorJson(c, "invalid body", 400);
     }
@@ -178,7 +186,11 @@ export function generateRoute(
         return false;
       }
       refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
+      const refreshed = await refreshSessionToken(
+        deps,
+        currentSession,
+        c.get("logger"),
+      );
       if (!refreshed.ok) {
         return false;
       }
@@ -202,11 +214,9 @@ export function generateRoute(
     const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
     const existing = await engine.lookupIndex(stem, head.value);
     if (existing != null) {
-      return c.json(
-        { briefId: briefId(stem, existing, head.value) },
-        200,
-        { "cache-control": "no-store" },
-      );
+      return c.json({ briefId: briefId(stem, existing, head.value) }, 200, {
+        "cache-control": "no-store",
+      });
     }
 
     // The refresh-once budget covers the generate stage too: the token can

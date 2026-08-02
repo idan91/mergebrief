@@ -37,7 +37,11 @@ interface FiredScanChunk {
 
 /** One fetch slot: the fixed path, its byte cap, and the validate-input key. */
 const SLOTS = [
-  { key: "instructions", path: RepoConfigPaths.INSTRUCTIONS, cap: INSTRUCTIONS_BUDGET_BYTES },
+  {
+    key: "instructions",
+    path: RepoConfigPaths.INSTRUCTIONS,
+    cap: INSTRUCTIONS_BUDGET_BYTES,
+  },
   { key: "settings", path: RepoConfigPaths.SETTINGS, cap: SETTINGS_MAX_BYTES },
   { key: "policy", path: RepoConfigPaths.POLICY, cap: POLICY_MAX_BYTES },
 ] as const;
@@ -55,8 +59,16 @@ export interface AcquiredRepoConfig {
 }
 
 /** The no-config acquisition — also the fail-open fallback shape. */
-function nothingAcquired(files: readonly RepoConfigFileOutcome[]): AcquiredRepoConfig {
-  return { repoContext: undefined, settings: undefined, policy: undefined, files, collisions: [] };
+function nothingAcquired(
+  files: readonly RepoConfigFileOutcome[],
+): AcquiredRepoConfig {
+  return {
+    repoContext: undefined,
+    settings: undefined,
+    policy: undefined,
+    files,
+    collisions: [],
+  };
 }
 
 /**
@@ -81,12 +93,18 @@ export async function acquireRepoConfig(
     return validateAndShape(fetched, log);
   } catch (error) {
     const name = error instanceof Error ? error.name : "unknown";
-    log.warn(`repo config: validation crashed (${name}) — generating without repo config`);
+    log.warn(
+      `repo config: validation crashed (${name}) — generating without repo config`,
+    );
     const files = SLOTS.map(
       (slot): RepoConfigFileOutcome =>
         fetched.overrides.get(slot.path) ??
         (fetched.inputs[slot.key] === undefined
-          ? { path: slot.path, blobSha: null, outcome: RepoConfigOutcome.ABSENT }
+          ? {
+              path: slot.path,
+              blobSha: null,
+              outcome: RepoConfigOutcome.ABSENT,
+            }
           : {
               path: slot.path,
               blobSha: fetched.inputs[slot.key]?.blobSha ?? null,
@@ -108,7 +126,10 @@ interface FetchedSlots {
   readonly overrides: ReadonlyMap<string, RepoConfigFileOutcome>;
 }
 
-async function fetchSlots(source: PullRequestSource, log: Logger): Promise<FetchedSlots> {
+async function fetchSlots(
+  source: PullRequestSource,
+  log: Logger,
+): Promise<FetchedSlots> {
   const inputs: FetchedSlots["inputs"] = {};
   const overrides = new Map<string, RepoConfigFileOutcome>();
 
@@ -120,14 +141,17 @@ async function fetchSlots(source: PullRequestSource, log: Logger): Promise<Fetch
     if (result === undefined || !result.ok) {
       // GitHub 5xx / transport failure: fail-open, loud (ADR 0032 #4). The
       // detail is a `mapRequestError` product — sanitized by construction.
-      const detail = result === undefined ? "no fetch result" : result.error.message;
+      const detail =
+        result === undefined ? "no fetch result" : result.error.message;
       overrides.set(slot.path, {
         path: slot.path,
         blobSha: null,
         outcome: RepoConfigOutcome.FETCH_FAILED,
         detail,
       });
-      log.warn(`repo config: ${slot.path} fetch failed (${detail}) — continuing without it`);
+      log.warn(
+        `repo config: ${slot.path} fetch failed (${detail}) — continuing without it`,
+      );
       continue;
     }
     const file = result.value;
@@ -145,22 +169,33 @@ async function fetchSlots(source: PullRequestSource, log: Logger): Promise<Fetch
         bytesBudget: slot.cap,
         detail: "file exceeds its byte cap",
       });
-      log.warn(`repo config: ${slot.path} over its ${slot.cap}-byte cap (${file.size} bytes) — rejected whole`);
+      log.warn(
+        `repo config: ${slot.path} over its ${slot.cap}-byte cap (${file.size} bytes) — rejected whole`,
+      );
       continue;
     }
-    inputs[slot.key] = { path: slot.path, content: file.content, blobSha: file.blobSha };
+    inputs[slot.key] = {
+      path: slot.path,
+      content: file.content,
+      blobSha: file.blobSha,
+    };
   }
   return { inputs, overrides };
 }
 
-function validateAndShape(fetched: FetchedSlots, log: Logger): AcquiredRepoConfig {
+function validateAndShape(
+  fetched: FetchedSlots,
+  log: Logger,
+): AcquiredRepoConfig {
   const validated = validateRepoConfig(fetched.inputs);
   const files = validated.outcomes.map(
     (outcome) => fetched.overrides.get(outcome.path) ?? outcome,
   );
   for (const outcome of files) {
     if (outcome.outcome === RepoConfigOutcome.INVALID) {
-      log.warn(`repo config: ${outcome.path} invalid — ${outcome.detail ?? "rejected whole"}`);
+      log.warn(
+        `repo config: ${outcome.path} invalid — ${outcome.detail ?? "rejected whole"}`,
+      );
     }
   }
 
@@ -170,7 +205,9 @@ function validateAndShape(fetched: FetchedSlots, log: Logger): AcquiredRepoConfi
       : Object.entries(validated.policy.attributes).map(([name, def]) => ({
           name,
           criteria: def.criteria,
-          ...(def.implication === undefined ? {} : { implication: def.implication }),
+          ...(def.implication === undefined
+            ? {}
+            : { implication: def.implication }),
           ...(def.paths === undefined ? {} : { paths: def.paths }),
         }));
   const instructions =
@@ -203,7 +240,9 @@ function validateAndShape(fetched: FetchedSlots, log: Logger): AcquiredRepoConfi
  * merged per-file outcome table + collision disclosures, recorded right
  * after acquisition so failed/superseded runs keep their outcomes.
  */
-export function buildRepoConfigProvenance(acquired: AcquiredRepoConfig): string {
+export function buildRepoConfigProvenance(
+  acquired: AcquiredRepoConfig,
+): string {
   return JSON.stringify(
     repoConfigProvenanceSchema.parse({
       files: acquired.files.map((file) => ({ ...file })),
@@ -230,10 +269,15 @@ export function buildRepoConfigArtifact(
       .map(([name, def]) => ({
         name,
         criteria: def.criteria,
-        ...(def.implication === undefined ? {} : { implication: def.implication }),
+        ...(def.implication === undefined
+          ? {}
+          : { implication: def.implication }),
         ...(def.paths === undefined ? {} : { paths: [...def.paths] }),
       }));
-    policy = { firedCustomAttributes, deEmphasize: [...acquired.policy.deEmphasize] };
+    policy = {
+      firedCustomAttributes,
+      deEmphasize: [...acquired.policy.deEmphasize],
+    };
   }
   // Parse through the shared artifact schema before storing: the writer
   // self-checks against the exact contract readers enforce (slot tuple,

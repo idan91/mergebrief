@@ -27,7 +27,12 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createApp, type ApiApp, type AuthDeps, type InstallationGitHubPort } from "../src/index";
+import {
+  createApp,
+  type ApiApp,
+  type AuthDeps,
+  type InstallationGitHubPort,
+} from "../src/index";
 import { testLogger, testLogging } from "./logging";
 
 // POST .../comments/{id}/replies is on octokit's `triggersNotification` list:
@@ -157,11 +162,16 @@ function conversationFixture(): PrConversation {
 }
 
 interface PortLog {
-  readonly calls: Array<{ installationId: InstallationId; input: FetchPullRequestConversationInput }>;
+  readonly calls: Array<{
+    installationId: InstallationId;
+    input: FetchPullRequestConversationInput;
+  }>;
 }
 
 function stubPort(
-  results: Array<Awaited<ReturnType<InstallationGitHubPort["fetchPullRequestConversation"]>>>,
+  results: Array<
+    Awaited<ReturnType<InstallationGitHubPort["fetchPullRequestConversation"]>>
+  >,
 ): { port: InstallationGitHubPort; log: PortLog } {
   const log: PortLog = { calls: [] };
   let call = 0;
@@ -189,7 +199,10 @@ function stubPort(
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -245,31 +258,49 @@ function stubGitHub(cfg: StubConfig): StubCounts {
     replyBodies: [],
     replyUrls: [],
   };
-  const fetchFn = vi.fn(async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes("/login/oauth/access_token")) {
-      const i = counts.token++;
-      return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
-    }
-    if (url.includes("/repositories/")) {
-      const i = counts.repositories++;
-      return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-    }
-    if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/comments\/\d+\/replies$/.test(url)) {
-      const i = counts.reply++;
-      counts.replyUrls.push(url);
-      const raw = init?.body ?? (input instanceof Request ? await input.text() : undefined);
-      if (typeof raw === "string") {
-        counts.replyBodies.push(JSON.parse(raw));
+  const fetchFn = vi.fn(
+    async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/login/oauth/access_token")) {
+        const i = counts.token++;
+        return cfg.token
+          ? cfg.token(i)
+          : jsonResponse({ error: "unexpected_token" }, 500);
       }
-      return cfg.reply ? cfg.reply(i) : replyStatus(500);
-    }
-    if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
-      const i = counts.createReview++;
-      return cfg.createReview ? cfg.createReview(i) : jsonResponse({ message: "unexpected" }, 500);
-    }
-    return jsonResponse({ message: "unexpected endpoint" }, 404);
-  });
+      if (url.includes("/repositories/")) {
+        const i = counts.repositories++;
+        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
+      }
+      if (
+        /\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/comments\/\d+\/replies$/.test(url)
+      ) {
+        const i = counts.reply++;
+        counts.replyUrls.push(url);
+        const raw =
+          init?.body ??
+          (input instanceof Request ? await input.text() : undefined);
+        if (typeof raw === "string") {
+          counts.replyBodies.push(JSON.parse(raw));
+        }
+        return cfg.reply ? cfg.reply(i) : replyStatus(500);
+      }
+      if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
+        const i = counts.createReview++;
+        return cfg.createReview
+          ? cfg.createReview(i)
+          : jsonResponse({ message: "unexpected" }, 500);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
   vi.stubGlobal("fetch", fetchFn);
   return counts;
 }
@@ -278,11 +309,15 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // Seeding + request helpers.
 // ---------------------------------------------------------------------------
 
-async function seedSession(handle: AppDatabase, kp: KeyProvider): Promise<{ cookie: string }> {
+async function seedSession(
+  handle: AppDatabase,
+  kp: KeyProvider,
+): Promise<{ cookie: string }> {
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -319,7 +354,10 @@ async function seedPullRequestWithEntryComment(
     PR_NUMBER,
   );
   if (row === undefined) throw new Error("seed row missing");
-  const set = await forTenant(handle, CTX).pullRequests.setEntryComment(row.id, entryCommentId);
+  const set = await forTenant(handle, CTX).pullRequests.setEntryComment(
+    row.id,
+    entryCommentId,
+  );
   if (!set.ok) throw new Error("setEntryComment failed in seed");
 }
 
@@ -329,7 +367,11 @@ function replyPath(commentId: number | string = ROOT_COMMENT_ID): string {
   return `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${commentId}/replies`;
 }
 
-async function getConversation(app: ApiApp, cookie: string | undefined, path = CONVERSATION_PATH): Promise<Response> {
+async function getConversation(
+  app: ApiApp,
+  cookie: string | undefined,
+  path = CONVERSATION_PATH,
+): Promise<Response> {
   return await app.request(path, {
     headers: cookie === undefined ? {} : { cookie: `rs_session=${cookie}` },
   });
@@ -430,7 +472,11 @@ describe("conversation surface", () => {
       // The port received the tenant installation and the verified repo slug.
       expect(log.calls).toHaveLength(1);
       expect(log.calls[0]?.installationId).toBe(CTX.installationId);
-      expect(log.calls[0]?.input).toEqual({ owner: "octo", repo: "hello", prNumber: PR_NUMBER });
+      expect(log.calls[0]?.input).toEqual({
+        owner: "octo",
+        repo: "hello",
+        prNumber: PR_NUMBER,
+      });
     });
 
     it("filters the stored Entry comment out of prComments (BRIEF-57)", async () => {
@@ -460,7 +506,9 @@ describe("conversation surface", () => {
       const body = (await res.json()) as PrConversation;
       // The human comment stays; OUR branded entry comment never renders in
       // the collapsible (it is the front door, not conversation).
-      expect(body.prComments.map((comment) => comment.commentId)).toEqual([9001]);
+      expect(body.prComments.map((comment) => comment.commentId)).toEqual([
+        9001,
+      ]);
       // Only the exact stored id is filtered — pagination flag untouched.
       expect(body.hasMorePrComments).toBe(false);
     });
@@ -490,7 +538,9 @@ describe("conversation surface", () => {
       await seedPullRequestWithEntryComment(harness.handle, 999_999n);
       const res = await getConversation(makeApp(port), cookie);
       const body = (await res.json()) as PrConversation;
-      expect(body.prComments.map((comment) => comment.commentId)).toEqual([9001, 5_555]);
+      expect(body.prComments.map((comment) => comment.commentId)).toEqual([
+        9001, 5_555,
+      ]);
     });
 
     it("serves the second read from the per-PR cache (one port call inside the TTL)", async () => {
@@ -514,11 +564,19 @@ describe("conversation surface", () => {
     it("collapses a port not-found to 404 and other failures to 502 (no fallback tier)", async () => {
       const notFound = {
         ok: false as const,
-        error: { code: "not-found" as const, message: "failed to fetch pull request conversation: pull request not found" },
+        error: {
+          code: "not-found" as const,
+          message:
+            "failed to fetch pull request conversation: pull request not found",
+        },
       };
       const rateLimited = {
         ok: false as const,
-        error: { code: "rate-limited" as const, message: "failed to fetch pull request conversation: GitHub GraphQL query failed" },
+        error: {
+          code: "rate-limited" as const,
+          message:
+            "failed to fetch pull request conversation: GitHub GraphQL query failed",
+        },
       };
       stubGitHub({ repositories: () => repoOk() });
       const { cookie } = await seedSession(harness.handle, kp);
@@ -571,7 +629,9 @@ describe("conversation surface", () => {
       expect(await res.json()).toEqual({ commentId: REPLY_ID });
       // One reply POST, aimed at the fresh-resolved slug + root comment id.
       expect(counts.reply).toBe(1);
-      expect(counts.replyUrls[0]).toContain(`/repos/octo/hello/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/replies`);
+      expect(counts.replyUrls[0]).toContain(
+        `/repos/octo/hello/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/replies`,
+      );
       expect(counts.replyBodies[0]).toEqual({ body: "a follow-up" });
       // Mutation rule: the repo was re-resolved fresh (gate check + re-resolve).
       expect(counts.repositories).toBeGreaterThanOrEqual(2);
@@ -580,13 +640,18 @@ describe("conversation surface", () => {
 
     it("rejects an empty or oversized body deterministically (400, nothing posted)", async () => {
       const { port } = stubPort([okResult()]);
-      const counts = stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyCreated(),
+      });
       const { cookie } = await seedSession(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp(port);
       const empty = await postReply(app, cookie, { body: "" });
       expect(empty.status).toBe(400);
-      const oversized = await postReply(app, cookie, { body: "x".repeat(65_537) });
+      const oversized = await postReply(app, cookie, {
+        body: "x".repeat(65_537),
+      });
       expect(oversized.status).toBe(400);
       expect(counts.reply).toBe(0);
       expect(await replyAuditCount(harness)).toBe(0);
@@ -594,10 +659,18 @@ describe("conversation surface", () => {
 
     it("rejects a comment id past safe-integer precision (400)", async () => {
       const { port } = stubPort([okResult()]);
-      const counts = stubGitHub({ repositories: () => repoOk(), reply: () => replyCreated() });
+      const counts = stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyCreated(),
+      });
       const { cookie } = await seedSession(harness.handle, kp);
       await seedPullRequest(harness.handle);
-      const res = await postReply(makeApp(port), cookie, { body: "x" }, replyPath("9007199254740993"));
+      const res = await postReply(
+        makeApp(port),
+        cookie,
+        { body: "x" },
+        replyPath("9007199254740993"),
+      );
       expect(res.status).toBe(400);
       expect(counts.reply).toBe(0);
     });
@@ -612,7 +685,9 @@ describe("conversation surface", () => {
       });
       const { cookie } = await seedSession(harness.handle, kp);
       await seedPullRequest(harness.handle);
-      const res = await postReply(makeApp(port), cookie, { body: "after refresh" });
+      const res = await postReply(makeApp(port), cookie, {
+        body: "after refresh",
+      });
       expect(res.status).toBe(201);
       expect(counts.token).toBe(1);
       expect(counts.reply).toBe(2);
@@ -620,7 +695,10 @@ describe("conversation surface", () => {
 
     it("collapses a reply-create 403 to the gate's 404 posture (no distinguishable denial)", async () => {
       const { port } = stubPort([okResult()]);
-      stubGitHub({ repositories: () => repoOk(), reply: () => replyStatus(403) });
+      stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyStatus(403),
+      });
       const { cookie } = await seedSession(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(port), cookie, { body: "x" });
@@ -630,7 +708,10 @@ describe("conversation surface", () => {
 
     it("404s when the root comment is gone (sanitized upstream 404)", async () => {
       const { port } = stubPort([okResult()]);
-      stubGitHub({ repositories: () => repoOk(), reply: () => replyStatus(404) });
+      stubGitHub({
+        repositories: () => repoOk(),
+        reply: () => replyStatus(404),
+      });
       const { cookie } = await seedSession(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const res = await postReply(makeApp(port), cookie, { body: "x" });
@@ -655,7 +736,9 @@ describe("conversation surface", () => {
       // local persistence failure must not read as "nothing was posted".
       await harness.raw("alter table audit_log rename to audit_log_hidden");
       try {
-        const res = await postReply(app, cookie, { body: "posted then audit dies" });
+        const res = await postReply(app, cookie, {
+          body: "posted then audit dies",
+        });
         expect(res.status).toBe(201);
         expect(await res.json()).toEqual({ commentId: REPLY_ID });
         // The integrity failure is operator-visible (ADR 0034): one
@@ -692,12 +775,18 @@ describe("conversation surface", () => {
         repositories: (call) =>
           call === 0
             ? repoOk()
-            : jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
+            : jsonResponse({
+                id: REPO_ID,
+                full_name: "octo/renamed",
+                private: true,
+              }),
         reply: () => replyCreated(),
       });
       const { cookie } = await seedSession(harness.handle, kp);
       await seedPullRequest(harness.handle);
-      const res = await postReply(makeApp(port), cookie, { body: "to the fresh slug" });
+      const res = await postReply(makeApp(port), cookie, {
+        body: "to the fresh slug",
+      });
       expect(res.status).toBe(201);
       expect(counts.replyUrls[0]).toContain("/repos/octo/renamed/pulls/");
     });
@@ -710,7 +799,9 @@ describe("conversation surface", () => {
       const app = makeApp(port);
       await getConversation(app, cookie);
       expect(log.calls).toHaveLength(1);
-      const posted = await postReply(app, cookie, { body: "invalidates cache" });
+      const posted = await postReply(app, cookie, {
+        body: "invalidates cache",
+      });
       expect(posted.status).toBe(201);
       await getConversation(app, cookie);
       expect(log.calls).toHaveLength(2);
@@ -720,17 +811,29 @@ describe("conversation surface", () => {
   describe("review submit evicts the conversation cache", () => {
     it("drops the PR's cached conversation on a successful review submit", async () => {
       const { port, log } = stubPort([okResult(), okResult()]);
-      stubGitHub({ repositories: () => repoOk(), createReview: () => reviewCreated() });
+      stubGitHub({
+        repositories: () => repoOk(),
+        createReview: () => reviewCreated(),
+      });
       const { cookie } = await seedSession(harness.handle, kp);
       await seedPullRequest(harness.handle);
       const app = makeApp(port);
       await getConversation(app, cookie);
       expect(log.calls).toHaveLength(1);
-      const submitted = await app.request(`/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/review`, {
-        method: "POST",
-        headers: { "content-type": "application/json", cookie: `rs_session=${cookie}` },
-        body: JSON.stringify({ outcome: "approve", commitId: "c".repeat(40) }),
-      });
+      const submitted = await app.request(
+        `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/review`,
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            cookie: `rs_session=${cookie}`,
+          },
+          body: JSON.stringify({
+            outcome: "approve",
+            commitId: "c".repeat(40),
+          }),
+        },
+      );
       expect(submitted.status).toBe(201);
       await getConversation(app, cookie);
       expect(log.calls).toHaveLength(2);

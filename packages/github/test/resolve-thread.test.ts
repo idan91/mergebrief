@@ -9,7 +9,11 @@ import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { setReviewThreadResolution } from "../src/operations/resolve-thread";
 import { GitHubApiErrorCode } from "../src/errors";
-import { LEAKED_TOKEN, UPSTREAM_TEXT, graphqlResponseError } from "./fixtures/graphql-error";
+import {
+  LEAKED_TOKEN,
+  UPSTREAM_TEXT,
+  graphqlResponseError,
+} from "./fixtures/graphql-error";
 
 function mockGraphqlOctokit(graphql: ReturnType<typeof vi.fn>): Octokit {
   const stub = { graphql };
@@ -87,13 +91,24 @@ describe("setReviewThreadResolution", () => {
       .fn()
       .mockResolvedValueOnce(
         walkPage([
-          threadNode({ id: OTHER_THREAD_NODE_ID, isResolved: false, rootCommentId: 99 }),
-          threadNode({ id: THREAD_NODE_ID, isResolved: false, rootCommentId: ROOT_COMMENT_ID }),
+          threadNode({
+            id: OTHER_THREAD_NODE_ID,
+            isResolved: false,
+            rootCommentId: 99,
+          }),
+          threadNode({
+            id: THREAD_NODE_ID,
+            isResolved: false,
+            rootCommentId: ROOT_COMMENT_ID,
+          }),
         ]),
       )
       .mockResolvedValueOnce(mutationResponse("resolveReviewThread", true));
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -101,7 +116,12 @@ describe("setReviewThreadResolution", () => {
     expect(graphql).toHaveBeenCalledTimes(2);
     // The walk carries owner/repo/number as variables (never interpolated).
     const [, walkVars] = graphql.mock.calls[0] ?? [];
-    expect(walkVars).toEqual({ owner: "o", repo: "r", prNumber: 7, cursor: null });
+    expect(walkVars).toEqual({
+      owner: "o",
+      repo: "r",
+      prNumber: 7,
+      cursor: null,
+    });
     // The mutation carries the found thread's NODE id, never the PR number or
     // the root comment id.
     const [mutationQuery, mutationVars] = graphql.mock.calls[1] ?? [];
@@ -114,12 +134,19 @@ describe("setReviewThreadResolution", () => {
       .fn()
       .mockResolvedValueOnce(
         walkPage([
-          threadNode({ id: THREAD_NODE_ID, isResolved: true, rootCommentId: ROOT_COMMENT_ID }),
+          threadNode({
+            id: THREAD_NODE_ID,
+            isResolved: true,
+            rootCommentId: ROOT_COMMENT_ID,
+          }),
         ]),
       )
       .mockResolvedValueOnce(mutationResponse("unresolveReviewThread", false));
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), UNRESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      UNRESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -131,15 +158,20 @@ describe("setReviewThreadResolution", () => {
   });
 
   it("converges without mutating when the thread is already resolved", async () => {
-    const graphql = vi
-      .fn()
-      .mockResolvedValueOnce(
-        walkPage([
-          threadNode({ id: THREAD_NODE_ID, isResolved: true, rootCommentId: ROOT_COMMENT_ID }),
-        ]),
-      );
+    const graphql = vi.fn().mockResolvedValueOnce(
+      walkPage([
+        threadNode({
+          id: THREAD_NODE_ID,
+          isResolved: true,
+          rootCommentId: ROOT_COMMENT_ID,
+        }),
+      ]),
+    );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -149,15 +181,20 @@ describe("setReviewThreadResolution", () => {
   });
 
   it("converges without mutating when the thread is already unresolved", async () => {
-    const graphql = vi
-      .fn()
-      .mockResolvedValueOnce(
-        walkPage([
-          threadNode({ id: THREAD_NODE_ID, isResolved: false, rootCommentId: ROOT_COMMENT_ID }),
-        ]),
-      );
+    const graphql = vi.fn().mockResolvedValueOnce(
+      walkPage([
+        threadNode({
+          id: THREAD_NODE_ID,
+          isResolved: false,
+          rootCommentId: ROOT_COMMENT_ID,
+        }),
+      ]),
+    );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), UNRESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      UNRESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -170,25 +207,43 @@ describe("setReviewThreadResolution", () => {
       .fn()
       .mockResolvedValueOnce(
         walkPage(
-          [threadNode({ id: OTHER_THREAD_NODE_ID, isResolved: false, rootCommentId: 99 })],
+          [
+            threadNode({
+              id: OTHER_THREAD_NODE_ID,
+              isResolved: false,
+              rootCommentId: 99,
+            }),
+          ],
           "CURSOR_1",
         ),
       )
       .mockResolvedValueOnce(
         walkPage([
-          threadNode({ id: THREAD_NODE_ID, isResolved: false, rootCommentId: ROOT_COMMENT_ID }),
+          threadNode({
+            id: THREAD_NODE_ID,
+            isResolved: false,
+            rootCommentId: ROOT_COMMENT_ID,
+          }),
         ]),
       )
       .mockResolvedValueOnce(mutationResponse("resolveReviewThread", true));
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.alreadyInTargetState).toBe(false);
     expect(graphql).toHaveBeenCalledTimes(3);
     const [, secondWalkVars] = graphql.mock.calls[1] ?? [];
-    expect(secondWalkVars).toEqual({ owner: "o", repo: "r", prNumber: 7, cursor: "CURSOR_1" });
+    expect(secondWalkVars).toEqual({
+      owner: "o",
+      repo: "r",
+      prNumber: 7,
+      cursor: "CURSOR_1",
+    });
     const [, mutationVars] = graphql.mock.calls[2] ?? [];
     expect(mutationVars).toEqual({ threadId: THREAD_NODE_ID });
   });
@@ -198,15 +253,30 @@ describe("setReviewThreadResolution", () => {
       .fn()
       .mockResolvedValueOnce(
         walkPage(
-          [threadNode({ id: OTHER_THREAD_NODE_ID, isResolved: false, rootCommentId: 99 })],
+          [
+            threadNode({
+              id: OTHER_THREAD_NODE_ID,
+              isResolved: false,
+              rootCommentId: 99,
+            }),
+          ],
           "CURSOR_1",
         ),
       )
       .mockResolvedValueOnce(
-        walkPage([threadNode({ id: "PRRT_other2", isResolved: false, rootCommentId: 100 })]),
+        walkPage([
+          threadNode({
+            id: "PRRT_other2",
+            isResolved: false,
+            rootCommentId: 100,
+          }),
+        ]),
       );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -216,13 +286,20 @@ describe("setReviewThreadResolution", () => {
   });
 
   it("skips a thread whose root comment carries no usable database id", async () => {
-    const graphql = vi
-      .fn()
-      .mockResolvedValueOnce(
-        walkPage([threadNode({ id: THREAD_NODE_ID, isResolved: false, rootCommentId: null })]),
-      );
+    const graphql = vi.fn().mockResolvedValueOnce(
+      walkPage([
+        threadNode({
+          id: THREAD_NODE_ID,
+          isResolved: false,
+          rootCommentId: null,
+        }),
+      ]),
+    );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -231,13 +308,20 @@ describe("setReviewThreadResolution", () => {
   });
 
   it("skips a thread whose root database id is not a number", async () => {
-    const graphql = vi
-      .fn()
-      .mockResolvedValueOnce(
-        walkPage([threadNode({ id: THREAD_NODE_ID, isResolved: false, rootCommentId: "abc" })]),
-      );
+    const graphql = vi.fn().mockResolvedValueOnce(
+      walkPage([
+        threadNode({
+          id: THREAD_NODE_ID,
+          isResolved: false,
+          rootCommentId: "abc",
+        }),
+      ]),
+    );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -252,7 +336,11 @@ describe("setReviewThreadResolution", () => {
     const roundsTo = 9_007_199_254_740_992;
     const graphql = vi.fn().mockResolvedValueOnce(
       walkPage([
-        threadNode({ id: OTHER_THREAD_NODE_ID, isResolved: false, rootCommentId: 99 }),
+        threadNode({
+          id: OTHER_THREAD_NODE_ID,
+          isResolved: false,
+          rootCommentId: 99,
+        }),
         threadNode({
           id: THREAD_NODE_ID,
           isResolved: false,
@@ -261,10 +349,13 @@ describe("setReviewThreadResolution", () => {
       ]),
     );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), {
-      ...RESOLVE_INPUT,
-      rootCommentId: roundsTo,
-    });
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      {
+        ...RESOLVE_INPUT,
+        rootCommentId: roundsTo,
+      },
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -279,12 +370,19 @@ describe("setReviewThreadResolution", () => {
       .mockResolvedValueOnce(
         walkPage([
           null,
-          threadNode({ id: THREAD_NODE_ID, isResolved: false, rootCommentId: ROOT_COMMENT_ID }),
+          threadNode({
+            id: THREAD_NODE_ID,
+            isResolved: false,
+            rootCommentId: ROOT_COMMENT_ID,
+          }),
         ]),
       )
       .mockResolvedValueOnce(mutationResponse("resolveReviewThread", true));
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
@@ -296,17 +394,24 @@ describe("setReviewThreadResolution", () => {
   it("terminates the walk when hasNextPage is true but the cursor is null", async () => {
     // Degenerate page: without the endCursor guard the walk would re-request
     // page 1 (cursor still null) until the cap, 20 identical calls deep.
-    const graphql = vi
-      .fn()
-      .mockResolvedValue(
-        walkPage(
-          [threadNode({ id: OTHER_THREAD_NODE_ID, isResolved: false, rootCommentId: 99 })],
-          null,
-          true,
-        ),
-      );
+    const graphql = vi.fn().mockResolvedValue(
+      walkPage(
+        [
+          threadNode({
+            id: OTHER_THREAD_NODE_ID,
+            isResolved: false,
+            rootCommentId: 99,
+          }),
+        ],
+        null,
+        true,
+      ),
+    );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -316,7 +421,10 @@ describe("setReviewThreadResolution", () => {
 
   it("not-found when the repository field is null", async () => {
     const graphql = vi.fn().mockResolvedValueOnce({ repository: null });
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
@@ -324,8 +432,13 @@ describe("setReviewThreadResolution", () => {
   });
 
   it("not-found when the pullRequest field is null", async () => {
-    const graphql = vi.fn().mockResolvedValueOnce({ repository: { pullRequest: null } });
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const graphql = vi
+      .fn()
+      .mockResolvedValueOnce({ repository: { pullRequest: null } });
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
@@ -337,12 +450,17 @@ describe("setReviewThreadResolution", () => {
     const graphql = vi
       .fn()
       .mockImplementation((_query: string, variables: unknown) =>
-        typeof variables === "object" && variables !== null && "cursor" in variables
+        typeof variables === "object" &&
+        variables !== null &&
+        "cursor" in variables
           ? Promise.resolve(walkPage([], "CURSOR_NEXT"))
           : Promise.reject(new Error("mutation must not be called")),
       );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -353,9 +471,14 @@ describe("setReviewThreadResolution", () => {
   it("maps a walk-time GraphQL error (forbidden) to a sanitized failure, no mutation", async () => {
     const graphql = vi
       .fn()
-      .mockRejectedValueOnce(graphqlResponseError([{ type: "FORBIDDEN", message: "no access" }]));
+      .mockRejectedValueOnce(
+        graphqlResponseError([{ type: "FORBIDDEN", message: "no access" }]),
+      );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -372,12 +495,20 @@ describe("setReviewThreadResolution", () => {
       .fn()
       .mockResolvedValueOnce(
         walkPage([
-          threadNode({ id: THREAD_NODE_ID, isResolved: false, rootCommentId: ROOT_COMMENT_ID }),
+          threadNode({
+            id: THREAD_NODE_ID,
+            isResolved: false,
+            rootCommentId: ROOT_COMMENT_ID,
+          }),
         ]),
       )
       .mockRejectedValueOnce(
         new RequestError("Server Error", 502, {
-          request: { method: "POST", url: "https://api.github.com/graphql", headers: {} },
+          request: {
+            method: "POST",
+            url: "https://api.github.com/graphql",
+            headers: {},
+          },
           response: {
             status: 502,
             url: "https://api.github.com/graphql",
@@ -387,7 +518,10 @@ describe("setReviewThreadResolution", () => {
         }),
       );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -402,14 +536,23 @@ describe("setReviewThreadResolution", () => {
       .fn()
       .mockResolvedValueOnce(
         walkPage([
-          threadNode({ id: THREAD_NODE_ID, isResolved: false, rootCommentId: ROOT_COMMENT_ID }),
+          threadNode({
+            id: THREAD_NODE_ID,
+            isResolved: false,
+            rootCommentId: ROOT_COMMENT_ID,
+          }),
         ]),
       )
       .mockRejectedValueOnce(
-        graphqlResponseError([{ type: "FORBIDDEN", message: "Thread is already resolved" }]),
+        graphqlResponseError([
+          { type: "FORBIDDEN", message: "Thread is already resolved" },
+        ]),
       );
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -419,11 +562,14 @@ describe("setReviewThreadResolution", () => {
   });
 
   it("flags an ill-shaped walk response as an unexpected-shape failure", async () => {
-    const graphql = vi
-      .fn()
-      .mockResolvedValueOnce({ repository: { pullRequest: { reviewThreads: { nodes: [] } } } });
+    const graphql = vi.fn().mockResolvedValueOnce({
+      repository: { pullRequest: { reviewThreads: { nodes: [] } } },
+    });
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
@@ -435,12 +581,21 @@ describe("setReviewThreadResolution", () => {
       .fn()
       .mockResolvedValueOnce(
         walkPage([
-          threadNode({ id: THREAD_NODE_ID, isResolved: false, rootCommentId: ROOT_COMMENT_ID }),
+          threadNode({
+            id: THREAD_NODE_ID,
+            isResolved: false,
+            rootCommentId: ROOT_COMMENT_ID,
+          }),
         ]),
       )
-      .mockResolvedValueOnce({ resolveReviewThread: { thread: { isResolved: "yes" } } });
+      .mockResolvedValueOnce({
+        resolveReviewThread: { thread: { isResolved: "yes" } },
+      });
 
-    const result = await setReviewThreadResolution(mockGraphqlOctokit(graphql), RESOLVE_INPUT);
+    const result = await setReviewThreadResolution(
+      mockGraphqlOctokit(graphql),
+      RESOLVE_INPUT,
+    );
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");

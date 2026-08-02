@@ -227,6 +227,8 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
   };
 
   const instance =
-    destination === undefined ? pino(pinoOptions) : pino(pinoOptions, destination);
+    destination === undefined
+      ? pino(pinoOptions)
+      : pino(pinoOptions, destination);
   return wrap(instance);
 }

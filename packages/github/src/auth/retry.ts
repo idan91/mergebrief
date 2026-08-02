@@ -7,7 +7,9 @@
 // the worker, where it stalls a minutes-long generation job on a span that
 // can never succeed. Supplying `doNotRetry` REPLACES the plugin's default
 // list, so the defaults are repeated here alongside 406.
-export const DO_NOT_RETRY_STATUSES = [400, 401, 403, 404, 406, 410, 422, 451] as const;
+export const DO_NOT_RETRY_STATUSES = [
+  400, 401, 403, 404, 406, 410, 422, 451,
+] as const;
 
 /** The `retry` options block passed at client construction. */
 export function retryOptions(): { doNotRetry: number[] } {

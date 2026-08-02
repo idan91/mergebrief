@@ -1,7 +1,11 @@
 import type { Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
 import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
-import { runHarnessProcess, type HarnessRunResult, type HarnessTimeouts } from "./run";
+import {
+  runHarnessProcess,
+  type HarnessRunResult,
+  type HarnessTimeouts,
+} from "./run";
 
 // ---------------------------------------------------------------------------
 // Boot probe (ADR 0030 #5): a misconfigured instance refuses boot, never

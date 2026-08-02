@@ -69,9 +69,9 @@ describe("salvageDroppableEnums", () => {
     expect(result?.value.changeGroups[0].secondaryCategories).toEqual([
       "logic-refactor",
     ]);
-    expect(
-      result?.issues.some((i) => i.includes("refactor-everything")),
-    ).toBe(true);
+    expect(result?.issues.some((i) => i.includes("refactor-everything"))).toBe(
+      true,
+    );
     // pure: the input payload is untouched
     expect(raw.changeGroups[0].secondaryCategories).toHaveLength(2);
   });
@@ -79,7 +79,11 @@ describe("salvageDroppableEnums", () => {
   it("drops multiple bad elements across fields in one payload", () => {
     const raw = validGeneration();
     raw.changeGroups[0].secondaryCategories = ["scary"] as never;
-    raw.chunks[0].riskSurface = ["mutates-state", "spooky", "no-tests"] as never;
+    raw.chunks[0].riskSurface = [
+      "mutates-state",
+      "spooky",
+      "no-tests",
+    ] as never;
     const result = salvageDroppableEnums(raw, BriefGenerationSchema, DROPPABLE);
     expect(result).not.toBeNull();
     expect(result?.value.changeGroups[0].secondaryCategories).toEqual([]);

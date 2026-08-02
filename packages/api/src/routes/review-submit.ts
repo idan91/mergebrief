@@ -68,7 +68,9 @@ const MAX_BODY_LENGTH = 65_536;
 const MAX_PATH_LENGTH = 1_024;
 const MAX_SELECTED_TEXT_LENGTH = 4_000;
 
-const shaSchema = z.string().regex(/^[0-9a-f]{40}$/, "commitId must be a 40-hex SHA");
+const shaSchema = z
+  .string()
+  .regex(/^[0-9a-f]{40}$/, "commitId must be a 40-hex SHA");
 const sideSchema = z.union([
   z.literal(ReviewCommentSide.LEFT),
   z.literal(ReviewCommentSide.RIGHT),
@@ -86,7 +88,8 @@ const commentSchema = z
     selectedText: z.string().max(MAX_SELECTED_TEXT_LENGTH).optional(),
   })
   .refine(
-    (comment) => comment.startLine === undefined || comment.startLine < comment.line,
+    (comment) =>
+      comment.startLine === undefined || comment.startLine < comment.line,
     { message: "startLine must be strictly before line" },
   );
 
@@ -106,7 +109,9 @@ const submitBodySchema = z
       submit.outcome !== ReviewOutcome.COMMENT ||
       submit.comments.length > 0 ||
       (submit.body !== undefined && submit.body.trim() !== ""),
-    { message: "a neutral comment review needs at least one comment or a body" },
+    {
+      message: "a neutral comment review needs at least one comment or a body",
+    },
   )
   .refine(
     // GitHub documents `body` as REQUIRED for the REQUEST_CHANGES event —
@@ -126,7 +131,8 @@ const submitBodySchema = z
     // side effect, never a 502 halfway through a degraded retry.
     (submit) =>
       submit.comments.length === 0 ||
-      foldCommentsIntoBody(submit.body, submit.comments).length <= MAX_BODY_LENGTH,
+      foldCommentsIntoBody(submit.body, submit.comments).length <=
+        MAX_BODY_LENGTH,
     { message: "comments are too large to fold into a single review body" },
   );
 
@@ -149,7 +155,9 @@ function foldedCommentBlock(comment: SubmitComment): string {
     comment.selectedText === undefined
       ? []
       : comment.selectedText.split("\n").map((line) => `> ${line}`);
-  return [`**\`${comment.path}:${range}\`**`, ...quote, "", comment.body].join("\n");
+  return [`**\`${comment.path}:${range}\`**`, ...quote, "", comment.body].join(
+    "\n",
+  );
 }
 
 /** The review body with every anchored comment folded in as a quoted block. */
@@ -167,13 +175,19 @@ export function foldCommentsIntoBody(
   ].join("\n\n");
 }
 
-function toPrimitiveComments(comments: readonly SubmitComment[]): ReviewCommentInput[] {
+function toPrimitiveComments(
+  comments: readonly SubmitComment[],
+): ReviewCommentInput[] {
   return comments.map((comment) => ({
     path: comment.path,
     line: comment.line,
     side: comment.side,
-    ...(comment.startLine === undefined ? {} : { startLine: comment.startLine }),
-    ...(comment.startSide === undefined ? {} : { startSide: comment.startSide }),
+    ...(comment.startLine === undefined
+      ? {}
+      : { startLine: comment.startLine }),
+    ...(comment.startSide === undefined
+      ? {}
+      : { startSide: comment.startSide }),
     body: comment.body,
   }));
 }
@@ -191,10 +205,18 @@ function errorJson(
 }
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
-function splitRepoSlug(fullName: string): { owner: string; repo: string } | undefined {
+function splitRepoSlug(
+  fullName: string,
+): { owner: string; repo: string } | undefined {
   const parts = fullName.split("/");
   const [owner, repo] = parts;
-  if (parts.length !== 2 || owner === undefined || owner === "" || repo === undefined || repo === "") {
+  if (
+    parts.length !== 2 ||
+    owner === undefined ||
+    owner === "" ||
+    repo === undefined ||
+    repo === ""
+  ) {
     return undefined;
   }
   return { owner, repo };
@@ -221,7 +243,11 @@ async function resolveSessionToken(
  */
 export function reviewSubmitRoute(
   deps: AuthRouteDeps,
-  evictConversation: (installationId: InstallationId, repoId: RepoId, prNumber: number) => void,
+  evictConversation: (
+    installationId: InstallationId,
+    repoId: RepoId,
+    prNumber: number,
+  ) => void,
 ): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
@@ -278,7 +304,11 @@ export function reviewSubmitRoute(
         return false;
       }
       refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
+      const refreshed = await refreshSessionToken(
+        deps,
+        currentSession,
+        c.get("logger"),
+      );
       if (!refreshed.ok) {
         return false;
       }
@@ -291,13 +321,19 @@ export function reviewSubmitRoute(
     // before the mutating write. The gate's cached `repoFullName` may be up
     // to 60s stale — tolerable for reads, but a rename + name-reuse inside
     // that window would point a formal REVIEW at the wrong repository.
-    let repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), c.get("repoId"));
+    let repoInfo = await fetchRepositoryById(
+      createUserOctokit(accessToken),
+      c.get("repoId"),
+    );
     if (
       !repoInfo.ok &&
       repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
       (await spendRefresh())
     ) {
-      repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), c.get("repoId"));
+      repoInfo = await fetchRepositoryById(
+        createUserOctokit(accessToken),
+        c.get("repoId"),
+      );
     }
     if (!repoInfo.ok) {
       if (repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
@@ -339,13 +375,19 @@ export function reviewSubmitRoute(
     const createWithRefreshOnce = async (
       input: CreatePullRequestReviewInput,
     ): Promise<Result<{ readonly reviewId: bigint }, CreateReviewError>> => {
-      let result = await createPullRequestReview(createUserOctokit(accessToken), input);
+      let result = await createPullRequestReview(
+        createUserOctokit(accessToken),
+        input,
+      );
       if (
         !result.ok &&
         result.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
         (await spendRefresh())
       ) {
-        result = await createPullRequestReview(createUserOctokit(accessToken), input);
+        result = await createPullRequestReview(
+          createUserOctokit(accessToken),
+          input,
+        );
       }
       return result;
     };
@@ -397,12 +439,18 @@ export function reviewSubmitRoute(
   return app;
 }
 
-function isValidation(error: CreateReviewError, kind: ReviewValidationClass): boolean {
+function isValidation(
+  error: CreateReviewError,
+  kind: ReviewValidationClass,
+): boolean {
   return error.validation === kind;
 }
 
 /** Map a final create-review failure to the sanitized response posture. */
-function submitFailure(c: Context<AuthzEnv>, error: CreateReviewError): Response {
+function submitFailure(
+  c: Context<AuthzEnv>,
+  error: CreateReviewError,
+): Response {
   // Unknown commit → the PR was rewritten since it was read. Fail closed;
   // the FE tells the reviewer to reload (drafts survive via sessionStorage).
   if (isValidation(error, ReviewValidationClass.UNKNOWN_COMMIT)) {

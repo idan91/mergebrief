@@ -41,14 +41,21 @@ const REFRESH_TOKEN = "ghr_REFRESH_TOKEN_PLAINTEXT";
 const ROTATED_ACCESS = "ghu_ROTATED_ACCESS_PLAINTEXT";
 const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 
-function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
   const asBigInt = BigInt(value);
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
 }
 
-const CTX: TenantContext = { installationId: brand(isInstallationId, INSTALLATION_ID) };
-const OTHER_CTX: TenantContext = { installationId: brand(isInstallationId, OTHER_INSTALLATION_ID) };
+const CTX: TenantContext = {
+  installationId: brand(isInstallationId, INSTALLATION_ID),
+};
+const OTHER_CTX: TenantContext = {
+  installationId: brand(isInstallationId, OTHER_INSTALLATION_ID),
+};
 
 function keyProvider(): KeyProvider {
   return envKeyProvider({ [KEY_REF]: randomBytes(32).toString("base64") });
@@ -68,11 +75,16 @@ function authDeps(kp: KeyProvider): AuthDeps {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
-function installationsOk(repos: ReadonlyArray<{ id: number; full_name: string }>): Response {
+function installationsOk(
+  repos: ReadonlyArray<{ id: number; full_name: string }>,
+): Response {
   return jsonResponse({ total_count: repos.length, repositories: repos });
 }
 
@@ -89,33 +101,50 @@ interface StubCounts {
 
 function stubGitHub(cfg: StubConfig): StubCounts {
   const counts: StubCounts = { installations: 0, repositories: 0, token: 0 };
-  const fetchFn = vi.fn(async (input: string | URL | Request): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes("/login/oauth/access_token")) {
-      const i = counts.token++;
-      return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
-    }
-    if (url.includes("/user/installations/")) {
-      const i = counts.installations++;
-      return cfg.installations ? cfg.installations(i) : jsonResponse({ message: "nope" }, 500);
-    }
-    if (url.includes("/repositories/")) {
-      const i = counts.repositories++;
-      return cfg.repositories ? cfg.repositories(i) : jsonResponse({ message: "denied" }, 404);
-    }
-    return jsonResponse({ message: "unexpected endpoint" }, 404);
-  });
+  const fetchFn = vi.fn(
+    async (input: string | URL | Request): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/login/oauth/access_token")) {
+        const i = counts.token++;
+        return cfg.token
+          ? cfg.token(i)
+          : jsonResponse({ error: "unexpected_token" }, 500);
+      }
+      if (url.includes("/user/installations/")) {
+        const i = counts.installations++;
+        return cfg.installations
+          ? cfg.installations(i)
+          : jsonResponse({ message: "nope" }, 500);
+      }
+      if (url.includes("/repositories/")) {
+        const i = counts.repositories++;
+        return cfg.repositories
+          ? cfg.repositories(i)
+          : jsonResponse({ message: "denied" }, 404);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
   vi.stubGlobal("fetch", fetchFn);
   return counts;
 }
 
-async function seedSession(handle: AppDatabase, kp: KeyProvider): Promise<string> {
+async function seedSession(
+  handle: AppDatabase,
+  kp: KeyProvider,
+): Promise<string> {
   const cookie = randomBytes(32).toString("base64url");
   const { createHash } = await import("node:crypto");
   const hash = createHash("sha256").update(cookie).digest("hex");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -152,7 +181,9 @@ async function seedPr(handle: AppDatabase, input: SeedPrInput) {
     title: input.title ?? `PR ${input.prNumber}`,
     ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
     ...(input.draft === undefined ? {} : { draft: input.draft }),
-    ...(input.authorLogin === undefined ? {} : { authorLogin: input.authorLogin }),
+    ...(input.authorLogin === undefined
+      ? {}
+      : { authorLogin: input.authorLogin }),
     state: PrState.OPEN,
   });
 }
@@ -165,7 +196,6 @@ const TOKEN_SUCCESS = {
   token_type: "bearer",
   scope: "",
 };
-
 
 // PR-meta `revisions[]` wire shape + runtime guards (BRIEF-24) — the test
 // boundary parses, never casts.
@@ -205,13 +235,15 @@ function isRevisionEntry(value: unknown): value is RevisionEntry {
 }
 
 function isMetaRevisionsBody(value: unknown): value is MetaRevisionsBody {
-  if (!isPlainRecord(value) || typeof value["briefAvailable"] !== "boolean") return false;
+  if (!isPlainRecord(value) || typeof value["briefAvailable"] !== "boolean")
+    return false;
   const comparisons = value["comparisons"];
   if (comparisons !== undefined && !isPlainRecord(comparisons)) return false;
   const revisions = value["revisions"];
   return (
     revisions === undefined ||
-    (Array.isArray(revisions) && revisions.every((entry) => isRevisionEntry(entry)))
+    (Array.isArray(revisions) &&
+      revisions.every((entry) => isRevisionEntry(entry)))
   );
 }
 
@@ -234,7 +266,13 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: authDeps(kp),
+      github: unusedConversationPort,
+    });
   });
 
   afterEach(async () => {
@@ -245,7 +283,9 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   async function get(path: string, cookie?: string): Promise<Response> {
     return app.request(
       path,
-      cookie === undefined ? {} : { headers: { Cookie: `rs_session=${cookie}` } },
+      cookie === undefined
+        ? {}
+        : { headers: { Cookie: `rs_session=${cookie}` } },
     );
   }
 
@@ -260,20 +300,35 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("list: only ctx-tenant rows in the viewer's allowed repos, newest first, verified names", async () => {
     stubGitHub({
-      installations: () => installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
+      installations: () =>
+        installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
     });
     const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1, title: "first" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 1,
+      title: "first",
+    });
     await new Promise((r) => setTimeout(r, 5));
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 2, title: "second" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 2,
+      title: "second",
+    });
     // Same tenant, repo NOT in the allowed set → filtered out.
     await seedPr(harness.handle, { repoId: REPO_B, prNumber: 3 });
     // Another tenant, SAME repo id → never visible.
-    await seedPr(harness.handle, { ctx: OTHER_CTX, repoId: REPO_A, prNumber: 9 });
+    await seedPr(harness.handle, {
+      ctx: OTHER_CTX,
+      repoId: REPO_A,
+      prNumber: 9,
+    });
 
     const res = await get("/api/pulls", cookie);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { pulls: Array<Record<string, unknown>> };
+    const body = (await res.json()) as {
+      pulls: Array<Record<string, unknown>>;
+    };
     expect(body.pulls.map((p) => p["prNumber"])).toEqual([2, 1]);
     expect(body.pulls[0]).toMatchObject({
       repoId: String(REPO_A),
@@ -287,24 +342,40 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("list: exposes draft + viewerIsAuthor per row, never the author login (BRIEF-43)", async () => {
     stubGitHub({
-      installations: () => installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
+      installations: () =>
+        installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
     });
     // The seeded session's reviewer login is "octocat".
     const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1, draft: true, authorLogin: "octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 1,
+      draft: true,
+      authorLogin: "octocat",
+    });
     await new Promise((r) => setTimeout(r, 5));
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 2, draft: true, authorLogin: "not-octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 2,
+      draft: true,
+      authorLogin: "not-octocat",
+    });
     await new Promise((r) => setTimeout(r, 5));
     await seedPr(harness.handle, { repoId: REPO_A, prNumber: 3 }); // no author, not draft
 
     const res = await get("/api/pulls", cookie);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { pulls: Array<Record<string, unknown>> };
+    const body = (await res.json()) as {
+      pulls: Array<Record<string, unknown>>;
+    };
     expect(body.pulls.map((p) => p["prNumber"])).toEqual([3, 2, 1]);
     // Own draft → true; someone else's draft → false; null author → false.
     expect(body.pulls[2]).toMatchObject({ draft: true, viewerIsAuthor: true });
     expect(body.pulls[1]).toMatchObject({ draft: true, viewerIsAuthor: false });
-    expect(body.pulls[0]).toMatchObject({ draft: false, viewerIsAuthor: false });
+    expect(body.pulls[0]).toMatchObject({
+      draft: false,
+      viewerIsAuthor: false,
+    });
     // The author login must never cross to the FE — in any casing/shape.
     const raw = JSON.stringify(body);
     expect(raw).not.toContain("author_login");
@@ -318,23 +389,41 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // authorship-only on list rows; the brief page reads the real capability
     // from PR meta (per-repo gate path).
     stubGitHub({
-      installations: () => installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
+      installations: () =>
+        installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
     });
     const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1, authorLogin: "octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 1,
+      authorLogin: "octocat",
+    });
     await new Promise((r) => setTimeout(r, 5));
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 2, authorLogin: "not-octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 2,
+      authorLogin: "not-octocat",
+    });
 
     const res = await get("/api/pulls", cookie);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { pulls: Array<Record<string, unknown>> };
-    expect(body.pulls[1]).toMatchObject({ viewerIsAuthor: true, viewerCanResolve: true });
-    expect(body.pulls[0]).toMatchObject({ viewerIsAuthor: false, viewerCanResolve: false });
+    const body = (await res.json()) as {
+      pulls: Array<Record<string, unknown>>;
+    };
+    expect(body.pulls[1]).toMatchObject({
+      viewerIsAuthor: true,
+      viewerCanResolve: true,
+    });
+    expect(body.pulls[0]).toMatchObject({
+      viewerIsAuthor: false,
+      viewerCanResolve: false,
+    });
   });
 
   it("list: current-span enrichment — generation summary + briefAvailable per row", async () => {
     stubGitHub({
-      installations: () => installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
+      installations: () =>
+        installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
     });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
@@ -343,31 +432,69 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     // Brief generated for head-1, then a new push queued head-2 → the CURRENT
     // span has no brief yet: briefAvailable=false, headSha=head-2, base=null.
-    await gen.upsertQueued({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-1", baselineSha: null });
-    await store.briefs.write({
-      pullRequestId: pr.id, baseSha: "base-1", headSha: "head-1", headIndex: 1,
-      commitCount: 1, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+    await gen.upsertQueued({
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-1",
+      baselineSha: null,
     });
-    await gen.markSucceeded({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-1", baselineSha: null });
+    await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base-1",
+      headSha: "head-1",
+      headIndex: 1,
+      commitCount: 1,
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: "{}",
+    });
+    await gen.markSucceeded({
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-1",
+      baselineSha: null,
+    });
     await new Promise((r) => setTimeout(r, 5));
-    await gen.upsertQueued({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-2", baselineSha: null });
+    await gen.upsertQueued({
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-2",
+      baselineSha: null,
+    });
 
     const waiting = await get("/api/pulls", cookie);
-    const waitingBody = (await waiting.json()) as { pulls: Array<Record<string, unknown>> };
+    const waitingBody = (await waiting.json()) as {
+      pulls: Array<Record<string, unknown>>;
+    };
     expect(waitingBody.pulls[0]).toMatchObject({
       headSha: "head-2",
       baseSha: null,
       briefAvailable: false,
-      generation: { status: GenerationStatus.QUEUED, phase: null, attempts: 0, error: null },
+      generation: {
+        status: GenerationStatus.QUEUED,
+        phase: null,
+        attempts: 0,
+        error: null,
+      },
     });
 
     // The brief for head-2 lands → available, span filled from the brief row.
     await store.briefs.write({
-      pullRequestId: pr.id, baseSha: "base-2", headSha: "head-2", headIndex: 2,
-      commitCount: 2, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+      pullRequestId: pr.id,
+      baseSha: "base-2",
+      headSha: "head-2",
+      headIndex: 2,
+      commitCount: 2,
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: "{}",
     });
     const ready = await get("/api/pulls", cookie);
-    const readyBody = (await ready.json()) as { pulls: Array<Record<string, unknown>> };
+    const readyBody = (await ready.json()) as {
+      pulls: Array<Record<string, unknown>>;
+    };
     expect(readyBody.pulls[0]).toMatchObject({
       headSha: "head-2",
       baseSha: "base-2",
@@ -377,7 +504,8 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("list: allowed-set cache — two calls, one installations fetch", async () => {
     const counts = stubGitHub({
-      installations: () => installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
+      installations: () =>
+        installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
     });
     const cookie = await seedSession(harness.handle, kp);
     await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
@@ -389,7 +517,8 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   it("list: limit caps rows; an out-of-range or malformed limit is a 400", async () => {
     stubGitHub({
-      installations: () => installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
+      installations: () =>
+        installationsOk([{ id: REPO_A, full_name: "octo/a" }]),
     });
     const cookie = await seedSession(harness.handle, kp);
     await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
@@ -405,16 +534,22 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
   // Long timeout: octokit's retry plugin retries the 500 with backoff before
   // the sanitized error surfaces (same as reads.test.ts's 406 case).
-  it("list: GitHub failure → 502, NEVER a DB-only listing", { timeout: 20_000 }, async () => {
-    stubGitHub({ installations: () => jsonResponse({ message: "boom" }, 500) });
-    const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
+  it(
+    "list: GitHub failure → 502, NEVER a DB-only listing",
+    { timeout: 20_000 },
+    async () => {
+      stubGitHub({
+        installations: () => jsonResponse({ message: "boom" }, 500),
+      });
+      const cookie = await seedSession(harness.handle, kp);
+      await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
 
-    const res = await get("/api/pulls", cookie);
-    expect(res.status).toBe(502);
-    const text = await res.text();
-    expect(text).not.toContain("prNumber"); // no rows leak on failure
-  });
+      const res = await get("/api/pulls", cookie);
+      expect(res.status).toBe(502);
+      const text = await res.text();
+      expect(text).not.toContain("prNumber"); // no rows leak on failure
+    },
+  );
 
   it("list: 401 from GitHub → refresh → retry succeeds", async () => {
     const counts = stubGitHub({
@@ -447,7 +582,9 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     const res = await get("/api/pulls", cookie);
     expect(res.status).toBe(401);
-    const rows = await harness.raw("select count(*)::int as n from reviewer_session");
+    const rows = await harness.raw(
+      "select count(*)::int as n from reviewer_session",
+    );
     expect(rows[0]?.["n"]).toBe(0);
   });
 
@@ -466,24 +603,42 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   }
 
   it("meta: 404 posture identical to artifact GETs (no access / unknown PR / bad number)", async () => {
-    stubGitHub({ repositories: () => jsonResponse({ message: "denied" }, 404) });
+    stubGitHub({
+      repositories: () => jsonResponse({ message: "denied" }, 404),
+    });
     const cookie = await seedSession(harness.handle, kp);
     await seedPr(harness.handle, { repoId: REPO_A, prNumber: 1 });
 
     expect((await get(`/api/repos/${REPO_A}/pulls/1`)).status).toBe(401); // no cookie
-    expect((await get(`/api/repos/${REPO_A}/pulls/1`, cookie)).status).toBe(404); // no repo access
+    expect((await get(`/api/repos/${REPO_A}/pulls/1`, cookie)).status).toBe(
+      404,
+    ); // no repo access
 
     stubGitHub({ repositories: () => repoOk() });
-    expect((await get(`/api/repos/${REPO_A}/pulls/999`, cookie)).status).toBe(404); // unknown PR
-    expect((await get(`/api/repos/${REPO_A}/pulls/nope`, cookie)).status).toBe(400); // bad number
+    expect((await get(`/api/repos/${REPO_A}/pulls/999`, cookie)).status).toBe(
+      404,
+    ); // unknown PR
+    expect((await get(`/api/repos/${REPO_A}/pulls/nope`, cookie)).status).toBe(
+      400,
+    ); // bad number
   });
 
   it("meta: returns the PR row, current span, briefAvailable, and generation summary", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
-    const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, title: "the pr", baseSha: "base-1" });
+    const pr = await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 7,
+      title: "the pr",
+      baseSha: "base-1",
+    });
     const gen = generationProjection(harness.handle, CTX);
-    await gen.upsertQueued({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-1", baselineSha: null });
+    await gen.upsertQueued({
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-1",
+      baselineSha: null,
+    });
 
     const waiting = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(waiting.status).toBe(200);
@@ -503,10 +658,22 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
 
     await artifactStore(harness.handle, CTX).briefs.write({
-      pullRequestId: pr.id, baseSha: "base-1", headSha: "head-1", headIndex: 1,
-      commitCount: 1, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+      pullRequestId: pr.id,
+      baseSha: "base-1",
+      headSha: "head-1",
+      headIndex: 1,
+      commitCount: 1,
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: "{}",
     });
-    await gen.markSucceeded({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-1", baselineSha: null });
+    await gen.markSucceeded({
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-1",
+      baselineSha: null,
+    });
 
     const ready = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     const readyBody = (await ready.json()) as Record<string, unknown>;
@@ -522,7 +689,12 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     stubGitHub({ repositories: () => repoOk() });
     // The seeded session's reviewer login is "octocat".
     const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, draft: true, authorLogin: "octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 7,
+      draft: true,
+      authorLogin: "octocat",
+    });
 
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(res.status).toBe(200);
@@ -537,13 +709,21 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   it("meta: carries the instance draftPolicy — default and injected (BRIEF-64)", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, draft: true, authorLogin: "octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 7,
+      draft: true,
+      authorLogin: "octocat",
+    });
 
     // Default app (no draftPolicy dep) → the zero-config policy.
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
-    expect(body["draftPolicy"]).toEqual({ generate: true, debounceSeconds: null });
+    expect(body["draftPolicy"]).toEqual({
+      generate: true,
+      debounceSeconds: null,
+    });
 
     // Injected policy is echoed for the FE's copy states.
     const policyApp = createApp({
@@ -559,16 +739,26 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
     expect(policyRes.status).toBe(200);
     const policyBody = (await policyRes.json()) as Record<string, unknown>;
-    expect(policyBody["draftPolicy"]).toEqual({ generate: false, debounceSeconds: 900 });
+    expect(policyBody["draftPolicy"]).toEqual({
+      generate: false,
+      debounceSeconds: 900,
+    });
   });
 
   it("meta: viewerIsAuthor=false for a non-author viewer and for a null author (BRIEF-43)", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     // Authored by someone else.
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, draft: true, authorLogin: "not-octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 7,
+      draft: true,
+      authorLogin: "not-octocat",
+    });
     const other = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
-    expect(((await other.json()) as Record<string, unknown>)["viewerIsAuthor"]).toBe(false);
+    expect(
+      ((await other.json()) as Record<string, unknown>)["viewerIsAuthor"],
+    ).toBe(false);
 
     // No stored author (null) must never match — not even a null viewer login.
     await seedPr(harness.handle, { repoId: REPO_A, prNumber: 8 });
@@ -582,7 +772,11 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const counts = stubGitHub({ repositories: () => repoOk(true) });
     const cookie = await seedSession(harness.handle, kp);
     // Not the author — capability comes from `permissions.push` alone.
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, authorLogin: "not-octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 7,
+      authorLogin: "not-octocat",
+    });
 
     const first = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(first.status).toBe(200);
@@ -594,14 +788,20 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // capability must come from the positive-cache entry, not a re-fetch.
     const second = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(second.status).toBe(200);
-    expect(((await second.json()) as Record<string, unknown>)["viewerCanResolve"]).toBe(true);
+    expect(
+      ((await second.json()) as Record<string, unknown>)["viewerCanResolve"],
+    ).toBe(true);
     expect(counts.repositories).toBe(1);
   });
 
   it("meta: viewerCanResolve=true for the PR author without push permission (BRIEF-93)", async () => {
     stubGitHub({ repositories: () => repoOk(false) });
     const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, authorLogin: "octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 7,
+      authorLogin: "octocat",
+    });
 
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(res.status).toBe(200);
@@ -615,7 +815,11 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // capability, never as a grant.
     const counts = stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
-    await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7, authorLogin: "not-octocat" });
+    await seedPr(harness.handle, {
+      repoId: REPO_A,
+      prNumber: 7,
+      authorLogin: "not-octocat",
+    });
 
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(res.status).toBe(200);
@@ -626,7 +830,9 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // TTL (no re-fetch) may not invent a capability the check never saw.
     const second = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(second.status).toBe(200);
-    expect(((await second.json()) as Record<string, unknown>)["viewerCanResolve"]).toBe(false);
+    expect(
+      ((await second.json()) as Record<string, unknown>)["viewerCanResolve"],
+    ).toBe(false);
     expect(counts.repositories).toBe(1);
   });
 
@@ -637,8 +843,15 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const store = artifactStore(harness.handle, CTX);
     const write = async (head: string, index: number) => {
       const result = await store.briefs.write({
-        pullRequestId: pr.id, baseSha: "base", headSha: head, headIndex: index,
-        commitCount: index, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+        pullRequestId: pr.id,
+        baseSha: "base",
+        headSha: head,
+        headIndex: index,
+        commitCount: index,
+        provider: "anthropic",
+        model: "claude",
+        effort: "high",
+        body: "{}",
       });
       if (!result.ok) throw new Error("brief write failed");
       return result.value;
@@ -648,7 +861,9 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     // No marks yet → previousBrief absent (fail closed).
     const before = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
-    const beforeBody = (await before.json()) as { comparisons?: { previousBrief?: unknown } };
+    const beforeBody = (await before.json()) as {
+      comparisons?: { previousBrief?: unknown };
+    };
     expect(beforeBody.comparisons?.previousBrief).toBeUndefined();
 
     // Marks for the previous-brief span → available, narrative not yet.
@@ -657,12 +872,20 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       marks: {
         baselineSha: "head-1",
         headSha: "head-2",
-        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+        files: [
+          {
+            file: "src/a.ts",
+            addedRanges: [{ start: 1, end: 2 }],
+            removedRanges: [],
+          },
+        ],
       },
     });
     if (!marks.ok) throw new Error("marks write failed");
     const marked = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
-    const markedBody = (await marked.json()) as { comparisons?: { previousBrief?: unknown } };
+    const markedBody = (await marked.json()) as {
+      comparisons?: { previousBrief?: unknown };
+    };
     expect(markedBody.comparisons?.previousBrief).toEqual({
       baselineSha: "head-1",
       baselineIndex: 1,
@@ -671,12 +894,20 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     // Narrative lands → narrativeAvailable flips.
     const narrative = await store.revisionNarratives.write({
-      pullRequestId: pr.id, briefId: currentBrief.id, prevHeadSha: "head-1", headSha: "head-2",
-      body: "{}", provider: "anthropic", model: "claude", effort: "high",
+      pullRequestId: pr.id,
+      briefId: currentBrief.id,
+      prevHeadSha: "head-1",
+      headSha: "head-2",
+      body: "{}",
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
     });
     if (!narrative.ok) throw new Error("narrative write failed");
     const full = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
-    const fullBody = (await full.json()) as { comparisons?: { previousBrief?: unknown } };
+    const fullBody = (await full.json()) as {
+      comparisons?: { previousBrief?: unknown };
+    };
     expect(fullBody.comparisons?.previousBrief).toEqual({
       baselineSha: "head-1",
       baselineIndex: 1,
@@ -690,7 +921,9 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     comparisons?: { lastReview?: Record<string, unknown> };
   }
 
-  async function metaLastReview(cookie: string): Promise<Record<string, unknown> | undefined> {
+  async function metaLastReview(
+    cookie: string,
+  ): Promise<Record<string, unknown> | undefined> {
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(res.status).toBe(200);
     const body = (await res.json()) as MetaComparisons;
@@ -698,12 +931,17 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
   }
 
   async function seedCheckpoint(
-    pullRequestId: Parameters<ReturnType<typeof forTenant>["checkpoints"]["get"]>[0],
+    pullRequestId: Parameters<
+      ReturnType<typeof forTenant>["checkpoints"]["get"]
+    >[0],
     reviewerId: number,
     lastSubmittedSha: string,
     ctx: TenantContext = CTX,
   ): Promise<void> {
-    const result = await forTenant(harness.handle, ctx).checkpoints.upsertOnSubmit({
+    const result = await forTenant(
+      harness.handle,
+      ctx,
+    ).checkpoints.upsertOnSubmit({
       pullRequestId,
       reviewerId: brand(isReviewerId, reviewerId),
       reviewerLogin: `reviewer-${reviewerId}`,
@@ -713,12 +951,26 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     if (!result.ok) throw new Error("checkpoint seed failed");
   }
 
-  async function seedBriefs(pr: { id: Parameters<ReturnType<typeof artifactStore>["briefs"]["listForPullRequest"]>[0] }): Promise<void> {
+  async function seedBriefs(pr: {
+    id: Parameters<
+      ReturnType<typeof artifactStore>["briefs"]["listForPullRequest"]
+    >[0];
+  }): Promise<void> {
     const store = artifactStore(harness.handle, CTX);
-    for (const [head, index] of [["head-1", 1], ["head-2", 2]] as const) {
+    for (const [head, index] of [
+      ["head-1", 1],
+      ["head-2", 2],
+    ] as const) {
       const result = await store.briefs.write({
-        pullRequestId: pr.id, baseSha: "base", headSha: head, headIndex: index,
-        commitCount: index, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+        pullRequestId: pr.id,
+        baseSha: "base",
+        headSha: head,
+        headIndex: index,
+        commitCount: index,
+        provider: "anthropic",
+        model: "claude",
+        effort: "high",
+        body: "{}",
       });
       if (!result.ok) throw new Error("brief write failed");
     }
@@ -750,7 +1002,13 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       marks: {
         baselineSha: "head-1",
         headSha: "head-2",
-        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+        files: [
+          {
+            file: "src/a.ts",
+            addedRanges: [{ start: 1, end: 2 }],
+            removedRanges: [],
+          },
+        ],
       },
     });
     if (!marks.ok) throw new Error("marks write failed");
@@ -763,8 +1021,13 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
 
     const delta = await store.deltas.write({
-      pullRequestId: pr.id, baselineSha: "head-1", headSha: "head-2",
-      provider: "anthropic", model: "claude", effort: "high", body: "{}",
+      pullRequestId: pr.id,
+      baselineSha: "head-1",
+      headSha: "head-2",
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: "{}",
     });
     if (!delta.ok) throw new Error("delta write failed");
 
@@ -783,23 +1046,35 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // Checkpoint SHA that was never briefed (rewritten history) — no marks.
     await seedCheckpoint(pr.id, REVIEWER_ID, "gone-sha");
 
-    expect(await metaLastReview(cookie)).toEqual({ unavailable: "baseline-unavailable" });
+    expect(await metaLastReview(cookie)).toEqual({
+      unavailable: "baseline-unavailable",
+    });
 
     // A non-terminal delta generation for the exact span flips it to pending.
     const gen = generationProjection(harness.handle, CTX);
     const queued = await gen.upsertQueued({
-      pullRequestId: pr.id, kind: GenerationKind.DELTA, headSha: "head-2", baselineSha: "gone-sha",
+      pullRequestId: pr.id,
+      kind: GenerationKind.DELTA,
+      headSha: "head-2",
+      baselineSha: "gone-sha",
     });
     if (!queued.ok) throw new Error("generation seed failed");
     expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
 
     // Terminal failure → back to baseline-unavailable (nothing is coming).
     const failed = await gen.markFailed(
-      { pullRequestId: pr.id, kind: GenerationKind.DELTA, headSha: "head-2", baselineSha: "gone-sha" },
+      {
+        pullRequestId: pr.id,
+        kind: GenerationKind.DELTA,
+        headSha: "head-2",
+        baselineSha: "gone-sha",
+      },
       "span diff unavailable",
     );
     if (!failed.ok) throw new Error("generation transition failed");
-    expect(await metaLastReview(cookie)).toEqual({ unavailable: "baseline-unavailable" });
+    expect(await metaLastReview(cookie)).toEqual({
+      unavailable: "baseline-unavailable",
+    });
   });
 
   it("meta: lastReview is pending while the current head's BRIEF generation is warming (codex PR-45 finding)", async () => {
@@ -814,17 +1089,25 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     const gen = generationProjection(harness.handle, CTX);
     const queued = await gen.upsertQueued({
-      pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-2", baselineSha: null,
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-2",
+      baselineSha: null,
     });
     if (!queued.ok) throw new Error("generation seed failed");
     expect(await metaLastReview(cookie)).toEqual({ unavailable: "pending" });
 
     // Brief job finished, still no marks → nothing is coming for this span.
     const done = await gen.markSucceeded({
-      pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-2", baselineSha: null,
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-2",
+      baselineSha: null,
     });
     if (!done.ok) throw new Error("generation transition failed");
-    expect(await metaLastReview(cookie)).toEqual({ unavailable: "baseline-unavailable" });
+    expect(await metaLastReview(cookie)).toEqual({
+      unavailable: "baseline-unavailable",
+    });
   });
 
   it("meta: lastReview absent when the checkpoint IS the current head (empty span)", async () => {
@@ -842,7 +1125,11 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
     await seedBriefs(pr);
     // Same reviewer id, same PR number — but the OTHER tenant's PR row.
-    const otherPr = await seedPr(harness.handle, { ctx: OTHER_CTX, repoId: REPO_A, prNumber: 7 });
+    const otherPr = await seedPr(harness.handle, {
+      ctx: OTHER_CTX,
+      repoId: REPO_A,
+      prNumber: 7,
+    });
     await seedCheckpoint(otherPr.id, REVIEWER_ID, "head-1", OTHER_CTX);
 
     expect(await metaLastReview(cookie)).toBeUndefined();
@@ -854,20 +1141,30 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
     expect(res.status).toBe(200);
     const raw: unknown = await res.json();
-    if (!isMetaRevisionsBody(raw)) throw new Error("PR-meta body failed the revisions shape guard");
+    if (!isMetaRevisionsBody(raw))
+      throw new Error("PR-meta body failed the revisions shape guard");
     return raw;
   }
 
   /** Write a brief with its OWN base (base drift across revisions). */
   async function writeBrief(
-    prId: Parameters<ReturnType<typeof artifactStore>["briefs"]["listForPullRequest"]>[0],
+    prId: Parameters<
+      ReturnType<typeof artifactStore>["briefs"]["listForPullRequest"]
+    >[0],
     base: string,
     head: string,
     index: number,
   ): Promise<void> {
     const result = await artifactStore(harness.handle, CTX).briefs.write({
-      pullRequestId: prId, baseSha: base, headSha: head, headIndex: index,
-      commitCount: index, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+      pullRequestId: prId,
+      baseSha: base,
+      headSha: head,
+      headIndex: index,
+      commitCount: index,
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: "{}",
     });
     if (!result.ok) throw new Error("brief write failed");
   }
@@ -879,7 +1176,12 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     // No brief yet → no revisions key at all.
     const gen = generationProjection(harness.handle, CTX);
-    await gen.upsertQueued({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-1", baselineSha: null });
+    await gen.upsertQueued({
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-1",
+      baselineSha: null,
+    });
     const early = await metaBody(cookie);
     expect(early.briefAvailable).toBe(false);
     expect(early.revisions).toBeUndefined();
@@ -888,10 +1190,17 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     await writeBrief(pr.id, "base-a", "head-1", 1);
     await writeBrief(pr.id, "base-b", "head-2", 2);
     await writeBrief(pr.id, "base-c", "head-3", 3);
-    await gen.upsertQueued({ pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-3", baselineSha: null });
+    await gen.upsertQueued({
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-3",
+      baselineSha: null,
+    });
 
     const body = await metaBody(cookie);
-    expect(body.revisions?.map((r) => [r.headIndex, r.headSha, r.baseSha])).toEqual([
+    expect(
+      body.revisions?.map((r) => [r.headIndex, r.headSha, r.baseSha]),
+    ).toEqual([
       [1, "head-1", "base-a"],
       [2, "head-2", "base-b"],
       [3, "head-3", "base-c"],
@@ -907,8 +1216,11 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // later than the artifact write; head-2 has no projection row and falls
     // back to the artifact's own createdAt.
     const [rev1, rev2] = body.revisions ?? [];
-    if (rev1 === undefined || rev2 === undefined) throw new Error("revisions missing");
-    expect(Date.parse(rev1.generatedAt)).toBeLessThanOrEqual(Date.parse(rev1.createdAt));
+    if (rev1 === undefined || rev2 === undefined)
+      throw new Error("revisions missing");
+    expect(Date.parse(rev1.generatedAt)).toBeLessThanOrEqual(
+      Date.parse(rev1.createdAt),
+    );
     expect(rev2.generatedAt).toBe(rev2.createdAt);
   });
 
@@ -925,8 +1237,15 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const marks = await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
-        baselineSha: "head-2", headSha: "head-3",
-        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+        baselineSha: "head-2",
+        headSha: "head-3",
+        files: [
+          {
+            file: "src/a.ts",
+            addedRanges: [{ start: 1, end: 2 }],
+            removedRanges: [],
+          },
+        ],
       },
     });
     if (!marks.ok) throw new Error("marks write failed");
@@ -960,8 +1279,15 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const marks = await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
-        baselineSha: "head-2", headSha: "head-3",
-        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+        baselineSha: "head-2",
+        headSha: "head-3",
+        files: [
+          {
+            file: "src/a.ts",
+            addedRanges: [{ start: 1, end: 2 }],
+            removedRanges: [],
+          },
+        ],
       },
     });
     if (!marks.ok) throw new Error("marks write failed");
@@ -996,8 +1322,15 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const marks = await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
-        baselineSha: "head-1", headSha: "head-2",
-        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+        baselineSha: "head-1",
+        headSha: "head-2",
+        files: [
+          {
+            file: "src/a.ts",
+            addedRanges: [{ start: 1, end: 2 }],
+            removedRanges: [],
+          },
+        ],
       },
     });
     if (!marks.ok) throw new Error("marks write failed");
@@ -1007,8 +1340,16 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // The top-level envelope IS the latest head's — same keys, same values.
     expect(body.comparisons).toEqual(latest?.comparisons);
     expect(body.comparisons).toEqual({
-      previousBrief: { baselineSha: "head-1", baselineIndex: 1, narrativeAvailable: false },
-      lastReview: { deltaAvailable: false, baselineSha: "head-1", baselineIndex: 1 },
+      previousBrief: {
+        baselineSha: "head-1",
+        baselineIndex: 1,
+        narrativeAvailable: false,
+      },
+      lastReview: {
+        deltaAvailable: false,
+        baselineSha: "head-1",
+        baselineIndex: 1,
+      },
     });
   });
 
@@ -1029,15 +1370,24 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const marks = await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
-        baselineSha: "head-3", headSha: "head-2",
-        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+        baselineSha: "head-3",
+        headSha: "head-2",
+        files: [
+          {
+            file: "src/a.ts",
+            addedRanges: [{ start: 1, end: 2 }],
+            removedRanges: [],
+          },
+        ],
       },
     });
     if (!marks.ok) throw new Error("marks write failed");
 
     const body = await metaBody(cookie);
     // Both duplicate-head entries are listed, each with its OWN base.
-    expect(body.revisions?.map((r) => [r.headIndex, r.headSha, r.baseSha])).toEqual([
+    expect(
+      body.revisions?.map((r) => [r.headIndex, r.headSha, r.baseSha]),
+    ).toEqual([
       [1, "head-2", "base-a"],
       [2, "head-3", "base-a"],
       [3, "head-2", "base-b"],
@@ -1045,7 +1395,11 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     // The stale idx-1 entry has no previous head → no previousBrief.
     expect(body.revisions?.[0]?.comparisons.previousBrief).toBeUndefined();
     // The CURRENT (idx 3) entry's previous briefed head is head-3.
-    const current = { baselineSha: "head-3", baselineIndex: 2, narrativeAvailable: false };
+    const current = {
+      baselineSha: "head-3",
+      baselineIndex: 2,
+      narrativeAvailable: false,
+    };
     expect(body.revisions?.[2]?.comparisons.previousBrief).toEqual(current);
     // Top-level comparisons must be the CURRENT revision's — a headSha-only
     // match would pick the stale idx-1 duplicate and report no previousBrief.
@@ -1073,14 +1427,25 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const marks = await store.comparisonMarks.write({
       pullRequestId: pr.id,
       marks: {
-        baselineSha: "head-3", headSha: "head-2",
-        files: [{ file: "src/a.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] }],
+        baselineSha: "head-3",
+        headSha: "head-2",
+        files: [
+          {
+            file: "src/a.ts",
+            addedRanges: [{ start: 1, end: 2 }],
+            removedRanges: [],
+          },
+        ],
       },
     });
     if (!marks.ok) throw new Error("marks write failed");
 
     const body = await metaBody(cookie);
-    const expected = { deltaAvailable: false, baselineSha: "head-3", baselineIndex: 2 };
+    const expected = {
+      deltaAvailable: false,
+      baselineSha: "head-3",
+      baselineIndex: 2,
+    };
     // Both head-2 entries (idx 1 and idx 3) carry the identical offer.
     expect(body.revisions?.[0]?.comparisons.lastReview).toEqual(expected);
     expect(body.revisions?.[2]?.comparisons.lastReview).toEqual(expected);
@@ -1106,14 +1471,21 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     await seedCheckpoint(pr.id, REVIEWER_ID, "gone-sha");
     const gen = generationProjection(harness.handle, CTX);
     const queued = await gen.upsertQueued({
-      pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-2", baselineSha: null,
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-2",
+      baselineSha: null,
     });
     if (!queued.ok) throw new Error("generation seed failed");
 
     const warming = await metaBody(cookie);
     // Both head-2 entries (idx 1 and idx 3): identical pending state.
-    expect(warming.revisions?.[0]?.comparisons.lastReview).toEqual({ unavailable: "pending" });
-    expect(warming.revisions?.[2]?.comparisons.lastReview).toEqual({ unavailable: "pending" });
+    expect(warming.revisions?.[0]?.comparisons.lastReview).toEqual({
+      unavailable: "pending",
+    });
+    expect(warming.revisions?.[2]?.comparisons.lastReview).toEqual({
+      unavailable: "pending",
+    });
     // head-3 is historical (not the current head) — never warming.
     expect(warming.revisions?.[1]?.comparisons.lastReview).toEqual({
       unavailable: "baseline-unavailable",
@@ -1121,7 +1493,10 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
 
     // Warming over, still no marks → all head-2 entries agree on unavailable.
     const done = await gen.markSucceeded({
-      pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-2", baselineSha: null,
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-2",
+      baselineSha: null,
     });
     if (!done.ok) throw new Error("generation transition failed");
     const settled = await metaBody(cookie);
@@ -1140,10 +1515,24 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     await writeBrief(pr.id, "base", "head-1", 1);
 
     // Another tenant's PR (same repo id + number) with its own briefs.
-    const otherPr = await seedPr(harness.handle, { ctx: OTHER_CTX, repoId: REPO_A, prNumber: 7 });
-    const otherWrite = await artifactStore(harness.handle, OTHER_CTX).briefs.write({
-      pullRequestId: otherPr.id, baseSha: "x", headSha: "other-head", headIndex: 9,
-      commitCount: 1, provider: "anthropic", model: "claude", effort: "high", body: "{}",
+    const otherPr = await seedPr(harness.handle, {
+      ctx: OTHER_CTX,
+      repoId: REPO_A,
+      prNumber: 7,
+    });
+    const otherWrite = await artifactStore(
+      harness.handle,
+      OTHER_CTX,
+    ).briefs.write({
+      pullRequestId: otherPr.id,
+      baseSha: "x",
+      headSha: "other-head",
+      headIndex: 9,
+      commitCount: 1,
+      provider: "anthropic",
+      model: "claude",
+      effort: "high",
+      body: "{}",
     });
     if (!otherWrite.ok) throw new Error("other brief write failed");
 

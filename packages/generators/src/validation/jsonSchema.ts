@@ -56,7 +56,9 @@ function pop(source: Record<string, unknown>, key: string): unknown {
  * `working` is mutated (keys are popped as they are consumed); any leftover keys
  * are demoted into `description`, matching the SDK.
  */
-function transformNode(working: Record<string, unknown>): Record<string, unknown> {
+function transformNode(
+  working: Record<string, unknown>,
+): Record<string, unknown> {
   const strict: Record<string, unknown> = {};
 
   const ref = pop(working, "$ref");
@@ -143,11 +145,14 @@ function transformNode(working: Record<string, unknown>): Record<string, unknown
   const leftovers = Object.entries(working);
   if (leftovers.length > 0) {
     const existing = strict["description"];
-    const prefix = typeof existing === "string" && existing ? existing + "\n\n" : "";
+    const prefix =
+      typeof existing === "string" && existing ? existing + "\n\n" : "";
     strict["description"] =
       prefix +
       "{" +
-      leftovers.map(([key, value]) => `${key}: ${JSON.stringify(value)}`).join(", ") +
+      leftovers
+        .map(([key, value]) => `${key}: ${JSON.stringify(value)}`)
+        .join(", ") +
       "}";
   }
 
@@ -228,7 +233,9 @@ export function enumPreservingJsonSchema(
 ): Record<string, unknown> {
   const jsonSchema: unknown = z.toJSONSchema(zodSchema, { reused: "ref" });
   if (!isRecord(jsonSchema)) {
-    throw new Error("enumPreservingJsonSchema: z.toJSONSchema did not return an object");
+    throw new Error(
+      "enumPreservingJsonSchema: z.toJSONSchema did not return an object",
+    );
   }
   return toStrictJsonSchema(jsonSchema);
 }
@@ -247,6 +254,7 @@ export function enumPreservingOutputFormat<S extends z.ZodType>(
   return {
     type: "json_schema",
     schema: enumPreservingJsonSchema(zodSchema),
-    parse: (content: string): z.infer<S> => parseStructuredText(zodSchema, content),
+    parse: (content: string): z.infer<S> =>
+      parseStructuredText(zodSchema, content),
   };
 }

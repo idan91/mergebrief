@@ -41,7 +41,10 @@ describe("loadInstancePolicy", () => {
     // SAME file — pin this loader to the shared resolver, not bare cwd.
     const root = mkdtempSync(join(tmpdir(), "mergebrief-policy-ws-"));
     tempDirs.push(root);
-    writeFileSync(join(root, "pnpm-workspace.yaml"), 'packages:\n  - "apps/*"\n');
+    writeFileSync(
+      join(root, "pnpm-workspace.yaml"),
+      'packages:\n  - "apps/*"\n',
+    );
     writeFileSync(
       join(root, "mergebrief.config.yaml"),
       "drafts:\n  generate: off\n",
@@ -72,11 +75,17 @@ describe("loadInstancePolicy", () => {
     const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.draftPolicy).toEqual({ generate: false, debounceSeconds: null });
+    expect(result.value.draftPolicy).toEqual({
+      generate: false,
+      debounceSeconds: null,
+    });
   });
 
   it("parses generate: on (YAML 1.2 string) and boolean true alike", () => {
-    for (const doc of ["drafts:\n  generate: on\n", "drafts:\n  generate: true\n"]) {
+    for (const doc of [
+      "drafts:\n  generate: on\n",
+      "drafts:\n  generate: true\n",
+    ]) {
       const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: configFile(doc) });
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -85,11 +94,16 @@ describe("loadInstancePolicy", () => {
   });
 
   it("parses debounceSeconds", () => {
-    const path = configFile("drafts:\n  generate: on\n  debounceSeconds: 900\n");
+    const path = configFile(
+      "drafts:\n  generate: on\n  debounceSeconds: 900\n",
+    );
     const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.draftPolicy).toEqual({ generate: true, debounceSeconds: 900 });
+    expect(result.value.draftPolicy).toEqual({
+      generate: true,
+      debounceSeconds: 900,
+    });
   });
 
   it("defaults generate to on when only debounceSeconds is set", () => {
@@ -97,7 +111,10 @@ describe("loadInstancePolicy", () => {
     const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: path });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.draftPolicy).toEqual({ generate: true, debounceSeconds: 600 });
+    expect(result.value.draftPolicy).toEqual({
+      generate: true,
+      debounceSeconds: 600,
+    });
   });
 
   it("rejects a non-positive or non-finite debounceSeconds", () => {
@@ -152,7 +169,9 @@ describe("loadInstancePolicy", () => {
   });
 
   it("fails fast on an unreadable path without echoing content", () => {
-    const result = loadInstancePolicy({ MERGEBRIEF_CONFIG: "/no/such/file.yaml" });
+    const result = loadInstancePolicy({
+      MERGEBRIEF_CONFIG: "/no/such/file.yaml",
+    });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.issues.join("; ")).toContain("not readable");

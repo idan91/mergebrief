@@ -95,9 +95,16 @@ const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 const PREV_HEAD_SHA = "c".repeat(40);
 const CHECKPOINT_SHA = "d".repeat(40);
-const PROVENANCE = { provider: "anthropic", model: "claude-fable-5", effort: "high" } as const;
+const PROVENANCE = {
+  provider: "anthropic",
+  model: "claude-fable-5",
+  effort: "high",
+} as const;
 
-function artifact(body: string): { readonly body: string; readonly byteSize: number } {
+function artifact(body: string): {
+  readonly body: string;
+  readonly byteSize: number;
+} {
   return { body, byteSize: Buffer.byteLength(body, "utf8") };
 }
 
@@ -127,7 +134,8 @@ async function insertPr(db: Db, seed: PrSeed): Promise<PullRequestRowId> {
       prNumber: seed.prNumber ?? 7,
       repoSlug: "acme/widgets",
       state: seed.state ?? (armed ? PrState.CLOSED : PrState.OPEN),
-      closedAt: seed.closedAt ?? (armed ? new Date("2026-07-01T00:00:00Z") : undefined),
+      closedAt:
+        seed.closedAt ?? (armed ? new Date("2026-07-01T00:00:00Z") : undefined),
       purgeAfter: seed.purgeAfter,
     })
     .returning({ id: pullRequest.id });
@@ -241,8 +249,17 @@ async function seedFullGraph(
   });
 }
 
-async function countChildTables(db: Db, pullRequestId: PullRequestRowId): Promise<number> {
-  const tables = [brief, delta, diffSnapshot, revisionNarrative, comparisonMarks];
+async function countChildTables(
+  db: Db,
+  pullRequestId: PullRequestRowId,
+): Promise<number> {
+  const tables = [
+    brief,
+    delta,
+    diffSnapshot,
+    revisionNarrative,
+    comparisonMarks,
+  ];
   let total = 0;
   for (const table of tables) {
     const rows = await db
@@ -263,9 +280,18 @@ async function countChildTables(db: Db, pullRequestId: PullRequestRowId): Promis
 
 async function deleteAudits(db: Db, installationId: InstallationId) {
   return db
-    .select({ id: auditLog.id, targetType: auditLog.targetType, targetId: auditLog.targetId })
+    .select({
+      id: auditLog.id,
+      targetType: auditLog.targetType,
+      targetId: auditLog.targetId,
+    })
     .from(auditLog)
-    .where(and(eq(auditLog.installationId, installationId), eq(auditLog.action, AuditAction.DELETE)));
+    .where(
+      and(
+        eq(auditLog.installationId, installationId),
+        eq(auditLog.action, AuditAction.DELETE),
+      ),
+    );
 }
 
 describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival (D5/D9)", () => {
@@ -281,17 +307,23 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival (D5/
   it("erases all 8 child tables, spares audit_log + reviewer_session, appends a delete row", async () => {
     expect(await countChildTables(pair.raw, prId)).toBe(8);
 
-    const result = await purgeRoutines(pair.handle, CTX_A).purgePullRequest(prId);
+    const result = await purgeRoutines(pair.handle, CTX_A).purgePullRequest(
+      prId,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("expected purge success");
     expect(result.value).toBe(1);
 
     // Every per-PR child gone by FK cascade.
     expect(await countChildTables(pair.raw, prId)).toBe(0);
-    expect(await pair.raw.select({ id: pullRequest.id }).from(pullRequest)).toHaveLength(0);
+    expect(
+      await pair.raw.select({ id: pullRequest.id }).from(pullRequest),
+    ).toHaveLength(0);
 
     // Survivors: the non-PR session (D11) and the whole audit ledger (D9).
-    expect(await pair.raw.select({ id: reviewerSession.id }).from(reviewerSession)).toHaveLength(1);
+    expect(
+      await pair.raw.select({ id: reviewerSession.id }).from(reviewerSession),
+    ).toHaveLength(1);
 
     // The appended `delete` row EXISTS after the purge — proving audit_log has
     // no FK to the row it records (it outlives the cascade).
@@ -300,21 +332,25 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival (D5/
     expect(deletes[0]?.targetType).toBe("pull_request");
     expect(deletes[0]?.targetId).toBe(prId);
     // The pre-existing `generate` row is also retained (2 audit rows total).
-    expect(await pair.raw.select({ id: auditLog.id }).from(auditLog)).toHaveLength(2);
+    expect(
+      await pair.raw.select({ id: auditLog.id }).from(auditLog),
+    ).toHaveLength(2);
   });
 
   it("rejects a cross-tenant PR with notFound and deletes nothing", async () => {
     // Tenant B calls purge on tenant A's PR.
-    const result = await purgeRoutines(pair.handle, { installationId: TENANT_B }).purgePullRequest(
-      prId,
-    );
+    const result = await purgeRoutines(pair.handle, {
+      installationId: TENANT_B,
+    }).purgePullRequest(prId);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
     expect(result.error.code).toBe(PurgeErrorCode.NOT_FOUND);
 
     // Nothing deleted, and no spurious audit entry under either tenant.
     expect(await countChildTables(pair.raw, prId)).toBe(8);
-    expect(await pair.raw.select({ id: pullRequest.id }).from(pullRequest)).toHaveLength(1);
+    expect(
+      await pair.raw.select({ id: pullRequest.id }).from(pullRequest),
+    ).toHaveLength(1);
     expect(await deleteAudits(pair.raw, TENANT_A)).toHaveLength(0);
     expect(await deleteAudits(pair.raw, TENANT_B)).toHaveLength(0);
   });
@@ -323,8 +359,16 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival (D5/
 describe("purgeRoutines.purgeRepo — scoped predicate-delete (D5)", () => {
   it("purges only the named repo's PRs and returns the count", async () => {
     const { raw, handle } = await freshPair();
-    const pr1 = await insertPr(raw, { installationId: TENANT_A, repoId: REPO, prNumber: 1 });
-    const pr2 = await insertPr(raw, { installationId: TENANT_A, repoId: REPO, prNumber: 2 });
+    const pr1 = await insertPr(raw, {
+      installationId: TENANT_A,
+      repoId: REPO,
+      prNumber: 1,
+    });
+    const pr2 = await insertPr(raw, {
+      installationId: TENANT_A,
+      repoId: REPO,
+      prNumber: 2,
+    });
     const other = await insertPr(raw, {
       installationId: TENANT_A,
       repoId: REPO_OTHER,
@@ -335,7 +379,9 @@ describe("purgeRoutines.purgeRepo — scoped predicate-delete (D5)", () => {
     const count = await purgeRoutines(handle, CTX_A).purgeRepo(REPO);
     expect(count).toBe(2);
 
-    const remaining = await raw.select({ id: pullRequest.id }).from(pullRequest);
+    const remaining = await raw
+      .select({ id: pullRequest.id })
+      .from(pullRequest);
     expect(remaining.map((r) => r.id)).toEqual([other]);
     // pr1's children cascaded away.
     expect(await countChildTables(raw, pr1)).toBe(0);
@@ -350,8 +396,16 @@ describe("purgeRoutines.purgeRepo — scoped predicate-delete (D5)", () => {
 describe("purgeRoutines.purgeRepos — set-based multi-repo purge (D5)", () => {
   it("purges every named repo in one tx, one audit entry per repo, count-0 included", async () => {
     const { raw, handle } = await freshPair();
-    const a1 = await insertPr(raw, { installationId: TENANT_A, repoId: REPO, prNumber: 1 });
-    const a2 = await insertPr(raw, { installationId: TENANT_A, repoId: REPO, prNumber: 2 });
+    const a1 = await insertPr(raw, {
+      installationId: TENANT_A,
+      repoId: REPO,
+      prNumber: 1,
+    });
+    const a2 = await insertPr(raw, {
+      installationId: TENANT_A,
+      repoId: REPO,
+      prNumber: 2,
+    });
     const other = await insertPr(raw, {
       installationId: TENANT_A,
       repoId: REPO_OTHER,
@@ -362,11 +416,17 @@ describe("purgeRoutines.purgeRepos — set-based multi-repo purge (D5)", () => {
     // REPO holds two PRs; a third repo (never seeded) contributes a count-0
     // audit entry, matching purgeRepo's emit-even-on-zero behavior.
     const emptyRepo: RepoId = brandWith(isRepoId, 999n);
-    const count = await purgeRoutines(handle, CTX_A).purgeRepos([REPO, emptyRepo, REPO]);
+    const count = await purgeRoutines(handle, CTX_A).purgeRepos([
+      REPO,
+      emptyRepo,
+      REPO,
+    ]);
     expect(count).toBe(2);
 
     // Only REPO_OTHER's PR survives; REPO's children cascaded.
-    const remaining = await raw.select({ id: pullRequest.id }).from(pullRequest);
+    const remaining = await raw
+      .select({ id: pullRequest.id })
+      .from(pullRequest);
     expect(remaining.map((r) => r.id)).toEqual([other]);
     expect(await countChildTables(raw, a1)).toBe(0);
     void a2;
@@ -415,7 +475,10 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D1
     const prs = await raw.select({ id: pullRequest.id }).from(pullRequest);
     expect(prs.map((r) => r.id)).toEqual([bPr]);
     const sessions = await raw
-      .select({ id: reviewerSession.id, installationId: reviewerSession.installationId })
+      .select({
+        id: reviewerSession.id,
+        installationId: reviewerSession.installationId,
+      })
       .from(reviewerSession);
     expect(sessions).toHaveLength(1);
     expect(sessions[0]?.installationId).toBe(TENANT_B);
@@ -425,13 +488,17 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D1
     expect(tokens).toHaveLength(1);
     expect(tokens[0]?.installationId).toBe(TENANT_B);
     // D15: the purged referents' grants died with them; B's two remain.
-    expect(await raw.select({ id: githubGrant.id }).from(githubGrant)).toHaveLength(2);
+    expect(
+      await raw.select({ id: githubGrant.id }).from(githubGrant),
+    ).toHaveLength(2);
 
     // Tenant B's child graph is intact.
     expect(await countChildTables(raw, bPr)).toBe(8);
 
     // audit_log retained: both pre-existing generate rows + the new A delete.
-    expect(await raw.select({ id: auditLog.id }).from(auditLog)).toHaveLength(3);
+    expect(await raw.select({ id: auditLog.id }).from(auditLog)).toHaveLength(
+      3,
+    );
     const aDeletes = await deleteAudits(raw, TENANT_A);
     expect(aDeletes).toHaveLength(1);
     expect(aDeletes[0]?.targetType).toBe("installation");
@@ -472,7 +539,9 @@ describe("purgeRoutines.sweepExpired — retention sweep (D5)", () => {
     const purged = await purgeRoutines(handle, CTX_A).sweepExpired(now);
     expect(purged).toBe(1);
 
-    const remaining = await raw.select({ id: pullRequest.id }).from(pullRequest);
+    const remaining = await raw
+      .select({ id: pullRequest.id })
+      .from(pullRequest);
     expect(remaining.map((r) => r.id).toSorted(bigIntAsc)).toEqual(
       [openNever, notYet, bExpired].toSorted(bigIntAsc),
     );
@@ -524,12 +593,20 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
     const closedAt = new Date("2026-07-01T00:00:00Z");
 
     for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
-      const result = await routines.setRetention(prId, PrState.CLOSED, closedAt, bad);
+      const result = await routines.setRetention(
+        prId,
+        PrState.CLOSED,
+        closedAt,
+        bad,
+      );
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("expected failure");
       expect(result.error.code).toBe(PurgeErrorCode.INVALID_GRACE);
     }
-    const rows = await raw.select().from(pullRequest).where(eq(pullRequest.id, prId));
+    const rows = await raw
+      .select()
+      .from(pullRequest)
+      .where(eq(pullRequest.id, prId));
     expect(rows[0]?.purgeAfter).toBeNull();
     expect(rows[0]?.closedAt).toBeNull();
   });
@@ -550,20 +627,21 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
     expect(result.value.purgeAfter).toBeNull();
 
     // A sweep far in the future still cannot touch a null-purge_after row.
-    const purged = await routines.sweepExpired(new Date("2099-01-01T00:00:00Z"));
+    const purged = await routines.sweepExpired(
+      new Date("2099-01-01T00:00:00Z"),
+    );
     expect(purged).toBe(0);
-    expect(await raw.select({ id: pullRequest.id }).from(pullRequest)).toHaveLength(1);
+    expect(
+      await raw.select({ id: pullRequest.id }).from(pullRequest),
+    ).toHaveLength(1);
   });
 
   it("returns notFound for a PR outside the tenant", async () => {
     const { raw, handle } = await freshPair();
     const prId = await insertPr(raw, { installationId: TENANT_A });
-    const result = await purgeRoutines(handle, { installationId: TENANT_B }).setRetention(
-      prId,
-      PrState.CLOSED,
-      new Date(),
-      3,
-    );
+    const result = await purgeRoutines(handle, {
+      installationId: TENANT_B,
+    }).setRetention(prId, PrState.CLOSED, new Date(), 3);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected notFound");
     expect(result.error.code).toBe(PurgeErrorCode.NOT_FOUND);
@@ -594,18 +672,21 @@ describe("purgeRoutines.sweepExpiredSessions — TTL sweep (D11)", () => {
     await session(TENANT_A, "a-live", live);
     await session(TENANT_B, "b-expired", expired);
 
-    const deleted = await purgeRoutines(handle, CTX_A).sweepExpiredSessions(now);
+    const deleted = await purgeRoutines(handle, CTX_A).sweepExpiredSessions(
+      now,
+    );
     expect(deleted).toBe(1);
 
     const remaining = await raw
       .select({ token: reviewerSession.sessionTokenHash })
       .from(reviewerSession);
-    expect(remaining.map((r) => r.token).toSorted((a, b) => a.localeCompare(b))).toEqual([
-      "a-live",
-      "b-expired",
-    ]);
+    expect(
+      remaining.map((r) => r.token).toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual(["a-live", "b-expired"]);
     // D15: the swept session's grant died with it; the live rows keep theirs.
-    expect(await raw.select({ id: githubGrant.id }).from(githubGrant)).toHaveLength(2);
+    expect(
+      await raw.select({ id: githubGrant.id }).from(githubGrant),
+    ).toHaveLength(2);
 
     // No artifact-level audit for short-lived session churn (stated choice).
     expect(await deleteAudits(raw, TENANT_A)).toHaveLength(0);

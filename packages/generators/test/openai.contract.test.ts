@@ -21,7 +21,9 @@ function sseBody(content: string, refusal?: string): string {
   // Split the content across two deltas — accumulation must reassemble.
   const cut = Math.ceil(content.length / 2);
   for (const piece of [content.slice(0, cut), content.slice(cut)]) {
-    push({ choices: [{ index: 0, delta: { content: piece }, finish_reason: null }] });
+    push({
+      choices: [{ index: 0, delta: { content: piece }, finish_reason: null }],
+    });
   }
   if (refusal !== undefined) {
     push({ choices: [{ index: 0, delta: { refusal }, finish_reason: null }] });
@@ -53,7 +55,8 @@ function isRecordedMessage(
 
 function bodyOf(init: RequestInit | undefined): string {
   const body = init?.body;
-  if (typeof body !== "string") throw new Error("expected a string request body");
+  if (typeof body !== "string")
+    throw new Error("expected a string request body");
   return body;
 }
 
@@ -105,7 +108,9 @@ function makeOpenAiHarness(): GeneratorContractHarness {
           queueMicrotask(() => controller.abort());
           return new Promise<Response>((_resolve, reject) => {
             const fail = () =>
-              reject(new DOMException("The operation was aborted.", "AbortError"));
+              reject(
+                new DOMException("The operation was aborted.", "AbortError"),
+              );
             if (init?.signal?.aborted) fail();
             else init?.signal?.addEventListener("abort", fail);
           });

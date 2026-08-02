@@ -68,7 +68,8 @@ async function main(): Promise<void> {
   // Pool error observer (ADR 0034 #7 posture, mirrors the web tier): a DB
   // restart surfaces as warn lines, not an unhandled-'error' process crash.
   const handle = createDb(config.value.databaseUrl, {
-    onError: (error) => logger.warn("postgres pool error (idle client)", { err: error }),
+    onError: (error) =>
+      logger.warn("postgres pool error (idle client)", { err: error }),
   });
   const configuredEffort = config.value.generator.effort;
   const generate = createGenerateTask({

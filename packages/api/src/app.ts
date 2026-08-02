@@ -93,24 +93,33 @@ export function createApp(deps: AppDeps): ApiApp {
   // review IS a conversation write). Mounted before readsRoute for the same
   // single-gate reason as the submit route.
   const conversation = conversationRoutes(deps);
-  app.route("/", reviewSubmitRoute(deps, (installationId, repoId, prNumber) =>
-    conversation.evictConversation(installationId, repoId, prNumber),
-  ));
+  app.route(
+    "/",
+    reviewSubmitRoute(deps, (installationId, repoId, prNumber) =>
+      conversation.evictConversation(installationId, repoId, prNumber),
+    ),
+  );
   // Mark-ready (BRIEF-43): its own per-repo gate instance, mounted BEFORE
   // readsRoute for the same single-gate reason as the submit route.
   app.route("/", markReadyRoute(deps));
   // Inline post-now (BRIEF-43 PR 4): a posted inline comment is a conversation
   // write, so its success evicts the PR's conversation cache. Own per-repo
   // gate, mounted BEFORE readsRoute for the same single-gate reason.
-  app.route("/", inlineCommentRoute(deps, (installationId, repoId, prNumber) =>
-    conversation.evictConversation(installationId, repoId, prNumber),
-  ));
+  app.route(
+    "/",
+    inlineCommentRoute(deps, (installationId, repoId, prNumber) =>
+      conversation.evictConversation(installationId, repoId, prNumber),
+    ),
+  );
   // Thread resolution (BRIEF-93): a resolved/unresolved thread is a
   // conversation write, so success evicts the PR's conversation cache. Own
   // per-repo gate, mounted BEFORE readsRoute for the same single-gate reason.
-  app.route("/", resolveThreadRoute(deps, (installationId, repoId, prNumber) =>
-    conversation.evictConversation(installationId, repoId, prNumber),
-  ));
+  app.route(
+    "/",
+    resolveThreadRoute(deps, (installationId, repoId, prNumber) =>
+      conversation.evictConversation(installationId, repoId, prNumber),
+    ),
+  );
   // Collaborators read (BRIEF-94): own per-repo gate instance + the
   // viewerCanPush guard, mounted BEFORE readsRoute for the same single-gate
   // reason as the other /api/repos/:repoId/* modules.

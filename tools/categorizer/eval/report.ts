@@ -207,9 +207,7 @@ function renderLines(
     for (const p of loud) {
       lines.push(
         `  ${p.verdict.toUpperCase()}  ${p.id} — ${p.passes}/${p.runs}` +
-          (p.baselinePasses === null
-            ? ""
-            : ` (baseline ${p.baselinePasses})`) +
+          (p.baselinePasses === null ? "" : ` (baseline ${p.baselinePasses})`) +
           ` — ${p.description}`,
       );
     }
@@ -230,7 +228,9 @@ function renderLines(
 
 /** Exported for the rebaseline path — cost is shown on EVERY spend
  * (decision 7), and the first real spend is a --rebaseline run. */
-export function renderCostLine(input: Pick<ReportInput, "key" | "billing" | "usage" | "costUsd">): string {
+export function renderCostLine(
+  input: Pick<ReportInput, "key" | "billing" | "usage" | "costUsd">,
+): string {
   if (input.billing.kind === BillingKinds.SUBSCRIPTION) {
     return `cost: subscription (${input.key}) — see the provider's usage page`;
   }

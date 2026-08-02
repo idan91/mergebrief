@@ -22,7 +22,11 @@ const validBrief = {
   },
   index: 1,
   commitRange: { base: "base0000", head: "deadbeef", commitCount: 2 },
-  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
+  generation: {
+    provider: "anthropic",
+    model: "claude-opus-4-8",
+    effort: "medium",
+  },
   summary: "s",
   changeGroups: [
     {
@@ -104,13 +108,17 @@ describe("BriefSchema", () => {
   it("accepts a well-formed readingOrder", () => {
     const withOrder = {
       ...structuredClone(validBrief),
-      readingOrder: [{ groupId: "g1", why: "establishes the schema the rest builds on" }],
+      readingOrder: [
+        { groupId: "g1", why: "establishes the schema the rest builds on" },
+      ],
     };
     expect(BriefSchema.safeParse(withOrder).success).toBe(true);
   });
 
   it("accepts the absence of readingOrder", () => {
-    const withoutOrder = structuredClone(validBrief) as Partial<typeof validBrief>;
+    const withoutOrder = structuredClone(validBrief) as Partial<
+      typeof validBrief
+    >;
     expect("readingOrder" in withoutOrder).toBe(false);
     expect(BriefSchema.safeParse(withoutOrder).success).toBe(true);
   });
@@ -145,7 +153,11 @@ const validDelta = {
   headSha: "2222222",
   baselineIndex: 1,
   headIndex: 2,
-  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
+  generation: {
+    provider: "anthropic",
+    model: "claude-opus-4-8",
+    effort: "medium",
+  },
   summary: "since you last looked, the author added a test",
   commentsAddressed: "addresses the reviewer's request to add a test",
   changedGroups: [
@@ -209,7 +221,11 @@ const validRevisionNarrative = {
   headSha: "head0000",
   prevIndex: 1,
   headIndex: 2,
-  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
+  generation: {
+    provider: "anthropic",
+    model: "claude-opus-4-8",
+    effort: "medium",
+  },
   overview: "This revision tightens error handling around the new module.",
   chunks: [
     {
@@ -225,16 +241,23 @@ const validRevisionNarrative = {
 
 describe("RevisionNarrativeSchema", () => {
   it("accepts a well-formed revision narrative", () => {
-    expect(RevisionNarrativeSchema.safeParse(validRevisionNarrative).success).toBe(true);
+    expect(
+      RevisionNarrativeSchema.safeParse(validRevisionNarrative).success,
+    ).toBe(true);
   });
 
   it("rejects an invented top-level field (e.g. the excluded Delta-only wholePrImpact)", () => {
-    const bad = { ...structuredClone(validRevisionNarrative), wholePrImpact: "sneaked in" };
+    const bad = {
+      ...structuredClone(validRevisionNarrative),
+      wholePrImpact: "sneaked in",
+    };
     expect(RevisionNarrativeSchema.safeParse(bad).success).toBe(false);
   });
 
   it("rejects a narrative missing overview", () => {
-    const bad = structuredClone(validRevisionNarrative) as Partial<typeof validRevisionNarrative>;
+    const bad = structuredClone(validRevisionNarrative) as Partial<
+      typeof validRevisionNarrative
+    >;
     delete bad.overview;
     expect(RevisionNarrativeSchema.safeParse(bad).success).toBe(false);
   });
@@ -399,15 +422,18 @@ describe("IntentCheckSchema (BRIEF-54)", () => {
   });
 
   it("requires the BRIEF-85 alarm buckets (no optionals — strict structured output)", () => {
-    const { deviations: _d, ...noDeviations } = structuredClone(validIntentCheck);
+    const { deviations: _d, ...noDeviations } =
+      structuredClone(validIntentCheck);
     expect(IntentCheckSchema.safeParse(noDeviations).success).toBe(false);
-    const { claimedButUnachieved: _c, ...noClaimed } = structuredClone(validIntentCheck);
+    const { claimedButUnachieved: _c, ...noClaimed } =
+      structuredClone(validIntentCheck);
     expect(IntentCheckSchema.safeParse(noClaimed).success).toBe(false);
   });
 
   it("requires acknowledged on every bucket's items (one shared shape — grammar budget)", () => {
     const bad = structuredClone(validIntentCheck);
-    const target: Partial<(typeof bad.accomplished)[number]> = bad.accomplished[0];
+    const target: Partial<(typeof bad.accomplished)[number]> =
+      bad.accomplished[0];
     delete target.acknowledged;
     expect(IntentCheckSchema.safeParse(bad).success).toBe(false);
   });
@@ -419,15 +445,17 @@ describe("IntentCheckSchema (BRIEF-54)", () => {
 
   it("rejects a stated ask missing its quote (no optionals — strict structured output)", () => {
     const bad = structuredClone(validIntentCheck);
-    const target: Partial<(typeof bad.statedButMissing)[number]> = bad.statedButMissing[0];
+    const target: Partial<(typeof bad.statedButMissing)[number]> =
+      bad.statedButMissing[0];
     delete target.quote;
     expect(IntentCheckSchema.safeParse(bad).success).toBe(false);
   });
 
   it("requires groupIds on BOTH stated-side buckets (one shared shape — grammar budget)", () => {
     const noAccomplishedIds = structuredClone(validIntentCheck);
-    const accomplished: Partial<(typeof noAccomplishedIds.accomplished)[number]> =
-      noAccomplishedIds.accomplished[0];
+    const accomplished: Partial<
+      (typeof noAccomplishedIds.accomplished)[number]
+    > = noAccomplishedIds.accomplished[0];
     delete accomplished.groupIds;
     expect(IntentCheckSchema.safeParse(noAccomplishedIds).success).toBe(false);
 
@@ -446,18 +474,20 @@ describe("IntentCheckSchema (BRIEF-54)", () => {
     const parsed = IntentCheckSchema.safeParse({
       ...structuredClone(validIntentCheck),
       doneButUnstated: [
-        { intent: "d", quote: "", sourceUrl: "", groupIds: ["g1"], acknowledged: false },
+        {
+          intent: "d",
+          quote: "",
+          sourceUrl: "",
+          groupIds: ["g1"],
+          acknowledged: false,
+        },
       ],
     });
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
-    expect(Object.keys(parsed.data.doneButUnstated[0] ?? {}).toSorted()).toEqual([
-      "acknowledged",
-      "groupIds",
-      "intent",
-      "quote",
-      "sourceUrl",
-    ]);
+    expect(
+      Object.keys(parsed.data.doneButUnstated[0] ?? {}).toSorted(),
+    ).toEqual(["acknowledged", "groupIds", "intent", "quote", "sourceUrl"]);
   });
 });
 
@@ -499,29 +529,36 @@ describe("IntentCheckGenerationSchema (BRIEF-85 grammar budget)", () => {
   it("keeps the generation shape leaner than five arrays (the whole point)", () => {
     // One `$ref` site instead of five. The grammar inlines per site, so this
     // is the property that makes the intent check compile at all.
-    const arrayFields = Object.entries(IntentCheckGenerationSchema.shape).filter(
-      ([, schema]) => schema.def.type === "array",
-    );
-    expect(arrayFields.map(([name]) => name).toSorted()).toEqual(["items", "ticketUrls"]);
+    const arrayFields = Object.entries(
+      IntentCheckGenerationSchema.shape,
+    ).filter(([, schema]) => schema.def.type === "array");
+    expect(arrayFields.map(([name]) => name).toSorted()).toEqual([
+      "items",
+      "ticketUrls",
+    ]);
   });
 });
 
 describe("intentCheck on the brief schemas (BRIEF-54 back-compat split)", () => {
   it("BriefGenerationSchema REQUIRES intentCheck", () => {
-    const { intentCheck: _dropped, ...withoutIntent } = briefGen(["mutates-state"]);
+    const { intentCheck: _dropped, ...withoutIntent } = briefGen([
+      "mutates-state",
+    ]);
     expect(BriefGenerationSchema.safeParse(withoutIntent).success).toBe(false);
     expect(
       BriefGenerationSchema.safeParse({
         ...withoutIntent,
         intentCheck: validGenerationIntentCheck,
-      })
-        .success,
+      }).success,
     ).toBe(true);
   });
 
   it("BriefSchema (read path) treats intentCheck as optional — pre-feature briefs parse", () => {
     expect(BriefSchema.safeParse(validBrief).success).toBe(true);
-    const withIntent = { ...structuredClone(validBrief), intentCheck: validIntentCheck };
+    const withIntent = {
+      ...structuredClone(validBrief),
+      intentCheck: validIntentCheck,
+    };
     const parsed = BriefSchema.safeParse(withIntent);
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
@@ -545,21 +582,24 @@ describe("intentCheck on the brief schemas (BRIEF-54 back-compat split)", () => 
   });
 
   it("emits the specificity enum in the enum-preserving json_schema wire form", () => {
-    const wire = JSON.stringify(enumPreservingJsonSchema(BriefGenerationSchema));
+    const wire = JSON.stringify(
+      enumPreservingJsonSchema(BriefGenerationSchema),
+    );
     expect(wire).toContain('"precise"');
     expect(wire).toContain('"broad"');
     // "none" is a common word — assert the full enum array to be safe.
-    expect(wire.replace(/\s/g, "")).toContain('"enum":["precise","broad","none"]');
+    expect(wire.replace(/\s/g, "")).toContain(
+      '"enum":["precise","broad","none"]',
+    );
   });
 
   it("emits the bucket enum on the wire, and no five-array residue (BRIEF-85)", () => {
     // The whole fan-out dispatches on `bucket`, so the closed vocabulary must
     // reach the wire for server-side enforcement (enum-server-enforcement,
     // PR #22) — not just the client-side Zod parse.
-    const wire = JSON.stringify(enumPreservingJsonSchema(BriefGenerationSchema)).replace(
-      /\s/g,
-      "",
-    );
+    const wire = JSON.stringify(
+      enumPreservingJsonSchema(BriefGenerationSchema),
+    ).replace(/\s/g, "");
     expect(wire).toContain(
       `"enum":[${IntentBuckets.map((b) => `"${b}"`).join(",")}]`,
     );
@@ -573,15 +613,15 @@ describe("intentCheck on the brief schemas (BRIEF-54 back-compat split)", () => 
 });
 
 describe("briefGenerationSchemaWith (ADR 0032 #11 — per-generation vocabulary)", () => {
-
-
   it("returns the exact static schema when no custom names exist", () => {
     expect(briefGenerationSchemaWith([])).toBe(BriefGenerationSchema);
   });
 
   it("accepts an injected custom name alongside built-ins", () => {
     const schema = briefGenerationSchemaWith(["touches-billing"]);
-    const parsed = schema.safeParse(briefGen(["touches-auth", "touches-billing"]));
+    const parsed = schema.safeParse(
+      briefGen(["touches-auth", "touches-billing"]),
+    );
     expect(parsed.success).toBe(true);
   });
 
@@ -589,15 +629,21 @@ describe("briefGenerationSchemaWith (ADR 0032 #11 — per-generation vocabulary)
     const schema = briefGenerationSchemaWith(["touches-billing"]);
     expect(schema.safeParse(briefGen(["not-a-thing"])).success).toBe(false);
     // The static schema rejects the custom name too — the extension is per-generation.
-    expect(BriefGenerationSchema.safeParse(briefGen(["touches-billing"])).success).toBe(false);
+    expect(
+      BriefGenerationSchema.safeParse(briefGen(["touches-billing"])).success,
+    ).toBe(false);
   });
 
   it("carries injected names into the enum-preserving json_schema (server-side enforcement)", () => {
-    const wire = JSON.stringify(enumPreservingJsonSchema(briefGenerationSchemaWith(["touches-billing"])));
+    const wire = JSON.stringify(
+      enumPreservingJsonSchema(briefGenerationSchemaWith(["touches-billing"])),
+    );
     expect(wire).toContain('"touches-billing"');
     expect(wire).toContain('"touches-auth"');
     // And the base schema's wire form does NOT know the custom name.
-    const baseWire = JSON.stringify(enumPreservingJsonSchema(briefGenerationSchemaWith([])));
+    const baseWire = JSON.stringify(
+      enumPreservingJsonSchema(briefGenerationSchemaWith([])),
+    );
     expect(baseWire).not.toContain('"touches-billing"');
   });
 });

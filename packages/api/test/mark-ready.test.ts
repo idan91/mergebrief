@@ -85,7 +85,10 @@ const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -96,28 +99,40 @@ function repoStatus(status: number): Response {
   return jsonResponse({ message: "denied" }, status);
 }
 function nodeIdGraphql(isDraft: boolean): Response {
-  return jsonResponse({ data: { repository: { pullRequest: { id: NODE_ID, isDraft } } } });
+  return jsonResponse({
+    data: { repository: { pullRequest: { id: NODE_ID, isDraft } } },
+  });
 }
 function mutationGraphql(): Response {
   return jsonResponse({
-    data: { markPullRequestReadyForReview: { pullRequest: { isDraft: false } } },
+    data: {
+      markPullRequestReadyForReview: { pullRequest: { isDraft: false } },
+    },
   });
 }
 function notADraftGraphql(): Response {
   // GitHub's GraphQL error envelope for marking a non-draft PR ready.
-  return jsonResponse({ data: null, errors: [{ message: "Pull request is not a draft" }] });
+  return jsonResponse({
+    data: null,
+    errors: [{ message: "Pull request is not a draft" }],
+  });
 }
 function graphqlError(): Response {
   // A GraphQL-level error (HTTP 200 + errors) — maps to REQUEST_FAILED → 502.
   // NOT an HTTP 5xx, which octokit's retry plugin would back off and retry.
-  return jsonResponse({ data: null, errors: [{ type: "INTERNAL", message: "boom" }] });
+  return jsonResponse({
+    data: null,
+    errors: [{ type: "INTERNAL", message: "boom" }],
+  });
 }
 function forbiddenGraphql(): Response {
   // GitHub's GraphQL FORBIDDEN envelope for the mark-ready MUTATION when the
   // App lacks `contents: write` — the community-documented permission gap.
   return jsonResponse({
     data: null,
-    errors: [{ type: "FORBIDDEN", message: "Resource not accessible by integration" }],
+    errors: [
+      { type: "FORBIDDEN", message: "Resource not accessible by integration" },
+    ],
   });
 }
 function graphqlUnauthorized(): Response {
@@ -150,30 +165,49 @@ interface StubCounts {
 }
 
 function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = { repositories: 0, graphql: 0, token: 0, graphqlBodies: [] };
-  const fetchFn = vi.fn(async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes("/login/oauth/access_token")) {
-      const i = counts.token++;
-      return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
-    }
-    if (url.includes("/repositories/")) {
-      const i = counts.repositories++;
-      return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-    }
-    if (url.endsWith("/graphql")) {
-      const i = counts.graphql++;
-      const raw = init?.body ?? (input instanceof Request ? await input.text() : undefined);
-      if (typeof raw === "string") {
-        const parsed: unknown = JSON.parse(raw);
-        if (typeof parsed === "object" && parsed !== null) {
-          counts.graphqlBodies.push({ ...parsed });
-        }
+  const counts: StubCounts = {
+    repositories: 0,
+    graphql: 0,
+    token: 0,
+    graphqlBodies: [],
+  };
+  const fetchFn = vi.fn(
+    async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/login/oauth/access_token")) {
+        const i = counts.token++;
+        return cfg.token
+          ? cfg.token(i)
+          : jsonResponse({ error: "unexpected_token" }, 500);
       }
-      return cfg.graphql ? cfg.graphql(i) : jsonResponse({ data: null }, 500);
-    }
-    return jsonResponse({ message: "unexpected endpoint" }, 404);
-  });
+      if (url.includes("/repositories/")) {
+        const i = counts.repositories++;
+        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
+      }
+      if (url.endsWith("/graphql")) {
+        const i = counts.graphql++;
+        const raw =
+          init?.body ??
+          (input instanceof Request ? await input.text() : undefined);
+        if (typeof raw === "string") {
+          const parsed: unknown = JSON.parse(raw);
+          if (typeof parsed === "object" && parsed !== null) {
+            counts.graphqlBodies.push({ ...parsed });
+          }
+        }
+        return cfg.graphql ? cfg.graphql(i) : jsonResponse({ data: null }, 500);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
   vi.stubGlobal("fetch", fetchFn);
   return counts;
 }
@@ -182,11 +216,15 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // Seeding.
 // ---------------------------------------------------------------------------
 
-async function seedSession(handle: AppDatabase, kp: KeyProvider): Promise<{ cookie: string }> {
+async function seedSession(
+  handle: AppDatabase,
+  kp: KeyProvider,
+): Promise<{ cookie: string }> {
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -222,7 +260,9 @@ async function readDraft(handle: AppDatabase): Promise<boolean | undefined> {
 }
 
 async function markReadyAuditCount(harness: PgliteHarness): Promise<number> {
-  const rows = await harness.raw("select count(*)::int as n from audit_log where action = 'mark-ready'");
+  const rows = await harness.raw(
+    "select count(*)::int as n from audit_log where action = 'mark-ready'",
+  );
   const n = rows[0]?.["n"];
   if (typeof n !== "number") throw new Error("unexpected count result");
   return n;
@@ -234,7 +274,11 @@ async function markReadyAuditCount(harness: PgliteHarness): Promise<number> {
 
 const READY_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/ready`;
 
-async function markReady(app: ApiApp, cookie: string | undefined, path = READY_PATH): Promise<Response> {
+async function markReady(
+  app: ApiApp,
+  cookie: string | undefined,
+  path = READY_PATH,
+): Promise<Response> {
   return await app.request(path, {
     method: "POST",
     headers: {
@@ -262,7 +306,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
   beforeEach(async () => {
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: authDeps(kp),
+      github: unusedConversationPort,
+    });
   });
 
   afterEach(async () => {
@@ -315,7 +365,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       repositories: (i) =>
         i === 0
           ? repoOk() // the gate's access check caches octo/hello
-          : jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
+          : jsonResponse({
+              id: REPO_ID,
+              full_name: "octo/renamed",
+              private: true,
+            }),
       graphql: (i) => (i === 0 ? nodeIdGraphql(true) : mutationGraphql()),
     });
     await seedDraftPr(harness.handle);
@@ -473,7 +527,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
       repositories: () => repoOk(),
       token: () => tokenSuccess(),
       graphql: (i) =>
-        i === 0 ? graphqlUnauthorized() : i === 1 ? nodeIdGraphql(true) : mutationGraphql(),
+        i === 0
+          ? graphqlUnauthorized()
+          : i === 1
+            ? nodeIdGraphql(true)
+            : mutationGraphql(),
     });
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -491,7 +549,12 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     // resolve time (GitHub is now non-draft) and converges without mutating.
     stubGitHub({
       repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? nodeIdGraphql(true) : i === 1 ? mutationGraphql() : nodeIdGraphql(false)),
+      graphql: (i) =>
+        i === 0
+          ? nodeIdGraphql(true)
+          : i === 1
+            ? mutationGraphql()
+            : nodeIdGraphql(false),
     });
     await seedDraftPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);

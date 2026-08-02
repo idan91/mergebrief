@@ -46,7 +46,10 @@ export interface RepoFileTooLarge {
   readonly size: number;
 }
 
-export type RepoFileResult = RepoFileContent | RepoFileAbsent | RepoFileTooLarge;
+export type RepoFileResult =
+  | RepoFileContent
+  | RepoFileAbsent
+  | RepoFileTooLarge;
 
 export interface GetRepoFileInput {
   readonly owner: string;
@@ -87,14 +90,19 @@ const BASE64_BODY = /^[A-Za-z0-9+/]*={0,2}$/;
  * it were the committed content). Returns undefined when the payload is not
  * a well-formed UTF-8 text blob.
  */
-function decodeBase64Utf8(wrapped: string): { text: string; bytes: number } | undefined {
+function decodeBase64Utf8(
+  wrapped: string,
+): { text: string; bytes: number } | undefined {
   const compact = wrapped.replace(/\s+/g, "");
   if (!BASE64_BODY.test(compact) || compact.length % 4 !== 0) {
     return undefined;
   }
   const buffer = Buffer.from(compact, "base64");
   try {
-    return { text: new TextDecoder("utf-8", { fatal: true }).decode(buffer), bytes: buffer.length };
+    return {
+      text: new TextDecoder("utf-8", { fatal: true }).decode(buffer),
+      bytes: buffer.length,
+    };
   } catch {
     return undefined;
   }
@@ -112,12 +120,15 @@ export async function getRepoFile(
 ): Promise<Result<RepoFileResult, GitHubApiError>> {
   let body: unknown;
   try {
-    const response = await octokit.request("GET /repos/{owner}/{repo}/contents/{path}", {
-      owner: input.owner,
-      repo: input.repo,
-      path: input.path,
-      ...(input.ref === undefined ? {} : { ref: input.ref }),
-    });
+    const response = await octokit.request(
+      "GET /repos/{owner}/{repo}/contents/{path}",
+      {
+        owner: input.owner,
+        repo: input.repo,
+        path: input.path,
+        ...(input.ref === undefined ? {} : { ref: input.ref }),
+      },
+    );
     body = response.data;
   } catch (error) {
     if (error instanceof RequestError && error.status === 404) {
@@ -141,7 +152,10 @@ export async function getRepoFile(
   }
   const { size, sha, content, encoding } = parsed.data;
   if (size > input.maxBytes) {
-    return { ok: true, value: { kind: RepoFileKind.TOO_LARGE, blobSha: sha, size } };
+    return {
+      ok: true,
+      value: { kind: RepoFileKind.TOO_LARGE, blobSha: sha, size },
+    };
   }
   if (encoding !== "base64" || content === undefined) {
     return { ok: false, error: unexpectedResponseError("fetch repo file") };
@@ -154,7 +168,14 @@ export async function getRepoFile(
   if (decoded.bytes > input.maxBytes) {
     // The reported `size` passed the guard but the actual payload is bigger —
     // the decoded byte count is the truth the cap protects.
-    return { ok: true, value: { kind: RepoFileKind.TOO_LARGE, blobSha: sha, size: decoded.bytes } };
+    return {
+      ok: true,
+      value: {
+        kind: RepoFileKind.TOO_LARGE,
+        blobSha: sha,
+        size: decoded.bytes,
+      },
+    };
   }
   return {
     ok: true,

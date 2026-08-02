@@ -52,7 +52,8 @@ describe("verifyWebhookSignature", () => {
   it("rejects a tampered signature with INVALID_SIGNATURE", async () => {
     const signature = await sign(SECRET, PAYLOAD);
     // Flip the last hex char.
-    const tampered = signature.slice(0, -1) + (signature.endsWith("0") ? "1" : "0");
+    const tampered =
+      signature.slice(0, -1) + (signature.endsWith("0") ? "1" : "0");
     const result = await verifyWebhookSignature({
       secret: SECRET,
       payload: PAYLOAD,

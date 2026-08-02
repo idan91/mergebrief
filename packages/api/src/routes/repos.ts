@@ -24,10 +24,16 @@ export function reposRoute(
   app.use("/api/repos", sessionLayer(deps), accessStampLayer());
 
   app.get("/api/repos", async (c) => {
-    const resolved = await allowedRepos.resolve(c.get("session"), c.get("logger"));
+    const resolved = await allowedRepos.resolve(
+      c.get("session"),
+      c.get("logger"),
+    );
     if (!resolved.ok) {
       return c.json(
-        { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },
+        {
+          error:
+            resolved.error.status === 401 ? "unauthorized" : "upstream error",
+        },
         resolved.error.status,
         NO_STORE,
       );

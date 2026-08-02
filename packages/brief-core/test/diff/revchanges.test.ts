@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildRevisionChanges, parseChangedRanges } from "../../src/diff/revchanges";
+import {
+  buildRevisionChanges,
+  parseChangedRanges,
+} from "../../src/diff/revchanges";
 
 // File a: a modification (del + 2 adds) in one hunk, plus a non-contiguous add
 // in a second hunk. File b: a brand-new file (all additions).

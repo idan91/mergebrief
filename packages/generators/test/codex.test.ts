@@ -232,7 +232,9 @@ describe("CodexGenerator answer selection and classification", () => {
     const scriptDir = tempDir("codex-fatalanswer-");
     writeFileSync(
       join(scriptDir, "turns.json"),
-      JSON.stringify([{ output: '{"ok":true}', fatalBeforeAnswerExitZero: true }]),
+      JSON.stringify([
+        { output: '{"ok":true}', fatalBeforeAnswerExitZero: true },
+      ]),
     );
     const generator = makeGenerator({
       SHIM_SCENARIO: "scripted",

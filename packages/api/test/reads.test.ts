@@ -107,7 +107,10 @@ interface TokenSuccess {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -156,23 +159,34 @@ interface StubCounts {
 
 function stubGitHub(cfg: StubConfig): StubCounts {
   const counts: StubCounts = { repositories: 0, diff: 0, token: 0, urls: [] };
-  const fetchFn = vi.fn(async (input: string | URL | Request): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    counts.urls.push(url);
-    if (url.includes("/login/oauth/access_token")) {
-      const i = counts.token++;
-      return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
-    }
-    if (url.includes("/repositories/")) {
-      const i = counts.repositories++;
-      return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-    }
-    if (url.includes("/compare/")) {
-      const i = counts.diff++;
-      return cfg.diff ? cfg.diff(i) : jsonResponse({ message: "not found" }, 404);
-    }
-    return jsonResponse({ message: "unexpected endpoint" }, 404);
-  });
+  const fetchFn = vi.fn(
+    async (input: string | URL | Request): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      counts.urls.push(url);
+      if (url.includes("/login/oauth/access_token")) {
+        const i = counts.token++;
+        return cfg.token
+          ? cfg.token(i)
+          : jsonResponse({ error: "unexpected_token" }, 500);
+      }
+      if (url.includes("/repositories/")) {
+        const i = counts.repositories++;
+        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
+      }
+      if (url.includes("/compare/")) {
+        const i = counts.diff++;
+        return cfg.diff
+          ? cfg.diff(i)
+          : jsonResponse({ message: "not found" }, 404);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
   vi.stubGlobal("fetch", fetchFn);
   return counts;
 }
@@ -185,13 +199,26 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 async function seedSession(
   handle: AppDatabase,
   kp: KeyProvider,
-  opts?: { accessPlaintext?: string; refreshPlaintext?: string; expiresAt?: Date },
+  opts?: {
+    accessPlaintext?: string;
+    refreshPlaintext?: string;
+    expiresAt?: Date;
+  },
 ): Promise<{ cookie: string; hash: string }> {
   const cookie = randomBytes(32).toString("base64url");
   const hash = sha256Hex(cookie);
-  const sealedAccess = await encryptToken(kp, KEY_REF, opts?.accessPlaintext ?? ACCESS_TOKEN);
-  const sealedRefresh = await encryptToken(kp, KEY_REF, opts?.refreshPlaintext ?? REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  const sealedAccess = await encryptToken(
+    kp,
+    KEY_REF,
+    opts?.accessPlaintext ?? ACCESS_TOKEN,
+  );
+  const sealedRefresh = await encryptToken(
+    kp,
+    KEY_REF,
+    opts?.refreshPlaintext ?? REFRESH_TOKEN,
+  );
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const expiresAt = opts?.expiresAt ?? new Date("2027-01-01T00:00:00Z");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
@@ -225,7 +252,10 @@ async function seedBrief(
   head: string,
   repoConfig?: string,
 ): Promise<void> {
-  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(brandRepo(BigInt(REPO_ID)), PR_NUMBER);
+  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(
+    brandRepo(BigInt(REPO_ID)),
+    PR_NUMBER,
+  );
   if (pr === undefined) throw new Error("seedBrief: pr missing");
   const written = await artifactStore(handle, CTX).briefs.write({
     pullRequestId: pr.id,
@@ -239,7 +269,8 @@ async function seedBrief(
     body: BRIEF_BODY,
     ...(repoConfig === undefined ? {} : { repoConfig }),
   });
-  if (!written.ok) throw new Error(`seedBrief: write failed ${written.error.code}`);
+  if (!written.ok)
+    throw new Error(`seedBrief: write failed ${written.error.code}`);
 }
 
 function briefContextPath(base: string, head: string): string {
@@ -248,8 +279,15 @@ function briefContextPath(base: string, head: string): string {
 
 const DELTA_BODY = JSON.stringify({ summary: "the delta", changes: [] });
 
-async function seedDelta(handle: AppDatabase, baseline: string, head: string): Promise<void> {
-  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(brandRepo(BigInt(REPO_ID)), PR_NUMBER);
+async function seedDelta(
+  handle: AppDatabase,
+  baseline: string,
+  head: string,
+): Promise<void> {
+  const pr = await forTenant(handle, CTX).pullRequests.getByNumber(
+    brandRepo(BigInt(REPO_ID)),
+    PR_NUMBER,
+  );
   if (pr === undefined) throw new Error("seedDelta: pr missing");
   const written = await artifactStore(handle, CTX).deltas.write({
     pullRequestId: pr.id,
@@ -260,7 +298,8 @@ async function seedDelta(handle: AppDatabase, baseline: string, head: string): P
     effort: "high",
     body: DELTA_BODY,
   });
-  if (!written.ok) throw new Error(`seedDelta: write failed ${written.error.code}`);
+  if (!written.ok)
+    throw new Error(`seedDelta: write failed ${written.error.code}`);
 }
 
 function deltaPath(baseline: string, head: string): string {
@@ -288,7 +327,6 @@ function diffPath(base: string, head: string): string {
 const realNow = Date.now.bind(Date);
 let clockOffsetMs = 0;
 
-
 // Conversation port stub (BRIEF-25): these tests never exercise the
 // conversation read; a hit here is a test bug.
 const unusedConversationPort = {
@@ -309,7 +347,13 @@ describe("reviewer read API + authz gate", () => {
     vi.spyOn(Date, "now").mockImplementation(() => realNow() + clockOffsetMs);
     harness = await createPgliteHarness();
     kp = keyProvider();
-    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: authDeps(kp), github: unusedConversationPort });
+    app = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: authDeps(kp),
+      github: unusedConversationPort,
+    });
   });
 
   afterEach(async () => {
@@ -328,7 +372,9 @@ describe("reviewer read API + authz gate", () => {
   it("401 for an unknown session cookie (no GitHub call)", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const res = await app.request(briefPath("base", "head"), {
-      headers: { Cookie: `rs_session=${randomBytes(32).toString("base64url")}` },
+      headers: {
+        Cookie: `rs_session=${randomBytes(32).toString("base64url")}`,
+      },
     });
     expect(res.status).toBe(401);
     expect(counts.repositories).toBe(0);
@@ -339,7 +385,9 @@ describe("reviewer read API + authz gate", () => {
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
-    const first = await app.request(briefPath("b", "h"), { headers: { Cookie: `rs_session=${cookie}` } });
+    const first = await app.request(briefPath("b", "h"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
     expect(first.status).toBe(404);
 
     // The D9 denial audit row exists (numeric-only, decision="404").
@@ -354,7 +402,9 @@ describe("reviewer read API + authz gate", () => {
     expect(auditRows[0]?.["decision"]).toBe("404");
 
     // Negative is not cached: a second request calls GitHub again.
-    const second = await app.request(briefPath("b", "h"), { headers: { Cookie: `rs_session=${cookie}` } });
+    const second = await app.request(briefPath("b", "h"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
     expect(second.status).toBe(404);
     expect(counts.repositories).toBe(2);
   });
@@ -363,7 +413,9 @@ describe("reviewer read API + authz gate", () => {
     stubGitHub({ repositories: () => repoStatus(403) });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
-    const res = await app.request(briefPath("b", "h"), { headers: { Cookie: `rs_session=${cookie}` } });
+    const res = await app.request(briefPath("b", "h"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
     expect(res.status).toBe(404);
   });
 
@@ -462,9 +514,12 @@ describe("reviewer read API + authz gate", () => {
     stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
-    const res = await app.request(`/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief?base=only`, {
-      headers: { Cookie: `rs_session=${cookie}` },
-    });
+    const res = await app.request(
+      `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief?base=only`,
+      {
+        headers: { Cookie: `rs_session=${cookie}` },
+      },
+    );
     expect(res.status).toBe(400);
   });
 
@@ -474,8 +529,12 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
 
-    const a = await app.request(briefPath("base1", "head1"), { headers: { Cookie: `rs_session=${cookie}` } });
-    const b = await app.request(briefPath("base1", "head1"), { headers: { Cookie: `rs_session=${cookie}` } });
+    const a = await app.request(briefPath("base1", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
+    const b = await app.request(briefPath("base1", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
     expect(counts.repositories).toBe(1);
@@ -489,13 +548,17 @@ describe("reviewer read API + authz gate", () => {
     await seedPullRequest(harness.handle);
     await seedBrief(harness.handle, "base1", "head1");
 
-    const a = await app.request(briefPath("base1", "head1"), { headers: { Cookie: `rs_session=${cookie}` } });
+    const a = await app.request(briefPath("base1", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
     expect(a.status).toBe(200);
 
     // Advance the virtual clock past the TTL (forward-only — see the offset
     // note above). The gate re-checks GitHub, which now denies → 404.
     clockOffsetMs += 61_000;
-    const b = await app.request(briefPath("base1", "head1"), { headers: { Cookie: `rs_session=${cookie}` } });
+    const b = await app.request(briefPath("base1", "head1"), {
+      headers: { Cookie: `rs_session=${cookie}` },
+    });
     expect(b.status).toBe(404);
     expect(counts.repositories).toBe(2);
   });
@@ -525,7 +588,11 @@ describe("reviewer read API + authz gate", () => {
       [hash],
     );
     expect(rows).toHaveLength(1);
-    const decrypted = await decryptToken(kp, KEY_REF, String(rows[0]?.["gh_token_ciphertext"]));
+    const decrypted = await decryptToken(
+      kp,
+      KEY_REF,
+      String(rows[0]?.["gh_token_ciphertext"]),
+    );
     if (!decrypted.ok) throw new Error("stored grant ciphertext unreadable");
     expect(decrypted.value).toBe(ROTATED_ACCESS);
   });
@@ -597,7 +664,9 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(res.status).toBe(401);
-    const rows = await harness.raw("select count(*)::int as n from reviewer_session");
+    const rows = await harness.raw(
+      "select count(*)::int as n from reviewer_session",
+    );
     expect(rows[0]?.["n"]).toBe(0);
   });
 
@@ -615,12 +684,17 @@ describe("reviewer read API + authz gate", () => {
     // Rejected before the access check — no GitHub call at all.
     expect(counts.repositories).toBe(0);
     // The dead session is burned.
-    const rows = await harness.raw("select count(*)::int as n from reviewer_session");
+    const rows = await harness.raw(
+      "select count(*)::int as n from reviewer_session",
+    );
     expect(rows[0]?.["n"]).toBe(0);
   });
 
   it("400 on a diff ref that selects a cross-repo owner:ref span (no GitHub call)", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk(), diff: () => diffOk() });
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      diff: () => diffOk(),
+    });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
@@ -633,7 +707,10 @@ describe("reviewer read API + authz gate", () => {
   });
 
   it("diff proxy fetches the REQUESTED base...head span (not the whole PR)", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk(), diff: () => diffOk() });
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      diff: () => diffOk(),
+    });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
@@ -642,7 +719,9 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(res.status).toBe(200);
     // The compare request carried the exact requested span.
-    expect(counts.urls.some((u) => u.includes("/compare/base1...head1"))).toBe(true);
+    expect(counts.urls.some((u) => u.includes("/compare/base1...head1"))).toBe(
+      true,
+    );
   });
 
   it("diff proxy on a cached-authz hit refreshes an expired token and retries", async () => {
@@ -675,22 +754,27 @@ describe("reviewer read API + authz gate", () => {
 
   // Long timeout: octokit's retry plugin retries a 406 (not in its doNotRetry
   // list) with backoff before the sanitized error surfaces.
-  it("maps GitHub's 406 (diff too large to render) to a 413, not a 502", { timeout: 20_000 }, async () => {
-    stubGitHub({ repositories: () => repoOk(), diff: () => diffStatus(406) });
-    const { cookie } = await seedSession(harness.handle, kp);
-    await seedPullRequest(harness.handle);
+  it(
+    "maps GitHub's 406 (diff too large to render) to a 413, not a 502",
+    { timeout: 20_000 },
+    async () => {
+      stubGitHub({ repositories: () => repoOk(), diff: () => diffStatus(406) });
+      const { cookie } = await seedSession(harness.handle, kp);
+      await seedPullRequest(harness.handle);
 
-    const res = await app.request(diffPath("b", "h"), {
-      headers: { Cookie: `rs_session=${cookie}` },
-    });
-    expect(res.status).toBe(413);
-  });
+      const res = await app.request(diffPath("b", "h"), {
+        headers: { Cookie: `rs_session=${cookie}` },
+      });
+      expect(res.status).toBe(413);
+    },
+  );
 
   it("diff proxy targets the GitHub-verified repo name, not the stored slug", async () => {
     // The access check reports the repo under a NEW name (renamed since our
     // last webhook write). The compare call must follow the verified name.
     const counts = stubGitHub({
-      repositories: () => jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
+      repositories: () =>
+        jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
       diff: () => diffOk(),
     });
     const { cookie } = await seedSession(harness.handle, kp);
@@ -700,13 +784,20 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(res.status).toBe(200);
-    expect(counts.urls.some((u) => u.includes("/repos/octo/renamed/compare/"))).toBe(true);
-    expect(counts.urls.some((u) => u.includes("/repos/octo/hello/"))).toBe(false);
+    expect(
+      counts.urls.some((u) => u.includes("/repos/octo/renamed/compare/")),
+    ).toBe(true);
+    expect(counts.urls.some((u) => u.includes("/repos/octo/hello/"))).toBe(
+      false,
+    );
   });
 
   it("serves but does NOT cache an oversized diff (re-fetched on repeat)", async () => {
     const big = "x".repeat(1_000_001); // just over the 1 MB per-entry cap
-    const counts = stubGitHub({ repositories: () => repoOk(), diff: () => diffOk(big) });
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      diff: () => diffOk(big),
+    });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
 
@@ -726,7 +817,10 @@ describe("reviewer read API + authz gate", () => {
   });
 
   it("diff proxy: fetches once, then serves the per-session cache on a repeat read", async () => {
-    const counts = stubGitHub({ repositories: () => repoOk(), diff: () => diffOk() });
+    const counts = stubGitHub({
+      repositories: () => repoOk(),
+      diff: () => diffOk(),
+    });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
 

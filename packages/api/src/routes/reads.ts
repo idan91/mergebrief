@@ -19,7 +19,11 @@
 // PR / artifact is a 404; GitHub fetch failures are sanitized to 404/502. No
 // upstream error text, token, or header ever reaches a response body.
 import { Hono, type Context } from "hono";
-import { createUserOctokit, fetchCompareDiff, GitHubApiErrorCode } from "github";
+import {
+  createUserOctokit,
+  fetchCompareDiff,
+  GitHubApiErrorCode,
+} from "github";
 import {
   artifactStore,
   decryptToken,
@@ -69,7 +73,10 @@ const diffQuerySchema = z.object({ base: diffRefSchema, head: diffRefSchema });
  * no-`:` rule as the diff route keeps every span-selecting query on this
  * surface a plain SHA pair (defense-in-depth, one shape to reason about).
  */
-const deltaQuerySchema = z.object({ baseline: diffRefSchema, head: diffRefSchema });
+const deltaQuerySchema = z.object({
+  baseline: diffRefSchema,
+  head: diffRefSchema,
+});
 
 /** Per-session diff cache TTL — short; the diff is live, this only debounces. */
 const DIFF_CACHE_TTL_MS = 60 * 1000;
@@ -93,10 +100,18 @@ const DIFF_CACHE_MAX_ENTRY_BYTES = 1_000_000;
  * validation only — the value comes from the authz gate's access check, but a
  * malformed shape must still never reach a GitHub call.
  */
-function splitRepoSlug(slug: string): { owner: string; repo: string } | undefined {
+function splitRepoSlug(
+  slug: string,
+): { owner: string; repo: string } | undefined {
   const parts = slug.split("/");
   const [owner, repo] = parts;
-  if (parts.length !== 2 || owner === undefined || repo === undefined || owner === "" || repo === "") {
+  if (
+    parts.length !== 2 ||
+    owner === undefined ||
+    repo === undefined ||
+    owner === "" ||
+    repo === ""
+  ) {
     return undefined;
   }
   return { owner, repo };
@@ -125,14 +140,16 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     repoId: RepoId,
     rawPrNumber: string | undefined,
   ): Promise<
-    | { ok: true; pr: PullRequestRow }
-    | { ok: false; status: 400 | 404 }
+    { ok: true; pr: PullRequestRow } | { ok: false; status: 400 | 404 }
   > {
     const parsed = prNumberSchema.safeParse(rawPrNumber);
     if (!parsed.success) {
       return { ok: false, status: 400 };
     }
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(repoId, parsed.data);
+    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+      repoId,
+      parsed.data,
+    );
     if (pr === undefined) {
       return { ok: false, status: 404 };
     }
@@ -146,9 +163,16 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   // carries a baseline (fail closed — absent means not offered).
   app.get("/api/repos/:repoId/pulls/:prNumber", async (c) => {
     const ctx = c.get("ctx");
-    const resolved = await resolvePr(ctx, c.get("repoId"), c.req.param("prNumber"));
+    const resolved = await resolvePr(
+      ctx,
+      c.get("repoId"),
+      c.req.param("prNumber"),
+    );
     if (!resolved.ok) {
-      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
+      return c.json(
+        { error: resolved.status === 400 ? "invalid request" : "not found" },
+        resolved.status,
+      );
     }
     const store = artifactStore(deps.handle, ctx);
     const ids = [resolved.pr.id];
@@ -182,15 +206,26 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (view.briefAvailable && view.headSha !== null) {
       const headSha = view.headSha;
       const pullRequestId = resolved.pr.id;
-      const [briefs, markRows, deltaRows, narrativeRows, checkpoint, briefGenerations] =
-        await Promise.all([
-          store.briefs.listForPullRequest(pullRequestId),
-          store.comparisonMarks.listForPullRequest(pullRequestId),
-          store.deltas.listForPullRequest(pullRequestId),
-          store.revisionNarratives.listForPullRequest(pullRequestId),
-          forTenant(deps.handle, ctx).checkpoints.get(pullRequestId, c.get("session").reviewerId),
-          generationProjection(deps.handle, ctx).listBriefsForPullRequest(pullRequestId),
-        ]);
+      const [
+        briefs,
+        markRows,
+        deltaRows,
+        narrativeRows,
+        checkpoint,
+        briefGenerations,
+      ] = await Promise.all([
+        store.briefs.listForPullRequest(pullRequestId),
+        store.comparisonMarks.listForPullRequest(pullRequestId),
+        store.deltas.listForPullRequest(pullRequestId),
+        store.revisionNarratives.listForPullRequest(pullRequestId),
+        forTenant(deps.handle, ctx).checkpoints.get(
+          pullRequestId,
+          c.get("session").reviewerId,
+        ),
+        generationProjection(deps.handle, ctx).listBriefsForPullRequest(
+          pullRequestId,
+        ),
+      ]);
       // Per-head generation start times (BRIEF-95): `created_at` is the first
       // enqueue for that head — the earliest bound of what the brief's
       // acquisition could have seen. One row per head (natural key), shared by
@@ -240,7 +275,9 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
             // Missing projection row (purged / pre-D10 data): the artifact's
             // own write time is the honest late fallback — never earlier than
             // the real generation start, so it can only under-mark.
-            generatedAt: (generatedAtByHead.get(entry.headSha) ?? entry.createdAt).toISOString(),
+            generatedAt: (
+              generatedAtByHead.get(entry.headSha) ?? entry.createdAt
+            ).toISOString(),
             comparisons: {
               ...(previousBrief === undefined ? {} : { previousBrief }),
               ...(lastReview === undefined ? {} : { lastReview }),
@@ -277,9 +314,16 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (!query.success) {
       return c.json({ error: "invalid query parameters" }, 400);
     }
-    const resolved = await resolvePr(c.get("ctx"), c.get("repoId"), c.req.param("prNumber"));
+    const resolved = await resolvePr(
+      c.get("ctx"),
+      c.get("repoId"),
+      c.req.param("prNumber"),
+    );
     if (!resolved.ok) {
-      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
+      return c.json(
+        { error: resolved.status === 400 ? "invalid request" : "not found" },
+        resolved.status,
+      );
     }
     const row = await artifactStore(deps.handle, c.get("ctx")).briefs.get(
       resolved.pr.id,
@@ -306,15 +350,21 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (!query.success) {
       return c.json({ error: "invalid query parameters" }, 400);
     }
-    const resolved = await resolvePr(c.get("ctx"), c.get("repoId"), c.req.param("prNumber"));
-    if (!resolved.ok) {
-      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
-    }
-    const repoConfig = await artifactStore(deps.handle, c.get("ctx")).briefs.getRepoConfig(
-      resolved.pr.id,
-      query.data.base,
-      query.data.head,
+    const resolved = await resolvePr(
+      c.get("ctx"),
+      c.get("repoId"),
+      c.req.param("prNumber"),
     );
+    if (!resolved.ok) {
+      return c.json(
+        { error: resolved.status === 400 ? "invalid request" : "not found" },
+        resolved.status,
+      );
+    }
+    const repoConfig = await artifactStore(
+      deps.handle,
+      c.get("ctx"),
+    ).briefs.getRepoConfig(resolved.pr.id, query.data.base, query.data.head);
     if (repoConfig === undefined) {
       return c.json({ error: "not found" }, 404);
     }
@@ -332,15 +382,21 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (!query.success) {
       return c.json({ error: "invalid query parameters" }, 400);
     }
-    const resolved = await resolvePr(c.get("ctx"), c.get("repoId"), c.req.param("prNumber"));
-    if (!resolved.ok) {
-      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
-    }
-    const row = await artifactStore(deps.handle, c.get("ctx")).comparisonMarks.get(
-      resolved.pr.id,
-      query.data.baseline,
-      query.data.head,
+    const resolved = await resolvePr(
+      c.get("ctx"),
+      c.get("repoId"),
+      c.req.param("prNumber"),
     );
+    if (!resolved.ok) {
+      return c.json(
+        { error: resolved.status === 400 ? "invalid request" : "not found" },
+        resolved.status,
+      );
+    }
+    const row = await artifactStore(
+      deps.handle,
+      c.get("ctx"),
+    ).comparisonMarks.get(resolved.pr.id, query.data.baseline, query.data.head);
     if (row === undefined) {
       return c.json({ error: "not found" }, 404);
     }
@@ -358,9 +414,16 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (!query.success) {
       return c.json({ error: "invalid query parameters" }, 400);
     }
-    const resolved = await resolvePr(c.get("ctx"), c.get("repoId"), c.req.param("prNumber"));
+    const resolved = await resolvePr(
+      c.get("ctx"),
+      c.get("repoId"),
+      c.req.param("prNumber"),
+    );
     if (!resolved.ok) {
-      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
+      return c.json(
+        { error: resolved.status === 400 ? "invalid request" : "not found" },
+        resolved.status,
+      );
     }
     const row = await artifactStore(deps.handle, c.get("ctx")).deltas.get(
       resolved.pr.id,
@@ -382,11 +445,21 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     if (!query.success) {
       return c.json({ error: "invalid query parameters" }, 400);
     }
-    const resolved = await resolvePr(c.get("ctx"), c.get("repoId"), c.req.param("prNumber"));
+    const resolved = await resolvePr(
+      c.get("ctx"),
+      c.get("repoId"),
+      c.req.param("prNumber"),
+    );
     if (!resolved.ok) {
-      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
+      return c.json(
+        { error: resolved.status === 400 ? "invalid request" : "not found" },
+        resolved.status,
+      );
     }
-    const row = await artifactStore(deps.handle, c.get("ctx")).revisionNarratives.get(
+    const row = await artifactStore(
+      deps.handle,
+      c.get("ctx"),
+    ).revisionNarratives.get(
       resolved.pr.id,
       query.data.prevHead,
       query.data.head,
@@ -412,7 +485,10 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     const repoId = c.get("repoId");
     const resolved = await resolvePr(ctx, repoId, c.req.param("prNumber"));
     if (!resolved.ok) {
-      return c.json({ error: resolved.status === 400 ? "invalid request" : "not found" }, resolved.status);
+      return c.json(
+        { error: resolved.status === 400 ? "invalid request" : "not found" },
+        resolved.status,
+      );
     }
     // Fetch by the AUTHZ-VERIFIED full name (set by the gate from its GitHub
     // access check / positive cache), never the row's stored repo_slug — a
@@ -434,20 +510,30 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     // The token is set by the gate on the GitHub-verified path; on a
     // positive-cache hit it is absent, so decrypt the session's token lazily.
     let currentSession = session;
-    let accessToken = c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
+    let accessToken =
+      c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
     if (accessToken === undefined) {
       return c.json({ error: "unauthorized" }, 401);
     }
 
     // Fetch the diff for the REQUESTED span (base...head), not the whole PR.
-    const span = { owner: target.owner, repo: target.repo, base: query.data.base, head: query.data.head };
+    const span = {
+      owner: target.owner,
+      repo: target.repo,
+      base: query.data.base,
+      head: query.data.head,
+    };
     let diff = await fetchCompareDiff(createUserOctokit(accessToken), span);
 
     // A positive-cache hit skips the gate's GitHub check, so the lazily-decrypted
     // token may be an expired ~8h access token → GitHub 401. Refresh once and
     // retry (mirrors the gate's verified path) before surfacing a failure.
     if (!diff.ok && diff.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
+      const refreshed = await refreshSessionToken(
+        deps,
+        currentSession,
+        c.get("logger"),
+      );
       if (!refreshed.ok) {
         return c.json({ error: "unauthorized" }, 401);
       }
@@ -462,8 +548,12 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       if (diff.error.status === 406) {
         return c.json({ error: "diff too large to render" }, 413);
       }
-      const status = diff.error.code === GitHubApiErrorCode.NOT_FOUND ? 404 : 502;
-      return c.json({ error: status === 404 ? "not found" : "upstream error" }, status);
+      const status =
+        diff.error.code === GitHubApiErrorCode.NOT_FOUND ? 404 : 502;
+      return c.json(
+        { error: status === 404 ? "not found" : "upstream error" },
+        status,
+      );
     }
     // Serve always; cache only when small enough (oversized diffs are rare and
     // cheap to re-proxy) so the map can't grow past its byte budget.
@@ -522,10 +612,14 @@ const SPAN_KEY_SEP = " ";
 function spanKey(baseline: string, head: string): string {
   return `${baseline}${SPAN_KEY_SEP}${head}`;
 }
-function comparisonSpanSet(rows: readonly ComparisonSpanRow[]): ReadonlySet<string> {
+function comparisonSpanSet(
+  rows: readonly ComparisonSpanRow[],
+): ReadonlySet<string> {
   return new Set(rows.map((row) => spanKey(row.baselineSha, row.headSha)));
 }
-function narrativeSpanSet(rows: readonly NarrativeSpanRow[]): ReadonlySet<string> {
+function narrativeSpanSet(
+  rows: readonly NarrativeSpanRow[],
+): ReadonlySet<string> {
   return new Set(rows.map((row) => spanKey(row.prevHeadSha, row.headSha)));
 }
 
@@ -561,12 +655,16 @@ function derivePreviousBriefComparison(
   return {
     baselineSha: previous.headSha,
     baselineIndex: previous.headIndex,
-    narrativeAvailable: narrativeSpans.has(spanKey(previous.headSha, target.headSha)),
+    narrativeAvailable: narrativeSpans.has(
+      spanKey(previous.headSha, target.headSha),
+    ),
   };
 }
 
 function isNonTerminal(status: GenerationStatus): boolean {
-  return status === GenerationStatus.QUEUED || status === GenerationStatus.RUNNING;
+  return (
+    status === GenerationStatus.QUEUED || status === GenerationStatus.RUNNING
+  );
 }
 
 /**
@@ -579,7 +677,9 @@ export const LastReviewUnavailableReason = {
   /** No marks yet, but a delta generation for the span is still non-terminal. */
   PENDING: "pending",
 } as const;
-export type LastReviewUnavailableReason = ValueOf<typeof LastReviewUnavailableReason>;
+export type LastReviewUnavailableReason = ValueOf<
+  typeof LastReviewUnavailableReason
+>;
 
 /**
  * The PR-meta `comparisons.lastReview` union (BRIEF-21): the reviewer-personal
@@ -642,7 +742,9 @@ function makeLatestPendingProbe(
         headSha,
         baselineSha,
       });
-      return deltaGeneration !== undefined && isNonTerminal(deltaGeneration.status);
+      return (
+        deltaGeneration !== undefined && isNonTerminal(deltaGeneration.status)
+      );
     })();
     memo.set(baselineSha, result);
     return result;
@@ -677,14 +779,17 @@ async function deriveLastReviewComparison(
     // LOWEST index when duplicate rows share the checkpoint SHA (a retarget
     // re-brief) — the same resolution BRIEF-21's top-level derivation used
     // (byte-compat), and either duplicate labels the same commit.
-    const baselineIndex = briefs.find((row) => row.headSha === baselineSha)?.headIndex;
+    const baselineIndex = briefs.find(
+      (row) => row.headSha === baselineSha,
+    )?.headIndex;
     return {
       deltaAvailable: deltaSpans.has(spanKey(baselineSha, headSha)),
       baselineSha,
       ...(baselineIndex === undefined ? {} : { baselineIndex }),
     };
   }
-  const pending = pendingProbe !== undefined && (await pendingProbe(baselineSha));
+  const pending =
+    pendingProbe !== undefined && (await pendingProbe(baselineSha));
   return {
     unavailable: pending
       ? LastReviewUnavailableReason.PENDING
@@ -705,7 +810,10 @@ function artifactJson(c: Context<AuthzEnv>, body: string): Response {
 }
 
 function diffHeaders(): Record<string, string> {
-  return { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" };
+  return {
+    "content-type": "text/plain; charset=utf-8",
+    "cache-control": "no-store",
+  };
 }
 
 /** Decrypt a session's stored access token; `undefined` if it is unreadable. */

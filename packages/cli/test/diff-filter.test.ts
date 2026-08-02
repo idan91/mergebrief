@@ -4,7 +4,10 @@
 // `removedRanges` against its OLD side — and reports chunk files missing
 // from the diff so the command can fail loud.
 import { describe, expect, it } from "vitest";
-import { filterDiffByChunks, type ChunkSpan } from "../src/commands/diff-filter";
+import {
+  filterDiffByChunks,
+  type ChunkSpan,
+} from "../src/commands/diff-filter";
 
 function diffOf(...sections: string[]): string {
   return sections.join("");
@@ -21,8 +24,17 @@ function fileSection(path: string, hunks: string[]): string {
 }
 
 /** A hunk with `count` context/add lines starting at old/new line numbers. */
-function hunk(oldStart: number, oldCount: number, newStart: number, newCount: number, lines: string[]): string {
-  return `@@ -${oldStart},${oldCount} +${newStart},${newCount} @@\n` + lines.map((l) => `${l}\n`).join("");
+function hunk(
+  oldStart: number,
+  oldCount: number,
+  newStart: number,
+  newCount: number,
+  lines: string[],
+): string {
+  return (
+    `@@ -${oldStart},${oldCount} +${newStart},${newCount} @@\n` +
+    lines.map((l) => `${l}\n`).join("")
+  );
 }
 
 const CHUNK_A: ChunkSpan = {
@@ -72,7 +84,9 @@ describe("filterDiffByChunks", () => {
       fileSection("src/a.ts", [
         hunk(9, 4, 9, 4, [" ctx", "-old", "+new", " ctx"]),
       ]),
-      fileSection("src/unrelated.ts", [hunk(1, 2, 1, 3, [" ctx", "+x", " ctx"])]),
+      fileSection("src/unrelated.ts", [
+        hunk(1, 2, 1, 3, [" ctx", "+x", " ctx"]),
+      ]),
     );
     const { diff } = filterDiffByChunks(input, [CHUNK_A]);
     expect(diff).not.toContain("unrelated");
@@ -83,7 +97,11 @@ describe("filterDiffByChunks", () => {
   it("handles multiple chunks and files (multi-hunk joins)", () => {
     const chunks: ChunkSpan[] = [
       CHUNK_A,
-      { file: "src/c.ts", addedRanges: [{ start: 1, end: 2 }], removedRanges: [] },
+      {
+        file: "src/c.ts",
+        addedRanges: [{ start: 1, end: 2 }],
+        removedRanges: [],
+      },
     ];
     const input = diffOf(
       fileSection("src/a.ts", [hunk(10, 1, 10, 2, [" ctx", "+in-range"])]),
@@ -107,7 +125,11 @@ describe("filterDiffByChunks", () => {
   it("reports chunk files entirely absent from the diff", () => {
     const chunks: ChunkSpan[] = [
       CHUNK_A,
-      { file: "src/gone.ts", addedRanges: [{ start: 1, end: 1 }], removedRanges: [] },
+      {
+        file: "src/gone.ts",
+        addedRanges: [{ start: 1, end: 1 }],
+        removedRanges: [],
+      },
     ];
     const input = fileSection("src/a.ts", [hunk(10, 1, 10, 1, [" ctx"])]);
     const { missingFiles } = filterDiffByChunks(input, chunks);

@@ -6,7 +6,10 @@
 // tier — a GraphQL failure is the section's error state).
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
-import { createReviewCommentReply, fetchPullRequestConversation } from "../src/operations/conversation";
+import {
+  createReviewCommentReply,
+  fetchPullRequestConversation,
+} from "../src/operations/conversation";
 import { GitHubApiErrorCode } from "../src/errors";
 import {
   conversationResponse,
@@ -15,7 +18,11 @@ import {
   gqlReview,
   gqlThread,
 } from "./fixtures/conversation-graphql";
-import { LEAKED_TOKEN, UPSTREAM_TEXT, graphqlResponseError } from "./fixtures/graphql-error";
+import {
+  LEAKED_TOKEN,
+  UPSTREAM_TEXT,
+  graphqlResponseError,
+} from "./fixtures/graphql-error";
 
 function mockGraphqlOctokit(graphql: ReturnType<typeof vi.fn>): Octokit {
   // The double assertion is the sanctioned test-only escape hatch for
@@ -34,7 +41,12 @@ describe("fetchPullRequestConversation — mapping", () => {
           gqlThread({
             comments: [
               gqlComment({ databaseId: 1001, login: "alice" }),
-              gqlComment({ databaseId: 1002, login: "bob", body: "a reply", noReview: true }),
+              gqlComment({
+                databaseId: 1002,
+                login: "bob",
+                body: "a reply",
+                noReview: true,
+              }),
             ],
           }),
         ],
@@ -57,7 +69,9 @@ describe("fetchPullRequestConversation — mapping", () => {
     expect(thread.anchorSha).toBe("a".repeat(40));
     expect(thread.hasMoreComments).toBe(false);
     // Reply chain preserved in order; review join carried per comment.
-    expect(thread.comments.map((comment) => comment.commentId)).toEqual([1001, 1002]);
+    expect(thread.comments.map((comment) => comment.commentId)).toEqual([
+      1001, 1002,
+    ]);
     expect(thread.comments[0]?.reviewId).toBe(500);
     expect(thread.comments[1]?.reviewId).toBeUndefined();
     expect(thread.comments[0]?.author).toEqual({
@@ -84,7 +98,10 @@ describe("fetchPullRequestConversation — mapping", () => {
         ],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.threads[0]?.isResolved).toBe(true);
@@ -96,10 +113,20 @@ describe("fetchPullRequestConversation — mapping", () => {
   it("maps a multi-line thread with startLine and startSide", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
-        threads: [gqlThread({ line: 30, startLine: 25, diffSide: "LEFT", startDiffSide: "LEFT" })],
+        threads: [
+          gqlThread({
+            line: 30,
+            startLine: 25,
+            diffSide: "LEFT",
+            startDiffSide: "LEFT",
+          }),
+        ],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     const thread = result.value.threads[0];
@@ -120,7 +147,10 @@ describe("fetchPullRequestConversation — mapping", () => {
         ],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     const thread = result.value.threads[0];
@@ -139,7 +169,10 @@ describe("fetchPullRequestConversation — mapping", () => {
         threads: [gqlThread({ comments: [gqlComment({ ghost: true })] })],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.threads[0]?.comments[0]?.author).toEqual({
@@ -152,17 +185,28 @@ describe("fetchPullRequestConversation — mapping", () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         reviews: [
-          gqlReview({ databaseId: 500, state: "CHANGES_REQUESTED", body: "needs work" }),
+          gqlReview({
+            databaseId: 500,
+            state: "CHANGES_REQUESTED",
+            body: "needs work",
+          }),
           gqlReview({ databaseId: 501, state: "PENDING", submittedAt: null }),
           gqlReview({ databaseId: 502, state: "APPROVED", login: "dave" }),
         ],
-        issueComments: [gqlIssueComment({ databaseId: 9001, body: "a PR-level remark" })],
+        issueComments: [
+          gqlIssueComment({ databaseId: 9001, body: "a PR-level remark" }),
+        ],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.reviews.map((review) => review.reviewId)).toEqual([500, 502]);
+    expect(result.value.reviews.map((review) => review.reviewId)).toEqual([
+      500, 502,
+    ]);
     expect(result.value.reviews[0]?.state).toBe("CHANGES_REQUESTED");
     expect(result.value.reviews[0]?.body).toBe("needs work");
     expect(result.value.prComments).toHaveLength(1);
@@ -206,13 +250,22 @@ describe("fetchPullRequestConversation — mapping", () => {
       },
     };
     const graphql = vi.fn().mockResolvedValue(withNulls);
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.threads).toHaveLength(1);
-    expect(result.value.threads[0]?.comments.map((comment) => comment.commentId)).toEqual([1001]);
-    expect(result.value.reviews.map((review) => review.reviewId)).toEqual([500]);
-    expect(result.value.prComments.map((comment) => comment.commentId)).toEqual([9001]);
+    expect(
+      result.value.threads[0]?.comments.map((comment) => comment.commentId),
+    ).toEqual([1001]);
+    expect(result.value.reviews.map((review) => review.reviewId)).toEqual([
+      500,
+    ]);
+    expect(result.value.prComments.map((comment) => comment.commentId)).toEqual(
+      [9001],
+    );
   });
 
   it("parses 64-bit ids from fullDatabaseId (BigInt-as-string wire scalar)", async () => {
@@ -222,14 +275,22 @@ describe("fetchPullRequestConversation — mapping", () => {
       conversationResponse({
         threads: [
           gqlThread({
-            comments: [gqlComment({ databaseId: 5_000_000_000, reviewDatabaseId: 4_647_663_464 })],
+            comments: [
+              gqlComment({
+                databaseId: 5_000_000_000,
+                reviewDatabaseId: 4_647_663_464,
+              }),
+            ],
           }),
         ],
         reviews: [gqlReview({ databaseId: 4_647_663_464 })],
         issueComments: [gqlIssueComment({ databaseId: 6_000_000_000 })],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.threads[0]?.rootCommentId).toBe(5_000_000_000);
@@ -243,16 +304,24 @@ describe("fetchPullRequestConversation — mapping", () => {
       conversationResponse({
         threads: [
           gqlThread({
-            commentNodes: [null, gqlComment({ databaseId: 1002, body: "a reply" })],
+            commentNodes: [
+              null,
+              gqlComment({ databaseId: 1002, body: "a reply" }),
+            ],
           }),
           gqlThread({ comments: [gqlComment({ databaseId: 2001 })] }),
         ],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.threads.map((thread) => thread.rootCommentId)).toEqual([2001]);
+    expect(result.value.threads.map((thread) => thread.rootCommentId)).toEqual([
+      2001,
+    ]);
   });
 
   it("drops nodes with unparseable or unsafe ids instead of failing the fetch", async () => {
@@ -267,14 +336,24 @@ describe("fetchPullRequestConversation — mapping", () => {
             ],
           }),
         ],
-        reviews: [gqlReview({ rawFullDatabaseId: "junk" }), gqlReview({ databaseId: 502 })],
+        reviews: [
+          gqlReview({ rawFullDatabaseId: "junk" }),
+          gqlReview({ databaseId: 502 }),
+        ],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.threads[0]?.comments.map((comment) => comment.commentId)).toEqual([1001]);
-    expect(result.value.reviews.map((review) => review.reviewId)).toEqual([502]);
+    expect(
+      result.value.threads[0]?.comments.map((comment) => comment.commentId),
+    ).toEqual([1001]);
+    expect(result.value.reviews.map((review) => review.reviewId)).toEqual([
+      502,
+    ]);
   });
 
   it("treats a null nodes LIST on any connection as empty (nullable lists in the schema)", async () => {
@@ -289,7 +368,10 @@ describe("fetchPullRequestConversation — mapping", () => {
             nodes: [
               base.repository.pullRequest.reviewThreads.nodes[0],
               // A thread whose comments LIST is null has no root identity.
-              { ...gqlThread({}), comments: { pageInfo: { hasNextPage: false }, nodes: null } },
+              {
+                ...gqlThread({}),
+                comments: { pageInfo: { hasNextPage: false }, nodes: null },
+              },
             ],
           },
           reviews: { pageInfo: { hasNextPage: false }, nodes: null },
@@ -298,10 +380,15 @@ describe("fetchPullRequestConversation — mapping", () => {
       },
     };
     const graphql = vi.fn().mockResolvedValue(withNullLists);
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.threads.map((thread) => thread.rootCommentId)).toEqual([1001]);
+    expect(result.value.threads.map((thread) => thread.rootCommentId)).toEqual([
+      1001,
+    ]);
     expect(result.value.reviews).toEqual([]);
     expect(result.value.prComments).toEqual([]);
   });
@@ -310,16 +397,25 @@ describe("fetchPullRequestConversation — mapping", () => {
     const graphql = vi
       .fn()
       .mockResolvedValueOnce(
-        conversationResponse({ threadsHasNextPage: true, threadsEndCursor: "CURSOR_1" }),
+        conversationResponse({
+          threadsHasNextPage: true,
+          threadsEndCursor: "CURSOR_1",
+        }),
       )
       .mockResolvedValueOnce({
         repository: {
           pullRequest: {
-            reviewThreads: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: null },
+            reviewThreads: {
+              pageInfo: { hasNextPage: false, endCursor: null },
+              nodes: null,
+            },
           },
         },
       });
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.threads).toHaveLength(1);
@@ -328,10 +424,16 @@ describe("fetchPullRequestConversation — mapping", () => {
   it("skips a thread whose comments were all deleted (no root identity)", async () => {
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
-        threads: [gqlThread({ comments: [] }), gqlThread({ comments: [gqlComment()] })],
+        threads: [
+          gqlThread({ comments: [] }),
+          gqlThread({ comments: [gqlComment()] }),
+        ],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.threads).toHaveLength(1);
@@ -350,21 +452,36 @@ describe("fetchPullRequestConversation — pagination and overflow", () => {
         pullRequest: {
           reviewThreads: {
             pageInfo: { hasNextPage: false, endCursor: null },
-            nodes: [gqlThread({ comments: [gqlComment({ databaseId: 2001 })] })],
+            nodes: [
+              gqlThread({ comments: [gqlComment({ databaseId: 2001 })] }),
+            ],
           },
         },
       },
     };
-    const graphql = vi.fn().mockResolvedValueOnce(pageOne).mockResolvedValueOnce(pageTwo);
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const graphql = vi
+      .fn()
+      .mockResolvedValueOnce(pageOne)
+      .mockResolvedValueOnce(pageTwo);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.threads.map((thread) => thread.rootCommentId)).toEqual([1001, 2001]);
+    expect(result.value.threads.map((thread) => thread.rootCommentId)).toEqual([
+      1001, 2001,
+    ]);
     expect(result.value.hasMoreThreads).toBe(false);
     expect(graphql).toHaveBeenCalledTimes(2);
     // The follow-up page passes the cursor as a variable and re-fetches ONLY threads.
     const [pageQuery, pageVariables] = graphql.mock.calls[1] ?? [];
-    expect(pageVariables).toMatchObject({ owner: "o", repo: "r", prNumber: 7, cursor: "CURSOR_1" });
+    expect(pageVariables).toMatchObject({
+      owner: "o",
+      repo: "r",
+      prNumber: 7,
+      cursor: "CURSOR_1",
+    });
     expect(String(pageQuery)).toContain("after: $cursor");
     expect(String(pageQuery)).not.toContain("reviews(");
   });
@@ -375,7 +492,10 @@ describe("fetchPullRequestConversation — pagination and overflow", () => {
       threadsEndCursor: "CURSOR_N",
     });
     const graphql = vi.fn().mockResolvedValue(endlessPage);
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(graphql).toHaveBeenCalledTimes(20);
@@ -390,7 +510,10 @@ describe("fetchPullRequestConversation — pagination and overflow", () => {
         issueCommentsHasNextPage: true,
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.threads[0]?.hasMoreComments).toBe(true);
@@ -404,8 +527,13 @@ describe("fetchPullRequestConversation — failure paths", () => {
   it("maps a GraphQL NOT_FOUND to a sanitized not-found (no fallback tier)", async () => {
     const graphql = vi
       .fn()
-      .mockRejectedValue(graphqlResponseError([{ type: "NOT_FOUND", message: UPSTREAM_TEXT }]));
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+      .mockRejectedValue(
+        graphqlResponseError([{ type: "NOT_FOUND", message: UPSTREAM_TEXT }]),
+      );
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
@@ -430,7 +558,10 @@ describe("fetchPullRequestConversation — failure paths", () => {
         },
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.UNAUTHORIZED);
@@ -440,9 +571,15 @@ describe("fetchPullRequestConversation — failure paths", () => {
   it("maps a null repository/pullRequest (missing or inaccessible resource) to not-found", async () => {
     // Both fields are nullable in GitHub's schema (verified via introspection
     // 2026-07-07): a missing resource can be a null field in a 2xx response.
-    for (const data of [{ repository: null }, { repository: { pullRequest: null } }]) {
+    for (const data of [
+      { repository: null },
+      { repository: { pullRequest: null } },
+    ]) {
       const graphql = vi.fn().mockResolvedValue(data);
-      const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+      const result = await fetchPullRequestConversation(
+        mockGraphqlOctokit(graphql),
+        INPUT,
+      );
       expect(result.ok).toBe(false);
       if (result.ok) throw new Error("unreachable");
       expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
@@ -452,11 +589,16 @@ describe("fetchPullRequestConversation — failure paths", () => {
 
   it("maps a malformed 2xx response shape to request-failed", async () => {
     const graphql = vi.fn().mockResolvedValue({ repository: 42 });
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
-    expect(result.error.message).toContain("unexpected GitHub API response shape");
+    expect(result.error.message).toContain(
+      "unexpected GitHub API response shape",
+    );
   });
 
   it("maps a null reviews connection (nullable in the schema) to an empty verdict list", async () => {
@@ -470,7 +612,10 @@ describe("fetchPullRequestConversation — failure paths", () => {
       },
     };
     const graphql = vi.fn().mockResolvedValue(withNullReviews);
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.reviews).toEqual([]);
@@ -487,20 +632,33 @@ describe("fetchPullRequestConversation — failure paths", () => {
         ],
       }),
     );
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.reviews.map((review) => review.reviewId)).toEqual([502]);
+    expect(result.value.reviews.map((review) => review.reviewId)).toEqual([
+      502,
+    ]);
   });
 
   it("fails a mid-pagination error with a sanitized result (first page not half-returned)", async () => {
     const graphql = vi
       .fn()
       .mockResolvedValueOnce(
-        conversationResponse({ threadsHasNextPage: true, threadsEndCursor: "CURSOR_1" }),
+        conversationResponse({
+          threadsHasNextPage: true,
+          threadsEndCursor: "CURSOR_1",
+        }),
       )
-      .mockRejectedValueOnce(graphqlResponseError([{ type: "RATE_LIMITED", message: "x" }]));
-    const result = await fetchPullRequestConversation(mockGraphqlOctokit(graphql), INPUT);
+      .mockRejectedValueOnce(
+        graphqlResponseError([{ type: "RATE_LIMITED", message: "x" }]),
+      );
+    const result = await fetchPullRequestConversation(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.RATE_LIMITED);
@@ -508,20 +666,25 @@ describe("fetchPullRequestConversation — failure paths", () => {
 });
 
 function mockReplyOctokit(createReply: ReturnType<typeof vi.fn>): Octokit {
-  const stub = { rest: { pulls: { createReplyForReviewComment: createReply } } };
+  const stub = {
+    rest: { pulls: { createReplyForReviewComment: createReply } },
+  };
   return stub as unknown as Octokit;
 }
 
 describe("createReviewCommentReply", () => {
   it("posts the reply to the root comment and returns the created comment id", async () => {
     const createReply = vi.fn().mockResolvedValue({ data: { id: 7001 } });
-    const result = await createReviewCommentReply(mockReplyOctokit(createReply), {
-      owner: "o",
-      repo: "r",
-      prNumber: 7,
-      commentId: 1001,
-      body: "a follow-up",
-    });
+    const result = await createReviewCommentReply(
+      mockReplyOctokit(createReply),
+      {
+        owner: "o",
+        repo: "r",
+        prNumber: 7,
+        commentId: 1001,
+        body: "a follow-up",
+      },
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.commentId).toBe(7001);
@@ -535,14 +698,19 @@ describe("createReviewCommentReply", () => {
   });
 
   it("rejects a created id past the safe-integer range", async () => {
-    const createReply = vi.fn().mockResolvedValue({ data: { id: 9007199254740992 } });
-    const result = await createReviewCommentReply(mockReplyOctokit(createReply), {
-      owner: "o",
-      repo: "r",
-      prNumber: 7,
-      commentId: 1001,
-      body: "x",
-    });
+    const createReply = vi
+      .fn()
+      .mockResolvedValue({ data: { id: 9007199254740992 } });
+    const result = await createReviewCommentReply(
+      mockReplyOctokit(createReply),
+      {
+        owner: "o",
+        repo: "r",
+        prNumber: 7,
+        commentId: 1001,
+        body: "x",
+      },
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
@@ -564,13 +732,16 @@ describe("createReviewCommentReply", () => {
         },
       }),
     );
-    const result = await createReviewCommentReply(mockReplyOctokit(createReply), {
-      owner: "o",
-      repo: "r",
-      prNumber: 7,
-      commentId: 1001,
-      body: "x",
-    });
+    const result = await createReviewCommentReply(
+      mockReplyOctokit(createReply),
+      {
+        owner: "o",
+        repo: "r",
+        prNumber: 7,
+        commentId: 1001,
+        body: "x",
+      },
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);

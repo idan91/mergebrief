@@ -17,12 +17,16 @@ export function gqlCollaborator(options: GqlCollaboratorOptions = {}) {
 }
 
 export interface CollaboratorsResponseOptions {
-  readonly nodes?: ReadonlyArray<ReturnType<typeof gqlCollaborator> | null> | null;
+  readonly nodes?: ReadonlyArray<ReturnType<
+    typeof gqlCollaborator
+  > | null> | null;
   readonly hasNextPage?: boolean;
   readonly endCursor?: string | null;
 }
 
-export function collaboratorsResponse(options: CollaboratorsResponseOptions = {}) {
+export function collaboratorsResponse(
+  options: CollaboratorsResponseOptions = {},
+) {
   return {
     repository: {
       collaborators: {
@@ -30,7 +34,8 @@ export function collaboratorsResponse(options: CollaboratorsResponseOptions = {}
           hasNextPage: options.hasNextPage ?? false,
           endCursor: options.endCursor ?? null,
         },
-        nodes: options.nodes === undefined ? [gqlCollaborator()] : options.nodes,
+        nodes:
+          options.nodes === undefined ? [gqlCollaborator()] : options.nodes,
       },
     },
   };

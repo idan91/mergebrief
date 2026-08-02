@@ -15,7 +15,9 @@ export const reviewerSession = pgTable(
     ...tenantColumns(),
     /** Cookie value stored only as a hash. */
     sessionTokenHash: text("session_token_hash").notNull().unique(),
-    reviewerId: bigint("reviewer_id", { mode: "bigint" }).$type<ReviewerId>().notNull(),
+    reviewerId: bigint("reviewer_id", { mode: "bigint" })
+      .$type<ReviewerId>()
+      .notNull(),
     /** Purgeable display label (D1). */
     reviewerLogin: text("reviewer_login"),
     /** The GitHub credential pair lives on the grant row (D15). */

@@ -9,11 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod/v4";
 import type { GenerateRequest, Generator } from "generators";
 import type * as GithubModule from "../../src/github";
-import type {
-  PrMetadata,
-  PrSource,
-  ReviewComment,
-} from "../../src/github";
+import type { PrMetadata, PrSource, ReviewComment } from "../../src/github";
 import type { Effort, Generation } from "../../src/types";
 
 const explode = vi.hoisted(
@@ -81,7 +77,12 @@ const comment: ReviewComment = {
 /** Minimal generation fixture parsed through the request's own schema. */
 const briefGen = {
   summary: "s",
-  intentCheck: { ticketUrls: [], specificity: "none", scopeNote: "", items: [] },
+  intentCheck: {
+    ticketUrls: [],
+    specificity: "none",
+    scopeNote: "",
+    items: [],
+  },
   changeGroups: [
     {
       id: "g1",
@@ -113,7 +114,9 @@ class FakeGenerator implements Generator {
   provenance(effort: Effort): Generation {
     return { provider: "fake", model: "fake-model", effort };
   }
-  async generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>> {
+  async generate<S extends z.ZodType>(
+    req: GenerateRequest<S>,
+  ): Promise<z.infer<S>> {
     if (req.label !== "brief") throw new Error(`unexpected label ${req.label}`);
     return req.schema.parse(briefGen);
   }
@@ -165,7 +168,10 @@ describe("generateAndWrite with an injected PrSource", () => {
       join(outDir, "o-r-7_1_aaaa1111.comments.json"),
       "utf8",
     );
-    files.brief = await readFile(join(outDir, "o-r-7_1_aaaa1111.brief.json"), "utf8");
+    files.brief = await readFile(
+      join(outDir, "o-r-7_1_aaaa1111.brief.json"),
+      "utf8",
+    );
     expect(JSON.parse(files.comments)).toEqual([comment]);
     expect(JSON.parse(files.brief)).toMatchObject({
       commitRange: { head: HEAD, commitCount: 2 },

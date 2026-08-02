@@ -139,7 +139,9 @@ function fetchText(rawUrl: string): Promise<FetchTextResult> {
     );
     req.on("timeout", () => req.destroy(new Error("timeout")));
     req.on("error", (e: NodeJS.ErrnoException) =>
-      resolve({ error: e.code === "ESSRFBLOCKED" ? "private address" : e.message }),
+      resolve({
+        error: e.code === "ESSRFBLOCKED" ? "private address" : e.message,
+      }),
     );
   });
 }
@@ -173,7 +175,9 @@ export async function fetchLinkedContext(
     urls.map(async (url): Promise<LinkedContext | null> => {
       const shown = displayUrl(url);
       if (!isPublicUrl(url)) {
-        log(`linked context: ${shown} blocked (non-public or credentialed), skipping`);
+        log(
+          `linked context: ${shown} blocked (non-public or credentialed), skipping`,
+        );
         return null;
       }
       const result = await fetchText(url);

@@ -57,17 +57,19 @@ function coerceBigInt(value: unknown): bigint | undefined {
 }
 
 /** Zod schema for a branded `InstallationId` (bigint isn't JSON-native). */
-const installationIdSchema = z.unknown().transform((value, ctx): InstallationId => {
-  const big = coerceBigInt(value);
-  if (big === undefined || !isInstallationId(big)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "installationId must be a positive integer",
-    });
-    return z.NEVER;
-  }
-  return big;
-});
+const installationIdSchema = z
+  .unknown()
+  .transform((value, ctx): InstallationId => {
+    const big = coerceBigInt(value);
+    if (big === undefined || !isInstallationId(big)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "installationId must be a positive integer",
+      });
+      return z.NEVER;
+    }
+    return big;
+  });
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -97,7 +99,9 @@ export function parseTenantContext(input: unknown): TenantContext {
 }
 
 /** Non-throwing parse for callers that prefer a Result at their boundary. */
-export function safeParseTenantContext(input: unknown): Result<TenantContext, string> {
+export function safeParseTenantContext(
+  input: unknown,
+): Result<TenantContext, string> {
   const parsed = TenantContextSchema.safeParse(input);
   if (parsed.success) {
     return { ok: true, value: parsed.data };
@@ -122,7 +126,10 @@ export interface RepositoryError {
   readonly message: string;
 }
 
-function fail(code: RepositoryErrorCode, message: string): Result<never, RepositoryError> {
+function fail(
+  code: RepositoryErrorCode,
+  message: string,
+): Result<never, RepositoryError> {
   return { ok: false, error: { code, message } };
 }
 
@@ -183,7 +190,8 @@ interface BasePullRequestUpsertInput {
   readonly authorLogin?: string;
 }
 
-export type PullRequestUpsertInput = BasePullRequestUpsertInput & PullRequestLifecycle;
+export type PullRequestUpsertInput = BasePullRequestUpsertInput &
+  PullRequestLifecycle;
 
 export type PullRequestStatePatch = PullRequestLifecycle;
 
@@ -230,14 +238,20 @@ export interface PullRequestRepository {
   /** Content-addressed upsert on the natural key; idempotent per D6. */
   upsert(input: PullRequestUpsertInput): Promise<PullRequestRow>;
   /** Tenant-scoped read by (repo, number). Absence is a normal `undefined`. */
-  getByNumber(repoId: RepoId, prNumber: number): Promise<PullRequestRow | undefined>;
+  getByNumber(
+    repoId: RepoId,
+    prNumber: number,
+  ): Promise<PullRequestRow | undefined>;
   /**
    * The tenant's PRs across an ALLOWED repo set (the viewer's GitHub-derived
    * installation∩user intersection — ADR 0016 #5b), newest `updated_at` first,
    * capped at `limit`. An empty allowed set returns no rows (fail closed) —
    * the caller must never fall back to an unfiltered tenant listing.
    */
-  listForRepos(repoIds: readonly RepoId[], limit: number): Promise<PullRequestRow[]>;
+  listForRepos(
+    repoIds: readonly RepoId[],
+    limit: number,
+  ): Promise<PullRequestRow[]>;
   /** Tenant-scoped read by row id (the worker's job-payload entry point). */
   getById(pullRequestId: PullRequestRowId): Promise<PullRequestRow | undefined>;
   /** Scoped lifecycle mutation; `notFound` if no row in ctx's tenant. */
@@ -278,9 +292,14 @@ export interface CheckpointRepository {
    * Verifies the parent `pull_request` belongs to ctx (invariant (a));
    * returns `parentNotInTenant` without writing when it does not.
    */
-  upsertOnSubmit(input: CheckpointSubmitInput): Promise<Result<CheckpointRow, RepositoryError>>;
+  upsertOnSubmit(
+    input: CheckpointSubmitInput,
+  ): Promise<Result<CheckpointRow, RepositoryError>>;
   /** Tenant-scoped read; absence is a normal `undefined`. */
-  get(pullRequestId: PullRequestRowId, reviewerId: ReviewerId): Promise<CheckpointRow | undefined>;
+  get(
+    pullRequestId: PullRequestRowId,
+    reviewerId: ReviewerId,
+  ): Promise<CheckpointRow | undefined>;
   /**
    * All checkpoints on a PR (the worker derives the DISTINCT checkpoint SHAs
    * to pre-warm delta cores for — ADR 0006 #4 as amended).
@@ -292,7 +311,9 @@ export interface SessionRepository {
   /** Stamp the tenant and insert. `reviewer_session` has no PR parent (D11). */
   create(input: SessionCreateInput): Promise<ReviewerSessionRow>;
   /** Scoped read by token hash; absence is a normal `undefined`. */
-  getByTokenHash(sessionTokenHash: string): Promise<ReviewerSessionRow | undefined>;
+  getByTokenHash(
+    sessionTokenHash: string,
+  ): Promise<ReviewerSessionRow | undefined>;
   /** TTL sweep within the tenant; returns the number deleted. */
   deleteExpired(now: Date): Promise<number>;
   /** Logout / reviewer offboarding within the tenant; returns number deleted. */
@@ -310,7 +331,10 @@ export interface TenantRepository {
  * Build a tenant-scoped repository over an opaque `AppDatabase`. `ctx` is the
  * one place an `installation_id` enters; no method accepts another.
  */
-export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantRepository {
+export function forTenant(
+  handle: AppDatabase,
+  ctx: TenantContext,
+): TenantRepository {
   const db = internal(handle);
   const { installationId } = ctx;
 
@@ -332,14 +356,20 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           updatedAt: new Date(),
         })
         .onConflictDoUpdate({
-          target: [pullRequest.installationId, pullRequest.repoId, pullRequest.prNumber],
+          target: [
+            pullRequest.installationId,
+            pullRequest.repoId,
+            pullRequest.prNumber,
+          ],
           set: {
             repoSlug: input.repoSlug,
             title: input.title,
             // Omitted (review events) preserves the stored value.
             ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
             ...(input.draft === undefined ? {} : { draft: input.draft }),
-            ...(input.authorLogin === undefined ? {} : { authorLogin: input.authorLogin }),
+            ...(input.authorLogin === undefined
+              ? {}
+              : { authorLogin: input.authorLogin }),
             ...lifecycle,
             updatedAt: new Date(),
           },
@@ -391,7 +421,10 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
         .select()
         .from(pullRequest)
         .where(
-          and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)),
+          and(
+            eq(pullRequest.installationId, installationId),
+            eq(pullRequest.id, pullRequestId),
+          ),
         )
         .limit(1);
       return rows[0];
@@ -405,7 +438,10 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
           updatedAt: new Date(),
         })
         .where(
-          and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)),
+          and(
+            eq(pullRequest.installationId, installationId),
+            eq(pullRequest.id, pullRequestId),
+          ),
         )
         .returning();
       const row = rows[0];
@@ -423,7 +459,10 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
         .update(pullRequest)
         .set({ entryCommentId, updatedAt: new Date() })
         .where(
-          and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)),
+          and(
+            eq(pullRequest.installationId, installationId),
+            eq(pullRequest.id, pullRequestId),
+          ),
         )
         .returning();
       const row = rows[0];
@@ -441,7 +480,10 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
         .update(pullRequest)
         .set({ draft, updatedAt: new Date() })
         .where(
-          and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, pullRequestId)),
+          and(
+            eq(pullRequest.installationId, installationId),
+            eq(pullRequest.id, pullRequestId),
+          ),
         )
         .returning();
       const row = rows[0];
@@ -487,7 +529,11 @@ export function forTenant(handle: AppDatabase, ctx: TenantContext): TenantReposi
             submittedAt: input.submittedAt,
           })
           .onConflictDoUpdate({
-            target: [checkpoint.installationId, checkpoint.pullRequestId, checkpoint.reviewerId],
+            target: [
+              checkpoint.installationId,
+              checkpoint.pullRequestId,
+              checkpoint.reviewerId,
+            ],
             set: {
               reviewerLogin: input.reviewerLogin,
               lastSubmittedSha: input.lastSubmittedSha,

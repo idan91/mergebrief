@@ -25,7 +25,11 @@ const brief: Brief = {
     head: "abc12300deadbeef",
     commitCount: 5,
   },
-  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
+  generation: {
+    provider: "anthropic",
+    model: "claude-opus-4-8",
+    effort: "medium",
+  },
   summary: "Adds a stock-location capability.",
   changeGroups: [
     {
@@ -81,18 +85,26 @@ const delta: DeltaBrief = {
   headSha: "a01bcf1db649b18404dddc9d61b9dd1b3cc75dfd",
   baselineIndex: 1,
   headIndex: 2,
-  generation: { provider: "anthropic", model: "claude-opus-4-8", effort: "medium" },
-  summary: "Since you last looked, the accordion review comments were addressed.",
+  generation: {
+    provider: "anthropic",
+    model: "claude-opus-4-8",
+    effort: "medium",
+  },
+  summary:
+    "Since you last looked, the accordion review comments were addressed.",
   commentsAddressed: "",
   changedGroups: [],
   chunks: [],
-  wholePrImpact: "The follow-up narrows behavior around the original accordion work.",
+  wholePrImpact:
+    "The follow-up narrows behavior around the original accordion work.",
 };
 
 describe("brief artifact names", () => {
   it("version the stem with index + head8 (ADR 0012)", () => {
     expect(outName(brief)).toBe("medusajs-medusa-15605_2_abc12300.brief.json");
-    expect(diffsName(brief)).toBe("medusajs-medusa-15605_2_abc12300.diffs.json");
+    expect(diffsName(brief)).toBe(
+      "medusajs-medusa-15605_2_abc12300.diffs.json",
+    );
     expect(commentsName(brief)).toBe(
       "medusajs-medusa-15605_2_abc12300.comments.json",
     );
@@ -129,7 +141,9 @@ describe("summaryLines", () => {
   });
 
   it("lists only chunks that carry risk-surface flags", () => {
-    expect(text).toContain("c1 src/module.ts [carrier]: widely-imported, no-tests");
+    expect(text).toContain(
+      "c1 src/module.ts [carrier]: widely-imported, no-tests",
+    );
     expect(text).toContain("flags (1/2 chunks)");
     expect(text).not.toContain("c2 src/module.test.ts");
   });

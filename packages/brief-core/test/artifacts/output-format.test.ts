@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import {
-  enumPreservingOutputFormat,
-  toStrictJsonSchema,
-} from "generators";
+import { enumPreservingOutputFormat, toStrictJsonSchema } from "generators";
 import { BriefGenerationSchema, RiskSurfaceAttributes } from "../../src/types";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -11,7 +8,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** Navigate to a required object child, failing loudly if the shape is wrong. */
-function child(node: Record<string, unknown>, key: string): Record<string, unknown> {
+function child(
+  node: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> {
   const value = node[key];
   if (!isRecord(value)) throw new Error(`expected an object at "${key}"`);
   return value;
@@ -51,7 +51,11 @@ describe("enumPreservingOutputFormat — schema shape", () => {
     const { schema } = enumPreservingOutputFormat(ProbeSchema);
     const props = child(schema, "properties");
 
-    expect(child(props, "category")["enum"]).toEqual(["alpha", "beta", "gamma"]);
+    expect(child(props, "category")["enum"]).toEqual([
+      "alpha",
+      "beta",
+      "gamma",
+    ]);
     expect(child(child(props, "tags"), "items")["enum"]).toEqual([
       "red",
       "green",

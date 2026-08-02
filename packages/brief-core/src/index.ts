@@ -28,7 +28,11 @@ export {
   type RevisionNarrativeInput,
 } from "./generation/categorize";
 export { splitDiffByFile } from "./diff/diff";
-export { assignBriefIndex, lookupBriefIndex, lookupBriefShaByIndex } from "./artifacts/manifest";
+export {
+  assignBriefIndex,
+  lookupBriefIndex,
+  lookupBriefShaByIndex,
+} from "./artifacts/manifest";
 export {
   prStem,
   briefId,
@@ -70,7 +74,10 @@ export {
   type RepoContext,
   type RepoInstructionsInput,
 } from "./generation/repo-context";
-export { revisionNarrativeConfig, type RevisionNarrativeConfig } from "./generation/config";
+export {
+  revisionNarrativeConfig,
+  type RevisionNarrativeConfig,
+} from "./generation/config";
 export { generateAndWrite, type Range } from "./cli/categorize";
 export {
   Categories,

@@ -64,7 +64,9 @@ export async function migrateApp(databaseUrl: string): Promise<void> {
       // queue here and then no-op on the recorded-migrations check.
       await client.query("select pg_advisory_lock($1)", [MIGRATE_LOCK_KEY]);
       try {
-        await migrate(drizzle(client), { migrationsFolder: migrationsFolder() });
+        await migrate(drizzle(client), {
+          migrationsFolder: migrationsFolder(),
+        });
       } finally {
         await client.query("select pg_advisory_unlock($1)", [MIGRATE_LOCK_KEY]);
       }

@@ -203,7 +203,9 @@ const YAML_PARSE_ERROR = "invalid-yaml" as const;
  * recovering from real errors and defeating reject-whole. The thrown error is
  * discarded here too (its message can quote source).
  */
-function tryParseYaml(content: string): Result<unknown, typeof YAML_PARSE_ERROR> {
+function tryParseYaml(
+  content: string,
+): Result<unknown, typeof YAML_PARSE_ERROR> {
   try {
     const value: unknown = parseYaml(content, { logLevel: "error" });
     return { ok: true, value };
@@ -219,7 +221,9 @@ interface InstructionsResult {
   readonly value?: ValidatedInstructions;
 }
 
-function validateInstructions(file: RepoConfigFileInput | undefined): InstructionsResult {
+function validateInstructions(
+  file: RepoConfigFileInput | undefined,
+): InstructionsResult {
   // Provenance path is the canonical fixed slot (ADR 0032 #2/#3), never the
   // caller-supplied `file.path` — the three paths are structural, not data.
   const path = RepoConfigPaths.INSTRUCTIONS;
@@ -253,7 +257,9 @@ interface SettingsResult {
   readonly value?: RepoSettingsV1;
 }
 
-function validateSettings(file: RepoConfigFileInput | undefined): SettingsResult {
+function validateSettings(
+  file: RepoConfigFileInput | undefined,
+): SettingsResult {
   const path = RepoConfigPaths.SETTINGS;
   if (file === undefined) {
     return { outcome: makeOutcome(path, null, RepoConfigOutcome.ABSENT) };
@@ -305,7 +311,10 @@ interface PolicyResult {
 function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
   const path = RepoConfigPaths.POLICY;
   if (file === undefined) {
-    return { outcome: makeOutcome(path, null, RepoConfigOutcome.ABSENT), collisions: [] };
+    return {
+      outcome: makeOutcome(path, null, RepoConfigOutcome.ABSENT),
+      collisions: [],
+    };
   }
   const bytes = utf8Bytes(file.content);
   const budget = POLICY_MAX_BYTES;
@@ -354,11 +363,16 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
   // De-emphasis resolution: keep entries targeting a built-in non-floor or a
   // surviving custom name; drop entries whose target is unknown (likely typo)
   // and warn (never invalid — floor targets were already rejected by the schema).
-  const survivingNames: ReadonlySet<string> = new Set(Object.keys(survivingAttributes));
+  const survivingNames: ReadonlySet<string> = new Set(
+    Object.keys(survivingAttributes),
+  );
   const deEmphasize: DeEmphasisRule[] = [];
   let droppedDeEmphasis = 0;
   for (const rule of result.data.deEmphasize ?? []) {
-    if (BUILT_IN_NON_FLOOR.has(rule.attribute) || survivingNames.has(rule.attribute)) {
+    if (
+      BUILT_IN_NON_FLOOR.has(rule.attribute) ||
+      survivingNames.has(rule.attribute)
+    ) {
       deEmphasize.push(rule);
     } else {
       droppedDeEmphasis += 1;
@@ -394,7 +408,9 @@ function validatePolicy(file: RepoConfigFileInput | undefined): PolicyResult {
  * but always contributes an outcome. The outcomes array is always length 3, in
  * stable order instructions / settings / policy.
  */
-export function validateRepoConfig(input: RepoConfigInput): ValidatedRepoConfig {
+export function validateRepoConfig(
+  input: RepoConfigInput,
+): ValidatedRepoConfig {
   const instructions = validateInstructions(input.instructions);
   const settings = validateSettings(input.settings);
   const policy = validatePolicy(input.policy);
@@ -409,7 +425,8 @@ export function validateRepoConfig(input: RepoConfigInput): ValidatedRepoConfig 
     collisions: policy.collisions,
     outcomes: [instructions.outcome, settings.outcome, policy.outcome],
   };
-  if (instructions.value !== undefined) result.instructions = instructions.value;
+  if (instructions.value !== undefined)
+    result.instructions = instructions.value;
   if (settings.value !== undefined) result.settings = settings.value;
   if (policy.value !== undefined) result.policy = policy.value;
   return result;

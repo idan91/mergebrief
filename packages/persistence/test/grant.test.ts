@@ -117,9 +117,10 @@ describe("grantAuth.createGrant / refreshGrant", () => {
   it("(c) leaves the row untouched and returns REFRESH_REJECTED on rejection", async () => {
     const auth = grantAuth(handle);
     const grant = await auth.createGrant(createInput());
-    const refresh = vi
-      .fn()
-      .mockResolvedValue({ ok: false, error: { reason: "github-refresh-failed" } });
+    const refresh = vi.fn().mockResolvedValue({
+      ok: false,
+      error: { reason: "github-refresh-failed" },
+    });
 
     const result = await auth.refreshGrant(grant.id, "v1.enc-access", refresh);
     expect(result.ok).toBe(false);
@@ -137,7 +138,11 @@ describe("grantAuth.createGrant / refreshGrant", () => {
     const auth = grantAuth(handle);
     const grant = await auth.createGrant(createInput());
     await auth.deleteIfOrphaned(grant.id);
-    const result = await auth.refreshGrant(grant.id, "v1.enc-access", NEVER_CALLED);
+    const result = await auth.refreshGrant(
+      grant.id,
+      "v1.enc-access",
+      NEVER_CALLED,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GrantAuthErrorCode.NOT_FOUND);

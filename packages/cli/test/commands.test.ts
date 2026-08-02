@@ -31,31 +31,49 @@ const REVIEWER_ID = 555;
 const REPO_A = 42001;
 const BASE_URL = "https://mb.example";
 
-function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
   const asBigInt = BigInt(value);
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
 }
-const CTX: TenantContext = { installationId: brand(isInstallationId, INSTALLATION_ID) };
+const CTX: TenantContext = {
+  installationId: brand(isInstallationId, INSTALLATION_ID),
+};
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
 /** GitHub stub at the GLOBAL fetch seam (the api app's octokit uses it). */
-function stubGitHub(repos: () => ReadonlyArray<{ id: number; full_name: string }>): {
+function stubGitHub(
+  repos: () => ReadonlyArray<{ id: number; full_name: string }>,
+): {
   counts: { installationRepos: number };
 } {
   const counts = { installationRepos: 0 };
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      if (url.includes("/user/installations/") && url.includes("/repositories")) {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (
+        url.includes("/user/installations/") &&
+        url.includes("/repositories")
+      ) {
         counts.installationRepos += 1;
         const list = repos();
         return jsonResponse({ total_count: list.length, repositories: list });
@@ -99,7 +117,9 @@ describe("mergebrief commands over the real api app", () => {
           throw new Error("conversation port must not be called in this suite");
         },
         listRepoCollaborators: async () => {
-          throw new Error("collaborators port must not be called in this suite");
+          throw new Error(
+            "collaborators port must not be called in this suite",
+          );
         },
       },
       serverVersion: "test-version",
@@ -119,7 +139,8 @@ describe("mergebrief commands over the real api app", () => {
     const hash = createHash("sha256").update(plaintext).digest("hex");
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
     const grant = await grantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -138,7 +159,10 @@ describe("mergebrief commands over the real api app", () => {
     return plaintext;
   }
 
-  function deps(overrides: Partial<CliDeps> = {}): { deps: CliDeps; io: Captured } {
+  function deps(overrides: Partial<CliDeps> = {}): {
+    deps: CliDeps;
+    io: Captured;
+  } {
     const io: Captured = { out: [], err: [] };
     return {
       io,
@@ -172,7 +196,10 @@ describe("mergebrief commands over the real api app", () => {
     const token = await seedToken();
     const { deps: d, io } = deps({ readStdin: async () => `${token}\n` });
 
-    const code = await runCli(["auth", "login", "--base-url", BASE_URL, "--json"], d);
+    const code = await runCli(
+      ["auth", "login", "--base-url", BASE_URL, "--json"],
+      d,
+    );
     expect(code).toBe(ExitCode.OK);
     expect(io.err).toEqual([]);
 
@@ -192,7 +219,10 @@ describe("mergebrief commands over the real api app", () => {
 
   it("auth login rejects a non-mergebrief paste as usage (exit 2, empty stdout)", async () => {
     const { deps: d, io } = deps({ readStdin: async () => "ghp_not_ours\n" });
-    const code = await runCli(["auth", "login", "--base-url", BASE_URL, "--json"], d);
+    const code = await runCli(
+      ["auth", "login", "--base-url", BASE_URL, "--json"],
+      d,
+    );
     expect(code).toBe(ExitCode.USAGE);
     expect(io.out).toEqual([]);
     expect(io.err).toHaveLength(1);
@@ -203,21 +233,26 @@ describe("mergebrief commands over the real api app", () => {
     await login(await seedToken());
     // Sabotage: a well-formed but unknown token via the env override.
     const { deps: d, io } = deps({
-      env: { MERGEBRIEF_TOKEN: `mergebrief_${randomBytes(32).toString("base64url")}` },
+      env: {
+        MERGEBRIEF_TOKEN: `mergebrief_${randomBytes(32).toString("base64url")}`,
+      },
     });
     const code = await runCli(["auth", "status", "--json"], d);
     expect(code).toBe(ExitCode.OK);
     const status = JSON.parse(io.out.join("")) as {
       server: { reachable: boolean; authenticated: boolean | null };
     };
-    expect(status.server).toEqual({ reachable: true, authenticated: false, version: null });
+    expect(status.server).toEqual({
+      reachable: true,
+      authenticated: false,
+      version: null,
+    });
   });
 
   it("an unknown flag is a usage error (exit 2)", async () => {
     const { deps: d } = deps();
     expect(await runCli(["repos", "--bogus"], d)).toBe(ExitCode.USAGE);
   });
-
 });
 
 function freshIo(): { out: string[]; err: string[] } {
@@ -253,7 +288,9 @@ describe("auth login profile selection + verification (codex PR5 R1)", () => {
           throw new Error("conversation port must not be called in this suite");
         },
         listRepoCollaborators: async () => {
-          throw new Error("collaborators port must not be called in this suite");
+          throw new Error(
+            "collaborators port must not be called in this suite",
+          );
         },
       },
       serverVersion: "test-version",
@@ -270,16 +307,19 @@ describe("auth login profile selection + verification (codex PR5 R1)", () => {
 
   it("MERGEBRIEF_PROFILE selects the login target like --profile", async () => {
     const captured = freshIo();
-    const code = await runCli(["auth", "login", "--base-url", BASE_URL, "--json"], {
-      fetch: appFetch,
-      env: { MERGEBRIEF_PROFILE: "work" },
-      configDir,
-      cacheDir,
-      stdout: (t) => captured.out.push(t),
-      stderr: (l) => captured.err.push(l),
-      readStdin: async () => "mergebrief_pasted\n",
-      gitOriginUrl: () => undefined,
-    });
+    const code = await runCli(
+      ["auth", "login", "--base-url", BASE_URL, "--json"],
+      {
+        fetch: appFetch,
+        env: { MERGEBRIEF_PROFILE: "work" },
+        configDir,
+        cacheDir,
+        stdout: (t) => captured.out.push(t),
+        stderr: (l) => captured.err.push(l),
+        readStdin: async () => "mergebrief_pasted\n",
+        gitOriginUrl: () => undefined,
+      },
+    );
     expect(code).toBe(ExitCode.OK);
     const config = readFileSync(join(configDir, "config.json"), "utf8");
     expect(config).toContain('"work"');
@@ -293,7 +333,8 @@ describe("auth login profile selection + verification (codex PR5 R1)", () => {
     const hash = createHash("sha256").update(plaintext).digest("hex");
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
     const grant = await grantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -310,16 +351,19 @@ describe("auth login profile selection + verification (codex PR5 R1)", () => {
     });
 
     const captured = freshIo();
-    const code = await runCli(["auth", "login", "--base-url", BASE_URL, "--json"], {
-      fetch: appFetch,
-      env: { MERGEBRIEF_TOKEN: plaintext }, // live token in the env...
-      configDir,
-      cacheDir,
-      stdout: (t) => captured.out.push(t),
-      stderr: (l) => captured.err.push(l),
-      readStdin: async () => "mergebrief_bogus_paste\n", // ...bogus paste
-      gitOriginUrl: () => undefined,
-    });
+    const code = await runCli(
+      ["auth", "login", "--base-url", BASE_URL, "--json"],
+      {
+        fetch: appFetch,
+        env: { MERGEBRIEF_TOKEN: plaintext }, // live token in the env...
+        configDir,
+        cacheDir,
+        stdout: (t) => captured.out.push(t),
+        stderr: (l) => captured.err.push(l),
+        readStdin: async () => "mergebrief_bogus_paste\n", // ...bogus paste
+        gitOriginUrl: () => undefined,
+      },
+    );
     expect(code).toBe(ExitCode.OK);
     const status = JSON.parse(captured.out.join("")) as {
       server: { authenticated: boolean | null };

@@ -5,7 +5,14 @@
 // `baseline_sha` is null for briefs — without it Postgres would treat every
 // brief row as distinct and the single-row-per-key upsert (D10 transitions)
 // could never conflict.
-import { bigint, integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core";
 import type {
   GenerationKind,
   GenerationPhase,
@@ -40,12 +47,22 @@ export const generation = pgTable(
      */
     repoConfig: text("repo_config"),
     attempts: integer("attempts").notNull().default(0),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (table) => [
     unique("generation_natural_key")
-      .on(table.installationId, table.pullRequestId, table.kind, table.headSha, table.baselineSha)
+      .on(
+        table.installationId,
+        table.pullRequestId,
+        table.kind,
+        table.headSha,
+        table.baselineSha,
+      )
       .nullsNotDistinct(),
   ],
 );

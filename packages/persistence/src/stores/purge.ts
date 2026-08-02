@@ -81,7 +81,10 @@ export interface PurgeError {
   readonly message: string;
 }
 
-function fail(code: PurgeErrorCode, message: string): Result<never, PurgeError> {
+function fail(
+  code: PurgeErrorCode,
+  message: string,
+): Result<never, PurgeError> {
   return { ok: false, error: { code, message } };
 }
 
@@ -105,7 +108,9 @@ export interface PurgeRoutines {
    * row is not in ctx's tenant. Returns the number of `pull_request` rows
    * deleted (1 on success).
    */
-  purgePullRequest(prRowId: PullRequestRowId): Promise<Result<number, PurgeError>>;
+  purgePullRequest(
+    prRowId: PullRequestRowId,
+  ): Promise<Result<number, PurgeError>>;
   /**
    * Scoped predicate-delete of every `pull_request` for `(ctx, repoId)`
    * (children cascade) + a `delete` audit entry carrying the count. Returns the
@@ -171,7 +176,10 @@ export interface PurgeRoutines {
  * `ctx` is the one place an `installation_id` enters; every routine filters or
  * stamps that same id, so a caller can never erase another tenant's rows.
  */
-export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRoutines {
+export function purgeRoutines(
+  handle: AppDatabase,
+  ctx: TenantContext,
+): PurgeRoutines {
   const db = internal(handle);
   const { installationId } = ctx;
 
@@ -184,7 +192,12 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
         const parents = await tx
           .select({ id: pullRequest.id })
           .from(pullRequest)
-          .where(and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, prRowId)))
+          .where(
+            and(
+              eq(pullRequest.installationId, installationId),
+              eq(pullRequest.id, prRowId),
+            ),
+          )
           .limit(1);
         if (parents[0] === undefined) {
           return fail(
@@ -203,7 +216,12 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
         });
         const deleted = await tx
           .delete(pullRequest)
-          .where(and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, prRowId)))
+          .where(
+            and(
+              eq(pullRequest.installationId, installationId),
+              eq(pullRequest.id, prRowId),
+            ),
+          )
           .returning({ id: pullRequest.id });
         return { ok: true, value: deleted.length };
       });
@@ -213,7 +231,12 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
       return db.transaction(async (tx) => {
         const deleted = await tx
           .delete(pullRequest)
-          .where(and(eq(pullRequest.installationId, installationId), eq(pullRequest.repoId, repoId)))
+          .where(
+            and(
+              eq(pullRequest.installationId, installationId),
+              eq(pullRequest.repoId, repoId),
+            ),
+          )
           .returning({ id: pullRequest.id });
         const count = deleted.length;
         await insertAudit(tx, {
@@ -309,15 +332,28 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
       // Guard the primitive itself: a negative/NaN grace would silently make
       // the row instantly sweepable — a data-loss footgun no upstream
       // validation should be trusted to catch (D5).
-      if (graceDays !== null && (!Number.isFinite(graceDays) || graceDays < 0)) {
-        return fail(PurgeErrorCode.INVALID_GRACE, `graceDays must be a non-negative finite number, got ${graceDays}`);
+      if (
+        graceDays !== null &&
+        (!Number.isFinite(graceDays) || graceDays < 0)
+      ) {
+        return fail(
+          PurgeErrorCode.INVALID_GRACE,
+          `graceDays must be a non-negative finite number, got ${graceDays}`,
+        );
       }
       const purgeAfter =
-        graceDays === null ? null : new Date(closedAt.getTime() + graceDays * MS_PER_DAY);
+        graceDays === null
+          ? null
+          : new Date(closedAt.getTime() + graceDays * MS_PER_DAY);
       const rows = await db
         .update(pullRequest)
         .set({ state, closedAt, purgeAfter, updatedAt: new Date() })
-        .where(and(eq(pullRequest.installationId, installationId), eq(pullRequest.id, prRowId)))
+        .where(
+          and(
+            eq(pullRequest.installationId, installationId),
+            eq(pullRequest.id, prRowId),
+          ),
+        )
         .returning();
       const row = rows[0];
       if (row === undefined) {
@@ -368,7 +404,10 @@ export function purgeRoutines(handle: AppDatabase, ctx: TenantContext): PurgeRou
         const deleted = await tx
           .delete(reviewerSession)
           .where(
-            and(eq(reviewerSession.installationId, installationId), lt(reviewerSession.expiresAt, now)),
+            and(
+              eq(reviewerSession.installationId, installationId),
+              lt(reviewerSession.expiresAt, now),
+            ),
           )
           .returning({ grantId: reviewerSession.grantId });
         // D15: orphan-clean the grants of the swept sessions, same tx.

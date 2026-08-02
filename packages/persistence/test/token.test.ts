@@ -204,7 +204,10 @@ describe("tokenAuth mint / resolve / touch", () => {
   it("resolves a no-expiry token (expires_at null never expires)", async () => {
     const auth = tokenAuth(handle);
     await auth.mintToken(mintInput(grant, { expiresAt: null }));
-    const resolved = await auth.resolveByHash(HASH, new Date("2099-01-01T00:00:00Z"));
+    const resolved = await auth.resolveByHash(
+      HASH,
+      new Date("2099-01-01T00:00:00Z"),
+    );
     expect(resolved.ok).toBe(true);
   });
 
@@ -255,11 +258,18 @@ describe("tokenAuth list / revoke", () => {
       }),
     );
     await auth.mintToken(
-      mintInput(grant, { tokenHash: "c".repeat(64), userId: OTHER_USER, name: "not-mine" }),
+      mintInput(grant, {
+        tokenHash: "c".repeat(64),
+        userId: OTHER_USER,
+        name: "not-mine",
+      }),
     );
 
     const mine = await auth.listForUser(USER);
-    expect(mine.map((row) => row.name).toSorted()).toEqual(["ci-token", "other-org"]);
+    expect(mine.map((row) => row.name).toSorted()).toEqual([
+      "ci-token",
+      "other-org",
+    ]);
     expect(await auth.listForUser(OTHER_USER)).toHaveLength(1);
   });
 

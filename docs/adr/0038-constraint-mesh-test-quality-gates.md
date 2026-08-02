@@ -132,7 +132,10 @@ record or a fixture bundle (measured: 8 reports, 8 false positives, 0 true),
 so it joins the prose rules; (b) `noUncheckedIndexedAccess` needed no
 adoption decision — it was already `true` in all twelve package tsconfigs,
 measured at 0 errors, and the rest of the strictness trio cost two
-`noImplicitReturns` fixes.
+`noImplicitReturns` fixes. Prettier's whole-repo move covers code and
+config only: markdown is excluded, because the markdown printer rewrote
+emphasis spans around inline code in this ADR set — meaning changed, not
+just layout.
 
 ### 8. CI structure
 

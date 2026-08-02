@@ -137,7 +137,9 @@ export type ViewerPrincipal = ReviewerSessionRow & {
 };
 
 /** Shape a resolved cookie session (+ its grant) into the principal. */
-export function principalFromSession(resolved: SessionWithGrant): ViewerPrincipal {
+export function principalFromSession(
+  resolved: SessionWithGrant,
+): ViewerPrincipal {
   return {
     ...resolved.session,
     ghTokenCiphertext: resolved.grant.ghTokenCiphertext,
@@ -154,7 +156,10 @@ export function principalFromSession(resolved: SessionWithGrant): ViewerPrincipa
 const NO_EXPIRY_SENTINEL = new Date(8_640_000_000_000_000);
 
 /** Shape a resolved `api_token` (+ its grant) into the channel-agnostic principal. */
-export function principalFromApiToken({ token, grant }: TokenWithGrant): ViewerPrincipal {
+export function principalFromApiToken({
+  token,
+  grant,
+}: TokenWithGrant): ViewerPrincipal {
   return {
     id: token.id,
     installationId: token.installationId,
@@ -352,7 +357,10 @@ export async function refreshSessionToken(
     if (touched === 0) {
       return {
         ok: false,
-        error: { code: RefreshErrorCode.NOT_FOUND, message: "session not found" },
+        error: {
+          code: RefreshErrorCode.NOT_FOUND,
+          message: "session not found",
+        },
       };
     }
   } else {
@@ -486,7 +494,10 @@ export function authRoute(deps: AuthRouteDeps): Hono {
     if (firstAccessible === undefined) {
       // No accessible installation → the app isn't installed where this
       // reviewer can reach it, so they aren't authorized to log in.
-      return c.json({ error: "the app is not installed for this account" }, 403);
+      return c.json(
+        { error: "the app is not installed for this account" },
+        403,
+      );
     }
     // BRIEF-19 (D14): bind the session to the user's DEFAULT installation when
     // it is still in their LIVE accessible set, else the first accessible one.
@@ -494,10 +505,13 @@ export function authRoute(deps: AuthRouteDeps): Hono {
     // is NEVER trusted as an id on its own — a dangling default (installation
     // purged/uninstalled since it was set) degrades to the first accessible
     // installation rather than binding to something GitHub no longer grants.
-    const settings = await userSettingsStore(deps.handle).get(user.value.reviewerId);
+    const settings = await userSettingsStore(deps.handle).get(
+      user.value.reviewerId,
+    );
     const preferredDefault = settings?.defaultInstallationId ?? undefined;
     const installationId =
-      preferredDefault !== undefined && accessible.some((id) => id === preferredDefault)
+      preferredDefault !== undefined &&
+      accessible.some((id) => id === preferredDefault)
         ? preferredDefault
         : firstAccessible;
 

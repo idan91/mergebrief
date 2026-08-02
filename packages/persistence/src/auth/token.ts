@@ -90,12 +90,21 @@ function fail(
  * (a revoked token must read as revoked even after its expiry passes).
  * Expiry is exclusive of the instant: a token is dead once `expires_at <= now`.
  */
-function livenessError(row: ApiTokenRow, now: Date): TokenAuthError | undefined {
+function livenessError(
+  row: ApiTokenRow,
+  now: Date,
+): TokenAuthError | undefined {
   if (row.revokedAt !== null) {
-    return { code: TokenAuthErrorCode.REVOKED, message: "api_token is revoked" };
+    return {
+      code: TokenAuthErrorCode.REVOKED,
+      message: "api_token is revoked",
+    };
   }
   if (row.expiresAt !== null && row.expiresAt.getTime() <= now.getTime()) {
-    return { code: TokenAuthErrorCode.EXPIRED, message: "api_token is expired" };
+    return {
+      code: TokenAuthErrorCode.EXPIRED,
+      message: "api_token is expired",
+    };
   }
   return undefined;
 }
@@ -136,7 +145,10 @@ export interface TokenAuth {
    * (revoked, then expired). All misses are `Result` errors so the api layer
    * maps every arm to the same hint-free 401.
    */
-  resolveByHash(tokenHash: string, now: Date): Promise<Result<TokenWithGrant, TokenAuthError>>;
+  resolveByHash(
+    tokenHash: string,
+    now: Date,
+  ): Promise<Result<TokenWithGrant, TokenAuthError>>;
   /**
    * The settings-page list: ALL of a user's tokens (a person spans
    * installations, D14) — revoked and expired included, newest first.

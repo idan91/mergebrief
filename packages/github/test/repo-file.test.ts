@@ -78,11 +78,14 @@ describe("getRepoFile", () => {
       path: ".mergebrief/instructions.md",
       maxBytes: 1024,
     });
-    expect(request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/contents/{path}", {
-      owner: "o",
-      repo: "r",
-      path: ".mergebrief/instructions.md",
-    });
+    expect(request).toHaveBeenCalledWith(
+      "GET /repos/{owner}/{repo}/contents/{path}",
+      {
+        owner: "o",
+        repo: "r",
+        path: ".mergebrief/instructions.md",
+      },
+    );
   });
 
   it("passes ref through when given", async () => {
@@ -94,12 +97,15 @@ describe("getRepoFile", () => {
       ref: "main",
       maxBytes: 1024,
     });
-    expect(request).toHaveBeenCalledWith("GET /repos/{owner}/{repo}/contents/{path}", {
-      owner: "o",
-      repo: "r",
-      path: ".mergebrief/instructions.md",
-      ref: "main",
-    });
+    expect(request).toHaveBeenCalledWith(
+      "GET /repos/{owner}/{repo}/contents/{path}",
+      {
+        owner: "o",
+        repo: "r",
+        path: ".mergebrief/instructions.md",
+        ref: "main",
+      },
+    );
   });
 
   it("maps a 404 to the ABSENT outcome, not an error", async () => {
@@ -135,7 +141,11 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value).toEqual({ kind: RepoFileKind.TOO_LARGE, blobSha: "bigblob", size: 5000 });
+    expect(result.value).toEqual({
+      kind: RepoFileKind.TOO_LARGE,
+      blobSha: "bigblob",
+      size: 5000,
+    });
   });
 
   it("accepts a file exactly at the cap", async () => {
@@ -163,12 +173,15 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    if (result.value.kind !== RepoFileKind.FILE) throw new Error("expected file");
+    if (result.value.kind !== RepoFileKind.FILE)
+      throw new Error("expected file");
     expect(result.value.content).toBe(text);
   });
 
   it("rejects a directory response (array body) as a sanitized error", async () => {
-    const request = vi.fn().mockResolvedValue({ data: [{ type: "file", name: "a" }] });
+    const request = vi
+      .fn()
+      .mockResolvedValue({ data: [{ type: "file", name: "a" }] });
     const result = await getRepoFile(mockOctokit(request), {
       owner: "o",
       repo: "r",
@@ -197,9 +210,9 @@ describe("getRepoFile", () => {
   });
 
   it("rejects a followed symlink reported as type 'file' with a target field", async () => {
-    const request = vi.fn().mockResolvedValue(
-      fileResponse("x", { target: "../outside" }),
-    );
+    const request = vi
+      .fn()
+      .mockResolvedValue(fileResponse("x", { target: "../outside" }));
     const result = await getRepoFile(mockOctokit(request), {
       owner: "o",
       repo: "r",
@@ -213,7 +226,9 @@ describe("getRepoFile", () => {
 
   it("rejects a submodule payload carrying submodule_git_url", async () => {
     const request = vi.fn().mockResolvedValue(
-      fileResponse("x", { submodule_git_url: "https://github.com/o/other.git" }),
+      fileResponse("x", {
+        submodule_git_url: "https://github.com/o/other.git",
+      }),
     );
     const result = await getRepoFile(mockOctokit(request), {
       owner: "o",
@@ -228,7 +243,13 @@ describe("getRepoFile", () => {
 
   it("rejects malformed base64 content as a sanitized error", async () => {
     const request = vi.fn().mockResolvedValue({
-      data: { type: "file", size: 4, sha: "s", content: "!!not-base64!!", encoding: "base64" },
+      data: {
+        type: "file",
+        size: 4,
+        sha: "s",
+        content: "!!not-base64!!",
+        encoding: "base64",
+      },
     });
     const result = await getRepoFile(mockOctokit(request), {
       owner: "o",
@@ -245,7 +266,13 @@ describe("getRepoFile", () => {
     // 0xFF 0xFE 0xFD is not valid UTF-8 in any arrangement.
     const binary = Buffer.from([0xff, 0xfe, 0xfd]).toString("base64");
     const request = vi.fn().mockResolvedValue({
-      data: { type: "file", size: 3, sha: "s", content: binary, encoding: "base64" },
+      data: {
+        type: "file",
+        size: 3,
+        sha: "s",
+        content: binary,
+        encoding: "base64",
+      },
     });
     const result = await getRepoFile(mockOctokit(request), {
       owner: "o",
@@ -272,12 +299,22 @@ describe("getRepoFile", () => {
     });
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value).toEqual({ kind: RepoFileKind.TOO_LARGE, blobSha: "abc123def456", size: 100 });
+    expect(result.value).toEqual({
+      kind: RepoFileKind.TOO_LARGE,
+      blobSha: "abc123def456",
+      size: 100,
+    });
   });
 
   it("rejects a non-base64 encoding (e.g. 'none' for giant blobs) as a sanitized error", async () => {
     const request = vi.fn().mockResolvedValue({
-      data: { type: "file", size: 100, sha: "s", content: "", encoding: "none" },
+      data: {
+        type: "file",
+        size: 100,
+        sha: "s",
+        content: "",
+        encoding: "none",
+      },
     });
     const result = await getRepoFile(mockOctokit(request), {
       owner: "o",

@@ -82,7 +82,9 @@ function parsePatch(patch: string): { added: number[]; removed: number[] } {
  * another sidecar (e.g. the delta per-file diffs) feed the split here rather
  * than re-scanning the raw diff text.
  */
-export function changedRangesFromFileDiffs(fileDiffs: FileDiff[]): RevisionChangeFile[] {
+export function changedRangesFromFileDiffs(
+  fileDiffs: FileDiff[],
+): RevisionChangeFile[] {
   return fileDiffs.flatMap((fileDiff) => {
     const { added, removed } = parsePatch(fileDiff.patch);
     if (added.length === 0 && removed.length === 0) return [];

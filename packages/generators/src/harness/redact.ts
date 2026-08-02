@@ -38,7 +38,10 @@ export function redactSecrets(text: string): string {
       // Digest carries a comma-separated param list, not one token.
       // ["']? before the separator admits JSON-shaped headers/keys, e.g.
       // {"Authorization":"Basic x"} — CLIs dump JSON error bodies to stderr.
-      .replace(/\b((?:proxy-)?authorization["']?\s*[=:]\s*)[^\n]+/gi, "$1(redacted)")
+      .replace(
+        /\b((?:proxy-)?authorization["']?\s*[=:]\s*)[^\n]+/gi,
+        "$1(redacted)",
+      )
       // Cookie headers carry session credentials in arbitrary attr=value
       // pairs the assignment rule's name list can't anticipate — take the
       // whole line.
@@ -67,7 +70,10 @@ export function redactSecrets(text: string): string {
         /([\w-]*(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key(?:[_-]?id)?|client[_-]?secret|auth))["']?(\s*[=:]\s*)(?!Bearer \(redacted\))("[^"\n]*"|'[^'\n]*'|\S+)/gi,
         "$1$2(redacted)",
       )
-      .replace(/([?&](?:api[_-]?key|token|key|secret|password)=)[^&\s]+/gi, "$1(redacted)")
+      .replace(
+        /([?&](?:api[_-]?key|token|key|secret|password)=)[^&\s]+/gi,
+        "$1(redacted)",
+      )
       .replace(/\b(sk|rk|pk)-[\w-]{8,}/g, "$1-(redacted)")
       .replace(/\b[0-9a-f]{24,}\b/gi, "(redacted)")
       .replace(/\b[A-Za-z0-9+/=_-]{40,}\b/g, "(redacted)")

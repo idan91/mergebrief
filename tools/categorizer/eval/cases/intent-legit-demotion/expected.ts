@@ -48,6 +48,7 @@ export const properties: EvalProperty[] = [
     id: "legit-no-masking-alarm",
     description:
       "claimedButUnachieved stays empty — a demotion the corpus ASKED for is not a masked fix, however much it looks like one",
-    check: (brief) => (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
+    check: (brief) =>
+      (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
   },
 ];

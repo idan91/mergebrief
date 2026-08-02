@@ -55,8 +55,14 @@ interface PrMetaSlice {
   readonly slice: z.infer<typeof prMetaSliceSchema>;
 }
 
-async function fetchPrMeta(client: ApiClient, repoId: string, prNumber: number): Promise<PrMetaSlice> {
-  const response = await client.request({ path: `/api/repos/${repoId}/pulls/${prNumber}` });
+async function fetchPrMeta(
+  client: ApiClient,
+  repoId: string,
+  prNumber: number,
+): Promise<PrMetaSlice> {
+  const response = await client.request({
+    path: `/api/repos/${repoId}/pulls/${prNumber}`,
+  });
   let parsedJson: unknown;
   try {
     parsedJson = JSON.parse(response.bodyText);
@@ -71,7 +77,10 @@ async function fetchPrMeta(client: ApiClient, repoId: string, prNumber: number):
 }
 
 /** The brief's own span, required by `groups` and `diff --group`. */
-function briefSpan(meta: PrMetaSlice, prNumber: number): { base: string; head: string } {
+function briefSpan(
+  meta: PrMetaSlice,
+  prNumber: number,
+): { base: string; head: string } {
   const { baseSha, headSha, briefAvailable } = meta.slice;
   if (!briefAvailable || baseSha === null || headSha === null) {
     throw new CliError(
@@ -112,7 +121,9 @@ export async function runPrMeta(
   if (io.json) {
     // TRUE passthrough (codex PR67 R1): the json arm must never parse — a
     // shape the CLI does not recognize still belongs to the consumer.
-    const response = await client.request({ path: `/api/repos/${repoId}/pulls/${prNumber}` });
+    const response = await client.request({
+      path: `/api/repos/${repoId}/pulls/${prNumber}`,
+    });
     io.stdout(response.bodyText); // verbatim
     return;
   }
@@ -181,7 +192,10 @@ export async function runDiff(
   options: DiffOptions,
   io: ReadIo,
 ): Promise<void> {
-  if (options.group !== undefined && (options.base !== undefined || options.head !== undefined)) {
+  if (
+    options.group !== undefined &&
+    (options.base !== undefined || options.head !== undefined)
+  ) {
     throw new CliError(
       ExitCode.USAGE,
       "--group filters the brief's own span — it cannot be combined with --base/--head",
@@ -206,7 +220,9 @@ export async function runDiff(
     if (!parsed.success) {
       throw skewError("brief");
     }
-    groupChunks = parsed.data.chunks.filter((chunk) => chunk.changeGroupId === options.group);
+    groupChunks = parsed.data.chunks.filter(
+      (chunk) => chunk.changeGroupId === options.group,
+    );
     if (groupChunks.length === 0) {
       throw new CliError(
         ExitCode.NOT_FOUND,
@@ -219,7 +235,10 @@ export async function runDiff(
     const meta = await fetchPrMeta(client, repoId, prNumber);
     span = briefSpan(meta, prNumber);
   } else {
-    throw new CliError(ExitCode.USAGE, "--base and --head must be given together");
+    throw new CliError(
+      ExitCode.USAGE,
+      "--base and --head must be given together",
+    );
   }
 
   const diff = await client.request({
@@ -274,7 +293,10 @@ export async function runDelta(
     baseline = options.baseline;
     head = options.head;
   } else if (options.baseline !== undefined || options.head !== undefined) {
-    throw new CliError(ExitCode.USAGE, "--baseline and --head must be given together");
+    throw new CliError(
+      ExitCode.USAGE,
+      "--baseline and --head must be given together",
+    );
   } else {
     // Checkpoint resolution via PR-meta (the CLI's own join — recorded in
     // the envelope's baselineSha).
@@ -320,7 +342,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asDisplay(value: unknown): string {
-  return typeof value === "string" || typeof value === "number" ? String(value) : "?";
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : "?";
 }
 
 function renderPrList(bodyText: string, io: ReadIo): void {
@@ -348,7 +372,9 @@ function renderGroups(bodyText: string, io: ReadIo): void {
     if (isRecord(parsed) && Array.isArray(parsed["changeGroups"])) {
       for (const group of parsed["changeGroups"]) {
         if (isRecord(group)) {
-          io.stdout(`${asDisplay(group["id"])}\t${asDisplay(group["title"])}\n`);
+          io.stdout(
+            `${asDisplay(group["id"])}\t${asDisplay(group["title"])}\n`,
+          );
         }
       }
       return;

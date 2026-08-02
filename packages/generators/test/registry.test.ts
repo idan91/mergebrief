@@ -31,10 +31,7 @@ describe("createGenerator", () => {
   });
 
   it("rejects an unknown provider naming the valid tokens", async () => {
-    const result = await createGenerator(
-      { provider: "gpt-basement" },
-      deps,
-    );
+    const result = await createGenerator({ provider: "gpt-basement" }, deps);
     expect(result.ok).toBe(false);
     if (result.ok) return;
     const text = result.error.issues.join("; ");
@@ -160,15 +157,21 @@ describe("effort on the generator block (BRIEF-75)", () => {
     },
   );
 
-  it.each(minimalBlocks)("leaves effort undefined when omitted on $provider", (block) => {
-    const parsed = GeneratorConfigSchema.safeParse(block);
-    expect(parsed.success).toBe(true);
-    if (!parsed.success) return;
-    expect(parsed.data.effort).toBeUndefined();
-  });
+  it.each(minimalBlocks)(
+    "leaves effort undefined when omitted on $provider",
+    (block) => {
+      const parsed = GeneratorConfigSchema.safeParse(block);
+      expect(parsed.success).toBe(true);
+      if (!parsed.success) return;
+      expect(parsed.data.effort).toBeUndefined();
+    },
+  );
 
   it("rejects an out-of-vocabulary effort with a per-field issue naming effort", () => {
-    const result = validateGeneratorConfig({ provider: "anthropic", effort: "max" });
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      effort: "max",
+    });
     expect(result.ok).toBe(false);
     if (result.ok) return;
     const text = result.error.issues.join("; ");
@@ -191,7 +194,8 @@ describe("effort on the generator block (BRIEF-75)", () => {
 describe("GeneratorConfigSchema (registry-derived)", () => {
   it("parses every registry provider's minimal block", () => {
     expect(
-      GeneratorConfigSchema.safeParse({ provider: Providers.ANTHROPIC }).success,
+      GeneratorConfigSchema.safeParse({ provider: Providers.ANTHROPIC })
+        .success,
     ).toBe(true);
   });
 

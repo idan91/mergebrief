@@ -22,11 +22,10 @@ describe("extractConfigFlag", () => {
     });
   });
 
-  it.each([
-    [["--config"]],
-    [["--config", "--json"]],
-    [["--config", "-x"]],
-  ])("treats a missing or flag-shaped value as a usage error: %j", (args) => {
-    expect(extractConfigFlag(args)).toBeNull();
-  });
+  it.each([[["--config"]], [["--config", "--json"]], [["--config", "-x"]]])(
+    "treats a missing or flag-shaped value as a usage error: %j",
+    (args) => {
+      expect(extractConfigFlag(args)).toBeNull();
+    },
+  );
 });

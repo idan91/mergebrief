@@ -80,7 +80,10 @@ if (argv[0] === "login" && argv[1] === "status") {
 const schemaFlag = argv.indexOf("--output-schema");
 if (schemaFlag !== -1 && process.env.SHIM_SCHEMA_COPY) {
   try {
-    writeFileSync(process.env.SHIM_SCHEMA_COPY, readFileSync(argv[schemaFlag + 1]));
+    writeFileSync(
+      process.env.SHIM_SCHEMA_COPY,
+      readFileSync(argv[schemaFlag + 1]),
+    );
   } catch {
     // Absent/unreadable schema file: leave no copy; the test will fail loudly.
   }
@@ -179,7 +182,11 @@ switch (scenario) {
       // LAST completed agent_message, not the first.
       emit({
         type: "item.completed",
-        item: { id: "item_0", type: "agent_message", text: "Let me work on that." },
+        item: {
+          id: "item_0",
+          type: "agent_message",
+          text: "Let me work on that.",
+        },
       });
       // The double-parse quirk: item.text is a JSON *string* of the payload.
       answer(output);
@@ -209,27 +216,37 @@ switch (scenario) {
   case "turn-failed":
     drainStdinThen(() => {
       preamble();
-      emit({ type: "turn.failed", error: { message: "stream error: rate limited" } });
+      emit({
+        type: "turn.failed",
+        error: { message: "stream error: rate limited" },
+      });
       process.exit(1);
     });
     break;
   case "fatal-error":
     drainStdinThen(() => {
-      emit({ type: "error", message: process.env.SHIM_ERROR ?? "something broke" });
+      emit({
+        type: "error",
+        message: process.env.SHIM_ERROR ?? "something broke",
+      });
       process.exit(1);
     });
     break;
   case "envelope-drift":
     drainStdinThen(() => {
-      emit({ type: "item.completed", item: { type: "reasoning", text: "hmm" } });
+      emit({
+        type: "item.completed",
+        item: { type: "reasoning", text: "hmm" },
+      });
       emit({ type: "turn.completed", usage: {} });
       process.exit(0);
     });
     break;
   case "stderr-exit":
     drainStdinThen(() => {
-      process.stderr.write(process.env.SHIM_STDERR ?? "codex shim exploded\n", () =>
-        process.exit(Number(process.env.SHIM_EXIT_CODE ?? 1)),
+      process.stderr.write(
+        process.env.SHIM_STDERR ?? "codex shim exploded\n",
+        () => process.exit(Number(process.env.SHIM_EXIT_CODE ?? 1)),
       );
     });
     break;

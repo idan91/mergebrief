@@ -26,7 +26,12 @@ import {
 } from "./commands/read";
 import { loadRepos, resolveRepoId, type RepoCacheDeps } from "./profile/repos";
 import { AGENTS_GUIDE } from "./agents-guide";
-import { buildSubmitPayload, runReply, runSubmit, type SubmitInput } from "./commands/write";
+import {
+  buildSubmitPayload,
+  runReply,
+  runSubmit,
+  type SubmitInput,
+} from "./commands/write";
 
 export interface CliDeps {
   readonly fetch: FetchLike;
@@ -81,7 +86,10 @@ function clientFor(deps: CliDeps, resolved: ResolvedProfile): ApiClient {
   });
 }
 
-function resolveFromDisk(deps: CliDeps, flagProfile: string | undefined): ResolvedProfile {
+function resolveFromDisk(
+  deps: CliDeps,
+  flagProfile: string | undefined,
+): ResolvedProfile {
   const config = loadConfig(deps.configDir);
   if (!config.ok) {
     throw new CliError(ExitCode.USAGE, config.error);
@@ -91,7 +99,8 @@ function resolveFromDisk(deps: CliDeps, flagProfile: string | undefined): Resolv
     config: config.value,
     env: deps.env,
     flagProfile,
-    gitRemoteOwner: originUrl === undefined ? undefined : ownerFromOriginUrl(originUrl),
+    gitRemoteOwner:
+      originUrl === undefined ? undefined : ownerFromOriginUrl(originUrl),
   });
 }
 
@@ -162,7 +171,8 @@ async function runAuthLogin(
   }
   // The explicit-profile arm matches the resolution order (codex PR5 R1):
   // MERGEBRIEF_PROFILE selects the login target exactly like --profile.
-  const profileName = global.profile ?? deps.env["MERGEBRIEF_PROFILE"] ?? "default";
+  const profileName =
+    global.profile ?? deps.env["MERGEBRIEF_PROFILE"] ?? "default";
   const existing = config.value.profiles[profileName];
   const baseUrl = options.baseUrl ?? existing?.baseUrl;
   if (baseUrl === undefined) {
@@ -206,11 +216,13 @@ async function runAuthLogin(
   emitStatus(deps, global.json, await authStatusBody(deps, resolved));
 }
 
-async function runAuthStatus(deps: CliDeps, global: GlobalOptions): Promise<void> {
+async function runAuthStatus(
+  deps: CliDeps,
+  global: GlobalOptions,
+): Promise<void> {
   const resolved = resolveFromDisk(deps, global.profile);
   emitStatus(deps, global.json, await authStatusBody(deps, resolved));
 }
-
 
 async function runRepos(
   deps: CliDeps,
@@ -244,7 +256,8 @@ async function resolveTarget(
   const resolved = resolveFromDisk(deps, global.profile);
   const originUrl = deps.gitOriginUrl();
   const fullName =
-    global.repo ?? (originUrl === undefined ? undefined : fullNameFromOriginUrl(originUrl));
+    global.repo ??
+    (originUrl === undefined ? undefined : fullNameFromOriginUrl(originUrl));
   if (fullName === undefined) {
     throw new CliError(
       ExitCode.USAGE,
@@ -252,7 +265,10 @@ async function resolveTarget(
     );
   }
   if (!/^[^/\s]+\/[^/\s]+$/.test(fullName)) {
-    throw new CliError(ExitCode.USAGE, `-R expects owner/name, got "${fullName}"`);
+    throw new CliError(
+      ExitCode.USAGE,
+      `-R expects owner/name, got "${fullName}"`,
+    );
   }
   const client = clientFor(deps, resolved);
   const repoId = await resolveRepoId(
@@ -273,7 +289,10 @@ async function readSource(deps: CliDeps, source: string): Promise<string> {
   }
   const readFile = deps.readFile;
   if (readFile === undefined) {
-    throw new CliError(ExitCode.USAGE, "file input is not available in this environment");
+    throw new CliError(
+      ExitCode.USAGE,
+      "file input is not available in this environment",
+    );
   }
   try {
     return readFile(source);
@@ -297,7 +316,10 @@ async function readBodySource(
   bodyFile: string | undefined,
 ): Promise<string> {
   if (body !== undefined && bodyFile !== undefined) {
-    throw new CliError(ExitCode.USAGE, "--body and --body-file are mutually exclusive");
+    throw new CliError(
+      ExitCode.USAGE,
+      "--body and --body-file are mutually exclusive",
+    );
   }
   if (body !== undefined) {
     return body;
@@ -310,7 +332,10 @@ async function readBodySource(
 
 function parsePrNumber(raw: string): number {
   if (!/^\d+$/.test(raw)) {
-    throw new CliError(ExitCode.USAGE, `PR number must be a positive integer, got "${raw}"`);
+    throw new CliError(
+      ExitCode.USAGE,
+      `PR number must be a positive integer, got "${raw}"`,
+    );
   }
   return Number(raw);
 }
@@ -319,11 +344,23 @@ function parsePrNumber(raw: string): number {
 function buildProgram(deps: CliDeps): Command {
   const program = new Command("mergebrief");
   program
-    .description("MergeBrief — PR briefs for humans and agents, over your deployment's API")
-    .option("--json", "machine output: the documented JSON contract (ADR 0029)", false)
+    .description(
+      "MergeBrief — PR briefs for humans and agents, over your deployment's API",
+    )
+    .option(
+      "--json",
+      "machine output: the documented JSON contract (ADR 0029)",
+      false,
+    )
     .option("--agents", "print the packaged agent guide and exit", false)
-    .option("--profile <name>", "config profile (default: owners match, then the default profile)")
-    .option("-R, --repo <owner/name>", "target repository (default: the origin remote)")
+    .option(
+      "--profile <name>",
+      "config profile (default: owners match, then the default profile)",
+    )
+    .option(
+      "-R, --repo <owner/name>",
+      "target repository (default: the origin remote)",
+    )
     .exitOverride()
     .configureOutput({
       writeOut: (str) => deps.stdout(str),
@@ -331,7 +368,11 @@ function buildProgram(deps: CliDeps): Command {
     });
 
   const globals = (): GlobalOptions => {
-    const opts = program.opts<{ json: boolean; profile?: string; repo?: string }>();
+    const opts = program.opts<{
+      json: boolean;
+      profile?: string;
+      repo?: string;
+    }>();
     return {
       json: opts.json,
       ...(opts.profile === undefined ? {} : { profile: opts.profile }),
@@ -339,12 +380,19 @@ function buildProgram(deps: CliDeps): Command {
     };
   };
 
-  const auth = program.command("auth").description("authentication against your deployment");
+  const auth = program
+    .command("auth")
+    .description("authentication against your deployment");
   auth
     .command("login")
     .description("store a token for a profile (paste it, or pipe it on stdin)")
-    .option("--base-url <url>", "deployment origin, e.g. https://mergebrief.example.com")
-    .action(async (options: { baseUrl?: string }) => runAuthLogin(deps, globals(), options));
+    .option(
+      "--base-url <url>",
+      "deployment origin, e.g. https://mergebrief.example.com",
+    )
+    .action(async (options: { baseUrl?: string }) =>
+      runAuthLogin(deps, globals(), options),
+    );
   auth
     .command("status")
     .description("config + server status for the resolved profile")
@@ -352,9 +400,13 @@ function buildProgram(deps: CliDeps): Command {
 
   program
     .command("repos")
-    .description("repositories visible to the profile's token (cached; see --refresh)")
+    .description(
+      "repositories visible to the profile's token (cached; see --refresh)",
+    )
     .option("--refresh", "bypass the disk cache", false)
-    .action(async (options: { refresh: boolean }) => runRepos(deps, globals(), options));
+    .action(async (options: { refresh: boolean }) =>
+      runRepos(deps, globals(), options),
+    );
 
   program
     .command("pr")
@@ -388,7 +440,12 @@ function buildProgram(deps: CliDeps): Command {
     .action(async (raw: string) => {
       const global = globals();
       const { client, repoId } = await resolveTarget(deps, global);
-      await runConversation(client, repoId, parsePrNumber(raw), readIo(deps, global));
+      await runConversation(
+        client,
+        repoId,
+        parsePrNumber(raw),
+        readIo(deps, global),
+      );
     });
 
   program
@@ -397,22 +454,33 @@ function buildProgram(deps: CliDeps): Command {
     .argument("<number>", "PR number")
     .option("--base <sha>", "span base (with --head)")
     .option("--head <sha>", "span head (with --base)")
-    .option("--group <id>", "filter to one change group's whole hunks (brief span only)")
-    .action(async (raw: string, options: { base?: string; head?: string; group?: string }) => {
-      const global = globals();
-      if (global.json) {
-        // ADR 0029 #7: the raw unified diff IS diff's machine format.
-        throw new CliError(ExitCode.USAGE, "diff has no JSON arm — its raw output is the machine format");
-      }
-      const { client, repoId } = await resolveTarget(deps, global);
-      await runDiff(
-        client,
-        repoId,
-        parsePrNumber(raw),
-        { ...options, pager: deps.pager },
-        readIo(deps, global),
-      );
-    });
+    .option(
+      "--group <id>",
+      "filter to one change group's whole hunks (brief span only)",
+    )
+    .action(
+      async (
+        raw: string,
+        options: { base?: string; head?: string; group?: string },
+      ) => {
+        const global = globals();
+        if (global.json) {
+          // ADR 0029 #7: the raw unified diff IS diff's machine format.
+          throw new CliError(
+            ExitCode.USAGE,
+            "diff has no JSON arm — its raw output is the machine format",
+          );
+        }
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runDiff(
+          client,
+          repoId,
+          parsePrNumber(raw),
+          { ...options, pager: deps.pager },
+          readIo(deps, global),
+        );
+      },
+    );
 
   program
     .command("reply")
@@ -421,37 +489,59 @@ function buildProgram(deps: CliDeps): Command {
     .requiredOption("--pr <number>", "the PR the comment belongs to")
     .option("--body <text>", "reply text")
     .option("--body-file <path>", 'reply text from a file, or "-" for stdin')
-    .action(async (commentId: string, options: { pr: string; body?: string; bodyFile?: string }) => {
-      const global = globals();
-      const body = await readBodySource(deps, options.body, options.bodyFile);
-      const { client, repoId } = await resolveTarget(deps, global);
-      await runReply(
-        client,
-        repoId,
-        commentId,
-        { pr: parsePrNumber(options.pr), body },
-        readIo(deps, global),
-      );
-    });
+    .action(
+      async (
+        commentId: string,
+        options: { pr: string; body?: string; bodyFile?: string },
+      ) => {
+        const global = globals();
+        const body = await readBodySource(deps, options.body, options.bodyFile);
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runReply(
+          client,
+          repoId,
+          commentId,
+          { pr: parsePrNumber(options.pr), body },
+          readIo(deps, global),
+        );
+      },
+    );
 
   program
     .command("submit")
-    .description("submit a review (commitId is required and never auto-fetched)")
+    .description(
+      "submit a review (commitId is required and never auto-fetched)",
+    )
     .argument("<number>", "PR number")
-    .option("-F, --file <path>", 'full JSON payload from a file, or "-" for stdin')
-    .option("--outcome <outcome>", "comment | approve | request-changes (flag form)")
+    .option(
+      "-F, --file <path>",
+      'full JSON payload from a file, or "-" for stdin',
+    )
+    .option(
+      "--outcome <outcome>",
+      "comment | approve | request-changes (flag form)",
+    )
     .option("--body <text>", "review body (flag form)")
     .option("--commit <sha>", "the commitId you reviewed (flag form)")
     .action(
       async (
         raw: string,
-        options: { file?: string; outcome?: string; body?: string; commit?: string },
+        options: {
+          file?: string;
+          outcome?: string;
+          body?: string;
+          commit?: string;
+        },
       ) => {
         const global = globals();
         const input: SubmitInput = {
           ...(options.file === undefined
             ? {}
-            : { payload: parsePayloadSource(await readSource(deps, options.file)) }),
+            : {
+                payload: parsePayloadSource(
+                  await readSource(deps, options.file),
+                ),
+              }),
           outcome: options.outcome,
           body: options.body,
           commit: options.commit,
@@ -462,7 +552,13 @@ function buildProgram(deps: CliDeps): Command {
         const prNumber = parsePrNumber(raw);
         const payload = buildSubmitPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
-        await runSubmit(client, repoId, prNumber, payload, readIo(deps, global));
+        await runSubmit(
+          client,
+          repoId,
+          prNumber,
+          payload,
+          readIo(deps, global),
+        );
       },
     );
 
@@ -470,13 +566,24 @@ function buildProgram(deps: CliDeps): Command {
     .command("delta")
     .description("what changed since your last review (union: available | not)")
     .argument("<number>", "PR number")
-    .option("--baseline <sha>", "override the checkpoint baseline (with --head)")
+    .option(
+      "--baseline <sha>",
+      "override the checkpoint baseline (with --head)",
+    )
     .option("--head <sha>", "override the head (with --baseline)")
-    .action(async (raw: string, options: { baseline?: string; head?: string }) => {
-      const global = globals();
-      const { client, repoId } = await resolveTarget(deps, global);
-      await runDelta(client, repoId, parsePrNumber(raw), options, readIo(deps, global));
-    });
+    .action(
+      async (raw: string, options: { baseline?: string; head?: string }) => {
+        const global = globals();
+        const { client, repoId } = await resolveTarget(deps, global);
+        await runDelta(
+          client,
+          repoId,
+          parsePrNumber(raw),
+          options,
+          readIo(deps, global),
+        );
+      },
+    );
 
   return program;
 }
@@ -485,7 +592,10 @@ function buildProgram(deps: CliDeps): Command {
  * Run the CLI: parse + execute + map every failure to the stream/exit
  * invariant. Returns the process exit code; never throws.
  */
-export async function runCli(argv: readonly string[], deps: CliDeps): Promise<number> {
+export async function runCli(
+  argv: readonly string[],
+  deps: CliDeps,
+): Promise<number> {
   // Root-level guide (plan decision 8): print and exit before any parsing
   // side effects — agents read this first.
   if (argv.includes("--agents")) {
@@ -503,7 +613,11 @@ export async function runCli(argv: readonly string[], deps: CliDeps): Promise<nu
     // Commander's own exits (bad flags, --help). Help/version are success.
     if (isRecord(error) && typeof error["code"] === "string") {
       const code = error["code"];
-      if (code === "commander.helpDisplayed" || code === "commander.help" || code === "commander.version") {
+      if (
+        code === "commander.helpDisplayed" ||
+        code === "commander.help" ||
+        code === "commander.version"
+      ) {
         return ExitCode.OK;
       }
       // Usage errors already printed one line via configureOutput.

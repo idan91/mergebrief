@@ -45,7 +45,8 @@ function urlOf(input: Parameters<typeof fetch>[0]): string {
 
 function bodyOf(init: RequestInit | undefined): string {
   const body = init?.body;
-  if (typeof body !== "string") throw new Error("expected a string request body");
+  if (typeof body !== "string")
+    throw new Error("expected a string request body");
   return body;
 }
 
@@ -134,11 +135,12 @@ function request() {
 
 describe("OpenRouter request translation", () => {
   it("forces require_parameters over routing options and translates effort", async () => {
-    const scripted = scriptedFetch(() =>
-      new Response(sse('{"ok":true}'), {
-        status: 200,
-        headers: { "content-type": "text/event-stream" },
-      }),
+    const scripted = scriptedFetch(
+      () =>
+        new Response(sse('{"ok":true}'), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
     );
     const generator = await mustCore(scripted, {
       providerRouting: { order: ["some-lab"], require_parameters: false },
@@ -231,7 +233,7 @@ describe("OpenRouter reasoning backstop", () => {
 // 2026-07-20): OpenRouter wraps the upstream rejection as a generic 400 —
 // the actual cause lives only in error.metadata.raw.
 const CAPTURED_RAW =
-  "{\n  \"error\": {\n    \"message\": \"Invalid schema for response_format 'brief': In context=('properties', 'chunks', 'items'), 'required' is required to be supplied and to be an array including every key in properties. Missing 'riskNotes'.\",\n    \"type\": \"invalid_request_error\",\n    \"param\": \"text.format.schema\",\n    \"code\": \"invalid_json_schema\"\n  }\n}";
+  '{\n  "error": {\n    "message": "Invalid schema for response_format \'brief\': In context=(\'properties\', \'chunks\', \'items\'), \'required\' is required to be supplied and to be an array including every key in properties. Missing \'riskNotes\'.",\n    "type": "invalid_request_error",\n    "param": "text.format.schema",\n    "code": "invalid_json_schema"\n  }\n}';
 
 function wrapped400(raw: string, providerName = "Azure"): Response {
   return new Response(
@@ -244,7 +246,12 @@ function wrapped400(raw: string, providerName = "Azure"): Response {
           provider_name: providerName,
           is_byok: false,
           previous_errors: [
-            { code: 400, message: "Provider returned error", provider_name: "OpenAI", raw },
+            {
+              code: 400,
+              message: "Provider returned error",
+              provider_name: "OpenAI",
+              raw,
+            },
           ],
         },
       },
@@ -263,7 +270,8 @@ async function caughtFrom(generator: {
     },
     (error: unknown) => error,
   );
-  if (!(caught instanceof GeneratorError)) throw new Error("wrong rejection type");
+  if (!(caught instanceof GeneratorError))
+    throw new Error("wrong rejection type");
   return caught;
 }
 
@@ -281,7 +289,9 @@ describe("OpenRouter wrapped-400 metadata surfacing", () => {
     const scripted = scriptedFetch(
       () =>
         new Response(
-          JSON.stringify({ error: { message: "plain bad request", code: 400 } }),
+          JSON.stringify({
+            error: { message: "plain bad request", code: 400 },
+          }),
           { status: 400, headers: { "content-type": "application/json" } },
         ),
     );
@@ -311,7 +321,9 @@ describe("OpenRouter wrapped-400 metadata surfacing", () => {
     // Short repeated words survive every redaction rule (a single long run
     // would be collapsed by redactSecrets before the slice, making the
     // bound assertion vacuous) — the 800 chars must come from the slice.
-    const scripted = scriptedFetch(() => wrapped400("missing key ".repeat(500)));
+    const scripted = scriptedFetch(() =>
+      wrapped400("missing key ".repeat(500)),
+    );
     const generator = await mustCore(scripted);
     const caught = await caughtFrom(generator);
     expect(caught.message).toContain("missing key");
@@ -321,18 +333,20 @@ describe("OpenRouter wrapped-400 metadata surfacing", () => {
 
 describe("OpenRouter served-model verification", () => {
   it("fires the mismatch hook and warns through the REQUEST log", async () => {
-    const scripted = scriptedFetch(() =>
-      new Response(sse('{"ok":true}', "other-lab/shadow-model"), {
-        status: 200,
-        headers: { "content-type": "text/event-stream" },
-      }),
+    const scripted = scriptedFetch(
+      () =>
+        new Response(sse('{"ok":true}', "other-lab/shadow-model"), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
     );
     const assemblyLogs: string[] = [];
     const requestLogs: string[] = [];
     const mismatches: Array<[string, string]> = [];
     const generator = await mustCore(scripted, {
       log: (m) => assemblyLogs.push(m),
-      onModelMismatch: (requested, served) => mismatches.push([requested, served]),
+      onModelMismatch: (requested, served) =>
+        mismatches.push([requested, served]),
     });
     await expect(
       generator.generate({ ...request(), log: (m) => requestLogs.push(m) }),
@@ -349,11 +363,12 @@ describe("OpenRouter served-model verification", () => {
   });
 
   it("falls back to the construction log when the caller gave no request log", async () => {
-    const scripted = scriptedFetch(() =>
-      new Response(sse('{"ok":true}', "other-lab/shadow-model"), {
-        status: 200,
-        headers: { "content-type": "text/event-stream" },
-      }),
+    const scripted = scriptedFetch(
+      () =>
+        new Response(sse('{"ok":true}', "other-lab/shadow-model"), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
     );
     const assemblyLogs: string[] = [];
     const generator = await mustCore(scripted, {
@@ -361,15 +376,18 @@ describe("OpenRouter served-model verification", () => {
     });
     // No req.log: the mismatch warning must still reach SOME log.
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
-    expect(assemblyLogs.join("\n")).toContain("stream reports other-lab/shadow-model");
+    expect(assemblyLogs.join("\n")).toContain(
+      "stream reports other-lab/shadow-model",
+    );
   });
 
   it("stays quiet when the served model matches", async () => {
-    const scripted = scriptedFetch(() =>
-      new Response(sse('{"ok":true}'), {
-        status: 200,
-        headers: { "content-type": "text/event-stream" },
-      }),
+    const scripted = scriptedFetch(
+      () =>
+        new Response(sse('{"ok":true}'), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
     );
     const mismatches: string[] = [];
     const generator = await mustCore(scripted, {
@@ -405,7 +423,9 @@ describe("OpenRouter preflight", () => {
     });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.issues.join("; ")).toContain('"missing/slug" not found');
+    expect(result.error.issues.join("; ")).toContain(
+      '"missing/slug" not found',
+    );
   });
 
   it("refuses boot on a rejected key without echoing it", async () => {
@@ -428,11 +448,12 @@ describe("OpenRouter preflight", () => {
 
   it("sends attribution headers on requests", async () => {
     let headersSeen: Record<string, string> = {};
-    const scripted = scriptedFetch(() =>
-      new Response(sse('{"ok":true}'), {
-        status: 200,
-        headers: { "content-type": "text/event-stream" },
-      }),
+    const scripted = scriptedFetch(
+      () =>
+        new Response(sse('{"ok":true}'), {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        }),
     );
     const wrapped: typeof fetch = async (input, init) => {
       const headers = new Headers(init?.headers);
@@ -521,7 +542,9 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
           queueMicrotask(() => controller.abort());
           return new Promise<Response>((_resolve, reject) => {
             const fail = () =>
-              reject(new DOMException("The operation was aborted.", "AbortError"));
+              reject(
+                new DOMException("The operation was aborted.", "AbortError"),
+              );
             if (init?.signal?.aborted) fail();
             else init?.signal?.addEventListener("abort", fail);
           });

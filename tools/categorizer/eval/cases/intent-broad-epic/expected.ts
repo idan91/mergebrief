@@ -27,8 +27,7 @@ export const properties: EvalProperty[] = [
     id: "intent-epic-url-cited",
     description:
       "the epic link is still cited as the ticket-like source it is (broad ≠ ignored)",
-    check: (brief) =>
-      (brief.intentCheck?.ticketUrls ?? []).includes(EPIC_URL),
+    check: (brief) => (brief.intentCheck?.ticketUrls ?? []).includes(EPIC_URL),
   },
   {
     id: "intent-not-precise",

@@ -27,7 +27,9 @@ const SECRET = "test-webhook-secret";
 const DUMMY_AUTH: AuthDeps = {
   oauthClientId: "test-client-id",
   oauthClientSecret: "test-client-secret",
-  keyProvider: envKeyProvider({ SESSION_KEY_V1: Buffer.alloc(32).toString("base64") }),
+  keyProvider: envKeyProvider({
+    SESSION_KEY_V1: Buffer.alloc(32).toString("base64"),
+  }),
   sessionKeyRef: "SESSION_KEY_V1",
   publicBaseUrl: "http://localhost:3000",
   cookieSecure: false,
@@ -73,7 +75,8 @@ async function deliver(
   options?: DeliverOptions,
 ): Promise<Response> {
   const body = JSON.stringify(payload);
-  const signature = options?.signature ?? (await sign(options?.secret ?? SECRET, body));
+  const signature =
+    options?.signature ?? (await sign(options?.secret ?? SECRET, body));
   return app.request("/api/webhooks/github", {
     method: "POST",
     headers: {
@@ -106,7 +109,10 @@ function pullRequestPayload(input: {
       head: { sha: HEAD_SHA },
       base: { sha: "f95f852bd8fca8fcc58a9a2d6c842781e32a215e" },
       draft: input.draft ?? false,
-      user: input.authorLogin === null ? null : { login: input.authorLogin ?? "author-octocat" },
+      user:
+        input.authorLogin === null
+          ? null
+          : { login: input.authorLogin ?? "author-octocat" },
       ...(input.merged === undefined ? {} : { merged: input.merged }),
     },
   };
@@ -175,7 +181,10 @@ async function seedPullRequest(
   });
 }
 
-async function countRows(harness: PgliteHarness, table: string): Promise<number> {
+async function countRows(
+  harness: PgliteHarness,
+  table: string,
+): Promise<number> {
   const rows = await harness.raw(`select count(*)::int as n from ${table}`);
   const n = rows[0]?.["n"];
   if (typeof n !== "number") {
@@ -187,7 +196,6 @@ async function countRows(harness: PgliteHarness, table: string): Promise<number>
 // ---------------------------------------------------------------------------
 // Suite.
 // ---------------------------------------------------------------------------
-
 
 // Conversation port stub (BRIEF-25): these tests never exercise the
 // conversation read; a hit here is a test bug.
@@ -206,7 +214,13 @@ describe("POST /api/webhooks/github", () => {
 
   beforeEach(async () => {
     harness = await createPgliteHarness();
-    app = createApp({ logger: testLogger(), handle: harness.handle, webhookSecret: SECRET, auth: DUMMY_AUTH, github: unusedConversationPort });
+    app = createApp({
+      logger: testLogger(),
+      handle: harness.handle,
+      webhookSecret: SECRET,
+      auth: DUMMY_AUTH,
+      github: unusedConversationPort,
+    });
   });
 
   afterEach(async () => {
@@ -215,7 +229,11 @@ describe("POST /api/webhooks/github", () => {
 
   it("pull_request opened with a valid signature → 200 + PR row + generation row + debounced job", async () => {
     const before = Date.now();
-    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }));
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
     expect(res.status).toBe(200);
 
     const prs = await harness.raw("select * from pull_request");
@@ -248,7 +266,11 @@ describe("POST /api/webhooks/github", () => {
     const res = await deliver(
       app,
       "pull_request",
-      pullRequestPayload({ action: "opened", draft: true, authorLogin: "author-octocat" }),
+      pullRequestPayload({
+        action: "opened",
+        draft: true,
+        authorLogin: "author-octocat",
+      }),
     );
     expect(res.status).toBe(200);
     const prs = await harness.raw("select * from pull_request");
@@ -264,14 +286,19 @@ describe("POST /api/webhooks/github", () => {
         await deliver(
           app,
           "pull_request",
-          pullRequestPayload({ action: "opened", draft: true, authorLogin: "author-octocat" }),
+          pullRequestPayload({
+            action: "opened",
+            draft: true,
+            authorLogin: "author-octocat",
+          }),
         )
       ).status,
     ).toBe(200);
     // A review carries neither draft nor author — must preserve both, exactly
     // as it preserves base_sha.
     expect(
-      (await deliver(app, "pull_request_review", pullRequestReviewPayload())).status,
+      (await deliver(app, "pull_request_review", pullRequestReviewPayload()))
+        .status,
     ).toBe(200);
     const prs = await harness.raw("select * from pull_request");
     expect(prs).toHaveLength(1);
@@ -286,7 +313,11 @@ describe("POST /api/webhooks/github", () => {
         await deliver(
           app,
           "pull_request",
-          pullRequestPayload({ action: "opened", draft: true, authorLogin: "author-octocat" }),
+          pullRequestPayload({
+            action: "opened",
+            draft: true,
+            authorLogin: "author-octocat",
+          }),
         )
       ).status,
     ).toBe(200);
@@ -299,7 +330,11 @@ describe("POST /api/webhooks/github", () => {
         await deliver(
           app,
           "pull_request",
-          pullRequestPayload({ action: "synchronize", draft: false, authorLogin: null }),
+          pullRequestPayload({
+            action: "synchronize",
+            draft: false,
+            authorLogin: null,
+          }),
         )
       ).status,
     ).toBe(200);
@@ -315,7 +350,11 @@ describe("POST /api/webhooks/github", () => {
         await deliver(
           app,
           "pull_request",
-          pullRequestPayload({ action: "opened", draft: true, authorLogin: "author-octocat" }),
+          pullRequestPayload({
+            action: "opened",
+            draft: true,
+            authorLogin: "author-octocat",
+          }),
         )
       ).status,
     ).toBe(200);
@@ -324,7 +363,11 @@ describe("POST /api/webhooks/github", () => {
         await deliver(
           app,
           "pull_request",
-          pullRequestPayload({ action: "ready_for_review", draft: false, authorLogin: "author-octocat" }),
+          pullRequestPayload({
+            action: "ready_for_review",
+            draft: false,
+            authorLogin: "author-octocat",
+          }),
         )
       ).status,
     ).toBe(200);
@@ -345,12 +388,20 @@ describe("POST /api/webhooks/github", () => {
         await deliver(
           app,
           "pull_request",
-          pullRequestPayload({ action: "opened", draft: false, authorLogin: "author-octocat" }),
+          pullRequestPayload({
+            action: "opened",
+            draft: false,
+            authorLogin: "author-octocat",
+          }),
         )
       ).status,
     ).toBe(200);
-    const genBefore = await harness.raw("select status, attempts from generation");
-    const jobsBefore = await harness.raw("select id, run_at from graphile_worker.jobs");
+    const genBefore = await harness.raw(
+      "select status, attempts from generation",
+    );
+    const jobsBefore = await harness.raw(
+      "select id, run_at from graphile_worker.jobs",
+    );
     expect(genBefore).toHaveLength(1);
     expect(jobsBefore).toHaveLength(1);
 
@@ -359,7 +410,11 @@ describe("POST /api/webhooks/github", () => {
         await deliver(
           app,
           "pull_request",
-          pullRequestPayload({ action: "converted_to_draft", draft: true, authorLogin: "author-octocat" }),
+          pullRequestPayload({
+            action: "converted_to_draft",
+            draft: true,
+            authorLogin: "author-octocat",
+          }),
         )
       ).status,
     ).toBe(200);
@@ -369,8 +424,12 @@ describe("POST /api/webhooks/github", () => {
     expect(prs[0]?.["author_login"]).toBe("author-octocat");
     // Generation projection untouched (status AND attempts), job list identical
     // (same single job, run_at NOT pushed — no debounce replace happened).
-    expect(await harness.raw("select status, attempts from generation")).toEqual(genBefore);
-    expect(await harness.raw("select id, run_at from graphile_worker.jobs")).toEqual(jobsBefore);
+    expect(
+      await harness.raw("select status, attempts from generation"),
+    ).toEqual(genBefore);
+    expect(
+      await harness.raw("select id, run_at from graphile_worker.jobs"),
+    ).toEqual(jobsBefore);
 
     // Redelivery converges (idempotent no-op when already draft).
     expect(
@@ -378,7 +437,11 @@ describe("POST /api/webhooks/github", () => {
         await deliver(
           app,
           "pull_request",
-          pullRequestPayload({ action: "converted_to_draft", draft: true, authorLogin: "author-octocat" }),
+          pullRequestPayload({
+            action: "converted_to_draft",
+            draft: true,
+            authorLogin: "author-octocat",
+          }),
         )
       ).status,
     ).toBe(200);
@@ -390,7 +453,9 @@ describe("POST /api/webhooks/github", () => {
   it("redelivery is idempotent: one PR row, attempts++, one job with a pushed run_at", async () => {
     const payload = pullRequestPayload({ action: "opened" });
     expect((await deliver(app, "pull_request", payload)).status).toBe(200);
-    const firstJobs = await harness.raw("select run_at from graphile_worker.jobs");
+    const firstJobs = await harness.raw(
+      "select run_at from graphile_worker.jobs",
+    );
     const firstRunAt = epochMs(firstJobs[0]?.["run_at"]);
 
     await new Promise((resolve) => setTimeout(resolve, 25));
@@ -408,7 +473,11 @@ describe("POST /api/webhooks/github", () => {
 
   it("pull_request_review submitted on a KNOWN PR → 200 + queued generation (gap-filler)", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
-    const res = await deliver(app, "pull_request_review", pullRequestReviewPayload());
+    const res = await deliver(
+      app,
+      "pull_request_review",
+      pullRequestReviewPayload(),
+    );
     expect(res.status).toBe(200);
     expect(await countRows(harness, "pull_request")).toBe(1);
     expect(await countRows(harness, "generation")).toBe(1);
@@ -416,7 +485,11 @@ describe("POST /api/webhooks/github", () => {
   });
 
   it("pull_request_review on an UNKNOWN PR → 200 no-op (no phantom open row)", async () => {
-    const res = await deliver(app, "pull_request_review", pullRequestReviewPayload());
+    const res = await deliver(
+      app,
+      "pull_request_review",
+      pullRequestReviewPayload(),
+    );
     expect(res.status).toBe(200);
     expect(await countRows(harness, "pull_request")).toBe(0);
     expect(await countRows(harness, "generation")).toBe(0);
@@ -466,13 +539,19 @@ describe("POST /api/webhooks/github", () => {
     await deliver(
       app,
       "pull_request_review",
-      pullRequestReviewPayload({ commitId: newerSha, submittedAt: "2026-07-07T12:05:00Z" }),
+      pullRequestReviewPayload({
+        commitId: newerSha,
+        submittedAt: "2026-07-07T12:05:00Z",
+      }),
     );
     // The older submission arrives late (redelivery / out-of-order).
     const res = await deliver(
       app,
       "pull_request_review",
-      pullRequestReviewPayload({ commitId: olderSha, submittedAt: "2026-07-07T12:00:00Z" }),
+      pullRequestReviewPayload({
+        commitId: olderSha,
+        submittedAt: "2026-07-07T12:00:00Z",
+      }),
     );
     expect(res.status).toBe(200);
     const rows = await harness.raw("select last_submitted_sha from checkpoint");
@@ -492,9 +571,14 @@ describe("POST /api/webhooks/github", () => {
   });
 
   it("invalid signature → 401 and NOTHING written", async () => {
-    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }), {
-      secret: "wrong-secret",
-    });
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+      {
+        secret: "wrong-secret",
+      },
+    );
     expect(res.status).toBe(401);
     expect(await countRows(harness, "pull_request")).toBe(0);
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
@@ -519,7 +603,10 @@ describe("POST /api/webhooks/github", () => {
     const body = JSON.stringify(pullRequestPayload({ action: "opened" }));
     const res = await app.request("/api/webhooks/github", {
       method: "POST",
-      headers: { "x-github-event": "pull_request", "content-type": "application/json" },
+      headers: {
+        "x-github-event": "pull_request",
+        "content-type": "application/json",
+      },
       body,
     });
     expect(res.status).toBe(401);
@@ -527,7 +614,10 @@ describe("POST /api/webhooks/github", () => {
   });
 
   it("signed but malformed handled payload → 400, nothing written", async () => {
-    const res = await deliver(app, "pull_request", { action: "opened", number: 2 });
+    const res = await deliver(app, "pull_request", {
+      action: "opened",
+      number: 2,
+    });
     expect(res.status).toBe(400);
     expect(await countRows(harness, "pull_request")).toBe(0);
   });
@@ -541,7 +631,9 @@ describe("POST /api/webhooks/github", () => {
     );
     expect(res.status).toBe(200);
 
-    const prs = await harness.raw("select state, closed_at, purge_after from pull_request");
+    const prs = await harness.raw(
+      "select state, closed_at, purge_after from pull_request",
+    );
     expect(prs).toHaveLength(1);
     expect(prs[0]?.["state"]).toBe("closed");
     expect(prs[0]?.["closed_at"]).not.toBeNull();
@@ -553,13 +645,31 @@ describe("POST /api/webhooks/github", () => {
     // opened → closed → a late/redelivered synchronize (a generation trigger
     // that writes state:open). The terminal lifecycle must survive.
     expect(
-      (await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }))).status,
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "opened" }),
+        )
+      ).status,
     ).toBe(200);
     expect(
-      (await deliver(app, "pull_request", pullRequestPayload({ action: "closed" }))).status,
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "closed" }),
+        )
+      ).status,
     ).toBe(200);
     expect(
-      (await deliver(app, "pull_request", pullRequestPayload({ action: "synchronize" }))).status,
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "synchronize" }),
+        )
+      ).status,
     ).toBe(200);
 
     const prs = await harness.raw("select state, closed_at from pull_request");
@@ -570,16 +680,36 @@ describe("POST /api/webhooks/github", () => {
 
   it("an explicit reopened event transitions a closed PR back to open", async () => {
     expect(
-      (await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }))).status,
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "opened" }),
+        )
+      ).status,
     ).toBe(200);
     expect(
-      (await deliver(app, "pull_request", pullRequestPayload({ action: "closed" }))).status,
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "closed" }),
+        )
+      ).status,
     ).toBe(200);
     expect(
-      (await deliver(app, "pull_request", pullRequestPayload({ action: "reopened" }))).status,
+      (
+        await deliver(
+          app,
+          "pull_request",
+          pullRequestPayload({ action: "reopened" }),
+        )
+      ).status,
     ).toBe(200);
 
-    const prs = await harness.raw("select state, closed_at, purge_after from pull_request");
+    const prs = await harness.raw(
+      "select state, closed_at, purge_after from pull_request",
+    );
     expect(prs[0]?.["state"]).toBe("open");
     expect(prs[0]?.["closed_at"]).toBeNull();
     expect(prs[0]?.["purge_after"]).toBeNull();
@@ -601,7 +731,11 @@ describe("POST /api/webhooks/github", () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     expect(await countRows(harness, "pull_request")).toBe(1);
 
-    const res = await deliver(app, "installation", installationPayload("deleted"));
+    const res = await deliver(
+      app,
+      "installation",
+      installationPayload("deleted"),
+    );
     expect(res.status).toBe(200);
 
     expect(await countRows(harness, "pull_request")).toBe(0);
@@ -610,11 +744,17 @@ describe("POST /api/webhooks/github", () => {
     );
     expect(audits).toHaveLength(1);
     expect(audits[0]?.["target_type"]).toBe("installation");
-    expect(String(audits[0]?.["installation_id"])).toBe(String(INSTALLATION_ID));
+    expect(String(audits[0]?.["installation_id"])).toBe(
+      String(INSTALLATION_ID),
+    );
   });
 
   it("installation created → 200, no writes", async () => {
-    const res = await deliver(app, "installation", installationPayload("created"));
+    const res = await deliver(
+      app,
+      "installation",
+      installationPayload("created"),
+    );
     expect(res.status).toBe(200);
     expect(await countRows(harness, "pull_request")).toBe(0);
     expect(await countRows(harness, "audit_log")).toBe(0);
@@ -628,7 +768,10 @@ describe("POST /api/webhooks/github", () => {
     const res = await deliver(
       app,
       "installation_repositories",
-      installationRepositoriesPayload({ action: "removed", removedRepoIds: [REPO_ID] }),
+      installationRepositoriesPayload({
+        action: "removed",
+        removedRepoIds: [REPO_ID],
+      }),
     );
     expect(res.status).toBe(200);
 
@@ -636,20 +779,29 @@ describe("POST /api/webhooks/github", () => {
     expect(remaining).toHaveLength(1);
     expect(String(remaining[0]?.["repo_id"])).toBe(String(OTHER_REPO_ID));
     // The repo purge emitted its own delete audit entry.
-    const audits = await harness.raw("select target_type from audit_log where action = 'delete'");
+    const audits = await harness.raw(
+      "select target_type from audit_log where action = 'delete'",
+    );
     expect(audits).toHaveLength(1);
     expect(audits[0]?.["target_type"]).toBe("repo");
   });
 
   it("ignored event (pull_request labeled) → 200, no writes", async () => {
-    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "labeled" }));
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "labeled" }),
+    );
     expect(res.status).toBe(200);
     expect(await countRows(harness, "pull_request")).toBe(0);
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
   });
 
   describe("draft generation policy (BRIEF-64)", () => {
-    function appWithPolicy(policy: { generate: boolean; debounceSeconds: number | null }): ApiApp {
+    function appWithPolicy(policy: {
+      generate: boolean;
+      debounceSeconds: number | null;
+    }): ApiApp {
       return createApp({
         logger: testLogger(),
         handle: harness.handle,
@@ -681,7 +833,11 @@ describe("POST /api/webhooks/github", () => {
 
     it("draft regeneration damps once a brief succeeded and damping is configured", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
-      await deliver(damped, "pull_request", pullRequestPayload({ action: "opened", draft: true }));
+      await deliver(
+        damped,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: true }),
+      );
       await harness.raw("update generation set status = 'succeeded'");
       const before = Date.now();
       await deliver(
@@ -697,7 +853,11 @@ describe("POST /api/webhooks/github", () => {
     it("a draft's FIRST brief uses the normal window even with damping configured", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
       const before = Date.now();
-      await deliver(damped, "pull_request", pullRequestPayload({ action: "opened", draft: true }));
+      await deliver(
+        damped,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: true }),
+      );
       const delta = await jobRunAtDelta(before);
       expect(delta).toBeGreaterThan(55_000);
       expect(delta).toBeLessThan(65_000);
@@ -705,7 +865,11 @@ describe("POST /api/webhooks/github", () => {
 
     it("non-draft regenerations never damp", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
-      await deliver(damped, "pull_request", pullRequestPayload({ action: "opened", draft: false }));
+      await deliver(
+        damped,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: false }),
+      );
       await harness.raw("update generation set status = 'succeeded'");
       const before = Date.now();
       await deliver(
@@ -734,7 +898,11 @@ describe("POST /api/webhooks/github", () => {
 
     it("generate: off — ready_for_review still produces the first generation", async () => {
       const off = appWithPolicy({ generate: false, debounceSeconds: null });
-      await deliver(off, "pull_request", pullRequestPayload({ action: "opened", draft: true }));
+      await deliver(
+        off,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: true }),
+      );
       const before = Date.now();
       const res = await deliver(
         off,
@@ -749,8 +917,16 @@ describe("POST /api/webhooks/github", () => {
 
     it("generate: off — a review on a KNOWN draft PR keeps its checkpoint but skips the enqueue", async () => {
       const off = appWithPolicy({ generate: false, debounceSeconds: null });
-      await deliver(off, "pull_request", pullRequestPayload({ action: "opened", draft: true }));
-      const res = await deliver(off, "pull_request_review", pullRequestReviewPayload());
+      await deliver(
+        off,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: true }),
+      );
+      const res = await deliver(
+        off,
+        "pull_request_review",
+        pullRequestReviewPayload(),
+      );
       expect(res.status).toBe(200);
       expect(await countRows(harness, "checkpoint")).toBe(1);
       expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
@@ -758,8 +934,16 @@ describe("POST /api/webhooks/github", () => {
 
     it("generate: off — reopening a closed draft transitions it back to open (no wedge)", async () => {
       const off = appWithPolicy({ generate: false, debounceSeconds: null });
-      await deliver(off, "pull_request", pullRequestPayload({ action: "opened", draft: true }));
-      await deliver(off, "pull_request", pullRequestPayload({ action: "closed", draft: true }));
+      await deliver(
+        off,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: true }),
+      );
+      await deliver(
+        off,
+        "pull_request",
+        pullRequestPayload({ action: "closed", draft: true }),
+      );
       const res = await deliver(
         off,
         "pull_request",
@@ -776,7 +960,11 @@ describe("POST /api/webhooks/github", () => {
 
     it("ready_for_review replaces a pending draft-damped job with ONE short-window job", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
-      await deliver(damped, "pull_request", pullRequestPayload({ action: "opened", draft: true }));
+      await deliver(
+        damped,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: true }),
+      );
       await harness.raw("update generation set status = 'succeeded'");
       await deliver(
         damped,
@@ -796,7 +984,11 @@ describe("POST /api/webhooks/github", () => {
 
     it("a review on a damped draft regenerates on the NORMAL window (damping is for push storms)", async () => {
       const damped = appWithPolicy({ generate: true, debounceSeconds: 900 });
-      await deliver(damped, "pull_request", pullRequestPayload({ action: "opened", draft: true }));
+      await deliver(
+        damped,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: true }),
+      );
       await harness.raw("update generation set status = 'succeeded'");
       await harness.raw("delete from graphile_worker.jobs");
       const before = Date.now();
@@ -807,9 +999,17 @@ describe("POST /api/webhooks/github", () => {
 
     it("generate: off — a review on a KNOWN non-draft PR still enqueues", async () => {
       const off = appWithPolicy({ generate: false, debounceSeconds: null });
-      await deliver(off, "pull_request", pullRequestPayload({ action: "opened", draft: false }));
+      await deliver(
+        off,
+        "pull_request",
+        pullRequestPayload({ action: "opened", draft: false }),
+      );
       await harness.raw("delete from graphile_worker.jobs");
-      const res = await deliver(off, "pull_request_review", pullRequestReviewPayload());
+      const res = await deliver(
+        off,
+        "pull_request_review",
+        pullRequestReviewPayload(),
+      );
       expect(res.status).toBe(200);
       expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
     });
@@ -841,12 +1041,19 @@ describe("webhook event logging (BRIEF-51, ADR 0034)", () => {
 
   it("invalid signature emits webhook.verify.fail at warn with deliveryId + reqId", async () => {
     const { app, capture } = appWithCapture();
-    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }), {
-      secret: "wrong-secret",
-      deliveryId: "delivery-verify-1",
-    });
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+      {
+        secret: "wrong-secret",
+        deliveryId: "delivery-verify-1",
+      },
+    );
     expect(res.status).toBe(401);
-    const line = capture.lines().find((l) => l["evt"] === "webhook.verify.fail");
+    const line = capture
+      .lines()
+      .find((l) => l["evt"] === "webhook.verify.fail");
     expect(line?.["level"]).toBe("warn");
     expect(line?.["deliveryId"]).toBe("delivery-verify-1");
     expect(typeof line?.["reqId"]).toBe("string");
@@ -856,12 +1063,21 @@ describe("webhook event logging (BRIEF-51, ADR 0034)", () => {
     const { app, capture } = appWithCapture();
     // Poison the write path AFTER app construction: the dispatch's first
     // tenant write hits a missing table and throws — the route's 500 path.
-    await harness.raw("alter table pull_request rename to pull_request_poisoned");
-    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }), {
-      deliveryId: "delivery-dispatch-1",
-    });
+    await harness.raw(
+      "alter table pull_request rename to pull_request_poisoned",
+    );
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+      {
+        deliveryId: "delivery-dispatch-1",
+      },
+    );
     expect(res.status).toBe(500);
-    const line = capture.lines().find((l) => l["evt"] === "webhook.dispatch.fail");
+    const line = capture
+      .lines()
+      .find((l) => l["evt"] === "webhook.dispatch.fail");
     expect(line?.["level"]).toBe("error");
     expect(line?.["deliveryId"]).toBe("delivery-dispatch-1");
     expect(line?.["err"]).toBeDefined();
@@ -871,20 +1087,33 @@ describe("webhook event logging (BRIEF-51, ADR 0034)", () => {
     const { app, capture } = appWithCapture();
     // Pre-auth endpoint: the header is attacker-controlled, so anything
     // outside GitHub's GUID shape (charset/length) must not ride the logs.
-    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }), {
-      secret: "wrong-secret",
-      deliveryId: `evil"}${"x".repeat(300)}`,
-    });
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+      {
+        secret: "wrong-secret",
+        deliveryId: `evil"}${"x".repeat(300)}`,
+      },
+    );
     expect(res.status).toBe(401);
-    const line = capture.lines().find((l) => l["evt"] === "webhook.verify.fail");
+    const line = capture
+      .lines()
+      .find((l) => l["evt"] === "webhook.verify.fail");
     expect(line).toBeDefined();
     expect(line?.["deliveryId"]).toBeUndefined();
-    expect(capture.lines().every((l) => JSON.stringify(l).length < 1000)).toBe(true);
+    expect(capture.lines().every((l) => JSON.stringify(l).length < 1000)).toBe(
+      true,
+    );
   });
 
   it("a handled delivery's api.access line carries the reqId for correlation", async () => {
     const { app, capture } = appWithCapture();
-    const res = await deliver(app, "pull_request", pullRequestPayload({ action: "opened" }));
+    const res = await deliver(
+      app,
+      "pull_request",
+      pullRequestPayload({ action: "opened" }),
+    );
     expect(res.status).toBe(200);
     const line = capture.lines().find((l) => l["evt"] === "api.access");
     expect(line?.["status"]).toBe(200);

@@ -146,11 +146,16 @@ const wireCommentSchema = z.object({
   body: z.string(),
   createdAt: z.string(),
   url: z.string(),
-  pullRequestReview: z.object({ fullDatabaseId: z.string().nullable() }).nullable(),
+  pullRequestReview: z
+    .object({ fullDatabaseId: z.string().nullable() })
+    .nullable(),
   originalCommit: z.object({ oid: z.string() }).nullable(),
 });
 
-const diffSideSchema = z.enum([ReviewCommentSide.LEFT, ReviewCommentSide.RIGHT]);
+const diffSideSchema = z.enum([
+  ReviewCommentSide.LEFT,
+  ReviewCommentSide.RIGHT,
+]);
 
 const wireThreadSchema = z.object({
   isResolved: z.boolean(),
@@ -171,7 +176,10 @@ const wireThreadSchema = z.object({
 // schema — a null list reads as empty, a null element (node deleted or hidden
 // mid-query) is skipped; neither is a whole-fetch failure.
 const threadConnectionSchema = z.object({
-  pageInfo: z.object({ hasNextPage: z.boolean(), endCursor: z.string().nullable() }),
+  pageInfo: z.object({
+    hasNextPage: z.boolean(),
+    endCursor: z.string().nullable(),
+  }),
   nodes: z.array(wireThreadSchema.nullable()).nullable(),
 });
 
@@ -367,7 +375,9 @@ function mapComment(
   };
 }
 
-function mapThread(thread: z.infer<typeof wireThreadSchema>): ConversationThread | undefined {
+function mapThread(
+  thread: z.infer<typeof wireThreadSchema>,
+): ConversationThread | undefined {
   // The ROOT must be nodes[0] BEFORE any filtering: a null/unmappable root
   // with visible replies must skip the whole thread, never promote a reply
   // to thread identity/reply target (codex round 2).
@@ -398,7 +408,9 @@ function mapThread(thread: z.infer<typeof wireThreadSchema>): ConversationThread
     ...(thread.line === null ? {} : { line: thread.line }),
     ...(thread.startLine === null ? {} : { startLine: thread.startLine }),
     ...(thread.diffSide === null ? {} : { side: thread.diffSide }),
-    ...(thread.startDiffSide === null ? {} : { startSide: thread.startDiffSide }),
+    ...(thread.startDiffSide === null
+      ? {}
+      : { startSide: thread.startDiffSide }),
     subjectType: thread.subjectType,
     isResolved: thread.isResolved,
     isOutdated: thread.isOutdated,
@@ -426,7 +438,9 @@ function mapReviews(
       author: mapAuthor(review.author),
       state: review.state,
       body: review.body,
-      ...(review.submittedAt === null ? {} : { submittedAt: review.submittedAt }),
+      ...(review.submittedAt === null
+        ? {}
+        : { submittedAt: review.submittedAt }),
       url: review.url,
     });
   }
@@ -470,7 +484,11 @@ export async function fetchPullRequestConversation(
   const wireThreads = [...(pullRequest.reviewThreads.nodes ?? [])];
   let pageInfo = pullRequest.reviewThreads.pageInfo;
   let pagesFetched = 1;
-  while (pageInfo.hasNextPage && pageInfo.endCursor !== null && pagesFetched < MAX_THREAD_PAGES) {
+  while (
+    pageInfo.hasNextPage &&
+    pageInfo.endCursor !== null &&
+    pagesFetched < MAX_THREAD_PAGES
+  ) {
     let nextPage: unknown;
     try {
       nextPage = await octokit.graphql(THREADS_PAGE_QUERY, {
@@ -569,10 +587,16 @@ export async function createReviewCommentReply(
     });
     // Same precision guard as comments.ts: JSON.parse rounds ints past 2^53.
     if (!Number.isSafeInteger(response.data.id)) {
-      return { ok: false, error: unexpectedResponseError("create review comment reply") };
+      return {
+        ok: false,
+        error: unexpectedResponseError("create review comment reply"),
+      };
     }
     return { ok: true, value: { commentId: response.data.id } };
   } catch (error) {
-    return { ok: false, error: mapRequestError(error, "create review comment reply") };
+    return {
+      ok: false,
+      error: mapRequestError(error, "create review comment reply"),
+    };
   }
 }

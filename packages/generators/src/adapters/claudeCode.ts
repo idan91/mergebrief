@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
-import { runWithSchemaFloor, schemaFeedbackMessage } from "../validation/enforceSchema";
+import {
+  runWithSchemaFloor,
+  schemaFeedbackMessage,
+} from "../validation/enforceSchema";
 import type { GenerateRequest, Generator, Logger } from "../contract/generator";
 import { harnessTimeoutError } from "../harness/redact";
 import {
@@ -88,7 +91,6 @@ function renderCategory(category: string): string {
 
 /** Same default as the SDK adapter — the stamp must name a real model. */
 const DEFAULT_MODEL = "claude-opus-4-8";
-
 
 export interface ClaudeCodeGeneratorOptions {
   /** Binary path or name (PATH-resolved by spawn). */
@@ -185,7 +187,9 @@ export class ClaudeCodeGenerator implements Generator {
           const prompt = feedback
             ? `${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
             : req.user;
-          log(`${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`);
+          log(
+            `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
+          );
           const run = await runHarnessProcess({
             command: this.command,
             argv: [

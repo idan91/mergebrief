@@ -224,9 +224,13 @@ async function main(): Promise<void> {
     console.error(generator.error);
     process.exit(2);
   }
-  const provenance = generator.value.generator.provenance(generator.value.effort);
+  const provenance = generator.value.generator.provenance(
+    generator.value.effort,
+  );
   const key = `${provenance.provider}:${provenance.model}`;
-  const billingKind: BillingKind = SUBSCRIPTION_PROVIDERS.has(provenance.provider)
+  const billingKind: BillingKind = SUBSCRIPTION_PROVIDERS.has(
+    provenance.provider,
+  )
     ? BillingKinds.SUBSCRIPTION
     : BillingKinds.API;
 
@@ -236,7 +240,9 @@ async function main(): Promise<void> {
     process.exit(2);
   }
   if (cases.value.length === 0) {
-    console.error(`no cases under ${CASES_DIR} — corpus lands in BRIEF-59 PR 3`);
+    console.error(
+      `no cases under ${CASES_DIR} — corpus lands in BRIEF-59 PR 3`,
+    );
     process.exit(2);
   }
 
@@ -307,14 +313,18 @@ async function main(): Promise<void> {
   if (args.rebaseline) {
     // Cost is shown on EVERY spend (decision 7) — the first real spend is
     // a rebaseline run. An incomplete rebaseline must not read as done.
-    console.error(renderCostLine({ key, billing: { kind: billingKind }, usage, costUsd }));
+    console.error(
+      renderCostLine({ key, billing: { kind: billingKind }, usage, costUsd }),
+    );
     if (skippedRebaselines.length > 0) {
       console.error(
         `rebaseline INCOMPLETE — skipped (generation failures): ${skippedRebaselines.join(", ")} — rerun before committing`,
       );
       process.exit(2);
     }
-    console.error("rebaseline complete — review and commit the baseline.json diffs");
+    console.error(
+      "rebaseline complete — review and commit the baseline.json diffs",
+    );
     return;
   }
   const report = buildReport({

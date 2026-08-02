@@ -59,7 +59,9 @@ import { createAuthzMiddleware, type AuthzEnv } from "./authz";
 const MAX_BODY_LENGTH = 65_536;
 const MAX_PATH_LENGTH = 1_024;
 
-const shaSchema = z.string().regex(/^[0-9a-f]{40}$/, "commitId must be a 40-hex SHA");
+const shaSchema = z
+  .string()
+  .regex(/^[0-9a-f]{40}$/, "commitId must be a 40-hex SHA");
 const sideSchema = z.union([
   z.literal(ReviewCommentSide.LEFT),
   z.literal(ReviewCommentSide.RIGHT),
@@ -94,10 +96,18 @@ function errorJson(
 }
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
-function splitRepoSlug(fullName: string): { owner: string; repo: string } | undefined {
+function splitRepoSlug(
+  fullName: string,
+): { owner: string; repo: string } | undefined {
   const parts = fullName.split("/");
   const [owner, repo] = parts;
-  if (parts.length !== 2 || owner === undefined || owner === "" || repo === undefined || repo === "") {
+  if (
+    parts.length !== 2 ||
+    owner === undefined ||
+    owner === "" ||
+    repo === undefined ||
+    repo === ""
+  ) {
     return undefined;
   }
   return { owner, repo };
@@ -117,7 +127,10 @@ async function resolveSessionToken(
 }
 
 /** Map a repo-resolve failure (not a write yet) to the sanitized posture. */
-function repoResolveFailure(c: Context<AuthzEnv>, error: GitHubApiError): Response {
+function repoResolveFailure(
+  c: Context<AuthzEnv>,
+  error: GitHubApiError,
+): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
     return errorJson(c, "unauthorized", 401);
   }
@@ -131,7 +144,10 @@ function repoResolveFailure(c: Context<AuthzEnv>, error: GitHubApiError): Respon
 }
 
 /** Map a final create-comment failure to the sanitized response posture. */
-function writeFailure(c: Context<AuthzEnv>, error: InlineReviewCommentError): Response {
+function writeFailure(
+  c: Context<AuthzEnv>,
+  error: InlineReviewCommentError,
+): Response {
   // A 422 means the anchor no longer sits on the pinned commit's diff — the
   // head advanced under the composer. Fail with a distinct 409 so the FE tells
   // the author to reload (the draft survives locally), never a retry-looking
@@ -160,7 +176,11 @@ function writeFailure(c: Context<AuthzEnv>, error: InlineReviewCommentError): Re
  */
 export function inlineCommentRoute(
   deps: AuthRouteDeps,
-  evictConversation: (installationId: InstallationId, repoId: RepoId, prNumber: number) => void,
+  evictConversation: (
+    installationId: InstallationId,
+    repoId: RepoId,
+    prNumber: number,
+  ) => void,
 ): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
@@ -186,7 +206,10 @@ export function inlineCommentRoute(
     if (!parsedPr.success) {
       return errorJson(c, "invalid request", 400);
     }
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(repoId, parsedPr.data);
+    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+      repoId,
+      parsedPr.data,
+    );
     if (pr === undefined) {
       return errorJson(c, "not found", 404);
     }
@@ -209,7 +232,11 @@ export function inlineCommentRoute(
         return false;
       }
       refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
+      const refreshed = await refreshSessionToken(
+        deps,
+        currentSession,
+        c.get("logger"),
+      );
       if (!refreshed.ok) {
         return false;
       }
@@ -222,13 +249,19 @@ export function inlineCommentRoute(
     // the mutating write (gated-route rule): the gate's cached slug may be up
     // to 60s stale, and a rename + name-reuse inside that window would point
     // the comment at the wrong repository.
-    let repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
+    let repoInfo = await fetchRepositoryById(
+      createUserOctokit(accessToken),
+      repoId,
+    );
     if (
       !repoInfo.ok &&
       repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
       (await spendRefresh())
     ) {
-      repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
+      repoInfo = await fetchRepositoryById(
+        createUserOctokit(accessToken),
+        repoId,
+      );
     }
     if (!repoInfo.ok) {
       return repoResolveFailure(c, repoInfo.error);
@@ -246,8 +279,12 @@ export function inlineCommentRoute(
       path: commentInput.path,
       line: commentInput.line,
       side: commentInput.side,
-      ...(commentInput.startLine === undefined ? {} : { startLine: commentInput.startLine }),
-      ...(commentInput.startSide === undefined ? {} : { startSide: commentInput.startSide }),
+      ...(commentInput.startLine === undefined
+        ? {}
+        : { startLine: commentInput.startLine }),
+      ...(commentInput.startSide === undefined
+        ? {}
+        : { startSide: commentInput.startSide }),
       body: commentInput.body,
     };
 
@@ -255,13 +292,19 @@ export function inlineCommentRoute(
     const postWithRefreshOnce = async (): Promise<
       Result<InlineReviewCommentResult, InlineReviewCommentError>
     > => {
-      let result = await createInlineReviewComment(createUserOctokit(accessToken), writeInput);
+      let result = await createInlineReviewComment(
+        createUserOctokit(accessToken),
+        writeInput,
+      );
       if (
         !result.ok &&
         result.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
         (await spendRefresh())
       ) {
-        result = await createInlineReviewComment(createUserOctokit(accessToken), writeInput);
+        result = await createInlineReviewComment(
+          createUserOctokit(accessToken),
+          writeInput,
+        );
       }
       return result;
     };
@@ -301,7 +344,9 @@ export function inlineCommentRoute(
     return c.json(
       {
         commentId: Number(posted.value.commentId),
-        ...(posted.value.reviewId === undefined ? {} : { reviewId: Number(posted.value.reviewId) }),
+        ...(posted.value.reviewId === undefined
+          ? {}
+          : { reviewId: Number(posted.value.reviewId) }),
       },
       201,
       { "cache-control": "no-store" },

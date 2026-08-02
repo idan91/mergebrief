@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildComparisonMarks, comparisonMarksName } from "../../src/diff/comparison";
+import {
+  buildComparisonMarks,
+  comparisonMarksName,
+} from "../../src/diff/comparison";
 import { splitDiffByFile } from "../../src/diff/diff";
 
 const sample = `diff --git a/src/a.ts b/src/a.ts
@@ -16,7 +19,13 @@ index 111..222 100644
 
 describe("buildComparisonMarks", () => {
   it("keys the artifact by (baselineSha, headSha) and carries the baseline label/index", () => {
-    const marks = buildComparisonMarks("head123", "base123", "previous-brief", 1, sample);
+    const marks = buildComparisonMarks(
+      "head123",
+      "base123",
+      "previous-brief",
+      1,
+      sample,
+    );
     expect(marks).toEqual({
       baselineSha: "base123",
       headSha: "head123",
@@ -33,13 +42,25 @@ describe("buildComparisonMarks", () => {
   });
 
   it("supports the checkpoint baseline label with a null baseline index (unbriefed checkpoint)", () => {
-    const marks = buildComparisonMarks("head123", "checkpoint000", "checkpoint", null, sample);
+    const marks = buildComparisonMarks(
+      "head123",
+      "checkpoint000",
+      "checkpoint",
+      null,
+      sample,
+    );
     expect(marks.baselineLabel).toBe("checkpoint");
     expect(marks.baselineIndex).toBeNull();
   });
 
   it("accepts already-split per-file patches, yielding the same marks as the raw diff", () => {
-    const fromString = buildComparisonMarks("head123", "base123", "checkpoint", null, sample);
+    const fromString = buildComparisonMarks(
+      "head123",
+      "base123",
+      "checkpoint",
+      null,
+      sample,
+    );
     const fromFiles = buildComparisonMarks(
       "head123",
       "base123",
@@ -55,11 +76,14 @@ describe("comparisonMarksName", () => {
   const span = { baselineSha: "aaaa11110000", headSha: "bbbb22220000" };
 
   it("keys by baseline label + span, so checkpoint marks never clobber previous-brief marks when a checkpoint equals prevHead", () => {
-    expect(comparisonMarksName("o-r-1", { ...span, baselineLabel: "previous-brief" })).toBe(
-      "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json",
-    );
-    expect(comparisonMarksName("o-r-1", { ...span, baselineLabel: "checkpoint" })).toBe(
-      "o-r-1_checkpoint_aaaa1111-bbbb2222.comparison.json",
-    );
+    expect(
+      comparisonMarksName("o-r-1", {
+        ...span,
+        baselineLabel: "previous-brief",
+      }),
+    ).toBe("o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json");
+    expect(
+      comparisonMarksName("o-r-1", { ...span, baselineLabel: "checkpoint" }),
+    ).toBe("o-r-1_checkpoint_aaaa1111-bbbb2222.comparison.json");
   });
 });

@@ -96,9 +96,7 @@ function resourceNotFoundError(): GitHubApiError {
 // test a regex and is NEVER copied into the returned error (mapGraphqlError
 // still owns sanitization), so no upstream text or token can leak.
 const notADraftShapeSchema = z.object({
-  errors: z
-    .array(z.object({ message: z.string().optional() }))
-    .optional(),
+  errors: z.array(z.object({ message: z.string().optional() })).optional(),
 });
 const NOT_A_DRAFT = /not a draft/i;
 

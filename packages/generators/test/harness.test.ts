@@ -380,7 +380,8 @@ describe("harnessTimeoutError / redactSecrets", () => {
       timeouts: TEST_TIMEOUTS,
       env: {
         SHIM_SCENARIO: "stderr-exit",
-        SHIM_STDERR: "auth failed for sk-ant-api03-supersecretvalue Bearer abc.def.ghi last\n",
+        SHIM_STDERR:
+          "auth failed for sk-ant-api03-supersecretvalue Bearer abc.def.ghi last\n",
         SHIM_EXIT_CODE: "1",
       },
     });
@@ -454,13 +455,17 @@ describe("harnessTimeoutError / redactSecrets", () => {
   });
 
   it("leaves prose after 'Basic' alone while redacting encoded credentials", () => {
-    const out = redactSecrets("Basic usage failed; sent Basic dXNlcjpwYXNz here");
+    const out = redactSecrets(
+      "Basic usage failed; sent Basic dXNlcjpwYXNz here",
+    );
     expect(out).toContain("Basic usage failed");
     expect(out).not.toContain("dXNlcjpwYXNz");
     expect(out).toContain("here");
     // Scheme case-insensitivity (RFC 7235) without loosening the token check:
     // any scheme casing redacts, lowercase prose still survives.
-    const lower = redactSecrets("using basic dXNlcjpwYXNz; basic authentication failed");
+    const lower = redactSecrets(
+      "using basic dXNlcjpwYXNz; basic authentication failed",
+    );
     expect(lower).not.toContain("dXNlcjpwYXNz");
     expect(lower).toContain("basic authentication failed");
     expect(redactSecrets("bAsIc dXNlcjpwYXNz")).not.toContain("dXNlcjpwYXNz");
@@ -500,7 +505,10 @@ describe("harnessTimeoutError / redactSecrets", () => {
         SHIM_EXIT_CODE: "1",
       },
     });
-    const error = harnessTimeoutError("brief", { ...result, timedOut: "inactivity" });
+    const error = harnessTimeoutError("brief", {
+      ...result,
+      timedOut: "inactivity",
+    });
     expect(error.message).not.toContain("hunter2");
     expect(error.message).not.toContain("deadbeefdeadbeef");
     expect(error.message).toContain("postgres://(redacted)@db.internal");

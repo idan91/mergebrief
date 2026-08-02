@@ -54,7 +54,11 @@ function slotOutcomeSchema<P extends string>(path: P) {
  */
 const firedCustomAttributeSchema = z
   .object({
-    name: z.string().min(1).max(ATTRIBUTE_NAME_MAX_CHARS).regex(ATTRIBUTE_NAME_PATTERN),
+    name: z
+      .string()
+      .min(1)
+      .max(ATTRIBUTE_NAME_MAX_CHARS)
+      .regex(ATTRIBUTE_NAME_PATTERN),
     criteria: z.string().min(1).max(CRITERIA_MAX_CHARS),
     implication: z.string().min(1).max(IMPLICATION_MAX_CHARS).optional(),
     paths: z.array(z.string().min(1)).optional(),
@@ -96,8 +100,12 @@ export const repoConfigArtifactSchema = repoConfigProvenanceSchema
       })
       .strict()
       .refine(
-        (policy) => !policy.deEmphasize.some((rule) => FLOOR_SET.has(rule.attribute)),
-        { error: "a floor attribute cannot be de-emphasized", path: ["deEmphasize"] },
+        (policy) =>
+          !policy.deEmphasize.some((rule) => FLOOR_SET.has(rule.attribute)),
+        {
+          error: "a floor attribute cannot be de-emphasized",
+          path: ["deEmphasize"],
+        },
       )
       .nullable(),
   })

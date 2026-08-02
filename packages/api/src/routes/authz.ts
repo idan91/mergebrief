@@ -231,7 +231,9 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       return c.json({ error: "unauthorized" }, 401, NO_STORE);
     }
     const sessionTokenHash = sha256Hex(cookie);
-    const resolved = await sessionAuth(deps.handle).findSession(sessionTokenHash);
+    const resolved = await sessionAuth(deps.handle).findSession(
+      sessionTokenHash,
+    );
     if (resolved === undefined) {
       stampAccess(c, "401", {});
       return c.json({ error: "unauthorized" }, 401, NO_STORE);
@@ -261,7 +263,9 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
  * layer instance (one per `createApp`) — so it is never shared across tests or
  * app instances.
  */
-export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
+export function repoAuthzLayer(
+  deps: AuthRouteDeps,
+): MiddlewareHandler<AuthzEnv> {
   // key `${sessionTokenHash}:${repoId}` → the GitHub-verified `owner/name` +
   // the viewer's push capability, until expiry. Positive only, bounded
   // (never-reused keys can't be allowed to grow unbounded). Storing the
@@ -289,7 +293,11 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     // entirely. The diff route decrypts the session token lazily if it needs
     // it, so no access token is set here. The cached value IS the verified
     // full name from the check that populated the entry (≤60s old).
-    const cacheKey = positiveCacheKey(session.sessionTokenHash, session.installationId, repoId);
+    const cacheKey = positiveCacheKey(
+      session.sessionTokenHash,
+      session.installationId,
+      repoId,
+    );
     const cachedEntry = positiveCache.get(cacheKey);
     if (cachedEntry !== undefined) {
       c.set("repoId", repoId);
@@ -316,15 +324,25 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     // The session/token we carry forward — updated if a refresh rotates them.
     let currentSession = session;
     let accessToken = decrypted.value;
-    let repo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
+    let repo = await fetchRepositoryById(
+      createUserOctokit(accessToken),
+      repoId,
+    );
 
     // 401 from GitHub → the ~8h access token expired. Refresh (serialized) and
     // retry the access check ONCE with the rotated token.
     if (!repo.ok && repo.error.status === 401) {
-      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
+      const refreshed = await refreshSessionToken(
+        deps,
+        currentSession,
+        c.get("logger"),
+      );
       if (!refreshed.ok) {
         // The orchestrator already deleted the session on a hard failure.
-        stampAccess(c, "401", { repoId, reviewerId: currentSession.reviewerId });
+        stampAccess(c, "401", {
+          repoId,
+          reviewerId: currentSession.reviewerId,
+        });
         return c.json({ error: "unauthorized" }, 401, NO_STORE);
       }
       currentSession = refreshed.value.session;
@@ -352,7 +370,10 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
     // route, and log AFTER the handler so status/duration reflect it.
     positiveCache.set(
       cacheKey,
-      { fullName: repo.value.fullName, viewerCanPush: repo.value.viewerCanPush },
+      {
+        fullName: repo.value.fullName,
+        viewerCanPush: repo.value.viewerCanPush,
+      },
       Date.now() + AUTHZ_CACHE_TTL_MS,
     );
     c.set("session", currentSession);
@@ -370,7 +391,9 @@ export function repoAuthzLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv>
  * The per-repo gate: `sessionLayer` ∘ `repoAuthzLayer`. One enforcement point,
  * built once per app instance (so the positive cache is app-scoped).
  */
-export function createAuthzMiddleware(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
+export function createAuthzMiddleware(
+  deps: AuthRouteDeps,
+): MiddlewareHandler<AuthzEnv> {
   return every(sessionLayer(deps), repoAuthzLayer(deps));
 }
 

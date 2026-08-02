@@ -47,7 +47,11 @@ describe("artifactStore.briefs — idempotent content-addressed write (D6)", () 
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const store: ArtifactStore = artifactStore(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
     const first = await store.briefs.write({
       pullRequestId: pr.id,
@@ -69,7 +73,8 @@ describe("artifactStore.briefs — idempotent content-addressed write (D6)", () 
     });
 
     expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) throw new Error("expected both writes to succeed");
+    if (!first.ok || !second.ok)
+      throw new Error("expected both writes to succeed");
     expect(second.value.id).toBe(first.value.id); // same row
     expect(second.value.body).toBe("v2-longer"); // updated in place
     expect(second.value.byteSize).toBe(Buffer.byteLength("v2-longer", "utf8"));
@@ -82,9 +87,17 @@ describe("artifactStore.briefs — idempotent content-addressed write (D6)", () 
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const store: ArtifactStore = artifactStore(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 8, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 8,
+      state: PrState.OPEN,
+    });
 
-    const snapshot = JSON.stringify({ files: [], collisions: [], policy: null });
+    const snapshot = JSON.stringify({
+      files: [],
+      collisions: [],
+      policy: null,
+    });
     const withConfig = await store.briefs.write({
       pullRequestId: pr.id,
       baseSha: "base",
@@ -122,7 +135,11 @@ describe("artifactStore.deltas / diffSnapshots — same D6 write discipline", ()
     const a = forTenant(handle, CTX_A);
     const aStore = artifactStore(handle, CTX_A);
     const bStore = artifactStore(handle, CTX_B);
-    const pr = await a.pullRequests.upsert({ repoId: REPO, prNumber: 9, state: PrState.OPEN });
+    const pr = await a.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 9,
+      state: PrState.OPEN,
+    });
 
     const first = await aStore.deltas.write({
       pullRequestId: pr.id,
@@ -139,7 +156,8 @@ describe("artifactStore.deltas / diffSnapshots — same D6 write discipline", ()
       body: "d2",
     });
     expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) throw new Error("expected both writes to succeed");
+    if (!first.ok || !second.ok)
+      throw new Error("expected both writes to succeed");
     expect(second.value.id).toBe(first.value.id);
     expect(second.value.body).toBe("d2");
     expect(second.value.provider).toBe(PROV.provider);
@@ -161,16 +179,33 @@ describe("artifactStore.deltas / diffSnapshots — same D6 write discipline", ()
     const a = forTenant(handle, CTX_A);
     const aStore = artifactStore(handle, CTX_A);
     const bStore = artifactStore(handle, CTX_B);
-    const pr = await a.pullRequests.upsert({ repoId: REPO, prNumber: 11, state: PrState.OPEN });
+    const pr = await a.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 11,
+      state: PrState.OPEN,
+    });
 
-    const first = await aStore.diffSnapshots.write({ pullRequestId: pr.id, sha: "chk", body: "s1" });
-    const second = await aStore.diffSnapshots.write({ pullRequestId: pr.id, sha: "chk", body: "s2" });
+    const first = await aStore.diffSnapshots.write({
+      pullRequestId: pr.id,
+      sha: "chk",
+      body: "s1",
+    });
+    const second = await aStore.diffSnapshots.write({
+      pullRequestId: pr.id,
+      sha: "chk",
+      body: "s2",
+    });
     expect(first.ok && second.ok).toBe(true);
-    if (!first.ok || !second.ok) throw new Error("expected both writes to succeed");
+    if (!first.ok || !second.ok)
+      throw new Error("expected both writes to succeed");
     expect(second.value.id).toBe(first.value.id);
     expect(second.value.body).toBe("s2");
 
-    const foreign = await bStore.diffSnapshots.write({ pullRequestId: pr.id, sha: "chk2", body: "x" });
+    const foreign = await bStore.diffSnapshots.write({
+      pullRequestId: pr.id,
+      sha: "chk2",
+      body: "x",
+    });
     expect(foreign.ok).toBe(false);
     if (foreign.ok) throw new Error("expected rejection");
     expect(foreign.error.code).toBe(ArtifactErrorCode.PARENT_NOT_IN_TENANT);
@@ -187,7 +222,11 @@ describe("artifactStore — cross-tenant write is rejected without a DB write", 
     const aStore = artifactStore(handle, CTX_A);
     const bStore = artifactStore(handle, CTX_B);
 
-    const bPr = await b.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const bPr = await b.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
     const result = await aStore.briefs.write({
       pullRequestId: bPr.id,
@@ -218,7 +257,11 @@ describe("artifactStore.revisionNarratives — D12 brief anchoring", () => {
     const bStore = artifactStore(handle, CTX_B);
 
     // A brief owned by tenant B.
-    const bPr = await b.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const bPr = await b.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
     const bBrief = await bStore.briefs.write({
       pullRequestId: bPr.id,
       baseSha: "base",
@@ -231,7 +274,11 @@ describe("artifactStore.revisionNarratives — D12 brief anchoring", () => {
     if (!bBrief.ok) throw new Error("brief write failed");
 
     // Tenant A owns its own PR, but points the narrative at B's brief.
-    const aPr = await a.pullRequests.upsert({ repoId: REPO, prNumber: 9, state: PrState.OPEN });
+    const aPr = await a.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 9,
+      state: PrState.OPEN,
+    });
     const result = await aStore.revisionNarratives.write({
       pullRequestId: aPr.id,
       briefId: bBrief.value.id,
@@ -244,14 +291,20 @@ describe("artifactStore.revisionNarratives — D12 brief anchoring", () => {
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
     expect(result.error.code).toBe(ArtifactErrorCode.BRIEF_NOT_ANCHORED);
-    expect(await aStore.revisionNarratives.get(aPr.id, "prev", "head")).toBeUndefined();
+    expect(
+      await aStore.revisionNarratives.get(aPr.id, "prev", "head"),
+    ).toBeUndefined();
   });
 
   it("accepts a narrative anchored to a brief in the same (ctx, PR)", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
     const store = artifactStore(handle, CTX_A);
-    const pr = await a.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await a.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
     const brief = await store.briefs.write({
       pullRequestId: pr.id,
       baseSha: "base",
@@ -282,24 +335,38 @@ describe("artifactStore.comparisonMarks — D13 coordinates-only guard", () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
     const store = artifactStore(handle, CTX_A);
-    const pr = await a.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await a.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
     const result = await store.comparisonMarks.write({
       pullRequestId: pr.id,
-      marks: { ...validMarks("base", "head"), baselineLabel: "previous-brief", baselineIndex: 0 },
+      marks: {
+        ...validMarks("base", "head"),
+        baselineLabel: "previous-brief",
+        baselineIndex: 0,
+      },
     });
 
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("expected rejection");
     expect(result.error.code).toBe(ArtifactErrorCode.INVALID_BODY);
-    expect(await store.comparisonMarks.get(pr.id, "base", "head")).toBeUndefined();
+    expect(
+      await store.comparisonMarks.get(pr.id, "base", "head"),
+    ).toBeUndefined();
   });
 
   it("rejects a per-line content key smuggled into a range", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
     const store = artifactStore(handle, CTX_A);
-    const pr = await a.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await a.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
     const result = await store.comparisonMarks.write({
       pullRequestId: pr.id,
@@ -325,7 +392,11 @@ describe("artifactStore.comparisonMarks — D13 coordinates-only guard", () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
     const store = artifactStore(handle, CTX_A);
-    const pr = await a.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await a.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
     const bodies = [
       { start: 20, end: 3 }, // inverted
@@ -338,7 +409,9 @@ describe("artifactStore.comparisonMarks — D13 coordinates-only guard", () => {
         marks: {
           baselineSha: "base",
           headSha: "head",
-          files: [{ file: "src/a.ts", addedRanges: [range], removedRanges: [] }],
+          files: [
+            { file: "src/a.ts", addedRanges: [range], removedRanges: [] },
+          ],
         },
       });
       expect(result.ok).toBe(false);
@@ -351,7 +424,11 @@ describe("artifactStore.comparisonMarks — D13 coordinates-only guard", () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
     const store = artifactStore(handle, CTX_A);
-    const pr = await a.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await a.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
     const result = await store.comparisonMarks.write({
       pullRequestId: pr.id,

@@ -43,7 +43,6 @@ const VERSION = "v1";
 /** Field delimiter. Safe: base64 never contains ".". */
 const SEPARATOR = ".";
 
-
 // ---------------------------------------------------------------------------
 // Key provider seam + its M1 env implementation.
 // ---------------------------------------------------------------------------

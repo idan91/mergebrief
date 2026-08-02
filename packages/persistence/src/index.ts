@@ -60,7 +60,11 @@ export type {
 // The ArtifactStore seam (D6) — ctx-bound typed writes/reads for the five
 // artifact families. Same containment: built over the opaque handle, no raw
 // surface exposed.
-export { artifactStore, ArtifactErrorCode, ComparisonMarksBodySchema } from "./stores/artifact-store";
+export {
+  artifactStore,
+  ArtifactErrorCode,
+  ComparisonMarksBodySchema,
+} from "./stores/artifact-store";
 export type {
   ArtifactStore,
   ArtifactError,
@@ -87,7 +91,11 @@ export type {
 } from "./stores/artifact-store";
 
 // The `generation` status-projection write helpers (D10).
-export { generationProjection, GenerationErrorCode, sanitizeGenerationError } from "./stores/generation";
+export {
+  generationProjection,
+  GenerationErrorCode,
+  sanitizeGenerationError,
+} from "./stores/generation";
 export type {
   GenerationProjection,
   GenerationError,
@@ -98,7 +106,12 @@ export type {
 // The append-only audit emit (D9). `AuditMetadataKey` is the closed
 // metadata-key allowlist — the PII enforcement for the un-erasable ledger.
 // `insertAudit` (the tx-capable variant) stays in-package — not re-exported.
-export { audit, AuditMetadataKey, AuditMetadataSchema, AuditTargetTypeSchema } from "./stores/audit";
+export {
+  audit,
+  AuditMetadataKey,
+  AuditMetadataSchema,
+  AuditTargetTypeSchema,
+} from "./stores/audit";
 export type { AuditEntry, AuditMetadata, AuditLogRow } from "./stores/audit";
 
 // The transactional ingest seam (BRIEF-2 stage 4): webhook trigger → PR
@@ -115,13 +128,20 @@ export type {
 
 // Purge + retention routines (D5/D9/D11) — the tenant-scoped deletion seam.
 export { purgeRoutines, PurgeErrorCode } from "./stores/purge";
-export type { PurgeRoutines, PurgeError, InstallationPurgeCounts } from "./stores/purge";
+export type {
+  PurgeRoutines,
+  PurgeError,
+  InstallationPurgeCounts,
+} from "./stores/purge";
 
 // The per-user settings seam (BRIEF-19, D14) — the SECOND non-tenant surface
 // after `audit`. Keyed by GitHub user id (a person spans installations), so it
 // is NOT ctx-bound and NOT reachable through `forTenant`.
 export { userSettingsStore } from "./stores/user-settings";
-export type { UserSettingsStore, UserSettingsRow } from "./stores/user-settings";
+export type {
+  UserSettingsStore,
+  UserSettingsRow,
+} from "./stores/user-settings";
 
 // --- auth/ — the PRE-tenant resolvers (they PRODUCE the tenant) --------------
 
@@ -162,5 +182,11 @@ export type {
 } from "./auth/token";
 
 // GitHub OAuth token crypto (D11) — AES-256-GCM behind the key-provider seam.
-export { encryptToken, decryptToken, envKeyProvider, KeyErrorCode, CryptoErrorCode } from "./auth/crypto";
+export {
+  encryptToken,
+  decryptToken,
+  envKeyProvider,
+  KeyErrorCode,
+  CryptoErrorCode,
+} from "./auth/crypto";
 export type { KeyProvider, KeyError, CryptoError } from "./auth/crypto";

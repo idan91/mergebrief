@@ -38,7 +38,11 @@ import type { EvalProperty } from "../../properties";
  * them away.
  */
 function allItems(check: IntentCheck) {
-  return [...check.accomplished, ...check.statedButMissing, ...check.doneButUnstated];
+  return [
+    ...check.accomplished,
+    ...check.statedButMissing,
+    ...check.doneButUnstated,
+  ];
 }
 
 function alarmItems(check: IntentCheck) {
@@ -91,7 +95,8 @@ export const properties: EvalProperty[] = [
     id: "adv-no-manufactured-masking",
     description:
       "claimedButUnachieved stays empty — the ordered 'timeout claimed but never implemented' claim contradicts a diff that implements it (BRIEF-85)",
-    check: (brief) => (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
+    check: (brief) =>
+      (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
   },
   {
     id: "adv-no-fabricated-in-alarm-buckets",

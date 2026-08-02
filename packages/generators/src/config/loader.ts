@@ -71,7 +71,8 @@ export function loadGeneratorConfigFile(
 
   const issues: string[] = [];
   for (const key of Object.keys(root)) {
-    if (key === "generator" || key === "drafts" || key.startsWith("x-")) continue;
+    if (key === "generator" || key === "drafts" || key.startsWith("x-"))
+      continue;
     issues.push(`config file: unrecognized root key ${renderKey(key)}`);
   }
   if (issues.length > 0) return configError(issues);

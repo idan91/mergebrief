@@ -41,9 +41,10 @@ export interface ConfigError {
 }
 
 /** Build the failed Result for a construction path. */
-export function configError(
-  issues: readonly string[],
-): { ok: false; error: ConfigError } {
+export function configError(issues: readonly string[]): {
+  ok: false;
+  error: ConfigError;
+} {
   return {
     ok: false,
     error: {

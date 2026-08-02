@@ -133,7 +133,10 @@
         "vitest/require-mock-type-parameters": "off",
         // Custom assertion helpers that wrap expect() internally (e.g.
         // expectCheckViolation walking a driver error's cause chain).
-        "vitest/expect-expect": ["error", { "assertFunctionNames": ["expect", "expect*"] }]
+        "vitest/expect-expect": [
+          "error",
+          { "assertFunctionNames": ["expect", "expect*"] }
+        ]
       }
     },
     {

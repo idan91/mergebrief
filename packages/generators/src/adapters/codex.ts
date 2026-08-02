@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
-import { runWithSchemaFloor, schemaFeedbackMessage } from "../validation/enforceSchema";
+import {
+  runWithSchemaFloor,
+  schemaFeedbackMessage,
+} from "../validation/enforceSchema";
 import type { GenerateRequest, Generator } from "../contract/generator";
 import { harnessTimeoutError } from "../harness/redact";
 import {
@@ -117,7 +120,9 @@ export class CodexGenerator implements Generator {
           const prompt = feedback
             ? `${req.system}\n\n${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
             : `${req.system}\n\n${req.user}`;
-          log(`${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`);
+          log(
+            `${feedback ? "retrying" : "generating"} ${req.label} via ${this.command}…`,
+          );
           const run = await runHarnessProcess({
             command: this.command,
             argv: [

@@ -53,7 +53,9 @@ async function buildAppendix(): Promise<string> {
   const sections: string[] = [];
   for (const argv of COMMANDS) {
     const label = argv.slice(0, -1).join(" ") || "mergebrief";
-    sections.push(`### \`${label === "mergebrief" ? "mergebrief" : `mergebrief ${label}`}\`\n\n\`\`\`\n${await helpText(argv)}\n\`\`\``);
+    sections.push(
+      `### \`${label === "mergebrief" ? "mergebrief" : `mergebrief ${label}`}\`\n\n\`\`\`\n${await helpText(argv)}\n\`\`\``,
+    );
   }
   return sections.join("\n\n");
 }
@@ -68,11 +70,17 @@ if (beginAt === -1 || endAt === -1 || endAt < beginAt) {
 
 const appendix = await buildAppendix();
 const next =
-  readme.slice(0, beginAt + BEGIN.length) + "\n\n" + appendix + "\n\n" + readme.slice(endAt);
+  readme.slice(0, beginAt + BEGIN.length) +
+  "\n\n" +
+  appendix +
+  "\n\n" +
+  readme.slice(endAt);
 
 if (process.argv.includes("--check")) {
   if (next !== readme) {
-    console.error("README flag appendix is stale — run: pnpm --dir packages/cli docs:appendix");
+    console.error(
+      "README flag appendix is stale — run: pnpm --dir packages/cli docs:appendix",
+    );
     process.exit(1);
   }
   console.info("README flag appendix is current.");

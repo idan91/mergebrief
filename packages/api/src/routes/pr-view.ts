@@ -93,7 +93,8 @@ export function buildPrView(
   viewerCanPush: boolean,
 ): PrView {
   const headSha = latestGeneration?.headSha ?? latestBrief?.headSha ?? null;
-  const briefAvailable = latestBrief !== undefined && latestBrief.headSha === headSha;
+  const briefAvailable =
+    latestBrief !== undefined && latestBrief.headSha === headSha;
   const viewerIsAuthor = deriveViewerIsAuthor(viewerLogin, row.authorLogin);
   return {
     repoId: String(row.repoId),

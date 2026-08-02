@@ -75,7 +75,9 @@ function makeCodexHarness(): GeneratorContractHarness {
         ...(wantsAbort ? { signal: controller.signal } : {}),
         attempts: () => {
           const counter = join(scriptDir, "counter");
-          return existsSync(counter) ? Number(readFileSync(counter, "utf8")) : 0;
+          return existsSync(counter)
+            ? Number(readFileSync(counter, "utf8"))
+            : 0;
         },
         feedbackSeen: () => {
           const stdin = join(scriptDir, "stdin-1.txt");

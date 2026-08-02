@@ -43,10 +43,13 @@ function sse(content: string): Response {
 }
 
 function jsonError(status: number, message: string): Response {
-  return new Response(JSON.stringify({ error: { message, type: "invalid_request_error" } }), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({ error: { message, type: "invalid_request_error" } }),
+    {
+      status,
+      headers: { "content-type": "application/json" },
+    },
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -60,7 +63,8 @@ function urlOf(input: Parameters<typeof fetch>[0]): string {
 
 function bodyOf(init: RequestInit | undefined): string {
   const body = init?.body;
-  if (typeof body !== "string") throw new Error("expected a string request body");
+  if (typeof body !== "string")
+    throw new Error("expected a string request body");
   return body;
 }
 
@@ -85,7 +89,10 @@ interface Recorded {
 /** Build a core whose chat endpoint plays the scripted responses in order. */
 async function coreWith(
   responses: (body: Record<string, unknown>) => Response | Promise<Response>,
-): Promise<{ generator: Awaited<ReturnType<typeof mustCore>>; recorded: Recorded }> {
+): Promise<{
+  generator: Awaited<ReturnType<typeof mustCore>>;
+  recorded: Recorded;
+}> {
   const recorded: Recorded = { bodies: [] };
   const fixtureFetch: typeof fetch = async (input, init) => {
     const models = modelsOk(urlOf(input));
@@ -151,7 +158,10 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
     const { generator, recorded } = await coreWith(() => {
       calls += 1;
       if (calls === 1) {
-        return jsonError(400, "Unsupported parameter: 'reasoning_effort' is not supported with this model.");
+        return jsonError(
+          400,
+          "Unsupported parameter: 'reasoning_effort' is not supported with this model.",
+        );
       }
       return sse('{"ok":true}');
     });
@@ -244,7 +254,11 @@ describe("OpenAiCompatibleCore mid-stream abort", () => {
           if (pulls === 1) {
             push({
               choices: [
-                { index: 0, delta: { content: '{"ok":true}' }, finish_reason: null },
+                {
+                  index: 0,
+                  delta: { content: '{"ok":true}' },
+                  finish_reason: null,
+                },
               ],
             });
             return;
@@ -253,7 +267,9 @@ describe("OpenAiCompatibleCore mid-stream abort", () => {
           // then end cleanly (the swallow case the SDK can produce).
           controller.abort(new Error("mid-stream abort"));
           push({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
-          streamController.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
+          streamController.enqueue(
+            new TextEncoder().encode("data: [DONE]\n\n"),
+          );
           streamController.close();
         },
       });
@@ -295,7 +311,11 @@ describe("OpenAiCompatibleCore truncated streams", () => {
       if (calls === 1) {
         const truncated = `data: ${JSON.stringify({
           choices: [
-            { index: 0, delta: { content: '{"ok":true}' }, finish_reason: null },
+            {
+              index: 0,
+              delta: { content: '{"ok":true}' },
+              finish_reason: null,
+            },
           ],
         })}\n\n`;
         return new Response(truncated, {
@@ -330,7 +350,9 @@ describe("OpenAiCompatibleCore truncated streams", () => {
       const reason = calls === 1 ? "length" : "stop";
       const events = [
         `data: ${JSON.stringify({
-          choices: [{ index: 0, delta: { content: payload }, finish_reason: null }],
+          choices: [
+            { index: 0, delta: { content: payload }, finish_reason: null },
+          ],
         })}\n\n`,
         `data: ${JSON.stringify({
           choices: [{ index: 0, delta: {}, finish_reason: reason }],
@@ -370,7 +392,11 @@ describe("OpenAiCompatibleCore truncated streams", () => {
           const events = [
             `data: ${JSON.stringify({
               choices: [
-                { index: 0, delta: { content: '{"ok":true}' }, finish_reason: null },
+                {
+                  index: 0,
+                  delta: { content: '{"ok":true}' },
+                  finish_reason: null,
+                },
               ],
             })}\n\n`,
             `data: ${JSON.stringify({
@@ -386,7 +412,9 @@ describe("OpenAiCompatibleCore truncated streams", () => {
         return sse('{"ok":true}');
       };
       const generator = await mustCore(fixtureFetch);
-      await expect(generator.generate(request())).resolves.toEqual({ ok: true });
+      await expect(generator.generate(request())).resolves.toEqual({
+        ok: true,
+      });
       expect(calls).toBe(2);
     },
   );
@@ -395,7 +423,10 @@ describe("OpenAiCompatibleCore truncated streams", () => {
 describe("OpenAiCompatibleCore message hygiene", () => {
   it("redacts credential-shaped provider text from classified errors", async () => {
     const { generator } = await coreWith(() =>
-      jsonError(401, "Incorrect API key provided: sk-proj-SENTINELSECRETVALUE0000"),
+      jsonError(
+        401,
+        "Incorrect API key provided: sk-proj-SENTINELSECRETVALUE0000",
+      ),
     );
     const caught = await generator.generate(request()).then(
       () => {
@@ -487,7 +518,9 @@ describe("OpenAiCompatibleCore error classification", () => {
     [429, GeneratorErrorKind.PROVIDER_TRANSIENT],
     [500, GeneratorErrorKind.PROVIDER_TRANSIENT],
   ])("maps status %d to kind %s", async (status, kind) => {
-    const { generator } = await coreWith(() => jsonError(status, `http ${status}`));
+    const { generator } = await coreWith(() =>
+      jsonError(status, `http ${status}`),
+    );
     const caught = await generator.generate(request()).then(
       () => {
         throw new Error("expected rejection");
@@ -521,7 +554,9 @@ describe("openai preflight and registry entry", () => {
       model: "gpt-nope",
       failureDir: tempDir("openai-404-"),
       provider: "openai",
-      fetch: fetchWith(() => jsonError(404, "The model 'gpt-nope' does not exist")),
+      fetch: fetchWith(() =>
+        jsonError(404, "The model 'gpt-nope' does not exist"),
+      ),
     });
     expect(direct.ok).toBe(false);
     if (direct.ok) return;
@@ -583,9 +618,7 @@ describe("OpenAiCompatibleCore strict-mode optionality (BRIEF-77)", () => {
   });
 
   it("accepts a null in a formerly-optional slot as absent", async () => {
-    const { generator } = await coreWith(() =>
-      sse('{"ok":true,"note":null}'),
-    );
+    const { generator } = await coreWith(() => sse('{"ok":true,"note":null}'));
     await expect(
       generator.generate({ ...request(), schema: OptionalSchema }),
     ).resolves.toEqual({ ok: true });

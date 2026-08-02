@@ -104,7 +104,8 @@ export async function loadCases(
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .toSorted((a, b) => a.localeCompare(b));
-  const selected = onlyCase === undefined ? ids : ids.filter((id) => id === onlyCase);
+  const selected =
+    onlyCase === undefined ? ids : ids.filter((id) => id === onlyCase);
   if (onlyCase !== undefined && selected.length === 0) {
     return {
       ok: false,
@@ -122,7 +123,10 @@ export async function loadCases(
   return { ok: true, value: cases };
 }
 
-async function loadOne(id: string, dir: string): Promise<Result<EvalCase, string>> {
+async function loadOne(
+  id: string,
+  dir: string,
+): Promise<Result<EvalCase, string>> {
   const fixturePath = join(dir, "fixture.json");
   if (!existsSync(fixturePath)) {
     return { ok: false, error: `case "${id}": missing fixture.json` };
@@ -162,7 +166,10 @@ async function loadOne(id: string, dir: string): Promise<Result<EvalCase, string
   }
   if (properties.length === 0) {
     // An empty checklist would score as vacuously clean forever.
-    return { ok: false, error: `case "${id}": expected.ts exports no properties` };
+    return {
+      ok: false,
+      error: `case "${id}": expected.ts exports no properties`,
+    };
   }
   const repoContext = toRepoContext(parsed.data.repoContext);
   return {
@@ -187,11 +194,15 @@ function toRepoContext(
 ): RepoContext | undefined {
   if (raw === undefined) return undefined;
   return {
-    ...(raw.instructions !== undefined ? { instructions: raw.instructions } : {}),
+    ...(raw.instructions !== undefined
+      ? { instructions: raw.instructions }
+      : {}),
     customAttributes: raw.customAttributes.map((attr) => ({
       name: attr.name,
       criteria: attr.criteria,
-      ...(attr.implication !== undefined ? { implication: attr.implication } : {}),
+      ...(attr.implication !== undefined
+        ? { implication: attr.implication }
+        : {}),
       ...(attr.paths !== undefined ? { paths: attr.paths } : {}),
     })),
   };

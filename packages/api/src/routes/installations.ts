@@ -18,7 +18,11 @@
 // an atomic, ctx-safe `reviewer_session` UPDATE (persistence `rebindInstallation`),
 // and the switch emits a D9 `auth` audit row (numeric-only metadata).
 import { Hono } from "hono";
-import { GitHubApiErrorCode, listUserInstallations, type UserInstallation } from "github";
+import {
+  GitHubApiErrorCode,
+  listUserInstallations,
+  type UserInstallation,
+} from "github";
 import type { Logger } from "logging";
 import {
   audit,
@@ -33,7 +37,11 @@ import {
 } from "persistence";
 import type { Result } from "types";
 import { z } from "zod";
-import { refreshSessionToken, type AuthRouteDeps, type ViewerPrincipal } from "./auth";
+import {
+  refreshSessionToken,
+  type AuthRouteDeps,
+  type ViewerPrincipal,
+} from "./auth";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 
 /** The switch body — `installationId` as a numeric string or JSON number. */
@@ -101,10 +109,14 @@ export async function resolveAccessibleInstallations(
     result = await listUserInstallations(accessToken);
   }
   if (!result.ok) {
-    const status = result.error.code === GitHubApiErrorCode.UNAUTHORIZED ? 401 : 502;
+    const status =
+      result.error.code === GitHubApiErrorCode.UNAUTHORIZED ? 401 : 502;
     return { ok: false, error: { status } };
   }
-  return { ok: true, value: { installations: result.value, session: currentSession } };
+  return {
+    ok: true,
+    value: { installations: result.value, session: currentSession },
+  };
 }
 
 /**
@@ -120,15 +132,24 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   // GET: the accessible set annotated with current (session) + default (settings).
   app.get("/api/auth/installations", async (c) => {
     const session = c.get("session");
-    const resolved = await resolveAccessibleInstallations(deps, session, c.get("logger"));
+    const resolved = await resolveAccessibleInstallations(
+      deps,
+      session,
+      c.get("logger"),
+    );
     if (!resolved.ok) {
       return c.json(
-        { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },
+        {
+          error:
+            resolved.error.status === 401 ? "unauthorized" : "upstream error",
+        },
         resolved.error.status,
       );
     }
     const { installations, session: currentSession } = resolved.value;
-    const settings = await userSettingsStore(deps.handle).get(currentSession.reviewerId);
+    const settings = await userSettingsStore(deps.handle).get(
+      currentSession.reviewerId,
+    );
     const defaultId = settings?.defaultInstallationId ?? null;
     const currentId = currentSession.installationId;
 
@@ -137,7 +158,8 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
         installationId: String(installation.installationId),
         accountLogin: installation.accountLogin,
         isCurrent: installation.installationId === currentId,
-        isDefault: defaultId !== null && installation.installationId === defaultId,
+        isDefault:
+          defaultId !== null && installation.installationId === defaultId,
       })),
       currentInstallationId: String(currentId),
       defaultInstallationId: defaultId === null ? null : String(defaultId),
@@ -158,10 +180,17 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     }
 
     const session = c.get("session");
-    const resolved = await resolveAccessibleInstallations(deps, session, c.get("logger"));
+    const resolved = await resolveAccessibleInstallations(
+      deps,
+      session,
+      c.get("logger"),
+    );
     if (!resolved.ok) {
       return c.json(
-        { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },
+        {
+          error:
+            resolved.error.status === 401 ? "unauthorized" : "upstream error",
+        },
         resolved.error.status,
       );
     }
@@ -169,7 +198,11 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
     // Validate against the LIVE set — never trust the caller's id. A target the
     // viewer can no longer reach is a 403 + a D9 denial, and NOTHING mutates.
-    if (!installations.some((installation) => installation.installationId === target)) {
+    if (
+      !installations.some(
+        (installation) => installation.installationId === target,
+      )
+    ) {
       await audit(deps.handle, {
         installationId: currentSession.installationId,
         actorType: AuditActorType.REVIEWER,
@@ -192,13 +225,13 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       return c.json({ error: "unauthorized" }, 401);
     }
 
-    let defaultId = (await userSettingsStore(deps.handle).get(currentSession.reviewerId))
-      ?.defaultInstallationId ?? null;
+    let defaultId =
+      (await userSettingsStore(deps.handle).get(currentSession.reviewerId))
+        ?.defaultInstallationId ?? null;
     if (parsed.data.setDefault === true) {
-      const updated = await userSettingsStore(deps.handle).setDefaultInstallation(
-        currentSession.reviewerId,
-        target,
-      );
+      const updated = await userSettingsStore(
+        deps.handle,
+      ).setDefaultInstallation(currentSession.reviewerId, target);
       defaultId = updated.defaultInstallationId;
     }
 

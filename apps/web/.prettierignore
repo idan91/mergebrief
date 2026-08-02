@@ -1,4 +1,0 @@
-dist
-coverage
-src/routeTree.gen.ts
-.playwright-cli

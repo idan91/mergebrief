@@ -35,7 +35,11 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
     const target = {
       pullRequestId: pr.id,
@@ -70,7 +74,11 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
     const target = {
       pullRequestId: pr.id,
       kind: GenerationKind.DELTA,
@@ -93,7 +101,11 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
     const target = {
       pullRequestId: pr.id,
       kind: GenerationKind.BRIEF,
@@ -115,7 +127,11 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const b = forTenant(handle, CTX_B);
     const genA = generationProjection(handle, CTX_A);
-    const bPr = await b.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const bPr = await b.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
     const result = await genA.upsertQueued({
       pullRequestId: bPr.id,
@@ -132,7 +148,11 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
     const target = {
       pullRequestId: pr.id,
       kind: GenerationKind.BRIEF,
@@ -165,7 +185,11 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
     const target = {
       pullRequestId: pr.id,
       kind: GenerationKind.DELTA,
@@ -195,7 +219,11 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
     const stale = {
       pullRequestId: pr.id,
       kind: GenerationKind.BRIEF,
@@ -233,7 +261,11 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
     const stale = {
       pullRequestId: pr.id,
       kind: GenerationKind.BRIEF,
@@ -264,11 +296,30 @@ describe("generationProjection — D10 transitions", () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
-    const briefA = { pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-a", baselineSha: null };
-    const briefB = { pullRequestId: pr.id, kind: GenerationKind.BRIEF, headSha: "head-b", baselineSha: null };
-    const delta = { pullRequestId: pr.id, kind: GenerationKind.DELTA, headSha: "head-b", baselineSha: "head-a" };
+    const briefA = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-a",
+      baselineSha: null,
+    };
+    const briefB = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-b",
+      baselineSha: null,
+    };
+    const delta = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.DELTA,
+      headSha: "head-b",
+      baselineSha: "head-a",
+    };
     const first = await gen.upsertQueued(briefA);
     if (!first.ok) throw new Error("queue failed");
     await gen.upsertQueued(briefB);
@@ -282,14 +333,20 @@ describe("generationProjection — D10 transitions", () => {
     expect(rowA?.createdAt.getTime()).toBe(first.value.createdAt.getTime());
 
     // Another tenant sees nothing.
-    expect(await generationProjection(handle, CTX_B).listBriefsForPullRequest(pr.id)).toEqual([]);
+    expect(
+      await generationProjection(handle, CTX_B).listBriefsForPullRequest(pr.id),
+    ).toEqual([]);
   });
 
   it("a transition on a missing projection row returns notFound", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
-    const pr = await repo.pullRequests.upsert({ repoId: REPO, prNumber: 7, state: PrState.OPEN });
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 7,
+      state: PrState.OPEN,
+    });
 
     const result = await gen.markRunning({
       pullRequestId: pr.id,
@@ -308,10 +365,16 @@ describe("repo-config provenance on the generation row (ADR 0032 #8)", () => {
     // PGlite harness: the ingest enqueue needs the graphile_worker stub.
     const harness = await createPgliteHarness();
     const handle = harness.handle;
-    const ctx: TenantContext = { installationId: brandWith(isInstallationId, 4200n) };
+    const ctx: TenantContext = {
+      installationId: brandWith(isInstallationId, 4200n),
+    };
     const ingest = ingestRoutines(handle, ctx);
     const first = await ingest.triggerGeneration({
-      pullRequest: { repoId: brandWith(isRepoId, 900n), prNumber: 3, state: PrState.OPEN },
+      pullRequest: {
+        repoId: brandWith(isRepoId, 900n),
+        prNumber: 3,
+        state: PrState.OPEN,
+      },
       headSha: "h1",
       debounceSeconds: 0,
     });
@@ -324,14 +387,23 @@ describe("repo-config provenance on the generation row (ADR 0032 #8)", () => {
       baselineSha: null,
     } as const;
 
-    const stamped = await projection.recordRepoConfig(target, '{"files":[],"collisions":[]}');
+    const stamped = await projection.recordRepoConfig(
+      target,
+      '{"files":[],"collisions":[]}',
+    );
     expect(stamped.ok).toBe(true);
-    expect((await projection.get(target))?.repoConfig).toBe('{"files":[],"collisions":[]}');
+    expect((await projection.get(target))?.repoConfig).toBe(
+      '{"files":[],"collisions":[]}',
+    );
 
     // Re-queue via the PRODUCTION ingest path (not the projection helper):
     // stale provenance must not survive into the fresh attempt.
     const second = await ingest.triggerGeneration({
-      pullRequest: { repoId: brandWith(isRepoId, 900n), prNumber: 3, state: PrState.OPEN },
+      pullRequest: {
+        repoId: brandWith(isRepoId, 900n),
+        prNumber: 3,
+        state: PrState.OPEN,
+      },
       headSha: "h1",
       debounceSeconds: 0,
     });

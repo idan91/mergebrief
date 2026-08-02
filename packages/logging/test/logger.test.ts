@@ -131,8 +131,8 @@ describe("createLogger redaction", () => {
     const log = createLogger({ env: {}, destination });
     log.info("request", {
       headers: {
-        "authorization": "Bearer secret-token",
-        "cookie": "session=abc",
+        authorization: "Bearer secret-token",
+        cookie: "session=abc",
         "x-hub-signature-256": "sha256=deadbeef",
         "user-agent": "curl/8",
       },
@@ -373,7 +373,9 @@ describe("createLogger URL scrubbing — msg", () => {
     const log = createLogger({ env: {}, destination });
     log.warn(`pool error — connect failed for ${LEAKY_URL}`);
     const line = destination.lines()[0];
-    expect(line?.["msg"]).toBe("pool error — connect failed for [redacted-url]");
+    expect(line?.["msg"]).toBe(
+      "pool error — connect failed for [redacted-url]",
+    );
     expect(destination.raw()[0]).not.toContain("hunter2");
   });
 

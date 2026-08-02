@@ -4,9 +4,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod/v4";
-import { categorizeDelta, categorizeRevisionNarrative } from "../../src/generation/categorize";
+import {
+  categorizeDelta,
+  categorizeRevisionNarrative,
+} from "../../src/generation/categorize";
 import type { GenerateRequest, Generator } from "generators";
-import { BriefSchema, type Brief, type Effort, type Generation } from "../../src/types";
+import {
+  BriefSchema,
+  type Brief,
+  type Effort,
+  type Generation,
+} from "../../src/types";
 import type * as GithubModule from "../../src/github";
 import type { PrMetadata } from "../../src/github";
 
@@ -213,7 +221,9 @@ class FakeGenerator implements Generator {
     return { provider: "fake", model: "fake-model", effort };
   }
 
-  async generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>> {
+  async generate<S extends z.ZodType>(
+    req: GenerateRequest<S>,
+  ): Promise<z.infer<S>> {
     this.labels.push(req.label);
     this.efforts.push(req.effort);
     this.onCall?.(req.label);
@@ -226,7 +236,8 @@ class FakeGenerator implements Generator {
       "revision narrative": narrativeGen,
     };
     const fixture = fixtures[req.label];
-    if (fixture === undefined) throw new Error(`no fixture for label "${req.label}"`);
+    if (fixture === undefined)
+      throw new Error(`no fixture for label "${req.label}"`);
     return req.schema.parse(fixture);
   }
 }
@@ -249,7 +260,14 @@ describe("categorizeRevisionNarrative", () => {
     brief: {
       ...briefGen,
       intentCheck: storedIntentCheck,
-      pr: { repo: "o/r", number: 1, title: "t", url: URL, sha: HEAD_2, description: "d" },
+      pr: {
+        repo: "o/r",
+        number: 1,
+        title: "t",
+        url: URL,
+        sha: HEAD_2,
+        description: "d",
+      },
       index: 2,
       commitRange: { base: "base000000000000", head: HEAD_2, commitCount: 2 },
       generation: { provider: "fake", model: "fake-model", effort: "medium" },
@@ -257,7 +275,10 @@ describe("categorizeRevisionNarrative", () => {
   };
 
   it("fills CLI-owned metadata and generation provenance", async () => {
-    const narrative = await categorizeRevisionNarrative(input, new FakeGenerator());
+    const narrative = await categorizeRevisionNarrative(
+      input,
+      new FakeGenerator(),
+    );
     expect(narrative.artifactKind).toBe("revisionNarrative");
     expect(narrative.pr.repo).toBe("o/r");
     expect(narrative.prevHeadSha).toBe(HEAD_1);
@@ -281,12 +302,16 @@ describe("categorizeRevisionNarrative", () => {
       (msg) => logs.push(msg),
     );
     expect(narrative.chunks).toHaveLength(1);
-    expect(logs.some((l) => l.includes("unknown brief change-group") && l.includes("g1"))).toBe(
-      true,
-    );
+    expect(
+      logs.some(
+        (l) => l.includes("unknown brief change-group") && l.includes("g1"),
+      ),
+    ).toBe(true);
     // The warning is artifact-bound too (BRIEF-73), not just a log line.
     expect(
-      narrative.generationWarnings?.some((w) => w.includes("unknown brief change-group")),
+      narrative.generationWarnings?.some((w) =>
+        w.includes("unknown brief change-group"),
+      ),
     ).toBe(true);
   });
 
@@ -311,7 +336,9 @@ describe("categorizeRevisionNarrative", () => {
     const warnings = narrative.generationWarnings ?? [];
     expect(
       warnings.some(
-        (w) => w.includes("revision narrative coverage") && w.includes("added 30-33"),
+        (w) =>
+          w.includes("revision narrative coverage") &&
+          w.includes("added 30-33"),
       ),
     ).toBe(true);
     // The forward direction is clean, so only the reverse fires.
@@ -323,7 +350,11 @@ describe("categorizeRevisionNarrative", () => {
       {
         ...input,
         marksFiles: [
-          { file: "src/a.ts", addedRanges: [{ start: 6, end: 7 }], removedRanges: [] },
+          {
+            file: "src/a.ts",
+            addedRanges: [{ start: 6, end: 7 }],
+            removedRanges: [],
+          },
         ],
       },
       new FakeGenerator(),
@@ -354,7 +385,14 @@ describe("effort threading — delta + narrative (BRIEF-75)", () => {
     brief: BriefSchema.parse({
       ...briefGen,
       intentCheck: storedIntentCheck,
-      pr: { repo: "o/r", number: 1, title: "t", url: URL, sha: HEAD_2, description: "d" },
+      pr: {
+        repo: "o/r",
+        number: 1,
+        title: "t",
+        url: URL,
+        sha: HEAD_2,
+        description: "d",
+      },
       index: 2,
       commitRange: { base: "base000000000000", head: HEAD_2, commitCount: 2 },
       generation: { provider: "fake", model: "fake-model", effort: "medium" },
@@ -416,7 +454,9 @@ describe("generateAndWrite comparison artifacts", () => {
     expect(generator.labels).toEqual(["brief"]);
     const files = await readdir(dir);
     expect(files.some((f) => f.endsWith(".comparison.json"))).toBe(false);
-    expect(files.some((f) => f.endsWith(".revision-narrative.json"))).toBe(false);
+    expect(files.some((f) => f.endsWith(".revision-narrative.json"))).toBe(
+      false,
+    );
   });
 
   it("writes previous-brief marks, the .revchanges.json compat alias, and the narrative for a non-first brief", async () => {
@@ -427,17 +467,19 @@ describe("generateAndWrite comparison artifacts", () => {
 
     expect(generator.labels).toEqual(["brief", "brief", "revision narrative"]);
 
-    const marksFile = join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json");
+    const marksFile = join(
+      dir,
+      "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json",
+    );
     const marks = (await readJson(marksFile)) as Record<string, unknown>;
     expect(marks["baselineLabel"]).toBe("previous-brief");
     expect(marks["baselineSha"]).toBe(HEAD_1);
     expect(marks["headSha"]).toBe(HEAD_2);
     expect(marks["baselineIndex"]).toBe(1);
 
-    const compat = (await readJson(join(dir, "o-r-1_2_bbbb2222.revchanges.json"))) as Record<
-      string,
-      unknown
-    >;
+    const compat = (await readJson(
+      join(dir, "o-r-1_2_bbbb2222.revchanges.json"),
+    )) as Record<string, unknown>;
     expect(compat["prevHeadSha"]).toBe(HEAD_1);
     expect(compat["prevIndex"]).toBe(1);
 
@@ -454,7 +496,9 @@ describe("generateAndWrite comparison artifacts", () => {
   // assertion would notice — this one fails.
   it("lands coverage warnings in the written narrative when the model under-covers the span", async () => {
     class UnderCoveringGenerator extends FakeGenerator {
-      override async generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>> {
+      override async generate<S extends z.ZodType>(
+        req: GenerateRequest<S>,
+      ): Promise<z.infer<S>> {
         if (req.label === "revision narrative") {
           return req.schema.parse({ overview: "sparse", chunks: [] });
         }
@@ -484,13 +528,23 @@ describe("generateAndWrite comparison artifacts", () => {
     await firstBrief(generator);
     fetched.meta = makeMeta(HEAD_2);
     const logs: string[] = [];
-    const brief = await generateAndWrite(dir, URL, undefined, generator, (m) => logs.push(m));
+    const brief = await generateAndWrite(dir, URL, undefined, generator, (m) =>
+      logs.push(m),
+    );
 
     expect(brief.index).toBe(2);
     expect(existsSync(join(dir, "o-r-1_2_bbbb2222.brief.json"))).toBe(true);
-    expect(existsSync(join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"))).toBe(true);
-    expect(existsSync(join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"))).toBe(false);
-    expect(logs.some((l) => l.includes("revision narrative generation failed"))).toBe(true);
+    expect(
+      existsSync(
+        join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"),
+      ),
+    ).toBe(true);
+    expect(
+      existsSync(join(dir, "o-r-1_2_bbbb2222.revision-narrative.json")),
+    ).toBe(false);
+    expect(
+      logs.some((l) => l.includes("revision narrative generation failed")),
+    ).toBe(true);
   });
 
   it("writes marks + a 'span too large' stub (no LLM call) for an over-threshold span", async () => {
@@ -501,7 +555,11 @@ describe("generateAndWrite comparison artifacts", () => {
     await generateAndWrite(dir, URL, undefined, generator, () => {});
 
     expect(generator.labels).toEqual(["brief", "brief"]); // no narrative call
-    expect(existsSync(join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"))).toBe(true);
+    expect(
+      existsSync(
+        join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"),
+      ),
+    ).toBe(true);
     const stub = (await readJson(
       join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
     )) as Record<string, unknown>;
@@ -517,7 +575,11 @@ describe("generateAndWrite comparison artifacts", () => {
     await generateAndWrite(dir, URL, undefined, generator, () => {});
 
     expect(generator.labels).toEqual(["brief", "brief"]); // no narrative call
-    expect(existsSync(join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"))).toBe(true);
+    expect(
+      existsSync(
+        join(dir, "o-r-1_previous-brief_aaaa1111-bbbb2222.comparison.json"),
+      ),
+    ).toBe(true);
     const stub = (await readJson(
       join(dir, "o-r-1_2_bbbb2222.revision-narrative.json"),
     )) as Record<string, unknown>;
@@ -539,14 +601,22 @@ describe("generateAndWriteDelta checkpoint marks", () => {
     await rm(dir, { recursive: true, force: true });
   });
 
-  const marksFile = (): string => join(dir, "o-r-1_checkpoint_cccc3333-bbbb2222.comparison.json");
+  const marksFile = (): string =>
+    join(dir, "o-r-1_checkpoint_cccc3333-bbbb2222.comparison.json");
 
   it("writes checkpoint marks BEFORE the delta LLM call", async () => {
     let marksExistedAtLlmCall = false;
     const generator = new FakeGenerator([], (label) => {
       if (label === "delta") marksExistedAtLlmCall = existsSync(marksFile());
     });
-    await generateAndWriteDelta(dir, URL, CHECKPOINT, HEAD_2, generator, () => {});
+    await generateAndWriteDelta(
+      dir,
+      URL,
+      CHECKPOINT,
+      HEAD_2,
+      generator,
+      () => {},
+    );
 
     expect(marksExistedAtLlmCall).toBe(true);
     const marks = (await readJson(marksFile())) as Record<string, unknown>;

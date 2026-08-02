@@ -39,12 +39,17 @@ const REPO_A = 42001;
 const BASE_URL = "https://mb.example";
 const COMMIT = "c".repeat(40);
 
-function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
   const asBigInt = BigInt(value);
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
 }
-const CTX: TenantContext = { installationId: brand(isInstallationId, INSTALLATION_ID) };
+const CTX: TenantContext = {
+  installationId: brand(isInstallationId, INSTALLATION_ID),
+};
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -64,7 +69,12 @@ describe("buildSubmitPayload plumbing", () => {
   });
 
   it("missing commitId in the payload is the ONE client-side shape check (exit 2)", () => {
-    for (const payload of [{}, { commitId: "" }, { commitId: 7 }, "not-an-object"]) {
+    for (const payload of [
+      {},
+      { commitId: "" },
+      { commitId: 7 },
+      "not-an-object",
+    ]) {
       let thrown: unknown;
       try {
         buildSubmitPayload({ payload });
@@ -84,7 +94,9 @@ describe("buildSubmitPayload plumbing", () => {
     expect(
       buildSubmitPayload({ outcome: "approve", body: "lgtm", commit: COMMIT }),
     ).toEqual({ outcome: "approve", commitId: COMMIT, body: "lgtm" });
-    expect(() => buildSubmitPayload({ outcome: "approve" })).toThrowError(/--commit is required/);
+    expect(() => buildSubmitPayload({ outcome: "approve" })).toThrowError(
+      /--commit is required/,
+    );
   });
 
   it("-F and flags are mutually exclusive (defined precedence over silent merge)", () => {
@@ -125,7 +137,9 @@ describe("write commands over the real api app", () => {
           throw new Error("conversation port must not be called in this suite");
         },
         listRepoCollaborators: async () => {
-          throw new Error("collaborators port must not be called in this suite");
+          throw new Error(
+            "collaborators port must not be called in this suite",
+          );
         },
       },
       serverVersion: "test-version",
@@ -137,20 +151,35 @@ describe("write commands over the real api app", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string | URL | Request): Promise<Response> => {
-        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-        if (url.includes("/user/installations/") && url.includes("/repositories")) {
+        const url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        if (
+          url.includes("/user/installations/") &&
+          url.includes("/repositories")
+        ) {
           return jsonResponse({
             total_count: 1,
             repositories: [{ id: REPO_A, full_name: "octo/hello" }],
           });
         }
         if (/\/repositories\/\d+$/.test(url)) {
-          return jsonResponse({ id: REPO_A, full_name: "octo/hello", private: true });
+          return jsonResponse({
+            id: REPO_A,
+            full_name: "octo/hello",
+            private: true,
+          });
         }
         if (/\/repos\/[^/]+\/[^/]+\/pulls\/\d+\/reviews$/.test(url)) {
           return jsonResponse({ id: 987001 });
         }
-        if (/\/pulls\/comments\/\d+\/replies$/.test(url) || /\/comments\/\d+\/replies$/.test(url)) {
+        if (
+          /\/pulls\/comments\/\d+\/replies$/.test(url) ||
+          /\/comments\/\d+\/replies$/.test(url)
+        ) {
           return jsonResponse({ id: 987002 }, 201);
         }
         return jsonResponse({ message: "unexpected endpoint" }, 404);
@@ -167,7 +196,8 @@ describe("write commands over the real api app", () => {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
     const grant = await grantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -224,16 +254,19 @@ describe("write commands over the real api app", () => {
 
   async function login(): Promise<void> {
     const token = await seedToken();
-    const code = await runCli(["auth", "login", "--base-url", BASE_URL, "--json"], {
-      fetch: appFetch,
-      env: {},
-      configDir,
-      cacheDir,
-      stdout: () => undefined,
-      stderr: () => undefined,
-      readStdin: async () => `${token}\n`,
-      gitOriginUrl: () => undefined,
-    });
+    const code = await runCli(
+      ["auth", "login", "--base-url", BASE_URL, "--json"],
+      {
+        fetch: appFetch,
+        env: {},
+        configDir,
+        cacheDir,
+        stdout: () => undefined,
+        stderr: () => undefined,
+        readStdin: async () => `${token}\n`,
+        gitOriginUrl: () => undefined,
+      },
+    );
     expect(code).toBe(ExitCode.OK);
   }
 
@@ -249,14 +282,23 @@ describe("write commands over the real api app", () => {
     const result = await run(["submit", "7", "-F", "-", "--json"], payload);
     expect(result.err).toEqual([]);
     expect(result.code).toBe(ExitCode.OK);
-    expect(JSON.parse(result.out)).toEqual({ reviewId: 987001, commentsDegraded: false });
+    expect(JSON.parse(result.out)).toEqual({
+      reviewId: 987001,
+      commentsDegraded: false,
+    });
   });
 
   it("submit -F <file> reads the payload from disk", async () => {
     await seedPr();
     await login();
-    const path = join(mkdtempSync(join(tmpdir(), "mb-payload-")), "review.json");
-    writeFileSync(path, JSON.stringify({ outcome: "comment", commitId: COMMIT, body: "ok" }));
+    const path = join(
+      mkdtempSync(join(tmpdir(), "mb-payload-")),
+      "review.json",
+    );
+    writeFileSync(
+      path,
+      JSON.stringify({ outcome: "comment", commitId: COMMIT, body: "ok" }),
+    );
     const result = await run(["submit", "7", "-F", path, "--json"]);
     expect(result.code).toBe(ExitCode.OK);
   });
@@ -276,13 +318,19 @@ describe("write commands over the real api app", () => {
       "--json",
     ]);
     expect(result.code).toBe(ExitCode.OK);
-    expect(JSON.parse(result.out)).toEqual({ reviewId: 987001, commentsDegraded: false });
+    expect(JSON.parse(result.out)).toEqual({
+      reviewId: 987001,
+      commentsDegraded: false,
+    });
   });
 
   it("missing commitId is a usage error before any request (exit 2)", async () => {
     await seedPr();
     await login();
-    const result = await run(["submit", "7", "-F", "-", "--json"], '{"outcome":"comment"}');
+    const result = await run(
+      ["submit", "7", "-F", "-", "--json"],
+      '{"outcome":"comment"}',
+    );
     expect(result.code).toBe(ExitCode.USAGE);
     expect(result.out).toBe("");
     expect(result.err[0]).toContain("commitId");
@@ -300,19 +348,22 @@ describe("write commands over the real api app", () => {
       requested.push(input);
       return appFetch(input, init);
     };
-    const code = await runCli(["submit", "1", "--outcome", "comment", "--body", "x", "--json"], {
-      fetch: failingFetch,
-      env: { MERGEBRIEF_TOKEN: token },
-      configDir,
-      cacheDir,
-      stdout: (t) => out.push(t),
-      stderr: (l) => err.push(l),
-      readStdin: async () => {
-        throw new Error("stdin not expected");
+    const code = await runCli(
+      ["submit", "1", "--outcome", "comment", "--body", "x", "--json"],
+      {
+        fetch: failingFetch,
+        env: { MERGEBRIEF_TOKEN: token },
+        configDir,
+        cacheDir,
+        stdout: (t) => out.push(t),
+        stderr: (l) => err.push(l),
+        readStdin: async () => {
+          throw new Error("stdin not expected");
+        },
+        // A repo OUTSIDE the token's allowed set: resolution would exit 4.
+        gitOriginUrl: () => "git@github.com:nobody/nothing.git",
       },
-      // A repo OUTSIDE the token's allowed set: resolution would exit 4.
-      gitOriginUrl: () => "git@github.com:nobody/nothing.git",
-    });
+    );
     expect(code).toBe(ExitCode.USAGE);
     expect(out.join("")).toBe("");
     expect(err).toHaveLength(1);
@@ -331,7 +382,17 @@ describe("write commands over the real api app", () => {
       return appFetch(input, init);
     };
     const code = await runCli(
-      ["submit", "abc", "--outcome", "comment", "--body", "x", "--commit", "c0ffee", "--json"],
+      [
+        "submit",
+        "abc",
+        "--outcome",
+        "comment",
+        "--body",
+        "x",
+        "--commit",
+        "c0ffee",
+        "--json",
+      ],
       {
         fetch: failingFetch,
         env: { MERGEBRIEF_TOKEN: token },

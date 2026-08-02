@@ -31,7 +31,10 @@ describe("markPullRequestReadyForReview", () => {
       .fn()
       .mockResolvedValueOnce(nodeIdResponse(true))
       .mockResolvedValueOnce(mutationResponse());
-    const result = await markPullRequestReadyForReview(mockGraphqlOctokit(graphql), INPUT);
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.alreadyReady).toBe(false);
@@ -47,7 +50,10 @@ describe("markPullRequestReadyForReview", () => {
 
   it("converges without mutating when the PR is already out of draft", async () => {
     const graphql = vi.fn().mockResolvedValueOnce(nodeIdResponse(false));
-    const result = await markPullRequestReadyForReview(mockGraphqlOctokit(graphql), INPUT);
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.alreadyReady).toBe(true);
@@ -60,9 +66,14 @@ describe("markPullRequestReadyForReview", () => {
       .fn()
       .mockResolvedValueOnce(nodeIdResponse(true))
       .mockRejectedValueOnce(
-        graphqlResponseError([{ type: "UNPROCESSABLE", message: "Pull request is not a draft" }]),
+        graphqlResponseError([
+          { type: "UNPROCESSABLE", message: "Pull request is not a draft" },
+        ]),
       );
-    const result = await markPullRequestReadyForReview(mockGraphqlOctokit(graphql), INPUT);
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.alreadyReady).toBe(true);
@@ -71,7 +82,10 @@ describe("markPullRequestReadyForReview", () => {
 
   it("not-found when the repository field is null", async () => {
     const graphql = vi.fn().mockResolvedValueOnce({ repository: null });
-    const result = await markPullRequestReadyForReview(mockGraphqlOctokit(graphql), INPUT);
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
@@ -79,8 +93,13 @@ describe("markPullRequestReadyForReview", () => {
   });
 
   it("not-found when the pullRequest field is null", async () => {
-    const graphql = vi.fn().mockResolvedValueOnce({ repository: { pullRequest: null } });
-    const result = await markPullRequestReadyForReview(mockGraphqlOctokit(graphql), INPUT);
+    const graphql = vi
+      .fn()
+      .mockResolvedValueOnce({ repository: { pullRequest: null } });
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
@@ -89,8 +108,13 @@ describe("markPullRequestReadyForReview", () => {
   it("maps a resolve-time GraphQL error (forbidden) to a sanitized failure, no mutation", async () => {
     const graphql = vi
       .fn()
-      .mockRejectedValueOnce(graphqlResponseError([{ type: "FORBIDDEN", message: "no access" }]));
-    const result = await markPullRequestReadyForReview(mockGraphqlOctokit(graphql), INPUT);
+      .mockRejectedValueOnce(
+        graphqlResponseError([{ type: "FORBIDDEN", message: "no access" }]),
+      );
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
@@ -106,7 +130,11 @@ describe("markPullRequestReadyForReview", () => {
       .mockResolvedValueOnce(nodeIdResponse(true))
       .mockRejectedValueOnce(
         new RequestError("Server Error", 502, {
-          request: { method: "POST", url: "https://api.github.com/graphql", headers: {} },
+          request: {
+            method: "POST",
+            url: "https://api.github.com/graphql",
+            headers: {},
+          },
           response: {
             status: 502,
             url: "https://api.github.com/graphql",
@@ -115,15 +143,23 @@ describe("markPullRequestReadyForReview", () => {
           },
         }),
       );
-    const result = await markPullRequestReadyForReview(mockGraphqlOctokit(graphql), INPUT);
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
   });
 
   it("flags an ill-shaped resolve response as an unexpected-shape failure", async () => {
-    const graphql = vi.fn().mockResolvedValueOnce({ repository: { pullRequest: { id: 123 } } });
-    const result = await markPullRequestReadyForReview(mockGraphqlOctokit(graphql), INPUT);
+    const graphql = vi
+      .fn()
+      .mockResolvedValueOnce({ repository: { pullRequest: { id: 123 } } });
+    const result = await markPullRequestReadyForReview(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);

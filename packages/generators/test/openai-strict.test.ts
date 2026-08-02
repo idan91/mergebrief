@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { enumPreservingJsonSchema } from "../src/validation/jsonSchema";
-import { stripInjectedNulls, withAllRequired } from "../src/validation/openaiStrict";
+import {
+  stripInjectedNulls,
+  withAllRequired,
+} from "../src/validation/openaiStrict";
 
 // Mirrors the shapes that broke on Azure via OpenRouter (BRIEF-77): an
 // optional enum-bearing array prop nested in an array of objects
@@ -21,10 +24,7 @@ function wire(schema: z.ZodType): Record<string, unknown> {
   return enumPreservingJsonSchema(schema);
 }
 
-function objectAt(
-  node: unknown,
-  ...path: string[]
-): Record<string, unknown> {
+function objectAt(node: unknown, ...path: string[]): Record<string, unknown> {
   let current: unknown = node;
   for (const key of path) {
     expect(current).toBeTypeOf("object");
@@ -59,7 +59,10 @@ describe("withAllRequired", () => {
     expect(branches[1]).toEqual({ type: "null" });
     // The enum survives inside the non-null branch — the closed vocabulary
     // must stay server-enforced, not be widened away.
-    expect(objectAt(branches[0], "items")["enum"]).toEqual(["race", "contract"]);
+    expect(objectAt(branches[0], "items")["enum"]).toEqual([
+      "race",
+      "contract",
+    ]);
   });
 
   it("leaves required and already-nullable properties untouched", () => {
@@ -68,8 +71,17 @@ describe("withAllRequired", () => {
     expect(objectAt(out, "properties", "line")).toEqual(
       objectAt(original, "properties", "line"),
     );
-    expect(objectAt(out, "properties", "chunks", "items", "properties", "title")).toEqual(
-      objectAt(original, "properties", "chunks", "items", "properties", "title"),
+    expect(
+      objectAt(out, "properties", "chunks", "items", "properties", "title"),
+    ).toEqual(
+      objectAt(
+        original,
+        "properties",
+        "chunks",
+        "items",
+        "properties",
+        "title",
+      ),
     );
   });
 
@@ -115,7 +127,10 @@ describe("stripInjectedNulls", () => {
 
   it("keeps nulls the original schema genuinely allows", () => {
     const value = { chunks: [], line: null };
-    expect(stripInjectedNulls(schema, value)).toEqual({ chunks: [], line: null });
+    expect(stripInjectedNulls(schema, value)).toEqual({
+      chunks: [],
+      line: null,
+    });
   });
 
   it("round-trips through the domain Zod schema", () => {
@@ -136,7 +151,10 @@ describe("stripInjectedNulls", () => {
       a: { note: "x", attr: null },
       b: { note: "y", attr: "kept" },
     });
-    expect(stripped).toEqual({ a: { note: "x" }, b: { note: "y", attr: "kept" } });
+    expect(stripped).toEqual({
+      a: { note: "x" },
+      b: { note: "y", attr: "kept" },
+    });
   });
 
   it("passes non-object payloads through untouched", () => {

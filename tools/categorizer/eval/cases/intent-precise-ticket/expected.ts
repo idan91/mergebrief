@@ -46,7 +46,9 @@ export const properties: EvalProperty[] = [
       "the one ask the diff does not deliver (docs-site usage example) lands in statedButMissing",
     check: (brief) =>
       (brief.intentCheck?.statedButMissing ?? []).some((item) =>
-        /docs|documentation|usage example/i.test(`${item.intent} ${item.quote}`),
+        /docs|documentation|usage example/i.test(
+          `${item.intent} ${item.quote}`,
+        ),
       ),
   },
   {

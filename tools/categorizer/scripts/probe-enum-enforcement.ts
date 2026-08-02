@@ -74,13 +74,18 @@ function reportRun(label: string, report: RunReport): void {
   console.info(`ProbeSchema.safeParse passes: ${report.parses}`);
   console.info(
     `out-of-vocab tokens present: ${
-      report.outOfVocabPresent.length ? report.outOfVocabPresent.join(", ") : "(none)"
+      report.outOfVocabPresent.length
+        ? report.outOfVocabPresent.join(", ")
+        : "(none)"
     }`,
   );
   console.info(`raw output:\n${report.raw}`);
 }
 
-function analyze(content: Anthropic.ContentBlock[], stopReason: string | null): RunReport {
+function analyze(
+  content: Anthropic.ContentBlock[],
+  stopReason: string | null,
+): RunReport {
   const raw = textContent(content);
   let parses = false;
   try {
@@ -115,7 +120,10 @@ async function main(): Promise<number> {
     messages: [{ role: "user", content: USER }],
     output_config: { format: zodOutputFormat(ProbeSchema) },
   });
-  reportRun("CONTROL (zodOutputFormat, enum stripped)", analyze(controlResp.content, controlResp.stop_reason));
+  reportRun(
+    "CONTROL (zodOutputFormat, enum stripped)",
+    analyze(controlResp.content, controlResp.stop_reason),
+  );
 
   // Treatment run — hand-built enum-preserving format. A 400 here is gate 1.
   let treatmentReport: RunReport;
@@ -133,9 +141,13 @@ async function main(): Promise<number> {
     console.error(error instanceof Error ? error.message : String(error));
     return 2;
   }
-  reportRun("TREATMENT (enumPreservingOutputFormat, enum kept)", treatmentReport);
+  reportRun(
+    "TREATMENT (enumPreservingOutputFormat, enum kept)",
+    treatmentReport,
+  );
 
-  const confirmed = treatmentReport.outOfVocabPresent.length === 0 && treatmentReport.parses;
+  const confirmed =
+    treatmentReport.outOfVocabPresent.length === 0 && treatmentReport.parses;
   console.info(
     `\nVERDICT: ${
       confirmed

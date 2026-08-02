@@ -23,7 +23,11 @@ import {
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FetchPullRequestConversationInput, GitHubApiError, PrConversation } from "github";
+import type {
+  FetchPullRequestConversationInput,
+  GitHubApiError,
+  PrConversation,
+} from "github";
 import type { Result } from "types";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
@@ -86,7 +90,10 @@ const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -98,7 +105,10 @@ function repoStatus(status: number): Response {
 }
 
 /** One walk page holding a single thread whose root is `rootId`. */
-function walkGraphql(isResolved: boolean, rootId = String(ROOT_COMMENT_ID)): Response {
+function walkGraphql(
+  isResolved: boolean,
+  rootId = String(ROOT_COMMENT_ID),
+): Response {
   return jsonResponse({
     data: {
       repository: {
@@ -119,19 +129,28 @@ function walkGraphql(isResolved: boolean, rootId = String(ROOT_COMMENT_ID)): Res
   });
 }
 function resolveMutationGraphql(): Response {
-  return jsonResponse({ data: { resolveReviewThread: { thread: { isResolved: true } } } });
+  return jsonResponse({
+    data: { resolveReviewThread: { thread: { isResolved: true } } },
+  });
 }
 function unresolveMutationGraphql(): Response {
-  return jsonResponse({ data: { unresolveReviewThread: { thread: { isResolved: false } } } });
+  return jsonResponse({
+    data: { unresolveReviewThread: { thread: { isResolved: false } } },
+  });
 }
 function forbiddenGraphql(): Response {
   return jsonResponse({
     data: null,
-    errors: [{ type: "FORBIDDEN", message: "Resource not accessible by integration" }],
+    errors: [
+      { type: "FORBIDDEN", message: "Resource not accessible by integration" },
+    ],
   });
 }
 function graphqlError(): Response {
-  return jsonResponse({ data: null, errors: [{ type: "INTERNAL", message: "boom" }] });
+  return jsonResponse({
+    data: null,
+    errors: [{ type: "INTERNAL", message: "boom" }],
+  });
 }
 function graphqlUnauthorized(): Response {
   return jsonResponse({ message: "Bad credentials" }, 401);
@@ -160,30 +179,49 @@ interface StubCounts {
 }
 
 function stubGitHub(cfg: StubConfig): StubCounts {
-  const counts: StubCounts = { repositories: 0, graphql: 0, token: 0, graphqlBodies: [] };
-  const fetchFn = vi.fn(async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-    if (url.includes("/login/oauth/access_token")) {
-      const i = counts.token++;
-      return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
-    }
-    if (url.includes("/repositories/")) {
-      const i = counts.repositories++;
-      return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
-    }
-    if (url.endsWith("/graphql")) {
-      const i = counts.graphql++;
-      const raw = init?.body ?? (input instanceof Request ? await input.text() : undefined);
-      if (typeof raw === "string") {
-        const parsed: unknown = JSON.parse(raw);
-        if (typeof parsed === "object" && parsed !== null) {
-          counts.graphqlBodies.push({ ...parsed });
-        }
+  const counts: StubCounts = {
+    repositories: 0,
+    graphql: 0,
+    token: 0,
+    graphqlBodies: [],
+  };
+  const fetchFn = vi.fn(
+    async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (url.includes("/login/oauth/access_token")) {
+        const i = counts.token++;
+        return cfg.token
+          ? cfg.token(i)
+          : jsonResponse({ error: "unexpected_token" }, 500);
       }
-      return cfg.graphql ? cfg.graphql(i) : jsonResponse({ data: null }, 500);
-    }
-    return jsonResponse({ message: "unexpected endpoint" }, 404);
-  });
+      if (url.includes("/repositories/")) {
+        const i = counts.repositories++;
+        return cfg.repositories ? cfg.repositories(i) : repoStatus(404);
+      }
+      if (url.endsWith("/graphql")) {
+        const i = counts.graphql++;
+        const raw =
+          init?.body ??
+          (input instanceof Request ? await input.text() : undefined);
+        if (typeof raw === "string") {
+          const parsed: unknown = JSON.parse(raw);
+          if (typeof parsed === "object" && parsed !== null) {
+            counts.graphqlBodies.push({ ...parsed });
+          }
+        }
+        return cfg.graphql ? cfg.graphql(i) : jsonResponse({ data: null }, 500);
+      }
+      return jsonResponse({ message: "unexpected endpoint" }, 404);
+    },
+  );
   vi.stubGlobal("fetch", fetchFn);
   return counts;
 }
@@ -192,11 +230,15 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // Seeding + helpers.
 // ---------------------------------------------------------------------------
 
-async function seedSession(handle: AppDatabase, kp: KeyProvider): Promise<{ cookie: string }> {
+async function seedSession(
+  handle: AppDatabase,
+  kp: KeyProvider,
+): Promise<{ cookie: string }> {
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -222,7 +264,10 @@ async function seedPr(handle: AppDatabase): Promise<void> {
   });
 }
 
-async function auditCount(harness: PgliteHarness, action: string): Promise<number> {
+async function auditCount(
+  harness: PgliteHarness,
+  action: string,
+): Promise<number> {
   const rows = await harness.raw(
     `select count(*)::int as n from audit_log where action = '${action}'`,
   );
@@ -234,7 +279,11 @@ async function auditCount(harness: PgliteHarness, action: string): Promise<numbe
 const RESOLVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/resolve`;
 const UNRESOLVE_PATH = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/comments/${ROOT_COMMENT_ID}/unresolve`;
 
-async function post(app: ApiApp, cookie: string | undefined, path: string): Promise<Response> {
+async function post(
+  app: ApiApp,
+  cookie: string | undefined,
+  path: string,
+): Promise<Response> {
   return await app.request(path, {
     method: "POST",
     headers: cookie === undefined ? {} : { cookie: `rs_session=${cookie}` },
@@ -351,7 +400,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
       repositories: (i) =>
         i === 0
           ? repoOk() // the gate's access check
-          : jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
+          : jsonResponse({
+              id: REPO_ID,
+              full_name: "octo/renamed",
+              private: true,
+            }),
       graphql: (i) => (i === 0 ? walkGraphql(false) : resolveMutationGraphql()),
     });
     await seedPr(harness.handle);
@@ -360,7 +413,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ resolved: true, alreadyInTargetState: false });
+    expect(await res.json()).toEqual({
+      resolved: true,
+      alreadyInTargetState: false,
+    });
     // Gate check + the route's own fresh re-resolve.
     expect(counts.repositories).toBe(2);
     // The walk must target the FRESHLY resolved owner/name, never the gate's
@@ -369,7 +425,9 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
       variables: { owner: "octo", repo: "renamed", prNumber: PR_NUMBER },
     });
     // The mutation carries the thread node id, never the PR number.
-    expect(counts.graphqlBodies[1]).toMatchObject({ variables: { threadId: THREAD_NODE_ID } });
+    expect(counts.graphqlBodies[1]).toMatchObject({
+      variables: { threadId: THREAD_NODE_ID },
+    });
     expect(await auditCount(harness, "resolve-thread")).toBe(1);
     expect(await auditCount(harness, "unresolve-thread")).toBe(0);
   });
@@ -377,14 +435,18 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
   it("200 unresolve happy path with its own audit action", async () => {
     stubGitHub({
       repositories: () => repoOk(),
-      graphql: (i) => (i === 0 ? walkGraphql(true) : unresolveMutationGraphql()),
+      graphql: (i) =>
+        i === 0 ? walkGraphql(true) : unresolveMutationGraphql(),
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
 
     const res = await post(app, cookie, UNRESOLVE_PATH);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ resolved: false, alreadyInTargetState: false });
+    expect(await res.json()).toEqual({
+      resolved: false,
+      alreadyInTargetState: false,
+    });
     expect(await auditCount(harness, "unresolve-thread")).toBe(1);
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });
@@ -402,18 +464,25 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
     // Prime the conversation cache first: convergence means SOMEONE ELSE
     // flipped the thread inside the TTL, so the cached conversation is stale
     // and the eviction must run on this path too.
-    expect((await app.request(conversationPath, { headers: cookieHeader })).status).toBe(200);
+    expect(
+      (await app.request(conversationPath, { headers: cookieHeader })).status,
+    ).toBe(200);
     expect(conversationCalls()).toBe(1);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ resolved: true, alreadyInTargetState: true });
+    expect(await res.json()).toEqual({
+      resolved: true,
+      alreadyInTargetState: true,
+    });
     // Walk only — the read-time state short-circuits the mutation.
     expect(counts.graphql).toBe(1);
     expect(await auditCount(harness, "resolve-thread")).toBe(1);
 
     // Converged is still a success: the next read must fetch fresh.
-    expect((await app.request(conversationPath, { headers: cookieHeader })).status).toBe(200);
+    expect(
+      (await app.request(conversationPath, { headers: cookieHeader })).status,
+    ).toBe(200);
     expect(conversationCalls()).toBe(2);
   });
 
@@ -427,7 +496,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
 
     const res = await post(app, cookie, UNRESOLVE_PATH);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ resolved: false, alreadyInTargetState: true });
+    expect(await res.json()).toEqual({
+      resolved: false,
+      alreadyInTargetState: true,
+    });
     expect(counts.graphql).toBe(1);
     expect(await auditCount(harness, "unresolve-thread")).toBe(1);
   });
@@ -455,7 +527,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
 
     const res = await post(captureApp, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ resolved: true, alreadyInTargetState: false });
+    expect(await res.json()).toEqual({
+      resolved: true,
+      alreadyInTargetState: false,
+    });
     const line = capture.lines().find((l) => l["evt"] === "audit.fail");
     expect(line?.["level"]).toBe("error");
     expect(line?.["commentId"]).toBe(String(ROOT_COMMENT_ID));
@@ -526,7 +601,11 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
       repositories: () => repoOk(),
       token: () => tokenSuccess(),
       graphql: (i) =>
-        i === 0 ? graphqlUnauthorized() : i === 1 ? walkGraphql(false) : resolveMutationGraphql(),
+        i === 0
+          ? graphqlUnauthorized()
+          : i === 1
+            ? walkGraphql(false)
+            : resolveMutationGraphql(),
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -563,15 +642,21 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
 
     // Prime the conversation cache, then verify a second read is served from it.
     const cookieHeader = { cookie: `rs_session=${cookie}` };
-    expect((await app.request(conversationPath, { headers: cookieHeader })).status).toBe(200);
-    expect((await app.request(conversationPath, { headers: cookieHeader })).status).toBe(200);
+    expect(
+      (await app.request(conversationPath, { headers: cookieHeader })).status,
+    ).toBe(200);
+    expect(
+      (await app.request(conversationPath, { headers: cookieHeader })).status,
+    ).toBe(200);
     expect(conversationCalls()).toBe(1);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(200);
 
     // The write evicted the entry: the next read fetches fresh.
-    expect((await app.request(conversationPath, { headers: cookieHeader })).status).toBe(200);
+    expect(
+      (await app.request(conversationPath, { headers: cookieHeader })).status,
+    ).toBe(200);
     expect(conversationCalls()).toBe(2);
   });
 
@@ -585,14 +670,18 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
     const conversationPath = `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/conversation`;
     const cookieHeader = { cookie: `rs_session=${cookie}` };
 
-    expect((await app.request(conversationPath, { headers: cookieHeader })).status).toBe(200);
+    expect(
+      (await app.request(conversationPath, { headers: cookieHeader })).status,
+    ).toBe(200);
     expect(conversationCalls()).toBe(1);
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(502);
 
     // Entry still cached — no refetch.
-    expect((await app.request(conversationPath, { headers: cookieHeader })).status).toBe(200);
+    expect(
+      (await app.request(conversationPath, { headers: cookieHeader })).status,
+    ).toBe(200);
     expect(conversationCalls()).toBe(1);
   });
 });

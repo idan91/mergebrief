@@ -70,7 +70,10 @@ export function preflightBaselineKeys(
   expectedKey: string,
 ): Result<void, string> {
   for (const evalCase of cases) {
-    const loaded = loadBaseline(join(evalCase.dir, "baseline.json"), expectedKey);
+    const loaded = loadBaseline(
+      join(evalCase.dir, "baseline.json"),
+      expectedKey,
+    );
     if (!loaded.ok) return loaded;
   }
   return { ok: true, value: undefined };

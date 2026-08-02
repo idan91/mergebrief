@@ -81,7 +81,10 @@ const CTX = { installationId: brandInstallation(BigInt(INSTALLATION_ID)) };
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 function repoOk(): Response {
@@ -130,11 +133,21 @@ function stubGitHub(cfg: StubConfig): StubCounts {
     commentUrls: [],
   };
   const fetchFn = vi.fn(
-    async (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    async (
+      input: string | URL | Request,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
       if (url.includes("/login/oauth/access_token")) {
         const i = counts.token++;
-        return cfg.token ? cfg.token(i) : jsonResponse({ error: "unexpected_token" }, 500);
+        return cfg.token
+          ? cfg.token(i)
+          : jsonResponse({ error: "unexpected_token" }, 500);
       }
       if (url.includes("/repositories/")) {
         const i = counts.repositories++;
@@ -143,12 +156,17 @@ function stubGitHub(cfg: StubConfig): StubCounts {
       if (/\/pulls\/\d+\/comments$/.test(url)) {
         const i = counts.comments++;
         counts.commentUrls.push(url);
-        const raw = init?.body ?? (input instanceof Request ? await input.text() : undefined);
+        const raw =
+          init?.body ??
+          (input instanceof Request ? await input.text() : undefined);
         if (typeof raw === "string") {
           const parsed: unknown = JSON.parse(raw);
-          if (typeof parsed === "object" && parsed !== null) counts.commentBodies.push({ ...parsed });
+          if (typeof parsed === "object" && parsed !== null)
+            counts.commentBodies.push({ ...parsed });
         }
-        return cfg.comments ? cfg.comments(i) : jsonResponse({ message: "unexpected" }, 500);
+        return cfg.comments
+          ? cfg.comments(i)
+          : jsonResponse({ message: "unexpected" }, 500);
       }
       return jsonResponse({ message: "unexpected endpoint" }, 404);
     },
@@ -161,11 +179,15 @@ function stubGitHub(cfg: StubConfig): StubCounts {
 // Seeding.
 // ---------------------------------------------------------------------------
 
-async function seedSession(handle: AppDatabase, kp: KeyProvider): Promise<{ cookie: string }> {
+async function seedSession(
+  handle: AppDatabase,
+  kp: KeyProvider,
+): Promise<{ cookie: string }> {
   const cookie = randomBytes(32).toString("base64url");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -303,7 +325,13 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       // Gate caches octo/hello; the route's own fresh resolve renames it —
       // the comment POST must target the fresh owner/name, never the stale slug.
       repositories: (i) =>
-        i === 0 ? repoOk() : jsonResponse({ id: REPO_ID, full_name: "octo/renamed", private: true }),
+        i === 0
+          ? repoOk()
+          : jsonResponse({
+              id: REPO_ID,
+              full_name: "octo/renamed",
+              private: true,
+            }),
       comments: () => commentOk(),
     });
     await seedPr(harness.handle);
@@ -366,7 +394,8 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   it("201 with reviewId omitted when GitHub assigns no wrapping review id", async () => {
     stubGitHub({
       repositories: () => repoOk(),
-      comments: () => jsonResponse({ id: 999, pull_request_review_id: null }, 201),
+      comments: () =>
+        jsonResponse({ id: 999, pull_request_review_id: null }, 201),
     });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
@@ -376,7 +405,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   });
 
   it("409 stale anchor when GitHub 422s (head moved under the pinned commit)", async () => {
-    stubGitHub({ repositories: () => repoOk(), comments: () => commentStatus(422) });
+    stubGitHub({
+      repositories: () => repoOk(),
+      comments: () => commentStatus(422),
+    });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
     const res = await post(app, cookie, VALID_BODY);
@@ -386,7 +418,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
   });
 
   it("502 on a hard GitHub failure; no audit row", async () => {
-    stubGitHub({ repositories: () => repoOk(), comments: () => commentStatus(500) });
+    stubGitHub({
+      repositories: () => repoOk(),
+      comments: () => commentStatus(500),
+    });
     await seedPr(harness.handle);
     const { cookie } = await seedSession(harness.handle, kp);
     const res = await post(app, cookie, VALID_BODY);
@@ -499,7 +534,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, { ...VALID_BODY, commitId: "deadbeef" });
+      const res = await post(app, cookie, {
+        ...VALID_BODY,
+        commitId: "deadbeef",
+      });
       expect(res.status).toBe(400);
     });
     it("rejects an empty body", async () => {
@@ -513,14 +551,21 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, { ...VALID_BODY, startLine: 12, startSide: "RIGHT" });
+      const res = await post(app, cookie, {
+        ...VALID_BODY,
+        startLine: 12,
+        startSide: "RIGHT",
+      });
       expect(res.status).toBe(400);
     });
     it("rejects a body over the 65,536 cap", async () => {
       stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, { ...VALID_BODY, body: "x".repeat(65_537) });
+      const res = await post(app, cookie, {
+        ...VALID_BODY,
+        body: "x".repeat(65_537),
+      });
       expect(res.status).toBe(400);
     });
     it("rejects a path over the 1,024 cap", async () => {
@@ -529,14 +574,20 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments", () => {
       stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, { ...VALID_BODY, path: "x".repeat(1_025) });
+      const res = await post(app, cookie, {
+        ...VALID_BODY,
+        path: "x".repeat(1_025),
+      });
       expect(res.status).toBe(400);
     });
     it("rejects startSide without startLine (would 422 upstream as a fake stale anchor)", async () => {
       stubGitHub({ repositories: () => repoOk() });
       await seedPr(harness.handle);
       const { cookie } = await seedSession(harness.handle, kp);
-      const res = await post(app, cookie, { ...VALID_BODY, startSide: "RIGHT" });
+      const res = await post(app, cookie, {
+        ...VALID_BODY,
+        startSide: "RIGHT",
+      });
       expect(res.status).toBe(400);
     });
     it("rejects a malformed JSON body", async () => {

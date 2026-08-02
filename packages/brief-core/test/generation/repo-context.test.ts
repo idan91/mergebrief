@@ -15,8 +15,12 @@ import {
 
 describe("REPO_INSTRUCTION_CLASSES", () => {
   it("carries both lists, non-empty, prose-shaped", () => {
-    expect(REPO_INSTRUCTION_CLASSES.MAY_FOLLOW.length).toBeGreaterThanOrEqual(5);
-    expect(REPO_INSTRUCTION_CLASSES.MUST_IGNORE.length).toBeGreaterThanOrEqual(6);
+    expect(REPO_INSTRUCTION_CLASSES.MAY_FOLLOW.length).toBeGreaterThanOrEqual(
+      5,
+    );
+    expect(REPO_INSTRUCTION_CLASSES.MUST_IGNORE.length).toBeGreaterThanOrEqual(
+      6,
+    );
     for (const line of [
       ...REPO_INSTRUCTION_CLASSES.MAY_FOLLOW,
       ...REPO_INSTRUCTION_CLASSES.MUST_IGNORE,
@@ -99,7 +103,9 @@ describe("renderRepoInstructions", () => {
     // 4 bytes per char: exactly at the cap passes, one more char rejects.
     const fourByte = "𝄞";
     const atCap = fourByte.repeat(INSTRUCTIONS_INJECTION_BUDGET_BYTES / 4);
-    expect(renderRepoInstructions({ ...base, content: atCap }).block).toBeDefined();
+    expect(
+      renderRepoInstructions({ ...base, content: atCap }).block,
+    ).toBeDefined();
     expect(
       renderRepoInstructions({ ...base, content: atCap + fourByte }).block,
     ).toBeUndefined();
@@ -126,7 +132,9 @@ describe("renderCustomAttributes", () => {
     expect(block.endsWith("</repo_custom_attributes>")).toBe(true);
     expect(block).toContain("- `touches-billing`: modifies invoicing");
     expect(block).toContain("implication: requires a finance-aware reviewer");
-    expect(block).toContain("paths: `services/billing/**`, `packages/ledger/**`");
+    expect(block).toContain(
+      "paths: `services/billing/**`, `packages/ledger/**`",
+    );
     expect(block).toContain("- `raw-sql`: adds or edits a raw SQL string");
   });
 
@@ -191,7 +199,10 @@ describe("sanitizeCustomAttributes (name floor — enum/prompt injection guard)"
       { name: "x".repeat(51), criteria: "c" },
       { name: "ok2-name", criteria: "c" },
     ]);
-    expect(attributes.map((a) => a.name)).toEqual(["touches-billing", "ok2-name"]);
+    expect(attributes.map((a) => a.name)).toEqual([
+      "touches-billing",
+      "ok2-name",
+    ]);
     expect(issues).toHaveLength(5);
     for (const issue of issues) {
       // The invalid name itself is never echoed (it is untrusted text).
@@ -220,9 +231,15 @@ describe("matchesGlob — pathological patterns stay linear (no ReDoS)", () => {
   });
 
   it("mid-string globstar still matches across segments", () => {
-    expect(matchesGlob("src/**/fixtures/*.json", "src/a/b/fixtures/x.json")).toBe(true);
-    expect(matchesGlob("src/**/fixtures/*.json", "src/fixtures/x.json")).toBe(true);
-    expect(matchesGlob("src/**/fixtures/*.json", "src/a/other/x.json")).toBe(false);
+    expect(
+      matchesGlob("src/**/fixtures/*.json", "src/a/b/fixtures/x.json"),
+    ).toBe(true);
+    expect(matchesGlob("src/**/fixtures/*.json", "src/fixtures/x.json")).toBe(
+      true,
+    );
+    expect(matchesGlob("src/**/fixtures/*.json", "src/a/other/x.json")).toBe(
+      false,
+    );
   });
 });
 

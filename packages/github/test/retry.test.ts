@@ -8,10 +8,13 @@ import { DO_NOT_RETRY_STATUSES, retryOptions } from "../src/auth/retry";
 import { fetchDiff } from "../src/operations/pull-request";
 
 function countingFetch(status: number) {
-  return vi.fn(async () => new Response(JSON.stringify({ message: "nope" }), {
-    status,
-    headers: { "content-type": "application/json" },
-  }));
+  return vi.fn(
+    async () =>
+      new Response(JSON.stringify({ message: "nope" }), {
+        status,
+        headers: { "content-type": "application/json" },
+      }),
+  );
 }
 
 /** Same construction shape as `createUserOctokit`, with a countable fetch. */
@@ -52,6 +55,8 @@ describe("406 retry tuning", () => {
     // Supplying `doNotRetry` REPLACES the plugin's defaults ([400, 401, 403,
     // 404, 410, 422, 451] — verified against @octokit/plugin-retry's source);
     // dropping any would silently re-enable retries on a permanent status.
-    expect(DO_NOT_RETRY_STATUSES).toEqual([400, 401, 403, 404, 406, 410, 422, 451]);
+    expect(DO_NOT_RETRY_STATUSES).toEqual([
+      400, 401, 403, 404, 406, 410, 422, 451,
+    ]);
   });
 });

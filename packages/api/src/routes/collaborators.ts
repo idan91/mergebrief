@@ -29,15 +29,27 @@ function cacheKey(installationId: InstallationId, repoId: RepoId): string {
 }
 
 /** Sanitized error response with the gated-route `no-store` posture. */
-function errorJson(c: Context<AuthzEnv>, message: string, status: 404 | 502): Response {
+function errorJson(
+  c: Context<AuthzEnv>,
+  message: string,
+  status: 404 | 502,
+): Response {
   return c.json({ error: message }, status, { "cache-control": "no-store" });
 }
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
-function splitRepoSlug(fullName: string): { owner: string; repo: string } | undefined {
+function splitRepoSlug(
+  fullName: string,
+): { owner: string; repo: string } | undefined {
   const parts = fullName.split("/");
   const [owner, repo] = parts;
-  if (parts.length !== 2 || owner === undefined || owner === "" || repo === undefined || repo === "") {
+  if (
+    parts.length !== 2 ||
+    owner === undefined ||
+    owner === "" ||
+    repo === undefined ||
+    repo === ""
+  ) {
     return undefined;
   }
   return { owner, repo };
@@ -48,7 +60,9 @@ export interface CollaboratorsRouteDeps extends AuthRouteDeps {
 }
 
 /** Mount the collaborators read behind its own per-repo gate instance. */
-export function collaboratorsRoute(deps: CollaboratorsRouteDeps): Hono<AuthzEnv> {
+export function collaboratorsRoute(
+  deps: CollaboratorsRouteDeps,
+): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
   // Serialized response bodies, keyed installation:repo (shared across every
@@ -79,10 +93,13 @@ export function collaboratorsRoute(deps: CollaboratorsRouteDeps): Hono<AuthzEnv>
     if (target === undefined) {
       return errorJson(c, "not found", 404);
     }
-    const fetched = await deps.github.listRepoCollaborators(ctx.installationId, {
-      owner: target.owner,
-      repo: target.repo,
-    });
+    const fetched = await deps.github.listRepoCollaborators(
+      ctx.installationId,
+      {
+        owner: target.owner,
+        repo: target.repo,
+      },
+    );
     if (!fetched.ok) {
       // 404-collapse posture identical to the other reads; everything else is
       // an honest upstream error.

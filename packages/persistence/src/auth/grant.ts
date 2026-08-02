@@ -69,7 +69,10 @@ export interface GrantAuthError {
   readonly message: string;
 }
 
-function fail(code: GrantAuthErrorCode, message: string): Result<never, GrantAuthError> {
+function fail(
+  code: GrantAuthErrorCode,
+  message: string,
+): Result<never, GrantAuthError> {
   return { ok: false, error: { code, message } };
 }
 
@@ -216,7 +219,9 @@ export async function deleteOrphanedGrants(
   }
   // De-dup (several referents may share one grant) + stable order so
   // concurrent callers acquire overlapping locks in the same sequence.
-  const unique = [...new Set(grantIds)].toSorted((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+  const unique = [...new Set(grantIds)].toSorted((a, b) =>
+    a < b ? -1 : a > b ? 1 : 0,
+  );
   // Lock the candidate grants FIRST: two transactions deleting DIFFERENT
   // referents of one grant would otherwise each see the other's still-visible
   // row under READ COMMITTED (write skew) and both keep the grant — orphaning

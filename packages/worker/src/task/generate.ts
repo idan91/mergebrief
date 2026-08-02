@@ -41,7 +41,12 @@ import {
   type PrMetadata,
   type RevisionNarrativeSkipped,
 } from "brief-core";
-import { GeneratorError, GeneratorErrorKind, type Effort, type Generator } from "generators";
+import {
+  GeneratorError,
+  GeneratorErrorKind,
+  type Effort,
+  type Generator,
+} from "generators";
 import {
   artifactStore,
   audit,
@@ -359,7 +364,11 @@ export function createGenerateTask(
           ...(maxAttempts === undefined ? {} : { maxAttempts }),
         },
       );
-      if (attempt !== undefined && maxAttempts !== undefined && attempt >= maxAttempts) {
+      if (
+        attempt !== undefined &&
+        maxAttempts !== undefined &&
+        attempt >= maxAttempts
+      ) {
         // THE worker alert (ADR 0034 #5): graphile is out of retries for
         // this job — minted here because graphile has no distinct event.
         jobLog.error("generate: retries exhausted", {
@@ -396,7 +405,11 @@ function noopLogger(): Logger {
  * provider degraded. Message-only posture: fields carry classification,
  * never the raw error object.
  */
-function emitProviderError(log: Logger, deps: GenerateTaskDeps, thrown: unknown): void {
+function emitProviderError(
+  log: Logger,
+  deps: GenerateTaskDeps,
+  thrown: unknown,
+): void {
   // A permanent classification wraps the original throw — read through it.
   const error =
     thrown instanceof PermanentJobError && thrown.cause !== undefined
@@ -442,7 +455,9 @@ async function runGeneration(
   const pr = await repo.pullRequests.getById(pullRequestId);
   if (pr === undefined) {
     // Row purged/never existed: nothing addressable, nothing to mark.
-    log.warn(`generate: pull_request ${pullRequestId} not in tenant — dropping job`);
+    log.warn(
+      `generate: pull_request ${pullRequestId} not in tenant — dropping job`,
+    );
     return;
   }
   if (pr.state === PrState.CLOSED || pr.state === PrState.MERGED) {
@@ -462,15 +477,23 @@ async function runGeneration(
 
   await projection.markRunning(target, GenerationPhase.FETCHING);
 
-  const source = await github.forPullRequest(ctx.installationId, pr.repoSlug, pr.prNumber);
+  const source = await github.forPullRequest(
+    ctx.installationId,
+    pr.repoSlug,
+    pr.prNumber,
+  );
   const info = unwrapGitHub(await source.fetchPullRequest());
   if (info.headSha !== headSha) {
     // The PR moved between enqueue and drain — the newer push's job (same
     // job_key, replaced) will generate the new head; this one is obsolete.
-    throw new SupersededSignal(`head advanced ${headSha.slice(0, 8)} → ${info.headSha.slice(0, 8)}`);
+    throw new SupersededSignal(
+      `head advanced ${headSha.slice(0, 8)} → ${info.headSha.slice(0, 8)}`,
+    );
   }
   if (info.state !== "open") {
-    throw new SupersededSignal(`pull_request ${pr.prNumber} is ${info.state} on GitHub`);
+    throw new SupersededSignal(
+      `pull_request ${pr.prNumber} is ${info.state} on GitHub`,
+    );
   }
 
   // Cooperative cancellation from here on: the watch's signal is threaded
@@ -506,234 +529,259 @@ async function runGeneration(
   return;
 
   async function generateArtifacts(): Promise<void> {
-  watch.startPolling();
-  const files = unwrapGitHub(await source.fetchPullRequestFiles());
-  const diff = unwrapGitHub(await source.fetchDiff());
+    watch.startPolling();
+    const files = unwrapGitHub(await source.fetchPullRequestFiles());
+    const diff = unwrapGitHub(await source.fetchDiff());
 
-  const locator: PrLocator = locatorFor(prRow);
-  const meta: PrMetadata = {
-    title: info.title,
-    body: info.body,
-    url: info.htmlUrl,
-    sha: info.headSha,
-    baseSha: info.baseSha,
-    commitCount: info.commitCount,
-    files,
-  };
-  const coreLog: CoreLog = (message) => log.info(message);
-  const links = await fetchLinkedContext(meta.body, coreLog);
-
-  // ---- The shared Brief (skip-if-exists: retries never re-spend) ----------
-  const priorBriefs = await store.briefs.listForPullRequest(pullRequestId);
-  const existing = priorBriefs.find(
-    (row) => row.baseSha === info.baseSha && row.headSha === headSha,
-  );
-  // Previous briefed head = highest-index brief whose head differs (the
-  // DB-mode equivalent of the CLI manifest lookup).
-  const prevBrief = priorBriefs.toReversed().find((row) => row.headSha !== headSha);
-
-  let briefRef: { id: BriefRowId; headIndex: number };
-  let generatedBrief: Brief | undefined;
-  // Repo-config phase (ADR 0032 #4): three default-branch reads, fresh per
-  // generation, validated pure-side. NEVER fails the job — a fetch failure
-  // degrades to no-config with a loud `fetch-failed` outcome on the record.
-  // ALSO acquired on a skip drain of a DRAFT PR: the entry gate below needs
-  // `settings.entryCommentOnDrafts`, and fail-open's undefined settings
-  // correctly default the gate CLOSED (no entry churn on drafts).
-  const repoConfig =
-    existing === undefined || info.draft
-      ? await acquireRepoConfig(source, log)
-      : undefined;
-  if (repoConfig !== undefined && existing === undefined) {
-    // Per-file outcomes land on the GENERATION record NOW — before the model
-    // call — so a failed or superseded run still shows its config outcomes
-    // (plan PR 4; codex round 2). GENERATION runs only: a draft SKIP drain
-    // acquires config for the entry gate, but recording it would overwrite
-    // the record with config that never shaped the stored brief (Fable r1).
-    await projection.recordRepoConfig(target, buildRepoConfigProvenance(repoConfig));
-  }
-  // Entry-comment draft gate (ADR 0020 #4 as amended / ADR 0032 #13): the
-  // branded Entry comment stays OFF draft PRs unless the repo opts in via
-  // `.mergebrief/settings.yaml` `entryCommentOnDrafts: true`. Generation
-  // itself is untouched — this gates the COMMENT only. The comment then
-  // posts when `ready_for_review` triggers the next drain (draft=false →
-  // the skip branch's ready flip posts it).
-  const entryCommentAllowed =
-    !info.draft || repoConfig?.settings?.entryCommentOnDrafts === true;
-  if (!entryCommentAllowed) {
-    log.info("generate: entry comment suppressed — draft PR without entryCommentOnDrafts");
-    // Suppression means OFF, not "leave whatever is there": a comment posted
-    // before the PR converted to draft (possibly a stale "Generating…" from
-    // a superseded run) must not linger through the draft phase (Fable r1).
-    // BUT the sweep is destructive, so it only runs on KNOWN-off settings —
-    // a settings fetch failure closes the POSTING gate (safe) without
-    // deleting a possibly-legitimate opt-in comment (Fable r2).
-    const settingsUnknown =
-      repoConfig?.files.some(
-        (file) =>
-          file.path === RepoConfigPaths.SETTINGS &&
-          file.outcome === RepoConfigOutcome.FETCH_FAILED,
-      ) ?? false;
-    if (!settingsUnknown) {
-      await removeEntryComment();
-    }
-  }
-  if (existing === undefined) {
-    const headIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
-    await projection.markRunning(target, GenerationPhase.GENERATING);
-    // Post the "generating" Entry comment before the (minutes-long) model
-    // call: the deep link already renders the diff-first wait UX, so the
-    // thread learns a Brief is coming while it is still being produced.
-    // Skip-branch reruns never reach here — no generating churn for them.
-    if (entryCommentAllowed) {
-      await refreshEntryComment(entryCommentGeneratingBody(deepLink()));
-    }
-    const brief = await runGenerator(() =>
-      categorize(
-        { locator, meta, diff, links },
-        headIndex,
-        { base: info.baseSha, head: headSha, commitCount: info.commitCount },
-        generator,
-        coreLog,
-        repoConfig?.repoContext,
-        deps.effort,
-      ),
-    );
-    await projection.markRunning(target, GenerationPhase.WRITING);
-    const written = await store.briefs.write({
-      pullRequestId,
+    const locator: PrLocator = locatorFor(prRow);
+    const meta: PrMetadata = {
+      title: info.title,
+      body: info.body,
+      url: info.htmlUrl,
+      sha: info.headSha,
       baseSha: info.baseSha,
-      headSha,
-      headIndex,
       commitCount: info.commitCount,
-      ...provenanceOf(brief.generation),
-      body: JSON.stringify(brief),
-      ...(repoConfig === undefined
-        ? {}
-        : { repoConfig: buildRepoConfigArtifact(repoConfig, brief.chunks) }),
-    });
-    if (!written.ok) {
-      throw new PermanentJobError(written.error.message);
-    }
-    briefRef = { id: written.value.id, headIndex: written.value.headIndex };
-    generatedBrief = brief;
-    await audit(handle, {
-      installationId: ctx.installationId,
-      actorType: AuditActorType.SYSTEM,
-      action: AuditAction.GENERATE,
-      targetType: "brief",
-      targetId: briefRef.id,
-      metadata: { [AuditMetadataKey.KIND]: GenerationKind.BRIEF },
-    });
-  } else {
-    log.info(`generate: brief for ${headSha.slice(0, 8)} already stored — skipping generation`);
-    briefRef = { id: existing.id, headIndex: existing.headIndex };
-    // Retry-resume: if a prior attempt wrote the brief but died before the
-    // narrative, recover the Brief object from the stored body so the
-    // narrative isn't permanently lost (marks alone would render the honest
-    // "summary unavailable" state forever).
-    if (prevBrief !== undefined) {
-      const storedNarrative = await store.revisionNarratives.get(
-        pullRequestId,
-        prevBrief.headSha,
-        headSha,
+      files,
+    };
+    const coreLog: CoreLog = (message) => log.info(message);
+    const links = await fetchLinkedContext(meta.body, coreLog);
+
+    // ---- The shared Brief (skip-if-exists: retries never re-spend) ----------
+    const priorBriefs = await store.briefs.listForPullRequest(pullRequestId);
+    const existing = priorBriefs.find(
+      (row) => row.baseSha === info.baseSha && row.headSha === headSha,
+    );
+    // Previous briefed head = highest-index brief whose head differs (the
+    // DB-mode equivalent of the CLI manifest lookup).
+    const prevBrief = priorBriefs
+      .toReversed()
+      .find((row) => row.headSha !== headSha);
+
+    let briefRef: { id: BriefRowId; headIndex: number };
+    let generatedBrief: Brief | undefined;
+    // Repo-config phase (ADR 0032 #4): three default-branch reads, fresh per
+    // generation, validated pure-side. NEVER fails the job — a fetch failure
+    // degrades to no-config with a loud `fetch-failed` outcome on the record.
+    // ALSO acquired on a skip drain of a DRAFT PR: the entry gate below needs
+    // `settings.entryCommentOnDrafts`, and fail-open's undefined settings
+    // correctly default the gate CLOSED (no entry churn on drafts).
+    const repoConfig =
+      existing === undefined || info.draft
+        ? await acquireRepoConfig(source, log)
+        : undefined;
+    if (repoConfig !== undefined && existing === undefined) {
+      // Per-file outcomes land on the GENERATION record NOW — before the model
+      // call — so a failed or superseded run still shows its config outcomes
+      // (plan PR 4; codex round 2). GENERATION runs only: a draft SKIP drain
+      // acquires config for the entry gate, but recording it would overwrite
+      // the record with config that never shaped the stored brief (Fable r1).
+      await projection.recordRepoConfig(
+        target,
+        buildRepoConfigProvenance(repoConfig),
       );
-      if (storedNarrative === undefined) {
-        const fullRow = await store.briefs.get(pullRequestId, info.baseSha, headSha);
-        generatedBrief = fullRow === undefined ? undefined : recoverBrief(fullRow.body, log);
+    }
+    // Entry-comment draft gate (ADR 0020 #4 as amended / ADR 0032 #13): the
+    // branded Entry comment stays OFF draft PRs unless the repo opts in via
+    // `.mergebrief/settings.yaml` `entryCommentOnDrafts: true`. Generation
+    // itself is untouched — this gates the COMMENT only. The comment then
+    // posts when `ready_for_review` triggers the next drain (draft=false →
+    // the skip branch's ready flip posts it).
+    const entryCommentAllowed =
+      !info.draft || repoConfig?.settings?.entryCommentOnDrafts === true;
+    if (!entryCommentAllowed) {
+      log.info(
+        "generate: entry comment suppressed — draft PR without entryCommentOnDrafts",
+      );
+      // Suppression means OFF, not "leave whatever is there": a comment posted
+      // before the PR converted to draft (possibly a stale "Generating…" from
+      // a superseded run) must not linger through the draft phase (Fable r1).
+      // BUT the sweep is destructive, so it only runs on KNOWN-off settings —
+      // a settings fetch failure closes the POSTING gate (safe) without
+      // deleting a possibly-legitimate opt-in comment (Fable r2).
+      const settingsUnknown =
+        repoConfig?.files.some(
+          (file) =>
+            file.path === RepoConfigPaths.SETTINGS &&
+            file.outcome === RepoConfigOutcome.FETCH_FAILED,
+        ) ?? false;
+      if (!settingsUnknown) {
+        await removeEntryComment();
       }
     }
-  }
-
-  // ---- Entry comment: ready flip (ADR 0016 #3) -----------------------------
-  // The brief artifact now EXISTS — the FE's render trigger — so the deep
-  // link renders the Brief itself; replace the generating comment (the
-  // delete+repost IS the "ready" ping) before the slower revision/delta
-  // work. Supersession gate first: a superseded run must post nothing (the
-  // superseding head's own job will post for the newer revision).
-  // Skip-branch reruns (review-submitted gap-filler on an already-briefed
-  // head, BRIEF-41): when the live comment already carries this head's ready
-  // body, reposting would only re-ping the thread — leave it in place. The
-  // check is skip-branch-only (a fresh generation's comment says
-  // "generating", so a GET would always mismatch), and any miss — stuck
-  // generating body, swept draft comment, manual deletion, fetch failure —
-  // falls through to the normal refresh.
-  await watch.assertCurrent();
-  if (entryCommentAllowed) {
-    const readyBody = entryCommentBody(deepLink());
-    const alreadyLive = existing !== undefined && (await entryCommentMatches(readyBody));
-    if (alreadyLive) {
-      log.info("generate: entry comment already current — skipping repost (no re-ping)");
+    if (existing === undefined) {
+      const headIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
+      await projection.markRunning(target, GenerationPhase.GENERATING);
+      // Post the "generating" Entry comment before the (minutes-long) model
+      // call: the deep link already renders the diff-first wait UX, so the
+      // thread learns a Brief is coming while it is still being produced.
+      // Skip-branch reruns never reach here — no generating churn for them.
+      if (entryCommentAllowed) {
+        await refreshEntryComment(entryCommentGeneratingBody(deepLink()));
+      }
+      const brief = await runGenerator(() =>
+        categorize(
+          { locator, meta, diff, links },
+          headIndex,
+          { base: info.baseSha, head: headSha, commitCount: info.commitCount },
+          generator,
+          coreLog,
+          repoConfig?.repoContext,
+          deps.effort,
+        ),
+      );
+      await projection.markRunning(target, GenerationPhase.WRITING);
+      const written = await store.briefs.write({
+        pullRequestId,
+        baseSha: info.baseSha,
+        headSha,
+        headIndex,
+        commitCount: info.commitCount,
+        ...provenanceOf(brief.generation),
+        body: JSON.stringify(brief),
+        ...(repoConfig === undefined
+          ? {}
+          : { repoConfig: buildRepoConfigArtifact(repoConfig, brief.chunks) }),
+      });
+      if (!written.ok) {
+        throw new PermanentJobError(written.error.message);
+      }
+      briefRef = { id: written.value.id, headIndex: written.value.headIndex };
+      generatedBrief = brief;
+      await audit(handle, {
+        installationId: ctx.installationId,
+        actorType: AuditActorType.SYSTEM,
+        action: AuditAction.GENERATE,
+        targetType: "brief",
+        targetId: briefRef.id,
+        metadata: { [AuditMetadataKey.KIND]: GenerationKind.BRIEF },
+      });
     } else {
-      await refreshEntryComment(readyBody);
+      log.info(
+        `generate: brief for ${headSha.slice(0, 8)} already stored — skipping generation`,
+      );
+      briefRef = { id: existing.id, headIndex: existing.headIndex };
+      // Retry-resume: if a prior attempt wrote the brief but died before the
+      // narrative, recover the Brief object from the stored body so the
+      // narrative isn't permanently lost (marks alone would render the honest
+      // "summary unavailable" state forever).
+      if (prevBrief !== undefined) {
+        const storedNarrative = await store.revisionNarratives.get(
+          pullRequestId,
+          prevBrief.headSha,
+          headSha,
+        );
+        if (storedNarrative === undefined) {
+          const fullRow = await store.briefs.get(
+            pullRequestId,
+            info.baseSha,
+            headSha,
+          );
+          generatedBrief =
+            fullRow === undefined ? undefined : recoverBrief(fullRow.body, log);
+        }
+      }
     }
-  }
 
-  // ---- Marks + revision narrative vs the previous briefed head ------------
-  // The prevHead...head span diff is fetched ONCE and reused by the delta
-  // loop below — a checkpoint at the previous briefed head (the common
-  // reviewed-last-push case) must not re-fetch the same compare diff.
-  let prevSpan: PrefetchedSpan | undefined;
-  if (prevBrief !== undefined) {
-    const revDiff = unwrapGitHub(await source.fetchCompareDiff(prevBrief.headSha, headSha));
-    prevSpan = { baselineSha: prevBrief.headSha, diff: revDiff, marksWritten: true };
-    await writeRevisionArtifacts(payload, {
+    // ---- Entry comment: ready flip (ADR 0016 #3) -----------------------------
+    // The brief artifact now EXISTS — the FE's render trigger — so the deep
+    // link renders the Brief itself; replace the generating comment (the
+    // delete+repost IS the "ready" ping) before the slower revision/delta
+    // work. Supersession gate first: a superseded run must post nothing (the
+    // superseding head's own job will post for the newer revision).
+    // Skip-branch reruns (review-submitted gap-filler on an already-briefed
+    // head, BRIEF-41): when the live comment already carries this head's ready
+    // body, reposting would only re-ping the thread — leave it in place. The
+    // check is skip-branch-only (a fresh generation's comment says
+    // "generating", so a GET would always mismatch), and any miss — stuck
+    // generating body, swept draft comment, manual deletion, fetch failure —
+    // falls through to the normal refresh.
+    await watch.assertCurrent();
+    if (entryCommentAllowed) {
+      const readyBody = entryCommentBody(deepLink());
+      const alreadyLive =
+        existing !== undefined && (await entryCommentMatches(readyBody));
+      if (alreadyLive) {
+        log.info(
+          "generate: entry comment already current — skipping repost (no re-ping)",
+        );
+      } else {
+        await refreshEntryComment(readyBody);
+      }
+    }
+
+    // ---- Marks + revision narrative vs the previous briefed head ------------
+    // The prevHead...head span diff is fetched ONCE and reused by the delta
+    // loop below — a checkpoint at the previous briefed head (the common
+    // reviewed-last-push case) must not re-fetch the same compare diff.
+    let prevSpan: PrefetchedSpan | undefined;
+    if (prevBrief !== undefined) {
+      const revDiff = unwrapGitHub(
+        await source.fetchCompareDiff(prevBrief.headSha, headSha),
+      );
+      prevSpan = {
+        baselineSha: prevBrief.headSha,
+        diff: revDiff,
+        marksWritten: true,
+      };
+      await writeRevisionArtifacts(payload, {
+        store,
+        locator,
+        meta,
+        revDiff,
+        prevBrief,
+        briefRef,
+        generatedBrief,
+        generator,
+        watch,
+        effort: deps.effort,
+        wholePrChangedLines: churn(files),
+        links,
+        log,
+      });
+    }
+
+    // ---- Delta cores: one per distinct checkpoint SHA (ADR 0006 #4) ---------
+    const deltaCount = await warmDeltaCores(payload, {
       store,
+      repo,
       locator,
       meta,
-      revDiff,
-      prevBrief,
-      briefRef,
-      generatedBrief,
+      source,
+      priorBriefs,
+      prevSpan,
       generator,
       watch,
       effort: deps.effort,
+      briefHeadIndex: briefRef.headIndex,
       wholePrChangedLines: churn(files),
       links,
       log,
     });
-  }
+    if (deltaCount > 0) {
+      await audit(handle, {
+        installationId: ctx.installationId,
+        actorType: AuditActorType.SYSTEM,
+        action: AuditAction.GENERATE,
+        targetType: "pull_request",
+        targetId: pullRequestId,
+        metadata: {
+          [AuditMetadataKey.KIND]: GenerationKind.DELTA,
+          [AuditMetadataKey.COUNT]: deltaCount,
+        },
+      });
+    }
 
-  // ---- Delta cores: one per distinct checkpoint SHA (ADR 0006 #4) ---------
-  const deltaCount = await warmDeltaCores(payload, {
-    store,
-    repo,
-    locator,
-    meta,
-    source,
-    priorBriefs,
-    prevSpan,
-    generator,
-    watch,
-    effort: deps.effort,
-    briefHeadIndex: briefRef.headIndex,
-    wholePrChangedLines: churn(files),
-    links,
-    log,
-  });
-  if (deltaCount > 0) {
-    await audit(handle, {
-      installationId: ctx.installationId,
-      actorType: AuditActorType.SYSTEM,
-      action: AuditAction.GENERATE,
-      targetType: "pull_request",
-      targetId: pullRequestId,
-      metadata: {
-        [AuditMetadataKey.KIND]: GenerationKind.DELTA,
-        [AuditMetadataKey.COUNT]: deltaCount,
-      },
-    });
-  }
-
-  await projection.markSucceeded(target);
-  // Sweep projections of heads this one replaced pre-drain (debounce
-  // replacement means no worker run ever carried them — ADR 0006 #6's
-  // terminal-superseded applies to them the same as to a drained abort).
-  const swept = await projection.supersedeStaleBriefs(pullRequestId, headSha);
-  if (swept > 0) {
-    log.info(`generate: swept ${swept} stale queued brief projection(s)`);
-  }
-  log.info(`generate: succeeded for ${prRow.prNumber}@${headSha.slice(0, 8)}`);
+    await projection.markSucceeded(target);
+    // Sweep projections of heads this one replaced pre-drain (debounce
+    // replacement means no worker run ever carried them — ADR 0006 #6's
+    // terminal-superseded applies to them the same as to a drained abort).
+    const swept = await projection.supersedeStaleBriefs(pullRequestId, headSha);
+    if (swept > 0) {
+      log.info(`generate: swept ${swept} stale queued brief projection(s)`);
+    }
+    log.info(
+      `generate: succeeded for ${prRow.prNumber}@${headSha.slice(0, 8)}`,
+    );
   }
 
   /** The exact-span link both Entry comment bodies point at. */
@@ -758,13 +806,20 @@ async function runGeneration(
     }
     const deleted = await source.deleteComment(liveEntryCommentId);
     if (!deleted.ok) {
-      log.warn(`generate: stale entry comment delete failed (job unaffected) — ${deleted.error.message}`);
+      log.warn(
+        `generate: stale entry comment delete failed (job unaffected) — ${deleted.error.message}`,
+      );
       return;
     }
     liveEntryCommentId = null;
-    const cleared = await repo.pullRequests.setEntryComment(pullRequestId, null);
+    const cleared = await repo.pullRequests.setEntryComment(
+      pullRequestId,
+      null,
+    );
     if (!cleared.ok) {
-      log.warn(`generate: entry comment id not cleared (job unaffected) — ${cleared.error.message}`);
+      log.warn(
+        `generate: entry comment id not cleared (job unaffected) — ${cleared.error.message}`,
+      );
     }
   }
 
@@ -780,7 +835,9 @@ async function runGeneration(
     }
     const fetched = await source.fetchComment(liveEntryCommentId);
     if (!fetched.ok) {
-      log.warn(`generate: entry comment fetch failed (job unaffected) — ${fetched.error.message}`);
+      log.warn(
+        `generate: entry comment fetch failed (job unaffected) — ${fetched.error.message}`,
+      );
       return false;
     }
     return fetched.value !== undefined && fetched.value.body === body;
@@ -801,7 +858,9 @@ async function runGeneration(
       if (!deleted.ok) {
         // Skip the repost: posting past a live comment we failed to delete
         // would leave two. The stored id survives for the next run's retry.
-        log.warn(`generate: entry comment delete failed (job unaffected) — ${deleted.error.message}`);
+        log.warn(
+          `generate: entry comment delete failed (job unaffected) — ${deleted.error.message}`,
+        );
         return;
       }
       liveEntryCommentId = null;
@@ -810,12 +869,19 @@ async function runGeneration(
     if (!posted.ok) {
       // The old comment is gone and the stored id now dangles; the next
       // refresh's 404-tolerant delete self-heals before reposting.
-      log.warn(`generate: entry comment post failed (job unaffected) — ${posted.error.message}`);
+      log.warn(
+        `generate: entry comment post failed (job unaffected) — ${posted.error.message}`,
+      );
       return;
     }
-    const stored = await repo.pullRequests.setEntryComment(pullRequestId, posted.value.commentId);
+    const stored = await repo.pullRequests.setEntryComment(
+      pullRequestId,
+      posted.value.commentId,
+    );
     if (!stored.ok) {
-      log.warn(`generate: entry comment id not stored (job unaffected) — ${stored.error.message}`);
+      log.warn(
+        `generate: entry comment id not stored (job unaffected) — ${stored.error.message}`,
+      );
       // The new comment is untracked: a later run would delete only the OLD
       // stored id and post again, leaving this one behind — two comments.
       // Best-effort delete restores the ONE-comment invariant now.
@@ -859,16 +925,22 @@ function recoverBrief(body: string, log: Logger): Brief | undefined {
     if (isBrief(parsed)) {
       return parsed;
     }
-    log.warn("generate: stored brief body has an unexpected shape — narrative skipped");
+    log.warn(
+      "generate: stored brief body has an unexpected shape — narrative skipped",
+    );
     return undefined;
   } catch {
-    log.warn("generate: stored brief body is not valid JSON — narrative skipped");
+    log.warn(
+      "generate: stored brief body is not valid JSON — narrative skipped",
+    );
     return undefined;
   }
 }
 
 /** Whole-PR churn — the huge-span denominator (metadata, not span diff). */
-function churn(files: readonly { additions: number; deletions: number }[]): number {
+function churn(
+  files: readonly { additions: number; deletions: number }[],
+): number {
   return files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
 }
 
@@ -890,9 +962,12 @@ async function runGenerator<T>(call: () => Promise<T>): Promise<T> {
     }
     // Preserve the original as `cause`: the provider.error event reads the
     // classification (GeneratorError kind / HTTP status) off it.
-    throw new PermanentJobError(error instanceof Error ? error.message : String(error), {
-      cause: error,
-    });
+    throw new PermanentJobError(
+      error instanceof Error ? error.message : String(error),
+      {
+        cause: error,
+      },
+    );
   }
 }
 
@@ -934,16 +1009,36 @@ async function writeRevisionArtifacts(
   payload: ParsedGeneratePayload,
   inputs: RevisionArtifactInputs,
 ): Promise<void> {
-  const { store, locator, meta, revDiff, prevBrief, briefRef, generatedBrief, links, log } = inputs;
+  const {
+    store,
+    locator,
+    meta,
+    revDiff,
+    prevBrief,
+    briefRef,
+    generatedBrief,
+    links,
+    log,
+  } = inputs;
   const { pullRequestId, headSha } = payload;
   const prevHeadSha = prevBrief.headSha;
 
-  const marks = buildComparisonMarks(headSha, prevHeadSha, "previous-brief", prevBrief.headIndex, revDiff);
+  const marks = buildComparisonMarks(
+    headSha,
+    prevHeadSha,
+    "previous-brief",
+    prevBrief.headIndex,
+    revDiff,
+  );
   // Persistence's strict schema is coordinates-only (D13): pass exactly the
   // SHA pair + files, never the CLI's read-time label/index context.
   const marksWritten = await store.comparisonMarks.write({
     pullRequestId,
-    marks: { baselineSha: marks.baselineSha, headSha: marks.headSha, files: marks.files },
+    marks: {
+      baselineSha: marks.baselineSha,
+      headSha: marks.headSha,
+      files: marks.files,
+    },
   });
   if (!marksWritten.ok) {
     // Marks are load-bearing for the comparison UI: surface loudly (the CLI
@@ -959,7 +1054,9 @@ async function writeRevisionArtifacts(
     return;
   }
 
-  const skipStub = (skipped: RevisionNarrativeSkipped["skipped"]): RevisionNarrativeSkipped => ({
+  const skipStub = (
+    skipped: RevisionNarrativeSkipped["skipped"],
+  ): RevisionNarrativeSkipped => ({
     artifactKind: "revisionNarrativeSkipped",
     pr: generatedBrief.pr,
     prevHeadSha,
@@ -969,7 +1066,10 @@ async function writeRevisionArtifacts(
     skipped,
   });
 
-  const writeNarrative = async (body: string, provenance: Brief["generation"]): Promise<void> => {
+  const writeNarrative = async (
+    body: string,
+    provenance: Brief["generation"],
+  ): Promise<void> => {
     const written = await store.revisionNarratives.write({
       pullRequestId,
       briefId: briefRef.id,
@@ -984,11 +1084,17 @@ async function writeRevisionArtifacts(
   };
 
   if (!revisionNarrativeConfig().enabled) {
-    await writeNarrative(JSON.stringify(skipStub("disabled by config")), generatedBrief.generation);
+    await writeNarrative(
+      JSON.stringify(skipStub("disabled by config")),
+      generatedBrief.generation,
+    );
     return;
   }
   if (isHugeSpan(countChangedLines(revDiff), inputs.wholePrChangedLines)) {
-    await writeNarrative(JSON.stringify(skipStub("span too large")), generatedBrief.generation);
+    await writeNarrative(
+      JSON.stringify(skipStub("span too large")),
+      generatedBrief.generation,
+    );
     log.info("generate: revision span too large; wrote skip stub");
     return;
   }
@@ -1065,9 +1171,9 @@ async function warmDeltaCores(
   const { pullRequestId, headSha } = payload;
 
   const checkpoints = await repo.checkpoints.listForPullRequest(pullRequestId);
-  const distinctShas = [...new Set(checkpoints.map((c) => c.lastSubmittedSha))].filter(
-    (sha) => sha !== headSha,
-  );
+  const distinctShas = [
+    ...new Set(checkpoints.map((c) => c.lastSubmittedSha)),
+  ].filter((sha) => sha !== headSha);
 
   let generated = 0;
   for (const baselineSha of distinctShas) {
@@ -1079,7 +1185,10 @@ async function warmDeltaCores(
     // Reuse the prevHead...head diff fetched for the revision artifacts when
     // the checkpoint sits at the previous briefed head (the common
     // reviewed-last-push case) — never fetch the same span twice in one run.
-    const prefetched = inputs.prevSpan?.baselineSha === baselineSha ? inputs.prevSpan : undefined;
+    const prefetched =
+      inputs.prevSpan?.baselineSha === baselineSha
+        ? inputs.prevSpan
+        : undefined;
     let incrementalDiff: string;
     if (prefetched !== undefined) {
       incrementalDiff = prefetched.diff;
@@ -1090,7 +1199,9 @@ async function warmDeltaCores(
         if (isPermanentGitHubError(spanDiff.error)) {
           // A single unrenderable/GC'd span must not sink the whole job (the
           // brief is already stored); the view falls back to the full Brief.
-          log.warn(`generate: delta span ${baselineSha.slice(0, 8)} unavailable — skipping`);
+          log.warn(
+            `generate: delta span ${baselineSha.slice(0, 8)} unavailable — skipping`,
+          );
           continue;
         }
         throw new Error(spanDiff.error.message);
@@ -1103,19 +1214,33 @@ async function warmDeltaCores(
     if (prefetched?.marksWritten !== true) {
       // Span marks BEFORE the LLM call (delta-CLI ordering): a failed delta
       // still leaves highlights for the checkpoint span.
-      const marks = buildComparisonMarks(headSha, baselineSha, "checkpoint", baselineIndex, incrementalDiff);
+      const marks = buildComparisonMarks(
+        headSha,
+        baselineSha,
+        "checkpoint",
+        baselineIndex,
+        incrementalDiff,
+      );
       // eslint-disable-next-line no-await-in-loop
       const marksWritten = await store.comparisonMarks.write({
         pullRequestId,
-        marks: { baselineSha: marks.baselineSha, headSha: marks.headSha, files: marks.files },
+        marks: {
+          baselineSha: marks.baselineSha,
+          headSha: marks.headSha,
+          files: marks.files,
+        },
       });
       if (!marksWritten.ok) {
         throw new PermanentJobError(marksWritten.error.message);
       }
     }
 
-    if (isHugeSpan(countChangedLines(incrementalDiff), inputs.wholePrChangedLines)) {
-      log.info(`generate: delta span ${baselineSha.slice(0, 8)} is huge — full-brief fallback`);
+    if (
+      isHugeSpan(countChangedLines(incrementalDiff), inputs.wholePrChangedLines)
+    ) {
+      log.info(
+        `generate: delta span ${baselineSha.slice(0, 8)} is huge — full-brief fallback`,
+      );
       continue;
     }
 
@@ -1134,7 +1259,12 @@ async function warmDeltaCores(
     await inputs.watch.assertCurrent();
     // eslint-disable-next-line no-await-in-loop
     const delta = await runGenerator(() =>
-      categorizeDelta(deltaInput, inputs.generator, (message) => log.info(message), inputs.effort),
+      categorizeDelta(
+        deltaInput,
+        inputs.generator,
+        (message) => log.info(message),
+        inputs.effort,
+      ),
     );
     // eslint-disable-next-line no-await-in-loop
     const written = await store.deltas.write({

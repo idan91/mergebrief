@@ -10,7 +10,10 @@ import {
   type PrSource,
   type ReviewComment,
 } from "../github";
-import { categorize, categorizeRevisionNarrative } from "../generation/categorize";
+import {
+  categorize,
+  categorizeRevisionNarrative,
+} from "../generation/categorize";
 import {
   createGenerator,
   defaultGeneratorConfig,
@@ -33,7 +36,12 @@ import {
   revChangesName,
   revisionNarrativeName,
 } from "../artifacts/output";
-import type { Brief, CommitRange, Effort, RevisionNarrativeSkipped } from "../types";
+import type {
+  Brief,
+  CommitRange,
+  Effort,
+  RevisionNarrativeSkipped,
+} from "../types";
 
 const OUT_DIR = "out";
 
@@ -73,7 +81,11 @@ async function buildInputs(
   range: Range | undefined,
   log: (msg: string) => void,
   source: PrSource,
-): Promise<{ pr: FetchedPr; comments: ReviewComment[]; commitRange: CommitRange }> {
+): Promise<{
+  pr: FetchedPr;
+  comments: ReviewComment[];
+  commitRange: CommitRange;
+}> {
   const locator = parsePrUrl(url);
   // Range SHAs may arrive abbreviated from the CLI; artifacts must be keyed
   // by full SHAs or the FE's exact-equality joins silently never match.
@@ -129,15 +141,31 @@ export async function generateAndWrite(
       ? `fetching compare ${range.base.slice(0, 8)}..${range.head.slice(0, 8)} + metadata…`
       : "fetching diff + metadata…",
   );
-  const { pr, comments, commitRange } = await buildInputs(url, range, log, source);
+  const { pr, comments, commitRange } = await buildInputs(
+    url,
+    range,
+    log,
+    source,
+  );
 
-  const stem = prStem(`${pr.locator.owner}/${pr.locator.repo}`, pr.locator.number);
+  const stem = prStem(
+    `${pr.locator.owner}/${pr.locator.repo}`,
+    pr.locator.number,
+  );
   const index = await assignBriefIndex(outDir, stem, commitRange.head);
   log(
     `brief _${index}; ${pr.meta.files.length} files, ${pr.links.length} linked refs, ${comments.length} comments; categorizing…`,
   );
 
-  const brief = await categorize(pr, index, commitRange, generator, log, undefined, effort);
+  const brief = await categorize(
+    pr,
+    index,
+    commitRange,
+    generator,
+    log,
+    undefined,
+    effort,
+  );
 
   const briefFile = join(outDir, outName(brief));
   await writeFile(briefFile, `${JSON.stringify(brief, null, 2)}\n`);
@@ -161,7 +189,11 @@ export async function generateAndWrite(
   if (index > 1) {
     const prevHeadSha = await lookupBriefShaByIndex(outDir, stem, index - 1);
     if (prevHeadSha) {
-      const revDiff = await source.fetchCompareDiff(pr.locator, prevHeadSha, commitRange.head);
+      const revDiff = await source.fetchCompareDiff(
+        pr.locator,
+        prevHeadSha,
+        commitRange.head,
+      );
 
       // Mechanical comparison marks: always written first, and never caught —
       // per the plan, a marks failure means comparison data is unavailable and
@@ -239,7 +271,9 @@ async function generateAndWriteRevisionNarrative(args: {
     effort,
   } = args;
   const narrativeFile = join(outDir, revisionNarrativeName(brief));
-  const skipStub = (skipped: RevisionNarrativeSkipped["skipped"]): RevisionNarrativeSkipped => ({
+  const skipStub = (
+    skipped: RevisionNarrativeSkipped["skipped"],
+  ): RevisionNarrativeSkipped => ({
     artifactKind: "revisionNarrativeSkipped",
     pr: brief.pr,
     prevHeadSha,
@@ -251,8 +285,13 @@ async function generateAndWriteRevisionNarrative(args: {
 
   const config = revisionNarrativeConfig();
   if (!config.enabled) {
-    await writeFile(narrativeFile, `${JSON.stringify(skipStub("disabled by config"), null, 2)}\n`);
-    log(`revision narrative disabled by config; wrote skip stub ${narrativeFile}`);
+    await writeFile(
+      narrativeFile,
+      `${JSON.stringify(skipStub("disabled by config"), null, 2)}\n`,
+    );
+    log(
+      `revision narrative disabled by config; wrote skip stub ${narrativeFile}`,
+    );
     return;
   }
 
@@ -265,7 +304,10 @@ async function generateAndWriteRevisionNarrative(args: {
     0,
   );
   if (isHugeSpan(countChangedLines(incrementalDiff), wholePrChangedLines)) {
-    await writeFile(narrativeFile, `${JSON.stringify(skipStub("span too large"), null, 2)}\n`);
+    await writeFile(
+      narrativeFile,
+      `${JSON.stringify(skipStub("span too large"), null, 2)}\n`,
+    );
     log(`revision span too large; wrote skip stub ${narrativeFile}`);
     return;
   }
@@ -378,9 +420,14 @@ async function main(): Promise<void> {
     parsed.urls.map(
       async (
         url,
-      ): Promise<{ url: string; brief: Brief } | { url: string; error: unknown }> => {
+      ): Promise<
+        { url: string; brief: Brief } | { url: string; error: unknown }
+      > => {
         try {
-          return { url, brief: await runOne(url, parsed.range, generator, effort) };
+          return {
+            url,
+            brief: await runOne(url, parsed.range, generator, effort),
+          };
         } catch (error) {
           return { url, error };
         }

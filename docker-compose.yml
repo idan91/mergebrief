@@ -60,7 +60,11 @@ services:
     # Liveness only (ADR 0034 #7): /healthz is static — never /readyz here,
     # or a DB blip would trigger web restart churn.
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO /dev/null http://127.0.0.1:3000/healthz || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO /dev/null http://127.0.0.1:3000/healthz || exit 1",
+        ]
       interval: 15s
       timeout: 5s
       retries: 5

@@ -6,7 +6,8 @@
 // A leaked auth header/token must never surface in a sanitized error — tests
 // plant this in thrown errors and assert it never escapes.
 export const LEAKED_TOKEN = "ghs_PLANTED_INSTALLATION_TOKEN";
-export const UPSTREAM_TEXT = "Could not resolve to a Repository with the name 'o/r'.";
+export const UPSTREAM_TEXT =
+  "Could not resolve to a Repository with the name 'o/r'.";
 
 export function graphqlResponseError(
   errors: ReadonlyArray<{ type?: string; message: string }>,

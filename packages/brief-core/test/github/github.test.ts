@@ -10,11 +10,13 @@ import {
 
 describe("parsePrUrl", () => {
   it("parses a canonical PR URL", () => {
-    expect(parsePrUrl("https://github.com/medusajs/medusa/pull/15605")).toEqual({
-      owner: "medusajs",
-      repo: "medusa",
-      number: 15605,
-    });
+    expect(parsePrUrl("https://github.com/medusajs/medusa/pull/15605")).toEqual(
+      {
+        owner: "medusajs",
+        repo: "medusa",
+        number: 15605,
+      },
+    );
   });
 
   it("ignores trailing path, query, and fragment", () => {
@@ -111,25 +113,31 @@ describe("fetchCompareDiff", () => {
   // Rejects before any network call when SHAs aren't commit-ish.
   it("throws on non-SHA refs", async () => {
     await expect(
-      fetchCompareDiff({ owner: "o", repo: "r", number: 1 }, "main", "deadbeef"),
+      fetchCompareDiff(
+        { owner: "o", repo: "r", number: 1 },
+        "main",
+        "deadbeef",
+      ),
     ).rejects.toThrow(/hex commit SHAs/);
   });
 });
 
 describe("normalizeReviewComment", () => {
   it("preserves GitHub range comment anchors", () => {
-    expect(normalizeReviewComment({
-      id: 101,
-      path: "src/a.ts",
-      start_line: 10,
-      line: 12,
-      original_start_line: 8,
-      original_line: 10,
-      subject_type: "line",
-      body: "Could we cover this range?",
-      user: { login: "reviewer" },
-      in_reply_to_id: null,
-    })).toEqual({
+    expect(
+      normalizeReviewComment({
+        id: 101,
+        path: "src/a.ts",
+        start_line: 10,
+        line: 12,
+        original_start_line: 8,
+        original_line: 10,
+        subject_type: "line",
+        body: "Could we cover this range?",
+        user: { login: "reviewer" },
+        in_reply_to_id: null,
+      }),
+    ).toEqual({
       id: "101",
       file: "src/a.ts",
       startLine: 10,

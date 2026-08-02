@@ -6,8 +6,15 @@ import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { listRepoCollaborators } from "../src/operations/collaborators";
 import { GitHubApiErrorCode } from "../src/errors";
-import { collaboratorsResponse, gqlCollaborator } from "./fixtures/collaborators-graphql";
-import { LEAKED_TOKEN, UPSTREAM_TEXT, graphqlResponseError } from "./fixtures/graphql-error";
+import {
+  collaboratorsResponse,
+  gqlCollaborator,
+} from "./fixtures/collaborators-graphql";
+import {
+  LEAKED_TOKEN,
+  UPSTREAM_TEXT,
+  graphqlResponseError,
+} from "./fixtures/graphql-error";
 
 function mockGraphqlOctokit(graphql: ReturnType<typeof vi.fn>): Octokit {
   // The double assertion is the sanctioned test-only escape hatch for
@@ -28,7 +35,10 @@ describe("listRepoCollaborators — mapping", () => {
         ],
       }),
     );
-    const result = await listRepoCollaborators(mockGraphqlOctokit(graphql), INPUT);
+    const result = await listRepoCollaborators(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.hasMore).toBe(false);
@@ -53,15 +63,23 @@ describe("listRepoCollaborators — mapping", () => {
         nodes: [null, gqlCollaborator({ login: "carol" }), null],
       }),
     );
-    const result = await listRepoCollaborators(mockGraphqlOctokit(graphql), INPUT);
+    const result = await listRepoCollaborators(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.collaborators.map((collaborator) => collaborator.login)).toEqual([
-      "carol",
-    ]);
+    expect(
+      result.value.collaborators.map((collaborator) => collaborator.login),
+    ).toEqual(["carol"]);
 
-    const nullList = vi.fn().mockResolvedValue(collaboratorsResponse({ nodes: null }));
-    const emptyResult = await listRepoCollaborators(mockGraphqlOctokit(nullList), INPUT);
+    const nullList = vi
+      .fn()
+      .mockResolvedValue(collaboratorsResponse({ nodes: null }));
+    const emptyResult = await listRepoCollaborators(
+      mockGraphqlOctokit(nullList),
+      INPUT,
+    );
     expect(emptyResult.ok).toBe(true);
     if (!emptyResult.ok) throw new Error("unreachable");
     expect(emptyResult.value.collaborators).toEqual([]);
@@ -82,13 +100,15 @@ describe("listRepoCollaborators — pagination", () => {
       .mockResolvedValueOnce(
         collaboratorsResponse({ nodes: [gqlCollaborator({ login: "bob" })] }),
       );
-    const result = await listRepoCollaborators(mockGraphqlOctokit(graphql), INPUT);
+    const result = await listRepoCollaborators(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
-    expect(result.value.collaborators.map((collaborator) => collaborator.login)).toEqual([
-      "alice",
-      "bob",
-    ]);
+    expect(
+      result.value.collaborators.map((collaborator) => collaborator.login),
+    ).toEqual(["alice", "bob"]);
     expect(result.value.hasMore).toBe(false);
     expect(graphql).toHaveBeenCalledTimes(2);
     const [, secondVariables] = graphql.mock.calls[1] ?? [];
@@ -96,16 +116,23 @@ describe("listRepoCollaborators — pagination", () => {
   });
 
   it("stops at the page cap and flags hasMore instead of looping", async () => {
-    const graphql = vi.fn().mockImplementation((_query: string, variables: { cursor?: string }) =>
-      Promise.resolve(
-        collaboratorsResponse({
-          nodes: [gqlCollaborator({ login: `user-${variables.cursor ?? "first"}` })],
-          hasNextPage: true,
-          endCursor: `cursor-${variables.cursor ?? "0"}`,
-        }),
-      ),
+    const graphql = vi
+      .fn()
+      .mockImplementation((_query: string, variables: { cursor?: string }) =>
+        Promise.resolve(
+          collaboratorsResponse({
+            nodes: [
+              gqlCollaborator({ login: `user-${variables.cursor ?? "first"}` }),
+            ],
+            hasNextPage: true,
+            endCursor: `cursor-${variables.cursor ?? "0"}`,
+          }),
+        ),
+      );
+    const result = await listRepoCollaborators(
+      mockGraphqlOctokit(graphql),
+      INPUT,
     );
-    const result = await listRepoCollaborators(mockGraphqlOctokit(graphql), INPUT);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     // Cap is 3 pages × 100 — past that the pool is noise, not autocomplete.
@@ -118,7 +145,10 @@ describe("listRepoCollaborators — pagination", () => {
 describe("listRepoCollaborators — failures", () => {
   it("returns sanitized NOT_FOUND for a null repository field", async () => {
     const graphql = vi.fn().mockResolvedValue({ repository: null });
-    const result = await listRepoCollaborators(mockGraphqlOctokit(graphql), INPUT);
+    const result = await listRepoCollaborators(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
@@ -126,18 +156,28 @@ describe("listRepoCollaborators — failures", () => {
   });
 
   it("returns sanitized NOT_FOUND for a null collaborators connection", async () => {
-    const graphql = vi.fn().mockResolvedValue({ repository: { collaborators: null } });
-    const result = await listRepoCollaborators(mockGraphqlOctokit(graphql), INPUT);
+    const graphql = vi
+      .fn()
+      .mockResolvedValue({ repository: { collaborators: null } });
+    const result = await listRepoCollaborators(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
   });
 
   it("maps a FORBIDDEN GraphQL error without leaking token or upstream text", async () => {
-    const graphql = vi.fn().mockRejectedValue(
-      graphqlResponseError([{ type: "FORBIDDEN", message: UPSTREAM_TEXT }]),
+    const graphql = vi
+      .fn()
+      .mockRejectedValue(
+        graphqlResponseError([{ type: "FORBIDDEN", message: UPSTREAM_TEXT }]),
+      );
+    const result = await listRepoCollaborators(
+      mockGraphqlOctokit(graphql),
+      INPUT,
     );
-    const result = await listRepoCollaborators(mockGraphqlOctokit(graphql), INPUT);
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);
@@ -148,10 +188,17 @@ describe("listRepoCollaborators — failures", () => {
   it("maps a thrown RequestError through the REST taxonomy", async () => {
     const graphql = vi.fn().mockRejectedValue(
       new RequestError("boom", 502, {
-        request: { method: "POST", url: "https://api.github.com/graphql", headers: {} },
+        request: {
+          method: "POST",
+          url: "https://api.github.com/graphql",
+          headers: {},
+        },
       }),
     );
-    const result = await listRepoCollaborators(mockGraphqlOctokit(graphql), INPUT);
+    const result = await listRepoCollaborators(
+      mockGraphqlOctokit(graphql),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
@@ -160,8 +207,13 @@ describe("listRepoCollaborators — failures", () => {
   });
 
   it("returns a sanitized failure for an ill-shaped 2xx body, including mid-pagination", async () => {
-    const malformed = vi.fn().mockResolvedValue({ repository: { collaborators: { nope: true } } });
-    const result = await listRepoCollaborators(mockGraphqlOctokit(malformed), INPUT);
+    const malformed = vi
+      .fn()
+      .mockResolvedValue({ repository: { collaborators: { nope: true } } });
+    const result = await listRepoCollaborators(
+      mockGraphqlOctokit(malformed),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
@@ -172,7 +224,10 @@ describe("listRepoCollaborators — failures", () => {
         collaboratorsResponse({ hasNextPage: true, endCursor: "cursor-1" }),
       )
       .mockResolvedValueOnce({ repository: null });
-    const midResult = await listRepoCollaborators(mockGraphqlOctokit(midPage), INPUT);
+    const midResult = await listRepoCollaborators(
+      mockGraphqlOctokit(midPage),
+      INPUT,
+    );
     expect(midResult.ok).toBe(false);
     if (midResult.ok) throw new Error("unreachable");
     expect(midResult.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);

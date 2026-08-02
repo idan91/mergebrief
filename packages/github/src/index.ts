@@ -41,13 +41,21 @@ export {
   createUserOctokit,
   OAuthErrorCode,
 } from "./auth/oauth";
-export type { GitHubOAuthApp, OAuthTokens, OAuthError, UserInstallation } from "./auth/oauth";
+export type {
+  GitHubOAuthApp,
+  OAuthTokens,
+  OAuthError,
+  UserInstallation,
+} from "./auth/oauth";
 
 // --- webhook/ — what GitHub PUSHES at us -------------------------------------
 
 // Webhook HMAC verification (constant-time, via `@octokit/webhooks-methods` —
 // not hand-rolled). Verifies the RAW body against `x-hub-signature-256`.
-export { verifyWebhookSignature, WebhookVerifyErrorCode } from "./webhook/verify";
+export {
+  verifyWebhookSignature,
+  WebhookVerifyErrorCode,
+} from "./webhook/verify";
 export type {
   VerifyWebhookSignatureInput,
   WebhookVerifyError,
@@ -76,13 +84,20 @@ export type {
 // --- operations/ — what we CALL on GitHub (REST + GraphQL) -------------------
 
 // GitHub REST primitives: Entry-comment ops, repo lookup, PR + diff fetch.
-export { postEntryComment, deleteComment, fetchComment } from "./operations/comments";
+export {
+  postEntryComment,
+  deleteComment,
+  fetchComment,
+} from "./operations/comments";
 export type {
   PostEntryCommentInput,
   DeleteCommentInput,
   FetchCommentInput,
 } from "./operations/comments";
-export { fetchRepositoryById, listInstallationRepositoriesForUser } from "./operations/repo";
+export {
+  fetchRepositoryById,
+  listInstallationRepositoriesForUser,
+} from "./operations/repo";
 export type { RepositoryInfo } from "./operations/repo";
 export { getRepoFile, RepoFileKind } from "./operations/repo-file";
 export type {

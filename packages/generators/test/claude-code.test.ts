@@ -158,7 +158,12 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     // an enum slip is exactly that shape.
     writeFileSync(
       join(scriptDir, "turns.json"),
-      JSON.stringify([{ output: '{"title":"t","tags":["bugfix","scary"]}', forceExhausted: true }]),
+      JSON.stringify([
+        {
+          output: '{"title":"t","tags":["bugfix","scary"]}',
+          forceExhausted: true,
+        },
+      ]),
     );
     const generator = makeGenerator({
       SHIM_SCENARIO: "scripted",
@@ -261,7 +266,10 @@ describe("ClaudeCodeGenerator envelope classification", () => {
     const { writeFileSync } = await import("node:fs");
     writeFileSync(
       join(scriptDir, "turns.json"),
-      JSON.stringify([{ output: "not json at all" }, { output: '{"ok":true}' }]),
+      JSON.stringify([
+        { output: "not json at all" },
+        { output: '{"ok":true}' },
+      ]),
     );
     const generator = makeGenerator({
       SHIM_SCENARIO: "scripted",

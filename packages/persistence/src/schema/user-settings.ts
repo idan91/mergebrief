@@ -16,7 +16,9 @@ import type { InstallationId, ReviewerId } from "../types";
 
 export const userSettings = pgTable("user_settings", {
   /** GitHub's numeric user id — the PK; NOT installation-scoped (D14). */
-  ghUserId: bigint("gh_user_id", { mode: "bigint" }).$type<ReviewerId>().primaryKey(),
+  ghUserId: bigint("gh_user_id", { mode: "bigint" })
+    .$type<ReviewerId>()
+    .primaryKey(),
   /**
    * The installation a multi-org reviewer's login binds to when it is still in
    * their live accessible set; nullable (a fresh user has none). A stale value
@@ -26,6 +28,10 @@ export const userSettings = pgTable("user_settings", {
   defaultInstallationId: bigint("default_installation_id", {
     mode: "bigint",
   }).$type<InstallationId>(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });

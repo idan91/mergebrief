@@ -51,7 +51,10 @@ export function buildComparisonMarks(
     headSha,
     baselineLabel,
     baselineIndex,
-    files: typeof diff === "string" ? parseChangedRanges(diff) : changedRangesFromFileDiffs(diff),
+    files:
+      typeof diff === "string"
+        ? parseChangedRanges(diff)
+        : changedRangesFromFileDiffs(diff),
   };
 }
 

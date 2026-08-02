@@ -25,7 +25,11 @@ export function briefId(stem: string, index: number, head: string): string {
 }
 
 function briefStem(brief: Brief): string {
-  return briefId(prStem(brief.pr.repo, brief.pr.number), brief.index, brief.commitRange.head);
+  return briefId(
+    prStem(brief.pr.repo, brief.pr.number),
+    brief.index,
+    brief.commitRange.head,
+  );
 }
 
 /** Output filename for a brief: `<stem>_<index>_<head8>.brief.json`. */
@@ -67,7 +71,9 @@ export function summaryLines(brief: Brief): string[] {
     `    brief _${brief.index} | ${shortSha(base)}..${shortSha(head)}, ${commitCount} commit(s)`,
   );
   const g = brief.generation;
-  lines.push(`    via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`);
+  lines.push(
+    `    via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`,
+  );
   lines.push(`    ${brief.summary.split("\n")[0] ?? ""}`);
   lines.push("");
 
@@ -83,7 +89,9 @@ export function summaryLines(brief: Brief): string[] {
       `  • [${group.dominantCategory}]${secondary} ${group.title}${uncertain}`,
     );
     const members = brief.chunks.filter((c) => c.changeGroupId === group.id);
-    const carriers = members.filter((c) => c.role === "carrier").map((c) => c.id);
+    const carriers = members
+      .filter((c) => c.role === "carrier")
+      .map((c) => c.id);
     const supporting = members
       .filter((c) => c.role === "supporting")
       .map((c) => c.id);
@@ -141,7 +149,9 @@ export function deltaSummaryLines(delta: DeltaBrief): string[] {
     `DELTA  ${delta.pr.repo}#${delta.pr.number} — ${endpoint(delta.baselineIndex, delta.baselineSha)} → ${endpoint(delta.headIndex, delta.headSha)}`,
   );
   const g = delta.generation;
-  lines.push(`    via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`);
+  lines.push(
+    `    via ${g.provider}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`,
+  );
   lines.push(`    ${delta.summary.split("\n")[0] ?? ""}`);
   lines.push("");
 
@@ -166,16 +176,14 @@ export function deltaSummaryLines(delta: DeltaBrief): string[] {
   for (const c of flagged) {
     lines.push(`  ${c.id} ${c.file} [${c.role}]: ${c.riskSurface.join(", ")}`);
   }
-  const addressing = delta.chunks.filter(
-    (c) => c.addressesComments.length > 0,
-  );
+  const addressing = delta.chunks.filter((c) => c.addressesComments.length > 0);
   if (delta.commentsAddressed.trim() || addressing.length > 0) {
-    lines.push(
-      `Comments addressed (${addressing.length} chunk(s) linked):`,
-    );
+    lines.push(`Comments addressed (${addressing.length} chunk(s) linked):`);
     lines.push(`  ${delta.commentsAddressed.split("\n")[0] ?? ""}`);
     for (const c of addressing) {
-      lines.push(`  ${c.id} ${c.file} → comments ${c.addressesComments.join(", ")}`);
+      lines.push(
+        `  ${c.id} ${c.file} → comments ${c.addressesComments.join(", ")}`,
+      );
     }
     lines.push("");
   }

@@ -237,7 +237,10 @@ export async function setReviewThreadResolution(
   for (let page = 0; page < MAX_THREAD_PAGES; page += 1) {
     let response: unknown;
     try {
-      response = await octokit.graphql(THREAD_IDS_QUERY, { ...variables, cursor });
+      response = await octokit.graphql(THREAD_IDS_QUERY, {
+        ...variables,
+        cursor,
+      });
     } catch (error) {
       return { ok: false, error: mapGraphqlError(error, CONTEXT) };
     }
@@ -253,11 +256,17 @@ export async function setReviewThreadResolution(
     }
 
     const connection = pullRequest.reviewThreads;
-    thread = findThreadByRootComment(connection.nodes ?? [], input.rootCommentId);
+    thread = findThreadByRootComment(
+      connection.nodes ?? [],
+      input.rootCommentId,
+    );
     if (thread !== undefined) {
       break;
     }
-    if (!connection.pageInfo.hasNextPage || connection.pageInfo.endCursor === null) {
+    if (
+      !connection.pageInfo.hasNextPage ||
+      connection.pageInfo.endCursor === null
+    ) {
       break;
     }
     cursor = connection.pageInfo.endCursor;

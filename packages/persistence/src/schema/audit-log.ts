@@ -13,8 +13,12 @@ import type { AuditAction, AuditActorType, InstallationId } from "../types";
 export const auditLog = pgTable("audit_log", {
   id: bigint("id", { mode: "bigint" }).generatedAlwaysAsIdentity().primaryKey(),
   /** Tenant scope; plain column, NOT an FK (D9). */
-  installationId: bigint("installation_id", { mode: "bigint" }).$type<InstallationId>().notNull(),
-  occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  installationId: bigint("installation_id", { mode: "bigint" })
+    .$type<InstallationId>()
+    .notNull(),
+  occurredAt: timestamp("occurred_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
   actorType: text("actor_type").$type<AuditActorType>().notNull(),
   /** GitHub user id for a reviewer; null for app/system. Loose numeric ref. */
   actorId: bigint("actor_id", { mode: "bigint" }),

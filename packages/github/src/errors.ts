@@ -73,7 +73,10 @@ function codeForStatus(status: number): GitHubApiErrorCode {
  * (e.g. `"post entry comment"`) — never interpolated from user/GitHub input —
  * so the resulting message carries no untrusted or secret bytes.
  */
-export function mapRequestError(error: unknown, context: string): GitHubApiError {
+export function mapRequestError(
+  error: unknown,
+  context: string,
+): GitHubApiError {
   if (error instanceof RequestError) {
     const code =
       error.status === 403 && isRateLimited403(error)
@@ -109,9 +112,10 @@ interface GraphqlErrorEntry {
   readonly type?: string;
 }
 
-function isGraphqlResponseError(
-  error: unknown,
-): error is { readonly name: string; readonly errors: readonly GraphqlErrorEntry[] } {
+function isGraphqlResponseError(error: unknown): error is {
+  readonly name: string;
+  readonly errors: readonly GraphqlErrorEntry[];
+} {
   // Fully structural — no `instanceof Error`, which would reject a wrapped or
   // cross-realm error carrying the same shape (codex round 2).
   if (typeof error !== "object" || error === null) {
@@ -143,7 +147,10 @@ const GRAPHQL_TYPE_PRECEDENCE: ReadonlyArray<{
  * token, or response text ever reaches the result. HTTP-level failures
  * (thrown as `RequestError`) delegate to the REST taxonomy.
  */
-export function mapGraphqlError(error: unknown, context: string): GitHubApiError {
+export function mapGraphqlError(
+  error: unknown,
+  context: string,
+): GitHubApiError {
   if (error instanceof RequestError) {
     return mapRequestError(error, context);
   }

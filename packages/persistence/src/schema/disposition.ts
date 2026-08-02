@@ -3,8 +3,19 @@
 // Anchored by content coordinates (file/attribute/region/sha), never a
 // brief-local id — those dangle on regeneration. M1 shape covers only
 // region-anchored flags (region NOT NULL).
-import { bigint, integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
-import type { DispositionDecision, PullRequestRowId, ReviewerId } from "../types";
+import {
+  bigint,
+  integer,
+  pgTable,
+  text,
+  timestamp,
+  unique,
+} from "drizzle-orm/pg-core";
+import type {
+  DispositionDecision,
+  PullRequestRowId,
+  ReviewerId,
+} from "../types";
 import { tenantColumns } from "./columns";
 import { pullRequest } from "./pull-request";
 
@@ -16,7 +27,9 @@ export const disposition = pgTable(
       .$type<PullRequestRowId>()
       .notNull()
       .references(() => pullRequest.id, { onDelete: "cascade" }),
-    reviewerId: bigint("reviewer_id", { mode: "bigint" }).$type<ReviewerId>().notNull(),
+    reviewerId: bigint("reviewer_id", { mode: "bigint" })
+      .$type<ReviewerId>()
+      .notNull(),
     /** Canonical within an artifact; rename-stable id is M2. */
     filePath: text("file_path").notNull(),
     /** The risk-surface attribute token — the Flag's identity. */

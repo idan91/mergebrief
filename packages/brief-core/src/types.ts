@@ -5,7 +5,12 @@ import type { ValueOf } from "types";
 // Port vocabulary now lives in packages/generators (BRIEF-11); re-exported
 // here so the categorizer's own modules and downstream consumers keep their
 // import paths.
-export { Efforts, GenerationSchema, type Effort, type Generation } from "generators";
+export {
+  Efforts,
+  GenerationSchema,
+  type Effort,
+  type Generation,
+} from "generators";
 
 /**
  * Brief schema — the heart of the categorizer.
@@ -107,7 +112,9 @@ export type Concern = (typeof Concerns)[number];
 export type Role = (typeof Roles)[number];
 export type RiskSurfaceAttribute = (typeof RiskSurfaceAttributes)[number];
 export type Specificity = ValueOf<typeof Specificities>;
-export type RevisionNarrativeSkipReason = ValueOf<typeof RevisionNarrativeSkipReasons>;
+export type RevisionNarrativeSkipReason = ValueOf<
+  typeof RevisionNarrativeSkipReasons
+>;
 
 const categoryEnum = z.enum(Categories);
 const concernEnum = z.enum(Concerns);
@@ -171,64 +178,67 @@ function buildRiskNoteSchema(riskToken: z.ZodType<string>) {
     note: z
       .string()
       .describe(
-        "one short factual note. For `comment-contradicts-code` it MUST cite both sides: the comment line and the code line, e.g. \"comment says X (L12), code does Y (L15)\".",
+        'one short factual note. For `comment-contradicts-code` it MUST cite both sides: the comment line and the code line, e.g. "comment says X (L12), code does Y (L15)".',
       ),
   });
 }
 
 export const RiskNoteSchema = buildRiskNoteSchema(riskSurfaceEnum);
 
-const buildChunkSchema = (riskToken: z.ZodType<string>) => z.object({
-  id: z.string().describe("stable chunk id, e.g. c1, c2, …"),
-  changeGroupId: z
-    .string()
-    .describe(
-      "id of the single change-group this chunk belongs to (exactly one — a chunk is never shared across groups; a file spans groups only via different chunks)",
+const buildChunkSchema = (riskToken: z.ZodType<string>) =>
+  z.object({
+    id: z.string().describe("stable chunk id, e.g. c1, c2, …"),
+    changeGroupId: z
+      .string()
+      .describe(
+        "id of the single change-group this chunk belongs to (exactly one — a chunk is never shared across groups; a file spans groups only via different chunks)",
+      ),
+    file: z.string().describe("file path the chunk lives in"),
+    concern: concernEnum.describe(
+      "artifact kind; mostly derivable from the file path",
     ),
-  file: z.string().describe("file path the chunk lives in"),
-  concern: concernEnum.describe(
-    "artifact kind; mostly derivable from the file path",
-  ),
-  role: roleEnum.describe(
-    "carrier holds intent; supporting serves it. Default from concern (implementation→carrier, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are carrier when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another carrier.",
-  ),
-  loc: z
-    .object({
-      added: z.number().int().describe("git lines added in this chunk"),
-      deleted: z.number().int().describe("git lines deleted in this chunk"),
-    })
-    .describe(
-      "approximation: git LoC ≈ adjusted LoC. Note likely moves in the group summary; we do not claim move-accurate LoC.",
+    role: roleEnum.describe(
+      "carrier holds intent; supporting serves it. Default from concern (implementation→carrier, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are carrier when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another carrier.",
     ),
-  addedRanges: z
-    .array(LineRangeSchema)
-    .describe(
-      "new-side (+) line-number ranges of the actual ADDED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only deletes. Many disjoint ranges = scattered change.",
-    ),
-  removedRanges: z
-    .array(LineRangeSchema)
-    .describe(
-      "old-side (−) line-number ranges of the actual REMOVED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only adds.",
-    ),
-  riskSurface: z
-    .array(riskToken)
-    .describe(
-      "factual attributes that apply to this chunk (empty if none). Never verdicts — severity emerges from combinations.",
-    ),
-  riskNotes: z
-    .array(buildRiskNoteSchema(riskToken))
-    .optional()
-    .describe(
-      "optional short factual notes, one per risk-surface attribute on this chunk that needs evidence. REQUIRED for `comment-contradicts-code`: the note must cite both sides — the comment line and the code line, e.g. \"comment says X (L12), code does Y (L15)\". Omit entirely when no attribute needs a note.",
-    ),
-});
+    loc: z
+      .object({
+        added: z.number().int().describe("git lines added in this chunk"),
+        deleted: z.number().int().describe("git lines deleted in this chunk"),
+      })
+      .describe(
+        "approximation: git LoC ≈ adjusted LoC. Note likely moves in the group summary; we do not claim move-accurate LoC.",
+      ),
+    addedRanges: z
+      .array(LineRangeSchema)
+      .describe(
+        "new-side (+) line-number ranges of the actual ADDED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only deletes. Many disjoint ranges = scattered change.",
+      ),
+    removedRanges: z
+      .array(LineRangeSchema)
+      .describe(
+        "old-side (−) line-number ranges of the actual REMOVED lines in this chunk — changed lines only, NOT the @@ hunk window. Empty if the chunk only adds.",
+      ),
+    riskSurface: z
+      .array(riskToken)
+      .describe(
+        "factual attributes that apply to this chunk (empty if none). Never verdicts — severity emerges from combinations.",
+      ),
+    riskNotes: z
+      .array(buildRiskNoteSchema(riskToken))
+      .optional()
+      .describe(
+        'optional short factual notes, one per risk-surface attribute on this chunk that needs evidence. REQUIRED for `comment-contradicts-code`: the note must cite both sides — the comment line and the code line, e.g. "comment says X (L12), code does Y (L15)". Omit entirely when no attribute needs a note.',
+      ),
+  });
 
 export const ChunkSchema = buildChunkSchema(riskSurfaceEnum);
 
 export const ChangeGroupSchema = z.object({
   id: z
     .string()
-    .describe("stable group id referenced by chunks' changeGroupId, e.g. g1, g2, …"),
+    .describe(
+      "stable group id referenced by chunks' changeGroupId, e.g. g1, g2, …",
+    ),
   title: z
     .string()
     .describe(
@@ -304,13 +314,21 @@ export const ReviewCommentSchema = z.object({
     .number()
     .int()
     .nullable()
-    .describe("current diff range start; null for single-line comments, file-level comments, or outdated anchors"),
-  line: z.number().int().nullable().describe("current diff line/range end; null if outdated"),
+    .describe(
+      "current diff range start; null for single-line comments, file-level comments, or outdated anchors",
+    ),
+  line: z
+    .number()
+    .int()
+    .nullable()
+    .describe("current diff line/range end; null if outdated"),
   originalStartLine: z
     .number()
     .int()
     .nullable()
-    .describe("range start at the time the comment was made; null for single-line comments"),
+    .describe(
+      "range start at the time the comment was made; null for single-line comments",
+    ),
   originalLine: z
     .number()
     .int()
@@ -428,7 +446,9 @@ export const IntentCheckSchema = z.object({
     ),
   accomplished: z
     .array(IntentItemSchema)
-    .describe("stated asks the diff accomplishes (empty when specificity is broad/none)"),
+    .describe(
+      "stated asks the diff accomplishes (empty when specificity is broad/none)",
+    ),
   statedButMissing: z
     .array(IntentItemSchema)
     .describe(
@@ -782,5 +802,7 @@ export type ReviewComment = z.infer<typeof ReviewCommentSchema>;
 export type Brief = z.infer<typeof BriefSchema>;
 export type DeltaChunk = z.infer<typeof DeltaChunkSchema>;
 export type DeltaBrief = z.infer<typeof DeltaBriefSchema>;
-export type RevisionNarrativeChunk = z.infer<typeof RevisionNarrativeChunkSchema>;
+export type RevisionNarrativeChunk = z.infer<
+  typeof RevisionNarrativeChunkSchema
+>;
 export type RevisionNarrative = z.infer<typeof RevisionNarrativeSchema>;

@@ -63,7 +63,9 @@ export function stampAccess(
 }
 
 /** The one place the `api.access` line is emitted (ADR 0034 taxonomy). */
-export function requestLogging(logger: Logger): MiddlewareHandler<RequestLogEnv> {
+export function requestLogging(
+  logger: Logger,
+): MiddlewareHandler<RequestLogEnv> {
   return async (c, next) => {
     const startedAt = Date.now();
     c.set("logger", logger.child({ reqId: c.get("requestId") }));

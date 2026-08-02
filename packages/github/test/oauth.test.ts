@@ -29,7 +29,11 @@ function leakyError(): Error {
   error.request = {
     method: "POST",
     url: "https://github.com/login/oauth/access_token",
-    body: { code: CODE, client_secret: "SECRET_VALUE", refresh_token: REFRESH_TOKEN },
+    body: {
+      code: CODE,
+      client_secret: "SECRET_VALUE",
+      refresh_token: REFRESH_TOKEN,
+    },
   };
   return error;
 }
@@ -67,7 +71,9 @@ describe("exchangeWebFlowCode", () => {
     expect(result.value.accessToken).toBe(ACCESS_TOKEN);
     expect(result.value.refreshToken).toBe(REFRESH_TOKEN);
     expect(result.value.accessTokenExpiresAt).toEqual(new Date(ACCESS_EXPIRES));
-    expect(result.value.refreshTokenExpiresAt).toEqual(new Date(REFRESH_EXPIRES));
+    expect(result.value.refreshTokenExpiresAt).toEqual(
+      new Date(REFRESH_EXPIRES),
+    );
     expect(createToken).toHaveBeenCalledWith({ code: CODE, state: STATE });
   });
 
@@ -116,7 +122,9 @@ describe("refreshUserToken", () => {
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.accessToken).toBe("ghu_ROTATED_ACCESS");
     expect(result.value.refreshToken).toBe("ghr_ROTATED_REFRESH");
-    expect(result.value.refreshTokenExpiresAt).toEqual(new Date(REFRESH_EXPIRES));
+    expect(result.value.refreshTokenExpiresAt).toEqual(
+      new Date(REFRESH_EXPIRES),
+    );
     expect(refreshFn).toHaveBeenCalledWith({ refreshToken: REFRESH_TOKEN });
   });
 
@@ -140,7 +148,10 @@ describe("refreshUserToken", () => {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -153,7 +164,12 @@ describe("listUserInstallations", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: string | URL | Request) => {
-        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        const url =
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
         expect(url).toContain("/user/installations");
         return jsonResponse({
           total_count: 2,

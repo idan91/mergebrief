@@ -38,11 +38,14 @@ describe("createInlineReviewComment", () => {
     const createReviewComment = vi
       .fn()
       .mockResolvedValue({ data: { id: 999, pull_request_review_id: 555 } });
-    const result = await createInlineReviewComment(mockOctokit(createReviewComment), {
-      ...INPUT,
-      startLine: 10,
-      startSide: ReviewCommentSide.RIGHT,
-    });
+    const result = await createInlineReviewComment(
+      mockOctokit(createReviewComment),
+      {
+        ...INPUT,
+        startLine: 10,
+        startSide: ReviewCommentSide.RIGHT,
+      },
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.commentId).toBe(999n);
@@ -77,7 +80,10 @@ describe("createInlineReviewComment", () => {
     const createReviewComment = vi
       .fn()
       .mockResolvedValue({ data: { id: 999, pull_request_review_id: null } });
-    const result = await createInlineReviewComment(mockOctokit(createReviewComment), INPUT);
+    const result = await createInlineReviewComment(
+      mockOctokit(createReviewComment),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.commentId).toBe(999n);
@@ -85,20 +91,26 @@ describe("createInlineReviewComment", () => {
   });
 
   it("rejects a lossy (unsafe-integer) comment id as an unexpected shape", async () => {
-    const createReviewComment = vi
-      .fn()
-      .mockResolvedValue({ data: { id: Number.MAX_SAFE_INTEGER + 2, pull_request_review_id: 1 } });
-    const result = await createInlineReviewComment(mockOctokit(createReviewComment), INPUT);
+    const createReviewComment = vi.fn().mockResolvedValue({
+      data: { id: Number.MAX_SAFE_INTEGER + 2, pull_request_review_id: 1 },
+    });
+    const result = await createInlineReviewComment(
+      mockOctokit(createReviewComment),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.REQUEST_FAILED);
   });
 
   it("drops an unsafe review id to undefined rather than failing the post", async () => {
-    const createReviewComment = vi
-      .fn()
-      .mockResolvedValue({ data: { id: 5, pull_request_review_id: Number.MAX_SAFE_INTEGER + 2 } });
-    const result = await createInlineReviewComment(mockOctokit(createReviewComment), INPUT);
+    const createReviewComment = vi.fn().mockResolvedValue({
+      data: { id: 5, pull_request_review_id: Number.MAX_SAFE_INTEGER + 2 },
+    });
+    const result = await createInlineReviewComment(
+      mockOctokit(createReviewComment),
+      INPUT,
+    );
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.commentId).toBe(5n);
@@ -107,7 +119,10 @@ describe("createInlineReviewComment", () => {
 
   it("flags a 422 as a stale anchor (the diff moved under the pinned commit)", async () => {
     const createReviewComment = vi.fn().mockRejectedValue(requestError(422));
-    const result = await createInlineReviewComment(mockOctokit(createReviewComment), INPUT);
+    const result = await createInlineReviewComment(
+      mockOctokit(createReviewComment),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.staleAnchor).toBe(true);
@@ -120,7 +135,10 @@ describe("createInlineReviewComment", () => {
 
   it("maps a 403 to a sanitized forbidden error without the stale-anchor flag", async () => {
     const createReviewComment = vi.fn().mockRejectedValue(requestError(403));
-    const result = await createInlineReviewComment(mockOctokit(createReviewComment), INPUT);
+    const result = await createInlineReviewComment(
+      mockOctokit(createReviewComment),
+      INPUT,
+    );
     expect(result.ok).toBe(false);
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.FORBIDDEN);

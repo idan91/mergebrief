@@ -88,7 +88,12 @@ describe("withUsageSink", () => {
       },
       provenance: (effort) => ({ provider: "p", model: "m", effort }),
     };
-    const totals = { calls: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0 };
+    const totals = {
+      calls: 0,
+      inputTokens: 0,
+      outputTokens: 0,
+      cacheReadTokens: 0,
+    };
     const wrapped = withUsageSink(inner, (usage) => {
       totals.calls += 1;
       totals.inputTokens += usage.inputTokens;
@@ -129,7 +134,12 @@ describe("prices", () => {
   it("prices anthropic additively: input EXCLUDES cache reads", () => {
     const cost = priceUsage(
       "anthropic:claude-opus-4-8",
-      { calls: 5, inputTokens: 2_000_000, outputTokens: 500_000, cacheReadTokens: 1_000_000 },
+      {
+        calls: 5,
+        inputTokens: 2_000_000,
+        outputTokens: 500_000,
+        cacheReadTokens: 1_000_000,
+      },
       { inputPerMTok: 3, outputPerMTok: 15, cacheReadPerMTok: 0.3 },
     );
     // 2M×$3 + 0.5M×$15 + 1M×$0.30 = 6 + 7.5 + 0.3
@@ -139,7 +149,12 @@ describe("prices", () => {
   it("ignores anthropic cache reads when no cache rate is configured — never guesses", () => {
     const cost = priceUsage(
       "anthropic:claude-opus-4-8",
-      { calls: 1, inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 9_000_000 },
+      {
+        calls: 1,
+        inputTokens: 1_000_000,
+        outputTokens: 0,
+        cacheReadTokens: 9_000_000,
+      },
       { inputPerMTok: 3, outputPerMTok: 15 },
     );
     expect(cost).toBeCloseTo(3);
@@ -148,7 +163,12 @@ describe("prices", () => {
   it("prices openai-family by subtraction: cached tokens are a SUBSET of input", () => {
     const cost = priceUsage(
       "openai:gpt-x",
-      { calls: 1, inputTokens: 800_000, outputTokens: 0, cacheReadTokens: 600_000 },
+      {
+        calls: 1,
+        inputTokens: 800_000,
+        outputTokens: 0,
+        cacheReadTokens: 600_000,
+      },
       { inputPerMTok: 5, outputPerMTok: 25, cacheReadPerMTok: 0.5 },
     );
     // (800k − 600k)×$5 + 600k×$0.50 = 1.0 + 0.3 — NOT 800k×$5 + 600k×$0.50
@@ -158,7 +178,12 @@ describe("prices", () => {
   it("openai-family without a cache rate bills the whole prompt at input rate (honest overcount)", () => {
     const cost = priceUsage(
       "openrouter:some/model",
-      { calls: 1, inputTokens: 800_000, outputTokens: 0, cacheReadTokens: 600_000 },
+      {
+        calls: 1,
+        inputTokens: 800_000,
+        outputTokens: 0,
+        cacheReadTokens: 600_000,
+      },
       { inputPerMTok: 5, outputPerMTok: 25 },
     );
     expect(cost).toBeCloseTo(4);

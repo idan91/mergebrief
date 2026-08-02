@@ -20,15 +20,22 @@ import type { InstallationId } from "../types";
  */
 export function tenantColumns<TId extends bigint = bigint>() {
   return {
-    id: bigint("id", { mode: "bigint" }).$type<TId>().generatedAlwaysAsIdentity().primaryKey(),
-    installationId: bigint("installation_id", { mode: "bigint" }).$type<InstallationId>().notNull(),
+    id: bigint("id", { mode: "bigint" })
+      .$type<TId>()
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
+    installationId: bigint("installation_id", { mode: "bigint" })
+      .$type<InstallationId>()
+      .notNull(),
   };
 }
 
 /** Stamps group: `created_at timestamptz not null default now()`. */
 export function stampColumns() {
   return {
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   };
 }
 

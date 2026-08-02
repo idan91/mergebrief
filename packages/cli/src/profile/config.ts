@@ -57,7 +57,10 @@ export function loadConfig(configDir: string): Result<CliConfig, string> {
   }
   const parsed = configSchema.safeParse(parsedJson);
   if (!parsed.success) {
-    return { ok: false, error: `config at ${path} is malformed: ${parsed.error.issues[0]?.message ?? "invalid"}` };
+    return {
+      ok: false,
+      error: `config at ${path} is malformed: ${parsed.error.issues[0]?.message ?? "invalid"}`,
+    };
   }
   return { ok: true, value: parsed.data };
 }
@@ -109,7 +112,9 @@ export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
     name = explicit;
   } else if (input.gitRemoteOwner !== undefined) {
     name = names.find((candidate) =>
-      (config.profiles[candidate]?.owners ?? []).includes(input.gitRemoteOwner ?? ""),
+      (config.profiles[candidate]?.owners ?? []).includes(
+        input.gitRemoteOwner ?? "",
+      ),
     );
   }
   if (name === undefined) {

@@ -240,7 +240,10 @@ export async function fetchAuthenticatedUser(
       value: { reviewerId: id, reviewerLogin: parsed.data.login },
     };
   } catch (error) {
-    return { ok: false, error: mapRequestError(error, "fetch authenticated user") };
+    return {
+      ok: false,
+      error: mapRequestError(error, "fetch authenticated user"),
+    };
   }
 }
 
@@ -280,7 +283,10 @@ export async function listAppInstallationsForUser(
     }
     return { ok: true, value: ids };
   } catch (error) {
-    return { ok: false, error: mapRequestError(error, "list user installations") };
+    return {
+      ok: false,
+      error: mapRequestError(error, "list user installations"),
+    };
   }
 }
 
@@ -323,19 +329,31 @@ export async function listUserInstallations(
     const response = await octokit.request("GET /user/installations");
     const parsed = userInstallationsResponseSchema.safeParse(response.data);
     if (!parsed.success) {
-      return { ok: false, error: unexpectedResponseError("list user installations") };
+      return {
+        ok: false,
+        error: unexpectedResponseError("list user installations"),
+      };
     }
     const result: UserInstallation[] = [];
     for (const installation of parsed.data.installations) {
       const id = BigInt(installation.id);
       if (!isInstallationId(id)) {
-        return { ok: false, error: unexpectedResponseError("list user installations") };
+        return {
+          ok: false,
+          error: unexpectedResponseError("list user installations"),
+        };
       }
-      result.push({ installationId: id, accountLogin: installation.account.login });
+      result.push({
+        installationId: id,
+        accountLogin: installation.account.login,
+      });
     }
     return { ok: true, value: result };
   } catch (error) {
-    return { ok: false, error: mapRequestError(error, "list user installations") };
+    return {
+      ok: false,
+      error: mapRequestError(error, "list user installations"),
+    };
   }
 }
 

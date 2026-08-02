@@ -20,7 +20,10 @@ describe("settings.yaml validation", () => {
 
   it("applies the default entryCommentOnDrafts=false when omitted", () => {
     const result = validate(yaml({ version: 1 }));
-    expect(result.settings).toEqual({ version: 1, entryCommentOnDrafts: false });
+    expect(result.settings).toEqual({
+      version: 1,
+      entryCommentOnDrafts: false,
+    });
   });
 
   it("rejects an unknown key (typo must not silently no-op)", () => {
@@ -54,7 +57,10 @@ describe("settings.yaml validation", () => {
   });
 
   it("is over-budget one byte past the cap", () => {
-    const content = padYamlToBytes(yaml({ version: 1 }), SETTINGS_MAX_BYTES + 1);
+    const content = padYamlToBytes(
+      yaml({ version: 1 }),
+      SETTINGS_MAX_BYTES + 1,
+    );
     const result = validate(content);
     expect(result.settings).toBeUndefined();
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcome.OVER_BUDGET);
@@ -63,7 +69,10 @@ describe("settings.yaml validation", () => {
   });
 
   it("warns (but stays applied) when nearing the cap (≥80%)", () => {
-    const content = padYamlToBytes(yaml({ version: 1 }), Math.ceil(SETTINGS_MAX_BYTES * 0.85));
+    const content = padYamlToBytes(
+      yaml({ version: 1 }),
+      Math.ceil(SETTINGS_MAX_BYTES * 0.85),
+    );
     const result = validate(content);
     expect(result.outcomes[1]?.outcome).toBe(RepoConfigOutcome.APPLIED);
     expect(result.outcomes[1]?.warning).toContain("nearing the cap");

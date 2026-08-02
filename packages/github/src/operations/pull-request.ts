@@ -104,7 +104,10 @@ export async function fetchPullRequestFiles(
       })),
     };
   } catch (error) {
-    return { ok: false, error: mapRequestError(error, "list pull request files") };
+    return {
+      ok: false,
+      error: mapRequestError(error, "list pull request files"),
+    };
   }
 }
 
@@ -146,12 +149,15 @@ export async function fetchReviewCommentsRaw(
   ref: PullRequestRef,
 ): Promise<Result<unknown[], GitHubApiError>> {
   try {
-    const comments = await octokit.paginate(octokit.rest.pulls.listReviewComments, {
-      owner: ref.owner,
-      repo: ref.repo,
-      pull_number: ref.prNumber,
-      per_page: 100,
-    });
+    const comments = await octokit.paginate(
+      octokit.rest.pulls.listReviewComments,
+      {
+        owner: ref.owner,
+        repo: ref.repo,
+        pull_number: ref.prNumber,
+        per_page: 100,
+      },
+    );
     return { ok: true, value: comments };
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "list review comments") };
@@ -176,7 +182,10 @@ export async function fetchCompareCommitCount(
     });
     return { ok: true, value: response.data.total_commits };
   } catch (error) {
-    return { ok: false, error: mapRequestError(error, "fetch compare commit count") };
+    return {
+      ok: false,
+      error: mapRequestError(error, "fetch compare commit count"),
+    };
   }
 }
 
@@ -226,7 +235,10 @@ export async function fetchCompareDiff(
     });
     const body: unknown = response.data;
     if (typeof body !== "string") {
-      return { ok: false, error: unexpectedResponseError("fetch compare diff") };
+      return {
+        ok: false,
+        error: unexpectedResponseError("fetch compare diff"),
+      };
     }
     return { ok: true, value: body };
   } catch (error) {

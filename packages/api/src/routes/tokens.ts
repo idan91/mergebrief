@@ -30,7 +30,12 @@ import {
 } from "persistence";
 import { z } from "zod";
 import { sha256Hex, type AuthRouteDeps } from "./auth";
-import { accessStampLayer, API_TOKEN_PREFIX, sessionLayer, type AuthzEnv } from "./authz";
+import {
+  accessStampLayer,
+  API_TOKEN_PREFIX,
+  sessionLayer,
+  type AuthzEnv,
+} from "./authz";
 import { resolveAccessibleInstallations } from "./installations";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
@@ -49,8 +54,17 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
  */
 const mintBodySchema = z.object({
   name: z.string().min(1).max(100),
-  installationId: z.union([z.string().regex(/^\d+$/), z.number().int().positive()]),
-  expiresInDays: z.number().int().min(1).max(MAX_EXPIRY_DAYS).nullable().optional(),
+  installationId: z.union([
+    z.string().regex(/^\d+$/),
+    z.number().int().positive(),
+  ]),
+  expiresInDays: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_EXPIRY_DAYS)
+    .nullable()
+    .optional(),
 });
 
 /** One list/mint entry — metadata only; bigints stringified, dates ISO. */
@@ -95,17 +109,26 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     // Validate the requested installation against the LIVE accessible set —
     // never the caller's word, never the session's current binding alone
     // (same trust shape as POST /api/auth/installation).
-    const resolved = await resolveAccessibleInstallations(deps, session, c.get("logger"));
+    const resolved = await resolveAccessibleInstallations(
+      deps,
+      session,
+      c.get("logger"),
+    );
     if (!resolved.ok) {
       return c.json(
-        { error: resolved.error.status === 401 ? "unauthorized" : "upstream error" },
+        {
+          error:
+            resolved.error.status === 401 ? "unauthorized" : "upstream error",
+        },
         resolved.error.status,
         NO_STORE,
       );
     }
     const { installations, session: currentSession } = resolved.value;
     const target = installations.find(
-      (installation) => String(installation.installationId) === String(parsed.data.installationId),
+      (installation) =>
+        String(installation.installationId) ===
+        String(parsed.data.installationId),
     );
     if (target === undefined) {
       await audit(deps.handle, {
@@ -114,7 +137,10 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
         actorId: currentSession.reviewerId,
         action: AuditAction.AUTH,
         targetType: "api_token",
-        metadata: { [AuditMetadataKey.DECISION]: "403", [AuditMetadataKey.KIND]: "mint" },
+        metadata: {
+          [AuditMetadataKey.DECISION]: "403",
+          [AuditMetadataKey.KIND]: "mint",
+        },
       });
       return c.json({ error: "forbidden" }, 403, NO_STORE);
     }
@@ -123,7 +149,9 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     const expiresAt =
       expiresInDays === null
         ? null
-        : new Date(Date.now() + (expiresInDays ?? DEFAULT_EXPIRY_DAYS) * MS_PER_DAY);
+        : new Date(
+            Date.now() + (expiresInDays ?? DEFAULT_EXPIRY_DAYS) * MS_PER_DAY,
+          );
 
     // The opaque secret: prefix + 32 random bytes; stored only as SHA-256.
     const token = `${API_TOKEN_PREFIX}${randomBytes(TOKEN_BYTES).toString("base64url")}`;
@@ -182,9 +210,16 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       action: AuditAction.AUTH,
       targetType: "api_token",
       targetId: tokenId,
-      metadata: { [AuditMetadataKey.DECISION]: "200", [AuditMetadataKey.KIND]: "revoke" },
+      metadata: {
+        [AuditMetadataKey.DECISION]: "200",
+        [AuditMetadataKey.KIND]: "revoke",
+      },
     });
-    return c.json({ ok: true, apiToken: tokenView(revoked.value) }, 200, NO_STORE);
+    return c.json(
+      { ok: true, apiToken: tokenView(revoked.value) },
+      200,
+      NO_STORE,
+    );
   });
 
   return app;

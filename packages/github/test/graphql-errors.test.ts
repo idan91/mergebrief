@@ -73,7 +73,10 @@ describe("mapGraphqlError", () => {
         data: { message: "Bad credentials" },
       },
     });
-    const mapped = mapGraphqlError(httpError, "fetch pull request conversation");
+    const mapped = mapGraphqlError(
+      httpError,
+      "fetch pull request conversation",
+    );
     expect(mapped.code).toBe(GitHubApiErrorCode.UNAUTHORIZED);
     expect(mapped.status).toBe(401);
     const serialized = JSON.stringify(mapped);

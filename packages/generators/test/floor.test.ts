@@ -135,7 +135,9 @@ describe("runWithSchemaFloor", () => {
       }),
     ).rejects.toMatchObject({ kind: GeneratorErrorKind.SCHEMA_FLOOR });
     // Still dumped (with the fallback serialization), not rejected opaquely.
-    expect(readdirSync(dir).filter((f) => f.endsWith(".failed.json"))).toHaveLength(2);
+    expect(
+      readdirSync(dir).filter((f) => f.endsWith(".failed.json")),
+    ).toHaveLength(2);
   });
 
   it("uses a transport-supplied invalidReason over its own parse error", async () => {
@@ -147,7 +149,11 @@ describe("runWithSchemaFloor", () => {
         failureDir: dir,
         attempt: async (feedback) => {
           if (feedback) feedbackError = feedback.error;
-          return { raw: "some output", invalidReason: "No structured output for floor (stop_reason=max_tokens)." };
+          return {
+            raw: "some output",
+            invalidReason:
+              "No structured output for floor (stop_reason=max_tokens).",
+          };
         },
       }),
     ).rejects.toThrow(/No structured output for floor/);

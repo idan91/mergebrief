@@ -1,9 +1,5 @@
 import type { EvalProperty } from "../../properties";
-import {
-  chunksFor,
-  firstGroupIndex,
-  groupIdsFor,
-} from "../../briefQueries";
+import { chunksFor, firstGroupIndex, groupIdsFor } from "../../briefQueries";
 
 /**
  * components#10 @ 3110bbb — ONE file (Button.tsx) carrying two entangled

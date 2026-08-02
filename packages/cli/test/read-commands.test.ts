@@ -40,18 +40,26 @@ const BASE_URL = "https://mb.example";
 const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 
-function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
   const asBigInt = BigInt(value);
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
 }
-const CTX: TenantContext = { installationId: brand(isInstallationId, INSTALLATION_ID) };
+const CTX: TenantContext = {
+  installationId: brand(isInstallationId, INSTALLATION_ID),
+};
 const REVIEWER: ReviewerId = brand(isReviewerId, REVIEWER_ID);
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", date: new Date().toUTCString() },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      date: new Date().toUTCString(),
+    },
   });
 }
 
@@ -81,20 +89,35 @@ function stubGitHub(): void {
   vi.stubGlobal(
     "fetch",
     vi.fn(async (input: string | URL | Request): Promise<Response> => {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-      if (url.includes("/user/installations/") && url.includes("/repositories")) {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (
+        url.includes("/user/installations/") &&
+        url.includes("/repositories")
+      ) {
         return jsonResponse({
           total_count: 1,
           repositories: [{ id: REPO_A, full_name: "octo/hello" }],
         });
       }
       if (/\/repositories\/\d+$/.test(url)) {
-        return jsonResponse({ id: REPO_A, full_name: "octo/hello", private: true });
+        return jsonResponse({
+          id: REPO_A,
+          full_name: "octo/hello",
+          private: true,
+        });
       }
       if (url.includes("/compare/")) {
         return new Response(RAW_DIFF, {
           status: 200,
-          headers: { "content-type": "application/vnd.github.v3.diff; charset=utf-8", date: new Date().toUTCString() },
+          headers: {
+            "content-type": "application/vnd.github.v3.diff; charset=utf-8",
+            date: new Date().toUTCString(),
+          },
         });
       }
       return jsonResponse({ message: "unexpected endpoint" }, 404);
@@ -151,9 +174,14 @@ describe("read commands over the real api app", () => {
       webhookSecret: "test-webhook-secret",
       auth,
       github: {
-        fetchPullRequestConversation: async () => ({ ok: true as const, value: CONVERSATION_BODY }),
+        fetchPullRequestConversation: async () => ({
+          ok: true as const,
+          value: CONVERSATION_BODY,
+        }),
         listRepoCollaborators: async () => {
-          throw new Error("collaborators port must not be called in this suite");
+          throw new Error(
+            "collaborators port must not be called in this suite",
+          );
         },
       },
       serverVersion: "test-version",
@@ -173,7 +201,8 @@ describe("read commands over the real api app", () => {
     const plaintext = `mergebrief_${randomBytes(32).toString("base64url")}`;
     const sealedAccess = await encryptToken(kp, KEY_REF, "ghu_ACCESS");
     const sealedRefresh = await encryptToken(kp, KEY_REF, "ghr_REFRESH");
-    if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+    if (!sealedAccess.ok || !sealedRefresh.ok)
+      throw new Error("seed encrypt failed");
     const grant = await grantAuth(harness.handle).createGrant({
       ghTokenCiphertext: sealedAccess.value,
       ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -221,7 +250,10 @@ describe("read commands over the real api app", () => {
     readonly err: string[];
   }
 
-  async function run(argv: string[], env: Record<string, string> = {}): Promise<Run> {
+  async function run(
+    argv: string[],
+    env: Record<string, string> = {},
+  ): Promise<Run> {
     const out: string[] = [];
     const err: string[] = [];
     const token = await seedToken();
@@ -243,16 +275,19 @@ describe("read commands over the real api app", () => {
   async function login(): Promise<void> {
     const token = await seedToken();
     const out: string[] = [];
-    const code = await runCli(["auth", "login", "--base-url", BASE_URL, "--json"], {
-      fetch: appFetch,
-      env: {},
-      configDir,
-      cacheDir,
-      stdout: (t) => out.push(t),
-      stderr: () => undefined,
-      readStdin: async () => `${token}\n`,
-      gitOriginUrl: () => undefined,
-    });
+    const code = await runCli(
+      ["auth", "login", "--base-url", BASE_URL, "--json"],
+      {
+        fetch: appFetch,
+        env: {},
+        configDir,
+        cacheDir,
+        stdout: (t) => out.push(t),
+        stderr: () => undefined,
+        readStdin: async () => `${token}\n`,
+        gitOriginUrl: () => undefined,
+      },
+    );
     expect(code).toBe(ExitCode.OK);
   }
 
@@ -270,7 +305,9 @@ describe("read commands over the real api app", () => {
     expect(listRun.code).toBe(ExitCode.OK);
     expect(listRun.out).toBe(list.bodyText);
 
-    const meta = await reference(token).request({ path: `/api/repos/${REPO_A}/pulls/7` });
+    const meta = await reference(token).request({
+      path: `/api/repos/${REPO_A}/pulls/7`,
+    });
     const metaRun = await run(["pr", "7", "--json"]);
     expect(metaRun.code).toBe(ExitCode.OK);
     expect(metaRun.out).toBe(meta.bodyText);
@@ -342,7 +379,14 @@ describe("read commands over the real api app", () => {
     expect(filtered.out).not.toContain("@@ -40,2 +42,2 @@");
     expect(filtered.out).not.toContain("src/other.ts");
 
-    const custom = await run(["diff", "7", "--group", "grp-1", "--base", BASE_SHA]);
+    const custom = await run([
+      "diff",
+      "7",
+      "--group",
+      "grp-1",
+      "--base",
+      BASE_SHA,
+    ]);
     expect(custom.code).toBe(ExitCode.USAGE);
     expect(custom.out).toBe("");
 
@@ -371,7 +415,15 @@ describe("read commands over the real api app", () => {
     if (!write.ok) throw new Error("delta seed failed");
     await login();
 
-    const ok = await run(["delta", "7", "--baseline", BASE_SHA, "--head", HEAD_SHA, "--json"]);
+    const ok = await run([
+      "delta",
+      "7",
+      "--baseline",
+      BASE_SHA,
+      "--head",
+      HEAD_SHA,
+      "--json",
+    ]);
     expect(ok.code).toBe(ExitCode.OK);
     expect(JSON.parse(ok.out)).toEqual({
       available: true,
@@ -382,7 +434,15 @@ describe("read commands over the real api app", () => {
     // The artifact bytes are spliced verbatim into the envelope.
     expect(ok.out).toContain(deltaBody);
 
-    const missing = await run(["delta", "7", "--baseline", "f".repeat(40), "--head", HEAD_SHA, "--json"]);
+    const missing = await run([
+      "delta",
+      "7",
+      "--baseline",
+      "f".repeat(40),
+      "--head",
+      HEAD_SHA,
+      "--json",
+    ]);
     expect(missing.code).toBe(ExitCode.NOT_FOUND);
     expect(missing.out).toBe("");
   });
@@ -392,7 +452,11 @@ function sinkPair() {
   const out: string[] = [];
   return {
     out,
-    io: { stdout: (t: string) => out.push(t), stderr: () => undefined, json: true },
+    io: {
+      stdout: (t: string) => out.push(t),
+      stderr: () => undefined,
+      json: true,
+    },
   };
 }
 
@@ -416,8 +480,6 @@ describe("delta checkpoint resolution (controlled PR-meta bodies)", () => {
     });
   }
 
-
-
   const READY_META = {
     baseSha: BASE_SHA,
     headSha: HEAD_SHA,
@@ -426,15 +488,27 @@ describe("delta checkpoint resolution (controlled PR-meta bodies)", () => {
 
   it("no checkpoint at all → {available:false, reason:'no-checkpoint'} (exit 0 arm)", async () => {
     const { out, io: sinks } = sinkPair();
-    await runDelta(controlledClient({ ...READY_META, comparisons: {} }), "1", 7, {}, sinks);
-    expect(JSON.parse(out.join(""))).toEqual({ available: false, reason: "no-checkpoint" });
+    await runDelta(
+      controlledClient({ ...READY_META, comparisons: {} }),
+      "1",
+      7,
+      {},
+      sinks,
+    );
+    expect(JSON.parse(out.join(""))).toEqual({
+      available: false,
+      reason: "no-checkpoint",
+    });
   });
 
   it("server unavailability reasons pass through the union", async () => {
     for (const reason of ["pending", "baseline-unavailable"]) {
       const { out, io: sinks } = sinkPair();
       await runDelta(
-        controlledClient({ ...READY_META, comparisons: { lastReview: { unavailable: reason } } }),
+        controlledClient({
+          ...READY_META,
+          comparisons: { lastReview: { unavailable: reason } },
+        }),
         "1",
         7,
         {},
@@ -449,14 +523,19 @@ describe("delta checkpoint resolution (controlled PR-meta bodies)", () => {
     await runDelta(
       controlledClient({
         ...READY_META,
-        comparisons: { lastReview: { deltaAvailable: false, baselineSha: BASE_SHA } },
+        comparisons: {
+          lastReview: { deltaAvailable: false, baselineSha: BASE_SHA },
+        },
       }),
       "1",
       7,
       {},
       sinks,
     );
-    expect(JSON.parse(out.join(""))).toEqual({ available: false, reason: "delta-not-generated" });
+    expect(JSON.parse(out.join(""))).toEqual({
+      available: false,
+      reason: "delta-not-generated",
+    });
   });
 
   it("resolved checkpoint → fetches (baseline, head) and wraps the artifact", async () => {
@@ -466,7 +545,9 @@ describe("delta checkpoint resolution (controlled PR-meta bodies)", () => {
       controlledClient(
         {
           ...READY_META,
-          comparisons: { lastReview: { deltaAvailable: true, baselineSha: BASE_SHA } },
+          comparisons: {
+            lastReview: { deltaAvailable: true, baselineSha: BASE_SHA },
+          },
         },
         body,
       ),
@@ -475,7 +556,10 @@ describe("delta checkpoint resolution (controlled PR-meta bodies)", () => {
       {},
       sinks,
     );
-    const parsed = JSON.parse(out.join("")) as { available: boolean; baselineSha: string };
+    const parsed = JSON.parse(out.join("")) as {
+      available: boolean;
+      baselineSha: string;
+    };
     expect(parsed.available).toBe(true);
     expect(parsed.baselineSha).toBe(BASE_SHA);
   });

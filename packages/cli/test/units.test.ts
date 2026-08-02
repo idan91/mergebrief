@@ -4,7 +4,12 @@
 // the client's proxy/IdP detection.
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
-import { fullNameFromOriginUrl, ownerFromOriginUrl, resolveProfile, type CliConfig } from "../src/profile/config";
+import {
+  fullNameFromOriginUrl,
+  ownerFromOriginUrl,
+  resolveProfile,
+  type CliConfig,
+} from "../src/profile/config";
 import { CliError, ExitCode, exitCodeForStatus } from "../src/exit";
 
 describe("exit-code mapping (the contract table)", () => {
@@ -38,8 +43,16 @@ describe("profile resolution order", () => {
   const config: CliConfig = {
     defaultProfile: "work",
     profiles: {
-      work: { baseUrl: "https://mb.work.example", token: "mergebrief_work", owners: ["acme"] },
-      oss: { baseUrl: "https://mb.oss.example", token: "mergebrief_oss", owners: ["octo"] },
+      work: {
+        baseUrl: "https://mb.work.example",
+        token: "mergebrief_work",
+        owners: ["acme"],
+      },
+      oss: {
+        baseUrl: "https://mb.oss.example",
+        token: "mergebrief_oss",
+        owners: ["octo"],
+      },
     },
   };
 
@@ -54,17 +67,29 @@ describe("profile resolution order", () => {
   });
 
   it("env names the profile when no flag", () => {
-    const resolved = resolveProfile({ config, env: { MERGEBRIEF_PROFILE: "oss" }, gitRemoteOwner: "acme" });
+    const resolved = resolveProfile({
+      config,
+      env: { MERGEBRIEF_PROFILE: "oss" },
+      gitRemoteOwner: "acme",
+    });
     expect(resolved.name).toBe("oss");
   });
 
   it("owners: match on the git-remote owner beats the default", () => {
-    const resolved = resolveProfile({ config, env: {}, gitRemoteOwner: "octo" });
+    const resolved = resolveProfile({
+      config,
+      env: {},
+      gitRemoteOwner: "octo",
+    });
     expect(resolved.name).toBe("oss");
   });
 
   it("falls back to the default profile", () => {
-    const resolved = resolveProfile({ config, env: {}, gitRemoteOwner: "unknown-org" });
+    const resolved = resolveProfile({
+      config,
+      env: {},
+      gitRemoteOwner: "unknown-org",
+    });
     expect(resolved.name).toBe("work");
   });
 
@@ -86,7 +111,9 @@ describe("profile resolution order", () => {
       thrown = error;
     }
     expect(thrown).toBeInstanceOf(CliError);
-    expect(thrown instanceof CliError ? thrown.code : undefined).toBe(ExitCode.USAGE);
+    expect(thrown instanceof CliError ? thrown.code : undefined).toBe(
+      ExitCode.USAGE,
+    );
   });
 
   it("no profiles at all is a USAGE error pointing at auth login", () => {
@@ -117,10 +144,16 @@ function clientWith(response: Response) {
 }
 
 describe("client proxy/IdP detection", () => {
-
   it("a redirect is surfaced as the IdP hint, not followed", async () => {
-    const client = clientWith(new Response(null, { status: 302, headers: { location: "https://idp/login" } }));
-    await expect(client.request({ path: "/api/version" })).rejects.toMatchObject({
+    const client = clientWith(
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://idp/login" },
+      }),
+    );
+    await expect(
+      client.request({ path: "/api/version" }),
+    ).rejects.toMatchObject({
       code: ExitCode.GENERIC,
       message: expect.stringContaining("identity-provider"),
     });
@@ -133,7 +166,9 @@ describe("client proxy/IdP detection", () => {
         headers: { "content-type": "text/html; charset=utf-8" },
       }),
     );
-    await expect(client.request({ path: "/api/version" })).rejects.toMatchObject({
+    await expect(
+      client.request({ path: "/api/version" }),
+    ).rejects.toMatchObject({
       code: ExitCode.GENERIC,
     });
   });
@@ -145,7 +180,9 @@ describe("client proxy/IdP detection", () => {
         headers: { "content-type": "application/json" },
       }),
     );
-    await expect(client.request({ path: "/api/version" })).rejects.toMatchObject({
+    await expect(
+      client.request({ path: "/api/version" }),
+    ).rejects.toMatchObject({
       code: ExitCode.AUTH,
       message: "unauthorized (HTTP 401)",
     });

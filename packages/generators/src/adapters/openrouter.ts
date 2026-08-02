@@ -220,7 +220,9 @@ async function modelListing(
       value: {
         id: model,
         supportedParameters: Array.isArray(supported)
-          ? supported.filter((value): value is string => typeof value === "string")
+          ? supported.filter(
+              (value): value is string => typeof value === "string",
+            )
           : [],
       },
     };

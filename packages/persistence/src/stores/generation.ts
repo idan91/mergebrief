@@ -65,7 +65,10 @@ export interface GenerationError {
   readonly message: string;
 }
 
-function fail(code: GenerationErrorCode, message: string): Result<never, GenerationError> {
+function fail(
+  code: GenerationErrorCode,
+  message: string,
+): Result<never, GenerationError> {
   return { ok: false, error: { code, message } };
 }
 
@@ -93,7 +96,9 @@ interface BriefGenerationTarget extends BaseGenerationTarget {
  * artifacts.
  */
 interface SpanGenerationTarget extends BaseGenerationTarget {
-  readonly kind: typeof GenerationKind.DELTA | typeof GenerationKind.REVISION_NARRATIVE;
+  readonly kind:
+    | typeof GenerationKind.DELTA
+    | typeof GenerationKind.REVISION_NARRATIVE;
   readonly baselineSha: string;
 }
 
@@ -110,21 +115,27 @@ export interface GenerationProjection {
    * of the same key conflicts (NULLS NOT DISTINCT) and increments `attempts`,
    * resetting `phase`/`error`. Verifies the parent PR is in ctx's tenant.
    */
-  upsertQueued(target: GenerationTarget): Promise<Result<GenerationRow, GenerationError>>;
+  upsertQueued(
+    target: GenerationTarget,
+  ): Promise<Result<GenerationRow, GenerationError>>;
   /** Reflect `running`, optionally with a determinate `phase`. */
   markRunning(
     target: GenerationTarget,
     phase?: GenerationPhase,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /** Reflect `succeeded`; clears `phase` and `error` (terminal rows carry neither). */
-  markSucceeded(target: GenerationTarget): Promise<Result<GenerationRow, GenerationError>>;
+  markSucceeded(
+    target: GenerationTarget,
+  ): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * Reflect `superseded` — a terminal mid-call abort because the PR head
    * advanced (ADR 0006 #6). An abort is NOT a failure: it leaves `attempts`
    * untouched (unlike a re-queue) and clears `phase`/`error` (like
    * `markSucceeded`), so a superseded job never consumes a retry.
    */
-  markSuperseded(target: GenerationTarget): Promise<Result<GenerationRow, GenerationError>>;
+  markSuperseded(
+    target: GenerationTarget,
+  ): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * Reflect `failed`. The raw error is passed as-is; `markFailed` applies
    * `sanitizeGenerationError` itself (first line, URLs redacted, 300-char
@@ -187,7 +198,10 @@ export interface GenerationProjection {
 // ---------------------------------------------------------------------------
 
 /** Build a tenant-scoped `generation` projection over the opaque handle. */
-export function generationProjection(handle: AppDatabase, ctx: TenantContext): GenerationProjection {
+export function generationProjection(
+  handle: AppDatabase,
+  ctx: TenantContext,
+): GenerationProjection {
   const db = internal(handle);
   const { installationId } = ctx;
 
@@ -281,19 +295,30 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
     },
 
     async markRunning(target, phase) {
-      return transition(target, { status: GenerationStatus.RUNNING, phase: phase ?? null });
+      return transition(target, {
+        status: GenerationStatus.RUNNING,
+        phase: phase ?? null,
+      });
     },
 
     async markSucceeded(target) {
       // Terminal rows carry no `phase` — a determinate phase only describes a
       // RUNNING job; leaving the last mid-run value would misreport the row.
-      return transition(target, { status: GenerationStatus.SUCCEEDED, phase: null, error: null });
+      return transition(target, {
+        status: GenerationStatus.SUCCEEDED,
+        phase: null,
+        error: null,
+      });
     },
 
     async markSuperseded(target) {
       // Abort-on-supersession (ADR 0006 #6): not a failure, so `attempts` is
       // deliberately left untouched and `error` is cleared. Terminal → no phase.
-      return transition(target, { status: GenerationStatus.SUPERSEDED, phase: null, error: null });
+      return transition(target, {
+        status: GenerationStatus.SUPERSEDED,
+        phase: null,
+        error: null,
+      });
     },
 
     async markFailed(target, error) {
@@ -308,7 +333,11 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
     },
 
     async get(target) {
-      const rows = await db.select().from(generation).where(keyWhere(target)).limit(1);
+      const rows = await db
+        .select()
+        .from(generation)
+        .where(keyWhere(target))
+        .limit(1);
       return rows[0];
     },
 
@@ -373,7 +402,10 @@ export function generationProjection(handle: AppDatabase, ctx: TenantContext): G
             eq(generation.pullRequestId, pullRequestId),
             eq(generation.kind, GenerationKind.BRIEF),
             ne(generation.headSha, currentHeadSha),
-            inArray(generation.status, [GenerationStatus.QUEUED, GenerationStatus.RUNNING]),
+            inArray(generation.status, [
+              GenerationStatus.QUEUED,
+              GenerationStatus.RUNNING,
+            ]),
           ),
         )
         .returning({ id: generation.id });

@@ -37,7 +37,12 @@ describe("buildReport", () => {
       key: "anthropic:m",
       billing: { kind: "api" },
       cases: [outcome()],
-      usage: { calls: 5, inputTokens: 1000, outputTokens: 200, cacheReadTokens: 0 },
+      usage: {
+        calls: 5,
+        inputTokens: 1000,
+        outputTokens: 200,
+        cacheReadTokens: 0,
+      },
       costUsd: null,
     });
     expect(report.regressions).toBe(0);
@@ -66,9 +71,9 @@ describe("buildReport", () => {
     expect(report.terminal).toContain("REGRESSION");
     expect(report.terminal).toContain("p1");
     expect(report.markdown).toContain("REGRESSION");
-    expect(report.json.cases[0]?.properties.find((p) => p.id === "p1")?.verdict).toBe(
-      "regression",
-    );
+    expect(
+      report.json.cases[0]?.properties.find((p) => p.id === "p1")?.verdict,
+    ).toBe("regression");
   });
 
   it("marks a property absent from the baseline as new — never a verdict, never silent", () => {
@@ -130,7 +135,12 @@ describe("buildReport", () => {
       key: "anthropic:m",
       billing: { kind: "api" },
       cases: [outcome()],
-      usage: { calls: 5, inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0 },
+      usage: {
+        calls: 5,
+        inputTokens: 1_000_000,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+      },
       costUsd: 15,
     });
     expect(priced.terminal).toContain("$15.00");

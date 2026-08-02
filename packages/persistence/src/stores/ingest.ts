@@ -111,14 +111,20 @@ async function upsertPullRequestRow(
       updatedAt: new Date(),
     })
     .onConflictDoUpdate({
-      target: [pullRequest.installationId, pullRequest.repoId, pullRequest.prNumber],
+      target: [
+        pullRequest.installationId,
+        pullRequest.repoId,
+        pullRequest.prNumber,
+      ],
       set: {
         repoSlug: input.repoSlug,
         title: input.title,
         // Omitted (review events) preserves the stored value.
         ...(input.baseSha === undefined ? {} : { baseSha: input.baseSha }),
         ...(input.draft === undefined ? {} : { draft: input.draft }),
-        ...(input.authorLogin === undefined ? {} : { authorLogin: input.authorLogin }),
+        ...(input.authorLogin === undefined
+          ? {}
+          : { authorLogin: input.authorLogin }),
         state: preserveTerminal
           ? sql`case when ${existingPrIsTerminal()} then ${pullRequest.state} else ${lifecycle.state} end`
           : lifecycle.state,
@@ -188,7 +194,9 @@ export interface IngestRoutines {
    * and enqueue/replace the debounced `generate` job. See the module header
    * for the idempotency contract.
    */
-  triggerGeneration(input: TriggerGenerationInput): Promise<Result<IngestOutcome, IngestError>>;
+  triggerGeneration(
+    input: TriggerGenerationInput,
+  ): Promise<Result<IngestOutcome, IngestError>>;
   /**
    * Persist PR state fields through the SAME terminal-preserving upsert as
    * `triggerGeneration` — WITHOUT touching the generation projection or
@@ -214,7 +222,10 @@ export interface IngestRoutines {
 // ---------------------------------------------------------------------------
 
 /** Build the tenant-scoped ingest seam over the opaque handle. */
-export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestRoutines {
+export function ingestRoutines(
+  handle: AppDatabase,
+  ctx: TenantContext,
+): IngestRoutines {
   const db = internal(handle);
   const { installationId } = ctx;
 
@@ -360,7 +371,12 @@ export function ingestRoutines(handle: AppDatabase, ctx: TenantContext): IngestR
     async recordState(input, options) {
       // One statement — atomic on its own, no tx needed. Terminal-preserving
       // unless the caller explicitly marks a reopen (see the interface doc).
-      return upsertPullRequestRow(db, installationId, input, options?.reopen !== true);
+      return upsertPullRequestRow(
+        db,
+        installationId,
+        input,
+        options?.reopen !== true,
+      );
     },
   };
 }

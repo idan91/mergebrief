@@ -14,7 +14,11 @@ export type {
   PrMetadata,
   ReviewComment,
 } from "./types";
-export { extractLinks, fetchLinkedContext, isPublicUrl } from "./linked-context";
+export {
+  extractLinks,
+  fetchLinkedContext,
+  isPublicUrl,
+} from "./linked-context";
 export {
   fetchCompareCommitCount,
   fetchCompareDiff,

@@ -61,7 +61,8 @@ export function resolveHarnessTimeouts(
 ): HarnessTimeouts {
   return {
     hardMs: overrides?.hardMs ?? DEFAULT_HARNESS_TIMEOUTS.hardMs,
-    inactivityMs: overrides?.inactivityMs ?? DEFAULT_HARNESS_TIMEOUTS.inactivityMs,
+    inactivityMs:
+      overrides?.inactivityMs ?? DEFAULT_HARNESS_TIMEOUTS.inactivityMs,
     killGraceMs: overrides?.killGraceMs ?? DEFAULT_HARNESS_TIMEOUTS.killGraceMs,
   };
 }

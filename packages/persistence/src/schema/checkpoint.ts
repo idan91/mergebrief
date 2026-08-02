@@ -14,7 +14,9 @@ export const checkpoint = pgTable(
       .$type<PullRequestRowId>()
       .notNull()
       .references(() => pullRequest.id, { onDelete: "cascade" }),
-    reviewerId: bigint("reviewer_id", { mode: "bigint" }).$type<ReviewerId>().notNull(),
+    reviewerId: bigint("reviewer_id", { mode: "bigint" })
+      .$type<ReviewerId>()
+      .notNull(),
     /** Purgeable display label (D1). */
     reviewerLogin: text("reviewer_login"),
     /** = the Delta's `baseline_sha`; advances on submit, never on view. */

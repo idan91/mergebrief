@@ -21,8 +21,12 @@ export interface ParsedGeneratePayload {
 
 /** Shape check only; branding happens below via the persistence guards. */
 const RawPayloadSchema = z.object({
-  installation_id: z.string().regex(/^\d+$/, "installation_id must be a numeric string"),
-  pull_request_id: z.string().regex(/^\d+$/, "pull_request_id must be a numeric string"),
+  installation_id: z
+    .string()
+    .regex(/^\d+$/, "installation_id must be a numeric string"),
+  pull_request_id: z
+    .string()
+    .regex(/^\d+$/, "pull_request_id must be a numeric string"),
   head_sha: z.string().min(1, "head_sha must not be empty"),
 });
 
@@ -32,9 +36,8 @@ const RawPayloadSchema = z.object({
  * renames a field, this line breaks the build here, next to the parser that
  * must follow it.
  */
-type ContractIsParseable = GenerateJobPayload extends z.input<typeof RawPayloadSchema>
-  ? true
-  : never;
+type ContractIsParseable =
+  GenerateJobPayload extends z.input<typeof RawPayloadSchema> ? true : never;
 const CONTRACT_PIN: ContractIsParseable = true;
 void CONTRACT_PIN;
 
@@ -42,20 +45,31 @@ void CONTRACT_PIN;
  * Validate an untrusted graphile job payload into branded worker inputs.
  * Never throws; a malformed payload is an expected (drop-the-job) failure.
  */
-export function parseGeneratePayload(payload: unknown): Result<ParsedGeneratePayload, string> {
+export function parseGeneratePayload(
+  payload: unknown,
+): Result<ParsedGeneratePayload, string> {
   const raw = RawPayloadSchema.safeParse(payload);
   if (!raw.success) {
-    return { ok: false, error: raw.error.issues.map((i) => i.message).join("; ") };
+    return {
+      ok: false,
+      error: raw.error.issues.map((i) => i.message).join("; "),
+    };
   }
   let ctx: TenantContext;
   try {
     ctx = parseTenantContext({ installation_id: raw.data.installation_id });
   } catch {
-    return { ok: false, error: "installation_id is not a valid installation id" };
+    return {
+      ok: false,
+      error: "installation_id is not a valid installation id",
+    };
   }
   const prId = BigInt(raw.data.pull_request_id);
   if (!isPullRequestRowId(prId)) {
-    return { ok: false, error: "pull_request_id is not a valid pull_request row id" };
+    return {
+      ok: false,
+      error: "pull_request_id is not a valid pull_request row id",
+    };
   }
   return {
     ok: true,

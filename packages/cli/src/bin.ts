@@ -15,12 +15,18 @@ function xdgDir(envVar: string, fallback: string): string {
 
 async function readStdin(): Promise<string> {
   if (process.stdin.isTTY) {
-    const rl = createInterface({ input: process.stdin, output: process.stderr });
+    const rl = createInterface({
+      input: process.stdin,
+      output: process.stderr,
+    });
     return new Promise((resolve) => {
-      rl.question("Paste your token (input hidden is not supported — clear your scrollback): ", (answer) => {
-        rl.close();
-        resolve(answer);
-      });
+      rl.question(
+        "Paste your token (input hidden is not supported — clear your scrollback): ",
+        (answer) => {
+          rl.close();
+          resolve(answer);
+        },
+      );
     });
   }
   let data = "";
@@ -49,7 +55,10 @@ function makePager(): ((text: string) => Promise<void>) | undefined {
   }
   return (text) =>
     new Promise((resolve) => {
-      const child = spawn(pager, { shell: true, stdio: ["pipe", "inherit", "inherit"] });
+      const child = spawn(pager, {
+        shell: true,
+        stdio: ["pipe", "inherit", "inherit"],
+      });
       child.on("close", () => resolve());
       child.on("error", () => {
         process.stdout.write(text);

@@ -174,7 +174,9 @@ describe("AnthropicGenerator cooperative cancellation (ADR 0006 #6)", () => {
     const abortError = Object.assign(new Error("Request was aborted."), {
       name: "APIUserAbortError",
     });
-    const { client, requests } = fakeClient([{ raw: "", rejectWith: abortError }]);
+    const { client, requests } = fakeClient([
+      { raw: "", rejectWith: abortError },
+    ]);
     const controller = new AbortController();
     const generator = new AnthropicGenerator(client, dir);
     await expect(

@@ -22,7 +22,9 @@ describe("policy.yaml — shape and caps", () => {
       yaml({
         version: 1,
         attributes: {
-          "touches-migrations": { criteria: "changes a drizzle migration file" },
+          "touches-migrations": {
+            criteria: "changes a drizzle migration file",
+          },
         },
       }),
     );
@@ -31,9 +33,7 @@ describe("policy.yaml — shape and caps", () => {
   });
 
   it("rejects an unknown top-level key", () => {
-    const result = validate(
-      yaml({ version: 1, attributes: {}, extra: true }),
-    );
+    const result = validate(yaml({ version: 1, attributes: {}, extra: true }));
     expect(result.policy).toBeUndefined();
     expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
   });
@@ -42,7 +42,9 @@ describe("policy.yaml — shape and caps", () => {
     expect(policyOutcome(yaml({ version: 2, attributes: {} }))?.outcome).toBe(
       RepoConfigOutcome.INVALID,
     );
-    expect(policyOutcome(yaml({ attributes: {} }))?.outcome).toBe(RepoConfigOutcome.INVALID);
+    expect(policyOutcome(yaml({ attributes: {} }))?.outcome).toBe(
+      RepoConfigOutcome.INVALID,
+    );
   });
 
   it("rejects an unknown key inside an attribute definition", () => {
@@ -57,13 +59,18 @@ describe("policy.yaml — shape and caps", () => {
 
   it("accepts criteria at the char cap and rejects one over", () => {
     const at = validate(
-      yaml({ version: 1, attributes: { "my-attr": { criteria: "x".repeat(CRITERIA_MAX_CHARS) } } }),
+      yaml({
+        version: 1,
+        attributes: { "my-attr": { criteria: "x".repeat(CRITERIA_MAX_CHARS) } },
+      }),
     );
     expect(at.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
     const over = validate(
       yaml({
         version: 1,
-        attributes: { "my-attr": { criteria: "x".repeat(CRITERIA_MAX_CHARS + 1) } },
+        attributes: {
+          "my-attr": { criteria: "x".repeat(CRITERIA_MAX_CHARS + 1) },
+        },
       }),
     );
     expect(over.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
@@ -74,7 +81,10 @@ describe("policy.yaml — shape and caps", () => {
       yaml({
         version: 1,
         attributes: {
-          "my-attr": { criteria: "x", implication: "y".repeat(IMPLICATION_MAX_CHARS + 1) },
+          "my-attr": {
+            criteria: "x",
+            implication: "y".repeat(IMPLICATION_MAX_CHARS + 1),
+          },
         },
       }),
     );
@@ -83,19 +93,26 @@ describe("policy.yaml — shape and caps", () => {
 
   it("accepts the maximum attribute count and rejects one over", () => {
     const attrsAt: Record<string, { criteria: string }> = {};
-    for (let i = 0; i < MAX_CUSTOM_ATTRIBUTES; i += 1) attrsAt[`attr-${i}`] = { criteria: "x" };
-    expect(policyOutcome(yaml({ version: 1, attributes: attrsAt }))?.outcome).toBe(
-      RepoConfigOutcome.APPLIED,
-    );
+    for (let i = 0; i < MAX_CUSTOM_ATTRIBUTES; i += 1)
+      attrsAt[`attr-${i}`] = { criteria: "x" };
+    expect(
+      policyOutcome(yaml({ version: 1, attributes: attrsAt }))?.outcome,
+    ).toBe(RepoConfigOutcome.APPLIED);
 
-    const attrsOver = { ...attrsAt, [`attr-${MAX_CUSTOM_ATTRIBUTES}`]: { criteria: "x" } };
-    expect(policyOutcome(yaml({ version: 1, attributes: attrsOver }))?.outcome).toBe(
-      RepoConfigOutcome.INVALID,
-    );
+    const attrsOver = {
+      ...attrsAt,
+      [`attr-${MAX_CUSTOM_ATTRIBUTES}`]: { criteria: "x" },
+    };
+    expect(
+      policyOutcome(yaml({ version: 1, attributes: attrsOver }))?.outcome,
+    ).toBe(RepoConfigOutcome.INVALID);
   });
 
   it("applies at exactly the byte cap and is over-budget one byte past it", () => {
-    const base = yaml({ version: 1, attributes: { "my-attr": { criteria: "x" } } });
+    const base = yaml({
+      version: 1,
+      attributes: { "my-attr": { criteria: "x" } },
+    });
     const at = padYamlToBytes(base, POLICY_MAX_BYTES);
     expect(Buffer.byteLength(at, "utf8")).toBe(POLICY_MAX_BYTES);
     expect(policyOutcome(at)?.outcome).toBe(RepoConfigOutcome.APPLIED);
@@ -120,7 +137,9 @@ describe("policy.yaml — attribute name charset (security control)", () => {
   ];
   for (const [label, name] of cases) {
     it(`rejects an attribute name with ${label}`, () => {
-      const result = validate(yaml({ version: 1, attributes: { [name]: { criteria: "x" } } }));
+      const result = validate(
+        yaml({ version: 1, attributes: { [name]: { criteria: "x" } } }),
+      );
       expect(result.policy).toBeUndefined();
       expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.INVALID);
     });
@@ -129,9 +148,11 @@ describe("policy.yaml — attribute name charset (security control)", () => {
   it("accepts a name at exactly the length cap", () => {
     const name = `a${"b".repeat(49)}`; // 50 chars
     expect(name).toHaveLength(50);
-    expect(policyOutcome(yaml({ version: 1, attributes: { [name]: { criteria: "x" } } }))?.outcome).toBe(
-      RepoConfigOutcome.APPLIED,
-    );
+    expect(
+      policyOutcome(
+        yaml({ version: 1, attributes: { [name]: { criteria: "x" } } }),
+      )?.outcome,
+    ).toBe(RepoConfigOutcome.APPLIED);
   });
 });
 
@@ -154,7 +175,10 @@ describe("policy.yaml — floor attributes cannot be de-emphasized", () => {
 describe("policy.yaml — collision resolution (built-in wins + chip)", () => {
   it("drops a custom name colliding with a built-in attribute, file stays applied", () => {
     const result = validate(
-      yaml({ version: 1, attributes: { "touches-auth": { criteria: "custom def" } } }),
+      yaml({
+        version: 1,
+        attributes: { "touches-auth": { criteria: "custom def" } },
+      }),
     );
     expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
     expect(result.collisions).toContain("touches-auth");
@@ -163,7 +187,10 @@ describe("policy.yaml — collision resolution (built-in wins + chip)", () => {
 
   it("drops a custom name colliding with a parked candidate", () => {
     const result = validate(
-      yaml({ version: 1, attributes: { "unresolved-reference": { criteria: "x" } } }),
+      yaml({
+        version: 1,
+        attributes: { "unresolved-reference": { criteria: "x" } },
+      }),
     );
     expect(result.collisions).toContain("unresolved-reference");
     expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
@@ -196,10 +223,16 @@ describe("policy.yaml — collision resolution (built-in wins + chip)", () => {
 describe("policy.yaml — de-emphasis resolution", () => {
   it("keeps a de-emphasis entry targeting a built-in non-floor attribute", () => {
     const result = validate(
-      yaml({ version: 1, attributes: {}, deEmphasize: [{ attribute: "widely-imported" }] }),
+      yaml({
+        version: 1,
+        attributes: {},
+        deEmphasize: [{ attribute: "widely-imported" }],
+      }),
     );
     expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
-    expect(result.policy?.deEmphasize).toEqual([{ attribute: "widely-imported" }]);
+    expect(result.policy?.deEmphasize).toEqual([
+      { attribute: "widely-imported" },
+    ]);
   });
 
   it("keeps a de-emphasis entry targeting a surviving custom attribute", () => {
@@ -217,7 +250,11 @@ describe("policy.yaml — de-emphasis resolution", () => {
 
   it("warns and drops a de-emphasis entry with an unknown target", () => {
     const result = validate(
-      yaml({ version: 1, attributes: {}, deEmphasize: [{ attribute: "totally-made-up" }] }),
+      yaml({
+        version: 1,
+        attributes: {},
+        deEmphasize: [{ attribute: "totally-made-up" }],
+      }),
     );
     expect(result.outcomes[2]?.outcome).toBe(RepoConfigOutcome.APPLIED);
     expect(result.policy?.deEmphasize).toEqual([]);

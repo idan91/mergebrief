@@ -11,7 +11,9 @@
     "test:persistence": "pnpm -C packages/persistence test",
     "typecheck:worker": "pnpm -C packages/worker typecheck",
     "test:worker": "pnpm -C packages/worker test",
-    "lint": "oxlint --type-aware && eslint . --quiet && knip --no-config-hints && pnpm -C apps/web lint"
+    "lint": "oxlint --type-aware && eslint . --quiet && knip --no-config-hints && pnpm format:check && pnpm -C apps/web lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "packageManager": "pnpm@11.10.0",
   "devDependencies": {
@@ -19,6 +21,7 @@
     "eslint": "^10.8.0",
     "knip": "^6.31.0",
     "oxlint": "1.72.0",
-    "oxlint-tsgolint": "0.24.0"
+    "oxlint-tsgolint": "0.24.0",
+    "prettier": "3.8.4"
   }
 }

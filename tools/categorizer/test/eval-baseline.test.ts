@@ -92,8 +92,16 @@ describe("preflightBaselineKeys", () => {
   it("passes when every case's baseline matches the run key", () => {
     const a = tempDir();
     const b = tempDir();
-    saveBaseline(join(a, "baseline.json"), { key: "k:m", runs: 5, properties: {} });
-    saveBaseline(join(b, "baseline.json"), { key: "k:m", runs: 5, properties: {} });
+    saveBaseline(join(a, "baseline.json"), {
+      key: "k:m",
+      runs: 5,
+      properties: {},
+    });
+    saveBaseline(join(b, "baseline.json"), {
+      key: "k:m",
+      runs: 5,
+      properties: {},
+    });
     const result = preflightBaselineKeys(
       [
         { id: "case-a", dir: a },

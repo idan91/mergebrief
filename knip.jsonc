@@ -12,7 +12,7 @@
       // The shared coverage policy is imported by every package's vitest
       // config, which knip resolves per workspace, not from the root.
       "entry": ["vitest.shared.ts", "eslint.config.js"],
-      "project": ["*.ts", "*.js"]
+      "project": ["*.ts", "*.js"],
     },
     "apps/web": {
       // Routes are the app's entry surface; the feature `index.tsx` barrels
@@ -23,36 +23,32 @@
         "src/server.ts",
         "src/routes/**/*.tsx",
         "src/features/*/index.tsx",
-        "src/features/*/utils/index.ts"
-      ]
+        "src/features/*/utils/index.ts",
+      ],
     },
     "packages/api": { "entry": ["src/index.ts"] },
     "packages/brief-core": {
-      "entry": ["src/index.ts", "src/types.ts", "src/cli/*.ts"]
+      "entry": ["src/index.ts", "src/types.ts", "src/cli/*.ts"],
     },
     "packages/cli": { "entry": ["src/bin.ts", "scripts/embed-help.ts"] },
     "packages/generators": {
       // The `.cjs` shims are spawned as real child processes by the contract
       // suites (path reference, never imported).
-      "entry": [
-        "src/index.ts",
-        "smoke/generate-smoke.ts",
-        "test/shims/*.cjs"
-      ]
+      "entry": ["src/index.ts", "smoke/generate-smoke.ts", "test/shims/*.cjs"],
     },
     "packages/github": { "entry": ["src/index.ts"] },
     "packages/logging": {
       "entry": ["src/index.ts"],
       // pino-pretty is loaded by pino BY NAME (`transport.target`) in
       // development only — there is no import for knip to see.
-      "ignoreDependencies": ["pino-pretty"]
+      "ignoreDependencies": ["pino-pretty"],
     },
     "packages/persistence": {
       "entry": ["src/index.ts", "src/testing.ts", "drizzle.config.ts"],
       // knip's drizzle plugin EXECUTES drizzle.config.ts, which refuses to
       // load without DATABASE_URL — the config is listed as a plain entry
       // instead, which is all the plugin would have contributed here.
-      "drizzle": false
+      "drizzle": false,
     },
     "packages/repo-config": { "entry": ["src/index.ts"] },
     "packages/types": { "entry": ["src/index.ts"] },
@@ -64,9 +60,9 @@
         "eval/cli.ts",
         "scripts/*.ts",
         "eval/cases/*/expected.ts",
-        "test/fixtures/*/expected.ts"
-      ]
-    }
+        "test/fixtures/*/expected.ts",
+      ],
+    },
   },
-  "ignore": ["**/routeTree.gen.ts", "**/*.gen.*", "mockup/**"]
+  "ignore": ["**/routeTree.gen.ts", "**/*.gen.*", "mockup/**"],
 }

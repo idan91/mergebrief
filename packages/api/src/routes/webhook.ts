@@ -104,7 +104,9 @@ async function handlePullRequest(
       title: event.title,
       baseSha: event.baseSha,
       draft: event.draft,
-      ...(event.authorLogin === undefined ? {} : { authorLogin: event.authorLogin }),
+      ...(event.authorLogin === undefined
+        ? {}
+        : { authorLogin: event.authorLogin }),
       state: event.merged === true ? PrState.MERGED : PrState.CLOSED,
       closedAt: new Date(),
       purgeAfter: null,
@@ -125,7 +127,9 @@ async function handlePullRequest(
       title: event.title,
       baseSha: event.baseSha,
       draft: event.draft,
-      ...(event.authorLogin === undefined ? {} : { authorLogin: event.authorLogin }),
+      ...(event.authorLogin === undefined
+        ? {}
+        : { authorLogin: event.authorLogin }),
       state: PrState.OPEN,
     });
     return;
@@ -146,14 +150,21 @@ async function handlePullRequest(
           title: event.title,
           baseSha: event.baseSha,
           draft: event.draft,
-          ...(event.authorLogin === undefined ? {} : { authorLogin: event.authorLogin }),
+          ...(event.authorLogin === undefined
+            ? {}
+            : { authorLogin: event.authorLogin }),
           state: PrState.OPEN,
         },
         { reopen: event.action === PullRequestAction.REOPENED },
       );
       return;
     }
-    await triggerGeneration(handle, ctx, event, windowOverrides(event, event.draft, policy));
+    await triggerGeneration(
+      handle,
+      ctx,
+      event,
+      windowOverrides(event, event.draft, policy),
+    );
   }
 }
 
@@ -169,7 +180,10 @@ function windowOverrides(
   event: ParsedPullRequestEvent,
   isDraft: boolean,
   policy: DraftPolicy,
-): Pick<TriggerGenerationInput, "debounceSeconds" | "regenerationDebounceSeconds"> {
+): Pick<
+  TriggerGenerationInput,
+  "debounceSeconds" | "regenerationDebounceSeconds"
+> {
   if (event.action === PullRequestAction.READY_FOR_REVIEW) {
     return { debounceSeconds: READY_FLIP_DEBOUNCE_SECONDS };
   }
@@ -193,7 +207,10 @@ async function handlePullRequestReview(
   // `pull_request` delivery ingests it properly. On a KNOWN terminal PR the
   // ingest guard preserves the lifecycle and skips the enqueue.
   const tenant = forTenant(handle, ctx);
-  const known = await tenant.pullRequests.getByNumber(event.repoId, event.prNumber);
+  const known = await tenant.pullRequests.getByNumber(
+    event.repoId,
+    event.prNumber,
+  );
   if (known === undefined) {
     return;
   }
@@ -235,12 +252,16 @@ async function triggerGeneration(
   handle: AppDatabase,
   ctx: TenantContext,
   event: ParsedPullRequestEvent | ParsedPullRequestReviewEvent,
-  overrides: Pick<TriggerGenerationInput, "debounceSeconds" | "regenerationDebounceSeconds">,
+  overrides: Pick<
+    TriggerGenerationInput,
+    "debounceSeconds" | "regenerationDebounceSeconds"
+  >,
 ): Promise<void> {
   // Only a `reopened` pull_request event may transition a terminal PR back to
   // open; a review or any other trigger merely implies the PR is open and must
   // not resurrect a since-closed PR (a review CAN be submitted on a closed one).
-  const reopen = "action" in event && event.action === PullRequestAction.REOPENED;
+  const reopen =
+    "action" in event && event.action === PullRequestAction.REOPENED;
   const result = await ingestRoutines(handle, ctx).triggerGeneration({
     pullRequest: {
       repoId: event.repoId,
@@ -320,11 +341,16 @@ async function dispatch(
   }
 }
 
-async function readRawBodyWithinLimit(request: Request): Promise<RawBodyResult> {
+async function readRawBodyWithinLimit(
+  request: Request,
+): Promise<RawBodyResult> {
   const contentLength = request.headers.get("content-length");
   if (contentLength !== null) {
     const parsedLength = Number(contentLength);
-    if (Number.isFinite(parsedLength) && parsedLength > MAX_WEBHOOK_BODY_BYTES) {
+    if (
+      Number.isFinite(parsedLength) &&
+      parsedLength > MAX_WEBHOOK_BODY_BYTES
+    ) {
       return { ok: false, error: "body-too-large" };
     }
   }
@@ -424,7 +450,11 @@ export function webhookRoute(deps: WebhookRouteDeps): Hono<RequestLogEnv> {
     // 6–8. Map the event to tenant-scoped writes. Unexpected throw → 500
     // with a sanitized body — internals never reach the caller.
     try {
-      await dispatch(deps.handle, parsed.value, deps.draftPolicy ?? DEFAULT_DRAFT_POLICY);
+      await dispatch(
+        deps.handle,
+        parsed.value,
+        deps.draftPolicy ?? DEFAULT_DRAFT_POLICY,
+      );
     } catch (error) {
       log.error("webhook dispatch failed", {
         evt: "webhook.dispatch.fail",

@@ -57,10 +57,18 @@ function errorJson(
 }
 
 /** Split the fresh-resolve's verified `owner/name`; `undefined` on a non-slug shape. */
-function splitRepoSlug(fullName: string): { owner: string; repo: string } | undefined {
+function splitRepoSlug(
+  fullName: string,
+): { owner: string; repo: string } | undefined {
   const parts = fullName.split("/");
   const [owner, repo] = parts;
-  if (parts.length !== 2 || owner === undefined || owner === "" || repo === undefined || repo === "") {
+  if (
+    parts.length !== 2 ||
+    owner === undefined ||
+    owner === "" ||
+    repo === undefined ||
+    repo === ""
+  ) {
     return undefined;
   }
   return { owner, repo };
@@ -84,7 +92,10 @@ async function resolveSessionToken(
  * access this request, so 403/404 collapse to the gate's 404 posture (no
  * existence leak, indistinguishable from a cold denial).
  */
-function resolveRepoFailure(c: Context<AuthzEnv>, error: GitHubApiError): Response {
+function resolveRepoFailure(
+  c: Context<AuthzEnv>,
+  error: GitHubApiError,
+): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
     return errorJson(c, "unauthorized", 401);
   }
@@ -104,7 +115,10 @@ function resolveRepoFailure(c: Context<AuthzEnv>, error: GitHubApiError): Respon
  * FE-actionable 403 (mark-ready posture). NOT_FOUND covers the PR vanishing
  * AND a `commentId` matching no thread → 404.
  */
-function mutationFailure(c: Context<AuthzEnv>, error: GitHubApiError): Response {
+function mutationFailure(
+  c: Context<AuthzEnv>,
+  error: GitHubApiError,
+): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
     return errorJson(c, "unauthorized", 401);
   }
@@ -132,8 +146,10 @@ export function resolveThreadRoute(
   const app = new Hono<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
 
-  const RESOLVE_PATH = "/api/repos/:repoId/pulls/:prNumber/comments/:commentId/resolve";
-  const UNRESOLVE_PATH = "/api/repos/:repoId/pulls/:prNumber/comments/:commentId/unresolve";
+  const RESOLVE_PATH =
+    "/api/repos/:repoId/pulls/:prNumber/comments/:commentId/resolve";
+  const UNRESOLVE_PATH =
+    "/api/repos/:repoId/pulls/:prNumber/comments/:commentId/unresolve";
   app.use(RESOLVE_PATH, authz);
   app.use(UNRESOLVE_PATH, authz);
   app.post(RESOLVE_PATH, (c) => handleSetResolution(c, true));
@@ -151,7 +167,10 @@ export function resolveThreadRoute(
 
     const ctx = c.get("ctx");
     const repoId = c.get("repoId");
-    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(repoId, parsedPr.data);
+    const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
+      repoId,
+      parsedPr.data,
+    );
     if (pr === undefined) {
       return errorJson(c, "not found", 404);
     }
@@ -173,7 +192,11 @@ export function resolveThreadRoute(
         return false;
       }
       refreshSpent = true;
-      const refreshed = await refreshSessionToken(deps, currentSession, c.get("logger"));
+      const refreshed = await refreshSessionToken(
+        deps,
+        currentSession,
+        c.get("logger"),
+      );
       if (!refreshed.ok) {
         return false;
       }
@@ -185,13 +208,19 @@ export function resolveThreadRoute(
     // Mutations re-resolve the repo FRESH by numeric id (gated-route rule):
     // the gate's cached full name is ≤60s stale, and a rename + name-reuse
     // inside that window would flip a thread on the wrong repository.
-    let repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
+    let repoInfo = await fetchRepositoryById(
+      createUserOctokit(accessToken),
+      repoId,
+    );
     if (
       !repoInfo.ok &&
       repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
       (await spendRefresh())
     ) {
-      repoInfo = await fetchRepositoryById(createUserOctokit(accessToken), repoId);
+      repoInfo = await fetchRepositoryById(
+        createUserOctokit(accessToken),
+        repoId,
+      );
     }
     if (!repoInfo.ok) {
       return resolveRepoFailure(c, repoInfo.error);
@@ -214,13 +243,19 @@ export function resolveThreadRoute(
     const setWithRefreshOnce = async (): Promise<
       Result<SetReviewThreadResolutionResult, GitHubApiError>
     > => {
-      let result = await setReviewThreadResolution(createUserOctokit(accessToken), input);
+      let result = await setReviewThreadResolution(
+        createUserOctokit(accessToken),
+        input,
+      );
       if (
         !result.ok &&
         result.error.code === GitHubApiErrorCode.UNAUTHORIZED &&
         (await spendRefresh())
       ) {
-        result = await setReviewThreadResolution(createUserOctokit(accessToken), input);
+        result = await setReviewThreadResolution(
+          createUserOctokit(accessToken),
+          input,
+        );
       }
       return result;
     };
@@ -244,16 +279,21 @@ export function resolveThreadRoute(
         installationId: ctx.installationId,
         actorType: AuditActorType.REVIEWER,
         actorId: currentSession.reviewerId,
-        action: resolved ? AuditAction.RESOLVE_THREAD : AuditAction.UNRESOLVE_THREAD,
+        action: resolved
+          ? AuditAction.RESOLVE_THREAD
+          : AuditAction.UNRESOLVE_THREAD,
         targetType: "review_comment",
         targetId: BigInt(parsedComment.data),
       });
     } catch (auditError) {
-      c.get("logger").error("thread-resolution audit failed after landed flip", {
-        evt: "audit.fail",
-        commentId: String(parsedComment.data),
-        err: auditError,
-      });
+      c.get("logger").error(
+        "thread-resolution audit failed after landed flip",
+        {
+          evt: "audit.fail",
+          commentId: String(parsedComment.data),
+          err: auditError,
+        },
+      );
     }
 
     return c.json(

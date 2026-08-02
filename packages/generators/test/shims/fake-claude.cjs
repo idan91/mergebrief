@@ -128,13 +128,19 @@ if (scenario === "scripted") {
     if (script.apiRetryCategory) {
       // In-band retry category then death without a result envelope
       // (classification tests, incl. hostile category names).
-      emit({ type: "system", subtype: "api_retry", error: script.apiRetryCategory });
+      emit({
+        type: "system",
+        subtype: "api_retry",
+        error: script.apiRetryCategory,
+      });
       process.exit(1);
     }
     if (script.emptySuccess) {
       // Drifted non-error envelope: no output, no structured_output key
       // (the base envelope only carries structured_output via overrides).
-      emit(resultEnvelope({ subtype: script.subtype ?? "success", result: "" }));
+      emit(
+        resultEnvelope({ subtype: script.subtype ?? "success", result: "" }),
+      );
       process.exit(0);
     }
     if (script.errorSubtype) {

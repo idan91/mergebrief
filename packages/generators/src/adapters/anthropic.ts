@@ -6,7 +6,10 @@ import Anthropic, {
 import type { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
 import type { GenerateRequest, Generator, Logger } from "../contract/generator";
-import { runWithSchemaFloor, schemaFeedbackMessage } from "../validation/enforceSchema";
+import {
+  runWithSchemaFloor,
+  schemaFeedbackMessage,
+} from "../validation/enforceSchema";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/provenance";
 
@@ -184,7 +187,11 @@ export class AnthropicGenerator implements Generator {
           effort: req.effort,
         },
         system: [
-          { type: "text", text: req.system, cache_control: { type: "ephemeral" } },
+          {
+            type: "text",
+            text: req.system,
+            cache_control: { type: "ephemeral" },
+          },
         ],
         messages,
       },
@@ -196,7 +203,8 @@ export class AnthropicGenerator implements Generator {
     // accumulated text doubles as the raw output when the SDK's eager parse
     // rejects the final message before we can read it.
     const start = Date.now();
-    const elapsed = (): string => `${((Date.now() - start) / 1000).toFixed(0)}s`;
+    const elapsed = (): string =>
+      `${((Date.now() - start) / 1000).toFixed(0)}s`;
     let phase: "thinking" | "writing" = "thinking";
     let collected = "";
     // Usage accumulated from stream events: the fallback source when the
@@ -303,19 +311,27 @@ function classifySdkError(error: unknown): unknown {
   // credential-bearing); a non-Error carrier gets a fixed message instead
   // of echoing arbitrary object contents.
   const message =
-    error instanceof Error ? error.message : `transport error (status ${status})`;
+    error instanceof Error
+      ? error.message
+      : `transport error (status ${status})`;
   if (status === 401 || status === 403) {
-    return new GeneratorError(GeneratorErrorKind.AUTH, message, { cause: error });
+    return new GeneratorError(GeneratorErrorKind.AUTH, message, {
+      cause: error,
+    });
   }
   if (status === 400 || status === 404) {
-    return new GeneratorError(GeneratorErrorKind.CONFIG, message, { cause: error });
+    return new GeneratorError(GeneratorErrorKind.CONFIG, message, {
+      cause: error,
+    });
   }
   if (status === 408 || status === 429 || status >= 500) {
     return new GeneratorError(GeneratorErrorKind.PROVIDER_TRANSIENT, message, {
       cause: error,
     });
   }
-  return new GeneratorError(GeneratorErrorKind.OPAQUE, message, { cause: error });
+  return new GeneratorError(GeneratorErrorKind.OPAQUE, message, {
+    cause: error,
+  });
 }
 
 /**

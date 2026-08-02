@@ -57,7 +57,9 @@ interface RegistryEntry<O extends z.ZodType> {
 }
 
 /** Generic entry helper: ties each schema to its create without widening. */
-function defineEntry<O extends z.ZodType>(entry: RegistryEntry<O>): RegistryEntry<O> {
+function defineEntry<O extends z.ZodType>(
+  entry: RegistryEntry<O>,
+): RegistryEntry<O> {
   return entry;
 }
 
@@ -362,7 +364,9 @@ function describeConfigIssues(error: z.ZodError, config: unknown): string[] {
     !registeredProviders().includes(String(Reflect.get(config, "provider")))
   ) {
     const rejected = String(Reflect.get(config, "provider"));
-    const shown = PROVIDER_TOKEN.test(rejected) ? `"${rejected}"` : "(redacted)";
+    const shown = PROVIDER_TOKEN.test(rejected)
+      ? `"${rejected}"`
+      : "(redacted)";
     return [
       `provider: unknown provider ${shown} (valid: ${registeredProviders().join(", ")})`,
     ];
@@ -419,7 +423,10 @@ export async function createGenerator(
     case Providers.ANTHROPIC:
       return GENERATOR_REGISTRY[Providers.ANTHROPIC].create(parsed.data, deps);
     case Providers.CLAUDE_CODE:
-      return GENERATOR_REGISTRY[Providers.CLAUDE_CODE].create(parsed.data, deps);
+      return GENERATOR_REGISTRY[Providers.CLAUDE_CODE].create(
+        parsed.data,
+        deps,
+      );
     case Providers.CODEX:
       return GENERATOR_REGISTRY[Providers.CODEX].create(parsed.data, deps);
     case Providers.OPENAI:

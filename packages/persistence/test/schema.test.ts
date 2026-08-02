@@ -22,7 +22,12 @@ import {
   reviewerSession,
   revisionNarrative,
 } from "../src/schema/index";
-import type { InstallationId, PullRequestRowId, RepoId, ReviewerId } from "../src/types";
+import type {
+  InstallationId,
+  PullRequestRowId,
+  RepoId,
+  ReviewerId,
+} from "../src/types";
 import {
   AuditAction,
   AuditActorType,
@@ -53,7 +58,10 @@ function isUniqueViolationOf(error: unknown, constraint: string): boolean {
 }
 
 /** Brand a bigint via its guard — the sanctioned no-`as` path. */
-function brandWith<T extends bigint>(guard: (value: bigint) => value is T, value: bigint): T {
+function brandWith<T extends bigint>(
+  guard: (value: bigint) => value is T,
+  value: bigint,
+): T {
   if (!guard(value)) {
     throw new Error(`test fixture id failed its brand guard: ${value}`);
   }
@@ -105,10 +113,17 @@ function artifact(body: string): ArtifactBody {
   return { body, byteSize: Buffer.byteLength(body, "utf8") };
 }
 
-const PROVENANCE = { provider: "anthropic", model: "claude-fable-5", effort: "high" } as const;
+const PROVENANCE = {
+  provider: "anthropic",
+  model: "claude-fable-5",
+  effort: "high",
+} as const;
 
 /** Insert one row into every per-PR child table plus the non-PR tables. */
-async function seedFullGraph(db: Db, pullRequestId: PullRequestRowId): Promise<void> {
+async function seedFullGraph(
+  db: Db,
+  pullRequestId: PullRequestRowId,
+): Promise<void> {
   const briefRows = await db
     .insert(brief)
     .values({
@@ -282,10 +297,13 @@ describe("M1 schema migrations", () => {
       ...artifact('{"brief":true}'),
     };
     await db.insert(brief).values(values);
-    const rejection: unknown = await db.insert(brief).values(values).then(
-      () => null,
-      (error: unknown) => error,
-    );
+    const rejection: unknown = await db
+      .insert(brief)
+      .values(values)
+      .then(
+        () => null,
+        (error: unknown) => error,
+      );
     expect(rejection).not.toBeNull();
     expect(isUniqueViolationOf(rejection, "brief_natural_key")).toBe(true);
   });
@@ -299,17 +317,31 @@ describe("M1 schema migrations", () => {
 
     expect(await db.select({ id: brief.id }).from(brief)).toHaveLength(0);
     expect(await db.select({ id: delta.id }).from(delta)).toHaveLength(0);
-    expect(await db.select({ id: diffSnapshot.id }).from(diffSnapshot)).toHaveLength(0);
-    expect(await db.select({ id: revisionNarrative.id }).from(revisionNarrative)).toHaveLength(0);
-    expect(await db.select({ id: comparisonMarks.id }).from(comparisonMarks)).toHaveLength(0);
-    expect(await db.select({ id: checkpoint.id }).from(checkpoint)).toHaveLength(0);
-    expect(await db.select({ id: disposition.id }).from(disposition)).toHaveLength(0);
-    expect(await db.select({ id: generation.id }).from(generation)).toHaveLength(0);
+    expect(
+      await db.select({ id: diffSnapshot.id }).from(diffSnapshot),
+    ).toHaveLength(0);
+    expect(
+      await db.select({ id: revisionNarrative.id }).from(revisionNarrative),
+    ).toHaveLength(0);
+    expect(
+      await db.select({ id: comparisonMarks.id }).from(comparisonMarks),
+    ).toHaveLength(0);
+    expect(
+      await db.select({ id: checkpoint.id }).from(checkpoint),
+    ).toHaveLength(0);
+    expect(
+      await db.select({ id: disposition.id }).from(disposition),
+    ).toHaveLength(0);
+    expect(
+      await db.select({ id: generation.id }).from(generation),
+    ).toHaveLength(0);
 
     // Deliberate survivors: the audit ledger (D9, no FKs) and the
     // per-(installation, reviewer) session (D11, not FK'd to pull_request).
     expect(await db.select({ id: auditLog.id }).from(auditLog)).toHaveLength(1);
-    expect(await db.select({ id: reviewerSession.id }).from(reviewerSession)).toHaveLength(1);
+    expect(
+      await db.select({ id: reviewerSession.id }).from(reviewerSession),
+    ).toHaveLength(1);
   });
 
   it("cascades a brief delete to its revision_narrative but not the pull_request", async () => {
@@ -324,8 +356,12 @@ describe("M1 schema migrations", () => {
     }
     await db.delete(brief).where(eq(brief.id, briefRow.id));
 
-    expect(await db.select({ id: revisionNarrative.id }).from(revisionNarrative)).toHaveLength(0);
-    expect(await db.select({ id: pullRequest.id }).from(pullRequest)).toHaveLength(1);
+    expect(
+      await db.select({ id: revisionNarrative.id }).from(revisionNarrative),
+    ).toHaveLength(0);
+    expect(
+      await db.select({ id: pullRequest.id }).from(pullRequest),
+    ).toHaveLength(1);
     // Sibling artifacts are untouched by a brief regeneration.
     expect(await db.select({ id: delta.id }).from(delta)).toHaveLength(1);
   });
@@ -345,7 +381,10 @@ describe("M1 schema migrations", () => {
 });
 
 /** Walk the `cause` chain for a Postgres error naming the given constraint. */
-async function expectCheckViolation(run: Promise<unknown>, constraint: string): Promise<void> {
+async function expectCheckViolation(
+  run: Promise<unknown>,
+  constraint: string,
+): Promise<void> {
   let thrown: unknown;
   try {
     await run;
@@ -458,7 +497,9 @@ describe("closed-vocabulary + shape CHECK constraints (PR #23 review)", () => {
     await db.execute(
       sql`insert into generation (installation_id, pull_request_id, kind, head_sha, status) values (1000, ${prId}, 'brief', 'head', 'superseded')`,
     );
-    const rows = await db.select({ status: generation.status }).from(generation);
+    const rows = await db
+      .select({ status: generation.status })
+      .from(generation);
     expect(rows[0]?.status).toBe(GenerationStatus.SUPERSEDED);
   });
 });

@@ -98,10 +98,19 @@ export function loadConfig(
   if (!baseUrlParsed.success) {
     // The value may be misconfigured but is not a secret; still, only the
     // reason is echoed — consistent with the rest of this surface.
-    issues.push(...baseUrlParsed.error.issues.map((issue) => `PUBLIC_BASE_URL: ${issue.message}`));
+    issues.push(
+      ...baseUrlParsed.error.issues.map(
+        (issue) => `PUBLIC_BASE_URL: ${issue.message}`,
+      ),
+    );
   }
 
-  if (issues.length > 0 || !persistence.ok || !generatorConfig.ok || !baseUrlParsed.success) {
+  if (
+    issues.length > 0 ||
+    !persistence.ok ||
+    !generatorConfig.ok ||
+    !baseUrlParsed.success
+  ) {
     return {
       ok: false,
       error: {

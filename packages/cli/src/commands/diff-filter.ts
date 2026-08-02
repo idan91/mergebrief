@@ -8,8 +8,14 @@
 /** The slice of a brief chunk the filter needs (new-side file path). */
 export interface ChunkSpan {
   readonly file: string;
-  readonly addedRanges: ReadonlyArray<{ readonly start: number; readonly end: number }>;
-  readonly removedRanges: ReadonlyArray<{ readonly start: number; readonly end: number }>;
+  readonly addedRanges: ReadonlyArray<{
+    readonly start: number;
+    readonly end: number;
+  }>;
+  readonly removedRanges: ReadonlyArray<{
+    readonly start: number;
+    readonly end: number;
+  }>;
 }
 
 interface Hunk {
@@ -42,8 +48,18 @@ function parsePath(line: string, prefix: string): string | undefined {
 function parseSections(diffText: string): FileSection[] {
   const lines = diffText.split("\n");
   const sections: FileSection[] = [];
-  let current: { header: string[]; newPath: string | undefined; hunks: Hunk[] } | undefined;
-  let hunk: { lines: string[]; oldStart: number; oldCount: number; newStart: number; newCount: number } | undefined;
+  let current:
+    | { header: string[]; newPath: string | undefined; hunks: Hunk[] }
+    | undefined;
+  let hunk:
+    | {
+        lines: string[];
+        oldStart: number;
+        oldCount: number;
+        newStart: number;
+        newCount: number;
+      }
+    | undefined;
 
   const closeHunk = (): void => {
     if (hunk !== undefined && current !== undefined) {
@@ -127,7 +143,8 @@ export function filterDiffByChunks(
   const out: string[] = [];
 
   for (const section of sections) {
-    const fileChunks = section.newPath === undefined ? undefined : byFile.get(section.newPath);
+    const fileChunks =
+      section.newPath === undefined ? undefined : byFile.get(section.newPath);
     if (fileChunks === undefined || section.newPath === undefined) {
       continue;
     }
@@ -148,7 +165,9 @@ export function filterDiffByChunks(
     }
   }
 
-  const missingFiles = [...byFile.keys()].filter((file) => !seenFiles.has(file));
+  const missingFiles = [...byFile.keys()].filter(
+    (file) => !seenFiles.has(file),
+  );
   const body = out.join("\n");
   return { diff: body.length === 0 ? "" : `${body}\n`, missingFiles };
 }

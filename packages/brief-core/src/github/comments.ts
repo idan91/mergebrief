@@ -70,7 +70,11 @@ export async function fetchReviewComments(
 ): Promise<ReviewComment[]> {
   const { stdout } = await execFileAsync(
     "gh",
-    ["api", "--paginate", `repos/${repoSlug(loc)}/pulls/${loc.number}/comments`],
+    [
+      "api",
+      "--paginate",
+      `repos/${repoSlug(loc)}/pulls/${loc.number}/comments`,
+    ],
     { maxBuffer: MAX_BUFFER },
   );
   const raw = z.array(GhCommentSchema).parse(JSON.parse(stdout));

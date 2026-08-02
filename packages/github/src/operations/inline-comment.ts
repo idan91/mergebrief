@@ -23,7 +23,11 @@
 // the SAME best-effort posture review.ts takes on its unknown-commit 422.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
-import { mapRequestError, unexpectedResponseError, type GitHubApiError } from "../errors";
+import {
+  mapRequestError,
+  unexpectedResponseError,
+  type GitHubApiError,
+} from "../errors";
 import type { ReviewCommentSide } from "./review";
 import type { Result } from "../types";
 

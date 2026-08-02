@@ -17,7 +17,15 @@ import {
   type TenantContext,
 } from "persistence";
 import { createPgliteHarness, type PgliteHarness } from "persistence/testing";
-import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from "vitest";
 import {
   createApp,
   UrlBriefErrorKind,
@@ -37,7 +45,10 @@ const ROTATED_REFRESH = "ghr_ROTATED_REFRESH_PLAINTEXT";
 const PR_URL = "https://github.com/o/r/pull/7";
 const HEAD = "a".repeat(40);
 
-function brand<T extends bigint>(guard: (v: bigint) => v is T, value: number): T {
+function brand<T extends bigint>(
+  guard: (v: bigint) => v is T,
+  value: number,
+): T {
   const asBigInt = BigInt(value);
   if (!guard(asBigInt)) throw new Error("bad branded id");
   return asBigInt;
@@ -61,12 +72,16 @@ function authDeps(kp: KeyProvider): AuthDeps {
   };
 }
 
-async function seedSession(handle: AppDatabase, kp: KeyProvider): Promise<string> {
+async function seedSession(
+  handle: AppDatabase,
+  kp: KeyProvider,
+): Promise<string> {
   const cookie = randomBytes(32).toString("base64url");
   const hash = createHash("sha256").update(cookie).digest("hex");
   const sealedAccess = await encryptToken(kp, KEY_REF, ACCESS_TOKEN);
   const sealedRefresh = await encryptToken(kp, KEY_REF, REFRESH_TOKEN);
-  if (!sealedAccess.ok || !sealedRefresh.ok) throw new Error("seed encrypt failed");
+  if (!sealedAccess.ok || !sealedRefresh.ok)
+    throw new Error("seed encrypt failed");
   const grant = await grantAuth(handle).createGrant({
     ghTokenCiphertext: sealedAccess.value,
     ghRefreshTokenCiphertext: sealedRefresh.value,
@@ -99,7 +114,9 @@ interface EngineMocks {
 }
 
 /** A controllable engine; every method observable and overridable per test. */
-function fakeEngine(overrides: Partial<EngineMocks> = {}): UrlBriefEngine & EngineMocks {
+function fakeEngine(
+  overrides: Partial<EngineMocks> = {},
+): UrlBriefEngine & EngineMocks {
   return {
     fetchHeadSha: vi.fn(async () => ({ ok: true as const, value: HEAD })),
     lookupIndex: vi.fn(async () => null),
@@ -140,7 +157,11 @@ function stubTokenEndpoint(): void {
   );
 }
 
-async function post(app: ApiApp, cookie: string | undefined, url: string): Promise<Response> {
+async function post(
+  app: ApiApp,
+  cookie: string | undefined,
+  url: string,
+): Promise<Response> {
   return app.request("/api/generate", {
     method: "POST",
     body: JSON.stringify({ url }),
@@ -254,7 +275,9 @@ describe("POST /api/generate", () => {
     const cookie = await seedSession(harness.handle, kp);
     const res = await post(app, cookie, PR_URL);
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "ANTHROPIC_API_KEY is required" });
+    expect(await res.json()).toEqual({
+      error: "ANTHROPIC_API_KEY is required",
+    });
   });
 
   it("clamps a contract-violating config message (URL scrubbed, first line only)", async () => {
@@ -323,21 +346,25 @@ describe("POST /api/generate", () => {
     let release: (() => void) | undefined;
     const generate = vi.fn(
       () =>
-        new Promise<{ ok: true; value: { repo: string; number: number; index: number; head: string } }>(
-          (resolve) => {
-            release = () =>
-              resolve({
-                ok: true,
-                value: { repo: "o/r", number: 7, index: 1, head: HEAD },
-              });
-          },
-        ),
+        new Promise<{
+          ok: true;
+          value: { repo: string; number: number; index: number; head: string };
+        }>((resolve) => {
+          release = () =>
+            resolve({
+              ok: true,
+              value: { repo: "o/r", number: 7, index: 1, head: HEAD },
+            });
+        }),
     );
     const engine = fakeEngine({ generate });
     const app = buildApp(engine);
     const cookie = await seedSession(harness.handle, kp);
 
-    const [first, second] = [post(app, cookie, PR_URL), post(app, cookie, PR_URL)];
+    const [first, second] = [
+      post(app, cookie, PR_URL),
+      post(app, cookie, PR_URL),
+    ];
     // Both requests must be past dedupe and inside the flight before release.
     await vi.waitFor(() => {
       expect(engine.lookupIndex).toHaveBeenCalledTimes(2);

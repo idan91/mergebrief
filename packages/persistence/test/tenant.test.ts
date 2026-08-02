@@ -68,10 +68,20 @@ describe("forTenant — tenant isolation on reads", () => {
     const b = forTenant(handle, CTX_B);
 
     await a.pullRequests.upsert(upsertInput(7, { state: PrState.OPEN }));
-    await b.pullRequests.upsert(upsertInput(7, { state: PrState.MERGED, closedAt: new Date(), purgeAfter: null }));
+    await b.pullRequests.upsert(
+      upsertInput(7, {
+        state: PrState.MERGED,
+        closedAt: new Date(),
+        purgeAfter: null,
+      }),
+    );
 
-    expect((await a.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.OPEN);
-    expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.MERGED);
+    expect((await a.pullRequests.getByNumber(REPO, 7))?.state).toBe(
+      PrState.OPEN,
+    );
+    expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(
+      PrState.MERGED,
+    );
   });
 
   it("A cannot read a checkpoint written under B", async () => {
@@ -139,7 +149,9 @@ describe("forTenant — cross-tenant child writes are rejected without a DB writ
     }
     expect(result.error.code).toBe(RepositoryErrorCode.NOT_FOUND);
     // B's PR is untouched.
-    expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(PrState.OPEN);
+    expect((await b.pullRequests.getByNumber(REPO, 7))?.state).toBe(
+      PrState.OPEN,
+    );
   });
 
   it("setEntryComment on a PR outside the tenant returns notFound", async () => {
@@ -156,7 +168,9 @@ describe("forTenant — cross-tenant child writes are rejected without a DB writ
     }
     expect(result.error.code).toBe(RepositoryErrorCode.NOT_FOUND);
     // B's PR is untouched.
-    expect((await b.pullRequests.getByNumber(REPO, 7))?.entryCommentId).toBeNull();
+    expect(
+      (await b.pullRequests.getByNumber(REPO, 7))?.entryCommentId,
+    ).toBeNull();
   });
 });
 
@@ -224,8 +238,16 @@ describe("forTenant — idempotent upserts", () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
 
-    const first = await a.pullRequests.upsert(upsertInput(7, { state: PrState.OPEN }));
-    const second = await a.pullRequests.upsert(upsertInput(7, { state: PrState.MERGED, closedAt: new Date(), purgeAfter: null }));
+    const first = await a.pullRequests.upsert(
+      upsertInput(7, { state: PrState.OPEN }),
+    );
+    const second = await a.pullRequests.upsert(
+      upsertInput(7, {
+        state: PrState.MERGED,
+        closedAt: new Date(),
+        purgeAfter: null,
+      }),
+    );
 
     expect(second.id).toBe(first.id); // same row
     expect(second.state).toBe(PrState.MERGED); // updated in place
@@ -245,7 +267,9 @@ describe("forTenant — idempotent upserts", () => {
     expect(closed.purgeAfter).not.toBeNull();
 
     // Reopen via BOTH mutation paths; each must clear the armed sweep fields.
-    const viaUpsert = await a.pullRequests.upsert(upsertInput(7, { state: PrState.OPEN }));
+    const viaUpsert = await a.pullRequests.upsert(
+      upsertInput(7, { state: PrState.OPEN }),
+    );
     expect(viaUpsert.closedAt).toBeNull();
     expect(viaUpsert.purgeAfter).toBeNull();
 
@@ -254,7 +278,9 @@ describe("forTenant — idempotent upserts", () => {
       closedAt: new Date("2026-07-01T00:00:00Z"),
       purgeAfter: new Date("2026-07-08T00:00:00Z"),
     });
-    const viaSetState = await a.pullRequests.setState(closed.id, { state: PrState.OPEN });
+    const viaSetState = await a.pullRequests.setState(closed.id, {
+      state: PrState.OPEN,
+    });
     expect(viaSetState.ok).toBe(true);
     if (!viaSetState.ok) throw new Error("expected success");
     expect(viaSetState.value.closedAt).toBeNull();
@@ -383,13 +409,19 @@ describe("forTenant — idempotent upserts", () => {
 
 describe("parseTenantContext — boundary validation", () => {
   it("accepts installationId as bigint, number, or numeric string", () => {
-    expect(parseTenantContext({ installationId: 42n }).installationId).toBe(42n);
+    expect(parseTenantContext({ installationId: 42n }).installationId).toBe(
+      42n,
+    );
     expect(parseTenantContext({ installationId: 42 }).installationId).toBe(42n);
-    expect(parseTenantContext({ installationId: "42" }).installationId).toBe(42n);
+    expect(parseTenantContext({ installationId: "42" }).installationId).toBe(
+      42n,
+    );
   });
 
   it("accepts the worker payload's snake_case key", () => {
-    expect(parseTenantContext({ installation_id: "99" }).installationId).toBe(99n);
+    expect(parseTenantContext({ installation_id: "99" }).installationId).toBe(
+      99n,
+    );
   });
 
   it("rejects non-positive or non-integral installation ids", () => {
