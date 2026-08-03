@@ -90,6 +90,37 @@ rather than repeated four times.
       duplicated) on the next settled push, deep-linking the exact span
       (BRIEF-22).
 
+### External Postgres (BRIEF-131)
+
+Setup: a managed-provider database (Neon/Supabase free tier is enough),
+`docker-compose.external-db.yml`, recipes in
+[`../self-host/compose.md`](../self-host/compose.md#external-postgres-managed-database).
+The refusal/precedence LOGIC (TLS gate matrix, `_FILE` precedence, the
+check-only ledger comparison) is all in the gates index
+(`packages/persistence` config + migration-check suites); what stays manual
+is the real wire — provider TLS handshakes, CA chains, and role models are
+exactly what the PGlite-based suites cannot see. Every step carries the same
+tag — `manual-forever: needs a live managed provider; re-run on a pg /
+pg-connection-string bump or an external-db compose change, not every
+release` — stated once here.
+
+- [ ] TLS refusal fires: provider DSN with NO `sslmode` → worker refuses
+      boot naming the three choices; no DSN echoed in the log.
+- [ ] Connects verified: `?sslmode=verify-full` (+`sslrootcert` via the CA
+      mount if the provider's chain needs pinning — record which it was)
+      → worker boots, web `/readyz` 200.
+- [ ] Auto-migrate applies on first boot against the fresh provider DB;
+      second boot no-ops.
+- [ ] `MERGEBRIEF_AUTO_MIGRATE=false` against a behind DB → worker refuses
+      with the pending count + the manual command; web stays on `/healthz`
+      but `/readyz` red / first API request 503.
+- [ ] The refusal's manual command (DDL-capable DSN, host-absolute
+      `sslrootcert` if pinned) → worker starts clean on restart; web
+      recovers WITHOUT restart.
+- [ ] `DATABASE_URL_FILE` via the compose `secrets:` blocks boots; with
+      BOTH variables set the boot warning names the shadowed
+      `DATABASE_URL`.
+
 ### Reviewer surface
 
 - [ ] GitHub OAuth login → picker rows with status pills; org switcher

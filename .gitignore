@@ -28,6 +28,8 @@ node_modules/
 *.pem
 *.key
 *.cert
+# Compose secret files (docker-compose.external-db.yml's documented layout)
+secrets/
 
 # Build output
 dist/

@@ -1,0 +1,103 @@
+# External-Postgres compose (BRIEF-131): web + worker only — YOUR database
+# (managed provider or any Postgres 15+) replaces the bundled `postgres`
+# service. A separate checked-in file, not a profile or override, on purpose:
+# `depends_on` cannot reference a profiled-out service without erroring, and
+# an override file cannot REMOVE a service. Usage:
+#
+#   docker compose -f docker-compose.external-db.yml up -d
+#
+# DATABASE_URL comes from `.env` (env_file below) or the shell you run
+# compose from (the pass-through entries under `environment:`; a shell value
+# wins over `.env`). A NON-loopback host must carry an explicit `sslmode`
+# DSN parameter or boot is refused — see docs/self-host/compose.md for the
+# provider recipes (verify-full + CA bundle, the `require` trap, `_FILE`
+# secrets). There is no `depends_on`: the services retry/fail loudly against
+# an unreachable database instead of gating on a healthcheck compose cannot
+# see.
+#
+# All published ports bind loopback-only, same as the default compose.
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Pass-through (no `=`): each rides in from the shell running compose
+      # when set there, otherwise the `.env` value applies; an entry unset in
+      # both stays genuinely ABSENT in the container (the loaders distinguish
+      # unset from empty — do not give these empty defaults).
+      - DATABASE_URL
+      - DATABASE_URL_FILE
+      - MERGEBRIEF_AUTO_MIGRATE
+      # Defaulted (not pass-through): parity with the default compose, so an
+      # .env that omits it keeps working after switching files.
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:3000}
+    # Uncomment to hand the DSN over as a file instead of an env var (and
+    # set DATABASE_URL_FILE=/run/secrets/database-url in .env). The CA mount
+    # pairs with sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem.
+    # secrets:
+    #   - database-url
+    volumes:
+      # URL-box/demo brief artifacts (BRIEF-97) — same mount as the default
+      # compose; host-persisted so recreates never wipe generated briefs.
+      - ./tools/categorizer/out:/app/tools/categorizer/out
+      # CA bundle for sslmode=verify-full against a provider whose CA is not
+      # in the system store (e.g. RDS):
+      # - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
+      # Instance config (mergebrief.config.yaml) — uncomment here AND in the
+      # worker service; both read the same file.
+      # - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+    # Liveness only (ADR 0034 #7): /healthz is static — never /readyz here,
+    # or a DB blip would trigger web restart churn.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -qO /dev/null http://127.0.0.1:3000/healthz || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: &log-rotation
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  worker:
+    build:
+      context: .
+      dockerfile: packages/worker/Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Same pass-through contract as the web service.
+      - DATABASE_URL
+      - DATABASE_URL_FILE
+      - MERGEBRIEF_AUTO_MIGRATE
+      # Defaulted (not pass-through): parity with the default compose, so an
+      # .env that omits it keeps working after switching files.
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://localhost:3000}
+    # secrets:
+    #   - database-url
+    # volumes:
+    #   - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
+    #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
+    # No HTTP surface to probe; liveness = the runner process itself.
+    # Restart on crash so a transient boot race (network blip, provider
+    # failover) self-heals without an operator.
+    restart: unless-stopped
+    logging: *log-rotation
+# The compose `secrets:` block the commented service entries reference —
+# lands as /run/secrets/database-url in the container. `secrets/` is
+# gitignored; keep the DSN file there (never somewhere `git add .` reaches).
+# secrets:
+#   database-url:
+#     file: ./secrets/database-url

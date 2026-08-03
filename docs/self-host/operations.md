@@ -53,6 +53,71 @@ Practical consequences:
   the worker refuses to start and says so in `docker compose logs worker` —
   it does not limp into draining jobs against a half-migrated schema.
 
+### External database: auto-migrate=false
+
+Running against an external Postgres
+([compose.md](./compose.md#external-postgres-managed-database)) changes
+none of the above by default — boot still applies migrations, whoever
+starts first. Two situations move the work to you:
+
+**A runtime role without DDL.** Set `MERGEBRIEF_AUTO_MIGRATE=false` and
+both services stop applying: they compare the checked-in migrations
+against `drizzle.__drizzle_migrations` read-only and **refuse when the
+database is behind**, naming the pending count. The refusal surfaces
+asymmetrically, matching how each service composes: the **worker refuses
+to start** (crash-loops until migrated); the **web tier boots and stays
+"healthy"** (its `/healthz` is static) but refuses composition on the
+first `/api` request — `/readyz` red, webhooks 503 — and **recovers on
+its next request** once migrations apply, no restart needed. The upgrade
+workflow becomes:
+
+```sh
+git pull && docker compose -f docker-compose.external-db.yml build
+DATABASE_URL='postgres://ddl-capable-role:...@host/db?sslmode=verify-full&sslrootcert=/absolute/host/path/provider-ca.pem' \
+  pnpm -C packages/persistence migrate
+docker compose -f docker-compose.external-db.yml up -d
+```
+
+The migrate command runs from a checkout with dev dependencies installed
+(`pnpm install` first on a fresh machine) and needs a DSN whose role can
+DDL — that credential exists only for the duration of the command, which
+is the point of the mode. Mind the `sslrootcert` path: this command runs
+**on the host**, so a CA bundle mounted into the containers at
+`/etc/ssl/certs/...` does not exist here — use the host location of the
+same file (e.g. `$PWD/secrets/provider-ca.pem`), and make it absolute
+(`-C` changes the working directory). Providers on publicly trusted CAs
+need no `sslrootcert` at all.
+
+Two caveats:
+
+- The check covers the **app schema** (the drizzle ledger) only. The
+  `graphile_worker` queue schema is owned and migrated by graphile-worker
+  itself; it no-ops read-only when current, but it needs DDL whenever it
+  is NOT current — which under a restricted role surfaces as a loud
+  permission error, not a friendly refusal.
+- That includes the **first boot against a fresh database**: the manual
+  migrate command installs the app schema only, so the very first
+  `up -d` still needs to create `graphile_worker`. Bootstrap once with a
+  DDL-capable credential — either run the first boot with
+  `DATABASE_URL` pointing at the DDL role (auto-migrate can stay
+  `false`; the graphile install happens regardless), or grant the
+  runtime role temporary DDL for that boot — then switch to the
+  restricted DSN. Using the `DATABASE_URL_FILE` secrets flow? The file
+  **wins over** `DATABASE_URL`, so for the bootstrap boot temporarily
+  point the secret file at the DDL DSN (then restore it) — that keeps
+  the credential out of your shell history, consistent with the rule in
+  [compose.md](./compose.md) §3 about secrets on command lines. If you
+  must inline it instead, blank the file variable
+  (`DATABASE_URL_FILE= DATABASE_URL='<ddl-dsn>' docker compose ... up
+  -d` — an empty `_FILE` is treated as unset) and keep it out of
+  history: a leading space with `HISTCONTROL=ignorespace`, or `set +o
+  history` around the command. The same one-off applies later when a
+  MergeBrief upgrade bumps the bundled graphile-worker version.
+
+**Rolling upgrades against one database.** Auto-migrate + additive
+migrations already tolerate old-code-new-schema overlap (above); nothing
+extra to do.
+
 ### Downgrades
 
 **There is no down migration** — the migration set is forward-only by
@@ -73,6 +138,12 @@ Which is the whole argument for the next section.
    and unknown keys refuse boot rather than being ignored.
 
 ## Backup
+
+**External database?** The provider owns backup and restore — use its
+point-in-time recovery / snapshot tooling instead of this section (the
+`docker compose exec postgres` commands below assume the bundled service
+and have nothing to exec into). The `tools/categorizer/out/` and
+`.env`/config caveats below still apply to you.
 
 One database, one command:
 

@@ -38,7 +38,9 @@ tunnel, for the dev loop) in front for anything internet-facing.
 
 Migrations (app schema + graphile queue schema) run **idempotently at boot**
 in both `web` and `worker` — whoever starts first applies them, the other
-no-ops. There is no separate migrate step.
+no-ops. There is no separate migrate step. (Exception: restricted database
+roles can opt out with `MERGEBRIEF_AUTO_MIGRATE=false` — see the external
+Postgres section below.)
 
 ## Environment (`.env` at the repo root)
 
@@ -58,8 +60,103 @@ doesn't apply — several loaders distinguish unset from empty.
 | `MERGEBRIEF_CONFIG` | worker + web | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The web/api side reads only its `drafts:` block (draft-PR policy, BRIEF-64) via a narrow loader — no provider keys needed there |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them, so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24` — the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
 | `DATABASE_URL` | — | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input for the external-database compose file (BRIEF-131). Non-loopback hosts must carry an explicit `sslmode` or boot is refused |
-| `DATABASE_URL_FILE` | web, worker | optional (BRIEF-131); path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; trailing newline trimmed |
+| `DATABASE_URL_FILE` | web, worker | optional (BRIEF-131); path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
 | `MERGEBRIEF_AUTO_MIGRATE` | web, worker | optional, default `true` (BRIEF-131). `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
+
+## External Postgres (managed database)
+
+The second supported deployment shape (BRIEF-131): web + worker from
+compose, the database from a managed provider (Neon, Supabase, RDS, ...)
+or any Postgres you operate yourself.
+
+```sh
+# .env: DATABASE_URL=postgres://...?sslmode=verify-full&sslrootcert=...
+docker compose -f docker-compose.external-db.yml up -d
+```
+
+`docker-compose.external-db.yml` is a separate checked-in file — web and
+worker only, no `postgres` service, no `depends_on`. It reads
+`DATABASE_URL` (and the other variables below) from `.env`, or from the
+shell you run compose from (shell wins). The bundled `postgres` service and
+its `POSTGRES_*` derivation do not apply here.
+
+**Supported Postgres: 15 or newer.** The bundled `postgres:17-alpine` image
+is the reference; anything a current managed provider offers is in range.
+Older versions may work but are unsupported. One caveat on test coverage:
+the automated suites run against PGlite (an embedded Postgres build), so
+provider-specific behavior — TLS handshakes, pooled proxies, permission
+models — is exactly what the suites cannot see; the smoke checklist below
+is how a provider setup is actually proven.
+
+### TLS: you must choose (`sslmode` in the DSN)
+
+A `DATABASE_URL` whose host is not loopback **refuses boot unless the DSN
+carries an explicit `sslmode`**. There is no separate TLS config — the DSN
+is the whole decision:
+
+| DSN parameter | meaning |
+|---|---|
+| `sslmode=verify-full&sslrootcert=/path/ca.pem` | TLS, certificate verified against that CA, hostname checked — **the recommended posture** |
+| `sslmode=verify-full` | TLS, verified against Node's bundled trust roots (the Mozilla CA set — NOT the OS store, so mounting a CA into `/etc/ssl/certs` alone changes nothing; that mount only feeds `sslrootcert`) — works when the provider's chain ends in a publicly trusted CA. Check your provider: some (e.g. Supabase's dedicated-instance certificates) issue from a provider CA you must download and pin via `sslrootcert` |
+| `sslmode=require` | see the trap below — write `verify-full` if you mean verification |
+| `sslmode=disable` | plaintext — private networks / VPC peering only |
+
+**The `sslmode=require` trap.** libpq (psql and most tooling) treats
+`require` as "encrypt but do NOT verify the certificate". node-postgres
+(the driver this product uses, pg 8.x) currently treats `require`,
+`prefer`, and `verify-ca` as *aliases for `verify-full`* — it verifies,
+and prints a security warning saying so. pg v9 will switch to the libpq
+semantics, where `require` stops verifying. So: a DSN copied from a
+provider dashboard with `sslmode=require` behaves differently here than in
+psql, and will change behavior again on a future driver bump. Write
+`verify-full` when you want verification (always, unless you know why not).
+
+Providers whose CA is not in the system store (RDS is the common case)
+need the CA bundle mounted into both containers — download the provider's
+bundle (for RDS: the region bundle from AWS's docs), drop it at
+`./secrets/provider-ca.pem`, and uncomment the CA mount lines in
+`docker-compose.external-db.yml`, then reference it:
+
+```
+DATABASE_URL=postgres://app:...@db.xxx.rds.amazonaws.com:5432/mergebrief?sslmode=verify-full&sslrootcert=/etc/ssl/certs/provider-ca.pem
+```
+
+A missing/unreadable `sslrootcert` file refuses boot naming the path.
+
+### The DSN as a secret file (`DATABASE_URL_FILE`)
+
+An env var is visible in `docker inspect` and every env dump; a compose
+`secrets:` mount is not. `DATABASE_URL_FILE` points at a file holding the
+DSN (surrounding whitespace trimmed, so the usual trailing newline of a
+secret file is harmless — the official postgres image convention):
+
+1. put the DSN in `./secrets/database-url` (the `secrets/` directory is
+   gitignored),
+2. uncomment the `secrets:` blocks in `docker-compose.external-db.yml`
+   (top-level and per-service),
+3. set `DATABASE_URL_FILE=/run/secrets/database-url` in `.env` instead of
+   `DATABASE_URL`.
+
+If both variables are set, the file wins and boot logs a warning naming
+the shadowed `DATABASE_URL`.
+
+### Restricted database roles (`MERGEBRIEF_AUTO_MIGRATE=false`)
+
+By default both services apply migrations at boot, which needs DDL. If
+your runtime role is read/write-only (least-privilege posture), set
+`MERGEBRIEF_AUTO_MIGRATE=false`: boot then only *checks* — read-only —
+that the database matches the checked-in migrations, and refuses with the
+pending count when it is behind. The apply workflow moves to you; see
+[operations.md](./operations.md#external-database-auto-migratefalse).
+
+### Deployment shapes: what is supported
+
+Supported: (1) the all-in-one compose, (2) compose + external Postgres —
+this section. Beyond that: both services are env-configured and stateless
+outside Postgres, so splitting web and worker across machines (or into
+another orchestrator) works in principle — it is untested and unsupported;
+you are off the map, though probably not far off. Kubernetes/Helm
+packaging is out of scope until real demand shows up.
 
 ## The lifecycle of a push
 
