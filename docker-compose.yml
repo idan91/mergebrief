@@ -12,16 +12,20 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_USER: code_review
-      POSTGRES_PASSWORD: code_review
-      POSTGRES_DB: code_review
+      POSTGRES_USER: ${POSTGRES_USER:-code_review}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-code_review}
+      POSTGRES_DB: ${POSTGRES_DB:-code_review}
     ports:
       # Loopback-only: dev credentials must not be reachable from the LAN.
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U code_review -d code_review"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER:-code_review} -d $${POSTGRES_DB:-code_review}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -44,8 +48,10 @@ services:
       - path: .env
         required: false
     environment:
-      # In-network DSN overrides any host-oriented value from .env.
-      DATABASE_URL: postgres://code_review:code_review@postgres:5432/code_review
+      # In-network DSN, DERIVED from the postgres credentials above so one
+      # `.env` edit moves both sides. Overrides any host-oriented DATABASE_URL
+      # from .env (which points at 127.0.0.1 for host tooling).
+      DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
     volumes:
       # URL-box/demo brief artifacts (BRIEF-97): host-persisted so a rebuild
@@ -86,7 +92,8 @@ services:
       - path: .env
         required: false
     environment:
-      DATABASE_URL: postgres://code_review:code_review@postgres:5432/code_review
+      # Derived from the postgres credentials, same as the web service.
+      DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}
       # The Entry comment's deep-link base — same value the web tier uses.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
     # See the web service's mergebrief.config.yaml mount note — uncomment

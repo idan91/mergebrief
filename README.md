@@ -45,8 +45,11 @@ docker compose up -d
 That's the whole product running: Postgres, the web app on
 http://localhost:3000, and a background worker that generates a Brief for
 **every push to every PR** on the repos your GitHub App is installed on —
-no manual step. Setup details (App registration, env table, verification):
-[`docs/self-host/compose.md`](./docs/self-host/compose.md).
+no manual step. Setup details (App registration, env table, verification,
+hardening before you expose it):
+[`docs/self-host/compose.md`](./docs/self-host/compose.md). Upgrades,
+migrations, and backup/restore:
+[`docs/self-host/operations.md`](./docs/self-host/operations.md).
 
 ## Quickstart (local dev loop, no Docker)
 

@@ -20,6 +20,7 @@ import {
 } from "generators";
 
 import { createSingleFlight } from "./singleFlight";
+import { GenerateErrorMessage } from "../utils/briefErrors";
 import { getServerLogger } from "../../../server/logger";
 
 const logger = getServerLogger();
@@ -195,7 +196,17 @@ export async function generateBriefFromUrl(
   url: string,
   engine: GenerateBriefEngine = realEngine(),
 ): Promise<string> {
-  const locator = parsePrUrl(url);
+  let locator: PrLocator;
+  try {
+    locator = parsePrUrl(url);
+  } catch {
+    // `parsePrUrl` reflects the WHOLE pasted string (uncapped) in its
+    // message, and this rejection is rendered into a role="alert". The
+    // caller knows what they pasted; the page does not need to repeat it.
+    // (The api route reflects it deliberately behind its own clamp — the
+    // boundary that differs is this server function, not brief-core.)
+    throw new Error(GenerateErrorMessage.NOT_A_PR_URL);
+  }
 
   let head: string;
   try {
@@ -218,14 +229,10 @@ export async function generateBriefFromUrl(
     // signed-in path is the one that works here.
     if (isSpawnGhMissing(error)) {
       // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-      throw new Error(
-        "This deployment has no gh CLI — sign in with GitHub to generate with your account.",
-      );
+      throw new Error(GenerateErrorMessage.NO_GH_CLI);
     }
     // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-    throw new Error(
-      "Couldn't fetch this PR — is it public, and are you `gh auth login`'d?",
-    );
+    throw new Error(GenerateErrorMessage.FETCH_FAILED);
   }
 
   const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
@@ -244,9 +251,7 @@ export async function generateBriefFromUrl(
       // No `{ cause: error }` — serialized to the browser (see the fetch
       // catch above); the raw failure is already in the server log.
       // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-      throw new Error(
-        "Couldn't generate the brief for this PR — check the server logs and try again.",
-      );
+      throw new Error(GenerateErrorMessage.GENERATION_FAILED);
     }
     return briefId(
       prStem(result.repo, result.number),

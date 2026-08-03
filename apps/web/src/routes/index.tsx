@@ -7,6 +7,7 @@ import {
   generateBriefViaApi,
   localBriefsQueryOptions,
 } from "../features/brief/queries";
+import { briefErrorDetail } from "@web/features/brief/utils/briefErrors";
 import { OrgSwitcher } from "@web/features/installations";
 import { PullsSection } from "@web/features/pulls";
 import { pullsSessionQueryOptions } from "../features/pulls/queries";
@@ -153,7 +154,8 @@ function BriefPickerError({ error }: { error: Error }) {
     <main className="main" id="main-content" tabIndex={-1}>
       <section className={sharedStyles["errorState"]}>
         <h1>Brief list failed to load</h1>
-        <p>{error.message}</p>
+        {/* Curated copy only (BRIEF-20) — see briefs.$briefId's boundary. */}
+        <p>{briefErrorDetail(error)}</p>
       </section>
     </main>
   );

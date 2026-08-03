@@ -69,8 +69,10 @@ Two joins carry a delivery end to end:
    and then filter logs by it:
 
    ```sh
-   docker compose exec postgres psql -U code_review -d code_review \
-     -c "select id from pull_request where repo_slug = 'owner/repo' and pr_number = 123;"
+   # $POSTGRES_USER / $POSTGRES_DB are set inside the container from your
+   # .env (defaults: code_review) — read them there rather than hardcoding.
+   docker compose exec postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
+     -c "select id from pull_request where repo_slug = '"'"'owner/repo'"'"' and pr_number = 123;"'
    ```
 
    The same id (as `pull_request_id`) and `headSha` sit on the queue row

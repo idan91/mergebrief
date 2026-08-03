@@ -7,6 +7,7 @@ import {
   parseViewParam,
   type BriefSearchParams,
 } from "../features/brief/comparison/compareState";
+import { briefErrorDetail } from "@web/features/brief/utils/briefErrors";
 import { resolveLegacyDeltaRedirect } from "@web/features/brief/utils";
 import {
   localBriefQueryOptions,
@@ -82,7 +83,9 @@ function BriefError({ error }: { error: Error }) {
     <main className="main" id="main-content" tabIndex={-1}>
       <section className={styles["errorState"]}>
         <h1>Brief failed to load</h1>
-        <p>{error.message}</p>
+        {/* Curated copy only (BRIEF-20): a raw server message here would
+            print the deployment's filesystem paths into the page. */}
+        <p>{briefErrorDetail(error)}</p>
       </section>
     </main>
   );

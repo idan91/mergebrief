@@ -13,6 +13,25 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
 - Server data crosses `data/apiFetch` only (isomorphic: SSR dispatches
   in-process through the SAME authz gate). Never reach persistence from a
   server function — that would be a second enforcement path.
+- **A server function's rejection is a client-visible string** (BRIEF-20,
+  extending the BRIEF-97 cause-leak rule): TanStack serializes the Error's
+  message — and walks non-enumerable own props, so `{ cause }` ships too.
+  Every `createServerFn` handler therefore ends at a curation boundary: the
+  raw reason is logged server-side (as a FIELD — `msg` bypasses the seam's
+  redaction) and replaced with copy from a closed allowlist.
+  `features/brief/utils/briefErrors.ts` is the template allowlist;
+  `briefHandlers.server.ts` holds the wrapped handler BODIES and
+  `brief.functions.ts` stays validators + one-line delegation (a
+  `createServerFn` wrapper cannot be invoked without the Start server
+  runtime, so logic inline there is logic nothing can test). Two suites pin
+  it: `briefHandlers.server.test` drives real failures,
+  `briefHandlers.backstop.server.test` mocks the readers into throwing raw
+  Node errors — deleting a wrapper fails the latter. Error components render
+  a curated mapper (`briefErrorDetail` / `prBriefErrorDetail`), NEVER
+  `error.message` — not even an `ApiError`'s, which embeds the request path.
+  Node errors are the specific hazard: `readFile` on a missing artifact
+  discloses the deployment's absolute paths. Messages that reflect caller
+  input (a pasted URL) are curated too — they land in a `role="alert"`.
 - Isomorphic and shared client/server modules INJECT their log sink (a narrow
   `{ warn }`/`{ error }` interface the `packages/logging` `Logger` satisfies);
   they never import `server/logger`, which is `server-only`. No sink passed =

@@ -5,6 +5,7 @@ import {
   GeneratorConfigurationError,
   type GenerateBriefEngine,
 } from "./generate.server";
+import { GenerateErrorMessage } from "../utils/briefErrors";
 
 const URL = "https://github.com/octo/repo/pull/42";
 const HEAD = "abcdef1234567890";
@@ -26,12 +27,21 @@ function fakeEngine(
 }
 
 describe("generateBriefFromUrl", () => {
-  it("rejects a non-GitHub-PR URL without touching the engine", async () => {
+  it("rejects a non-GitHub-PR URL without touching the engine, and without echoing it", async () => {
     const engine = fakeEngine();
 
-    await expect(
-      generateBriefFromUrl("https://example.com/not-a-pr", engine),
-    ).rejects.toThrow(/GitHub PR URL/);
+    // brief-core's parsePrUrl reflects the whole pasted string; this
+    // boundary replaces it (BRIEF-20 — the rejection renders in an alert).
+    const pasted = "https://example.com/not-a-pr?token=shhh";
+    const message = await generateBriefFromUrl(pasted, engine).catch(
+      (error: unknown) =>
+        error instanceof Error ? error.message : String(error),
+    );
+    expect(message).toBe(GenerateErrorMessage.NOT_A_PR_URL);
+    expect(message).not.toContain("shhh");
+    await expect(generateBriefFromUrl(pasted, engine)).rejects.toThrow(
+      /GitHub pull request URL/,
+    );
 
     expect(engine.fetchHeadSha).not.toHaveBeenCalled();
     expect(engine.lookupIndex).not.toHaveBeenCalled();
