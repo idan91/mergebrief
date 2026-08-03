@@ -45,11 +45,14 @@ export function timelineAnnouncement(
 export function stateAnnouncement(
   state: BriefRouteState,
   meta: PrSummary,
+  staleHead = false,
 ): string {
   const notice = metaPolicyNotice(meta);
   switch (state.kind) {
     case "render":
-      return comparisonsWarming(meta)
+      // Warming is a property of the LATEST generation — on a stale span the
+      // chip is suppressed (PrBriefContent), so the announcement matches.
+      return comparisonsWarming(meta) && !staleHead
         ? "Brief ready. Comparisons are still warming."
         : "Brief ready.";
     case "waiting":
@@ -78,8 +81,13 @@ export interface PrBriefBodyProps {
   state: BriefRouteState;
   searchParams: BriefSearchParams;
   onNavigateSearch: (next: BriefSearch) => void;
-  /** Read-only posture + reason on a historical head (BRIEF-24, ADR 0019 #6). */
+  /** Hard read-only posture + reason (base drift only, ADR 0019 #6 as amended). */
   readOnly?: { reason: string } | undefined;
+  /**
+   * The rendered span's head is not the PR head (BRIEF-127): writable, but
+   * Submit requires the stale ack in the receipt.
+   */
+  staleHead?: boolean | undefined;
   /** The resolved revision timeline (BRIEF-24); absent on legacy metas. */
   timeline?: DbTimelineSelection | undefined;
   onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
@@ -97,6 +105,7 @@ function PrBriefBodyState({
   searchParams,
   onNavigateSearch,
   readOnly,
+  staleHead,
   timeline,
   onSelectRevision,
   revisionJump,
@@ -117,6 +126,7 @@ function PrBriefBodyState({
           revisionJump={revisionJump}
           searchParams={searchParams}
           span={state.span}
+          staleHead={staleHead}
           timeline={timeline}
         />
       );
@@ -169,10 +179,10 @@ function PrBriefBodyState({
 }
 
 export function PrBriefBody(props: PrBriefBodyProps) {
-  const { state, meta, timeline, readOnly } = props;
+  const { state, meta, timeline, readOnly, staleHead } = props;
   const announcement = timeline
     ? timelineAnnouncement(timeline, readOnly === undefined)
-    : stateAnnouncement(state, meta);
+    : stateAnnouncement(state, meta, staleHead === true);
   return (
     <>
       {/* One PERSISTENT live region ahead of the switch: state swaps update

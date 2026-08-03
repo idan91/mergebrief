@@ -25,8 +25,6 @@ export interface DbTimelineSelection {
   readonly selected: DbTimelinePoint;
   /** Index of `selected` within `points`. */
   readonly selectedIndex: number;
-  /** True when `selected` is the newest revision (the live, writable head). */
-  readonly isLatest: boolean;
   /**
    * True when a `?head=` was requested but is not a known revision — the
    * selection fell back to latest so a stale deep link renders SOMETHING with
@@ -107,7 +105,6 @@ export function resolveDbTimeline(
     points,
     selected,
     selectedIndex,
-    isLatest: selectedIndex === latestIndex,
     degraded,
     previous: selectedIndex > 0 ? points[selectedIndex - 1] : undefined,
     next: selectedIndex < latestIndex ? points[selectedIndex + 1] : undefined,

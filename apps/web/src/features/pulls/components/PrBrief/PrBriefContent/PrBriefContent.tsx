@@ -37,6 +37,8 @@ export interface PrBriefContentProps {
   searchParams: BriefSearchParams;
   onNavigateSearch: (next: BriefSearch) => void;
   readOnly?: { reason: string } | undefined;
+  /** Head mismatch (BRIEF-127): writable, Submit gated by the receipt ack. */
+  staleHead?: boolean | undefined;
   timeline?: DbTimelineSelection | undefined;
   onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
   revisionJump?: ThreadRevisionJump | undefined;
@@ -51,6 +53,7 @@ export function PrBriefContent({
   searchParams,
   onNavigateSearch,
   readOnly,
+  staleHead,
   timeline,
   onSelectRevision,
   revisionJump,
@@ -107,8 +110,10 @@ export function PrBriefContent({
   return (
     <>
       {/* Warming is a property of the LATEST generation — never shown while a
-          historical (read-only) revision is in view (history never polls). */}
-      {readOnly === undefined && comparisonsWarming(meta) ? (
+          stale or read-only revision is in view (history never polls). */}
+      {readOnly === undefined &&
+      staleHead !== true &&
+      comparisonsWarming(meta) ? (
         <WarmingChip />
       ) : null}
       <BriefView
@@ -124,6 +129,7 @@ export function PrBriefContent({
         ownDraft={ownDraft}
         readOnly={readOnly}
         searchParams={searchParams}
+        staleHead={staleHead}
         submitReview={submitAction}
       />
     </>

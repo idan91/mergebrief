@@ -508,6 +508,21 @@ describe("DB brief route", () => {
     );
     // Still pinned: the OLD span's brief renders behind the banner.
     expect(screen.getByText(briefFixture.pr.title)).toBeTruthy();
+    // The legacy (no-revisions) path carries the stale-submit ack too
+    // (BRIEF-127, the ticket's original target — the gate is span-derived,
+    // not timeline-derived).
+    fireEvent.click(screen.getByRole("button", { name: /^receipt$/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /continue to receipt/i }),
+    );
+    expect(
+      screen.getByText(/comments will anchor to the revision you reviewed/i),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("checkbox", {
+        name: /submit against the reviewed revision anyway/i,
+      }),
+    ).toBeTruthy();
   });
 
   it("own-draft on the current head: mark-ready is live (BRIEF-43)", async () => {

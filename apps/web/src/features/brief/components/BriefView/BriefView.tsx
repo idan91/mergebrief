@@ -38,12 +38,17 @@ export interface BriefViewProps {
    */
   conversation?: ConversationPlan;
   /**
-   * Read-only posture on a historical revision (BRIEF-24, ADR 0019 #6): the
-   * comment composer and Submit disable with this reason (the submit route
-   * pins commit_id to the viewed head — a historical submit would post against
-   * a stale commit). Absent → the head is live and writable.
+   * Hard read-only posture (BRIEF-24, ADR 0019 #6 as amended by BRIEF-127:
+   * base drift only): the comment composer and Submit disable with this
+   * reason — the rendered diff's base is not the PR's, so anchors can land
+   * wrong or nowhere. Absent → the span is writable.
    */
   readOnly?: { reason: string } | undefined;
+  /**
+   * The rendered span's head is not the PR head (BRIEF-127): writable, but
+   * batch Submit requires the explicit ack in the ReceiptDrawer.
+   */
+  staleHead?: boolean | undefined;
   /**
    * The `?thread=` landing target (BRIEF-24 reads it): opens the conversation
    * section and lands on that thread. Absent → no auto-open.
@@ -82,6 +87,7 @@ export function BriefView({
   readOnly,
   repoConfig,
   searchParams,
+  staleHead,
   submitReview,
 }: BriefViewProps) {
   const model = useMemo(
@@ -103,6 +109,7 @@ export function BriefView({
         ownDraft={ownDraft}
         readOnly={readOnly}
         searchParams={searchParams}
+        staleHead={staleHead}
         submitReview={submitReview}
       />
     </MindMapProvider>

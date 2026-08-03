@@ -29,6 +29,7 @@ import type { OwnDraftPlan } from "./BriefView";
 import { BriefView } from "./BriefView";
 import {
   markReadyBatchFailureCopy,
+  OWN_DRAFT_STALE_COMPOSER_REASON,
   POST_COMMENT_COPY,
 } from "../BriefScreen/BriefScreen";
 import type { Brief } from "../../types";
@@ -88,6 +89,7 @@ const flaglessBrief: Brief = {
 function renderBriefView(
   ownDraft: OwnDraftPlan | undefined,
   brief: Brief = briefFixture,
+  staleHead = false,
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -100,6 +102,7 @@ function renderBriefView(
         briefId="own-draft-test"
         searchParams={{}}
         ownDraft={plan}
+        staleHead={staleHead}
       />
     </QueryClientProvider>
   );
@@ -127,6 +130,21 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       screen.queryByRole("button", { name: "Mark ready for review" }),
     ).toBeNull();
     expect(screen.getByRole("button", { name: "Receipt" })).toBeTruthy();
+  });
+
+  it("keeps the composer read-only on a stale own-draft view (BRIEF-127 carve-out)", () => {
+    // Post-now exists only at the current head, so a stale-staged draft would
+    // have no exit — the composer blocks with a reachable reason. A stale
+    // REVIEWER view stays writable (its exit is Submit behind the receipt ack).
+    // `{}` mirrors real plumbing: off the current head the plan carries no
+    // actions (usePrBriefPlans withholds markReady/postComment).
+    renderBriefView({}, briefFixture, true);
+    expect(
+      screen.getAllByText(OWN_DRAFT_STALE_COMPOSER_REASON).length,
+    ).toBeGreaterThan(0);
+    cleanup();
+    renderBriefView(undefined, briefFixture, true);
+    expect(screen.queryByText(OWN_DRAFT_STALE_COMPOSER_REASON)).toBeNull();
   });
 
   it("hides the submit machinery and the receipt entirely — nothing dangling", () => {

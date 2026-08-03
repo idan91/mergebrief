@@ -82,6 +82,28 @@
     margin-block-start: functions.to-rem(22px);
   }
 
+  .staleWarning {
+    margin-block-start: functions.to-rem(16px);
+    padding-block: functions.to-rem(12px);
+    padding-inline: functions.to-rem(16px);
+    border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+
+    p {
+      color: var(--amber);
+    }
+  }
+
+  .staleAck {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(8px);
+    margin-block-start: functions.to-rem(10px);
+    cursor: pointer;
+  }
+
   .note {
     max-inline-size: 42ch;
     color: var(--faint);

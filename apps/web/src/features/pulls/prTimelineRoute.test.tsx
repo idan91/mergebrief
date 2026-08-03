@@ -4,8 +4,9 @@
 // trip route generation; they exercise it from the owning feature instead.
 // The BRIEF-24 revision-timeline path through the real router: a multi-revision
 // PR-meta exposes the navigator, `?head=` selects a historical revision (with
-// ITS OWN base), unknown heads degrade to latest with a note, and a historical
-// head is read-only (submit disabled with a reachable reason).
+// ITS OWN base), unknown heads degrade to latest with a note. Stale-head views
+// (historical, or head advanced past the newest brief) are WRITABLE with a
+// submit ack (BRIEF-127); only a superseded base stays hard read-only.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -130,7 +131,7 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     expect(picker.value).toBe("1");
   });
 
-  it("selects a historical revision from ?head= and renders it read-only", async () => {
+  it("selects a historical revision from ?head= — writable, submit gated by the stale ack", async () => {
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
     );
@@ -138,14 +139,21 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
       screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
     );
     expect(picker.value).toBe("0");
-    // The read-only reason is rendered as reachable text (the submit control's
-    // aria-describedby target), never hover-only.
+    // No hard block (BRIEF-127): the read-only reason and posture are gone…
+    expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
+    expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
+    // …and the receipt carries the stale-submit ack instead.
+    fireEvent.click(screen.getByRole("button", { name: /^receipt$/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /continue to receipt/i }),
+    );
     expect(
-      screen.getAllByText(/viewing an earlier revision \(revision 1\)/i).length,
-    ).toBeGreaterThan(0);
-    // Polite announcement marks the read-only posture.
+      screen.getByText(/comments will anchor to the revision you reviewed/i),
+    ).toBeTruthy();
     expect(
-      screen.getByText(/viewing revision 1 of 2\. read-only\./i),
+      screen.getByRole("checkbox", {
+        name: /submit against the reviewed revision anyway/i,
+      }),
     ).toBeTruthy();
   });
 
@@ -159,11 +167,10 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
   });
 
-  it("fails closed to read-only when meta.headSha advanced past the newest revision", async () => {
-    // Server contract says revisions[] is only present when the latest brief
-    // IS the current head — but the route must not assume that invariant
-    // (codex round 1): on an inconsistent meta, the newest revision is still
-    // not the PR's current head, so it must NOT be writable.
+  it("gates submit behind the ack when meta.headSha advanced past the newest revision", async () => {
+    // The newest revision is not the PR's current head (next brief still
+    // generating): writable, but the receipt requires the stale ack —
+    // comments would anchor to the reviewed head (BRIEF-127).
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
       timelineMeta({ headSha: "head-3-just-pushed", baseSha: "base-3" }),
@@ -172,12 +179,21 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
       screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
     );
     expect(picker.value).toBe("1");
+    expect(screen.getByText(/^viewing revision 2 of 2\.$/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^receipt$/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /continue to receipt/i }),
+    );
+    // The ack gate reached the drawer (plumbing proof — the disabled-until-
+    // acked mechanics are pinned in ReceiptDrawer.test).
     expect(
-      screen.getAllByText(/pull request has newer commits/i).length,
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getByText(/viewing revision 2 of 2\. read-only\./i),
+      screen.getByText(/comments will anchor to the revision you reviewed/i),
     ).toBeTruthy();
+    const ack = screen.getByRole("checkbox", {
+      name: /submit against the reviewed revision anyway/i,
+    });
+    fireEvent.click(ack);
+    expect(ack).toHaveProperty("checked", true);
   });
 
   it("opens the conversation section when ?thread= arrives via in-app navigation", async () => {
@@ -227,10 +243,8 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
       expect(search["head"]).toBe("head-1");
       expect(search["base"]).toBe("base-1");
     });
-    // …and so does the read-only posture.
-    expect(
-      screen.getAllByText(/viewing an earlier revision \(revision 1\)/i).length,
-    ).toBeGreaterThan(0);
+    // …and so does the stale (not read-only) posture: no read-only chip.
+    expect(screen.queryByText(/^read-only$/i)).toBeNull();
   });
 
   it("degrades an unknown ?head= to latest with a polite note", async () => {

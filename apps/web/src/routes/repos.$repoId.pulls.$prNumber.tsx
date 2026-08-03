@@ -218,22 +218,14 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   errorComponent: PrBriefError,
 });
 
-/** Kind-keyed read-only copy; `historical` interpolates the revision index. */
-const READ_ONLY_REASONS = {
-  "base-drift":
-    "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review.",
-  "head-advanced":
-    "The pull request has newer commits — a new brief is on the way. Commenting and submit resume on the new revision.",
-} as const;
-
-function readOnlyReason(
-  kind: "historical" | keyof typeof READ_ONLY_REASONS,
-  selectedHeadIndex: number | undefined,
-): string {
-  return kind === "historical"
-    ? `You're viewing an earlier revision (revision ${selectedHeadIndex ?? "?"}). Switch to the latest revision to comment or submit a review.`
-    : READ_ONLY_REASONS[kind];
-}
+/**
+ * The one remaining hard read-only reason (BRIEF-127 narrowed ADR 0019 #6):
+ * a superseded BASE renders a diff that is not the PR's current one, so line
+ * anchors can land wrong or nowhere on GitHub — write-safety, not staleness.
+ * Head-mismatch staleness is writable with a submit ack instead.
+ */
+const BASE_DRIFT_REASON =
+  "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review.";
 
 function PrBriefRoute() {
   // Navigation guard (BRIEF-56): in-app navigation and hard unloads
@@ -288,17 +280,16 @@ function PrBriefRoute() {
     [explicit, meta, timeline],
   );
 
-  // A revision is WRITABLE only when its SPAN is the PR's current one
-  // (ADR 0019 #6): the submit route pins commit_id to the viewed head, and —
-  // just as load-bearing — comment anchors are read against the RENDERED
-  // (base…head) diff. A same-head revision with a stale base (retarget
-  // re-brief) renders a diff that is not the PR's current diff, so its line
-  // anchors can land wrong or nowhere on GitHub: base mismatch is a
-  // write-safety issue, not merely a stale lens. Read-only shapes:
-  // - a historical (non-latest) revision — switch forward to write;
-  // - the latest revision while the PR head ALREADY advanced (next brief
-  //   still generating) — the poll flips this off;
-  // - a same-head revision briefed against a superseded base.
+  // Write posture (ADR 0019 #6 as amended by BRIEF-127). The submit route
+  // pins commit_id to the viewed head and comment anchors are read against
+  // the RENDERED (base…head) diff, so two distinct stale shapes exist:
+  // - HEAD mismatch (historical revision, or the PR head advanced past the
+  //   newest brief): GitHub accepts a review pinned to the older head and
+  //   marks its comments outdated — writable, but Submit requires an
+  //   explicit ack (`staleHead`, consumed by the ReceiptDrawer).
+  // - BASE mismatch (same head, retarget re-brief against a superseded
+  //   base): the rendered diff is not the PR's current one, so anchors can
+  //   land wrong or nowhere — stays hard read-only.
   // `meta.baseSha` is comparable here: with `briefAvailable` it is the latest
   // brief row's own base (`buildPrView`), the same row `revisions[]` ends
   // with; a null meta base (defensive) cannot veto.
@@ -309,24 +300,20 @@ function PrBriefRoute() {
   const selectedBaseIsCurrent =
     timeline !== undefined &&
     (meta.baseSha === null || timeline.selected.baseSha === meta.baseSha);
-  const readOnlyKind =
-    timeline === undefined || (selectedHeadIsCurrent && selectedBaseIsCurrent)
-      ? undefined
-      : selectedHeadIsCurrent
-        ? ("base-drift" as const)
-        : timeline.isLatest
-          ? ("head-advanced" as const)
-          : ("historical" as const);
-  const selectedHeadIndex = timeline?.selected.headIndex;
+  const baseDrift = selectedHeadIsCurrent && !selectedBaseIsCurrent;
+  // Unified across the timeline and legacy explicit-span paths: any rendered
+  // span whose head is not the PR's current head submits behind the ack.
+  const renderedHead = state.kind === "render" ? state.span.head : undefined;
+  const staleHead =
+    renderedHead !== undefined &&
+    meta.headSha !== null &&
+    meta.headSha !== renderedHead;
   // Memoized so its reference is stable across PR-meta poll ticks — an inline
   // literal would recreate the composer wiring downstream and bust every
   // ChunkCard's memo boundary on each tick.
   const readOnly = useMemo(
-    () =>
-      readOnlyKind === undefined
-        ? undefined
-        : { reason: readOnlyReason(readOnlyKind, selectedHeadIndex) },
-    [readOnlyKind, selectedHeadIndex],
+    () => (baseDrift ? { reason: BASE_DRIFT_REASON } : undefined),
+    [baseDrift],
   );
 
   const selectRevision = useCallback(
@@ -452,6 +439,7 @@ function PrBriefRoute() {
           ...(search.view !== undefined ? { view: search.view } : {}),
           ...(search.compare !== undefined ? { compare: search.compare } : {}),
         }}
+        staleHead={staleHead}
         state={state}
         timeline={timeline}
       />

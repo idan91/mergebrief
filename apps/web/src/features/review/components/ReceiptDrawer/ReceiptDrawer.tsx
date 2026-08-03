@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import { Drawer } from "@web/components/Drawer/Drawer";
 import { RECEIPT_NOT_CHECKED, type Receipt } from "../../utils/receipt";
 import styles from "./ReceiptDrawer.module.scss";
@@ -16,6 +18,13 @@ export interface ReceiptDrawerProps {
   submitError?: string | null;
   /** Persistent post-submit note (anchoring degradation). */
   submitNote?: string | null;
+  /**
+   * The viewed span's head is no longer the PR head (BRIEF-127): Submit
+   * requires the explicit ack below — comments stay pinned to the reviewed
+   * revision and may appear as outdated on GitHub. Evaluated live: a poll
+   * tick may flip it while the drawer is open.
+   */
+  staleHead?: boolean;
 }
 
 export function ReceiptDrawer({
@@ -28,7 +37,24 @@ export function ReceiptDrawer({
   submitBlockedReason,
   submitError = null,
   submitNote = null,
+  staleHead = false,
 }: ReceiptDrawerProps) {
+  // Stale-view ack (BRIEF-127): drawer-local and deliberately NOT sticky —
+  // reopening re-requires the check, and so does staleness RETURNING while
+  // the drawer stays open (acked → head caught up → advanced again): a prior
+  // consent must not pre-authorize new staleness. Both resets ride the
+  // render-time adjustment pattern (no effect, no flicker).
+  const [ackStale, setAckStale] = useState(false);
+  const [wasOpen, setWasOpen] = useState(open);
+  const [wasStale, setWasStale] = useState(staleHead);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setAckStale(false);
+  }
+  if (staleHead !== wasStale) {
+    setWasStale(staleHead);
+    if (staleHead) setAckStale(false);
+  }
   const { progress, addressed, dismissed, comments } = receipt;
   const openFlags = receipt.open;
   // The submit-facing split (BRIEF-23): drafts ship on the next submit;
@@ -42,13 +68,17 @@ export function ReceiptDrawer({
   // Focusable-disabled (aria-disabled, not the disabled attribute): keyboard
   // and screen-reader users can reach the control and hear WHY it is off via
   // the described-by reason text below it.
-  const submitDisabled = submitPending || submitBlockedReason !== undefined;
+  const staleUnacked = staleHead && !ackStale;
+  const submitDisabled =
+    submitPending || submitBlockedReason !== undefined || staleUnacked;
   const submitDescribedBy =
     submitBlockedReason !== undefined
       ? "receipt-submit-blocked"
-      : submitError !== null
-        ? "receipt-submit-error"
-        : undefined;
+      : staleUnacked
+        ? "receipt-stale-warning"
+        : submitError !== null
+          ? "receipt-submit-error"
+          : undefined;
 
   return (
     <Drawer
@@ -96,6 +126,27 @@ ${
     : ""
 }
   not checked: ${RECEIPT_NOT_CHECKED.join(" · ")}`}</pre>
+        {staleHead ? (
+          <div className={styles["staleWarning"]}>
+            {/* The live region and describedby target is the TEXT alone —
+                a live region wrapping the checkbox would re-announce the
+                control on every state change. */}
+            <p id="receipt-stale-warning" role="status">
+              This pull request has newer commits. Comments will anchor to the
+              revision you reviewed and may appear as outdated on GitHub.
+            </p>
+            <label className={styles["staleAck"]}>
+              <input
+                checked={ackStale}
+                onChange={(event) => {
+                  setAckStale(event.target.checked);
+                }}
+                type="checkbox"
+              />
+              Submit against the reviewed revision anyway
+            </label>
+          </div>
+        ) : null}
         <div className={styles["actions"]}>
           <button
             aria-busy={submitPending || undefined}

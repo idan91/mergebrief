@@ -35,7 +35,6 @@ describe("resolveDbTimeline", () => {
       "h3",
     ]);
     expect(selection?.selected.headSha).toBe("h3");
-    expect(selection?.isLatest).toBe(true);
     expect(selection?.degraded).toBe(false);
     expect(selection?.next).toBeUndefined();
     expect(selection?.previous?.headSha).toBe("h2");
@@ -61,7 +60,6 @@ describe("resolveDbTimeline", () => {
     const selection = resolveDbTimeline(REVISIONS, "h1");
     expect(selection?.selected.headSha).toBe("h1");
     expect(selection?.selected.baseSha).toBe("b1");
-    expect(selection?.isLatest).toBe(false);
     expect(selection?.previous).toBeUndefined();
     expect(selection?.next?.headSha).toBe("h2");
   });
@@ -69,13 +67,11 @@ describe("resolveDbTimeline", () => {
   it("carries the per-entry drifted base for a middle revision", () => {
     const selection = resolveDbTimeline(REVISIONS, "h3");
     expect(selection?.selected.baseSha).toBe("b3-drifted");
-    expect(selection?.isLatest).toBe(true);
   });
 
   it("degrades an unknown head to latest with the note flag set", () => {
     const selection = resolveDbTimeline(REVISIONS, "never-briefed");
     expect(selection?.selected.headSha).toBe("h3");
-    expect(selection?.isLatest).toBe(true);
     expect(selection?.degraded).toBe(true);
   });
 });
@@ -93,7 +89,6 @@ describe("resolveDbTimeline — duplicate heads (retarget re-brief)", () => {
     const selection = resolveDbTimeline(DUPLICATES, "h2");
     expect(selection?.selected.baseSha).toBe("b-new");
     expect(selection?.selectedIndex).toBe(2);
-    expect(selection?.isLatest).toBe(true);
     expect(selection?.degraded).toBe(false);
   });
 
@@ -101,7 +96,6 @@ describe("resolveDbTimeline — duplicate heads (retarget re-brief)", () => {
     const selection = resolveDbTimeline(DUPLICATES, "h2", "b-old");
     expect(selection?.selected.baseSha).toBe("b-old");
     expect(selection?.selectedIndex).toBe(1);
-    expect(selection?.isLatest).toBe(false);
     expect(selection?.degraded).toBe(false);
     // Both duplicates stay addressable as distinct points.
     expect(selection?.next?.baseSha).toBe("b-new");

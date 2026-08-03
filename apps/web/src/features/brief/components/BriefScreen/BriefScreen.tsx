@@ -69,6 +69,14 @@ export { markReadyBatchFailureCopy } from "./utils";
 export { POST_COMMENT_COPY } from "./useOwnDraftFlow";
 
 /**
+ * Own-draft composer block on a stale view (BRIEF-127 preserves BRIEF-43):
+ * post-now exists only at the current head, so a stale-staged draft would
+ * have no exit — unlike reviewer views, whose exit is Submit behind the ack.
+ */
+export const OWN_DRAFT_STALE_COMPOSER_REASON =
+  "This isn't the pull request's current revision. Switch to the latest revision to comment.";
+
+/**
  * Own-draft state wiring (BRIEF-43, ADR 0031): injected by the DB route ONLY
  * while `draft && viewerIsAuthor` holds on the PrView (derived at read time,
  * single source: `features/pulls/ownDraft`). Present → the screen labels the
@@ -120,6 +128,11 @@ export interface BriefScreenProps {
   conversationFocusThreadId?: number | undefined;
   headerControls?: ReactNode | undefined;
   ownDraft?: OwnDraftPlan | undefined;
+  /**
+   * The rendered span's head is not the PR head (BRIEF-127): the composer
+   * stays live, but the ReceiptDrawer gates Submit behind an explicit ack.
+   */
+  staleHead?: boolean | undefined;
 }
 
 export function BriefScreen({
@@ -135,6 +148,7 @@ export function BriefScreen({
   headerControls,
   ownDraft,
   readOnly,
+  staleHead,
   submitReview,
 }: BriefScreenProps) {
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
@@ -163,6 +177,16 @@ export function BriefScreen({
   // Own-draft state (BRIEF-43): the plan's presence IS the state — see the
   // block around `useMarkReadyFlow` below.
   const ownDraftActive = ownDraft !== undefined;
+  // Own-draft stale views keep the composer read-only (BRIEF-127 preserves
+  // BRIEF-43): post-now is the only write path in own-draft state and it
+  // exists only at the current head, so a stale-staged draft would have no
+  // exit. Reviewer stale views stay writable — their exit is batch Submit
+  // behind the receipt ack.
+  const composerDisabledReason =
+    readOnly?.reason ??
+    (ownDraftActive && staleHead === true
+      ? OWN_DRAFT_STALE_COMPOSER_REASON
+      : undefined);
 
   // The reading session (ADR 0022): per-brief Mind-Map store wiring, the
   // progress/receipt derivation, and the scroll/nav machinery — see the hook.
@@ -211,7 +235,7 @@ export function BriefScreen({
   // boundaries keep their wins. Posture fields that affect first paint are
   // correct at creation; the late-derived rest syncs below the submit flow.
   const flowStore = useCreateReviewFlowStore({
-    composerDisabledReason: readOnly?.reason,
+    composerDisabledReason,
     flagsReadOnly: ownDraftActive,
     postingCommentIds,
     postBlockedExternally: undefined,
@@ -283,7 +307,8 @@ export function BriefScreen({
   const submitPending = submitFlow.pending;
   // Per-comment post-now (BRIEF-43, ADR 0031): present only in own-draft
   // state at the current head (`ownDraft.postComment`) — off the current head
-  // the composer is already read-only, so no draft can be staged to post.
+  // the composer is read-only (the OWN_DRAFT_STALE_COMPOSER_REASON carve-out
+  // above), so no draft can be staged to post.
   const postComment = ownDraft?.postComment;
   // The own-draft post-now flow (registry choreography, settled-post drain,
   // double-post guards in both directions) — see the hook.
@@ -299,7 +324,7 @@ export function BriefScreen({
   // The late-derived posture half: the post-now family exists only once the
   // submit flow and own-draft flow above are wired (both need `announce`).
   useSyncReviewFlowPosture(flowStore, {
-    composerDisabledReason: readOnly?.reason,
+    composerDisabledReason,
     flagsReadOnly: ownDraftActive,
     postingCommentIds,
     postBlockedExternally: submitPending
@@ -566,6 +591,7 @@ export function BriefScreen({
               liveSubmit && readOnly === undefined ? submitFlow.error : null
             }
             submitNote={liveSubmit ? submitFlow.note : null}
+            staleHead={staleHead === true}
           />
           <SummaryPreviewDrawer
             brief={brief}
