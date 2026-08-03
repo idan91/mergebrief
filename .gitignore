@@ -41,6 +41,10 @@ out/
 *.orig
 coverage/
 
+# Playwright run output (traces/screenshots and the HTML report)
+test-results/
+playwright-report/
+
 # Local tooling artifacts
 .playwright-cli/
 .impeccable/

@@ -69,8 +69,11 @@
         color: var(--color-diff-add-text);
       }
 
+      // 45% measured at 2.7:1 against the added-row tint — a WCAG 1.4.3
+      // failure the BRIEF-113 axe gate caught. 75% lands at 5.3:1 and keeps
+      // the gutter tinted rather than dropping the add/del cue entirely.
       .lineNumber {
-        color: color-mix(in srgb, var(--green) 45%, transparent);
+        color: color-mix(in srgb, var(--green) 75%, transparent);
       }
     }
 
@@ -81,8 +84,10 @@
         color: var(--color-diff-del-text);
       }
 
+      // Same measurement as the added-row gutter above: 40% read at 2.1:1,
+      // full strength at 5.6:1.
       .lineNumber {
-        color: color-mix(in srgb, var(--red) 40%, transparent);
+        color: var(--red);
       }
     }
 
@@ -136,7 +141,11 @@
   .lineNumber {
     inline-size: 42px;
     min-inline-size: 42px;
-    color: var(--color-text-4);
+
+    // The gutter carries line numbers, so it is text under WCAG 1.4.3 —
+    // `--color-text-4` measured 1.7:1 here. It is the lowest step of the
+    // scale that clears AA against the chunk body (5.5:1).
+    color: var(--color-text-3);
     text-align: end;
 
     // Safari only honors the prefixed form (WebKit bug 208677); without it

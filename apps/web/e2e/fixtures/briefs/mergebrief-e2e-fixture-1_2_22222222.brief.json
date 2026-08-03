@@ -1,0 +1,218 @@
+{
+  "summary": "## Overview\nA fixture brief for the browser suite: two change groups over three files, with a risk surface, a diff per chunk, and a second revision to compare against.\n\n## What it does\n- **Accessibility & brand:** lifts the faint text token to a passing contrast ratio and adds a skip-to-content link.\n- **Keyboard navigation:** J/K step through chunks; `?` opens the shortcuts modal.\n",
+  "changeGroups": [
+    {
+      "id": "g1",
+      "title": "Front-door accessibility and brand metadata fixes",
+      "summary": "Raises `--faint` to AA contrast, adds a skip-to-content link and shared #main-content landmark, promotes the PR title to an h1, makes the toast an aria-live region, and adds a favicon plus description/OG/Twitter meta.",
+      "dominantCategory": "bugfix",
+      "secondaryCategories": ["new-feature"],
+      "uncertain": false,
+      "uncertainBetween": []
+    },
+    {
+      "id": "g4",
+      "title": "Index risk flags and rework addressFlags/perf helpers",
+      "summary": "Builds flagsById/flagsByGroup lookup maps and a Map-based concern rank, changes the addressFlags store action to take a pre-resolved evidence map, and refactors BriefPage handlers into memoized callbacks using the new indexes; removes the focus-mode :has() hot path via data-attribute CSS.",
+      "dominantCategory": "logic-refactor",
+      "secondaryCategories": [],
+      "uncertain": false,
+      "uncertainBetween": []
+    }
+  ],
+  "chunks": [
+    {
+      "id": "c1",
+      "changeGroupId": "g1",
+      "file": "apps/web/src/features/brief/components/Header/Header.tsx",
+      "concern": "implementation",
+      "role": "carrier",
+      "loc": {
+        "added": 1,
+        "deleted": 1
+      },
+      "addedRanges": [
+        {
+          "start": 75,
+          "end": 75
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 75,
+          "end": 75
+        }
+      ],
+      "riskSurface": []
+    },
+    {
+      "id": "c2",
+      "changeGroupId": "g1",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "concern": "implementation",
+      "role": "carrier",
+      "loc": {
+        "added": 8,
+        "deleted": 3
+      },
+      "addedRanges": [
+        {
+          "start": 395,
+          "end": 395
+        },
+        {
+          "start": 717,
+          "end": 719
+        },
+        {
+          "start": 876,
+          "end": 878
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 395,
+          "end": 395
+        },
+        {
+          "start": 716,
+          "end": 716
+        }
+      ],
+      "riskSurface": []
+    },
+    {
+      "id": "c3",
+      "changeGroupId": "g4",
+      "file": "apps/web/src/features/brief/viewModel.ts",
+      "concern": "implementation",
+      "role": "carrier",
+      "loc": {
+        "added": 38,
+        "deleted": 15
+      },
+      "addedRanges": [
+        {
+          "start": 37,
+          "end": 38
+        },
+        {
+          "start": 131,
+          "end": 158
+        },
+        {
+          "start": 180,
+          "end": 182
+        },
+        {
+          "start": 190,
+          "end": 198
+        },
+        {
+          "start": 207,
+          "end": 208
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 129,
+          "end": 146
+        },
+        {
+          "start": 166,
+          "end": 166
+        },
+        {
+          "start": 166,
+          "end": 168
+        },
+        {
+          "start": 185,
+          "end": 185
+        }
+      ],
+      "riskSurface": ["hot-path"]
+    },
+    {
+      "id": "c4",
+      "changeGroupId": "g4",
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "concern": "implementation",
+      "role": "carrier",
+      "loc": {
+        "added": 90,
+        "deleted": 57
+      },
+      "addedRanges": [
+        {
+          "start": 38,
+          "end": 38
+        },
+        {
+          "start": 42,
+          "end": 42
+        },
+        {
+          "start": 539,
+          "end": 557
+        },
+        {
+          "start": 578,
+          "end": 578
+        },
+        {
+          "start": 631,
+          "end": 690
+        },
+        {
+          "start": 822,
+          "end": 848
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 539,
+          "end": 549
+        },
+        {
+          "start": 561,
+          "end": 561
+        },
+        {
+          "start": 578,
+          "end": 578
+        },
+        {
+          "start": 822,
+          "end": 864
+        }
+      ],
+      "riskSurface": ["dense-logic"]
+    }
+  ],
+  "concernView": [
+    {
+      "concern": "implementation",
+      "added": 137,
+      "deleted": 76
+    }
+  ],
+  "pr": {
+    "repo": "mergebrief/e2e-fixture",
+    "number": 1,
+    "title": "feat: front-door accessibility and keyboard navigation",
+    "url": "https://github.com/mergebrief/e2e-fixture/pull/1",
+    "sha": "22222222eeee3333ffff4444aaaa5555bbbb6666",
+    "description": "## Summary\n- Fix WCAG AA contrast on the faint text token and add a skip-to-content link.\n- Add J/K chunk navigation and a `?` shortcuts modal to the brief screen.\n\n## Test plan\n- [x] `pnpm test`\n- [x] `pnpm lint`\n"
+  },
+  "index": 2,
+  "commitRange": {
+    "base": "0000000099998888777766665555444433332222",
+    "head": "22222222eeee3333ffff4444aaaa5555bbbb6666"
+  },
+  "generation": {
+    "provider": "anthropic",
+    "model": "claude-opus-4-8",
+    "effort": "medium"
+  }
+}

@@ -40,8 +40,9 @@
     // with margin to survive the top radial glow.
     --color-text-3: #8a8a93;
 
-    // Ghost: diff line numbers. Deliberately below contrast — decorative
-    // only, never used for text a reader must parse.
+    // Ghost: decorative separators only (e.g. slim row separators).
+    // Deliberately below contrast — NEVER for text a reader must parse;
+    // line numbers count as text (WCAG 1.4.3, #211) and use text-3.
     --color-text-4: #3b3b43;
 
     // ── Outline / border ─────────────────────────────────────────────────

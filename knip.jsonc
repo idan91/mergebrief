@@ -13,6 +13,11 @@
       // config, which knip resolves per workspace, not from the root.
       "entry": ["vitest.shared.ts", "eslint.config.js"],
       "project": ["*.ts", "*.js"],
+      // The CI/weekly workflows install browsers with `pnpm -C apps/web exec
+      // playwright ...`. knip attributes a workflow's binaries to the root
+      // workspace, which does not (and should not) depend on Playwright —
+      // apps/web owns it.
+      "ignoreBinaries": ["playwright"],
     },
     "apps/web": {
       // Routes are the app's entry surface; the feature `index.tsx` barrels
@@ -24,6 +29,11 @@
         "src/routes/**/*.tsx",
         "src/features/*/index.tsx",
         "src/features/*/utils/index.ts",
+        // The browser suite (BRIEF-113) is run by Playwright, not imported:
+        // its config and specs are entries, and `e2e/support` + `e2e/fixtures`
+        // hang off them.
+        "playwright.config.ts",
+        "e2e/**/*.e2e.ts",
       ],
     },
     "packages/api": { "entry": ["src/index.ts"] },

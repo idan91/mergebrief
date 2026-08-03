@@ -10,7 +10,7 @@ Every walkthrough step carries exactly one disposition tag (ADR 0038 §11):
 the walkthrough and folded into the gates index. The residual is meant to
 shrink — when a trigger fires, move the step, don't keep both copies.
 
-Last consolidated: 2026-08-02 (BRIEF-114 disposition triage).
+Last consolidated: 2026-08-03 (BRIEF-113 browser-suite dispositions).
 
 ---
 
@@ -21,9 +21,10 @@ pnpm install
 pnpm -r test        # every package suite + the 75% line floor per package (BRIEF-110)
 pnpm lint           # oxlint --type-aware · eslint sliver · knip · prettier · stylelint (BRIEF-111)
 pnpm -r typecheck   # every package tsconfig
+pnpm -C apps/web test:e2e   # chromium browser suite + axe-core (BRIEF-113)
 ```
 
-Exit code is the judge for all three. What they cover that this page used to
+Exit code is the judge for all four. What they cover that this page used to
 walk by hand:
 
 - Every package suite green — `generators`, `worker`, `api`, `github`,
@@ -37,6 +38,15 @@ walk by hand:
 - Generator config refusals — bad provider, unknown key, missing key var,
   missing CLI binary, set-but-empty `MERGEBRIEF_CONFIG`, invalid `drafts:`
   block — with values never echoed (`packages/generators`).
+- The reviewer surface in a real browser (E2E v1, `apps/web/e2e`): the
+  committed fixture brief renders through the real server with no console
+  errors; View/Compare deep links resolve, normalize an unavailable pair and
+  fall back on an unrecognized one; chunk cards, the PR-description
+  disclosure, the risk-attribute rail jump and the shortcuts modal behave;
+  read-through snaps instead of smooth-scrolling under reduced motion; and
+  axe-core finds no serious/critical violation on any of those states
+  (picker, both revisions, Changes Only, shortcuts dialog, receipt drawer).
+  Unauthenticated fixture path only — the DB loader is BRIEF-118.
 - Repo-config parsing (`packages/repo-config`): `.mergebrief/settings.yaml`
   and `policy.yaml` reject on any unknown or bad field (strict schemas);
   `instructions.md` has no schema and is gated only by its byte budget; an
@@ -88,19 +98,26 @@ rather than repeated four times.
       GitHub App — no hermetic surface can mint one.`
 - [ ] Deep link in a fresh private window → auth redirect → brief; SSR first
       paint; `cache-control: no-store`; malformed spans → 404 / normalized.
-      `manual-until: BRIEF-113` (E2E v1 covers the render and span
-      normalization; the redirect arm waits for E2E v2's seeded session).
+      `manual-until: BRIEF-118` — E2E v1 covers first paint and View/Compare
+      normalization on the LOCAL-brief route (`/briefs/<id>`, no auth); the
+      auth redirect, the DB loader and the `no-store` header on that route
+      all wait for the seeded-session slice.
 - [ ] Second revision → compare bar: Previous Brief highlights via
       marks/narrative endpoints; head-advance banner never auto-swaps the
-      page (BRIEF-19/21). `manual-until: BRIEF-113` (E2E v2 slice).
+      page (BRIEF-19/21). `manual-until: BRIEF-118` (E2E v2 slice — v1's
+      comparison coverage is the local fixture's Changes Only span, not the
+      DB-backed compare bar).
 - [ ] Revisions timeline: walk briefed heads, thread-jump into conversation
       (BRIEF-24/25); "Your last review" enables only after a submitted
-      checkpoint (BRIEF-21/23). `manual-until: BRIEF-113` (thread-jump DOM
-      behaviour is E2E v1; the checkpoint arm is v2).
+      checkpoint (BRIEF-21/23). `manual-until: BRIEF-118` — the conversation
+      section is route-injected and absent on the local path, so thread-jump
+      moved out of E2E v1 with the checkpoint arm. v1 does cover walking the
+      revision timeline on the local fixture.
 - [ ] Outdated-thread jump specifics (folded from BRIEF-29; needs a real
       multi-revision PR with outdated review threads) —
-      `manual-until: BRIEF-113` for the DOM behaviour, and the real-PR arms
-      ride the E2E v2 trigger:
+      `manual-until: BRIEF-118` for the DOM behaviour too (no conversation
+      section on the unauthenticated path), and the real-PR arms ride the
+      E2E v2 trigger:
       - anchor sha IS a briefed revision → "Jump to revision" lands on
         `?head=<anchor>&thread=<id>`, conversation open, target row
         revealed even behind the show-more cap / inside collapsed bot
@@ -108,7 +125,9 @@ rather than repeated four times.
       - anchor sha never briefed (common — debounce) → affordance disabled
         with a reachable reason + GitHub permalink fallback, no
         nearest-revision guessing;
-      - reduced-motion: landing snaps instead of smooth-scrolling.
+      - reduced-motion: landing snaps instead of smooth-scrolling. (E2E v1
+        pins the reduced-motion contract on the brief screen's own scroller;
+        the thread-landing path is not reachable there.)
       Any defect becomes its own fix PR.
 - [ ] Review submit: comments post to GitHub, checkpoint written by the
       webhook (commit_id pinned, bots filtered), submitted comments go
@@ -243,11 +262,10 @@ key is the cheapest way to close most of the gap: it natively covers
 - [ ] `pnpm categorize <pr-url>` and `pnpm delta <pr-url> <base> <head>`
       produce artifacts under `tools/categorizer/out/`.
       `manual-forever: same — live spend.`
-- [ ] Story/Concern views, Risk Surface chips, Receipt drawer, busy-header
-      menu semantics (keyboard: menu focus, Escape-returns-to-trigger —
-      BRIEF-14/27/28) spot-checked on the generated Brief.
-      `manual-until: BRIEF-113` — this is exactly the E2E v1 dummy-brief
-      scope (rendering, spans, conversation interactions, axe-core).
+- [ ] Concern view and the busy-header menu keyboard semantics (menu focus,
+      Escape-returns-to-trigger — BRIEF-14/27/28) spot-checked on the
+      generated Brief. `manual-until: BRIEF-118` — reachable without auth,
+      simply not in the v1 spec set.
 
 ---
 

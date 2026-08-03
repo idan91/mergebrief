@@ -1,0 +1,245 @@
+{
+  "baselineSha": "11111111aaaa2222bbbb3333cccc4444dddd5555",
+  "headSha": "22222222eeee3333ffff4444aaaa5555bbbb6666",
+  "baselineLabel": "previous-brief",
+  "baselineIndex": 1,
+  "files": [
+    {
+      "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
+      "addedRanges": [
+        {
+          "start": 2,
+          "end": 9
+        },
+        {
+          "start": 39,
+          "end": 39
+        },
+        {
+          "start": 43,
+          "end": 43
+        },
+        {
+          "start": 65,
+          "end": 66
+        },
+        {
+          "start": 103,
+          "end": 180
+        },
+        {
+          "start": 287,
+          "end": 295
+        },
+        {
+          "start": 303,
+          "end": 303
+        },
+        {
+          "start": 327,
+          "end": 329
+        },
+        {
+          "start": 402,
+          "end": 403
+        },
+        {
+          "start": 437,
+          "end": 437
+        },
+        {
+          "start": 442,
+          "end": 442
+        },
+        {
+          "start": 444,
+          "end": 444
+        },
+        {
+          "start": 456,
+          "end": 456
+        },
+        {
+          "start": 462,
+          "end": 462
+        },
+        {
+          "start": 464,
+          "end": 466
+        },
+        {
+          "start": 539,
+          "end": 547
+        },
+        {
+          "start": 549,
+          "end": 549
+        },
+        {
+          "start": 551,
+          "end": 551
+        },
+        {
+          "start": 554,
+          "end": 554
+        },
+        {
+          "start": 557,
+          "end": 557
+        },
+        {
+          "start": 578,
+          "end": 578
+        },
+        {
+          "start": 631,
+          "end": 657
+        },
+        {
+          "start": 667,
+          "end": 691
+        },
+        {
+          "start": 753,
+          "end": 753
+        },
+        {
+          "start": 822,
+          "end": 824
+        },
+        {
+          "start": 831,
+          "end": 831
+        },
+        {
+          "start": 838,
+          "end": 840
+        },
+        {
+          "start": 846,
+          "end": 846
+        },
+        {
+          "start": 854,
+          "end": 855
+        },
+        {
+          "start": 857,
+          "end": 857
+        }
+      ],
+      "removedRanges": [
+        {
+          "start": 2,
+          "end": 2
+        },
+        {
+          "start": 205,
+          "end": 208
+        },
+        {
+          "start": 304,
+          "end": 305
+        },
+        {
+          "start": 339,
+          "end": 339
+        },
+        {
+          "start": 344,
+          "end": 361
+        },
+        {
+          "start": 363,
+          "end": 363
+        },
+        {
+          "start": 375,
+          "end": 375
+        },
+        {
+          "start": 381,
+          "end": 381
+        },
+        {
+          "start": 383,
+          "end": 392
+        },
+        {
+          "start": 408,
+          "end": 415
+        },
+        {
+          "start": 473,
+          "end": 479
+        },
+        {
+          "start": 481,
+          "end": 481
+        },
+        {
+          "start": 483,
+          "end": 483
+        },
+        {
+          "start": 486,
+          "end": 486
+        },
+        {
+          "start": 489,
+          "end": 489
+        },
+        {
+          "start": 510,
+          "end": 510
+        },
+        {
+          "start": 633,
+          "end": 633
+        },
+        {
+          "start": 702,
+          "end": 711
+        },
+        {
+          "start": 718,
+          "end": 718
+        },
+        {
+          "start": 725,
+          "end": 733
+        },
+        {
+          "start": 739,
+          "end": 739
+        },
+        {
+          "start": 747,
+          "end": 764
+        }
+      ]
+    },
+    {
+      "file": "apps/web/src/features/brief/viewModel.ts",
+      "addedRanges": [
+        {
+          "start": 37,
+          "end": 37
+        },
+        {
+          "start": 132,
+          "end": 132
+        },
+        {
+          "start": 146,
+          "end": 146
+        },
+        {
+          "start": 156,
+          "end": 156
+        }
+      ],
+      "removedRanges": []
+    }
+  ]
+}

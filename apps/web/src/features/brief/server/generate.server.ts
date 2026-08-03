@@ -46,9 +46,6 @@ function workspaceRoot(): string {
   }
 }
 
-/** Shared with `urlBriefEngine.server` and `brief.server` — ONE store. */
-export const OUT_DIR = join(workspaceRoot(), "tools/categorizer/out");
-
 /** Load apps/web/.env if present; otherwise rely on the ambient env (mirrors the CLI's loadEnv). */
 function loadEnv(): void {
   try {
@@ -58,6 +55,17 @@ function loadEnv(): void {
   }
 }
 loadEnv();
+
+/**
+ * Shared with `urlBriefEngine.server` and `brief.server` — ONE store.
+ * `MERGEBRIEF_OUT_DIR` repoints it at another directory: the browser suite
+ * (BRIEF-113) boots the server over its committed fixture set so the local
+ * path serves exactly those artifacts and nothing a developer happens to
+ * have generated. Read AFTER `loadEnv` so `.env` can set it too.
+ */
+export const OUT_DIR = process.env["MERGEBRIEF_OUT_DIR"]
+  ? resolve(process.env["MERGEBRIEF_OUT_DIR"])
+  : join(workspaceRoot(), "tools/categorizer/out");
 
 /** What a generated brief contributes to its briefId — the engine's result shape. */
 export interface GeneratedBrief {

@@ -48,7 +48,10 @@
     inline-size: 32px;
     min-inline-size: 32px;
     padding-inline-end: 8px;
-    color: var(--color-text-4);
+
+    // Line numbers are text under WCAG 1.4.3, not decoration — same finding
+    // as DiffTable's gutter (#211 axe sweep); text-4 sat at ~1.7:1.
+    color: var(--color-text-3);
     text-align: end;
     user-select: none;
   }

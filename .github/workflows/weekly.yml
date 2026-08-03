@@ -56,12 +56,23 @@ jobs:
       - name: Test
         run: pnpm -r test
 
+      # The browser suite is not a `pnpm -r` script, so it needs its own step.
+      # No cache here on purpose: a weekly run would miss a 7-day-evicted entry
+      # about as often as it hit one, and the download is ~1 minute.
+      - name: Install Chromium
+        run: pnpm -C apps/web exec playwright install --with-deps chromium
+
+      - name: E2E (browser)
+        run: pnpm -C apps/web test:e2e
+
       - name: Upload failure diagnostics
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: weekly-diagnostics
           path: |
+            apps/web/test-results/**
+            apps/web/playwright-report/**
             apps/*/coverage/**
             packages/*/coverage/**
             tools/*/coverage/**

@@ -109,7 +109,12 @@
       }
     },
     {
-      "files": ["**/*.test.ts", "**/*.test.tsx", "**/test/**"],
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/test/**",
+        "apps/web/e2e/**"
+      ],
       "rules": {
         "typescript/no-non-null-assertion": "off",
         // Sequential awaits in tests are usually the point (step-by-step UI

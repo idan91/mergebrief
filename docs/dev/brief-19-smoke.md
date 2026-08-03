@@ -110,7 +110,7 @@ installed for your user?).
 
 ## 4. Picker list
 
-`manual-until: BRIEF-113` (E2E v2 seeded-session slice).
+`manual-until: BRIEF-118` (E2E v2 seeded-session slice).
 
 On `/` while signed in, **expect per row**: PR title (new rows only —
 pre-migration rows say `PR #N` until their next webhook refreshes the title),
@@ -149,8 +149,10 @@ webhook delivered (ngrok 4040) and the web log for the enqueue.
 
 ## 6. Deep link + SSR
 
-`manual-until: BRIEF-113` (E2E v1 covers first paint, span pinning and the
-malformed-link arms; the private-window redirect waits for v2).
+`manual-until: BRIEF-118`. E2E v1 covers the equivalent arms on the
+unauthenticated `/briefs/<id>` route only — first paint, and View/Compare
+params that are unrecognized or unavailable; every step below is on the
+DB-backed `/repos/<repoId>/pulls/<N>` route, which v1 never reaches.
 
 1. Entry comment posting ships in BRIEF-22 (PR #43): after a settled push,
    **expect exactly one** branded App comment at the bottom of the PR thread,
@@ -171,7 +173,7 @@ malformed-link arms; the private-window redirect waits for v2).
 
 ## 7. Second revision → previous-brief comparison
 
-`manual-until: BRIEF-113` (E2E v2 compare-bar slice).
+`manual-until: BRIEF-118` (E2E v2 compare-bar slice).
 
 1. Push another commit to the same PR; wait for the new brief (step 5 repeats).
    With BRIEF-22 merged, also **expect** the Entry comment REPLACED (old one
