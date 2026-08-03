@@ -3,7 +3,7 @@
 Decision spec assembled from the completed wayfinder map
 ([map](https://app.notion.com/p/3b15e9400eeb818abb14f6c823c341c0), seven
 tickets, all closed 2026-08-03). This is the WHAT; implementation planning
-(per-PR `/init-plan`) happens at pickup. Receipt semantics are unchanged
+happens at pickup — one `/init-plan` covering all four PRs. Receipt semantics are unchanged
 throughout (ADR 0002); ADR 0030 #6 (API vs local-CLI visibly distinct) and
 ADR 0031/0032 constraints all hold.
 
