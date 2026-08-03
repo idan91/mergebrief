@@ -171,6 +171,7 @@ export const ChunkCard = memo(function ChunkCard({
       data-current={active ? "" : undefined}
       data-reviewed={reviewed ? "" : undefined}
       data-state={expanded ? "open" : "collapsed"}
+      data-testid="brief-chunk"
       id={chunk.id}
       // Programmatic focus target for the conversation jump contract
       // (BRIEF-25): move focus with the scroll, never leave it behind.
@@ -181,6 +182,7 @@ export const ChunkCard = memo(function ChunkCard({
           className={styles["toggle"]}
           type="button"
           aria-expanded={expanded}
+          data-testid="chunk-toggle"
           onMouseDown={(event) => {
             selectionAtMouseDown.current = snapshotSelection();
             if (event.detail <= 1) togglesThisPair.current = 0;

@@ -32,7 +32,7 @@ test("renders the fixture brief with no browser faults", async ({ page }) => {
 
   // Chunk cards are the spans of the story — each is an <article> keyed by
   // chunk id, carrying its file path.
-  const chunks = page.locator("article[id^='c']");
+  const chunks = page.getByTestId("brief-chunk");
   await expect(chunks).toHaveCount(4);
   await expect(chunks.first()).toContainText(
     "apps/web/src/features/brief/components/Header/Header.tsx",

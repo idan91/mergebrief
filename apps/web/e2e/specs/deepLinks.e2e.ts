@@ -3,15 +3,10 @@
 // an unrecognized value as "absent", and `resolveBriefSearch` normalizes an
 // explicit-but-unavailable pair down instead of erroring, because this state
 // is user-editable and shareable. Both halves are asserted here.
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { FIXTURE_BRIEF_REV1, FIXTURE_BRIEF_REV2 } from "../fixtures/ids";
 import { gotoBrief } from "../support/page";
-
-/** The View/Compare controls are `aria-pressed` toggle buttons. */
-function pressed(page: Page) {
-  return page.locator("button[aria-pressed='true']");
-}
 
 test("a Changes Only deep link renders the comparison span", async ({
   page,
@@ -47,7 +42,13 @@ test("unrecognized params fall back to the product default", async ({
 
   // Unparseable keys read as "nothing chosen yet", so the fresh-arrival
   // default applies — the page renders rather than 404ing or erroring.
-  await expect(pressed(page)).toContainText(["Changes Only", "Previous brief"]);
+  await expect(page.getByTestId("view-changes")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(
+    page.getByRole("button", { name: "Previous brief", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
 });
 
 test("a comparison the revision cannot offer normalizes down", async ({

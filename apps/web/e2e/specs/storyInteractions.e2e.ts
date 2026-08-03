@@ -9,8 +9,10 @@ import { gotoBrief, shortcutsDialog } from "../support/page";
 test("chunk cards collapse and expand", async ({ page }) => {
   await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
 
+  // `#c1` stays: chunk ids ARE the deep-link anchor contract. The toggle
+  // rides its testid instead of DOM order.
   const card = page.locator("article#c1");
-  const toggle = card.locator("button[aria-expanded]").first();
+  const toggle = card.getByTestId("chunk-toggle");
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(card.locator("[data-line-kind]").first()).toBeVisible();
 

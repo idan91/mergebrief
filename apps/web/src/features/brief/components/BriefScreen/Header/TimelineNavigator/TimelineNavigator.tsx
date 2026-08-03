@@ -157,6 +157,7 @@ export function TimelineNavigator({
         <button
           aria-pressed={compareState.view === "full"}
           data-state={compareState.view === "full" ? "active" : undefined}
+          data-testid="view-full"
           type="button"
           onClick={() => selectView("full")}
         >
@@ -165,6 +166,7 @@ export function TimelineNavigator({
         <button
           aria-pressed={compareState.view === "changes"}
           data-state={compareState.view === "changes" ? "active" : undefined}
+          data-testid="view-changes"
           type="button"
           onClick={() => selectView("changes")}
         >
