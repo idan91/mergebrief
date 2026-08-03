@@ -1,3 +1,5 @@
+@use "functions";
+
 // Global design tokens (CSS custom properties — runtime cascade, not module-scoped).
 // Loaded once at the root; component styles reference var(--token) with no import.
 // Three layers, in order: primitives (raw palette, barred from .module.scss by
@@ -111,14 +113,16 @@
     // choice is the right one. The pre-sweep drift (21 near-duplicate sizes,
     // including half-pixel steps like 12.5 and 11.5) collapsed into these;
     // roles never earn a token at an equal value (ADR 0037 #5).
-    // BRIEF-84 (px→rem) runs against THESE definitions only.
-    --font-size-xs: 10px; // micro labels, badges, gutter numerals
-    --font-size-sm: 11px; // secondary labels, meta rows
-    --font-size-md: 12px; // body (dominant)
-    --font-size-lg: 13px; // emphasized body, list titles
-    --font-size-xl: 15px; // subheads, section titles
-    --font-size-2xl: 17px; // panel / drawer titles
-    --font-size-3xl: 20px; // page titles
+    // BRIEF-84: expressed as rem via to-rem() so the scale follows the
+    // reader's browser font-size preference (WCAG 1.4.4); the px arguments
+    // are the design values, exact at the 16px root default.
+    --font-size-xs: #{functions.to-rem(10px)}; // micro labels, badges, gutter numerals
+    --font-size-sm: #{functions.to-rem(11px)}; // secondary labels, meta rows
+    --font-size-md: #{functions.to-rem(12px)}; // body (dominant)
+    --font-size-lg: #{functions.to-rem(13px)}; // emphasized body, list titles
+    --font-size-xl: #{functions.to-rem(15px)}; // subheads, section titles
+    --font-size-2xl: #{functions.to-rem(17px)}; // panel / drawer titles
+    --font-size-3xl: #{functions.to-rem(20px)}; // page titles
 
     // The document base size (body in base.scss) — the measuring stick the
     // steps above are chosen against, not a step itself. The only fluid

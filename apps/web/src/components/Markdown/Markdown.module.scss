@@ -1,3 +1,5 @@
+@use "functions";
+
 @layer components {
   .markdown {
     color: var(--dim);
@@ -62,7 +64,7 @@
 
     li {
       padding-inline-start: 28px;
-      text-indent: -28px;
+      text-indent: functions.to-rem(-28px);
     }
 
     // Nested lists indent one step under their parent item.

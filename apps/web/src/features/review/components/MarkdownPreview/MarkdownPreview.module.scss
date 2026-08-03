@@ -1,3 +1,5 @@
+@use "functions";
+
 @layer components {
   .preview {
     min-block-size: 118px;
@@ -26,7 +28,7 @@
 
     li {
       padding-inline-start: 28px;
-      text-indent: -28px;
+      text-indent: functions.to-rem(-28px);
     }
 
     li ul,

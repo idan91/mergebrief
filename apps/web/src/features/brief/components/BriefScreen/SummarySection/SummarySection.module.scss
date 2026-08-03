@@ -1,3 +1,5 @@
+@use "functions";
+
 @layer components {
   .summary {
     container-type: inline-size;
@@ -59,7 +61,7 @@
     font-size: var(--font-size-md);
     font-weight: 600;
     text-decoration: underline;
-    text-underline-offset: 3px;
+    text-underline-offset: functions.to-rem(3px);
 
     &:hover {
       color: var(--text);

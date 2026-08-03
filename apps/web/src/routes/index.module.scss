@@ -1,3 +1,4 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
@@ -14,7 +15,8 @@
     h1 {
       margin-block: 18px 10px;
       color: var(--text);
-      font-size: 34px; /* stylelint-disable-line declaration-property-value-allowed-list -- TODO(BRIEF-44): off-scale — hero display, the only display-size in the app shell; consolidate if a second consumer appears */
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- TODO(BRIEF-44): off-scale — hero display, the only display-size in the app shell; consolidate if a second consumer appears */
+      font-size: functions.to-rem(34px);
 
       // Pre-scale rendering pinned (implicit UA bold + body line-height
       // before the base heading defaults landed).

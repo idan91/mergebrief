@@ -1,3 +1,5 @@
+@use "functions";
+
 @layer components {
   .thread {
     overflow: hidden;
@@ -85,7 +87,7 @@
       &:hover {
         color: var(--text);
         text-decoration: underline;
-        text-underline-offset: 3px;
+        text-underline-offset: functions.to-rem(3px);
       }
 
       &:disabled {
