@@ -35,7 +35,10 @@ const env = readEnv();
 const logger = createLogger({ env });
 
 async function main(): Promise<void> {
-  const config = loadConfig(env);
+  // The DATABASE_URL_FILE shadow warning (BRIEF-131) must reach the operator.
+  const config = loadConfig(env, {
+    onWarning: (message) => logger.warn(message),
+  });
   if (!config.ok) {
     throw new Error(
       `worker composition: invalid configuration — ${config.error.issues.join("; ")}`,
@@ -86,6 +89,8 @@ async function main(): Promise<void> {
 
   const runner = await startWorker({
     databaseUrl: config.value.databaseUrl,
+    // MERGEBRIEF_AUTO_MIGRATE=false → read-only schema check at boot.
+    autoMigrate: config.value.autoMigrate,
     // helpers.abortSignal is graphile's graceful-shutdown signal — threading
     // it through lets SIGTERM abort an in-flight stream (job back to queue)
     // instead of riding out the kill grace into a stuck job lock. helpers.job

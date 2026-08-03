@@ -21,7 +21,7 @@ import {
   type Runner,
   type TaskList,
 } from "graphile-worker";
-import { migrateApp } from "persistence";
+import { ensureAppSchema } from "persistence";
 
 /**
  * Generation jobs are minutes-long LLM streams, and single-flight per PR is
@@ -38,17 +38,30 @@ export interface StartWorkerOptions {
   readonly concurrency?: number;
   /** graphile logger (ADR 0034: the seam adapter) — omitted = graphile's console default. */
   readonly logger?: GraphileLogger;
+  /** BRIEF-131: false = check-only (refuse boot when the schema is behind
+   * instead of applying DDL). Omitted = apply, the historical behavior. */
+  readonly autoMigrate?: boolean;
 }
 
 /**
  * Migrate (app schema, then queue schema — both idempotent) and start the
  * long-lived runner. Resolves once the runner is LISTENING; the returned
  * `Runner.promise` settles when it stops (signal-driven graceful shutdown).
+ * Under `autoMigrate: false` the app-schema step is a read-only check that
+ * throws the operator refusal when the database is behind (BRIEF-131). The
+ * graphile step stays as-is either way: graphile owns its schema and no-ops
+ * read-only when current (a version bump needing DDL under a restricted
+ * role fails loudly here — documented in docs/self-host/operations.md).
  */
 export async function startWorker(
   options: StartWorkerOptions,
 ): Promise<Runner> {
-  await migrateApp(options.databaseUrl);
+  const ensured = await ensureAppSchema(options.databaseUrl, {
+    autoMigrate: options.autoMigrate ?? true,
+  });
+  if (!ensured.ok) {
+    throw new Error(`worker boot: ${ensured.error.message}`);
+  }
   await runMigrations({ connectionString: options.databaseUrl });
   return run({
     connectionString: options.databaseUrl,

@@ -11,9 +11,9 @@ import { loadInstancePolicy } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import {
   createDb,
+  ensureAppSchema,
   envKeyProvider,
   loadConfig as loadPersistenceConfig,
-  migrateApp,
   pingDb,
   type AppDatabase,
 } from "persistence";
@@ -63,7 +63,10 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
     );
   }
 
-  const persistenceConfig = loadPersistenceConfig(env);
+  // The DATABASE_URL_FILE shadow warning (BRIEF-131) must reach the operator.
+  const persistenceConfig = loadPersistenceConfig(env, {
+    onWarning: (message) => logger.warn(message),
+  });
   if (!persistenceConfig.ok) {
     throw new Error(
       `webhook composition: invalid persistence configuration — ${persistenceConfig.error.issues.join("; ")}`,
@@ -110,7 +113,14 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
   // Boot migrations, both idempotent (BRIEF-3: every composition root may run
   // them; whoever boots first applies, the rest no-op): the app schema the
   // webhook writes to, then the graphile_worker schema `add_job` needs.
-  await migrateApp(databaseUrl);
+  // Under MERGEBRIEF_AUTO_MIGRATE=false (BRIEF-131) the app-schema step is a
+  // read-only check that refuses composition when the database is behind.
+  const ensured = await ensureAppSchema(databaseUrl, {
+    autoMigrate: persistenceConfig.value.autoMigrate,
+  });
+  if (!ensured.ok) {
+    throw new Error(`webhook composition: ${ensured.error.message}`);
+  }
   await migrateQueue(databaseUrl);
   // The pool error observer keeps a DB restart from crashing the process
   // (liveness contract, ADR 0034 #7) — the blip surfaces as warn lines and

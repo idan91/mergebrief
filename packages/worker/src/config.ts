@@ -25,7 +25,10 @@ import {
   type GeneratorConfig,
   type SpendPolicy,
 } from "generators";
-import { loadConfig as loadPersistenceConfig } from "persistence";
+import {
+  loadConfig as loadPersistenceConfig,
+  type LoadConfigOptions as PersistenceLoadOptions,
+} from "persistence";
 import { z } from "zod";
 import type { Result, ValueOf } from "types";
 
@@ -36,6 +39,9 @@ import type { Result, ValueOf } from "types";
 export interface WorkerConfig {
   /** Postgres connection URL — one DB is both store and queue (ADR 0015). */
   readonly databaseUrl: string;
+  /** BRIEF-131: apply migrations at boot vs check-only refusal
+   * (MERGEBRIEF_AUTO_MIGRATE, parsed by persistence's loader). */
+  readonly autoMigrate: boolean;
   /** The validated generator block (instance config or zero-config default).
    * Key resolution + boot probes happen inside createGenerator. */
   readonly generator: GeneratorConfig;
@@ -84,10 +90,13 @@ const publicBaseUrlSchema = z
  */
 export function loadConfig(
   env: NodeJS.ProcessEnv | Record<string, string | undefined>,
+  // Forwarded to persistence's loader (BRIEF-131): the DATABASE_URL_FILE
+  // reader + the shadow-warning sink live there; this loader adds nothing.
+  persistenceOptions: PersistenceLoadOptions = {},
 ): Result<WorkerConfig, ConfigError> {
   const issues: string[] = [];
 
-  const persistence = loadPersistenceConfig(env);
+  const persistence = loadPersistenceConfig(env, persistenceOptions);
   if (!persistence.ok) {
     issues.push(...persistence.error.issues);
   }
@@ -136,6 +145,7 @@ export function loadConfig(
     ok: true,
     value: {
       databaseUrl: persistence.value.databaseUrl,
+      autoMigrate: persistence.value.autoMigrate,
       generator: generatorConfig.value.generator,
       publicBaseUrl: baseUrlParsed.data,
       spend: generatorConfig.value.spend,

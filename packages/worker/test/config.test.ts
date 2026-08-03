@@ -33,6 +33,17 @@ describe("loadConfig", () => {
     expect(result.value.databaseUrl).toBe(VALID_ENV.DATABASE_URL);
     expect(result.value.generator).toEqual({ provider: "anthropic" });
     expect(result.value.publicBaseUrl).toBe(VALID_ENV.PUBLIC_BASE_URL);
+    expect(result.value.autoMigrate).toBe(true);
+  });
+
+  it("exposes MERGEBRIEF_AUTO_MIGRATE=false through persistence's loader (BRIEF-131)", () => {
+    const result = loadConfig({
+      ...VALID_ENV,
+      MERGEBRIEF_AUTO_MIGRATE: "false",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.autoMigrate).toBe(false);
   });
 
   it("composes the instance config's generator block", () => {

@@ -1,6 +1,9 @@
 // Stage 6 config tests. Defaults applied, bad DATABASE_URL rejected, boolean
 // token parsing, injectable env (never touches process.env), no secret leak.
 // Result narrowing uses `if (!x.ok) throw` so no `expect` is conditional.
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   ConfigErrorCode,
@@ -115,5 +118,271 @@ describe("config — loadConfig", () => {
     expect(
       loadConfig({ DATABASE_URL: VALID_URL, UNRELATED: "x", PATH: "/bin" }).ok,
     ).toBe(true);
+  });
+});
+
+// BRIEF-131: DATABASE_URL_FILE — the `_FILE` secret-file convention for
+// exactly this one variable. File wins over the plain variable (with a
+// warning through the injected sink); content is trimmed; an unreadable
+// file is a clear boot error.
+const fileEnv = (path: string) => ({ DATABASE_URL_FILE: path });
+
+describe("config — DATABASE_URL_FILE", () => {
+  it("resolves the DSN from the file when only DATABASE_URL_FILE is set", () => {
+    const config = ok(
+      loadConfig(fileEnv("/run/secrets/db-url"), {
+        readFile: () => VALID_URL,
+      }),
+    );
+    expect(config.databaseUrl).toBe(VALID_URL);
+  });
+
+  it("trims a trailing newline from the file content", () => {
+    const config = ok(
+      loadConfig(fileEnv("/run/secrets/db-url"), {
+        readFile: () => `${VALID_URL}\n`,
+      }),
+    );
+    expect(config.databaseUrl).toBe(VALID_URL);
+  });
+
+  it("trims CRLF and surrounding whitespace from the file content", () => {
+    const config = ok(
+      loadConfig(fileEnv("/run/secrets/db-url"), {
+        readFile: () => `  ${VALID_URL}\r\n`,
+      }),
+    );
+    expect(config.databaseUrl).toBe(VALID_URL);
+  });
+
+  it("prefers the file over DATABASE_URL and warns, naming the shadowed variable", () => {
+    const warnings: string[] = [];
+    const config = ok(
+      loadConfig(
+        {
+          DATABASE_URL: "postgres://other:secret@localhost:5432/shadowed",
+          DATABASE_URL_FILE: "/run/secrets/db-url",
+        },
+        {
+          readFile: () => VALID_URL,
+          onWarning: (message) => warnings.push(message),
+        },
+      ),
+    );
+    expect(config.databaseUrl).toBe(VALID_URL);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("DATABASE_URL_FILE");
+    expect(warnings[0]).toContain("DATABASE_URL");
+  });
+
+  it("does not warn (and does not crash) when both are set but no sink is injected", () => {
+    const config = ok(
+      loadConfig(
+        {
+          DATABASE_URL: "postgres://other:secret@localhost:5432/shadowed",
+          DATABASE_URL_FILE: "/run/secrets/db-url",
+        },
+        { readFile: () => VALID_URL },
+      ),
+    );
+    expect(config.databaseUrl).toBe(VALID_URL);
+  });
+
+  it("does not warn when DATABASE_URL is empty-string (compose interpolation of an unset var)", () => {
+    const warnings: string[] = [];
+    const config = ok(
+      loadConfig(
+        { DATABASE_URL: "", DATABASE_URL_FILE: "/run/secrets/db-url" },
+        {
+          readFile: () => VALID_URL,
+          onWarning: (message) => warnings.push(message),
+        },
+      ),
+    );
+    expect(config.databaseUrl).toBe(VALID_URL);
+    expect(warnings).toHaveLength(0);
+  });
+
+  it("does not warn when only the file variable is set", () => {
+    const warnings: string[] = [];
+    ok(
+      loadConfig(fileEnv("/run/secrets/db-url"), {
+        readFile: () => VALID_URL,
+        onWarning: (message) => warnings.push(message),
+      }),
+    );
+    expect(warnings).toHaveLength(0);
+  });
+
+  it("rejects an unreadable file with a clear issue naming the path", () => {
+    const error = err(
+      loadConfig(fileEnv("/run/secrets/missing"), {
+        readFile: (path) => {
+          throw new Error(`ENOENT: no such file or directory, open '${path}'`);
+        },
+      }),
+    );
+    expect(error.code).toBe(ConfigErrorCode.INVALID);
+    expect(
+      error.issues.some(
+        (issue) =>
+          issue.startsWith("DATABASE_URL_FILE") &&
+          issue.includes("/run/secrets/missing"),
+      ),
+    ).toBe(true);
+  });
+
+  it("validates the file content like the plain variable (bad scheme rejected)", () => {
+    const result = loadConfig(fileEnv("/run/secrets/db-url"), {
+      readFile: () => "mysql://localhost/app",
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("rejects an empty file", () => {
+    const result = loadConfig(fileEnv("/run/secrets/db-url"), {
+      readFile: () => "\n",
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it("does not echo the file content (secret) in error output", () => {
+    const error = err(
+      loadConfig(fileEnv("/run/secrets/db-url"), {
+        readFile: () => "http://user:filesecret@host/db",
+      }),
+    );
+    const joined = [error.message, ...error.issues].join(" ");
+    expect(joined).not.toContain("filesecret");
+  });
+
+  it("reads through the real filesystem by default", () => {
+    const dir = mkdtempSync(join(tmpdir(), "brief-131-dsn-"));
+    const path = join(dir, "db-url");
+    writeFileSync(path, `${VALID_URL}\n`);
+    const config = ok(loadConfig(fileEnv(path)));
+    expect(config.databaseUrl).toBe(VALID_URL);
+  });
+});
+
+// BRIEF-131: MERGEBRIEF_AUTO_MIGRATE — default TRUE (apply at boot); false
+// switches both services to the check-only ledger comparison.
+describe("config — MERGEBRIEF_AUTO_MIGRATE", () => {
+  it("defaults to auto-migrate ON", () => {
+    const config = ok(loadConfig({ DATABASE_URL: VALID_URL }));
+    expect(config.autoMigrate).toBe(true);
+  });
+
+  it("parses an explicit false", () => {
+    const config = ok(
+      loadConfig({ DATABASE_URL: VALID_URL, MERGEBRIEF_AUTO_MIGRATE: "false" }),
+    );
+    expect(config.autoMigrate).toBe(false);
+  });
+
+  it("rejects an unrecognized token", () => {
+    const error = err(
+      loadConfig({ DATABASE_URL: VALID_URL, MERGEBRIEF_AUTO_MIGRATE: "maybe" }),
+    );
+    expect(
+      error.issues.some((i) => i.startsWith("MERGEBRIEF_AUTO_MIGRATE")),
+    ).toBe(true);
+  });
+});
+
+// BRIEF-131: TLS explicit-or-refuse. A non-loopback host with no `sslmode`
+// DSN parameter refuses boot — the operator must choose; loopback and
+// unix-socket DSNs are exempt. Any EXPLICIT sslmode (including `disable`)
+// passes the gate.
+describe("config — TLS explicit-or-refuse gate", () => {
+  const REMOTE = "postgres://user:pass@db.example.com:5432/app";
+
+  it.each([
+    ["localhost", "postgres://user:pass@localhost:5432/app"],
+    ["localhost, postgresql scheme", "postgresql://user:pass@localhost/app"],
+    ["127.0.0.1", "postgres://user:pass@127.0.0.1:5432/app"],
+    ["127.0.0.0/8 non-canonical", "postgres://user:pass@127.5.5.5:5432/app"],
+    ["IPv6 ::1", "postgres://user:pass@[::1]:5432/app"],
+    ["unix socket via host param", "postgres:///app?host=/var/run/postgresql"],
+  ])("exempts loopback: %s", (_label, url) => {
+    expect(loadConfig({ DATABASE_URL: url }).ok).toBe(true);
+  });
+
+  it("refuses a non-loopback host with no sslmode", () => {
+    const error = err(loadConfig({ DATABASE_URL: REMOTE }));
+    expect(error.code).toBe(ConfigErrorCode.INVALID);
+    expect(error.issues.some((i) => i.startsWith("DATABASE_URL"))).toBe(true);
+  });
+
+  it("refuses an EMPTY sslmode (pg's ssl check is truthiness — `sslmode=` is plaintext)", () => {
+    expect(loadConfig({ DATABASE_URL: `${REMOTE}?sslmode=` }).ok).toBe(false);
+  });
+
+  it("refuses a malformed 127.x literal (out-of-range octet goes to DNS, not loopback)", () => {
+    expect(
+      loadConfig({ DATABASE_URL: "postgres://user:pass@127.0.0.999:5432/app" })
+        .ok,
+    ).toBe(false);
+  });
+
+  it("refuses boot naming the path when a referenced sslrootcert file is unreadable", () => {
+    const error = err(
+      loadConfig({
+        DATABASE_URL: `${REMOTE}?sslmode=verify-full&sslrootcert=/nonexistent-brief131-ca.pem`,
+      }),
+    );
+    expect(
+      error.issues.some(
+        (issue) =>
+          issue.startsWith("DATABASE_URL") &&
+          issue.includes("/nonexistent-brief131-ca.pem"),
+      ),
+    ).toBe(true);
+  });
+
+  it("names the three choices in the refusal", () => {
+    const error = err(loadConfig({ DATABASE_URL: REMOTE }));
+    const joined = error.issues.join(" ");
+    expect(joined).toContain("sslmode=verify-full");
+    expect(joined).toContain("sslrootcert");
+    expect(joined).toContain("sslmode=require");
+    expect(joined).toContain("sslmode=disable");
+  });
+
+  it("does not echo the host or credentials in the refusal", () => {
+    const error = err(
+      loadConfig({
+        DATABASE_URL: "postgres://user:topsecret@db.example.com:5432/app",
+      }),
+    );
+    const joined = [error.message, ...error.issues].join(" ");
+    expect(joined).not.toContain("topsecret");
+    expect(joined).not.toContain("db.example.com");
+  });
+
+  it.each([
+    ["verify-full", `${REMOTE}?sslmode=verify-full`],
+    ["require", `${REMOTE}?sslmode=require`],
+    ["verify-ca", `${REMOTE}?sslmode=verify-ca`],
+    ["explicit disable (private network)", `${REMOTE}?sslmode=disable`],
+    ["no-verify", `${REMOTE}?sslmode=no-verify`],
+  ])("accepts an explicit sslmode: %s", (_label, url) => {
+    expect(loadConfig({ DATABASE_URL: url }).ok).toBe(true);
+  });
+
+  it("gates the file-resolved DSN too", () => {
+    const result = loadConfig(
+      { DATABASE_URL_FILE: "/run/secrets/db-url" },
+      { readFile: () => REMOTE },
+    );
+    expect(result.ok).toBe(false);
+  });
+
+  it("passes a file-resolved DSN with an explicit sslmode", () => {
+    const result = loadConfig(
+      { DATABASE_URL_FILE: "/run/secrets/db-url" },
+      { readFile: () => `${REMOTE}?sslmode=verify-full` },
+    );
+    expect(result.ok).toBe(true);
   });
 });

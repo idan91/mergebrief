@@ -5,14 +5,23 @@
 // decides (composition root), not as an import side effect.
 //
 //   DATABASE_URL             required; a postgres(ql):// connection URL.
+//   DATABASE_URL_FILE        optional; path to a file holding the URL
+//                            (compose `secrets:` mount — BRIEF-131). Wins
+//                            over DATABASE_URL with a warning via the
+//                            injected sink; see `dsn.ts`.
 //   PERSIST_BASELINE_SNAPSHOT bool, default TRUE  — self-host default ON (D4).
 //   STORE_DISPLAY_NAMES       bool, default TRUE  — self-host default ON (D1).
+//   MERGEBRIEF_AUTO_MIGRATE   bool, default TRUE  — apply migrations at boot;
+//                             false = check-only (restricted runtime roles,
+//                             BRIEF-131; see db/migrate.ts).
 //
 // Defaults encode the SELF-HOST posture (D1/D4): the adopter controls its own
 // code and names, so both minimization gates default OFF-meaning-ON here. The
 // hosted-strict arm flips them via env, no code change.
 import { z } from "zod";
 import type { Result, ValueOf } from "../types";
+import { resolveDatabaseUrl, type ResolveDsnOptions } from "./dsn";
+import { checkDsnTls } from "./tls";
 
 // ---------------------------------------------------------------------------
 // Public config shape.
@@ -25,6 +34,9 @@ export interface PersistenceConfig {
   readonly persistBaselineSnapshot: boolean;
   /** D1: keep purgeable display-name columns populated. Self-host: ON. */
   readonly storeDisplayNames: boolean;
+  /** BRIEF-131: apply migrations at boot (default) vs check-only refusal —
+   * the posture for a runtime role without DDL. */
+  readonly autoMigrate: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,22 +113,42 @@ const ConfigSchema = z.object({
   DATABASE_URL: databaseUrlSchema,
   PERSIST_BASELINE_SNAPSHOT: envBool(true),
   STORE_DISPLAY_NAMES: envBool(true),
+  MERGEBRIEF_AUTO_MIGRATE: envBool(true),
 });
 
 // ---------------------------------------------------------------------------
 // Loader.
 // ---------------------------------------------------------------------------
 
+/** Injectable collaborators for `loadConfig` (BRIEF-131): the secret-file
+ * reader and the warning sink `dsn.ts` documents. */
+export type LoadConfigOptions = ResolveDsnOptions;
+
 /**
  * Parse persistence config from an injected env map into a `PersistenceConfig`,
  * or a `ConfigError` listing the invalid fields (values omitted — a connection
  * string is a secret). Unknown env keys are ignored. Never reads `process.env`
- * itself — the caller passes it.
+ * itself — the caller passes it. `DATABASE_URL_FILE` resolution (and its
+ * shadow warning) happens here so every consumer of this loader — web and
+ * worker both — gets the `_FILE` convention without its own wiring.
  */
 export function loadConfig(
   env: NodeJS.ProcessEnv | Record<string, string | undefined>,
+  options: LoadConfigOptions = {},
 ): Result<PersistenceConfig, ConfigError> {
-  const parsed = ConfigSchema.safeParse(env);
+  const dsn = resolveDatabaseUrl(env, options);
+  if (!dsn.ok) {
+    return {
+      ok: false,
+      error: {
+        code: ConfigErrorCode.INVALID,
+        message: "invalid persistence configuration",
+        issues: [dsn.error],
+      },
+    };
+  }
+
+  const parsed = ConfigSchema.safeParse({ ...env, DATABASE_URL: dsn.value });
   if (!parsed.success) {
     const issues = parsed.error.issues.map((issue) => {
       const field = issue.path.join(".") || "(root)";
@@ -131,12 +163,28 @@ export function loadConfig(
       },
     };
   }
+  // TLS explicit-or-refuse (BRIEF-131): runs on the RESOLVED DSN (env or
+  // file), after scheme validation — see `tls.ts` for the rule and its
+  // loopback exemption.
+  const tls = checkDsnTls(parsed.data.DATABASE_URL);
+  if (!tls.ok) {
+    return {
+      ok: false,
+      error: {
+        code: ConfigErrorCode.INVALID,
+        message: "invalid persistence configuration",
+        issues: [tls.error],
+      },
+    };
+  }
+
   return {
     ok: true,
     value: {
       databaseUrl: parsed.data.DATABASE_URL,
       persistBaselineSnapshot: parsed.data.PERSIST_BASELINE_SNAPSHOT,
       storeDisplayNames: parsed.data.STORE_DISPLAY_NAMES,
+      autoMigrate: parsed.data.MERGEBRIEF_AUTO_MIGRATE,
     },
   };
 }

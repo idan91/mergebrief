@@ -23,11 +23,25 @@ export type { AppDatabase, AppSchema, CreateDbOptions } from "./db/handle";
 
 // Programmatic, idempotent app-schema migration for composition roots
 // (worker/compose boot). The graphile_worker schema stays graphile-owned.
-export { migrateApp } from "./db/migrate";
+// `ensureAppSchema` (BRIEF-131) is the boot seam: apply, or — under
+// MERGEBRIEF_AUTO_MIGRATE=false — check the ledger read-only and refuse
+// when behind. `checkAppSchemaWith` (executor-injected) stays in-package.
+export {
+  migrateApp,
+  ensureAppSchema,
+  SchemaCheckErrorCode,
+} from "./db/migrate";
+export type { SchemaCheckError, EnsureAppSchemaOptions } from "./db/migrate";
 
 // Persistence env config (Zod-parsed; injectable env — never reads process.env).
+// `LoadConfigOptions` carries the DATABASE_URL_FILE reader + warning sink
+// (BRIEF-131) — composition roots pass their logger's `warn`.
 export { loadConfig, ConfigErrorCode } from "./db/config";
-export type { PersistenceConfig, ConfigError } from "./db/config";
+export type {
+  PersistenceConfig,
+  ConfigError,
+  LoadConfigOptions,
+} from "./db/config";
 
 // --- stores/ — ctx-bound + projection data access ----------------------------
 
