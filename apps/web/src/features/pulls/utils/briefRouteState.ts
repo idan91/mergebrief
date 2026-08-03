@@ -34,7 +34,14 @@ export type BriefRouteState =
       readonly attempts: number;
     }
   /** Aborted because the head advanced — a newer brief is on the way. */
-  | { readonly kind: "superseded" };
+  | { readonly kind: "superseded" }
+  /**
+   * Skipped: the repo hit the instance's daily generation cap (BRIEF-20).
+   * `cappedAt` is when the skip was recorded — the reset time derives from
+   * it, so a row left over from an earlier day cannot claim to be waiting
+   * on tonight's midnight.
+   */
+  | { readonly kind: "capped"; readonly cappedAt: string };
 
 function metaSpan(meta: PrSummary): Span | undefined {
   if (meta.baseSha === null || meta.headSha === null) return undefined;
@@ -102,6 +109,8 @@ export function deriveBriefRouteState(
       };
     case "superseded":
       return { kind: "superseded" };
+    case "capped":
+      return { kind: "capped", cappedAt: generation.updatedAt };
     case "succeeded":
       // Succeeded but the artifact for its head is not readable — a rare
       // inconsistency (e.g. artifact purged). Not a failure and nothing is

@@ -10,7 +10,19 @@
 // conflicting. `attempts` is incremented on re-queue; `updated_at` is bumped on
 // every mutation. Like the artifact writes, `upsertQueued` verifies the parent
 // `pull_request` belongs to ctx in-transaction (stage-3 invariant (a)).
-import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  ne,
+  notInArray,
+  sql,
+} from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
 import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
@@ -20,6 +32,7 @@ import {
   GenerationStatus,
   type GenerationPhase,
   type PullRequestRowId,
+  type RepoId,
   type Result,
   type ValueOf,
 } from "../types";
@@ -137,6 +150,15 @@ export interface GenerationProjection {
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
+   * Reflect `capped` (BRIEF-20) — the terminal skip a repo's daily
+   * generation cap produces. Like `markSuperseded` this is NOT a failure:
+   * `attempts` is untouched and `phase`/`error` are cleared, so a capped run
+   * consumes no retry and shows no error text.
+   */
+  markCapped(
+    target: GenerationTarget,
+  ): Promise<Result<GenerationRow, GenerationError>>;
+  /**
    * Reflect `failed`. The raw error is passed as-is; `markFailed` applies
    * `sanitizeGenerationError` itself (first line, URLs redacted, 300-char
    * cap), so callers cannot store an unsanitized reason.
@@ -157,6 +179,43 @@ export interface GenerationProjection {
   ): Promise<Result<GenerationRow, GenerationError>>;
   /** Tenant-scoped read of the projection row; absence is `undefined`. */
   get(target: GenerationTarget): Promise<GenerationRow | undefined>;
+  /**
+   * The daily spend cap's counter (BRIEF-20): how much of ONE repo's budget
+   * the half-open window `[from, to)` has already consumed.
+   *
+   * Counts ATTEMPTS, not rows — `sum(GREATEST(attempts, 1))` over the
+   * started rows. One row can be re-queued many times (`upsertQueued`
+   * increments `attempts`), and each re-queue is another paid run against
+   * the same natural key; counting rows would let a hot PR spend a
+   * multiple of the cap. Bias is deliberate: `attempts` also increments for
+   * a re-queue that has not run yet, so the tally can slightly OVER-count
+   * and cap early — the safe direction for a money guardrail.
+   *
+   * "Started" = any status other than `queued` and `capped`:
+   * - `queued` is excluded because such a row has not reached the worker and
+   *   has spent nothing — and, critically, because the run being decided on
+   *   is still `queued` at gate time, so counting it would make a cap of N
+   *   behave like N−1 (a cap of 1 would block every run). The known cost of
+   *   the exclusion: `upsertQueued` re-queues an already-started row back to
+   *   `queued`, so that row's earlier attempts drop out of the tally until
+   *   it runs again — a transient under-count on a re-pushed PR. Do NOT
+   *   "fix" it by counting `queued`; that trade was made knowingly.
+   * - `capped` is the skip itself and must never feed the counter that
+   *   produced it.
+   * `superseded` and `failed` DO count: they reached a provider call and
+   * spent.
+   *
+   * Scoped by `repo_id`, GitHub's immutable numeric id — not the slug the
+   * instance config keys its overrides on: a repo rename must not silently
+   * reset the day's count. The join rides the `pull_request` natural-key
+   * index (installation_id, repo_id, …); the tenant filter is ctx's, like
+   * every other read here.
+   */
+  countStartedRunsForRepo(input: {
+    readonly repoId: RepoId;
+    readonly from: Date;
+    readonly to: Date;
+  }): Promise<number>;
   /**
    * The NEWEST brief-kind projection per PR (by `updated_at`), batched for
    * the BRIEF-19 list/PR-meta endpoints: its `head_sha` IS the current push,
@@ -321,6 +380,16 @@ export function generationProjection(
       });
     },
 
+    async markCapped(target) {
+      // Same abort semantics as markSuperseded (BRIEF-20): the run never
+      // started, so `attempts` stays untouched and nothing is retried.
+      return transition(target, {
+        status: GenerationStatus.CAPPED,
+        phase: null,
+        error: null,
+      });
+    },
+
     async markFailed(target, error) {
       return transition(target, {
         status: GenerationStatus.FAILED,
@@ -339,6 +408,32 @@ export function generationProjection(
         .where(keyWhere(target))
         .limit(1);
       return rows[0];
+    },
+
+    async countStartedRunsForRepo({ repoId, from, to }) {
+      const rows = await db
+        // GREATEST(attempts, 1): a first run carries attempts = 0 but is one
+        // paid run; every increment past that is another one.
+        .select({
+          total: sql<number>`coalesce(sum(greatest(${generation.attempts}, 1)), 0)::int`,
+        })
+        .from(generation)
+        .innerJoin(pullRequest, eq(pullRequest.id, generation.pullRequestId))
+        .where(
+          and(
+            eq(generation.installationId, installationId),
+            eq(pullRequest.installationId, installationId),
+            eq(pullRequest.repoId, repoId),
+            eq(generation.kind, GenerationKind.BRIEF),
+            notInArray(generation.status, [
+              GenerationStatus.QUEUED,
+              GenerationStatus.CAPPED,
+            ]),
+            gte(generation.createdAt, from),
+            lt(generation.createdAt, to),
+          ),
+        );
+      return rows[0]?.total ?? 0;
     },
 
     async latestBriefForPullRequests(pullRequestIds) {

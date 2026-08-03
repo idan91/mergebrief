@@ -37,6 +37,7 @@ describe("loadGeneratorConfig (env-driven)", () => {
     if (!result.ok) return;
     expect(result.value).toEqual({
       generator: { provider: "anthropic" },
+      spend: { dailyGenerationCap: null, perRepo: {} },
       source: null,
     });
   });

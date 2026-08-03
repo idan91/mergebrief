@@ -79,6 +79,8 @@ async function main(): Promise<void> {
     publicBaseUrl: config.value.publicBaseUrl,
     // Instance-config effort (BRIEF-75); absent → brief-core's medium default.
     ...(configuredEffort === undefined ? {} : { effort: configuredEffort }),
+    // The daily generation cap (BRIEF-20); no `spend` block → uncapped.
+    spend: config.value.spend,
     log: logger,
   });
 

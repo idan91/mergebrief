@@ -42,10 +42,12 @@ import {
   type RevisionNarrativeSkipped,
 } from "brief-core";
 import {
+  capForRepo,
   GeneratorError,
   GeneratorErrorKind,
   type Effort,
   type Generator,
+  type SpendPolicy,
 } from "generators";
 import {
   artifactStore,
@@ -57,6 +59,7 @@ import {
   generationProjection,
   GenerationKind,
   GenerationPhase,
+  GenerationStatus,
   PrState,
   type AppDatabase,
   type ArtifactStore,
@@ -70,9 +73,11 @@ import { GitHubApiErrorCode } from "github";
 import type { Result } from "types";
 import {
   entryCommentBody,
+  entryCommentCappedBody,
   entryCommentGeneratingBody,
   type EntryCommentLink,
 } from "./entry-comment";
+import { utcDayBounds } from "./spend";
 import {
   splitRepoSlug,
   type GitHubApiError,
@@ -105,6 +110,11 @@ export interface GenerateTaskDeps {
   readonly headPollIntervalMs?: number;
   /** Instance-config reasoning effort (BRIEF-75); absent → engine default. */
   readonly effort?: Effort;
+  /**
+   * The instance daily generation cap (BRIEF-20); absent → uncapped, which
+   * is also what a config file with no `spend` block means.
+   */
+  readonly spend?: SpendPolicy;
   readonly log?: Logger;
 }
 
@@ -475,13 +485,67 @@ async function runGeneration(
   // rotation, and deleting by a stale id would orphan the newer comment.
   let liveEntryCommentId: bigint | null = prRow.entryCommentId;
 
-  await projection.markRunning(target, GenerationPhase.FETCHING);
-
+  // The GitHub seam is opened BEFORE the spend gate: a capped run posts no
+  // GitHub reads, but it may still have to update an Entry comment that is
+  // already on the thread.
   const source = await github.forPullRequest(
     ctx.installationId,
     pr.repoSlug,
     pr.prNumber,
   );
+
+  // ---- Daily generation cap (BRIEF-20) -------------------------------------
+  // THE enforcement point: the single seam where a run starts, before any
+  // provider call AND before the projection says `running` — the gate must
+  // not count the very run it is deciding on. At the cap the run is SKIPPED,
+  // not deferred: terminal `capped`, no retry, no queue growth.
+  const cap =
+    deps.spend === undefined ? null : capForRepo(deps.spend, pr.repoSlug);
+  if (cap !== null) {
+    const day = utcDayBounds(new Date());
+    const started = await projection.countStartedRunsForRepo({
+      repoId: prRow.repoId,
+      from: day.from,
+      to: day.to,
+    });
+    if (started >= cap) {
+      // `prId`/`headSha` ride the child bindings stamped in the task wrapper.
+      log.warn("generate: daily generation cap reached — skipping this run", {
+        evt: "spend.cap.trip",
+        repo: pr.repoSlug,
+        cap,
+        dayUtc: day.label,
+      });
+      if (liveEntryCommentId !== null) {
+        // UPDATE ONLY (grill decision): a capped PR never gets an Entry
+        // comment created for it — the cap must not make MergeBrief louder
+        // on a thread than it already was.
+        await refreshEntryComment(
+          entryCommentCappedBody({
+            publicBaseUrl: deps.publicBaseUrl,
+            repoId: prRow.repoId,
+            prNumber: prRow.prNumber,
+            headSha,
+            resetsAt: day.to,
+          }),
+        );
+      }
+      // Do NOT overwrite a `failed` row. graphile retries a transient
+      // failure by re-running this task, so an at-cap retry lands here with
+      // the previous attempt's real failure recorded — stamping `capped`
+      // over it would erase why the job actually broke and end the retry
+      // chain under a status that blames the guardrail. The run is skipped
+      // either way; only the record differs.
+      const current = await projection.get(target);
+      if (current?.status !== GenerationStatus.FAILED) {
+        await projection.markCapped(target);
+      }
+      return;
+    }
+  }
+
+  await projection.markRunning(target, GenerationPhase.FETCHING);
+
   const info = unwrapGitHub(await source.fetchPullRequest());
   if (info.headSha !== headSha) {
     // The PR moved between enqueue and drain — the newer push's job (same

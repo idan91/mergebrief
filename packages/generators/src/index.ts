@@ -46,6 +46,12 @@ export {
   loadInstancePolicy,
   type LoadedInstancePolicy,
 } from "./config/instancePolicy";
+export {
+  capForRepo,
+  DEFAULT_SPEND_POLICY,
+  validateSpendBlock,
+  type SpendPolicy,
+} from "./config/spendPolicy";
 
 // --- adapters/ — the five implementations -----------------------------------
 // (Constructed via createGenerator in normal use; exported for tests and

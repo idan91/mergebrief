@@ -3,6 +3,11 @@ import { configError, type ConfigError } from "../contract/errors";
 import { validateDraftsBlock } from "./instancePolicy";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 import {
+  DEFAULT_SPEND_POLICY,
+  validateSpendBlock,
+  type SpendPolicy,
+} from "./spendPolicy";
+import {
   defaultGeneratorConfig,
   validateGeneratorConfig,
   type GeneratorConfig,
@@ -28,6 +33,11 @@ import {
 
 export interface LoadedGeneratorConfig {
   generator: GeneratorConfig;
+  /**
+   * The instance spend policy (BRIEF-20) — enforced by the worker's
+   * generation gate. Uncapped when the block is absent.
+   */
+  spend: SpendPolicy;
   /** The file the config came from; null for zero-config defaults. */
   source: string | null;
 }
@@ -40,7 +50,11 @@ export function loadGeneratorConfig(
   if (path === undefined) {
     return {
       ok: true,
-      value: { generator: defaultGeneratorConfig, source: null },
+      value: {
+        generator: defaultGeneratorConfig,
+        spend: DEFAULT_SPEND_POLICY,
+        source: null,
+      },
     };
   }
   // Set-but-empty is NOT unset (repo convention: loaders distinguish the
@@ -65,13 +79,22 @@ export function loadGeneratorConfigFile(
     // An empty file is a valid zero-config choice.
     return {
       ok: true,
-      value: { generator: defaultGeneratorConfig, source: path },
+      value: {
+        generator: defaultGeneratorConfig,
+        spend: DEFAULT_SPEND_POLICY,
+        source: path,
+      },
     };
   }
 
   const issues: string[] = [];
   for (const key of Object.keys(root)) {
-    if (key === "generator" || key === "drafts" || key.startsWith("x-"))
+    if (
+      key === "generator" ||
+      key === "drafts" ||
+      key === "spend" ||
+      key.startsWith("x-")
+    )
       continue;
     issues.push(`config file: unrecognized root key ${renderKey(key)}`);
   }
@@ -86,11 +109,22 @@ export function loadGeneratorConfigFile(
     if (!validated.ok) return validated;
   }
 
+  // The spend block (BRIEF-20) is enforced by the WORKER's generation gate;
+  // it is parsed here so a bad cap refuses boot everywhere the file is read,
+  // never silently leaving an instance the operator believes is capped.
+  const spendBlock = root["spend"];
+  let spend = DEFAULT_SPEND_POLICY;
+  if (spendBlock !== undefined) {
+    const validated = validateSpendBlock(spendBlock);
+    if (!validated.ok) return validated;
+    spend = validated.value;
+  }
+
   const block = root["generator"];
   if (block === undefined) {
     return {
       ok: true,
-      value: { generator: defaultGeneratorConfig, source: path },
+      value: { generator: defaultGeneratorConfig, spend, source: path },
     };
   }
 
@@ -100,5 +134,8 @@ export function loadGeneratorConfigFile(
       validated.error.issues.map((issue) => `generator: ${issue}`),
     );
   }
-  return { ok: true, value: { generator: validated.value, source: path } };
+  return {
+    ok: true,
+    value: { generator: validated.value, spend, source: path },
+  };
 }

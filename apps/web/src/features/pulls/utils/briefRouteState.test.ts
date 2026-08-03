@@ -167,6 +167,22 @@ describe("deriveBriefRouteState", () => {
     expect(state).toEqual({ kind: "superseded" });
   });
 
+  it("capped → capped, carrying the skip time (never a fake failure)", () => {
+    const state = deriveBriefRouteState(
+      meta({
+        generation: generation({
+          status: "capped",
+          updatedAt: "2026-08-03T18:30:00.000Z",
+        }),
+      }),
+      undefined,
+    );
+    expect(state).toEqual({
+      kind: "capped",
+      cappedAt: "2026-08-03T18:30:00.000Z",
+    });
+  });
+
   it("succeeded but artifact missing → empty, never an infinite wait", () => {
     const state = deriveBriefRouteState(
       meta({
@@ -207,6 +223,12 @@ describe("shouldPollMeta", () => {
           generation: generation({ status: "superseded" }),
         }),
       ),
+    ).toBe(false);
+  });
+
+  it("never polls a capped row — the skip is terminal, nothing is coming", () => {
+    expect(
+      shouldPollMeta(meta({ generation: generation({ status: "capped" }) })),
     ).toBe(false);
   });
 

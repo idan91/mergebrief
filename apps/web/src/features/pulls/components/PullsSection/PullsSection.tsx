@@ -27,6 +27,10 @@ function statusLabel(
       return "failed";
     case "superseded":
       return "newer push on the way";
+    case "capped":
+      // The daily generation cap skipped this push (BRIEF-20) — the row says
+      // so plainly rather than borrowing the failure word.
+      return "daily cap reached";
     case "succeeded":
       // Succeeded but the artifact is for another span — treat as pending.
       return "no brief yet";

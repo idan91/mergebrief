@@ -44,7 +44,7 @@ changes get a breaking-change entry in
 | `provider.error` | error | worker | `provider`, `status`, `kind`, job bindings | 401/403 = credentials/config broken, alert now; sustained 429/5xx = provider degraded |
 | `token.refresh.fail` | error | web | `reqId`, `reviewerId` | yes — a reviewer session or API token could not rotate its GitHub credentials |
 | `audit.fail` | error | web | `reqId`, `commentId` | yes — content posted to GitHub but the local audit write failed (data integrity) |
-| `spend.cap.trip` | error | — | reserved (BRIEF-20), not emitted yet | yes |
+| `spend.cap.trip` | warn | worker | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | on **sustained rate** — the cap is working as configured, but a repo stuck at it produces no briefs all day |
 | `api.access` | info | web | `method`, `path`, `status`, `durationMs`, `decision`, `repoId`, `reviewerId`, `reqId` | no — this is the access log |
 
 `api.access` is the per-request access line (numeric ids only, never a
@@ -157,6 +157,11 @@ groups:
       - alert: AuditWriteFailed
         expr: sum(count_over_time({service="web"} | json | evt = `audit.fail` [15m])) > 0
         labels: { severity: critical }
+      - alert: SpendCapSustained
+        # only if you set a cap (spend.dailyGenerationCap) — a repo pinned at
+        # it produces no briefs until 00:00 UTC
+        expr: sum(count_over_time({service="worker"} | json | evt = `spend.cap.trip` [1h])) > 5
+        labels: { severity: warning }
 ```
 
 ## Recipe: Datadog

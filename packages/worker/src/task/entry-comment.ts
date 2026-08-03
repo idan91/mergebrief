@@ -30,6 +30,36 @@ export function entryCommentBody(link: EntryCommentLink): string {
   ].join("\n");
 }
 
+/** Where a capped PR's comment points: the PR view, no span (none exists). */
+export interface EntryCommentPrLink {
+  readonly publicBaseUrl: string;
+  readonly repoId: bigint;
+  readonly prNumber: number;
+  /** The head that was skipped — named so the thread knows which push. */
+  readonly headSha: string;
+  /** When generation resumes, as an ISO instant (the next UTC midnight). */
+  readonly resetsAt: Date;
+}
+
+/**
+ * The capped body (BRIEF-20): this push got no brief because the repo hit
+ * its daily generation cap. Used ONLY to UPDATE an Entry comment that
+ * already exists — a capped PR never gets a comment created for it, so the
+ * cap can never make MergeBrief louder on a thread than it already was.
+ * Spanless link: there is no brief for this head to deep-link at.
+ */
+export function entryCommentCappedBody(link: EntryCommentPrLink): string {
+  const origin = link.publicBaseUrl.replace(/\/+$/, "");
+  const url = `${origin}/repos/${link.repoId}/pulls/${link.prNumber}`;
+  return [
+    `**Daily generation cap reached — no brief for \`${link.headSha.slice(0, 7)}\`.**`,
+    "",
+    `Generation resumes at ${link.resetsAt.toISOString().replace(".000Z", "Z")}; the next push after that briefs normally. [Open this PR in MergeBrief](${url})`,
+    "",
+    "<sub>Posted by MergeBrief — this instance's operator sets the daily cap.</sub>",
+  ].join("\n");
+}
+
 /**
  * The "generating" body posted when a fresh generation starts. Same deep
  * link: the web app's diff-first wait UX renders the live diff immediately,

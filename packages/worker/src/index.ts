@@ -26,6 +26,11 @@ export type { GenerateTaskDeps, Logger } from "./task/generate";
 export { parseGeneratePayload } from "./task/payload";
 export type { ParsedGeneratePayload } from "./task/payload";
 
+// The daily generation cap's window helper (BRIEF-20); enforcement lives
+// inside the task.
+export { utcDayBounds } from "./task/spend";
+export type { UtcDay } from "./task/spend";
+
 // The GitHub seam: installation-scoped PR reads behind a testable port.
 export { appGitHubPort, splitRepoSlug } from "./task/github-port";
 export type { GitHubPort, PullRequestSource } from "./task/github-port";

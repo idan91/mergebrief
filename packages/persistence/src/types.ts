@@ -83,6 +83,9 @@ export type GenerationKind = ValueOf<typeof GenerationKind>;
  * `generation.status` (D10). `superseded` = terminal abort-on-supersession
  * (ADR 0006 #6, added BRIEF-2): a mid-call generation aborted because the PR
  * head advanced. An abort is NOT a failure — it consumes no attempt.
+ * `capped` = terminal skip because the repo hit its daily generation cap
+ * (BRIEF-20): also NOT a failure, and deliberately distinct from `failed` so
+ * the view can say what happened and when it resets.
  */
 export const GenerationStatus = {
   QUEUED: "queued",
@@ -90,6 +93,7 @@ export const GenerationStatus = {
   SUCCEEDED: "succeeded",
   FAILED: "failed",
   SUPERSEDED: "superseded",
+  CAPPED: "capped",
 } as const;
 export type GenerationStatus = ValueOf<typeof GenerationStatus>;
 

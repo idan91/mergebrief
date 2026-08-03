@@ -13,6 +13,19 @@ The contract discipline (ADR 0029): response shapes change additively
 within a major; removals/renames ship expand/contract — new field first,
 deprecation note here, removal only at a major.
 
+## dev (2026-08-03 — BRIEF-20)
+
+- **Added** `capped` to `generation.status` on the PR-view/list responses
+  (`generation.status`): the repo hit the instance's daily generation cap
+  (`spend.dailyGenerationCap`) and the run was skipped. Terminal, and NOT a
+  failure — `error` is null and no attempt is consumed. Clients that treat
+  the status set as closed must accept the new value; clients that only
+  branch on `succeeded`/`failed` see it as "neither", which is correct.
+- **Added** the worker log event `evt: "spend.cap.trip"` (level `warn`,
+  fields `repo`, `prId`, `headSha`, `cap`, `dayUtc`) — one line per capped
+  skip. Flips the name ADR 0034 reserved; the level is `warn`, not the
+  reserved `error`.
+
 ## dev (2026-07-21 — BRIEF-51)
 
 - **BREAKING** — the D9 access-log line renamed `evt: "read"` →

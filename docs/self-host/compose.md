@@ -79,7 +79,9 @@ docker compose exec postgres psql -U code_review -d code_review \
 ```
 
 - `generation.status` walks `queued → running → succeeded` (or `superseded`
-  after a superseding push; `failed` carries a sanitized reason).
+  after a superseding push; `failed` carries a sanitized reason; `capped`
+  means the repo hit its daily generation cap and the run was skipped — see
+  [generators.md](./generators.md#daily-generation-cap)).
 - Misconfiguration surfaces differently per service: the **worker fails
   loudly at boot** (`docker compose logs worker` names the rejected env
   var), while the **web tier composes lazily on the first `/api`

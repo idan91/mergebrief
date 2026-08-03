@@ -53,8 +53,16 @@ generator:
 #   generate: on
 #   debounceSeconds: 900
 
+# spend: — the THIRD root block (BRIEF-20): the daily generation cap, at
+# most N generations per repo per UTC day. Both keys optional; omitting the
+# block means uncapped. See the "Daily generation cap" section below.
+# spend:
+#   dailyGenerationCap: 50
+#   perRepo:
+#     acme/sandbox: 5
+
 # x-*: root keys starting with "x-" are ignored (compose-style extension
-# slot); ANY other unknown key — root or inside generator:/drafts: —
+# slot); ANY other unknown key — root or inside generator:/drafts:/spend: —
 # refuses boot.
 x-notes: anything here is yours
 ```
@@ -90,6 +98,54 @@ Every boot-knowable problem **refuses boot with per-field issues** (values
 never echoed): unknown provider, unknown keys, a key env var that is unset,
 a CLI that is missing or not logged in. API keys are BYOK-by-env-NAME —
 the key value never lives in this file, the DB, or repo config.
+
+## Daily generation cap
+
+The one spend guardrail v1 ships (BRIEF-20): **at most N generations per
+repo per UTC calendar day**. It is instance config — the operator pays the
+bill, so no `.mergebrief/` repo file can set, raise, or lower it.
+
+```yaml
+spend:
+  dailyGenerationCap: 50      # applies to every repo without an override
+  perRepo:
+    acme/payments-api: 200    # owner/name, case-insensitive; beats the default
+    acme/sandbox: 5
+```
+
+Both keys are optional and both must be positive whole numbers; omitting
+the block leaves the instance **uncapped** (the default). A `perRepo` key
+naming a repo this instance never sees is ignored — the installation set
+changes without you editing this file.
+
+At the cap the worker **skips** the generation before any provider call:
+
+- the PR's brief view shows a distinct "daily generation cap reached" state
+  with the reset time in the viewer's local zone — never a fake failure;
+- an Entry comment that **already exists** on the PR is updated to say so;
+  no comment is created for a capped PR;
+- the worker logs `evt: spend.cap.trip` at `warn` with `repo`, `prId`,
+  `prId`, `headSha`, `cap`, `dayUtc` (see
+  [observability.md](./observability.md));
+- nothing is queued for later.
+
+The counter is the generation store itself: **provider attempts** by that
+repo on the current UTC day — not distinct pull requests, and not distinct
+pushes. A push that is re-queued (another push lands, a review is submitted)
+spends again and counts again, so a single busy PR can consume a day's
+budget on its own. Runs that were superseded or failed DO count: they spent.
+Queued-but-not-yet-drained jobs and capped skips do not — a burst of
+webhooks must not trip the cap before a single token is spent.
+
+The count is a guardrail, not an invoice: it errs toward capping slightly
+early, and it does not observe the queue's own internal retries of a single
+run. Treat it as a ceiling on the order of magnitude you are willing to
+spend per repo per day, not as an exact call count. Cost reporting is a
+separate, later concern.
+
+The window resets at 00:00 UTC. A push skipped today is not retried
+automatically when the cap resets — the PR gets its brief on its next
+settled push (or any event that re-queues it).
 
 ## The five providers
 

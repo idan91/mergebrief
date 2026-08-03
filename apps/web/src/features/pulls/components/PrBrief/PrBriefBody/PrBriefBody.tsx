@@ -15,6 +15,8 @@ import type {
 } from "../../../utils/dbTimeline";
 import { draftPolicyNotice } from "../../../utils/ownDraft";
 import type { PrSummary } from "../../../types";
+import { CappedCard } from "../CappedCard/CappedCard";
+import { cappedLabel } from "../CappedCard/utils";
 import { EmptyCard } from "../EmptyCard/EmptyCard";
 import { FailedCard } from "../FailedCard/FailedCard";
 import { PrBriefContent } from "../PrBriefContent/PrBriefContent";
@@ -60,6 +62,8 @@ export function stateAnnouncement(
       return "Brief generation failed.";
     case "superseded":
       return "A newer revision is on the way.";
+    case "capped":
+      return cappedLabel(state.cappedAt);
     case "empty":
       return notice?.kind === "drafts-off"
         ? notice.text
@@ -141,6 +145,12 @@ function PrBriefBodyState({
       return (
         <main className="main" id="main-content" tabIndex={-1}>
           <SupersededCard />
+        </main>
+      );
+    case "capped":
+      return (
+        <main className="main" id="main-content" tabIndex={-1}>
+          <CappedCard cappedAt={state.cappedAt} />
         </main>
       );
     case "empty":

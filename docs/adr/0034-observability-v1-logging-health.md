@@ -78,8 +78,16 @@ OTel are off-by-default or absent in every default self-host deploy.
    | `provider.error` | error | `provider`, `status`, ambient job bindings | yes (401/403 = config broken, alert now; sustained 429/5xx = degraded) |
    | `token.refresh.fail` | error | `reqId` or job bindings | yes |
    | `audit.fail` | error | `reqId`, artifact ids | yes (posted to GitHub, our audit write failed — data integrity) |
-   | `spend.cap.trip` | error | (reserved) | yes — NAME RESERVED for BRIEF-20, not implemented here |
+   | `spend.cap.trip` | warn | `repo`, `prId`, `headSha`, `cap`, `dayUtc` | yes (sustained rate — a capped instance is silently producing no briefs) |
    | `api.access` | info | D9 fields (`method`, `path`, `status`, `durationMs`, `decision`, …) + `reqId` | no |
+
+   **Amendment (2026-08-03, BRIEF-20):** `spend.cap.trip` goes live at
+   **`warn`, not the reserved `error`** — a tripped cap is the guardrail
+   working as configured, not an operator-actionable fault; it earns `error`
+   nowhere in the level standard below. It is alertable on sustained rate
+   (the operator wants to know their instance stopped briefing). Emitted by
+   the worker's generation gate on EVERY capped skip; `prId` rides the job's
+   child bindings.
 
    `api.access` renames the D9 `evt: "read"` (pre-OSS-cutover, zero
    adopters — the rename is free now; breaking-change entry + D9 doc

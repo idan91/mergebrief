@@ -2080,3 +2080,254 @@ describe("generate task — observability (BRIEF-51, ADR 0034)", () => {
     expect(succeeded?.["headSha"]).toBe(HEAD_1);
   });
 });
+
+describe("generate task — daily generation cap (BRIEF-20)", () => {
+  const UNCAPPED = { dailyGenerationCap: null, perRepo: {} };
+
+  /** Burn one STARTED run for acme/widget so the cap has something to count. */
+  async function burnOneRun(): Promise<void> {
+    const { payload } = await trigger(HEAD_1);
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github: stubGitHub(HEAD_1),
+      spend: UNCAPPED,
+    })(payload);
+  }
+
+  it("proceeds while the repo is under its cap", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: stubGitHub(HEAD_1),
+      spend: { dailyGenerationCap: 5, perRepo: {} },
+    });
+
+    await task(payload);
+
+    expect(generator.calls).toEqual(["brief"]);
+    const row = await generationProjection(harness.handle, ctx).get(
+      target(pr, HEAD_1),
+    );
+    expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
+  });
+
+  it("does NOT count the run it is deciding on (a cap of 1 lets the first run through)", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: stubGitHub(HEAD_1),
+      spend: { dailyGenerationCap: 1, perRepo: {} },
+    })(payload);
+
+    expect(generator.calls).toEqual(["brief"]);
+    expect(
+      (await generationProjection(harness.handle, ctx).get(target(pr, HEAD_1)))
+        ?.status,
+    ).toBe(GenerationStatus.SUCCEEDED);
+  });
+
+  it("at the cap: skips before any provider call, marks capped, emits spend.cap.trip", async () => {
+    await burnOneRun();
+    const { pr, payload } = await trigger(HEAD_2);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_2);
+    const { logger, lines } = captureLogger();
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      spend: { dailyGenerationCap: 1, perRepo: {} },
+      log: logger,
+    });
+
+    await task(payload);
+
+    // No provider call, and no brief for the capped head.
+    expect(generator.calls).toEqual([]);
+    expect(
+      await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_2),
+    ).toBeUndefined();
+
+    const row = await generationProjection(harness.handle, ctx).get(
+      target(pr, HEAD_2),
+    );
+    expect(row?.status).toBe(GenerationStatus.CAPPED);
+    // Not a failure: no error text, no attempt consumed.
+    expect(row?.error).toBeNull();
+    expect(row?.attempts).toBe(0);
+
+    const trip = lines().find((line) => line["evt"] === "spend.cap.trip");
+    expect(trip).toBeDefined();
+    expect(trip?.["level"]).toBe("warn");
+    expect(trip?.["repo"]).toBe("acme/widget");
+    expect(trip?.["prId"]).toBe(String(pr.id));
+    expect(trip?.["cap"]).toBe(1);
+    expect(typeof trip?.["dayUtc"]).toBe("string");
+    // Nothing interpolated into msg (ADR 0034 #4).
+    expect(String(trip?.["msg"])).not.toContain("acme/widget");
+  });
+
+  it("at the cap: UPDATES an existing Entry comment and never creates one", async () => {
+    // The first run posts the Entry comment; the second is capped.
+    await burnOneRun();
+    const { pr, payload } = await trigger(HEAD_2);
+    const github = stubGitHub(HEAD_2);
+    const prRow = await forTenant(harness.handle, ctx).pullRequests.getById(
+      pr.id,
+    );
+    // Re-seed the live comment the first run posted into this run's stub.
+    const liveId = prRow?.entryCommentId;
+    expect(liveId).not.toBeNull();
+    if (liveId == null) throw new Error("no entry comment to update");
+    github.comments.set(liveId, "the ready body from the previous run");
+
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      spend: { dailyGenerationCap: 1, perRepo: {} },
+    })(payload);
+
+    // Replace-never-duplicate: still exactly ONE comment, now the capped body.
+    expect(github.comments.size).toBe(1);
+    const body = [...github.comments.values()][0] ?? "";
+    expect(body).toContain("Daily generation cap reached");
+    expect(body).toContain(`${PUBLIC_URL}/repos/7/pulls/7`);
+    expect(body).toContain(HEAD_2.slice(0, 7));
+  });
+
+  it("at the cap with NO Entry comment: creates none", async () => {
+    await burnOneRun();
+    const { pr, payload } = await trigger(HEAD_2);
+    const github = stubGitHub(HEAD_2);
+    // Clear the tracked comment: this PR has none on the thread.
+    await forTenant(harness.handle, ctx).pullRequests.setEntryComment(
+      pr.id,
+      null,
+    );
+
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator: stubGenerator(),
+      github,
+      spend: { dailyGenerationCap: 1, perRepo: {} },
+    })(payload);
+
+    expect(github.comments.size).toBe(0);
+    expect(github.commentCalls).toEqual([]);
+  });
+
+  it("counts ATTEMPTS: one row re-queued to attempts=3 fills a cap of 3", async () => {
+    // graphile/webhook re-queues make ONE row several paid runs; the gate
+    // must see the spend, not the row count.
+    await burnOneRun();
+    await harness.raw(
+      "update generation set attempts = 3 where head_sha = '" + HEAD_1 + "'",
+    );
+    const { pr, payload } = await trigger(HEAD_2);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_2);
+
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      spend: { dailyGenerationCap: 3, perRepo: {} },
+    })(payload);
+
+    expect(generator.calls).toEqual([]);
+    expect(
+      (await generationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
+        ?.status,
+    ).toBe(GenerationStatus.CAPPED);
+  });
+
+  it("leaves a FAILED row failed — an at-cap retry must not erase the real failure", async () => {
+    await burnOneRun();
+    // The PR's own run failed; graphile will retry it. Meanwhile the repo
+    // sits at its cap, so the retry lands in the gate.
+    const { pr, payload } = await trigger(HEAD_2);
+    const failing = stubGenerator();
+    failing.failNextWith = new APIConnectionError({});
+    await expect(
+      createGenerateTask({
+        handle: harness.handle,
+        publicBaseUrl: PUBLIC_URL,
+        generator: failing,
+        github: stubGitHub(HEAD_2),
+      })(payload),
+    ).rejects.toThrow("Connection error");
+    const failed = await generationProjection(harness.handle, ctx).get(
+      target(pr, HEAD_2),
+    );
+    expect(failed?.status).toBe(GenerationStatus.FAILED);
+    expect(failed?.error).not.toBeNull();
+
+    // The retry: at cap now, so the run is skipped — but the record stays.
+    const generator = stubGenerator();
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: stubGitHub(HEAD_2),
+      spend: { dailyGenerationCap: 1, perRepo: {} },
+    })(payload);
+
+    expect(generator.calls).toEqual([]);
+    const afterRetry = await generationProjection(harness.handle, ctx).get(
+      target(pr, HEAD_2),
+    );
+    expect(afterRetry?.status).toBe(GenerationStatus.FAILED);
+    expect(afterRetry?.error).toBe(failed?.error);
+  });
+
+  it("a per-repo override beats the instance default", async () => {
+    await burnOneRun();
+    const { pr, payload } = await trigger(HEAD_2);
+    const generator = stubGenerator();
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: stubGitHub(HEAD_2),
+      // The default would cap this run; the override raises it.
+      spend: { dailyGenerationCap: 1, perRepo: { "acme/widget": 10 } },
+    })(payload);
+
+    expect(generator.calls).toContain("brief");
+    expect(
+      (await generationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
+        ?.status,
+    ).toBe(GenerationStatus.SUCCEEDED);
+  });
+
+  it("no spend policy = uncapped (the zero-config default)", async () => {
+    await burnOneRun();
+    const { pr, payload } = await trigger(HEAD_2);
+    const generator = stubGenerator();
+    await createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github: stubGitHub(HEAD_2),
+    })(payload);
+
+    expect(generator.calls).toContain("brief");
+    expect(
+      (await generationProjection(harness.handle, ctx).get(target(pr, HEAD_2)))
+        ?.status,
+    ).toBe(GenerationStatus.SUCCEEDED);
+  });
+});

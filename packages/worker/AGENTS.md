@@ -68,6 +68,18 @@ test/                 generate.test.ts = integration via persistence/testing
   stays off draft PRs unless `.mergebrief/settings.yaml` opts in; the
   delete-only sweep runs ONLY on known-off settings (a settings fetch
   failure suppresses posting but never deletes a live comment).
+- **The daily generation cap gates ONE seam** (BRIEF-20): the cap check sits
+  in `runGeneration` before `markRunning` and before any GitHub/provider
+  call, so the run it is deciding on can never count itself. At the cap the
+  run is SKIPPED — terminal `capped` (not `failed`, no retry, no attempt
+  consumed), `evt: spend.cap.trip` at warn, and an Entry comment is UPDATED
+  only if one already exists (never created) — except that a row already
+  marked `failed` keeps that status (an at-cap graphile retry must not erase
+  the real failure). The counter is the generation store, scoped by
+  `repo_id` and the current UTC day, summing ATTEMPTS rather than rows.
+  Its accuracy assumes the SINGLE-SLOT runner (`DEFAULT_CONCURRENCY = 1` in
+  `runner.ts`): the gate reads and decides without a lock, so running at
+  concurrency C admits up to `cap + C - 1` runs before the cap bites.
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema
   (`startWorker`); the `graphile_worker` schema stays graphile-owned.
 - **Logging goes through the `packages/logging` seam** (BRIEF-51, ADR 0034):
@@ -75,8 +87,8 @@ test/                 generate.test.ts = integration via persistence/testing
   `GenerateTaskDeps.log` and stamps `{prId, headSha}` child bindings on every
   job line; graphile lifecycle logs ride `createGraphileLogFactory`. The
   first-class `evt` names minted here — `job.fail`, `job.retries.exhausted`
-  (`attempts === max_attempts`), `provider.error` — come ONLY from the ADR
-  0034 taxonomy table. JOB/PROVIDER failure logs are MESSAGE-ONLY (no `err`
+  (`attempts === max_attempts`), `provider.error`, `spend.cap.trip` — come
+  ONLY from the ADR 0034 taxonomy table. JOB/PROVIDER failure logs are MESSAGE-ONLY (no `err`
   field): provider cause chains may carry request contents (BRIEF-11) — and
   the logging seam's URL scrub (BRIEF-88) targets URL-shaped secrets, not
   prompt/diff payloads, so it is no substitute. Boot failures (`main.ts`

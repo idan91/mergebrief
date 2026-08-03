@@ -13,12 +13,18 @@ export const PrStates = {
 } as const;
 export type PrState = ValueOf<typeof PrStates>;
 
+/**
+ * `capped` (BRIEF-20) = the repo hit the instance's daily generation cap and
+ * this run was SKIPPED. Terminal and deliberately NOT `failed`: nothing went
+ * wrong, and the view says when generation resumes.
+ */
 export const GenerationStatuses = {
   QUEUED: "queued",
   RUNNING: "running",
   SUCCEEDED: "succeeded",
   FAILED: "failed",
   SUPERSEDED: "superseded",
+  CAPPED: "capped",
 } as const;
 export type GenerationStatus = ValueOf<typeof GenerationStatuses>;
 

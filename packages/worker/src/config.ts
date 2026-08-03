@@ -11,6 +11,8 @@
 //                            block inside selects the adapter; API keys still
 //                            resolve by env-var NAME (apiKeyEnv — BYOK, ADR
 //                            0013: the key never lives in DB or file config).
+//                            Its `spend` block carries the daily generation
+//                            cap (BRIEF-20); absent → uncapped.
 //   PUBLIC_BASE_URL          required; the web deployment's public origin —
 //                            the Entry comment's deep-link base (ADR 0016 #3).
 //
@@ -18,7 +20,11 @@
 //                            refuses boot with a migration hint — a stale
 //                            deployment must not silently fall back to the
 //                            default key variable.
-import { loadGeneratorConfig, type GeneratorConfig } from "generators";
+import {
+  loadGeneratorConfig,
+  type GeneratorConfig,
+  type SpendPolicy,
+} from "generators";
 import { loadConfig as loadPersistenceConfig } from "persistence";
 import { z } from "zod";
 import type { Result, ValueOf } from "types";
@@ -35,6 +41,11 @@ export interface WorkerConfig {
   readonly generator: GeneratorConfig;
   /** The web deployment's public origin — the Entry comment's deep-link base. */
   readonly publicBaseUrl: string;
+  /**
+   * The instance spend policy (BRIEF-20) — the daily generation cap the task
+   * enforces. Uncapped when the config file carries no `spend` block.
+   */
+  readonly spend: SpendPolicy;
 }
 
 // ---------------------------------------------------------------------------
@@ -127,6 +138,7 @@ export function loadConfig(
       databaseUrl: persistence.value.databaseUrl,
       generator: generatorConfig.value.generator,
       publicBaseUrl: baseUrlParsed.data,
+      spend: generatorConfig.value.spend,
     },
   };
 }
