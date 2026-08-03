@@ -370,6 +370,18 @@ describe("config — TLS explicit-or-refuse gate", () => {
     expect(loadConfig({ DATABASE_URL: url }).ok).toBe(true);
   });
 
+  it("accepts the bundled compose's derived in-network DSN (regression: a compose service hostname is non-loopback and needs its explicit disable)", () => {
+    // Shape-pinned to docker-compose.yml's DATABASE_URL derivation — the gate
+    // refusing this exact form broke the default `docker compose up` (the
+    // picker degraded to "PR list unavailable"; worker crash-looped).
+    expect(
+      loadConfig({
+        DATABASE_URL:
+          "postgres://code_review:code_review@postgres:5432/code_review?sslmode=disable",
+      }).ok,
+    ).toBe(true);
+  });
+
   it("gates the file-resolved DSN too", () => {
     const result = loadConfig(
       { DATABASE_URL_FILE: "/run/secrets/db-url" },

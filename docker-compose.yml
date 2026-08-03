@@ -51,7 +51,12 @@ services:
       # In-network DSN, DERIVED from the postgres credentials above so one
       # `.env` edit moves both sides. Overrides any host-oriented DATABASE_URL
       # from .env (which points at 127.0.0.1 for host tooling).
-      DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}
+      # sslmode=disable is REQUIRED, not optional (BRIEF-131): `postgres` is a
+      # non-loopback hostname, so the TLS explicit-or-refuse gate refuses boot
+      # without an explicit choice — and the compose bridge network is exactly
+      # the private-network case explicit disable exists for. The bundled
+      # postgres image does not speak TLS.
+      DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}?sslmode=disable
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
     volumes:
       # URL-box/demo brief artifacts (BRIEF-97): host-persisted so a rebuild
@@ -92,8 +97,9 @@ services:
       - path: .env
         required: false
     environment:
-      # Derived from the postgres credentials, same as the web service.
-      DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}
+      # Derived from the postgres credentials, same as the web service — see
+      # the sslmode=disable note there (BRIEF-131 gate; required).
+      DATABASE_URL: postgres://${POSTGRES_USER:-code_review}:${POSTGRES_PASSWORD:-code_review}@postgres:5432/${POSTGRES_DB:-code_review}?sslmode=disable
       # The Entry comment's deep-link base — same value the web tier uses.
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:3000}
     # See the web service's mergebrief.config.yaml mount note — uncomment
