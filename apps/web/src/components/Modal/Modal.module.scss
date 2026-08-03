@@ -1,3 +1,4 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
@@ -25,16 +26,16 @@
     --box-fill: #131316;
     --textarea-focus-border: #45454f;
 
-    inline-size: 460px;
+    inline-size: functions.to-rem(460px);
     max-inline-size: 92vw;
-    padding-block: 26px;
-    padding-inline: 28px;
+    padding-block: functions.to-rem(26px);
+    padding-inline: functions.to-rem(28px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-lg);
     background: var(--box-fill);
 
     h3 {
-      margin-block-end: 3px;
+      margin-block-end: functions.to-rem(3px);
       font-size: var(--font-size-xl);
       font-weight: 600;
 
@@ -44,9 +45,9 @@
 
     textarea {
       inline-size: 100%;
-      min-block-size: 84px;
-      padding-block: 11px;
-      padding-inline: 13px;
+      min-block-size: functions.to-rem(84px);
+      padding-block: functions.to-rem(11px);
+      padding-inline: functions.to-rem(13px);
       border: 1px solid var(--line2);
       border-radius: var(--radius-md);
       outline: none;
@@ -70,28 +71,28 @@
 // its content styling surface; feature modals import these classes.
 @layer components {
   .copy {
-    margin-block: 10px 14px;
+    margin-block: functions.to-rem(10px) functions.to-rem(14px);
     color: var(--faint);
     font-size: var(--font-size-lg);
     line-height: 1.5;
   }
 
   .wideBox {
-    inline-size: 560px;
+    inline-size: functions.to-rem(560px);
   }
 
   .unresolvedList {
     display: grid;
-    max-block-size: 320px;
+    max-block-size: functions.to-rem(320px);
     overflow: auto;
-    gap: 8px;
+    gap: functions.to-rem(8px);
   }
 
   .unresolvedItem {
     display: grid;
-    gap: 4px;
-    padding-block: 10px;
-    padding-inline: 12px;
+    gap: functions.to-rem(4px);
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(12px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--bg);
@@ -119,13 +120,13 @@
 
   .evidenceOptions {
     display: grid;
-    gap: 8px;
-    margin-block: 16px;
+    gap: functions.to-rem(8px);
+    margin-block: functions.to-rem(16px);
 
     label {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: functions.to-rem(8px);
       color: var(--dim);
       font-size: var(--font-size-lg);
     }
@@ -133,8 +134,8 @@
 
   .select {
     inline-size: 100%;
-    padding-block: 10px;
-    padding-inline: 12px;
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--bg);
@@ -142,7 +143,7 @@
   }
 
   .target {
-    margin-block-end: 16px;
+    margin-block-end: functions.to-rem(16px);
     color: var(--amber);
     font-family: var(--mono);
     font-size: var(--font-size-md);
@@ -150,9 +151,9 @@
 
   .warn {
     display: none;
-    margin-block-start: 12px;
-    padding-block: 11px;
-    padding-inline: 14px;
+    margin-block-start: functions.to-rem(12px);
+    padding-block: functions.to-rem(11px);
+    padding-inline: functions.to-rem(14px);
     border: 1px solid color-mix(in srgb, var(--amber) 30%, transparent);
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--amber) 5%, transparent);
@@ -168,16 +169,16 @@
   .actions {
     display: flex;
     justify-content: flex-end;
-    gap: 10px;
-    margin-block-start: 18px;
+    gap: functions.to-rem(10px);
+    margin-block-start: functions.to-rem(18px);
   }
 
   /* Opt-in "post my drafts before marking ready" checkbox (BRIEF-43). */
   .postDraftsToggle {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-block: 2px 6px;
+    gap: functions.to-rem(8px);
+    margin-block: functions.to-rem(2px) functions.to-rem(6px);
     color: var(--dim);
     font-size: var(--font-size-lg);
     cursor: pointer;

@@ -1,10 +1,11 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
   .gutter {
     position: relative;
-    inline-size: 26px;
-    min-inline-size: 26px;
+    inline-size: functions.to-rem(26px);
+    min-inline-size: functions.to-rem(26px);
     padding: 0;
 
     &[data-rev] {

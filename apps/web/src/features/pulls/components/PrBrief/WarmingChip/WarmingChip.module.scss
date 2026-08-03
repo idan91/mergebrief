@@ -1,11 +1,13 @@
+@use "functions";
+
 @layer components {
   .warmingChip {
     position: fixed;
-    inset-block-end: 16px;
-    inset-inline-end: 16px;
+    inset-block-end: functions.to-rem(16px);
+    inset-inline-end: functions.to-rem(16px);
     z-index: 30;
-    padding-block: 4px;
-    padding-inline: 10px;
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(10px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-pill);
     background: var(--panel2);

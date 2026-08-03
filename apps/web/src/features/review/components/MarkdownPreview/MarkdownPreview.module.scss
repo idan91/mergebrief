@@ -2,18 +2,18 @@
 
 @layer components {
   .preview {
-    min-block-size: 118px;
-    padding: 12px;
+    min-block-size: functions.to-rem(118px);
+    padding: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
-    margin: 10px;
+    margin: functions.to-rem(10px);
     background: var(--color-background);
     color: var(--dim);
     font-size: var(--font-size-lg);
     line-height: 1.6;
 
     p {
-      margin-block: 0 10px;
+      margin-block: 0 functions.to-rem(10px);
     }
 
     // Flush marker column, matching the shared Markdown renderer: inside
@@ -21,19 +21,19 @@
     // lines off the marker column; task-item checkboxes replace bullets.
     ul,
     ol {
-      margin-block: 8px 10px;
+      margin-block: functions.to-rem(8px) functions.to-rem(10px);
       padding-inline-start: 0;
       list-style-position: inside;
     }
 
     li {
-      padding-inline-start: 28px;
+      padding-inline-start: functions.to-rem(28px);
       text-indent: functions.to-rem(-28px);
     }
 
     li ul,
     li ol {
-      padding-inline-start: 28px;
+      padding-inline-start: functions.to-rem(28px);
     }
 
     li:has(> input[type="checkbox"]),
@@ -42,7 +42,7 @@
     }
 
     li input[type="checkbox"] {
-      margin-inline-end: 6px;
+      margin-inline-end: functions.to-rem(6px);
     }
 
     code {
@@ -50,8 +50,8 @@
       // surface ladder's top rung; faithful to the pre-sweep value.
       --code-fill: #1d1d23;
 
-      padding-block: 1px;
-      padding-inline: 5px;
+      padding-block: functions.to-rem(1px);
+      padding-inline: functions.to-rem(5px);
       border-radius: var(--radius-sm);
       background: var(--code-fill);
       color: var(--text);
@@ -60,15 +60,15 @@
 
     pre {
       overflow-x: auto;
-      padding: 10px;
+      padding: functions.to-rem(10px);
       border-radius: var(--radius-md);
       background: var(--color-surface-2);
     }
 
     blockquote {
-      margin-block: 0 10px;
+      margin-block: 0 functions.to-rem(10px);
       margin-inline: 0;
-      padding-inline-start: 12px;
+      padding-inline-start: functions.to-rem(12px);
       border-inline-start: 3px solid var(--line2);
       color: var(--faint);
     }

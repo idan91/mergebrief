@@ -1,7 +1,9 @@
+@use "functions";
+
 @layer components {
   .comments {
     display: grid;
-    gap: 6px;
+    gap: functions.to-rem(6px);
   }
 
   .comment {
@@ -16,9 +18,9 @@
     summary {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding-block: 9px;
-      padding-inline: 11px;
+      gap: functions.to-rem(10px);
+      padding-block: functions.to-rem(9px);
+      padding-inline: functions.to-rem(11px);
       color: var(--dim);
       cursor: pointer;
       font-size: var(--font-size-md);
@@ -50,14 +52,14 @@
   }
 
   .body {
-    padding-block: 0 12px;
-    padding-inline: 28px 12px;
+    padding-block: 0 functions.to-rem(12px);
+    padding-inline: functions.to-rem(28px) functions.to-rem(12px);
     font-size: var(--font-size-lg);
   }
 
   .replyNote {
-    padding-block: 0 12px;
-    padding-inline: 28px 12px;
+    padding-block: 0 functions.to-rem(12px);
+    padding-inline: functions.to-rem(28px) functions.to-rem(12px);
     color: var(--faint);
     font-family: var(--mono);
     font-size: var(--font-size-sm);

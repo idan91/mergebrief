@@ -3,7 +3,7 @@
 @layer components {
   .group {
     display: grid;
-    gap: 6px;
+    gap: functions.to-rem(6px);
   }
 
   .groupLabel {
@@ -20,9 +20,9 @@
   .groupJump {
     display: inline-flex;
     align-items: center;
-    min-height: 24px;
-    padding-block: 4px;
-    padding-inline: 2px;
+    min-height: functions.to-rem(24px);
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(2px);
     border: 0;
     background: none;
     color: var(--dim);
@@ -41,7 +41,7 @@
      floor (locked constraint: targets >=24px, aim 44). */
   @media (pointer: coarse) {
     .groupJump {
-      min-height: 44px;
+      min-height: functions.to-rem(44px);
     }
   }
 }

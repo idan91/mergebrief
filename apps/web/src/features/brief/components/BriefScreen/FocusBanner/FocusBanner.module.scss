@@ -1,3 +1,5 @@
+@use "functions";
+
 @layer components {
   // Sticky strip behind the focus banner: spans the full content column with
   // the same translucent-blur backdrop as the top bar (Header.module.scss), so
@@ -10,9 +12,9 @@
     position: sticky;
     inset-block-start: var(--top-bar-h);
     z-index: 90;
-    margin-block-end: 20px;
-    padding-block: 8px 10px;
-    padding-inline: 20px;
+    margin-block-end: functions.to-rem(20px);
+    padding-block: functions.to-rem(8px) functions.to-rem(10px);
+    padding-inline: functions.to-rem(20px);
     border-block-end: 1px solid var(--line);
     background: color-mix(in srgb, var(--bg) 85%, transparent);
     backdrop-filter: blur(12px);
@@ -22,11 +24,11 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    max-inline-size: 880px;
+    gap: functions.to-rem(16px);
+    max-inline-size: functions.to-rem(880px);
     margin-inline: auto;
-    padding-block: 12px;
-    padding-inline: 18px;
+    padding-block: functions.to-rem(12px);
+    padding-inline: functions.to-rem(18px);
     border: 1px solid color-mix(in srgb, var(--blue) 40%, var(--line2));
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--blue) 10%, var(--panel2));
@@ -39,10 +41,10 @@
 
     kbd {
       display: inline-block;
-      min-inline-size: 18px;
-      margin-inline-end: 2px;
-      padding-block: 1px;
-      padding-inline: 5px;
+      min-inline-size: functions.to-rem(18px);
+      margin-inline-end: functions.to-rem(2px);
+      padding-block: functions.to-rem(1px);
+      padding-inline: functions.to-rem(5px);
       border: 1px solid var(--line2);
       border-radius: var(--radius-sm);
       background: var(--panel);

@@ -1,7 +1,9 @@
+@use "functions";
+
 @layer components {
   .changesOnly {
     display: grid;
-    gap: 18px;
+    gap: functions.to-rem(18px);
   }
 
   .eyebrow {
@@ -27,8 +29,8 @@
   }
 
   .group {
-    padding-block: 16px;
-    padding-inline: 18px;
+    padding-block: functions.to-rem(16px);
+    padding-inline: functions.to-rem(18px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--panel2);
@@ -37,9 +39,9 @@
   .groupHead {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     align-items: baseline;
-    margin-block-end: 12px;
+    margin-block-end: functions.to-rem(12px);
   }
 
   .groupTitle {
@@ -52,8 +54,8 @@
   }
 
   .groupCategory {
-    padding-block: 2px;
-    padding-inline: 8px;
+    padding-block: functions.to-rem(2px);
+    padding-inline: functions.to-rem(8px);
     border-radius: var(--radius-pill);
     background: var(--panel);
     color: var(--dim);
@@ -62,8 +64,8 @@
 
   .chunk {
     display: grid;
-    gap: 8px;
-    padding-block: 12px;
+    gap: functions.to-rem(8px);
+    padding-block: functions.to-rem(12px);
     border-block-start: 1px solid var(--line2);
 
     &:first-of-type {
@@ -98,8 +100,8 @@
   .row {
     display: grid;
     grid-template-columns: 44px 1fr;
-    gap: 8px;
-    padding-inline: 10px;
+    gap: functions.to-rem(8px);
+    padding-inline: functions.to-rem(10px);
     white-space: pre-wrap;
 
     &[data-kind="add"] {
@@ -122,8 +124,8 @@
   }
 
   .empty {
-    padding-block: 20px;
-    padding-inline: 18px;
+    padding-block: functions.to-rem(20px);
+    padding-inline: functions.to-rem(18px);
     border: 1px dashed var(--line2);
     border-radius: var(--radius-md);
     background: var(--panel2);

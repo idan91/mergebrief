@@ -1,16 +1,18 @@
 // The wait/failed/empty/superseded state cards' shared visual language —
 // promoted to the PrBrief folder as the nearest common ancestor of the four
 // cards (ADR 0037 promotion rule); no card owns these atoms alone.
+@use "functions";
+
 @layer components {
   .card {
     display: grid;
     justify-items: start;
-    gap: 14px;
-    max-inline-size: 860px;
+    gap: functions.to-rem(14px);
+    max-inline-size: functions.to-rem(860px);
     margin-inline: auto;
-    margin-block: 64px;
-    padding-block: 28px;
-    padding-inline: 28px;
+    margin-block: functions.to-rem(64px);
+    padding-block: functions.to-rem(28px);
+    padding-inline: functions.to-rem(28px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--panel2);

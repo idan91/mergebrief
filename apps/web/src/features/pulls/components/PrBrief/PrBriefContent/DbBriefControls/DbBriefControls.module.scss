@@ -1,3 +1,5 @@
+@use "functions";
+
 @layer components {
   // One flat line in the header's lens toolbar (BRIEF-28 round 2): revision
   // navigator, then the View/Compare lens groups, co-linear. Wrapping is the
@@ -8,19 +10,20 @@
     min-inline-size: 0;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px clamp(10px, 1.5vw, 18px);
+    gap: functions.to-rem(8px)
+      clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
   }
 
   .revisionRow {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     min-inline-size: 0;
   }
 
   .readOnlyChip {
-    padding-block: 2px;
-    padding-inline: 7px;
+    padding-block: functions.to-rem(2px);
+    padding-inline: functions.to-rem(7px);
     border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--line2));
     border-radius: var(--radius-pill);
     color: var(--amber);

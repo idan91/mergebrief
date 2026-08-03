@@ -1,14 +1,16 @@
+@use "functions";
+
 @layer components {
   .list {
     display: grid;
-    gap: 10px;
-    margin-block: 14px 4px;
+    gap: functions.to-rem(10px);
+    margin-block: functions.to-rem(14px) functions.to-rem(4px);
   }
 
   .row {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: functions.to-rem(12px);
     color: var(--dim);
     font-size: var(--font-size-lg);
   }
@@ -18,9 +20,9 @@
     flex: none;
     align-items: center;
     justify-content: center;
-    min-inline-size: 28px;
-    padding-block: 3px;
-    padding-inline: 8px;
+    min-inline-size: functions.to-rem(28px);
+    padding-block: functions.to-rem(3px);
+    padding-inline: functions.to-rem(8px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--panel2);

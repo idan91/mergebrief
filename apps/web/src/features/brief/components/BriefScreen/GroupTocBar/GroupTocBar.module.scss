@@ -1,3 +1,4 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
@@ -12,9 +13,9 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end; // lines grow leftward into the gutter
-    gap: 14px;
-    padding-block: 14px;
-    padding-inline: 14px 10px;
+    gap: functions.to-rem(14px);
+    padding-block: functions.to-rem(14px);
+    padding-inline: functions.to-rem(14px) functions.to-rem(10px);
     border-start-start-radius: var(--radius-lg);
     border-end-start-radius: var(--radius-lg);
     background: color-mix(in srgb, var(--bg) 55%, transparent);
@@ -73,9 +74,9 @@
     z-index: 1000;
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    max-inline-size: 280px;
-    padding: 8px 11px;
+    gap: functions.to-rem(3px);
+    max-inline-size: functions.to-rem(280px);
+    padding: functions.to-rem(8px) functions.to-rem(11px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--color-surface-2);

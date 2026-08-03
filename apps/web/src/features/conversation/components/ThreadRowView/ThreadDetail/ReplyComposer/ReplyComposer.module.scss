@@ -1,8 +1,10 @@
+@use "functions";
+
 @layer components {
   .composer {
     display: grid;
-    gap: 4px;
-    margin-block-start: 6px;
+    gap: functions.to-rem(4px);
+    margin-block-start: functions.to-rem(6px);
   }
 
   .composerLabel {

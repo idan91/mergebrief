@@ -1,3 +1,4 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
@@ -7,13 +8,13 @@
 
   .tabs {
     display: flex;
-    gap: 4px;
-    padding-block: 8px 0;
-    padding-inline: 10px;
+    gap: functions.to-rem(4px);
+    padding-block: functions.to-rem(8px) 0;
+    padding-inline: functions.to-rem(10px);
 
     button {
-      padding-block: 6px;
-      padding-inline: 10px;
+      padding-block: functions.to-rem(6px);
+      padding-inline: functions.to-rem(10px);
       border: 1px solid transparent;
       border-block-end: 0;
       border-radius: var(--radius-md) var(--radius-md) 0 0;
@@ -36,16 +37,16 @@
   .toolbar {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    padding: 10px;
+    gap: functions.to-rem(4px);
+    padding: functions.to-rem(10px);
     border-block-start: 1px solid var(--line);
     background: var(--color-surface-2);
 
     button {
       display: grid;
       place-items: center;
-      inline-size: 26px;
-      block-size: 26px;
+      inline-size: functions.to-rem(26px);
+      block-size: functions.to-rem(26px);
       padding: 0;
       border: 1px solid transparent;
       border-radius: var(--radius-sm);
@@ -70,13 +71,13 @@
 
   .textarea {
     display: block;
-    inline-size: calc(100% - 20px);
-    min-block-size: 118px;
-    max-block-size: 400px;
-    padding: 12px;
+    inline-size: calc(100% - functions.to-rem(20px));
+    min-block-size: functions.to-rem(118px);
+    max-block-size: functions.to-rem(400px);
+    padding: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
-    margin: 10px;
+    margin: functions.to-rem(10px);
     background: var(--color-background);
     color: var(--text);
 
@@ -97,9 +98,9 @@
   }
 
   .mentionPopup {
-    margin-block: 0 8px;
-    margin-inline: 10px;
-    padding: 4px;
+    margin-block: 0 functions.to-rem(8px);
+    margin-inline: functions.to-rem(10px);
+    padding: functions.to-rem(4px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -110,9 +111,9 @@
   .mentionOption {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding-block: 5px;
-    padding-inline: 8px;
+    gap: functions.to-rem(8px);
+    padding-block: functions.to-rem(5px);
+    padding-inline: functions.to-rem(8px);
     border-radius: var(--radius-sm);
     color: var(--dim);
     cursor: pointer;
@@ -152,8 +153,8 @@
   }
 
   .hint {
-    padding-block: 0 8px;
-    padding-inline: 12px;
+    padding-block: 0 functions.to-rem(8px);
+    padding-inline: functions.to-rem(12px);
     color: var(--faint);
     font-size: var(--font-size-sm);
   }
@@ -165,7 +166,7 @@
   }
 
   .empty {
-    padding: 12px;
+    padding: functions.to-rem(12px);
     color: var(--faint);
     font-size: var(--font-size-md);
   }

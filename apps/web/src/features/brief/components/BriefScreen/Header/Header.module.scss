@@ -21,10 +21,10 @@
   .identityRow {
     display: flex;
     align-items: center;
-    gap: clamp(12px, 2vw, 22px);
-    min-block-size: 52px;
-    padding-block: 7px;
-    padding-inline: clamp(18px, 3vw, 28px);
+    gap: clamp(functions.to-rem(12px), 2vw, functions.to-rem(22px));
+    min-block-size: functions.to-rem(52px);
+    padding-block: functions.to-rem(7px);
+    padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
   }
 
   // A second neutral layer (product register) so the working controls read
@@ -33,10 +33,11 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px clamp(10px, 1.5vw, 18px);
-    min-block-size: 44px;
-    padding-block: 5px;
-    padding-inline: clamp(18px, 3vw, 28px);
+    gap: functions.to-rem(8px)
+      clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
+    min-block-size: functions.to-rem(44px);
+    padding-block: functions.to-rem(5px);
+    padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
     border-block-start: 1px solid var(--line);
     background: color-mix(in srgb, var(--panel2) 45%, transparent);
   }
@@ -59,7 +60,7 @@
     flex: 1;
     min-inline-size: 0;
     flex-direction: column;
-    gap: 1px;
+    gap: functions.to-rem(1px);
     line-height: 1.35;
 
     b {
@@ -114,8 +115,8 @@
 
     > * + * {
       border-inline-start: 1px solid var(--line);
-      padding-inline-start: 14px;
-      margin-inline-start: 14px;
+      padding-inline-start: functions.to-rem(14px);
+      margin-inline-start: functions.to-rem(14px);
     }
   }
 
@@ -150,13 +151,13 @@
 
   .locPop {
     position: absolute;
-    inset-block-start: calc(100% + 14px);
+    inset-block-start: calc(100% + functions.to-rem(14px));
     inset-inline-end: 0;
     z-index: 60;
     display: none;
-    inline-size: min(300px, 80vw);
-    padding-block: 14px;
-    padding-inline: 16px;
+    inline-size: min(functions.to-rem(300px), 80vw);
+    padding-block: functions.to-rem(14px);
+    padding-inline: functions.to-rem(16px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--panel);
@@ -177,10 +178,10 @@
   // far end.
   .viewbar {
     display: inline-flex;
-    gap: 2px;
+    gap: functions.to-rem(2px);
     margin: 0;
     margin-inline-start: auto;
-    padding: 2px;
+    padding: functions.to-rem(2px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
   }
@@ -201,9 +202,9 @@
   .viewLabel {
     display: inline-flex;
     align-items: center;
-    min-block-size: 24px;
-    padding-block: 3px;
-    padding-inline: 14px;
+    min-block-size: functions.to-rem(24px);
+    padding-block: functions.to-rem(3px);
+    padding-inline: functions.to-rem(14px);
     border-radius: var(--radius-md);
     background: transparent;
     color: var(--dim);
@@ -238,8 +239,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    inline-size: 34px;
-    block-size: 34px;
+    inline-size: functions.to-rem(34px);
+    block-size: functions.to-rem(34px);
     padding: 0;
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
@@ -265,11 +266,11 @@
 
   .menu {
     position: absolute;
-    inset-block-start: calc(100% + 8px);
+    inset-block-start: calc(100% + functions.to-rem(8px));
     inset-inline-end: 0;
     z-index: 60;
-    min-inline-size: 190px;
-    padding: 4px;
+    min-inline-size: functions.to-rem(190px);
+    padding: functions.to-rem(4px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--panel);
@@ -280,8 +281,8 @@
   .menuItem {
     display: block;
     inline-size: 100%;
-    padding-block: 8px;
-    padding-inline: 12px;
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(12px);
     border: 0;
     border-radius: var(--radius-md);
     background: transparent;
@@ -320,9 +321,9 @@
     display: inline-flex;
     flex: none;
     align-items: center;
-    gap: 6px;
-    padding-block: 4px;
-    padding-inline: 10px;
+    gap: functions.to-rem(6px);
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(10px);
     border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
     border-radius: var(--radius-pill);
     background: color-mix(in srgb, var(--amber) 7%, transparent);
@@ -381,11 +382,14 @@
     /* 100% of the 16px trigger + the 8px visual offset — same place as the
        old fixed 24px, but expressed off the trigger box so the hover bridge
        below can span exactly the offset. */
-    inset-block-start: calc(100% + 8px);
+    inset-block-start: calc(100% + functions.to-rem(8px));
     inset-inline-end: 0;
     z-index: 20;
-    inline-size: min(300px, calc(100vw - 48px));
-    padding: 12px;
+    inline-size: min(
+      functions.to-rem(300px),
+      calc(100vw - functions.to-rem(48px))
+    );
+    padding: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--color-surface-2);
@@ -433,8 +437,8 @@
 
   @media (width <= 1120px) {
     .identityRow {
-      min-block-size: 46px;
-      padding-block: 5px;
+      min-block-size: functions.to-rem(46px);
+      padding-block: functions.to-rem(5px);
     }
   }
 
@@ -442,12 +446,12 @@
     .identityRow {
       align-items: flex-start;
       flex-wrap: wrap;
-      padding-block: 10px;
-      padding-inline: 18px;
+      padding-block: functions.to-rem(10px);
+      padding-inline: functions.to-rem(18px);
     }
 
     .lensRow {
-      padding-inline: 18px;
+      padding-inline: functions.to-rem(18px);
     }
 
     .statsGroup {
@@ -483,7 +487,7 @@
     border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
     border-radius: var(--radius-pill);
     font-size: var(--font-size-md);
-    padding: 2px 10px;
+    padding: functions.to-rem(2px) functions.to-rem(10px);
     white-space: nowrap;
   }
 
@@ -495,14 +499,14 @@
   .repoConfigTable {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: functions.to-rem(6px);
     font-size: var(--font-size-lg);
   }
 
   .repoConfigRow {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     align-items: baseline;
   }
 }

@@ -1,3 +1,4 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
@@ -8,10 +9,10 @@
 
   .trigger {
     display: flex;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     align-items: center;
-    padding-block: 6px;
-    padding-inline: 12px;
+    padding-block: functions.to-rem(6px);
+    padding-inline: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--panel2);
@@ -35,13 +36,13 @@
 
   .menu {
     position: absolute;
-    inset-block-start: calc(100% + 6px);
+    inset-block-start: calc(100% + functions.to-rem(6px));
     inset-inline-end: 0;
     z-index: 40;
     display: grid;
-    gap: 2px;
-    min-inline-size: 260px;
-    padding: 6px;
+    gap: functions.to-rem(2px);
+    min-inline-size: functions.to-rem(260px);
+    padding: functions.to-rem(6px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--panel2);
@@ -50,11 +51,11 @@
 
   .item {
     display: flex;
-    gap: 10px;
+    gap: functions.to-rem(10px);
     align-items: baseline;
     justify-content: space-between;
-    padding-block: 8px;
-    padding-inline: 10px;
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(10px);
     border: 0;
     border-radius: var(--radius-md);
     background: none;
@@ -92,11 +93,11 @@
 
   .defaultToggle {
     display: flex;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     align-items: center;
-    margin-block-start: 4px;
-    padding-block: 8px;
-    padding-inline: 10px;
+    margin-block-start: functions.to-rem(4px);
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(10px);
     border: 0;
     border-block-start: 1px solid var(--line);
     border-radius: 0 0 var(--radius-md) var(--radius-md);
@@ -131,8 +132,8 @@
 
   .error {
     margin: 0;
-    padding-block: 6px;
-    padding-inline: 10px;
+    padding-block: functions.to-rem(6px);
+    padding-inline: functions.to-rem(10px);
     color: var(--red);
     font-size: var(--font-size-md);
   }

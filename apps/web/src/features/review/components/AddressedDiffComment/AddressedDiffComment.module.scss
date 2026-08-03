@@ -1,7 +1,9 @@
+@use "functions";
+
 @layer components {
   .comment {
     overflow: hidden;
-    margin-block: 8px 4px;
+    margin-block: functions.to-rem(8px) functions.to-rem(4px);
     border: 1px solid color-mix(in srgb, var(--blue) 35%, transparent);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -17,9 +19,9 @@
   .head {
     display: flex;
     justify-content: space-between;
-    gap: 16px;
-    padding-block: 10px;
-    padding-inline: 12px;
+    gap: functions.to-rem(16px);
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(12px);
     border-block-end: 1px solid var(--line);
     color: var(--blue);
     font-family: var(--mono);
@@ -28,10 +30,10 @@
 
   .preview {
     min-block-size: 0;
-    padding: 12px;
+    padding: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
-    margin: 10px;
+    margin: functions.to-rem(10px);
     background: var(--color-background);
     color: var(--dim);
     font-size: var(--font-size-lg);
@@ -39,8 +41,8 @@
   }
 
   .replyNote {
-    padding-block: 0 12px;
-    padding-inline: 28px 12px;
+    padding-block: 0 functions.to-rem(12px);
+    padding-inline: functions.to-rem(28px) functions.to-rem(12px);
     color: var(--faint);
     font-family: var(--mono);
     font-size: var(--font-size-sm);

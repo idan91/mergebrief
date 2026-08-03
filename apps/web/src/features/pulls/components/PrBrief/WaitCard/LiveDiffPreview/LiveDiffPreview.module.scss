@@ -1,9 +1,10 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
   .diff {
     display: grid;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     inline-size: 100%;
   }
 
@@ -13,8 +14,8 @@
     background: var(--color-surface-1);
 
     summary {
-      padding-block: 8px;
-      padding-inline: 12px;
+      padding-block: functions.to-rem(8px);
+      padding-inline: functions.to-rem(12px);
       color: var(--dim);
       font-family: var(--mono);
       font-size: var(--font-size-md);
@@ -52,15 +53,15 @@
   }
 
   .lineNo {
-    inline-size: 44px;
-    padding-inline: 8px;
+    inline-size: functions.to-rem(44px);
+    padding-inline: functions.to-rem(8px);
     color: var(--faint);
     text-align: end;
     user-select: none;
   }
 
   .lineContent {
-    padding-inline: 8px;
+    padding-inline: functions.to-rem(8px);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     color: var(--dim);

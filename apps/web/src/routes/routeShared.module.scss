@@ -1,12 +1,14 @@
+@use "functions";
+
 @layer components {
   .errorState {
-    padding: 28px;
+    padding: functions.to-rem(28px);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: var(--panel2);
 
     h1 {
-      margin-block-end: 8px;
+      margin-block-end: functions.to-rem(8px);
       font-size: var(--font-size-3xl);
 
       // Pre-scale rendering pinned (implicit UA bold + body line-height
@@ -22,11 +24,11 @@
 
   .summaryBack {
     position: fixed;
-    inset-inline-end: 24px;
-    inset-block-end: 24px;
+    inset-inline-end: functions.to-rem(24px);
+    inset-block-end: functions.to-rem(24px);
     z-index: 80;
-    padding-block: 10px;
-    padding-inline: 14px;
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(14px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--color-surface-3);

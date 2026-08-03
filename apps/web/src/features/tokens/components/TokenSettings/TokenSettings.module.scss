@@ -1,10 +1,11 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
   .root {
     display: grid;
-    gap: 14px;
-    padding-block: 18px;
+    gap: functions.to-rem(14px);
+    padding-block: functions.to-rem(18px);
 
     h2 {
       margin: 0;
@@ -26,13 +27,13 @@
   .mintForm {
     display: flex;
     flex-wrap: wrap;
-    gap: 12px;
+    gap: functions.to-rem(12px);
     align-items: end;
   }
 
   .field {
     display: grid;
-    gap: 4px;
+    gap: functions.to-rem(4px);
     font-size: var(--font-size-lg);
 
     span {
@@ -44,8 +45,8 @@
 
     input,
     select {
-      padding-block: 6px;
-      padding-inline: 10px;
+      padding-block: functions.to-rem(6px);
+      padding-inline: functions.to-rem(10px);
       border: 1px solid var(--line2);
       border-radius: var(--radius-md);
       background: var(--panel2);
@@ -72,8 +73,8 @@
 
   .minted {
     display: grid;
-    gap: 10px;
-    padding: 14px;
+    gap: functions.to-rem(10px);
+    padding: functions.to-rem(14px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--panel2);
@@ -86,7 +87,7 @@
   }
 
   .mintedValue {
-    padding: 8px 10px;
+    padding: functions.to-rem(8px) functions.to-rem(10px);
     border: 1px dashed var(--line2);
     border-radius: var(--radius-md);
     font-size: var(--font-size-lg);
@@ -102,7 +103,7 @@
 
   .list {
     display: grid;
-    gap: 6px;
+    gap: functions.to-rem(6px);
   }
 
   .empty {
@@ -113,10 +114,10 @@
 
   .row {
     display: flex;
-    gap: 12px;
+    gap: functions.to-rem(12px);
     align-items: baseline;
-    padding-block: 8px;
-    padding-inline: 12px;
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
 
@@ -137,8 +138,8 @@
   }
 
   .revoke {
-    padding-block: 4px;
-    padding-inline: 10px;
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(10px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: transparent;

@@ -16,7 +16,7 @@
     h4,
     h5,
     h6 {
-      margin-block: 18px 8px;
+      margin-block: functions.to-rem(18px) functions.to-rem(8px);
       color: var(--text);
       font-weight: 600;
       line-height: 1.65;
@@ -48,7 +48,7 @@
     p,
     ul,
     ol {
-      margin-block-end: 12px;
+      margin-block-end: functions.to-rem(12px);
     }
 
     // Flush marker column (owner call, 2026-07-29): markers positioned
@@ -63,15 +63,15 @@
     }
 
     li {
-      padding-inline-start: 28px;
+      padding-inline-start: functions.to-rem(28px);
       text-indent: functions.to-rem(-28px);
     }
 
     // Nested lists indent one step under their parent item.
     li ul,
     li ol {
-      margin-block: 3px 0;
-      padding-inline-start: 28px;
+      margin-block: functions.to-rem(3px) 0;
+      padding-inline-start: functions.to-rem(28px);
     }
 
     // GFM task items: the checkbox IS the marker — no bullet beside it.
@@ -81,11 +81,11 @@
     }
 
     li input[type="checkbox"] {
-      margin-inline-end: 6px;
+      margin-inline-end: functions.to-rem(6px);
     }
 
     li + li {
-      margin-block-start: 3px;
+      margin-block-start: functions.to-rem(3px);
     }
 
     code {
@@ -94,8 +94,8 @@
       // reads as its own inline tier rather than a panel.
       --code-fill: #1a1a1f;
 
-      padding-block: 1px;
-      padding-inline: 6px;
+      padding-block: functions.to-rem(1px);
+      padding-inline: functions.to-rem(6px);
       border-radius: var(--radius-sm);
       background: var(--code-fill);
       color: var(--text);
@@ -117,9 +117,9 @@
     }
 
     blockquote {
-      margin-block: 0 12px;
+      margin-block: 0 functions.to-rem(12px);
       margin-inline: 0;
-      padding-inline-start: 12px;
+      padding-inline-start: functions.to-rem(12px);
       border-inline-start: 3px solid var(--line2);
       color: var(--faint);
     }

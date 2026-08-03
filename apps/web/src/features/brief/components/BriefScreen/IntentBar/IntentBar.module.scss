@@ -1,17 +1,18 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
   // Neutral instrument row — deliberately quiet: no warning colors, no
   // gap-first emphasis (BRIEF-54 / ADR 0009). Symmetric bucket counts.
   .bar {
-    margin-block: 4px 12px;
+    margin-block: functions.to-rem(4px) functions.to-rem(12px);
   }
 
   .toggle {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 6px 12px;
+    gap: functions.to-rem(6px) functions.to-rem(12px);
     width: 100%;
     background: none;
     border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
@@ -20,7 +21,7 @@
     cursor: pointer;
     font: inherit;
     text-align: start;
-    padding: 6px 10px;
+    padding: functions.to-rem(6px) functions.to-rem(10px);
   }
 
   .toggle:focus-visible {
@@ -34,14 +35,14 @@
   .counts {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px 12px;
+    gap: functions.to-rem(4px) functions.to-rem(12px);
     font-size: var(--font-size-lg);
     opacity: 0.8;
   }
 
   .count::after {
     content: "·";
-    margin-inline-start: 12px;
+    margin-inline-start: functions.to-rem(12px);
     opacity: 0.5;
   }
 
@@ -64,23 +65,23 @@
   }
 
   .panel {
-    padding: 10px 12px 2px;
+    padding: functions.to-rem(10px) functions.to-rem(12px) functions.to-rem(2px);
   }
 
   .framing {
     font-size: var(--font-size-lg);
     font-style: italic;
     opacity: 0.7;
-    margin-block: 0 10px;
+    margin-block: 0 functions.to-rem(10px);
   }
 
   .scopeNote {
     font-size: var(--font-size-lg);
-    margin-block: 0 10px;
+    margin-block: 0 functions.to-rem(10px);
   }
 
   .bucket {
-    margin-block-end: 12px;
+    margin-block-end: functions.to-rem(12px);
   }
 
   .bucketLabel {
@@ -89,14 +90,14 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     opacity: 0.7;
-    margin-block: 0 4px;
+    margin-block: 0 functions.to-rem(4px);
   }
 
   /* BRIEF-85 alarm buckets. Deliberately NO color of any kind — not yellow,
      not the code-risk palette: an epistemic caution must never read as a
      severity. Weight and a neutral glyph carry the emphasis instead. */
   .alarmGlyph {
-    margin-inline-end: 6px;
+    margin-inline-end: functions.to-rem(6px);
     opacity: 0.65;
   }
 
@@ -104,19 +105,19 @@
     font-size: var(--font-size-md);
     font-style: italic;
     opacity: 0.6;
-    margin-block: 0 6px;
+    margin-block: 0 functions.to-rem(6px);
     max-width: 68ch;
   }
 
   .ackChip {
-    margin-inline-start: 6px;
+    margin-inline-start: functions.to-rem(6px);
     border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
     border-radius: var(--radius-sm);
     font-size: var(--font-size-sm);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     opacity: 0.7;
-    padding: 0 5px;
+    padding: 0 functions.to-rem(5px);
   }
 
   .bucketList {
@@ -125,14 +126,14 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: functions.to-rem(8px);
   }
 
   .item {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 4px 8px;
+    gap: functions.to-rem(4px) functions.to-rem(8px);
   }
 
   .intent {
@@ -145,7 +146,7 @@
   }
 
   .source {
-    margin-inline-start: 6px;
+    margin-inline-start: functions.to-rem(6px);
     font-size: var(--font-size-lg);
     opacity: 0.7;
   }
@@ -153,7 +154,7 @@
   .jumps {
     display: inline-flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: functions.to-rem(4px);
   }
 
   .jump {
@@ -164,7 +165,7 @@
     cursor: pointer;
     font: inherit;
     font-size: var(--font-size-md);
-    padding: 0 6px;
+    padding: 0 functions.to-rem(6px);
   }
 
   .jump:focus-visible {

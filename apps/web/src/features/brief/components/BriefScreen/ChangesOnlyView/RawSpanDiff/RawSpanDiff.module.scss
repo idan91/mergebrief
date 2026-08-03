@@ -1,7 +1,9 @@
+@use "functions";
+
 @layer components {
   .wrap {
     display: grid;
-    gap: 14px;
+    gap: functions.to-rem(14px);
   }
 
   .toolbar {
@@ -10,8 +12,8 @@
   }
 
   .toggle {
-    padding-block: 6px;
-    padding-inline: 12px;
+    padding-block: functions.to-rem(6px);
+    padding-inline: functions.to-rem(12px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--panel2);
@@ -28,7 +30,7 @@
 
   .files {
     display: grid;
-    gap: 10px;
+    gap: functions.to-rem(10px);
   }
 
   .file {
@@ -39,8 +41,8 @@
   }
 
   .fileName {
-    padding-block: 10px;
-    padding-inline: 14px;
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(14px);
     font-family: var(--mono, monospace);
     font-size: var(--font-size-lg);
     cursor: pointer;

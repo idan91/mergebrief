@@ -1,7 +1,9 @@
+@use "functions";
+
 @layer components {
   .chunk {
     overflow: clip;
-    margin-block-end: 12px;
+    margin-block-end: functions.to-rem(12px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--panel2);
@@ -44,9 +46,9 @@
     display: flex;
     inline-size: 100%;
     align-items: center;
-    gap: 16px;
-    padding-block: 11px;
-    padding-inline: 16px;
+    gap: functions.to-rem(16px);
+    padding-block: functions.to-rem(11px);
+    padding-inline: functions.to-rem(16px);
     background: color-mix(in srgb, var(--panel) 92%, transparent);
     backdrop-filter: blur(10px);
   }
@@ -56,7 +58,7 @@
     min-inline-size: 0;
     flex: 0 1 auto;
     align-items: center;
-    gap: 12px;
+    gap: functions.to-rem(12px);
     padding: 0;
     border: 0;
     background: transparent;
@@ -84,7 +86,7 @@
 
   // Tighten the shared CopyButton against the file name it copies.
   .copyPath {
-    margin-inline-start: -6px;
+    margin-inline-start: functions.to-rem(-6px);
   }
 
   .file {
@@ -113,7 +115,7 @@
     display: flex;
     flex: none;
     align-items: center;
-    gap: 10px;
+    gap: functions.to-rem(10px);
     margin-inline-start: auto;
     font-size: var(--font-size-md);
   }
@@ -123,13 +125,13 @@
   .riskLane {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: functions.to-rem(6px);
   }
 
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: functions.to-rem(6px);
     color: var(--faint);
     white-space: nowrap;
   }
@@ -162,7 +164,7 @@
     display: inline-flex;
     flex: none;
     align-items: center;
-    gap: 6px;
+    gap: functions.to-rem(6px);
     color: var(--faint);
     cursor: pointer;
     font-size: var(--font-size-md);
@@ -186,9 +188,9 @@
 
   .deltaSummary {
     display: grid;
-    gap: 6px;
-    padding-block: 12px;
-    padding-inline: 16px;
+    gap: functions.to-rem(6px);
+    padding-block: functions.to-rem(12px);
+    padding-inline: functions.to-rem(16px);
     border-block-end: 1px solid var(--line);
     background: var(--color-surface-1);
     color: var(--dim);
@@ -217,7 +219,7 @@
     .chips {
       flex-wrap: wrap;
       justify-content: flex-end;
-      gap: 8px 12px;
+      gap: functions.to-rem(8px) functions.to-rem(12px);
     }
   }
 }

@@ -1,15 +1,17 @@
+@use "functions";
+
 @layer components {
   .suggestionCard {
     overflow: hidden;
-    margin-block-start: 12px;
+    margin-block-start: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
   }
 
   .suggestionTitle {
-    padding-block: 9px;
-    padding-inline: 10px;
+    padding-block: functions.to-rem(9px);
+    padding-inline: functions.to-rem(10px);
     border-block-end: 1px solid var(--line);
     color: var(--text);
     font-size: var(--font-size-md);
@@ -34,20 +36,20 @@
     table-layout: fixed;
 
     td {
-      padding-block: 1px;
+      padding-block: functions.to-rem(1px);
       padding-inline: 0;
       white-space: pre;
     }
   }
 
   .lineCol {
-    inline-size: 32px;
+    inline-size: functions.to-rem(32px);
   }
 
   .lineNumber {
-    inline-size: 32px;
-    min-inline-size: 32px;
-    padding-inline-end: 8px;
+    inline-size: functions.to-rem(32px);
+    min-inline-size: functions.to-rem(32px);
+    padding-inline-end: functions.to-rem(8px);
 
     // Line numbers are text under WCAG 1.4.3, not decoration — same finding
     // as DiffTable's gutter (#211 axe sweep); text-4 sat at ~1.7:1.
@@ -57,13 +59,13 @@
   }
 
   .code {
-    padding-inline: 8px 12px;
+    padding-inline: functions.to-rem(8px) functions.to-rem(12px);
     color: var(--color-text-3);
   }
 
   .sign {
     display: inline-block;
-    inline-size: 18px;
+    inline-size: functions.to-rem(18px);
     opacity: 0.6;
   }
 

@@ -4,16 +4,16 @@
 @layer components {
   .pickerMain {
     min-block-size: 100vh;
-    padding-block: 96px;
-    padding-inline: 22px;
+    padding-block: functions.to-rem(96px);
+    padding-inline: functions.to-rem(22px);
   }
 
   .picker {
-    max-inline-size: 760px;
+    max-inline-size: functions.to-rem(760px);
     margin-inline: auto;
 
     h1 {
-      margin-block: 18px 10px;
+      margin-block: functions.to-rem(18px) functions.to-rem(10px);
       color: var(--text);
       /* stylelint-disable-next-line declaration-property-value-allowed-list -- TODO(BRIEF-44): off-scale — hero display, the only display-size in the app shell; consolidate if a second consumer appears */
       font-size: functions.to-rem(34px);
@@ -27,7 +27,7 @@
   }
 
   .wordmark {
-    margin-block-end: 44px;
+    margin-block-end: functions.to-rem(44px);
     color: var(--text);
     font-size: var(--font-size-xl);
     font-weight: 700;
@@ -41,15 +41,15 @@
   }
 
   .eyebrow {
-    margin-block-end: 8px;
+    margin-block-end: functions.to-rem(8px);
     color: var(--faint);
     font-size: var(--font-size-md);
     font-weight: 500;
   }
 
   .copy {
-    max-inline-size: 560px;
-    margin-block: 0 22px;
+    max-inline-size: functions.to-rem(560px);
+    margin-block: 0 functions.to-rem(22px);
     color: var(--faint);
     font-size: var(--font-size-xl);
     line-height: 1.6;
@@ -57,15 +57,15 @@
 
   .pillars {
     display: grid;
-    gap: 8px;
-    max-inline-size: 560px;
-    margin-block: 0 32px;
+    gap: functions.to-rem(8px);
+    max-inline-size: functions.to-rem(560px);
+    margin-block: 0 functions.to-rem(32px);
     padding: 0;
     list-style: none;
 
     li {
       position: relative;
-      padding-inline-start: 18px;
+      padding-inline-start: functions.to-rem(18px);
       color: var(--dim);
       font-size: var(--font-size-lg);
       line-height: 1.5;
@@ -81,13 +81,13 @@
 
   .form {
     display: flex;
-    gap: 10px;
-    margin-block: 0 14px;
+    gap: functions.to-rem(10px);
+    margin-block: 0 functions.to-rem(14px);
 
     input {
       flex: 1;
-      padding-block: 10px;
-      padding-inline: 14px;
+      padding-block: functions.to-rem(10px);
+      padding-inline: functions.to-rem(14px);
       border: 1px solid var(--line2);
       border-radius: var(--radius-md);
       background: var(--panel2);
@@ -111,16 +111,16 @@
   }
 
   .error {
-    margin-block: 0 20px;
+    margin-block: 0 functions.to-rem(20px);
     color: var(--red);
     font-size: var(--font-size-lg);
   }
 
   .empty {
     display: grid;
-    gap: 8px;
-    padding-block: 20px;
-    padding-inline: 20px;
+    gap: functions.to-rem(8px);
+    padding-block: functions.to-rem(20px);
+    padding-inline: functions.to-rem(20px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--panel2);
@@ -129,8 +129,8 @@
     line-height: 1.55;
 
     code {
-      padding-block: 1px;
-      padding-inline: 5px;
+      padding-block: functions.to-rem(1px);
+      padding-inline: functions.to-rem(5px);
       border-radius: var(--radius-sm);
       background: var(--panel);
       color: var(--text);
@@ -142,7 +142,7 @@
   .listLabel {
     // 16px = the pre-a11y-sweep spacing (4px label margin + the 12px grid
     // gap it sat inside before the heading moved out of the <ul>).
-    margin-block-end: 16px;
+    margin-block-end: functions.to-rem(16px);
     color: var(--faint);
     font-size: var(--font-size-md);
     font-weight: 500;
@@ -155,15 +155,15 @@
 
   .list {
     display: grid;
-    gap: 12px;
+    gap: functions.to-rem(12px);
     list-style: none;
   }
 
   .link {
     display: grid;
-    gap: 8px;
-    padding-block: 18px;
-    padding-inline: 20px;
+    gap: functions.to-rem(8px);
+    padding-block: functions.to-rem(18px);
+    padding-inline: functions.to-rem(20px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -179,7 +179,7 @@
   .linkTitle {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: functions.to-rem(10px);
     color: var(--text);
     font-size: var(--font-size-2xl);
     font-weight: 650;
@@ -188,8 +188,8 @@
 
   .artifactPill {
     flex: none;
-    padding-block: 2px;
-    padding-inline: 8px;
+    padding-block: functions.to-rem(2px);
+    padding-inline: functions.to-rem(8px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-pill);
     color: var(--faint);

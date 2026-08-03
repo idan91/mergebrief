@@ -3,7 +3,7 @@
 @layer components {
   .thread {
     overflow: hidden;
-    margin-block: 8px 4px;
+    margin-block: functions.to-rem(8px) functions.to-rem(4px);
     border: 1px solid var(--color-outline-2);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -11,8 +11,8 @@
     font-family: var(--sans);
 
     &[data-state="collapsed"] {
-      padding-block: 9px;
-      padding-inline: 12px;
+      padding-block: functions.to-rem(9px);
+      padding-inline: functions.to-rem(12px);
 
       button {
         border: 0;
@@ -27,9 +27,9 @@
   .head {
     display: flex;
     justify-content: space-between;
-    gap: 16px;
-    padding-block: 10px;
-    padding-inline: 12px;
+    gap: functions.to-rem(16px);
+    padding-block: functions.to-rem(10px);
+    padding-inline: functions.to-rem(12px);
     border-block-end: 1px solid var(--line);
     color: var(--faint);
     font-family: var(--mono);
@@ -39,9 +39,9 @@
   .deleteConfirm {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding-block: 0 10px;
-    padding-inline: 12px;
+    gap: functions.to-rem(8px);
+    padding-block: 0 functions.to-rem(10px);
+    padding-inline: functions.to-rem(12px);
     color: var(--text);
     font-size: var(--font-size-md);
   }
@@ -50,9 +50,9 @@
   .threadActions {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding-block: 10px 12px;
-    padding-inline: 12px;
+    gap: functions.to-rem(8px);
+    padding-block: functions.to-rem(10px) functions.to-rem(12px);
+    padding-inline: functions.to-rem(12px);
   }
 
   .actions {
@@ -65,13 +65,13 @@
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 12px;
+    gap: functions.to-rem(12px);
   }
 
   .postCta {
     flex-shrink: 0;
-    padding-block: 0 12px;
-    padding-inline-end: 12px;
+    padding-block: 0 functions.to-rem(12px);
+    padding-inline-end: functions.to-rem(12px);
   }
 
   .threadActions {
@@ -101,8 +101,8 @@
 
   /* The recoverable why-not for a blocked Post (BRIEF-43 cap mirror). */
   .postBlocked {
-    margin-block: 0 4px;
-    margin-inline: 12px;
+    margin-block: 0 functions.to-rem(4px);
+    margin-inline: functions.to-rem(12px);
     color: var(--faint);
     font-size: var(--font-size-md);
   }

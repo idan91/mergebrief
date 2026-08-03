@@ -1,14 +1,16 @@
+@use "functions";
+
 @layer components {
   .metadataDiff {
-    padding-block: 14px;
-    padding-inline: 16px;
+    padding-block: functions.to-rem(14px);
+    padding-inline: functions.to-rem(16px);
     border-block-start: 1px solid var(--line);
     color: var(--dim);
     font-size: var(--font-size-lg);
 
     span {
       display: block;
-      margin-block-end: 6px;
+      margin-block-end: functions.to-rem(6px);
       color: var(--text);
       font-family: var(--mono);
       font-size: var(--font-size-md);
@@ -17,8 +19,8 @@
 
   .composerDisabledNote {
     margin: 0;
-    padding-block: 8px;
-    padding-inline: 16px;
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(16px);
     border-block-start: 1px solid var(--line);
     color: var(--dim);
     font-size: var(--font-size-md);
@@ -28,7 +30,8 @@
     content-visibility: auto;
 
     // `auto` remembers real painted size; the estimate only tames first-paint scroll jump
-    contain-intrinsic-block-size: auto calc(var(--diff-rows, 40) * 22px);
+    contain-intrinsic-block-size: auto
+      calc(var(--diff-rows, 40) * functions.to-rem(22px));
 
     // `content-visibility: auto` always applies paint containment (not just
     // while off-screen), which clips any descendant that paints outside this
@@ -55,7 +58,7 @@
 
     td {
       padding-block: 0;
-      padding-inline: 14px;
+      padding-inline: functions.to-rem(14px);
       vertical-align: top;
       white-space: pre;
     }
@@ -92,16 +95,16 @@
     }
 
     &[data-line-kind="hunk"] td {
-      padding-block: 6px;
-      padding-inline: 14px;
+      padding-block: functions.to-rem(6px);
+      padding-inline: functions.to-rem(14px);
       background: var(--color-surface-1);
       color: var(--faint);
       font-size: var(--font-size-sm);
     }
 
     &[data-line-kind="note"] td {
-      padding-block: 7px;
-      padding-inline: 14px;
+      padding-block: functions.to-rem(7px);
+      padding-inline: functions.to-rem(14px);
       color: var(--faint);
       font-size: var(--font-size-sm);
       font-style: italic;
@@ -139,8 +142,8 @@
   }
 
   .lineNumber {
-    inline-size: 42px;
-    min-inline-size: 42px;
+    inline-size: functions.to-rem(42px);
+    min-inline-size: functions.to-rem(42px);
 
     // The gutter carries line numbers, so it is text under WCAG 1.4.3 —
     // `--color-text-4` measured 1.7:1 here. It is the lowest step of the
@@ -165,7 +168,7 @@
 
   .sign {
     display: inline-block;
-    inline-size: 16px;
+    inline-size: functions.to-rem(16px);
     opacity: 0.6;
 
     // Copied code must be the code: the sign is a literal text node with
@@ -177,7 +180,7 @@
 
   .newTag {
     padding-block: 0;
-    padding-inline: 6px;
+    padding-inline: functions.to-rem(6px);
 
     // Same as .sign: the badge text would fuse onto copied code.
     // stylelint-disable-next-line property-no-vendor-prefix
@@ -185,7 +188,7 @@
     user-select: none;
     border: 1px solid color-mix(in srgb, var(--blue) 45%, transparent);
     border-radius: var(--radius-pill);
-    margin-inline-start: 10px;
+    margin-inline-start: functions.to-rem(10px);
     color: var(--blue);
     font-family: var(--sans);
     font-size: var(--font-size-xs);
@@ -199,8 +202,8 @@
   }
 
   .commentRow td {
-    padding-block: 0 12px;
-    padding-inline: 98px 14px;
+    padding-block: 0 functions.to-rem(12px);
+    padding-inline: functions.to-rem(98px) functions.to-rem(14px);
     white-space: normal;
 
     // The colSpan cell is as wide as the table (long `pre` code lines can
@@ -210,8 +213,8 @@
     // cell's own padding.
     > * {
       position: sticky;
-      inset-inline-start: 98px;
-      max-inline-size: calc(100cqw - 112px);
+      inset-inline-start: functions.to-rem(98px);
+      max-inline-size: calc(100cqw - functions.to-rem(112px));
     }
   }
 

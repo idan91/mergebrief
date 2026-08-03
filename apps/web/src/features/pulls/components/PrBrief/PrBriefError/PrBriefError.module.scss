@@ -1,15 +1,17 @@
+@use "functions";
+
 @layer components {
   // Mirrors routes/routeShared.module.scss `.errorState` (the route-level
   // error panels): the component moved into the feature, and a feature file
   // must not import route styles.
   .errorState {
-    padding: 28px;
+    padding: functions.to-rem(28px);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: var(--panel2);
 
     h1 {
-      margin-block-end: 8px;
+      margin-block-end: functions.to-rem(8px);
       font-size: var(--font-size-3xl);
 
       // Pre-scale rendering pinned (implicit UA bold + body line-height

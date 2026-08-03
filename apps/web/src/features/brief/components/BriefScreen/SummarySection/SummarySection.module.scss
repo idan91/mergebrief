@@ -4,7 +4,7 @@
   .summary {
     container-type: inline-size;
     max-inline-size: 68ch;
-    margin-block-end: 30px;
+    margin-block-end: functions.to-rem(30px);
 
     // BRIEF-4: with a changelog split the section spans the container and the
     // 68ch prose cap moves to each column; the description panel also spans
@@ -21,7 +21,7 @@
   .summaryColumns {
     display: grid;
     align-items: start;
-    gap: 24px 48px;
+    gap: functions.to-rem(24px) functions.to-rem(48px);
     grid-template-columns: minmax(0, 68ch);
 
     // Engages only when two prose columns + gap genuinely fit. Placement is
@@ -46,14 +46,14 @@
   }
 
   .eyebrow {
-    margin-block-end: 8px;
+    margin-block-end: functions.to-rem(8px);
     color: var(--faint);
     font-size: var(--font-size-md);
     font-weight: 500;
   }
 
   .descriptionToggle {
-    margin-block-start: 4px;
+    margin-block-start: functions.to-rem(4px);
     border: 0;
     background: transparent;
     color: var(--dim);
@@ -69,11 +69,11 @@
   }
 
   .description {
-    padding-block: 18px;
-    padding-inline: 20px;
+    padding-block: functions.to-rem(18px);
+    padding-inline: functions.to-rem(20px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    margin-block-start: 18px;
+    margin-block-start: functions.to-rem(18px);
     background: var(--panel2);
 
     // BRIEF-4 follow-up: on the same wide container that engages the summary
@@ -82,7 +82,7 @@
     // capped at 68ch so it never engages there.
     @container (min-inline-size: 120ch) {
       column-count: 2;
-      column-gap: 48px;
+      column-gap: functions.to-rem(48px);
 
       > .eyebrow {
         column-span: all;

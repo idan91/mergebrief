@@ -1,3 +1,5 @@
+@use "functions";
+
 @layer components {
   .footer {
     // Earned oddity: the quietest text in the app — between --color-text-3
@@ -5,9 +7,9 @@
     // decorative ghost tier). Legibility here is deliberately marginal.
     --footer-text: #4a4a52;
 
-    max-inline-size: 980px;
-    padding-block: 0 40px;
-    padding-inline: 28px;
+    max-inline-size: functions.to-rem(980px);
+    padding-block: 0 functions.to-rem(40px);
+    padding-inline: functions.to-rem(28px);
     margin-inline: auto;
     color: var(--footer-text);
     font-size: var(--font-size-sm);

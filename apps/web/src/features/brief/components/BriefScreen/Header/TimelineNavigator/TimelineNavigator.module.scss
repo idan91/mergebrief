@@ -1,3 +1,4 @@
+@use "functions";
 @use "mixins";
 
 @layer components {
@@ -10,12 +11,12 @@
     min-inline-size: 0;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     container: timeline / inline-size;
 
     select,
     .arrow {
-      min-block-size: 32px;
+      min-block-size: functions.to-rem(32px);
       border: 1px solid var(--line2);
       border-radius: var(--radius-md);
       background: var(--panel2);
@@ -25,15 +26,15 @@
     }
 
     select {
-      max-inline-size: 230px;
-      padding-inline: 8px;
+      max-inline-size: functions.to-rem(230px);
+      padding-inline: functions.to-rem(8px);
       color: var(--text);
     }
   }
 
   .arrow {
     display: grid;
-    inline-size: 32px;
+    inline-size: functions.to-rem(32px);
     color: var(--text);
     place-items: center;
     text-decoration: none;
@@ -48,18 +49,18 @@
   // active state.
   .lens {
     display: flex;
-    gap: 2px;
+    gap: functions.to-rem(2px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     margin: 0;
-    padding: 2px;
+    padding: functions.to-rem(2px);
 
     a,
     button {
       display: grid;
-      min-block-size: 24px;
-      padding-block: 3px;
-      padding-inline: 10px;
+      min-block-size: functions.to-rem(24px);
+      padding-block: functions.to-rem(3px);
+      padding-inline: functions.to-rem(10px);
       border: 0;
       border-radius: var(--radius-md);
       background: none;
@@ -100,7 +101,7 @@
   .labeledLens {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: functions.to-rem(6px);
     margin: 0;
     padding: 0;
     border: 0;
@@ -114,8 +115,8 @@
 
   .steps {
     display: flex;
-    gap: 7px;
-    margin-inline-start: 4px;
+    gap: functions.to-rem(7px);
+    margin-inline-start: functions.to-rem(4px);
     list-style: none;
 
     a {

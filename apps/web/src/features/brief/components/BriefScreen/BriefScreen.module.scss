@@ -1,12 +1,14 @@
+@use "functions";
+
 @layer components {
   .toast {
     position: fixed;
-    inset-block-end: 28px;
+    inset-block-end: functions.to-rem(28px);
     inset-inline-start: 50%;
     z-index: 120;
-    max-inline-size: 560px;
-    padding-block: 12px;
-    padding-inline: 20px;
+    max-inline-size: functions.to-rem(560px);
+    padding-block: functions.to-rem(12px);
+    padding-inline: functions.to-rem(20px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--color-surface-3);
@@ -25,17 +27,17 @@
 
   .kbdHint {
     position: fixed;
-    inset-block-end: 24px;
-    inset-inline-end: 24px;
+    inset-block-end: functions.to-rem(24px);
+    inset-inline-end: functions.to-rem(24px);
     z-index: 110;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: functions.to-rem(8px);
   }
 
   .shortcutsTrigger {
-    inline-size: 34px;
-    block-size: 34px;
+    inline-size: functions.to-rem(34px);
+    block-size: functions.to-rem(34px);
     padding: 0;
     border: 1px solid var(--line2);
     border-radius: var(--radius-circle);

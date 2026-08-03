@@ -2,23 +2,25 @@
 // the promoted ThreadRowView subtree, and InlineThreads consumers — promoted
 // to the feature root as the nearest common ancestor (ADR 0037 promotion
 // rule); no component owns these atoms alone.
+@use "functions";
+
 @layer components {
   .rows,
   .nested {
     display: grid;
-    gap: 4px;
+    gap: functions.to-rem(4px);
     margin: 0;
     padding: 0;
     list-style: none;
   }
 
   .nested {
-    margin-inline-start: 18px;
+    margin-inline-start: functions.to-rem(18px);
   }
 
   .row {
     display: grid;
-    gap: 4px;
+    gap: functions.to-rem(4px);
   }
 
   /* Disclosure rows: full-width buttons, >=44px targets (WCAG 2.5.8 aim).
@@ -31,10 +33,10 @@
     position: relative;
     display: flex;
     align-items: baseline;
-    gap: 8px;
-    min-height: 44px;
-    padding-block: 8px;
-    padding-inline: 10px;
+    gap: functions.to-rem(8px);
+    min-height: functions.to-rem(44px);
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(10px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--color-surface-2);
@@ -55,10 +57,10 @@
      mis-centers on a shared baseline at this height. */
   .rowButton[data-variant="slim"] {
     align-items: center;
-    gap: 6px;
-    min-height: 22px;
+    gap: functions.to-rem(6px);
+    min-height: functions.to-rem(22px);
     padding-block: 0;
-    padding-inline: 8px;
+    padding-inline: functions.to-rem(8px);
     border: 0;
     border-inline-start: 2px solid var(--color-outline-2);
     border-radius: 0;
@@ -130,8 +132,8 @@
      success green (approval-like badges are the named anti-reference). */
   .chip {
     flex-shrink: 0;
-    padding-block: 1px;
-    padding-inline: 7px;
+    padding-block: functions.to-rem(1px);
+    padding-inline: functions.to-rem(7px);
     border: 1px solid var(--line);
     border-radius: var(--radius-pill);
     font-family: var(--mono);
@@ -192,8 +194,8 @@
   .ownTag,
   .botTag {
     flex-shrink: 0;
-    margin-inline-start: 4px;
-    padding-inline: 5px;
+    margin-inline-start: functions.to-rem(4px);
+    padding-inline: functions.to-rem(5px);
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     color: var(--dim);
@@ -212,15 +214,15 @@
 
   .detail {
     display: grid;
-    gap: 8px;
-    margin-inline-start: 12px;
-    padding: 10px;
+    gap: functions.to-rem(8px);
+    margin-inline-start: functions.to-rem(12px);
+    padding: functions.to-rem(10px);
     border-inline-start: 2px solid var(--line);
   }
 
   .comment {
     display: grid;
-    gap: 4px;
+    gap: functions.to-rem(4px);
     font-size: var(--font-size-lg);
   }
 
@@ -230,7 +232,7 @@
   .commentHead {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     color: var(--dim);
     font-size: var(--font-size-sm);
 
@@ -255,15 +257,15 @@
 
   .detailActions {
     display: flex;
-    gap: 8px;
+    gap: functions.to-rem(8px);
   }
 
   .action {
     display: inline-flex;
     align-items: center;
-    min-height: 24px;
-    padding-block: 4px;
-    padding-inline: 10px;
+    min-height: functions.to-rem(24px);
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(10px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: none;
@@ -285,7 +287,7 @@
   @media (pointer: coarse) {
     .action,
     .rowButton:not([data-variant="slim"]) {
-      min-height: 44px;
+      min-height: functions.to-rem(44px);
     }
   }
 
@@ -310,6 +312,7 @@
     overflow: hidden;
     width: 1px;
     height: 1px;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- sr-only clip technique: the -1px margin must stay a physical pixel, never scale (matches base.scss) */
     margin: -1px;
     padding: 0;
     border: 0;

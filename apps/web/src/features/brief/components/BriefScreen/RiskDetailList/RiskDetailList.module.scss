@@ -1,14 +1,16 @@
+@use "functions";
+
 @layer components {
   .list {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: functions.to-rem(6px);
   }
 
   .row {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     flex-wrap: wrap;
   }
 

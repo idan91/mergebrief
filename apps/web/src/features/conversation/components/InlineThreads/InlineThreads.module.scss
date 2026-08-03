@@ -1,8 +1,10 @@
+@use "functions";
+
 @layer components {
   .inline {
     display: grid;
-    gap: 6px;
-    padding: 10px;
+    gap: functions.to-rem(6px);
+    padding: functions.to-rem(10px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--color-surface-1);
@@ -23,7 +25,7 @@
 
   .rows {
     display: grid;
-    gap: 4px;
+    gap: functions.to-rem(4px);
     margin: 0;
     padding: 0;
     list-style: none;
@@ -31,16 +33,16 @@
 
   .row {
     display: grid;
-    gap: 4px;
+    gap: functions.to-rem(4px);
   }
 
   .botButton {
     display: flex;
     align-items: baseline;
-    gap: 8px;
-    min-height: 44px;
-    padding-block: 8px;
-    padding-inline: 10px;
+    gap: functions.to-rem(8px);
+    min-height: functions.to-rem(44px);
+    padding-block: functions.to-rem(8px);
+    padding-inline: functions.to-rem(10px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
     background: var(--color-surface-2);
@@ -52,7 +54,7 @@
   }
 
   .botTag {
-    padding-inline: 5px;
+    padding-inline: functions.to-rem(5px);
     border: 1px solid var(--line);
     border-radius: var(--radius-sm);
     color: var(--dim);

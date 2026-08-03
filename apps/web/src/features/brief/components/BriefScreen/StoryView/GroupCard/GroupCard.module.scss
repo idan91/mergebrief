@@ -9,7 +9,7 @@
     --card-gradient-from: #121216;
     --card-gradient-to: #0e0e11;
 
-    margin-block-end: 40px;
+    margin-block-end: functions.to-rem(40px);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
     background: linear-gradient(
@@ -25,8 +25,8 @@
   .head {
     min-block-size: 0;
     flex: 0 1 auto;
-    padding-block: 26px 24px;
-    padding-inline: 30px;
+    padding-block: functions.to-rem(26px) functions.to-rem(24px);
+    padding-inline: functions.to-rem(30px);
     border-block-end: 1px solid var(--line);
     overflow: hidden auto;
   }
@@ -34,8 +34,8 @@
   .eyebrow {
     display: flex;
     align-items: baseline;
-    gap: 12px;
-    margin-block-end: 12px;
+    gap: functions.to-rem(12px);
+    margin-block-end: functions.to-rem(12px);
   }
 
   .number {
@@ -52,7 +52,7 @@
 
   .title {
     max-inline-size: 38em;
-    margin-block: 0 8px;
+    margin-block: 0 functions.to-rem(8px);
     color: var(--text);
     font-size: var(--font-size-3xl);
     font-weight: 600;
@@ -72,7 +72,7 @@
   // priority label.
   .readingOrder {
     max-inline-size: 46em;
-    margin-block-start: 6px;
+    margin-block-start: functions.to-rem(6px);
     color: var(--faint);
     font-size: var(--font-size-md);
     font-style: italic;
@@ -83,16 +83,16 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-block-start: 18px;
+    gap: functions.to-rem(10px);
+    margin-block-start: functions.to-rem(18px);
   }
 
   .chip {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    padding-block: 4px;
-    padding-inline: 12px;
+    gap: functions.to-rem(7px);
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-pill);
     color: var(--dim);
@@ -121,12 +121,12 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 14px;
-    padding-block: 14px;
-    padding-inline: 18px;
+    gap: functions.to-rem(14px);
+    padding-block: functions.to-rem(14px);
+    padding-inline: functions.to-rem(18px);
     border: 1px solid var(--line);
     border-radius: var(--radius-md);
-    margin-block-start: 16px;
+    margin-block-start: functions.to-rem(16px);
     background: var(--color-surface-1);
 
     b {
@@ -137,7 +137,7 @@
 
   .question {
     flex: 1;
-    min-inline-size: 260px;
+    min-inline-size: functions.to-rem(260px);
     color: var(--dim);
     font-size: var(--font-size-lg);
     line-height: 1.6;
@@ -145,12 +145,12 @@
 
   .pick {
     display: flex;
-    gap: 8px;
+    gap: functions.to-rem(8px);
   }
 
   .pickButton {
-    padding-block: 7px;
-    padding-inline: 16px;
+    padding-block: functions.to-rem(7px);
+    padding-inline: functions.to-rem(16px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: transparent;
@@ -180,19 +180,19 @@
 
     // Shrinks before .head (huge flex-shrink) but never below a usable floor,
     // so the scroll region can't collapse to zero height.
-    min-block-size: 96px;
+    min-block-size: functions.to-rem(96px);
     flex: 0 999 auto;
     border-end-end-radius: var(--radius-lg);
     border-end-start-radius: var(--radius-lg);
   }
 
   .flags {
-    padding-block: 24px 28px;
-    padding-inline: 26px;
+    padding-block: functions.to-rem(24px) functions.to-rem(28px);
+    padding-inline: functions.to-rem(26px);
   }
 
   .label {
-    margin-block-end: 12px;
+    margin-block-end: functions.to-rem(12px);
     color: var(--faint);
     font-size: var(--font-size-md);
     font-weight: 500;
@@ -202,7 +202,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
+    gap: functions.to-rem(12px);
   }
 
   .riskInfo {
@@ -239,13 +239,16 @@
 
   .riskInfoPopover {
     position: absolute;
-    inset-block-start: 26px;
+    inset-block-start: functions.to-rem(26px);
     inset-inline-end: 0;
     z-index: 20;
     display: grid;
-    inline-size: min(280px, calc(100vw - 48px));
-    gap: 8px;
-    padding: 12px;
+    inline-size: min(
+      functions.to-rem(280px),
+      calc(100vw - functions.to-rem(48px))
+    );
+    gap: functions.to-rem(8px);
+    padding: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: var(--color-surface-2);
@@ -274,7 +277,7 @@
   }
 
   .riskGroup {
-    padding-block: 12px;
+    padding-block: functions.to-rem(12px);
     border-block-end: 1px solid var(--line);
 
     &:last-child {
@@ -287,15 +290,15 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin-block-end: 8px;
+    gap: functions.to-rem(12px);
+    margin-block-end: functions.to-rem(8px);
   }
 
   .riskCheck {
     display: flex;
     min-inline-size: 0;
     align-items: center;
-    gap: 8px;
+    gap: functions.to-rem(8px);
     cursor: pointer;
   }
 
@@ -310,7 +313,7 @@
   .riskBulkActions {
     display: flex;
     flex: none;
-    gap: 8px;
+    gap: functions.to-rem(8px);
   }
 
   .checkbox {
@@ -328,12 +331,12 @@
 
   .riskFiles {
     display: grid;
-    gap: 10px;
+    gap: functions.to-rem(10px);
   }
 
   .flag {
-    padding-block: 0 2px;
-    padding-inline-start: 14px;
+    padding-block: 0 functions.to-rem(2px);
+    padding-inline-start: functions.to-rem(14px);
     border-inline-start: 1px solid var(--line2);
 
     &[data-state="resolved"] {
@@ -363,8 +366,8 @@
   .flagRow {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
-    margin-block-end: 5px;
+    gap: functions.to-rem(8px);
+    margin-block-end: functions.to-rem(5px);
   }
 
   .fileButton {
@@ -388,7 +391,7 @@
 
   .description,
   .empty {
-    margin-block-end: 10px;
+    margin-block-end: functions.to-rem(10px);
     color: var(--dim);
     font-size: var(--font-size-lg);
     line-height: 1.55;
@@ -396,7 +399,7 @@
 
   .flagActions {
     display: flex;
-    gap: 8px;
+    gap: functions.to-rem(8px);
   }
 
   .button {
@@ -405,8 +408,8 @@
     --button-hover-fill: #16161a;
     --button-disabled-text: #4c4c54;
 
-    padding-block: 5px;
-    padding-inline: 12px;
+    padding-block: functions.to-rem(5px);
+    padding-inline: functions.to-rem(12px);
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
     background: transparent;
@@ -432,8 +435,8 @@
 
   .state {
     flex: none;
-    padding-block: 1px;
-    padding-inline: 6px;
+    padding-block: functions.to-rem(1px);
+    padding-inline: functions.to-rem(6px);
     border: 1px solid var(--line);
     border-radius: var(--radius-pill);
     margin-inline-start: auto;
@@ -444,7 +447,7 @@
   }
 
   .stateDetail {
-    margin-block-start: 6px;
+    margin-block-start: functions.to-rem(6px);
     color: var(--faint);
     font-size: var(--font-size-md);
     line-height: 1.45;
@@ -457,8 +460,8 @@
   .groupRiskRow {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 6px;
+    gap: functions.to-rem(6px);
+    margin-top: functions.to-rem(6px);
   }
 }
 
@@ -470,7 +473,7 @@
   .flag[data-deemphasized] {
     border-inline-start: 2px dotted
       color-mix(in srgb, currentcolor 45%, transparent);
-    padding-inline-start: 8px;
+    padding-inline-start: functions.to-rem(8px);
   }
 
   @media (forced-colors: active) {
