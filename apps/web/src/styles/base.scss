@@ -116,6 +116,7 @@
     block-size: 1px;
     padding: 0;
     border: 0;
+    /* stylelint-disable-next-line declaration-property-value-allowed-list -- sr-only clip technique: the -1px margin must stay a physical pixel, never scale */
     margin: -1px;
     clip-path: inset(50%);
     white-space: nowrap;

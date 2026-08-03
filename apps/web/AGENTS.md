@@ -75,6 +75,12 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
   tokens/mixins only (no value-named tokens); off-scale values stay raw with a
   line-scoped stylelint disable + TODO note, or earn a component-local token
   with a one-line justification.
+- Units (BRIEF-84, ADR 0037 amendment): text and everything text-coupled is
+  rem via `functions.to-rem(<px>)` — font sizes, margin/padding/gap (raw px
+  is stylelint-banned there), touch-target min-heights, measure caps,
+  menu/dialog widths; chrome stays px — borders, radii, shadows, icon boxes,
+  decorative geometry, breakpoints. Ambiguous sizing → px. Taxonomy:
+  `docs/plans/brief-84-px-to-rem.md`.
 - `data-testid` for test selection; `data-state`/`data-variant` for styling —
   CSS targets attributes, not toggled classes. Extracted components adopt
   both at birth.

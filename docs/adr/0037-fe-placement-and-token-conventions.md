@@ -254,6 +254,23 @@ conforms with ≤ ~5 domain-cued loose files. `index.tsx` feature barrels and
 everything else in this ADR remain apps/web-scoped. Rule recorded in the
 repo-wide `AGENTS.md`._
 
+_Amended 2026-08-03 (BRIEF-84, owner-expanded scope)._ The unit taxonomy
+is decided and enforced; "BRIEF-84 runs against token definitions only" is
+superseded. **rem** (always via `functions.to-rem(<px>)` — the px design
+value stays readable in source; compile-time exact at the 16px root):
+`font-size`; all spacing rhythm (`margin*`/`padding*`/`gap` — stylelint
+now bans raw px on these); text-coupled sizing (touch-target min-heights,
+prose/panel measure caps, menu/dialog widths, line-number gutters); and
+spacing-like insets (dropdown gap offsets, `text-indent`,
+`text-underline-offset`). **px** (chrome, never scales): border widths
+and hairlines, `outline`, radii, shadows, blur, icon boxes and decorative
+geometry (dots/bars/rails/toggles/avatars/spinners), the runtime-measured
+`--top-bar-h` cluster, grid scaffold tracks, transforms, and
+media/container-query breakpoints (a possible later em pass is its own
+decision, noted on the ticket). Sizing stays a judgment call — no lint;
+ambiguity resolves to px. Full taxonomy with per-category reasoning:
+`docs/plans/brief-84-px-to-rem.md`._
+
 ## Revisit Triggers
 
 - ~~**Topic-folder threshold** (≥4 files) — reassess after the first
