@@ -23,9 +23,11 @@ import {
 import { afterEach, describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/utils/fixtures";
+import type { ComparisonMarks } from "@web/features/brief/types";
 import { routeTree } from "../../routeTree.gen";
 import {
   dbBriefQueryOptions,
+  dbComparisonMarksQueryOptions,
   prDiffQueryOptions,
   prMetaQueryOptions,
 } from "./queries";
@@ -84,7 +86,11 @@ function timelineMeta(overrides: Partial<PrSummary> = {}): PrSummary {
   };
 }
 
-async function renderTimeline(path: string, metaValue = timelineMeta()) {
+async function renderTimeline(
+  path: string,
+  metaValue = timelineMeta(),
+  seedExtra?: (queryClient: QueryClient) => void,
+) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -92,6 +98,7 @@ async function renderTimeline(path: string, metaValue = timelineMeta()) {
     prMetaQueryOptions(REPO_ID, PR_NUMBER).queryKey,
     metaValue,
   );
+  seedExtra?.(queryClient);
   // Seed a brief + diff per revision in the meta, whatever the fixture.
   for (const rev of metaValue.revisions ?? []) {
     queryClient.setQueryData(
@@ -194,6 +201,67 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     });
     fireEvent.click(ack);
     expect(ack).toHaveProperty("checked", true);
+  });
+
+  it("group since-marker links into the delta lens (BRIEF-102)", async () => {
+    // A checkpoint exists on the latest revision; the viewer is on Full
+    // Brief with Compare OFF — the marker must still show and its link
+    // must flip the search to the delta lens.
+    const metaValue = timelineMeta({
+      revisions: [
+        REV1,
+        {
+          ...REV2,
+          comparisons: {
+            lastReview: {
+              kind: "available",
+              deltaAvailable: false,
+              baselineSha: "chk1234deadbeef00",
+              baselineIndex: 1,
+            },
+          },
+        },
+      ],
+    });
+    const queryClientSeed = (queryClient: QueryClient) => {
+      const marks: ComparisonMarks = {
+        baselineSha: "chk1234deadbeef00",
+        headSha: REV2.headSha,
+        baselineLabel: "checkpoint",
+        baselineIndex: 1,
+        files: [
+          {
+            file: "src/leak.ts",
+            addedRanges: [{ start: 1, end: 1 }],
+            removedRanges: [],
+          },
+        ],
+      };
+      queryClient.setQueryData(
+        dbComparisonMarksQueryOptions(
+          REPO_ID,
+          PR_NUMBER,
+          "chk1234deadbeef00",
+          REV2.headSha,
+          "checkpoint",
+          1,
+        ).queryKey,
+        marks,
+      );
+    };
+    const router = await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}&view=full&compare=off`,
+      metaValue,
+      queryClientSeed,
+    );
+    const marker = await waitFor(() =>
+      screen.getByRole("button", { name: /1 file changed since chk1234/i }),
+    );
+    fireEvent.click(marker);
+    await waitFor(() => {
+      const search = searchRecord(router.state.location.search);
+      expect(search["compare"]).toBe("last-review");
+    });
   });
 
   it("opens the conversation section when ?thread= arrives via in-app navigation", async () => {

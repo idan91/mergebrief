@@ -17,6 +17,7 @@ import {
   deriveBriefProgress,
   disabledComparisonQuery,
   discriminateNarrativeArtifact,
+  groupSinceMarkers,
   groupStartIndexes,
   markReadyBatchBusyLabel,
   markReadyBatchFailureCopy,
@@ -441,5 +442,58 @@ describe("conversationGroupIds", () => {
 
   it("returns undefined for an empty digest (no TocBar markers)", () => {
     expect(conversationGroupIds(new Map(), groups)).toBeUndefined();
+  });
+});
+
+describe("groupSinceMarkers", () => {
+  const groups = [
+    {
+      id: "g1",
+      chunks: [
+        { file: "src/a.ts" },
+        { file: "src/a.ts" }, // same file twice — counted once
+        { file: "src/b.ts" },
+      ],
+    },
+    { id: "g2", chunks: [{ file: "src/c.ts" }] },
+  ];
+
+  it("counts DISTINCT member files with changed ranges per group", () => {
+    const sinceMarks = {
+      files: [
+        {
+          file: "src/a.ts",
+          addedRanges: [{ start: 1, end: 2 }],
+          removedRanges: [],
+        },
+        {
+          file: "src/b.ts",
+          addedRanges: [],
+          removedRanges: [{ start: 5, end: 5 }],
+        },
+        {
+          file: "src/elsewhere.ts",
+          addedRanges: [{ start: 1, end: 1 }],
+          removedRanges: [],
+        },
+      ],
+    };
+    expect(groupSinceMarkers(groups, sinceMarks)).toEqual(
+      new Map([
+        ["g1", 2],
+        ["g2", 0],
+      ]),
+    );
+  });
+
+  it("ignores a marks entry with empty ranges (no mechanical change)", () => {
+    const sinceMarks = {
+      files: [{ file: "src/c.ts", addedRanges: [], removedRanges: [] }],
+    };
+    expect(groupSinceMarkers(groups, sinceMarks)?.get("g2")).toBe(0);
+  });
+
+  it("returns undefined without marks — no checkpoint, no marker", () => {
+    expect(groupSinceMarkers(groups, null)).toBeUndefined();
   });
 });

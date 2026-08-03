@@ -24,12 +24,16 @@ surfacing it where people read.
   selectedPoint.comparisons)` — callable with a fixed "last-review" to get
   the marks id independent of the active baseline.
 - GroupCard is `memo`ized; BriefView renders WITHOUT a router in
-  ownDraftView tests, but TimelineNavigator already calls `useNavigate`
-  unconditionally in that tree and passes — `useNavigate` is safe to call
-  without invoking. Marker child component uses `useNavigate` with
-  `to: "."` + a functional search merge (`{...prev, compare:
-  "last-review"}`), mirroring the DB route's functional-updater pattern;
-  it renders only when marker data exists.
+  ownDraftView tests — a `useNavigate` inside the marker broke rendering
+  there (discovered at implementation; the original useNavigate plan is
+  DEAD). Shipped design: navigation is an injected `openDeltaLens`
+  callback, route-owned (DB route memoizes `onNavigateSearch`); the local
+  demo path passes no callback and renders the marker as plain text.
+- ACCEPTED consequence (review finding): the count is a FILE-level join
+  while the lens highlights join per line — a file shared across groups
+  can light both group markers even when the changed ranges sit in one
+  group's chunks. Locked spec counts distinct member files with nonempty
+  marks entries; revisit only if it confuses in real use.
 
 ## Implementation (one PR)
 
@@ -45,10 +49,10 @@ Estimate ~300–400 LOC incl. tests. Steps (TDD):
    slot exists) lastReview marks query on BOTH paths (plan slot / local
    sidecar id); exposes `sinceReviewMarks: ComparisonMarks | null`.
 3. **Render**: `SinceMarker` component under GroupCard — muted header line;
-   changed>0 → button "N files changed since <shortsha>" navigating
-   `compare=last-review`; 0 → plain "unchanged since your last review".
-   Marker absent when no checkpoint marks. Semantic tokens, rem,
-   data-testid.
+   changed>0 → button "N files changed since <shortsha>" firing the
+   injected `openDeltaLens` (plain text without it); 0 → plain "unchanged
+   since your last review". Marker absent when no checkpoint marks.
+   Semantic tokens, rem, data-testid.
 4. **Wiring**: BriefScreen memoizes the marker map off `sinceReviewMarks` +
    `model.groups`; StoryView passes per-group entries (stable identities —
    ChunkCard/GroupCard memo discipline: derive via useMemo keyed on the

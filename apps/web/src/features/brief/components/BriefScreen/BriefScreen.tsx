@@ -66,6 +66,7 @@ export type { BriefComparisonPlan } from "./useComparisonOverlay";
 // The door for the copy constants: tests live outside this subtree and may
 // not reach into the hook files directly (ADR 0037 §2).
 export { markReadyBatchFailureCopy } from "./utils";
+import { groupSinceMarkers } from "./utils";
 export { POST_COMMENT_COPY } from "./useOwnDraftFlow";
 
 /**
@@ -133,6 +134,11 @@ export interface BriefScreenProps {
    * stays live, but the ReceiptDrawer gates Submit behind an explicit ack.
    */
   staleHead?: boolean | undefined;
+  /**
+   * Opens the delta lens (BRIEF-102 since-marker link). Route-owned and
+   * stable; absent where no navigation is wired (the local demo path).
+   */
+  openDeltaLens?: (() => void) | undefined;
 }
 
 export function BriefScreen({
@@ -146,6 +152,7 @@ export function BriefScreen({
   conversation,
   conversationFocusThreadId,
   headerControls,
+  openDeltaLens,
   ownDraft,
   readOnly,
   staleHead,
@@ -164,6 +171,7 @@ export function BriefScreen({
     delta,
     marks,
     narrative,
+    sinceReviewMarks,
     skipReason,
     timeline,
   } = useComparisonOverlay({
@@ -173,6 +181,16 @@ export function BriefScreen({
     comparisonPlan,
     searchParams,
   });
+
+  // Per-group changed-since data (BRIEF-102): derived once per marks/model
+  // change so StoryView's per-card primitive props stay stable across
+  // unrelated screen re-renders.
+  const sinceMarkers = useMemo(() => {
+    const counts = groupSinceMarkers(model.groups, sinceReviewMarks);
+    return counts === undefined || sinceReviewMarks === null
+      ? undefined
+      : { counts, baselineShortSha: sinceReviewMarks.baselineSha.slice(0, 7) };
+  }, [model.groups, sinceReviewMarks]);
 
   // Own-draft state (BRIEF-43): the plan's presence IS the state — see the
   // block around `useMarkReadyFlow` below.
@@ -543,6 +561,8 @@ export function BriefScreen({
                 activeChunkId={activeChunkId}
                 collapseSupporting={session.collapseSupporting}
                 focusMode={focusMode}
+                openDeltaLens={openDeltaLens}
+                sinceMarkers={sinceMarkers}
                 openChunks={session.openChunks}
                 addressedReviewComments={brief.reviewComments}
                 conversationByChunk={conversationWiring.conversationByChunk}

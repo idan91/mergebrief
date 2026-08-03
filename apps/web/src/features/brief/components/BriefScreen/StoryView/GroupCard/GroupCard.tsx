@@ -21,6 +21,7 @@ import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderO
 import { RiskBadge } from "../../RiskBadge/RiskBadge";
 import { RiskChipDisclosure } from "../../RiskChipDisclosure/RiskChipDisclosure";
 import { RiskDetailList } from "../../RiskDetailList/RiskDetailList";
+import { SinceMarker } from "./SinceMarker/SinceMarker";
 import styles from "./GroupCard.module.scss";
 
 const EMPTY_RISK_FLAGS: RiskFlag[] = [];
@@ -30,6 +31,15 @@ export interface GroupCardProps {
   brief: { chunks: BriefChunk[] };
   model: BriefViewModel;
   jumpToChunk: (chunkId: string) => void;
+  /**
+   * Changed-since marker inputs (BRIEF-102), primitives so the memo boundary
+   * survives parent re-renders. Marker renders iff the shortsha is present
+   * (a checkpoint exists); count 0 = "unchanged since your last review".
+   */
+  sinceChangedFileCount?: number | undefined;
+  sinceBaselineShortSha?: string | undefined;
+  /** Opens the delta lens; route-owned, stable (memo boundary rides on it). */
+  openDeltaLens?: (() => void) | undefined;
 }
 
 function evidenceText(
@@ -47,6 +57,9 @@ export const GroupCard = memo(function GroupCard({
   brief,
   model,
   jumpToChunk,
+  sinceChangedFileCount,
+  sinceBaselineShortSha,
+  openDeltaLens,
 }: GroupCardProps) {
   const dispositions = useMindMap((state) => state.dispositions);
   const dominants = useMindMap((state) => state.dominants);
@@ -104,6 +117,13 @@ export const GroupCard = memo(function GroupCard({
             {group.carrierChunks.length} carrier ·{" "}
             {group.supportingChunks.length} supporting
           </span>
+          {sinceBaselineShortSha !== undefined ? (
+            <SinceMarker
+              baselineShortSha={sinceBaselineShortSha}
+              changedFileCount={sinceChangedFileCount ?? 0}
+              openDeltaLens={openDeltaLens}
+            />
+          ) : null}
         </div>
         <h2 className={styles["title"]}>{group.group.title}</h2>
         <p className={styles["summary"]}>{group.group.summary}</p>

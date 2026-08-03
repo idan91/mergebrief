@@ -92,6 +92,12 @@ export interface UseComparisonOverlayValue {
   delta: Brief | null;
   /** The ACTIVE baseline's raw span-diff descriptor (Changes Only toggle). */
   activeRawSpanDiff: ComparisonQuery<string> | undefined;
+  /**
+   * Last-review marks fetched INDEPENDENT of the active baseline
+   * (BRIEF-102): the per-group since-marker renders with Compare off. Null
+   * without a checkpoint (or while loading).
+   */
+  sinceReviewMarks: ComparisonMarks | null;
 }
 
 /**
@@ -190,6 +196,28 @@ export function useComparisonOverlay(
   const delta =
     (comparisonPlan === undefined ? localDelta.data : planDelta.data) ?? null;
 
+  // Since-marker source (BRIEF-102): the last-review marks, fetched whenever
+  // the checkpoint slot EXISTS rather than when it is the active baseline.
+  // Shares the queryKey with the active fetch above, so React Query dedupes
+  // when Compare = last-review is on.
+  const localSinceIds = resolveLocalComparisonIds(
+    "last-review",
+    timeline.selectedPoint?.comparisons,
+  );
+  const localSinceMarks = useQuery({
+    ...localComparisonMarksQueryOptions(localSinceIds.marksId ?? ""),
+    enabled: comparisonPlan === undefined && Boolean(localSinceIds.marksId),
+  });
+  const planSinceMarks = useQuery({
+    ...(planLastReview?.marks ??
+      disabledComparisonQuery<ComparisonMarks>("since-marks")),
+    enabled: planLastReview !== undefined,
+  });
+  const sinceReviewMarks =
+    (comparisonPlan === undefined
+      ? localSinceMarks.data
+      : planSinceMarks.data) ?? null;
+
   const { narrative, skipReason } =
     discriminateNarrativeArtifact(narrativeArtifact);
 
@@ -234,5 +262,6 @@ export function useComparisonOverlay(
     skipReason,
     delta,
     activeRawSpanDiff,
+    sinceReviewMarks,
   };
 }

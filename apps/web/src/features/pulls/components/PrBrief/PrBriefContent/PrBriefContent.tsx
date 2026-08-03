@@ -3,14 +3,17 @@
 // (queries + live-diff attach) lives here; plan/transport assembly lives in
 // the usePrBriefPlans hook.
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
 import { BriefView } from "@web/features/brief";
 import type {
   BriefSearch,
   BriefSearchParams,
 } from "../../../../brief/comparison/compareState";
-import { resolveBriefSearch } from "../../../../brief/comparison/compareState";
+import {
+  resolveBriefSearch,
+  withCompare,
+} from "../../../../brief/comparison/compareState";
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { Span } from "../../../utils/briefRouteState";
 import { comparisonsWarming } from "../../../utils/briefRouteState";
@@ -86,6 +89,40 @@ export function PrBriefContent({
     ownDraft,
   } = usePrBriefPlans({ repoId, prNumber, span, meta, timeline, revisionJump });
   const compareState = resolveBriefSearch(searchParams, availability);
+  // The since-marker's delta-lens link (BRIEF-102): the same normalized
+  // search write the header Compare control makes. Deps are PRIMITIVES —
+  // `availability` and `searchParams` are per-render literals, and this
+  // callback rides into GroupCard's memo boundary, which must survive
+  // PR-meta poll ticks.
+  const searchView = searchParams.view;
+  const searchCompare = searchParams.compare;
+  const previousBriefAvailable = availability.previousBrief;
+  const lastReviewAvailable = availability.lastReview;
+  const openDeltaLens = useCallback(() => {
+    const flags = {
+      previousBrief: previousBriefAvailable,
+      lastReview: lastReviewAvailable,
+    };
+    onNavigateSearch(
+      withCompare(
+        resolveBriefSearch(
+          {
+            ...(searchView !== undefined ? { view: searchView } : {}),
+            ...(searchCompare !== undefined ? { compare: searchCompare } : {}),
+          },
+          flags,
+        ),
+        "last-review",
+        flags,
+      ),
+    );
+  }, [
+    lastReviewAvailable,
+    onNavigateSearch,
+    previousBriefAvailable,
+    searchCompare,
+    searchView,
+  ]);
   // The unified control surface (BRIEF-24 UX pass): revision navigator +
   // View/Compare lenses render in the STICKY header's control slot — always
   // discoverable, never scrolled out of reach by the selection focus effect.
@@ -126,6 +163,7 @@ export function PrBriefContent({
         conversationFocusThreadId={conversationFocusThreadId}
         headerControls={headerControls}
         key={briefId}
+        openDeltaLens={openDeltaLens}
         ownDraft={ownDraft}
         readOnly={readOnly}
         searchParams={searchParams}

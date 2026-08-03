@@ -46,6 +46,37 @@ export function countComparisonRuns(
 }
 
 /**
+ * Per-group changed-since counts (BRIEF-102): DISTINCT member files with a
+ * nonempty entry in the last-review marks. `undefined` without marks — no
+ * checkpoint means no marker, distinct from a checkpoint with zero changes
+ * ("unchanged since your last review"). Mechanical marks only, mirroring the
+ * highlight rule (ADR 0024): narrative/Delta text never decides the count.
+ */
+export function groupSinceMarkers(
+  groups: { id: string; chunks: { file: string }[] }[],
+  marks: ComparisonMarkFiles | null,
+): Map<string, number> | undefined {
+  if (marks === null) return undefined;
+  const changedFiles = new Set(
+    marks.files
+      .filter(
+        (entry) => entry.addedRanges.length + entry.removedRanges.length > 0,
+      )
+      .map((entry) => entry.file),
+  );
+  return new Map(
+    groups.map((group) => [
+      group.id,
+      new Set(
+        group.chunks
+          .map((chunk) => chunk.file)
+          .filter((file) => changedFiles.has(file)),
+      ).size,
+    ]),
+  );
+}
+
+/**
  * BRIEF-54 soft-gate line: count of precise stated-but-missing asks. Zero on
  * broad/none or a pre-feature Brief. Never feeds the gate's OPEN condition.
  */

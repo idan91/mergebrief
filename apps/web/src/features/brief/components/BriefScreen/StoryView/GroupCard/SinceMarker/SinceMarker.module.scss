@@ -1,0 +1,27 @@
+@use "functions";
+
+@layer components {
+  .marker {
+    color: var(--faint);
+    font-size: var(--font-size-sm);
+
+    &[data-state="changed"] {
+      color: var(--amber);
+    }
+  }
+
+  .deltaLink {
+    padding: 0;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline;
+    text-underline-offset: functions.to-rem(3px);
+    cursor: pointer;
+
+    &:hover {
+      color: var(--color-text);
+    }
+  }
+}

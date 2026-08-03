@@ -34,6 +34,15 @@ export interface StoryViewProps {
   /** Inline conversation threads per chunk (BRIEF-25); absent on the local path. */
   conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
+  /**
+   * Per-group changed-since data (BRIEF-102); absent without a checkpoint.
+   * Split into primitives at the GroupCard boundary (memo discipline).
+   */
+  sinceMarkers?:
+    | { counts: ReadonlyMap<string, number>; baselineShortSha: string }
+    | undefined;
+  /** Opens the delta lens (BRIEF-102); route-owned, absent on the local path. */
+  openDeltaLens?: (() => void) | undefined;
 }
 
 export function StoryView(props: StoryViewProps) {
@@ -155,6 +164,9 @@ export function StoryView(props: StoryViewProps) {
                 brief={props.brief}
                 model={props.model}
                 jumpToChunk={props.jumpToChunk}
+                sinceBaselineShortSha={props.sinceMarkers?.baselineShortSha}
+                sinceChangedFileCount={props.sinceMarkers?.counts.get(group.id)}
+                openDeltaLens={props.openDeltaLens}
               />
             )}
           </section>

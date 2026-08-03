@@ -477,10 +477,12 @@ describe("ThreadDetail — Reply & resolve combo (BRIEF-93)", () => {
     combo.focus();
     expect(document.activeElement).toBe(combo);
     fireEvent.click(combo);
+    // The handoff runs in an effect AFTER the retirement commit — asserting
+    // activeElement on the unmount tick races that flush (CI flake, PR #222
+    // run 30850729385): await the focus itself, not the unmount.
     await waitFor(() =>
-      expect(screen.queryByTestId("reply-and-resolve")).toBeNull(),
+      expect(document.activeElement).toBe(screen.getByTestId("thread-resolve")),
     );
-    expect(document.activeElement).toBe(screen.getByTestId("thread-resolve"));
   });
 
   it("hands focus over on the both-landed outcome too", async () => {
@@ -492,10 +494,10 @@ describe("ThreadDetail — Reply & resolve combo (BRIEF-93)", () => {
     const combo = screen.getByRole("button", COMBO_BUTTON);
     combo.focus();
     fireEvent.click(combo);
+    // Same effect-flush race as above: await the focus, not the unmount.
     await waitFor(() =>
-      expect(screen.queryByTestId("reply-and-resolve")).toBeNull(),
+      expect(document.activeElement).toBe(screen.getByTestId("thread-resolve")),
     );
-    expect(document.activeElement).toBe(screen.getByTestId("thread-resolve"));
   });
 
   it("leaves focus alone when the reviewer moved it during the request", async () => {

@@ -13,6 +13,7 @@ import { ApiError, ApiErrorKind } from "../data/apiFetch";
 import {
   parseCompareParam,
   parseViewParam,
+  type BriefSearch,
   type BriefSearchParams,
 } from "../features/brief/comparison/compareState";
 import {
@@ -408,6 +409,19 @@ function PrBriefRoute() {
     document.getElementById("main-content")?.focus();
   }, [state.kind, selectedSpanKey]);
 
+  // Stable across renders (navigate is): PrBriefContent derives the
+  // since-marker's delta-lens callback from this, and GroupCard's memo
+  // boundary rides on that identity (BRIEF-102).
+  const onNavigateSearch = useCallback(
+    (next: BriefSearch) => {
+      void navigate({
+        search: (current) => ({ ...current, ...next }),
+        replace: false,
+      });
+    },
+    [navigate],
+  );
+
   return (
     <>
       {/* The navigator OWNS head navigation on a multi-revision PR; the legacy
@@ -423,12 +437,7 @@ function PrBriefRoute() {
       ) : null}
       <PrBriefBody
         meta={meta}
-        onNavigateSearch={(next) => {
-          void navigate({
-            search: (current) => ({ ...current, ...next }),
-            replace: false,
-          });
-        }}
+        onNavigateSearch={onNavigateSearch}
         conversationFocusThreadId={search.thread}
         onSelectRevision={selectRevision}
         prNumber={prNumber}

@@ -50,6 +50,11 @@ export interface BriefViewProps {
    */
   staleHead?: boolean | undefined;
   /**
+   * Opens the delta lens (BRIEF-102 since-marker link). Route-owned and
+   * stable; absent where no navigation is wired (the local demo path).
+   */
+  openDeltaLens?: (() => void) | undefined;
+  /**
    * The `?thread=` landing target (BRIEF-24 reads it): opens the conversation
    * section and lands on that thread. Absent → no auto-open.
    */
@@ -83,6 +88,7 @@ export function BriefView({
   conversation,
   conversationFocusThreadId,
   headerControls,
+  openDeltaLens,
   ownDraft,
   readOnly,
   repoConfig,
@@ -106,6 +112,7 @@ export function BriefView({
         conversationFocusThreadId={conversationFocusThreadId}
         headerControls={headerControls}
         model={model}
+        openDeltaLens={openDeltaLens}
         ownDraft={ownDraft}
         readOnly={readOnly}
         searchParams={searchParams}
