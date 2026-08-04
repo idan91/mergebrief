@@ -9,7 +9,6 @@ import {
 import { useStore } from "zustand";
 
 import type { CommentAnchor } from "@web/features/review/utils/comments";
-import { PreSubmitModal } from "@web/features/review";
 import {
   ConversationSection,
   type ConversationPlan,
@@ -244,7 +243,6 @@ export function BriefScreen({
   // Transient UI state stays local and colocated.
   const [submitOpen, setSubmitOpen] = useState(false);
   const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
-  const [preSubmitOpen, setPreSubmitOpen] = useState(false);
 
   // Post-now in-flight tracking (BRIEF-43) — the MODULE-LEVEL registry's
   // per-brief view, subscribed here. Module state, not component state: a
@@ -295,7 +293,7 @@ export function BriefScreen({
     return () => window.clearTimeout(timer);
   }, [flowActions, toast]);
 
-  const openPreSubmit = () => setPreSubmitOpen(true);
+  const openSubmit = () => setSubmitOpen(true);
   const closeSubmit = useCallback(() => setSubmitOpen(false), []);
   const openSummaryPreview = () => setSummaryPreviewOpen(true);
   // The conversation glue (section open/landing state, shared query + digest,
@@ -368,12 +366,10 @@ export function BriefScreen({
   });
   // This render's reviewer-overlay-open snapshot + the entry reset the
   // mark-ready flow's own-draft entry/exit effect drives (see the hook).
-  const reviewerOverlayOpen =
-    submitOpen || summaryPreviewOpen || preSubmitOpen || riskModalOpen;
+  const reviewerOverlayOpen = submitOpen || summaryPreviewOpen || riskModalOpen;
   const closeReviewerOverlays = useCallback(() => {
     setSubmitOpen(false);
     setSummaryPreviewOpen(false);
-    setPreSubmitOpen(false);
     flowActions.setDismissTarget(null);
     flowActions.setEvidenceTarget(null);
   }, [flowActions]);
@@ -407,7 +403,6 @@ export function BriefScreen({
   const shortcutsDisabled =
     submitOpen ||
     summaryPreviewOpen ||
-    preSubmitOpen ||
     markReady.gateOpen ||
     session.shortcutsOpen ||
     riskModalOpen ||
@@ -446,13 +441,8 @@ export function BriefScreen({
     );
   };
   const closeSummaryPreview = () => setSummaryPreviewOpen(false);
-  const closePreSubmit = () => setPreSubmitOpen(false);
-  const continuePreSubmitToReceipt = () => {
-    setPreSubmitOpen(false);
-    setSubmitOpen(true);
-  };
-  const jumpToPreSubmitItem = (item: UnresolvedItem) => {
-    setPreSubmitOpen(false);
+  const jumpToSubmitItem = (item: UnresolvedItem) => {
+    setSubmitOpen(false);
     jumpToChunk(item.targetId);
   };
   const clearDrafts = () => {
@@ -473,7 +463,7 @@ export function BriefScreen({
         progress={session.progress}
         viewMode={viewMode}
         setViewMode={session.setViewMode}
-        openReceipt={openPreSubmit}
+        openSubmit={openSubmit}
         clearDrafts={clearDrafts}
         availability={availability}
         compareState={compareState}
@@ -616,6 +606,8 @@ export function BriefScreen({
             outcome={reviewOutcome}
             setOutcome={(outcome) => actions.setOutcome(outcome)}
             submit={submitFromModal}
+            unresolvedItems={session.unresolvedItems}
+            jumpToItem={jumpToSubmitItem}
             submitPending={
               liveSubmit && readOnly === undefined ? submitFlow.pending : false
             }
@@ -634,13 +626,6 @@ export function BriefScreen({
             open={summaryPreviewOpen}
             snapshot={snapshot}
             close={closeSummaryPreview}
-          />
-          <PreSubmitModal
-            open={preSubmitOpen}
-            unresolvedItems={session.unresolvedItems}
-            close={closePreSubmit}
-            continueToReceipt={continuePreSubmitToReceipt}
-            jumpToItem={jumpToPreSubmitItem}
           />
         </>
       )}

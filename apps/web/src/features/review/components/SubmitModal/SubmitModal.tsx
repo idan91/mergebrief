@@ -6,12 +6,18 @@ import { Modal } from "@web/components/Modal/Modal";
 import modalStyles from "@web/components/Modal/Modal.module.scss";
 import { useReviewActions, useReviewFlow } from "../../session/flow/provider";
 import { RECEIPT_NOT_CHECKED, type Receipt } from "../../utils/receipt";
-import { reviewOutcomeLabel, type ReviewOutcome } from "../../utils/state";
+import {
+  reviewOutcomeLabel,
+  type ReviewOutcome,
+  type UnresolvedItem,
+} from "../../utils/state";
 import styles from "./SubmitModal.module.scss";
 
 /** The modal's in-flow position: the verdict form is the default; the
- * receipt is a pure preview one step away (BRIEF-137 locked decision 3). */
-type SubmitView = "verdict" | "receipt";
+ * receipt is a pure preview one step away; the advisory list is a
+ * conditional first stop, never a destination — no back-navigation to it
+ * (BRIEF-137 locked decisions 1 and 3). */
+type SubmitView = "advisory" | "verdict" | "receipt";
 
 const OUTCOMES: readonly ReviewOutcome[] = [
   "comment",
@@ -26,6 +32,14 @@ export interface SubmitModalProps {
   outcome: ReviewOutcome;
   setOutcome: (outcome: ReviewOutcome) => void;
   submit: () => void;
+  /**
+   * The pre-submit advisory list (BRIEF-137 decision 1): nonempty at open →
+   * the modal lands on the advisory view first. Captured at open — items
+   * resolving mid-flow don't reshuffle the view.
+   */
+  unresolvedItems: UnresolvedItem[];
+  /** Closes the whole modal and jumps the page to the item (screen-owned). */
+  jumpToItem: (item: UnresolvedItem) => void;
   /** Live submit in flight (BRIEF-23) — the control disables, focusably. */
   submitPending?: boolean;
   /**
@@ -62,6 +76,8 @@ export function SubmitModal({
   outcome,
   setOutcome,
   submit,
+  unresolvedItems,
+  jumpToItem,
   submitPending = false,
   blockedReasonOverride,
   blockedReasonWith,
@@ -80,21 +96,33 @@ export function SubmitModal({
   // while the modal stays open (acked → head caught up → advanced again) — a
   // prior consent must not pre-authorize new staleness. All resets ride the
   // render-time adjustment pattern (no effect, no flicker).
-  const [view, setView] = useState<SubmitView>("verdict");
+  // Lazy initializers cover a mounted-open modal (tests; the app mounts it
+  // closed): the open-transition adjustment below only runs on transitions.
+  const [view, setView] = useState<SubmitView>(() =>
+    open && unresolvedItems.length > 0 ? "advisory" : "verdict",
+  );
   const [ackStale, setAckStale] = useState(false);
   const [wasOpen, setWasOpen] = useState(open);
   const [wasStale, setWasStale] = useState(staleHead);
+  // Advisory items are CAPTURED at open (BRIEF-137 decision on Q3): nothing
+  // can change them while the modal traps focus, and a live list would let a
+  // mid-flow refetch reshuffle the view under the reviewer.
+  const [advisoryItems, setAdvisoryItems] = useState<UnresolvedItem[]>(() =>
+    open ? unresolvedItems : [],
+  );
   const headingRef = useRef<HTMLHeadingElement | null>(null);
   const prevViewRef = useRef(view);
   if (open !== wasOpen) {
     setWasOpen(open);
     if (open) {
-      setView("verdict");
+      const entryView = unresolvedItems.length > 0 ? "advisory" : "verdict";
+      setView(entryView);
+      setAdvisoryItems(unresolvedItems);
       setAckStale(false);
       // Also reset the focus-effect's view memory: reopening after a receipt
       // preview must NOT read as a view switch, or the heading focus below
       // would steal the Modal's own open-focus claim on the dialog box.
-      prevViewRef.current = "verdict";
+      prevViewRef.current = entryView;
     }
   }
   if (staleHead !== wasStale) {
@@ -137,7 +165,45 @@ export function SubmitModal({
       close={close}
       labelledBy="submit-modal-heading"
     >
-      {view === "verdict" ? (
+      {view === "advisory" ? (
+        <>
+          <h3 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
+            Before you submit
+          </h3>
+          <p className={modalStyles["copy"]}>
+            This is advisory. You can continue, but the summary will show
+            unresolved items exactly as they are.
+          </p>
+          <div className={modalStyles["unresolvedList"]}>
+            {advisoryItems.map((item) => (
+              <button
+                className={modalStyles["unresolvedItem"]}
+                key={item.id}
+                type="button"
+                onClick={() => jumpToItem(item)}
+              >
+                <span>{unresolvedKindLabel(item.kind)}</span>
+                <b>{item.label}</b>
+              </button>
+            ))}
+          </div>
+          <p className={styles["hint"]}>
+            Jumping to an item closes this dialog.
+          </p>
+          <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
+            <button className="btn" type="button" onClick={close}>
+              Keep reviewing
+            </button>
+            <button
+              className="btn primary"
+              type="button"
+              onClick={() => setView("verdict")}
+            >
+              Continue
+            </button>
+          </div>
+        </>
+      ) : view === "verdict" ? (
         <>
           <h3 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
             Submit review
@@ -283,10 +349,26 @@ export function SubmitModal({
   );
 }
 
-/** The frozen receipt rendering — ported verbatim from the retired
- * ReceiptDrawer so the ADR 0002 surface (mechanical claims, visible
- * "not checked" line) survives the move unchanged. */
+function unresolvedKindLabel(kind: UnresolvedItem["kind"]): string {
+  const labels: Record<UnresolvedItem["kind"], string> = {
+    "open-risk": "Open risk",
+    "missing-evidence": "Addressed without evidence",
+    "unreviewed-carrier": "Unreviewed carrier chunk",
+    "draft-comment": "Draft comment",
+    "thin-dismissal": "Thin dismissal reason",
+  };
+  return labels[kind];
+}
+
+/** The frozen receipt rendering — ported from the retired ReceiptDrawer so
+ * the ADR 0002 surface (mechanical claims, visible "not checked" line)
+ * survives the move; runs of blank lines left by empty sections collapse
+ * (content identical, voids gone). */
 function receiptText(receipt: Receipt): string {
+  return rawReceiptText(receipt).replace(/\n{3,}/g, "\n");
+}
+
+function rawReceiptText(receipt: Receipt): string {
   const { progress, addressed, dismissed, comments } = receipt;
   const openFlags = receipt.open;
   // The submit-facing split (BRIEF-23): drafts ship on the next submit;

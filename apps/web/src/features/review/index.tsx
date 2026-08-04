@@ -31,10 +31,6 @@ export {
 } from "./components/EvidenceModal/EvidenceModal";
 export type { DismissTarget, EvidenceTarget } from "./utils/state";
 export {
-  PreSubmitModal,
-  type PreSubmitModalProps,
-} from "./components/PreSubmitModal/PreSubmitModal";
-export {
   SubmitModal,
   type SubmitModalProps,
 } from "./components/SubmitModal/SubmitModal";

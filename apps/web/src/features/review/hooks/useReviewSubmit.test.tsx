@@ -102,7 +102,7 @@ describe("useReviewSubmit", () => {
 
   it("blocks a neutral comment submit with no drafts, with a reachable reason", () => {
     const { rendered, action } = setup({ outcome: "comment", comments: [] });
-    expect(rendered.result.current.blockedReason).toMatch(
+    expect(rendered.result.current.blockedReasonWith("")).toMatch(
       /at least one comment/i,
     );
     act(() => rendered.result.current.submit());
@@ -116,13 +116,13 @@ describe("useReviewSubmit", () => {
     // surface it AND refuse to run until it clears.
     const reason = "A comment is still posting to GitHub — wait.";
     const { rendered, input, action } = setup({ blockedExternally: reason });
-    expect(rendered.result.current.blockedReason).toBe(reason);
+    expect(rendered.result.current.blockedReasonWith("")).toBe(reason);
     act(() => rendered.result.current.submit());
     expect(action).not.toHaveBeenCalled();
 
     // The post settled: the block clears and submit proceeds.
     rendered.rerender({ ...input, blockedExternally: undefined });
-    expect(rendered.result.current.blockedReason).toBeUndefined();
+    expect(rendered.result.current.blockedReasonWith("")).toBeUndefined();
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 1,
@@ -384,12 +384,10 @@ describe("useReviewSubmit", () => {
   });
 
   it("unblocks a neutral comment submit when a review comment is present", () => {
-    const { rendered } = setup({
-      outcome: "comment",
-      comments: [],
-      getReviewComment: () => "Looks fine overall.",
-    });
-    expect(rendered.result.current.blockedReason).toBeUndefined();
+    const { rendered } = setup({ outcome: "comment", comments: [] });
+    expect(
+      rendered.result.current.blockedReasonWith("Looks fine overall."),
+    ).toBeUndefined();
   });
 
   it("re-reads the draft at click time — a keystroke after the render unblocks", async () => {
@@ -403,7 +401,7 @@ describe("useReviewSubmit", () => {
       comments: [],
       getReviewComment: () => draftText,
     });
-    expect(rendered.result.current.blockedReason).toMatch(
+    expect(rendered.result.current.blockedReasonWith(draftText)).toMatch(
       /at least one comment/i,
     );
     action.mockResolvedValue({
@@ -421,17 +419,10 @@ describe("useReviewSubmit", () => {
     );
   });
 
-  it("evaluates blockedReasonWith against the caller's draft, not the getter", () => {
+  it("evaluates blockedReasonWith per caller draft (editing-surface contract)", () => {
     // The editing surface subscribes to the raw text and re-derives the
     // disabled state per keystroke — without the owning screen re-rendering.
-    const { rendered } = setup({
-      outcome: "comment",
-      comments: [],
-      getReviewComment: () => "",
-    });
-    expect(rendered.result.current.blockedReason).toMatch(
-      /at least one comment/i,
-    );
+    const { rendered } = setup({ outcome: "comment", comments: [] });
     expect(
       rendered.result.current.blockedReasonWith("typed just now"),
     ).toBeUndefined();

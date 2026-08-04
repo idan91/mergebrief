@@ -1,5 +1,5 @@
 // The mark-ready soft gate (BRIEF-43; ADR 0009 #3 realized per ADR 0031).
-// PreSubmitModal's SHAPE, reused deliberately — same Modal primitive (focus
+// The retired PreSubmitModal's SHAPE, reused deliberately — same Modal primitive (focus
 // management, Escape, reduced-motion), same content stylesheet, same
 // advisory/list/actions structure — but a separate concern: it gates the
 // ready-for-review handoff, not a review submit.

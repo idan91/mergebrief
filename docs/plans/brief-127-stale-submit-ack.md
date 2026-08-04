@@ -27,6 +27,11 @@ that hard block to the ack model (option 2 of the rescope).
    Rendered only when stale; evaluated live (poll tick can flip it while the
    drawer is open — behavior follows visible state); not sticky across
    drawer opens.
+   *(Amended by BRIEF-137, 2026-08-04: the ack relocated to the SubmitModal's
+   verdict view — the ReceiptDrawer is retired and Submit lives beside the
+   verdict now. Mechanics unchanged: stale-only render, live evaluation, not
+   sticky across modal opens or staleness returns, `aria-disabled` +
+   describedby.)*
 7. **No server change, no new polling.** GitHub accepts advanced-head
    reviews (marks them outdated); force-push rewrite already 409s
    (UNKNOWN_COMMIT); GitHub 422 stale-anchor already maps to a 409/`stale`
@@ -36,6 +41,10 @@ that hard block to the ack model (option 2 of the rescope).
 8. **Consent copy lives at the receipt only** — HeadAdvancedBanner and the
    timeline navigator keep their navigation-offer roles. ADR 0019 #6 gets
    amended in the same PR (decision + behavior atomic).
+   *(Amended by BRIEF-137, 2026-08-04: "at the receipt" generalizes to "at
+   the commit affordance" — the consent copy rides the Submit control on the
+   SubmitModal's verdict view. The principle is unchanged: banner/navigator
+   never carry consent, the ack sits exactly where the submit happens.)*
 
 ## Current-state facts (verified)
 

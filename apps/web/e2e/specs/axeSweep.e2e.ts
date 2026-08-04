@@ -38,13 +38,19 @@ test("the shortcuts dialog is clean", async ({ page }, testInfo) => {
   await expectNoSeriousAxeViolations(page, testInfo, "shortcuts-dialog");
 });
 
-test("the submit modal is clean on both views", async ({ page }, testInfo) => {
+test("the submit modal is clean on all views", async ({ page }, testInfo) => {
   await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
-  // BRIEF-103: the header CTA reads Submit; the advisory pre-submit gate
-  // sits between it and the submit modal (BRIEF-137: verdict-first, the
-  // receipt is a preview view inside the same dialog).
+  // BRIEF-137: one modal owns the whole flow — the header CTA lands on the
+  // advisory view (the fixture has unresolved items), Continue reaches the
+  // verdict-first form, and the receipt is a preview view inside the same
+  // dialog.
   await page.getByRole("button", { name: "Submit", exact: true }).click();
-  await page.getByRole("button", { name: "Continue to receipt" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Before you submit" }),
+  ).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expectNoSeriousAxeViolations(page, testInfo, "submit-modal-advisory");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Submit review" }),
   ).toBeVisible();

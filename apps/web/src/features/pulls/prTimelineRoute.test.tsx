@@ -151,9 +151,9 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
     // …and the receipt carries the stale-submit ack instead.
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /continue to receipt/i }),
-    );
+    // BRIEF-137: the advisory view fronts the modal when unresolved items
+    // exist; Continue reaches the verdict view, which carries the ack.
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     expect(
       screen.getByText(/comments will anchor to the revision you reviewed/i),
     ).toBeTruthy();
@@ -188,9 +188,9 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     expect(picker.value).toBe("1");
     expect(screen.getByText(/^viewing revision 2 of 2\.$/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /continue to receipt/i }),
-    );
+    // BRIEF-137: the advisory view fronts the modal when unresolved items
+    // exist; Continue reaches the verdict view, which carries the ack.
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     // The ack gate reached the drawer (plumbing proof — the disabled-until-
     // acked mechanics are pinned in SubmitModal.test).
     expect(

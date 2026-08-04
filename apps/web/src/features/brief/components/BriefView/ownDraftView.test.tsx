@@ -149,13 +149,13 @@ describe("own-draft Brief view (BRIEF-43)", () => {
 
   it("hides the submit machinery and the receipt entirely — nothing dangling", () => {
     renderBriefView({ markReady: vi.fn() });
-    // The receipt drawer and its Submit button are not in the DOM at all.
+    // The submit modal and its Submit button are not in the DOM at all.
     expect(
-      screen.queryByRole("button", { name: /submit with receipt/i }),
+      screen.queryByRole("button", { name: /^submit review$/i }),
     ).toBeNull();
     expect(screen.queryByText(/review receipt/i)).toBeNull();
-    // The pre-submit ("Before the receipt") modal is unmounted too.
-    expect(screen.queryByText(/before the receipt/i)).toBeNull();
+    // The advisory ("Before you submit") view is unmounted too.
+    expect(screen.queryByText(/before you submit/i)).toBeNull();
     // No menu path back into submit: Summary preview is gone.
     fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
     expect(
@@ -985,7 +985,7 @@ describe("own-draft Brief view (BRIEF-43)", () => {
 
   it("rescues focus from an unmounting overlay onto the terminal-slot CTA, with an announcement", async () => {
     const { rerenderWith } = renderBriefView(undefined);
-    // Open the pre-submit overlay: the Modal claims focus on open.
+    // Open the submit modal: the Modal claims focus on open.
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(document.activeElement === document.body).toBe(false);
 
@@ -1004,13 +1004,14 @@ describe("own-draft Brief view (BRIEF-43)", () => {
 
   it("flip INTO own-draft under an open overlay: state clears, shortcuts revive, no resurrection", () => {
     const { rerenderWith } = renderBriefView(undefined);
-    // Open the pre-submit overlay on the reviewer view (Submit CTA).
+    // Open the submit modal on the reviewer view (Submit CTA) — the fixture
+    // has open flags, so it lands on the advisory view.
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-    expect(overlayState("Before the receipt")).toBe("open");
+    expect(overlayState("Before you submit")).toBe("open");
 
     // The PR converts to draft on GitHub under the open overlay.
     rerenderWith({ markReady: vi.fn() });
-    expect(screen.queryByText("Before the receipt")).toBeNull();
+    expect(screen.queryByText("Before you submit")).toBeNull();
     // The open flag was RESET, not merely unmounted: page shortcuts are not
     // stuck disabled — "?" opens the shortcuts modal.
     fireEvent.keyDown(window, { key: "?" });
@@ -1018,8 +1019,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(overlayState("Keyboard shortcuts")).toBe("closed");
 
-    // Marked ready again: the pre-submit overlay must not resurrect.
+    // Marked ready again: the submit modal must not resurrect (the remounted
+    // modal lazy-inits closed on the verdict view, so no advisory text).
     rerenderWith(undefined);
-    expect(overlayState("Before the receipt")).toBe("closed");
+    expect(screen.queryByText("Before you submit")).toBeNull();
   });
 });

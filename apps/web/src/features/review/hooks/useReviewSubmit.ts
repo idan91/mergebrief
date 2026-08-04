@@ -73,7 +73,7 @@ export interface UseReviewSubmitInput {
   resetOutcome: () => void;
   /**
    * A screen-owned reason Submit must not proceed right now, folded into
-   * `blockedReason` and hard-guarding `submit()` itself. BRIEF-43: a
+   * `blockedReasonWith` and hard-guarding `submit()` itself. BRIEF-43: a
    * post-now request still in flight when the own-draft state exits (ready
    * flip mid-request) — the payload capture would ship the still-draft
    * comment, and the settling 201 would flip it AFTER the review already
@@ -86,15 +86,12 @@ export interface UseReviewSubmitValue {
   /** False on the local demo path — the caller keeps its mock behavior. */
   available: boolean;
   pending: boolean;
-  /** Why Submit is disabled (reachable text, not hover-only), if it is.
-   * Computed with the review comment as of the OWNER's last render — live
-   * per-keystroke consumers use `blockedReasonWith` instead. */
-  blockedReason: string | undefined;
   /**
-   * The same blocked rule evaluated against a caller-supplied review-comment
-   * draft — for the editing surface, which subscribes to the raw text and
-   * must re-derive the disabled state per keystroke without re-rendering the
-   * owning screen.
+   * Why Submit is disabled (reachable text, not hover-only), evaluated
+   * against a caller-supplied review-comment draft — the editing surface
+   * subscribes to the raw text and re-derives the disabled state per
+   * keystroke without re-rendering the owning screen. The external block
+   * (transient, wait-shaped) wins over the content rules.
    */
   blockedReasonWith: (reviewComment: string) => string | undefined;
   /** The current failure copy; announced assertively where rendered. */
@@ -157,10 +154,6 @@ export function useReviewSubmit(
   // The external block wins the display: it is the transient, wait-shaped
   // reason (a post-now settling), and the content reasons re-surface once it
   // clears.
-  const blockedReason =
-    blockedExternally ??
-    submitBlockedReason(outcome, comments, getReviewComment());
-
   const blockedReasonWith = useCallback(
     (reviewComment: string) =>
       blockedExternally ??
@@ -172,8 +165,8 @@ export function useReviewSubmit(
     if (action === undefined || inFlight.current) {
       return;
     }
-    // Guard against the CURRENT draft, read at click time — the owning
-    // screen's render (and its `blockedReason`) may lag the keystroke.
+    // Guard against the CURRENT draft, read at click time — the modal's
+    // rendered blocked state may lag the keystroke.
     if (
       blockedExternally !== undefined ||
       submitBlockedReason(outcome, comments, getReviewComment()) !== undefined
@@ -313,7 +306,6 @@ export function useReviewSubmit(
   return {
     available: action !== undefined,
     pending,
-    blockedReason,
     blockedReasonWith,
     error,
     note,

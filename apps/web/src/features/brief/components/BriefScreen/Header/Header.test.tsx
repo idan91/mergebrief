@@ -69,7 +69,7 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     progress: 50,
     viewMode: "story",
     setViewMode: vi.fn(),
-    openReceipt: vi.fn(),
+    openSubmit: vi.fn(),
     clearDrafts: vi.fn(),
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
@@ -81,7 +81,7 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
 function renderHeader(overrides: Partial<HeaderProps> = {}) {
   const clearDrafts = vi.fn();
   const openSummaryPreviewDrawer = vi.fn();
-  const openReceipt = vi.fn();
+  const openSubmit = vi.fn();
   const props: HeaderProps = {
     brief,
     briefId: "test-brief",
@@ -96,7 +96,7 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
     progress: 50,
     viewMode: "story",
     setViewMode: vi.fn(),
-    openReceipt,
+    openSubmit,
     clearDrafts,
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
@@ -108,7 +108,7 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
     ...overrides,
   };
   render(<Header {...props} />);
-  return { clearDrafts, openSummaryPreviewDrawer, openReceipt };
+  return { clearDrafts, openSummaryPreviewDrawer, openSubmit };
 }
 
 describe("Header identity row (BRIEF-103)", () => {
@@ -411,9 +411,9 @@ describe("Header (BRIEF-28)", () => {
   });
 
   it("keeps the primary CTA top-level", () => {
-    const { openReceipt } = renderHeader();
+    const { openSubmit } = renderHeader();
     fireEvent.click(screen.getByRole("button", { name: "Submit" }));
-    expect(openReceipt).toHaveBeenCalledTimes(1);
+    expect(openSubmit).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -521,7 +521,7 @@ describe("Header own-draft state (BRIEF-43)", () => {
 
   it("swaps the terminal-action slot: Mark ready for review replaces Receipt", () => {
     const markReady = vi.fn();
-    const { openReceipt } = renderHeader({
+    const { openSubmit } = renderHeader({
       ownDraft: { markReady, pending: false },
     });
     expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
@@ -529,7 +529,7 @@ describe("Header own-draft state (BRIEF-43)", () => {
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
     expect(markReady).toHaveBeenCalledTimes(1);
-    expect(openReceipt).toHaveBeenCalledTimes(0);
+    expect(openSubmit).toHaveBeenCalledTimes(0);
   });
 
   it("marks the CTA aria-disabled (never hard disabled) while pending — focus survives", () => {

@@ -53,6 +53,8 @@ function baseProps(submit: () => void): SubmitModalProps {
     outcome: "comment",
     setOutcome: vi.fn(),
     submit,
+    unresolvedItems: [],
+    jumpToItem: vi.fn(),
   };
 }
 
@@ -184,6 +186,82 @@ describe("SubmitModal views", () => {
     expect(screen.getByText(/historical revision — read-only/i)).toBeTruthy();
     fireEvent.click(button);
     expect(submit).not.toHaveBeenCalled();
+  });
+});
+
+describe("SubmitModal advisory view (BRIEF-137)", () => {
+  afterEach(cleanup);
+
+  const items = [
+    {
+      id: "flag:1",
+      kind: "open-risk" as const,
+      label: "auth: token refresh race",
+      targetId: "chunk-a",
+    },
+    {
+      id: "comment:2",
+      kind: "draft-comment" as const,
+      label: "src/a.ts:+3",
+      targetId: "chunk-a",
+    },
+  ];
+
+  it("lands on the advisory view when unresolved items exist", () => {
+    renderModal({ unresolvedItems: items });
+    expect(
+      screen.getByRole("heading", { name: /before you submit/i }),
+    ).toBeTruthy();
+    expect(screen.getByText(/this is advisory/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /open risk/i })).toBeTruthy();
+    // No submit control on the advisory stop.
+    expect(
+      screen.queryByRole("button", { name: /^submit review$/i }),
+    ).toBeNull();
+  });
+
+  it("skips straight to the verdict view with nothing unresolved", () => {
+    renderModal({ unresolvedItems: [] });
+    expect(submitButton()).toBeTruthy();
+  });
+
+  it("Continue moves to the verdict view; receipt's Back returns to verdict, not advisory", () => {
+    renderModal({ unresolvedItems: items });
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+    expect(submitButton()).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /preview receipt/i }));
+    fireEvent.click(screen.getByRole("button", { name: /back to verdict/i }));
+    // The advisory list is a stop, never a destination.
+    expect(submitButton()).toBeTruthy();
+  });
+
+  it("jumping to an item hands the item to the screen", () => {
+    const jumpToItem = vi.fn();
+    renderModal({ unresolvedItems: items, jumpToItem });
+    fireEvent.click(screen.getByRole("button", { name: /open risk/i }));
+    expect(jumpToItem).toHaveBeenCalledWith(items[0]);
+  });
+
+  it("captures the items at open — a mid-flow prop change doesn't reshuffle", () => {
+    const { rerender } = renderModal({ unresolvedItems: items });
+    rerender({ unresolvedItems: [] });
+    // Still on the advisory view, still listing the captured items.
+    expect(screen.getByRole("button", { name: /open risk/i })).toBeTruthy();
+  });
+
+  it("re-shows the advisory on reopen while items remain", () => {
+    const { rerender } = renderModal({ unresolvedItems: items });
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+    rerender({ unresolvedItems: items, open: false });
+    rerender({ unresolvedItems: items, open: true });
+    const heading = screen.getByRole("heading", {
+      name: /before you submit/i,
+    });
+    expect(heading).toBeTruthy();
+    // Reopen onto the ADVISORY entry view is still the Modal's open-focus
+    // claim, not a view switch — the heading-focus effect must stay quiet
+    // (pins the prevViewRef reset to the ENTRY view, not "verdict").
+    expect(document.activeElement).not.toBe(heading);
   });
 });
 

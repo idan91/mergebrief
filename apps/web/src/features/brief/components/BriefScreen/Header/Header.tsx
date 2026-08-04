@@ -68,7 +68,7 @@ export interface HeaderProps {
   progress: number;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
-  openReceipt: () => void;
+  openSubmit: () => void;
   clearDrafts: () => void;
   /** Compare availability at the selected timeline point (ADR 0024). */
   availability: CompareOptionFlags;
@@ -102,7 +102,7 @@ export function Header({
   progress,
   viewMode,
   setViewMode,
-  openReceipt,
+  openSubmit,
   clearDrafts,
   availability,
   compareState,
@@ -215,7 +215,7 @@ export function Header({
         </span>
         <span aria-hidden="true" className={styles["spacer"]} />
         {/* The terminal-action slot: it always holds the state's terminal
-            action — Submit (→ receipt) on a reviewer view, Mark ready for
+            action — Submit (→ submit modal) on a reviewer view, Mark ready for
             review in the own-draft state (BRIEF-43, ADR 0031). */}
         {ownDraft !== undefined ? (
           /* aria-disabled, never hard disabled, while pending: a disabled
@@ -250,7 +250,7 @@ export function Header({
             onFocus={() => {
               terminalSlotFocused.current = true;
             }}
-            onClick={openReceipt}
+            onClick={openSubmit}
           >
             Submit
           </button>

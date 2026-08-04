@@ -520,9 +520,9 @@ describe("DB brief route", () => {
     // (BRIEF-127, the ticket's original target — the gate is span-derived,
     // not timeline-derived).
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
-    fireEvent.click(
-      screen.getByRole("button", { name: /continue to receipt/i }),
-    );
+    // BRIEF-137: the advisory view fronts the modal when unresolved items
+    // exist; Continue reaches the verdict view, which carries the ack.
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     expect(
       screen.getByText(/comments will anchor to the revision you reviewed/i),
     ).toBeTruthy();
