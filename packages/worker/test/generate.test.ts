@@ -202,6 +202,7 @@ function stubGitHub(headSha: string): StubGitHub {
       baseSha: BASE,
       state: "open",
       draft: false,
+      merged: false,
       title: "stub PR",
       body: "",
       htmlUrl: "https://github.com/acme/widget/pull/7",
@@ -353,6 +354,9 @@ describe("generate task", () => {
     expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
       summary: "stub brief",
       index: 1,
+      // The PR lifecycle snapshot (BRIEF-103) — pins the info→PrMetadata
+      // stamping wiring, not just the widened interface.
+      pr: { state: "open", draft: false, merged: false },
     });
 
     const row = await generationProjection(harness.handle, ctx).get(

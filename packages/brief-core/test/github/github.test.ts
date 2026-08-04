@@ -4,6 +4,7 @@ import {
   isCommentOutdated,
   isCommitish,
   isPublicUrl,
+  metadataFromView,
   normalizeReviewComment,
   parsePrUrl,
 } from "../../src/github";
@@ -53,6 +54,59 @@ describe("parsePrUrl", () => {
     "https://github.com/owner/repo/issues/1", // issue, not PR
   ])("rejects %s", (url) => {
     expect(() => parsePrUrl(url)).toThrow(/PR URL/);
+  });
+});
+
+describe("metadataFromView (gh pr view JSON → PrMetadata)", () => {
+  const baseView = {
+    title: "t",
+    body: "d",
+    url: "https://github.com/o/r/pull/1",
+    headRefOid: "head0000",
+    baseRefOid: "base0000",
+    commits: [{}],
+    files: [],
+  };
+
+  it("maps gh OPEN state + isDraft to the lifecycle fields", () => {
+    const meta = metadataFromView({
+      ...baseView,
+      state: "OPEN",
+      isDraft: true,
+    });
+    expect(meta.state).toBe("open");
+    expect(meta.draft).toBe(true);
+    expect(meta.merged).toBe(false);
+  });
+
+  it("folds gh MERGED into state=closed + merged=true", () => {
+    const meta = metadataFromView({
+      ...baseView,
+      state: "MERGED",
+      isDraft: false,
+    });
+    expect(meta.state).toBe("closed");
+    expect(meta.merged).toBe(true);
+    expect(meta.draft).toBe(false);
+  });
+
+  it("maps gh CLOSED to state=closed, merged=false", () => {
+    const meta = metadataFromView({ ...baseView, state: "CLOSED" });
+    expect(meta.state).toBe("closed");
+    expect(meta.merged).toBe(false);
+  });
+
+  it("omits lifecycle fields when gh sends no state (fail-open)", () => {
+    const meta = metadataFromView(baseView);
+    expect("state" in meta).toBe(false);
+    expect("merged" in meta).toBe(false);
+    expect("draft" in meta).toBe(false);
+  });
+
+  it("omits lifecycle fields on an unknown state value", () => {
+    const meta = metadataFromView({ ...baseView, state: "LOCKED" });
+    expect("state" in meta).toBe(false);
+    expect("merged" in meta).toBe(false);
   });
 });
 

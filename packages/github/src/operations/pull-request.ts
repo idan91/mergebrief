@@ -30,6 +30,8 @@ export interface PullRequestInfo {
   /** GitHub PR state (`open` / `closed`). */
   readonly state: string;
   readonly draft: boolean;
+  /** Whether the PR has been merged (a merged PR's `state` is `closed`). */
+  readonly merged: boolean;
   readonly title: string;
   /** PR description body; GitHub sends null for an empty description. */
   readonly body: string;
@@ -68,6 +70,7 @@ export async function fetchPullRequest(
         baseSha: data.base.sha,
         state: data.state,
         draft: data.draft ?? false,
+        merged: data.merged,
         title: data.title,
         body: data.body ?? "",
         htmlUrl: data.html_url,

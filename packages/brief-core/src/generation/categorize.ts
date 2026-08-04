@@ -81,6 +81,9 @@ function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
     url: meta.url,
     sha,
     description: meta.body,
+    ...(meta.state !== undefined ? { state: meta.state } : {}),
+    ...(meta.draft !== undefined ? { draft: meta.draft } : {}),
+    ...(meta.merged !== undefined ? { merged: meta.merged } : {}),
   };
 }
 

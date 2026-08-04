@@ -73,6 +73,9 @@ export type RiskSurfaceAttribute = ValueOf<typeof RiskSurfaceAttributes>;
  */
 export type RiskToken = string;
 
+/** GitHub PR lifecycle states — a merged PR's `state` is `closed`. */
+export type PrLifecycleState = "open" | "closed";
+
 export interface PrRef {
   repo: string;
   number: number;
@@ -80,6 +83,14 @@ export interface PrRef {
   url: string;
   sha: string;
   description: string;
+  /**
+   * @description PR lifecycle snapshot stamped at generation time
+   * (BRIEF-103) — a snapshot by design, no staleness hint. Absent on
+   * pre-stamping artifacts; the state badge simply doesn't render.
+   */
+  state?: PrLifecycleState;
+  draft?: boolean;
+  merged?: boolean;
 }
 
 export interface ChunkLoc {

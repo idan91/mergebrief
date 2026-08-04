@@ -68,7 +68,39 @@ const GhViewSchema = z.object({
       }),
     )
     .nullish(),
+  // gh's state vocabulary folds merged into state (`MERGED`), unlike the
+  // REST shape (state `closed` + a separate merged flag). Unknown values
+  // fail open: the optional lifecycle fields are omitted (BRIEF-103).
+  state: z.string().nullish(),
+  isDraft: z.boolean().nullish(),
 });
+
+/**
+ * Parsed-`gh pr view` JSON → `PrMetadata` (exported for tests — the exec
+ * wrapper below is just plumbing around this mapping).
+ */
+export function metadataFromView(raw: unknown): PrMetadata {
+  const view = GhViewSchema.parse(raw);
+  const ghState = view.state?.toUpperCase();
+  const lifecycle =
+    ghState === "OPEN" || ghState === "CLOSED" || ghState === "MERGED"
+      ? {
+          state: ghState === "OPEN" ? ("open" as const) : ("closed" as const),
+          merged: ghState === "MERGED",
+        }
+      : {};
+  return {
+    title: view.title,
+    body: view.body ?? "",
+    url: view.url,
+    sha: view.headRefOid,
+    baseSha: view.baseRefOid,
+    commitCount: view.commits?.length ?? 0,
+    files: view.files ?? [],
+    ...lifecycle,
+    ...(typeof view.isDraft === "boolean" ? { draft: view.isDraft } : {}),
+  };
+}
 
 export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
   const { stdout } = await execFileAsync(
@@ -80,20 +112,11 @@ export async function fetchPrMetadata(loc: PrLocator): Promise<PrMetadata> {
       "--repo",
       repoSlug(loc),
       "--json",
-      "title,body,url,headRefOid,baseRefOid,commits,files",
+      "title,body,url,headRefOid,baseRefOid,commits,files,state,isDraft",
     ],
     { maxBuffer: MAX_BUFFER },
   );
-  const view = GhViewSchema.parse(JSON.parse(stdout));
-  return {
-    title: view.title,
-    body: view.body ?? "",
-    url: view.url,
-    sha: view.headRefOid,
-    baseSha: view.baseRefOid,
-    commitCount: view.commits?.length ?? 0,
-    files: view.files ?? [],
-  };
+  return metadataFromView(JSON.parse(stdout));
 }
 
 /** A commit-ish we will interpolate into a `gh api` path — restrict to hex SHAs. */

@@ -102,6 +102,36 @@ const twoGroupBriefGen = {
   concernView: [{ concern: "implementation", added: 5, deleted: 0 }],
 };
 
+describe("categorize — PR lifecycle stamping (BRIEF-103)", () => {
+  it("stamps state/draft/merged from PrMetadata into the envelope pr block", async () => {
+    const stamped: FetchedPr = {
+      ...pr,
+      meta: { ...pr.meta, state: "closed", draft: false, merged: true },
+    };
+    const brief = await categorize(
+      stamped,
+      1,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+    );
+    expect(brief.pr.state).toBe("closed");
+    expect(brief.pr.draft).toBe(false);
+    expect(brief.pr.merged).toBe(true);
+  });
+
+  it("omits the lifecycle fields when the metadata lacks them (old fetch paths)", async () => {
+    const brief = await categorize(
+      pr,
+      1,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+    );
+    expect("state" in brief.pr).toBe(false);
+    expect("draft" in brief.pr).toBe(false);
+    expect("merged" in brief.pr).toBe(false);
+  });
+});
+
 describe("categorize — readingOrder pass-through", () => {
   it("carries a valid readingOrder through untouched", async () => {
     const fixture = {

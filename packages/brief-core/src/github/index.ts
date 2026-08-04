@@ -26,6 +26,7 @@ export {
   fetchPrDiff,
   fetchPrMetadata,
   isCommitish,
+  metadataFromView,
   parsePrUrl,
   resolveFullSha,
 } from "./fetch";

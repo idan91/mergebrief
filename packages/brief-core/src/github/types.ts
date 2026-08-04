@@ -1,4 +1,4 @@
-import { type ReviewComment } from "../types";
+import { type PrLifecycleState, type ReviewComment } from "../types";
 
 export type { ReviewComment };
 
@@ -24,6 +24,14 @@ export interface PrMetadata {
   /** Number of commits in the PR at this head. */
   commitCount: number;
   files: PrFile[];
+  /**
+   * PR lifecycle snapshot at fetch time (BRIEF-103), stamped into the
+   * artifact envelope's `pr` block. Optional end to end: pre-stamping fetch
+   * paths and old artifacts simply omit them.
+   */
+  state?: PrLifecycleState;
+  draft?: boolean;
+  merged?: boolean;
 }
 
 /** Text fetched from a URL found in the PR description. Best-effort context. */

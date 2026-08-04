@@ -57,6 +57,7 @@ const PR_INFO = {
   baseSha: "b".repeat(40),
   state: "open",
   draft: false,
+  merged: false,
   title: "t",
   body: "d",
   htmlUrl: "https://github.com/o/r/pull/7",
@@ -112,6 +113,9 @@ describe("octokitPrSource", () => {
       baseSha: "b".repeat(40),
       commitCount: 3,
       files: [{ path: "src/a.ts", additions: 1, deletions: 2 }],
+      state: "open",
+      draft: false,
+      merged: false,
     });
   });
 

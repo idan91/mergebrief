@@ -7,6 +7,7 @@ import {
   lookupBriefIndex,
   MAX_COMMENTS,
   normalizeReviewComment,
+  toPrLifecycleState,
   type PrLocator,
   type PrMetadata,
   type PrSource,
@@ -83,6 +84,7 @@ export function octokitPrSource(octokit: UserOctokit): PrSource {
         fetchPullRequest(octokit, prRef(loc)).then(unwrap),
         fetchPullRequestFiles(octokit, prRef(loc)).then(unwrap),
       ]);
+      const state = toPrLifecycleState(info.state);
       return {
         title: info.title,
         body: info.body,
@@ -91,6 +93,9 @@ export function octokitPrSource(octokit: UserOctokit): PrSource {
         baseSha: info.baseSha,
         commitCount: info.commitCount,
         files,
+        ...(state !== undefined ? { state } : {}),
+        draft: info.draft,
+        merged: info.merged,
       };
     },
     async fetchPrDiff(loc): Promise<string> {

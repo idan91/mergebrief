@@ -167,6 +167,11 @@ function parsePrRef(value: unknown): Result<PrRef> {
         "Expected pr repo, number, title, http(s) url, sha, and description",
     };
   }
+  // Lifecycle snapshot (BRIEF-103): optional, lenient — a malformed value is
+  // dropped rather than failing the artifact (badge display metadata only).
+  const state = value["state"];
+  const draft = value["draft"];
+  const merged = value["merged"];
   return {
     ok: true,
     value: {
@@ -176,6 +181,9 @@ function parsePrRef(value: unknown): Result<PrRef> {
       url,
       sha,
       description,
+      ...(state === "open" || state === "closed" ? { state } : {}),
+      ...(typeof draft === "boolean" ? { draft } : {}),
+      ...(typeof merged === "boolean" ? { merged } : {}),
     },
   };
 }

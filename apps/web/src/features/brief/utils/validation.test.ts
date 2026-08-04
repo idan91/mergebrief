@@ -83,6 +83,51 @@ describe("parseBrief", () => {
     if (!parsed.ok) return;
     expect("generationWarnings" in parsed.value).toBe(false);
   });
+  it("carries the pr lifecycle snapshot through (BRIEF-103)", () => {
+    const parsed = parseBrief({
+      pr: { ...pr, state: "closed", draft: false, merged: true },
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.pr.state).toBe("closed");
+    expect(parsed.value.pr.draft).toBe(false);
+    expect(parsed.value.pr.merged).toBe(true);
+  });
+
+  it("omits the lifecycle fields on pre-stamping artifacts", () => {
+    const parsed = parseBrief({
+      pr,
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect("state" in parsed.value.pr).toBe(false);
+    expect("draft" in parsed.value.pr).toBe(false);
+    expect("merged" in parsed.value.pr).toBe(false);
+  });
+
+  it("drops malformed lifecycle values instead of failing the artifact", () => {
+    const parsed = parseBrief({
+      pr: { ...pr, state: "MERGED", draft: "yes", merged: 1 },
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect("state" in parsed.value.pr).toBe(false);
+    expect("draft" in parsed.value.pr).toBe(false);
+    expect("merged" in parsed.value.pr).toBe(false);
+  });
+
   it("rejects pr urls that are not http(s)", () => {
     const parsed = parseBrief({
       pr: { ...pr, url: "javascript:alert(1)" },

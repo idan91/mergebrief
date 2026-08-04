@@ -142,6 +142,23 @@ const riskSurfaceEnum = riskTokenEnum([]);
 
 // --- Brief shape ----------------------------------------------------------
 
+/** GitHub PR lifecycle states — a merged PR's `state` is `closed`. */
+export const PrLifecycleStates = ["open", "closed"] as const;
+
+export type PrLifecycleState = (typeof PrLifecycleStates)[number];
+
+/**
+ * Narrow a wire-level state string (octokit `PullRequestInfo.state`) to a
+ * `PrLifecycleState`; anything unrecognized yields `undefined` so the optional
+ * envelope fields are simply omitted (fail-open — the badge just won't
+ * render).
+ */
+export function toPrLifecycleState(
+  value: string,
+): PrLifecycleState | undefined {
+  return value === "open" || value === "closed" ? value : undefined;
+}
+
 export const PrRefSchema = z.object({
   repo: z.string().describe("owner/name, e.g. medusajs/medusa"),
   number: z.number().int().describe("PR number"),
@@ -152,6 +169,22 @@ export const PrRefSchema = z.object({
     .string()
     .describe(
       "the PR description (body) as authored, kept for display and as optional agent context",
+    ),
+  state: z
+    .enum(PrLifecycleStates)
+    .optional()
+    .describe(
+      "PR state at generation time (snapshot by design — BRIEF-103). CLI-assigned, optional: pre-stamping artifacts omit it.",
+    ),
+  draft: z
+    .boolean()
+    .optional()
+    .describe("whether the PR was a draft at generation time. CLI-assigned."),
+  merged: z
+    .boolean()
+    .optional()
+    .describe(
+      "whether the PR was merged at generation time (merged implies state=closed). CLI-assigned.",
     ),
 });
 

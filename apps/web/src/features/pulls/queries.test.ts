@@ -284,4 +284,16 @@ describe("dbBriefQueryOptions queryFn — warn sink (BRIEF-44 PR 6)", () => {
     apiFetchJsonMock.mockResolvedValue(briefBody("not an array"));
     await expect(runBrief()).resolves.toMatchObject({ summary: "s" });
   });
+
+  it("carries the pr lifecycle snapshot off the wire (BRIEF-103)", async () => {
+    getSsrWarnSinkMock.mockResolvedValue(undefined);
+    const body = briefBody(undefined);
+    apiFetchJsonMock.mockResolvedValue({
+      ...body,
+      pr: { ...prRef, state: "open", draft: true, merged: false },
+    });
+    await expect(runBrief()).resolves.toMatchObject({
+      pr: { state: "open", draft: true, merged: false },
+    });
+  });
 });

@@ -470,6 +470,7 @@ describe("fetchPullRequest / fetchDiff", () => {
         base: { sha: "base-sha" },
         state: "open",
         draft: false,
+        merged: false,
         title: "A PR",
         body: "does a thing",
         html_url: "https://github.com/o/r/pull/3",
@@ -489,11 +490,38 @@ describe("fetchPullRequest / fetchDiff", () => {
       baseSha: "base-sha",
       state: "open",
       draft: false,
+      merged: false,
       title: "A PR",
       body: "does a thing",
       htmlUrl: "https://github.com/o/r/pull/3",
       commitCount: 4,
     });
+  });
+
+  it("captures merged on a merged (closed) PR", async () => {
+    const pullsGet = vi.fn().mockResolvedValue({
+      data: {
+        head: { sha: "head-sha" },
+        base: { sha: "base-sha" },
+        state: "closed",
+        draft: false,
+        merged: true,
+        title: "A merged PR",
+        body: "",
+        html_url: "https://github.com/o/r/pull/4",
+        commits: 2,
+      },
+    });
+    const octokit = mockOctokit({ pullsGet });
+    const result = await fetchPullRequest(octokit, {
+      owner: "o",
+      repo: "r",
+      prNumber: 4,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.state).toBe("closed");
+    expect(result.value.merged).toBe(true);
   });
 
   it("normalizes a null PR body to the empty string", async () => {
@@ -503,6 +531,7 @@ describe("fetchPullRequest / fetchDiff", () => {
         base: { sha: "base-sha" },
         state: "open",
         draft: false,
+        merged: false,
         title: "A PR",
         body: null,
         html_url: "https://github.com/o/r/pull/3",

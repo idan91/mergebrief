@@ -34,6 +34,7 @@ import {
   fetchLinkedContext,
   isHugeSpan,
   revisionNarrativeConfig,
+  toPrLifecycleState,
   type Brief,
   type DeltaInput,
   type LinkedContext,
@@ -598,6 +599,7 @@ async function runGeneration(
     const diff = unwrapGitHub(await source.fetchDiff());
 
     const locator: PrLocator = locatorFor(prRow);
+    const state = toPrLifecycleState(info.state);
     const meta: PrMetadata = {
       title: info.title,
       body: info.body,
@@ -606,6 +608,9 @@ async function runGeneration(
       baseSha: info.baseSha,
       commitCount: info.commitCount,
       files,
+      ...(state !== undefined ? { state } : {}),
+      draft: info.draft,
+      merged: info.merged,
     };
     const coreLog: CoreLog = (message) => log.info(message);
     const links = await fetchLinkedContext(meta.body, coreLog);
