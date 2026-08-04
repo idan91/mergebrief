@@ -16,10 +16,11 @@ import type {
 import type { ProgressTotals } from "../../../utils/progress";
 import type { BriefTimeline } from "../../../utils/timeline";
 import type { RepoConfigContext } from "../../../utils/repoConfig";
-import type { Brief } from "../../../types";
+import type { Brief, LivePrState } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
+import { StateBadge } from "./StateBadge/StateBadge";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
 
@@ -52,15 +53,19 @@ export interface HeaderProps {
    * absent/null (or an all-absent surface) renders no chip.
    */
   repoConfig?: RepoConfigContext | null | undefined;
+  /**
+   * Live webhook-maintained PR state (DB route, BRIEF-103): the state
+   * badge prefers it over the artifact's stamped snapshot. Absent on the
+   * local file path.
+   */
+  livePrState?: LivePrState | undefined;
   briefId: string;
   timeline: BriefTimeline;
   model: BriefViewModel;
   totals: ProgressTotals;
   progress: number;
-  locOpen: boolean;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
-  setLocOpen: (value: boolean) => void;
   openReceipt: () => void;
   clearDrafts: () => void;
   /** Compare availability at the selected timeline point (ADR 0024). */
@@ -87,15 +92,14 @@ export interface HeaderProps {
 export function Header({
   brief,
   repoConfig,
+  livePrState,
   briefId,
   timeline,
   model,
   totals,
   progress,
-  locOpen,
   viewMode,
   setViewMode,
-  setLocOpen,
   openReceipt,
   clearDrafts,
   availability,
@@ -111,11 +115,18 @@ export function Header({
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
-    const apply = () =>
-      document.documentElement.style.setProperty(
-        "--top-bar-h",
-        `${el.offsetHeight}px`,
-      );
+    // Write only on CHANGE: the observer fires every resize frame, and a
+    // same-value setProperty still invalidates every var(--top-bar-h)
+    // consumer (sticky chunk headers, the progress bar) — one source of the
+    // resize stutter (Idan, 2026-08-04). Horizontal resizes rarely change
+    // the height, so most frames now write nothing.
+    let lastHeight = "";
+    const apply = () => {
+      const next = `${el.offsetHeight}px`;
+      if (next === lastHeight) return;
+      lastHeight = next;
+      document.documentElement.style.setProperty("--top-bar-h", next);
+    };
     apply();
     const observer = new ResizeObserver(apply);
     observer.observe(el);
@@ -148,24 +159,28 @@ export function Header({
   }, [ownDraft]);
 
   const progressStyle: ProgressBarStyle = {
-    "--progress-width": `${progress}%`,
+    "--progress-scale": `${progress / 100}`,
   };
   const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
-  const meta = briefMetaLine(brief);
 
   return (
     <header className={styles["header"]} ref={headerRef}>
-      {/* Tier 1 — identity and status: stable while reviewing. */}
+      {/* Tier 1 — the one-line identity row (BRIEF-103): wordmark · state
+          badge · title (truncates first) · repo + PR link · riders ·
+          [spacer] · CTA · overflow. */}
       <div className={styles["identityRow"]}>
-        <div className={styles["wordmark"]}>
-          MergeBrief<span> / review</span>
-        </div>
-        <div className={styles["prmeta"]}>
+        {/* Lead + riders are inert on wide viewports (display: contents —
+            one flex line); at ≤880px they become the two content rows of
+            the grid layout, with the CTA + overflow column spanning both. */}
+        <div className={styles["lead"]}>
+          <div className={styles["wordmark"]}>MergeBrief</div>
+          <StateBadge live={livePrState} pr={brief.pr} />
+          {/* Own-draft: the self-review chip sits adjacent to the Draft badge —
+              same story, told together (spec: Chips). */}
+          {ownDraft !== undefined ? <SelfReviewChip /> : null}
           <h1 className={styles["title"]}>{brief.pr.title}</h1>
-          {/* One truncating context line: identity facts read left to right in
-              falling order of stability (repo → PR → artifact → provenance). */}
-          <div className={styles["sub"]}>
-            <b>{brief.pr.repo}</b> ·{" "}
+          <span className={styles["repoRef"]}>
+            <b>{brief.pr.repo}</b>{" "}
             {prLink ? (
               <a
                 className={styles["ghlink"]}
@@ -177,67 +192,21 @@ export function Header({
               </a>
             ) : (
               <span>#{brief.pr.number}</span>
-            )}{" "}
-            · {artifactHeaderLabel(brief)}
-            {meta ? ` · ${meta}` : ""}
-          </div>
-          {brief.generationWarnings && brief.generationWarnings.length > 0 ? (
-            // What generation DID, not just that it finished (BRIEF-11):
-            // salvage, feedback retry, and served-model mismatch stay
-            // visible on the artifact they degraded.
-            <div className={styles["generationWarnings"]} role="note">
-              {[...new Set(brief.generationWarnings)].map((warning) => (
-                <div key={warning}>{warning}</div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-        {/* The three progress facts read as ONE object — hairline-divided
-            cells instead of three floating text blocks. */}
-        <div className={styles["statsGroup"]}>
-          <button
-            className={`stat ${styles["stat"]} ${styles["locBadge"]}`}
-            data-state={locOpen ? "open" : "closed"}
-            type="button"
-            onClick={() => setLocOpen(!locOpen)}
-          >
-            <span>adjusted lines</span>
-            <b>
-              <span className="green">+{model.totalAdded}</span>{" "}
-              <span className="faint">/</span>{" "}
-              <span className="red">−{model.totalDeleted}</span>
-            </b>
-            <span className={styles["locPop"]}>
-              <b>Adjusted ≈ git for this local brief.</b>
-              <br />
-              Move detection is not in the current categorizer output, so
-              moved/generated exclusions are not claimed yet.
-            </span>
-          </button>
-          <div className={`stat ${styles["stat"]}`}>
-            chunks
-            <b>
-              {totals.reviewed}/{totals.chunkTotal}
-            </b>
-          </div>
-          <div className={`stat ${styles["stat"]}`}>
-            flags
-            {/* Own-draft state: dispositions are unreachable (flags are a
-                read-only mirror), so a resolved/total fraction would sit at a
-                permanent 0/N — show the count alone. */}
-            {ownDraft !== undefined ? (
-              <b>{totals.flagTotal}</b>
-            ) : (
-              <b>
-                {totals.flagsResolved}/{totals.flagTotal}
-              </b>
             )}
-          </div>
+          </span>
         </div>
-        {repoConfig != null ? <RepoConfigChip repoConfig={repoConfig} /> : null}
-        {ownDraft !== undefined ? <SelfReviewChip /> : null}
+        {/* Everything after the repo/PR link wraps to a second line on
+            narrow viewports; the CTA + overflow stay pinned at the row end. */}
+        <span className={styles["riders"]}>
+          <ProvenanceNote generation={brief.generation} />
+          <GenerationWarningsChip warnings={brief.generationWarnings} />
+          {repoConfig != null ? (
+            <RepoConfigChip repoConfig={repoConfig} />
+          ) : null}
+        </span>
+        <span aria-hidden="true" className={styles["spacer"]} />
         {/* The terminal-action slot: it always holds the state's terminal
-            action — Receipt (→ submit) on a reviewer view, Mark ready for
+            action — Submit (→ receipt) on a reviewer view, Mark ready for
             review in the own-draft state (BRIEF-43, ADR 0031). */}
         {ownDraft !== undefined ? (
           /* aria-disabled, never hard disabled, while pending: a disabled
@@ -274,7 +243,7 @@ export function Header({
             }}
             onClick={openReceipt}
           >
-            Receipt
+            Submit
           </button>
         )}
         <HeaderMenu
@@ -288,7 +257,8 @@ export function Header({
       </div>
       {/* Tier 2 — the lens toolbar: everything that changes WHAT is on
           screen (revision, View/Compare, Story/Concerns), flattened to one
-          wrappable line. Story/Concerns organizes content rather than
+          wrappable line, plus the quiet stats group (BRIEF-103: moved off
+          the identity row). Story/Concerns organizes content rather than
           comparison, so it parks at the far end. */}
       <div className={styles["lensRow"]}>
         {controlsSlot !== undefined ? (
@@ -301,6 +271,37 @@ export function Header({
             timeline={timeline}
           />
         )}
+        {/* The three progress facts read as ONE object — hairline-divided
+            cells instead of three floating text blocks. */}
+        <div className={styles["statsGroup"]}>
+          <div className={`stat ${styles["stat"]}`}>
+            adjusted lines
+            <b>
+              <span className="green">+{model.totalAdded}</span>{" "}
+              <span className="faint">/</span>{" "}
+              <span className="red">−{model.totalDeleted}</span>
+            </b>
+          </div>
+          <div className={`stat ${styles["stat"]}`}>
+            chunks
+            <b>
+              {totals.reviewed}/{totals.chunkTotal}
+            </b>
+          </div>
+          <div className={`stat ${styles["stat"]}`}>
+            flags
+            {/* Own-draft state: dispositions are unreachable (flags are a
+                read-only mirror), so a resolved/total fraction would sit at a
+                permanent 0/N — show the count alone. */}
+            {ownDraft !== undefined ? (
+              <b>{totals.flagTotal}</b>
+            ) : (
+              <b>
+                {totals.flagsResolved}/{totals.flagTotal}
+              </b>
+            )}
+          </div>
+        </div>
         <fieldset className={styles["viewbar"]}>
           <ScreenReaderOnly as="legend">Review view</ScreenReaderOnly>
           <label className={styles["viewOption"]}>
@@ -575,7 +576,7 @@ function HeaderMenu({
 }
 
 interface ProgressBarStyle extends CSSProperties {
-  "--progress-width": string;
+  "--progress-scale": string;
 }
 
 function isHttpUrl(value: unknown): value is string {
@@ -588,47 +589,58 @@ function isHttpUrl(value: unknown): value is string {
   }
 }
 
-function artifactHeaderLabel(brief: Brief): string {
-  if (brief.artifactKind === "delta" && brief.baselineSha && brief.headSha) {
-    return `local delta ${brief.baselineSha.slice(0, 7)} → ${brief.headSha.slice(0, 7)}`;
-  }
-  return `local brief @ ${brief.pr.sha.slice(0, 7)}`;
+/**
+ * Interim generation-provenance note (BRIEF-103 PR 2): the surviving "via …"
+ * fragment of the removed context line — artifact identity lives in the
+ * TimelineNavigator, the rest of the old meta moves to the Brief-details
+ * panel. The keycap provider/model badge replaces this element in PR 3.
+ */
+function ProvenanceNote({ generation }: { generation: Brief["generation"] }) {
+  if (!generation) return null;
+  // Own-property only: the provider token comes from artifact data, and a
+  // plain index read would resolve inherited Object members ("toString").
+  const adapterClass = Object.hasOwn(PROVIDER_CLASS_LABEL, generation.provider)
+    ? PROVIDER_CLASS_LABEL[generation.provider]
+    : undefined;
+  return (
+    <span className={styles["provenanceNote"]} data-provenance="">
+      {`via ${generation.provider}${adapterClass ? ` (${adapterClass})` : ""}/${generation.model}${generation.effort ? ` · effort ${generation.effort}` : ""}`}
+    </span>
+  );
 }
 
-/** Muted index/commit-range + generation provenance, when present (ADR 0012/0013). */
-function briefMetaLine(brief: Brief): string {
-  const parts: string[] = [];
-  if (brief.artifactKind === "brief" && brief.index != null) {
-    const range = brief.commitRange
-      ? ` · ${brief.commitRange.base.slice(0, 8)}..${brief.commitRange.head.slice(0, 8)}, ${brief.commitRange.commitCount} commit${brief.commitRange.commitCount === 1 ? "" : "s"}`
-      : "";
-    parts.push(`brief _${brief.index}${range}`);
-  } else if (
-    brief.artifactKind === "delta" &&
-    (brief.baselineIndex != null || brief.headIndex != null)
-  ) {
-    const b =
-      brief.baselineIndex != null
-        ? `_${brief.baselineIndex}`
-        : (brief.baselineSha?.slice(0, 8) ?? "?");
-    const h =
-      brief.headIndex != null
-        ? `_${brief.headIndex}`
-        : (brief.headSha?.slice(0, 8) ?? "?");
-    parts.push(`${b} → ${h}`);
-  }
-  if (brief.generation) {
-    const g = brief.generation;
-    // Own-property only: the provider token comes from artifact data, and a
-    // plain index read would resolve inherited Object members ("toString").
-    const adapterClass = Object.hasOwn(PROVIDER_CLASS_LABEL, g.provider)
-      ? PROVIDER_CLASS_LABEL[g.provider]
-      : undefined;
-    parts.push(
-      `via ${g.provider}${adapterClass ? ` (${adapterClass})` : ""}/${g.model}${g.effort ? ` · effort ${g.effort}` : ""}`,
-    );
-  }
-  return parts.join(" · ");
+/**
+ * Generation warnings as a compact amber count chip (BRIEF-103): the prose
+ * block left the header; what generation DID (salvage, feedback retry,
+ * served-model mismatch — BRIEF-11) stays one disclosure away. PR 4 rewires
+ * this chip to open the Brief-details panel; until then the disclosure
+ * carries the prose itself so warnings never go dark between PRs.
+ */
+function GenerationWarningsChip({
+  warnings,
+}: {
+  warnings: string[] | undefined;
+}) {
+  if (!warnings || warnings.length === 0) return null;
+  const unique = [...new Set(warnings)];
+  return (
+    <RiskChipDisclosure
+      detail={
+        <span className={styles["warningsDetail"]} role="note">
+          {unique.map((warning) => (
+            <span key={warning}>{warning}</span>
+          ))}
+        </span>
+      }
+    >
+      <span className={styles["warningsChip"]} data-generation-warnings-chip="">
+        <span aria-hidden="true">⚠</span>
+        <span>
+          {unique.length} generation warning{unique.length === 1 ? "" : "s"}
+        </span>
+      </span>
+    </RiskChipDisclosure>
+  );
 }
 
 /**

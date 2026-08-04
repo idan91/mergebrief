@@ -76,6 +76,19 @@ export type RiskToken = string;
 /** GitHub PR lifecycle states — a merged PR's `state` is `closed`. */
 export type PrLifecycleState = "open" | "closed";
 
+/**
+ * @description Live PR lifecycle from the DB route's webhook-maintained
+ * pull-request row (BRIEF-103 spec: "DB path live via webhooks") — folds
+ * merged into the state like the DB vocabulary does. When present it
+ * SUPERSEDES the artifact's stamped snapshot; the local file path never
+ * has it and falls back to the stamp. Structural on purpose: the pulls
+ * feature's `PrSummary` slice assigns without a lateral import.
+ */
+export interface LivePrState {
+  state: "open" | "closed" | "merged";
+  draft: boolean;
+}
+
 export interface PrRef {
   repo: string;
   number: number;

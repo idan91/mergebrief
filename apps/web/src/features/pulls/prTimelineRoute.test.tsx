@@ -150,7 +150,7 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
     expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
     // …and the receipt carries the stale-submit ack instead.
-    fireEvent.click(screen.getByRole("button", { name: /^receipt$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
     fireEvent.click(
       screen.getByRole("button", { name: /continue to receipt/i }),
     );
@@ -187,7 +187,7 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     );
     expect(picker.value).toBe("1");
     expect(screen.getByText(/^viewing revision 2 of 2\.$/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^receipt$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
     fireEvent.click(
       screen.getByRole("button", { name: /continue to receipt/i }),
     );

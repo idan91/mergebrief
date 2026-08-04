@@ -5,7 +5,7 @@ import { MindMapProvider } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { RepoConfigContext } from "../../utils/repoConfig";
-import type { Brief, LocalBriefSummary } from "../../types";
+import type { Brief, LivePrState, LocalBriefSummary } from "../../types";
 import { buildBriefViewModel } from "../../utils/viewModel";
 import {
   BriefScreen,
@@ -19,6 +19,12 @@ export type {
 } from "../BriefScreen/BriefScreen";
 
 export interface BriefViewProps {
+  /**
+   * Live webhook-maintained PR state (DB route, BRIEF-103): the header's
+   * state badge prefers it over the artifact's stamped snapshot. Absent on
+   * the local file path.
+   */
+  livePrState?: LivePrState | undefined;
   artifacts: LocalBriefSummary[];
   briefId: string;
   /** Raw View/Compare URL params (ADR 0024 plan step 6); undefined keys mean
@@ -81,6 +87,7 @@ export interface BriefViewProps {
  * and may be empty (every comparison affordance then self-disables).
  */
 export function BriefView({
+  livePrState,
   artifacts,
   brief,
   briefId,
@@ -103,6 +110,7 @@ export function BriefView({
   return (
     <MindMapProvider briefId={briefId} model={model}>
       <BriefScreen
+        livePrState={livePrState}
         artifacts={artifacts}
         brief={brief}
         repoConfig={repoConfig}

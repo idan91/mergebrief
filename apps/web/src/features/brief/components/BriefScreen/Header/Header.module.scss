@@ -16,12 +16,21 @@
     background: color-mix(in srgb, var(--bg) 85%, transparent);
     backdrop-filter: blur(12px);
     container: header / inline-size;
+
+    // Focus-mode clip fix (BRIEF-103): the FocusBanner sticks below at
+    // z-index 90, above this header's 50 — so the open overflow menu
+    // (z-index 60 INSIDE this stacking context) rendered underneath it.
+    // Rise above the banner exactly while the menu exists; staying at 50
+    // otherwise keeps the drawer scrim (z-index 80) able to dim the header.
+    &:has(.menu) {
+      z-index: 91;
+    }
   }
 
   .identityRow {
     display: flex;
     align-items: center;
-    gap: clamp(functions.to-rem(12px), 2vw, functions.to-rem(22px));
+    gap: clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(16px));
     min-block-size: functions.to-rem(52px);
     padding-block: functions.to-rem(7px);
     padding-inline: clamp(functions.to-rem(18px), 3vw, functions.to-rem(28px));
@@ -42,26 +51,52 @@
     background: color-mix(in srgb, var(--panel2) 45%, transparent);
   }
 
+  // line-height: 1 on the row's single-line text items (design-audit
+  // round 4): with inherited line-heights their line BOXES differ (23px /
+  // 17.5px / 18.6px measured), so box-centering left the visible text
+  // baselines drifting ~2px. Tight boxes make centered boxes = centered
+  // glyphs. Safe: all three are nowrap single-line.
   .wordmark {
+    flex: none;
     color: var(--text);
     font-size: var(--font-size-xl);
     font-weight: 700;
     letter-spacing: 0;
+    line-height: 1;
     white-space: nowrap;
-
-    span {
-      color: var(--faint);
-      font-weight: 400;
-    }
   }
 
-  .prmeta {
-    display: flex;
-    flex: 1;
+  // The title truncates FIRST (spec: one-line identity row): the huge
+  // shrink factor spends all of its width before any other cell gives an
+  // inch; repoRef and the provenance note are the second and third lines
+  // of defense so a long repo name can never push the pinned CTA +
+  // overflow off a sticky header (review finding: the 881–1120px band sits
+  // between the audit's wide and wrapped checkpoints).
+  .title {
+    flex: 0 1000 auto;
+
+    // Truncates first but never vanishes: without a floor, the mid band
+    // (881–1120px) squeezed the title to zero width while longer riders
+    // kept theirs (design-audit finding).
+    min-inline-size: functions.to-rem(112px);
+    overflow: hidden;
+    color: var(--text);
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .repoRef {
+    flex: 0 1 auto;
     min-inline-size: 0;
-    flex-direction: column;
-    gap: functions.to-rem(1px);
-    line-height: 1.35;
+    overflow: hidden;
+    color: var(--faint);
+    font-size: var(--font-size-md);
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 
     b {
       color: var(--dim);
@@ -69,18 +104,28 @@
     }
   }
 
-  .title {
-    overflow: hidden;
-    color: var(--text);
-    font-size: var(--font-size-lg);
-    font-weight: 600;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  // Lead (wordmark → repo link) and riders (provenance, chips): inert on
+  // wide viewports via display: contents — the identity row lays out as one
+  // flex line; the ≤880px block turns them into the grid's two content rows.
+  .lead {
+    display: contents;
   }
 
-  // The single context line (BRIEF-28): identity facts truncate as one row
-  // instead of stacking a second meta line under the title.
-  .sub {
+  .riders {
+    display: contents;
+  }
+
+  .spacer {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  // Interim provenance fragment (BRIEF-103 PR 2; the PR 3 keycap badge
+  // replaces it) — the old context line's quiet register. Shrinkable
+  // (after title and repoRef) so the row cannot overflow.
+  .provenanceNote {
+    flex: 0 1 auto;
+    min-inline-size: 0;
     overflow: hidden;
     color: var(--faint);
     font-size: var(--font-size-md);
@@ -88,11 +133,33 @@
     white-space: nowrap;
   }
 
-  // Generation warnings (BRIEF-11): quiet amber, one line per event —
-  // present only when the pipeline salvaged/retried/saw a model mismatch.
-  .generationWarnings {
+  // Generation warnings as a count chip (BRIEF-103): amber tinted pill, the
+  // same treatment family as the state badge / self-review chip. Fixed
+  // height + middle alignment (badge-height discipline).
+  .warningsChip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: functions.to-rem(5px);
+    block-size: functions.to-rem(20px);
+    padding-inline: functions.to-rem(9px);
+    border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--amber) 8%, transparent);
     color: var(--amber);
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-md);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  // The disclosure detail: one line per warning event (BRIEF-11 prose,
+  // panel-bound in PR 4).
+  .warningsDetail {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(6px);
+    color: var(--amber);
+    font-size: var(--font-size-md);
     line-height: 1.5;
   }
 
@@ -108,9 +175,13 @@
   }
 
   // One visual object for the three progress facts: hairline-divided cells
-  // read as a group, not three floating text blocks (BRIEF-28).
+  // read as a group, not three floating text blocks (BRIEF-28). Lives on
+  // the lens row (BRIEF-103) in its own quiet register — mono numerals,
+  // hairline dividers; the LOC popover is gone (plain text cell, its
+  // caveat text moves to the Brief-details panel).
   .statsGroup {
     display: flex;
+    flex: none;
     align-items: stretch;
 
     > * + * {
@@ -141,45 +212,18 @@
     }
   }
 
-  .locBadge {
-    cursor: pointer;
-
-    &[data-state="open"] .locPop {
-      display: block;
-    }
-  }
-
-  .locPop {
-    position: absolute;
-    inset-block-start: calc(100% + functions.to-rem(14px));
-    inset-inline-end: 0;
-    z-index: 60;
-    display: none;
-    inline-size: min(functions.to-rem(300px), 80vw);
-    padding-block: functions.to-rem(14px);
-    padding-inline: functions.to-rem(16px);
-    border: 1px solid var(--line2);
-    border-radius: var(--radius-md);
-    background: var(--panel);
-    box-shadow: var(--shadow-elevation-lg);
-    color: var(--dim);
-    font-size: var(--font-size-lg);
-    line-height: 1.7;
-    text-align: start;
-
-    b {
-      color: var(--text);
-      font-family: var(--sans);
-    }
-  }
-
   // Story/Concerns in the lens toolbar (BRIEF-28 round 2): the same
   // segmented vocabulary as the View/Compare groups, parked at the row's
   // far end.
   .viewbar {
     display: inline-flex;
+    flex: none;
     gap: functions.to-rem(2px);
     margin: 0;
+
+    // Inert while the lens row is one line (the controls' flex-1 absorbs
+    // the space) but keeps Story/Concerns parked at the END when the row
+    // wraps and this lands on a line with the stats group.
     margin-inline-start: auto;
     padding: functions.to-rem(2px);
     border: 1px solid var(--line2);
@@ -305,15 +349,25 @@
     }
   }
 
+  // Progress via scaleX, not inline-size (Idan resize-stutter report,
+  // 2026-08-04): a percentage inline-size recomputes on every viewport
+  // resize frame, RE-FIRING the 350ms layout-triggering transition — the
+  // hairline visibly chased the window edge. scaleX of a full-width bar is
+  // resize-invariant (the proportion doesn't change) and animates on the
+  // compositor. Same visible growth animation, same reduced-motion guard.
+  // transform-origin has no logical keywords yet — `0 50%` = inline-start
+  // in the app's LTR-only layout.
   .progressBar {
     position: fixed;
     inset-block-start: var(--top-bar-h);
     inset-inline-start: 0;
     z-index: 51;
-    inline-size: var(--progress-width);
+    inline-size: 100%;
     block-size: 1px;
     background: var(--color-fill-bright);
-    transition: inline-size 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform: scaleX(var(--progress-scale));
+    transform-origin: 0 50%;
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   /* The own-draft state label (BRIEF-43): non-dismissible, informational. */
@@ -443,27 +497,92 @@
   }
 
   @media (width <= 880px) {
+    // The wrap rule (spec: identity row), as a GRID (design-audit round 2:
+    // the flex-wrap version left a stray vertical gap and top-hung the
+    // short second line against the tall CTA). Two content rows — lead,
+    // riders — with the CTA + overflow column spanning BOTH rows,
+    // vertically centered, so the whitespace reads as structure. DOM (and
+    // so focus) order is unchanged; only placement moves.
     .identityRow {
-      align-items: flex-start;
-      flex-wrap: wrap;
+      display: grid;
+      align-items: center;
+      gap: functions.to-rem(6px)
+        clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(16px));
+      grid-template-areas:
+        "lead   cta menu"
+        "riders cta menu";
+      grid-template-columns: minmax(0, 1fr) auto auto;
       padding-block: functions.to-rem(10px);
       padding-inline: functions.to-rem(18px);
+    }
+
+    .lead {
+      display: flex;
+      align-items: center;
+      gap: functions.to-rem(10px);
+      grid-area: lead;
+      min-inline-size: 0;
+    }
+
+    .riders {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: functions.to-rem(10px);
+      grid-area: riders;
+      min-inline-size: 0;
+
+      // Riderless briefs (no provenance, no chips): the empty row collapses
+      // and the CTA centers against the lead line alone.
+      &:empty {
+        display: none;
+      }
+    }
+
+    .identityRow > [data-terminal-slot] {
+      align-self: center;
+      grid-area: cta;
+    }
+
+    .menuWrap {
+      align-self: center;
+      grid-area: menu;
+    }
+
+    // Zero flex-basis inside the lead row: the title grows into the free
+    // space and ellipsizes instead of pushing the grid wider.
+    .title {
+      flex: 1 1 0;
+      min-inline-size: 0;
+    }
+
+    // Cap so a long repo slug cannot starve the basis-0 title.
+    .repoRef {
+      max-inline-size: 40%;
+    }
+
+    // Grid columns own the spacing; the flex spacer is dead weight here.
+    .spacer {
+      display: none;
     }
 
     .lensRow {
       padding-inline: functions.to-rem(18px);
     }
 
-    .statsGroup {
-      order: 3;
-      inline-size: 100%;
-      justify-content: space-between;
+    // The lens row STACKS at narrow widths (design-audit round 3): the
+    // controls — which wrap internally — own their full line(s), and the
+    // stats + Story/Concerns share the final line (stats at the start, the
+    // viewbar's auto margin parking it at the end). Without this the stats
+    // group flowed BESIDE the tall wrapped controls block, interleaving
+    // mid-controls. `:first-child` is the controls slot on both paths (the
+    // local TimelineNavigator stays first even while display: none).
+    .lensRow > :first-child {
+      flex-basis: 100%;
+    }
 
-      > * + * {
-        border-inline-start: 0;
-        padding-inline-start: 0;
-        margin-inline-start: 0;
-      }
+    .statsGroup {
+      flex: 1;
     }
   }
 }

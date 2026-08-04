@@ -57,6 +57,10 @@
     --color-negative: var(--red-400);
     --color-warning: var(--amber-400);
 
+    // GitHub's merged-PR purple (BRIEF-103 state badge). Semantic on purpose:
+    // "merged" is a status in this product's vocabulary, not a decoration.
+    --color-merged: var(--violet-400);
+
     // ── Other semantic colors ────────────────────────────────────────────
     --color-on-primary: var(--gray-950);
 

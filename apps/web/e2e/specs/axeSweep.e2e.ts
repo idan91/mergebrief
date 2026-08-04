@@ -40,7 +40,10 @@ test("the shortcuts dialog is clean", async ({ page }, testInfo) => {
 
 test("the receipt drawer is clean", async ({ page }, testInfo) => {
   await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
-  await page.getByRole("button", { name: "Receipt", exact: true }).click();
+  // BRIEF-103: the header CTA reads Submit; the advisory pre-submit gate
+  // sits between it and the receipt drawer.
+  await page.getByRole("button", { name: "Submit", exact: true }).click();
+  await page.getByRole("button", { name: "Continue to receipt" }).click();
   await expect(
     page.getByRole("heading", { name: "Review Summary" }),
   ).toBeVisible();

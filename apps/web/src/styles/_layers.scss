@@ -1,7 +1,7 @@
 @layer tokens, base, layout, components;
 
-@property --progress-width {
+@property --progress-scale {
   inherits: false;
-  initial-value: 0%;
-  syntax: "<percentage>";
+  initial-value: 0;
+  syntax: "<number>";
 }

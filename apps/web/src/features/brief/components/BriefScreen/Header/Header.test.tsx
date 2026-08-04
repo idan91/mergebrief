@@ -67,10 +67,8 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
       flagTotal: 1,
     },
     progress: 50,
-    locOpen: false,
     viewMode: "story",
     setViewMode: vi.fn(),
-    setLocOpen: vi.fn(),
     openReceipt: vi.fn(),
     clearDrafts: vi.fn(),
     availability: { previousBrief: false, lastReview: false },
@@ -96,10 +94,8 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
       flagTotal: 1,
     },
     progress: 50,
-    locOpen: false,
     viewMode: "story",
     setViewMode: vi.fn(),
-    setLocOpen: vi.fn(),
     openReceipt,
     clearDrafts,
     availability: { previousBrief: false, lastReview: false },
@@ -115,18 +111,30 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
   return { clearDrafts, openSummaryPreviewDrawer, openReceipt };
 }
 
-describe("Header (BRIEF-28)", () => {
-  it("renders one merged context line with artifact, index, range, provenance", () => {
+describe("Header identity row (BRIEF-103)", () => {
+  it("renders the one-line identity: wordmark, title, repo + PR link — no context line", () => {
     renderHeader();
-    const sub = screen.getByText(/local brief @ headabc/).closest("div");
-    const text = sub?.textContent ?? "";
-    expect(text).toContain("acme/widgets");
-    expect(text).toContain("#7");
-    expect(text).toContain("brief _3");
-    expect(text).toContain("basebase..headhead, 2 commits");
-    // BRIEF-11: the adapter CLASS is part of provenance — an API/SDK run
-    // reads differently from a harness-CLI run.
-    expect(text).toContain("via anthropic (API)/m-1 · effort high");
+    // Wordmark loses the "/ review" suffix.
+    expect(screen.getByText("MergeBrief").textContent).toBe("MergeBrief");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Tighten the cross-param leak",
+    );
+    expect(screen.getByText("acme/widgets")).toBeTruthy();
+    const link = screen.getByRole("link", { name: /#7/ });
+    expect(link.getAttribute("href")).toBe("https://example.com/pr/7");
+    expect(link.getAttribute("target")).toBe("_blank");
+    // The muted context line is gone: artifact identity lives in the
+    // timeline navigator, the rest in the details panel (PR 4).
+    expect(screen.queryByText(/local brief @/)).toBeNull();
+    expect(screen.queryByText(/brief _3/)).toBeNull();
+    expect(screen.queryByText(/basebase\.\.headhead/)).toBeNull();
+  });
+
+  it("keeps the interim provenance note with the adapter class (BRIEF-11)", () => {
+    renderHeader();
+    const note = document.querySelector("[data-provenance]");
+    // An API/SDK run reads differently from a harness-CLI run.
+    expect(note?.textContent).toBe("via anthropic (API)/m-1 · effort high");
   });
 
   it("labels harness-CLI providers distinctly from API providers", () => {
@@ -136,8 +144,9 @@ describe("Header (BRIEF-28)", () => {
         generation: { provider: "claude-code", model: "m-1", effort: null },
       },
     });
-    const sub = screen.getByText(/local brief @ headabc/).closest("div");
-    expect(sub?.textContent).toContain("via claude-code (local CLI)/m-1");
+    expect(document.querySelector("[data-provenance]")?.textContent).toContain(
+      "via claude-code (local CLI)/m-1",
+    );
   });
 
   it("renders an unknown provider token without a class label", () => {
@@ -147,8 +156,9 @@ describe("Header (BRIEF-28)", () => {
         generation: { provider: "fake", model: "m-1", effort: null },
       },
     });
-    const sub = screen.getByText(/local brief @ headabc/).closest("div");
-    expect(sub?.textContent).toContain("via fake/m-1");
+    expect(document.querySelector("[data-provenance]")?.textContent).toContain(
+      "via fake/m-1",
+    );
   });
 
   it("treats inherited-object tokens as unknown (no bogus class label)", () => {
@@ -158,36 +168,146 @@ describe("Header (BRIEF-28)", () => {
         generation: { provider: "toString", model: "m-1", effort: null },
       },
     });
-    const sub = screen.getByText(/local brief @ headabc/).closest("div");
-    expect(sub?.textContent).toContain("via toString/m-1");
-    expect(sub?.textContent).not.toContain("via toString (");
+    const note = document.querySelector("[data-provenance]");
+    expect(note?.textContent).toContain("via toString/m-1");
+    expect(note?.textContent).not.toContain("via toString (");
+  });
+});
+
+describe("state badge (BRIEF-103)", () => {
+  const stamped = (
+    state: "open" | "closed",
+    draft: boolean,
+    merged: boolean,
+  ) => ({ ...brief, pr: { ...brief.pr, state, draft, merged } });
+
+  it("renders no badge on a pre-stamping artifact (no state)", () => {
+    renderHeader();
+    expect(document.querySelector("[data-state-badge]")).toBeNull();
   });
 
-  it("surfaces generation warnings under the context line", () => {
+  it("keeps the self-review chip adjacent to the Draft badge (own-draft)", () => {
     renderHeader({
-      brief: {
-        ...brief,
-        generationWarnings: [
-          "⚠ salvaged brief: dropped 1 invalid tags entry",
-          "warning: requested model m-1 but modelUsage reports m-2 — provenance stamp stays the declaration",
-        ],
-      },
+      brief: stamped("open", true, false),
+      ownDraft: { markReady: vi.fn(), pending: false },
     });
+    const badge = document.querySelector("[data-state-badge]");
+    expect(badge?.getAttribute("data-variant")).toBe("draft");
+    // Same story, told together (spec: Chips): the chip is the badge's
+    // immediate DOM sibling.
+    expect(badge?.nextElementSibling?.matches("[data-self-review-chip]")).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ["open", false, false, "open", "Open"],
+    ["open", true, false, "draft", "Draft"],
+    ["closed", false, false, "closed", "Closed"],
+    // Draft supersedes OPEN, never closed.
+    ["closed", true, false, "closed", "Closed"],
+    ["closed", false, true, "merged", "Merged"],
+    // Draft flag on a merged snapshot: merged still wins.
+    ["closed", true, true, "merged", "Merged"],
+  ] as const)(
+    "state=%s draft=%s merged=%s → %s badge",
+    (state, draft, merged, variant, label) => {
+      renderHeader({ brief: stamped(state, draft, merged) });
+      const badge = document.querySelector("[data-state-badge]");
+      expect(badge?.getAttribute("data-variant")).toBe(variant);
+      // Visible text is the state word; SR text carries the prefix.
+      expect(badge?.textContent).toBe(`pull request ${label}`);
+    },
+  );
+
+  it("renders from LIVE webhook state on an UNSTAMPED artifact (DB route)", () => {
+    // The reported gap: every DB brief generated before stamping has no
+    // pr.state — the badge must come from the live pull-request row there
+    // (spec: "DB path live via webhooks").
+    renderHeader({ livePrState: { state: "open", draft: false } });
+    const badge = document.querySelector("[data-state-badge]");
+    expect(badge?.getAttribute("data-variant")).toBe("open");
+  });
+
+  it.each([
+    ["open", false, "open"],
+    ["open", true, "draft"],
+    ["closed", false, "closed"],
+    // The live DB vocabulary folds merged INTO the state.
+    ["merged", false, "merged"],
+    ["merged", true, "merged"],
+  ] as const)("live state=%s draft=%s → %s badge", (state, draft, variant) => {
+    renderHeader({ livePrState: { state, draft } });
+    expect(
+      document
+        .querySelector("[data-state-badge]")
+        ?.getAttribute("data-variant"),
+    ).toBe(variant);
+  });
+
+  it("live state SUPERSEDES a stale artifact stamp", () => {
+    // Artifact stamped open at generation; the PR merged since. The DB
+    // route shows live truth — staleness is only accepted on the local
+    // file path, where no live source exists.
+    renderHeader({
+      brief: stamped("open", false, false),
+      livePrState: { state: "merged", draft: false },
+    });
+    expect(
+      document
+        .querySelector("[data-state-badge]")
+        ?.getAttribute("data-variant"),
+    ).toBe("merged");
+  });
+});
+
+describe("generation warnings chip (BRIEF-103)", () => {
+  const warned = {
+    ...brief,
+    generationWarnings: [
+      "⚠ salvaged brief: dropped 1 invalid tags entry",
+      "warning: requested model m-1 but modelUsage reports m-2 — provenance stamp stays the declaration",
+      // Duplicate — the chip counts unique events.
+      "⚠ salvaged brief: dropped 1 invalid tags entry",
+    ],
+  };
+
+  it("renders a count chip; the prose rides the disclosure", () => {
+    renderHeader({ brief: warned });
+    const chip = screen.getByRole("button", {
+      name: /2 generation warnings/,
+    });
+    fireEvent.click(chip);
     const note = screen.getByRole("note");
     expect(note.textContent).toContain("salvaged brief");
     expect(note.textContent).toContain("modelUsage reports m-2");
   });
 
-  it("renders no warning block on a clean generation", () => {
-    renderHeader();
-    expect(screen.queryByRole("note")).toBeNull();
+  it("singularizes a single warning", () => {
+    renderHeader({
+      brief: { ...brief, generationWarnings: ["⚠ salvaged brief"] },
+    });
+    expect(
+      screen.getByRole("button", { name: /1 generation warning$/ }),
+    ).toBeTruthy();
   });
 
-  it("shows the progress facts", () => {
+  it("renders no chip on a clean generation", () => {
+    renderHeader();
+    expect(
+      document.querySelector("[data-generation-warnings-chip]"),
+    ).toBeNull();
+  });
+});
+
+describe("Header (BRIEF-28)", () => {
+  it("shows the progress facts on the lens row, LOC as plain text", () => {
     renderHeader();
     expect(screen.getByText("chunks").textContent).toContain("1/2");
     expect(screen.getByText("flags").textContent).toContain("0/1");
-    expect(screen.getByText("adjusted lines")).toBeTruthy();
+    const loc = screen.getByText("adjusted lines");
+    // The LOC popover is dead (BRIEF-103): the cell is not a button.
+    expect(loc.closest("button")).toBeNull();
   });
 
   it("keeps rare actions in a menu with menu-button semantics", () => {
@@ -305,7 +425,7 @@ describe("Header (BRIEF-28)", () => {
 
   it("keeps the primary CTA top-level", () => {
     const { openReceipt } = renderHeader();
-    fireEvent.click(screen.getByRole("button", { name: "Receipt" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(openReceipt).toHaveBeenCalledTimes(1);
   });
 });
@@ -417,7 +537,7 @@ describe("Header own-draft state (BRIEF-43)", () => {
     const { openReceipt } = renderHeader({
       ownDraft: { markReady, pending: false },
     });
-    expect(screen.queryByRole("button", { name: "Receipt" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
     fireEvent.click(
       screen.getByRole("button", { name: "Mark ready for review" }),
     );
@@ -448,13 +568,13 @@ describe("Header own-draft state (BRIEF-43)", () => {
     // dropping to <body>.
     rerender(<Header {...headerProps(undefined)} />);
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Receipt" }),
+      screen.getByRole("button", { name: "Submit" }),
     );
   });
 
   it("keeps slot focus continuity on the flip INTO own-draft too (symmetric)", () => {
     const { rerender } = render(<Header {...headerProps(undefined)} />);
-    screen.getByRole("button", { name: "Receipt" }).focus();
+    screen.getByRole("button", { name: "Submit" }).focus();
 
     // The PR converts to draft under focus: Receipt unmounts, the mark-ready
     // CTA mounts in the same slot — focus follows.
@@ -470,7 +590,7 @@ describe("Header own-draft state (BRIEF-43)", () => {
     const { rerender } = render(<Header {...headerProps(undefined)} />);
     // Focus Receipt, then flip INTO own-draft (slot continuity moves focus
     // onto the CTA and consumes the flag)…
-    screen.getByRole("button", { name: "Receipt" }).focus();
+    screen.getByRole("button", { name: "Submit" }).focus();
     rerender(
       <Header {...headerProps({ markReady: vi.fn(), pending: false })} />,
     );

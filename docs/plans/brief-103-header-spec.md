@@ -10,9 +10,12 @@ ADR 0031/0032 constraints all hold.
 ## Identity row — single line (layout variant "one-line identity")
 
 Order: `MergeBrief` wordmark ("/ review" suffix removed; logo swap is a
-later, off-spec concern) · state badge · PR title (truncates first) ·
+later, off-spec concern) · state badge · self-review chip (own-draft only —
+adjacent to the Draft badge per the Chips section; amended 2026-08-04 at
+implementation, the original order line had it after the warnings chip,
+contradicting its own Chips rule) · PR title (truncates first) ·
 repo + `#N ↗` link (new tab) · provider/model badge · ⓘ Brief details ·
-generation-warnings chip (when present) · self-review chip (own-draft only)
+generation-warnings chip (when present)
 · [spacer] · **Submit** CTA · ⋯ overflow menu.
 
 - Narrow viewports: everything AFTER the repo/PR link wraps to a second

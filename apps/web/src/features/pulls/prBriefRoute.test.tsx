@@ -151,6 +151,14 @@ describe("DB brief route", () => {
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
     expect(screen.getByText(briefFixture.changeGroups[0]!.title)).toBeTruthy();
+    // BRIEF-103: the header's state badge on the DB route reads the LIVE
+    // webhook state from the pr row (meta.state = open) — never gated on
+    // the artifact's stamped snapshot (this fixture predates stamping).
+    expect(
+      document
+        .querySelector("[data-state-badge]")
+        ?.getAttribute("data-variant"),
+    ).toBe("open");
   });
 
   it("shows the diff-first wait card while generation runs (no artifact yet)", async () => {
@@ -511,7 +519,7 @@ describe("DB brief route", () => {
     // The legacy (no-revisions) path carries the stale-submit ack too
     // (BRIEF-127, the ticket's original target — the gate is span-derived,
     // not timeline-derived).
-    fireEvent.click(screen.getByRole("button", { name: /^receipt$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
     fireEvent.click(
       screen.getByRole("button", { name: /continue to receipt/i }),
     );

@@ -158,7 +158,7 @@ ${
               if (!submitDisabled) submit();
             }}
           >
-            {submitPending ? "Submitting…" : "Submit review to GitHub"}
+            {submitPending ? "Submitting…" : "Submit with receipt"}
           </button>
           <button className="btn" type="button" onClick={openSummaryPreview}>
             Preview public summary

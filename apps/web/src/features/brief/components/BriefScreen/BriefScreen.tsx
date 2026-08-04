@@ -35,7 +35,7 @@ import {
 // PrBrief tree, which renders BriefView — importing it from here would close
 // a brief -> pulls -> brief module cycle.
 import { MarkReadyModal } from "@web/features/pulls/components/MarkReadyModal/MarkReadyModal";
-import type { Brief, LocalBriefSummary } from "../../types";
+import type { Brief, LivePrState, LocalBriefSummary } from "../../types";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import type { buildBriefViewModel } from "../../utils/viewModel";
 import { buildAttributeRail } from "../../utils/viewModel";
@@ -112,6 +112,12 @@ export interface OwnDraftPlan {
 }
 
 export interface BriefScreenProps {
+  /**
+   * Live webhook-maintained PR state (DB route, BRIEF-103): the header's
+   * state badge prefers it over the artifact's stamped snapshot. Absent on
+   * the local file path.
+   */
+  livePrState?: LivePrState | undefined;
   artifacts: LocalBriefSummary[];
   brief: Brief;
   repoConfig?: RepoConfigContext | null | undefined;
@@ -142,6 +148,7 @@ export interface BriefScreenProps {
 }
 
 export function BriefScreen({
+  livePrState,
   artifacts,
   brief,
   repoConfig,
@@ -238,7 +245,6 @@ export function BriefScreen({
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
   const [preSubmitOpen, setPreSubmitOpen] = useState(false);
-  const [locOpen, setLocOpen] = useState(false);
 
   // Post-now in-flight tracking (BRIEF-43) — the MODULE-LEVEL registry's
   // per-brief view, subscribed here. Module state, not component state: a
@@ -448,16 +454,15 @@ export function BriefScreen({
     <ReviewFlowProvider store={flowStore}>
       <Header
         brief={brief}
+        livePrState={livePrState}
         repoConfig={repoConfig}
         briefId={briefId}
         timeline={timeline}
         model={model}
         totals={session.totals}
         progress={session.progress}
-        locOpen={locOpen}
         viewMode={viewMode}
         setViewMode={session.setViewMode}
-        setLocOpen={setLocOpen}
         openReceipt={openPreSubmit}
         clearDrafts={clearDrafts}
         availability={availability}

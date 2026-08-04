@@ -1,0 +1,37 @@
+@use "functions";
+
+@layer components {
+  // GitHub-convention PR state pill (BRIEF-103): tinted (color-mix bg +
+  // toned border — the self-review chip's treatment), never solid fill.
+  // Badge-height discipline: fixed height + middle alignment so the pill
+  // can never inflate the identity row's line box (a prototype defect).
+  .badge {
+    --badge-color: var(--color-text-2);
+
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    block-size: functions.to-rem(20px);
+    padding-inline: functions.to-rem(9px);
+    border: 1px solid color-mix(in srgb, var(--badge-color) 40%, transparent);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--badge-color) 8%, transparent);
+    color: var(--badge-color);
+    font-size: var(--font-size-md);
+    font-weight: 500;
+    vertical-align: middle;
+    white-space: nowrap;
+
+    &[data-variant="open"] {
+      --badge-color: var(--color-positive);
+    }
+
+    &[data-variant="merged"] {
+      --badge-color: var(--color-merged);
+    }
+
+    &[data-variant="closed"] {
+      --badge-color: var(--color-negative);
+    }
+  }
+}

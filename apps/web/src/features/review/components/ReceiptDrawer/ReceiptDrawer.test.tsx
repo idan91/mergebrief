@@ -37,7 +37,7 @@ function renderDrawer(overrides: Partial<ReceiptDrawerProps> = {}) {
 }
 
 const submitButton = () =>
-  screen.getByRole("button", { name: /submit review to github/i });
+  screen.getByRole("button", { name: /submit with receipt/i });
 const ackCheckbox = () =>
   screen.getByRole("checkbox", {
     name: /submit against the reviewed revision anyway/i,

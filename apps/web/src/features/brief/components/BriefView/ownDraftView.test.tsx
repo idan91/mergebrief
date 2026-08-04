@@ -120,7 +120,7 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     expect(
       screen.getByRole("button", { name: "Mark ready for review" }),
     ).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Receipt" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Submit" })).toBeNull();
   });
 
   it("renders no own-draft affordances on a plain reviewer view", () => {
@@ -129,7 +129,7 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     expect(
       screen.queryByRole("button", { name: "Mark ready for review" }),
     ).toBeNull();
-    expect(screen.getByRole("button", { name: "Receipt" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeTruthy();
   });
 
   it("keeps the composer read-only on a stale own-draft view (BRIEF-127 carve-out)", () => {
@@ -150,7 +150,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
   it("hides the submit machinery and the receipt entirely — nothing dangling", () => {
     renderBriefView({ markReady: vi.fn() });
     // The receipt drawer and its Submit button are not in the DOM at all.
-    expect(screen.queryByRole("button", { name: /submit review/i })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /submit with receipt/i }),
+    ).toBeNull();
     expect(screen.queryByText(/review receipt/i)).toBeNull();
     // The pre-submit ("Before the receipt") modal is unmounted too.
     expect(screen.queryByText(/before the receipt/i)).toBeNull();
@@ -189,8 +191,10 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       const input = viewed.closest("label")?.querySelector("input");
       if (input) fireEvent.click(input);
     }
-    const bar = document.querySelector('header div[style*="--progress-width"]');
-    expect(bar?.getAttribute("style")).toContain("100%");
+    // Progress rides a scaleX factor now (BRIEF-103 resize-stutter fix):
+    // 100% ≙ --progress-scale: 1.
+    const bar = document.querySelector('header div[style*="--progress-scale"]');
+    expect(bar?.getAttribute("style")).toContain("--progress-scale: 1");
   });
 
   it("soft gate: flags on the Brief → the CTA opens the modal, nothing posted yet", () => {
@@ -947,9 +951,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     rerenderWith(undefined);
     expect(screen.queryByText("Before marking ready")).toBeNull();
     // The focus the unmounting modal held lands on the terminal slot (which
-    // now holds Receipt), never silently on <body>…
+    // now holds Submit), never silently on <body>…
     expect(document.activeElement).toBe(
-      screen.getByRole("button", { name: "Receipt" }),
+      screen.getByRole("button", { name: "Submit" }),
     );
     // …and the live region explains why the modal vanished.
     await waitFor(() =>
@@ -973,7 +977,7 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     // view swaps to reviewer affordances without remounting anything else.
     rerenderWith(undefined);
     expect(screen.queryByText(CHIP_COPY)).toBeNull();
-    expect(screen.getByRole("button", { name: "Receipt" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Submit" })).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Mark ready for review" }),
     ).toBeNull();
@@ -982,7 +986,7 @@ describe("own-draft Brief view (BRIEF-43)", () => {
   it("rescues focus from an unmounting overlay onto the terminal-slot CTA, with an announcement", async () => {
     const { rerenderWith } = renderBriefView(undefined);
     // Open the pre-submit overlay: the Modal claims focus on open.
-    fireEvent.click(screen.getByRole("button", { name: "Receipt" }));
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(document.activeElement === document.body).toBe(false);
 
     // The PR converts to draft on GitHub while focus lives in the overlay:
@@ -1000,8 +1004,8 @@ describe("own-draft Brief view (BRIEF-43)", () => {
 
   it("flip INTO own-draft under an open overlay: state clears, shortcuts revive, no resurrection", () => {
     const { rerenderWith } = renderBriefView(undefined);
-    // Open the pre-submit overlay on the reviewer view (Receipt CTA).
-    fireEvent.click(screen.getByRole("button", { name: "Receipt" }));
+    // Open the pre-submit overlay on the reviewer view (Submit CTA).
+    fireEvent.click(screen.getByRole("button", { name: "Submit" }));
     expect(overlayState("Before the receipt")).toBe("open");
 
     // The PR converts to draft on GitHub under the open overlay.
