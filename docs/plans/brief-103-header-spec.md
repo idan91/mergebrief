@@ -78,8 +78,10 @@ generation-warnings chip (when present)
   aria-controls, hover preview, click canonical, Escape-at-capture).
 - Three sections: **Artifact** (kind, brief index, commit range base..head
   + count, full SHAs, LOC "adjusted ≈ git" caveat — the killed stats
-  popover's text) · **Generation** (provider, model, effort, timestamps,
-  warnings prose) · **Repo config** (ok-state, table slimmed to file +
+  popover's text) · **Generation** (provider, model, effort, warnings
+  prose; amended 2026-08-04 at implementation: the originally-listed
+  timestamps have no data source — the artifact's Generation stamp is
+  provider/model/effort only) · **Repo config** (ok-state, table slimmed to file +
   applied-or-not + warning line when present; bytes-of-budget and per-file
   blob sha dropped — the chip label keeps the applied sha).
 - The generation-warnings chip (below) opens this SAME panel.

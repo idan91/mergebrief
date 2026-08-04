@@ -1,0 +1,179 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // The hover wrapper IS the identity row's flex item — flex-centering it
+  // keeps the trigger dead-centered instead of riding the span's inline
+  // line box (measured 1.5px low in the design audit).
+  .hoverArea {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+  }
+
+  // The ⓘ trigger: meta-register icon button, badge-height discipline
+  // (fixed box, middle-aligned, can't inflate the identity row).
+  .trigger {
+    display: inline-grid;
+    inline-size: 18px;
+    block-size: 18px;
+    padding: 0;
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--dim);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    place-items: center;
+    vertical-align: middle;
+
+    &:hover,
+    &[aria-expanded="true"] {
+      border-color: color-mix(in srgb, var(--line2) 60%, var(--text));
+      color: var(--text);
+    }
+
+    @include mixins.focus-visible;
+  }
+
+  // Style-reset base: the warnings chip is a real button (it opens the
+  // panel) wearing the amber pill's visuals.
+  .chipReset {
+    display: inline-flex;
+    flex: none;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    @include mixins.focus-visible;
+  }
+
+  // Generation warnings as a count chip (BRIEF-103): amber tinted pill, the
+  // same treatment family as the state badge / self-review chip. Fixed
+  // height + middle alignment (badge-height discipline).
+  .warningsChip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: functions.to-rem(5px);
+    block-size: functions.to-rem(20px);
+    padding-inline: functions.to-rem(9px);
+    border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--amber) 8%, transparent);
+    color: var(--amber);
+    font-size: var(--font-size-md);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .panel {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(14px);
+    max-inline-size: functions.to-rem(360px);
+    text-align: start;
+  }
+
+  .section {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(6px);
+  }
+
+  .heading {
+    margin: 0;
+    color: var(--faint);
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  // Label/value fact rows: quiet grid, values in the text register.
+  .facts {
+    display: grid;
+    gap: functions.to-rem(3px) functions.to-rem(12px);
+    grid-template-columns: max-content 1fr;
+    margin: 0;
+    font-size: var(--font-size-md);
+
+    dt {
+      color: var(--faint);
+    }
+
+    dd {
+      margin: 0;
+      color: var(--text);
+    }
+  }
+
+  // Full SHAs / model ids: mono, allowed to wrap (never truncated here —
+  // this panel IS the untruncated home).
+  .shas {
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    overflow-wrap: anywhere;
+  }
+
+  .caveat {
+    margin: 0;
+    color: var(--dim);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+
+    b {
+      color: var(--text);
+    }
+  }
+
+  // The BRIEF-11 warnings prose (the header chip's landing target).
+  .warnings {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(4px);
+    color: var(--amber);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+
+    p {
+      margin: 0;
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+
+  .configList {
+    display: flex;
+    flex-direction: column;
+    gap: functions.to-rem(4px);
+    margin: 0;
+    padding: 0;
+    font-size: var(--font-size-md);
+    list-style: none;
+
+    li {
+      display: flex;
+      flex-wrap: wrap;
+      gap: functions.to-rem(8px);
+      align-items: baseline;
+    }
+
+    code {
+      color: var(--text);
+    }
+
+    [data-outcome]:not([data-outcome="applied"]) {
+      color: var(--amber);
+    }
+
+    i {
+      color: var(--amber);
+    }
+  }
+}

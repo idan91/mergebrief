@@ -239,15 +239,35 @@ describe("generation warnings chip (BRIEF-103)", () => {
     ],
   };
 
-  it("renders a count chip; the prose rides the disclosure", () => {
+  it("opens the Brief-details panel LANDED on the warnings prose (PR 4)", () => {
     renderHeader({ brief: warned });
     const chip = screen.getByRole("button", {
       name: /2 generation warnings/,
     });
+    expect(chip.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(chip);
-    const note = screen.getByRole("note");
-    expect(note.textContent).toContain("salvaged brief");
-    expect(note.textContent).toContain("modelUsage reports m-2");
+    expect(chip.getAttribute("aria-expanded")).toBe("true");
+    // The prose lives in the panel's Generation section now…
+    const note = document.querySelector("[data-details-warnings]");
+    expect(note?.textContent).toContain("salvaged brief");
+    expect(note?.textContent).toContain("modelUsage reports m-2");
+    // …and the chip path LANDS there: focus moves to the block so a screen
+    // reader announces it on arrival.
+    expect(document.activeElement).toBe(note);
+  });
+
+  it("Escape closes the panel without reaching page shortcuts", () => {
+    renderHeader({ brief: warned });
+    const onWindowKeyDown = vi.fn();
+    window.addEventListener("keydown", onWindowKeyDown);
+    fireEvent.click(
+      screen.getByRole("button", { name: /2 generation warnings/ }),
+    );
+    expect(document.querySelector("[data-details-warnings]")).toBeTruthy();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(document.querySelector("[data-details-warnings]")).toBeNull();
+    expect(onWindowKeyDown).not.toHaveBeenCalled();
+    window.removeEventListener("keydown", onWindowKeyDown);
   });
 
   it("singularizes a single warning", () => {
@@ -623,11 +643,35 @@ describe("repo-config provenance chip (BRIEF-52, ADR 0032 #8)", () => {
     policy: null,
   };
 
-  it("renders the understated chip with the applied sha", () => {
+  it("renders NO chip in the ok state — ok lives in the details panel (PR 4)", () => {
     renderHeader({ repoConfig: APPLIED });
+    expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
+    // The panel's Repo config section carries the ok-state instead.
+    fireEvent.click(screen.getByRole("button", { name: "Brief details" }));
+    const section = document.querySelector(
+      '[data-details-section="repo-config"]',
+    );
+    expect(section?.textContent).toContain(".mergebrief/instructions.md");
+    expect(section?.textContent).toContain("applied");
+  });
+
+  it("keeps the warning chip, with the applied sha in its label", () => {
+    renderHeader({
+      repoConfig: {
+        ...APPLIED,
+        files: [
+          APPLIED.files[0]!,
+          {
+            path: ".mergebrief/settings.yaml",
+            blobSha: "bad",
+            outcome: "invalid" as const,
+          },
+          APPLIED.files[2]!,
+        ],
+      },
+    });
     const chip = document.querySelector("[data-repo-config-chip]");
     expect(chip?.textContent).toContain("repo config @ a1b2c3d");
-    expect(chip?.getAttribute("data-state")).toBe("ok");
   });
 
   it("flips to the warning state on any error outcome", () => {

@@ -120,36 +120,6 @@
     min-inline-size: 0;
   }
 
-  // Generation warnings as a count chip (BRIEF-103): amber tinted pill, the
-  // same treatment family as the state badge / self-review chip. Fixed
-  // height + middle alignment (badge-height discipline).
-  .warningsChip {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    gap: functions.to-rem(5px);
-    block-size: functions.to-rem(20px);
-    padding-inline: functions.to-rem(9px);
-    border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
-    border-radius: var(--radius-pill);
-    background: color-mix(in srgb, var(--amber) 8%, transparent);
-    color: var(--amber);
-    font-size: var(--font-size-md);
-    vertical-align: middle;
-    white-space: nowrap;
-  }
-
-  // The disclosure detail: one line per warning event (BRIEF-11 prose,
-  // panel-bound in PR 4).
-  .warningsDetail {
-    display: flex;
-    flex-direction: column;
-    gap: functions.to-rem(6px);
-    color: var(--amber);
-    font-size: var(--font-size-md);
-    line-height: 1.5;
-  }
-
   .ghlink {
     color: var(--dim);
     text-decoration: none;

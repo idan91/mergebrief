@@ -20,6 +20,7 @@ import type { Brief, LivePrState } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
+import { BriefDetailsPanel } from "./BriefDetailsPanel/BriefDetailsPanel";
 import { ProviderBadge } from "./ProviderBadge/ProviderBadge";
 import { StateBadge } from "./StateBadge/StateBadge";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
@@ -200,7 +201,14 @@ export function Header({
             narrow viewports; the CTA + overflow stay pinned at the row end. */}
         <span className={styles["riders"]}>
           <ProviderBadge generation={brief.generation} />
-          <GenerationWarningsChip warnings={brief.generationWarnings} />
+          {/* The ⓘ disclosure AND the generation-warnings chip (its second
+              trigger) — co-located inside so one close path owns focus. */}
+          <BriefDetailsPanel
+            brief={brief}
+            repoConfig={repoConfig}
+            totalAdded={model.totalAdded}
+            totalDeleted={model.totalDeleted}
+          />
           {repoConfig != null ? (
             <RepoConfigChip repoConfig={repoConfig} />
           ) : null}
@@ -590,40 +598,6 @@ function isHttpUrl(value: unknown): value is string {
   }
 }
 
-/**
- * Generation warnings as a compact amber count chip (BRIEF-103): the prose
- * block left the header; what generation DID (salvage, feedback retry,
- * served-model mismatch — BRIEF-11) stays one disclosure away. PR 4 rewires
- * this chip to open the Brief-details panel; until then the disclosure
- * carries the prose itself so warnings never go dark between PRs.
- */
-function GenerationWarningsChip({
-  warnings,
-}: {
-  warnings: string[] | undefined;
-}) {
-  if (!warnings || warnings.length === 0) return null;
-  const unique = [...new Set(warnings)];
-  return (
-    <RiskChipDisclosure
-      detail={
-        <span className={styles["warningsDetail"]} role="note">
-          {unique.map((warning) => (
-            <span key={warning}>{warning}</span>
-          ))}
-        </span>
-      }
-    >
-      <span className={styles["warningsChip"]} data-generation-warnings-chip="">
-        <span aria-hidden="true">⚠</span>
-        <span>
-          {unique.length} generation warning{unique.length === 1 ? "" : "s"}
-        </span>
-      </span>
-    </RiskChipDisclosure>
-  );
-}
-
 /** Error-class outcomes that flip the provenance chip to its warning state. */
 const REPO_CONFIG_ERROR_OUTCOMES = new Set([
   "invalid",
@@ -632,11 +606,11 @@ const REPO_CONFIG_ERROR_OUTCOMES = new Set([
 ]);
 
 /**
- * The understated repo-config provenance chip (ADR 0032 #8): "repo config @
- * sha", expandable to the per-file outcome table; warning state on any
- * error outcome or collision — visible to author AND reviewer (the Receipt
- * carries the permanent copy). Renders nothing when every file is absent
- * and nothing collided (no `.mergebrief/` = no chip noise).
+ * The repo-config provenance chip (ADR 0032 #8), WARNING-ONLY from
+ * BRIEF-103 PR 4: the ok-state lives in the Brief-details panel, so the
+ * chip renders only when something needs the author's or reviewer's
+ * attention (error outcome, applied-with-warning, or a collision) —
+ * ADR 0032 #5 stays satisfied, the mini-callout table is unchanged.
  */
 function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
   const anyPresent =
@@ -652,6 +626,7 @@ function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
         REPO_CONFIG_ERROR_OUTCOMES.has(file.outcome) ||
         file.warning !== undefined,
     ) || repoConfig.collisions.length > 0;
+  if (!anyError) return null;
   const appliedSha = repoConfig.files.find(
     (file) => file.outcome === "applied" && file.blobSha !== null,
   )?.blobSha;
@@ -692,9 +667,9 @@ function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
       <span
         className={styles["repoConfigChip"]}
         data-repo-config-chip=""
-        data-state={anyError ? "warning" : "ok"}
+        data-state="warning"
       >
-        {anyError ? "⚠ " : ""}
+        {"⚠ "}
         {label}
       </span>
     </RiskChipDisclosure>

@@ -133,7 +133,8 @@ thread, stacked on PR 3.
    aria-controls, hover preview, click canonical, Escape-at-capture).
 2. Three sections: Artifact (kind, brief index, commit range + count, full
    SHAs, LOC "adjusted ≈ git" caveat) · Generation (provider, model,
-   effort, timestamps, warnings prose) · Repo config (ok-state; table
+   effort, warnings prose — no timestamps; the artifact's Generation
+   stamp carries none, spec amended 2026-08-04) · Repo config (ok-state; table
    slimmed to file + applied-or-not + warning line; bytes and per-file
    sha dropped).
 3. Warnings chip rewires to open THIS panel (landing on the warnings
