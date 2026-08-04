@@ -20,6 +20,7 @@ import type { Brief, LivePrState } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
+import { ProviderBadge } from "./ProviderBadge/ProviderBadge";
 import { StateBadge } from "./StateBadge/StateBadge";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
@@ -198,7 +199,7 @@ export function Header({
         {/* Everything after the repo/PR link wraps to a second line on
             narrow viewports; the CTA + overflow stay pinned at the row end. */}
         <span className={styles["riders"]}>
-          <ProvenanceNote generation={brief.generation} />
+          <ProviderBadge generation={brief.generation} />
           <GenerationWarningsChip warnings={brief.generationWarnings} />
           {repoConfig != null ? (
             <RepoConfigChip repoConfig={repoConfig} />
@@ -590,26 +591,6 @@ function isHttpUrl(value: unknown): value is string {
 }
 
 /**
- * Interim generation-provenance note (BRIEF-103 PR 2): the surviving "via …"
- * fragment of the removed context line — artifact identity lives in the
- * TimelineNavigator, the rest of the old meta moves to the Brief-details
- * panel. The keycap provider/model badge replaces this element in PR 3.
- */
-function ProvenanceNote({ generation }: { generation: Brief["generation"] }) {
-  if (!generation) return null;
-  // Own-property only: the provider token comes from artifact data, and a
-  // plain index read would resolve inherited Object members ("toString").
-  const adapterClass = Object.hasOwn(PROVIDER_CLASS_LABEL, generation.provider)
-    ? PROVIDER_CLASS_LABEL[generation.provider]
-    : undefined;
-  return (
-    <span className={styles["provenanceNote"]} data-provenance="">
-      {`via ${generation.provider}${adapterClass ? ` (${adapterClass})` : ""}/${generation.model}${generation.effort ? ` · effort ${generation.effort}` : ""}`}
-    </span>
-  );
-}
-
-/**
  * Generation warnings as a compact amber count chip (BRIEF-103): the prose
  * block left the header; what generation DID (salvage, feedback retry,
  * served-model mismatch — BRIEF-11) stays one disclosure away. PR 4 rewires
@@ -642,22 +623,6 @@ function GenerationWarningsChip({
     </RiskChipDisclosure>
   );
 }
-
-/**
- * Adapter CLASS per provider token (BRIEF-11 / ADR 0030 #6): a harness-CLI
- * run must be visibly distinct from an API/SDK run — the CLI owns routing
- * and auth, so "claude-code" and "anthropic" are different trust shapes
- * even when the same model served. Pinned to `Providers` in
- * packages/generators/src/registry.ts (kept as plain data here — the
- * header is client code and must not pull provider SDKs into the bundle).
- */
-const PROVIDER_CLASS_LABEL: Record<string, string> = {
-  anthropic: "API",
-  openai: "API",
-  openrouter: "API",
-  "claude-code": "local CLI",
-  codex: "local CLI",
-};
 
 /** Error-class outcomes that flip the provenance chip to its warning state. */
 const REPO_CONFIG_ERROR_OUTCOMES = new Set([

@@ -68,10 +68,10 @@
 
   // The title truncates FIRST (spec: one-line identity row): the huge
   // shrink factor spends all of its width before any other cell gives an
-  // inch; repoRef and the provenance note are the second and third lines
-  // of defense so a long repo name can never push the pinned CTA +
-  // overflow off a sticky header (review finding: the 881–1120px band sits
-  // between the audit's wide and wrapped checkpoints).
+  // inch; repoRef and the provider badge's model cell are the second and
+  // third lines of defense so a long repo name or model id can never push
+  // the pinned CTA + overflow off a sticky header (review finding: the
+  // 881–1120px band sits between the audit's wide and wrapped checkpoints).
   .title {
     flex: 0 1000 auto;
 
@@ -118,19 +118,6 @@
   .spacer {
     flex: 1;
     min-inline-size: 0;
-  }
-
-  // Interim provenance fragment (BRIEF-103 PR 2; the PR 3 keycap badge
-  // replaces it) — the old context line's quiet register. Shrinkable
-  // (after title and repoRef) so the row cannot overflow.
-  .provenanceNote {
-    flex: 0 1 auto;
-    min-inline-size: 0;
-    overflow: hidden;
-    color: var(--faint);
-    font-size: var(--font-size-md);
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   // Generation warnings as a count chip (BRIEF-103): amber tinted pill, the

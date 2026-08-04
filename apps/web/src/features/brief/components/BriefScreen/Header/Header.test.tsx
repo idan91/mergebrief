@@ -130,47 +130,14 @@ describe("Header identity row (BRIEF-103)", () => {
     expect(screen.queryByText(/basebase\.\.headhead/)).toBeNull();
   });
 
-  it("keeps the interim provenance note with the adapter class (BRIEF-11)", () => {
+  it("renders the keycap provenance badge in the riders (BRIEF-103 PR 3)", () => {
     renderHeader();
-    const note = document.querySelector("[data-provenance]");
-    // An API/SDK run reads differently from a harness-CLI run.
-    expect(note?.textContent).toBe("via anthropic (API)/m-1 · effort high");
-  });
-
-  it("labels harness-CLI providers distinctly from API providers", () => {
-    renderHeader({
-      brief: {
-        ...brief,
-        generation: { provider: "claude-code", model: "m-1", effort: null },
-      },
-    });
-    expect(document.querySelector("[data-provenance]")?.textContent).toContain(
-      "via claude-code (local CLI)/m-1",
-    );
-  });
-
-  it("renders an unknown provider token without a class label", () => {
-    renderHeader({
-      brief: {
-        ...brief,
-        generation: { provider: "fake", model: "m-1", effort: null },
-      },
-    });
-    expect(document.querySelector("[data-provenance]")?.textContent).toContain(
-      "via fake/m-1",
-    );
-  });
-
-  it("treats inherited-object tokens as unknown (no bogus class label)", () => {
-    renderHeader({
-      brief: {
-        ...brief,
-        generation: { provider: "toString", model: "m-1", effort: null },
-      },
-    });
-    const note = document.querySelector("[data-provenance]");
-    expect(note?.textContent).toContain("via toString/m-1");
-    expect(note?.textContent).not.toContain("via toString (");
+    // Full semantics are pinned in ProviderBadge.test.tsx; the header pins
+    // the wiring — badge present, interim "via …" note gone.
+    const badge = document.querySelector("[data-provider-badge]");
+    expect(badge?.textContent).toContain("m-1 · high");
+    expect(badge?.textContent).toContain("API");
+    expect(document.querySelector("[data-provenance]")).toBeNull();
   });
 });
 
