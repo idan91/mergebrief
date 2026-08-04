@@ -3,6 +3,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
+import svgr from "vite-plugin-svgr";
 
 import { coverageExclude, coverageReporter } from "../../vitest.shared";
 
@@ -74,5 +75,5 @@ export default defineConfig({
       "@web": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
-  plugins: [tanstackStart(), viteReact()],
+  plugins: [svgr(), tanstackStart(), viteReact()],
 });

@@ -1,20 +1,20 @@
-import type { ReactNode } from "react";
-
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { Brief } from "../../../../types";
-import {
-  AnthropicMark,
-  ClaudeCodeMark,
-  GenericProviderMark,
-  OpenAiMark,
-  OpenRouterMark,
-} from "./marks";
+// One .svg asset per mark (imported as components via vite-plugin-svgr so
+// currentColor inherits). Each file carries its own provenance comment —
+// the BRIEF-103 accuracy gate: real logos only, one-to-one from official
+// sources, fills normalized to currentColor, verified rendering at 12px.
+import AnthropicMark from "./marks/anthropic.svg?react";
+import ClaudeCodeMark from "./marks/claude-code.svg?react";
+import GenericProviderMark from "./marks/generic.svg?react";
+import OpenAiMark from "./marks/openai.svg?react";
+import OpenRouterMark from "./marks/openrouter.svg?react";
 import styles from "./ProviderBadge.module.scss";
-
-export interface ProviderBadgeProps {
-  /** The artifact's provenance stamp; absent → no badge (pre-ADR-0013 artifacts). */
-  generation: Brief["generation"];
-}
+import {
+  ProviderGenerationTypes,
+  type MarkConfig,
+  type ProviderGenerationType,
+} from "./ProviderBadge.types";
 
 /**
  * Adapter CLASS per provider token (ADR 0030 #6): a harness-CLI run must be
@@ -24,25 +24,31 @@ export interface ProviderBadgeProps {
  * Pinned to `Providers` in packages/generators/src/config/registry.ts —
  * kept as plain data here (client code must not pull provider SDKs).
  */
-const PROVIDER_CLASS_TAG: Record<string, string> = {
-  anthropic: "API",
-  openai: "API",
-  openrouter: "API",
-  "claude-code": "CLI",
-  codex: "CLI",
+const PROVIDER_CLASS_TAG: Record<string, ProviderGenerationType> = {
+  anthropic: ProviderGenerationTypes.API,
+  openai: ProviderGenerationTypes.API,
+  openrouter: ProviderGenerationTypes.API,
+  "claude-code": ProviderGenerationTypes.CLI,
+  codex: ProviderGenerationTypes.CLI,
 };
 
 /**
- * Official marks by provider token. `codex` is deliberately absent: OpenAI
- * publishes no standalone Codex logomark (see marks.tsx provenance block),
- * so it takes the named fallback rather than an approximation.
+ * Official marks by provider slug. `codex` is deliberately absent: OpenAI
+ * publishes no standalone Codex logomark (checked the brand kit,
+ * developers.openai.com/codex, and the openai/codex repo, 2026-08-04), so
+ * it takes the named fallback rather than an approximation.
  */
-const PROVIDER_MARK: Record<string, { mark: () => ReactNode; name: string }> = {
+const PROVIDER_CONFIGS: Record<string, MarkConfig> = {
   anthropic: { mark: AnthropicMark, name: "Anthropic" },
   "claude-code": { mark: ClaudeCodeMark, name: "Claude Code" },
   openai: { mark: OpenAiMark, name: "OpenAI" },
   openrouter: { mark: OpenRouterMark, name: "OpenRouter" },
 };
+
+export interface ProviderBadgeProps {
+  /** The artifact's provenance stamp; absent → no badge (pre-ADR-0013 artifacts). */
+  generation: Brief["generation"];
+}
 
 /**
  * The keycap-split provenance badge (BRIEF-103 spec): neutral mark cell →
@@ -53,35 +59,42 @@ const PROVIDER_MARK: Record<string, { mark: () => ReactNode; name: string }> = {
  */
 export function ProviderBadge({ generation }: ProviderBadgeProps) {
   if (!generation) return null;
-  const provider = generation.provider;
-  // Own-property reads only: the token comes from artifact data, and a plain
+  const providerSlug = generation.provider;
+  // Own-property reads only: the slug comes from artifact data, and a plain
   // index read would resolve inherited Object members ("toString").
-  const known = Object.hasOwn(PROVIDER_MARK, provider)
-    ? PROVIDER_MARK[provider]
+  const providerConfig = Object.hasOwn(PROVIDER_CONFIGS, providerSlug)
+    ? PROVIDER_CONFIGS[providerSlug]
     : undefined;
-  const classTag = Object.hasOwn(PROVIDER_CLASS_TAG, provider)
-    ? PROVIDER_CLASS_TAG[provider]
+  // Capitalized so the JSX below reads as a component, not a host tag.
+  const Mark = providerConfig?.mark;
+  const classTag = Object.hasOwn(PROVIDER_CLASS_TAG, providerSlug)
+    ? PROVIDER_CLASS_TAG[providerSlug]
     : undefined;
   return (
     <span className={styles["badge"]} data-provider-badge="">
       {/* `title`: pointer users get the provider name as the native browser
           tooltip (Idan 2026-08-04) — the logo alone isn't universally
           recognizable. Screen readers keep the sr-only sibling. */}
-      <span
-        className={styles["markCell"]}
-        title={known ? known.name : undefined}
-      >
-        {known ? (
+      <span className={styles["markCell"]} title={providerConfig?.name}>
+        {providerConfig && Mark ? (
           <>
-            <known.mark />
-            <ScreenReaderOnly>{known.name}</ScreenReaderOnly>
+            <Mark
+              aria-hidden="true"
+              className={styles["mark"]}
+              focusable="false"
+            />
+            <ScreenReaderOnly>{providerConfig.name}</ScreenReaderOnly>
           </>
         ) : (
           // Named fallback (accuracy gate): generic glyph + the provider
           // token as visible text — never a hand-drawn brand approximation.
           <>
-            <GenericProviderMark />
-            <span className={styles["markName"]}>{provider}</span>
+            <GenericProviderMark
+              aria-hidden="true"
+              className={styles["mark"]}
+              focusable="false"
+            />
+            <span className={styles["markName"]}>{providerSlug}</span>
           </>
         )}
       </span>
