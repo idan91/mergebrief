@@ -145,6 +145,36 @@ export function buildSignatureLine(
 }
 
 /**
+ * Separator between the reviewer's own comment and the signature line —
+ * GitHub renders `---` as a horizontal rule, visually fencing the tool's
+ * mechanical claims off from the reviewer's words (ADR 0002: the review
+ * itself stays theirs).
+ */
+const REVIEW_BODY_SEPARATOR = "\n\n---\n\n";
+
+/**
+ * The GitHub review body: the reviewer's free-text comment above the
+ * signature line, separator-fenced; the signature alone when the comment is
+ * empty (GitHub requires a nonempty body for REQUEST_CHANGES — the signature
+ * satisfies it for every outcome).
+ */
+export function buildReviewBody(
+  reviewComment: string,
+  signatureLine: string,
+): string {
+  const trimmed = reviewComment.trim();
+  return trimmed === ""
+    ? signatureLine
+    : `${trimmed}${REVIEW_BODY_SEPARATOR}${signatureLine}`;
+}
+
+/** What the review comment adds to the route's fold budget. */
+function reviewCommentFoldCost(reviewComment: string): number {
+  const trimmed = reviewComment.trim();
+  return trimmed === "" ? 0 : trimmed.length + REVIEW_BODY_SEPARATOR.length;
+}
+
+/**
  * Conservative upper bound on the route's degradation fold: per comment, the
  * `file:range` marker plus the "> "-quoted selection plus the body and
  * separators. Slightly over-counts (never under) so a passing estimate can
@@ -164,7 +194,8 @@ function foldedLengthEstimate(drafts: readonly ReviewComment[]): number {
 
 /**
  * Why Submit is disabled, or `undefined` when it may proceed. A neutral
- * COMMENT review needs content (GitHub 422s an empty one); approve /
+ * COMMENT review needs content — an inline draft or the review comment
+ * (GitHub 422s an empty one); approve /
  * request-changes carry their verdict as the content. Anything the route
  * would 400 deterministically (comment cap, fold budget) blocks HERE with a
  * recoverable reason — the UI resubmits the same draft set on retry.
@@ -172,13 +203,17 @@ function foldedLengthEstimate(drafts: readonly ReviewComment[]): number {
 export function submitBlockedReason(
   outcome: ReviewOutcome,
   comments: ReviewComment[],
+  reviewComment = "",
 ): string | undefined {
   const drafts = comments.filter((comment) => comment.status === "draft");
   if (drafts.length > MAX_COMMENTS_PER_SUBMIT) {
     return `A review can carry at most ${MAX_COMMENTS_PER_SUBMIT} comments. Trim ${drafts.length - MAX_COMMENTS_PER_SUBMIT} draft(s), or submit in parts by deleting some drafts and re-adding them after this review posts.`;
   }
-  if (foldedLengthEstimate(drafts) > FOLD_BUDGET) {
-    return "This review's comments are too large to submit as one review (GitHub's body limit). Shorten some comments, or submit in parts.";
+  const commentCost = reviewCommentFoldCost(reviewComment);
+  if (foldedLengthEstimate(drafts) + commentCost > FOLD_BUDGET) {
+    return commentCost > 0
+      ? "This review is too large to submit as one review (GitHub's body limit). Shorten the review comment or some inline comments, or submit in parts."
+      : "This review's comments are too large to submit as one review (GitHub's body limit). Shorten some comments, or submit in parts.";
   }
   const overlongPath = drafts.find(
     (draft) => draft.anchor.file.length > MAX_PATH_LENGTH,
@@ -189,8 +224,8 @@ export function submitBlockedReason(
   if (outcome !== "comment") {
     return undefined;
   }
-  if (drafts.length === 0) {
-    return "A comment-only review needs at least one comment. Add one, or pick a verdict.";
+  if (drafts.length === 0 && reviewComment.trim() === "") {
+    return "A comment-only review needs at least one comment — inline or the review comment. Add one, or pick a verdict.";
   }
   return undefined;
 }

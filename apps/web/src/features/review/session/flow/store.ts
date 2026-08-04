@@ -39,6 +39,9 @@ export interface ReviewFlowState extends ReviewFlowPosture {
   composerAnchor: CommentAnchor | null;
   dismissTarget: DismissTarget | null;
   evidenceTarget: EvidenceTarget | null;
+  /** The free-text review-comment draft (BRIEF-137): survives the submit
+   * modal closing, deliberately not a reload. */
+  reviewComment: string;
   selectedRiskFlags: ReadonlySet<string>;
   /** The page live-region message; empty = hidden. */
   toast: string;
@@ -74,6 +77,13 @@ export interface ReviewFlowActions {
   toggleRiskGroup: (flagIds: readonly string[]) => void;
   /** @description Drop the given flags from the selection (post-disposition sweep). */
   clearRiskSelection: (flagIds: readonly string[]) => void;
+  setReviewComment: (body: string) => void;
+  /**
+   * @description Clears the review-comment draft only when it still equals
+   * the text a successful submit SHIPPED (capture-at-initiation, BRIEF-23):
+   * an edit made while the request was in flight is never silently dropped.
+   */
+  consumeReviewComment: (sent: string) => void;
   /**
    * @description Page live-region announce, clear-then-set: an identical
    * repeat message still produces a DOM change and restarts the hide timer.
@@ -105,6 +115,7 @@ export function initialReviewFlowState(
     composerAnchor: null,
     dismissTarget: null,
     evidenceTarget: null,
+    reviewComment: "",
     selectedRiskFlags: new Set(),
     toast: "",
   };
@@ -209,6 +220,14 @@ export function createReviewFlowStore(
             for (const id of flagIds) next.delete(id);
             return { selectedRiskFlags: next };
           });
+        },
+        setReviewComment(body) {
+          set({ reviewComment: body });
+        },
+        consumeReviewComment(sent) {
+          if (get().reviewComment === sent) {
+            set({ reviewComment: "" });
+          }
         },
         announce,
         clearToast() {

@@ -9,6 +9,7 @@ import type { Receipt } from "../utils/receipt";
 import { markSnapshotCommentsSubmitted } from "../session";
 import type { ReviewOutcome } from "../utils/state";
 import {
+  buildReviewBody,
   buildSignatureLine,
   submitBlockedReason,
   type SubmitReviewAction,
@@ -22,6 +23,22 @@ export interface UseReviewSubmitInput {
   outcome: ReviewOutcome;
   comments: ReviewComment[];
   receipt: Receipt;
+  /**
+   * Reads the reviewer's free-text review comment (BRIEF-137) — posted above
+   * the signature line, separator-fenced; empty = signature-only body (the
+   * pre-137 behavior). A GETTER, not the string: the draft changes per
+   * keystroke, and the screen that owns this hook must not re-render with it
+   * (the store-subscription discipline is booleans/transitions only). The
+   * editing surface subscribes to the raw text itself and re-derives its
+   * live disabled state via `blockedReasonWith`.
+   */
+  getReviewComment: () => string;
+  /**
+   * Clears the review-comment draft after a successful submit — called with
+   * the text CAPTURED at click time, so the owner can keep an edit made
+   * while the request was in flight.
+   */
+  consumeReviewComment: (sent: string) => void;
   /**
    * Flips exactly the given comment ids to `submitted` — the hook passes the
    * draft ids it CAPTURED at click time, so a draft added or edited while
@@ -47,7 +64,7 @@ export interface UseReviewSubmitInput {
    * cards keep rendering until the refetched threads actually contain them.
    */
   invalidateConversation: (() => void) | undefined;
-  closeReceipt: () => void;
+  closeSubmit: () => void;
   /**
    * Resets the session outcome to `comment` after a VERDICT was delivered —
    * a follow-up submit defaults to a comment-only review instead of posting
@@ -69,8 +86,17 @@ export interface UseReviewSubmitValue {
   /** False on the local demo path — the caller keeps its mock behavior. */
   available: boolean;
   pending: boolean;
-  /** Why Submit is disabled (reachable text, not hover-only), if it is. */
+  /** Why Submit is disabled (reachable text, not hover-only), if it is.
+   * Computed with the review comment as of the OWNER's last render — live
+   * per-keystroke consumers use `blockedReasonWith` instead. */
   blockedReason: string | undefined;
+  /**
+   * The same blocked rule evaluated against a caller-supplied review-comment
+   * draft — for the editing surface, which subscribes to the raw text and
+   * must re-derive the disabled state per keystroke without re-rendering the
+   * owning screen.
+   */
+  blockedReasonWith: (reviewComment: string) => string | undefined;
   /** The current failure copy; announced assertively where rendered. */
   error: string | null;
   /** Persistent receipt note (anchoring degradation), survives the toast. */
@@ -112,11 +138,13 @@ export function useReviewSubmit(
     outcome,
     comments,
     receipt,
+    getReviewComment,
+    consumeReviewComment,
     markSubmitted,
     recordSubmittedReview,
     announce,
     invalidateConversation,
-    closeReceipt,
+    closeSubmit,
     resetOutcome,
     blockedExternally,
   } = input;
@@ -130,15 +158,25 @@ export function useReviewSubmit(
   // reason (a post-now settling), and the content reasons re-surface once it
   // clears.
   const blockedReason =
-    blockedExternally ?? submitBlockedReason(outcome, comments);
+    blockedExternally ??
+    submitBlockedReason(outcome, comments, getReviewComment());
+
+  const blockedReasonWith = useCallback(
+    (reviewComment: string) =>
+      blockedExternally ??
+      submitBlockedReason(outcome, comments, reviewComment),
+    [blockedExternally, comments, outcome],
+  );
 
   const submit = useCallback(() => {
     if (action === undefined || inFlight.current) {
       return;
     }
+    // Guard against the CURRENT draft, read at click time — the owning
+    // screen's render (and its `blockedReason`) may lag the keystroke.
     if (
       blockedExternally !== undefined ||
-      submitBlockedReason(outcome, comments) !== undefined
+      submitBlockedReason(outcome, comments, getReviewComment()) !== undefined
     ) {
       return;
     }
@@ -151,6 +189,9 @@ export function useReviewSubmit(
     // Captured at click time: exactly this set ships, exactly this set flips.
     const drafts = comments.filter((comment) => comment.status === "draft");
     const draftIds = drafts.map((comment) => comment.id);
+    // Same capture rule for the review comment: exactly this text ships, and
+    // only this text is consumed from the draft on success.
+    const reviewCommentAtClick = getReviewComment();
     // Failures land in the inline alert AND the page live region — the
     // drawer may be closed (inert) by the time the request settles.
     const fail = (copy: string) => {
@@ -166,7 +207,10 @@ export function useReviewSubmit(
         try {
           result = await action({
             outcome,
-            body: buildSignatureLine(receipt, drafts.length),
+            body: buildReviewBody(
+              reviewCommentAtClick,
+              buildSignatureLine(receipt, drafts.length),
+            ),
             comments,
           });
         } catch {
@@ -179,6 +223,10 @@ export function useReviewSubmit(
             // a comment-only review, never a repeat approval.
             const verdictDelivered = outcome !== "comment";
             try {
+              // Consume first: unlike the drafts (durable backstop below), a
+              // stale review-comment draft surviving a throw here would
+              // prefill the next submit with already-posted text.
+              consumeReviewComment(reviewCommentAtClick);
               markSubmitted(draftIds);
               recordSubmittedReview(result.reviewId);
               if (verdictDelivered) {
@@ -201,7 +249,7 @@ export function useReviewSubmit(
               // copy must not turn into a retry prompt.
               console.error("submit: local persistence failed", persistError);
             }
-            closeReceipt();
+            closeSubmit();
             // The review is live on GitHub — refetch the conversation so
             // the posted comments render as their real threads.
             invalidateConversation?.();
@@ -248,8 +296,10 @@ export function useReviewSubmit(
     announce,
     blockedExternally,
     briefId,
-    closeReceipt,
+    closeSubmit,
     comments,
+    consumeReviewComment,
+    getReviewComment,
     invalidateConversation,
     markSubmitted,
     outcome,
@@ -264,6 +314,7 @@ export function useReviewSubmit(
     available: action !== undefined,
     pending,
     blockedReason,
+    blockedReasonWith,
     error,
     note,
     submit,

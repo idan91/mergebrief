@@ -34,8 +34,13 @@ Ticket: https://app.notion.com/p/3b25e9400eeb8172b08cc69b67507454
 7. **State ownership:** BriefScreen's `receiptOpen`/`preSubmitOpen` collapse to
    one `submitOpen` (summary-preview drawer keeps its own flag). View position
    is modal-local `useState`. Flow store gains a `reviewComment` draft.
-   `useReviewSubmit` gains a `body` input and `closeReceipt` renames to
-   `closeSubmit`; the BRIEF-23 lifecycle is untouched. New `SubmitModal`
+   `useReviewSubmit` gains a stable `getReviewComment` getter (never a raw
+   string through the screen — its store-subscription discipline is
+   booleans/transitions only), a `consumeReviewComment(sent)` callback, and
+   exposes `blockedReasonWith(comment)` for the editor surface;
+   `closeReceipt` renames to `closeSubmit`; the BRIEF-23 lifecycle is
+   untouched. (Refined during PR 1 from the original "body input" wording —
+   a screen-computed body would subscribe per keystroke or go stale.) New `SubmitModal`
    component (`features/review/components/SubmitModal/`) built on shared
    `Modal`; `PreSubmitModal` + `ReceiptDrawer` are deleted.
 
@@ -90,8 +95,10 @@ effort medium — mechanical + contract care.
    oversize review comment. Unit tests incl. budget edges.
 2. Flow store: `reviewComment` draft + `setReviewComment` action (persists
    across modal close; cleared on successful submit alongside verdict-spent).
-3. `useReviewSubmit`: `body` input threaded to the wire payload; rename
-   `closeReceipt` → `closeSubmit`. Lifecycle untouched. Tests updated.
+3. `useReviewSubmit`: `getReviewComment` getter + `consumeReviewComment` +
+   `blockedReasonWith` (see decision 7); body composed in the hook at click
+   time; rename `closeReceipt` → `closeSubmit`. Lifecycle untouched. Tests
+   updated.
 4. SummaryPreview: drop `setOutcome` prop + picker → read-only document;
    callers (SummaryPreviewDrawer, standalone route) updated; tests updated.
 

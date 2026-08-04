@@ -172,4 +172,27 @@ describe("ReviewFlow store", () => {
       expect(store.getState().toast).toBe("");
     });
   });
+
+  describe("review comment draft", () => {
+    it("starts empty and sets verbatim", () => {
+      expect(store.getState().reviewComment).toBe("");
+      store.getState().actions.setReviewComment("Solid change.  ");
+      expect(store.getState().reviewComment).toBe("Solid change.  ");
+    });
+
+    it("consumes the draft when it still equals the shipped text", () => {
+      store.getState().actions.setReviewComment("Solid change.");
+      store.getState().actions.consumeReviewComment("Solid change.");
+      expect(store.getState().reviewComment).toBe("");
+    });
+
+    it("keeps an edit made after the shipped text was captured", () => {
+      // Capture-at-initiation (BRIEF-23): a mid-flight edit is user content —
+      // the success sweep must not silently drop it.
+      store.getState().actions.setReviewComment("Solid change.");
+      store.getState().actions.setReviewComment("Solid change, but check X.");
+      store.getState().actions.consumeReviewComment("Solid change.");
+      expect(store.getState().reviewComment).toBe("Solid change, but check X.");
+    });
+  });
 });

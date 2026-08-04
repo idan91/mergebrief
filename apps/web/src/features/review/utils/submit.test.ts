@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { CommentAnchor, ReviewComment } from "./comments";
 import type { Receipt } from "./receipt";
 import {
+  buildReviewBody,
   buildSignatureLine,
   buildSubmitPayload,
   mapAnchorToWire,
@@ -222,5 +223,40 @@ describe("submitBlockedReason", () => {
     expect(
       submitBlockedReason("approve", [comment("a", {}, "x".repeat(1_000))]),
     ).toBeUndefined();
+  });
+
+  it("allows a neutral comment submit with only a review comment", () => {
+    expect(
+      submitBlockedReason("comment", [], "Looks fine overall."),
+    ).toBeUndefined();
+    expect(submitBlockedReason("comment", [], "   ")).toMatch(
+      /at least one comment/i,
+    );
+  });
+
+  it("counts the review comment toward the fold budget, naming it in the copy", () => {
+    // One inline draft near the budget: an oversize review comment must tip
+    // the same pre-validation the route runs, with copy that points at the
+    // review comment as a thing to shorten.
+    const drafts = [comment("a", {}, "x".repeat(40_000))];
+    expect(submitBlockedReason("approve", drafts, "r".repeat(30_000))).toMatch(
+      /review comment/i,
+    );
+    expect(
+      submitBlockedReason("approve", drafts, "short note"),
+    ).toBeUndefined();
+  });
+});
+
+describe("buildReviewBody", () => {
+  it("is the signature alone for an empty or whitespace comment", () => {
+    expect(buildReviewBody("", "sig")).toBe("sig");
+    expect(buildReviewBody("   \n ", "sig")).toBe("sig");
+  });
+
+  it("fences the trimmed comment above the signature with a rule", () => {
+    expect(buildReviewBody("  Solid change. ", "sig")).toBe(
+      "Solid change.\n\n---\n\nsig",
+    );
   });
 });

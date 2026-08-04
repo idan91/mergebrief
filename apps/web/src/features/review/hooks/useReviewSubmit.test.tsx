@@ -56,8 +56,9 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
   const recordSubmittedReview = vi.fn();
   const announce = vi.fn();
   const invalidateConversation = vi.fn();
-  const closeReceipt = vi.fn();
+  const closeSubmit = vi.fn();
   const resetOutcome = vi.fn();
+  const consumeReviewComment = vi.fn();
   const action = vi.fn<(draftInput: unknown) => Promise<SubmitReviewResult>>();
   const input: UseReviewSubmitInput = {
     action,
@@ -65,11 +66,13 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     outcome: "approve",
     comments: [draft("a")],
     receipt: RECEIPT,
+    getReviewComment: () => "",
+    consumeReviewComment,
     markSubmitted,
     recordSubmittedReview,
     announce,
     invalidateConversation,
-    closeReceipt,
+    closeSubmit,
     resetOutcome,
     ...overrides,
   };
@@ -85,8 +88,9 @@ function setup(overrides: Partial<UseReviewSubmitInput> = {}) {
     recordSubmittedReview,
     announce,
     invalidateConversation,
-    closeReceipt,
+    closeSubmit,
     resetOutcome,
+    consumeReviewComment,
   };
 }
 
@@ -136,7 +140,7 @@ describe("useReviewSubmit", () => {
       recordSubmittedReview,
       announce,
       invalidateConversation,
-      closeReceipt,
+      closeSubmit,
     } = setup();
     action.mockResolvedValue({
       kind: "submitted",
@@ -163,7 +167,7 @@ describe("useReviewSubmit", () => {
       5,
     );
     expect(recordSubmittedReview).toHaveBeenCalledWith(5);
-    expect(closeReceipt).toHaveBeenCalledTimes(1);
+    expect(closeSubmit).toHaveBeenCalledTimes(1);
     // The review is live: the conversation refetches so the posted comments
     // render as their GitHub threads (BRIEF-56 feedback round).
     expect(invalidateConversation).toHaveBeenCalledTimes(1);
@@ -188,7 +192,7 @@ describe("useReviewSubmit", () => {
   });
 
   it("renders the fail-closed reload copy on rewritten, drafts untouched", async () => {
-    const { rendered, action, markSubmitted, closeReceipt } = setup();
+    const { rendered, action, markSubmitted, closeSubmit } = setup();
     action.mockResolvedValue({ kind: "rewritten" });
 
     act(() => rendered.result.current.submit());
@@ -199,7 +203,7 @@ describe("useReviewSubmit", () => {
     );
     expect(rendered.result.current.error).toMatch(/reload/i);
     expect(markSubmitted).not.toHaveBeenCalled();
-    expect(closeReceipt).not.toHaveBeenCalled();
+    expect(closeSubmit).not.toHaveBeenCalled();
   });
 
   it("ignores a second click while pending (double-post guard)", async () => {
@@ -259,7 +263,7 @@ describe("useReviewSubmit", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
-    const { rendered, action, announce, closeReceipt } = setup();
+    const { rendered, action, announce, closeSubmit } = setup();
     action.mockResolvedValue({
       kind: "submitted",
       reviewId: 5,
@@ -276,7 +280,7 @@ describe("useReviewSubmit", () => {
     // the "nothing was posted" retry prompt.
     expect(rendered.result.current.error).toBeNull();
     expect(announce).toHaveBeenCalledWith(expect.stringMatching(/posted/i));
-    expect(closeReceipt).toHaveBeenCalledTimes(1);
+    expect(closeSubmit).toHaveBeenCalledTimes(1);
     consoleError.mockRestore();
   });
 
@@ -333,6 +337,107 @@ describe("useReviewSubmit", () => {
     );
     expect(rendered.result.current.error).toMatch(/check the pull request/i);
     expect(rendered.result.current.error).not.toContain("boom");
+  });
+
+  it("ships the review comment above the signature, separator-fenced", async () => {
+    const { rendered, action } = setup({
+      getReviewComment: () => "Solid change.",
+    });
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 5,
+      commentsDegraded: false,
+    });
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+    expect(action).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringMatching(
+          /^Solid change\.\n\n---\n\nReviewed with MergeBrief/,
+        ),
+      }),
+    );
+  });
+
+  it("consumes the review comment with the text captured at click time", async () => {
+    const { rendered, action, consumeReviewComment } = setup({
+      getReviewComment: () => "Solid change.",
+    });
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 5,
+      commentsDegraded: false,
+    });
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+    expect(consumeReviewComment).toHaveBeenCalledWith("Solid change.");
+  });
+
+  it("does not consume the review comment on failure", async () => {
+    const { rendered, action, consumeReviewComment } = setup({
+      getReviewComment: () => "Solid change.",
+    });
+    action.mockResolvedValue({ kind: "rewritten" });
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+    expect(consumeReviewComment).not.toHaveBeenCalled();
+  });
+
+  it("unblocks a neutral comment submit when a review comment is present", () => {
+    const { rendered } = setup({
+      outcome: "comment",
+      comments: [],
+      getReviewComment: () => "Looks fine overall.",
+    });
+    expect(rendered.result.current.blockedReason).toBeUndefined();
+  });
+
+  it("re-reads the draft at click time — a keystroke after the render unblocks", async () => {
+    // The owning screen renders with an empty draft (blocked), then the user
+    // types in the editing surface (store-only change, no screen re-render)
+    // and clicks Submit: the guard must re-read the getter, not the value
+    // captured at render.
+    let draftText = "";
+    const { rendered, action } = setup({
+      outcome: "comment",
+      comments: [],
+      getReviewComment: () => draftText,
+    });
+    expect(rendered.result.current.blockedReason).toMatch(
+      /at least one comment/i,
+    );
+    action.mockResolvedValue({
+      kind: "submitted",
+      reviewId: 5,
+      commentsDegraded: false,
+    });
+    draftText = "typed after render";
+    act(() => rendered.result.current.submit());
+    await waitFor(() => expect(rendered.result.current.pending).toBe(false));
+    expect(action).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.stringMatching(/^typed after render\n\n---\n\n/),
+      }),
+    );
+  });
+
+  it("evaluates blockedReasonWith against the caller's draft, not the getter", () => {
+    // The editing surface subscribes to the raw text and re-derives the
+    // disabled state per keystroke — without the owning screen re-rendering.
+    const { rendered } = setup({
+      outcome: "comment",
+      comments: [],
+      getReviewComment: () => "",
+    });
+    expect(rendered.result.current.blockedReason).toMatch(
+      /at least one comment/i,
+    );
+    expect(
+      rendered.result.current.blockedReasonWith("typed just now"),
+    ).toBeUndefined();
+    expect(rendered.result.current.blockedReasonWith("")).toMatch(
+      /at least one comment/i,
+    );
   });
 
   it("mentions the own-PR rule only for verdict outcomes on upstream rejection", async () => {

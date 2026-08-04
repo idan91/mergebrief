@@ -280,6 +280,14 @@ export function BriefScreen({
     flowStore,
     (state) => state.dismissTarget !== null || state.evidenceTarget !== null,
   );
+  // The review-comment draft (BRIEF-137) is store-owned so it survives the
+  // submit surface closing, but the screen reads it through a stable getter —
+  // never a subscription: the raw string changes per keystroke, and this
+  // file's store discipline is booleans/transitions only (see above).
+  const getReviewComment = useCallback(
+    () => flowStore.getState().reviewComment,
+    [flowStore],
+  );
 
   useEffect(() => {
     if (!toast) return;
@@ -307,12 +315,14 @@ export function BriefScreen({
     outcome: reviewOutcome,
     comments: reviewComments,
     receipt,
+    getReviewComment,
+    consumeReviewComment: flowActions.consumeReviewComment,
     markSubmitted: (ids) => actions.markCommentsSubmitted(ids),
     recordSubmittedReview: (reviewId) =>
       actions.recordSubmittedReview(reviewId),
     announce,
     invalidateConversation: conversationWiring.invalidateConversation,
-    closeReceipt,
+    closeSubmit: closeReceipt,
     resetOutcome: () => actions.setOutcome("comment"),
     // Same-tab re-ship window: a post-now still settling when the own-draft
     // state exits (ready flip mid-request) is invisible to the payload
@@ -623,7 +633,6 @@ export function BriefScreen({
             open={summaryPreviewOpen}
             snapshot={snapshot}
             close={closeSummaryPreview}
-            setOutcome={(outcome) => actions.setOutcome(outcome)}
           />
           <PreSubmitModal
             open={preSubmitOpen}

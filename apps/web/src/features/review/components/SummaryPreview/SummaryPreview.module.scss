@@ -104,28 +104,14 @@
     line-height: 1.5;
   }
 
-  .outcomePick {
-    display: flex;
-    gap: functions.to-rem(4px);
-
-    button {
-      padding-block: functions.to-rem(6px);
-      padding-inline: functions.to-rem(10px);
-      border: 1px solid var(--line2);
-      border-radius: var(--radius-md);
-      background: transparent;
-      color: var(--faint);
-      cursor: pointer;
-
-      &[data-state="active"] {
-        // Earned oddity: the active pick sits one blue step off --line
-        // (#1f1f24) — an accidental split kept faithfully by the sweep.
-        --active-fill: #1f1f25;
-
-        background: var(--active-fill);
-        color: var(--text);
-      }
-    }
+  .outcomeValue {
+    padding-block: functions.to-rem(6px);
+    padding-inline: functions.to-rem(10px);
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
   }
 
   .grid {
@@ -212,10 +198,6 @@
     .grid,
     .metrics {
       grid-template-columns: 1fr;
-    }
-
-    .outcomePick {
-      flex-wrap: wrap;
     }
   }
 }

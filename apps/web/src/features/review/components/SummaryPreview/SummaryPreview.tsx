@@ -15,7 +15,6 @@ import styles from "./SummaryPreview.module.scss";
 export interface SummaryPreviewProps {
   brief: Brief;
   snapshot: SessionSnapshot;
-  setOutcome?: (outcome: ReviewOutcome) => void;
   /**
    * True on the standalone route only: makes this <main> the root skip-link
    * target (`#main-content`). Never set inside the drawer — the brief page
@@ -27,7 +26,6 @@ export interface SummaryPreviewProps {
 export function SummaryPreview({
   brief,
   snapshot,
-  setOutcome,
   standalone = false,
 }: SummaryPreviewProps) {
   const model = buildBriefViewModel(brief);
@@ -60,25 +58,13 @@ export function SummaryPreview({
         </div>
 
         <section className={styles["card"]}>
+          {/* Read-only document (BRIEF-137): the verdict is chosen in the
+              submit modal; this surface only reflects it. */}
           <div className={styles["row"]}>
             <span>Review outcome</span>
-            <div className={styles["outcomePick"]}>
-              {(["comment", "approve", "request-changes"] as const).map(
-                (outcome) => (
-                  <button
-                    data-state={
-                      snapshot.reviewOutcome === outcome ? "active" : undefined
-                    }
-                    disabled={!setOutcome}
-                    key={outcome}
-                    type="button"
-                    onClick={() => setOutcome?.(outcome)}
-                  >
-                    {reviewOutcomeLabel(outcome)}
-                  </button>
-                ),
-              )}
-            </div>
+            <span className={styles["outcomeValue"]}>
+              {reviewOutcomeLabel(snapshot.reviewOutcome)}
+            </span>
           </div>
           <div className={styles["signature"]}>
             {summarySignatureLine({
