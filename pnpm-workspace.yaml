@@ -6,6 +6,14 @@ allowBuilds:
   "@parcel/watcher": true
   esbuild: true
 
+# Transitive pins for advisories that ARE fixable (unlike the accepted list
+# below): scoped to the affected major so unrelated majors keep their own
+# resolution. Drop an entry once the owning dependency's own range covers it.
+overrides:
+  # GHSA-rgw5-rvv9-x895 + GHSA-mh99-v99m-4gvg — expansion DoS in the 1.x
+  # line, both fixed in 1.1.18; reached via vite > stylus > glob > minimatch.
+  "brace-expansion@1": "1.1.18"
+
 # `pnpm audit --prod --audit-level=high` is a blocking gate (ADR 0038 §9).
 # Every entry below is an advisory we have read and accepted, with the reason
 # — an unexplained id is a defect. Keyed by GHSA because none of these carry
@@ -29,7 +37,3 @@ auditConfig:
     # arbitrary .map files. Transitive through vite; it processes only our
     # own stylesheets during the build. Waiting on the upstream vite bump.
     - GHSA-r28c-9q8g-f849
-    # brace-expansion — unbounded expansion OOM. Reached through
-    # vite > stylus > glob > minimatch; we compile no Stylus, so the code is
-    # loaded but never fed a pattern.
-    - GHSA-mh99-v99m-4gvg
