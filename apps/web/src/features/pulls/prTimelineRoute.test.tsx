@@ -192,7 +192,7 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
       screen.getByRole("button", { name: /continue to receipt/i }),
     );
     // The ack gate reached the drawer (plumbing proof — the disabled-until-
-    // acked mechanics are pinned in ReceiptDrawer.test).
+    // acked mechanics are pinned in SubmitModal.test).
     expect(
       screen.getByText(/comments will anchor to the revision you reviewed/i),
     ).toBeTruthy();

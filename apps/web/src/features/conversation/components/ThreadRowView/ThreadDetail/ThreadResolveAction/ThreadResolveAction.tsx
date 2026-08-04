@@ -23,7 +23,7 @@ export interface ThreadResolveActionProps {
  * state. The caller renders it only when the viewer may resolve — there is no
  * disabled-dead variant (ADR 0031).
  *
- * Focusable-disabled while pending (the ReplyComposer/ReceiptDrawer pattern): a
+ * Focusable-disabled while pending (the ReplyComposer/SubmitModal pattern): a
  * hard `disabled` would drop keyboard and screen-reader focus to `<body>` the
  * moment the request starts. The click guard lives in the hook.
  */

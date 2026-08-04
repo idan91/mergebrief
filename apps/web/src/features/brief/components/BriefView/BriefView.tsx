@@ -52,7 +52,7 @@ export interface BriefViewProps {
   readOnly?: { reason: string } | undefined;
   /**
    * The rendered span's head is not the PR head (BRIEF-127): writable, but
-   * batch Submit requires the explicit ack in the ReceiptDrawer.
+   * batch Submit requires the explicit ack in the SubmitModal.
    */
   staleHead?: boolean | undefined;
   /**

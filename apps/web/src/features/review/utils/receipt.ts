@@ -12,7 +12,7 @@ import {
 
 /**
  * The Receipt (ADR 0002) as a structured value, not a rendered string. Built
- * from the frozen session snapshot so both the in-app ReceiptDrawer and the
+ * from the frozen session snapshot so both the in-app SubmitModal receipt view and the
  * static Review Summary render the same content their own way. Carries the real
  * disposition data (evidence / reason) rather than pre-formatted text, so each
  * consumer keeps its own labelling and fallbacks. No invented "mechanical

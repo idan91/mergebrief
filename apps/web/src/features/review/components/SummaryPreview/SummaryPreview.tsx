@@ -9,7 +9,7 @@ import {
   type Receipt,
 } from "../../utils/receipt";
 import type { SessionSnapshot } from "../../session";
-import { summarySignatureLine, type ReviewOutcome } from "../../utils/state";
+import { reviewOutcomeLabel, summarySignatureLine } from "../../utils/state";
 import styles from "./SummaryPreview.module.scss";
 
 export interface SummaryPreviewProps {
@@ -174,12 +174,6 @@ function commentLabel(comment: Receipt["comments"][number]): string {
       ? `${sign}${comment.startLine}`
       : `${sign}${comment.startLine}-${comment.endLine}`;
   return `${comment.file}:${range}`;
-}
-
-function reviewOutcomeLabel(outcome: ReviewOutcome): string {
-  if (outcome === "request-changes") return "Request changes";
-  if (outcome === "approve") return "Approve";
-  return "Comment";
 }
 
 interface RiskListItem {

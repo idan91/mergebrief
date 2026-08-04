@@ -38,14 +38,29 @@ test("the shortcuts dialog is clean", async ({ page }, testInfo) => {
   await expectNoSeriousAxeViolations(page, testInfo, "shortcuts-dialog");
 });
 
-test("the receipt drawer is clean", async ({ page }, testInfo) => {
+test("the submit modal is clean on both views", async ({ page }, testInfo) => {
   await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
   // BRIEF-103: the header CTA reads Submit; the advisory pre-submit gate
-  // sits between it and the receipt drawer.
+  // sits between it and the submit modal (BRIEF-137: verdict-first, the
+  // receipt is a preview view inside the same dialog).
   await page.getByRole("button", { name: "Submit", exact: true }).click();
   await page.getByRole("button", { name: "Continue to receipt" }).click();
   await expect(
-    page.getByRole("heading", { name: "Review Summary" }),
+    page.getByRole("heading", { name: "Submit review" }),
   ).toBeVisible();
-  await expectNoSeriousAxeViolations(page, testInfo, "receipt-drawer");
+  // Park the cursor off the dialog before sweeping: the click leaves it where
+  // the next view's Submit button lands, and axe then samples that button's
+  // :hover background mid-transition — a phantom contrast failure.
+  await page.mouse.move(0, 0);
+  await expectNoSeriousAxeViolations(page, testInfo, "submit-modal-verdict");
+  await page.getByRole("button", { name: "Preview receipt" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Verification receipt" }),
+  ).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expectNoSeriousAxeViolations(page, testInfo, "submit-modal-receipt");
+  await page.getByRole("button", { name: "Back to verdict" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Submit review" }),
+  ).toBeVisible();
 });

@@ -287,7 +287,7 @@ function PrBriefRoute() {
   // - HEAD mismatch (historical revision, or the PR head advanced past the
   //   newest brief): GitHub accepts a review pinned to the older head and
   //   marks its comments outdated — writable, but Submit requires an
-  //   explicit ack (`staleHead`, consumed by the ReceiptDrawer).
+  //   explicit ack (`staleHead`, consumed by the SubmitModal).
   // - BASE mismatch (same head, retarget re-brief against a superseded
   //   base): the rendered diff is not the PR's current one, so anchors can
   //   land wrong or nowhere — stays hard read-only.

@@ -35,9 +35,9 @@ export {
   type PreSubmitModalProps,
 } from "./components/PreSubmitModal/PreSubmitModal";
 export {
-  ReceiptDrawer,
-  type ReceiptDrawerProps,
-} from "./components/ReceiptDrawer/ReceiptDrawer";
+  SubmitModal,
+  type SubmitModalProps,
+} from "./components/SubmitModal/SubmitModal";
 export {
   SummaryPreview,
   type SummaryPreviewProps,

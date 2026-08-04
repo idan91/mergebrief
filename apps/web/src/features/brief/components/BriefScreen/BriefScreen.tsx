@@ -14,7 +14,7 @@ import {
   ConversationSection,
   type ConversationPlan,
 } from "@web/features/conversation";
-import { ReceiptDrawer } from "@web/features/review";
+import { SubmitModal } from "@web/features/review";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import { useReviewSubmit } from "@web/features/review/hooks/useReviewSubmit";
 import {
@@ -137,7 +137,7 @@ export interface BriefScreenProps {
   ownDraft?: OwnDraftPlan | undefined;
   /**
    * The rendered span's head is not the PR head (BRIEF-127): the composer
-   * stays live, but the ReceiptDrawer gates Submit behind an explicit ack.
+   * stays live, but the SubmitModal gates Submit behind an explicit ack.
    */
   staleHead?: boolean | undefined;
   /**
@@ -242,7 +242,7 @@ export function BriefScreen({
   } = session;
 
   // Transient UI state stays local and colocated.
-  const [receiptOpen, setReceiptOpen] = useState(false);
+  const [submitOpen, setSubmitOpen] = useState(false);
   const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
   const [preSubmitOpen, setPreSubmitOpen] = useState(false);
 
@@ -296,7 +296,7 @@ export function BriefScreen({
   }, [flowActions, toast]);
 
   const openPreSubmit = () => setPreSubmitOpen(true);
-  const closeReceipt = useCallback(() => setReceiptOpen(false), []);
+  const closeSubmit = useCallback(() => setSubmitOpen(false), []);
   const openSummaryPreview = () => setSummaryPreviewOpen(true);
   // The conversation glue (section open/landing state, shared query + digest,
   // composer wiring, digest→diff jump choreography) — see the hook.
@@ -322,7 +322,7 @@ export function BriefScreen({
       actions.recordSubmittedReview(reviewId),
     announce,
     invalidateConversation: conversationWiring.invalidateConversation,
-    closeSubmit: closeReceipt,
+    closeSubmit,
     resetOutcome: () => actions.setOutcome("comment"),
     // Same-tab re-ship window: a post-now still settling when the own-draft
     // state exits (ready flip mid-request) is invisible to the payload
@@ -369,9 +369,9 @@ export function BriefScreen({
   // This render's reviewer-overlay-open snapshot + the entry reset the
   // mark-ready flow's own-draft entry/exit effect drives (see the hook).
   const reviewerOverlayOpen =
-    receiptOpen || summaryPreviewOpen || preSubmitOpen || riskModalOpen;
+    submitOpen || summaryPreviewOpen || preSubmitOpen || riskModalOpen;
   const closeReviewerOverlays = useCallback(() => {
-    setReceiptOpen(false);
+    setSubmitOpen(false);
     setSummaryPreviewOpen(false);
     setPreSubmitOpen(false);
     flowActions.setDismissTarget(null);
@@ -405,7 +405,7 @@ export function BriefScreen({
   // Shortcuts stand down whenever an overlay holds focus (drawers/modals use
   // `inert`, which doesn't stop a window-level keydown listener on its own).
   const shortcutsDisabled =
-    receiptOpen ||
+    submitOpen ||
     summaryPreviewOpen ||
     preSubmitOpen ||
     markReady.gateOpen ||
@@ -429,7 +429,7 @@ export function BriefScreen({
 
   // Plain handlers: every consumer below is non-memoized, so useCallback
   // would buy nothing (the memo boundary lives at ChunkCard/GroupCard).
-  const submitReceipt = () => {
+  const submitFromModal = () => {
     // Read-only posture (BRIEF-24): the submit control disables focusably with
     // the reason (below) — this guards the click path itself.
     if (readOnly !== undefined) {
@@ -440,7 +440,7 @@ export function BriefScreen({
       submitFlow.submit();
       return;
     }
-    setReceiptOpen(false);
+    setSubmitOpen(false);
     announce(
       "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
     );
@@ -449,7 +449,7 @@ export function BriefScreen({
   const closePreSubmit = () => setPreSubmitOpen(false);
   const continuePreSubmitToReceipt = () => {
     setPreSubmitOpen(false);
-    setReceiptOpen(true);
+    setSubmitOpen(true);
   };
   const jumpToPreSubmitItem = (item: UnresolvedItem) => {
     setPreSubmitOpen(false);
@@ -609,18 +609,19 @@ export function BriefScreen({
           of them. */}
       {ownDraftActive ? null : (
         <>
-          <ReceiptDrawer
+          <SubmitModal
             receipt={receipt}
-            open={receiptOpen}
-            close={closeReceipt}
-            openSummaryPreview={openSummaryPreview}
-            submit={submitReceipt}
+            open={submitOpen}
+            close={closeSubmit}
+            outcome={reviewOutcome}
+            setOutcome={(outcome) => actions.setOutcome(outcome)}
+            submit={submitFromModal}
             submitPending={
               liveSubmit && readOnly === undefined ? submitFlow.pending : false
             }
-            submitBlockedReason={
-              readOnly?.reason ??
-              (liveSubmit ? submitFlow.blockedReason : undefined)
+            blockedReasonOverride={readOnly?.reason}
+            blockedReasonWith={
+              liveSubmit ? submitFlow.blockedReasonWith : undefined
             }
             submitError={
               liveSubmit && readOnly === undefined ? submitFlow.error : null

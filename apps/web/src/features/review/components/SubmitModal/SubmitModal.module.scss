@@ -1,0 +1,161 @@
+@use "functions";
+
+@layer components {
+  .submitBox {
+    inline-size: functions.to-rem(640px);
+    max-block-size: min(84vh, functions.to-rem(720px));
+    overflow-y: auto;
+  }
+
+  .outcomes {
+    display: flex;
+    gap: functions.to-rem(6px);
+    padding: 0;
+    border: 0;
+    margin-block: functions.to-rem(4px) functions.to-rem(14px);
+
+    legend {
+      padding: 0;
+      margin-block-end: functions.to-rem(6px);
+      color: var(--dim);
+      font-size: var(--font-size-md);
+    }
+  }
+
+  .outcome {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(7px);
+    padding-block: functions.to-rem(7px);
+    padding-inline: functions.to-rem(12px);
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    color: var(--faint);
+    font-size: var(--font-size-lg);
+    cursor: pointer;
+
+    input {
+      flex-shrink: 0;
+    }
+
+    &[data-state="active"] {
+      // Earned oddity (ported from the retired SummaryPreview picker): the
+      // active pick sits one blue step off --line (#1f1f24) — an accidental
+      // split kept faithfully by the sweep.
+      --active-fill: #1f1f25;
+
+      background: var(--active-fill);
+      color: var(--text);
+    }
+  }
+
+  // Rides alongside the shared modal actions row: three buttons don't fit a
+  // narrow viewport on one line.
+  .actionsRow {
+    flex-wrap: wrap;
+  }
+
+  .commentLabel {
+    display: block;
+    margin-block-end: functions.to-rem(6px);
+    color: var(--dim);
+    font-size: var(--font-size-md);
+  }
+
+  .hint {
+    margin-block: functions.to-rem(6px) functions.to-rem(4px);
+    color: var(--faint);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+  }
+
+  .staleWarning {
+    margin-block-start: functions.to-rem(14px);
+    padding-block: functions.to-rem(12px);
+    padding-inline: functions.to-rem(16px);
+    border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+
+    p {
+      color: var(--amber);
+    }
+  }
+
+  .staleAck {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(8px);
+    margin-block-start: functions.to-rem(10px);
+    cursor: pointer;
+  }
+
+  .note {
+    margin-block-start: functions.to-rem(12px);
+    color: var(--faint);
+    font-size: var(--font-size-md);
+    line-height: 1.5;
+    text-align: end;
+  }
+
+  .submitStatus {
+    max-inline-size: 64ch;
+    margin-block-start: functions.to-rem(10px);
+    color: var(--faint);
+    font-size: var(--font-size-lg);
+    line-height: 1.5;
+
+    &[data-kind="error"] {
+      color: var(--red);
+    }
+  }
+
+  .receiptTitle {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(12px);
+    margin-block-end: functions.to-rem(4px);
+  }
+
+  .tag {
+    padding-block: functions.to-rem(3px);
+    padding-inline: functions.to-rem(10px);
+    border: 1px solid color-mix(in srgb, var(--amber) 35%, transparent);
+    border-radius: var(--radius-pill);
+    color: var(--amber);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+  }
+
+  .sub {
+    margin-block: functions.to-rem(6px) functions.to-rem(16px);
+    color: var(--faint);
+    font-size: var(--font-size-lg);
+    line-height: 1.5;
+  }
+
+  .receiptBody {
+    // Earned oddity (ported from the retired ReceiptDrawer): receipt body
+    // text sits between --color-text-muted and --color-text; faithful to the
+    // pre-sweep value.
+    --body-text: #c9c9d0;
+
+    padding-block: functions.to-rem(18px);
+    padding-inline: functions.to-rem(20px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    color: var(--body-text);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    line-height: 1.9;
+    white-space: pre-wrap;
+  }
+
+  @media (width <= 720px) {
+    .outcomes {
+      flex-wrap: wrap;
+    }
+  }
+}

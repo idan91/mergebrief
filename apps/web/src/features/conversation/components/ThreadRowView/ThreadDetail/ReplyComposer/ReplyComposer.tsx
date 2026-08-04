@@ -346,7 +346,7 @@ export function ReplyComposer({
         </p>
       ) : null}
       <div className={rowStyles["detailActions"]}>
-        {/* Focusable-disabled (ReceiptDrawer pattern): a hard `disabled`
+        {/* Focusable-disabled (SubmitModal pattern): a hard `disabled`
             would drop keyboard/SR focus to <body> the moment posting starts
             — and strand it there on success. The click guard lives in
             submit(). */}

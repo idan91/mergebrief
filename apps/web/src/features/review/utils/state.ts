@@ -144,6 +144,13 @@ export function deriveUnresolvedItems(
   return items;
 }
 
+/** Display label for a review outcome (SubmitModal picker, SummaryPreview). */
+export function reviewOutcomeLabel(outcome: ReviewOutcome): string {
+  if (outcome === "request-changes") return "Request changes";
+  if (outcome === "approve") return "Approve";
+  return "Comment";
+}
+
 export function summarySignatureLine(counts: SignatureCounts): string {
   return `Reviewed with MergeBrief / review — summary: ${counts.reviewedChunks} chunks read, ${counts.addressedRisks} risks addressed, ${counts.dismissedRisks} dismissed.`;
 }

@@ -157,7 +157,7 @@ export function CommentThread({
         <MarkdownPreview anchor={comment.anchor} body={comment.body} />
       )}
       {/* The recoverable why-not for a blocked Post, adjacent to the disabled
-          control (the ReceiptDrawer's submitBlockedReason pattern). */}
+          control (the SubmitModal's submitBlockedReason pattern). */}
       {postBlocked !== undefined ? (
         <p className={styles["postBlocked"]}>{postBlocked}</p>
       ) : null}

@@ -4,7 +4,7 @@ import styles from "./Modal.module.scss";
 
 // Focusable elements inside the dialog box, for the Tab trap. `aria-disabled`
 // controls are deliberately NOT excluded — they stay focusable so they keep
-// announcing why they are off (the MarkReadyModal/ReceiptDrawer pattern).
+// announcing why they are off (the MarkReadyModal/SubmitModal pattern).
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
