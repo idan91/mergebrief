@@ -144,9 +144,10 @@ body {
   background: color-mix(in srgb, var(--green) 14%, transparent);
 }
 .prTitle {
-  flex: 1 1 auto; min-inline-size: 0; font-weight: 600;
+  flex: 0 1 auto; min-inline-size: 0; font-weight: 600;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+.identitySpacer { flex: 1 1 0; }
 .repoRef { color: var(--muted); font-size: var(--font-size-md); white-space: nowrap; }
 .providerBadge {
   display: inline-flex; align-items: center; block-size: 18px;
@@ -345,7 +346,7 @@ body {
 
 <!-- ============ CASE 1: Full + Story, DB path, 1440x900 ============ -->
 <div class="case" id="case-story">
-  <div class="caseLabel">1 — Full brief + Story · 1440×900 resting · toolbar clusters: WHAT\u2019S SHOWN (left) / WHERE YOU ARE (right)</div>
+  <div class="caseLabel">1 — Full brief + Story · 1440×900 resting · toolbar clusters: WHAT IS SHOWN (left) / WHERE YOU ARE (right)</div>
   <div class="viewport" style="block-size:900px">
     <div class="foldLine" style="inset-block-start:900px"></div>
     <header class="header" id="hdr1">
@@ -356,10 +357,12 @@ body {
         <span class="repoRef">Idan91/code-review #194 ↗</span>
         <span class="providerBadge"><span class="mark">◆</span><span class="model">anthropic/claude-opus-5 · medium</span><span class="tag">API</span></span>
         <button class="iconBtn">ⓘ</button>
+        <span class="identitySpacer"></span>
         <button class="cta">Submit</button>
         <button class="iconBtn">⋯</button>
       </div>
       <div class="lensRow">
+        <span class="seg" style="margin-inline-end:2px"><button>←</button><button>Brief 1 · 3a4da72 ▾</button><button>→</button></span>
         <span class="seg"><button aria-pressed="true">Full brief</button><button>Changes Only</button></span>
         <span style="color:var(--muted)">Compare</span>
         <span class="seg"><button>Your last review</button><button>Previous brief</button><button aria-pressed="true">Off</button></span>
@@ -386,16 +389,15 @@ body {
           <span><b>0</b> deviations</span><span><b>1</b> stated but missing</span><span><b>0</b> done but unstated</span>
         </span>
       </div>
-      <div class="conversation">
-        <span class="caret" style="color:var(--muted)">▸</span>
-        <h2>Conversation</h2>
-        <span class="totals">24 threads · 18 open</span>
-      </div>
       <div class="toolbar" data-toolbar>
         <span class="panelWrap"><button class="tbtn" data-active="true">Filter <span class="sep">·</span> <b>2</b> verdicts <span class="sep">·</span> <b>3</b> reviewers <span class="sep">·</span> <b>4</b> hidden</button></span>
         <button class="tbtn"><span class="dot"></span> Risk attrs <span class="sep">·</span> <b>6</b></button>
         <button class="tbtn" aria-pressed="false">Collapse supporting</button>
-        <span class="navGroup"><span class="count">3 changes</span><button>◂</button><button>▸</button></span>
+      </div>
+      <div class="conversation">
+        <span class="caret" style="color:var(--muted)">▸</span>
+        <h2>Conversation</h2>
+        <span class="totals">24 threads · 18 open</span>
       </div>
       <div data-groups></div>
     </main>
@@ -404,7 +406,7 @@ body {
 
 <!-- ============ CASE 2: same, scrolled — toolbar pinned ============ -->
 <div class="case" id="case-scrolled">
-  <div class="caseLabel">2 — same view, scrolled into the groups · toolbar pinned under the header, summary gone</div>
+  <div class="caseLabel">2 — scrolled, Compare = Previous brief · toolbar pinned; revision nav present because comparison is ON</div>
   <div class="viewport">
     <header class="header">
       <div class="identityRow">
@@ -414,13 +416,15 @@ body {
         <span class="repoRef">Idan91/code-review #194 ↗</span>
         <span class="providerBadge"><span class="mark">◆</span><span class="model">anthropic/claude-opus-5 · medium</span><span class="tag">API</span></span>
         <button class="iconBtn">ⓘ</button>
+        <span class="identitySpacer"></span>
         <button class="cta">Submit</button>
         <button class="iconBtn">⋯</button>
       </div>
       <div class="lensRow">
+        <span class="seg" style="margin-inline-end:2px"><button>←</button><button>Brief 1 · 3a4da72 ▾</button><button>→</button></span>
         <span class="seg"><button aria-pressed="true">Full brief</button><button>Changes Only</button></span>
         <span style="color:var(--muted)">Compare</span>
-        <span class="seg"><button>Your last review</button><button>Previous brief</button><button aria-pressed="true">Off</button></span>
+        <span class="seg"><button>Your last review</button><button aria-pressed="true">Previous brief</button><button>Off</button></span>
         <span class="stats"><span>adjusted lines <b class="a">+358</b> / <b class="d">−127</b></span><span>chunks <b>2/9</b></span><span>flags <b>0/7</b></span></span>
         <span class="seg"><button aria-pressed="true">Story</button><button>Concerns</button></span>
       </div>
@@ -477,7 +481,6 @@ body {
         </span>
         <button class="tbtn"><span class="dot"></span> Risk attrs <span class="sep">·</span> <b>6</b></button>
         <button class="tbtn">Collapse supporting</button>
-        <span class="navGroup"><span class="count">3 changes</span><button>◂</button><button>▸</button></span>
       </div>
       <div style="margin-block-start:230px" data-groups-short></div>
     </main>
@@ -500,11 +503,11 @@ body {
         <span class="caret">▸</span><b>Intent check</b>
         <span class="counts"><span><b>5</b> accomplished</span><span><b>1</b> stated but missing</span></span>
       </div>
-      <div class="conversation"><span class="caret" style="color:var(--muted)">▸</span><h2>Conversation</h2><span class="totals">24 threads · 18 open</span></div>
       <div class="toolbar">
         <span class="panelWrap"><button class="tbtn" data-active="true">Filter <span class="sep">·</span> <b>4</b> hidden</button></span>
         <button class="tbtn"><span class="dot"></span> Risk attrs <span class="sep">·</span> <b>6</b></button>
       </div>
+      <div class="conversation"><span class="caret" style="color:var(--muted)">▸</span><h2>Conversation</h2><span class="totals">24 threads · 18 open</span></div>
       <div class="concernIntro">
         <div class="eyebrow">Attention split</div>
         <p style="margin:0;color:var(--muted)">The same 9 chunks, pivoted by artifact instead of intent.</p>
@@ -556,18 +559,41 @@ body {
   <div class="caseLabel">7 — SNAPSHOT state (no token) · byte-identical to case 1 except the one muted line; not a "local variant"</div>
   <div class="viewport">
     <main class="main">
+      <div class="toolbar" style="position:static">
+        <span class="panelWrap"><button class="tbtn">Filter</button></span>
+        <button class="tbtn"><span class="dot"></span> Risk attrs <span class="sep">·</span> <b>6</b></button>
+        <button class="tbtn">Collapse supporting</button>
+      </div>
       <div class="conversation">
         <span class="caret" style="color:var(--muted)">▸</span><h2>Conversation</h2>
         <span class="totals">24 threads · 18 open</span>
         <span class="snapshotNote">Snapshot from generation · Jul 30 · <a href="#">Connect for live threads</a></span>
       </div>
-      <div class="toolbar" style="position:static">
-        <span class="panelWrap"><button class="tbtn">Filter</button></span>
+      <div data-groups-short></div>
+    </main>
+  </div>
+</div>
+
+<!-- ============ CASE 7b: expanded digest, scrolled — the payoff ============ -->
+<div class="case" id="case-digest">
+  <div class="caseLabel">7b — conversation EXPANDED and scrolled · sticky toolbar stays pinned above the digest it filters</div>
+  <div class="viewport" style="block-size:480px">
+    <header class="header"><div class="lensRow" style="min-block-size:40px"><span style="color:var(--muted)">… header …</span></div></header>
+    <main class="main" style="padding-block-start:0">
+      <div class="toolbar" style="inset-block-start:50px">
+        <span class="panelWrap"><button class="tbtn" data-active="true">Filter <span class="sep">·</span> <b>2</b> verdicts <span class="sep">·</span> <b>3</b> reviewers <span class="sep">·</span> <b>4</b> hidden</button></span>
         <button class="tbtn"><span class="dot"></span> Risk attrs <span class="sep">·</span> <b>6</b></button>
         <button class="tbtn">Collapse supporting</button>
-        <span class="navGroup"><span class="count">3 changes</span><button>◂</button><button>▸</button></span>
       </div>
-      <div data-groups-short></div>
+      <div class="conversation" style="border-end-start-radius:0;border-end-end-radius:0;margin-block-end:0">
+        <span class="caret" style="color:var(--muted)">▾</span><h2>Conversation</h2>
+        <span class="totals">24 threads · 18 open · filtered</span>
+      </div>
+      <div style="border:1px solid var(--line);border-block-start:0;border-end-start-radius:var(--radius-md);border-end-end-radius:var(--radius-md);padding:12px 14px;margin-block-end:14px">
+        <div style="padding:9px 0;border-block-end:1px solid var(--line);font-size:var(--font-size-md)"><b>@alice-dev</b> <span style="color:var(--red)">changes requested</span> <span style="color:var(--muted)">· 2d ago · packages/logging/src/logger.ts:41</span><br><span style="color:var(--muted)">The WeakSet guard misses re-entrant serializers when…</span></div>
+        <div style="padding:9px 0;border-block-end:1px solid var(--line);font-size:var(--font-size-md)"><b>@bob-eng</b> <span style="color:var(--muted)">· 2d ago · apps/web/src/data/apiFetch.ts:103</span><br><span style="color:var(--muted)">Can we assert the scrub end-to-end rather than unit…</span></div>
+        <div style="padding:9px 0;font-size:var(--font-size-md)"><b>@carol-qa</b> <span style="color:var(--green)">approved</span> <span style="color:var(--muted)">· 1d ago</span><br><span style="color:var(--muted)">LGTM after the serializer registration fix.</span></div>
+      </div>
     </main>
   </div>
 </div>
@@ -583,11 +609,12 @@ body {
         <span class="prTitle">[BRIEF-88] feat: Scrub URL-Shaped Secrets…</span>
         <span class="repoRef">#194 ↗</span>
         <span class="providerBadge"><span class="mark">◆</span><span class="model">claude-opus-5 · medium</span><span class="tag">API</span></span>
-        <button class="iconBtn">ⓘ</button><button class="cta">Submit</button><button class="iconBtn">⋯</button>
+        <button class="iconBtn">ⓘ</button><span class="identitySpacer"></span><button class="cta">Submit</button><button class="iconBtn">⋯</button>
       </div>
       <div class="lensRow">
+        <span class="seg" style="margin-inline-end:2px"><button>←</button><button>Brief 1 · 3a4da72 ▾</button><button>→</button></span>
         <span class="seg"><button aria-pressed="true">Full brief</button><button>Changes Only</button></span>
-        <span class="seg"><button aria-pressed="true">Off</button></span>
+        <span class="seg"><button aria-pressed="true">Prev brief</button><button>Off</button></span>
         <span class="stats"><span><b class="a">+358</b>/<b class="d">−127</b></span><span>chunks <b>0/9</b></span></span>
         <span class="seg"><button aria-pressed="true">Story</button><button>Concerns</button></span>
       </div>
@@ -604,13 +631,13 @@ body {
         <span class="caret">▸</span><b>Intent check</b>
         <span class="counts"><span><b>5</b> accomplished</span><span><b>0</b> claimed</span><span><b>0</b> deviations</span><span><b>1</b> missing</span><span><b>0</b> unstated</span></span>
       </div>
-      <div class="conversation"><span class="caret" style="color:var(--muted)">▸</span><h2>Conversation</h2><span class="totals">24 threads · 18 open</span></div>
       <div class="toolbar">
         <span class="panelWrap"><button class="tbtn" data-active="true">Filter <span class="sep">·</span> <b>4</b> hidden</button></span>
         <button class="tbtn"><span class="dot"></span> Attrs <span class="sep">·</span> <b>6</b></button>
         <button class="tbtn">Collapse</button>
         <span class="navGroup"><span class="count">Group 3/7</span><button>◂</button><button>▸</button><span class="count" style="margin-inline-start:10px">3 chg</span><button>◂</button><button>▸</button></span>
       </div>
+      <div class="conversation"><span class="caret" style="color:var(--muted)">▸</span><h2>Conversation</h2><span class="totals">24 threads · 18 open</span></div>
       <div data-groups></div>
     </main>
   </div>
