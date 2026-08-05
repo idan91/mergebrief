@@ -10,9 +10,14 @@ import { useStore } from "zustand";
 
 import type { CommentAnchor } from "@web/features/review/utils/comments";
 import {
+  ConversationFilterBar,
   ConversationSection,
   type ConversationPlan,
 } from "@web/features/conversation";
+import {
+  DEFAULT_CONVERSATION_FILTER,
+  type ConversationFilter,
+} from "@web/features/conversation/utils/filter";
 import { SubmitModal } from "@web/features/review";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import { useReviewSubmit } from "@web/features/review/hooks/useReviewSubmit";
@@ -132,6 +137,9 @@ export interface BriefScreenProps {
    * section and lands on that thread. Absent → no auto-open.
    */
   conversationFocusThreadId?: number | undefined;
+  /** Reviewer/verdict filter (BRIEF-99), carried in the URL by the route. */
+  conversationFilter?: ConversationFilter | undefined;
+  onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
   headerControls?: ReactNode | undefined;
   ownDraft?: OwnDraftPlan | undefined;
   /**
@@ -157,6 +165,8 @@ export function BriefScreen({
   searchParams,
   conversation,
   conversationFocusThreadId,
+  conversationFilter,
+  onConversationFilterChange,
   headerControls,
   openDeltaLens,
   ownDraft,
@@ -302,6 +312,7 @@ export function BriefScreen({
     briefId,
     conversation,
     conversationFocusThreadId,
+    conversationFilter,
     jumpToChunk,
     model,
     readingOrderedChunks,
@@ -541,10 +552,32 @@ export function BriefScreen({
               </>
             ) : null}
 
+            {/* Above the section, not inside it (BRIEF-99): the section is a
+                collapsed-by-default disclosure, and the filter also governs
+                the diff's inline threads — which are on screen whether or not
+                the section is open. */}
+            {conversation !== undefined &&
+            onConversationFilterChange !== undefined &&
+            conversationWiring.conversationFilterFacets !== undefined ? (
+              <ConversationFilterBar
+                filter={conversationFilter ?? DEFAULT_CONVERSATION_FILTER}
+                hiddenInlineThreads={
+                  conversationWiring.conversationFilterFacets
+                    .hiddenInlineThreads
+                }
+                reviewers={
+                  conversationWiring.conversationFilterFacets.reviewers
+                }
+                verdicts={conversationWiring.conversationFilterFacets.verdicts}
+                onChange={onConversationFilterChange}
+              />
+            ) : null}
+
             {conversation !== undefined ? (
               <ConversationSection
                 briefId={briefId}
                 chunks={readingOrderedChunks}
+                filter={conversationFilter}
                 focusThreadId={conversationFocusThreadId}
                 jumpToChunk={conversationWiring.jumpToChunkFromConversation}
                 localComments={reviewComments}

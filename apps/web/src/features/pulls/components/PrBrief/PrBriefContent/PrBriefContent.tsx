@@ -31,6 +31,7 @@ import {
 import type { PrSummary } from "../../../types";
 import { DbBriefControls } from "./DbBriefControls/DbBriefControls";
 import { WarmingChip } from "../WarmingChip/WarmingChip";
+import type { ConversationFilter } from "@web/features/conversation/utils/filter";
 
 export interface PrBriefContentProps {
   repoId: string;
@@ -46,6 +47,9 @@ export interface PrBriefContentProps {
   onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
   revisionJump?: ThreadRevisionJump | undefined;
   conversationFocusThreadId?: number | undefined;
+  /** Reviewer/verdict filter carried in the URL (BRIEF-99). */
+  conversationFilter?: ConversationFilter | undefined;
+  onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
 }
 
 export function PrBriefContent({
@@ -61,6 +65,8 @@ export function PrBriefContent({
   onSelectRevision,
   revisionJump,
   conversationFocusThreadId,
+  conversationFilter,
+  onConversationFilterChange,
 }: PrBriefContentProps) {
   const brief = useSuspenseQuery(
     dbBriefQueryOptions(repoId, prNumber, span.base, span.head),
@@ -163,6 +169,8 @@ export function PrBriefContent({
         briefId={briefId}
         comparisonPlan={comparisonPlan}
         conversation={conversationPlan}
+        conversationFilter={conversationFilter}
+        onConversationFilterChange={onConversationFilterChange}
         conversationFocusThreadId={conversationFocusThreadId}
         headerControls={headerControls}
         key={briefId}

@@ -7,6 +7,7 @@ import type {
   BriefSearchParams,
 } from "../../../../brief/comparison/compareState";
 import type { ThreadRevisionJump } from "@web/features/conversation";
+import type { ConversationFilter } from "@web/features/conversation/utils/filter";
 import type { deriveBriefRouteState } from "../../../utils/briefRouteState";
 import { comparisonsWarming } from "../../../utils/briefRouteState";
 import type {
@@ -95,6 +96,9 @@ export interface PrBriefBodyProps {
   revisionJump?: ThreadRevisionJump | undefined;
   /** `?thread=` landing target (BRIEF-24 reads it). */
   conversationFocusThreadId?: number | undefined;
+  /** Reviewer/verdict filter carried in the URL (BRIEF-99). */
+  conversationFilter?: ConversationFilter | undefined;
+  onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
 }
 
 function PrBriefBodyState({
@@ -110,13 +114,17 @@ function PrBriefBodyState({
   onSelectRevision,
   revisionJump,
   conversationFocusThreadId,
+  conversationFilter,
+  onConversationFilterChange,
 }: PrBriefBodyProps) {
   const policyNotice = metaPolicyNotice(meta);
   switch (state.kind) {
     case "render":
       return (
         <PrBriefContent
+          conversationFilter={conversationFilter}
           conversationFocusThreadId={conversationFocusThreadId}
+          onConversationFilterChange={onConversationFilterChange}
           meta={meta}
           onNavigateSearch={onNavigateSearch}
           onSelectRevision={onSelectRevision}

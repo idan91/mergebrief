@@ -161,6 +161,59 @@ describe("DB brief route", () => {
     ).toBe("open");
   });
 
+  // BRIEF-99: the filter is URL state, so validateSearch and the chip write
+  // are the contract. Nothing else pins that clearing a family removes its
+  // key, or that the revision/thread params survive a filter write.
+  describe("conversation filter params (BRIEF-99)", () => {
+    const base = `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`;
+
+    it("canonicalizes the filter params and drops unknown tokens", async () => {
+      const router = await renderRoute(
+        meta({}),
+        `${base}&verdicts=nonsense,changes-requested,dismissed&reviewers=alice&reviews=all`,
+      );
+      await waitFor(() =>
+        expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      );
+      const search = router.state.location.search;
+      expect(search.verdicts).toBe("changes-requested");
+      expect(search.reviewers).toBe("alice");
+      expect(search.reviews).toBe("all");
+      // Idempotent: navigating to the canonical form must not churn it (a
+      // non-idempotent projection would loop the router).
+      await router.navigate({ to: router.state.location.pathname, search });
+      await waitFor(() =>
+        expect(router.state.location.search.verdicts).toBe("changes-requested"),
+      );
+      expect(router.state.location.search.reviewers).toBe("alice");
+    });
+
+    it("keeps the span params and defaults the filter keys away", async () => {
+      const router = await renderRoute(meta({}), base);
+      await waitFor(() =>
+        expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      );
+      const search = router.state.location.search;
+      expect(search.base).toBe(SPAN.base);
+      expect(search.head).toBe(SPAN.head);
+      expect(search.verdicts).toBeUndefined();
+      expect(search.reviewers).toBeUndefined();
+      expect(search.reviews).toBeUndefined();
+    });
+
+    it("survives a thread deep link", async () => {
+      const router = await renderRoute(
+        meta({}),
+        `${base}&thread=9001&reviewers=alice`,
+      );
+      await waitFor(() =>
+        expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+      );
+      expect(router.state.location.search.thread).toBe(9001);
+      expect(router.state.location.search.reviewers).toBe("alice");
+    });
+  });
+
   it("shows the diff-first wait card while generation runs (no artifact yet)", async () => {
     await renderRoute(
       meta({

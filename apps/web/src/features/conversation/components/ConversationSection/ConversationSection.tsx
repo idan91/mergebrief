@@ -19,6 +19,13 @@ import type { BriefChunk } from "@web/features/brief/types";
 import type { ReviewComment } from "@web/features/review/utils/comments";
 import { markSnapshotCommentsSubmitted } from "@web/features/review/session";
 import { buildConversationDigest } from "../../utils/digest";
+import {
+  applyConversationFilter,
+  DEFAULT_CONVERSATION_FILTER,
+  isFilterActive,
+  reconcileReviewers,
+  type ConversationFilter,
+} from "../../utils/filter";
 import { countCommentsAfterBrief } from "../../utils/postdate";
 import { reconcileOwnComments } from "../../utils/ownComments";
 import type {
@@ -93,6 +100,17 @@ export interface ConversationSectionProps {
    * scrolls into view, flashes, and takes focus.
    */
   focusThreadId?: number | undefined;
+  /**
+   * Reviewer/verdict filter (BRIEF-99), carried in the URL by the route. The
+   * BAR that writes it lives ABOVE this section (a filter inside a
+   * collapsed-by-default disclosure is a control nobody finds); the section
+   * only READS it, so the digest, the strip and the diff agree.
+   *
+   * Deliberately not on the plan: the plan's identity feeds the memo
+   * boundaries that keep the diff's chunk cards off the render path, and a
+   * verdict chip cannot change a single inline row.
+   */
+  filter?: ConversationFilter | undefined;
 }
 
 const VERDICT_LABEL: Record<ConversationReview["state"], string> = {
@@ -119,6 +137,7 @@ export function ConversationSection({
   open,
   onToggle,
   focusThreadId,
+  filter: filterProp,
 }: ConversationSectionProps) {
   const queryClient = useQueryClient();
   const query = useQuery(plan.queryOptions);
@@ -170,17 +189,52 @@ export function ConversationSection({
     }
   }, [briefId, markCommentsSubmitted, reconciliation]);
 
-  const digest = useMemo(
+  // The filter as it applies to THIS conversation: logins nobody matches are
+  // dropped, so a stale shared link loosens instead of emptying the section.
+  const filter = useMemo(
     () =>
       conversation === undefined
+        ? (filterProp ?? DEFAULT_CONVERSATION_FILTER)
+        : reconcileReviewers(
+            filterProp ?? DEFAULT_CONVERSATION_FILTER,
+            conversation,
+          ),
+    [conversation, filterProp],
+  );
+
+  // Everything below the bar reads the FILTERED conversation — one call, so
+  // the strip, the digest and the diff can never disagree about what is in.
+  //
+  // A `?thread=` landing target is EXEMPT: the filter keys persist in the
+  // URL, so `?thread=123&reviewers=alice` is easy to share, and a filtered-out
+  // target would land nowhere at all — the jump would silently do nothing.
+  const filtered = useMemo(() => {
+    if (conversation === undefined) return undefined;
+    const next = applyConversationFilter(conversation, filter);
+    if (focusThreadId === undefined) return next;
+    const alreadyIn = next.threads.some(
+      (thread) => thread.rootCommentId === focusThreadId,
+    );
+    if (alreadyIn) return next;
+    const target = conversation.threads.find(
+      (thread) => thread.rootCommentId === focusThreadId,
+    );
+    return target === undefined
+      ? next
+      : { ...next, threads: [...next.threads, target] };
+  }, [conversation, filter, focusThreadId]);
+
+  const digest = useMemo(
+    () =>
+      filtered === undefined
         ? []
         : buildConversationDigest({
-            conversation,
+            conversation: filtered,
             chunks,
             ownThreadIds: reconciliation?.ownThreadIds ?? new Set(),
             briefGeneratedAt: plan.briefGeneratedAt,
           }),
-    [chunks, conversation, plan.briefGeneratedAt, reconciliation],
+    [chunks, filtered, plan.briefGeneratedAt, reconciliation],
   );
 
   const toggleThread = (threadId: number) =>
@@ -290,10 +344,10 @@ export function ConversationSection({
     [conversation, plan.briefGeneratedAt],
   );
 
-  const verdicts =
-    conversation?.reviews.filter(
-      (review) => review.state !== "COMMENTED" || review.body.trim() !== "",
-    ) ?? [];
+  // Empty-bodied COMMENTED reviews (GitHub's envelope around inline comments)
+  // are already gone: `applyConversationFilter` drops them, the same predicate
+  // the counts and the recency reduction use.
+  const verdicts = filtered?.reviews ?? [];
 
   return (
     <section
@@ -321,15 +375,16 @@ export function ConversationSection({
               ▶
             </span>
             Conversation
-            {conversation !== undefined ? (
+            {/* Counts describe what is BELOW them: a header reading "12
+                threads" over two rendered rows would make the filter look
+                like data loss. */}
+            {filtered !== undefined ? (
               <span className={styles["headSummary"]}>
-                {conversation.threads.length} thread
-                {conversation.threads.length === 1 ? "" : "s"} ·{" "}
-                {
-                  conversation.threads.filter((thread) => !thread.isResolved)
-                    .length
-                }{" "}
+                {filtered.threads.length} thread
+                {filtered.threads.length === 1 ? "" : "s"} ·{" "}
+                {filtered.threads.filter((thread) => !thread.isResolved).length}{" "}
                 open
+                {isFilterActive(filter) ? " (filtered)" : ""}
               </span>
             ) : null}
           </button>
@@ -413,7 +468,9 @@ export function ConversationSection({
 
               {digest.length === 0 && verdicts.length === 0 ? (
                 <p className={rowStyles["note"]}>
-                  No conversation yet — comments land here as teammates review.
+                  {isFilterActive(filter)
+                    ? "No activity matches these filters."
+                    : "No conversation yet — comments land here as teammates review."}
                 </p>
               ) : null}
 

@@ -1,0 +1,112 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .root {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(7px);
+    color: var(--dim);
+    font-size: var(--font-size-md);
+    cursor: pointer;
+    user-select: none;
+
+    &:hover .box {
+      border-color: var(--color-text-4);
+    }
+
+    &:hover .label {
+      color: var(--text);
+    }
+
+    &[data-disabled] {
+      color: var(--faint);
+      cursor: default;
+    }
+  }
+
+  /* The real control, visually replaced: it keeps keyboard behaviour, form
+     semantics and the state a screen reader reads. Not `display: none`, which
+     would take it out of the tab order and the accessibility tree. */
+  .input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Square-with-a-hint-of-radius on a dark ground — the app's own control
+     grammar (1px line, surface fill), NOT the platform's rounded blue tile. */
+  .box {
+    position: relative;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-xs);
+    background: var(--color-surface-2);
+    transition:
+      background 0.12s,
+      border-color 0.12s;
+  }
+
+  /* The tick is drawn, not typed: a glyph would inherit the font stack and
+     land differently per platform — the exact drift this component exists to
+     remove. Two borders rotated into an L, centred on the box's own centre
+     (the rotation pivots around the pseudo-element's middle, so nudging
+     `top`/`left` by hand lands it off by the tick's own asymmetry). The -1px
+     Y bias is measured, not guessed: the ink of an L sits in the element's
+     bottom-right, so rotating it about the element centre leaves the MARK
+     low — 1.5px up equalises the gaps above and below at render (checked at
+     20x). Strokes are 1.5px to sit with the app's 1px linework rather than
+     the platform's heavy tick. */
+  .box::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 4px;
+    height: 7px;
+    border: solid var(--color-accent);
+    border-width: 0 1.5px 1.5px 0;
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 1.5px)) rotate(45deg) scale(0.6);
+    transform-origin: center;
+    transition:
+      opacity 0.12s,
+      transform 0.12s;
+  }
+
+  /* Checked is the same vocabulary the filter chips use for pressed: accent
+     line, raised ground, accent mark. A solid accent fill with a knocked-out
+     tick is the native look this component replaces. */
+  .input:checked + .box {
+    border-color: var(--color-accent);
+    background: var(--color-surface-3);
+  }
+
+  .input:checked + .box::after {
+    opacity: 1;
+    transform: translate(-50%, calc(-50% - 1.5px)) rotate(45deg) scale(1);
+  }
+
+  /* The ring paints on the SIBLING the eye tracks, since the input itself is
+     a 1px sliver (the mixin exists for exactly this case). */
+  .input:focus-visible + .box {
+    @include mixins.focus-ring;
+  }
+
+  .input:disabled + .box {
+    border-color: var(--line);
+    background: var(--color-surface-1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .box,
+    .box::after {
+      transition: none;
+    }
+  }
+}

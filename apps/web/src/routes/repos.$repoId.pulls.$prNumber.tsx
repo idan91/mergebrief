@@ -36,11 +36,17 @@ import {
   type DbTimelinePoint,
 } from "../features/pulls/utils/dbTimeline";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
+import {
+  conversationFilterSearch,
+  parseConversationFilter,
+  type ConversationFilter,
+  type ConversationFilterSearch,
+} from "@web/features/conversation/utils/filter";
 
 /** 3–5s window per the plan; one lightweight PR-meta read per tick. */
 const META_POLL_MS = 4000;
 
-interface PrBriefSearch extends BriefSearchParams {
+interface PrBriefSearch extends BriefSearchParams, ConversationFilterSearch {
   base?: string;
   head?: string;
   /**
@@ -123,6 +129,9 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       ...(view !== undefined ? { view } : {}),
       ...(compare !== undefined ? { compare } : {}),
       ...(thread !== undefined ? { thread } : {}),
+      // Conversation filter (BRIEF-99): parsed and re-projected, so unknown
+      // tokens drop and the surviving selection lands in canonical order.
+      ...conversationFilterSearch(parseConversationFilter(search)),
     };
   },
   loaderDeps: ({ search }) => ({
@@ -422,6 +431,44 @@ function PrBriefRoute() {
     [navigate],
   );
 
+  // Conversation filter (BRIEF-99). Identity is stabilized on the raw param
+  // STRINGS: the parsed filter holds fresh Sets every render, and it rides
+  // into the memo boundaries that keep inline threads off the render path.
+  const conversationFilter = useMemo(
+    () =>
+      parseConversationFilter({
+        ...(search.verdicts === undefined ? {} : { verdicts: search.verdicts }),
+        ...(search.reviewers === undefined
+          ? {}
+          : { reviewers: search.reviewers }),
+        ...(search.reviews === undefined ? {} : { reviews: search.reviews }),
+      }),
+    [search.reviewers, search.reviews, search.verdicts],
+  );
+  // `replace`: a filter is a triage gesture, not a destination — ten chip
+  // clicks must not become ten back-button steps. Keys absent from the
+  // projection are deleted, so clearing a family cleans the URL.
+  const onConversationFilterChange = useCallback(
+    (next: ConversationFilter) => {
+      void navigate({
+        // The three filter keys are DROPPED before the projection is laid
+        // down, so clearing a family removes its key instead of stranding a
+        // stale one.
+        search: ({
+          verdicts: _verdicts,
+          reviewers: _reviewers,
+          reviews: _reviews,
+          ...rest
+        }) => ({
+          ...rest,
+          ...conversationFilterSearch(next),
+        }),
+        replace: true,
+      });
+    },
+    [navigate],
+  );
+
   return (
     <>
       {/* The navigator OWNS head navigation on a multi-revision PR; the legacy
@@ -438,6 +485,8 @@ function PrBriefRoute() {
       <PrBriefBody
         meta={meta}
         onNavigateSearch={onNavigateSearch}
+        conversationFilter={conversationFilter}
+        onConversationFilterChange={onConversationFilterChange}
         conversationFocusThreadId={search.thread}
         onSelectRevision={selectRevision}
         prNumber={prNumber}

@@ -4,11 +4,16 @@
 // affordance from the chunk view while the section keeps it (BRIEF-93). Pins
 // the resolution pass-through and its refetch target.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, renderHook } from "@testing-library/react";
+import { cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
 import type { ConversationPlan } from "@web/features/conversation";
+import type { PrConversation } from "@web/features/conversation/types";
+import {
+  parseConversationFilter,
+  type ConversationFilter,
+} from "@web/features/conversation/utils/filter";
 import type { Brief, BriefChunk } from "../../types";
 import { buildBriefViewModel } from "../../utils";
 import { useConversationWiring } from "./useConversationWiring";
@@ -58,10 +63,45 @@ const brief: Brief = {
 
 const QUERY_KEY = ["conversation", "42", 7] as const;
 
-function plan(resolution?: ConversationPlan["resolution"]): ConversationPlan {
+function conversationWith(authors: readonly string[]): PrConversation {
+  return {
+    threads: authors.map((login, index) => ({
+      rootCommentId: 9000 + index,
+      path: "src/a.ts",
+      line: 10,
+      side: "RIGHT" as const,
+      subjectType: "LINE" as const,
+      isResolved: false,
+      isOutdated: false,
+      comments: [
+        {
+          commentId: 9000 + index,
+          author: { login, isBot: false },
+          body: `note from ${login}`,
+          createdAt: "2026-08-01T00:00:00Z",
+          url: `https://example.test/c/${9000 + index}`,
+        },
+      ],
+      hasMoreComments: false,
+    })),
+    reviews: [],
+    prComments: [],
+    hasMoreThreads: false,
+    hasMoreReviews: false,
+    hasMorePrComments: false,
+  };
+}
+
+function plan(
+  resolution?: ConversationPlan["resolution"],
+  conversation?: PrConversation,
+): ConversationPlan {
   const descriptor = {
     queryKey: QUERY_KEY,
-    queryFn: async () => ({ kind: "unavailable" }) as const,
+    queryFn: async () =>
+      conversation === undefined
+        ? ({ kind: "unavailable" } as const)
+        : ({ kind: "ready", conversation } as const),
     retry: false,
   };
   return {
@@ -72,7 +112,10 @@ function plan(resolution?: ConversationPlan["resolution"]): ConversationPlan {
   };
 }
 
-function renderWiring(conversation: ConversationPlan | undefined) {
+function renderWiring(
+  conversation: ConversationPlan | undefined,
+  conversationFilter?: ConversationFilter,
+) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -88,6 +131,7 @@ function renderWiring(conversation: ConversationPlan | undefined) {
         briefId: "db:42:7:base:head",
         conversation,
         conversationFocusThreadId: undefined,
+        conversationFilter,
         jumpToChunk: vi.fn(),
         model: buildBriefViewModel(brief),
         readingOrderedChunks: [chunk()],
@@ -122,5 +166,73 @@ describe("useConversationWiring — resolution (BRIEF-93)", () => {
     expect(
       renderWiring(undefined).result.current.conversationComposer,
     ).toBeUndefined();
+  });
+});
+
+// BRIEF-99 decision 2 is an explicit override: the filter reaches the DIFF,
+// not just the digest. Nothing else in the suite would notice if this memo
+// stopped filtering (or dropped its filter dep) — the section's own tests
+// would stay green while the diff quietly kept every thread.
+describe("useConversationWiring — inline filtering (BRIEF-99)", () => {
+  async function inlineRows(filter?: ConversationFilter) {
+    const { result } = renderWiring(
+      plan(undefined, conversationWith(["alice", "bob"])),
+      filter,
+    );
+    await waitFor(() =>
+      expect(result.current.conversationByChunk).toBeDefined(),
+    );
+    return result.current.conversationByChunk?.get("c1") ?? [];
+  }
+
+  it("keeps every inline thread when no filter is set", async () => {
+    expect(await inlineRows()).toHaveLength(2);
+  });
+
+  it("drops the threads a reviewer selection excludes", async () => {
+    const rows = await inlineRows(
+      parseConversationFilter({ reviewers: "bob" }),
+    );
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
+    expect(row?.kind).toBe("thread");
+    expect(
+      row?.kind === "thread" ? row.thread.comments[0]?.author.login : undefined,
+    ).toBe("bob");
+  });
+
+  it("loosens rather than empties when the selection names nobody here", async () => {
+    // Same degrade-to-looser rule the section applies: a stale shared link
+    // must not blank the diff.
+    const rows = await inlineRows(
+      parseConversationFilter({ reviewers: "departed-colleague" }),
+    );
+    expect(rows).toHaveLength(2);
+  });
+});
+
+// The filter bar renders ABOVE the section, outside its disclosure, so this
+// hook — not the section — owns the facets it draws.
+describe("useConversationWiring — filter facets (BRIEF-99)", () => {
+  it("exposes verdict/reviewer facets and the hidden-inline count", async () => {
+    const { result } = renderWiring(
+      plan(undefined, conversationWith(["alice", "bob"])),
+      parseConversationFilter({ reviewers: "alice" }),
+    );
+    await waitFor(() =>
+      expect(result.current.conversationFilterFacets).toBeDefined(),
+    );
+    const facets = result.current.conversationFilterFacets;
+    expect(facets?.reviewers.map((facet) => facet.login)).toEqual([
+      "alice",
+      "bob",
+    ]);
+    // Bob's thread is the one the diff loses — the pill must say so.
+    expect(facets?.hiddenInlineThreads).toBe(1);
+  });
+
+  it("has no facets before the conversation resolves", () => {
+    const { result } = renderWiring(plan());
+    expect(result.current.conversationFilterFacets).toBeUndefined();
   });
 });

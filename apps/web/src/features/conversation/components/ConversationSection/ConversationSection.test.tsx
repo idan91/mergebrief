@@ -31,6 +31,11 @@ import {
 import type { ConversationResult } from "../../queries";
 import type { PrConversation } from "../../types";
 import {
+  DEFAULT_CONVERSATION_FILTER,
+  parseConversationFilter,
+  type ConversationFilter,
+} from "../../utils/filter";
+import {
   ConversationSection,
   type ConversationPlan,
   type ConversationSectionProps,
@@ -1047,5 +1052,92 @@ describe("ConversationSection — outdated-thread revision jump (BRIEF-24)", () 
     // the diff row for BriefScreen's "Jump to comment" landing (codex
     // round 5).
     expect(document.querySelector("[data-conversation-thread]")).toBeNull();
+  });
+
+  describe("filter bar (BRIEF-99)", () => {
+    /** A conversation with two humans and one bot, each holding a thread. */
+    function filterConversation(): PrConversation {
+      const base = conversation();
+      return {
+        ...base,
+        reviews: [
+          ...base.reviews,
+          {
+            reviewId: 501,
+            author: { login: "bob", isBot: false },
+            state: "APPROVED",
+            body: "ship it",
+            submittedAt: "2026-07-01T12:00:00Z",
+            url: "https://example.test/r/501",
+          },
+          {
+            reviewId: 502,
+            author: { login: "alice", isBot: false },
+            state: "COMMENTED",
+            body: "",
+            submittedAt: "2026-07-01T13:00:00Z",
+            url: "https://example.test/r/502",
+          },
+        ],
+      };
+    }
+
+    /** The filter rides as SECTION props — never on the plan, whose identity
+     * feeds the memo boundaries that keep the diff off the render path. */
+    function filterProps(filter: ConversationFilter) {
+      const onFilterChange = vi.fn<(next: ConversationFilter) => void>();
+      return {
+        plan: plan([{ kind: "ready", conversation: filterConversation() }]),
+        filter,
+        onFilterChange,
+      };
+    }
+
+    it("filters the digest, the strip and the PR comments by reviewer", async () => {
+      renderSection(filterProps(parseConversationFilter({ reviewers: "bob" })));
+      // Bob has no threads, so alice's thread and her verdict both go.
+      expect(await screen.findByText("ship it")).toBeDefined();
+      expect(screen.queryByText("needs work")).toBeNull();
+      expect(screen.queryByText(/This null check looks inverted/)).toBeNull();
+    });
+
+    it("teaches a filtered empty state, distinct from the no-conversation one", async () => {
+      renderSection(
+        filterProps(parseConversationFilter({ reviewers: "nobody-here" })),
+      );
+      // An unmatched login reconciles away, so the section stays populated —
+      // the empty state belongs to a filter that matched a real reviewer.
+      expect(await screen.findByText("needs work")).toBeDefined();
+      cleanup();
+      renderSection(
+        filterProps(
+          parseConversationFilter({
+            reviewers: "bob",
+            verdicts: "changes-requested",
+          }),
+        ),
+      );
+      expect(
+        await screen.findByText("No activity matches these filters."),
+      ).toBeDefined();
+    });
+
+    it("keeps a standing approval that a later empty COMMENTED envelope would hide", async () => {
+      // Alice's newest review is GitHub's inline-comment envelope, which
+      // renders nothing — her change-request is what still stands.
+      renderSection(filterProps(DEFAULT_CONVERSATION_FILTER));
+      expect(await screen.findByText("needs work")).toBeDefined();
+      expect(screen.getByText("ship it")).toBeDefined();
+    });
+
+    it("shows filtered counts in the header, marked as filtered", async () => {
+      renderSection(filterProps(parseConversationFilter({ reviewers: "bob" })));
+      // Bob holds no threads, so the header cannot keep claiming alice's.
+      await waitFor(() =>
+        expect(
+          screen.getByText(/0 threads · 0 open \(filtered\)/),
+        ).toBeDefined(),
+      );
+    });
   });
 });

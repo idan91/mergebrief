@@ -1,0 +1,137 @@
+@use "functions";
+
+@layer components {
+  /* Its own card, in the same grammar as the conversation section below it
+     (1px line, --radius-md, panel fill): a rule-only strip read as a stray
+     divider rather than a surface you act on. */
+  .bar {
+    display: grid;
+    gap: functions.to-rem(10px);
+    margin-block-start: functions.to-rem(20px);
+    padding: functions.to-rem(12px) functions.to-rem(16px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--color-surface-1);
+  }
+
+  /* Each row says what it filters, in a fixed-width gutter so the chip runs
+     line up with each other — and with the status line beneath them. A
+     single title over ragged rows named the surface but left the two chip
+     runs starting at different x. */
+  .rowLabel {
+    flex-shrink: 0;
+    min-width: functions.to-rem(64px);
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* No `space-between`: the trailing control claims the gap itself, so a row
+     whose chips are all filtered away collapses instead of leaving a lane of
+     dead space with one control marooned at the far edge. */
+  .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: functions.to-rem(8px);
+  }
+
+  .trailing {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(10px);
+    margin-inline-start: auto;
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Toggle buttons, not decoration: the pressed state carries a filled ground
+     so it survives high-contrast and greyscale, never colour alone
+     (WCAG 1.4.1). Min-height keeps the hit target honest at this type size. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    min-height: functions.to-rem(26px);
+    padding-block: functions.to-rem(3px);
+    padding-inline: functions.to-rem(10px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    letter-spacing: 0.02em;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--color-text-4);
+    }
+
+    &[aria-pressed="true"] {
+      border-color: var(--color-accent);
+      background: var(--color-surface-3);
+      color: var(--color-accent);
+    }
+
+    &[data-bot] {
+      color: var(--dim);
+
+      &[aria-pressed="true"] {
+        color: var(--color-accent);
+      }
+    }
+  }
+
+  .count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  /* Separates humans from bots inside the one reviewer list — presentational,
+     so it is aria-hidden at the call site. */
+  .divider {
+    width: 1px;
+    height: 16px;
+    margin-inline: functions.to-rem(2px);
+    background: var(--line);
+  }
+
+  /* Buttons carry their own bounds, so they sit tighter than text links did. */
+  .links {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+  }
+
+  /* The whole footer row disappears when nothing is filtered — an empty
+     status line and a spent Clear control are two more lanes of dead space. */
+  .status {
+    display: flex;
+    align-items: center;
+    gap: functions.to-rem(8px);
+
+    /* Aligned under the chip runs, not under the gutter labels. */
+    margin: 0 0 0 calc(#{functions.to-rem(64px)} + #{functions.to-rem(8px)});
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+
+    /* Stays in the accessibility tree when idle (a live region that comes and
+       goes is one screen readers stop tracking) — it just cancels the grid
+       gap it would otherwise reserve. */
+    &:empty {
+      margin-block-start: functions.to-rem(-10px);
+    }
+  }
+}

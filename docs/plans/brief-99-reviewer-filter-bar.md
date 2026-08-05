@@ -41,6 +41,13 @@ per-reviewer chips with All/None, recency toggle.
      inline comment keeps their standing approval.
 
 5. **Human/bot rendering.** One bar, two rows.
+   - *Amendment (2026-08-05, Idan):* the bar is its **own component ABOVE the
+     conversation section**, not inside it. The section is a
+     collapsed-by-default disclosure — a filter buried in one is a control
+     nobody finds — and the filter also governs the diff's inline threads,
+     which are on screen whether or not the section is open. Facets are
+     therefore computed in `useConversationWiring` (which already holds the
+     shared query, the chunks and the filter), not in the section.
    - Row 1 — verdict chips: primary count = humans; bot count as muted secondary
      inside the same chip ("Approve 2 · 1 bot", styled like existing `botTag`).
      No separate bot verdict row.

@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 
 import type { ConversationPlan } from "@web/features/conversation";
+import type { ConversationFilter } from "@web/features/conversation/utils/filter";
 import { MindMapProvider } from "@web/features/review/session";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import type { BriefSearchParams } from "../../comparison/compareState";
@@ -65,6 +66,9 @@ export interface BriefViewProps {
    * section and lands on that thread. Absent → no auto-open.
    */
   conversationFocusThreadId?: number | undefined;
+  /** Reviewer/verdict filter (BRIEF-99), carried in the URL by the route. */
+  conversationFilter?: ConversationFilter | undefined;
+  onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
   /**
    * The DB route's unified revision/compare controls, rendered in the sticky
    * header's control slot (BRIEF-24 UX pass). Absent on the local path.
@@ -94,6 +98,8 @@ export function BriefView({
   comparisonPlan,
   conversation,
   conversationFocusThreadId,
+  conversationFilter,
+  onConversationFilterChange,
   headerControls,
   openDeltaLens,
   ownDraft,
@@ -117,7 +123,9 @@ export function BriefView({
         briefId={briefId}
         comparisonPlan={comparisonPlan}
         conversation={conversation}
+        conversationFilter={conversationFilter}
         conversationFocusThreadId={conversationFocusThreadId}
+        onConversationFilterChange={onConversationFilterChange}
         headerControls={headerControls}
         model={model}
         openDeltaLens={openDeltaLens}

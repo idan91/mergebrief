@@ -7,6 +7,10 @@ export {
   type ConversationSectionProps,
 } from "./components/ConversationSection/ConversationSection";
 export {
+  ConversationFilterBar,
+  type ConversationFilterBarProps,
+} from "./components/ConversationFilterBar/ConversationFilterBar";
+export {
   ThreadRowView,
   type ThreadRowViewProps,
 } from "./components/ThreadRowView/ThreadRowView";

@@ -177,6 +177,32 @@
         background: light-dark(var(--color-background), var(--color-inverse));
       }
     }
+
+    /* In-flow control rows (filter bars, toolbars) rather than the modal
+       footers .btn was sized for — same button grammar, tightened so it can
+       sit beside chips without dominating them. */
+    &.compact {
+      padding-block: functions.to-rem(4px);
+      padding-inline: functions.to-rem(10px);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-md);
+      font-weight: 500;
+    }
+
+    /* Spent, not gone: these controls disable themselves ON click, and the
+       browser blurs a focused element the moment it becomes `disabled` — so
+       they carry aria-disabled and no-op instead, and this is what that
+       looks like. */
+    &[aria-disabled="true"] {
+      border-color: var(--line);
+      color: var(--dim);
+      cursor: default;
+
+      &:hover {
+        border-color: var(--line);
+        background: transparent;
+      }
+    }
   }
 }
 

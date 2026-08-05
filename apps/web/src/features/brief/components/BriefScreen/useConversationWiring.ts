@@ -13,6 +13,17 @@ import {
   type DigestRow,
 } from "@web/features/conversation/utils/digest";
 import { reconcileOwnComments } from "@web/features/conversation/utils/ownComments";
+import {
+  applyConversationFilter,
+  countHiddenInlineThreads,
+  DEFAULT_CONVERSATION_FILTER,
+  reconcileReviewers,
+  reviewerFacets,
+  verdictFacets,
+  type ConversationFilter,
+  type ReviewerFacet,
+  type VerdictFacet,
+} from "@web/features/conversation/utils/filter";
 import type { ConversationResult } from "@web/features/conversation/queries";
 import { useMentionPool } from "@web/features/conversation/hooks/useMentionPool";
 import { prefersReducedMotion } from "@web/utils/motion";
@@ -28,14 +39,26 @@ export interface UseConversationWiringInput {
   /** The `?thread=` landing target (BRIEF-24): opens the section on mount AND
    * on in-app navigation that changes the target after mount. */
   conversationFocusThreadId: number | undefined;
+  /** Reviewer/verdict filter (BRIEF-99) — separate from the plan so a chip
+   * click cannot churn the plan identity the ChunkCard memos ride on. */
+  conversationFilter: ConversationFilter | undefined;
   jumpToChunk: (chunkId: string, behavior?: ScrollBehavior) => void;
   model: BriefViewModel;
   readingOrderedChunks: BriefChunk[];
   submittedReviewIds: number[];
 }
 
+/** What the filter bar above the section needs to draw itself. */
+export interface ConversationFilterFacets {
+  readonly verdicts: readonly VerdictFacet[];
+  readonly reviewers: readonly ReviewerFacet[];
+  readonly hiddenInlineThreads: number;
+}
+
 export interface UseConversationWiringValue {
   conversationByChunk: ReadonlyMap<string, DigestRow[]> | undefined;
+  /** Facets for the filter bar; absent until the conversation resolves. */
+  conversationFilterFacets: ConversationFilterFacets | undefined;
   conversationComposer: ThreadComposerWiring | undefined;
   /** Which groups carry conversation threads — the TocBar's markers. */
   conversationGroupIds: Set<string> | undefined;
@@ -58,6 +81,7 @@ export function useConversationWiring(
     briefId,
     conversation,
     conversationFocusThreadId,
+    conversationFilter,
     jumpToChunk,
     model,
     readingOrderedChunks,
@@ -101,19 +125,28 @@ export function useConversationWiring(
     conversationQuery.data?.kind === "ready"
       ? conversationQuery.data.conversation
       : undefined;
+  // The filter reaches the diff too (BRIEF-99): a reviewer chip that left
+  // their inline threads in place would answer "who said what" only halfway.
   const conversationByChunk = useMemo(() => {
     if (conversationData === undefined) return undefined;
+    const filtered = applyConversationFilter(
+      conversationData,
+      reconcileReviewers(
+        conversationFilter ?? DEFAULT_CONVERSATION_FILTER,
+        conversationData,
+      ),
+    );
     // Ownership is the review-id join alone — local comments feed only the
     // pointer/resurrection outputs, so they stay OUT of these deps: a comment
     // save/toggle must not rebuild every chunk's inline rows and bust the
     // ChunkCard memo boundary.
     const ownThreadIds = reconcileOwnComments(
       [],
-      conversationData.threads,
+      filtered.threads,
       submittedReviewIds,
     ).ownThreadIds;
     return buildInlineThreads({
-      conversation: conversationData,
+      conversation: filtered,
       chunks: readingOrderedChunks,
       ownThreadIds,
       // The cutoff is a primitive dep (not the plan object): the plan is
@@ -122,10 +155,32 @@ export function useConversationWiring(
     });
   }, [
     conversationData,
+    conversationFilter,
     readingOrderedChunks,
     submittedReviewIds,
     conversation?.briefGeneratedAt,
   ]);
+
+  // The bar renders ABOVE the section (and outside its disclosure), so the
+  // facets are computed HERE — this hook already holds the shared query, the
+  // reading-ordered chunks and the filter. Reconciled first, so the counts
+  // describe the same conversation the section and the diff render.
+  const conversationFilterFacets = useMemo(() => {
+    if (conversationData === undefined) return undefined;
+    const applied = reconcileReviewers(
+      conversationFilter ?? DEFAULT_CONVERSATION_FILTER,
+      conversationData,
+    );
+    return {
+      verdicts: verdictFacets(conversationData, applied),
+      reviewers: reviewerFacets(conversationData),
+      hiddenInlineThreads: countHiddenInlineThreads(
+        conversationData,
+        applied,
+        readingOrderedChunks,
+      ),
+    };
+  }, [conversationData, conversationFilter, readingOrderedChunks]);
 
   // Slim transport (draft reads/writes and announce copy live inside
   // ReplyComposer's session-store reads): identity stable per plan, so it
@@ -255,6 +310,7 @@ export function useConversationWiring(
 
   return {
     conversationByChunk,
+    conversationFilterFacets,
     conversationComposer,
     conversationGroupIds: groupIds,
     invalidateConversation,
