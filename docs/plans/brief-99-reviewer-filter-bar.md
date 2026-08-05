@@ -28,6 +28,17 @@ per-reviewer chips with All/None, recency toggle.
    recency toggle (latest-per-reviewer reduction happens *before* counting) and
    under the reviewer selection — chips always describe what is currently
    visible under the other family's filter. Counts churn on click; accepted.
+   - *Amendment (2026-08-05, implementation):* reviewer chips carry **no
+     counts** and are **not** faceted — the list is the stable union of every
+     activity author. Faceting them would make chips appear and vanish as you
+     select, moving the click target; and thread/PR-comment authors have no
+     verdict to be faceted by. Decision 4 therefore governs the verdict family
+     only.
+   - *Amendment (2026-08-05, implementation):* a `COMMENTED` review with an
+     empty body is GitHub's envelope around inline comments, not a stated
+     verdict — the strip has always hidden these. They are excluded before the
+     recency reduction and before counting, so an approver who later leaves an
+     inline comment keeps their standing approval.
 
 5. **Human/bot rendering.** One bar, two rows.
    - Row 1 — verdict chips: primary count = humans; bot count as muted secondary
@@ -56,6 +67,10 @@ per-reviewer chips with All/None, recency toggle.
 9. **Hidden-threads indicator.** When filters hide inline diff threads, the
    filter bar shows a count pill ("N threads hidden") — nothing floats in the
    diff itself. Guards against silently misleading absence in the diff.
+   - *Amendment (2026-08-05, implementation):* the count is taken against the
+     **inline** thread set, not every thread. Outdated and resolved-bot threads
+     are digest-only, so counting them would warn about an absence the reader
+     could never have noticed.
 
 10. **Empty filter result.** Plain muted "No activity matches filters" + inline
     clear link. No illustration.
