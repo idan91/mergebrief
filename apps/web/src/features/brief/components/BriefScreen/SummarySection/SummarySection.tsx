@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { ExpandableContent } from "@web/components/ExpandableContent/ExpandableContent";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import type { Brief } from "../../../types";
 import { splitSummaryAtChangelog } from "../../../utils/viewModel";
@@ -30,47 +31,55 @@ export function SummarySection({ brief }: SummarySectionProps) {
       <div className={styles["eyebrow"]}>
         {brief.artifactKind === "delta" ? "Delta brief" : "Brief"}
       </div>
-      {/* BRIEF-4: with a changelog the summary renders as two grid regions —
-          lead prose | changelog (+ delta context). DOM order stays overview →
-          what-it-does → changelog; wide-container placement is grid-only
-          (reading order, a11y). */}
-      {summaryParts.changelog === undefined ? (
-        <Markdown content={brief.summary} />
-      ) : (
-        <div className={styles["summaryColumns"]}>
-          <div className={styles["summaryLead"]}>
-            <Markdown content={summaryParts.lead} />
-          </div>
-          <div className={styles["summaryAside"]}>
-            <Markdown content={summaryParts.changelog} />
-            {brief.artifactKind === "delta" ? (
-              <DeltaContext brief={brief} />
-            ) : null}
-          </div>
+      <ExpandableContent testId="summary-prose">
+        <div className={styles["prose"]}>
+          {/* BRIEF-4: with a changelog the summary renders as two grid regions —
+              lead prose | changelog (+ delta context). DOM order stays overview →
+              what-it-does → changelog; wide-container placement is grid-only
+              (reading order, a11y). */}
+          {summaryParts.changelog === undefined ? (
+            <Markdown content={brief.summary} />
+          ) : (
+            <div className={styles["summaryColumns"]}>
+              <div className={styles["summaryLead"]}>
+                <Markdown content={summaryParts.lead} />
+              </div>
+              <div className={styles["summaryAside"]}>
+                <Markdown content={summaryParts.changelog} />
+                {brief.artifactKind === "delta" ? (
+                  <DeltaContext brief={brief} />
+                ) : null}
+              </div>
+            </div>
+          )}
+          {summaryParts.changelog === undefined &&
+          brief.artifactKind === "delta" ? (
+            <DeltaContext brief={brief} />
+          ) : null}
+          {/* Nested inside the cap (BRIEF-134): the disclosure is part of the
+              summary content, and focusing it expands the cap around it. */}
+          <button
+            className={styles["descriptionToggle"]}
+            data-testid="pr-description-toggle"
+            type="button"
+            onClick={() => setDescriptionOpen((current) => !current)}
+          >
+            {descriptionOpen
+              ? "Hide original PR description"
+              : "Show original PR description"}
+          </button>
+          {descriptionOpen ? (
+            <div className={styles["description"]} data-testid="pr-description">
+              <div className={styles["eyebrow"]}>Original PR description</div>
+              <Markdown
+                content={
+                  brief.pr.description || "_No PR description provided._"
+                }
+              />
+            </div>
+          ) : null}
         </div>
-      )}
-      {summaryParts.changelog === undefined &&
-      brief.artifactKind === "delta" ? (
-        <DeltaContext brief={brief} />
-      ) : null}
-      <button
-        className={styles["descriptionToggle"]}
-        data-testid="pr-description-toggle"
-        type="button"
-        onClick={() => setDescriptionOpen((current) => !current)}
-      >
-        {descriptionOpen
-          ? "Hide original PR description"
-          : "Show original PR description"}
-      </button>
-      {descriptionOpen ? (
-        <div className={styles["description"]} data-testid="pr-description">
-          <div className={styles["eyebrow"]}>Original PR description</div>
-          <Markdown
-            content={brief.pr.description || "_No PR description provided._"}
-          />
-        </div>
-      ) : null}
+      </ExpandableContent>
     </section>
   );
 }

@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 
+import { ExpandableContent } from "@web/components/ExpandableContent/ExpandableContent";
 import type { IntentCheck, IntentItem } from "../../../types";
 import styles from "./IntentBar.module.scss";
 
@@ -114,36 +115,9 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
       const linked = item.sourceUrl !== "" && isHttpUrl(item.sourceUrl);
       return (
         <li className={styles["item"]} key={key}>
-          <span className={styles["intent"]}>{item.intent}</span>
-          {/* Only meaningful in `deviations`: generation forces it false in
-              every other bucket AND the read path re-sweeps it (validation.ts),
-              so this chip can only appear on the acknowledged-deviations
-              bucket — never inside an alarm bucket under its caution. */}
-          {item.acknowledged ? (
-            <span className={styles["ackChip"]}>acknowledged</span>
-          ) : null}
-          {/* Text-only: model-produced quote, never markdown/HTML. */}
-          {item.quote !== "" ? (
-            <q className={styles["quote"]}>{item.quote}</q>
-          ) : null}
-          {/* Source is grounding, not decoration: rendered independently of
-              the quote so a warn-only uncited item (empty quote but a valid
-              sourceUrl, PR 1 quote-check is warn-only) keeps its citation. A
-              "" sourceUrl attributes to the PR description only for a real
-              ticket-side citation (non-empty quote); doneButUnstated has no
-              ticket side, so it shows neither a link nor an attribution. */}
-          {linked ? (
-            <a
-              className={styles["source"]}
-              href={item.sourceUrl}
-              rel="noreferrer"
-              target="_blank"
-            >
-              source
-            </a>
-          ) : item.sourceUrl === "" && item.quote !== "" ? (
-            <span className={styles["source"]}>PR description</span>
-          ) : null}
+          {/* The jump chip IS the item's bullet (owner direction, 2026-08-06):
+              the marker column leads with the go-there affordance; items with
+              no carrying group get a plain dot so the column stays ruled. */}
           {item.groupIds.length > 0 ? (
             <span className={styles["jumps"]}>
               {item.groupIds.map((groupId) => (
@@ -154,10 +128,59 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
                   onClick={() => jumpToGroup(groupId)}
                 >
                   {groupId}
+                  <span aria-hidden="true" className={styles["jumpArrow"]}>
+                    →
+                  </span>
                 </button>
               ))}
             </span>
-          ) : null}
+          ) : (
+            <span aria-hidden="true" className={styles["marker"]}>
+              ▪
+            </span>
+          )}
+          <span className={styles["itemBody"]}>
+            <span className={styles["itemHead"]}>
+              <span className={styles["intent"]}>{item.intent}</span>
+              {/* Only meaningful in `deviations`: generation forces it false
+                  in every other bucket AND the read path re-sweeps it
+                  (validation.ts), so this chip can only appear on the
+                  acknowledged-deviations bucket — never inside an alarm
+                  bucket under its caution. */}
+              {item.acknowledged ? (
+                <span className={styles["ackChip"]}>acknowledged</span>
+              ) : null}
+            </span>
+            {/* Evidence rides one muted line beneath the claim: quote, then
+                its citation after a dot — never inline with the claim. */}
+            {item.quote !== "" || linked ? (
+              <span className={styles["itemMeta"]}>
+                {/* Text-only: model-produced quote, never markdown/HTML. */}
+                {item.quote !== "" ? (
+                  <q className={styles["quote"]}>{item.quote}</q>
+                ) : null}
+                {/* Source is grounding, not decoration: rendered
+                    independently of the quote so a warn-only uncited item
+                    (empty quote but a valid sourceUrl, PR 1 quote-check is
+                    warn-only) keeps its citation. A "" sourceUrl attributes
+                    to the PR description only for a real ticket-side citation
+                    (non-empty quote); doneButUnstated has no ticket side, so
+                    it shows neither a link nor an attribution. */}
+                {linked ? (
+                  <a
+                    className={styles["source"]}
+                    href={item.sourceUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    source
+                  </a>
+                ) : item.sourceUrl === "" && item.quote !== "" ? (
+                  <span className={styles["source"]}>PR description</span>
+                ) : null}
+              </span>
+            ) : null}
+          </span>
         </li>
       );
     }
@@ -210,6 +233,13 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
           type="button"
           onClick={() => setOpen((value) => !value)}
         >
+          <span
+            aria-hidden
+            className={styles["twist"]}
+            data-open={open || undefined}
+          >
+            ▶
+          </span>
           <span className={styles["title"]}>Intent check</span>
           {available ? (
             <span className={styles["counts"]}>
@@ -249,40 +279,49 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
           )}
         </button>
         <div className={styles["panel"]} hidden={!open} id={panelId}>
-          <p className={styles["framing"]}>
-            This is the AI&rsquo;s fallible read of the PR&rsquo;s stated intent
-            — a factual summary of what the diff does against what the ticket
-            asked, never a verdict.
-          </p>
-          {scopeNote !== "" ? (
-            <p className={styles["scopeNote"]}>{scopeNote}</p>
-          ) : null}
-          {/* STATIC order, locked by the grill — never model-ordered and never
+          <ExpandableContent
+            collapseLabel="Collapse intent check"
+            expandLabel="Show full intent check"
+            testId="intent-prose"
+          >
+            <p className={styles["framing"]}>
+              This is the AI&rsquo;s fallible read of the PR&rsquo;s stated
+              intent — a factual summary of what the diff does against what the
+              ticket asked, never a verdict.
+            </p>
+            {scopeNote !== "" ? (
+              <p className={styles["scopeNote"]}>{scopeNote}</p>
+            ) : null}
+            {/* STATIC order, locked by the grill — never model-ordered and never
               severity-sorted: accomplished first (the PR's own story), the two
               alarm buckets next while the reader is still oriented, then the
               neutral gaps, with acknowledged deviations last as quiet
               receipts. */}
-          {available ? (
-            <>
-              {renderBucket("Accomplished", intentCheck.accomplished)}
-              {renderBucket(
-                "Claimed but unachieved",
-                intentCheck.claimedButUnachieved,
-                ALARM_CAUTION,
-              )}
-              {renderBucket(
-                "Deviations",
-                unacknowledgedDeviations,
-                ALARM_CAUTION,
-              )}
-              {renderBucket("Stated but missing", intentCheck.statedButMissing)}
-              {renderBucket("Done but unstated", intentCheck.doneButUnstated)}
-              {renderBucket(
-                "Deviations acknowledged in the description",
-                acknowledgedDeviations,
-              )}
-            </>
-          ) : null}
+            {available ? (
+              <>
+                {renderBucket("Accomplished", intentCheck.accomplished)}
+                {renderBucket(
+                  "Claimed but unachieved",
+                  intentCheck.claimedButUnachieved,
+                  ALARM_CAUTION,
+                )}
+                {renderBucket(
+                  "Deviations",
+                  unacknowledgedDeviations,
+                  ALARM_CAUTION,
+                )}
+                {renderBucket(
+                  "Stated but missing",
+                  intentCheck.statedButMissing,
+                )}
+                {renderBucket("Done but unstated", intentCheck.doneButUnstated)}
+                {renderBucket(
+                  "Deviations acknowledged in the description",
+                  acknowledgedDeviations,
+                )}
+              </>
+            ) : null}
+          </ExpandableContent>
         </div>
       </section>
     );

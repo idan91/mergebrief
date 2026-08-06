@@ -12,7 +12,11 @@
     &[data-summary-split] {
       max-inline-size: none;
 
-      > :not(.summaryColumns, .description) {
+      // .prose sits inside the ExpandableContent subtree now, so cap the eyebrow by
+      // name — a bare :not(.prose) on direct children would cap the whole
+      // capped subtree and crush the two-column grid.
+      > .eyebrow,
+      .prose > :not(.summaryColumns, .description) {
         max-inline-size: 68ch;
       }
     }

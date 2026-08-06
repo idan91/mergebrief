@@ -27,14 +27,11 @@ import { routeTree } from "../routeTree.gen";
 
 const BRIEF_ID = briefSummaryFixture.id;
 
-async function renderBriefScreen() {
+async function renderBriefScreen(brief = briefFixture) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  queryClient.setQueryData(
-    localBriefQueryOptions(BRIEF_ID).queryKey,
-    briefFixture,
-  );
+  queryClient.setQueryData(localBriefQueryOptions(BRIEF_ID).queryKey, brief);
   queryClient.setQueryData(localBriefsQueryOptions().queryKey, [
     briefSummaryFixture,
   ]);
@@ -54,9 +51,7 @@ async function renderBriefScreen() {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  await waitFor(() =>
-    expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
-  );
+  await waitFor(() => expect(screen.getByText(brief.pr.title)).toBeTruthy());
   return { queryClient, router };
 }
 
@@ -284,6 +279,34 @@ describe("brief screen characterization", () => {
         "comment says the param is optional (L10), code throws when absent (L12)",
       ),
     ).toBeTruthy();
+  });
+
+  it("renders the intent bar directly beneath the summary (BRIEF-134)", async () => {
+    await renderBriefScreen({
+      ...briefFixture,
+      intentCheck: {
+        ticketUrls: [],
+        specificity: "none",
+        scopeNote: "PR description only",
+        accomplished: [
+          {
+            intent: "Cap the summary",
+            quote: "cap it",
+            sourceUrl: "",
+            groupIds: [],
+            acknowledged: false,
+          },
+        ],
+        statedButMissing: [],
+        doneButUnstated: [],
+        deviations: [],
+        claimedButUnachieved: [],
+      },
+    });
+    const summary = screen.getByTestId("brief-summary");
+    const intentBar = document.querySelector("[data-intent-bar]");
+    expect(intentBar).not.toBeNull();
+    expect(summary.nextElementSibling).toBe(intentBar);
   });
 
   it("reclassifying an uncertain group records the override on the card", async () => {

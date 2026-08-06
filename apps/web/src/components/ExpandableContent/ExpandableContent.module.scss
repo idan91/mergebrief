@@ -1,0 +1,76 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  .root {
+    --prose-cap: #{functions.to-rem(200px)};
+
+    // Collapsing scrolls the block back into view; without this it lands
+    // under the sticky header.
+    scroll-margin-block-start: calc(
+      var(--top-bar-h, 116px) + #{functions.to-rem(12px)}
+    );
+
+    @media (width >= 1440px) {
+      --prose-cap: #{functions.to-rem(280px)};
+    }
+  }
+
+  .body {
+    overflow: hidden;
+    transition: max-block-size 180ms ease-out;
+  }
+
+  .content > :last-child {
+    margin-block-end: 0;
+  }
+
+  .root[data-state="collapsed"] .body {
+    max-block-size: var(--prose-cap);
+
+    // The fade rides the CONTENT, never a surface-colored overlay: the block
+    // sits on more than one background and an overlay would paint the wrong
+    // one (and would cover any control beneath it).
+    mask-image: linear-gradient(to bottom, black 72%, transparent 100%);
+  }
+
+  .root[data-state="expanded"] .body {
+    // A measured height rather than `none`, so the transition has a target in
+    // both directions; the ResizeObserver keeps the value current.
+    max-block-size: var(--prose-full, none);
+  }
+
+  .toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(4px);
+    min-block-size: functions.to-rem(24px);
+    padding-block: functions.to-rem(2px);
+    padding-inline: 0;
+    border: 0;
+    margin-block-start: functions.to-rem(6px);
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-lg);
+    text-decoration: underline;
+    text-underline-offset: functions.to-rem(3px);
+
+    &:hover {
+      color: var(--text);
+    }
+
+    @include mixins.focus-visible;
+  }
+
+  .root[data-state="fits"] .toggle {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .body {
+      transition: none;
+    }
+  }
+}

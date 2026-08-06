@@ -532,10 +532,8 @@ export function BriefScreen({
           <>
             {viewMode === "story" && !focusMode ? (
               <>
-                <AttributeJumpRail
-                  jumpToGroup={jumpToGroup}
-                  rail={attributeRail}
-                />
+                {/* Directly beneath the capped summary (BRIEF-134): the bar
+                    was never demoted, only buried. */}
                 {brief.intentCheck ? (
                   <IntentBar
                     intentCheck={brief.intentCheck}
@@ -543,6 +541,11 @@ export function BriefScreen({
                     ref={intentBarRef}
                   />
                 ) : null}
+                <AttributeJumpRail
+                  jumpToGroup={jumpToGroup}
+                  rail={attributeRail}
+                />
+
                 <GroupTocBar
                   activeGroupId={session.activeGroupId}
                   conversationGroupIds={conversationWiring.conversationGroupIds}
