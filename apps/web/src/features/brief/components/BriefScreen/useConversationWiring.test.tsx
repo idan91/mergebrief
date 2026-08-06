@@ -211,9 +211,26 @@ describe("useConversationWiring — inline filtering (BRIEF-99)", () => {
   });
 });
 
-// The filter bar renders ABOVE the section, outside its disclosure, so this
-// hook — not the section — owns the facets it draws.
+// The Filter disclosure renders in the toolbar ABOVE the section, outside
+// its disclosure body, so this hook — not the section — owns the facets it
+// draws.
 describe("useConversationWiring — filter facets (BRIEF-99)", () => {
+  it("exposes the RECONCILED filter — a ghost selection never reaches the receipt", async () => {
+    // `?reviewers=ghost` filters nothing (degrade-to-looser), so the
+    // trigger receipt must not count it: `applied` is what the disclosure
+    // renders, pressed states and All/None/Clear included.
+    const { result } = renderWiring(
+      plan(undefined, conversationWith(["alice", "bob"])),
+      parseConversationFilter({ reviewers: "ghost,alice" }),
+    );
+    await waitFor(() =>
+      expect(result.current.conversationFilterFacets).toBeDefined(),
+    );
+    expect([
+      ...(result.current.conversationFilterFacets?.applied.reviewers ?? []),
+    ]).toEqual(["alice"]);
+  });
+
   it("exposes verdict/reviewer facets and the hidden-inline count", async () => {
     const { result } = renderWiring(
       plan(undefined, conversationWith(["alice", "bob"])),

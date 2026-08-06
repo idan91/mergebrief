@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-// The conversation filter bar (BRIEF-99), which sits ABOVE the section: chips are aria-pressed toggle
-// buttons carrying text, counts split human/bot, All/None act on the reviewer
-// family only, and the hidden-thread pill only speaks when the diff actually
-// lost something.
+// The BRIEF-99 filter UI, re-homed as anchored-panel content (BRIEF-134):
+// chips are aria-pressed toggle buttons carrying text, counts split
+// human/bot, All/None act on the reviewer family only, and every BRIEF-99
+// lock holds in the panel container. The trigger, the hidden-thread receipt
+// and the live region belong to the disclosure wrapper, not here.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -12,9 +13,9 @@ import {
   type ConversationFilter,
 } from "../../utils/filter";
 import {
-  ConversationFilterBar,
-  type ConversationFilterBarProps,
-} from "./ConversationFilterBar";
+  ConversationFilterPanel,
+  type ConversationFilterPanelProps,
+} from "./ConversationFilterPanel";
 
 afterEach(cleanup);
 
@@ -29,23 +30,22 @@ const REVIEWERS = [
   { login: "coderabbitai", isBot: true },
 ] as const;
 
-function renderBar(overrides: Partial<ConversationFilterBarProps> = {}) {
+function renderPanel(overrides: Partial<ConversationFilterPanelProps> = {}) {
   const onChange = vi.fn<(next: ConversationFilter) => void>();
-  const props: ConversationFilterBarProps = {
+  const props: ConversationFilterPanelProps = {
     filter: DEFAULT_CONVERSATION_FILTER,
     verdicts: [...VERDICTS],
     reviewers: [...REVIEWERS],
-    hiddenInlineThreads: 0,
     onChange,
     ...overrides,
   };
-  render(<ConversationFilterBar {...props} />);
+  render(<ConversationFilterPanel {...props} />);
   return { onChange, props };
 }
 
-describe("ConversationFilterBar", () => {
+describe("ConversationFilterPanel", () => {
   it("renders verdict chips with human counts and a bot secondary", () => {
-    renderBar();
+    renderPanel();
     const approved = screen.getByRole("button", { name: /approved/ });
     expect(approved.textContent).toContain("approved");
     expect(approved.textContent).toContain("2");
@@ -59,7 +59,7 @@ describe("ConversationFilterBar", () => {
 
   it("marks selection with aria-pressed, not colour alone", () => {
     const filter = parseConversationFilter({ verdicts: "approved" });
-    renderBar({ filter });
+    renderPanel({ filter });
     expect(
       screen
         .getByRole("button", { name: /approved/ })
@@ -73,7 +73,7 @@ describe("ConversationFilterBar", () => {
   });
 
   it("toggles a verdict and a reviewer through onChange", () => {
-    const { onChange } = renderBar();
+    const { onChange } = renderPanel();
     fireEvent.click(screen.getByRole("button", { name: /approved/ }));
     const afterVerdict = onChange.mock.calls[0]?.[0];
     if (afterVerdict === undefined) throw new Error("no verdict change");
@@ -86,7 +86,7 @@ describe("ConversationFilterBar", () => {
   });
 
   it("tags bot reviewers and keeps them selectable", () => {
-    const { onChange } = renderBar();
+    const { onChange } = renderPanel();
     const bot = screen.getByRole("button", { name: /@coderabbitai/ });
     expect(bot.textContent).toContain("bot");
     fireEvent.click(bot);
@@ -96,7 +96,7 @@ describe("ConversationFilterBar", () => {
   });
 
   it("All selects every reviewer; None clears the family without emptying the digest", () => {
-    const { onChange } = renderBar({
+    const { onChange } = renderPanel({
       filter: parseConversationFilter({ reviewers: "alice" }),
     });
     fireEvent.click(screen.getByRole("button", { name: "All" }));
@@ -113,7 +113,7 @@ describe("ConversationFilterBar", () => {
   it("marks All/None spent with aria-disabled and no-ops them, keeping focus", () => {
     // `disabled` would blur the control the moment it is used — these two
     // disable themselves ON click, so the attribute is aria-only.
-    const { onChange } = renderBar();
+    const { onChange } = renderPanel();
     const none = screen.getByRole("button", { name: "None" });
     expect(none.getAttribute("aria-disabled")).toBe("true");
     expect(none.hasAttribute("disabled")).toBe(false);
@@ -121,7 +121,7 @@ describe("ConversationFilterBar", () => {
     expect(onChange).not.toHaveBeenCalled();
     cleanup();
 
-    renderBar({
+    renderPanel({
       filter: parseConversationFilter({
         reviewers: "alice,bob,coderabbitai",
       }),
@@ -133,7 +133,7 @@ describe("ConversationFilterBar", () => {
 
   it("keeps a selected chip when the other family zeroes its count", () => {
     // Otherwise the only control that could unpress it disappears.
-    renderBar({
+    renderPanel({
       filter: parseConversationFilter({ verdicts: "commented" }),
       verdicts: [],
     });
@@ -145,13 +145,13 @@ describe("ConversationFilterBar", () => {
   });
 
   it("labels each row, so the two chip runs line up and say what they filter", () => {
-    renderBar();
+    renderPanel();
     expect(screen.getByText("Verdict")).not.toBeNull();
     expect(screen.getByText("Reviewer")).not.toBeNull();
   });
 
   it("drops the chip list entirely when it has no chips, leaving no dead lane", () => {
-    renderBar({ verdicts: [] });
+    renderPanel({ verdicts: [] });
     expect(screen.queryByRole("button", { name: /^approved/ })).toBeNull();
     // The global toggle survives — it is not a verdict control.
     expect(
@@ -159,13 +159,8 @@ describe("ConversationFilterBar", () => {
     ).not.toBeNull();
   });
 
-  it("renders nothing at all when there is no activity and no filter", () => {
-    renderBar({ verdicts: [], reviewers: [] });
-    expect(screen.queryByTestId("conversation-filter-bar")).toBeNull();
-  });
-
   it("defaults the recency toggle on and reports flips", () => {
-    const { onChange } = renderBar();
+    const { onChange } = renderPanel();
     const toggle = screen.getByRole("checkbox", {
       name: /only each reviewer's latest/i,
     });
@@ -178,19 +173,8 @@ describe("ConversationFilterBar", () => {
     expect(next.latestOnly).toBe(false);
   });
 
-  it("announces threads hidden from the diff only while filtering", () => {
-    renderBar({ hiddenInlineThreads: 3 });
-    expect(screen.queryByText(/hidden in the diff/)).toBeNull();
-    cleanup();
-    renderBar({
-      filter: parseConversationFilter({ reviewers: "alice" }),
-      hiddenInlineThreads: 3,
-    });
-    expect(screen.getByText(/3 threads hidden in the diff/)).not.toBeNull();
-  });
-
-  it("offers a clear link that keeps an opted-into full history", () => {
-    const { onChange } = renderBar({
+  it("offers a clear control that keeps an opted-into full history", () => {
+    const { onChange } = renderPanel({
       filter: parseConversationFilter({ reviewers: "alice", reviews: "all" }),
     });
     fireEvent.click(screen.getByRole("button", { name: "Clear filters" }));
@@ -200,8 +184,17 @@ describe("ConversationFilterBar", () => {
     expect(next.latestOnly).toBe(false);
   });
 
+  it("marks Clear spent with aria-disabled and no-ops it while inactive", () => {
+    const { onChange } = renderPanel();
+    const clear = screen.getByRole("button", { name: "Clear filters" });
+    expect(clear.getAttribute("aria-disabled")).toBe("true");
+    expect(clear.hasAttribute("disabled")).toBe(false);
+    fireEvent.click(clear);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("renders no verdict row when nothing was stated", () => {
-    renderBar({ verdicts: [] });
+    renderPanel({ verdicts: [] });
     expect(screen.queryByRole("button", { name: /approved/ })).toBeNull();
     expect(screen.getByRole("button", { name: /@alice/ })).not.toBeNull();
   });

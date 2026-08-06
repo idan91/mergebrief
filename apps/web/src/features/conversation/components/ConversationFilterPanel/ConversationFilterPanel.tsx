@@ -1,23 +1,21 @@
-// The conversation filter bar (BRIEF-99): who reviewed this, and what did
-// they say? Two rows — verdict-state chips with counts on top, per-reviewer
-// chips below — plus the recency toggle. Chips are `aria-pressed` toggle
+// The BRIEF-99 filter UI as anchored-panel CONTENT (BRIEF-134 re-home): two
+// chip rows — verdict states with counts, per-reviewer — and a footer with
+// the recency toggle and All/None/Clear. Chips are `aria-pressed` toggle
 // buttons carrying TEXT (WCAG 1.4.1), the same vocabulary the digest's own
 // chips use.
 //
-// It sits ABOVE the conversation section, not inside it: the section is a
-// collapsed-by-default disclosure, and a filter buried inside one is a
-// control nobody finds. It also governs the diff's inline threads, which are
-// visible whether or not the section is open — so the state it reports has
-// to be readable from the same place.
+// Every BRIEF-99 lock holds inside the panel: OR within a family, AND
+// across; faceted toggle-aware verdict counts; zero-count chips unrendered;
+// a selected chip whose count zeroes out still renders (something must stay
+// to unpress it); All/None/Clear never disable UNDER the pointer that just
+// used them — `aria-disabled` + no-op, keeping focus.
 //
-// Selection lives in the URL, so this component is pure props: it renders
-// the facets it is handed and reports the next filter state.
-//
-// Controls never disappear or disable UNDER the pointer that just used them:
-// All/None/Clear stay enabled and no-op at their limits, and the status line
-// is always mounted. A control that unmounts on click drops keyboard focus to
-// <body>, and a live region inserted already-populated is exactly the
-// announcement screen readers skip.
+// The trigger, the hidden-thread receipt and the always-mounted live region
+// belong to the disclosure wrapper (the toolbar's FilterDisclosure): a
+// region living here would unmount with the panel, which is exactly the
+// insertion screen readers skip. Selection lives in the URL, so this
+// component is pure props: it renders the facets it is handed and reports
+// the next filter state.
 import { Checkbox } from "@web/components/Checkbox/Checkbox";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import {
@@ -34,18 +32,12 @@ import {
   type VerdictFacet,
 } from "../../utils/filter";
 import rowStyles from "../../rows.module.scss";
-import styles from "./ConversationFilterBar.module.scss";
+import styles from "./ConversationFilterPanel.module.scss";
 
-export interface ConversationFilterBarProps {
+export interface ConversationFilterPanelProps {
   filter: ConversationFilter;
   verdicts: readonly VerdictFacet[];
   reviewers: readonly ReviewerFacet[];
-  /**
-   * Threads the filter removes from the DIFF (BRIEF-99 decision 9) — an
-   * unannounced gap inline reads as "nothing was said about this line".
-   * Counted by `countHiddenInlineThreads` at the call site.
-   */
-  hiddenInlineThreads: number;
   onChange: (next: ConversationFilter) => void;
 }
 
@@ -82,36 +74,30 @@ function chipFacets(
   });
 }
 
-export function ConversationFilterBar({
+export function ConversationFilterPanel({
   filter,
   verdicts,
   reviewers,
-  hiddenInlineThreads,
   onChange,
-}: ConversationFilterBarProps) {
+}: ConversationFilterPanelProps) {
   const chips = chipFacets(verdicts, filter);
   const humans = reviewers.filter((reviewer) => !reviewer.isBot);
   const bots = reviewers.filter((reviewer) => reviewer.isBot);
   const active = isFilterActive(filter);
   const allSelected = filter.reviewers.size === reviewers.length;
 
-  // Nothing to slice and nothing sliced: a bordered empty strip above "No
-  // conversation yet" is chrome promising a control it does not have.
-  if (chips.length === 0 && reviewers.length === 0 && !active) return null;
-
   return (
     <div
       aria-label="Filter the conversation"
-      className={styles["bar"]}
-      data-testid="conversation-filter-bar"
+      className={styles["body"]}
+      data-testid="conversation-filter-panel"
       role="group"
     >
-      <div className={styles["row"]}>
-        <span className={styles["rowLabel"]}>Verdict</span>
-        {/* The chip list is rendered only when it HAS chips: an empty <ul>
-            plus a trailing control reads as a lane of dead space with one
-            control marooned at the far edge. */}
-        {chips.length > 0 ? (
+      {/* The chip list is rendered only when it HAS chips: an empty row
+          reads as a lane of dead space promising controls it lacks. */}
+      {chips.length > 0 ? (
+        <div className={styles["row"]}>
+          <span className={styles["rowLabel"]}>Verdict</span>
           <ul className={styles["chips"]}>
             {chips.map((facet) => (
               <li key={facet.state}>
@@ -137,22 +123,8 @@ export function ConversationFilterBar({
               </li>
             ))}
           </ul>
-        ) : null}
-        {/* Global control, deliberately OUTSIDE the chip gate: it governs the
-            reviews the whole section reads, so a reviewer selection that
-            empties the chip row must not strand it. */}
-        <span className={styles["trailing"]}>
-          <Checkbox
-            checked={filter.latestOnly}
-            testId="conversation-filter-latest-only"
-            onChange={(latestOnly) =>
-              onChange(withLatestOnly(filter, latestOnly))
-            }
-          >
-            Only each reviewer&apos;s latest
-          </Checkbox>
-        </span>
-      </div>
+        </div>
+      ) : null}
 
       {reviewers.length > 0 ? (
         <div className={styles["row"]}>
@@ -180,13 +152,26 @@ export function ConversationFilterBar({
               </li>
             ))}
           </ul>
-          {/* Real buttons (the repo's `.btn`, compact variant), not text
-              links: these ACT on the view, and a bare label reads as
-              navigation. All / None / Clear share one trailing group — a
-              dedicated footer row for Clear would sit empty most of the
-              time. */}
-          <span className={styles["trailing"]}>
-            <span className={styles["links"]}>
+        </div>
+      ) : null}
+
+      {/* Footer: the global recency toggle (deliberately OUTSIDE the chip
+          gates — it governs the reviews the whole section reads) and the
+          quick actions. Real buttons (the repo's `.btn`, compact variant),
+          not text links: these ACT on the view. */}
+      <div className={styles["foot"]}>
+        <Checkbox
+          checked={filter.latestOnly}
+          testId="conversation-filter-latest-only"
+          onChange={(latestOnly) =>
+            onChange(withLatestOnly(filter, latestOnly))
+          }
+        >
+          Only each reviewer&apos;s latest
+        </Checkbox>
+        <span className={styles["links"]}>
+          {reviewers.length > 0 ? (
+            <>
               <button
                 aria-disabled={allSelected}
                 className="btn compact"
@@ -214,33 +199,21 @@ export function ConversationFilterBar({
               >
                 None
               </button>
-              <button
-                aria-disabled={!active}
-                className="btn compact"
-                type="button"
-                onClick={() => {
-                  if (!active) return;
-                  onChange(withNoFilters(filter));
-                }}
-              >
-                Clear filters
-              </button>
-            </span>
-          </span>
-        </div>
-      ) : null}
-
-      {/* Always mounted (and empty rather than absent when inactive), so the
-          first "N threads hidden" lands as an UPDATE to a live region instead
-          of the insertion screen readers skip. It carries no controls: a
-          button label has no business riding along in every announcement. */}
-      <p className={styles["status"]} role="status">
-        {active && hiddenInlineThreads > 0
-          ? `${hiddenInlineThreads} thread${
-              hiddenInlineThreads === 1 ? "" : "s"
-            } hidden in the diff`
-          : ""}
-      </p>
+            </>
+          ) : null}
+          <button
+            aria-disabled={!active}
+            className="btn compact"
+            type="button"
+            onClick={() => {
+              if (!active) return;
+              onChange(withNoFilters(filter));
+            }}
+          >
+            Clear filters
+          </button>
+        </span>
+      </div>
     </div>
   );
 }

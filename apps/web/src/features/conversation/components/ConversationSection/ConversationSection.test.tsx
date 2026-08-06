@@ -1130,14 +1130,15 @@ describe("ConversationSection — outdated-thread revision jump (BRIEF-24)", () 
       expect(screen.getByText("ship it")).toBeDefined();
     });
 
-    it("shows filtered counts in the header, marked as filtered", async () => {
+    it("keeps unfiltered totals in the header — filter state never appears there", async () => {
+      // BRIEF-134: the toolbar trigger is the ONE place filter state renders;
+      // the header keeps describing the whole conversation (`N threads · N
+      // open`), so a hard filter cannot dress totals up as data loss.
       renderSection(filterProps(parseConversationFilter({ reviewers: "bob" })));
-      // Bob holds no threads, so the header cannot keep claiming alice's.
       await waitFor(() =>
-        expect(
-          screen.getByText(/0 threads · 0 open \(filtered\)/),
-        ).toBeDefined(),
+        expect(screen.getByText(/2 threads · 1 open$/)).toBeDefined(),
       );
+      expect(screen.queryByText(/filtered/)).toBeNull();
     });
   });
 });

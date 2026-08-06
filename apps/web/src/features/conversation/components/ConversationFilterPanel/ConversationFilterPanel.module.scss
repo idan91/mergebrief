@@ -1,0 +1,117 @@
+@use "functions";
+
+@layer components {
+  /* Panel CONTENT only — the anchored surface (border, fill, shadow,
+     positioning) belongs to the disclosure wrapper in the toolbar. */
+  .body {
+    display: grid;
+    gap: functions.to-rem(10px);
+  }
+
+  /* Label ABOVE its chip run, both flush left (owner round 2026-08-06):
+     the inline fixed-gutter layout left a dead gap after short labels and
+     wrapped long chip runs out of alignment with their heading. */
+  .rowLabel {
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: var(--font-size-sm);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .row {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: functions.to-rem(6px);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* Toggle buttons, not decoration: the pressed state carries a filled ground
+     so it survives high-contrast and greyscale, never colour alone
+     (WCAG 1.4.1). Min-height keeps the hit target honest at this type size. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    min-height: functions.to-rem(26px);
+    padding-block: functions.to-rem(3px);
+    padding-inline: functions.to-rem(10px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: var(--font-size-md);
+    letter-spacing: 0.02em;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--color-text-4);
+    }
+
+    /* Selected = accent-tinted fill + a check glyph: surface-3 alone was
+       nearly indistinguishable from the resting chip (owner a11y finding).
+       The glyph is decorative — aria-pressed carries the state. */
+    &[aria-pressed="true"] {
+      border-color: var(--color-accent);
+      background: color-mix(
+        in srgb,
+        var(--color-accent) 18%,
+        var(--color-surface-2)
+      );
+      color: var(--text);
+
+      &::before {
+        content: "✓ ";
+        color: var(--color-accent);
+      }
+    }
+
+    &[data-bot] {
+      color: var(--dim);
+
+      &[aria-pressed="true"] {
+        color: var(--text);
+      }
+    }
+  }
+
+  .count {
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  /* Separates humans from bots inside the one reviewer list — presentational,
+     so it is aria-hidden at the call site. */
+  .divider {
+    width: 1px;
+    height: 16px;
+    margin-inline: functions.to-rem(2px);
+    background: var(--line);
+  }
+
+  /* Footer row: recency toggle leading, quick actions trailing. */
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: functions.to-rem(10px);
+  }
+
+  .links {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    margin-inline-start: auto;
+  }
+}

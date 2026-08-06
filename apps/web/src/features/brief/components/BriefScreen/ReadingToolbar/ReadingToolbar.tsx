@@ -1,8 +1,12 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef } from "react";
 
 import { useRevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AttributeRail } from "../../../utils/viewModel";
+import {
+  FilterDisclosure,
+  type FilterDisclosureProps,
+} from "./FilterDisclosure/FilterDisclosure";
 import { RiskAttrsDisclosure } from "./RiskAttrsDisclosure/RiskAttrsDisclosure";
 import styles from "./ReadingToolbar.module.scss";
 
@@ -12,8 +16,12 @@ export interface GroupStepTarget {
 }
 
 export interface ReadingToolbarProps {
-  /** PR 3 re-homes the BRIEF-99 filter bar into this slot; empty until then. */
-  filterSlot?: ReactNode | undefined;
+  /**
+   * The conversation filter's data + state (BRIEF-99, re-homed here by
+   * BRIEF-134). Absent (local path, facets not yet resolved) = no filter
+   * surface at all.
+   */
+  filter?: FilterDisclosureProps | undefined;
   rail: AttributeRail;
   jumpToGroup: (groupId: string) => void;
   collapseSupporting: boolean;
@@ -28,12 +36,12 @@ export interface ReadingToolbarProps {
  * slot, pinned below the header (FocusBanner pattern — publishes its
  * measured height as --toolbar-h so sticky chunk headers stack
  * beneath it). Two clusters split by auto-margin: left = what's shown
- * (Filter slot · Risk attrs · Collapse supporting), right = where you are
+ * (Filter · Risk attrs · Collapse supporting), right = where you are
  * (group stepper <=1120px where the gutter TOC dies · changes nav while a
  * comparison is active). The right cluster may be legitimately empty.
  */
 export function ReadingToolbar({
-  filterSlot,
+  filter,
   rail,
   jumpToGroup,
   collapseSupporting,
@@ -99,7 +107,15 @@ export function ReadingToolbar({
       data-testid="reading-toolbar"
       ref={barRef}
     >
-      {filterSlot}
+      {filter !== undefined ? (
+        <FilterDisclosure
+          filter={filter.filter}
+          hiddenInlineThreads={filter.hiddenInlineThreads}
+          reviewers={filter.reviewers}
+          verdicts={filter.verdicts}
+          onChange={filter.onChange}
+        />
+      ) : null}
       {rail.entries.length > 0 ? (
         <RiskAttrsDisclosure jumpToGroup={jumpToGroup} rail={rail} />
       ) : null}

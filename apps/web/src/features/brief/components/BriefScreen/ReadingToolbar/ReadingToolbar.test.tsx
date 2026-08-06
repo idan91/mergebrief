@@ -5,6 +5,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { DEFAULT_CONVERSATION_FILTER } from "@web/features/conversation/utils/filter";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AttributeRail } from "../../../utils/viewModel";
 import { ReadingToolbar, type ReadingToolbarProps } from "./ReadingToolbar";
@@ -81,9 +82,22 @@ describe("ReadingToolbar height publication", () => {
 });
 
 describe("ReadingToolbar clusters", () => {
-  it("renders the filter slot content when provided", () => {
-    renderToolbar({ filterSlot: <button type="button">Filter</button> });
+  it("renders the filter disclosure when the conversation wiring provides one", () => {
+    renderToolbar({
+      filter: {
+        filter: DEFAULT_CONVERSATION_FILTER,
+        verdicts: [{ state: "APPROVED", humanCount: 2, botCount: 0 }],
+        reviewers: [{ login: "alice", isBot: false }],
+        hiddenInlineThreads: 0,
+        onChange: () => {},
+      },
+    });
     expect(screen.getByRole("button", { name: "Filter" })).toBeTruthy();
+  });
+
+  it("renders no filter surface at all without the wiring (local path)", () => {
+    renderToolbar();
+    expect(screen.queryByRole("button", { name: /Filter/ })).toBeNull();
   });
 
   it("omits the Risk attrs trigger entirely when no attribute fired", () => {

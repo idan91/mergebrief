@@ -10,14 +10,10 @@ import { useStore } from "zustand";
 
 import type { CommentAnchor } from "@web/features/review/utils/comments";
 import {
-  ConversationFilterBar,
   ConversationSection,
   type ConversationPlan,
 } from "@web/features/conversation";
-import {
-  DEFAULT_CONVERSATION_FILTER,
-  type ConversationFilter,
-} from "@web/features/conversation/utils/filter";
+import type { ConversationFilter } from "@web/features/conversation/utils/filter";
 import { SubmitModal } from "@web/features/review";
 import type { SubmitReviewAction } from "@web/features/review/utils/submit";
 import { useReviewSubmit } from "@web/features/review/hooks/useReviewSubmit";
@@ -541,11 +537,6 @@ export function BriefScreen({
                     ref={intentBarRef}
                   />
                 ) : null}
-                <AttributeJumpRail
-                  jumpToGroup={jumpToGroup}
-                  rail={attributeRail}
-                />
-
                 <GroupTocBar
                   activeGroupId={session.activeGroupId}
                   conversationGroupIds={conversationWiring.conversationGroupIds}
@@ -556,38 +547,44 @@ export function BriefScreen({
                 {/* The reading toolbar (BRIEF-134): sticky above the
                     conversation slot — every control renders above everything
                     it governs, and stays reachable while scrolling an
-                    expanded digest. The filter slot lands in PR 3. */}
+                    expanded digest. The Filter disclosure is the ONLY filter
+                    surface (the BRIEF-99 in-flow band is re-homed into its
+                    anchored panel): it still governs the diff's inline
+                    threads, and it sits above the collapsed-by-default
+                    section it filters. */}
                 <ReadingToolbar
                   activeGroupId={session.activeGroupId}
                   collapseSupporting={session.collapseSupporting}
                   comparison={comparison}
+                  filter={
+                    conversation !== undefined &&
+                    onConversationFilterChange !== undefined &&
+                    conversationWiring.conversationFilterFacets !== undefined
+                      ? {
+                          /* The RECONCILED filter (facets.applied), not the
+                             raw URL one: the trigger's receipt must never
+                             count a selection that filters nothing. */
+                          filter:
+                            conversationWiring.conversationFilterFacets.applied,
+                          hiddenInlineThreads:
+                            conversationWiring.conversationFilterFacets
+                              .hiddenInlineThreads,
+                          reviewers:
+                            conversationWiring.conversationFilterFacets
+                              .reviewers,
+                          verdicts:
+                            conversationWiring.conversationFilterFacets
+                              .verdicts,
+                          onChange: onConversationFilterChange,
+                        }
+                      : undefined
+                  }
                   groups={model.groups}
                   jumpToGroup={jumpToGroup}
                   rail={attributeRail}
                   setCollapseSupporting={session.setCollapseSupporting}
                 />
               </>
-            ) : null}
-
-            {/* Above the section, not inside it (BRIEF-99): the section is a
-                collapsed-by-default disclosure, and the filter also governs
-                the diff's inline threads — which are on screen whether or not
-                the section is open. */}
-            {conversation !== undefined &&
-            onConversationFilterChange !== undefined &&
-            conversationWiring.conversationFilterFacets !== undefined ? (
-              <ConversationFilterBar
-                filter={conversationFilter ?? DEFAULT_CONVERSATION_FILTER}
-                hiddenInlineThreads={
-                  conversationWiring.conversationFilterFacets
-                    .hiddenInlineThreads
-                }
-                reviewers={
-                  conversationWiring.conversationFilterFacets.reviewers
-                }
-                verdicts={conversationWiring.conversationFilterFacets.verdicts}
-                onChange={onConversationFilterChange}
-              />
             ) : null}
 
             {conversation !== undefined ? (

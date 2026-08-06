@@ -48,16 +48,27 @@ export interface UseConversationWiringInput {
   submittedReviewIds: number[];
 }
 
-/** What the filter bar above the section needs to draw itself. */
+/** What the toolbar's Filter disclosure needs to draw itself. */
 export interface ConversationFilterFacets {
   readonly verdicts: readonly VerdictFacet[];
   readonly reviewers: readonly ReviewerFacet[];
   readonly hiddenInlineThreads: number;
+  /**
+   * The filter AS APPLIED — reviewer selections nobody on this PR matches
+   * dropped (`reconcileReviewers`). The trigger's receipt and the panel's
+   * pressed states read THIS one: the counts describe what actually
+   * filters, so a stale shared link (`?reviewers=ghost`) cannot make the
+   * trigger claim an active filter that filters nothing. Chip clicks build
+   * the next state from it too — the first interaction writes the dropped
+   * login out of the URL, the same degrade-to-looser rule the section
+   * applies.
+   */
+  readonly applied: ConversationFilter;
 }
 
 export interface UseConversationWiringValue {
   conversationByChunk: ReadonlyMap<string, DigestRow[]> | undefined;
-  /** Facets for the filter bar; absent until the conversation resolves. */
+  /** Facets for the Filter disclosure; absent until the conversation resolves. */
   conversationFilterFacets: ConversationFilterFacets | undefined;
   conversationComposer: ThreadComposerWiring | undefined;
   /** Which groups carry conversation threads — the TocBar's markers. */
@@ -161,10 +172,11 @@ export function useConversationWiring(
     conversation?.briefGeneratedAt,
   ]);
 
-  // The bar renders ABOVE the section (and outside its disclosure), so the
-  // facets are computed HERE — this hook already holds the shared query, the
-  // reading-ordered chunks and the filter. Reconciled first, so the counts
-  // describe the same conversation the section and the diff render.
+  // The Filter disclosure renders in the toolbar ABOVE the section (and
+  // outside its collapsed-by-default body), so the facets are computed HERE
+  // — this hook already holds the shared query, the reading-ordered chunks
+  // and the filter. Reconciled first, so the counts describe the same
+  // conversation the section and the diff render.
   const conversationFilterFacets = useMemo(() => {
     if (conversationData === undefined) return undefined;
     const applied = reconcileReviewers(
@@ -179,6 +191,7 @@ export function useConversationWiring(
         applied,
         readingOrderedChunks,
       ),
+      applied,
     };
   }, [conversationData, conversationFilter, readingOrderedChunks]);
 

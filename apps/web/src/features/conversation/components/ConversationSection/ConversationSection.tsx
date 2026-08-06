@@ -102,9 +102,10 @@ export interface ConversationSectionProps {
   focusThreadId?: number | undefined;
   /**
    * Reviewer/verdict filter (BRIEF-99), carried in the URL by the route. The
-   * BAR that writes it lives ABOVE this section (a filter inside a
-   * collapsed-by-default disclosure is a control nobody finds); the section
-   * only READS it, so the digest, the strip and the diff agree.
+   * surface that writes it is the toolbar's Filter disclosure ABOVE this
+   * section (a filter inside a collapsed-by-default disclosure is a control
+   * nobody finds); the section only READS it, so the digest, the strip and
+   * the diff agree.
    *
    * Deliberately not on the plan: the plan's identity feeds the memo
    * boundaries that keep the diff's chunk cards off the render path, and a
@@ -375,16 +376,19 @@ export function ConversationSection({
               ▶
             </span>
             Conversation
-            {/* Counts describe what is BELOW them: a header reading "12
-                threads" over two rendered rows would make the filter look
-                like data loss. */}
-            {filtered !== undefined ? (
+            {/* Totals ONLY (BRIEF-134): the header describes the whole
+                conversation; filter state renders in exactly one place —
+                the toolbar's Filter trigger, whose hidden count already
+                receipts what a filter removed. */}
+            {conversation !== undefined ? (
               <span className={styles["headSummary"]}>
-                {filtered.threads.length} thread
-                {filtered.threads.length === 1 ? "" : "s"} ·{" "}
-                {filtered.threads.filter((thread) => !thread.isResolved).length}{" "}
+                {conversation.threads.length} thread
+                {conversation.threads.length === 1 ? "" : "s"} ·{" "}
+                {
+                  conversation.threads.filter((thread) => !thread.isResolved)
+                    .length
+                }{" "}
                 open
-                {isFilterActive(filter) ? " (filtered)" : ""}
               </span>
             ) : null}
           </button>

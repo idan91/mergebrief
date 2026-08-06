@@ -1,0 +1,87 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // Positioning context for the in-tree floating panel: floating-ui's
+  // absolute strategy resolves against the nearest positioned ancestor, and
+  // anchoring here keeps the panel riding the sticky bar natively on scroll.
+  .wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(7px);
+    min-block-size: functions.to-rem(24px);
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(11px);
+    border: 1px solid var(--line);
+
+    // Concentric with the toolbar: inner (sm 4) + inset (4) = outer (md 8).
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-md);
+    white-space: nowrap;
+
+    &:hover {
+      border-color: var(--line2);
+      color: var(--text);
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+
+    &[aria-expanded="true"] {
+      border-color: var(--line2);
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    // Active (a filter applied) = accent-tinted fill — the neutral --panel
+    // fill was near-invisible on the --bg bar (owner a11y finding). The
+    // luminance shift survives greyscale; the counts receipt carries the
+    // state in text as well, so the cue is never colour-alone.
+    &[data-state="active"] {
+      border-color: color-mix(in srgb, var(--color-accent) 55%, var(--line));
+      background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+      color: var(--text);
+    }
+  }
+
+  .segment {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(7px);
+  }
+
+  .sep {
+    color: var(--line2);
+  }
+
+  .count {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+  }
+
+  // Positioned by floating-ui (style={floatingStyles}), rendered in-tree:
+  // z-index clears the sticky chunk headers (z 10) from inside the bar's
+  // own stacking context. radius-md matches the trigger family.
+  // Wider than the risk panel: two labelled chip rows plus the footer.
+  .panel {
+    z-index: 60;
+    min-inline-size: functions.to-rem(320px);
+    max-inline-size: min(functions.to-rem(540px), 85vw);
+    padding: functions.to-rem(12px);
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    background: var(--panel);
+    box-shadow: var(--shadow-elevation-md);
+  }
+}
