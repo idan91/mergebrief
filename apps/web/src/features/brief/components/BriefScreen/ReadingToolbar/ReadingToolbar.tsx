@@ -17,6 +17,12 @@ export interface GroupStepTarget {
 
 export interface ReadingToolbarProps {
   /**
+   * The legality table's toolbar cell (BRIEF-134 `deriveRegionBlocks`):
+   * `full` = the Story bar; `filter-and-attrs` = the Concerns bar, which
+   * carries Filter + Risk attrs only and targets chunks instead of groups.
+   */
+  variant: "full" | "filter-and-attrs";
+  /**
    * The conversation filter's data + state (BRIEF-99, re-homed here by
    * BRIEF-134). Absent (local path, facets not yet resolved) = no filter
    * surface at all.
@@ -24,6 +30,8 @@ export interface ReadingToolbarProps {
   filter?: FilterDisclosureProps | undefined;
   rail: AttributeRail;
   jumpToGroup: (groupId: string) => void;
+  /** The Concerns variant's risk-attr target (ADR 0032 #11: chunks there). */
+  jumpToChunk: (chunkId: string) => void;
   collapseSupporting: boolean;
   setCollapseSupporting: (value: boolean) => void;
   groups: readonly GroupStepTarget[];
@@ -41,9 +49,11 @@ export interface ReadingToolbarProps {
  * comparison is active). The right cluster may be legitimately empty.
  */
 export function ReadingToolbar({
+  variant,
   filter,
   rail,
   jumpToGroup,
+  jumpToChunk,
   collapseSupporting,
   setCollapseSupporting,
   groups,
@@ -117,84 +127,96 @@ export function ReadingToolbar({
         />
       ) : null}
       {rail.entries.length > 0 ? (
-        <RiskAttrsDisclosure jumpToGroup={jumpToGroup} rail={rail} />
+        <RiskAttrsDisclosure
+          rail={rail}
+          targets={
+            variant === "filter-and-attrs"
+              ? { kind: "chunk", jump: jumpToChunk }
+              : { kind: "group", jump: jumpToGroup }
+          }
+        />
       ) : null}
-      <div className={styles["navCluster"]}>
-        {/* Owner amendment (2026-08-06): rides the right cluster beside the
-            steppers, not the left filter cluster the spec drafted. */}
-        <button
-          aria-pressed={collapseSupporting}
-          className={styles["tbtn"]}
-          type="button"
-          onClick={() => setCollapseSupporting(!collapseSupporting)}
-        >
-          {/* Compression ladder (spec'd, 1280): CSS swaps which label renders;
-              the accessible name follows the visible one. */}
-          <span className={styles["labelShort"]}>Collapse</span>
-          <span className={styles["labelLong"]}>Collapse supporting</span>
-        </button>
-        {groups.length > 0 ? (
-          <span
-            aria-label="Step between change groups"
-            className={styles["stepper"]}
-            data-stepper="group"
-            role="group"
+      {/* The Concerns bar ends here (legality table: Filter + Risk attrs
+          only) — collapse-supporting reads `role`, which ConcernView doesn't
+          carry, and both position clusters are Story wayfinding. */}
+      {variant === "filter-and-attrs" ? null : (
+        <div className={styles["navCluster"]}>
+          {/* Owner amendment (2026-08-06): rides the right cluster beside
+              the steppers, not the left filter cluster the spec drafted. */}
+          <button
+            aria-pressed={collapseSupporting}
+            className={styles["tbtn"]}
+            type="button"
+            onClick={() => setCollapseSupporting(!collapseSupporting)}
           >
-            <span className={styles["count"]}>
-              Group {activeGroupIndex === -1 ? "–" : activeGroupIndex + 1}/
-              {groups.length}
+            {/* Compression ladder (spec'd, 1280): CSS swaps which label
+                renders; the accessible name follows the visible one. */}
+            <span className={styles["labelShort"]}>Collapse</span>
+            <span className={styles["labelLong"]}>Collapse supporting</span>
+          </button>
+          {groups.length > 0 ? (
+            <span
+              aria-label="Step between change groups"
+              className={styles["stepper"]}
+              data-stepper="group"
+              role="group"
+            >
+              <span className={styles["count"]}>
+                Group {activeGroupIndex === -1 ? "–" : activeGroupIndex + 1}/
+                {groups.length}
+              </span>
+              <button
+                aria-label="Previous group"
+                className={styles["stepBtn"]}
+                type="button"
+                onClick={() => stepGroup(-1)}
+              >
+                ◂
+              </button>
+              <button
+                aria-label="Next group"
+                className={styles["stepBtn"]}
+                type="button"
+                onClick={() => stepGroup(1)}
+              >
+                ▸
+              </button>
             </span>
-            <button
-              aria-label="Previous group"
-              className={styles["stepBtn"]}
-              type="button"
-              onClick={() => stepGroup(-1)}
+          ) : null}
+          {comparison.available && comparison.runCount > 0 ? (
+            <span
+              aria-label={
+                comparison.compare === "last-review"
+                  ? "Jump between changes since your last review"
+                  : "Jump between changes in this revision"
+              }
+              className={styles["stepper"]}
+              role="group"
             >
-              ◂
-            </button>
-            <button
-              aria-label="Next group"
-              className={styles["stepBtn"]}
-              type="button"
-              onClick={() => stepGroup(1)}
-            >
-              ▸
-            </button>
-          </span>
-        ) : null}
-        {comparison.available && comparison.runCount > 0 ? (
-          <span
-            aria-label={
-              comparison.compare === "last-review"
-                ? "Jump between changes since your last review"
-                : "Jump between changes in this revision"
-            }
-            className={styles["stepper"]}
-            role="group"
-          >
-            <span className={styles["count"]}>
-              {comparison.runCount} change
-              {comparison.runCount === 1 ? "" : "s"}
+              <span className={styles["count"]}>
+                {comparison.runCount} change
+                {comparison.runCount === 1 ? "" : "s"}
+              </span>
+              <button
+                aria-label="Previous change"
+                className={styles["stepBtn"]}
+                type="button"
+                onClick={jumpPrev}
+              >
+                ◂
+              </button>
+              <button
+                aria-label="Next change"
+                className={styles["stepBtn"]}
+                type="button"
+                onClick={jumpNext}
+              >
+                ▸
+              </button>
             </span>
-            <button
-              aria-label="Previous change"
-              className={styles["stepBtn"]}
-              type="button"
-              onClick={jumpPrev}
-            >
-              ◂
-            </button>
-            <button
-              aria-label="Next change"
-              className={styles["stepBtn"]}
-              type="button"
-              onClick={jumpNext}
-            >
-              ▸
-            </button>
-          </span>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

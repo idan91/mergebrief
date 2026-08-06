@@ -411,6 +411,11 @@ export function useReadingSession(
     const entering = !focusModeRef.current;
     setFocusMode(entering);
     if (!entering) return;
+    // Concerns+focus does not exist (BRIEF-134 legality table: focus implies
+    // Story). This snap is the ENTRY half of that contract; the other half is
+    // the header lens control greying while focus is on (`modeLegality`'s
+    // CONCERNS_FOCUS_LENS_REASON), so the lens can never leave Story
+    // mid-focus and this line can never silently fight a user choice.
     setViewMode("story");
     // align="top" required: the focus banner only mounts once `focusMode`
     // flips true, so the scroll must pre-reserve its height via

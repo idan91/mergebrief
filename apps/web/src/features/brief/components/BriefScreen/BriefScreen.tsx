@@ -59,6 +59,7 @@ import {
 import { useConversationWiring } from "./useConversationWiring";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
 import { POST_COMMENT_COPY, useOwnDraftFlow } from "./useOwnDraftFlow";
+import { deriveRegionBlocks } from "./modeLegality";
 import { useReadingSession } from "./useReadingSession";
 import styles from "./BriefScreen.module.scss";
 
@@ -148,6 +149,14 @@ export interface BriefScreenProps {
    * stable; absent where no navigation is wired (the local demo path).
    */
   openDeltaLens?: (() => void) | undefined;
+  /**
+   * Navigates the URL Scope axis back to `full` (BRIEF-134 legality): the
+   * IntentBar renders in Changes scope (its table row) but its jump targets
+   * only exist in the full story flow, so its jumps route through this
+   * first. Route-owned (the screen never touches the router — BRIEF-102
+   * rule); absent where no navigation is wired.
+   */
+  exitChangesScope?: (() => void) | undefined;
 }
 
 export function BriefScreen({
@@ -165,6 +174,7 @@ export function BriefScreen({
   onConversationFilterChange,
   headerControls,
   openDeltaLens,
+  exitChangesScope,
   ownDraft,
   readOnly,
   staleHead,
@@ -245,6 +255,40 @@ export function BriefScreen({
     toggleFocusMode,
     viewMode,
   } = session;
+
+  // Region block presence derives from the spec's legality table (BRIEF-134):
+  // ONE derivation over the three axes — no per-block ad-hoc gating below.
+  const blocks = deriveRegionBlocks({
+    lens: viewMode,
+    scope: compareState.view,
+    focus: focusMode,
+  });
+
+  // The IntentBar renders in Changes scope (its legality row) but its jump
+  // targets (group/chunk anchors) only exist in the full story flow — so a
+  // jump from Changes first navigates the Scope axis to `full`, then jumps
+  // once the flipped scope actually renders (the effect below fires when
+  // `compareState.view` leaves "changes"; a timeout would race the router).
+  const [pendingIntentJump, setPendingIntentJump] = useState<string | null>(
+    null,
+  );
+  const inChangesScope = compareState.view === "changes";
+  useEffect(() => {
+    if (pendingIntentJump === null || inChangesScope) return;
+    jumpToGroup(pendingIntentJump);
+    setPendingIntentJump(null);
+  }, [inChangesScope, jumpToGroup, pendingIntentJump]);
+  const jumpToGroupFromIntentBar = (groupId: string) => {
+    if (!inChangesScope) {
+      jumpToGroup(groupId);
+      return;
+    }
+    // No navigation wired (no-router harness): nothing can leave Changes,
+    // so the jump stays a no-op rather than queueing forever.
+    if (exitChangesScope === undefined) return;
+    setPendingIntentJump(groupId);
+    exitChangesScope();
+  };
 
   // Transient UI state stays local and colocated.
   const [submitOpen, setSubmitOpen] = useState(false);
@@ -423,8 +467,12 @@ export function BriefScreen({
     jumpToChunk: session.jumpToChunkFromShortcut,
     toggleFocusMode,
     toggleHelp: session.toggleShortcuts,
+    // Gated on the legality cell, not just plan presence: with the section
+    // unmounted (focus mode, Changes scope) the target is gone — an
+    // undefined action lets the shortcut hook's don't-swallow branch pass
+    // the key through instead of eating it over a sticky `setOpen(true)`.
     jumpToConversation:
-      conversation !== undefined
+      conversation !== undefined && blocks.conversation
         ? conversationWiring.jumpToConversation
         : undefined,
   });
@@ -470,6 +518,8 @@ export function BriefScreen({
         progress={session.progress}
         viewMode={viewMode}
         setViewMode={session.setViewMode}
+        lensControl={blocks.lensControl}
+        announce={announce}
         openSubmit={openSubmit}
         clearDrafts={clearDrafts}
         availability={availability}
@@ -509,7 +559,89 @@ export function BriefScreen({
         tabIndex={-1}
         data-zen={focusMode ? "on" : undefined}
       >
-        {focusMode ? null : <SummarySection brief={brief} />}
+        {/* Region blocks render strictly off the legality derivation above —
+            each block reads its own cell, nothing re-tests the axes. */}
+        {blocks.summary ? (
+          <>
+            <SummarySection brief={brief} />
+            {/* Directly beneath the capped summary (BRIEF-134): the bar was
+                never demoted, only buried. One table row with the summary. */}
+            {brief.intentCheck ? (
+              <IntentBar
+                intentCheck={brief.intentCheck}
+                jumpToGroup={jumpToGroupFromIntentBar}
+                ref={intentBarRef}
+              />
+            ) : null}
+          </>
+        ) : null}
+
+        {blocks.groupToc ? (
+          <GroupTocBar
+            activeGroupId={session.activeGroupId}
+            conversationGroupIds={conversationWiring.conversationGroupIds}
+            groups={model.groups}
+            jumpToGroup={jumpToGroup}
+          />
+        ) : null}
+
+        {/* The reading toolbar (BRIEF-134): sticky above the conversation
+            slot — every control renders above everything it governs, and
+            stays reachable while scrolling an expanded digest. The Filter
+            disclosure is the ONLY filter surface (the BRIEF-99 in-flow band
+            is re-homed into its anchored panel): it still governs the diff's
+            inline threads, and it sits above the collapsed-by-default
+            section it filters. Concerns renders the trimmed variant
+            (Filter + Risk attrs, chunk targets). */}
+        {blocks.toolbar !== "none" ? (
+          <ReadingToolbar
+            variant={blocks.toolbar}
+            activeGroupId={session.activeGroupId}
+            collapseSupporting={session.collapseSupporting}
+            comparison={comparison}
+            filter={
+              conversation !== undefined &&
+              onConversationFilterChange !== undefined &&
+              conversationWiring.conversationFilterFacets !== undefined
+                ? {
+                    /* The RECONCILED filter (facets.applied), not the
+                       raw URL one: the trigger's receipt must never
+                       count a selection that filters nothing. */
+                    filter: conversationWiring.conversationFilterFacets.applied,
+                    hiddenInlineThreads:
+                      conversationWiring.conversationFilterFacets
+                        .hiddenInlineThreads,
+                    reviewers:
+                      conversationWiring.conversationFilterFacets.reviewers,
+                    verdicts:
+                      conversationWiring.conversationFilterFacets.verdicts,
+                    onChange: onConversationFilterChange,
+                  }
+                : undefined
+            }
+            groups={model.groups}
+            jumpToChunk={jumpToChunk}
+            jumpToGroup={jumpToGroup}
+            rail={attributeRail}
+            setCollapseSupporting={session.setCollapseSupporting}
+          />
+        ) : null}
+
+        {blocks.conversation && conversation !== undefined ? (
+          <ConversationSection
+            briefId={briefId}
+            chunks={readingOrderedChunks}
+            filter={conversationFilter}
+            focusThreadId={conversationFocusThreadId}
+            jumpToChunk={conversationWiring.jumpToChunkFromConversation}
+            localComments={reviewComments}
+            markCommentsSubmitted={(ids) => actions.markCommentsSubmitted(ids)}
+            open={conversationWiring.open}
+            onToggle={conversationWiring.toggleOpen}
+            plan={conversation}
+            submittedReviewIds={submittedReviewIds}
+          />
+        ) : null}
 
         {compareState.view === "changes" ? (
           <ChangesOnlyView
@@ -524,116 +656,29 @@ export function BriefScreen({
             delta={delta}
             rawSpanDiff={activeRawSpanDiff}
           />
+        ) : viewMode === "story" ? (
+          <StoryView
+            brief={brief}
+            model={model}
+            comparison={comparison}
+            activeChunkId={activeChunkId}
+            collapseSupporting={session.collapseSupporting}
+            focusMode={focusMode}
+            openDeltaLens={openDeltaLens}
+            sinceMarkers={sinceMarkers}
+            openChunks={session.openChunks}
+            addressedReviewComments={brief.reviewComments}
+            conversationByChunk={conversationWiring.conversationByChunk}
+            conversationComposer={conversationWiring.conversationComposer}
+            jumpToChunk={jumpToChunk}
+            markReviewed={session.markReviewed}
+            toggleChunk={session.toggleChunk}
+            {...(compareState.view === "full" && chunkIds.length > 0
+              ? { startReadThrough: session.startReadThrough }
+              : {})}
+          />
         ) : (
-          <>
-            {viewMode === "story" && !focusMode ? (
-              <>
-                {/* Directly beneath the capped summary (BRIEF-134): the bar
-                    was never demoted, only buried. */}
-                {brief.intentCheck ? (
-                  <IntentBar
-                    intentCheck={brief.intentCheck}
-                    jumpToGroup={jumpToGroup}
-                    ref={intentBarRef}
-                  />
-                ) : null}
-                <GroupTocBar
-                  activeGroupId={session.activeGroupId}
-                  conversationGroupIds={conversationWiring.conversationGroupIds}
-                  groups={model.groups}
-                  jumpToGroup={jumpToGroup}
-                />
-
-                {/* The reading toolbar (BRIEF-134): sticky above the
-                    conversation slot — every control renders above everything
-                    it governs, and stays reachable while scrolling an
-                    expanded digest. The Filter disclosure is the ONLY filter
-                    surface (the BRIEF-99 in-flow band is re-homed into its
-                    anchored panel): it still governs the diff's inline
-                    threads, and it sits above the collapsed-by-default
-                    section it filters. */}
-                <ReadingToolbar
-                  activeGroupId={session.activeGroupId}
-                  collapseSupporting={session.collapseSupporting}
-                  comparison={comparison}
-                  filter={
-                    conversation !== undefined &&
-                    onConversationFilterChange !== undefined &&
-                    conversationWiring.conversationFilterFacets !== undefined
-                      ? {
-                          /* The RECONCILED filter (facets.applied), not the
-                             raw URL one: the trigger's receipt must never
-                             count a selection that filters nothing. */
-                          filter:
-                            conversationWiring.conversationFilterFacets.applied,
-                          hiddenInlineThreads:
-                            conversationWiring.conversationFilterFacets
-                              .hiddenInlineThreads,
-                          reviewers:
-                            conversationWiring.conversationFilterFacets
-                              .reviewers,
-                          verdicts:
-                            conversationWiring.conversationFilterFacets
-                              .verdicts,
-                          onChange: onConversationFilterChange,
-                        }
-                      : undefined
-                  }
-                  groups={model.groups}
-                  jumpToGroup={jumpToGroup}
-                  rail={attributeRail}
-                  setCollapseSupporting={session.setCollapseSupporting}
-                />
-              </>
-            ) : null}
-
-            {conversation !== undefined ? (
-              <ConversationSection
-                briefId={briefId}
-                chunks={readingOrderedChunks}
-                filter={conversationFilter}
-                focusThreadId={conversationFocusThreadId}
-                jumpToChunk={conversationWiring.jumpToChunkFromConversation}
-                localComments={reviewComments}
-                markCommentsSubmitted={(ids) =>
-                  actions.markCommentsSubmitted(ids)
-                }
-                open={conversationWiring.open}
-                onToggle={conversationWiring.toggleOpen}
-                plan={conversation}
-                submittedReviewIds={submittedReviewIds}
-              />
-            ) : null}
-
-            {viewMode === "story" ? (
-              <StoryView
-                brief={brief}
-                model={model}
-                comparison={comparison}
-                activeChunkId={activeChunkId}
-                collapseSupporting={session.collapseSupporting}
-                focusMode={focusMode}
-                openDeltaLens={openDeltaLens}
-                sinceMarkers={sinceMarkers}
-                openChunks={session.openChunks}
-                addressedReviewComments={brief.reviewComments}
-                conversationByChunk={conversationWiring.conversationByChunk}
-                conversationComposer={conversationWiring.conversationComposer}
-                jumpToChunk={jumpToChunk}
-                markReviewed={session.markReviewed}
-                toggleChunk={session.toggleChunk}
-                {...(compareState.view === "full" && chunkIds.length > 0
-                  ? { startReadThrough: session.startReadThrough }
-                  : {})}
-              />
-            ) : (
-              <ConcernView
-                brief={brief}
-                model={model}
-                jumpToChunk={jumpToChunk}
-              />
-            )}
-          </>
+          <ConcernView brief={brief} model={model} jumpToChunk={jumpToChunk} />
         )}
       </main>
       {/* Submit-review machinery + receipt: HIDDEN (not broken) in the

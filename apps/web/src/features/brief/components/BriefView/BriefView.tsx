@@ -62,6 +62,12 @@ export interface BriefViewProps {
    */
   openDeltaLens?: (() => void) | undefined;
   /**
+   * Navigates the URL Scope axis back to `full` (BRIEF-134): the IntentBar's
+   * jumps route through this from Changes scope. Route-owned; absent where
+   * no navigation is wired.
+   */
+  exitChangesScope?: (() => void) | undefined;
+  /**
    * The `?thread=` landing target (BRIEF-24 reads it): opens the conversation
    * section and lands on that thread. Absent → no auto-open.
    */
@@ -102,6 +108,7 @@ export function BriefView({
   onConversationFilterChange,
   headerControls,
   openDeltaLens,
+  exitChangesScope,
   ownDraft,
   readOnly,
   repoConfig,
@@ -129,6 +136,7 @@ export function BriefView({
         headerControls={headerControls}
         model={model}
         openDeltaLens={openDeltaLens}
+        exitChangesScope={exitChangesScope}
         ownDraft={ownDraft}
         readOnly={readOnly}
         searchParams={searchParams}

@@ -18,6 +18,7 @@ import type { BriefTimeline } from "../../../utils/timeline";
 import type { RepoConfigContext } from "../../../utils/repoConfig";
 import type { Brief, LivePrState } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
+import type { LensControlState, ViewMode } from "../modeLegality";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { BriefDetailsPanel } from "./BriefDetailsPanel/BriefDetailsPanel";
@@ -26,7 +27,8 @@ import { StateBadge } from "./StateBadge/StateBadge";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
 
-export type ViewMode = "story" | "concerns";
+// Historical import site: the Lens vocabulary now lives with the mode model.
+export type { ViewMode } from "../modeLegality";
 export type LayoutMode = "stacked" | "split";
 
 /**
@@ -68,6 +70,15 @@ export interface HeaderProps {
   progress: number;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+  /**
+   * The legality table's lens-control cell (BRIEF-134 `deriveRegionBlocks`):
+   * `disabled` greys the Story/Concerns control — aria-disabled + no-op,
+   * never hard `disabled` (the BRIEF-99 focus rule) — and carries the honest
+   * reason (the disabled-Compare-options pattern), never a silent override.
+   */
+  lensControl: LensControlState;
+  /** Voices the disabled lens reason on an attempted switch (BRIEF-24 pattern). */
+  announce: (message: string) => void;
   openSubmit: () => void;
   clearDrafts: () => void;
   /** Compare availability at the selected timeline point (ADR 0024). */
@@ -102,6 +113,8 @@ export function Header({
   progress,
   viewMode,
   setViewMode,
+  lensControl,
+  announce,
   openSubmit,
   clearDrafts,
   availability,
@@ -164,6 +177,19 @@ export function Header({
     "--progress-scale": `${progress / 100}`,
   };
   const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
+
+  // The lens legality cell (BRIEF-134): a disabled control keeps its radios
+  // focusable and operable — the change handler no-ops and announces the
+  // reason instead (controlled inputs snap back on the same render).
+  const lensDisabled = lensControl.state === "disabled";
+  const lensReasonId = useId();
+  const selectLens = (mode: ViewMode) => {
+    if (lensControl.state === "disabled") {
+      announce(lensControl.reason);
+      return;
+    }
+    setViewMode(mode);
+  };
 
   return (
     <header className={styles["header"]} ref={headerRef}>
@@ -311,30 +337,43 @@ export function Header({
             )}
           </div>
         </div>
-        <fieldset className={styles["viewbar"]}>
+        <fieldset
+          className={styles["viewbar"]}
+          data-state={lensDisabled ? "disabled" : undefined}
+          title={lensDisabled ? lensControl.reason : undefined}
+        >
           <ScreenReaderOnly as="legend">Review view</ScreenReaderOnly>
           <label className={styles["viewOption"]}>
             <input
+              aria-describedby={lensDisabled ? lensReasonId : undefined}
+              aria-disabled={lensDisabled || undefined}
               checked={viewMode === "story"}
               className={styles["viewControl"]}
               name="review-view"
               type="radio"
               value="story"
-              onChange={() => setViewMode("story")}
+              onChange={() => selectLens("story")}
             />
             <span className={styles["viewLabel"]}>Story</span>
           </label>
           <label className={styles["viewOption"]}>
             <input
+              aria-describedby={lensDisabled ? lensReasonId : undefined}
+              aria-disabled={lensDisabled || undefined}
               checked={viewMode === "concerns"}
               className={styles["viewControl"]}
               name="review-view"
               type="radio"
               value="concerns"
-              onChange={() => setViewMode("concerns")}
+              onChange={() => selectLens("concerns")}
             />
             <span className={styles["viewLabel"]}>Concerns</span>
           </label>
+          {lensDisabled ? (
+            <span className="sr-only" id={lensReasonId}>
+              {lensControl.reason}
+            </span>
+          ) : null}
         </fieldset>
       </div>
       {/* Decorative twin of the stats' numbers — hidden from the tree. */}

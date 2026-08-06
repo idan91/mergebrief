@@ -230,6 +230,26 @@
     @include mixins.focus-ring;
   }
 
+  // Disabled lens (BRIEF-134 legality table): greyed like the disabled
+  // Compare options — muted throughout, checked pill drained, no hover
+  // invitation. The radios stay focusable (aria-disabled + no-op).
+  .viewbar[data-state="disabled"] {
+    .viewLabel,
+    .viewControl:checked + .viewLabel {
+      background: transparent;
+      color: var(--faint);
+    }
+
+    .viewControl,
+    .viewOption {
+      cursor: not-allowed;
+    }
+
+    .viewControl:not(:checked):hover + .viewLabel {
+      color: var(--faint);
+    }
+  }
+
   // Overflow for rare actions (BRIEF-28).
   .menuWrap {
     position: relative;

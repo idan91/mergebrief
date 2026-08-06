@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
@@ -68,11 +69,18 @@ function BriefRoute() {
   const { briefId } = Route.useParams();
   const searchParams = Route.useSearch();
   const artifacts = useSuspenseQuery(localBriefsQueryOptions()).data;
+  const navigate = Route.useNavigate();
+  // Scope-axis exit for the IntentBar's jumps (BRIEF-134): route-owned —
+  // the brief feature never touches the router (BRIEF-102 rule).
+  const exitChangesScope = useCallback(() => {
+    void navigate({ search: (prev) => ({ ...prev, view: "full" as const }) });
+  }, [navigate]);
   return (
     <BriefPage
       artifacts={artifacts}
       briefId={briefId}
       searchParams={searchParams}
+      exitChangesScope={exitChangesScope}
       key={briefId}
     />
   );

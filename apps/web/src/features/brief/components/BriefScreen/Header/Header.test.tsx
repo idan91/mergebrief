@@ -69,6 +69,8 @@ function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
     progress: 50,
     viewMode: "story",
     setViewMode: vi.fn(),
+    lensControl: { state: "active" },
+    announce: vi.fn(),
     openSubmit: vi.fn(),
     clearDrafts: vi.fn(),
     availability: { previousBrief: false, lastReview: false },
@@ -96,6 +98,8 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
     progress: 50,
     viewMode: "story",
     setViewMode: vi.fn(),
+    lensControl: { state: "active" },
+    announce: vi.fn(),
     openSubmit,
     clearDrafts,
     availability: { previousBrief: false, lastReview: false },
@@ -748,5 +752,63 @@ describe("repo-config chip — applied-with-warning flips to warning state", () 
         .querySelector("[data-repo-config-chip]")
         ?.getAttribute("data-state"),
     ).toBe("warning");
+  });
+});
+
+describe("Header lens control legality (BRIEF-134 PR 4)", () => {
+  it("active lens control switches lenses and carries no disabled semantics", () => {
+    const setViewMode = vi.fn();
+    renderHeader({ setViewMode, lensControl: { state: "active" } });
+    const concerns = screen.getByRole("radio", { name: "Concerns" });
+    expect(concerns.getAttribute("aria-disabled")).toBeNull();
+    fireEvent.click(concerns);
+    expect(setViewMode).toHaveBeenCalledWith("concerns");
+  });
+
+  it("disabled lens greys the control, keeps it focusable, and no-ops with the announced reason", () => {
+    // The disabled-Compare pattern + the BRIEF-99 focus rule: aria-disabled
+    // and a no-op (never hard disabled — that would dump keyboard focus),
+    // with the honest reason announced on the attempted switch.
+    const setViewMode = vi.fn();
+    const announce = vi.fn();
+    renderHeader({
+      setViewMode,
+      announce,
+      lensControl: {
+        state: "disabled",
+        reason: "Lens applies to the full brief",
+      },
+    });
+    const story = screen.getByRole("radio", { name: "Story" });
+    const concerns = screen.getByRole("radio", { name: "Concerns" });
+    expect(story.getAttribute("aria-disabled")).toBe("true");
+    expect(concerns.getAttribute("aria-disabled")).toBe("true");
+    expect((concerns as HTMLInputElement).disabled).toBe(false);
+    fireEvent.click(concerns);
+    expect(setViewMode).not.toHaveBeenCalled();
+    expect(announce).toHaveBeenCalledWith("Lens applies to the full brief");
+  });
+
+  it("exposes the reason to screen readers and styles the greyed state", () => {
+    renderHeader({
+      lensControl: {
+        state: "disabled",
+        reason: "Lens applies to the full brief",
+      },
+    });
+    const fieldset = screen
+      .getByRole("radio", { name: "Story" })
+      .closest("fieldset");
+    expect(fieldset?.getAttribute("data-state")).toBe("disabled");
+    expect(fieldset?.getAttribute("title")).toBe(
+      "Lens applies to the full brief",
+    );
+    const describedBy = screen
+      .getByRole("radio", { name: "Concerns" })
+      .getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    expect(document.getElementById(describedBy ?? "")?.textContent).toBe(
+      "Lens applies to the full brief",
+    );
   });
 });

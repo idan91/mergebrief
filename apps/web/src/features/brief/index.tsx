@@ -22,6 +22,8 @@ export interface BriefPageProps {
   /** Raw View/Compare URL params (ADR 0024 plan step 6); undefined keys mean
    * "nothing chosen yet", resolved against comparison availability in BriefScreen's comparison overlay hook. */
   searchParams: BriefSearchParams;
+  /** Navigates the Scope axis to `full` (BRIEF-134); route-owned. */
+  exitChangesScope?: (() => void) | undefined;
 }
 
 /** Per-brief page over the LOCAL file-backed store: fetch, then render. */
@@ -29,6 +31,7 @@ export function BriefPage({
   artifacts,
   briefId,
   searchParams,
+  exitChangesScope,
 }: BriefPageProps) {
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
   return (
@@ -37,6 +40,7 @@ export function BriefPage({
       brief={brief}
       briefId={briefId}
       searchParams={searchParams}
+      exitChangesScope={exitChangesScope}
     />
   );
 }

@@ -13,6 +13,7 @@ import type {
 import {
   resolveBriefSearch,
   withCompare,
+  withView,
 } from "../../../../brief/comparison/compareState";
 import type { ThreadRevisionJump } from "@web/features/conversation";
 import type { Span } from "../../../utils/briefRouteState";
@@ -129,6 +130,33 @@ export function PrBriefContent({
     searchCompare,
     searchView,
   ]);
+  // Scope-axis exit for the IntentBar's jumps (BRIEF-134): the same
+  // normalized search write the header View control makes, pinned to `full`.
+  const exitChangesScope = useCallback(() => {
+    const flags = {
+      previousBrief: previousBriefAvailable,
+      lastReview: lastReviewAvailable,
+    };
+    onNavigateSearch(
+      withView(
+        resolveBriefSearch(
+          {
+            ...(searchView !== undefined ? { view: searchView } : {}),
+            ...(searchCompare !== undefined ? { compare: searchCompare } : {}),
+          },
+          flags,
+        ),
+        "full",
+        flags,
+      ),
+    );
+  }, [
+    lastReviewAvailable,
+    onNavigateSearch,
+    previousBriefAvailable,
+    searchCompare,
+    searchView,
+  ]);
   // The unified control surface (BRIEF-24 UX pass): revision navigator +
   // View/Compare lenses render in the STICKY header's control slot — always
   // discoverable, never scrolled out of reach by the selection focus effect.
@@ -175,6 +203,7 @@ export function PrBriefContent({
         headerControls={headerControls}
         key={briefId}
         openDeltaLens={openDeltaLens}
+        exitChangesScope={exitChangesScope}
         ownDraft={ownDraft}
         readOnly={readOnly}
         searchParams={searchParams}

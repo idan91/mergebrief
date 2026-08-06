@@ -47,8 +47,10 @@ function comparisonState(runCount: number): ComparisonOverlayState {
 
 function renderToolbar(overrides: Partial<ReadingToolbarProps> = {}) {
   const props: ReadingToolbarProps = {
+    variant: "full",
     rail: RAIL,
     jumpToGroup: () => {},
+    jumpToChunk: () => {},
     collapseSupporting: false,
     setCollapseSupporting: () => {},
     groups: [{ id: "g1" }, { id: "g2" }, { id: "g3" }],
@@ -240,6 +242,48 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
     fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
     fireEvent.pointerDown(document.body);
     expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
+  });
+});
+
+describe("ReadingToolbar Concerns variant (mode legality, BRIEF-134 PR 4)", () => {
+  it("renders Filter + Risk attrs only — no collapse toggle, no nav cluster", () => {
+    renderToolbar({
+      variant: "filter-and-attrs",
+      filter: {
+        filter: DEFAULT_CONVERSATION_FILTER,
+        verdicts: [{ state: "APPROVED", humanCount: 2, botCount: 0 }],
+        reviewers: [{ login: "alice", isBot: false }],
+        hiddenInlineThreads: 0,
+        onChange: () => {},
+      },
+      comparison: comparisonState(3),
+      activeGroupId: "g2",
+    });
+    expect(screen.getByRole("button", { name: "Filter" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Risk attrs/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Collapse/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next group" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Next change" })).toBeNull();
+  });
+
+  it("risk-attr chips cycle through carrying CHUNKS, story order", () => {
+    // ADR 0032 #11: attribute-keyed targets follow the lens — groups in
+    // Story, chunks in Concerns.
+    const jumpChunk = vi.fn();
+    const jumpGroup = vi.fn();
+    renderToolbar({
+      variant: "filter-and-attrs",
+      jumpToChunk: jumpChunk,
+      jumpToGroup: jumpGroup,
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
+    const billing = screen.getByRole("button", { name: /touches-billing/ });
+    expect(billing.textContent).toContain("carrying chunk 1 of 2");
+    fireEvent.click(billing);
+    fireEvent.click(billing);
+    fireEvent.click(billing);
+    expect(jumpChunk.mock.calls.map(([id]) => id)).toEqual(["c1", "c3", "c1"]);
+    expect(jumpGroup).not.toHaveBeenCalled();
   });
 });
 

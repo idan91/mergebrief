@@ -16,19 +16,29 @@ import { RiskBadge } from "../../RiskBadge/RiskBadge";
 import type { AttributeRail } from "../../../../utils/viewModel";
 import styles from "./RiskAttrsDisclosure.module.scss";
 
+/**
+ * The lens-dependent jump target (ADR 0032 #11): attribute chips carry both
+ * id sets; the LENS picks which one a click walks — groups in Story, chunks
+ * in Concerns.
+ */
+export interface RiskAttrsTargets {
+  kind: "group" | "chunk";
+  jump: (id: string) => void;
+}
+
 export interface RiskAttrsDisclosureProps {
   rail: AttributeRail;
-  jumpToGroup: (groupId: string) => void;
+  targets: RiskAttrsTargets;
 }
 
 /**
  * The toolbar's Risk-attrs disclosure (BRIEF-134, replaces the in-flow
  * AttributeJumpRail): trigger `Risk attrs · N` opening an anchored panel of
  * attribute chips (ADR 0032 #11 — attribute-keyed, never group-ranked).
- * Clicking a chip CYCLES through its carrying groups in story order. A floor
+ * Clicking a chip CYCLES through its carrying targets in story order —
+ * groups under the Story lens, chunks under Concerns (`targets`). A floor
  * firing puts an emphasis dot on the trigger — it NEVER auto-opens the
- * panel. Chunk targets (Concerns lens) ride on the rail entries but are not
- * wired here yet (PR 4).
+ * panel.
  *
  * Positioned by floating-ui but rendered IN-TREE, not portaled: anchored to
  * a sticky bar, a body portal repositions via JS a frame behind every
@@ -43,7 +53,7 @@ export interface RiskAttrsDisclosureProps {
  */
 export function RiskAttrsDisclosure({
   rail,
-  jumpToGroup,
+  targets,
 }: RiskAttrsDisclosureProps) {
   const [open, setOpen] = useState(false);
   const [cycle, setCycle] = useState<ReadonlyMap<string, number>>(new Map());
@@ -117,8 +127,10 @@ export function RiskAttrsDisclosure({
           >
             <div className={styles["chips"]} data-attribute-jump-rail="">
               {rail.entries.map((entry) => {
+                const ids =
+                  targets.kind === "chunk" ? entry.chunkIds : entry.groupIds;
                 const position = cycle.get(entry.attr) ?? 0;
-                const target = entry.groupIds[position % entry.groupIds.length];
+                const target = ids[position % ids.length];
                 return (
                   <button
                     className={styles["chipButton"]}
@@ -127,7 +139,7 @@ export function RiskAttrsDisclosure({
                     type="button"
                     onClick={() => {
                       if (target === undefined) return;
-                      jumpToGroup(target);
+                      targets.jump(target);
                       setCycle((previous) => {
                         const next = new Map(previous);
                         next.set(entry.attr, position + 1);
@@ -142,9 +154,9 @@ export function RiskAttrsDisclosure({
                           : undefined
                       }
                     >
-                      {entry.attr} ×{entry.groupIds.length}
+                      {entry.attr} ×{ids.length}
                       <ScreenReaderOnly>
-                        {` — jump to carrying group ${(position % entry.groupIds.length) + 1} of ${entry.groupIds.length}, story order`}
+                        {` — jump to carrying ${targets.kind} ${(position % ids.length) + 1} of ${ids.length}, story order`}
                       </ScreenReaderOnly>
                     </RiskBadge>
                   </button>
