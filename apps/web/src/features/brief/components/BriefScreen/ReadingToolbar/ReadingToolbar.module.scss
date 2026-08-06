@@ -1,0 +1,142 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // Sticky below the header (FocusBanner pattern); the component publishes
+  // its measured height as --toolbar-h for sticky chunk headers.
+  // flex-wrap: nowrap enforces the fixed height; NO overflow: hidden — a
+  // fixed-height box with overflow hidden clips its own anchored panels
+  // (third instance of this bug family; see BRIEF-103's focus-menu clip).
+  .toolbar {
+    position: sticky;
+    inset-block-start: var(--top-bar-h);
+
+    // Clears the sticky chunk headers (z-index 10) so the bar and its
+    // anchored panels ride above them while pinned.
+    z-index: 40;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: functions.to-rem(8px);
+    margin-block-end: functions.to-rem(14px);
+
+    // Concentric corners with a UNIFORM inset: inner radius (sm 4) +
+    // inset (8) = outer radius (lg 12). The earlier 12px-inline/4px-block
+    // asymmetry made the frame read cramped at the edges (owner finding,
+    // both rounds 2026-08-06).
+    padding: functions.to-rem(8px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+  }
+
+  .tbtn {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(7px);
+    min-block-size: functions.to-rem(24px);
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(11px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-md);
+    white-space: nowrap;
+
+    &:hover {
+      border-color: var(--line2);
+      color: var(--text);
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+
+    // Pressed = accent-tinted fill: the old --panel fill on the --bg bar was
+    // near-invisible (owner a11y finding). The luminance shift survives
+    // greyscale, so the cue is not colour-alone; aria-pressed carries the
+    // semantic state.
+    &[aria-pressed="true"] {
+      border-color: color-mix(in srgb, var(--color-accent) 55%, var(--line));
+      background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+      color: var(--text);
+    }
+  }
+
+  // Label compression ladder (spec'd at 1280): long label by default, short
+  // below. display toggling also swaps the accessible name with it.
+  .labelShort {
+    display: none;
+  }
+
+  @media (width <= 1280px) {
+    .labelShort {
+      display: inline;
+    }
+
+    .labelLong {
+      display: none;
+    }
+  }
+
+  // Right cluster (WHERE YOU ARE) — split from the left by auto-margin; may
+  // be legitimately empty (>=1120 with Compare off).
+  .navCluster {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: functions.to-rem(10px);
+    margin-inline-start: auto;
+  }
+
+  .stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(4px);
+    white-space: nowrap;
+  }
+
+  // The group stepper exists only below 1120px, where the gutter TOC dies
+  // (GroupTocBar.module.scss hides at the same breakpoint).
+  .stepper[data-stepper="group"] {
+    display: none;
+
+    @media (width <= 1120px) {
+      display: inline-flex;
+    }
+  }
+
+  .count {
+    margin-inline-end: functions.to-rem(4px);
+    color: var(--dim);
+    font-size: var(--font-size-md);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stepBtn {
+    display: grid;
+    place-items: center;
+    inline-size: functions.to-rem(24px);
+    block-size: functions.to-rem(24px);
+    padding: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+    font-size: var(--font-size-sm);
+
+    &:hover {
+      border-color: var(--line2);
+      color: var(--text);
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+  }
+}

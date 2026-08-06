@@ -400,6 +400,9 @@ export interface AttributeRailEntry {
   floor: boolean;
   /** Groups with at least one LOUD firing, in story (display) order. */
   groupIds: string[];
+  /** Chunks with a LOUD firing, story order — the Concerns-lens targets
+      (BRIEF-134: Story cycles groups, Concerns cycles chunks). */
+  chunkIds: string[];
 }
 
 export interface AttributeRail {
@@ -416,6 +419,7 @@ export interface AttributeRail {
  */
 export function buildAttributeRail(model: BriefViewModel): AttributeRail {
   const groupsByAttr = new Map<RiskToken, string[]>();
+  const chunksByAttr = new Map<RiskToken, string[]>();
   const sourceByAttr = new Map<RiskToken, AttributeSource>();
   for (const group of model.groups) {
     for (const chunk of group.chunks) {
@@ -425,6 +429,9 @@ export function buildAttributeRail(model: BriefViewModel): AttributeRail {
         const groupIds = groupsByAttr.get(attr) ?? [];
         if (!groupIds.includes(group.id)) groupIds.push(group.id);
         groupsByAttr.set(attr, groupIds);
+        const chunkIds = chunksByAttr.get(attr) ?? [];
+        if (!chunkIds.includes(chunk.id)) chunkIds.push(chunk.id);
+        chunksByAttr.set(attr, chunkIds);
         if (!sourceByAttr.has(attr)) {
           sourceByAttr.set(attr, meta?.source ?? "built-in");
         }
@@ -437,6 +444,7 @@ export function buildAttributeRail(model: BriefViewModel): AttributeRail {
     source: sourceByAttr.get(attr) ?? "built-in",
     floor: isFloorAttribute(attr),
     groupIds: groupsByAttr.get(attr) ?? [],
+    chunkIds: chunksByAttr.get(attr) ?? [],
   }));
   return {
     entries,

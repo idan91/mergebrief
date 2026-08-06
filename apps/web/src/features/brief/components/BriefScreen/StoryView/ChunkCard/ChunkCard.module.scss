@@ -39,9 +39,13 @@
     position: sticky;
 
     // Stacks below the focus banner strip in focus mode (--focus-banner-h is
-    // 0px outside it), so the chunk header pins to the strip's bottom edge
-    // instead of sliding behind it.
-    inset-block-start: calc(var(--top-bar-h) + var(--focus-banner-h, 0px));
+    // 0px outside it) and below the sticky reading toolbar in the story view
+    // (--toolbar-h is 0px wherever the toolbar unmounts), so the
+    // chunk header pins to the lowest pinned strip's bottom edge instead of
+    // sliding behind it.
+    inset-block-start: calc(
+      var(--top-bar-h) + var(--focus-banner-h, 0px) + var(--toolbar-h, 0px)
+    );
     z-index: 10;
     display: flex;
     inline-size: 100%;

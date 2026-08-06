@@ -67,7 +67,7 @@ function isHttpUrl(value: string): boolean {
 
 /**
  * The ticket-gated intent bar (BRIEF-54, ADR 0009 §2 as amended): a
- * full-width instrument row stacked with the AttributeJumpRail. The header
+ * full-width instrument row directly beneath the capped summary. The header
  * is ALWAYS visible with neutral, symmetric bucket counts (never gap-first,
  * no warning colors); the body is collapsed by default and NEVER
  * auto-expands (auto-open on model inference is the anchoring the design

@@ -264,8 +264,12 @@ describe("brief screen characterization", () => {
     );
   });
 
-  it("lists unique risk-attribute names in the attribute jump-rail", async () => {
+  it("lists unique risk-attribute names in the toolbar's risk-attrs panel", async () => {
+    // BRIEF-134: the in-flow jump-rail became the toolbar's anchored panel —
+    // closed until the trigger opens it (never auto-open, even on floor fire).
     await renderBriefScreen();
+    expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
     const section = document.querySelector("[data-attribute-jump-rail]");
     expect(section).not.toBeNull();
     expect(section?.textContent).toContain("no-tests");

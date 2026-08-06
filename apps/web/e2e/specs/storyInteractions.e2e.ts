@@ -37,12 +37,14 @@ test("the PR description discloses on demand", async ({ page }) => {
   );
 });
 
-test("the risk-attribute rail jumps to the carrying group", async ({
+test("the risk-attrs disclosure jumps to the carrying group", async ({
   page,
 }) => {
   await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
 
-  const rail = page.getByRole("button", { name: /Risk attributes/ });
+  // BRIEF-134: the in-flow rail became the toolbar's anchored disclosure.
+  // The label compresses to "Attrs" below 1280, so match either form.
+  const rail = page.getByRole("button", { name: /attrs/i });
   await expect(rail).toHaveAttribute("aria-expanded", "false");
   await rail.click();
   await expect(rail).toHaveAttribute("aria-expanded", "true");
@@ -66,7 +68,9 @@ test("the risk-attribute rail jumps to the carrying group", async ({
           Number.NaN,
       ),
     )
-    .toBeLessThan(80);
+    // Below the sticky stack (header ~97px + reading toolbar ~45px), with a
+    // little slack — "at the top" now means under the pinned chrome.
+    .toBeLessThan(160);
 });
 
 test("the shortcuts modal opens with ? and closes with Escape", async ({

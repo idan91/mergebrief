@@ -1,0 +1,122 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // Positioning context for the in-tree floating panel: floating-ui's
+  // absolute strategy resolves against the nearest positioned ancestor, and
+  // anchoring here keeps the panel riding the sticky bar natively on scroll.
+  .wrap {
+    position: relative;
+    display: inline-flex;
+  }
+
+  .trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(7px);
+    min-block-size: functions.to-rem(24px);
+    padding-block: functions.to-rem(4px);
+    padding-inline: functions.to-rem(11px);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+    font: inherit;
+    font-size: var(--font-size-md);
+    white-space: nowrap;
+
+    &:hover {
+      border-color: var(--line2);
+      color: var(--text);
+    }
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+    }
+
+    &[aria-expanded="true"] {
+      border-color: var(--line2);
+      background: var(--panel);
+      color: var(--text);
+    }
+  }
+
+  // Floor-firing emphasis dot: attention cue only — colour is paired with
+  // the trigger's screen-reader expansion, never the sole signal.
+  .dot {
+    inline-size: 5px;
+    block-size: 5px;
+    border-radius: var(--radius-circle);
+    background: var(--amber);
+  }
+
+  .sep {
+    color: var(--line2);
+  }
+
+  // Amber count ties the trigger to the RiskBadge palette it opens onto
+  // (owner ask, 2026-08-06) — code-risk hue, not the intent bar's forbidden
+  // epistemic yellow. Bold 13px on the dark bg clears the 3:1 large-text bar.
+  .count {
+    color: var(--amber);
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+  }
+
+  .labelShort {
+    display: none;
+  }
+
+  @media (width <= 1280px) {
+    .labelShort {
+      display: inline;
+    }
+
+    .labelLong {
+      display: none;
+    }
+  }
+
+  // Positioned by floating-ui (style={floatingStyles}), rendered in-tree:
+  // z-index clears the sticky chunk headers (z 10) from inside the bar's
+  // own stacking context. radius-md matches the trigger family (owner
+  // finding: lg read mismatched against the radius-sm trigger).
+  .panel {
+    z-index: 60;
+    min-inline-size: functions.to-rem(260px);
+    max-inline-size: min(functions.to-rem(460px), 80vw);
+    padding: functions.to-rem(12px);
+    border: 1px solid var(--line2);
+    border-radius: var(--radius-md);
+    background: var(--panel);
+    box-shadow: var(--shadow-elevation-md);
+  }
+
+  .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: functions.to-rem(6px);
+  }
+
+  .chipButton {
+    display: inline-flex;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+
+    &:focus-visible {
+      @include mixins.focus-ring;
+
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  .chipButton[data-floor] {
+    order: -1;
+  }
+}

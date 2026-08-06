@@ -1,6 +1,5 @@
 import { useId, useState } from "react";
 
-import { useRevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
 import type { AddressedReviewComment, Brief } from "../../../types";
 import type { BriefViewModel, RiskFlag } from "../../../utils/viewModel";
@@ -29,7 +28,6 @@ export interface StoryViewProps {
   /** Enters Read-through at step 1; absent when unavailable (comparing, no chunks). */
   startReadThrough?: () => void;
   markReviewed: (chunkId: string) => void;
-  setCollapseSupporting: (value: boolean) => void;
   toggleChunk: (chunkId: string) => void;
   /** Inline conversation threads per chunk (BRIEF-25); absent on the local path. */
   conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
@@ -46,7 +44,6 @@ export interface StoryViewProps {
 }
 
 export function StoryView(props: StoryViewProps) {
-  const { jumpPrev, jumpNext } = useRevisionNavigation();
   const [focusRailOpen, setFocusRailOpen] = useState(true);
   const addressedReviewComments =
     props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
@@ -55,23 +52,11 @@ export function StoryView(props: StoryViewProps) {
       className={styles["storyView"]}
       data-zen={props.focusMode ? "on" : undefined}
     >
-      <div className={`${styles["chunksLabel"]} reveal`}>
-        <span>{props.brief.chunks.length} chunks · grouped by intent</span>
-        <span className={styles["rule"]} />
-        <label className={styles["switch"]}>
-          <input
-            checked={props.collapseSupporting}
-            className={styles["switchInput"]}
-            suppressHydrationWarning
-            type="checkbox"
-            onChange={(event) =>
-              props.setCollapseSupporting(event.target.checked)
-            }
-          />
-          <span className={styles["track"]} />
-          Collapse supporting
-        </label>
-        {props.startReadThrough && !props.focusMode ? (
+      {/* The chunks-count label row dissolved into the reading toolbar
+          (BRIEF-134); Start read-through stays here — an ENTRY action lives
+          in the flow it enters, and scrolls away with it. */}
+      {props.startReadThrough && !props.focusMode ? (
+        <div className={`${styles["entryRow"]} reveal`}>
           <button
             className={styles["readThrough"]}
             type="button"
@@ -79,37 +64,8 @@ export function StoryView(props: StoryViewProps) {
           >
             Start read-through
           </button>
-        ) : null}
-        {/* The Compare control (Header) selects the baseline; when it's active
-            and marks land, surface the run count + jump-nav here. The overlay
-            itself is on whenever a comparison is selected — no local toggle. */}
-        {props.comparison.available && props.comparison.runCount > 0 ? (
-          <span
-            className={styles["revisionJump"]}
-            role="group"
-            aria-label={
-              props.comparison.compare === "last-review"
-                ? "Jump between changes since your last review"
-                : "Jump between changes in this revision"
-            }
-          >
-            <span className={styles["count"]}>
-              {props.comparison.runCount} change
-              {props.comparison.runCount === 1 ? "" : "s"}
-            </span>
-            <button
-              aria-label="Previous change"
-              type="button"
-              onClick={jumpPrev}
-            >
-              ◂
-            </button>
-            <button aria-label="Next change" type="button" onClick={jumpNext}>
-              ▸
-            </button>
-          </span>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       {props.model.groups.map((group) => {
         const isActiveFocusGroup =
           props.focusMode &&

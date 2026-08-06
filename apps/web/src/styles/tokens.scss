@@ -173,15 +173,17 @@
 
     // Height of the sticky page header; sticky chunk headers pin just below
     // it. Pre-hydration fallback — the Header's ResizeObserver publishes the
-    // measured value. Keep in sync with Header.module.scss min-block-size.
-    --top-bar-h: 72px;
+    // measured value. Keep in sync with Header.module.scss: the two tiers'
+    // min-block-size (52px identity + 44px lens) + the 1px bottom border.
+    --top-bar-h: 97px;
 
     color-scheme: dark light;
   }
 
   @media (width <= 1120px) {
     :root {
-      --top-bar-h: 60px;
+      // Identity tier compresses to 46px min at this width (Header.module.scss).
+      --top-bar-h: 91px;
     }
   }
 }

@@ -402,6 +402,18 @@ describe("buildAttributeRail (ADR 0032 #11 — jump-rail)", () => {
     );
   });
 
+  it("carrying chunks ride alongside carrying groups, story order, loud only (BRIEF-134)", () => {
+    const rail = buildAttributeRail(
+      buildBriefViewModel(railBrief(), railSnapshot),
+    );
+    // touches-billing fires loudly on c1 (g1) and c2 (g2) — chunk targets
+    // mirror the group targets in the same story order (Concerns lens, PR 4).
+    const billing = rail.entries.find((e) => e.attr === "touches-billing");
+    expect(billing?.chunkIds).toEqual(["c1", "c2"]);
+    const auth = rail.entries.find((e) => e.attr === "touches-auth");
+    expect(auth?.chunkIds).toEqual(["c2"]);
+  });
+
   it("no floor firing → rail present but floorFired false (collapsed default)", () => {
     const base = twoGroupBrief();
     const chunks: { riskSurface: string[] }[] = base.chunks;

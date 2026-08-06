@@ -46,11 +46,11 @@ import { buildAttributeRail } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import { ChangesOnlyView } from "./ChangesOnlyView/ChangesOnlyView";
 import { ConcernView } from "./ConcernView/ConcernView";
-import { AttributeJumpRail } from "./AttributeJumpRail/AttributeJumpRail";
 import { FocusBanner } from "./FocusBanner/FocusBanner";
 import { IntentBar, type IntentBarHandle } from "./IntentBar/IntentBar";
 import { GroupTocBar } from "./GroupTocBar/GroupTocBar";
 import { Header } from "./Header/Header";
+import { ReadingToolbar } from "./ReadingToolbar/ReadingToolbar";
 import { RiskFlagModals } from "./RiskFlagModals/RiskFlagModals";
 import { ShortcutsModal } from "./ShortcutsModal/ShortcutsModal";
 import { StoryView } from "./StoryView/StoryView";
@@ -552,6 +552,20 @@ export function BriefScreen({
                   groups={model.groups}
                   jumpToGroup={jumpToGroup}
                 />
+
+                {/* The reading toolbar (BRIEF-134): sticky above the
+                    conversation slot — every control renders above everything
+                    it governs, and stays reachable while scrolling an
+                    expanded digest. The filter slot lands in PR 3. */}
+                <ReadingToolbar
+                  activeGroupId={session.activeGroupId}
+                  collapseSupporting={session.collapseSupporting}
+                  comparison={comparison}
+                  groups={model.groups}
+                  jumpToGroup={jumpToGroup}
+                  rail={attributeRail}
+                  setCollapseSupporting={session.setCollapseSupporting}
+                />
               </>
             ) : null}
 
@@ -610,7 +624,6 @@ export function BriefScreen({
                 conversationComposer={conversationWiring.conversationComposer}
                 jumpToChunk={jumpToChunk}
                 markReviewed={session.markReviewed}
-                setCollapseSupporting={session.setCollapseSupporting}
                 toggleChunk={session.toggleChunk}
                 {...(compareState.view === "full" && chunkIds.length > 0
                   ? { startReadThrough: session.startReadThrough }
