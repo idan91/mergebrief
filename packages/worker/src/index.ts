@@ -33,4 +33,22 @@ export type { UtcDay } from "./task/spend";
 
 // The GitHub seam: installation-scoped PR reads behind a testable port.
 export { appGitHubPort, splitRepoSlug } from "./task/github-port";
-export type { GitHubPort, PullRequestSource } from "./task/github-port";
+export type {
+  CompareFiles,
+  GitHubPort,
+  PullRequestSource,
+} from "./task/github-port";
+
+// Anchored-generation machinery (BRIEF-143): pure plan + stitch helpers,
+// exported for the eval harness's revision-pair runner (tools/categorizer) —
+// the pairs must exercise the SAME partition/stitch the production task runs.
+export { planAnchoredGeneration, stitchBrief } from "./task/anchoring";
+export type {
+  AnchorPlan,
+  AnchorPlanArgs,
+  FrozenCarry,
+  ReLookEntry,
+  StitchArgs,
+  StitchError,
+  StitchResult,
+} from "./task/anchoring";

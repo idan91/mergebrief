@@ -70,6 +70,7 @@
         "eval/cli.ts",
         "scripts/*.ts",
         "eval/cases/*/expected.ts",
+        "eval/pair-cases/*/expected.ts",
         "test/fixtures/*/expected.ts",
       ],
     },

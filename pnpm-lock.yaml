@@ -486,6 +486,9 @@ importers:
       types:
         specifier: workspace:*
         version: link:../../packages/types
+      worker:
+        specifier: workspace:*
+        version: link:../../packages/worker
       zod:
         specifier: ^3.25.0
         version: 3.25.76

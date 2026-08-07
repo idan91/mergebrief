@@ -1,0 +1,93 @@
+{
+  "base": {
+    "pr": {
+      "locator": {
+        "owner": "Idan91",
+        "repo": "code-review",
+        "number": 9006
+      },
+      "meta": {
+        "title": "Add a health endpoint and redact query tokens in logs",
+        "body": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip `token=` query parameters. A follow-up commit adds a GET /api/version route.",
+        "url": "https://github.com/Idan91/code-review/pull/9006",
+        "sha": "ed613dd15ea382189e70ec1dd1fc9c47a99db9de",
+        "baseSha": "c552042ef9f7de937b4223bc7d78531a189bf30a",
+        "commitCount": 1,
+        "files": [
+          {
+            "path": "packages/logging/src/redact.ts",
+            "additions": 4,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/routes/health.ts",
+            "additions": 11,
+            "deletions": 1
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/logging/src/redact.ts b/packages/logging/src/redact.ts\n--- a/packages/logging/src/redact.ts\n+++ b/packages/logging/src/redact.ts\n@@ -1,6 +1,10 @@\n import type { Logger } from \"./logger\";\n \n const SECRET_PATTERN = /token=[^&]+/g;\n+\n+export function redactQueryTokens(value: string): string {\n+  return value.replace(SECRET_PATTERN, \"token=[redacted]\");\n+}\n \n export function redactDsn(value: string): string {\n   return value.replace(/\\/\\/[^@]+@/, \"//[redacted]@\");\ndiff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,6 +1,16 @@\n import { json } from \"../responses\";\n import type { Route } from \"../types\";\n \n+const STARTED_AT = Date.now();\n+\n+export function healthRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/health\",\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+  };\n+}\n+\n export function routes(): Route[] {\n-  return [];\n+  return [healthRoute()];\n }\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "c552042ef9f7de937b4223bc7d78531a189bf30a",
+      "head": "ed613dd15ea382189e70ec1dd1fc9c47a99db9de",
+      "commitCount": 1
+    }
+  },
+  "revised": {
+    "pr": {
+      "locator": {
+        "owner": "Idan91",
+        "repo": "code-review",
+        "number": 9006
+      },
+      "meta": {
+        "title": "Add a health endpoint and redact query tokens in logs",
+        "body": "Adds a GET /api/health route returning process uptime, and extends the logging redaction to strip `token=` query parameters. A follow-up commit adds a GET /api/version route.",
+        "url": "https://github.com/Idan91/code-review/pull/9006",
+        "sha": "7c2836985eb1a4858557dde70c3f1bcbbccd8cc6",
+        "baseSha": "c552042ef9f7de937b4223bc7d78531a189bf30a",
+        "commitCount": 2,
+        "files": [
+          {
+            "path": "packages/logging/src/redact.ts",
+            "additions": 4,
+            "deletions": 0
+          },
+          {
+            "path": "packages/api/src/routes/health.ts",
+            "additions": 11,
+            "deletions": 1
+          },
+          {
+            "path": "packages/api/src/routes/version.ts",
+            "additions": 10,
+            "deletions": 0
+          }
+        ]
+      },
+      "diff": "diff --git a/packages/logging/src/redact.ts b/packages/logging/src/redact.ts\n--- a/packages/logging/src/redact.ts\n+++ b/packages/logging/src/redact.ts\n@@ -1,6 +1,10 @@\n import type { Logger } from \"./logger\";\n \n const SECRET_PATTERN = /token=[^&]+/g;\n+\n+export function redactQueryTokens(value: string): string {\n+  return value.replace(SECRET_PATTERN, \"token=[redacted]\");\n+}\n \n export function redactDsn(value: string): string {\n   return value.replace(/\\/\\/[^@]+@/, \"//[redacted]@\");\ndiff --git a/packages/api/src/routes/health.ts b/packages/api/src/routes/health.ts\n--- a/packages/api/src/routes/health.ts\n+++ b/packages/api/src/routes/health.ts\n@@ -1,6 +1,16 @@\n import { json } from \"../responses\";\n import type { Route } from \"../types\";\n \n+const STARTED_AT = Date.now();\n+\n+export function healthRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/health\",\n+    handler: () => json({ ok: true, uptimeMs: Date.now() - STARTED_AT }),\n+  };\n+}\n+\n export function routes(): Route[] {\n-  return [];\n+  return [healthRoute()];\n }\ndiff --git a/packages/api/src/routes/version.ts b/packages/api/src/routes/version.ts\nnew file mode 100644\n--- /dev/null\n+++ b/packages/api/src/routes/version.ts\n@@ -0,0 +1,10 @@\n+import { json } from \"../responses\";\n+import type { Route } from \"../types\";\n+\n+export function versionRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/version\",\n+    handler: () => json({ version: process.env[\"APP_VERSION\"] ?? \"dev\" }),\n+  };\n+}\n",
+      "links": []
+    },
+    "commitRange": {
+      "base": "c552042ef9f7de937b4223bc7d78531a189bf30a",
+      "head": "7c2836985eb1a4858557dde70c3f1bcbbccd8cc6",
+      "commitCount": 2
+    }
+  },
+  "increment": {
+    "incrementalDiff": "diff --git a/packages/api/src/routes/version.ts b/packages/api/src/routes/version.ts\nnew file mode 100644\n--- /dev/null\n+++ b/packages/api/src/routes/version.ts\n@@ -0,0 +1,10 @@\n+import { json } from \"../responses\";\n+import type { Route } from \"../types\";\n+\n+export function versionRoute(): Route {\n+  return {\n+    method: \"GET\",\n+    path: \"/api/version\",\n+    handler: () => json({ version: process.env[\"APP_VERSION\"] ?? \"dev\" }),\n+  };\n+}\n",
+    "compareFiles": {
+      "files": [
+        {
+          "filename": "packages/api/src/routes/version.ts",
+          "status": "added"
+        }
+      ],
+      "complete": true,
+      "status": "ahead"
+    },
+    "baseShaMoved": false
+  }
+}

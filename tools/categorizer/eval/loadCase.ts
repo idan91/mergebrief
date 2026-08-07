@@ -21,7 +21,7 @@ const PrFileSchema = z.object({
   deletions: z.number().int().nonnegative(),
 });
 
-const FixtureSchema = z.object({
+export const FixtureSchema = z.object({
   pr: z.object({
     locator: z.object({
       owner: z.string(),
@@ -189,7 +189,7 @@ async function loadOne(
 
 /** Zod optionals infer `| undefined`; RepoContext's fields are exact-optional
  * — rebuild with conditional spreads instead of casting past the checker. */
-function toRepoContext(
+export function toRepoContext(
   raw: z.infer<typeof FixtureSchema>["repoContext"],
 ): RepoContext | undefined {
   if (raw === undefined) return undefined;

@@ -1,6 +1,5 @@
 import type { ValueOf } from "types";
 import type { CaseBaseline } from "./baseline";
-import type { EvalProperty } from "./properties";
 import {
   verdictFor,
   Verdicts,
@@ -14,13 +13,21 @@ import {
  * for a human reading the terminal or pasting the markdown into a PR.
  */
 
+/** The slice of a property the report needs — singles (`EvalProperty`) and
+ * revision pairs (`PairEvalProperty`, BRIEF-143) both satisfy it; the report
+ * never calls `check`. */
+export interface PropertyDescriptor {
+  id: string;
+  description: string;
+}
+
 export interface CaseOutcome {
   caseId: string;
   runsRequested: number;
   /** Successful generations actually scored (failures are excluded). */
   runsScored: number;
   generationFailures: number;
-  properties: readonly EvalProperty[];
+  properties: readonly PropertyDescriptor[];
   scores: ReadonlyMap<string, PropertyScore>;
   baseline: CaseBaseline | null;
   notes: readonly string[];

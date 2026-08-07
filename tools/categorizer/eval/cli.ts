@@ -27,6 +27,7 @@ import {
   type InvocationUsage,
 } from "./report";
 import { runCase } from "./run";
+import { evaluatePairCase, loadPairCases, selectCases } from "./pairs";
 import { persistRunBriefs } from "./specimens";
 import { withUsageSink } from "./usageSink";
 
@@ -43,6 +44,8 @@ import { withUsageSink } from "./usageSink";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CASES_DIR = join(here, "cases");
+/** Revision-pair corpus (BRIEF-143) — one pair = TWO generations per run. */
+const PAIRS_DIR = join(here, "pair-cases");
 const OUT_DIR = "out";
 /**
  * Mirrors brief-core's DEFAULT_EFFORT (BRIEF-75): with no configured effort
@@ -65,6 +68,13 @@ export interface EvalArgs {
   runs: number;
   rebaseline: boolean;
   pricesPath: string;
+  /**
+   * Vacuous-pass mode (BRIEF-143): pair cases run BOTH generations fresh —
+   * no anchor view, no stitch. The anchoring-dependent properties MUST fail
+   * under this flag; a property that still passes is vacuous. Never
+   * combinable with --rebaseline.
+   */
+  pairFresh: boolean;
 }
 
 export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
@@ -76,11 +86,14 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
     runs: DEFAULT_RUNS,
     rebaseline: false,
     pricesPath: join(here, "prices.json"),
+    pairFresh: false,
   };
   while (rest.length > 0) {
     const flag = rest.shift();
     if (flag === "--rebaseline") {
       args.rebaseline = true;
+    } else if (flag === "--pair-fresh") {
+      args.pairFresh = true;
     } else if (flag === "--case" || flag === "--runs" || flag === "--prices") {
       const value = rest.shift();
       if (value === undefined || value.startsWith("-")) {
@@ -98,6 +111,12 @@ export function parseEvalArgs(argv: string[]): Result<EvalArgs, string> {
     } else {
       return { ok: false, error: `unknown argument "${flag}"` };
     }
+  }
+  if (args.pairFresh && args.rebaseline) {
+    return {
+      ok: false,
+      error: "--pair-fresh is the vacuous-pass probe — never a baseline source",
+    };
   }
   return { ok: true, value: args };
 }
@@ -212,7 +231,7 @@ async function main(): Promise<void> {
   if (!parsed.ok) {
     console.error(parsed.error);
     console.error(
-      "usage: pnpm eval [--config <yaml>] [--case <id>] [--runs N] [--rebaseline] [--prices <json>]",
+      "usage: pnpm eval [--config <yaml>] [--case <id>] [--runs N] [--rebaseline] [--pair-fresh] [--prices <json>]",
     );
     process.exit(2);
   }
@@ -234,17 +253,24 @@ async function main(): Promise<void> {
     ? BillingKinds.SUBSCRIPTION
     : BillingKinds.API;
 
-  const cases = await loadCases(CASES_DIR, args.caseId);
-  if (!cases.ok) {
-    console.error(cases.error);
+  // Load BOTH corpora unfiltered, then select — `--case` may name a single
+  // OR a revision-pair case; an id in neither is the error.
+  const allCases = await loadCases(CASES_DIR);
+  if (!allCases.ok) {
+    console.error(allCases.error);
     process.exit(2);
   }
-  if (cases.value.length === 0) {
-    console.error(
-      `no cases under ${CASES_DIR} — corpus lands in BRIEF-59 PR 3`,
-    );
+  const allPairs = await loadPairCases(PAIRS_DIR);
+  if (!allPairs.ok) {
+    console.error(allPairs.error);
     process.exit(2);
   }
+  const selected = selectCases(allCases.value, allPairs.value, args.caseId);
+  if (!selected.ok) {
+    console.error(selected.error);
+    process.exit(2);
+  }
+  const { singles: singleCases, pairs: pairCases } = selected.value;
 
   const prices = loadPrices(args.pricesPath);
   if (!prices.ok) {
@@ -255,17 +281,24 @@ async function main(): Promise<void> {
   // Refuse cross-key runs before the first generation spends money.
   // --rebaseline intends to overwrite keys, so it skips the preflight.
   if (!args.rebaseline) {
-    const preflight = preflightBaselineKeys(cases.value, key);
+    const preflight = preflightBaselineKeys(
+      [...singleCases, ...pairCases],
+      key,
+    );
     if (!preflight.ok) {
       console.error(preflight.error);
       process.exit(2);
     }
   }
 
-  // Pre-flight: invocation size IS the spend control (decision 7).
+  // Pre-flight: invocation size IS the spend control (decision 7). A pair
+  // case costs TWO generations per run (base + anchored revision).
+  const generationCount =
+    singleCases.length * args.runs + pairCases.length * args.runs * 2;
+  const caseCount = singleCases.length + pairCases.length;
   console.error(
-    `${cases.value.length} case${cases.value.length === 1 ? "" : "s"} × ` +
-      `${args.runs} runs = ${cases.value.length * args.runs} generations (${key})`,
+    `${caseCount} case${caseCount === 1 ? "" : "s"} (${pairCases.length} pair${pairCases.length === 1 ? "" : "s"}) × ` +
+      `${args.runs} runs = ${generationCount} generations (${key})`,
   );
 
   const totals: InvocationUsage = {
@@ -284,7 +317,7 @@ async function main(): Promise<void> {
 
   const outcomes: CaseOutcome[] = [];
   const skippedRebaselines: string[] = [];
-  for (const evalCase of cases.value) {
+  for (const evalCase of singleCases) {
     // eslint-disable-next-line no-await-in-loop -- serial by design (run.ts doc)
     const evaluated = await evaluateCase(
       evalCase,
@@ -302,6 +335,28 @@ async function main(): Promise<void> {
     outcomes.push(evaluated.value.outcome);
     if (args.rebaseline && !evaluated.value.rebaselined) {
       skippedRebaselines.push(evalCase.id);
+    }
+  }
+  for (const pairCase of pairCases) {
+    // eslint-disable-next-line no-await-in-loop -- serial by design (run.ts doc)
+    const evaluated = await evaluatePairCase(
+      pairCase,
+      metered,
+      generator.value.effort,
+      args.runs,
+      key,
+      args.rebaseline,
+      OUT_DIR,
+      (message) => console.error(message),
+      args.pairFresh ? "fresh" : "anchored",
+    );
+    if (!evaluated.ok) {
+      console.error(evaluated.error);
+      process.exit(2);
+    }
+    outcomes.push(evaluated.value.outcome);
+    if (args.rebaseline && !evaluated.value.rebaselined) {
+      skippedRebaselines.push(pairCase.id);
     }
   }
 

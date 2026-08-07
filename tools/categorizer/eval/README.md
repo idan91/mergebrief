@@ -181,3 +181,64 @@ jq '.regressions' out/eval-report.json
 jq -r '.cases[] | .caseId as $c | .properties[] | select(.verdict != "unchanged") | "\($c): \(.id) \(.verdict) \(.passes)/\(.runs)"' out/eval-report.json
 jq '.usage' out/eval-report.json
 ```
+
+## Revision-pair cases (BRIEF-143)
+
+`pair-cases/<id>/` = `pair.json` + `expected.ts` (exporting
+`pairProperties`). A pair = a base fixture + a revised fixture + a provably
+scoped increment (span diff, compare `files[]` metadata, `baseShaMoved`).
+The runner drives the PRODUCTION anchoring machinery per run — fresh
+`categorize` for the base, `planAnchoredGeneration`, anchored `categorize`
+for the revision, `stitchBrief` — so the property pairs measure the real
+pipeline. **One pair run = TWO generations**; the pre-flight line counts
+them.
+
+Corpus: one synthetic pair per change-impact category — `pair-additive`,
+`pair-meaning-changing`, `pair-risk-add`, `pair-risk-remove`,
+`pair-subtractive`, `pair-new-material`, `pair-boundary-restructure`,
+`pair-ask-edit`, `pair-rebase-noise`, `pair-intent-transition` — with
+authored diffs over own-repo file shapes (difflib-generated, hunk-correct;
+PR locators are placeholders), plus `pair-real-brief143-docs`, a real pair
+built verbatim from this repo's history (daed6dae → db2fe83e → 472b6d7a).
+Mechanical rows (untouched survival, frozen attrs, coverage, id carry,
+anchored stamp) are pipeline guarantees — any failure is a pipeline bug;
+model-judged rows (description updates, verdict transitions, summary
+stability) ride the stable-pass/flaky discipline (BRIEF-74 map).
+
+**No baselines are committed yet** (BRIEF-143 PR 5 lands the corpus dry).
+A pair case without `baseline.json` reports scores with verdicts withheld.
+Recording the first baselines is a deliberate, reviewed step:
+
+1. **Vacuous-pass check first** (BRIEF-59 trap). The shared property
+   builders are already shown to FAIL against broken pairs in
+   `test/eval-pairs.test.ts` (mechanical evidence, no spend). For the live
+   half, run one deliberately broken pass before believing any 5/5:
+   `pnpm eval --case pair-additive --runs 1 --pair-fresh` — the flag runs
+   BOTH generations fresh (no anchor view, no stitch — exactly what
+   `full-regeneration: always` produces in production), so
+   `untouched-survives-*` and `anchored-stamp` MUST fail (prose
+   byte-equality and the missing stamp fail deterministically).
+   `id-carried-*` and `survivor-order-stable-*` are expected to fail too
+   but CAN coincide — a fresh model take may renumber identically or
+   re-emit the same diff-grounded ranges for a single-hunk file — treat a
+   pass there as suspicious, not disqualifying. A must-fail property that still passes
+   under `--pair-fresh` is vacuous — fix it before baselining. The flag
+   never combines with `--rebaseline`.
+2. `pnpm eval --rebaseline --case <id>` per pair (or one full
+   `--rebaseline` run), then review + commit the `baseline.json` diffs.
+3. `full-regeneration: always` must keep the EXISTING single-case
+   baselines byte-meaningful — the fresh prompt is snapshot-pinned
+   unchanged, so a full-suite run under the default config is the
+   confirmation, not a requirement.
+
+Deliberately not covered (know before you hunt): spec pair 3 RIGHT (a
+material increment adds/changes a changelog bullet) needs prose-level
+summary parsing and spec pair 3's summary rows are only partially pinned
+(`summary-lede-stable`); pair 6 RIGHT's removed-chunk half rides
+`pair-subtractive`'s group-death property rather than a chunk-level one.
+
+Cost expectation: ~$0.16/generation on `anthropic:claude-opus-4-8`
+(2026-07-25 measurement) → a full 11-pair × 5-run recording ≈ 110
+generations ≈ **$17–18** on top of the single-case suite; a scoped
+`--case` pair recording ≈ 10 generations ≈ **$1.60**. Measure, don't
+trust cached totals (the BRIEF-85 lesson).
