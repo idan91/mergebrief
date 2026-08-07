@@ -42,6 +42,40 @@ afterEach(() => {
   }
 });
 
+describe("single-column render (BRIEF-104: split retired)", () => {
+  it("renders a changelog-bearing summary single-column, changelog as plain markdown", () => {
+    const withChangelog = {
+      ...briefFixture,
+      summary: "A short lede.\n\n## Changelog\n\n- one\n- two",
+    };
+    render(<SummarySection brief={withChangelog} />);
+    const section = screen.getByTestId("brief-summary");
+    expect(section.hasAttribute("data-summary-split")).toBe(false);
+    // Markdown demotes h2 -> h4 (document-outline protection)
+    const heading = screen.getByRole("heading", {
+      level: 4,
+      name: "Changelog",
+    });
+    // Structural pin: lede and changelog live in the SAME markdown root —
+    // any re-split into two containers fails this regardless of naming.
+    const lede = screen.getByText("A short lede.");
+    expect(lede.closest("[dir='auto']")).toBe(heading.closest("[dir='auto']"));
+  });
+
+  it("renders DeltaContext on the single path for delta briefs, inside the capped body", () => {
+    const deltaBrief = {
+      ...briefFixture,
+      artifactKind: "delta" as const,
+      commentsAddressed: "Addressed the retry-count comment.",
+    };
+    render(<SummarySection brief={deltaBrief} />);
+    const prose = screen.getByTestId("summary-prose");
+    const commentsEyebrow = screen.getByText("Comments addressed");
+    expect(prose.contains(commentsEyebrow)).toBe(true);
+    expect(screen.getByText("Delta brief")).toBeTruthy();
+  });
+});
+
 describe("SummarySection capped-prose adoption", () => {
   it("nests the description toggle inside the capped body", () => {
     render(<SummarySection brief={briefFixture} />);

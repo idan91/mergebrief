@@ -6,7 +6,6 @@ import {
   buildAttributeRail,
   buildBriefViewModel,
   riskChipView,
-  splitSummaryAtChangelog,
 } from "./viewModel";
 
 function twoGroupBrief(readingOrder?: unknown) {
@@ -423,49 +422,5 @@ describe("buildAttributeRail (ADR 0032 #11 — jump-rail)", () => {
     const rail = buildAttributeRail(buildBriefViewModel(parsed.value));
     expect(rail.floorFired).toBe(false);
     expect(rail.entries).toHaveLength(1);
-  });
-});
-
-describe("splitSummaryAtChangelog (BRIEF-4)", () => {
-  it("splits at the changelog heading; changelog runs to the end", () => {
-    const split = splitSummaryAtChangelog(
-      "Overview paragraph.\n\nFuller what-it-does prose.\n\n## Changelog\n\n- first\n- second",
-    );
-    expect(split.lead).toBe(
-      "Overview paragraph.\n\nFuller what-it-does prose.",
-    );
-    expect(split.changelog).toBe("## Changelog\n\n- first\n- second");
-  });
-
-  it("no changelog section → whole summary is the lead, no changelog part", () => {
-    const split = splitSummaryAtChangelog("Overview.\n\nWhat it does.");
-    expect(split.lead).toBe("Overview.\n\nWhat it does.");
-    expect(split.changelog).toBeUndefined();
-  });
-
-  it("delta variant heading with trailing whitespace still splits", () => {
-    const split = splitSummaryAtChangelog(
-      "Since you last looked: reworked the parser.\n\n## Changelog  \n- follow-up commit",
-    );
-    expect(split.changelog).toBe("## Changelog  \n- follow-up commit");
-  });
-
-  it("changelog-first summary (empty lead) stays unsplit", () => {
-    const summary = "## Changelog\n- only bullets";
-    expect(splitSummaryAtChangelog(summary)).toEqual({ lead: summary });
-  });
-
-  it("a literal '## Changelog' line inside a code fence never splits", () => {
-    const summary =
-      "Renders docs.\n\n```md\n## Changelog\n- fenced\n```\n\nMore prose.";
-    expect(splitSummaryAtChangelog(summary)).toEqual({ lead: summary });
-  });
-
-  it("splits at the first heading after a closed fence", () => {
-    const split = splitSummaryAtChangelog(
-      "Prose.\n\n```md\n## Changelog\n```\n\n## Changelog\n- real",
-    );
-    expect(split.lead).toBe("Prose.\n\n```md\n## Changelog\n```");
-    expect(split.changelog).toBe("## Changelog\n- real");
   });
 });

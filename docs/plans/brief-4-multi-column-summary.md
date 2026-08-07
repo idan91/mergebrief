@@ -1,6 +1,6 @@
 # BRIEF-4 — Multi-column Brief summary on wide viewports
 
-Status: planned (2026-07-18). Shape brief confirmed via /impeccable shape (this doc carries it).
+Status: shipped (PR #119), then RETIRED by BRIEF-104 (2026-08-07) — the split is deleted; summaries render single-column always. Kept for history. Shape brief confirmed via /impeccable shape (this doc carries it).
 Ticket: BRIEF-4 (Notion). Origin: PR #19 review, 2026-07-04.
 
 ## Problem
