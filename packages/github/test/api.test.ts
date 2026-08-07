@@ -687,7 +687,11 @@ describe("fetchCompareFiles (BRIEF-143)", () => {
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.files).toEqual([
       { filename: "src/a.ts", status: "modified" },
-      { filename: "src/b2.ts", status: "renamed", previousFilename: "src/b.ts" },
+      {
+        filename: "src/b2.ts",
+        status: "renamed",
+        previousFilename: "src/b.ts",
+      },
     ]);
     expect(result.value.complete).toBe(true);
     expect(compareBasehead).toHaveBeenCalledWith({
@@ -696,6 +700,25 @@ describe("fetchCompareFiles (BRIEF-143)", () => {
       basehead: "base-sha...head-sha",
       per_page: 1,
     });
+  });
+
+  it("maps the compare span status through (fast-forward detection)", async () => {
+    const compareBasehead = vi.fn().mockResolvedValue({
+      data: {
+        status: "diverged",
+        files: [{ filename: "src/a.ts", status: "modified" }],
+      },
+    });
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "b",
+      head: "h",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.status).toBe("diverged");
   });
 
   it("flags a possibly-truncated list (300-file compare cap) as incomplete", async () => {

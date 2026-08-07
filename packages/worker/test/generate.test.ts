@@ -52,6 +52,7 @@ import {
   RESERVED_ATTRIBUTE_WORDS,
 } from "repo-config";
 import { createGenerateTask } from "../src/task/generate";
+import type { CompareFile } from "github";
 import type {
   GitHubApiError,
   GitHubPort,
@@ -111,6 +112,9 @@ function stubGenerator(): StubGenerator {
   const calls: string[] = [];
   const requests: { label: string; system: string; user: string }[] = [];
   const outputs: Record<string, unknown> = {
+    // Coverage-valid by default (BRIEF-143): the anchored path's hard
+    // coverage check requires every PR file (stub default: a.ts) in exactly
+    // one group.
     brief: {
       summary: "stub brief",
       intentCheck: {
@@ -119,9 +123,31 @@ function stubGenerator(): StubGenerator {
         scopeNote: "",
         items: [],
       },
-      changeGroups: [],
-      chunks: [],
-      concernView: [],
+      changeGroups: [
+        {
+          id: "g1",
+          title: "stub group",
+          summary: "stub group summary",
+          dominantCategory: "bugfix",
+          secondaryCategories: [],
+          uncertain: false,
+          uncertainBetween: [],
+        },
+      ],
+      chunks: [
+        {
+          id: "c1",
+          changeGroupId: "g1",
+          file: "a.ts",
+          concern: "implementation",
+          role: "carrier",
+          loc: { added: 1, deleted: 0 },
+          addedRanges: [{ start: 2, end: 2 }],
+          removedRanges: [],
+          riskSurface: [],
+        },
+      ],
+      concernView: [{ concern: "implementation", added: 1, deleted: 0 }],
     },
     delta: {
       summary: "stub delta",
@@ -171,6 +197,14 @@ interface StubGitHub extends GitHubPort {
   diff: string;
   /** Keyed `${base}...${head}`; missing spans fall back to SMALL_DIFF. */
   compareDiffs: Map<string, string>;
+  /**
+   * Keyed `${base}...${head}`; missing spans fall back to the conservative
+   * `{files: [], complete: false}` (nothing confirmable — all re-look).
+   */
+  compareFiles: Map<
+    string,
+    { files: CompareFile[]; complete: boolean; status?: string }
+  >;
   /** Scripted head SHAs consumed per fetchPullRequest call; then info.headSha. */
   nextHeads: string[];
   fetchPullRequestError?: GitHubApiError;
@@ -211,6 +245,7 @@ function stubGitHub(headSha: string): StubGitHub {
     files: [{ path: "a.ts", additions: 8, deletions: 2 }],
     diff: SMALL_DIFF,
     compareDiffs: new Map(),
+    compareFiles: new Map(),
     nextHeads: [],
     comments: new Map(),
     commentCalls: [],
@@ -234,6 +269,13 @@ function stubGitHub(headSha: string): StubGitHub {
         fetchDiff: async () => ok(stub.diff),
         fetchCompareDiff: async (base: string, head: string) =>
           ok(stub.compareDiffs.get(`${base}...${head}`) ?? SMALL_DIFF),
+        fetchCompareFiles: async (base: string, head: string) =>
+          ok(
+            stub.compareFiles.get(`${base}...${head}`) ?? {
+              files: [],
+              complete: false,
+            },
+          ),
         fetchRepoFile: async (path: string) => {
           stub.repoFileCalls.push(path);
           const scripted = stub.repoFileErrors.get(path);
@@ -1342,6 +1384,319 @@ function fileOf(content: string, blobSha: string): RepoFileResult {
     size: Buffer.byteLength(content, "utf8"),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Anchored generation (BRIEF-143 PR 3).
+// ---------------------------------------------------------------------------
+
+/** Incremental diff touching only b.ts. */
+const DIFF_TOUCHING_B = `diff --git a/b.ts b/b.ts
+--- a/b.ts
++++ b/b.ts
+@@ -1,2 +1,3 @@
+ line
++added
+ line2
+`;
+
+/** A two-group brief generation output over a.ts + b.ts. */
+function twoGroupBriefOutput(
+  idA: string,
+  titleA: string,
+  idB: string,
+  titleB: string,
+): unknown {
+  return {
+    summary: "stub brief",
+    intentCheck: {
+      ticketUrls: [],
+      specificity: "none",
+      scopeNote: "",
+      items: [],
+    },
+    changeGroups: [
+      {
+        id: idA,
+        title: titleA,
+        summary: `${titleA} summary`,
+        dominantCategory: "bugfix",
+        secondaryCategories: [],
+        uncertain: false,
+        uncertainBetween: [],
+      },
+      {
+        id: idB,
+        title: titleB,
+        summary: `${titleB} summary`,
+        dominantCategory: "bugfix",
+        secondaryCategories: [],
+        uncertain: false,
+        uncertainBetween: [],
+      },
+    ],
+    chunks: [
+      {
+        id: `${idA}c`,
+        changeGroupId: idA,
+        file: "a.ts",
+        concern: "implementation",
+        role: "carrier",
+        loc: { added: 4, deleted: 0 },
+        addedRanges: [{ start: 5, end: 8 }],
+        removedRanges: [],
+        riskSurface: [],
+      },
+      {
+        id: `${idB}c`,
+        changeGroupId: idB,
+        file: "b.ts",
+        concern: "implementation",
+        role: "carrier",
+        loc: { added: 2, deleted: 0 },
+        addedRanges: [{ start: 1, end: 2 }],
+        removedRanges: [],
+        riskSurface: [],
+      },
+    ],
+    concernView: [{ concern: "implementation", added: 6, deleted: 0 }],
+  };
+}
+
+describe("generate task — anchored generation (BRIEF-143)", () => {
+  const SPAN = `${HEAD_1}...${HEAD_2}`;
+
+  /** Two-revision run: rev1 with gA/gB, then rev2 with the given output. */
+  async function runTwoRevisions(options: {
+    rev2Output?: unknown;
+    fullRegeneration?: "always" | "on-model-swap" | "never";
+    rev2Model?: string;
+    rev2BaseSha?: string;
+    compareFilesEntry?: {
+      files: { filename: string; status: string }[];
+      complete: boolean;
+      status?: string;
+    };
+  }) {
+    const first = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    generator.outputs["brief"] = twoGroupBriefOutput(
+      "gA",
+      "alpha",
+      "gB",
+      "beta",
+    );
+    const github = stubGitHub(HEAD_1);
+    github.files = [
+      { path: "a.ts", additions: 4, deletions: 0 },
+      { path: "b.ts", additions: 2, deletions: 0 },
+    ];
+    github.compareDiffs.set(SPAN, DIFF_TOUCHING_B);
+    github.compareFiles.set(
+      SPAN,
+      options.compareFilesEntry ?? {
+        files: [{ filename: "b.ts", status: "modified" }],
+        complete: true,
+        status: "ahead",
+      },
+    );
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+      ...(options.fullRegeneration === undefined
+        ? {}
+        : { fullRegeneration: options.fullRegeneration }),
+    });
+    await task(first.payload);
+
+    github.info = {
+      ...github.info,
+      headSha: HEAD_2,
+      ...(options.rev2BaseSha === undefined
+        ? {}
+        : { baseSha: options.rev2BaseSha }),
+    };
+    generator.outputs["brief"] =
+      options.rev2Output ??
+      twoGroupBriefOutput("tmpA", "alpha rewritten", "tmpB", "beta v2");
+    if (options.rev2Model !== undefined) {
+      const model = options.rev2Model;
+      generator.provenance = (effort) => ({
+        provider: "stub",
+        model,
+        effort,
+      });
+    }
+    const second = await trigger(HEAD_2);
+    await task(second.payload);
+    return { pr: second.pr, generator, github };
+  }
+
+  it("carries frozen groups verbatim and stamps anchored provenance", async () => {
+    const { pr } = await runTwoRevisions({});
+    const store = artifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    expect(row?.anchorState).toBe("anchored");
+    expect(row?.anchorReason).toBeNull();
+    const body = JSON.parse(row?.body ?? "{}") as {
+      anchor?: unknown;
+      anchoring?: unknown;
+      changeGroups?: { id: string; title: string }[];
+      chunks?: { id: string; file: string; changeGroupId: string }[];
+    };
+    expect(body.anchor).toEqual({ state: "anchored" });
+    expect(body.anchoring).toEqual({ carried: ["gA"], regenerated: ["gB"] });
+    // The untouched group survives byte-identical; the touched one is the
+    // model's fresh take under its DESCENDED (previous) id.
+    expect(body.changeGroups).toContainEqual(
+      expect.objectContaining({ id: "gA", title: "alpha" }),
+    );
+    expect(body.changeGroups).toContainEqual(
+      expect.objectContaining({ id: "gB", title: "beta v2" }),
+    );
+    const carried = body.chunks?.find((c) => c.file === "a.ts");
+    expect(carried?.changeGroupId).toBe("gA");
+  });
+
+  it("`always` bypasses anchoring entirely — fresh output, ids untouched, stamp none", async () => {
+    const { pr } = await runTwoRevisions({ fullRegeneration: "always" });
+    const store = artifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    expect(row?.anchorState).toBe("none");
+    const body = JSON.parse(row?.body ?? "{}") as {
+      anchor?: unknown;
+      anchoring?: unknown;
+      changeGroups?: { id: string }[];
+    };
+    expect(body.anchor).toEqual({ state: "none" });
+    expect(body.anchoring).toBeUndefined();
+    expect(body.changeGroups?.map((g) => g.id)).toEqual(["tmpA", "tmpB"]);
+  });
+
+  it("`on-model-swap` restarts fresh when the configured model moved, stamping the reason", async () => {
+    const { pr } = await runTwoRevisions({
+      fullRegeneration: "on-model-swap",
+      rev2Model: "stub-model-2",
+    });
+    const store = artifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE, HEAD_2);
+    expect(row?.anchorState).toBe("fresh-restart");
+    expect(row?.anchorReason).toBe("model-swap");
+    const body = JSON.parse(row?.body ?? "{}") as {
+      anchor?: unknown;
+      changeGroups?: { id: string }[];
+    };
+    expect(body.anchor).toEqual({
+      state: "fresh-restart",
+      reason: "model-swap",
+    });
+    expect(body.changeGroups?.map((g) => g.id)).toEqual(["tmpA", "tmpB"]);
+  });
+
+  it("`on-model-swap` with an unchanged model anchors normally", async () => {
+    const { pr } = await runTwoRevisions({ fullRegeneration: "on-model-swap" });
+    const row = await artifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_2,
+    );
+    expect(row?.anchorState).toBe("anchored");
+  });
+
+  it("a base-SHA move (rebase) re-looks everything but ids still descend", async () => {
+    const BASE_2 = "d".repeat(40);
+    const { pr } = await runTwoRevisions({ rev2BaseSha: BASE_2 });
+    const store = artifactStore(harness.handle, ctx);
+    const row = await store.briefs.get(pr.id, BASE_2, HEAD_2);
+    expect(row?.anchorState).toBe("anchored");
+    const body = JSON.parse(row?.body ?? "{}") as {
+      anchoring?: { carried: string[]; regenerated: string[] };
+      changeGroups?: { id: string; title: string }[];
+    };
+    expect(body.anchoring?.carried).toEqual([]);
+    // Nothing carried, but descent still maps the fresh groups onto the
+    // previous ids — group identity survives the rebase.
+    expect(body.changeGroups?.map((g) => g.id).toSorted()).toEqual([
+      "gA",
+      "gB",
+    ]);
+    expect(body.changeGroups?.find((g) => g.id === "gA")?.title).toBe(
+      "alpha rewritten",
+    );
+  });
+
+  it("a same-base force-push (diverged span) carries nothing but stays anchored", async () => {
+    const { pr } = await runTwoRevisions({
+      compareFilesEntry: {
+        files: [{ filename: "b.ts", status: "modified" }],
+        complete: true,
+        status: "diverged",
+      },
+    });
+    const row = await artifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_2,
+    );
+    expect(row?.anchorState).toBe("anchored");
+    const body = JSON.parse(row?.body ?? "{}") as {
+      anchoring?: { carried: string[] };
+    };
+    expect(body.anchoring?.carried).toEqual([]);
+  });
+
+  it("a coverage failure is a permanent pipeline error, not salvage", async () => {
+    // Rev2 output covers only a.ts (which is frozen) — b.ts lands nowhere.
+    const rev2Output = {
+      summary: "stub brief",
+      intentCheck: {
+        ticketUrls: [],
+        specificity: "none",
+        scopeNote: "",
+        items: [],
+      },
+      changeGroups: [
+        {
+          id: "tmpA",
+          title: "only alpha",
+          summary: "s",
+          dominantCategory: "bugfix",
+          secondaryCategories: [],
+          uncertain: false,
+          uncertainBetween: [],
+        },
+      ],
+      chunks: [
+        {
+          id: "c9",
+          changeGroupId: "tmpA",
+          file: "a.ts",
+          concern: "implementation",
+          role: "carrier",
+          loc: { added: 4, deleted: 0 },
+          addedRanges: [{ start: 5, end: 8 }],
+          removedRanges: [],
+          riskSurface: [],
+        },
+      ],
+      concernView: [{ concern: "implementation", added: 4, deleted: 0 }],
+    };
+    const { pr } = await runTwoRevisions({ rev2Output });
+    const row = await generationProjection(harness.handle, ctx).get(
+      target(pr, HEAD_2),
+    );
+    expect(row?.status).toBe(GenerationStatus.FAILED);
+    expect(row?.error).toContain("coverage");
+    // No brief row was written for the failed span.
+    const brief = await artifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_2,
+    );
+    expect(brief).toBeUndefined();
+  });
+});
 
 describe("generate task — repo-config phase", () => {
   const POLICY_YAML = `version: 1

@@ -45,6 +45,8 @@ import {
 import {
   AnchorStates,
   capForRepo,
+  FreshRestartReasons,
+  FullRegenerations,
   GeneratorError,
   GeneratorErrorKind,
   type Anchor,
@@ -53,6 +55,7 @@ import {
   type Generator,
   type SpendPolicy,
 } from "generators";
+import { planAnchoredGeneration, stitchBrief } from "./anchoring";
 import {
   artifactStore,
   audit,
@@ -648,6 +651,15 @@ async function runGeneration(
       .toReversed()
       .find((row) => row.headSha !== headSha);
 
+    // Hoisted prevHead→head span fetch (BRIEF-143): the anchoring plan needs
+    // it BEFORE the model call; the revision-artifact phase below reuses the
+    // same Result (unwrap deferred there so failure semantics — permanent
+    // 406 after the brief write — stay byte-identical to the pre-hoist code).
+    const prevSpanFetch =
+      prevBrief === undefined
+        ? undefined
+        : await source.fetchCompareDiff(prevBrief.headSha, headSha);
+
     let briefRef: { id: BriefRowId; headIndex: number };
     let generatedBrief: Brief | undefined;
     // Repo-config phase (ADR 0032 #4): three default-branch reads, fresh per
@@ -701,6 +713,66 @@ async function runGeneration(
     }
     if (existing === undefined) {
       const headIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
+      // ---- Anchoring decision (BRIEF-143): policy × previous brief --------
+      // `always` = kill-switch (today's fresh path, byte-compatible);
+      // `on-model-swap` restarts fresh once when the stamped provider/model
+      // moved; otherwise a recoverable previous brief anchors this
+      // generation — partition now, stitch after the model call. Every
+      // degradation (missing row, unrecoverable body) falls back to a fresh
+      // generation stamped `none`.
+      const policy = deps.fullRegeneration ?? FullRegenerations.NEVER;
+      let anchor: Anchor = { state: AnchorStates.NONE };
+      let anchorPlan: ReturnType<typeof planAnchoredGeneration> | undefined;
+      if (prevBrief !== undefined && policy !== FullRegenerations.ALWAYS) {
+        const prevRow = await store.briefs.get(
+          pullRequestId,
+          prevBrief.baseSha,
+          prevBrief.headSha,
+        );
+        const current = deps.generator.provenance(deps.effort ?? "medium");
+        if (
+          policy === FullRegenerations.ON_MODEL_SWAP &&
+          prevRow !== undefined &&
+          (prevRow.provider !== current.provider ||
+            prevRow.model !== current.model)
+        ) {
+          anchor = {
+            state: AnchorStates.FRESH_RESTART,
+            reason: FreshRestartReasons.MODEL_SWAP,
+          };
+          log.info(
+            `generate: fresh restart — model swapped (${prevRow.provider}/${prevRow.model} → ${current.provider}/${current.model})`,
+          );
+        } else {
+          const previousBody =
+            prevRow === undefined ? undefined : recoverBrief(prevRow.body, log);
+          if (previousBody !== undefined) {
+            const compareFilesResult = await source.fetchCompareFiles(
+              prevBrief.headSha,
+              headSha,
+            );
+            if (!compareFilesResult.ok) {
+              log.warn(
+                `generate: compare files fetch failed (anchoring degrades to full re-look) — ${compareFilesResult.error.message}`,
+              );
+            }
+            anchorPlan = planAnchoredGeneration({
+              previousBrief: previousBody,
+              ...(prevSpanFetch?.ok === true
+                ? { incrementalDiff: prevSpanFetch.value }
+                : {}),
+              ...(compareFilesResult.ok
+                ? { compareFiles: compareFilesResult.value }
+                : {}),
+              baseShaMoved: prevBrief.baseSha !== info.baseSha,
+            });
+            anchor = { state: AnchorStates.ANCHORED };
+            log.info(
+              `generate: anchored generation — ${anchorPlan.frozen.length} frozen, ${anchorPlan.reLook.length} re-look group(s)`,
+            );
+          }
+        }
+      }
       await projection.markRunning(target, GenerationPhase.GENERATING);
       // Post the "generating" Entry comment before the (minutes-long) model
       // call: the deep link already renders the diff-first wait UX, so the
@@ -721,11 +793,22 @@ async function runGeneration(
         ),
       );
       await projection.markRunning(target, GenerationPhase.WRITING);
-      // Anchor stamp (BRIEF-143): forced `none` until the stitch step (PR 3)
-      // flips anchored generation on — the writer wiring (body + row columns)
-      // is the deliverable here, so later PRs only change the value.
-      const anchor: Anchor = { state: AnchorStates.NONE };
-      const stamped: Brief = { ...brief, anchor };
+      // Anchored stitch (BRIEF-143): carry frozen groups verbatim over the
+      // model's take, rewrite ids by descent, enforce coverage. A coverage
+      // failure is a pipeline error — permanent, never salvage.
+      let finalBrief = brief;
+      if (anchorPlan !== undefined) {
+        const stitched = stitchBrief({
+          generated: brief,
+          plan: anchorPlan,
+          prFiles: files.map((file) => file.path),
+        });
+        if (!stitched.ok) {
+          throw new PermanentJobError(stitched.error.message);
+        }
+        finalBrief = stitched.value.brief;
+      }
+      const stamped: Brief = { ...finalBrief, anchor };
       const written = await store.briefs.write({
         pullRequestId,
         baseSha: info.baseSha,
@@ -737,7 +820,12 @@ async function runGeneration(
         ...anchorColumnsOf(anchor),
         ...(repoConfig === undefined
           ? {}
-          : { repoConfig: buildRepoConfigArtifact(repoConfig, brief.chunks) }),
+          : {
+              // The snapshot's fired attributes come from the PERSISTED
+              // chunks — the stitched artifact, not the model's raw take
+              // (Fable r1: they'd disagree on carried/dropped regions).
+              repoConfig: buildRepoConfigArtifact(repoConfig, stamped.chunks),
+            }),
       });
       if (!written.ok) {
         throw new PermanentJobError(written.error.message);
@@ -811,10 +899,8 @@ async function runGeneration(
     // loop below — a checkpoint at the previous briefed head (the common
     // reviewed-last-push case) must not re-fetch the same compare diff.
     let prevSpan: PrefetchedSpan | undefined;
-    if (prevBrief !== undefined) {
-      const revDiff = unwrapGitHub(
-        await source.fetchCompareDiff(prevBrief.headSha, headSha),
-      );
+    if (prevBrief !== undefined && prevSpanFetch !== undefined) {
+      const revDiff = unwrapGitHub(prevSpanFetch);
       prevSpan = {
         baselineSha: prevBrief.headSha,
         diff: revDiff,

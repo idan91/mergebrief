@@ -7,6 +7,7 @@ import {
   deleteComment,
   fetchComment,
   fetchCompareDiff,
+  fetchCompareFiles,
   fetchDiff,
   fetchPullRequest,
   fetchPullRequestFiles,
@@ -14,6 +15,7 @@ import {
   getRepoFile,
   postEntryComment,
   type AppClient,
+  type CompareFiles,
   type GitHubApiError,
   type PullRequestFile,
   type PullRequestInfo,
@@ -23,6 +25,7 @@ import type { InstallationId } from "persistence";
 import type { Result } from "types";
 
 export type {
+  CompareFiles,
   GitHubApiError,
   PullRequestFile,
   PullRequestInfo,
@@ -40,6 +43,15 @@ export interface PullRequestSource {
     base: string,
     head: string,
   ): Promise<Result<string, GitHubApiError>>;
+  /**
+   * The `base...head` compare per-file status metadata (BRIEF-143) — the
+   * rename/binary/mode signals the anchoring predicate needs and the raw
+   * diff cannot carry.
+   */
+  fetchCompareFiles(
+    base: string,
+    head: string,
+  ): Promise<Result<CompareFiles, GitHubApiError>>;
   /**
    * One repo file from the DEFAULT BRANCH (`ref` deliberately unset — the
    * contents API's default-branch semantics ARE the ADR 0032 #3 trust rule;
@@ -104,6 +116,13 @@ export function appGitHubPort(app: AppClient): GitHubPort {
         fetchDiff: () => fetchDiff(octokit, ref),
         fetchCompareDiff: (base, head) =>
           fetchCompareDiff(octokit, {
+            owner: ref.owner,
+            repo: ref.repo,
+            base,
+            head,
+          }),
+        fetchCompareFiles: (base, head) =>
+          fetchCompareFiles(octokit, {
             owner: ref.owner,
             repo: ref.repo,
             base,

@@ -556,6 +556,16 @@ export const IntentCheckGenerationSchema = z.object({
 
 export type IntentCheckGeneration = z.infer<typeof IntentCheckGenerationSchema>;
 
+/**
+ * Which groups an anchored generation carried verbatim vs regenerated
+ * (BRIEF-143) — internal pipeline provenance, never rendered.
+ */
+export const AnchoringDetailSchema = z.object({
+  carried: z.array(z.string()),
+  regenerated: z.array(z.string()),
+});
+export type AnchoringDetail = z.infer<typeof AnchoringDetailSchema>;
+
 export const BriefSchema = z.object({
   pr: PrRefSchema,
   index: z
@@ -578,6 +588,9 @@ export const BriefSchema = z.object({
     ),
   anchor: AnchorSchema.optional().describe(
     "cross-revision anchor provenance (BRIEF-143): anchored | fresh-restart(reason) | none. CLI-assigned, never model-produced; optional on the read path — pre-feature briefs lack it.",
+  ),
+  anchoring: AnchoringDetailSchema.optional().describe(
+    "internal per-group carried-vs-regenerated stamp for anchored generations (BRIEF-143). Pipeline-assigned, never model-produced, not user-visible; present only on anchored briefs.",
   ),
   summary: z
     .string()
@@ -617,6 +630,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   generation: true,
   generationWarnings: true,
   anchor: true,
+  anchoring: true,
 }).extend({
   intentCheck: IntentCheckGenerationSchema,
 });

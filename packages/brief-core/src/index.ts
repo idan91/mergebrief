@@ -101,6 +101,9 @@ export {
   revisionNarrativeConfig,
   type RevisionNarrativeConfig,
 } from "./generation/config";
+// Structural validators, exported for post-generation stitching (BRIEF-143):
+// pure warn-issue functions the worker re-runs on a merged artifact.
+export { validatePartition, validateReadingOrder } from "./generation/validate";
 export { generateAndWrite, type Range } from "./cli/categorize";
 export {
   AnchorStates,

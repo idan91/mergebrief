@@ -270,12 +270,21 @@ export interface CompareFiles {
    * 300 files, so a 300-entry list proves nothing about the rest.
    */
   readonly complete: boolean;
+  /**
+   * The compare relation head-vs-base ('ahead' | 'diverged' | 'behind' |
+   * 'identical'; open string). Only 'ahead' means a fast-forward span whose
+   * three-dot diff equals the true tree diff — a same-base force-push shows
+   * 'diverged' here while the base SHA never moves (BRIEF-143). Absent when
+   * the response omitted it: treat as not-fast-forward.
+   */
+  readonly status?: string;
 }
 
 /** GitHub caps the compare response's `files[]` at this many entries. */
 const COMPARE_FILES_CAP = 300;
 
 const compareFilesSchema = z.object({
+  status: z.string().optional(),
   files: z
     .array(
       z.object({
@@ -313,11 +322,13 @@ export async function fetchCompareFiles(
         error: unexpectedResponseError("fetch compare files"),
       };
     }
+    const spanStatus =
+      parsed.data.status === undefined ? {} : { status: parsed.data.status };
     if (parsed.data.files === undefined) {
       // A 200 without `files[]` (degraded/oversized compare) proves nothing —
       // report incomplete so the touched predicate re-looks everything
       // instead of wrongly confirming "untouched" (BRIEF-143 conservatism).
-      return { ok: true, value: { files: [], complete: false } };
+      return { ok: true, value: { files: [], complete: false, ...spanStatus } };
     }
     const files = parsed.data.files.map((file) => ({
       filename: file.filename,
@@ -328,7 +339,11 @@ export async function fetchCompareFiles(
     }));
     return {
       ok: true,
-      value: { files, complete: files.length < COMPARE_FILES_CAP },
+      value: {
+        files,
+        complete: files.length < COMPARE_FILES_CAP,
+        ...spanStatus,
+      },
     };
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "fetch compare files") };
