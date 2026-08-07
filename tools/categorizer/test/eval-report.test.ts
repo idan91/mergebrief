@@ -160,7 +160,10 @@ describe("buildReport", () => {
       usage: null,
       costUsd: null,
     });
-    expect(subscription.terminal).toContain("subscription");
+    // Never asserts "subscription" as fact — the harness cannot verify
+    // which account the CLI authenticated with (BRIEF-104 billing lesson).
+    expect(subscription.terminal).toContain("CLI's authenticated account");
+    expect(subscription.terminal).not.toContain("subscription");
     expect(subscription.terminal).not.toContain("$0");
   });
 

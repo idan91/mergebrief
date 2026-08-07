@@ -162,8 +162,10 @@ Shown, never capped. Pre-flight prints the generation count; the report
 prints token totals (via the generators' `onUsage`) and dollars only if
 `eval/prices.json` has a row for the active `provider:model` — copy
 `prices.example.json` and fill CURRENT rates (prices are deliberately
-not hardcoded). CLI adapters (claude-code/codex) render as
-"subscription", never $0.
+not hardcoded). CLI adapters (claude-code/codex) render as "billed to
+the CLI's authenticated account" — never $0, and never "subscription"
+as a claim of fact, since the harness cannot verify which account the
+CLI authenticated with (BRIEF-140).
 
 Cache-read semantics differ per provider family and `priceUsage` accounts
 for it: Anthropic's input tokens EXCLUDE cache reads (priced additively);

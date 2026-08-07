@@ -377,14 +377,47 @@ function toAbortReason(signal: AbortSignal | undefined): unknown {
   return signal !== undefined ? signal.reason : new Error("aborted");
 }
 
-/** Spawn env: strip undefined values (spawn requires string values). */
+/**
+ * Credential and billing-redirect env vars no harness CLI may inherit. The
+ * harness adapters (claude-code, codex) run under the CLI's own interactive
+ * login by design — but both CLIs put env credentials ABOVE that login in
+ * their auth precedence, so a leaked var silently rebills every generation
+ * to an API/cloud account while the config says "subscription". Stripping
+ * here, at the one seam every harness spawn crosses, makes the configured
+ * provider guarantee its billing route. API-provider adapters never spawn
+ * CLIs and are unaffected. `CLAUDE_CODE_OAUTH_TOKEN` deliberately SURVIVES —
+ * it is the subscription-plan token, i.e. the route this guarantee protects.
+ * Residual hole (documented in generators.md): `apiKeyHelper` lives in the
+ * CLI's settings file, not the environment — unreachable from this seam.
+ */
+export const HARNESS_STRIPPED_CREDENTIAL_VARS = [
+  // claude: key/token outrank OAuth; the cloud switches + base-url redirect
+  // outrank everything.
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_AUTH_TOKEN",
+  "ANTHROPIC_BASE_URL",
+  "CLAUDE_CODE_USE_BEDROCK",
+  "CLAUDE_CODE_USE_VERTEX",
+  // codex: CODEX_API_KEY is the documented `codex exec` env auth;
+  // OPENAI_API_KEY is login-time; CODEX_ACCESS_TOKEN is enterprise tokens.
+  "CODEX_API_KEY",
+  "CODEX_ACCESS_TOKEN",
+  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
+] as const;
+
+/**
+ * Spawn env: strip undefined values (spawn requires string values) and the
+ * credential vars above (billing-route guarantee).
+ */
 function envForSpawn(
   env: Record<string, string | undefined> | undefined,
 ): Record<string, string> {
   const source = env ?? process.env;
+  const stripped = new Set<string>(HARNESS_STRIPPED_CREDENTIAL_VARS);
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(source)) {
-    if (typeof value === "string") out[key] = value;
+    if (typeof value === "string" && !stripped.has(key)) out[key] = value;
   }
   return out;
 }

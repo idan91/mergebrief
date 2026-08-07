@@ -220,7 +220,7 @@ export const GENERATOR_REGISTRY = {
         versionArgv: ["--version"],
         authArgv: ["auth", "status"],
         authFailureHint:
-          "run `claude /login` interactively on this machine (or set ANTHROPIC_API_KEY)",
+          "run `claude /login` interactively on this machine (or set CLAUDE_CODE_OAUTH_TOKEN; an ANTHROPIC_API_KEY cannot authenticate this provider — the harness strips it)",
         env: deps.env,
       });
       if (!probe.ok) return probe;

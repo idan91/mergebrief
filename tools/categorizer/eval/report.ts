@@ -232,7 +232,10 @@ export function renderCostLine(
   input: Pick<ReportInput, "key" | "billing" | "usage" | "costUsd">,
 ): string {
   if (input.billing.kind === BillingKinds.SUBSCRIPTION) {
-    return `cost: subscription (${input.key}) — see the provider's usage page`;
+    // The harness cannot verify which account the CLI authenticated with —
+    // never assert "subscription" as fact (2026-08-06: this line read
+    // "subscription" while an env API key was billing the Console account).
+    return `cost: billed to the ${input.key} CLI's authenticated account — check its usage page`;
   }
   if (input.usage === null) {
     return `cost: no usage reported by this generator`;

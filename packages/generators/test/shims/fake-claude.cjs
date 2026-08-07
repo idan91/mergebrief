@@ -74,6 +74,21 @@ if (argv[0] === "auth" && argv[1] === "status") {
     process.stderr.write("Not logged in · run /login\n");
     process.exit(1);
   }
+  if (scenario === "auth-fail-if-credentials") {
+    // Billing-route pin for the PROBE path: authenticated only when no
+    // credential var leaked through the spawn seam.
+    const leaked = Object.keys(process.env).filter((name) =>
+      /API_KEY|AUTH_TOKEN|ACCESS_TOKEN|USE_BEDROCK|USE_VERTEX|BASE_URL/.test(
+        name,
+      ),
+    );
+    if (leaked.length > 0) {
+      process.stderr.write(`credential vars leaked: ${leaked.join(",")}\n`);
+      process.exit(1);
+    }
+    process.stdout.write("Logged in as shim@example.com\n");
+    process.exit(0);
+  }
   if (scenario === "auth-hang") {
     // Authenticated-but-hung CLI: stay alive silently; never reach the
     // generation scenario switch (CJS top-level return).
@@ -190,6 +205,30 @@ switch (scenario) {
     drainStdinThen(() => {
       init();
       emit(resultEnvelope({ structured_output: JSON.parse(output) }));
+      process.exit(0);
+    });
+    break;
+  case "env-echo":
+    // Billing-route guarantee: reports every credential-shaped var that
+    // reached the child, so the harness's spawn-env strip is directly
+    // observable and the assertion can derive from the exported strip list
+    // (no hardcoded-name drift).
+    drainStdinThen(() => {
+      init();
+      emit(
+        resultEnvelope({
+          structured_output: {
+            leakedVars: Object.keys(process.env)
+              .filter((name) =>
+                /API_KEY|AUTH_TOKEN|ACCESS_TOKEN|USE_BEDROCK|USE_VERTEX|BASE_URL/.test(
+                  name,
+                ),
+              )
+              .toSorted(),
+            home: process.env.HOME ?? "ABSENT",
+          },
+        }),
+      );
       process.exit(0);
     });
     break;

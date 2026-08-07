@@ -184,6 +184,33 @@ with no session persistence. Both run under hard + inactivity watchdogs
 with a process-group kill ladder — a hung CLI (or its grandchildren) is
 killed, classified, and dumped, never waited on forever.
 
+### Billing: what "subscription" actually guarantees
+
+Selecting a harness provider bills the CLI's **own login** — that is the
+whole point — but three facts keep the guarantee honest:
+
+- **The harness strips credential env vars before spawning.** Both CLIs
+  put env credentials ABOVE the interactive login in their auth
+  precedence (no flag disables it), so a leaked `ANTHROPIC_API_KEY` /
+  `CODEX_API_KEY` would silently rebill every generation to an API
+  account. MergeBrief removes the known credential and billing-redirect
+  vars (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`,
+  `CLAUDE_CODE_USE_BEDROCK`/`_VERTEX`, `CODEX_API_KEY`,
+  `CODEX_ACCESS_TOKEN`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`) from the
+  spawned CLI's environment — generation and boot probe alike — so the
+  configured provider means what it says. `CLAUDE_CODE_OAUTH_TOKEN`
+  survives deliberately: it IS the subscription route. Residual hole the
+  strip cannot reach: an `apiKeyHelper` configured in the CLI's own
+  settings file still outranks OAuth — remove it if you have one.
+- **Subscription billing holds only within plan quota.** Headless runs
+  auto-roll into paid "extra usage" credits when that toggle is enabled on
+  the account — without any prompt or warning, and with no client-side
+  off-switch. Disable extra usage in your account's billing settings if
+  you want quota exhaustion to be a loud error instead of a bill.
+- **Scale accordingly.** Per-PR generation fits comfortably in a Pro/Max
+  window; batch workloads (the eval suite: ~60 generations per full run)
+  do not fit a Pro plan.
+
 ## When something degrades
 
 Salvage (a dropped invalid enum entry), the one feedback retry, a

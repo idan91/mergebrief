@@ -67,6 +67,13 @@ and `docs/self-host/generators.md`.
 - **No secrets in errors**: error messages may name an env VAR, never echo
   its value, a key, or a connection string. Untrusted provider/CLI strings
   reach messages only through allowlists or `redactSecrets`.
+- **No credential env var reaches a CLI spawn** (BRIEF-140): every harness
+  spawn (generation AND boot probe) goes through `envForSpawn`, which
+  strips `HARNESS_STRIPPED_CREDENTIAL_VARS` — env credentials outrank the
+  CLI's own login in its auth precedence, so a leaked var would silently
+  rebill generations to an API/cloud account. `CLAUDE_CODE_OAUTH_TOKEN`
+  deliberately survives (it IS the subscription route). Residual hole:
+  `apiKeyHelper` lives in the CLI's settings file, unreachable from env.
 - **Construction returns `Result`; `generate()` throws** — a misconfigured
   instance refuses boot, never limps into jobs.
 

@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
 import {
+  HARNESS_STRIPPED_CREDENTIAL_VARS,
   runHarnessProcess,
   spawnFailureError,
   type HarnessTimeouts,
@@ -368,6 +369,51 @@ describe("runHarnessProcess", () => {
     expect(result.exitCode).toBe(3);
     expect(result.stderrTail.length).toBeLessThanOrEqual(4096);
     expect(result.stderrTail).toContain("THE-END");
+  });
+});
+
+/** Every stripped var set to a live value — derived from the exported
+ * list so a var added there is automatically under test. */
+const leakedCredentials = () =>
+  Object.fromEntries(
+    HARNESS_STRIPPED_CREDENTIAL_VARS.map((name) => [name, `leaked-${name}`]),
+  );
+
+describe("billing-route guarantee: credential vars never reach the CLI", () => {
+  it("strips every listed var from the spawn env while HOME passes through", async () => {
+    const result = await run("env-echo", {
+      env: { ...leakedCredentials(), HOME: "/fake/home" },
+    });
+    expect(result.exitCode).toBe(0);
+    const envelope: unknown = result.stdout
+      .split("\n")
+      .filter((line) => line !== "")
+      .map((line): unknown => JSON.parse(line))
+      .find(
+        (event) =>
+          typeof event === "object" &&
+          event !== null &&
+          "structured_output" in event,
+      );
+    expect(envelope).toMatchObject({
+      structured_output: { leakedVars: [], home: "/fake/home" },
+    });
+  });
+
+  it("strips the vars on the PROBE path too — boot verifies the credential generation will use", async () => {
+    const probe = await probeHarnessCli({
+      command: process.execPath,
+      versionArgv: [FAKE_CLAUDE, "--version"],
+      authArgv: [FAKE_CLAUDE, "auth", "status"],
+      authFailureHint: "hint",
+      env: {
+        ...leakedCredentials(),
+        SHIM_SCENARIO: "auth-fail-if-credentials",
+      },
+    });
+    // The shim's auth status FAILS if any credential var reached it — an
+    // ok probe proves the strip covers the preflight, not just generation.
+    expect(probe.ok).toBe(true);
   });
 });
 
