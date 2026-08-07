@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createGenerator,
   defaultGeneratorConfig,
+  FullRegenerations,
   GeneratorConfigSchema,
   Providers,
   validateGeneratorConfig,
@@ -188,6 +189,65 @@ describe("effort on the generator block (BRIEF-75)", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.issues.join("; ")).toContain("efort");
+  });
+});
+
+describe("full-regeneration on the generator block (BRIEF-143)", () => {
+  // Minimal valid block per adapter; openai/openrouter require a model.
+  const minimalBlocks = [
+    { provider: Providers.ANTHROPIC },
+    { provider: Providers.CLAUDE_CODE },
+    { provider: Providers.CODEX },
+    { provider: Providers.OPENAI, model: "gpt-5.2" },
+    { provider: Providers.OPENROUTER, model: "anthropic/claude-opus-4.8" },
+  ] as const;
+
+  it.each(minimalBlocks)(
+    "parses every FullRegenerations member on $provider",
+    (block) => {
+      for (const value of Object.values(FullRegenerations)) {
+        const parsed = GeneratorConfigSchema.safeParse({
+          ...block,
+          "full-regeneration": value,
+        });
+        expect(parsed.success).toBe(true);
+        if (!parsed.success) continue;
+        expect(parsed.data["full-regeneration"]).toBe(value);
+      }
+    },
+  );
+
+  it.each(minimalBlocks)(
+    "leaves full-regeneration undefined when omitted on $provider",
+    (block) => {
+      const parsed = GeneratorConfigSchema.safeParse(block);
+      expect(parsed.success).toBe(true);
+      if (!parsed.success) return;
+      expect(parsed.data["full-regeneration"]).toBeUndefined();
+    },
+  );
+
+  it("rejects an out-of-vocabulary value with a per-field issue naming the key", () => {
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      "full-regeneration": "sometimes",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("full-regeneration");
+    expect(text).not.toContain("sometimes");
+  });
+
+  it("still rejects unknown sibling keys next to a valid value (strictness preserved)", () => {
+    const result = validateGeneratorConfig({
+      provider: "anthropic",
+      "full-regeneration": "never",
+      "full-regen": "always",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues.join("; ")).toContain("full-regen");
   });
 });
 

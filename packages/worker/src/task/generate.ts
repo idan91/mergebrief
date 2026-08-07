@@ -43,10 +43,13 @@ import {
   type RevisionNarrativeSkipped,
 } from "brief-core";
 import {
+  AnchorStates,
   capForRepo,
   GeneratorError,
   GeneratorErrorKind,
+  type Anchor,
   type Effort,
+  type FullRegeneration,
   type Generator,
   type SpendPolicy,
 } from "generators";
@@ -111,6 +114,12 @@ export interface GenerateTaskDeps {
   readonly headPollIntervalMs?: number;
   /** Instance-config reasoning effort (BRIEF-75); absent → engine default. */
   readonly effort?: Effort;
+  /**
+   * Cross-revision regeneration policy (BRIEF-143); absent → `never`
+   * (anchored). Consumed by the stitch step (PR 3); threaded now so the
+   * config vocabulary reaches the task in one shape.
+   */
+  readonly fullRegeneration?: FullRegeneration;
   /**
    * The instance daily generation cap (BRIEF-20); absent → uncapped, which
    * is also what a config file with no `spend` block means.
@@ -276,6 +285,19 @@ function provenanceOf(generation: Brief["generation"]): {
     provider: generation.provider,
     model: generation.model,
     effort: generation.effort ?? "none",
+  };
+}
+
+/** Anchor stamp → brief row columns; `reason` exists exactly on fresh-restart. */
+function anchorColumnsOf(anchor: Anchor): {
+  anchorState: Anchor["state"];
+  anchorReason?: string;
+} {
+  return {
+    anchorState: anchor.state,
+    ...(anchor.state === AnchorStates.FRESH_RESTART
+      ? { anchorReason: anchor.reason }
+      : {}),
   };
 }
 
@@ -699,6 +721,11 @@ async function runGeneration(
         ),
       );
       await projection.markRunning(target, GenerationPhase.WRITING);
+      // Anchor stamp (BRIEF-143): forced `none` until the stitch step (PR 3)
+      // flips anchored generation on — the writer wiring (body + row columns)
+      // is the deliverable here, so later PRs only change the value.
+      const anchor: Anchor = { state: AnchorStates.NONE };
+      const stamped: Brief = { ...brief, anchor };
       const written = await store.briefs.write({
         pullRequestId,
         baseSha: info.baseSha,
@@ -706,7 +733,8 @@ async function runGeneration(
         headIndex,
         commitCount: info.commitCount,
         ...provenanceOf(brief.generation),
-        body: JSON.stringify(brief),
+        body: JSON.stringify(stamped),
+        ...anchorColumnsOf(anchor),
         ...(repoConfig === undefined
           ? {}
           : { repoConfig: buildRepoConfigArtifact(repoConfig, brief.chunks) }),
@@ -715,7 +743,7 @@ async function runGeneration(
         throw new PermanentJobError(written.error.message);
       }
       briefRef = { id: written.value.id, headIndex: written.value.headIndex };
-      generatedBrief = brief;
+      generatedBrief = stamped;
       await audit(handle, {
         installationId: ctx.installationId,
         actorType: AuditActorType.SYSTEM,

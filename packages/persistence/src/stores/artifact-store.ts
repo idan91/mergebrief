@@ -172,6 +172,14 @@ export interface BriefWriteInput extends Provenance {
    * for generations that never ran the repo-config phase.
    */
   readonly repoConfig?: string;
+  /**
+   * Anchor provenance (BRIEF-143) — 'anchored' | 'fresh-restart' | 'none',
+   * DB-enforced (migration 0016). Omit only for writers predating the stamp;
+   * the worker always stamps.
+   */
+  readonly anchorState?: string;
+  /** Fresh-restart reason ('model-swap'); only with anchorState 'fresh-restart'. */
+  readonly anchorReason?: string;
 }
 
 export interface DeltaWriteInput extends Provenance {
@@ -404,6 +412,8 @@ export function artifactStore(
             body: input.body,
             byteSize: byteSize(input.body),
             repoConfig: input.repoConfig ?? null,
+            anchorState: input.anchorState ?? null,
+            anchorReason: input.anchorReason ?? null,
           })
           .onConflictDoUpdate({
             target: [
@@ -421,6 +431,8 @@ export function artifactStore(
               body: input.body,
               byteSize: byteSize(input.body),
               repoConfig: input.repoConfig ?? null,
+              anchorState: input.anchorState ?? null,
+              anchorReason: input.anchorReason ?? null,
             },
           })
           .returning();

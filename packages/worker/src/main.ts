@@ -75,6 +75,8 @@ async function main(): Promise<void> {
       logger.warn("postgres pool error (idle client)", { err: error }),
   });
   const configuredEffort = config.value.generator.effort;
+  const configuredFullRegeneration =
+    config.value.generator["full-regeneration"];
   const generate = createGenerateTask({
     handle,
     generator: generator.value,
@@ -82,6 +84,10 @@ async function main(): Promise<void> {
     publicBaseUrl: config.value.publicBaseUrl,
     // Instance-config effort (BRIEF-75); absent → brief-core's medium default.
     ...(configuredEffort === undefined ? {} : { effort: configuredEffort }),
+    // Cross-revision regeneration policy (BRIEF-143); absent → never.
+    ...(configuredFullRegeneration === undefined
+      ? {}
+      : { fullRegeneration: configuredFullRegeneration }),
     // The daily generation cap (BRIEF-20); no `spend` block → uncapped.
     spend: config.value.spend,
     log: logger,

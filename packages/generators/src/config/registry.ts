@@ -98,6 +98,23 @@ const DEFAULT_ANTHROPIC_KEY_ENV = "ANTHROPIC_API_KEY";
  */
 const effortOption = z.enum(Efforts).optional();
 
+/**
+ * Cross-revision regeneration policy (BRIEF-143): whether a new revision's
+ * brief anchors to the previous one. `never` (the DEFAULT, applied at the
+ * worker's consumption site like effort's) = always anchored; `on-model-swap`
+ * = fresh restart only when the previous brief's stamped provider/model
+ * differs from the current config; `always` = kill-switch, every generation
+ * fresh (pre-BRIEF-143 behavior, also the eval baseline-compat mode).
+ */
+export const FullRegenerations = {
+  ALWAYS: "always",
+  ON_MODEL_SWAP: "on-model-swap",
+  NEVER: "never",
+} as const;
+export type FullRegeneration = ValueOf<typeof FullRegenerations>;
+
+const fullRegenerationOption = z.enum(FullRegenerations).optional();
+
 const anthropicOptions = z
   .object({
     provider: z.literal(Providers.ANTHROPIC),
@@ -109,6 +126,7 @@ const anthropicOptions = z
     /** NAME of the env var holding the key (BYOK-by-env-name, ADR 0013). */
     apiKeyEnv: z.string().min(1).optional(),
     effort: effortOption,
+    "full-regeneration": fullRegenerationOption,
   })
   .strict();
 
@@ -130,6 +148,7 @@ const claudeCodeOptions = z
     command: z.string().min(1).optional(),
     timeouts: harnessTimeouts.optional(),
     effort: effortOption,
+    "full-regeneration": fullRegenerationOption,
   })
   .strict();
 
@@ -145,6 +164,7 @@ const codexOptions = z
     command: z.string().min(1).optional(),
     timeouts: harnessTimeouts.optional(),
     effort: effortOption,
+    "full-regeneration": fullRegenerationOption,
   })
   .strict();
 
@@ -166,6 +186,7 @@ const openaiOptions = z
      */
     baseUrl: z.string().url().optional(),
     effort: effortOption,
+    "full-regeneration": fullRegenerationOption,
   })
   .strict();
 
@@ -187,6 +208,7 @@ const openrouterOptions = z
     referer: z.string().min(1).optional(),
     title: z.string().min(1).optional(),
     effort: effortOption,
+    "full-regeneration": fullRegenerationOption,
   })
   .strict();
 

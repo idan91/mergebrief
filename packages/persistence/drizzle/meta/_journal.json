@@ -113,6 +113,13 @@
       "when": 1785979179210,
       "tag": "0015_generation-status-capped",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1786127675090,
+      "tag": "0016_brief-anchor-provenance",
+      "breakpoints": true
     }
   ]
 }

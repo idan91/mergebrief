@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import type { ValueOf } from "types";
 
 /**
  * The port's cross-provider vocabulary (ADR 0013): the normalized effort knob
@@ -36,3 +37,40 @@ export const GenerationSchema = z.object({
 });
 
 export type Generation = z.infer<typeof GenerationSchema>;
+
+/**
+ * Anchor provenance (BRIEF-143): how a brief relates to its predecessor.
+ * `none` = no anchoring was performed (first generations, and every
+ * generation until the stitch step lands); `anchored` = incremental
+ * regeneration against the previous brief; `fresh-restart` = a deliberate
+ * from-scratch run (the anchor chain restarts here), always with a reason.
+ */
+export const AnchorStates = {
+  ANCHORED: "anchored",
+  FRESH_RESTART: "fresh-restart",
+  NONE: "none",
+} as const;
+export type AnchorState = ValueOf<typeof AnchorStates>;
+
+/** Why an anchored-capable generation ran fresh instead. */
+export const FreshRestartReasons = {
+  /** `full-regeneration: on-model-swap` fired — stamped provider/model moved. */
+  MODEL_SWAP: "model-swap",
+} as const;
+export type FreshRestartReason = ValueOf<typeof FreshRestartReasons>;
+
+/**
+ * The anchor stamp — CLI/worker-assigned like `Generation`, never
+ * model-produced. Strict: `reason` exists exactly on `fresh-restart`.
+ */
+export const AnchorSchema = z.discriminatedUnion("state", [
+  z.object({ state: z.literal(AnchorStates.ANCHORED) }).strict(),
+  z
+    .object({
+      state: z.literal(AnchorStates.FRESH_RESTART),
+      reason: z.enum([FreshRestartReasons.MODEL_SWAP]),
+    })
+    .strict(),
+  z.object({ state: z.literal(AnchorStates.NONE) }).strict(),
+]);
+export type Anchor = z.infer<typeof AnchorSchema>;

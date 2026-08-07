@@ -34,6 +34,17 @@ export const brief = pgTable(
      * never live policy). Nullable: rows predating BRIEF-52.
      */
     repoConfig: text("repo_config"),
+    /**
+     * Anchor provenance (BRIEF-143): how this brief relates to its
+     * predecessor — 'anchored' | 'fresh-restart' | 'none' (CHECK-constrained,
+     * migration 0016). Nullable: rows predating the feature.
+     */
+    anchorState: text("anchor_state"),
+    /**
+     * Why an anchored-capable generation restarted fresh ('model-swap');
+     * non-null exactly when `anchor_state = 'fresh-restart'` (CHECK).
+     */
+    anchorReason: text("anchor_reason"),
     ...artifactColumns(),
   },
   (table) => [

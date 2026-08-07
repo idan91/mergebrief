@@ -16,9 +16,15 @@ export {
   type TokenUsage,
 } from "./contract/generator";
 export {
+  AnchorSchema,
+  AnchorStates,
   Efforts,
+  FreshRestartReasons,
   GenerationSchema,
+  type Anchor,
+  type AnchorState,
   type Effort,
+  type FreshRestartReason,
   type Generation,
 } from "./contract/provenance";
 export { GeneratorError, GeneratorErrorKind } from "./contract/errors";
@@ -27,12 +33,14 @@ export { GeneratorError, GeneratorErrorKind } from "./contract/errors";
 export {
   createGenerator,
   defaultGeneratorConfig,
+  FullRegenerations,
   GENERATOR_REGISTRY,
   GeneratorConfigSchema,
   Providers,
   validateGeneratorConfig,
   type ConfigError,
   type CreateGeneratorDeps,
+  type FullRegeneration,
   type GeneratorConfig,
   type Provider,
 } from "./config/registry";

@@ -397,6 +397,31 @@ describe("generate task", () => {
     });
   });
 
+  it("stamps anchor provenance `none` on the row and the artifact body (BRIEF-143)", async () => {
+    const { pr, payload } = await trigger(HEAD_1);
+    const generator = stubGenerator();
+    const github = stubGitHub(HEAD_1);
+    const task = createGenerateTask({
+      handle: harness.handle,
+      publicBaseUrl: PUBLIC_URL,
+      generator,
+      github,
+    });
+
+    await task(payload);
+
+    const brief = await artifactStore(harness.handle, ctx).briefs.get(
+      pr.id,
+      BASE,
+      HEAD_1,
+    );
+    expect(brief?.anchorState).toBe("none");
+    expect(brief?.anchorReason).toBeNull();
+    expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
+      anchor: { state: "none" },
+    });
+  });
+
   it("posts the Entry comment with the exact-span deep link and stores its id", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();

@@ -105,6 +105,35 @@ describe("BriefSchema", () => {
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
 
+  it("accepts the anchor stamp and its absence; rejects unknown states (BRIEF-143)", () => {
+    const anchored = {
+      ...structuredClone(validBrief),
+      anchor: { state: "anchored" },
+    };
+    expect(BriefSchema.safeParse(anchored).success).toBe(true);
+
+    const restart = {
+      ...structuredClone(validBrief),
+      anchor: { state: "fresh-restart", reason: "model-swap" },
+    };
+    expect(BriefSchema.safeParse(restart).success).toBe(true);
+
+    // Pre-feature briefs have no anchor — the read path must keep parsing.
+    expect(BriefSchema.safeParse(structuredClone(validBrief)).success).toBe(
+      true,
+    );
+
+    const bad = {
+      ...structuredClone(validBrief),
+      anchor: { state: "floating" },
+    };
+    expect(BriefSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("keeps anchor out of the model-facing generation schema (BRIEF-143)", () => {
+    expect("anchor" in BriefGenerationSchema.shape).toBe(false);
+  });
+
   it("accepts a well-formed readingOrder", () => {
     const withOrder = {
       ...structuredClone(validBrief),

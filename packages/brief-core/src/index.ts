@@ -80,8 +80,10 @@ export {
 } from "./generation/config";
 export { generateAndWrite, type Range } from "./cli/categorize";
 export {
+  AnchorStates,
   Categories,
   Concerns,
+  FreshRestartReasons,
   Roles,
   RiskSurfaceAttributes,
   Specificities,
@@ -89,7 +91,10 @@ export {
   PrLifecycleStates,
   briefGenerationSchemaWith,
   toPrLifecycleState,
+  type Anchor,
+  type AnchorState,
   type Brief,
+  type FreshRestartReason,
   type Category,
   type Concern,
   type Role,

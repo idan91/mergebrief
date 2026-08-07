@@ -129,6 +129,110 @@ describe("artifactStore.briefs — idempotent content-addressed write (D6)", () 
   });
 });
 
+describe("artifactStore.briefs — anchor provenance columns (BRIEF-143)", () => {
+  it("round-trips anchor state + reason and updates them on rewrite", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const store: ArtifactStore = artifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 9,
+      state: PrState.OPEN,
+    });
+
+    const first = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+      body: "v1",
+      anchorState: "none",
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) throw new Error("unreachable");
+    expect(first.value.anchorState).toBe("none");
+    expect(first.value.anchorReason).toBeNull();
+
+    const second = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+      body: "v2",
+      anchorState: "fresh-restart",
+      anchorReason: "model-swap",
+    });
+    expect(second.ok).toBe(true);
+    if (!second.ok) throw new Error("unreachable");
+    expect(second.value.anchorState).toBe("fresh-restart");
+    expect(second.value.anchorReason).toBe("model-swap");
+
+    const read = await store.briefs.get(pr.id, "base", "head");
+    expect(read?.anchorState).toBe("fresh-restart");
+    expect(read?.anchorReason).toBe("model-swap");
+  });
+
+  it("stores null anchor columns when the writer omits them (pre-feature shape)", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const store: ArtifactStore = artifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 10,
+      state: PrState.OPEN,
+    });
+
+    const written = await store.briefs.write({
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+      body: "v1",
+    });
+    expect(written.ok).toBe(true);
+    if (!written.ok) throw new Error("unreachable");
+    expect(written.value.anchorState).toBeNull();
+    expect(written.value.anchorReason).toBeNull();
+  });
+
+  it("DB rejects out-of-vocabulary anchor state and reason-without-fresh-restart (CHECKs)", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const store: ArtifactStore = artifactStore(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 11,
+      state: PrState.OPEN,
+    });
+    const base = {
+      pullRequestId: pr.id,
+      baseSha: "base",
+      headSha: "head",
+      headIndex: 0,
+      commitCount: 1,
+      ...PROV,
+      body: "v1",
+    };
+
+    await expect(
+      store.briefs.write({ ...base, anchorState: "floating" }),
+    ).rejects.toThrow(/anchor/);
+    await expect(
+      store.briefs.write({
+        ...base,
+        anchorState: "anchored",
+        anchorReason: "model-swap",
+      }),
+    ).rejects.toThrow(/anchor/);
+  });
+});
+
 describe("artifactStore.deltas / diffSnapshots — same D6 write discipline", () => {
   it("delta: idempotent span rewrite, provenance written, cross-tenant rejected", async () => {
     const handle = await freshDatabase();

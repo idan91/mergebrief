@@ -21,6 +21,13 @@ generator:
   # The documented cost knob:
   model: claude-sonnet-5
 
+  # Cross-revision regeneration policy (BRIEF-143): never (default) keeps
+  # each new revision's brief anchored to the previous one; on-model-swap
+  # runs one fresh restart when the configured provider/model changed since
+  # the previous brief; always regenerates every revision from scratch
+  # (pre-anchoring behavior — the kill-switch).
+  # full-regeneration: never
+
   # Reasoning effort for every generation: low | medium | high.
   # Default: medium. Each provider maps it to its own setting; providers
   # without the concept stay honest via provenance (`effort: null`). The

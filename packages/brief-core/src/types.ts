@@ -1,14 +1,20 @@
 import { z } from "zod/v4";
-import { GenerationSchema } from "generators";
+import { AnchorSchema, GenerationSchema } from "generators";
 import type { ValueOf } from "types";
 
 // Port vocabulary now lives in packages/generators (BRIEF-11); re-exported
 // here so the categorizer's own modules and downstream consumers keep their
 // import paths.
 export {
+  AnchorSchema,
+  AnchorStates,
   Efforts,
+  FreshRestartReasons,
   GenerationSchema,
+  type Anchor,
+  type AnchorState,
   type Effort,
+  type FreshRestartReason,
   type Generation,
 } from "generators";
 
@@ -570,6 +576,9 @@ export const BriefSchema = z.object({
     .describe(
       "warning lines the generation pipeline emitted (salvage, feedback retry, served-model mismatch). CLI-collected, never model-produced (BRIEF-11 UI surfacing).",
     ),
+  anchor: AnchorSchema.optional().describe(
+    "cross-revision anchor provenance (BRIEF-143): anchored | fresh-restart(reason) | none. CLI-assigned, never model-produced; optional on the read path — pre-feature briefs lack it.",
+  ),
   summary: z
     .string()
     .describe(
@@ -607,6 +616,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   commitRange: true,
   generation: true,
   generationWarnings: true,
+  anchor: true,
 }).extend({
   intentCheck: IntentCheckGenerationSchema,
 });
