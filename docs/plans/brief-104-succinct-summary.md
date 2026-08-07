@@ -19,25 +19,17 @@ Target shape fixed by the BRIEF-134 close-out amendment; the BRIEF-134 stack
 3. **Intent check succinctness, light touch.** Prefer the shortest verbatim
    quote span that carries the ask (quotes stay verbatim); item free text
    (`intent`) one sentence. No bucket-rule changes.
-4. **Eval gate = full suite on the claude-code subscription provider**
-   (AMENDED 2026-08-07, reversing the API-gate decision below after the
-   Max-20x plan made subscription runs viable). Sequence, in this order:
-   1. Seed `claude-code:claude-opus-4-8` baselines **on main** (pre-change
-      prompt) — never from the branch; re-seeding from the branch would
-      bake the change into the baseline and make the gate a tautology
-      (the BRIEF-59 vacuous-pass trap). Commit the seeded baselines.
-   2. Run the full suite on the PR branch against those baselines; report
-      in the PR body. `--rebaseline` on main after merge.
-
-   Billing preconditions (learned 2026-08-06/07, both bit us): the eval
-   CLI force-loads the repo `.env` (`process.loadEnvFile`), so
-   `ANTHROPIC_API_KEY` must stay commented out there AND unset in the
-   running shell — an env key silently outranks subscription OAuth in the
-   claude CLI and bills the Console account; account-level "extra usage"
-   stays off so quota exhaustion errors instead of billing. Fix ticket:
-   "Harness adapters must guarantee the configured billing route".
-   Fallback if the sub route proves flaky: API full suite (measured
-   $9.70) against the committed `anthropic:claude-opus-4-8` baselines.
+4. **Eval gate = full suite on the API provider** against the committed
+   `anthropic:claude-opus-4-8` baselines (measured $9.70), report in the
+   PR body; `--rebaseline` on main after merge (second ~$9.70 run).
+   RE-AMENDED 2026-08-07 (final): the claude-code subscription route was
+   pursued, fully de-leaked (BRIEF-140 spawn-env strip, merged #240), and
+   then killed by an UPSTREAM issue — headless `claude -p` under verified
+   claude.ai OAuth still billed the linked Console account (claude-code
+   GitHub issue #43333). No client-side fix exists; do not retry the
+   subscription gate until that issue resolves. Watch item: local per-PR
+   claude-code generation may hit the same billing routing — check the
+   usage page after the next normal generation.
 
 ## Mandatory skills
 
