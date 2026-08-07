@@ -20,6 +20,8 @@ import {
 import { AnthropicGenerator, type Generator, type Logger } from "generators";
 import {
   buildSystemPrompt,
+  renderAnchorView,
+  type AnchorViewInput,
   buildDeltaSystemPrompt,
   buildRevisionNarrativeSystemPrompt,
 } from "./prompt";
@@ -171,6 +173,7 @@ function renderUser(
   pr: FetchedPr,
   repoBlocks = "",
   defuseForgedFences = false,
+  anchorBlock = "",
 ): string {
   // With repo context in play, forged fences anywhere else in the message
   // (PR body, linked context, file paths, diff) are neutralized so a PR
@@ -190,7 +193,7 @@ Title: ${clean(pr.meta.title)}
 ${clean(pr.meta.body.trim()) || "(no description)"}
 
 ## Linked context
-${clean(renderLinked(pr.links))}${repoBlocks}
+${clean(renderLinked(pr.links))}${repoBlocks}${clean(anchorBlock)}
 
 ## Files changed
 ${fileList || "(none reported)"}
@@ -207,6 +210,7 @@ export async function categorize(
   log: Logger = () => {},
   repoContext?: RepoContext,
   effort: Effort = DEFAULT_EFFORT,
+  anchor?: AnchorViewInput,
 ): Promise<Brief> {
   // The model produces analysis only; pr / index / commitRange / generation are
   // CLI-owned metadata it cannot know, filled in here (ADR 0012/0013).
@@ -218,10 +222,20 @@ export async function categorize(
   const effectiveContext = accepted.context;
   const customNames =
     effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
+  // Anchored regeneration (BRIEF-143): the anchor view rides the user
+  // message (trusted tier-2 reference) and the system prompt gains the
+  // anchored section; the fresh path stays byte-identical.
+  const anchorBlock =
+    anchor === undefined ? "" : `\n\n${renderAnchorView(anchor)}`;
   const generated = await generator.generate({
     schema: briefGenerationSchemaWith(customNames),
-    system: buildSystemPrompt(effectiveContext),
-    user: renderUser(pr, accepted.blocks, effectiveContext !== undefined),
+    system: buildSystemPrompt(effectiveContext, anchor !== undefined),
+    user: renderUser(
+      pr,
+      accepted.blocks,
+      effectiveContext !== undefined,
+      anchorBlock,
+    ),
     effort,
     label: "brief",
     salvageFields: SALVAGE_FIELDS,

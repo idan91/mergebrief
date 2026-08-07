@@ -33,6 +33,14 @@ describe("system prompts are byte-pinned", () => {
     expect(buildSystemPrompt(bothRepoSections)).toMatchSnapshot();
   });
 
+  it("brief, anchored regeneration (BRIEF-143)", () => {
+    expect(buildSystemPrompt(undefined, true)).toMatchSnapshot();
+  });
+
+  it("brief, anchored WITH repo-context sections (composition order pinned)", () => {
+    expect(buildSystemPrompt(bothRepoSections, true)).toMatchSnapshot();
+  });
+
   it("delta", () => {
     expect(buildDeltaSystemPrompt()).toMatchSnapshot();
   });

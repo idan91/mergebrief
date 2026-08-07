@@ -455,6 +455,71 @@ describe("stitchBrief", () => {
     expect(result.error.message).toContain("b.ts");
   });
 
+  it("a claimed frozen id unfreezes the group — model version wins, carry cancelled (PR 4)", () => {
+    // The model claimed frozen g1 (new file c.ts belongs to it) and
+    // re-emitted it fully, alongside its re-look take on g2.
+    const generated = brief(
+      [group("g1", "alpha with gamma"), group("tmpB", "beta v2")],
+      [
+        chunk("x1", "g1", "a.ts", 5, 8),
+        chunk("x2", "g1", "c.ts", 1, 4),
+        chunk("x3", "tmpB", "b.ts", 1, 3),
+      ],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts", "c.ts"],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    const merged = result.value.brief;
+    const g1 = merged.changeGroups.find((g) => g.id === "g1");
+    expect(g1?.title).toBe("alpha with gamma");
+    expect(
+      merged.chunks
+        .filter((c) => c.changeGroupId === "g1")
+        .map((c) => c.file)
+        .toSorted(),
+    ).toEqual(["a.ts", "c.ts"]);
+    // Claimed = re-examined, not carried.
+    expect(result.value.carriedGroupIds).toEqual([]);
+    expect(result.value.regeneratedGroupIds.toSorted()).toEqual(["g1", "g2"]);
+    expect(merged.generationWarnings?.some((w) => w.includes("claimed"))).toBe(
+      true,
+    );
+  });
+
+  it("a frozen-id reuse WITHOUT the group's files is a numbering slip, not a claim", () => {
+    // The model reused frozen id g1 for an unrelated all-new file: the carry
+    // survives and the slip is renamed by descent.
+    const generated = brief(
+      [group("g1", "unrelated new work"), group("tmpB", "beta v2")],
+      [chunk("x1", "g1", "new.ts", 1, 4), chunk("x2", "tmpB", "b.ts", 1, 3)],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts", "new.ts"],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    const merged = result.value.brief;
+    // The carried g1 (alpha, a.ts) survives untouched.
+    const g1 = merged.changeGroups.find((g) => g.id === "g1");
+    expect(g1?.title).toBe("alpha");
+    // The slip group lives on under a fresh minted id.
+    const renamed = merged.changeGroups.find(
+      (g) => g.title === "unrelated new work",
+    );
+    expect(renamed).toBeDefined();
+    expect(renamed?.id).not.toBe("g1");
+    expect(result.value.carriedGroupIds).toEqual(["g1"]);
+    expect(
+      merged.generationWarnings?.some((w) => w.includes("numbering slip")),
+    ).toBe(true);
+  });
+
   it("reassigns colliding generated chunk ids while carried chunk ids win", () => {
     const generated = brief(
       [group("tmpB", "beta v2")],

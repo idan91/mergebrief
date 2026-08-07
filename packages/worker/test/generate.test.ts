@@ -1626,6 +1626,18 @@ describe("generate task — anchored generation (BRIEF-143)", () => {
     );
   });
 
+  it("threads the anchor view and anchored prompt into the model call (PR 4)", async () => {
+    const { generator } = await runTwoRevisions({});
+    const briefRequests = generator.requests.filter((r) => r.label === "brief");
+    expect(briefRequests).toHaveLength(2);
+    expect(briefRequests[0]?.system).not.toContain("Anchored regeneration");
+    expect(briefRequests[0]?.user).not.toContain("<anchor_brief");
+    expect(briefRequests[1]?.system).toContain("Anchored regeneration");
+    expect(briefRequests[1]?.user).toContain("<anchor_brief");
+    // The frozen index names the untouched group; the summary rides verbatim.
+    expect(briefRequests[1]?.user).toContain("gA");
+  });
+
   it("a same-base force-push (diverged span) carries nothing but stays anchored", async () => {
     const { pr } = await runTwoRevisions({
       compareFilesEntry: {

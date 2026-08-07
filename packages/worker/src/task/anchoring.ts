@@ -263,9 +263,55 @@ export function stitchBrief(
   const { generated, plan, prFiles } = args;
   const warnings: string[] = [];
 
-  // ---- split the generated output around the frozen file set ---------------
+  // ---- claims (PR 4): a generated group under a frozen id UNFREEZES it ----
+  // The prompt contract forbids frozen ids except as claim targets (a new
+  // file joining a frozen group); a claim means the model re-examined the
+  // whole group, so its version wins and the carry is cancelled. A claim is
+  // validated MECHANICALLY: the claiming group must re-emit at least one of
+  // the frozen group's previous files (the spec's claim re-emits "all its
+  // chunks, previous and new files alike") — a bare id collision with zero
+  // file overlap is a numbering slip, not a claim, and routes through
+  // descent like any other temp id (which renames it away from the reserved
+  // frozen id) instead of cancelling a carry it never referenced.
+  const frozenFilesById = new Map(
+    plan.frozen.map((carry) => [
+      carry.group.id,
+      new Set(carry.chunks.map((chunk) => chunk.file)),
+    ]),
+  );
+  const generatedFilesById = new Map<string, Set<string>>();
+  for (const chunk of generated.chunks) {
+    const files = generatedFilesById.get(chunk.changeGroupId) ?? new Set();
+    files.add(chunk.file);
+    generatedFilesById.set(chunk.changeGroupId, files);
+  }
+  const claimedIds = new Set<string>();
+  for (const group of generated.changeGroups) {
+    const frozenFiles = frozenFilesById.get(group.id);
+    if (frozenFiles === undefined) continue;
+    const emitted = generatedFilesById.get(group.id) ?? new Set<string>();
+    const overlaps = [...emitted].some((file) => frozenFiles.has(file));
+    if (overlaps) {
+      claimedIds.add(group.id);
+      warnings.push(
+        `anchored stitch: frozen group ${group.id} claimed by the model output — unfrozen and re-examined`,
+      );
+    } else {
+      warnings.push(
+        `anchored stitch: generated group reused frozen id ${group.id} without its files — treated as a numbering slip, renamed by descent`,
+      );
+    }
+  }
+  const activeFrozen = plan.frozen.filter(
+    (carry) => !claimedIds.has(carry.group.id),
+  );
+  const activeFrozenFiles = new Set(
+    activeFrozen.flatMap((carry) => carry.chunks.map((chunk) => chunk.file)),
+  );
+
+  // ---- split the generated output around the (still-)frozen file set ------
   const keptChunks = generated.chunks.filter(
-    (chunk) => !plan.frozenFiles.has(chunk.file),
+    (chunk) => !activeFrozenFiles.has(chunk.file),
   );
   const keptFilesByGroup = new Map<string, string[]>();
   const allFilesByGroup = new Map<string, string[]>();
@@ -287,38 +333,48 @@ export function stitchBrief(
   );
 
   // ---- id descent for surviving groups ------------------------------------
-  const frozenIds = plan.frozen.map((carry) => carry.group.id);
+  // Claimed groups keep their claimed id by construction and stay OUT of
+  // descent (their id is already final); everything they claimed stays
+  // reserved via previousGroupIds.
+  const carriedIds = activeFrozen.map((carry) => carry.group.id);
   const reLookPrevious = plan.reLook.map((entry) => ({
     id: entry.id,
     files: entry.files,
   }));
   const descended = assignGroupIds({
-    generated: keptGroups.map((group) => ({
-      id: group.id,
-      files: keptFilesByGroup.get(group.id) ?? [],
-    })),
+    generated: keptGroups
+      .filter((group) => !claimedIds.has(group.id))
+      .map((group) => ({
+        id: group.id,
+        files: keptFilesByGroup.get(group.id) ?? [],
+      })),
     previous: reLookPrevious,
-    reservedIds: [...frozenIds, ...plan.previousGroupIds],
+    reservedIds: [...carriedIds, ...plan.previousGroupIds],
   });
 
-  // Reference map: surviving groups → descended id; dropped groups → their
-  // dominant frozen parent (their region IS the carried group), so intent /
-  // ordering references keep resolving instead of dangling.
+  // Reference map: surviving groups → descended id (claimed → themselves);
+  // dropped groups → their dominant frozen parent (their region IS the
+  // carried group), so intent / ordering references keep resolving instead
+  // of dangling.
   const frozenChunkFiles = new Map<string, ReadonlySet<string>>(
-    plan.frozen.map((carry) => [
+    activeFrozen.map((carry) => [
       carry.group.id,
       new Set(carry.chunks.map((chunk) => chunk.file)),
     ]),
   );
   const referenceMap = new Map<string, string>();
   for (const group of keptGroups) {
+    if (claimedIds.has(group.id)) {
+      referenceMap.set(group.id, group.id);
+      continue;
+    }
     const id = descended.get(group.id);
     if (id !== undefined) referenceMap.set(group.id, id);
   }
   for (const group of droppedGroups) {
     const parent = dominantFrozenParent(
       allFilesByGroup.get(group.id) ?? [],
-      plan.frozen,
+      activeFrozen,
       frozenChunkFiles,
     );
     if (parent !== undefined) referenceMap.set(group.id, parent);
@@ -326,7 +382,7 @@ export function stitchBrief(
 
   // ---- rebuild groups + chunks --------------------------------------------
   const mergedGroups: ChangeGroup[] = [
-    ...plan.frozen.map((carry) => carry.group),
+    ...activeFrozen.map((carry) => carry.group),
     ...keptGroups.map((group) => {
       const id = descended.get(group.id);
       return id === undefined ? group : { ...group, id };
@@ -335,7 +391,7 @@ export function stitchBrief(
   const mergedGroupIds = new Set(mergedGroups.map((group) => group.id));
 
   const usedChunkIds = new Set<string>();
-  const carriedChunks = plan.frozen.flatMap((carry) => carry.chunks);
+  const carriedChunks = activeFrozen.flatMap((carry) => carry.chunks);
   for (const chunk of carriedChunks) {
     usedChunkIds.add(chunk.id);
   }
@@ -457,7 +513,7 @@ export function stitchBrief(
   // files the PR still changes — a stale carry (e.g. an undetected history
   // rewrite dropping a file) must fail here, never persist.
   const prFileSet = new Set(prFiles);
-  for (const carry of plan.frozen) {
+  for (const carry of activeFrozen) {
     for (const chunk of carry.chunks) {
       if (!prFileSet.has(chunk.file)) {
         coverageIssues.push(
@@ -481,8 +537,9 @@ export function stitchBrief(
     warnings.push(`anchored stitch: ${issue}`);
   }
 
-  const carriedGroupIds = frozenIds;
+  const carriedGroupIds = carriedIds;
   const regeneratedGroupIds = keptGroups.flatMap((group) => {
+    if (claimedIds.has(group.id)) return [group.id];
     const id = descended.get(group.id);
     return id === undefined ? [] : [id];
   });

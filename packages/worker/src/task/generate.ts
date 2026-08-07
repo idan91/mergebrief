@@ -35,6 +35,7 @@ import {
   isHugeSpan,
   revisionNarrativeConfig,
   toPrLifecycleState,
+  type AnchorViewInput,
   type Brief,
   type DeltaInput,
   type LinkedContext,
@@ -723,6 +724,7 @@ async function runGeneration(
       const policy = deps.fullRegeneration ?? FullRegenerations.NEVER;
       let anchor: Anchor = { state: AnchorStates.NONE };
       let anchorPlan: ReturnType<typeof planAnchoredGeneration> | undefined;
+      let anchorView: AnchorViewInput | undefined;
       if (prevBrief !== undefined && policy !== FullRegenerations.ALWAYS) {
         const prevRow = await store.briefs.get(
           pullRequestId,
@@ -767,6 +769,12 @@ async function runGeneration(
               baseShaMoved: prevBrief.baseSha !== info.baseSha,
             });
             anchor = { state: AnchorStates.ANCHORED };
+            // The prompt contract (PR 4): the model receives the trimmed
+            // previous brief plus the mechanical frozen partition.
+            anchorView = {
+              previousBrief: previousBody,
+              frozenGroupIds: anchorPlan.frozen.map((carry) => carry.group.id),
+            };
             log.info(
               `generate: anchored generation — ${anchorPlan.frozen.length} frozen, ${anchorPlan.reLook.length} re-look group(s)`,
             );
@@ -790,6 +798,7 @@ async function runGeneration(
           coreLog,
           repoConfig?.repoContext,
           deps.effort,
+          anchorView,
         ),
       );
       await projection.markRunning(target, GenerationPhase.WRITING);
