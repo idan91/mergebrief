@@ -242,9 +242,15 @@ export async function categorize(
     log: collector.log,
   });
   const { readingOrder, ...rest } = generated;
+  // Anchored runs (BRIEF-143): frozen group ids are live anchors the model
+  // is TOLD to reference (whole orderings, intent verdicts) — the validators
+  // must accept them, not prune them as unknown; the stitch re-verifies
+  // everything against the merged artifact.
+  const carriedGroupIds = anchor?.frozenGroupIds ?? [];
   const readingOrderIssues = validateReadingOrder(
     readingOrder,
     generated.changeGroups,
+    carriedGroupIds,
   );
   warnIssues(readingOrderIssues, collector.log, "reading order");
   const keepReadingOrder =
@@ -276,6 +282,7 @@ export async function categorize(
         content: corpusClean(l.content.replace(LINKED_CONTEXT_FENCE, "")),
       })),
     ],
+    carriedGroupIds,
   );
   warnIssues(intentChecked.issues, collector.log, "intent check");
 

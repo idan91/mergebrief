@@ -86,11 +86,18 @@ export function validateNarrativeGroups(
 export function validateReadingOrder(
   readingOrder: Pick<ReadingOrderStep, "groupId">[] | undefined,
   groups: Pick<ChangeGroup, "id">[],
+  /**
+   * Anchored runs (BRIEF-143): frozen groups are withheld from the model's
+   * output but their ids are LIVE anchors — the contract demands the whole
+   * ordering, frozen ids included, so they join both the known-id set and
+   * the required set.
+   */
+  carriedGroupIds: readonly string[] = [],
 ): string[] {
   if (readingOrder === undefined) return [];
 
   const issues: string[] = [];
-  const groupIds = new Set(groups.map((g) => g.id));
+  const groupIds = new Set([...groups.map((g) => g.id), ...carriedGroupIds]);
   const stepIds = readingOrder.map((s) => s.groupId);
   const seen = new Set<string>();
 
@@ -207,6 +214,9 @@ export function validateIntentCheck(
   changeGroups: Pick<ChangeGroup, "id">[],
   injectedUrls: readonly string[],
   fetchedContent: readonly IntentSource[],
+  /** Anchored runs (BRIEF-143): frozen group ids are live anchors — never
+   * pruned as unknown (the stitch re-verifies against the merged brief). */
+  carriedGroupIds: readonly string[] = [],
 ): { intentCheck: IntentCheck; issues: string[] } {
   const issues: string[] = [];
 
@@ -253,7 +263,10 @@ export function validateIntentCheck(
   const contentByUrl = new Map(
     fetchedContent.map((s) => [s.url, normalizeWhitespace(s.content)]),
   );
-  const groupIds = new Set(changeGroups.map((g) => g.id));
+  const groupIds = new Set([
+    ...changeGroups.map((g) => g.id),
+    ...carriedGroupIds,
+  ]);
 
   function keepSource(
     bucket: string,

@@ -274,6 +274,52 @@ describe("categorize — anchored threading (BRIEF-143)", () => {
     expect(request?.user).toContain("Previous lede.");
   });
 
+  it("keeps frozen-id anchors alive through the in-categorize validators (BRIEF-143 fix)", async () => {
+    // The anchored contract TELLS the model to reference frozen ids (whole
+    // orderings; intent verdicts over the whole corpus). The validators must
+    // treat the frozen ids as live anchors — not prune them as unknown.
+    const fixture = {
+      ...minimalGen,
+      readingOrder: [
+        { groupId: "gA", why: "frozen foundation" },
+        { groupId: "g1", why: "re-examined follow-up" },
+      ],
+      intentCheck: {
+        ticketUrls: [],
+        specificity: "precise",
+        scopeNote: "",
+        items: [
+          {
+            bucket: "accomplished",
+            intent: "does alpha",
+            quote: "t",
+            sourceUrl: "",
+            groupIds: ["gA"],
+            acknowledged: false,
+          },
+        ],
+      },
+    };
+    const generator = new RecordingGenerator(fixture);
+    const brief = await categorize(
+      pr,
+      2,
+      commitRange,
+      generator,
+      noopLog,
+      undefined,
+      undefined,
+      anchorInput,
+    );
+    // Reading order survives, frozen id included.
+    expect(brief.readingOrder?.map((s) => s.groupId)).toEqual(["gA", "g1"]);
+    // The frozen-anchored accomplished item keeps its anchor.
+    expect(brief.intentCheck?.accomplished[0]?.groupIds).toEqual(["gA"]);
+    expect((brief.generationWarnings ?? []).join(" ")).not.toContain(
+      'unknown group "gA"',
+    );
+  });
+
   it("keeps the fresh path byte-free of anchoring when no anchor is passed", async () => {
     const generator = new RecordingGenerator(minimalGen);
     await categorize(pr, 1, commitRange, generator, noopLog);

@@ -56,6 +56,38 @@ describe("validatePartition", () => {
   });
 });
 
+describe("validateReadingOrder — carried (frozen) ids on anchored runs (BRIEF-143)", () => {
+  const emitted = [{ id: "tmp1" }];
+
+  it("accepts an order spanning emitted + carried ids and demands BOTH", () => {
+    expect(
+      validateReadingOrder(
+        [{ groupId: "gFrozen" }, { groupId: "tmp1" }],
+        emitted,
+        ["gFrozen"],
+      ),
+    ).toEqual([]);
+    // Missing the carried id is an issue — the anchored contract demands the
+    // whole ordering, frozen ids included.
+    expect(
+      validateReadingOrder([{ groupId: "tmp1" }], emitted, ["gFrozen"]).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("keeps rejecting genuinely unknown ids alongside carried ones", () => {
+    const issues = validateReadingOrder(
+      [{ groupId: "gFrozen" }, { groupId: "tmp1" }, { groupId: "ghost" }],
+      emitted,
+      ["gFrozen"],
+    );
+    expect(issues.join(" ")).toContain("ghost");
+  });
+
+  it("without carried ids behaves exactly as before (fresh path untouched)", () => {
+    expect(validateReadingOrder([{ groupId: "tmp1" }], emitted)).toEqual([]);
+  });
+});
+
 describe("validateNarrativeGroups", () => {
   it("returns no issues when every briefChangeGroupId exists", () => {
     const chunks = [
