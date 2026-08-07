@@ -3,6 +3,7 @@
 // which returns the raw diff as a string body. Failures are sanitized via
 // `mapRequestError`.
 import type { Octokit } from "octokit";
+import { z } from "zod";
 import {
   mapRequestError,
   unexpectedResponseError,
@@ -246,5 +247,90 @@ export async function fetchCompareDiff(
     return { ok: true, value: body };
   } catch (error) {
     return { ok: false, error: mapRequestError(error, "fetch compare diff") };
+  }
+}
+
+/**
+ * One compare `files[]` entry: new-side path + GitHub's per-file status.
+ * `status` stays an OPEN string on purpose — consumers must treat unknown
+ * values conservatively (touched), so a new GitHub status must degrade, not
+ * fail a parse (BRIEF-143).
+ */
+export interface CompareFile {
+  readonly filename: string;
+  readonly status: string;
+  /** `previous_filename` — present on renamed/copied entries. */
+  readonly previousFilename?: string;
+}
+
+export interface CompareFiles {
+  readonly files: readonly CompareFile[];
+  /**
+   * False when the list may be truncated: GitHub caps a compare response at
+   * 300 files, so a 300-entry list proves nothing about the rest.
+   */
+  readonly complete: boolean;
+}
+
+/** GitHub caps the compare response's `files[]` at this many entries. */
+const COMPARE_FILES_CAP = 300;
+
+const compareFilesSchema = z.object({
+  files: z
+    .array(
+      z.object({
+        filename: z.string(),
+        status: z.string(),
+        previous_filename: z.string().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * Fetch the compare endpoint's per-file JSON metadata for a `base...head`
+ * span (BRIEF-143): filename, status (added/removed/modified/renamed/…), and
+ * `previous_filename` for renames — the signals the raw diff media type
+ * cannot carry (pure renames, binaries, and mode-only changes have no
+ * hunks). `per_page: 1` minimizes the commit list riding the same response;
+ * the `files[]` array is NOT paginated — it is capped, hence `complete`.
+ */
+export async function fetchCompareFiles(
+  octokit: Octokit,
+  ref: CompareDiffRef,
+): Promise<Result<CompareFiles, GitHubApiError>> {
+  try {
+    const response = await octokit.rest.repos.compareCommitsWithBasehead({
+      owner: ref.owner,
+      repo: ref.repo,
+      basehead: `${ref.base}...${ref.head}`,
+      per_page: 1,
+    });
+    const parsed = compareFilesSchema.safeParse(response.data);
+    if (!parsed.success) {
+      return {
+        ok: false,
+        error: unexpectedResponseError("fetch compare files"),
+      };
+    }
+    if (parsed.data.files === undefined) {
+      // A 200 without `files[]` (degraded/oversized compare) proves nothing —
+      // report incomplete so the touched predicate re-looks everything
+      // instead of wrongly confirming "untouched" (BRIEF-143 conservatism).
+      return { ok: true, value: { files: [], complete: false } };
+    }
+    const files = parsed.data.files.map((file) => ({
+      filename: file.filename,
+      status: file.status,
+      ...(file.previous_filename === undefined
+        ? {}
+        : { previousFilename: file.previous_filename }),
+    }));
+    return {
+      ok: true,
+      value: { files, complete: files.length < COMPARE_FILES_CAP },
+    };
+  } catch (error) {
+    return { ok: false, error: mapRequestError(error, "fetch compare files") };
   }
 }

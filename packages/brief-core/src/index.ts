@@ -58,6 +58,29 @@ export {
   type ComparisonMarksFile,
   type ComparisonBaselineLabel,
 } from "./diff/comparison";
+export {
+  GroupVerdicts,
+  partitionGroups,
+  type CompareFileEntry,
+  type GroupPartition,
+  type GroupVerdict,
+  type PartitionInput,
+  type PreviousGroupFiles,
+} from "./diff/touched";
+export {
+  parseHunkSpans,
+  remapRanges,
+  remapThroughPatch,
+  RemapOutcomes,
+  type HunkSpan,
+  type RemapOutcome,
+  type RemapResult,
+} from "./diff/remap";
+export {
+  assignGroupIds,
+  type AssignGroupIdsArgs,
+  type DescentGroup,
+} from "./diff/descent";
 // Closed risk-surface vocabulary — the single source of truth (types.ts).
 // Re-exported so downstream packages (repo-config, ADR 0032) import the
 // built-in attribute list from here instead of duplicating it.

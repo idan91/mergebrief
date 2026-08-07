@@ -112,6 +112,7 @@ export {
   fetchPullRequestFiles,
   fetchDiff,
   fetchCompareDiff,
+  fetchCompareFiles,
   fetchCompareCommitCount,
   fetchReviewCommentsRaw,
   resolveCommitSha,
@@ -121,6 +122,8 @@ export type {
   PullRequestInfo,
   PullRequestFile,
   CompareDiffRef,
+  CompareFile,
+  CompareFiles,
   CommitRef,
 } from "./operations/pull-request";
 

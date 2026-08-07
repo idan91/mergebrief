@@ -15,6 +15,7 @@ import {
   fetchPullRequestFiles,
   fetchDiff,
   fetchCompareDiff,
+  fetchCompareFiles,
   fetchCompareCommitCount,
   fetchReviewCommentsRaw,
   resolveCommitSha,
@@ -658,6 +659,105 @@ describe("fetchPullRequest / fetchDiff", () => {
     if (result.ok) throw new Error("unreachable");
     expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
     expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+});
+
+describe("fetchCompareFiles (BRIEF-143)", () => {
+  it("returns per-file status entries with previous_filename mapped through", async () => {
+    const compareBasehead = vi.fn().mockResolvedValue({
+      data: {
+        files: [
+          { filename: "src/a.ts", status: "modified" },
+          {
+            filename: "src/b2.ts",
+            status: "renamed",
+            previous_filename: "src/b.ts",
+          },
+        ],
+      },
+    });
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "base-sha",
+      head: "head-sha",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.files).toEqual([
+      { filename: "src/a.ts", status: "modified" },
+      { filename: "src/b2.ts", status: "renamed", previousFilename: "src/b.ts" },
+    ]);
+    expect(result.value.complete).toBe(true);
+    expect(compareBasehead).toHaveBeenCalledWith({
+      owner: "o",
+      repo: "r",
+      basehead: "base-sha...head-sha",
+      per_page: 1,
+    });
+  });
+
+  it("flags a possibly-truncated list (300-file compare cap) as incomplete", async () => {
+    const files = Array.from({ length: 300 }, (_, i) => ({
+      filename: `f${i}.ts`,
+      status: "modified",
+    }));
+    const compareBasehead = vi.fn().mockResolvedValue({ data: { files } });
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "b",
+      head: "h",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.complete).toBe(false);
+    expect(result.value.files).toHaveLength(300);
+  });
+
+  it("treats a missing files array as INCOMPLETE — absence proves nothing", async () => {
+    const compareBasehead = vi.fn().mockResolvedValue({ data: {} });
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "b",
+      head: "h",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value).toEqual({ files: [], complete: false });
+  });
+
+  it("maps a compare files failure to a sanitized error", async () => {
+    const compareBasehead = vi.fn().mockRejectedValue(requestError(404));
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "b",
+      head: "h",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) throw new Error("unreachable");
+    expect(result.error.code).toBe(GitHubApiErrorCode.NOT_FOUND);
+    expect(result.error.message).not.toContain(LEAKED_TOKEN);
+  });
+
+  it("rejects a malformed files payload with an unexpected-response error", async () => {
+    const compareBasehead = vi.fn().mockResolvedValue({
+      data: { files: [{ status: "modified" }] },
+    });
+    const octokit = mockOctokit({ compareBasehead });
+    const result = await fetchCompareFiles(octokit, {
+      owner: "o",
+      repo: "r",
+      base: "b",
+      head: "h",
+    });
+    expect(result.ok).toBe(false);
   });
 });
 
