@@ -525,13 +525,28 @@ function renderBriefContext(brief: Brief): string {
   return `### Change-groups\n${groups}\n\n### Chunks\n${chunks}`;
 }
 
+/**
+ * The fresh-restart discontinuity note (BRIEF-143): when this revision's
+ * brief was regenerated from scratch (anchor stamp `fresh-restart`), the
+ * narrative must know that group ids/boundaries may not align with the
+ * previous revision's — it narrates the discontinuity instead of forcing
+ * alignment. Silent for anchored/unstamped briefs (the alignment assumption
+ * holds there).
+ */
+function renderAnchorDiscontinuity(brief: Brief): string {
+  if (brief.anchor?.state !== "fresh-restart") return "";
+  const why =
+    brief.anchor.reason === "model-swap" ? "model change" : brief.anchor.reason;
+  return `\nNote: this revision's Brief was regenerated fresh (${why}) — its change-groups and ids were NOT carried from the previous revision's Brief, so boundaries may differ without the code having changed accordingly. Describe what changed in the code; where groupings shifted only because of the fresh retelling, say so instead of implying a code change.`;
+}
+
 function renderRevisionNarrativeUser(input: RevisionNarrativeInput): string {
   return `PR: ${input.meta.url}
 Repo: ${input.locator.owner}/${input.locator.repo}
 Number: ${input.locator.number}
 Title: ${input.meta.title}
 Previous head SHA: ${input.prevHeadSha} (brief _${input.prevIndex})
-Head SHA: ${input.headSha} (brief _${input.headIndex})
+Head SHA: ${input.headSha} (brief _${input.headIndex})${renderAnchorDiscontinuity(input.brief)}
 
 ## Description
 ${input.meta.body.trim() || "(no description)"}

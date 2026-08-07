@@ -293,6 +293,46 @@ describe("categorizeRevisionNarrative", () => {
     expect(narrative.overview).toBe(narrativeGen.overview);
   });
 
+  it("names the fresh-restart discontinuity in the prompt; silent otherwise (BRIEF-143)", async () => {
+    class RecordingGenerator extends FakeGenerator {
+      users: string[] = [];
+      override async generate<S extends z.ZodType>(
+        req: GenerateRequest<S>,
+      ): Promise<z.infer<S>> {
+        this.users.push(req.user);
+        return super.generate(req);
+      }
+    }
+
+    const restarted = new RecordingGenerator();
+    await categorizeRevisionNarrative(
+      {
+        ...input,
+        brief: {
+          ...input.brief,
+          anchor: { state: "fresh-restart", reason: "model-swap" },
+        },
+      },
+      restarted,
+    );
+    expect(restarted.users[0]).toContain("regenerated fresh");
+    expect(restarted.users[0]).toContain("model change");
+
+    const anchored = new RecordingGenerator();
+    await categorizeRevisionNarrative(
+      {
+        ...input,
+        brief: { ...input.brief, anchor: { state: "anchored" } },
+      },
+      anchored,
+    );
+    expect(anchored.users[0]).not.toContain("regenerated fresh");
+
+    const unstamped = new RecordingGenerator();
+    await categorizeRevisionNarrative(input, unstamped);
+    expect(unstamped.users[0]).not.toContain("regenerated fresh");
+  });
+
   it("warns (never throws) when a chunk references an unknown briefChangeGroupId", async () => {
     const brief: Brief = { ...input.brief, changeGroups: [] };
     const logs: string[] = [];

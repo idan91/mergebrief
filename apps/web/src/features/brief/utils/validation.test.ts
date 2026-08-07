@@ -83,6 +83,58 @@ describe("parseBrief", () => {
     if (!parsed.ok) return;
     expect("generationWarnings" in parsed.value).toBe(false);
   });
+  it("carries the anchor stamp through and drops a malformed one (BRIEF-143)", () => {
+    const restart = parseBrief({
+      pr,
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+      anchor: { state: "fresh-restart", reason: "model-swap" },
+    });
+    expect(restart.ok).toBe(true);
+    if (!restart.ok) return;
+    expect(restart.value.anchor).toEqual({
+      state: "fresh-restart",
+      reason: "model-swap",
+    });
+
+    const anchored = parseBrief({
+      pr,
+      summary: "s",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [],
+      anchor: { state: "anchored" },
+    });
+    expect(anchored.ok && anchored.value.anchor).toEqual({
+      state: "anchored",
+    });
+
+    const malformed = parseBrief({
+      pr,
+      summary: "s",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [],
+      anchor: { state: 42 },
+    });
+    expect(malformed.ok).toBe(true);
+    if (!malformed.ok) return;
+    expect("anchor" in malformed.value).toBe(false);
+
+    const absent = parseBrief({
+      pr,
+      summary: "s",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [],
+    });
+    expect(absent.ok).toBe(true);
+    if (!absent.ok) return;
+    expect("anchor" in absent.value).toBe(false);
+  });
+
   it("carries the pr lifecycle snapshot through (BRIEF-103)", () => {
     const parsed = parseBrief({
       pr: { ...pr, state: "closed", draft: false, merged: true },

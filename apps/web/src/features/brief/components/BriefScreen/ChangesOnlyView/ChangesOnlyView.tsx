@@ -91,23 +91,45 @@ function PreviousBriefChanges({
   narrative,
   skipReason,
 }: PreviousBriefChangesProps) {
+  // Fresh-restart provenance (BRIEF-143): the ONE user-visible trace of the
+  // anchoring machinery — a muted line when this revision's brief was
+  // deliberately regenerated from scratch (anchor chain restarted).
+  // Independent of narrative availability (it is brief provenance, not
+  // narrative content); hidden for anchored revisions, for
+  // `full-regeneration: always` instances (stamped `none`), and on
+  // pre-feature briefs (no stamp).
+  const restartNote =
+    brief.anchor?.state === "fresh-restart" ? (
+      <p className={styles["restartNote"]} role="note">
+        {brief.anchor.reason === "model-swap"
+          ? "Regenerated fresh — model change."
+          : "Regenerated fresh."}
+      </p>
+    ) : null;
+
   if (skipReason) {
     return (
-      <EmptyState>
-        <b>No revision summary.</b> The change from the previous brief was{" "}
-        {skipReason === "span too large"
-          ? "too large to summarize incrementally"
-          : "not summarized (disabled by config)"}
-        . The highlighted lines in Full Brief still show what changed.
-      </EmptyState>
+      <>
+        {restartNote}
+        <EmptyState>
+          <b>No revision summary.</b> The change from the previous brief was{" "}
+          {skipReason === "span too large"
+            ? "too large to summarize incrementally"
+            : "not summarized (disabled by config)"}
+          . The highlighted lines in Full Brief still show what changed.
+        </EmptyState>
+      </>
     );
   }
   if (!narrative) {
     return (
-      <EmptyState>
-        <b>Revision summary unavailable.</b> The mechanical highlights in Full
-        Brief still show what changed since the previous Brief.
-      </EmptyState>
+      <>
+        {restartNote}
+        <EmptyState>
+          <b>Revision summary unavailable.</b> The mechanical highlights in Full
+          Brief still show what changed since the previous Brief.
+        </EmptyState>
+      </>
     );
   }
 
@@ -130,6 +152,7 @@ function PreviousBriefChanges({
       <div className={styles["eyebrow"]}>
         Changes Only · since the previous Brief
       </div>
+      {restartNote}
       {warnings.length > 0 ? (
         <div className={styles["generationWarnings"]} role="note">
           {warnings.map((warning) => (

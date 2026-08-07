@@ -3,6 +3,7 @@ import {
   Concerns,
   Roles,
   type Brief,
+  type BriefAnchor,
   type BriefChunk,
   type Category,
   type ChangeGroup,
@@ -894,6 +895,26 @@ function parseCommitRange(value: unknown): CommitRange | undefined {
   return { base, head, commitCount };
 }
 
+/** Anchor stamp (BRIEF-143): known states only; malformed/unknown → absent
+ * (warned — a drift here means the stored-brief contract moved). */
+function parseAnchor(
+  value: unknown,
+  warnSink?: ParseWarnSink,
+): BriefAnchor | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    warnSink?.warn("brief anchor stamp malformed — dropped");
+    return undefined;
+  }
+  const state = value["state"];
+  if (state !== "anchored" && state !== "fresh-restart" && state !== "none") {
+    warnSink?.warn("brief anchor stamp has an unknown state — dropped");
+    return undefined;
+  }
+  const reason = value["reason"];
+  return { state, ...(isString(reason) ? { reason } : {}) };
+}
+
 function parseGeneration(value: unknown): Generation | undefined {
   if (!isRecord(value)) return undefined;
   const { provider, model, effort } = value;
@@ -949,6 +970,7 @@ export function parseBrief(
   const index = value["index"];
   const commitRange = parseCommitRange(value["commitRange"]);
   const generation = parseGeneration(value["generation"]);
+  const anchor = parseAnchor(value["anchor"], warnSink);
   const generationWarnings = parseGenerationWarnings(
     value["generationWarnings"],
   );
@@ -967,6 +989,7 @@ export function parseBrief(
       ...(isInteger(index) ? { index } : {}),
       ...(commitRange ? { commitRange } : {}),
       ...(generation ? { generation } : {}),
+      ...(anchor ? { anchor } : {}),
       ...(generationWarnings ? { generationWarnings } : {}),
       ...(readingOrder ? { readingOrder } : {}),
       ...(intentCheck ? { intentCheck } : {}),

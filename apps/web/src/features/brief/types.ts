@@ -290,6 +290,19 @@ export interface Generation {
   effort: string | null;
 }
 
+/**
+ * @description Cross-revision anchor provenance (BRIEF-143), CLI-assigned:
+ * `anchored` = incremental regeneration against the previous brief;
+ * `fresh-restart` = a deliberate from-scratch run (reason names why, e.g.
+ * "model-swap"); `none` = first generation or anchoring off. Absent on
+ * pre-feature briefs. Mirrors the server union; unknown states are dropped
+ * at the parse boundary (server-enforced vocabulary).
+ */
+export interface BriefAnchor {
+  state: "anchored" | "fresh-restart" | "none";
+  reason?: string;
+}
+
 export interface Brief {
   artifactKind: "brief" | "delta";
   pr: PrRef;
@@ -300,6 +313,7 @@ export interface Brief {
   index?: number;
   commitRange?: CommitRange;
   generation?: Generation;
+  anchor?: BriefAnchor;
   /**
    * @description Warning lines the generation pipeline emitted (salvage,
    * feedback retry, served-model mismatch) — CLI-collected (BRIEF-11).

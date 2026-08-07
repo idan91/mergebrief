@@ -265,6 +265,110 @@ describe("Changes Only rendering (step 8)", () => {
     );
   });
 
+  it("shows the muted fresh-restart line only on a fresh-restart brief (BRIEF-143)", () => {
+    const restarted: Brief = {
+      ...fullBrief,
+      anchor: { state: "fresh-restart", reason: "model-swap" },
+    };
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={restarted}
+        model={buildBriefViewModel(restarted)}
+        narrative={narrative}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
+  });
+
+  it("shows the fresh-restart line even when the narrative is unavailable (BRIEF-143)", () => {
+    const restarted: Brief = {
+      ...fullBrief,
+      anchor: { state: "fresh-restart", reason: "model-swap" },
+    };
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={restarted}
+        model={buildBriefViewModel(restarted)}
+        narrative={null}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
+    expect(screen.getByText(/Revision summary unavailable/)).toBeTruthy();
+  });
+
+  it("shows the fresh-restart line above the skip-reason empty state too (BRIEF-143)", () => {
+    const restarted: Brief = {
+      ...fullBrief,
+      anchor: { state: "fresh-restart", reason: "model-swap" },
+    };
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={restarted}
+        model={buildBriefViewModel(restarted)}
+        narrative={null}
+        marks={previousBriefMarks}
+        skipReason="span too large"
+        delta={null}
+      />,
+    );
+    expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
+    expect(screen.getByText(/No revision summary/)).toBeTruthy();
+  });
+
+  it("hides the fresh-restart line on a none-stamped brief (always instances) (BRIEF-143)", () => {
+    const none: Brief = { ...fullBrief, anchor: { state: "none" } };
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={none}
+        model={buildBriefViewModel(none)}
+        narrative={narrative}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
+  });
+
+  it("hides the fresh-restart line on anchored and unstamped briefs (BRIEF-143)", () => {
+    const anchored: Brief = { ...fullBrief, anchor: { state: "anchored" } };
+    const { unmount } = render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={anchored}
+        model={buildBriefViewModel(anchored)}
+        narrative={narrative}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
+    unmount();
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={fullBrief}
+        model={buildBriefViewModel(fullBrief)}
+        narrative={narrative}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
+  });
+
   it("renders deduped narrative generationWarnings on the compare surface (BRIEF-78)", () => {
     const warned: RevisionNarrative = {
       ...narrative,
