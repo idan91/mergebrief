@@ -129,6 +129,13 @@ function normalizeWhitespace(text: string): string {
 }
 
 /**
+ * Minimum words for an alarm-bucket quote to count as verified (BRIEF-104):
+ * below this, the substring check stops discriminating — a generic fragment
+ * appears in almost any corpus, so it cannot ground an alarm.
+ */
+const ALARM_QUOTE_MIN_WORDS = 5;
+
+/**
  * Convert the generation-side tagged `items` array into the stored five-bucket
  * shape (BRIEF-85). Purely mechanical dispatch on each item's `bucket` — the
  * grammar budget forces one array on the wire (see `IntentItemSchema`), while
@@ -314,8 +321,12 @@ export function validateIntentCheck(
   /**
    * The strict alarm-bucket quote check (BRIEF-85): where the neutral
    * buckets warn-and-keep, an alarm item's quote must VERIFY — non-empty,
-   * fetched source content present, whitespace-normalized substring — or
-   * the item drops. A false alarm costs more than a miss.
+   * long enough to be discriminating, fetched source content present,
+   * whitespace-normalized substring — or the item drops. A false alarm
+   * costs more than a miss. The word floor (BRIEF-104) exists because the
+   * substring check's power is a function of quote length: with the prompt
+   * now nudging toward the shortest span, a bare fragment ("the split")
+   * would verify against almost any corpus and launder a fabricated alarm.
    */
   function quoteVerifies(
     bucket: string,
@@ -325,6 +336,12 @@ export function validateIntentCheck(
     if (quote === "") {
       issues.push(
         `${bucket} item "${item.intent}": empty quote — dropped (alarm buckets require verified grounding)`,
+      );
+      return false;
+    }
+    if (quote.split(" ").length < ALARM_QUOTE_MIN_WORDS) {
+      issues.push(
+        `${bucket} item "${item.intent}": quote too short to verify (< ${ALARM_QUOTE_MIN_WORDS} words) — dropped (a bare fragment matches almost any source)`,
       );
       return false;
     }

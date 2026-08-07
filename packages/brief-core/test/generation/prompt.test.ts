@@ -148,6 +148,47 @@ describe("authoring docs stay lockstep with REPO_INSTRUCTION_CLASSES (ADR 0032 #
   });
 });
 
+describe("summary succinctness (BRIEF-104)", () => {
+  const prompts = [buildSystemPrompt(), buildDeltaSystemPrompt()];
+
+  it("caps the summary at a 1-3 sentence lede in both prompts", () => {
+    for (const text of prompts) {
+      expect(text).toContain("lede of 1-3 short sentences");
+      expect(text).toContain("hard caps");
+    }
+  });
+
+  it("caps the optional changelog at 1-3 bullets in both prompts", () => {
+    for (const text of prompts) {
+      expect(text).toContain("**1-3 bullets**");
+      expect(text).toContain('"## Changelog"');
+    }
+  });
+
+  it("retires the three-part overview/what-it-does structure", () => {
+    expect(buildSystemPrompt()).not.toContain(
+      "fuller plain-English what-it-does",
+    );
+    expect(buildDeltaSystemPrompt()).not.toContain("the fuller what-changed");
+  });
+
+  it("keeps the revision-narrative prompt untouched by the caps", () => {
+    const narrative = buildRevisionNarrativeSystemPrompt();
+    expect(narrative).not.toContain("lede");
+    // its own pre-existing cap survives unchanged
+    expect(narrative).toContain("1-3 sentences on what this revision did");
+  });
+
+  it("asks for the shortest verbatim span with a clause floor and one-sentence intent text", () => {
+    const brief = buildSystemPrompt();
+    expect(brief).toContain("SHORTEST verbatim span");
+    expect(brief).toContain("a full clause, never a bare fragment");
+    expect(brief).toMatch(/`intent` text to one sentence/);
+    // the ceiling stays a ceiling; this exact clause is the BRIEF-104 framing
+    expect(brief).toContain("~200 chars is a ceiling, never a target");
+  });
+});
+
 describe("intent-check prompt section (BRIEF-54, ADR 0009 §2 as amended)", () => {
   const brief = buildSystemPrompt();
 

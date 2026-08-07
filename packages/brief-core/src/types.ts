@@ -428,7 +428,7 @@ export const IntentItemSchema = z.object({
   quote: z
     .string()
     .describe(
-      'verbatim supporting quote from the intent corpus, at most ~200 chars — never paraphrased. "" on doneButUnstated (no ticket side)',
+      'verbatim supporting quote from the intent corpus — the SHORTEST span that still carries the ask: a full clause, never a bare fragment (~200 chars is a ceiling, never a target), never paraphrased. "" on doneButUnstated (no ticket side)',
     ),
   sourceUrl: z
     .string()
@@ -573,7 +573,7 @@ export const BriefSchema = z.object({
   summary: z
     .string()
     .describe(
-      "Markdown, in this order: (1) a concise one-paragraph **overview** of what the PR does; (2) the fuller plain-English what-it-does for the whole PR; (3) optionally, a '## Changelog' bullet list when the change warrants one. The changelog is not required; the overview and the what-it-does are.",
+      "Markdown, deliberately short: a lede of 1-3 short sentences stating what the PR does and why (plain prose, no headings), then optionally a '## Changelog' of 1-3 bullets when the change warrants one. Hard caps, never targets. The lede is required; the changelog is not.",
     ),
   changeGroups: z.array(ChangeGroupSchema),
   chunks: z.array(ChunkSchema),
@@ -685,7 +685,7 @@ export const DeltaBriefSchema = z.object({
   summary: z
     .string()
     .describe(
-      "Markdown reload, in this order: (1) a concise one-paragraph overview of what changed *since the baseline*; (2) the fuller what-changed; (3) optionally a '## Changelog' of the follow-up commits. Frame it as 'since you last looked'.",
+      "Markdown reload, deliberately short: a lede of 1-3 short sentences on what changed *since the baseline* (plain prose, no headings), then optionally a '## Changelog' of 1-3 bullets covering the follow-up commits. Hard caps, never targets. Frame it as 'since you last looked'.",
     ),
   commentsAddressed: z
     .string()

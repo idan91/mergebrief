@@ -1025,11 +1025,31 @@ describe("validateIntentCheck (BRIEF-54)", () => {
         expect(issues.join("\n")).toContain("dropped");
       });
 
+      it(`drops a ${bucket} item whose quote is a bare fragment, even when it verifies (BRIEF-104 word floor)`, () => {
+        // "must stop" IS a substring of the ticket content — length, not
+        // presence, is what fails here.
+        const input = {
+          ...preciseCheck(),
+          [bucket]: [{ ...alarmItem(), quote: "must stop" }],
+        };
+        const { intentCheck, issues } = validateIntentCheck(
+          input,
+          emittedGroups,
+          injected,
+          sources,
+        );
+        expect(intentCheck[bucket]).toEqual([]);
+        expect(issues.join("\n")).toContain("too short to verify");
+      });
+
       it(`drops a ${bucket} item whose quote is not found in its source`, () => {
         const input = {
           ...preciseCheck(),
           [bucket]: [
-            { ...alarmItem(), quote: "this sentence appears nowhere" },
+            {
+              ...alarmItem(),
+              quote: "this sentence appears nowhere in the source",
+            },
           ],
         };
         const { intentCheck, issues } = validateIntentCheck(
@@ -1248,7 +1268,7 @@ describe("fanOutIntentCheck (BRIEF-85 grammar budget)", () => {
       items: [
         // Alarm item with an unverifiable quote — the validator must still drop it.
         genItem("deviations", "ungrounded alarm", {
-          quote: "nowhere in the corpus",
+          quote: "this ask appears nowhere in the corpus",
         }),
       ],
     });
