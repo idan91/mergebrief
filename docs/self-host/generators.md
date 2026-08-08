@@ -187,7 +187,7 @@ killed, classified, and dumped, never waited on forever.
 ### Billing: what "subscription" actually guarantees
 
 Selecting a harness provider bills the CLI's **own login** — that is the
-whole point — but three facts keep the guarantee honest:
+whole point — but a few facts keep the guarantee honest:
 
 - **The harness strips credential env vars before spawning.** Both CLIs
   put env credentials ABOVE the interactive login in their auth
@@ -202,6 +202,16 @@ whole point — but three facts keep the guarantee honest:
   survives deliberately: it IS the subscription route. Residual hole the
   strip cannot reach: an `apiKeyHelper` configured in the CLI's own
   settings file still outranks OAuth — remove it if you have one.
+- **A stray `CLAUDE_CODE_OAUTH_TOKEN` in your shell startup files can
+  silently switch billing to metered.** Because the strip-list lets that
+  var through on purpose (it is the subscription route), a stale token
+  exported from `~/.zshenv`/`~/.zshrc` attaches to every headless run. If
+  attribution ever looks wrong, check there first:
+  `grep -r CLAUDE_CODE_OAUTH_TOKEN ~/.zshenv ~/.zshrc ~/.profile`.
+- **Never override `HOME` to isolate the CLI.** On macOS the OAuth
+  credentials live in the keychain, which is tied to your real home —
+  overriding `HOME` breaks auth in confusing ways. If you need to isolate
+  the CLI's config, `CLAUDE_CONFIG_DIR` is the knob.
 - **Subscription billing holds only within plan quota.** Headless runs
   auto-roll into paid "extra usage" credits when that toggle is enabled on
   the account — without any prompt or warning, and with no client-side
@@ -210,6 +220,34 @@ whole point — but three facts keep the guarantee honest:
 - **Scale accordingly.** Per-PR generation fits comfortably in a Pro/Max
   window; batch workloads (the eval suite: ~60 generations per full run)
   do not fit a Pro plan.
+
+#### Attribution: verified clean, version-pinned
+
+Older `claude` CLI versions (observed on the 2.1.207 era) misattributed
+headless subscription-OAuth runs to the linked Console account's prepaid
+API credits. **Verified clean at CLI 2.1.226 (2026-08-08)**: bare `-p`,
+the exact harness invocation (stream-json, disabled tools, JSON schema,
+system-prompt file), and the `claude setup-token` route all billed the
+subscription — the Console prepaid balance did not move across any round,
+proved by elimination with extra usage OFF. The fix appears in no
+changelog, so treat this as **version-verified, not guaranteed**:
+re-verify after CLI upgrades if attribution matters to you.
+
+Re-verify in two minutes:
+
+1. Note your Console prepaid balance and turn extra usage OFF.
+2. Run one generation (`pnpm categorize` against any PR).
+3. Wait a few minutes for attribution to settle.
+4. Confirm the balance did not move and the run shows on your claude.ai
+   usage page.
+
+Two caveats on what that verification covered: it ran well below plan
+quota (~5% of a session), so near-limit behavior is untested — keeping
+extra usage OFF is what guarantees hitting the cap refuses instead of
+billing. And it verified attribution, not cost: the envelope's
+`total_cost_usd` field is a notional token price and cannot tell you
+which account was billed — your balance and usage page are the only real
+check.
 
 ## When something degrades
 
