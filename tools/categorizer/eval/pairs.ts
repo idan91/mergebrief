@@ -470,6 +470,9 @@ export async function evaluatePairCase(
     progress(
       `  ${pairCase.id}: NOT rebaselining — ${result.generationFailures} run failures`,
     );
+    for (const message of result.failureMessages) {
+      progress(`    ${message}`);
+    }
   } else {
     saveBaseline(baselinePath, {
       key,
