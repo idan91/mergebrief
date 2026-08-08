@@ -260,8 +260,37 @@ function dominantFrozenParent(
 export function stitchBrief(
   args: StitchArgs,
 ): Result<StitchResult, StitchError> {
-  const { generated, plan, prFiles } = args;
+  const { plan, prFiles } = args;
   const warnings: string[] = [];
+
+  // ---- scrub generated chunks on files the PR no longer changes -----------
+  // The model can resurrect a departed file from the anchor brief (a revision
+  // that reverts a file out of the PR still shows it in the re-look diff and
+  // the previous brief). Chunks outside the PR's file universe are noise:
+  // drop them before claims are judged so a departed file can neither survive
+  // into the brief nor serve as claim evidence.
+  const prFileSet = new Set(prFiles);
+  const departedFiles = [
+    ...new Set(
+      args.generated.chunks
+        .map((chunk) => chunk.file)
+        .filter((file) => !prFileSet.has(file)),
+    ),
+  ];
+  for (const file of departedFiles) {
+    warnings.push(
+      `anchored stitch: generated chunk on ${file} dropped — the PR no longer changes it`,
+    );
+  }
+  const generated =
+    departedFiles.length === 0
+      ? args.generated
+      : {
+          ...args.generated,
+          chunks: args.generated.chunks.filter((chunk) =>
+            prFileSet.has(chunk.file),
+          ),
+        };
 
   // ---- claims (PR 4): a generated group under a frozen id UNFREEZES it ----
   // The prompt contract forbids frozen ids except as claim targets (a new
@@ -291,14 +320,28 @@ export function stitchBrief(
     if (frozenFiles === undefined) continue;
     const emitted = generatedFilesById.get(group.id) ?? new Set<string>();
     const overlaps = [...emitted].some((file) => frozenFiles.has(file));
-    if (overlaps) {
+    // Evidence is judged against the UNION of frozen files: no frozen file
+    // can witness a claim (the re-look diff never touches one), so a mashed
+    // re-emission of two frozen groups is drift, not a claim.
+    const newEvidence = [...emitted].some(
+      (file) => !plan.frozenFiles.has(file),
+    );
+    if (overlaps && newEvidence) {
       claimedIds.add(group.id);
       warnings.push(
         `anchored stitch: frozen group ${group.id} claimed by the model output — unfrozen and re-examined`,
       );
+    } else if (overlaps) {
+      // The re-emission holds nothing beyond the group's own frozen files —
+      // no new file is joining, so there is no claim evidence (the re-look
+      // diff cannot have touched a frozen file by construction). The carry
+      // survives; the model's drift is discarded with the frozen chunks.
+      warnings.push(
+        `anchored stitch: frozen group ${group.id} re-emitted without a new file — no claim evidence, carry kept`,
+      );
     } else {
       warnings.push(
-        `anchored stitch: generated group reused frozen id ${group.id} without its files — treated as a numbering slip, renamed by descent`,
+        `anchored stitch: generated group reused frozen id ${group.id} without its files — treated as a numbering slip, not a claim`,
       );
     }
   }
@@ -512,7 +555,6 @@ export function stitchBrief(
   // Backstop for the mechanical guarantee: a carried group may only describe
   // files the PR still changes — a stale carry (e.g. an undetected history
   // rewrite dropping a file) must fail here, never persist.
-  const prFileSet = new Set(prFiles);
   for (const carry of activeFrozen) {
     for (const chunk of carry.chunks) {
       if (!prFileSet.has(chunk.file)) {

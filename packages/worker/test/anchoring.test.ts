@@ -520,6 +520,129 @@ describe("stitchBrief", () => {
     ).toBe(true);
   });
 
+  it("a frozen-id re-emission with ONLY its own files is not a claim — the carry survives (BRIEF-143 fix)", () => {
+    // pair-subtractive recording, runs 2/5: the model re-emitted frozen g1
+    // with just its previous file. Nothing in the re-look diff touches a.ts,
+    // so the "claim" carries no evidence and must not cancel the carry.
+    const generated = brief(
+      [group("g1", "alpha drifted"), group("tmpB", "beta v2")],
+      [chunk("x1", "g1", "a.ts", 5, 8), chunk("x2", "tmpB", "b.ts", 1, 3)],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    const merged = result.value.brief;
+    const g1 = merged.changeGroups.find((g) => g.id === "g1");
+    expect(g1?.title).toBe("alpha");
+    expect(result.value.carriedGroupIds).toEqual(["g1"]);
+    expect(
+      merged.changeGroups.find((g) => g.title === "alpha drifted"),
+    ).toBeUndefined();
+    expect(
+      merged.generationWarnings?.some((w) => w.includes("without a new file")),
+    ).toBe(true);
+  });
+
+  it("scrubs generated chunks on files outside the PR and drops groups they empty (BRIEF-143 fix)", () => {
+    // pair-subtractive recording, runs 2-4: the revision reverted a file out
+    // of the PR, but the model kept narrating it from the anchor brief.
+    const generated = brief(
+      [group("tmpB", "beta v2"), group("tmpC", "ghost of departed work")],
+      [
+        chunk("x2", "tmpB", "b.ts", 1, 3),
+        chunk("x3", "tmpC", "departed.ts", 1, 4),
+      ],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    const merged = result.value.brief;
+    expect(merged.chunks.every((c) => c.file !== "departed.ts")).toBe(true);
+    expect(
+      merged.changeGroups.find((g) => g.title === "ghost of departed work"),
+    ).toBeUndefined();
+    expect(
+      merged.generationWarnings?.some((w) => w.includes("departed.ts")),
+    ).toBe(true);
+  });
+
+  it("a departed-file chunk cannot serve as claim evidence (BRIEF-143 fix)", () => {
+    // The model claims frozen g1 with its old file plus a departed file —
+    // after the scrub the claim has no new evidence, so the carry survives.
+    const generated = brief(
+      [group("g1", "alpha stretched"), group("tmpB", "beta v2")],
+      [
+        chunk("x1", "g1", "a.ts", 5, 8),
+        chunk("x2", "g1", "departed.ts", 1, 4),
+        chunk("x3", "tmpB", "b.ts", 1, 3),
+      ],
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.carriedGroupIds).toEqual(["g1"]);
+    expect(
+      result.value.brief.changeGroups.find(
+        (g) => g.title === "alpha stretched",
+      ),
+    ).toBeUndefined();
+  });
+
+  it("another frozen group's file is not claim evidence — both carries survive (BRIEF-143 fix)", () => {
+    // The model merges two frozen groups into one re-emission under g1. No
+    // frozen file can be evidence (the re-look diff never touches them), so
+    // the claim is rejected and both carries stay verbatim.
+    const previous3 = brief(
+      [group("g1", "alpha"), group("g2", "beta"), group("g3", "gamma")],
+      [
+        chunk("c1", "g1", "a.ts", 5, 8),
+        chunk("c2", "g2", "b.ts", 1, 2),
+        chunk("c3", "g3", "c.ts", 1, 2),
+      ],
+    );
+    const plan = planAnchoredGeneration({
+      previousBrief: previous3,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+    });
+    expect(plan.frozen.map((f) => f.group.id)).toEqual(["g1", "g3"]);
+    const generated = brief(
+      [group("g1", "alpha and gamma mashed"), group("tmpB", "beta v2")],
+      [
+        chunk("x1", "g1", "a.ts", 5, 8),
+        chunk("x2", "g1", "c.ts", 1, 2),
+        chunk("x3", "tmpB", "b.ts", 1, 3),
+      ],
+    );
+    const result = stitchBrief({
+      generated,
+      plan,
+      prFiles: ["a.ts", "b.ts", "c.ts"],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.carriedGroupIds.toSorted()).toEqual(["g1", "g3"]);
+    const merged = result.value.brief;
+    expect(merged.changeGroups.find((g) => g.id === "g1")?.title).toBe("alpha");
+    expect(merged.changeGroups.find((g) => g.id === "g3")?.title).toBe("gamma");
+    expect(
+      merged.changeGroups.find((g) => g.title === "alpha and gamma mashed"),
+    ).toBeUndefined();
+  });
+
   it("reassigns colliding generated chunk ids while carried chunk ids win", () => {
     const generated = brief(
       [group("tmpB", "beta v2")],
