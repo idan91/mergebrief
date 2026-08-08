@@ -162,6 +162,25 @@ assume the default (anthropic at `medium`) — running an instance at a
 non-default effort is a deliberate divergence from them, same as running a
 non-default provider or model.
 
+### Picking a `model:` value without typos
+
+Model names are provider-owned lists that change often, so this repo never
+hardcodes them (a checked-in list would go stale and start rejecting valid
+new models). Instead, copy the exact name from the provider's own list, and
+know when a typo gets caught:
+
+| provider | where the valid names live | what a typo does |
+|---|---|---|
+| `anthropic` | [platform.claude.com/docs — models overview](https://platform.claude.com/docs/en/about-claude/models/overview) (ids like `claude-opus-4-8`, `claude-sonnet-5`), or query `GET /v1/models` with your key | fails the **first generation** with a config-classified error (no boot check) |
+| `openai` | [platform.openai.com/docs/models](https://platform.openai.com/docs/models); with `baseUrl`, whatever your server's `/models` serves | **refuses boot** — the `/models/{id}` preflight 404s on a bad id (downgraded to a warning when `baseUrl` is set) |
+| `openrouter` | [openrouter.ai/models](https://openrouter.ai/models) — copy the full slug, e.g. `anthropic/claude-sonnet-5` | **refuses boot** — the `/models` preflight requires your slug to exist (and list `structured_outputs`) |
+| `claude-code` | whatever your installed `claude` CLI accepts: aliases like `opus` / `sonnet` / `haiku` or full ids from the Anthropic models page above ([model config docs](https://code.claude.com/docs)) | fails the **first generation** (`model_not_found` → config error); post-run the served model is verified against the CLI's own report, mismatch = warning |
+| `codex` | your installed `codex` CLI's configured models ([platform.openai.com/docs/models](https://platform.openai.com/docs/models)); omit `model:` to use the CLI's default | **weakest**: the CLI's output carries no model id, so the stamp records what you configured, unverified |
+
+Fast pre-check for any provider without spending a webhook:
+`pnpm categorize --config ./mergebrief.config.yaml <pr-url>` boots the same
+generator the worker would and fails fast on the same checks.
+
 ## Harness CLIs are LOCAL-ONLY in v1 — deliberately
 
 The `claude-code` and `codex` providers run a CLI **on your machine, under
