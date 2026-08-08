@@ -12,6 +12,7 @@ import {
 } from "../src/harness/run";
 import { harnessTimeoutError, redactSecrets } from "../src/harness/redact";
 import { probeHarnessCli } from "../src/harness/probe";
+import { configError } from "../src/contract/errors";
 
 /**
  * Process-lifecycle tests against REAL child processes running fake CLI
@@ -632,6 +633,114 @@ describe("probeHarnessCli", () => {
     const text = result.error.issues.join("; ");
     expect(text).toContain("timed out");
     expect(text).not.toContain("not authenticated");
+  });
+
+  it("surfaces interpreter warnings through log and still passes", async () => {
+    const warnings: string[] = [];
+    const seen: { version?: string; auth?: string } = {};
+    const result = await probeHarnessCli({
+      ...probeArgs,
+      env: { SHIM_SCENARIO: "valid" },
+      log: (message) => warnings.push(message),
+      interpretVersionOutput: (stdout) => {
+        seen.version = stdout;
+        return "warning: version below the verified floor";
+      },
+      interpretAuthOutput: (stdout) => {
+        seen.auth = stdout;
+        return { ok: true, value: "warning: billing route unverifiable" };
+      },
+    });
+    expect(result.ok).toBe(true);
+    expect(warnings).toEqual([
+      "warning: version below the verified floor",
+      "warning: billing route unverifiable",
+    ]);
+    // Interpreters read the probes' actual stdout, not a reformatting.
+    expect(seen.version).toContain("Claude Code");
+    expect(seen.auth).toContain("claude.ai");
+  });
+
+  it("stays silent when interpreters return no warning", async () => {
+    const warnings: string[] = [];
+    const result = await probeHarnessCli({
+      ...probeArgs,
+      env: { SHIM_SCENARIO: "valid" },
+      log: (message) => warnings.push(message),
+      interpretVersionOutput: () => null,
+      interpretAuthOutput: () => ({ ok: true, value: null }),
+    });
+    expect(result.ok).toBe(true);
+    expect(warnings).toEqual([]);
+  });
+
+  it("refuses boot when the auth interpreter rejects the route", async () => {
+    const result = await probeHarnessCli({
+      ...probeArgs,
+      env: { SHIM_SCENARIO: "valid" },
+      interpretAuthOutput: () => configError(["billing route is an API key"]),
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.issues).toEqual(["billing route is an API key"]);
+  });
+
+  it("redacts interpreter strings before they reach logs or errors", async () => {
+    // Interpreters may embed untrusted CLI stdout; the probe seam redacts
+    // both channels regardless of adapter discipline.
+    const warnings: string[] = [];
+    const warned = await probeHarnessCli({
+      ...probeArgs,
+      env: { SHIM_SCENARIO: "valid" },
+      log: (message) => warnings.push(message),
+      interpretVersionOutput: () =>
+        "warning: odd version sk-ant-api03-supersecretvalue reported",
+    });
+    expect(warned.ok).toBe(true);
+    expect(warnings.join("; ")).not.toContain("supersecretvalue");
+    expect(warnings.join("; ")).toContain("odd version");
+
+    const refused = await probeHarnessCli({
+      ...probeArgs,
+      env: { SHIM_SCENARIO: "valid" },
+      interpretAuthOutput: () =>
+        configError(["route uses Bearer abc.def.ghi credentials"]),
+    });
+    expect(refused.ok).toBe(false);
+    if (refused.ok) return;
+    const text = refused.error.issues.join("; ");
+    expect(text).not.toContain("abc.def.ghi");
+    expect(text).toContain("route uses");
+  });
+
+  it("never invokes interpreters when their probe step failed", async () => {
+    // Nonzero auth exit keeps the generic not-authenticated verdict; the
+    // route interpreter must not run against a failed preflight's output.
+    let called = 0;
+    const result = await probeHarnessCli({
+      ...probeArgs,
+      env: { SHIM_SCENARIO: "auth-error" },
+      interpretAuthOutput: () => {
+        called++;
+        return { ok: true, value: null };
+      },
+    });
+    expect(result.ok).toBe(false);
+    expect(called).toBe(0);
+
+    // Same contract on the version side: a failed --version keeps its
+    // generic verdict and never reaches the interpreter.
+    let versionCalled = 0;
+    const broken = await probeHarnessCli({
+      ...probeArgs,
+      env: { SHIM_SCENARIO: "version-broken" },
+      interpretVersionOutput: () => {
+        versionCalled++;
+        return null;
+      },
+    });
+    expect(broken.ok).toBe(false);
+    expect(versionCalled).toBe(0);
   });
 });
 

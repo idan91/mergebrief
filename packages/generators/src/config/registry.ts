@@ -1,7 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod/v4";
 import type { Result, ValueOf } from "types";
-import { ClaudeCodeGenerator } from "../adapters/claudeCode";
+import {
+  ClaudeCodeGenerator,
+  CLAUDE_PROBE,
+  claudeVersionWarning,
+  interpretClaudeAuthStatus,
+} from "../adapters/claudeCode";
 import { CodexGenerator, CODEX_PROBE } from "../adapters/codex";
 import { createOpenAiCore } from "../adapters/openai";
 import { createOpenRouterCore } from "../adapters/openrouter";
@@ -236,14 +241,18 @@ export const GENERATOR_REGISTRY = {
     create: async (options, deps) => {
       const command = options.command ?? DEFAULT_CLAUDE_COMMAND;
       // Boot probe (ADR 0030 #5): a misconfigured instance refuses boot
-      // instead of failing inside jobs.
+      // instead of failing inside jobs. The BRIEF-150 interpreters add the
+      // billing checks: version-floor warning + subscription-route
+      // assertion (API-key route = ConfigError).
       const probe = await probeHarnessCli({
         command,
-        versionArgv: ["--version"],
-        authArgv: ["auth", "status"],
-        authFailureHint:
-          "run `claude /login` interactively on this machine (or set CLAUDE_CODE_OAUTH_TOKEN; an ANTHROPIC_API_KEY cannot authenticate this provider — the harness strips it)",
+        versionArgv: [...CLAUDE_PROBE.versionArgv],
+        authArgv: [...CLAUDE_PROBE.authArgv],
+        authFailureHint: CLAUDE_PROBE.authFailureHint,
         env: deps.env,
+        ...(deps.log ? { log: deps.log } : {}),
+        interpretVersionOutput: claudeVersionWarning,
+        interpretAuthOutput: interpretClaudeAuthStatus,
       });
       if (!probe.ok) return probe;
       return {

@@ -1,6 +1,8 @@
 import type { Result } from "types";
 import { configError, type ConfigError } from "../contract/errors";
 import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import type { Logger } from "../contract/generator";
+import { redactSecrets } from "./redact";
 import {
   runHarnessProcess,
   type HarnessRunResult,
@@ -28,6 +30,21 @@ export interface HarnessProbeArgs {
   /** Probe ceiling per invocation (default 10 s). */
   timeoutMs?: number;
   env?: Record<string, string | undefined>;
+  /** Sink for interpreter warnings; absent = warnings are dropped. */
+  log?: Logger;
+  /**
+   * Adapter-owned read of a SUCCESSFUL version probe's stdout (exit 0 —
+   * failures keep their generic verdicts above). Non-null = a warning to
+   * surface (e.g. a billing-attribution version floor); never fatal.
+   */
+  interpretVersionOutput?: (stdout: string) => string | null;
+  /**
+   * Adapter-owned read of a SUCCESSFUL auth preflight's stdout (exit 0 —
+   * the CLI says "authenticated"; this decides whether that credential is
+   * also the RIGHT one). `ok` carries an optional warning; an error refuses
+   * boot (fail-loud, same contract as the generic checks).
+   */
+  interpretAuthOutput?: (stdout: string) => Result<string | null, ConfigError>;
 }
 
 export async function probeHarnessCli(
@@ -71,6 +88,10 @@ export async function probeHarnessCli(
       `${args.command}: version probe failed (exit ${version.exitCode ?? "signal"})`,
     ]);
   }
+  // Interpreter strings may embed untrusted CLI stdout: redact at this seam
+  // so the no-secrets invariant holds regardless of adapter discipline.
+  const versionWarning = args.interpretVersionOutput?.(version.stdout) ?? null;
+  if (versionWarning !== null) args.log?.(redactSecrets(versionWarning));
 
   let auth: HarnessRunResult;
   try {
@@ -105,6 +126,15 @@ export async function probeHarnessCli(
     return configError([
       `${args.command}: not authenticated — ${args.authFailureHint}`,
     ]);
+  }
+  if (args.interpretAuthOutput) {
+    const verdict = args.interpretAuthOutput(auth.stdout);
+    if (!verdict.ok) {
+      // Same redaction seam on the refusal path (transient never applies:
+      // a wrong billing route is deterministic config, not a flaky network).
+      return configError(verdict.error.issues.map(redactSecrets));
+    }
+    if (verdict.value !== null) args.log?.(redactSecrets(verdict.value));
   }
 
   return { ok: true, value: undefined };

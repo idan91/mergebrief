@@ -217,6 +217,12 @@ whole point — but a few facts keep the guarantee honest:
   survives deliberately: it IS the subscription route. Residual hole the
   strip cannot reach: an `apiKeyHelper` configured in the CLI's own
   settings file still outranks OAuth — remove it if you have one.
+- **The boot probe asserts the billing route.** At startup the worker
+  reads `claude auth status` and refuses to start if the active route is
+  an API key (including a settings-file `apiKeyHelper`) rather than the
+  subscription login; a CLI older than 2.1.226 (see below) draws a
+  warning, and output too old to carry the route fields degrades to an
+  "unverifiable" warning rather than a refusal.
 - **A stray `CLAUDE_CODE_OAUTH_TOKEN` in your shell startup files can
   silently switch billing to metered.** Because the strip-list lets that
   var through on purpose (it is the subscription route), a stale token

@@ -66,7 +66,11 @@ function drainStdinThen(fn) {
 const argv = process.argv.slice(2);
 if (argv.includes("--version")) {
   if (scenario === "version-broken") process.exit(1);
-  process.stdout.write("2.1.207 (Claude Code)\n");
+  // Default = the billing-attribution floor (BRIEF-150); SHIM_VERSION
+  // overrides for the old-version warning cases.
+  process.stdout.write(
+    `${process.env.SHIM_VERSION ?? "2.1.226"} (Claude Code)\n`,
+  );
   process.exit(0);
 }
 if (argv[0] === "auth" && argv[1] === "status") {
@@ -86,7 +90,7 @@ if (argv[0] === "auth" && argv[1] === "status") {
       process.stderr.write(`credential vars leaked: ${leaked.join(",")}\n`);
       process.exit(1);
     }
-    process.stdout.write("Logged in as shim@example.com\n");
+    process.stdout.write(`${authStatusJson()}\n`);
     process.exit(0);
   }
   if (scenario === "auth-hang") {
@@ -95,8 +99,23 @@ if (argv[0] === "auth" && argv[1] === "status") {
     setInterval(() => {}, 60_000);
     return;
   }
-  process.stdout.write("Logged in as shim@example.com\n");
+  process.stdout.write(`${authStatusJson()}\n`);
   process.exit(0);
+}
+
+// `auth status` defaults to --json (BRIEF-150 route table); SHIM_AUTH_STATUS
+// overrides the whole body for route/drift scenarios.
+function authStatusJson() {
+  return (
+    process.env.SHIM_AUTH_STATUS ??
+    JSON.stringify({
+      loggedIn: true,
+      authMethod: "claude.ai",
+      apiProvider: "firstParty",
+      email: "shim@example.com",
+      subscriptionType: "max",
+    })
+  );
 }
 
 if (process.env.SHIM_MARKER_FILE) {

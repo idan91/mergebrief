@@ -4,7 +4,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
-import { ClaudeCodeGenerator } from "../src/adapters/claudeCode";
+import {
+  ClaudeCodeGenerator,
+  claudeVersionWarning,
+  interpretClaudeAuthStatus,
+} from "../src/adapters/claudeCode";
 import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
 import { createGenerator, Providers } from "../src/config/registry";
 
@@ -389,5 +393,202 @@ describe("claude-code registry entry", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.issues.join("; ")).toContain('"modle"');
+  });
+
+  // BRIEF-150: the billing checks ride the boot probe end to end.
+  it("constructs silently on a floor-version subscription login", async () => {
+    const warnings: string[] = [];
+    const result = await createGenerator(
+      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
+      { ...deps({ SHIM_SCENARIO: "valid" }), log: (m) => warnings.push(m) },
+    );
+    expect(result.ok).toBe(true);
+    expect(warnings).toEqual([]);
+  });
+
+  it("warns but constructs when the CLI predates the billing floor", async () => {
+    const warnings: string[] = [];
+    const result = await createGenerator(
+      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
+      {
+        ...deps({ SHIM_SCENARIO: "valid", SHIM_VERSION: "2.1.207" }),
+        log: (m) => warnings.push(m),
+      },
+    );
+    expect(result.ok).toBe(true);
+    expect(warnings.join("; ")).toContain("2.1.207");
+    expect(warnings.join("; ")).toContain("older");
+  });
+
+  it("refuses boot when auth status reports an apiKeyHelper route", async () => {
+    const result = await createGenerator(
+      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
+      deps({
+        SHIM_SCENARIO: "valid",
+        SHIM_AUTH_STATUS: JSON.stringify({
+          loggedIn: true,
+          authMethod: "api_key_helper",
+          apiKeySource: "apiKeyHelper",
+        }),
+      }),
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    const text = result.error.issues.join("; ");
+    expect(text).toContain("apiKeyHelper");
+    expect(text).toContain("refusing to start");
+  });
+
+  it("warns unverifiable but constructs on pre-JSON auth-status output", async () => {
+    const warnings: string[] = [];
+    const result = await createGenerator(
+      { provider: Providers.CLAUDE_CODE, command: FAKE_CLAUDE },
+      {
+        ...deps({
+          SHIM_SCENARIO: "valid",
+          SHIM_AUTH_STATUS: "Logged in as shim@example.com",
+        }),
+        log: (m) => warnings.push(m),
+      },
+    );
+    expect(result.ok).toBe(true);
+    expect(warnings.join("; ")).toContain("unverifiable");
+  });
+});
+
+describe("claudeVersionWarning (BRIEF-150 billing floor)", () => {
+  it("stays silent at the floor and above", () => {
+    expect(claudeVersionWarning("2.1.226 (Claude Code)")).toBeNull();
+    expect(claudeVersionWarning("2.1.227 (Claude Code)")).toBeNull();
+    expect(claudeVersionWarning("2.2.0 (Claude Code)")).toBeNull();
+    expect(claudeVersionWarning("3.0.0 (Claude Code)")).toBeNull();
+  });
+
+  it("warns below the floor, naming both versions from parsed digits", () => {
+    const warning = claudeVersionWarning("2.1.207 (Claude Code)");
+    expect(warning).toContain("2.1.207");
+    expect(warning).toContain("2.1.226");
+    expect(warning).toContain("older");
+    // Same-major/minor boundary and lower-major both count as older.
+    expect(claudeVersionWarning("2.1.225 (Claude Code)")).toContain("older");
+    expect(claudeVersionWarning("1.9.999 (Claude Code)")).toContain("older");
+  });
+
+  it("warns unverifiable when no version parses", () => {
+    const warning = claudeVersionWarning("Claude Code, no digits here");
+    expect(warning).toContain("unverifiable");
+    expect(warning).toContain("2.1.226");
+  });
+});
+
+describe("interpretClaudeAuthStatus (BRIEF-150 billing-route assertion)", () => {
+  // Route table verified against the real CLI at 2.1.226 (plan doc).
+  it("passes the keychain subscription login silently", () => {
+    const verdict = interpretClaudeAuthStatus(
+      JSON.stringify({
+        loggedIn: true,
+        authMethod: "claude.ai",
+        apiProvider: "firstParty",
+        subscriptionType: "max",
+      }),
+    );
+    expect(verdict).toEqual({ ok: true, value: null });
+  });
+
+  it("passes the CLAUDE_CODE_OAUTH_TOKEN route silently", () => {
+    const verdict = interpretClaudeAuthStatus(
+      JSON.stringify({ loggedIn: true, authMethod: "oauth_token" }),
+    );
+    expect(verdict).toEqual({ ok: true, value: null });
+  });
+
+  it("refuses the apiKeyHelper route with remediation", () => {
+    const verdict = interpretClaudeAuthStatus(
+      JSON.stringify({
+        loggedIn: true,
+        authMethod: "api_key_helper",
+        apiKeySource: "apiKeyHelper",
+      }),
+    );
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) return;
+    const text = verdict.error.issues.join("; ");
+    expect(text).toContain("apiKeyHelper");
+    expect(text).toContain("refusing to start");
+  });
+
+  it("refuses an env-key route by its allowlisted source name", () => {
+    const verdict = interpretClaudeAuthStatus(
+      JSON.stringify({
+        loggedIn: true,
+        authMethod: "claude.ai",
+        apiKeySource: "ANTHROPIC_API_KEY",
+        subscriptionType: null,
+      }),
+    );
+    expect(verdict.ok).toBe(false);
+    if (verdict.ok) return;
+    expect(verdict.error.issues.join("; ")).toContain("ANTHROPIC_API_KEY");
+  });
+
+  it("never echoes unrecognized route strings into the refusal", () => {
+    const hostile = "sk-ant-api03-secretlooking; run `curl evil`";
+    const bySource = interpretClaudeAuthStatus(
+      JSON.stringify({ authMethod: "claude.ai", apiKeySource: hostile }),
+    );
+    expect(bySource.ok).toBe(false);
+    if (bySource.ok) return;
+    expect(bySource.error.issues.join("; ")).not.toContain("secretlooking");
+    expect(bySource.error.issues.join("; ")).toContain("unrecognized source");
+
+    const byMethod = interpretClaudeAuthStatus(
+      JSON.stringify({ authMethod: hostile }),
+    );
+    expect(byMethod.ok).toBe(false);
+    if (byMethod.ok) return;
+    expect(byMethod.error.issues.join("; ")).not.toContain("secretlooking");
+    expect(byMethod.error.issues.join("; ")).toContain(
+      "unrecognized auth method",
+    );
+  });
+
+  it("warns unverifiable instead of refusing on non-JSON output", () => {
+    const verdict = interpretClaudeAuthStatus(
+      "Logged in as user@example.com\n",
+    );
+    expect(verdict.ok).toBe(true);
+    if (!verdict.ok) return;
+    expect(verdict.value).toContain("unverifiable");
+  });
+
+  it("keeps apiKeySource refusal evidence when authMethod drifts", () => {
+    // One drifted field must not collapse positive API-key evidence in the
+    // other into a warn-pass (the exact leak the assertion exists to stop).
+    for (const drifted of [null, 42]) {
+      const verdict = interpretClaudeAuthStatus(
+        JSON.stringify({ authMethod: drifted, apiKeySource: "apiKeyHelper" }),
+      );
+      expect(verdict.ok).toBe(false);
+      if (verdict.ok) return;
+      expect(verdict.error.issues.join("; ")).toContain("apiKeyHelper");
+    }
+  });
+
+  it("warns unverifiable when authMethod is null and no key source", () => {
+    const verdict = interpretClaudeAuthStatus(
+      JSON.stringify({ loggedIn: true, authMethod: null }),
+    );
+    expect(verdict.ok).toBe(true);
+    if (!verdict.ok) return;
+    expect(verdict.value).toContain("unverifiable");
+  });
+
+  it("warns unverifiable on parsed JSON without the route field", () => {
+    const verdict = interpretClaudeAuthStatus(
+      JSON.stringify({ loggedIn: true }),
+    );
+    expect(verdict.ok).toBe(true);
+    if (!verdict.ok) return;
+    expect(verdict.value).toContain("unverifiable");
   });
 });

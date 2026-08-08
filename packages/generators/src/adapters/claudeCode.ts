@@ -1,8 +1,14 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { z } from "zod/v4";
-import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
+import { z } from "zod/v4";
+import type { Result } from "types";
+import {
+  configError,
+  GeneratorError,
+  GeneratorErrorKind,
+  type ConfigError,
+} from "../contract/errors";
 import {
   runWithSchemaFloor,
   schemaFeedbackMessage,
@@ -368,4 +374,133 @@ function parseEventLine(line: string): StreamEvent | null {
     };
   }
   return null;
+}
+
+// ---------------------------------------------------------------------------
+// Boot-probe billing checks (BRIEF-150, decisions locked on the BRIEF-141
+// wayfinder map): a version-floor warning and a billing-route assertion,
+// both reading stdout the probe already produces. The route assertion is
+// what closes the `apiKeyHelper` residual hole (run.ts BRIEF-140 note) at
+// verification time — a settings-file override is invisible to the env
+// strip, but `auth status --json` reports it as the active auth method.
+// ---------------------------------------------------------------------------
+
+/** Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern). */
+export const CLAUDE_PROBE = {
+  versionArgv: ["--version"],
+  /** `--json` is the default output format of `auth status`. */
+  authArgv: ["auth", "status"],
+  authFailureHint:
+    "run `claude /login` interactively on this machine (or set CLAUDE_CODE_OAUTH_TOKEN; an ANTHROPIC_API_KEY cannot authenticate this provider — the harness strips it)",
+} as const;
+
+/**
+ * Oldest CLI verified to bill subscription OAuth spend to the subscription
+ * (BRIEF-141, verified 2026-08-08): older versions misattributed it to the
+ * Console prepaid account.
+ */
+export const CLAUDE_BILLING_VERSION_FLOOR = "2.1.226";
+
+const VERSION_SHAPE = /(\d+)\.(\d+)\.(\d+)/;
+
+function parseCliVersion(text: string): [number, number, number] | null {
+  const match = VERSION_SHAPE.exec(text);
+  if (match === null) return null;
+  const [, major, minor, patch] = match;
+  return [Number(major), Number(minor), Number(patch)];
+}
+
+/**
+ * Version-floor check, warn-only (ticket decision 1: non-fatal — the floor
+ * is about billing attribution, not ability to run). Unparseable output
+ * warns too: "could not verify" must surface, never silently pass.
+ */
+export function claudeVersionWarning(stdout: string): string | null {
+  const seen = parseCliVersion(stdout);
+  if (seen === null) {
+    return `warning: could not read a version from the claude CLI's --version output — the billing-attribution floor ${CLAUDE_BILLING_VERSION_FLOOR} is unverifiable (BRIEF-141)`;
+  }
+  const floor = parseCliVersion(CLAUDE_BILLING_VERSION_FLOOR);
+  if (floor === null) return null; // unreachable: the floor constant parses
+  for (let i = 0; i < 3; i++) {
+    const a = seen[i] ?? 0;
+    const b = floor[i] ?? 0;
+    if (a > b) return null;
+    if (a < b) {
+      // Rendered digits come from the parse, never raw stdout.
+      return `warning: claude CLI ${seen.join(".")} is older than ${CLAUDE_BILLING_VERSION_FLOOR}, the oldest version verified to bill subscription OAuth runs to the subscription — older versions charged the Console API account instead (BRIEF-141); upgrade the CLI`;
+    }
+  }
+  return null;
+}
+
+/**
+ * The `auth status --json` fields the assertion reads (lenient shape —
+ * unknown fields ignored, missing fields degrade to "unverifiable").
+ * Route table verified at CLI 2.1.226 (docs/plans/brief-150 plan):
+ * keychain login = `claude.ai`, CLAUDE_CODE_OAUTH_TOKEN = `oauth_token`
+ * (both subscription); `api_key_helper` and any `apiKeySource` = API key.
+ */
+const authStatusShape = z.object({
+  // Per-field `catch`: one drifted field (e.g. `authMethod: null` — the CLI
+  // does emit null for absent-ish fields) must not collapse the whole parse
+  // and drop positive API-key evidence in the OTHER field to "unverifiable".
+  authMethod: z.string().nullish().catch(undefined),
+  apiKeySource: z.string().nullish().catch(undefined),
+});
+
+const SUBSCRIPTION_AUTH_METHODS = new Set(["claude.ai", "oauth_token"]);
+
+/** Allowlisted rendering of untrusted route fields (no-secrets invariant). */
+const KNOWN_API_KEY_SOURCES = new Set(["ANTHROPIC_API_KEY", "apiKeyHelper"]);
+const KNOWN_REFUSED_METHODS = new Set(["api_key_helper"]);
+
+const UNVERIFIABLE_WARNING =
+  "warning: could not read the billing route from `claude auth status` — subscription billing is unverifiable (CLI older than the auth-status JSON surface?); upgrade the CLI to restore the boot-time assertion (BRIEF-141)";
+
+function refuseBillingRoute(detail: string): ReturnType<typeof configError> {
+  return configError([
+    `claude CLI billing route is ${detail}, not the subscription login — refusing to start rather than bill an API account (BRIEF-141). Remove any apiKeyHelper entry from the CLI's settings.json, unset API key env vars, then verify with \`claude auth status\``,
+  ]);
+}
+
+/**
+ * Billing-route assertion (ticket decision 2, refuse on mismatch).
+ * Positive-evidence refusals only: output that doesn't carry the fields
+ * warns "unverifiable" instead of refusing — refusing on a parse gap would
+ * brick every pre-floor CLI and make decision 1's non-fatal version
+ * warning unreachable.
+ */
+export function interpretClaudeAuthStatus(
+  stdout: string,
+): Result<string | null, ConfigError> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stdout);
+  } catch {
+    return { ok: true, value: UNVERIFIABLE_WARNING };
+  }
+  const status = authStatusShape.safeParse(parsed);
+  if (!status.success) return { ok: true, value: UNVERIFIABLE_WARNING };
+  // null and undefined both mean "route field not usable" downstream.
+  const authMethod = status.data.authMethod ?? undefined;
+  const apiKeySource = status.data.apiKeySource ?? undefined;
+
+  if (typeof apiKeySource === "string" && apiKeySource.length > 0) {
+    const source = KNOWN_API_KEY_SOURCES.has(apiKeySource)
+      ? apiKeySource
+      : "an unrecognized source";
+    return refuseBillingRoute(`an API key (via ${source})`);
+  }
+  if (authMethod === undefined) {
+    // Parsed JSON without the route field: unverifiable, same as no JSON.
+    return { ok: true, value: UNVERIFIABLE_WARNING };
+  }
+  if (!SUBSCRIPTION_AUTH_METHODS.has(authMethod)) {
+    const method = KNOWN_REFUSED_METHODS.has(authMethod)
+      ? `\`${authMethod}\``
+      : "an unrecognized auth method";
+    return refuseBillingRoute(method);
+  }
+  return { ok: true, value: null };
 }

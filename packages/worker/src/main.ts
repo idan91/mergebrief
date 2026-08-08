@@ -85,7 +85,10 @@ async function main(): Promise<void> {
   const generator = await createGenerator(config.value.generator, {
     env,
     failureDir: FAILURE_DUMP_DIR,
-    log: (message) => logger.info(message),
+    // warn, not info: everything the registry surfaces through this sink is
+    // degraded/suspicious (served-model mismatch, billing-floor and
+    // billing-route warnings — BRIEF-150) and should be alertable (ADR 0034 #5).
+    log: (message) => logger.warn(message),
   });
   if (!generator.ok) {
     const message = `worker composition: invalid generator configuration — ${generator.error.issues.join("; ")}`;
