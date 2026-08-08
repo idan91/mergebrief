@@ -546,6 +546,34 @@ describe("openai preflight and registry entry", () => {
     const text = direct.error.issues.join("; ");
     expect(text).toContain("rejected");
     expect(text).not.toContain("SENTINEL");
+    // Deterministic — must stay down under BRIEF-149, never restart.
+    expect(direct.error.transient).toBeUndefined();
+  });
+
+  it("tags 5xx and network preflight failures transient (BRIEF-149)", async () => {
+    const on503 = await createOpenAiCore({
+      apiKey: "test-key",
+      model: "gpt-test-1",
+      failureDir: tempDir("openai-503-"),
+      provider: "openai",
+      fetch: fetchWith(() => jsonError(503, "upstream overloaded")),
+    });
+    expect(on503.ok).toBe(false);
+    if (on503.ok) return;
+    expect(on503.error.transient).toBe(true);
+
+    const onNetwork = await createOpenAiCore({
+      apiKey: "test-key",
+      model: "gpt-test-1",
+      failureDir: tempDir("openai-net-"),
+      provider: "openai",
+      fetch: fetchWith(() => {
+        throw new Error("getaddrinfo ENOTFOUND api.openai.com");
+      }),
+    });
+    expect(onNetwork.ok).toBe(false);
+    if (onNetwork.ok) return;
+    expect(onNetwork.error.transient).toBe(true);
   });
 
   it("refuses boot when the model does not exist", async () => {
@@ -561,6 +589,7 @@ describe("openai preflight and registry entry", () => {
     expect(direct.ok).toBe(false);
     if (direct.ok) return;
     expect(direct.error.issues.join("; ")).toContain('"gpt-nope" not found');
+    expect(direct.error.transient).toBeUndefined();
   });
 
   it("downgrades preflight failures to warnings when baseUrl is set", async () => {

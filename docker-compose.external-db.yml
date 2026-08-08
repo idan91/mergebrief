@@ -91,9 +91,10 @@ services:
     #   - ./secrets/provider-ca.pem:/etc/ssl/certs/provider-ca.pem:ro
     #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # No HTTP surface to probe; liveness = the runner process itself.
-    # Restart on crash so a transient boot race (network blip, provider
-    # failover) self-heals without an operator.
-    restart: unless-stopped
+    # on-failure: transient crashes (nonzero exit, e.g. a network blip or
+    # provider failover) self-heal; config errors exit 0 and STAY DOWN
+    # (BRIEF-149) — the reason is the last line of `docker compose logs worker`.
+    restart: on-failure
     logging: *log-rotation
 # The compose `secrets:` block the commented service entries reference —
 # lands as /run/secrets/database-url in the container. `secrets/` is

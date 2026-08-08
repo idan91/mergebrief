@@ -444,6 +444,36 @@ describe("OpenRouter preflight", () => {
     const text = result.error.issues.join("; ");
     expect(text).toContain("rejected the API key");
     expect(text).not.toContain("SENTINEL");
+    // Deterministic — must stay down under BRIEF-149, never restart.
+    expect(result.error.transient).toBeUndefined();
+  });
+
+  it("tags 5xx and network preflight failures transient (BRIEF-149)", async () => {
+    const on503 = await createOpenRouterCore({
+      apiKey: "test-key",
+      model: SLUG,
+      failureDir: tempDir("openrouter-503-"),
+      fetch: async () =>
+        new Response(JSON.stringify({ error: { message: "overloaded" } }), {
+          status: 503,
+          headers: { "content-type": "application/json" },
+        }),
+    });
+    expect(on503.ok).toBe(false);
+    if (on503.ok) return;
+    expect(on503.error.transient).toBe(true);
+
+    const onNetwork = await createOpenRouterCore({
+      apiKey: "test-key",
+      model: SLUG,
+      failureDir: tempDir("openrouter-net-"),
+      fetch: async () => {
+        throw new Error("getaddrinfo ENOTFOUND openrouter.ai");
+      },
+    });
+    expect(onNetwork.ok).toBe(false);
+    if (onNetwork.ok) return;
+    expect(onNetwork.error.transient).toBe(true);
   });
 
   it("sends attribution headers on requests", async () => {

@@ -200,9 +200,14 @@ async function modelListing(
         "OpenRouter rejected the API key (401/403) — check the configured apiKeyEnv variable's value",
       ]);
     }
-    return configError([
-      `OpenRouter /models preflight failed${typeof status === "number" ? ` (status ${status})` : " (network/config error)"}`,
-    ]);
+    // Non-auth statuses and network unreachability may clear on their own —
+    // tagged transient so restart self-heal keeps applying (BRIEF-149).
+    return configError(
+      [
+        `OpenRouter /models preflight failed${typeof status === "number" ? ` (status ${status})` : " (network/config error)"}`,
+      ],
+      { transient: true },
+    );
   }
   const data =
     typeof payload === "object" && payload !== null

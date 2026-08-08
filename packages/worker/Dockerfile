@@ -21,6 +21,11 @@ USER node
 COPY --chown=node:node . .
 RUN pnpm install --frozen-lockfile --filter worker...
 
+# Runtime marker (BRIEF-149): this image ships no harness CLI binaries, so
+# createGenerator refuses claude-code/codex here with a targeted message
+# instead of a missing-binary probe error. See docs/self-host/generators.md.
+ENV MERGEBRIEF_RUNTIME=compose-worker
+
 # Boot order (migrate app schema -> migrate queue schema -> run) is owned by
 # the worker itself (`startWorker`); both migrators are idempotent.
 CMD ["pnpm", "--dir", "packages/worker", "start"]

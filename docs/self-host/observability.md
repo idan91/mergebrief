@@ -99,8 +99,10 @@ restart-churn the web tier. `/api/version` is unrelated: it is the CLI's
 authenticated liveness probe, not orchestrator health.
 
 The **worker has no HTTP surface** by design (cohort norm): its liveness is
-the process itself — compose runs it with `restart: unless-stopped`, and a
-crash-loop shows in `docker compose ps`. The queue-level signal is
+the process itself — compose runs it with `restart: on-failure`, so
+transient crashes restart while a config error exits 0 and **stays down**
+(BRIEF-149): look for `Exited (0)` in `docker compose ps` and the reason in
+the last line of `docker compose logs worker`. The queue-level signal is
 `job.retries.exhausted`.
 
 ## Log rotation

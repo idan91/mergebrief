@@ -36,6 +36,11 @@ the background — push code, Brief appears, reviewer opens it.
 All published ports bind **loopback-only** — put a reverse proxy (or a
 tunnel, for the dev loop) in front for anything internet-facing.
 
+The `worker` restarts only on nonzero exits (`restart: on-failure`): a
+config error logs its reason and exits 0, staying down instead of
+restart-looping — see [generators.md](./generators.md)'s "When something
+degrades" for the triage.
+
 Migrations (app schema + graphile queue schema) run **idempotently at boot**
 in both `web` and `worker` — whoever starts first applies them, the other
 no-ops. There is no separate migrate step. (Exception: restricted database

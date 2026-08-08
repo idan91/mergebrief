@@ -107,9 +107,10 @@ services:
     # volumes:
     #   - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
     # No HTTP surface to probe; liveness = the runner process itself.
-    # Restart on crash so a transient boot race (e.g. Postgres restarting)
-    # self-heals without an operator.
-    restart: unless-stopped
+    # on-failure: transient crashes (nonzero exit, e.g. a Postgres boot race)
+    # self-heal; config errors exit 0 and STAY DOWN (BRIEF-149) — the reason
+    # is the last line of `docker compose logs worker`.
+    restart: on-failure
     logging: *log-rotation
 
 volumes:

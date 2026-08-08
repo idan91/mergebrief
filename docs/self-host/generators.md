@@ -178,6 +178,21 @@ Full reasoning + the revisit triggers:
 What the CLIs *are* for: the local dev loop (`pnpm categorize`, the local
 web dogfood) where your existing subscription does the generating.
 
+The boundary is enforced, not just documented: the worker image bakes
+`MERGEBRIEF_RUNTIME=compose-worker`, and a harness provider under that
+marker refuses boot with a targeted message instead of a confusing
+missing-binary error. This matters because ONE config file can feed both
+runtimes — a `provider: codex` switch made for your local loop would
+otherwise take down the deployed worker. If you want a CLI provider
+locally AND a running compose worker, give the worker its own config: a
+worker-only `environment:` entry pointing `MERGEBRIEF_CONFIG` at a
+separate file (with its own mount) — an empty YAML file is a valid
+zero-config choice and gets you the anthropic default. (Note a compose
+`environment:` entry can override but never *unset* a var from `.env`,
+and set-but-empty is refused by design — a separate file is the
+mechanism, or keep `MERGEBRIEF_CONFIG` out of `.env` entirely and set it
+only in your local shell.)
+
 Isolation per CLI (what a generation run may touch): claude-code runs with
 ALL built-in tools disabled and print mode; codex runs read-only sandboxed
 with no session persistence. Both run under hard + inactivity watchdogs
@@ -261,6 +276,15 @@ shows as `effort: null` in provenance rather than as a per-artifact
 warning. The provenance line also shows the adapter class — `via anthropic
 (API)/…` vs `via claude-code (local CLI)/…` — so a CLI-generated Brief is
 never mistaken for an API one.
+
+Webhooks answering 200 but no briefs appearing? Check the worker:
+`docker compose ps`. A worker shown `Exited (0)` either refused boot on a
+config error or was stopped gracefully (e.g. a host reboot) — the last
+line of `docker compose logs worker` tells you which: a refusal names the
+config problem (a harness provider reaching the compose worker lands
+here); `worker: stopped` means a plain stop, bring it back with
+`docker compose up -d`. Config errors deliberately stay down instead of
+restart-looping; only transient crashes (nonzero exits) restart.
 
 Before releases and after CLI upgrades, run the live smoke:
 [`docs/dev/generator-smoke-recipe.md`](../dev/generator-smoke-recipe.md).

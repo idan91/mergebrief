@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  COMPOSE_WORKER_RUNTIME,
   createGenerator,
   defaultGeneratorConfig,
   FullRegenerations,
   GeneratorConfigSchema,
   Providers,
+  RUNTIME_MARKER_VAR,
   validateGeneratorConfig,
 } from "../src/config/registry";
 import { Efforts } from "../src/contract/provenance";
@@ -133,6 +135,44 @@ describe("createGenerator", () => {
   it("rejects a non-object config with per-field issues", async () => {
     const result = await createGenerator("anthropic", deps);
     expect(result.ok).toBe(false);
+  });
+});
+
+describe("compose-worker runtime marker (BRIEF-149)", () => {
+  const composeEnv = {
+    ...env,
+    [RUNTIME_MARKER_VAR]: COMPOSE_WORKER_RUNTIME,
+  };
+  const composeDeps = { env: composeEnv, failureDir: "out" };
+
+  it("refuses harness providers under the marker with the operator's options", async () => {
+    for (const provider of [Providers.CLAUDE_CODE, Providers.CODEX]) {
+      const result = await createGenerator({ provider }, composeDeps);
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.issues[0]).toContain(
+        "not available in the compose worker",
+      );
+      expect(result.error.issues[0]).toContain("MERGEBRIEF_CONFIG");
+    }
+  });
+
+  it("leaves API providers untouched by the marker", async () => {
+    const result = await createGenerator(defaultGeneratorConfig, composeDeps);
+    expect(result.ok).toBe(true);
+  });
+
+  it("does not refuse harness providers without the marker (probe still owns that path)", async () => {
+    const result = await createGenerator(
+      { provider: Providers.CLAUDE_CODE, command: "definitely-missing-cli" },
+      deps,
+    );
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    // The refusal message is the marker's; a missing binary reports itself.
+    expect(result.error.issues[0]).not.toContain(
+      "not available in the compose worker",
+    );
   });
 });
 

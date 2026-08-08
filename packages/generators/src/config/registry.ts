@@ -362,6 +362,20 @@ export const defaultGeneratorConfig: GeneratorConfig = {
   provider: Providers.ANTHROPIC,
 };
 
+/**
+ * Runtime marker (BRIEF-149): the compose worker image bakes
+ * `MERGEBRIEF_RUNTIME=compose-worker`, and `createGenerator` refuses harness
+ * providers under it — the image ships no CLI binaries, so the generic
+ * missing-binary probe error would misdiagnose a deliberate boundary.
+ */
+export const RUNTIME_MARKER_VAR = "MERGEBRIEF_RUNTIME";
+export const COMPOSE_WORKER_RUNTIME = "compose-worker";
+
+const HARNESS_PROVIDERS: ReadonlySet<Provider> = new Set([
+  Providers.CLAUDE_CODE,
+  Providers.CODEX,
+]);
+
 /** Provider tokens with registry entries (harness tokens join in PRs 4-6). */
 function registeredProviders(): string[] {
   return Object.keys(GENERATOR_REGISTRY);
@@ -438,6 +452,18 @@ export async function createGenerator(
   const parsed = GeneratorConfigSchema.safeParse(config);
   if (!parsed.success) {
     return configError(describeConfigIssues(parsed.error, config));
+  }
+  // Harness CLIs are never installed in the compose worker image (BRIEF-149;
+  // the boundary is deliberate — docs/self-host/generators.md). Refuse with
+  // the operator's actual options BEFORE the probe hunts for a binary that
+  // cannot exist there.
+  if (
+    HARNESS_PROVIDERS.has(parsed.data.provider) &&
+    deps.env[RUNTIME_MARKER_VAR] === COMPOSE_WORKER_RUNTIME
+  ) {
+    return configError([
+      `provider: harness CLIs (${[...HARNESS_PROVIDERS].join(", ")}) are not available in the compose worker — use an API provider, or point the worker at its own MERGEBRIEF_CONFIG (see docs/self-host/generators.md)`,
+    ]);
   }
   // Dispatch by discriminant — the switch keeps option-to-create type
   // correlation without casts; exhaustiveness is compiler-checked.

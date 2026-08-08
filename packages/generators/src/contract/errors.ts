@@ -38,10 +38,20 @@ export interface ConfigError {
   readonly code: "invalid";
   readonly message: string;
   readonly issues: readonly string[];
+  /**
+   * Environment-dependent, not deterministic (BRIEF-149): a boot preflight
+   * that failed on network/5xx/429 may succeed on retry. Composition roots
+   * use this to keep restart self-heal for such failures while deterministic
+   * config errors stay down. Absent = deterministic.
+   */
+  readonly transient?: true;
 }
 
 /** Build the failed Result for a construction path. */
-export function configError(issues: readonly string[]): {
+export function configError(
+  issues: readonly string[],
+  opts?: { transient: true },
+): {
   ok: false;
   error: ConfigError;
 } {
@@ -51,6 +61,7 @@ export function configError(issues: readonly string[]): {
       code: "invalid",
       message: "invalid generator configuration",
       issues,
+      ...(opts?.transient ? { transient: true } : {}),
     },
   };
 }

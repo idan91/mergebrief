@@ -31,12 +31,14 @@ export { GeneratorError, GeneratorErrorKind } from "./contract/errors";
 
 // --- config/ — how an instance CHOOSES an adapter ---------------------------
 export {
+  COMPOSE_WORKER_RUNTIME,
   createGenerator,
   defaultGeneratorConfig,
   FullRegenerations,
   GENERATOR_REGISTRY,
   GeneratorConfigSchema,
   Providers,
+  RUNTIME_MARKER_VAR,
   validateGeneratorConfig,
   type ConfigError,
   type CreateGeneratorDeps,

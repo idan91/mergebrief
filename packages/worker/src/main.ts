@@ -31,8 +31,33 @@ function readEnv(): NodeJS.ProcessEnv {
 
 // The process logger (ADR 0034): built once from the loaded env; everything
 // in this process — composition, task, graphile lifecycle — logs through it.
+// Its own construction can fail on config (bad LOG_LEVEL) — that too must
+// stay down (BRIEF-149), and with the seam itself broken, bare console is
+// the honest fallback.
 const env = readEnv();
-const logger = createLogger({ env });
+const logger = (() => {
+  try {
+    return createLogger({ env });
+  } catch (error) {
+    // eslint-disable-next-line no-console -- the logging seam itself failed to construct; bare console is the only channel left
+    console.error("worker composition: invalid logging configuration —", error);
+    process.exit(0);
+  }
+})();
+
+/**
+ * Config errors exit 0 (BRIEF-149): deterministic — a restart can never fix
+ * one, so under the compose worker's `restart: on-failure` policy a zero
+ * exit stays down (no restart loop) with the reason as the log's last line.
+ * (In NDJSON mode pino's destination is synchronous, so the line lands
+ * before the exit; the dev pino-pretty transport is async and may drop it —
+ * accepted, compose is the contract here.) Transient faults keep the
+ * throw → exit(1) path and its restart self-heal.
+ */
+function exitOnConfigError(message: string): never {
+  logger.error(message);
+  process.exit(0);
+}
 
 async function main(): Promise<void> {
   // The DATABASE_URL_FILE shadow warning (BRIEF-131) must reach the operator.
@@ -40,7 +65,7 @@ async function main(): Promise<void> {
     onWarning: (message) => logger.warn(message),
   });
   if (!config.ok) {
-    throw new Error(
+    exitOnConfigError(
       `worker composition: invalid configuration — ${config.error.issues.join("; ")}`,
     );
   }
@@ -48,7 +73,7 @@ async function main(): Promise<void> {
   // fetch PR data — same credential set the web tier already requires.
   const githubConfig = loadGitHubConfig(env);
   if (!githubConfig.ok) {
-    throw new Error(
+    exitOnConfigError(
       `worker composition: invalid GitHub configuration — ${githubConfig.error.issues.join("; ")}`,
     );
   }
@@ -63,9 +88,14 @@ async function main(): Promise<void> {
     log: (message) => logger.info(message),
   });
   if (!generator.ok) {
-    throw new Error(
-      `worker composition: invalid generator configuration — ${generator.error.issues.join("; ")}`,
-    );
+    const message = `worker composition: invalid generator configuration — ${generator.error.issues.join("; ")}`;
+    // Transient construction failures (a boot preflight hitting network/5xx)
+    // keep the throw → exit(1) → restart self-heal; only deterministic
+    // config errors stay down.
+    if (generator.error.transient) {
+      throw new Error(message);
+    }
+    exitOnConfigError(message);
   }
 
   // Pool error observer (ADR 0034 #7 posture, mirrors the web tier): a DB
