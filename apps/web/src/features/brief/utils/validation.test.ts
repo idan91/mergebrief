@@ -83,6 +83,56 @@ describe("parseBrief", () => {
     if (!parsed.ok) return;
     expect("generationWarnings" in parsed.value).toBe(false);
   });
+  it("carries lengthViolations through, dropping malformed entries (BRIEF-148)", () => {
+    const parsed = parseBrief({
+      pr,
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+      lengthViolations: [
+        {
+          surface: "group-summary",
+          field: "group g1 summary",
+          actual: 300,
+          cap: 250,
+        },
+        { surface: "group-title", field: "group g1 title" }, // missing numbers
+        "not an object",
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.value.lengthViolations).toEqual([
+      {
+        surface: "group-summary",
+        field: "group g1 summary",
+        actual: 300,
+        cap: 250,
+      },
+    ]);
+  });
+
+  it("omits lengthViolations when absent, empty, or fully malformed (BRIEF-148)", () => {
+    const base = {
+      pr,
+      summary: "Adds accordion and collapsible components.",
+      changeGroups: [newShapeGroup],
+      chunks: [newShapeChunk],
+      concernView: [{ concern: "implementation", added: 7, deleted: 0 }],
+    };
+    for (const variant of [
+      base, // absent
+      { ...base, lengthViolations: [] }, // empty
+      { ...base, lengthViolations: ["junk"] }, // fully malformed
+    ]) {
+      const parsed = parseBrief(variant);
+      expect(parsed.ok).toBe(true);
+      if (!parsed.ok) return;
+      expect("lengthViolations" in parsed.value).toBe(false);
+    }
+  });
+
   it("carries the anchor stamp through and drops a malformed one (BRIEF-143)", () => {
     const restart = parseBrief({
       pr,

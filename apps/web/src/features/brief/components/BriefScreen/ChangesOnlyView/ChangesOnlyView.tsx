@@ -7,6 +7,7 @@ import type {
   BriefChunk,
   ComparisonMarks,
   DiffLine,
+  LengthViolation,
   LineRange,
   RevisionNarrative,
   RevisionNarrativeChunk,
@@ -106,11 +107,19 @@ function PreviousBriefChanges({
           : "Regenerated fresh."}
       </p>
     ) : null;
+  // Length-cap provenance (BRIEF-148): one muted line when the pipeline
+  // stamped over-cap prose (warn-only floor) on the brief OR this span's
+  // narrative — the actionable read is "pick a stronger model", so the
+  // entries are not itemized here.
+  const lengthNote = hasLengthViolations(brief, narrative) ? (
+    <LengthGuidanceNote />
+  ) : null;
 
   if (skipReason) {
     return (
       <>
         {restartNote}
+        {lengthNote}
         <EmptyState>
           <b>No revision summary.</b> The change from the previous brief was{" "}
           {skipReason === "span too large"
@@ -125,6 +134,7 @@ function PreviousBriefChanges({
     return (
       <>
         {restartNote}
+        {lengthNote}
         <EmptyState>
           <b>Revision summary unavailable.</b> The mechanical highlights in Full
           Brief still show what changed since the previous Brief.
@@ -153,6 +163,7 @@ function PreviousBriefChanges({
         Changes Only · since the previous Brief
       </div>
       {restartNote}
+      {lengthNote}
       {warnings.length > 0 ? (
         <div className={styles["generationWarnings"]} role="note">
           {warnings.map((warning) => (
@@ -220,6 +231,24 @@ interface LastReviewChangesProps {
   delta: Brief | null;
 }
 
+/** The BRIEF-148 muted line — shared by both compare lenses. */
+function LengthGuidanceNote() {
+  return (
+    <p className={styles["restartNote"]} role="note">
+      Some brief text exceeds length guidance — a stronger model may keep
+      summaries tighter.
+    </p>
+  );
+}
+
+function hasLengthViolations(
+  ...artifacts: ({ lengthViolations?: LengthViolation[] } | null)[]
+): boolean {
+  return artifacts.some(
+    (artifact) => (artifact?.lengthViolations ?? []).length > 0,
+  );
+}
+
 function LastReviewChanges({ delta }: LastReviewChangesProps) {
   if (!delta) {
     return (
@@ -235,6 +264,7 @@ function LastReviewChanges({ delta }: LastReviewChangesProps) {
       <div className={styles["eyebrow"]}>
         Changes Only · since your last review
       </div>
+      {hasLengthViolations(delta) ? <LengthGuidanceNote /> : null}
       <div className={styles["overview"]}>
         <Markdown content={delta.summary} />
       </div>

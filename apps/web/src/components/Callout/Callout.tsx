@@ -114,8 +114,26 @@ function CalloutEyebrow({ children }: { children: ReactNode }) {
   return <span className={styles["eyebrow"]}>{children}</span>;
 }
 
-function CalloutTitle({ children }: { children: ReactNode }) {
-  return <span className={styles["title"]}>{children}</span>;
+export interface CalloutTitleProps {
+  children: ReactNode;
+  /**
+   * Max lines before the title clamps with an ellipsis (BRIEF-148): a
+   * display-side guard for model-authored text — data stays intact, only
+   * the presentation clamps. Unset = no clamp.
+   */
+  clamp?: number | undefined;
+}
+
+function CalloutTitle({ children, clamp }: CalloutTitleProps) {
+  return (
+    <span
+      className={styles["title"]}
+      data-clamp={clamp !== undefined ? "" : undefined}
+      style={clamp !== undefined ? { WebkitLineClamp: clamp } : undefined}
+    >
+      {children}
+    </span>
+  );
 }
 
 function CalloutBody({ children }: { children: ReactNode }) {

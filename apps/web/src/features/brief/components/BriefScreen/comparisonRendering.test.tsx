@@ -179,9 +179,13 @@ describe("Full Brief comparison overlay (step 7)", () => {
     );
     expect(screen.getByText("New this revision")).toBeTruthy();
     expect(screen.getByText("In: Tighten validation")).toBeTruthy();
-    expect(
-      screen.getByText("Adds the validate(a) guard on the shared path."),
-    ).toBeTruthy();
+    const title = screen.getByText(
+      "Adds the validate(a) guard on the shared path.",
+    );
+    // Display-side length guard (BRIEF-148): the span summary clamps at 4
+    // lines — data untouched, presentation only.
+    expect(title.getAttribute("data-clamp")).toBe("");
+    expect(title.style.webkitLineClamp).toBe("4");
   });
 
   it("degrades to the chunk's group with a note when the narrative misses the span (BRIEF-73)", () => {
@@ -322,6 +326,105 @@ describe("Changes Only rendering (step 8)", () => {
     );
     expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
     expect(screen.getByText(/No revision summary/)).toBeTruthy();
+  });
+
+  it("shows the muted length-guidance line only when the brief stamps violations (BRIEF-148)", () => {
+    const verbose: Brief = {
+      ...fullBrief,
+      lengthViolations: [
+        {
+          surface: "group-summary",
+          field: "group g1 summary",
+          actual: 300,
+          cap: 250,
+        },
+      ],
+    };
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={verbose}
+        model={buildBriefViewModel(verbose)}
+        narrative={narrative}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(
+      screen.getByText(/Some brief text exceeds length guidance/),
+    ).toBeTruthy();
+  });
+
+  it("shows the length-guidance line for narrative-only violations (BRIEF-148)", () => {
+    const verboseNarrative: RevisionNarrative = {
+      ...narrative,
+      lengthViolations: [
+        {
+          surface: "narrative-overview",
+          field: "narrative overview",
+          actual: 300,
+          cap: 250,
+        },
+      ],
+    };
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={fullBrief}
+        model={buildBriefViewModel(fullBrief)}
+        narrative={verboseNarrative}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(
+      screen.getByText(/Some brief text exceeds length guidance/),
+    ).toBeTruthy();
+  });
+
+  it("shows the length-guidance line on a violating delta in Your last review (BRIEF-148)", () => {
+    const verboseDelta: Brief = {
+      ...delta,
+      lengthViolations: [
+        {
+          surface: "group-summary",
+          field: "group g1 summary",
+          actual: 300,
+          cap: 250,
+        },
+      ],
+    };
+    render(
+      <ChangesOnlyView
+        compare="last-review"
+        brief={fullBrief}
+        model={buildBriefViewModel(fullBrief)}
+        narrative={null}
+        marks={checkpointMarks}
+        skipReason={null}
+        delta={verboseDelta}
+      />,
+    );
+    expect(
+      screen.getByText(/Some brief text exceeds length guidance/),
+    ).toBeTruthy();
+  });
+
+  it("hides the length-guidance line on a clean brief (BRIEF-148)", () => {
+    render(
+      <ChangesOnlyView
+        compare="previous-brief"
+        brief={fullBrief}
+        model={buildBriefViewModel(fullBrief)}
+        narrative={narrative}
+        marks={previousBriefMarks}
+        skipReason={null}
+        delta={null}
+      />,
+    );
+    expect(screen.queryByText(/exceeds length guidance/)).toBeNull();
   });
 
   it("hides the fresh-restart line on a none-stamped brief (always instances) (BRIEF-143)", () => {

@@ -47,7 +47,12 @@ export function ComparisonCallout({
         <>
           {/* Payload first: WHAT changed is the prominent text; the owning
               change-group is a de-emphasized provenance line under it. */}
-          {callout.summary && <Callout.Title>{callout.summary}</Callout.Title>}
+          {/* Display-side guard (BRIEF-148): the prompt caps chunk summaries
+              at ~150 chars but the floor is warn-only — a non-compliant
+              model must degrade to a clamped callout, never an exploded one. */}
+          {callout.summary && (
+            <Callout.Title clamp={4}>{callout.summary}</Callout.Title>
+          )}
           {callout.groupTitle && (
             <Callout.Context>In: {callout.groupTitle}</Callout.Context>
           )}

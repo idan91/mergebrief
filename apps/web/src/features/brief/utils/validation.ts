@@ -16,6 +16,7 @@ import {
   type Generation,
   type IntentCheck,
   type IntentItem,
+  type LengthViolation,
   type LineRange,
   type PrRef,
   type AddressedReviewComment,
@@ -497,6 +498,7 @@ export function parseRevisionNarrativeArtifact(
   const generationWarnings = parseGenerationWarnings(
     value["generationWarnings"],
   );
+  const lengthViolations = parseLengthViolations(value["lengthViolations"]);
   return {
     ok: true,
     value: {
@@ -508,6 +510,7 @@ export function parseRevisionNarrativeArtifact(
       headIndex,
       generation,
       ...(generationWarnings ? { generationWarnings } : {}),
+      ...(lengthViolations ? { lengthViolations } : {}),
       overview,
       chunks: chunks.value,
     },
@@ -930,6 +933,29 @@ function parseGenerationWarnings(value: unknown): string[] | undefined {
 }
 
 /**
+ * Length-violation stamp (BRIEF-148): pipeline-assigned diagnostics — the
+ * UI only needs "any present" for the muted line, so malformed entries are
+ * dropped silently and an empty result reads as absent.
+ */
+function parseLengthViolations(value: unknown): LengthViolation[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const entries = value.flatMap((entry): LengthViolation[] => {
+    if (!isRecord(entry)) return [];
+    const { surface, field, actual, cap } = entry;
+    if (
+      !isString(surface) ||
+      !isString(field) ||
+      !isInteger(actual) ||
+      !isInteger(cap)
+    ) {
+      return [];
+    }
+    return [{ surface, field, actual, cap }];
+  });
+  return entries.length > 0 ? entries : undefined;
+}
+
+/**
  * The one log level `parseBrief` emits (ADR 0034): a dropped optional section
  * is degraded output, never operator-actionable failure. INJECTED because
  * this module is shared client/server — the server caller passes the process
@@ -974,6 +1000,7 @@ export function parseBrief(
   const generationWarnings = parseGenerationWarnings(
     value["generationWarnings"],
   );
+  const lengthViolations = parseLengthViolations(value["lengthViolations"]);
   const readingOrder = parseReadingOrder(
     value["readingOrder"],
     normalized.value.changeGroups.map((group) => group.id),
@@ -991,6 +1018,7 @@ export function parseBrief(
       ...(generation ? { generation } : {}),
       ...(anchor ? { anchor } : {}),
       ...(generationWarnings ? { generationWarnings } : {}),
+      ...(lengthViolations ? { lengthViolations } : {}),
       ...(readingOrder ? { readingOrder } : {}),
       ...(intentCheck ? { intentCheck } : {}),
       changeGroups: normalized.value.changeGroups,
@@ -1057,6 +1085,7 @@ export function parseDeltaBrief(value: unknown): Result<Brief> {
   const generationWarnings = parseGenerationWarnings(
     value["generationWarnings"],
   );
+  const lengthViolations = parseLengthViolations(value["lengthViolations"]);
   return {
     ok: true,
     value: {
@@ -1068,6 +1097,7 @@ export function parseDeltaBrief(value: unknown): Result<Brief> {
       ...(isNullableInteger(headIndex) ? { headIndex } : {}),
       ...(generation ? { generation } : {}),
       ...(generationWarnings ? { generationWarnings } : {}),
+      ...(lengthViolations ? { lengthViolations } : {}),
       summary,
       commentsAddressed,
       ...(reviewComments !== undefined

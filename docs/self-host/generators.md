@@ -283,6 +283,21 @@ warning. The provenance line also shows the adapter class — `via anthropic
 (API)/…` vs `via claude-code (local CLI)/…` — so a CLI-generated Brief is
 never mistaken for an API one.
 
+### Length discipline and anchoring degrade on weaker models (BRIEF-148)
+
+Brief prose carries length caps in the prompt (group titles/summaries,
+revision-narrative overview and hover-callout summaries, risk notes), and
+cross-revision stability rides an anchored minimal-edit rule (BRIEF-143).
+Both are prompt-enforced: strong models comply; weaker models over-write
+and rewrite. The pipeline never trims or retries — over-cap prose is
+stamped on the artifact (`lengthViolations`) and surfaces two ways: a
+muted line on the Changes view ("Some brief text exceeds length
+guidance…") and `⚠ prose length` entries in `generationWarnings`. The
+hover callout clamps visually as a last resort. Anchored-edit drift
+(wholesale summary rewrites between revisions) has no mechanical guard at
+all — it is a model-quality property. If you see either persistently,
+the fix is a stronger `model:`, not configuration.
+
 Webhooks answering 200 but no briefs appearing? Check the worker:
 `docker compose ps`. A worker shown `Exited (0)` either refused boot on a
 config error or was stopped gracefully (e.g. a host reboot) — the last

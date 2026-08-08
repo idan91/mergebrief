@@ -303,6 +303,19 @@ export interface BriefAnchor {
   reason?: string;
 }
 
+/**
+ * @description One prose field exceeding the BRIEF-148 length caps —
+ * pipeline-stamped (warn-only floor), never model-produced. The FE renders
+ * a single muted "consider a stronger model" line when any are present;
+ * the entries themselves are diagnostic, not itemized in the UI.
+ */
+export interface LengthViolation {
+  surface: string;
+  field: string;
+  actual: number;
+  cap: number;
+}
+
 export interface Brief {
   artifactKind: "brief" | "delta";
   pr: PrRef;
@@ -321,6 +334,11 @@ export interface Brief {
    * visible, not just finished.
    */
   generationWarnings?: string[];
+  /**
+   * @description Prose fields exceeding the BRIEF-148 length caps —
+   * pipeline-stamped; absent when everything fits.
+   */
+  lengthViolations?: LengthViolation[];
   baselineSha?: string;
   headSha?: string;
   baselineIndex?: number | null;
@@ -401,6 +419,11 @@ export interface RevisionNarrative {
   headIndex: number;
   generation: Generation;
   generationWarnings?: string[];
+  /**
+   * @description Prose fields exceeding the BRIEF-148 length caps —
+   * pipeline-stamped; absent when everything fits.
+   */
+  lengthViolations?: LengthViolation[];
   overview: string;
   chunks: RevisionNarrativeChunk[];
 }

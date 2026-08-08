@@ -45,6 +45,16 @@
   font-weight: 600;
 }
 
+// Line-clamp support for Title (BRIEF-148): the count rides an inline
+// WebkitLineClamp from the `clamp` prop; attribute selector outranks
+// `.title`'s display, independent of stylesheet order (data-attr styling
+// per the apps/web convention).
+.title[data-clamp] {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
 .body {
   display: block;
   color: var(--dim);
