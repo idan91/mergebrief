@@ -228,6 +228,18 @@ describe("prose length caps (BRIEF-148)", () => {
     // the fresh prompt never carries the anchored block
     expect(buildSystemPrompt()).not.toContain("minimal edit (HARD RULE)");
   });
+
+  it("carves out over-cap previous text from the minimal-edit rule (an anchored chain must heal, not preserve violations)", () => {
+    const anchored = buildSystemPrompt(undefined, true);
+    // Both statements of the carve-out: the re-examined-groups bullet and
+    // the minimal-edit hard-rule block.
+    expect(anchored).toContain(
+      "a previous title or summary that exceeds its length cap",
+    );
+    expect(anchored).toContain(
+      "The ONE exception: previous text that exceeds its length cap",
+    );
+  });
 });
 
 describe("intent-check prompt section (BRIEF-54, ADR 0009 §2 as amended)", () => {

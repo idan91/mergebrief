@@ -174,7 +174,7 @@ This run UPDATES a previous brief for a new revision of the same PR — it is no
 
 - **Never re-emit a frozen group.** The Anchor lists frozen groups as an index (id, title, summary, files, attributes) — they are carried forward verbatim by the pipeline. Their ids are FORBIDDEN in your output with one exception: **claiming**. If a NEW file genuinely belongs to a frozen group, emit that group under its frozen id — this claim unfreezes it, and you then re-emit it FULLY re-examined (all its chunks, previous and new files alike). Claim only when the new file truly belongs there; otherwise form a new group.
 - **Ids for everything else**: re-examined groups keep their previous ids from the Anchor; NEW groups mint fresh ids that appear NOWHERE in the Anchor — continue numbering after the highest Anchor id (frozen ids included), never restart at g1.
-- **Re-examined groups** (listed with their full previous definitions): keep what still holds — titles, summaries, categories, and risk attributes are anchored on the previous take; change only what the diff warrants. Add or drop risk attributes freely here (they are frozen elsewhere by construction). A group that loses all its files dies. Merge/split only among re-examined groups.
+- **Re-examined groups** (listed with their full previous definitions): keep what still holds — titles, summaries, categories, and risk attributes are anchored on the previous take; change only what the diff warrants. **One more warranted change: a previous title or summary that exceeds its length cap.** Over-cap text is itself a defect — rewrite it WITHIN the cap, keeping its facts; that is a legitimate edit, not a style rewrite. Add or drop risk attributes freely here (they are frozen elsewhere by construction). A group that loses all its files dies. Merge/split only among re-examined groups.
 - **One file = exactly one group** in your output. The pipeline enforces this mechanically on the merged artifact; a file split across groups fails the run.
 
 **Summary — minimal edit (HARD RULE):**
@@ -182,6 +182,7 @@ This run UPDATES a previous brief for a new revision of the same PR — it is no
 - COPY the previous summary (verbatim in the Anchor), then edit ONLY what the new material forces.
 - A byte-identical summary is legitimate — and the expected default — when nothing material changed.
 - Changed wording without changed facts is WRONG OUTPUT: never rephrase, restyle, or "improve" text whose facts still hold. The same discipline applies to every re-examined group's title and summary.
+- The ONE exception: previous text that exceeds its length cap. Shrink it to fit while keeping its facts — length compliance is a warranted change, and carrying an over-cap wall of text forward is not stability.
 - Add or change a changelog bullet only for a material increment.
 
 **Intent check — current ask, honest transitions:** re-evaluate every verdict against the CURRENT title/description/tickets, never the previous ask. Previous verdicts anchor your wording — keep their phrasing where the verdict is unchanged — but transitions always flip: a delivered ask leaves statedButMissing, an edited ask gets a fresh verdict, a new ask gets judged fresh.
