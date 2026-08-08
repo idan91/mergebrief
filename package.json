@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "app:docker": "docker compose up -d",
+    "app:host": "docker compose up -d postgres && docker compose stop web worker && set -a && . ./.env && set +a && concurrently -k -n worker,web -c blue,green \"pnpm -C packages/worker start\" \"pnpm -C apps/web dev\"",
     "dev": "pnpm -C apps/web dev",
     "build": "pnpm -C apps/web build",
     "typecheck": "pnpm -C apps/web typecheck",
@@ -18,6 +20,7 @@
   "packageManager": "pnpm@11.10.0",
   "devDependencies": {
     "@typescript-eslint/parser": "^8.65.0",
+    "concurrently": "^10.0.4",
     "eslint": "^10.8.0",
     "knip": "^6.31.0",
     "oxlint": "1.72.0",

@@ -17,6 +17,10 @@ import {
   type HarnessTimeouts,
 } from "../harness/run";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
+import {
+  stripInjectedNulls,
+  withAllRequired,
+} from "../validation/openaiStrict";
 import type { Effort, Generation } from "../contract/provenance";
 
 /**
@@ -88,8 +92,15 @@ export class CodexGenerator implements Generator {
     const log = req.log ?? (() => {});
 
     let wireSchema: Record<string, unknown>;
+    let codexWireSchema: Record<string, unknown>;
     try {
       wireSchema = enumPreservingJsonSchema(req.schema);
+      // The CLI forwards --output-schema to an OpenAI-lineage backend, whose
+      // strict mode rejects optional properties ("'required' ... must include
+      // every key in properties") — send the all-required null-union variant
+      // and strip the stand-in nulls back out below (same shim as openaiCore;
+      // first hit: riskNotes, BRIEF-148 round).
+      codexWireSchema = withAllRequired(wireSchema);
     } catch (error) {
       throw new GeneratorError(
         GeneratorErrorKind.CONFIG,
@@ -106,7 +117,9 @@ export class CodexGenerator implements Generator {
     const schemaFile = join(workDir, "output-schema.json");
 
     try {
-      writeFileSync(schemaFile, JSON.stringify(wireSchema), { mode: 0o600 });
+      writeFileSync(schemaFile, JSON.stringify(codexWireSchema), {
+        mode: 0o600,
+      });
       return await runWithSchemaFloor({
         schema: req.schema,
         label: req.label,
@@ -144,7 +157,7 @@ export class CodexGenerator implements Generator {
             ...(req.signal ? { signal: req.signal } : {}),
             log,
           });
-          return interpretCodexRun(this.command, req.label, run);
+          return interpretCodexRun(this.command, req.label, run, wireSchema);
         },
       });
     } finally {
@@ -163,7 +176,9 @@ function interpretCodexRun(
   command: string,
   label: string,
   run: HarnessRunResult,
-): { raw: string; invalidReason?: string } {
+  /** ORIGINAL (pre-`withAllRequired`) wire schema — drives the null strip. */
+  wireSchema: Record<string, unknown>,
+): { raw: string; invalidReason?: string; parsed?: unknown } {
   if (run.timedOut) {
     throw harnessTimeoutError(label, run);
   }
@@ -203,8 +218,24 @@ function interpretCodexRun(
   if (lastAnswer === "") {
     return { raw: "", invalidReason: `Empty agent answer for ${label}` };
   }
-  // The answer text is a JSON string of the payload (double-parse quirk):
-  // hand it to the floor raw — its parse IS the second parse.
+  // The answer text is a JSON string of the payload (double-parse quirk).
+  // The null-union wire schema means a compliant model may emit null where
+  // the domain schema says "absent" — hand the floor a stripped CANDIDATE
+  // (still validated there; the floor stays the mechanism, openaiCore's
+  // exact posture). Malformed JSON falls back to raw so the floor reports
+  // the parse error itself.
+  let candidate: unknown;
+  try {
+    candidate = JSON.parse(lastAnswer);
+  } catch {
+    candidate = undefined;
+  }
+  if (candidate !== undefined) {
+    return {
+      raw: lastAnswer,
+      parsed: stripInjectedNulls(wireSchema, candidate),
+    };
+  }
   return { raw: lastAnswer };
 }
 

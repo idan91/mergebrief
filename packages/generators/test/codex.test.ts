@@ -117,6 +117,40 @@ describe("CodexGenerator invocation profile", () => {
     expect(existsSync(String(Reflect.get(meta, "path")))).toBe(false);
   });
 
+  it("sends the all-required null-union schema and strips stand-in nulls (BRIEF-148 round: OpenAI strict mode rejects optional properties)", async () => {
+    const scriptDir = tempDir("codex-optional-");
+    writeFileSync(
+      join(scriptDir, "turns.json"),
+      // A compliant model fills the formerly-optional slot with the
+      // null-union stand-in; the adapter must strip it before the floor.
+      JSON.stringify([{ output: '{"ok":true,"note":null}' }]),
+    );
+    const generator = makeGenerator({
+      SHIM_SCENARIO: "scripted",
+      SHIM_SCRIPT_DIR: scriptDir,
+    });
+    const withOptional = z.object({
+      ok: z.boolean(),
+      note: z.string().optional(),
+    });
+    await expect(
+      generator.generate({ ...request(), schema: withOptional }),
+    ).resolves.toEqual({ ok: true });
+
+    // The wire schema lists EVERY property as required (the OpenAI-lineage
+    // strict rule the codex CLI forwards to), with the optional property
+    // widened to a null-union.
+    const schema: unknown = JSON.parse(
+      readFileSync(join(scriptDir, "schema-0.json"), "utf8"),
+    );
+    if (typeof schema !== "object" || schema === null)
+      throw new Error("bad schema");
+    expect(Reflect.get(schema, "required")).toEqual(["ok", "note"]);
+    expect(Reflect.get(schema, "properties")).toMatchObject({
+      note: { anyOf: [{ type: "string" }, { type: "null" }] },
+    });
+  });
+
   it("removes the schema tempfile after a rejected run too", async () => {
     const scriptDir = tempDir("codex-cleanup-");
     writeFileSync(
