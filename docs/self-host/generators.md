@@ -181,11 +181,14 @@ Fast pre-check for any provider without spending a webhook:
 `pnpm categorize --config ./mergebrief.config.yaml <pr-url>` boots the same
 generator the worker would and fails fast on the same checks.
 
-## Harness CLIs are LOCAL-ONLY in v1 — deliberately
+## Harness CLIs are HOST-PROCESS-ONLY in v1 — deliberately
 
-The `claude-code` and `codex` providers run a CLI **on your machine, under
-your interactive login**. They are not available to the deployed
-docker-compose worker, and this is a boundary, not a gap: the thing that
+The `claude-code` and `codex` providers run a CLI **as a process on your
+machine, under your interactive login**. They are not available inside ANY
+container — including the docker-compose worker running on your own
+laptop. "Local" is not the boundary; **host process vs container** is: a
+container never sees your installed CLI or your login, no matter where it
+runs. This is a boundary, not a gap: the thing that
 makes CLI backends attractive — subscription auth — is at best a
 documented-but-discouraged path for unattended use (Codex), and at worst
 explicitly reserved for "ordinary, individual usage" with active
@@ -194,8 +197,9 @@ erase the cost advantage, so they wait for a real deployed-mode decision.
 Full reasoning + the revisit triggers:
 [`docs/dev/harness-cli-deployed-feasibility.md`](../dev/harness-cli-deployed-feasibility.md).
 
-What the CLIs *are* for: the local dev loop (`pnpm categorize`, the local
-web dogfood) where your existing subscription does the generating.
+What the CLIs *are* for: host-side processes in the dev loop
+(`pnpm categorize`, the web app run with `pnpm dev` — not its docker
+image) where your existing subscription does the generating.
 
 The boundary is enforced, not just documented: the worker image bakes
 `MERGEBRIEF_RUNTIME=compose-worker`, and a harness provider under that
