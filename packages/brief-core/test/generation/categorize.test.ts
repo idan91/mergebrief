@@ -132,6 +132,48 @@ describe("categorize — PR lifecycle stamping (BRIEF-103)", () => {
   });
 });
 
+describe("categorize — prose length floor (BRIEF-148)", () => {
+  it("stamps lengthViolations and warns when a group summary exceeds its cap", async () => {
+    const verbose = {
+      ...twoGroupBriefGen,
+      changeGroups: [
+        twoGroupBriefGen.changeGroups[0],
+        {
+          ...twoGroupBriefGen.changeGroups[1],
+          summary: "w".repeat(300),
+        },
+      ],
+    };
+    const brief = await categorize(
+      pr,
+      1,
+      commitRange,
+      new FakeGenerator(verbose),
+    );
+    expect(brief.lengthViolations).toEqual([
+      {
+        surface: "group-summary",
+        field: "group g2 summary",
+        actual: 300,
+        cap: 250,
+      },
+    ]);
+    expect(brief.generationWarnings?.join("\n")).toContain(
+      "prose length issues",
+    );
+  });
+
+  it("omits lengthViolations entirely when every field fits", async () => {
+    const brief = await categorize(
+      pr,
+      1,
+      commitRange,
+      new FakeGenerator(twoGroupBriefGen),
+    );
+    expect("lengthViolations" in brief).toBe(false);
+  });
+});
+
 describe("categorize — readingOrder pass-through", () => {
   it("carries a valid readingOrder through untouched", async () => {
     const fixture = {

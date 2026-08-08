@@ -281,11 +281,13 @@ export const ChangeGroupSchema = z.object({
   title: z
     .string()
     .describe(
-      "a one-line title describing the change group (what, not why), e.g. 'Add stock-location module to inventory service'",
+      "a one-line title describing the change group (what, not why), ideally under ~100 characters (~150 ceiling), e.g. 'Add stock-location module to inventory service'",
     ),
   summary: z
     .string()
-    .describe("what the group does (what, not why), one group = one summary"),
+    .describe(
+      "what the group does (what, not why), one group = one summary: 1-2 short sentences, ~200 characters ideal (~250 ceiling, never a target)",
+    ),
   dominantCategory: categoryEnum.describe("the group's primary intent"),
   secondaryCategories: z
     .array(categoryEnum)
@@ -566,6 +568,44 @@ export const AnchoringDetailSchema = z.object({
 });
 export type AnchoringDetail = z.infer<typeof AnchoringDetailSchema>;
 
+/**
+ * Prose surfaces the BRIEF-148 length floor covers. The PR lede/changelog
+ * deliberately stays out — its BRIEF-104 caps are prompt-enforced and were
+ * not the observed gap.
+ */
+export const ProseSurfaces = {
+  GROUP_TITLE: "group-title",
+  GROUP_SUMMARY: "group-summary",
+  NARRATIVE_OVERVIEW: "narrative-overview",
+  NARRATIVE_CHUNK_SUMMARY: "narrative-chunk-summary",
+  RISK_NOTE: "risk-note",
+} as const;
+export type ProseSurface = ValueOf<typeof ProseSurfaces>;
+
+/**
+ * One over-cap prose field (BRIEF-148): the structured side of a warn-only
+ * length check, stamped onto the artifact so the FE can surface a
+ * "consider a stronger model" line without parsing warning strings.
+ * Pipeline-assigned, never model-produced — NOT part of any generation
+ * schema (the caps live in the prompt; the schema stays cap-free by locked
+ * design: grammar budget + decode hard-fail + cross-model strictness).
+ */
+export const LengthViolationSchema = z.object({
+  surface: z.enum([
+    ProseSurfaces.GROUP_TITLE,
+    ProseSurfaces.GROUP_SUMMARY,
+    ProseSurfaces.NARRATIVE_OVERVIEW,
+    ProseSurfaces.NARRATIVE_CHUNK_SUMMARY,
+    ProseSurfaces.RISK_NOTE,
+  ]),
+  field: z
+    .string()
+    .describe('which field, e.g. "group g2 summary" — human-readable anchor'),
+  actual: z.number().int(),
+  cap: z.number().int(),
+});
+export type LengthViolation = z.infer<typeof LengthViolationSchema>;
+
 export const BriefSchema = z.object({
   pr: PrRefSchema,
   index: z
@@ -592,6 +632,12 @@ export const BriefSchema = z.object({
   anchoring: AnchoringDetailSchema.optional().describe(
     "internal per-group carried-vs-regenerated stamp for anchored generations (BRIEF-143). Pipeline-assigned, never model-produced, not user-visible; present only on anchored briefs.",
   ),
+  lengthViolations: z
+    .array(LengthViolationSchema)
+    .optional()
+    .describe(
+      "prose fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
+    ),
   summary: z
     .string()
     .describe(
@@ -631,6 +677,7 @@ export const BriefGenerationSchema = BriefSchema.omit({
   generationWarnings: true,
   anchor: true,
   anchoring: true,
+  lengthViolations: true,
 }).extend({
   intentCheck: IntentCheckGenerationSchema,
 });
@@ -706,6 +753,12 @@ export const DeltaBriefSchema = z.object({
     .describe(
       "warning lines the generation pipeline emitted. CLI-collected (BRIEF-11 UI surfacing).",
     ),
+  lengthViolations: z
+    .array(LengthViolationSchema)
+    .optional()
+    .describe(
+      "prose fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
+    ),
   summary: z
     .string()
     .describe(
@@ -742,6 +795,7 @@ export const DeltaBriefGenerationSchema = DeltaBriefSchema.omit({
   headIndex: true,
   generation: true,
   generationWarnings: true,
+  lengthViolations: true,
 });
 
 /**
@@ -772,7 +826,7 @@ export const RevisionNarrativeChunkSchema = z.object({
   summary: z
     .string()
     .describe(
-      "1-2 concrete sentences specific to these changed lines (what changed, not why; shared/impersonal voice)",
+      "ONE concrete sentence specific to these changed lines, ideally under ~100 characters (~150 ceiling, never a target) — what changed, not why; shared/impersonal voice",
     ),
 });
 
@@ -802,10 +856,16 @@ export const RevisionNarrativeSchema = z
       .describe(
         "warning lines the generation pipeline emitted. CLI-collected (BRIEF-11 UI surfacing).",
       ),
+    lengthViolations: z
+      .array(LengthViolationSchema)
+      .optional()
+      .describe(
+        "prose fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
+      ),
     overview: z
       .string()
       .describe(
-        "1-3 sentences on what this revision did as a whole. No line references, no group inventory.",
+        "1-2 short sentences on what this revision did as a whole (~250 characters max — a ceiling, never a target). No line references, no group inventory.",
       ),
     chunks: z.array(RevisionNarrativeChunkSchema),
   })
@@ -826,6 +886,7 @@ export const RevisionNarrativeGenerationSchema = RevisionNarrativeSchema.omit({
   headIndex: true,
   generation: true,
   generationWarnings: true,
+  lengthViolations: true,
 });
 
 /**

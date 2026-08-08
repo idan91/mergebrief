@@ -313,6 +313,87 @@ describe("stitchBrief", () => {
     ]);
   });
 
+  it("recomputes the prose length floor over the MERGED artifact (BRIEF-148)", () => {
+    // The CARRIED group's summary is over-cap — categorize() never saw it,
+    // so only the merged-artifact recompute can stamp it.
+    const verbosePrevious = brief(
+      [
+        { ...group("g1", "alpha"), summary: "v".repeat(300) },
+        group("g2", "beta"),
+      ],
+      [chunk("c1", "g1", "a.ts", 5, 8), chunk("c2", "g2", "b.ts", 1, 2)],
+    );
+    const plan = planAnchoredGeneration({
+      previousBrief: verbosePrevious,
+      incrementalDiff: DIFF_B,
+      compareFiles: COMPARE_B,
+      baseShaMoved: false,
+    });
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("x2", "tmpB", "b.ts", 1, 3)],
+      // A stale stamp + warning line from the partial (re-emitted-only)
+      // categorize() view: the recompute must replace both, never union.
+      {
+        lengthViolations: [
+          {
+            surface: "group-summary",
+            field: "group tmpB summary",
+            actual: 999,
+            cap: 250,
+          },
+        ],
+        generationWarnings: [
+          "⚠ prose length issues: group tmpB summary is 999 chars — exceeds the 250-char cap",
+          "⚠ risk attrs issues: unrelated line survives",
+        ],
+      },
+    );
+    const result = stitchBrief({ generated, plan, prFiles: ["a.ts", "b.ts"] });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect(result.value.brief.lengthViolations).toEqual([
+      {
+        surface: "group-summary",
+        field: "group g1 summary",
+        actual: 300,
+        cap: 250,
+      },
+    ]);
+    const warningText = result.value.brief.generationWarnings?.join("\n");
+    expect(warningText).toContain(
+      "anchored stitch: group g1 summary is 300 chars",
+    );
+    // categorize()'s tmp-id prose line is filtered; other warnings survive.
+    expect(warningText).not.toContain("tmpB");
+    expect(warningText).toContain("risk attrs issues");
+  });
+
+  it("drops a stale lengthViolations stamp when the merged artifact fits (BRIEF-148)", () => {
+    const generated = brief(
+      [group("tmpB", "beta v2")],
+      [chunk("x2", "tmpB", "b.ts", 1, 3)],
+      {
+        lengthViolations: [
+          {
+            surface: "group-summary",
+            field: "group tmpB summary",
+            actual: 999,
+            cap: 250,
+          },
+        ],
+      },
+    );
+    const result = stitchBrief({
+      generated,
+      plan: planFor(),
+      prFiles: ["a.ts", "b.ts"],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("unreachable");
+    expect("lengthViolations" in result.value.brief).toBe(false);
+  });
+
   it("maps references of a dropped generated group to its frozen parent", () => {
     // The model emitted a group over the FROZEN file; its definition is
     // discarded but intent references resolve to the carried group.

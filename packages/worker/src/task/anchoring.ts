@@ -13,6 +13,7 @@ import {
   RemapOutcomes,
   splitDiffByFile,
   validatePartition,
+  validateProseLength,
   type Brief,
 } from "brief-core";
 import type { CompareFiles } from "github";
@@ -578,6 +579,13 @@ export function stitchBrief(
   for (const issue of validatePartition(mergedGroups, mergedChunks)) {
     warnings.push(`anchored stitch: ${issue}`);
   }
+  // Length floor over the MERGED artifact (BRIEF-148) — carried groups
+  // included, so a pre-cap carry is measured too; replaces the partial
+  // stamp `categorize()` computed on the re-emitted regions alone.
+  const prose = validateProseLength(mergedGroups, mergedChunks);
+  for (const issue of prose.issues) {
+    warnings.push(`anchored stitch: ${issue}`);
+  }
 
   const carriedGroupIds = carriedIds;
   const regeneratedGroupIds = keptGroups.flatMap((group) => {
@@ -585,7 +593,12 @@ export function stitchBrief(
     const id = descended.get(group.id);
     return id === undefined ? [] : [id];
   });
-  const priorWarnings = generated.generationWarnings ?? [];
+  // The stitch's recomputed prose-length lines REPLACE categorize()'s —
+  // those name the model's tmp group ids, which don't exist in the stored
+  // artifact (same replacement discipline as the lengthViolations stamp).
+  const priorWarnings = (generated.generationWarnings ?? []).filter(
+    (line) => !line.includes("prose length issues"),
+  );
   const mergedWarnings = [...priorWarnings, ...warnings];
   const brief: Brief = {
     ...generated,
@@ -604,6 +617,11 @@ export function stitchBrief(
   };
   if (readingOrder === undefined) {
     delete brief.readingOrder;
+  }
+  if (prose.violations.length > 0) {
+    brief.lengthViolations = prose.violations;
+  } else {
+    delete brief.lengthViolations;
   }
   return { ok: true, value: { brief, carriedGroupIds, regeneratedGroupIds } };
 }

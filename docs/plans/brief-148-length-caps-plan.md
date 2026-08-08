@@ -86,8 +86,9 @@ Chunks (one commit each, security-reviewer gated):
      split-don't-inflate line in "Change-group boundary".
    - Delta prompt: same cap language on `changedGroups`.
    - Narrative prompt: overview 1-2 sentences; chunk summary one sentence
-     <100 chars (keep the ~25-words framing consistent with the new
-     numbers); riskNotes rule gains "at most ~200 chars".
+     <100 chars, chars-only (the old ~25-words framing is RETIRED — one
+     unit, no conflicting guidance; amended during implementation);
+     riskNotes rule gains "at most ~200 chars".
    - `ANCHORED_SECTION`: minimal-edit promoted to a hard-rule block.
    - Update `prompt-snapshots.test.ts` pins + any prompt tests.
 2. **Validator** — `validate.ts`: `validateProseLength(...)` warn-only

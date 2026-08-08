@@ -172,11 +172,9 @@ describe("summary succinctness (BRIEF-104)", () => {
     expect(buildDeltaSystemPrompt()).not.toContain("the fuller what-changed");
   });
 
-  it("keeps the revision-narrative prompt untouched by the caps", () => {
+  it("keeps the lede framing out of the revision-narrative prompt", () => {
     const narrative = buildRevisionNarrativeSystemPrompt();
     expect(narrative).not.toContain("lede");
-    // its own pre-existing cap survives unchanged
-    expect(narrative).toContain("1-3 sentences on what this revision did");
   });
 
   it("asks for the shortest verbatim span with a clause floor and one-sentence intent text", () => {
@@ -186,6 +184,49 @@ describe("summary succinctness (BRIEF-104)", () => {
     expect(brief).toMatch(/`intent` text to one sentence/);
     // the ceiling stays a ceiling; this exact clause is the BRIEF-104 framing
     expect(brief).toContain("~200 chars is a ceiling, never a target");
+  });
+});
+
+describe("prose length caps (BRIEF-148)", () => {
+  it("caps group title and summary in both the full and delta prompts", () => {
+    for (const text of [buildSystemPrompt(), buildDeltaSystemPrompt()]) {
+      expect(text).toContain("**Group text is scan-length");
+      expect(text).toContain("~150 absolute ceiling");
+      expect(text).toContain("1-2 short sentences — aim for ONE");
+      expect(text).toContain("~250 absolute ceiling");
+      expect(text).toContain(
+        "split the group instead of inflating the summary",
+      );
+    }
+  });
+
+  it("caps the narrative overview and chunk summary", () => {
+    const narrative = buildRevisionNarrativeSystemPrompt();
+    expect(narrative).toContain(
+      "1-2 short sentences on what this revision did",
+    );
+    expect(narrative).toContain("~250 characters is an absolute ceiling");
+    expect(narrative).toContain(
+      "ONE concrete sentence specific to those changed lines",
+    );
+    expect(narrative).toContain("~150 absolute ceiling");
+  });
+
+  it("caps riskNotes notes in both prompts that state the rule", () => {
+    for (const text of [buildSystemPrompt(), buildDeltaSystemPrompt()]) {
+      expect(text).toContain("at most ~200 characters");
+    }
+  });
+
+  it("states the anchored minimal-edit hard rule", () => {
+    const anchored = buildSystemPrompt(undefined, true);
+    expect(anchored).toContain("**Summary — minimal edit (HARD RULE):**");
+    expect(anchored).toContain(
+      "Changed wording without changed facts is WRONG OUTPUT",
+    );
+    expect(anchored).toContain("every re-examined group's title and summary");
+    // the fresh prompt never carries the anchored block
+    expect(buildSystemPrompt()).not.toContain("minimal edit (HARD RULE)");
   });
 });
 

@@ -9,6 +9,8 @@ import {
   validateReadingOrder,
   validateRiskAttributes,
   validateRepoAttributeTokens,
+  validateProseLength,
+  validateNarrativeProseLength,
 } from "../../src/generation/validate";
 import type { Chunk, RiskSurfaceAttribute } from "../../src/types";
 
@@ -1312,5 +1314,110 @@ describe("fanOutIntentCheck (BRIEF-85 grammar budget)", () => {
     );
     expect(intentCheck.deviations).toEqual([]);
     expect(issues.join("\n")).toContain("possible fabrication");
+  });
+});
+
+const group = (id: string, title: string, summary: string) => ({
+  id,
+  title,
+  summary,
+});
+
+describe("validateProseLength (BRIEF-148 — warn-only length floor)", () => {
+  it("passes text at or under every cap with no violations", () => {
+    const { violations, issues } = validateProseLength(
+      [group("g1", "a".repeat(150), "b".repeat(250))],
+      [
+        {
+          id: "c1",
+          riskNotes: [{ attr: "touches-auth", note: "n".repeat(200) }],
+        },
+      ],
+    );
+    expect(violations).toEqual([]);
+    expect(issues).toEqual([]);
+  });
+
+  it("flags an over-cap group title and summary with structured violations", () => {
+    const { violations, issues } = validateProseLength(
+      [group("g2", "t".repeat(151), "s".repeat(251))],
+      [],
+    );
+    expect(violations).toEqual([
+      {
+        surface: "group-title",
+        field: "group g2 title",
+        actual: 151,
+        cap: 150,
+      },
+      {
+        surface: "group-summary",
+        field: "group g2 summary",
+        actual: 251,
+        cap: 250,
+      },
+    ]);
+    expect(issues).toHaveLength(2);
+    expect(issues[0]).toContain("group g2 title is 151 chars");
+    expect(issues[1]).toContain("exceeds the 250-char cap");
+  });
+
+  it("flags an over-cap riskNotes note per attribute and skips absent riskNotes", () => {
+    const { violations } = validateProseLength(
+      [],
+      [
+        { id: "c1" },
+        {
+          id: "c2",
+          riskNotes: [
+            { attr: "mutates-state", note: "x".repeat(201) },
+            { attr: "external-io", note: "short" },
+          ],
+        },
+      ],
+    );
+    expect(violations).toEqual([
+      {
+        surface: "risk-note",
+        field: "chunk c2 riskNotes[mutates-state]",
+        actual: 201,
+        cap: 200,
+      },
+    ]);
+  });
+});
+
+describe("validateNarrativeProseLength (BRIEF-148)", () => {
+  it("flags an over-cap overview and chunk summary, passes compliant ones", () => {
+    const { violations, issues } = validateNarrativeProseLength(
+      "o".repeat(251),
+      [
+        { id: "rc1", summary: "fine" },
+        { id: "rc2", summary: "w".repeat(151) },
+      ],
+    );
+    expect(violations).toEqual([
+      {
+        surface: "narrative-overview",
+        field: "narrative overview",
+        actual: 251,
+        cap: 250,
+      },
+      {
+        surface: "narrative-chunk-summary",
+        field: "narrative chunk rc2 summary",
+        actual: 151,
+        cap: 150,
+      },
+    ]);
+    expect(issues).toHaveLength(2);
+  });
+
+  it("is silent when everything fits", () => {
+    const { violations, issues } = validateNarrativeProseLength("short", [
+      { id: "rc1", summary: "also short" },
+    ]);
+    expect(violations).toEqual([]);
+    expect(issues).toEqual([]);
   });
 });

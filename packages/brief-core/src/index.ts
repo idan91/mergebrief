@@ -103,7 +103,12 @@ export {
 } from "./generation/config";
 // Structural validators, exported for post-generation stitching (BRIEF-143):
 // pure warn-issue functions the worker re-runs on a merged artifact.
-export { validatePartition, validateReadingOrder } from "./generation/validate";
+export {
+  PROSE_LENGTH_CAPS,
+  validatePartition,
+  validateProseLength,
+  validateReadingOrder,
+} from "./generation/validate";
 // The anchored prompt contract (BRIEF-143 PR 4): the worker builds the
 // AnchorViewInput from its plan; renderAnchorView is exported for tests/CLI.
 export { renderAnchorView, type AnchorViewInput } from "./generation/prompt";
@@ -113,6 +118,9 @@ export {
   Categories,
   Concerns,
   FreshRestartReasons,
+  ProseSurfaces,
+  type LengthViolation,
+  type ProseSurface,
   Roles,
   RiskSurfaceAttributes,
   Specificities,

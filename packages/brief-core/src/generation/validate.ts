@@ -5,8 +5,11 @@ import {
 } from "./repo-context";
 import type { RevisionChangeFile } from "../diff/revchanges";
 import {
+  ProseSurfaces,
   RiskSurfaceAttributes,
   type ChangeGroup,
+  type LengthViolation,
+  type ProseSurface,
   type Chunk,
   type IntentBucket,
   type IntentCheck,
@@ -931,6 +934,105 @@ export function validateNarrativeMarksOverlap(
     }
   }
   return issues;
+}
+
+/**
+ * Warn ceilings in chars (BRIEF-148) — deliberately above the prompt's
+ * stated ideals (~100/~200) so a warning always means a real violation,
+ * never borderline noise. Tuning constants, not sacred. Surfaces and the
+ * violation shape live in types.ts (the stamp is part of the stored
+ * artifact); the PR lede/changelog deliberately stays out — its BRIEF-104
+ * caps are prompt-enforced and were not the observed gap.
+ */
+export const PROSE_LENGTH_CAPS: Record<ProseSurface, number> = {
+  "group-title": 150,
+  "group-summary": 250,
+  "narrative-overview": 250,
+  "narrative-chunk-summary": 150,
+  "risk-note": 200,
+};
+
+function checkProseLength(
+  surface: ProseSurface,
+  field: string,
+  text: string,
+  violations: LengthViolation[],
+  issues: string[],
+): void {
+  const cap = PROSE_LENGTH_CAPS[surface];
+  if (text.length <= cap) return;
+  violations.push({ surface, field, actual: text.length, cap });
+  issues.push(`${field} is ${text.length} chars — exceeds the ${cap}-char cap`);
+}
+
+/**
+ * Length check for brief-shaped output — full brief change-groups or delta
+ * `changedGroups`, plus per-chunk riskNotes (BRIEF-148). WARN-ONLY by locked
+ * design: never trim (mechanically unknowable which sentence carried the
+ * substance), never retry (full regen spend for a prose nit), never a schema
+ * `maxLength` (grammar budget + decode hard-fail + cross-model strictness).
+ * The prompt carries the caps; this is the floor that measures compliance.
+ */
+export function validateProseLength(
+  groups: Pick<ChangeGroup, "id" | "title" | "summary">[],
+  chunks: Pick<Chunk, "id" | "riskNotes">[],
+): { violations: LengthViolation[]; issues: string[] } {
+  const violations: LengthViolation[] = [];
+  const issues: string[] = [];
+  for (const group of groups) {
+    checkProseLength(
+      ProseSurfaces.GROUP_TITLE,
+      `group ${group.id} title`,
+      group.title,
+      violations,
+      issues,
+    );
+    checkProseLength(
+      ProseSurfaces.GROUP_SUMMARY,
+      `group ${group.id} summary`,
+      group.summary,
+      violations,
+      issues,
+    );
+  }
+  for (const chunk of chunks) {
+    for (const note of chunk.riskNotes ?? []) {
+      checkProseLength(
+        ProseSurfaces.RISK_NOTE,
+        `chunk ${chunk.id} riskNotes[${note.attr}]`,
+        note.note,
+        violations,
+        issues,
+      );
+    }
+  }
+  return { violations, issues };
+}
+
+/** The revision-narrative side of `validateProseLength` (BRIEF-148). */
+export function validateNarrativeProseLength(
+  overview: string,
+  chunks: Pick<RevisionNarrativeChunk, "id" | "summary">[],
+): { violations: LengthViolation[]; issues: string[] } {
+  const violations: LengthViolation[] = [];
+  const issues: string[] = [];
+  checkProseLength(
+    ProseSurfaces.NARRATIVE_OVERVIEW,
+    "narrative overview",
+    overview,
+    violations,
+    issues,
+  );
+  for (const chunk of chunks) {
+    checkProseLength(
+      ProseSurfaces.NARRATIVE_CHUNK_SUMMARY,
+      `narrative chunk ${chunk.id} summary`,
+      chunk.summary,
+      violations,
+      issues,
+    );
+  }
+  return { violations, issues };
 }
 
 function formatRange(range: LineRange): string {

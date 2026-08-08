@@ -32,7 +32,9 @@ import {
   validateMarksNarrativeCoverage,
   validateNarrativeGroups,
   validateNarrativeMarksOverlap,
+  validateNarrativeProseLength,
   validatePartition,
+  validateProseLength,
   validateReadingOrder,
   validateRepoAttributeTokens,
   validateRiskAttributes,
@@ -304,6 +306,11 @@ export async function categorize(
   );
   warnIssues(trio.issues, collector.log, "risk attrs");
 
+  // Warn-only length floor (BRIEF-148): the prompt carries the caps; this
+  // measures compliance and stamps the structured violations for the FE.
+  const prose = validateProseLength(generated.changeGroups, trio.chunks);
+  warnIssues(prose.issues, collector.log, "prose length");
+
   const partial = {
     ...rest,
     chunks: trio.chunks,
@@ -322,6 +329,9 @@ export async function categorize(
   const brief: Brief = {
     ...partial,
     ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
+    ...(prose.violations.length > 0
+      ? { lengthViolations: prose.violations }
+      : {}),
   };
   return brief;
 }
@@ -452,6 +462,10 @@ export async function categorizeDelta(
   );
   warnIssues(trio.issues, collector.log, "risk attrs");
 
+  // Warn-only length floor (BRIEF-148), same posture as the full brief.
+  const prose = validateProseLength(generated.changedGroups, trio.chunks);
+  warnIssues(prose.issues, collector.log, "prose length");
+
   const partial = {
     ...generated,
     chunks: trio.chunks,
@@ -470,6 +484,9 @@ export async function categorizeDelta(
   const delta: DeltaBrief = {
     ...partial,
     ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
+    ...(prose.violations.length > 0
+      ? { lengthViolations: prose.violations }
+      : {}),
   };
   return delta;
 }
@@ -602,10 +619,19 @@ export async function categorizeRevisionNarrative(
       "revision narrative coverage",
     );
   }
+  // Warn-only length floor (BRIEF-148): overview + hover-callout summaries.
+  const prose = validateNarrativeProseLength(
+    generated.overview,
+    generated.chunks,
+  );
+  warnIssues(prose.issues, collector.log, "prose length");
   const warnings = collector.warnings();
   const narrative: RevisionNarrative = {
     artifactKind: "revisionNarrative",
     ...generated,
+    ...(prose.violations.length > 0
+      ? { lengthViolations: prose.violations }
+      : {}),
     pr: buildPrRef(input.locator, input.meta, input.headSha),
     prevHeadSha: input.prevHeadSha,
     headSha: input.headSha,

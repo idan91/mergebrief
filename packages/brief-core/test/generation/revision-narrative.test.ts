@@ -466,6 +466,113 @@ describe("effort threading — delta + narrative (BRIEF-75)", () => {
   });
 });
 
+// --- prose length floor (BRIEF-148) — delta + narrative pipelines ------------
+
+describe("prose length floor (BRIEF-148) — delta + narrative pipelines", () => {
+  /** FakeGenerator with per-label fixture overrides for over-cap prose. */
+  class OverridingGenerator extends FakeGenerator {
+    constructor(private readonly overrides: Record<string, unknown>) {
+      super();
+    }
+
+    override async generate<S extends z.ZodType>(
+      req: GenerateRequest<S>,
+    ): Promise<z.infer<S>> {
+      const fixture = this.overrides[req.label];
+      if (fixture !== undefined) return req.schema.parse(fixture);
+      return super.generate(req);
+    }
+  }
+
+  const deltaInput = {
+    locator: { owner: "o", repo: "r", number: 1 },
+    meta: makeMeta(HEAD_2),
+    baselineSha: CHECKPOINT,
+    headSha: HEAD_2,
+    incrementalDiff,
+  };
+  const narrativeInput = {
+    locator: { owner: "o", repo: "r", number: 1 },
+    meta: makeMeta(HEAD_2),
+    prevHeadSha: HEAD_1,
+    headSha: HEAD_2,
+    prevIndex: 1,
+    headIndex: 2,
+    incrementalDiff,
+    brief: BriefSchema.parse({
+      ...briefGen,
+      intentCheck: storedIntentCheck,
+      pr: {
+        repo: "o/r",
+        number: 1,
+        title: "t",
+        url: URL,
+        sha: HEAD_2,
+        description: "d",
+      },
+      index: 2,
+      commitRange: { base: "base000000000000", head: HEAD_2, commitCount: 2 },
+      generation: { provider: "fake", model: "fake-model", effort: "medium" },
+    }),
+  };
+
+  it("delta: stamps lengthViolations + warning for an over-cap group summary", async () => {
+    const verboseDelta = {
+      ...deltaGen,
+      changedGroups: [
+        { ...deltaGen.changedGroups[0], summary: "w".repeat(300) },
+      ],
+    };
+    const delta = await categorizeDelta(
+      deltaInput,
+      new OverridingGenerator({ delta: verboseDelta }),
+    );
+    expect(delta.lengthViolations).toEqual([
+      {
+        surface: "group-summary",
+        field: "group g1 summary",
+        actual: 300,
+        cap: 250,
+      },
+    ]);
+    expect(delta.generationWarnings?.join("\n")).toContain(
+      "prose length issues",
+    );
+  });
+
+  it("narrative: stamps lengthViolations + warning for an over-cap overview", async () => {
+    const verboseNarrative = {
+      ...narrativeGen,
+      overview: "o".repeat(300),
+    };
+    const narrative = await categorizeRevisionNarrative(
+      narrativeInput,
+      new OverridingGenerator({ "revision narrative": verboseNarrative }),
+    );
+    expect(narrative.lengthViolations).toEqual([
+      {
+        surface: "narrative-overview",
+        field: "narrative overview",
+        actual: 300,
+        cap: 250,
+      },
+    ]);
+    expect(narrative.generationWarnings?.join("\n")).toContain(
+      "prose length issues",
+    );
+  });
+
+  it("delta + narrative: omit the stamp when everything fits", async () => {
+    const delta = await categorizeDelta(deltaInput, new FakeGenerator());
+    expect("lengthViolations" in delta).toBe(false);
+    const narrative = await categorizeRevisionNarrative(
+      narrativeInput,
+      new FakeGenerator(),
+    );
+    expect("lengthViolations" in narrative).toBe(false);
+  });
+});
+
 // --- generateAndWrite wiring --------------------------------------------------
 
 describe("generateAndWrite comparison artifacts", () => {

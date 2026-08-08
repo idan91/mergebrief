@@ -81,11 +81,13 @@ const RISK_GLOSS: Record<RiskSurfaceAttribute, string> = {
  * pinned byte-for-byte by prompt-snapshots.test.ts. Variants that differ on
  * purpose (the delta prompt's condensed rules) stay inline in their builder.
  */
-const RISK_NOTES_RULE = `**riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute. For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.`;
+const RISK_NOTES_RULE = `**riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute, at most ~200 characters (a hard cap, never a target). For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.`;
 
 const STYLE_FILES_CARRIER_RULE = `Type, context, and CSS/style files are not automatically supporting. They are \`carrier\` when they define the changed contract, state model, or visual behavior; they are \`supporting\` only when they merely accompany another carrier without carrying the group's intent.`;
 
 const STANDALONE_GROUP_RULE = `- **A standalone change with its own intent (e.g. dropping a CSS rule, a config tweak) is its own group with that chunk as the carrier** — don't fold it into an unrelated group.`;
+
+const GROUP_TEXT_CAPS = `- **Group text is scan-length (hard caps, never targets)**: the **title** is one line, ideally under ~100 characters (~150 absolute ceiling). The **summary** is **1-2 short sentences — aim for ONE** (~200 characters ideal, ~250 absolute ceiling); a reviewer scans groups, and a wall of text gets skipped, not read. State the intent, not an inventory — the chunks already carry files, ranges, and attributes. If a summary seems to need more than two sentences, the group probably holds two intents — split the group instead of inflating the summary.`;
 
 const LINE_RANGE_SIDES = `- \`addedRanges\` — **new-side** line numbers of \`+\` lines.
 - \`removedRanges\` — **old-side** line numbers of \`−\` lines.`;
@@ -175,7 +177,12 @@ This run UPDATES a previous brief for a new revision of the same PR — it is no
 - **Re-examined groups** (listed with their full previous definitions): keep what still holds — titles, summaries, categories, and risk attributes are anchored on the previous take; change only what the diff warrants. Add or drop risk attributes freely here (they are frozen elsewhere by construction). A group that loses all its files dies. Merge/split only among re-examined groups.
 - **One file = exactly one group** in your output. The pipeline enforces this mechanically on the merged artifact; a file split across groups fails the run.
 
-**Summary — minimal edit:** start from the previous summary (verbatim in the Anchor) and change only what the new material warrants. A byte-identical summary is legitimate when nothing material changed; a style rewrite is not. Add or change a changelog bullet only for a material increment.
+**Summary — minimal edit (HARD RULE):**
+
+- COPY the previous summary (verbatim in the Anchor), then edit ONLY what the new material forces.
+- A byte-identical summary is legitimate — and the expected default — when nothing material changed.
+- Changed wording without changed facts is WRONG OUTPUT: never rephrase, restyle, or "improve" text whose facts still hold. The same discipline applies to every re-examined group's title and summary.
+- Add or change a changelog bullet only for a material increment.
 
 **Intent check — current ask, honest transitions:** re-evaluate every verdict against the CURRENT title/description/tickets, never the previous ask. Previous verdicts anchor your wording — keep their phrasing where the verdict is unchanged — but transitions always flip: a delivered ask leaves statedButMissing, an edited ask gets a fresh verdict, a new ask gets judged fresh.
 
@@ -247,6 +254,7 @@ ${RISK_NOTES_RULE}
 ## Change-group boundary
 
 - One group = ONE title + ONE summary + ONE dominant category. If you need two unrelated summaries, split into two groups.
+${GROUP_TEXT_CAPS}
 - **One capability = one group, regardless of file anatomy.** An all-new feature or component is ONE group even though its parts live in separate files: its types/contract file, hook or facade, view, and styles all serve the same intent ("Add X") and are chunks of that one group — never per-file or per-layer groups. Its tests/stories and barrel exports are supporting chunks of that same group (rules below). Split a new capability only when the diff truly contains a second, separately-summarizable intent — never along file or layer boundaries.
 - The author's commit structure is a hint, never the boundary.
 - Intent lives on the carrier chunk(s); supporting chunks inherit it and are not independently categorized.
@@ -370,6 +378,7 @@ A chunk is a contiguous run of changed lines sharing ONE concern and ONE change-
 ## Change-group rules
 
 - **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if changes have no intent-holder of their own, they are *supporting* chunks of the group they serve, not a group.
+${GROUP_TEXT_CAPS}
 - **Export / barrel / re-export chunks (e.g. \`index.ts\`) are supporting** — attach each to the group whose feature it exports (split per feature when it exports several); never a catch-all "exports" group.
 ${STANDALONE_GROUP_RULE}
 
@@ -408,8 +417,8 @@ export function buildRevisionNarrativeSystemPrompt(): string {
 - Summarize ONLY the changed lines in the provided incremental diff. Do not re-describe code that already existed in the previous revision; the full Brief is provided as alignment context, not as material to summarize.
 - Cover EVERY changed line in the incremental diff: each added line must fall inside some chunk's \`addedRanges\`, and each removed line inside some chunk's \`removedRanges\` — deletions are changes too, not omissions. Fold low-signal lines (imports, formatting, a small deletion beside a rework) into the nearest related chunk's ranges rather than giving them their own chunk; the summary does not need to mention every folded line, but the ranges must cover it.
 - Every chunk attaches to an existing Change-group from the current full Brief via \`briefChangeGroupId\`. Never invent a group ID. If no group fits confidently, use the closest group and state the uncertainty in the summary prose (e.g. "likely part of …", "loosely related to …").
-- \`overview\`: 1-3 sentences on what this revision did as a whole. No line references, no group inventory.
-- Each chunk \`summary\`: 1-2 concrete sentences specific to those changed lines. These render in a small hover callout — prefer ONE sentence, at most ~25 words, scannable at a glance; use a second sentence only when one genuinely cannot carry the change, and stay under ~25 words total even then. Drop mechanical detail the marked lines already show (exact signatures, parameter lists) in favor of what changed and why it matters.
+- \`overview\`: 1-2 short sentences on what this revision did as a whole — ~250 characters is an absolute ceiling, never a target. No line references, no group inventory.
+- Each chunk \`summary\`: ONE concrete sentence specific to those changed lines, ideally under ~100 characters (~150 absolute ceiling — a hard cap, never a target). It renders in a small hover callout and must scan at a glance. Drop mechanical detail the marked lines already show (exact signatures, parameter lists) in favor of what changed and why it matters.
 
 ## What you receive
 
