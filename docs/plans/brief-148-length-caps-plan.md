@@ -74,8 +74,8 @@ lede caps.
 
 ### PR 1 — core: prompt caps + validator warns + stamp (~500 LOC)
 
-Branch: `feature/BRIEF-148/length-caps-core`. Model: Opus 5, main thread
-(Fable quota constraint; wording register is pre-locked so execution-grade).
+Branch: `feature/BRIEF-148/length-caps-core`. Model: Fable 5, main session
+(owner decision 2026-08-08: whole stack rides the main Fable session).
 
 Chunks (one commit each, security-reviewer gated):
 
@@ -108,7 +108,7 @@ artifact shape (CI path-filter gap, BRIEF-23).
 
 ### PR 2 — eval: length metric + scoped runs + rebaseline (~200 LOC)
 
-Branch: stacked on PR 1. Model: Opus 5, main thread.
+Branch: stacked on PR 1. Model: Fable 5, main session.
 
 1. Eval report gains per-surface char-count/violation metric (report-side
    code in `tools/categorizer/eval` — printed number, not eyeballing).
@@ -124,7 +124,7 @@ Branch: stacked on PR 1. Model: Opus 5, main thread.
 
 ### PR 3 — FE muted line + callout clamp + docs (~200 LOC)
 
-Branch: stacked on PR 2. Model: Opus 5, main thread.
+Branch: stacked on PR 2. Model: Fable 5, main session.
 
 1. `apps/web`: muted revision-context line when `lengthViolations`
    non-empty (copy in the "consider a stronger model" register; reuse the
