@@ -1,0 +1,10 @@
+{
+  "key": "anthropic:claude-opus-4-8",
+  "runs": 5,
+  "properties": {
+    "base-had-no-missing-ask": 5,
+    "coverage-exactly-one-group": 5,
+    "edited-ask-fresh-verdict": 5,
+    "untouched-survives-redact.ts": 5
+  }
+}

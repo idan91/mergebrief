@@ -1,0 +1,10 @@
+{
+  "key": "anthropic:claude-opus-4-8",
+  "runs": 5,
+  "properties": {
+    "coverage-exactly-one-group": 5,
+    "frozen-attrs-stable-redact.ts": 5,
+    "risk-attr-fires": 0,
+    "untouched-survives-redact.ts": 5
+  }
+}

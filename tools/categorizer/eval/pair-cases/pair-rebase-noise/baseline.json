@@ -1,0 +1,10 @@
+{
+  "key": "anthropic:claude-opus-4-8",
+  "runs": 5,
+  "properties": {
+    "anchored-stamp": 5,
+    "coverage-exactly-one-group": 5,
+    "id-carried-health.ts": 5,
+    "id-carried-redact.ts": 5
+  }
+}

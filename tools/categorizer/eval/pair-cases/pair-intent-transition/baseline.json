@@ -1,0 +1,9 @@
+{
+  "key": "anthropic:claude-opus-4-8",
+  "runs": 5,
+  "properties": {
+    "base-reports-missing-health": 5,
+    "coverage-exactly-one-group": 5,
+    "delivered-ask-leaves-missing": 5
+  }
+}
