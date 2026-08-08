@@ -15,6 +15,7 @@ import type { Result } from "types";
 import { categorize } from "brief-core";
 import { extractConfigFlag } from "brief-core/cli-config";
 import { loadBaseline, preflightBaselineKeys, saveBaseline } from "./baseline";
+import { proseLengthNotes } from "./length";
 import { loadPrices, priceUsage } from "./cost";
 import { loadCases, type EvalCase } from "./loadCase";
 import { scoreRuns } from "./properties";
@@ -219,7 +220,11 @@ async function evaluateCase(
         properties: evalCase.properties,
         scores: scored.scores,
         baseline,
-        notes: [...result.failureMessages, ...scored.notes],
+        notes: [
+          ...result.failureMessages,
+          ...scored.notes,
+          ...proseLengthNotes(result.briefs),
+        ],
       },
       rebaselined,
     },

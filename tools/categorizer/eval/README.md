@@ -41,6 +41,19 @@ sections, output schema, salvage) and model bumps, where any property
 could move. An honestly-scoped run beats the real alternative at
 full-suite prices: not gating at all.
 
+## Prose-length note (BRIEF-148)
+
+Every case report carries a length-compliance note when any run's
+artifact stamps `lengthViolations` (the warn-only prose floor); silence
+means every run fit the caps. Pair cases report base/revised sides
+separately. For a cross-model length check, the harness refuses
+cross-key runs before spend — use the one-off spot script instead
+(length numbers only, no property verdicts):
+
+```sh
+pnpm -C tools/categorizer exec tsx eval/spot-brief148.ts <config.yaml> <caseId> <runs>
+```
+
 ## Verdict rules (decision 4)
 
 Baseline classes per property: stable-pass (5/5) · flaky (1–4/5) ·

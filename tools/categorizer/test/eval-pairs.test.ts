@@ -347,6 +347,42 @@ describe("evaluatePairCase", () => {
     );
   });
 
+  it("carries a labeled prose-length note when a side's summary is over cap (BRIEF-148)", async () => {
+    const root = writePairCase("demo-pair", EXPECTED_TS);
+    const cases = await loadPairCases(root);
+    if (!cases.ok) throw new Error(cases.error);
+    const pairCase = cases.value[0];
+    if (pairCase === undefined) throw new Error("no case");
+    const generator = new SequenceGenerator([
+      genOutput([
+        { id: "g1", title: "alpha", file: "a.ts", start: 5 },
+        { id: "g2", title: "beta", file: "b.ts" },
+      ]),
+      genOutput([
+        { id: "tmpA", title: "alpha rewritten", file: "a.ts", start: 5 },
+        // genOutput derives summary from the title — an over-cap title
+        // produces an over-cap summary (and an over-cap title violation).
+        { id: "tmpB", title: "x".repeat(260), file: "b.ts" },
+      ]),
+    ]);
+    const outDir = mkdtempSync(join(tmpdir(), "pair-out-"));
+    const evaluated = await evaluatePairCase(
+      pairCase,
+      generator,
+      "medium",
+      1,
+      "fake:fake-model",
+      false,
+      outDir,
+      () => {},
+    );
+    expect(evaluated.ok).toBe(true);
+    if (!evaluated.ok) throw new Error(evaluated.error);
+    const notes = evaluated.value.outcome.notes.join("\n");
+    expect(notes).toContain("revised prose length: 1/1 runs over cap");
+    expect(notes).not.toContain("base prose length");
+  });
+
   it("rebaseline writes and re-reads the baseline at the same key", async () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);

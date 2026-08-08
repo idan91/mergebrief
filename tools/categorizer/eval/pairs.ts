@@ -6,6 +6,7 @@ import type { Result } from "types";
 import { AnchorStates, categorize } from "brief-core";
 import type { Brief } from "brief-core/types";
 import type { Effort, Generator } from "generators";
+import { proseLengthNotes } from "./length";
 import {
   planAnchoredGeneration,
   stitchBrief,
@@ -495,7 +496,18 @@ export async function evaluatePairCase(
         properties: pairCase.properties,
         scores: scored.scores,
         baseline,
-        notes: [...result.failureMessages, ...scored.notes],
+        notes: [
+          ...result.failureMessages,
+          ...scored.notes,
+          ...proseLengthNotes(
+            result.pairs.map((pair) => pair.base),
+            "base",
+          ),
+          ...proseLengthNotes(
+            result.pairs.map((pair) => pair.revised),
+            "revised",
+          ),
+        ],
       },
       rebaselined,
     },
