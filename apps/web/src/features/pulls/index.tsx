@@ -1,7 +1,6 @@
-// Curated feature entry (ADR 0037): the externally consumed entry
-// components. Logic modules (queries, markReady, postComment, …) are
-// imported directly. Internal pulls files import their targets directly,
-// never this index (import/no-cycle).
+// Curated feature entry: the externally consumed components only. Internal
+// pulls files import their targets directly, never this index
+// (import/no-cycle).
 export {
   MarkReadyModal,
   type MarkReadyModalProps,

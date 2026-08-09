@@ -40,7 +40,7 @@ describe("resolveDbTimeline", () => {
     expect(selection?.previous?.headSha).toBe("h2");
   });
 
-  it("carries a revision's generatedAt onto its point (BRIEF-95)", () => {
+  it("carries a revision's generatedAt onto its point", () => {
     const selection = resolveDbTimeline(
       [
         revision({ headSha: "h1", headIndex: 1 }),

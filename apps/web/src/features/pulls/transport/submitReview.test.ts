@@ -1,6 +1,6 @@
-// Submit mutation behavior (BRIEF-23 PR 3): expected failure statuses map to
-// typed result kinds the submit flow renders (fail-closed reload copy, clean
-// re-login, upstream rejection); only a malformed 2xx throws.
+// Submit mutation behavior: expected failure statuses map to typed result kinds
+// the submit flow renders (fail-closed reload copy, clean re-login, upstream
+// rejection); only a malformed 2xx throws.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../../data/apiFetch";

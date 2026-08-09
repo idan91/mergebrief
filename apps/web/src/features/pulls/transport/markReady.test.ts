@@ -1,9 +1,8 @@
-// Mark-ready mutation behavior (BRIEF-43 PR 3): expected failure statuses map
-// to typed result kinds the own-draft flow renders as toast copy; only a
-// malformed 2xx throws (contract violation). The route has NO deterministic
-// 400 reachable from a valid UI state (400 = malformed prNumber only), so
-// there is no recoverable-copy mirror to keep in lockstep here — a 400 is
-// collapsed into the generic upstream kind.
+// Mark-ready mutation behavior: expected failure statuses map to typed result
+// kinds the own-draft flow renders as toast copy; only a malformed 2xx throws
+// (contract violation). The route has NO deterministic 400 reachable from a
+// valid UI state (400 = malformed prNumber only), so there is no
+// recoverable-copy mirror to keep in lockstep — a 400 collapses into upstream.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../../data/apiFetch";
@@ -88,10 +87,9 @@ describe("markPrReady", () => {
   });
 });
 
-// The route-injected action (BRIEF-43 review round 1): pins the ORDERING
-// contract the no-flicker rule depends on — a success resolves only AFTER
-// the pr-meta invalidation settles (pending holds until the refreshed PrView
-// landed), and failure kinds never touch the cache.
+// The route-injected action pins the ORDERING contract the no-flicker rule
+// depends on: a success resolves only AFTER the pr-meta invalidation settles,
+// and failure kinds never touch the cache.
 async function flushMicrotasks(times = 4): Promise<void> {
   for (let i = 0; i < times; i += 1) {
     // eslint-disable-next-line no-await-in-loop -- sequential flush is the point

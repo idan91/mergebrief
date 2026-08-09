@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// First direct coverage for the rendered-brief plan assembly: identity
-// pinning (commit_id = the RENDERED span's head, never meta.headSha),
-// own-draft affordance gating, and comparison-availability scoping.
+// The rendered-brief plan assembly: identity pinning (commit_id = the RENDERED
+// span's head, never meta.headSha), own-draft affordance gating, and
+// comparison-availability scoping.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -132,7 +132,7 @@ describe("usePrBriefPlans", () => {
     );
   });
 
-  describe("own-draft gating (BRIEF-43)", () => {
+  describe("own-draft gating", () => {
     it("absent on any non-own-draft view", () => {
       const { result } = renderPlans({});
       expect(result.current.ownDraft).toBeUndefined();
@@ -229,7 +229,7 @@ describe("usePrBriefPlans", () => {
     });
   });
 
-  describe("thread resolution (BRIEF-93)", () => {
+  describe("thread resolution", () => {
     it("carries the PR-META capability onto the conversation plan", () => {
       expect(
         renderPlans({}).result.current.conversationPlan.resolution?.canResolve,

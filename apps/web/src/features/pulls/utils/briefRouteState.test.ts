@@ -1,5 +1,5 @@
-// Wait-UX state machine matrix (BRIEF-19 PR 3.2 — reviewed as the risky core
-// of the route). Render trigger = artifact EXISTS, never status==="succeeded".
+// Wait-UX state machine matrix. Render trigger = artifact EXISTS, never
+// status==="succeeded".
 import { describe, expect, it } from "vitest";
 import {
   comparisonsWarming,
@@ -232,7 +232,7 @@ describe("shouldPollMeta", () => {
     ).toBe(false);
   });
 
-  it("polls the viewer's OWN draft (BRIEF-43): external ready flips must propagate", () => {
+  it("polls the viewer's OWN draft: external ready flips must propagate", () => {
     // A fully settled generation on the author's own draft still polls —
     // this is exactly the state an author sits in while self-reviewing, and
     // a ready-elsewhere flip (marked ready on GitHub) must reach a focused

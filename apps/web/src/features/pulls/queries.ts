@@ -1,10 +1,9 @@
-// Flat at the feature root by the queries.ts convention (brief/queries.ts
-// precedent): the feature's queryOptions door, referenced by routes.
-// react-query descriptors for the DB-backed read API (BRIEF-19 PR 3.1), all
-// over the isomorphic `apiFetch` boundary so loaders can SSR-prefetch them and the
-// client refetches through the same gate. Artifact bodies are immutable per
-// span (natural-key upserts) → Infinity staleTime; the list and PR-meta are
-// live projections → short staleTime (PR-meta is the 3.2 poll target).
+// The feature's queryOptions door, referenced by routes: react-query
+// descriptors for the DB-backed read API, all over the isomorphic `apiFetch`
+// boundary so loaders can SSR-prefetch them and the client refetches through
+// the same gate. Artifact bodies are immutable per span (natural-key upserts)
+// → Infinity staleTime; the list and PR-meta are live projections → short
+// staleTime.
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
 
 import {
@@ -76,7 +75,7 @@ export function pullsSessionQueryOptions() {
   });
 }
 
-/** PR meta — the single generation-status poll target (polling wired in 3.2). */
+/** PR meta — the single generation-status poll target. */
 export function prMetaQueryOptions(repoId: string, prNumber: number) {
   return queryOptions({
     queryKey: ["pr-meta", repoId, prNumber],
@@ -107,9 +106,9 @@ export function dbBriefQueryOptions(
       const path = `${prPath(repoId, prNumber)}/brief?${spanQuery(base, head)}`;
       const body = await apiFetchJson(path);
       // Route loaders SSR-prefetch this queryFn, so the sink is what keeps a
-      // lenient drop (a malformed optional section on a STORED Brief —
-      // BRIEF-23-class contract drift) from shipping with zero signal. The
-      // browser refetch resolves no sink and stays silent by design.
+      // lenient drop (a malformed optional section on a STORED Brief) from
+      // shipping with zero signal. The browser refetch resolves no sink and
+      // stays silent by design.
       const parsed = parseBrief(body, await getSsrWarnSink());
       if (!parsed.ok) {
         throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
@@ -123,8 +122,7 @@ export function dbBriefQueryOptions(
 }
 
 /**
- * The span's repo-config snapshot (BRIEF-52) — origin + policy display
- * weights. Best-effort: a failure renders the Brief without source markers
+ * The span's repo-config snapshot — origin + policy display weights. Best-effort: a failure renders the Brief without source markers
  * or de-emphasis, never blocks it. Immutable per span (like the brief).
  */
 export function dbBriefContextQueryOptions(
@@ -156,13 +154,13 @@ export function dbBriefContextQueryOptions(
  * `BriefComparisonPlan` boundary typed as plain `UseQueryOptions`, and a narrower
  * inferred key breaks that assignment (queryFn context contravariance).
  *
- * The DB body is D13 coordinates-only (`{ baselineSha, headSha, files }` —
+ * The DB body is coordinates-only (`{ baselineSha, headSha, files }` —
  * persistence REJECTS `baselineLabel`/`baselineIndex` at write time), while
  * the renderer's `ComparisonMarks` carries both summary fields. They are
  * synthesized here from what the caller already knows: which comparison this
- * query IS (`previous-brief` or the BRIEF-21 `checkpoint` baseline), and the
- * index from PR-meta's availability (null when the checkpoint SHA was never
- * a briefed head).
+ * query IS (`previous-brief` or the `checkpoint` baseline), and the index
+ * from PR-meta's availability (null when the checkpoint SHA was never a
+ * briefed head).
  */
 export function dbComparisonMarksQueryOptions(
   repoId: string,
@@ -207,10 +205,10 @@ export function dbComparisonMarksQueryOptions(
 
 /**
  * The pre-warmed delta core for (baseline = checkpoint SHA, head) — immutable
- * once written (BRIEF-21). The body is the DELTA artifact shape
- * (`changedGroups`, `baselineSha`, `commentsAddressed` — `parseDeltaBrief`,
- * NOT `parseBrief`; smoke-found 2026-07-07). The caller only mounts this when
- * PR-meta said `deltaAvailable`, so a 404 here is a real error, not a tier.
+ * once written. The body is the DELTA artifact shape (`changedGroups`,
+ * `baselineSha`, `commentsAddressed` — `parseDeltaBrief`, NOT `parseBrief`).
+ * The caller only mounts this when PR-meta said `deltaAvailable`, so a 404
+ * here is a real error, not a tier.
  */
 export function dbDeltaQueryOptions(
   repoId: string,
@@ -277,8 +275,8 @@ export function dbRevisionNarrativeQueryOptions(
 
 /**
  * The LIVE span diff (text). Server-side it is per-session cached ~60s and
- * never persisted (ADR 0016 #10); match that staleness here. The client
- * slices it per chunk with the shared `diffSlicing` module.
+ * never persisted; match that staleness here. The client slices it per chunk
+ * with the shared `diffSlicing` module.
  */
 export function prDiffQueryOptions(
   repoId: string,

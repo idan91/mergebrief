@@ -1,9 +1,8 @@
-// Client-side handling of the LIVE whole-PR diff (BRIEF-19 PR 3.2). The diff
-// proxy returns ONE unified diff spanning every file (never persisted —
-// ADR 0016 #10); the local path's sidecars were already per-file. Split the
-// body on `diff --git` boundaries, then slice each chunk's rows with the
-// shared diffSlicing module. A chunk whose file is absent keeps the legal
-// no-`diff` shape (the renderer degrades).
+// Client-side handling of the LIVE whole-PR diff. The proxy returns ONE
+// unified diff spanning every file (never persisted). Split the body on
+// `diff --git` boundaries, then slice each chunk's rows with the shared
+// diffSlicing module. A chunk whose file is absent keeps the legal no-`diff`
+// shape (the renderer degrades).
 import {
   parseUnifiedDiffPatch,
   sliceChunkDiff,
@@ -11,9 +10,6 @@ import {
 } from "../../brief/utils/diffSlicing";
 import type { Brief } from "../../brief/types";
 
-// `splitUnifiedDiffByFile` now lives in the shared pure diff module alongside
-// `parseUnifiedDiffPatch` — re-exported here so existing importers are
-// unchanged.
 export { splitUnifiedDiffByFile } from "../../brief/utils/diffSlicing";
 
 /**

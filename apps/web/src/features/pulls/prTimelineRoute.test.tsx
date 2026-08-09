@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
-// Flat at the feature root with reason (ADR 0037 SS4): route-level tests -
-// their subject is src/routes' file-based route, where a .test file could
-// trip route generation; they exercise it from the owning feature instead.
-// The BRIEF-24 revision-timeline path through the real router: a multi-revision
-// PR-meta exposes the navigator, `?head=` selects a historical revision (with
-// ITS OWN base), unknown heads degrade to latest with a note. Stale-head views
-// (historical, or head advanced past the newest brief) are WRITABLE with a
-// submit ack (BRIEF-127); only a superseded base stays hard read-only.
+// Flat at the feature root with reason: the subject is src/routes' file-based
+// route, where a .test file could trip route generation, so it is exercised
+// from the owning feature instead. The revision-timeline path through the real
+// router: a multi-revision PR-meta exposes the navigator, `?head=` selects a
+// historical revision (with ITS OWN base), unknown heads degrade to latest
+// with a note. Stale-head views (historical, or head advanced past the newest
+// brief) are WRITABLE with a submit ack; only a superseded base stays hard
+// read-only.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -125,7 +125,7 @@ async function renderTimeline(
   return router;
 }
 
-describe("DB brief route — revision timeline (BRIEF-24)", () => {
+describe("DB brief route — revision timeline", () => {
   afterEach(() => cleanup());
 
   it("renders the navigator with every revision in order, latest selected", async () => {
@@ -146,13 +146,13 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
       screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
     );
     expect(picker.value).toBe("0");
-    // No hard block (BRIEF-127): the read-only reason and posture are gone…
+    // No hard block: the read-only reason and posture are gone…
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
     expect(screen.getByText(/^viewing revision 1 of 2\.$/i)).toBeTruthy();
     // …and the receipt carries the stale-submit ack instead.
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
-    // BRIEF-137: the advisory view fronts the modal when unresolved items
-    // exist; Continue reaches the verdict view, which carries the ack.
+    // The advisory view fronts the modal when unresolved items exist;
+    // Continue reaches the verdict view, which carries the ack.
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     expect(
       screen.getByText(/comments will anchor to the revision you reviewed/i),
@@ -177,7 +177,7 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
   it("gates submit behind the ack when meta.headSha advanced past the newest revision", async () => {
     // The newest revision is not the PR's current head (next brief still
     // generating): writable, but the receipt requires the stale ack —
-    // comments would anchor to the reviewed head (BRIEF-127).
+    // comments would anchor to the reviewed head.
     await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
       timelineMeta({ headSha: "head-3-just-pushed", baseSha: "base-3" }),
@@ -188,8 +188,8 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     expect(picker.value).toBe("1");
     expect(screen.getByText(/^viewing revision 2 of 2\.$/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
-    // BRIEF-137: the advisory view fronts the modal when unresolved items
-    // exist; Continue reaches the verdict view, which carries the ack.
+    // The advisory view fronts the modal when unresolved items exist;
+    // Continue reaches the verdict view, which carries the ack.
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     // The ack gate reached the drawer (plumbing proof — the disabled-until-
     // acked mechanics are pinned in SubmitModal.test).
@@ -203,7 +203,7 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     expect(ack).toHaveProperty("checked", true);
   });
 
-  it("group since-marker links into the delta lens (BRIEF-102)", async () => {
+  it("group since-marker links into the delta lens", async () => {
     // A checkpoint exists on the latest revision; the viewer is on Full
     // Brief with Compare OFF — the marker must still show and its link
     // must flip the search to the delta lens.
@@ -276,7 +276,7 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
     // Collapsed by default — no thread target in the URL.
     expect(heading.getAttribute("aria-expanded")).toBe("false");
     // The jump navigates in-app (same mounted route): the section must open
-    // from the effect, not only the initializer (codex round 1).
+    // from the effect, not only the initializer.
     await router.navigate({
       to: "/repos/$repoId/pulls/$prNumber",
       params: { repoId: REPO_ID, prNumber: String(PR_NUMBER) },
@@ -294,8 +294,7 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
   it("keeps the selected historical head when view/compare changes (search updater merges)", async () => {
     // The Brief view/compare controls navigate through a FUNCTIONAL search
     // updater (`(current) => ({ ...current, ...next })`), so changing a lens
-    // must never drop head/base and silently re-resolve to latest
-    // (codex round 3 probe — pinned here).
+    // must never drop head/base and silently re-resolve to latest.
     const router = await renderTimeline(
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&base=${REV1.baseSha}`,
     );
@@ -347,7 +346,7 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
 
   it("addresses duplicate-head revisions by exact span, read-only on the stale base (retarget re-brief)", async () => {
     // The brief natural key is (pr, base, head): after a retarget re-brief
-    // the SAME head appears twice with different bases (codex round 4).
+    // the SAME head appears twice with different bases.
     const oldSpan: RevisionSummary = {
       headSha: "head-2",
       baseSha: "base-old",
@@ -388,9 +387,8 @@ describe("DB brief route — revision timeline (BRIEF-24)", () => {
       screen.getAllByText(/generated against a superseded base/i).length,
     ).toBeGreaterThan(0);
     // Moving to the SAME-HEAD newer duplicate re-anchors keyboard focus —
-    // the focus effect keys on the full span, not the head SHA (codex
-    // round 6): only the base changes here, yet the content and read-only
-    // posture swap.
+    // the focus effect keys on the full span, not the head SHA: only the base
+    // changes here, yet the content and read-only posture swap.
     picker.focus();
     expect(document.activeElement).toBe(picker);
     fireEvent.change(picker, { target: { value: "2" } });

@@ -1,9 +1,8 @@
-// The DB-brief route's wait-UX state machine (BRIEF-19 PR 3.2), kept PURE so
-// the whole map is unit-testable. Render trigger = brief artifact EXISTS for
-// the resolved span (ADR 0006 #10) — NEVER `status === "succeeded"`
-// (markSucceeded fires only after delta warmup, well after the artifact is
-// readable). Generation status drives the waiting/failed/superseded display
-// and the polling cadence only.
+// The DB-brief route's wait-UX state machine, kept PURE so the whole map is
+// unit-testable. Render trigger = brief artifact EXISTS for the resolved span
+// — NEVER `status === "succeeded"` (markSucceeded fires only after delta
+// warmup, well after the artifact is readable). Generation status drives the
+// waiting/failed/superseded display and the polling cadence only.
 import { isOwnDraft } from "./ownDraft";
 import type { PrSummary } from "../types";
 
@@ -18,7 +17,7 @@ export type ExplicitSpan = Span | undefined;
 export type BriefRouteState =
   /** A brief for `span` should be fetched and rendered. */
   | { readonly kind: "render"; readonly span: Span }
-  /** Nothing was ever projected — show the activation hint (ADR 0020). */
+  /** Nothing was ever projected — show the activation hint. */
   | { readonly kind: "empty" }
   /** Generation in flight — diff-first wait when the span is known. */
   | {
@@ -36,10 +35,10 @@ export type BriefRouteState =
   /** Aborted because the head advanced — a newer brief is on the way. */
   | { readonly kind: "superseded" }
   /**
-   * Skipped: the repo hit the instance's daily generation cap (BRIEF-20).
-   * `cappedAt` is when the skip was recorded — the reset time derives from
-   * it, so a row left over from an earlier day cannot claim to be waiting
-   * on tonight's midnight.
+   * Skipped: the repo hit the instance's daily generation cap. `cappedAt` is
+   * when the skip was recorded — the reset time derives from it, so a row
+   * left over from an earlier day cannot claim to be waiting on tonight's
+   * midnight.
    */
   | { readonly kind: "capped"; readonly cappedAt: string };
 
@@ -50,12 +49,12 @@ function metaSpan(meta: PrSummary): Span | undefined {
 
 /**
  * The explicit span names the PR's CURRENT head. Deliberately HEAD-only: the
- * head is the revision-selection key (BRIEF-24) and both sides of the compare
- * come from the same source (latestGeneration.headSha). The BASE must not
- * veto — the Entry-comment link's base comes from the generation task's fresh
- * PR fetch, while `meta.baseSha` falls back to the ingest-time row when no
- * brief exists yet, so a base drift between ingest and generation start would
- * make a both-halves compare miss and 404 the generating link again.
+ * head is the revision-selection key and both sides of the compare come from
+ * the same source (latestGeneration.headSha). The BASE must not veto — the
+ * Entry-comment link's base comes from the generation task's fresh PR fetch,
+ * while `meta.baseSha` falls back to the ingest-time row when no brief exists
+ * yet, so a base drift between ingest and generation start would make a
+ * both-halves compare miss and 404 the generating link again.
  */
 function explicitNamesGeneratingHead(
   meta: PrSummary,
@@ -121,15 +120,13 @@ export function deriveBriefRouteState(
 
 /**
  * Poll the PR-meta while something is (or may be) in flight: a non-terminal
- * generation, a superseded row (its replacement is queued momentarily —
- * ADR 0006 #6), a rendered brief whose generation is still finishing (the
- * "comparisons warming" chip clears on the terminal refetch), or the
- * viewer's OWN DRAFT (BRIEF-43): the draft flag can flip externally at any
- * moment (marked ready on GitHub) and the own-draft affordances key on it —
- * a settled draft would otherwise never refetch, so a ready-elsewhere flip
- * would only propagate on a window-focus refetch. Scoped to the author:
- * other viewers of a draft carry no draft-keyed affordances, so for them the
- * focus refetch stays good enough — no poll cost across every open draft.
+ * generation, a superseded row (its replacement is queued momentarily), a
+ * rendered brief whose generation is still finishing (the "comparisons
+ * warming" chip clears on the terminal refetch), or the viewer's OWN DRAFT —
+ * the draft flag can flip externally (marked ready on GitHub) and the
+ * own-draft affordances key on it, so a settled draft would otherwise only
+ * propagate on a window-focus refetch. Scoped to the author: other viewers
+ * carry no draft-keyed affordances, so no poll cost across every open draft.
  */
 export function shouldPollMeta(meta: PrSummary): boolean {
   if (isOwnDraft(meta)) return true;
@@ -137,9 +134,8 @@ export function shouldPollMeta(meta: PrSummary): boolean {
   if (status === "queued" || status === "running") return true;
   if (status === "superseded" && !meta.briefAvailable) return true;
   // A pending lastReview comparison is also in-flight work (its delta may
-  // finish after the brief generation is terminal — codex PR-46 finding):
-  // keep polling so the disabled Compare control flips without a manual
-  // refresh.
+  // finish after the brief generation is terminal): keep polling so the
+  // disabled Compare control flips without a manual refresh.
   return (
     meta.comparisons?.lastReview?.kind === "unavailable" &&
     meta.comparisons.lastReview.reason === "pending"

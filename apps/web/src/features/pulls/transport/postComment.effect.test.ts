@@ -1,13 +1,12 @@
-// Post-now success effect (BRIEF-43 PR 4, ADR 0031 #5): posting a staged draft
-// must reduce the unposted-draft count the soft gate reminds on, and record the
-// wrapping review id so the refetched thread reconciles as "yours" (BRIEF-25).
+// Post-now success effect: posting a staged draft must reduce the
+// unposted-draft count the soft gate reminds on, and record the wrapping review
+// id so the refetched thread reconciles as "yours".
 //
 // This drives the REAL Mind-Map store through the exact action sequence the
-// own-draft `postDraftComment` handler applies on a `posted` result
-// (`markCommentsSubmitted` + `recordSubmittedReview`), and asserts the outcome
-// against the SAME `status === "draft"` predicate the MarkReadyModal counts by
-// (`BriefPage.unpostedDraftComments`). It is the store-level contract post-now
-// depends on — not a re-test of a single action in isolation.
+// own-draft `postDraftComment` handler applies on a `posted` result, and
+// asserts against the SAME `status === "draft"` predicate the MarkReadyModal
+// counts by — the store-level contract post-now depends on, not a re-test of a
+// single action in isolation.
 import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/utils/fixtures";
@@ -56,7 +55,7 @@ describe("post-now success effect on the Mind-Map store", () => {
     actions.markCommentsSubmitted([draft.id]);
     actions.recordSubmittedReview(555);
 
-    // Count drops (ADR 0031 #5) — the draft is now server-owned, not unposted.
+    // Count drops — the draft is now server-owned, not unposted.
     expect(unpostedDraftCount(s.getState().reviewComments)).toBe(0);
     // The comment is retained as a submitted (read-only) record, not deleted.
     expect(s.getState().reviewComments[0]?.status).toBe("submitted");

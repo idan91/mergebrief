@@ -1,13 +1,10 @@
-// The mark-ready facade hook (BRIEF-43 PR 3): the heavy Brief screen wires
-// props in, this hook owns pending state and the result-kind toast copy —
-// `useReviewSubmit` is the template. The action is injected by the DB route;
-// absent action = not an own-draft view (local path included), the flow is
-// unavailable and `markReady` no-ops.
+// The mark-ready facade hook: owns pending state and the result-kind toast
+// copy. The action is injected by the DB route; absent action = not an
+// own-draft view, so `markReady` no-ops.
 //
-// No state flicker by construction: on success the hook announces and stops —
-// it never clears the own-draft UI locally. The injected action awaits the
-// pr-view invalidation, so the affordances vanish exactly when the refreshed
-// PrView (draft=false) lands in the query cache.
+// On success the hook announces and stops — it never clears the own-draft UI
+// locally. The injected action awaits the pr-view invalidation, so the
+// affordances vanish exactly when the refreshed PrView lands in the cache.
 import { useCallback, useRef, useState } from "react";
 
 import type { MarkReadyAction } from "../transport/markReady";
@@ -33,8 +30,8 @@ export const MARK_READY_COPY = {
     "GitHub blocked the action: the MergeBrief App needs the 'Contents: Read & write' repository permission to mark a PR ready. Update the App's permissions and retry.",
   upstream:
     "GitHub rejected the request or is unreachable — try again shortly.",
-  // Marking ready is idempotent on GitHub's side (already-ready converges),
-  // so unlike the submit flow this copy can safely invite a retry.
+  // Marking ready is idempotent on GitHub's side, so this copy can safely
+  // invite a retry.
   failed: "Something went wrong marking this pull request ready — try again.",
 } as const;
 

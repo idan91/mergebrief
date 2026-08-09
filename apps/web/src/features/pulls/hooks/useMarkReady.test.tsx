@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-// The mark-ready facade hook (BRIEF-43 PR 3): owns pending/copy state for the
-// own-draft terminal action. Success stays QUIET about state — the own-draft
-// affordances vanish only when the refreshed PrView lands (the injected
-// action awaits the pr-view invalidation); the hook never clears anything
-// optimistically. Failures re-enable the CTA and announce toast copy.
+// The mark-ready facade hook owns pending/copy state for the own-draft terminal
+// action. Success stays QUIET about state — the affordances vanish only when
+// the refreshed PrView lands; the hook never clears anything optimistically.
+// Failures re-enable the CTA and announce toast copy.
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

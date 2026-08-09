@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-// Flat at the feature root with reason (ADR 0037 SS4): route-level tests -
-// their subject is src/routes' file-based route, where a .test file could
-// trip route generation; they exercise it from the owning feature instead.
-// DB-brief route states through the real router (BRIEF-19 PR 3.2): a seeded
-// cache renders the brief via BriefView with EMPTY local artifacts (the DB
-// path's shape), and meta-only states render the wait/failed cards.
+// Flat at the feature root with reason: the subject is src/routes' file-based
+// route, where a .test file could trip route generation, so it is exercised
+// from the owning feature instead. DB-brief route states through the real
+// router: a seeded cache renders the brief via BriefView with EMPTY local
+// artifacts (the DB path's shape), and meta-only states render the
+// wait/failed cards.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
@@ -151,9 +151,9 @@ describe("DB brief route", () => {
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
     expect(screen.getByText(briefFixture.changeGroups[0]!.title)).toBeTruthy();
-    // BRIEF-103: the header's state badge on the DB route reads the LIVE
-    // webhook state from the pr row (meta.state = open) — never gated on
-    // the artifact's stamped snapshot (this fixture predates stamping).
+    // The header's state badge on the DB route reads the LIVE webhook state
+    // from the pr row (meta.state = open) — never gated on the artifact's
+    // stamped snapshot (this fixture predates stamping).
     expect(
       document
         .querySelector("[data-state-badge]")
@@ -161,10 +161,10 @@ describe("DB brief route", () => {
     ).toBe("open");
   });
 
-  // BRIEF-99: the filter is URL state, so validateSearch and the chip write
-  // are the contract. Nothing else pins that clearing a family removes its
-  // key, or that the revision/thread params survive a filter write.
-  describe("conversation filter params (BRIEF-99)", () => {
+  // The filter is URL state, so validateSearch and the chip write are the
+  // contract. Nothing else pins that clearing a family removes its key, or
+  // that the revision/thread params survive a filter write.
+  describe("conversation filter params", () => {
     const base = `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`;
 
     it("canonicalizes the filter params and drops unknown tokens", async () => {
@@ -294,7 +294,7 @@ describe("DB brief route", () => {
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
     // Disabled options stay focusable (`aria-disabled`) with the reason in a
-    // keyboard-reachable tooltip referenced by aria-describedby (BRIEF-21).
+    // keyboard-reachable tooltip referenced by aria-describedby.
     const button = screen.getByRole("button", { name: /^previous brief$/i });
     expect(button.getAttribute("aria-disabled")).toBe("true");
     const tooltipId = button.getAttribute("aria-describedby");
@@ -328,7 +328,7 @@ describe("DB brief route", () => {
     void queryClient;
   });
 
-  it("Compare last-review is offered on the marks-only tier and Changes Only degrades honestly (BRIEF-21)", async () => {
+  it("Compare last-review is offered on the marks-only tier and Changes Only degrades honestly", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -396,7 +396,7 @@ describe("DB brief route", () => {
     );
   });
 
-  it("Compare last-review renders the pre-warmed delta core when deltaAvailable (BRIEF-21 happy tier)", async () => {
+  it("Compare last-review renders the pre-warmed delta core when deltaAvailable", async () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
     });
@@ -488,7 +488,7 @@ describe("DB brief route", () => {
     expect(off.getAttribute("aria-pressed")).toBe("true");
   });
 
-  it("Compare last-review is disabled with the honest reason tooltip per unavailable tier (BRIEF-21)", async () => {
+  it("Compare last-review is disabled with the honest reason tooltip per unavailable tier", async () => {
     const cases = [
       { reason: "pending", copy: /delta still generating/i },
       {
@@ -518,7 +518,7 @@ describe("DB brief route", () => {
     }
   });
 
-  it("Compare last-review keeps the generic never-submitted copy when the field is absent (BRIEF-21)", async () => {
+  it("Compare last-review keeps the generic never-submitted copy when the field is absent", async () => {
     await renderRoute(
       meta({}),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
@@ -542,7 +542,7 @@ describe("DB brief route", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    // Lives in the header's More-actions menu since BRIEF-28.
+    // Lives in the header's More-actions menu.
     fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
     // A BUTTON, not the local cross-route link.
     const trigger = screen.getByRole("menuitem", {
@@ -569,12 +569,11 @@ describe("DB brief route", () => {
     );
     // Still pinned: the OLD span's brief renders behind the banner.
     expect(screen.getByText(briefFixture.pr.title)).toBeTruthy();
-    // The legacy (no-revisions) path carries the stale-submit ack too
-    // (BRIEF-127, the ticket's original target — the gate is span-derived,
-    // not timeline-derived).
+    // The legacy (no-revisions) path carries the stale-submit ack too — the
+    // gate is span-derived, not timeline-derived.
     fireEvent.click(screen.getByRole("button", { name: /^submit$/i }));
-    // BRIEF-137: the advisory view fronts the modal when unresolved items
-    // exist; Continue reaches the verdict view, which carries the ack.
+    // The advisory view fronts the modal when unresolved items exist;
+    // Continue reaches the verdict view, which carries the ack.
     fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
     expect(
       screen.getByText(/comments will anchor to the revision you reviewed/i),
@@ -586,7 +585,7 @@ describe("DB brief route", () => {
     ).toBeTruthy();
   });
 
-  it("own-draft on the current head: mark-ready is live (BRIEF-43)", async () => {
+  it("own-draft on the current head: mark-ready is live", async () => {
     await renderRoute(
       meta({ draft: true, viewerIsAuthor: true }),
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?base=${SPAN.base}&head=${SPAN.head}`,
@@ -596,7 +595,7 @@ describe("DB brief route", () => {
     expect(cta.getAttribute("aria-disabled")).toBe("false");
   });
 
-  it("own-draft on a HISTORICAL span: the state label stays, mark-ready and its gate do not (BRIEF-43)", async () => {
+  it("own-draft on a HISTORICAL span: the state label stays, mark-ready and its gate do not", async () => {
     // The PR's head moved on; the viewer is pinned to the older span.
     await renderRoute(
       meta({

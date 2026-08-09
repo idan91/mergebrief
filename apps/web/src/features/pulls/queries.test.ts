@@ -1,5 +1,5 @@
-// queryFn behavior for the session list (BRIEF-19 PR 3.1): 401 is the
-// EXPECTED logged-out state, 200 parses, a malformed 200 throws typed.
+// queryFn behavior for the session list: 401 is the EXPECTED logged-out
+// state, 200 parses, a malformed 200 throws typed.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../data/apiFetch";
@@ -77,10 +77,10 @@ function runMarks(): Promise<unknown> {
 }
 
 describe("dbComparisonMarksQueryOptions queryFn", () => {
-  it("parses the D13 coordinates-only body, synthesizing label + index", async () => {
-    // The DB body carries NO baselineLabel/baselineIndex — persistence rejects
-    // them at write time (D13). The queryFn must still yield a renderer-ready
-    // ComparisonMarks.
+  it("parses the coordinates-only body, synthesizing label + index", async () => {
+    // The DB body carries NO baselineLabel/baselineIndex — persistence
+    // rejects them at write time. The queryFn must still yield a
+    // renderer-ready ComparisonMarks.
     apiFetchJsonMock.mockResolvedValue({
       baselineSha: "head-0",
       headSha: "head-1",
@@ -112,11 +112,10 @@ function runPrMeta(): Promise<unknown> {
   return (queryFn as () => Promise<unknown>)();
 }
 
-// The resolve capability reaches the affordances THROUGH this queryFn, and the
-// route tests that seed the cache bypass the parser entirely (BRIEF-21
-// lesson) — so the wire body is exercised here, shaped like the real pr-view
-// response.
-describe("prMetaQueryOptions queryFn — viewerCanResolve (BRIEF-93)", () => {
+// The resolve capability reaches the affordances THROUGH this queryFn, and
+// route tests that seed the cache bypass the parser entirely — so the wire
+// body is exercised here, shaped like the real pr-view response.
+describe("prMetaQueryOptions queryFn — viewerCanResolve", () => {
   const META_BODY = {
     repoId: "424242",
     repoSlug: "octo/hello",
@@ -188,7 +187,7 @@ describe("dbDeltaQueryOptions queryFn", () => {
     description: "",
   };
 
-  it("parses the DELTA artifact shape (changedGroups, not changeGroups - smoke-found)", async () => {
+  it("parses the DELTA artifact shape (changedGroups, not changeGroups)", async () => {
     // The worker stores `JSON.stringify(delta)` - the delta-CLI shape with
     // `changedGroups`/`commentsAddressed`/`wholePrImpact`. parseBrief rejects
     // it, which silently degraded the pane to marks-only.
@@ -221,7 +220,7 @@ describe("dbDeltaQueryOptions queryFn", () => {
   });
 });
 
-describe("dbBriefQueryOptions queryFn — warn sink (BRIEF-44 PR 6)", () => {
+describe("dbBriefQueryOptions queryFn — warn sink", () => {
   const prRef = {
     repo: "octo/hello",
     number: 7,
@@ -285,7 +284,7 @@ describe("dbBriefQueryOptions queryFn — warn sink (BRIEF-44 PR 6)", () => {
     await expect(runBrief()).resolves.toMatchObject({ summary: "s" });
   });
 
-  it("carries the pr lifecycle snapshot off the wire (BRIEF-103)", async () => {
+  it("carries the pr lifecycle snapshot off the wire", async () => {
     getSsrWarnSinkMock.mockResolvedValue(undefined);
     const body = briefBody(undefined);
     apiFetchJsonMock.mockResolvedValue({

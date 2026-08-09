@@ -1,6 +1,6 @@
-// Boundary-guard tests for the read-API PR shapes (BRIEF-19 PR 3.1). The API
-// is trusted infrastructure but still an external boundary to this bundle —
-// responses are parsed, never cast.
+// Boundary-guard tests for the read-API PR shapes. The API is trusted
+// infrastructure but still an external boundary to this bundle — responses
+// are parsed, never cast.
 import { describe, expect, it } from "vitest";
 import {
   LastReviewUnavailableReason as SOURCE_LAST_REVIEW_UNAVAILABLE_REASON,
@@ -44,7 +44,7 @@ describe("parsePrSummary", () => {
     expect(parsed.value.generation?.status).toBe("succeeded");
   });
 
-  it("parses draft + viewerIsAuthor (BRIEF-43) and requires both", () => {
+  it("parses draft + viewerIsAuthor and requires both", () => {
     const parsed = parsePrSummary({
       ...ROW,
       draft: true,
@@ -63,7 +63,7 @@ describe("parsePrSummary", () => {
     expect(parsePrSummary({ ...ROW, viewerIsAuthor: "true" }).ok).toBe(false);
   });
 
-  it("parses viewerCanResolve and FAILS CLOSED when it is absent (BRIEF-93)", () => {
+  it("parses viewerCanResolve and FAILS CLOSED when it is absent", () => {
     const capable = parsePrSummary({ ...ROW, viewerCanResolve: true });
     expect(capable.ok).toBe(true);
     if (!capable.ok) throw new Error("unreachable");
@@ -122,7 +122,7 @@ describe("parsePrSummary", () => {
   });
 });
 
-describe("parsePrSummary draftPolicy (PR-meta only, BRIEF-64)", () => {
+describe("parsePrSummary draftPolicy (PR-meta only)", () => {
   it("accepts an absent draftPolicy (list rows)", () => {
     const parsed = parsePrSummary(ROW);
     expect(parsed.ok).toBe(true);
@@ -207,7 +207,7 @@ describe("parsePrSummary comparisons (PR-meta only)", () => {
     ).toBe(false);
   });
 
-  it("parses lastReview available payload, with and without baselineIndex (BRIEF-21)", () => {
+  it("parses lastReview available payload, with and without baselineIndex", () => {
     const parsed = parsePrSummary({
       ...ROW,
       comparisons: {
@@ -276,7 +276,7 @@ describe("parsePrSummary comparisons (PR-meta only)", () => {
   });
 });
 
-describe("parsePrSummary revisions (BRIEF-24 PR-meta only)", () => {
+describe("parsePrSummary revisions (PR-meta only)", () => {
   const REVISION = {
     headSha: "head-1",
     baseSha: "base-1",
@@ -349,7 +349,7 @@ describe("parsePrSummary revisions (BRIEF-24 PR-meta only)", () => {
     });
   });
 
-  it("carries generatedAt through, tolerates its absence, rejects a non-string (BRIEF-95)", () => {
+  it("carries generatedAt through, tolerates its absence, rejects a non-string", () => {
     const withCutoff = parsePrSummary({
       ...ROW,
       revisions: [{ ...REVISION, generatedAt: "2026-07-06T11:58:00.000Z" }],
@@ -426,7 +426,7 @@ describe("lockstep pins (mirrored wire contract vs its api source)", () => {
     // The mirror is hand-rolled (no zod in this bundle) and CI is
     // path-filtered per package, so an added or renamed reason in
     // `packages/api/src/routes/reads.ts` would otherwise ship green while the
-    // picker's guard rejects the whole PR-meta response (BRIEF-23 incident).
+    // picker's guard rejects the whole PR-meta response.
     // `toEqual` on the maps forgives declaration order (the two sides declare
     // the keys in opposite order today) but catches a key rename, a dropped
     // reason, and a changed wire value.

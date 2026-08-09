@@ -1,7 +1,7 @@
-// The own-draft derivation truth table (BRIEF-43 / ADR 0031). The state is
-// derived at READ time from two server-provided booleans — never stored,
-// never self-declared. Both must hold: someone else's draft and the viewer's
-// own ready PR are both plain reviewer views.
+// The own-draft derivation truth table. The state is derived at READ time
+// from two server-provided booleans — never stored, never self-declared. Both
+// must hold: someone else's draft and the viewer's own ready PR are both
+// plain reviewer views.
 import { describe, expect, it } from "vitest";
 import { draftPolicyNotice, isOwnDraft } from "./ownDraft";
 
@@ -23,7 +23,7 @@ describe("isOwnDraft", () => {
   });
 });
 
-describe("draftPolicyNotice (BRIEF-64)", () => {
+describe("draftPolicyNotice", () => {
   const ownDraft = { draft: true, viewerIsAuthor: true };
 
   it("is null for anyone but the draft's own author", () => {

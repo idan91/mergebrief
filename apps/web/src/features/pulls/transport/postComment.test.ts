@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Inline post-now transport (BRIEF-43 PR 4): expected failure statuses are
-// result kinds the own-draft flow renders — never throws for those; a
-// malformed 2xx throws typed (contract violation). Mirrors reply.test.ts.
-// jsdom is for the commitPostedComment suite below (sessionStorage).
+// Inline post-now transport: expected failure statuses are result kinds the
+// own-draft flow renders — never throws for those; a malformed 2xx throws typed
+// (contract violation). jsdom is for the commitPostedComment suite below
+// (sessionStorage).
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../../data/apiFetch";
@@ -148,11 +148,10 @@ describe("commitPostedComment + applySettledPosts", () => {
   });
 
   it("writes the durable snapshot at commit; the drain applies flip + announce once", () => {
-    // Reviewer rounds 2/7/8: the durable write happens at commit (independent
-    // of any mount); the LIVE flip and the announcement go through the
-    // settled queue so both always land on whichever mount is live at settle
-    // time — and, the closure announcing nothing directly, the common
-    // no-remount case announces EXACTLY once.
+    // The durable write happens at commit (independent of any mount); the LIVE
+    // flip and the announcement go through the settled queue so both land on
+    // whichever mount is live at settle time — and, with the closure
+    // announcing nothing directly, the no-remount case announces EXACTLY once.
     const briefId = "db:commit:7:base:head";
     writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
     commitPostedComment(briefId, "a", 555, "Comment posted to GitHub.");
@@ -207,11 +206,11 @@ describe("commitPostedComment + applySettledPosts", () => {
   });
 
   it("failure-settle-after-remount: the indeterminate copy reaches the fresh mount", () => {
-    // Reviewer round 8: the closure's captured announce targets the ORPHANED
-    // mount (React no-op) — a remount-mid-flight failure would surface
-    // nothing on the live screen while the Post button silently re-enables,
-    // inviting the exact double-posting retry the indeterminate copy warns
-    // against. The failure must ride the queue and announce on the drain.
+    // The closure's captured announce targets the ORPHANED mount (a no-op), so
+    // a remount-mid-flight failure would surface nothing while the Post button
+    // silently re-enables — inviting the double-posting retry the indeterminate
+    // copy warns against. The failure must ride the queue and announce on the
+    // drain.
     const briefId = "db:remount-fail:7:base:head";
     const failedCopy =
       "Something went wrong posting this comment — it may or may not have posted. Check the pull request on GitHub before retrying.";
@@ -239,11 +238,11 @@ describe("commitPostedComment + applySettledPosts", () => {
   });
 
   it("settle-after-remount: the drain flips the FRESH store and the next flush keeps the flip", () => {
-    // Reviewer round 7 #1: the settling closure captured the ORPHANED old
-    // store. The remounted store hydrated from the PRE-flip snapshot; without
-    // the drain it would still say draft — its next whole-state flush would
-    // clobber the durable snapshot flip, Submit would re-ship the comment,
-    // and the Post button would re-enable on it (double-post).
+    // The settling closure captured the ORPHANED old store. The remounted
+    // store hydrated from the PRE-flip snapshot; without the drain it would
+    // still say draft — its next whole-state flush would clobber the durable
+    // snapshot flip, Submit would re-ship the comment, and the Post button
+    // would re-enable on it (double-post).
     const briefId = "db:remount-settle:7:base:head";
     const preFlip = persistedSnapshot(briefId, [draft("a")]);
     writeSnapshot(preFlip);
@@ -284,9 +283,8 @@ describe("commitPostedComment + applySettledPosts", () => {
   });
 
   it("drain is best-effort: a throwing store never propagates, durable flip intact", () => {
-    // Reviewer round 4 #2 discipline, at the new boundary: the durable write
-    // landed at commit; a live-store failure in the drain logs and never
-    // surfaces as an error (the comment IS on GitHub) — and the
+    // The durable write landed at commit; a live-store failure in the drain
+    // logs and never surfaces as an error (the comment IS on GitHub) — and the
     // announcement still goes out.
     const briefId = "db:throw:7:base:head";
     writeSnapshot(persistedSnapshot(briefId, [draft("a")]));
@@ -316,10 +314,9 @@ describe("commitPostedComment + applySettledPosts", () => {
   });
 
   it("suppressed entries (batch owns messaging): flips apply, nothing announced", () => {
-    // Reviewer round 1 #1: batch-initiated posts queue with a NULL copy — the
-    // drain applies every store flip (durable + live) but announces nothing,
-    // so the batch's summary toast stays the last live-region write instead
-    // of being overwritten by per-comment drain copy.
+    // Batch-initiated posts queue with a NULL copy — the drain applies every
+    // store flip (durable + live) but announces nothing, so the batch's summary
+    // toast stays the last live-region write.
     const briefId = "db:batch-silent:7:base:head";
     writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
     commitPostedComment(briefId, "a", 222, null);
@@ -342,10 +339,10 @@ describe("commitPostedComment + applySettledPosts", () => {
   });
 
   it("a batch notice is announced LAST (after per-comment entries) and drained once", () => {
-    // Reviewer round 1 #1 + security review: the mark-ready batch's failure
-    // summary rides the settled queue like every failure, so a remount-mid-
-    // batch cannot silently drop it — and the drain orders it after every
-    // per-comment entry, making it the live-region write that survives.
+    // The mark-ready batch's failure summary rides the settled queue like every
+    // failure, so a remount-mid-batch cannot silently drop it — and the drain
+    // orders it after every per-comment entry, making it the live-region write
+    // that survives.
     const briefId = "db:batch-notice:7:base:head";
     writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
     const summary =
@@ -398,11 +395,10 @@ describe("commitPostedComment + applySettledPosts", () => {
   });
 
   it("concurrent-settle tick: the failure warning wins the last live-region read", () => {
-    // Reviewer round 9: two drafts settling in one drain — one posted, one
-    // failed — collapse to a single clear-then-set live-region read. The
-    // failure's indeterminate "check GitHub" copy is safety-critical and
-    // must be the LAST announced, never overwritten by the co-settling
-    // success. Order of recording is success-first to prove reordering, not
+    // Two drafts settling in one drain — one posted, one failed — collapse to a
+    // single clear-then-set live-region read. The failure's indeterminate
+    // "check GitHub" copy must be the LAST announced, never overwritten by the
+    // co-settling success. Recorded success-first to prove reordering, not
     // arrival order, decides.
     const briefId = "db:concurrent:9:base:head";
     writeSnapshot(persistedSnapshot(briefId, [draft("a"), draft("b")]));
@@ -429,11 +425,10 @@ describe("commitPostedComment + applySettledPosts", () => {
 
 describe("in-flight post registry", () => {
   it("survives a same-tab remount: a fresh subscription sees the unsettled post", () => {
-    // Reviewer round 6 #2: BriefView is keyed by briefId, so a
-    // historical-revision round trip remounts the screen with the SAME
-    // briefId while the fetch closure survives. Per-mount state would reset
-    // (lockdown + submit block gone → the review re-ships the still-draft
-    // comment); the module-level registry must not.
+    // BriefView is keyed by briefId, so a historical-revision round trip
+    // remounts the screen with the SAME briefId while the fetch closure
+    // survives. Per-mount state would reset (lockdown + submit block gone → the
+    // review re-ships the still-draft comment); the module registry must not.
     const briefId = "db:remount:7:base:head";
     const first = renderHook(({ id }) => useInFlightPosts(id), {
       initialProps: { id: briefId },

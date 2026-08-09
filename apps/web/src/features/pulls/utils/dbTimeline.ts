@@ -1,12 +1,11 @@
-// The DB-backed Brief revision timeline (BRIEF-24): the port of the local
-// path's `buildBriefTimeline` onto PR-meta's `revisions[]`. Pure and
-// framework-free so the whole resolution is unit-testable; the route wires a
-// `?head=` search param through `resolveDbTimeline` to pick a point.
+// The DB-backed Brief revision timeline over PR-meta's `revisions[]`. Pure
+// and framework-free so the whole resolution is unit-testable; the route
+// wires a `?head=` search param through `resolveDbTimeline` to pick a point.
 //
-// ADR 0019 decision 1 still holds: points navigate BRIEF heads only — a Delta
-// is a lens, never a point. `baseSha` is per-entry and critical (base
-// drifts across revisions), so the selected point's OWN base drives the brief
-// GET — never the top-level view's.
+// Points navigate BRIEF heads only — a Delta is a lens, never a point.
+// `baseSha` is per-entry and critical (base drifts across revisions), so the
+// selected point's OWN base drives the brief GET — never the top-level
+// view's.
 import type { PrComparisons, RevisionSummary } from "../types";
 
 export interface DbTimelinePoint {
@@ -14,7 +13,7 @@ export interface DbTimelinePoint {
   /** This revision's OWN base — the brief GET is an exact (pr, base, head). */
   readonly baseSha: string;
   readonly headIndex: number;
-  /** This revision's generation start (BRIEF-95) — the conversation cutoff. */
+  /** This revision's generation start — the conversation cutoff. */
   readonly generatedAt?: string;
   readonly comparisons: PrComparisons;
 }
@@ -52,9 +51,8 @@ function toPoint(revision: RevisionSummary): DbTimelinePoint {
  *
  * A head SHA is NOT unique in `revisions[]`: a retarget re-brief writes a
  * second row for the same head with a different base (the brief natural key
- * is `(pr, base, head)` — the same duplicate-head family PR 1's derivations
- * handle). Selection identity is therefore the ARRAY POSITION of a point,
- * and resolution prefers span identity:
+ * is `(pr, base, head)`). Selection identity is therefore the ARRAY POSITION
+ * of a point, and resolution prefers span identity:
  *
  * - `undefined` return: no revisions (no brief yet) — the caller keeps its
  *   existing wait/empty flow, there is no head to select.

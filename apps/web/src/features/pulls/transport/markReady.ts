@@ -1,16 +1,13 @@
-// The mark-ready mutation over the isomorphic apiFetch boundary (BRIEF-43 PR 3).
-// Client-only in practice (a user click), but it rides the same boundary as every
-// mutation. Expected failure statuses are RESULT KINDS the own-draft flow
-// renders as toast copy — never throws for those; only a malformed 2xx throws
-// (contract violation).
+// The mark-ready mutation over the isomorphic apiFetch boundary. Expected
+// failure statuses are RESULT KINDS the own-draft flow renders as toast copy —
+// never throws for those; only a malformed 2xx throws (contract violation).
 //
-// Deterministic-400 mirroring (apps/web AGENTS.md): the ready route's only
-// 400 is a malformed :prNumber — unreachable from a valid UI state (the route
-// param comes from the already-validated PR view), so there is no cap/budget
+// Deterministic-400 mirroring: the ready route's only 400 is a malformed
+// :prNumber — unreachable from a valid UI state — so there is no cap/budget
 // mirror to keep in lockstep. A 400 collapses into the generic upstream kind.
 //
-// The operation is idempotent server-side (an already-ready PR converges to
-// the same 200), so retrying after any failure kind is always safe.
+// The operation is idempotent server-side, so retrying after any failure kind
+// is always safe.
 import type { QueryKey } from "@tanstack/react-query";
 
 import { ApiError, ApiErrorKind, apiFetch } from "../../../data/apiFetch";
@@ -22,11 +19,9 @@ export type MarkReadyResult =
   | { kind: "unauthorized" }
   | { kind: "not-found" }
   /**
-   * GitHub blocked the mutation for lack of an App permission (the route's
-   * `403 {"error":"github-permission"}`): `markPullRequestReadyForReview`
-   * requires the App to hold `contents: write`. A distinct kind so the FE
-   * gives honest, actionable copy instead of the "no longer accessible" 404
-   * copy — the viewer proved repo access, so this is not an existence miss.
+   * 403 — the App lacks `contents: write`. A distinct kind so the FE gives
+   * actionable copy instead of the "no longer accessible" 404 copy: the viewer
+   * proved repo access, so this is not an existence miss.
    */
   | { kind: "github-permission" }
   | { kind: "upstream" };
@@ -55,10 +50,8 @@ export async function markPrReady(
   if (response.status === 404) {
     return { kind: "not-found" };
   }
-  // A 403 from this route is ONLY the mutation-stage `github-permission` gap
-  // (the fresh-resolve denial collapses to 404 server-side) — the App is
-  // missing `contents: write`. Distinct copy, recoverable after the owner
-  // updates the App's permissions.
+  // A 403 here is ONLY the missing `contents: write` — the fresh-resolve
+  // denial collapses to 404 server-side.
   if (response.status === 403) {
     return { kind: "github-permission" };
   }
@@ -83,13 +76,10 @@ export interface PrMetaInvalidator {
 }
 
 /**
- * Build the route-injected mark-ready action (BRIEF-43). On success it
- * invalidates the PR-meta query and AWAITS the refetch before resolving —
- * the own-draft UI keys off the plan derived from PR-meta, so resolving only
- * after the refreshed PrView landed is what keeps the state stable (no
- * optimistic clear, no flicker: pending holds until the flip is real). On
- * every failure kind it resolves WITHOUT touching the cache — the caller
- * toasts and stays in-state.
+ * Build the route-injected mark-ready action. On success it invalidates the
+ * PR-meta query and AWAITS the refetch before resolving — the own-draft UI
+ * keys off PR-meta, so pending must hold until the flip is real (no optimistic
+ * clear, no flicker). Every failure kind resolves WITHOUT touching the cache.
  */
 export function createMarkReadyAction(
   client: PrMetaInvalidator,

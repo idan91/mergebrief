@@ -1,6 +1,6 @@
-// Whole-PR live-diff handling (BRIEF-19 PR 3.2): the diff proxy returns ONE
-// unified diff across files; the client splits it per file and slices each
-// chunk's rows with the shared diffSlicing module.
+// Whole-PR live-diff handling: the diff proxy returns ONE unified diff across
+// files; the client splits it per file and slices each chunk's rows with the
+// shared diffSlicing module.
 import { describe, expect, it } from "vitest";
 import type { Brief, BriefChunk } from "../../brief/types";
 import { attachLiveDiffs, splitUnifiedDiffByFile } from "./liveDiff";

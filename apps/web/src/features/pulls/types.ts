@@ -1,6 +1,5 @@
-// Read-API PR shapes + boundary guards (BRIEF-19 PR 3.1). Mirrors the api
-// package's `pr-view` response contract. Hand-rolled guards returning
-// `Result`, matching the local-brief validation convention (no zod in this
+// Read-API PR shapes + boundary guards. Mirrors the api package's `pr-view`
+// response contract. Hand-rolled guards returning `Result` (no zod in this
 // bundle); API responses are parsed at the boundary, never cast.
 import type { Result as SharedResult, ValueOf } from "types";
 
@@ -14,9 +13,9 @@ export const PrStates = {
 export type PrState = ValueOf<typeof PrStates>;
 
 /**
- * `capped` (BRIEF-20) = the repo hit the instance's daily generation cap and
- * this run was SKIPPED. Terminal and deliberately NOT `failed`: nothing went
- * wrong, and the view says when generation resumes.
+ * `capped` = the repo hit the instance's daily generation cap and this run was
+ * SKIPPED. Terminal and deliberately NOT `failed`: nothing went wrong, and
+ * the view says when generation resumes.
  */
 export const GenerationStatuses = {
   QUEUED: "queued",
@@ -37,14 +36,14 @@ export interface GenerationSummary {
   readonly updatedAt: string;
 }
 
-/** Previous-brief comparison availability on PR meta (BRIEF-19 4.1). */
+/** Previous-brief comparison availability on PR meta. */
 export interface PreviousBriefComparison {
   readonly baselineSha: string;
   readonly baselineIndex: number;
   readonly narrativeAvailable: boolean;
 }
 
-/** Why lastReview is unavailable despite a recorded checkpoint (BRIEF-21). */
+/** Why lastReview is unavailable despite a recorded checkpoint. */
 export const LastReviewUnavailableReasons = {
   PENDING: "pending",
   BASELINE_UNAVAILABLE: "baseline-unavailable",
@@ -54,8 +53,8 @@ export type LastReviewUnavailableReason = ValueOf<
 >;
 
 /**
- * The per-reviewer "since my last review" comparison on PR meta (BRIEF-21).
- * The wire union is shape-discriminated (`unavailable` key vs payload); the
+ * The per-reviewer "since my last review" comparison on PR meta. The wire
+ * union is shape-discriminated (`unavailable` key vs payload); the
  * parsed form adds `kind` so consumers switch without re-probing keys. The
  * field being ABSENT from `comparisons` means the reviewer never submitted —
  * no control at all, nothing to explain.
@@ -74,15 +73,15 @@ export type LastReviewComparison =
       readonly reason: LastReviewUnavailableReason;
     };
 
-/** Comparison availability envelope — additive (BRIEF-21 adds lastReview). */
+/** Comparison availability envelope — additive. */
 export interface PrComparisons {
   readonly previousBrief?: PreviousBriefComparison;
   readonly lastReview?: LastReviewComparison;
 }
 
 /**
- * One browsable Brief revision on PR meta (BRIEF-24). `baseSha` is PER-ENTRY
- * and critical: the base drifts across revisions (base-branch advance /
+ * One browsable Brief revision on PR meta. `baseSha` is PER-ENTRY and
+ * critical: the base drifts across revisions (base-branch advance /
  * retarget) and the brief GET is an exact `(pr, base, head)` lookup, so the
  * navigator fetches each revision with ITS OWN base — never the top-level
  * view's. Ordered by `headIndex` ascending; `comparisons` mirrors the
@@ -94,15 +93,15 @@ export interface RevisionSummary {
   readonly headIndex: number;
   readonly createdAt: string;
   /**
-   * When this revision's brief generation started (BRIEF-95) — the
-   * conversation cutoff: comments newer than this postdate the brief.
-   * Absent on wire bodies from servers predating the field.
+   * When this revision's brief generation started — the conversation cutoff:
+   * comments newer than this postdate the brief. Absent on wire bodies from
+   * servers predating the field.
    */
   readonly generatedAt?: string;
   readonly comparisons: PrComparisons;
 }
 
-/** The instance draft-PR policy slice the meta response echoes (BRIEF-64). */
+/** The instance draft-PR policy slice the meta response echoes. */
 export interface DraftPolicySummary {
   /** Whether briefs generate for draft PRs at all on this instance. */
   readonly generate: boolean;
@@ -122,20 +121,20 @@ export interface PrSummary {
   /** The current push's head; null only when nothing was ever projected. */
   readonly headSha: string | null;
   readonly briefAvailable: boolean;
-  /** GitHub draft state (BRIEF-43); with `viewerIsAuthor` it derives own-draft affordances. */
+  /** GitHub draft state; with `viewerIsAuthor` it derives own-draft affordances. */
   readonly draft: boolean;
   /**
-   * Whether the requesting viewer authored this PR (BRIEF-43) — derived
-   * server-side per request; the author login itself never crosses the wire.
+   * Whether the requesting viewer authored this PR — derived server-side per
+   * request; the author login itself never crosses the wire.
    */
   readonly viewerIsAuthor: boolean;
   /**
-   * Whether the viewer may resolve/unresolve this PR's review threads
-   * (BRIEF-93) — GitHub's own rule (push permission OR authorship), derived
-   * server-side. Read it from PR META ONLY: the list payload falls back to
-   * authorship alone (no per-repo access check runs there), so a `false` on a
-   * list row is not a capability denial. Affordance only — GitHub's
-   * mutation-time enforcement stays the truth.
+   * Whether the viewer may resolve/unresolve this PR's review threads —
+   * GitHub's own rule (push permission OR authorship), derived server-side.
+   * Read it from PR META ONLY: the list payload falls back to authorship
+   * alone (no per-repo access check runs there), so a `false` on a list row is
+   * not a capability denial. Affordance only — GitHub's mutation-time
+   * enforcement stays the truth.
    */
   readonly viewerCanResolve: boolean;
   readonly generation: GenerationSummary | null;
@@ -143,13 +142,13 @@ export interface PrSummary {
   /** Present on PR-meta responses only; absent on list rows. */
   readonly comparisons?: PrComparisons;
   /**
-   * Instance draft-PR policy (BRIEF-64) — PR-meta only. Drives the own-draft
-   * copy states; the refresh copy must state the CONFIGURED window, never a
-   * hardcoded duration.
+   * Instance draft-PR policy — PR-meta only. Drives the own-draft copy states;
+   * the refresh copy must state the CONFIGURED window, never a hardcoded
+   * duration.
    */
   readonly draftPolicy?: DraftPolicySummary;
   /**
-   * The browsable revision timeline (BRIEF-24) — present on PR-meta only when
+   * The browsable revision timeline — present on PR-meta only when
    * `briefAvailable` (no brief, no head, no history). Ordered by `headIndex`.
    */
   readonly revisions?: readonly RevisionSummary[];
@@ -281,7 +280,7 @@ function parseLastReview(
   if (!isRecord(value)) {
     return { ok: false, error: "comparisons.lastReview must be an object" };
   }
-  // The wire union discriminates on the `unavailable` key (BRIEF-21).
+  // The wire union discriminates on the `unavailable` key.
   if ("unavailable" in value) {
     if (!isLastReviewUnavailableReason(value["unavailable"])) {
       return {
@@ -437,8 +436,8 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (typeof value["briefAvailable"] !== "boolean") {
     return { ok: false, error: "briefAvailable must be a boolean" };
   }
-  // Both BRIEF-43 booleans are REQUIRED on every row (list and meta): they
-  // gate author-only affordances, so a missing field is a contract violation,
+  // Both booleans are REQUIRED on every row (list and meta): they gate
+  // author-only affordances, so a missing field is a contract violation,
   // never a silent false.
   if (typeof value["draft"] !== "boolean") {
     return { ok: false, error: "draft must be a boolean" };
@@ -446,8 +445,8 @@ export function parsePrSummary(value: unknown): Result<PrSummary> {
   if (typeof value["viewerIsAuthor"] !== "boolean") {
     return { ok: false, error: "viewerIsAuthor must be a boolean" };
   }
-  // BRIEF-93, deliberately NOT required: a server predating the field parses
-  // fine and yields `false` — fail closed, the affordance simply never shows.
+  // Deliberately NOT required: a server predating the field parses fine and
+  // yields `false` — fail closed, the affordance simply never shows.
   // Present-but-not-a-boolean is still malformed: coercing a truthy string
   // would hand out a capability the server never granted.
   const viewerCanResolve = value["viewerCanResolve"];

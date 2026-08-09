@@ -1,10 +1,8 @@
-// Own-draft state derivation (BRIEF-43, ADR 0031): the SINGLE source for
-// "the viewer is reading their own draft PR". Derived at read time from the
-// PrView booleans the server computes per request — never stored, never a
-// self-declared toggle, never dependent on how the page was entered
-// (behavior follows visible state, the ADR 0031 invariant). Everything the
-// own-draft state changes (chip, hidden submit/receipt, read-only flags, the
-// mark-ready CTA) keys off this one predicate.
+// The SINGLE source for "the viewer is reading their own draft PR". Derived
+// at read time from the PrView booleans the server computes per request —
+// never stored, never a self-declared toggle, never dependent on how the page
+// was entered (behavior follows visible state). Everything the own-draft state
+// changes keys off this one predicate.
 
 /** The two server-derived booleans the state reads (a `PrSummary` slice). */
 export interface OwnDraftSource {
@@ -31,8 +29,8 @@ export interface DraftPolicyNotice {
 }
 
 /**
- * The own-draft policy notice (BRIEF-64 decision 6): explains why the brief
- * is absent (instance has drafts off) or slow to refresh (damping window) —
+ * The own-draft policy notice: explains why the brief is absent (instance has
+ * drafts off) or slow to refresh (damping window) —
  * to the DRAFT'S OWN AUTHOR only; reviewers of someone else's draft and any
  * ready-PR view get nothing. The damped text states the CONFIGURED window
  * (never a hardcoded duration — the operator picks it). Null when there is
