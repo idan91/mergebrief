@@ -1,7 +1,7 @@
-# Self-hosting with docker compose (BRIEF-3)
+# Self-hosting with docker compose
 
 One command brings up the whole product: Postgres (the single stateful
-dependency — ADR 0015), the web/API tier, and the background worker that
+dependency), the web/API tier, and the background worker that
 generates Briefs on every push.
 
 ```sh
@@ -62,16 +62,15 @@ doesn't apply — several loaders distinguish unset from empty.
 | `SESSION_KEY_V1` | web | `openssl rand -base64 32` |
 | `PUBLIC_BASE_URL` | web + worker | must match the App's OAuth callback origin; the worker builds the Entry comment's deep link from it |
 | `ANTHROPIC_API_KEY` | worker + web | your model key (BYOK — your spend; the zero-config default) |
-| `MERGEBRIEF_CONFIG` | worker + web | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The web/api side reads only its `drafts:` block (draft-PR policy, BRIEF-64) via a narrow loader — no provider keys needed there |
+| `MERGEBRIEF_CONFIG` | worker + web | optional; path to `mergebrief.config.yaml` selecting another provider/model — see [generators.md](./generators.md) (its `generator.apiKeyEnv` names a different key var; CLI backends are local-only and not available to the deployed worker). The web/api side reads only its `drafts:` block (draft-PR policy) via a narrow loader — no provider keys needed there |
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres | optional; default to `code_review` each. Compose DERIVES both services' in-network `DATABASE_URL` from them (with `sslmode=disable` pinned — the compose bridge is the private-network case, and `postgres` is a non-loopback hostname the TLS gate would otherwise refuse), so one edit moves every side. First-boot only (see the callout above); use the raw output of `openssl rand -hex 24` — the value lands in a connection string unescaped, and percent-encoding it breaks auth (see §1) |
-| `DATABASE_URL` | — | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input for the external-database compose file (BRIEF-131). Non-loopback hosts must carry an explicit `sslmode` or boot is refused |
-| `DATABASE_URL_FILE` | web, worker | optional (BRIEF-131); path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
-| `MERGEBRIEF_AUTO_MIGRATE` | web, worker | optional, default `true` (BRIEF-131). `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
+| `DATABASE_URL` | — | ignored in the DEFAULT compose (overridden to the DSN derived from the `POSTGRES_*` values); the input for the external-database compose file. Non-loopback hosts must carry an explicit `sslmode` or boot is refused |
+| `DATABASE_URL_FILE` | web, worker | optional; path to a file holding the DSN (compose `secrets:` mount). Wins over `DATABASE_URL` with a boot warning; surrounding whitespace trimmed |
+| `MERGEBRIEF_AUTO_MIGRATE` | web, worker | optional, default `true`. `false` = check-only boot for DDL-less runtime roles: refuse with the pending count instead of applying migrations |
 
 ## External Postgres (managed database)
 
-The second supported deployment shape (BRIEF-131): web + worker from
-compose, the database from a managed provider (Neon, Supabase, RDS, ...)
+The second supported deployment shape: web + worker from compose, the database from a managed provider (Neon, Supabase, RDS, ...)
 or any Postgres you operate yourself.
 
 ```sh
@@ -310,6 +309,5 @@ backup/restore — live in [`operations.md`](./operations.md).
 
 The [ngrok webhook loop](../dev/webhook-loop.md) works unchanged with
 compose: point the tunnel at `http://localhost:3000` and use the same dev
-App. The only difference from the BRIEF-2 version of that doc: the queued
-job no longer sits in the queue — the worker drains it and the artifacts
-appear in Postgres.
+App. One difference: the queued job no longer sits in the queue — the
+worker drains it and the artifacts appear in Postgres.

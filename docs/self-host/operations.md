@@ -1,11 +1,11 @@
-# Operations: upgrades, migrations, backup and restore (BRIEF-20)
+# Operations: upgrades, migrations, backup and restore
 
 Everything a running instance needs after the first `docker compose up`.
 Two facts carry the whole page:
 
 - **Migrations apply themselves at boot.** There is no migrate step, no
   maintenance window, and no command to remember.
-- **Postgres is the only stateful dependency** (ADR 0015). Back it up and
+- **Postgres is the only stateful dependency.** Back it up and
   you have backed up the instance. The one exception is the local-brief
   directory, below.
 
@@ -232,7 +232,7 @@ or merging a PR records the terminal state and arms no retention window
 knob is designed, not built). Data is deleted only when you remove a repo
 from the installation or uninstall the App, both of which purge that
 tenant's rows immediately. The audit log is append-only and never purged by
-design (ADR 0018 D9).
+design.
 
 If disk becomes a concern, `brief` and `delta` are the tables to look at —
 they hold the generated JSON:

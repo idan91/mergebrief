@@ -52,12 +52,12 @@ in the open, and a credible piece of public work. Mindshare for the thesis, not 
 - **Not chasing the arms race.** No competing with Atlas on semantic/code-graph depth,
   generated diagrams, or LanceDB-scale search. Win on first-run experience, clarity, taste.
 - **Not a bug-bot.** No AI-hypothesized "potential issues" presented as verdicts. Facts and
-  checklists, never opinions dressed as findings (ADR 0003 / ADR 0014).
+  checklists, never opinions dressed as findings.
 - **Not an AI ghost-writer for review comments.** The agent seeds and verifies; the human writes.
 
 ## What stays true from before
 
 The domain model (`CONTEXT.md`), the labeling schema, the playbook library, the no-verdict /
-receipt design, and the self-host architecture (Postgres-only, ADR 0015; per-instance GitHub
-App, ADR 0016) all carry forward unchanged. What's gone is the *commercial scaffolding* built
-around them — see [`archive/`](./archive/).
+receipt design, and the self-host architecture (Postgres-only; per-instance GitHub App) all
+carry forward unchanged. What's gone is the *commercial scaffolding* built around them — see
+[`archive/`](./archive/).

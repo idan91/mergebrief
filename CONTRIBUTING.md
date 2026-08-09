@@ -13,11 +13,11 @@ If you have reviewed enough PRs to know that a factual pattern — `removes-vali
 `widens-trust-boundary` — reliably deserves a second look, you already have something to
 contribute here.
 
-> **Where did the Playbooks go?** The per-Category checklist layer is **parked to v2**
-> (ADR 0035). `docs/mvp/playbooks.md` is kept as the v2 seed, but no product surface
-> consumes it and no new playbook items are accepted while parked. Any revival is bound
-> to ADR 0035's rubric identity: coverage *measurement* of finished reviews, never
-> prompt material for reviewers or agents.
+> **Where did the Playbooks go?** The per-Category checklist layer is **parked to v2**.
+> `docs/mvp/playbooks.md` is kept as the v2 seed, but no product surface consumes it
+> and no new playbook items are accepted while parked. Any revival is bound to the
+> layer's rubric identity: coverage *measurement* of finished reviews, never prompt
+> material for reviewers or agents.
 
 ## Where everything lives
 
@@ -28,7 +28,7 @@ The vocabulary is split across files with a strict division of labor:
 | [`docs/mvp/labeling-schema.md`](./docs/mvp/labeling-schema.md) | The authoritative **index** of valid tokens on every axis. A token not registered here is not valid, full stop. |
 | [`CONTEXT.md`](./CONTEXT.md) | The **glossary** — what each concept means, what terms are deliberately avoided. |
 | [`docs/mvp/risk-surface.md`](./docs/mvp/risk-surface.md) | The per-attribute detail for **Risk Surface** — detection notes and reviewer implications. |
-| [`docs/mvp/playbooks.md`](./docs/mvp/playbooks.md) | **Parked** (ADR 0035). The v2 seed for the coverage-rubric layer; read-only while parked. |
+| [`docs/mvp/playbooks.md`](./docs/mvp/playbooks.md) | **Parked.** The v2 seed for the coverage-rubric layer; read-only while parked. |
 
 Always edit in that order: register the token in the index first, then write the deep
 content. Never invent a token inline anywhere else.
@@ -90,7 +90,7 @@ others. Be ready to show that real Change-groups exist whose intent no current C
 expresses (and that the gap isn't actually a Concern, the classic mistake: `test-only` and
 `config-only` looked like Categories and were not). Register in `labeling-schema.md` and
 describe in `CONTEXT.md` in the same PR. (While the playbook layer is parked, no checklist
-ships with it; ADR 0035 governs what happens when that layer revives.)
+ships with it.)
 
 ### Deprecate a token
 
@@ -135,7 +135,7 @@ code from the markdown is a welcome future contribution.
 ## Governance
 
 One maintainer, stated plainly: **final call on every contribution — vocabulary, code,
-docs — rests with the maintainer** (ADR 0036). What you can rely on in exchange:
+docs — rests with the maintainer.** What you can rely on in exchange:
 
 - **Reasons, always.** Every accept, reject, or park gets a short written reason in the
   PR thread, tied to the published bars above (evidence rule, deprecation rule, the
@@ -149,8 +149,7 @@ docs — rests with the maintainer** (ADR 0036). What you can rely on in exchang
 
 There are no auto-accept windows, votes, or response-time promises. Disputes are argued
 in the PR or issue — convincing the maintainer is the process. This model has recorded
-loosening triggers (ADR 0036) and will be revisited when the project earns a second
-maintainer.
+loosening triggers and will be revisited when the project earns a second maintainer.
 
 ## Code contributions
 

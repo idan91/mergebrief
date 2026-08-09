@@ -1,7 +1,7 @@
 # Generation backends (`mergebrief.config.yaml`)
 
-MergeBrief generates Briefs through one of five interchangeable backends
-(BRIEF-11 / ADR 0030). Every backend meets the same hard contract: **the
+MergeBrief generates Briefs through one of five interchangeable backends.
+Every backend meets the same hard contract: **the
 output is valid against the Brief schema or the generation fails loudly** —
 native provider enforcement is a bonus layer, never the mechanism. Salvage
 and one feedback retry run identically everywhere, and when they fire they
@@ -11,7 +11,7 @@ are visible: in logs, and on the artifact itself (the header's amber
 ## Zero-config default
 
 No config file at all: **Anthropic API + `ANTHROPIC_API_KEY` + Claude Opus
-4.8**. That is exactly the pre-BRIEF-11 behavior.
+4.8**.
 
 The documented cost knob: `model: claude-sonnet-5` on the `anthropic`
 provider (~5x cheaper input/output than Opus at very good Brief quality).
@@ -45,7 +45,7 @@ generator:
   # referer: https://you.example   # openrouter attribution headers
   # title: MergeBrief
 
-# drafts: — the OTHER root block (BRIEF-64): draft-PR generation policy
+# drafts: — the OTHER root block: draft-PR generation policy
 # (generate: on|off + optional draft regeneration debounceSeconds). Spend
 # knobs, read by the web/api process — see self-host/repo-config.md's
 # instance-block section for semantics.
@@ -53,7 +53,7 @@ generator:
 #   generate: on
 #   debounceSeconds: 900
 
-# spend: — the THIRD root block (BRIEF-20): the daily generation cap, at
+# spend: — the THIRD root block: the daily generation cap, at
 # most N generations per repo per UTC day. Both keys optional; omitting the
 # block means uncapped. See the "Daily generation cap" section below.
 # spend:
@@ -74,7 +74,7 @@ How processes find it:
 | worker + web | `MERGEBRIEF_CONFIG=mergebrief.config.yaml` — relative resolves against the workspace root (see path-form note); absolute also fine (env var unset → zero-config default; set-but-empty or unreadable → refuses boot) |
 | categorizer CLIs | explicit `--config <path>` only — they never read `MERGEBRIEF_CONFIG` (`pnpm categorize --config ./mergebrief.config.yaml <pr-url>` also doubles as a fast config validator) |
 
-**Path form** (BRIEF-70): a relative `MERGEBRIEF_CONFIG` is resolved
+**Path form**: a relative `MERGEBRIEF_CONFIG` is resolved
 against the **workspace root** — the nearest ancestor of the process
 working directory containing `pnpm-workspace.yaml` — never against bare
 cwd (the worker runs from `packages/worker`, the web app from `apps/web`;
@@ -101,8 +101,8 @@ the key value never lives in this file, the DB, or repo config.
 
 ## Daily generation cap
 
-The one spend guardrail v1 ships (BRIEF-20): **at most N generations per
-repo per UTC calendar day**. It is instance config — the operator pays the
+The one spend guardrail v1 ships: **at most N generations per repo per UTC
+calendar day**. It is instance config — the operator pays the
 bill, so no `.mergebrief/` repo file can set, raise, or lower it.
 
 ```yaml
@@ -306,12 +306,12 @@ warning. The origin line also shows the adapter class — `via anthropic
 (API)/…` vs `via claude-code (local CLI)/…` — so a CLI-generated Brief is
 never mistaken for an API one.
 
-### Length discipline and anchoring degrade on weaker models (BRIEF-148)
+### Length discipline and anchoring degrade on weaker models
 
 Brief text carries length caps in the prompt (group titles/summaries,
 revision-narrative overview and hover-callout summaries, risk notes), and
-cross-revision stability rides an anchored minimal-edit rule (BRIEF-143).
-Both are prompt-enforced: strong models comply; weaker models over-write
+cross-revision stability rides an anchored minimal-edit rule. Both are
+prompt-enforced: strong models comply; weaker models over-write
 and rewrite. The pipeline never trims or retries — over-cap text is
 stamped on the artifact (`lengthViolations`) and surfaces two ways: a
 muted line on the Changes view ("Some brief text exceeds length

@@ -25,7 +25,7 @@ A **Chunk** = a contiguous run of changed lines sharing one Concern and one Chan
 
 ## 1. Category — intent (attaches to Change-group)
 
-Closed set; expand deliberately. "Playbook" = status in `playbooks.md` (layer **parked to v2** — ADR 0035; column kept as the seed index).
+Closed set; expand deliberately. "Playbook" = status in `playbooks.md` (layer **parked to v2**; column kept as the seed index).
 
 | Token | One-line description | Playbook |
 |---|---|---|
@@ -79,9 +79,9 @@ Three buckets. Full detail in `risk-surface.md`. Factual only — never verdicts
 - **About the blast radius:** `external-io`, `cross-service`, `schema-adjacent`, `hot-path`, `widely-imported`, `release-imminent`
 
 The last three change-bucket attributes (`new-dependency`, `new-abstraction`,
-`comment-contradicts-code`) are the AI-authorship trio (ADR 0026) — registered 2026-07-03.
-They are ordinary authorship-agnostic attributes in-product; the AI-failure-mode framing is
-positioning copy only.
+`comment-contradicts-code`) target common AI-authorship failure modes. They are ordinary
+authorship-agnostic attributes in-product; the AI-failure-mode framing is positioning copy
+only.
 
 ---
 
@@ -114,7 +114,7 @@ This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diff
 
 ---
 
-## 7. Intent-check buckets — Brief-level (ADR 0009 §2, as amended)
+## 7. Intent-check buckets — Brief-level
 
 Closed set of five. Attaches to the Brief's **intent check**, not to chunks or
 change-groups. Fires only when the composite intent sources are *precise*;
@@ -142,8 +142,7 @@ Quick rules:
   groupIds) or they are dropped with a warning — stricter than the
   warn-and-keep neutral buckets.
 - **Wire shape ≠ stored shape.** The model emits one array of items each
-  tagged with its bucket (a structured-output grammar limit — see ADR 0009 §2);
-  a mechanical fan-out produces these five buckets before validation. The five
+  tagged with its bucket (a structured-output grammar limit); a mechanical fan-out produces these five buckets before validation. The five
   tokens above are the vocabulary either way.
 
 ---
@@ -151,7 +150,7 @@ Quick rules:
 ## 8. Special tokens & expansion protocol
 
 - **`uncertain`** — valid output when confidence is below threshold on Category or a flag. Don't force a token; mark uncertain and move on.
-- **Expansion:** to add a Category / Concern / Risk-Surface attribute, register it *here first* (with status), then draft its detail (`risk-surface.md`); playbook drafting is parked with the playbook layer (ADR 0035). Never invent a token inline in a brief.
+- **Expansion:** to add a Category / Concern / Risk-Surface attribute, register it *here first* (with status), then draft its detail (`risk-surface.md`); playbook drafting is parked with the playbook layer. Never invent a token inline in a brief.
 - **Deprecation:** drop a token here if it never fires across 10+ PRs or always co-fires with another (redundant) — and update the deep files.
 
 ---
@@ -159,7 +158,7 @@ Quick rules:
 ## Status
 
 - Stable axes: Concern, Role, Risk Surface (starter set), LoC rules, boundary rule.
-- Intent-check buckets: five registered (BRIEF-54 trio 2026-07-24; alarm pair 2026-07-25, BRIEF-85).
-- Category: all 8 have playbooks (backfilled 2026-07-04; layer parked to v2 per ADR 0035).
+- Intent-check buckets: five registered (three neutral, two alarm).
+- Category: all 8 have playbooks (layer parked to v2).
 - Concern checks: all 5 supporting Concerns covered (`test`, `doc`, `spec`, `config`, `generated`).
 - Contribution rules for tokens and risk attributes: repo-root [`CONTRIBUTING.md`](../../CONTRIBUTING.md).

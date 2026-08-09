@@ -8,7 +8,7 @@ This file is the source of truth for Phase 1 hand-labeling. Per-PR briefs refere
 
 **Status:** initial starter set. Expand opportunistically as labeling hits gaps.
 
-**Floor attributes (ADR 0032 #11).** Three attributes form the de-emphasis **floor**: `touches-auth`, `removes-validation`, `relaxes-permissions` — marked **Floor: yes** below. A repo's `.mergebrief/policy.yaml` can de-emphasize (quiet, never suppress) any non-floor attribute's display; floor attributes cannot even be de-emphasized, and a de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted (the combination is the signal).
+**Floor attributes.** Three attributes form the de-emphasis **floor**: `touches-auth`, `removes-validation`, `relaxes-permissions` — marked **Floor: yes** below. A repo's `.mergebrief/policy.yaml` can de-emphasize (quiet, never suppress) any non-floor attribute's display; floor attributes cannot even be de-emphasized, and a de-emphasized attribute co-firing on a chunk with a floor attribute renders un-quieted (the combination is the signal).
 
 ---
 
@@ -43,7 +43,7 @@ The chunk has high branching factor (deep nesting, multiple conditions per line,
 Properties of what this specific diff does (independent of where it sits in the codebase).
 
 ### `touches-auth`
-**Floor: yes** — cannot be de-emphasized by repo policy (ADR 0032 #11).
+**Floor: yes** — cannot be de-emphasized by repo policy.
 
 The diff modifies authentication, authorization, session, or identity code.
 - **Detect:** imports/calls into auth modules (`@auth/*`, `passport`, `next-auth`, `clerk`, `withAuth`, JWT libraries), session middleware, identity-token handling.
@@ -55,7 +55,7 @@ The diff modifies code that writes to persistent state — DB writes, file write
 - **Reviewer implication:** state mutations affect callers/observers downstream. Reviewer must verify ordering, idempotency, concurrency, and rollback semantics.
 
 ### `removes-validation`
-**Floor: yes** — cannot be de-emphasized by repo policy (ADR 0032 #11).
+**Floor: yes** — cannot be de-emphasized by repo policy.
 
 The diff weakens a check, guard, type narrowing, schema validator, or assertion.
 - **Detect:** lines deleted that contained `if (!...)`, `throw`, `assert`, `zod`/`yup` schema constraints, type guards, range checks.
@@ -66,7 +66,7 @@ The diff weakens a check, guard, type narrowing, schema validator, or assertion.
 - **Reviewer implication:** weakening a check requires explicit justification. Reviewer must confirm the input space that was previously rejected is now safe to accept (or is rejected elsewhere).
 
 ### `relaxes-permissions`
-**Floor: yes** — cannot be de-emphasized by repo policy (ADR 0032 #11).
+**Floor: yes** — cannot be de-emphasized by repo policy.
 
 The diff broadens an access check, role check, scope, or permission boundary.
 - **Detect:** changes from `admin-only` → `member-or-admin`, role list additions, scope additions, ACL widening.
@@ -126,7 +126,7 @@ The diff calls external services, network endpoints, filesystem, OS, or third-pa
 - **Reviewer implication:** external calls add failure modes (network errors, timeouts, partial state). Reviewer must verify retry/timeout/idempotency and what happens on outage.
 
 ### `cross-service`
-The chunk changes a contract another service or deployable consumes — API request/response bodies, RPC/message-queue payloads, shared DB schemas, a lib's published exported surface. Sibling services in the same repo count only when they are separate deployables sharing a schema or HTTP API (BRIEF-69) — compile-time imports between packages are NOT services (that is `widely-imported` territory). Modifying an existing consumed contract fires even when the change is additive; a wholly NEW endpoint/export has no consumers yet and is NOT cross-service (BRIEF-55: "exported public API surface" alone is not this attribute).
+The chunk changes a contract another service or deployable consumes — API request/response bodies, RPC/message-queue payloads, shared DB schemas, a lib's published exported surface. Sibling services in the same repo count only when they are separate deployables sharing a schema or HTTP API — compile-time imports between packages are NOT services (that is `widely-imported` territory). Modifying an existing consumed contract fires even when the change is additive; a wholly NEW endpoint/export has no consumers yet and is NOT cross-service ("exported public API surface" alone is not this attribute).
 - **Detect:** changes to OpenAPI/GraphQL schema files, gRPC `.proto`, message-queue payload shapes, an already-consumed route body or shared table, or an already-published API surface consumed by other repos.
 - **Reviewer implication:** change is consumed elsewhere. Reviewer must verify backward compatibility, version negotiation, and consumer-side migration plan.
 
@@ -142,7 +142,7 @@ The chunk lives on a demonstrably high-traffic or latency-critical path — not 
 
 ### `widely-imported`
 The modified API has many EXISTING call sites across the repo; a newly-added API has zero importers and never qualifies.
-- **Detect:** count existing call sites of the modified function/symbol. Threshold (rough): ≥10 importers. (Bare export from a package's public entry point is not, by itself, enough — that was the BRIEF-55 over-trigger.)
+- **Detect:** count existing call sites of the modified function/symbol. Threshold (rough): ≥10 importers. (Bare export from a package's public entry point is not, by itself, enough.)
 - **Reviewer implication:** any contract change ripples broadly. Reviewer must enumerate all callers and confirm each tolerates the new behavior.
 
 ### `release-imminent`
@@ -166,19 +166,19 @@ The brief shows attributes as a flat list per chunk; the reviewer reads the comb
 
 ## Parked candidates (do not label with these)
 
-Registered here so labelers don't reinvent them; not valid tokens until unblocked. See ADR 0026.
+Registered here so labelers don't reinvent them; not valid tokens until unblocked.
 
 - **`unresolved-reference`** — a string-keyed reference (feature-flag name, env var,
   translation key, route string, queue name) that doesn't resolve against the repo's
   registries. The genuinely un-linted hallucinated surface: compilers catch unresolved
   *imports* pre-review, nothing catches these. Needs per-repo registry knowledge + repo
-  context — parked until the `ContextSource` interface exists (ADR 0014). Note: plain
-  `unresolved-import` was **rejected**, not parked — compilers/CI own that lane (ADR 0026).
+  context — parked until the `ContextSource` interface exists. Note: plain
+  `unresolved-import` was **rejected**, not parked — compilers/CI own that lane.
 - **`diverges-from-sibling-pattern`** — solves the task unlike sibling files do. Needs
   sibling *selection* (a judgment with bad FP shape: accusing the author of inconsistency
-  based on our sampling choice) plus repo file fetching (`ContextSource`, escalation-tier per
-  ADR 0010/0014), and intentional divergence is routine in refactors. Deferred on evidence +
-  FP-shape grounds.
+  based on our sampling choice) plus repo file fetching (`ContextSource`, escalation-tier),
+  and intentional divergence is routine in refactors. Deferred on evidence + FP-shape
+  grounds.
 
 ---
 

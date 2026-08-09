@@ -2,13 +2,13 @@
 
 What to put in each file, and what the generator will and won't do with it.
 The delivery mechanics (trust rule, caps, failure semantics) are in
-`docs/self-host/repo-config.md`; the design record is ADR 0032.
+`docs/self-host/repo-config.md`.
 
 ## `instructions.md` — teach the generator your repo
 
 Write free-form text. The generator honors it for these purposes **only** (the
 operative list lives in code — `REPO_INSTRUCTION_CLASSES` in the categorizer
-prompt module — and changing it requires an ADR amendment + eval run):
+prompt module — and changing it requires an ADR amendment plus an eval run):
 
 **May follow**
 

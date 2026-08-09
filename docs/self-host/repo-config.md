@@ -1,7 +1,7 @@
 # Repo-local configuration: the `.mergebrief/` directory
 
-A repository can commit a `.mergebrief/` directory to shape its own briefs
-(ADR 0032). This is the **code-owner's** surface — distinct from the
+A repository can commit a `.mergebrief/` directory to shape its own briefs.
+This is the **code-owner's** surface — distinct from the
 operator's instance config (`mergebrief.config.yaml`, env-located, never in
 the repo): instance config decides provider/model/spend and refuses boot when
 invalid; repo config decides policy/text/workflow and degrades **that
@@ -92,17 +92,17 @@ generates without repo config, recorded loudly as `fetch-failed`.
 
 ## Local-only mode (CLI) — designed, not yet built
 
-The dotdir is designed to serve a second mode (ADR 0032 #2): gitignore
+The dotdir is designed to serve a second mode: gitignore
 `.mergebrief/` and the CLI would read your working tree as personal local
 config (your own machine, your own trust context). **The CLI does not read
 `.mergebrief/` yet** — today the only ingestion path is the server's
 default-branch fetch; `validateRepoConfig` is deliberately source-agnostic
 so the CLI mode can reuse it when built.
 
-## Related instance block: `drafts:` (operator-side, BRIEF-64)
+## Related instance block: `drafts:` (operator-side)
 
-`mergebrief.config.yaml` (instance config, BRIEF-64 — formerly numbered
-BRIEF-53) carries a `drafts` block — the operator's draft-PR spend knobs:
+`mergebrief.config.yaml` (instance config) carries a `drafts` block — the
+operator's draft-PR spend knobs:
 
 ```yaml
 drafts:

@@ -1,4 +1,4 @@
-# Observability (BRIEF-51, ADR 0034)
+# Observability
 
 Everything the instance emits is **structured JSON on stdout** — one line
 per event, no files, no telemetry back to anyone. Rotation and shipping are
@@ -80,8 +80,7 @@ Two joins carry a delivery end to end:
 
 So the story of one push reads: `api.access` + webhook lines (`reqId`,
 `deliveryId`) → job lines (`prId`, `headSha`). Correlated logs are the v1
-trace; there is no tracing system (OTel is a deliberate non-goal for now —
-ADR 0034 #8).
+trace; there is no tracing system (OTel is a deliberate non-goal for now).
 
 ## Health endpoints
 
@@ -100,8 +99,8 @@ authenticated liveness probe, not orchestrator health.
 
 The **worker has no HTTP surface** by design (cohort norm): its liveness is
 the process itself — compose runs it with `restart: on-failure`, so
-transient crashes restart while a config error exits 0 and **stays down**
-(BRIEF-149): look for `Exited (0)` in `docker compose ps` and the reason in
+transient crashes restart while a config error exits 0 and **stays down**:
+look for `Exited (0)` in `docker compose ps` and the reason in
 the last line of `docker compose logs worker`. The queue-level signal is
 `job.retries.exhausted`.
 
