@@ -33,15 +33,9 @@
     contain-intrinsic-block-size: auto
       calc(var(--diff-rows, 40) * functions.to-rem(22px));
 
-    // `content-visibility: auto` always applies paint containment (not just
-    // while off-screen), which clips any descendant that paints outside this
-    // box. The diff table can be wider than `.viewport` — `white-space: pre`
-    // code cells force the table to its widest line, most visibly in the
-    // narrower focus-mode column — so without this, that overflow (including
-    // the comment composer, which spans the same table-driven width via its
-    // colSpan cell) was silently clipped and unreachable instead of visible.
-    // `overflow-x: auto` turns the same overflow into a normal horizontal
-    // scroll region, matching typical diff-viewer UX for long lines.
+    // `content-visibility: auto` always applies paint containment, which would
+    // clip the table where `white-space: pre` code pushes it past this box;
+    // `overflow-x: auto` turns that clipping into a scroll region instead.
     overflow-x: auto;
 
     // Named container so the comment composer below can size itself to this
@@ -72,9 +66,8 @@
         color: var(--color-diff-add-text);
       }
 
-      // 45% measured at 2.7:1 against the added-row tint — a WCAG 1.4.3
-      // failure the BRIEF-113 axe gate caught. 75% lands at 5.3:1 and keeps
-      // the gutter tinted rather than dropping the add/del cue entirely.
+      // 45% measured 2.7:1 against the added-row tint — a WCAG 1.4.3 failure.
+      // 75% lands at 5.3:1 and keeps the gutter tinted.
       .lineNumber {
         color: color-mix(in srgb, var(--green) 75%, transparent);
       }
@@ -125,8 +118,8 @@
     &[data-selected]:hover {
       background: color-mix(in srgb, var(--blue) 12%, transparent);
 
-      // Earned oddity: an INSET leading-edge bar marking the selected row —
-      // not a drop shadow, so it has no counterpart on the elevation scale.
+      // An INSET leading-edge bar, not a drop shadow — no counterpart on the
+      // elevation scale.
       --selected-edge-bar: inset 3px 0 0 var(--blue);
 
       box-shadow: var(--selected-edge-bar);
@@ -151,8 +144,8 @@
     color: var(--color-text-3);
     text-align: end;
 
-    // Safari only honors the prefixed form (WebKit bug 208677); without it
-    // a multi-line code selection copies the gutter numbers too (BRIEF-14).
+    // Safari only honors the prefixed form (WebKit bug 208677); without it a
+    // multi-line code selection copies the gutter numbers too.
     // stylelint-disable-next-line property-no-vendor-prefix
     -webkit-user-select: none;
     user-select: none;
@@ -161,8 +154,8 @@
   .code {
     color: var(--color-text-3);
 
-    // Code text is selectable (BRIEF-14); the row keeps `cell` for the
-    // gutter, where range anchoring starts.
+    // Code text is selectable; the row keeps `cell` for the gutter, where
+    // range anchoring starts.
     cursor: text;
   }
 
@@ -206,11 +199,9 @@
     padding-inline: functions.to-rem(98px) functions.to-rem(14px);
     white-space: normal;
 
-    // The colSpan cell is as wide as the table (long `pre` code lines can
-    // push it far past the scrollport), so the composer pins to the visible
-    // scroll width instead of stretching with it: sticky on the inline axis,
-    // capped at the scrollport width (100cqw from `.viewport`) minus this
-    // cell's own padding.
+    // The colSpan cell is as wide as the table, so the composer pins to the
+    // scrollport width (100cqw minus this cell's padding) instead of
+    // stretching with it.
     > * {
       position: sticky;
       inset-inline-start: functions.to-rem(98px);
@@ -218,10 +209,8 @@
     }
   }
 
-  /* Conversation jump flash (BRIEF-25 focus contract), row-level twin of
-     ChunkCard's chunk flash: transient highlight on the thread row the
-     digest jumped to. Inset ring — an outer box-shadow on a table row
-     clips against adjacent rows. */
+  /* Inset ring — an outer box-shadow on a table row clips against
+     adjacent rows. */
   .commentRow[data-conversation-flash] > td > * {
     animation: conversation-row-flash 1.4s ease-out 1;
   }

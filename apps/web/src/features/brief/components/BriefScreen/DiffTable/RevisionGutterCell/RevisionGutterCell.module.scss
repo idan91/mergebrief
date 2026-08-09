@@ -12,9 +12,8 @@
       cursor: pointer;
     }
 
-    // Hover, not focus: the ring is hand-rolled on purpose. The
-    // prefers-contrast bump that `focus-ring` adds belongs to focus states
-    // only, so this rule stays outside the mixin (BRIEF-44 PR 3a).
+    // Hover, not focus: the `focus-ring` mixin's prefers-contrast bump
+    // belongs to focus states only, so this ring is hand-rolled.
     &:hover .rail {
       background: var(--rail-active-fill);
       outline: 2px solid var(--blue);
@@ -23,8 +22,8 @@
   }
 
   .rail {
-    // Earned oddity: the hover/focus lift of the revision rail — a lighter
-    // blue than --color-accent (#7da7d9); faithful to the pre-sweep value.
+    // Off-scale: the rail's hover/focus lift, a lighter blue than
+    // --color-accent (#7da7d9).
     --rail-active-fill: #9dc0e8;
 
     position: absolute;

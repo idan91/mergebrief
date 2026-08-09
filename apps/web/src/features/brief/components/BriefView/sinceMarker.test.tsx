@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Per-group changed-since marker (BRIEF-102): when a reviewer checkpoint
+// Per-group changed-since marker: when a reviewer checkpoint
 // exists, each group header says whether anything in it changed since the
 // checkpoint — WITHOUT the Compare lens being active. The delta data was
 // always computed; this pins that it is finally visible where people read.
@@ -75,7 +75,7 @@ function renderBriefView(comparisonPlan?: BriefComparisonPlan) {
   );
 }
 
-describe("per-group changed-since marker (BRIEF-102)", () => {
+describe("per-group changed-since marker", () => {
   it("shows the changed-file count and checkpoint shortsha with Compare OFF", async () => {
     renderBriefView(planWith(checkpointMarks()));
     // src/leak.ts changed, src/leak.test.ts did not → 1 distinct file.

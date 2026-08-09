@@ -1,8 +1,4 @@
 // @vitest-environment jsdom
-// Row-level conversation threads inside the diff (BRIEF-25 post-smoke): a
-// human thread renders under its own line as a disclosure, the row carries
-// the data-conversation-thread hook the digest's "Jump to comment" descends
-// to, and the detail hides its jump (the row already IS the destination).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -171,7 +167,7 @@ function renderTable(
   return { view, openCommentComposer, flowStore };
 }
 
-describe("DiffTable — read-only comment affordances (BRIEF-24)", () => {
+describe("DiffTable — read-only comment affordances", () => {
   const REASON = "You're viewing an earlier revision.";
 
   it("rows stay focusable but are aria-disabled with a reachable reason", () => {
@@ -221,7 +217,7 @@ function selectTextIn(cell: Element) {
   selection?.addRange(range);
 }
 
-describe("DiffTable — selectable code text (BRIEF-14)", () => {
+describe("DiffTable — selectable code text", () => {
   afterEach(() => {
     window.getSelection()?.removeAllRanges();
   });
@@ -323,8 +319,7 @@ describe("DiffTable — row-level conversation threads", () => {
     const row = container.querySelector('[data-conversation-thread="9001"]');
     expect(row).not.toBeNull();
     // The inline render must NOT emit the SECTION's landing attribute — and
-    // vice versa the section row never carries `data-conversation-thread` —
-    // or one would shadow the other in document order (codex round 5).
+    // vice versa — or one would shadow the other in document order.
     expect(
       container.querySelector("[data-conversation-section-thread]"),
     ).toBeNull();

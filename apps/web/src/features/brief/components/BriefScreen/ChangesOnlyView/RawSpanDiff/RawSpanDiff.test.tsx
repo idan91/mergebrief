@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-// The BRIEF-24 raw span diff toggle (locked decision #7): a switch inside the
-// Changes Only pane that swaps the summary for the GitHub-style raw diff of the
-// same span, rendered read-only through DiffTable.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -101,8 +98,7 @@ describe("RawSpanDiff toggle", () => {
     renderRaw(diffQuery("prev", "head"));
     fireEvent.click(toggleButton());
 
-    // Stable accessible name across presses; state lives in aria-pressed
-    // (WAI toggle-button contract — codex round 1).
+    // Stable accessible name across presses; state lives in aria-pressed.
     expect(toggleButton().getAttribute("aria-pressed")).toBe("true");
     // The summary is swapped out for the raw diff.
     expect(screen.queryByText("Changes Only summary")).toBeNull();
@@ -117,7 +113,7 @@ describe("RawSpanDiff toggle", () => {
     fireEvent.click(toggleButton());
     await waitFor(() => expect(screen.getByText("validate(a);")).toBeTruthy());
     // Read-only posture: the added row is focusable but disabled, no
-    // commentable hook (BRIEF-23 pattern).
+    // commentable hook.
     const disabledRow = container.querySelector('tr[aria-disabled="true"]');
     expect(disabledRow).not.toBeNull();
     expect(disabledRow?.getAttribute("tabindex")).toBe("0");
@@ -135,9 +131,8 @@ describe("RawSpanDiff toggle", () => {
   });
 
   it("names a successful empty diff honestly — a no-change span is not a failure", async () => {
-    // Identical base/head content (every edit netted out): the fetch succeeds
-    // with an empty body — success-empty must not wear the error copy
-    // (codex round 2).
+    // Identical base/head content: the fetch succeeds with an empty body —
+    // success-empty must not wear the error copy.
     renderRaw(diffQuery("prev", "head", ""));
     fireEvent.click(toggleButton());
     await waitFor(() =>
@@ -167,8 +162,7 @@ describe("RawSpanDiff toggle", () => {
 
   it("a guarded descriptor vetoes CACHED data — the guard wins over the cache", async () => {
     // enabled: false only blocks FETCHING; react-query still serves a
-    // previously-cached body for the same key. A descriptor guarded as
-    // unavailable must not render that stale span (codex round 4).
+    // previously-cached body for the same key.
     const queryKey = ["pr-diff", "424242", 7, "prev", "head"];
     const client = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -203,7 +197,7 @@ describe("RawSpanDiff toggle", () => {
     });
     fireEvent.click(toggleButton());
     // The toggle gates the descriptor's own `enabled`; it must not force a
-    // fetch the descriptor guarded against (codex round 1).
+    // fetch the descriptor guarded against.
     await waitFor(() =>
       expect(
         screen.getByText("The raw diff is not viewable right now."),

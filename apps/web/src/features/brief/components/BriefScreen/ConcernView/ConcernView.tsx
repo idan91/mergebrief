@@ -59,8 +59,7 @@ export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
                       <span className="d">−{chunk.loc.deleted}</span>
                     </span>
                     {chunk.riskSurface.length > 0 ? (
-                      /* Same display weight as the Story view (BRIEF-52):
-                       chips are display-only here — the row itself is the
+                      /* Chips are display-only here — the row itself is the
                        jump button, so no nested disclosure buttons. */
                       <span className={styles["fileRisk"]} data-concern-risk="">
                         {riskChipView(chunk.riskSurface).shown.map((risk) => (

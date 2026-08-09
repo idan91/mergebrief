@@ -41,12 +41,7 @@ export interface DiffRowView {
   showComposer: boolean;
 }
 
-/**
- * Derives everything a single commentable diff row needs to render: the +/−/space
- * sign, its stable row id, the revision-overlay run/mark/boundaries, the comments and
- * addressed comments anchored to it, and its selection/composer state. Pure — no DOM,
- * no React — so it stays cheap and unit-testable while `DiffTable` only maps over rows.
- */
+/** Derives everything a commentable diff row needs to render. Pure — no DOM, no React. */
 export function getDiffRowView({
   line,
   index,

@@ -19,11 +19,10 @@ import { RawSpanDiff } from "./RawSpanDiff/RawSpanDiff";
 import styles from "./ChangesOnlyView.module.scss";
 
 /**
- * @description The Changes Only view (ADR 0024 plan step 8): a compact,
- * changed-only rendering of the active comparison. Previous Brief renders the
- * shared Revision narrative grouped under the full Brief's Change-groups; Your
- * last review reuses the existing Delta Brief content under Changes Only copy
- * ("Delta" never appears as a primary label).
+ * @description A compact, changed-only rendering of the active comparison.
+ * Previous Brief groups the shared Revision narrative under the full Brief's
+ * Change-groups; Your last review reuses the Delta Brief content under Changes
+ * Only copy ("Delta" never appears as a primary label).
  */
 export interface ChangesOnlyViewProps {
   /** The active baseline; `off` is normalized away before Changes Only renders. */
@@ -42,10 +41,8 @@ export interface ChangesOnlyViewProps {
   delta: Brief | null;
   /**
    * The live span-diff descriptor for the ACTIVE compare baseline → selected
-   * head (BRIEF-24 raw span diff, locked decision #7). Present only on the DB
-   * timeline path while a compare lens is active — it drives the "Show raw
-   * diff" toggle. Absent (the local file path, or no live diff) → no toggle,
-   * just the summary.
+   * head. Present only on the DB timeline path while a compare lens is active
+   * — it drives the "Show raw diff" toggle. Absent → just the summary.
    */
   rawSpanDiff?: ComparisonQuery<string> | undefined;
 }
@@ -63,12 +60,9 @@ export function ChangesOnlyView(props: ChangesOnlyViewProps) {
       />
     );
   if (props.rawSpanDiff === undefined) return summary;
-  // Ephemeral, FE-only toggle: key on the LENS plus the span the descriptor
-  // addresses so a compare-lens switch or a revision change remounts it and
-  // resets back to the summary. The lens is part of the key because both
-  // lenses can resolve to the SAME span (checkpoint == previous head), and a
-  // lens switch is still a view change (codex round 1). JSON serialization
-  // keeps key parts from colliding across element boundaries.
+  // Key on the LENS plus the addressed span so a lens switch or revision
+  // change remounts and resets to the summary — both lenses can resolve to
+  // the SAME span, and a lens switch is still a view change.
   return (
     <RawSpanDiff
       key={`${props.compare}:${JSON.stringify(props.rawSpanDiff.queryKey)}`}
@@ -92,13 +86,9 @@ function PreviousBriefChanges({
   narrative,
   skipReason,
 }: PreviousBriefChangesProps) {
-  // Fresh-restart origin (BRIEF-143): the ONE user-visible trace of the
-  // anchoring machinery — a muted line when this revision's brief was
-  // deliberately regenerated from scratch (anchor chain restarted).
-  // Independent of narrative availability (it is brief origin, not
-  // narrative content); hidden for anchored revisions, for
-  // `full-regeneration: always` instances (stamped `none`), and on
-  // pre-feature briefs (no stamp).
+  // Brief origin, not narrative content — so it renders independently of
+  // narrative availability, and stays hidden for anchored revisions,
+  // always-regenerate instances, and briefs with no stamp.
   const restartNote =
     brief.anchor?.state === "fresh-restart" ? (
       <p className={styles["restartNote"]} role="note">
@@ -107,10 +97,8 @@ function PreviousBriefChanges({
           : "Regenerated fresh."}
       </p>
     ) : null;
-  // Length-cap origin (BRIEF-148): one muted line when the pipeline
-  // stamped over-cap text (warn-only floor) on the brief OR this span's
-  // narrative — the actionable read is "pick a stronger model", so the
-  // entries are not itemized here.
+  // The actionable read is "pick a stronger model", so the individual
+  // over-cap entries are not itemized.
   const lengthNote = hasLengthViolations(brief, narrative) ? (
     <LengthGuidanceNote />
   ) : null;
@@ -143,18 +131,14 @@ function PreviousBriefChanges({
     );
   }
 
-  // Group narrative chunks under the full Brief's Change-groups, in the Brief's
-  // own group order. Orphans (a briefChangeGroupId not on the Brief) fall to a
-  // trailing section rather than being dropped (ADR 0024 grouping).
+  // Orphans (a briefChangeGroupId not on the Brief) fall to a trailing
+  // section rather than being dropped.
   const orphanChunks = narrative.chunks.filter(
     (chunk) =>
       !brief.changeGroups.some((g) => g.id === chunk.briefChangeGroupId),
   );
 
-  // What narrative generation DID (BRIEF-78, mirroring the Header's Brief
-  // block): coverage gaps, dangling group ids, salvage — surfaced on the
-  // compare surface they degraded. Warn-only; no retry affordance. Deduped
-  // because the collector can emit the same line per direction.
+  // Deduped: the collector can emit the same line once per direction.
   const warnings = [...new Set(narrative.generationWarnings ?? [])];
 
   return (
@@ -231,7 +215,7 @@ interface LastReviewChangesProps {
   delta: Brief | null;
 }
 
-/** The BRIEF-148 muted line — shared by both compare lenses. */
+/** The over-length muted line — shared by both compare lenses. */
 function LengthGuidanceNote() {
   return (
     <p className={styles["restartNote"]} role="note">
@@ -353,10 +337,9 @@ function countLines(ranges: LineRange[]): number {
 
 /**
  * The added/context rows for a narrative chunk, pulled from the full Brief's
- * head-coordinate diffs (the incremental added side is a subset of base→head).
- * Removed (prevHead-only) lines have no row at head, so they are summarized as a
- * count instead — an honest boundary: the FE holds base→head diffs, not the
- * prevHead→head incremental diff.
+ * head-coordinate diffs. Removed (prevHead-only) lines have no row at head —
+ * the FE holds base→head diffs, not prevHead→head — so callers summarize
+ * those as a count instead.
  */
 function addedRowsForNarrativeChunk(
   brief: Brief,

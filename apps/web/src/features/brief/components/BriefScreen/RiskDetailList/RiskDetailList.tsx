@@ -8,10 +8,8 @@ export interface RiskDetailListProps {
 }
 
 /**
- * Expansion body for risk-chip disclosures (BRIEF-52): each attribute as a
- * chip plus a VISIBLE caption for repo-defined ones ("Defined by repo policy
- * — implication") and de-emphasized ones — sighted keyboard/touch users read
- * the same detail screen readers get inline (codex r7).
+ * Expansion body for risk-chip disclosures. The captions are VISIBLE so
+ * sighted keyboard/touch users read the same detail screen readers get inline.
  */
 export function RiskDetailList({ attrs, metaFor }: RiskDetailListProps) {
   return (

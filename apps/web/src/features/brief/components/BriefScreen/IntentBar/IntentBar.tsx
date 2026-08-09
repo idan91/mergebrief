@@ -17,11 +17,7 @@ export interface IntentBarProps {
 }
 
 export interface IntentBarHandle {
-  /**
-   * Expand the body and scroll the bar into view. The mark-ready soft gate
-   * (BRIEF-43 modal, PR 4) calls this to land the author on the expanded
-   * intent bar after closing the modal.
-   */
+  /** Expand the body and scroll the bar into view. */
   expandAndScrollTo: () => void;
 }
 
@@ -35,26 +31,21 @@ const UNAVAILABLE_REASON: Record<
 };
 
 /**
- * The one caution line the alarm buckets carry (BRIEF-85). Deliberately
- * epistemic, not severity: these two buckets are the shakiest inference in
- * the shakiest section, so each says so in its own words rather than
- * borrowing the code-risk palette. Rendered ONLY when its bucket is
- * non-empty — a caution with nothing under it is noise.
+ * The one caution line the alarm buckets carry — epistemic, not severity.
+ * Rendered ONLY when its bucket is non-empty.
  */
 const ALARM_CAUTION =
   "AI-inferred tension — verify against the diff and the ticket before acting on it";
 
 /**
- * Muted neutral glyph marking the two alarm buckets in the body. A label
- * mark, never a color: the design forbids the code-risk palette here (and
- * yellow specifically) so an epistemic caution can never read as a severity.
+ * Marks the alarm buckets. A label mark, never a color — the code-risk
+ * palette here would make an epistemic caution read as a severity.
  */
 const ALARM_GLYPH = "◇";
 
 /**
  * Scheme allowlist for a model-produced `sourceUrl` before it becomes an
- * href (matches the local `isHttpUrl` pattern in validation.ts / Header.tsx —
- * there is no shared helper). A non-http(s) value renders as plain text.
+ * href. A non-http(s) value renders as plain text.
  */
 function isHttpUrl(value: string): boolean {
   try {
@@ -66,14 +57,11 @@ function isHttpUrl(value: string): boolean {
 }
 
 /**
- * The ticket-gated intent bar (BRIEF-54, ADR 0009 §2 as amended): a
- * full-width instrument row directly beneath the capped summary. The header
- * is ALWAYS visible with neutral, symmetric bucket counts (never gap-first,
- * no warning colors); the body is collapsed by default and NEVER
- * auto-expands (auto-open on model inference is the anchoring the design
- * exists to prevent). The intent check is the AI's fallible read, framed as
- * such — never a verdict. Broad/none sources render the same quiet bar with
- * a single unavailability line.
+ * The ticket-gated intent bar: a full-width instrument row beneath the capped
+ * summary. The header is ALWAYS visible with neutral, symmetric bucket counts;
+ * the body is collapsed by default and NEVER auto-expands — auto-open on model
+ * inference is the anchoring this design exists to prevent. Broad/none sources
+ * render the same quiet bar with a single unavailability line.
  */
 export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
   function IntentBar({ intentCheck, jumpToGroup }, ref) {
@@ -100,10 +88,9 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
     const { specificity, ticketUrls, scopeNote } = intentCheck;
     const available = specificity === "precise";
 
-    // Acknowledged deviations are quiet receipts, not alarms (the description
-    // owns the reversal), so they render as their own bucket at the TAIL —
-    // partitioned here rather than sorted, because the two halves carry
-    // different labels, different cautions, and different weight.
+    // Acknowledged deviations are quiet receipts, not alarms — partitioned
+    // rather than sorted, because the halves carry different labels,
+    // cautions, and weight.
     const unacknowledgedDeviations = intentCheck.deviations.filter(
       (item) => !item.acknowledged,
     );
@@ -115,9 +102,8 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
       const linked = item.sourceUrl !== "" && isHttpUrl(item.sourceUrl);
       return (
         <li className={styles["item"]} key={key}>
-          {/* The jump chip IS the item's bullet (owner direction, 2026-08-06):
-              the marker column leads with the go-there affordance; items with
-              no carrying group get a plain dot so the column stays ruled. */}
+          {/* The jump chip IS the item's bullet; items with no carrying group
+              get a plain dot so the marker column stays ruled. */}
           {item.groupIds.length > 0 ? (
             <span className={styles["jumps"]}>
               {item.groupIds.map((groupId) => (
@@ -142,11 +128,8 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
           <span className={styles["itemBody"]}>
             <span className={styles["itemHead"]}>
               <span className={styles["intent"]}>{item.intent}</span>
-              {/* Only meaningful in `deviations`: generation forces it false
-                  in every other bucket AND the read path re-sweeps it
-                  (validation.ts), so this chip can only appear on the
-                  acknowledged-deviations bucket — never inside an alarm
-                  bucket under its caution. */}
+              {/* Only meaningful in `deviations` — generation and the read
+                  path both force it false in every other bucket. */}
               {item.acknowledged ? (
                 <span className={styles["ackChip"]}>acknowledged</span>
               ) : null}
@@ -159,13 +142,10 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
                 {item.quote !== "" ? (
                   <q className={styles["quote"]}>{item.quote}</q>
                 ) : null}
-                {/* Source is grounding, not decoration: rendered
-                    independently of the quote so a warn-only uncited item
-                    (empty quote but a valid sourceUrl, PR 1 quote-check is
-                    warn-only) keeps its citation. A "" sourceUrl attributes
-                    to the PR description only for a real ticket-side citation
-                    (non-empty quote); doneButUnstated has no ticket side, so
-                    it shows neither a link nor an attribution. */}
+                {/* Rendered independently of the quote, so an uncited item
+                    with a valid sourceUrl keeps its citation. A "" sourceUrl
+                    attributes to the PR description only alongside a real
+                    ticket-side quote. */}
                 {linked ? (
                   <a
                     className={styles["source"]}
@@ -187,11 +167,8 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
 
     /**
      * `caution` marks a bucket as alarm-class: it gets the neutral glyph on
-     * its label and one muted caution line beneath it. Both are omitted for
-     * the neutral buckets, and the whole bucket is omitted when empty — so a
-     * PR with no alarms renders a BODY byte-identical to the pre-BRIEF-85 bar.
-     * (The header is the one deliberate exception: it grows to five counts
-     * either way, per the ADR 0009 §2 amendment.)
+     * its label and one muted caution line beneath it. An empty bucket is
+     * omitted entirely.
      */
     function renderBucket(
       label: string,
@@ -213,9 +190,8 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
             <p className={styles["caution"]}>{caution}</p>
           ) : null}
           <ul className={styles["bucketList"]}>
-            {/* Content key: the item list is immutable per prop, and
-                intent+quote is effectively unique within a bucket — no array
-                index (react rules). */}
+            {/* Content key: the list is immutable per prop and intent+quote
+                is effectively unique within a bucket. */}
             {items.map((item) =>
               renderItem(item, `${label}::${item.intent}::${item.quote}`),
             )}
@@ -243,10 +219,9 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
           <span className={styles["title"]}>Intent check</span>
           {available ? (
             <span className={styles["counts"]}>
-              {/* Five counts now, and every one stays neutral and uncolored —
-                  the header lock holds (BRIEF-54: never gap-first, no warning
-                  colors). An alarm count reads exactly like the others; the
-                  register lives in the body's caution lines, not here. */}
+              {/* Every count stays neutral and uncolored — an alarm count
+                  reads exactly like the others; the register lives in the
+                  body's caution lines, not here. */}
               <span className={styles["count"]}>
                 {intentCheck.accomplished.length} accomplished
               </span>
@@ -292,11 +267,9 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
             {scopeNote !== "" ? (
               <p className={styles["scopeNote"]}>{scopeNote}</p>
             ) : null}
-            {/* STATIC order, locked by the grill — never model-ordered and never
-              severity-sorted: accomplished first (the PR's own story), the two
-              alarm buckets next while the reader is still oriented, then the
-              neutral gaps, with acknowledged deviations last as quiet
-              receipts. */}
+            {/* STATIC order — never model-ordered, never severity-sorted:
+              accomplished first, alarm buckets while the reader is still
+              oriented, then neutral gaps, acknowledged deviations last. */}
             {available ? (
               <>
                 {renderBucket("Accomplished", intentCheck.accomplished)}

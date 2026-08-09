@@ -70,8 +70,7 @@
   }
 
   .bar {
-    // Fold candidate: 1/255 off --color-surface-3 (#1c1c22) — kept local
-    // only because the faithful sweep never snapped it. Collapse on touch.
+    // Off-scale: 1/255 off --color-surface-3 (#1c1c22). Fold on next touch.
     --track-fill: #1c1c21;
 
     overflow: hidden;
@@ -115,8 +114,8 @@
 }
 
 @layer components {
-  /* Chunk-row risk lane (BRIEF-52): display-only mirror of the Story view's
-     chips inside the jump button. */
+  /* Chunk-row risk lane: display-only mirror of the Story view's chips,
+     inside the jump button. */
   .fileRisk {
     display: inline-flex;
     flex-wrap: wrap;

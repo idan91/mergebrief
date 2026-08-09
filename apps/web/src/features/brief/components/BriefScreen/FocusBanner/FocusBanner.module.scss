@@ -1,13 +1,9 @@
 @use "functions";
 
 @layer components {
-  // Sticky strip behind the focus banner: spans the full content column with
-  // the same translucent-blur backdrop as the top bar (Header.module.scss), so
-  // diff content scrolling past slides under a solid-reading band — the
-  // rounded banner box alone left visible gaps above and beside it.
-  // Sibling of <main>, not inside it: a true full-bleed strip under the top
-  // bar. Publishes its measured height as --focus-banner-h (the reading
-  // session) so sticky chunk headers and the focus rail stack below it.
+  // Full-bleed strip: the rounded banner box alone left visible gaps above
+  // and beside it as content scrolled under. Its measured height publishes as
+  // --focus-banner-h so sticky chunk headers and the focus rail stack below.
   .focusBannerWrap {
     position: sticky;
     inset-block-start: var(--top-bar-h);

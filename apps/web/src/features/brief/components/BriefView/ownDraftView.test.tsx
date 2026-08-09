@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// The own-draft Brief view (BRIEF-43, ADR 0031): one Brief view for every
-// viewer; the author surface is state-derived affordances inside it. This
-// suite pins the state's contract through the rendered screen:
+// The own-draft Brief view: one Brief view for every viewer; the author
+// surface is state-derived affordances inside it. This suite pins the state's
+// contract through the rendered screen:
 //   - the state is visibly labeled (self-review chip) and non-dismissible;
 //   - submit-review machinery + receipt are HIDDEN, not broken — nothing
 //     dangling that references submit;
@@ -113,7 +113,7 @@ function renderBriefView(
   };
 }
 
-describe("own-draft Brief view (BRIEF-43)", () => {
+describe("own-draft Brief view", () => {
   it("labels the state with the chip and swaps the terminal-action slot", () => {
     renderBriefView({ markReady: vi.fn() });
     expect(screen.getByText(CHIP_COPY)).toBeTruthy();
@@ -132,7 +132,7 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeTruthy();
   });
 
-  it("keeps the composer read-only on a stale own-draft view (BRIEF-127 carve-out)", () => {
+  it("keeps the composer read-only on a stale own-draft view", () => {
     // Post-now exists only at the current head, so a stale-staged draft would
     // have no exit — the composer blocks with a reachable reason. A stale
     // REVIEWER view stays writable (its exit is Submit behind the receipt ack).
@@ -191,8 +191,7 @@ describe("own-draft Brief view (BRIEF-43)", () => {
       const input = viewed.closest("label")?.querySelector("input");
       if (input) fireEvent.click(input);
     }
-    // Progress rides a scaleX factor now (BRIEF-103 resize-stutter fix):
-    // 100% ≙ --progress-scale: 1.
+    // Progress rides a scaleX factor: 100% ≙ --progress-scale: 1.
     const bar = document.querySelector('header div[style*="--progress-scale"]');
     expect(bar?.getAttribute("style")).toContain("--progress-scale: 1");
   });
@@ -224,14 +223,14 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     expect(markReady).toHaveBeenCalledTimes(1);
   });
 
-  it("soft gate: intent gaps OR TENSIONS alone never open the modal (BRIEF-54/85 — the fallible signal never drives the gate)", () => {
+  it("soft gate: intent gaps OR TENSIONS alone never open the modal — the fallible signal never drives the gate", () => {
     // A flagless, draft-free Brief that DOES carry precise stated-but-missing
     // asks AND a precise unacknowledged deviation. The intent check is the
     // AI's fallible read; both kinds of finding surface as secondary lines
     // inside the gate, but neither may ever be the thing that OPENS it — the
     // CTA still acts directly. Adding `|| intentTensionCount > 0` to
-    // `requestMarkReady` must fail here (ADR 0009 §2: never part of the gate's
-    // open condition).
+    // `requestMarkReady` must fail here — never part of the gate's open
+    // condition.
     const intentGapBrief: Brief = {
       ...flaglessBrief,
       intentCheck: {
@@ -274,8 +273,8 @@ describe("own-draft Brief view (BRIEF-43)", () => {
 
   it("soft gate: the intent line rides an open gate, and clicking it closes the gate AND expands the intent bar", () => {
     // The gate opens because of the flags (briefFixture carries them); the
-    // BRIEF-54 intent line rides inside, proving the caller's computed
-    // intentGapCount flows through. Clicking it dismisses the gate and, after
+    // intent line rides inside, proving the caller's computed intentGapCount
+    // flows through. Clicking it dismisses the gate and, after
     // the deferred handle fires, lands the author on the EXPANDED intent bar —
     // pinning the full jumpToIntentGapsFromGate glue (setViewMode/setFocusMode
     // + setTimeout → expandAndScrollTo), not just the close.
@@ -329,8 +328,8 @@ describe("own-draft Brief view (BRIEF-43)", () => {
   });
 
   it("soft gate: the tension line counts unacknowledged deviations + claimed-but-unachieved, and EXCLUDES acknowledged ones", () => {
-    // The caller derives the count (BRIEF-85), so this pins the derivation
-    // itself, not just the modal's rendering. An acknowledged deviation is a
+    // The caller derives the count, so this pins the derivation itself, not
+    // just the modal's rendering. An acknowledged deviation is a
     // reversal the PR description already owns — nudging the author about
     // their own words at the gate would be nagging, so it must not count.
     const briefWithTensions: Brief = {
@@ -412,10 +411,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
   });
 
   it("soft gate: zero flags but unposted drafts → the gate OPENS with the checkbox, batch posts then mark-ready", async () => {
-    // Owner amendment (live bug, PR 9 test): the flags-only bypass skipped
-    // the gate on a zero-flag brief, so the post-my-drafts checkbox was
-    // unreachable — drafts silently stayed local while the PR went ready.
-    // The batch expectation is global: drafts alone open the gate.
+    // A flags-only bypass would skip the gate on a zero-flag brief, leaving
+    // the post-my-drafts checkbox unreachable — drafts silently stay local
+    // while the PR goes ready. Drafts alone must open the gate.
     writeSnapshot({
       briefId: "own-draft-test",
       dispositions: {},
@@ -609,9 +607,8 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     // around-the-write failure), PR not marked ready.
     const summary = markReadyBatchFailureCopy(1, 3, "indeterminate");
     expect(await screen.findByText(summary)).toBeTruthy();
-    // Reviewer round 1 #1/#3: the summary must be the SETTLED live-region
-    // message, not a transient 30ms window — flush the failed post's drain
-    // (endInFlightPost re-render → applySettledPosts) and every pending
+    // The summary must be the SETTLED live-region message, not a transient
+    // 30ms window — flush the failed post's drain and every pending
     // clear-then-set announce tick, then assert the summary still stands and
     // the per-comment upstream copy never took the region over.
     await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
@@ -626,9 +623,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
   });
 
   it("batch (checked, deterministic 400 midway): the summary says rejected-before-posting, not indeterminate", async () => {
-    // Reviewer round 2 #2: an `invalid` route reject is deterministic — the
-    // comment definitively did NOT post, so the summary must be actionable
-    // ("edit the draft"), never the indeterminate check-GitHub warning.
+    // An `invalid` route reject is deterministic — the comment definitively
+    // did NOT post, so the summary must be actionable ("edit the draft"),
+    // never the indeterminate check-GitHub warning.
     writeSnapshot({
       briefId: "own-draft-test",
       dispositions: {},
@@ -672,9 +669,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
   });
 
   it("batch (checked, guard-blocked draft): no per-comment noise, the deterministic summary is the message", async () => {
-    // Reviewer round 2 #1: a guard-path rejection (over-cap body — the
-    // deterministic-400 mirror) inside a batch must not announce its blocked
-    // reason before the summary; the summary carries the stop-cause.
+    // A guard-path rejection (over-cap body — the deterministic-400 mirror)
+    // inside a batch must not announce its blocked reason before the summary;
+    // the summary carries the stop-cause.
     writeSnapshot({
       briefId: "own-draft-test",
       dispositions: {},
@@ -727,9 +724,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
   });
 
   it("batch failure summary carries the failing cause's own recovery (401 sign-in, 409 reload)", async () => {
-    // Reviewer round 3 #2: batch mode suppresses the per-comment copy, so the
-    // summary is the ONLY message — a blanket "edit the draft" is wrong for a
-    // session expiry or a stale head. Each deterministic cause branches.
+    // Batch mode suppresses the per-comment copy, so the summary is the ONLY
+    // message — a blanket "edit the draft" is wrong for a session expiry or a
+    // stale head. Each deterministic cause branches.
     const cases = [
       { kind: "unauthorized", copy: /sign in again to continue/ },
       { kind: "stale", copy: /reload to post against the current diff/ },
@@ -778,9 +775,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
   });
 
   it("batch failure rescues focus from the closing gate onto the terminal-slot CTA", async () => {
-    // Reviewer round 3 #1: the failure branch closes the gate while the modal
-    // holds focus (the confirm CTA) — the box goes inert and focus drops with
-    // NEITHER sibling rescue firing (state didn't exit, head didn't advance).
+    // The failure branch closes the gate while the modal holds focus (the
+    // confirm CTA) — the box goes inert and focus drops with NEITHER sibling
+    // rescue firing (state didn't exit, head didn't advance).
     writeSnapshot({
       briefId: "own-draft-test",
       dispositions: {},
@@ -823,9 +820,9 @@ describe("own-draft Brief view (BRIEF-43)", () => {
   });
 
   it("Escape is a no-op while the batch runs; the gate stays up with its progress", async () => {
-    // Reviewer round 1 #2: Modal wires Escape to close only when a handler is
-    // provided — mid-batch the gate withholds it, matching the disabled
-    // controls, so progress feedback cannot vanish while writes continue.
+    // Modal wires Escape to close only when a handler is provided — mid-batch
+    // the gate withholds it, matching the disabled controls, so progress
+    // feedback cannot vanish while writes continue.
     writeSnapshot({
       briefId: "own-draft-test",
       dispositions: {},

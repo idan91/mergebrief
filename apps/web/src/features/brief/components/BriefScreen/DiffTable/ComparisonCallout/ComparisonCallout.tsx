@@ -21,7 +21,7 @@ export interface ComparisonCalloutProps {
   source: ComparisonSource;
   /**
    * When the Previous-Brief narrative was deliberately skipped, the reason —
-   * conveyed as a distinct "skipped" state, not a failure (ADR 0024).
+   * conveyed as a distinct "skipped" state, not a failure.
    */
   skipReason: RevisionNarrativeSkipReason | null;
 }
@@ -45,11 +45,8 @@ export function ComparisonCallout({
       <Callout.Eyebrow>{eyebrow}</Callout.Eyebrow>
       {callout.available ? (
         <>
-          {/* Payload first: WHAT changed is the prominent text; the owning
-              change-group is a de-emphasized origin line under it. */}
-          {/* Display-side guard (BRIEF-148): the prompt caps chunk summaries
-              at ~150 chars but the floor is warn-only — a non-compliant
-              model must degrade to a clamped callout, never an exploded one. */}
+          {/* The summary cap is warn-only upstream, so the clamp here is what
+              keeps a non-compliant model from exploding the callout. */}
           {callout.summary && (
             <Callout.Title clamp={4}>{callout.summary}</Callout.Title>
           )}

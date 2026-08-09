@@ -2,8 +2,7 @@
 @use "mixins";
 
 @layer components {
-  // Neutral instrument row — deliberately quiet: no warning colors, no
-  // gap-first emphasis (BRIEF-54 / ADR 0009). Symmetric bucket counts.
+  // Deliberately quiet: no warning colors, no gap-first emphasis.
   .bar {
     margin-block: functions.to-rem(4px) functions.to-rem(12px);
   }
@@ -91,9 +90,7 @@
     padding: functions.to-rem(10px) functions.to-rem(12px) functions.to-rem(2px);
   }
 
-  // Panel text is capped at a readable measure — the BAR stays full-width
-  // (spec lock); the cap costs no region height because the panel only
-  // exists opened.
+  // Panel text is capped at a readable measure; the BAR stays full-width.
   .framing {
     font-size: var(--font-size-lg);
     font-style: italic;
@@ -121,9 +118,9 @@
     margin-block: 0 functions.to-rem(4px);
   }
 
-  /* BRIEF-85 alarm buckets. Deliberately NO color of any kind — not yellow,
-     not the code-risk palette: an epistemic caution must never read as a
-     severity. Weight and a neutral glyph carry the emphasis instead. */
+  /* Alarm buckets carry NO color of any kind — an epistemic caution must
+     never read as a severity. Weight and a neutral glyph carry the
+     emphasis instead. */
   .alarmGlyph {
     margin-inline-end: functions.to-rem(6px);
     opacity: 0.65;

@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-// Pins the ExpandableContent adoption (BRIEF-134): the description disclosure lives
-// INSIDE the capped body, and expanding the summary never auto-opens it.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -42,7 +40,7 @@ afterEach(() => {
   }
 });
 
-describe("single-column render (BRIEF-104: split retired)", () => {
+describe("single-column render", () => {
   it("renders a changelog-bearing summary single-column, changelog as plain markdown", () => {
     const withChangelog = {
       ...briefFixture,

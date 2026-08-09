@@ -14,8 +14,6 @@
     text-transform: uppercase;
   }
 
-  // Narrative generation warnings (BRIEF-78): quiet amber, one line per
-  // event — same register as the Header's Brief warnings block.
   .generationWarnings {
     color: var(--amber);
     font-size: var(--font-size-sm);

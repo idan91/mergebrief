@@ -5,20 +5,16 @@ import styles from "./RiskChipDisclosure.module.scss";
 
 export interface RiskChipDisclosureProps {
   /** The chip itself (a RiskBadge) — rendered inside the disclosure button.
-   * Its text (including the chip's screen-reader-only expansion) IS the
-   * button's accessible name — never overridden (codex r3). */
+   * Its text IS the button's accessible name; never override it. */
   children: ReactNode;
   /** Expansion content shown in the anchored callout. */
   detail: ReactNode;
 }
 
 /**
- * Keyboard/touch-accessible expansion for a risk chip (BRIEF-52, codex r1
- * a11y): hover previews stay, but the canonical affordance is a real button
- * — click/Enter toggles the anchored callout, Escape closes it,
- * `aria-expanded` reports state. Screen readers additionally get the inline
- * text the chips already carry; this disclosure serves sighted keyboard and
- * touch users, for whom a `title` tooltip is unreachable.
+ * Keyboard/touch-accessible expansion for a risk chip: hover previews stay,
+ * but the canonical affordance is a real button, because a `title` tooltip is
+ * unreachable for sighted keyboard and touch users.
  */
 export function RiskChipDisclosure({
   children,
@@ -28,12 +24,12 @@ export function RiskChipDisclosure({
   const detailId = useId();
   useEffect(() => {
     // Escape must dismiss a hover-opened callout too — focus may be
-    // anywhere, so listen at the document while open (codex r5).
+    // anywhere, so listen at the document while open.
     if (anchor === null) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         // Consume the key: it dismissed this callout — it must not ALSO
-        // fire global shortcuts (e.g. exiting focus mode) (codex r10).
+        // fire global shortcuts (e.g. exiting focus mode).
         event.stopPropagation();
         setAnchor(null);
       }
@@ -46,12 +42,12 @@ export function RiskChipDisclosure({
   return (
     // Hover EXIT is owned by Callout's safePolygon (its onClose): closing on
     // this span's mouseleave would kill the portal'd callout before the
-    // pointer can travel into it (codex r2).
+    // pointer can travel into it.
     <span
       onPointerEnter={(event) => {
         // Touch browsers synthesize mouseenter before click — a hover-open
-        // there would be immediately toggled shut by the click (codex r4).
-        // Hover preview is a MOUSE affordance; touch/pen go through click.
+        // there would be immediately toggled shut by the click. Hover
+        // preview is a MOUSE affordance; touch/pen go through click.
         if (event.pointerType === "mouse") setAnchor(event.currentTarget);
       }}
     >

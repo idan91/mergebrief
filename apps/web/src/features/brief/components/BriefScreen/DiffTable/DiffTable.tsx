@@ -43,8 +43,8 @@ import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderO
 import { getDiffRowView } from "./diffRowView";
 import styles from "./DiffTable.module.scss";
 
-// csstype's CSSProperties has no `--*` index; a typed extension (same
-// pattern as Header's ProgressBarStyle) keeps the custom property cast-free.
+// csstype's CSSProperties has no `--*` index; a typed extension keeps the
+// custom property cast-free.
 interface DiffViewportStyle extends CSSProperties {
   "--diff-rows": number;
 }
@@ -57,7 +57,7 @@ export interface DiffTableProps {
   comparisonSource: ComparisonSource;
   comparisonSkipReason: RevisionNarrativeSkipReason | null;
   addressedComments: AddressedReviewComment[];
-  /** Live conversation threads under their diff rows (BRIEF-25); optional. */
+  /** Live conversation threads under their diff rows. */
   conversationThreadsByRow?: ReadonlyMap<number, DigestThreadRow[]> | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
   reviewCommentLabel: string;
@@ -82,9 +82,8 @@ export function DiffTable({
   readOnlyReason,
 }: DiffTableProps) {
   const readOnly = readOnlyReason !== undefined;
-  // Review-flow wiring comes from the screen-provided store: the CRUD action
-  // object is stable, and every stateful read is chunk-scoped so this table
-  // re-renders for ITS composer/posts only, never a sibling's.
+  // Every stateful read below is chunk-scoped so this table re-renders for
+  // ITS composer/posts only, never a sibling's.
   const {
     openComposer,
     cancelComposer,
@@ -95,11 +94,9 @@ export function DiffTable({
   } = useReviewActions();
   const chunkComments = useChunkReviewComments(chunk.id);
   const allComments = readOnly ? EMPTY_REVIEW_COMMENTS : chunkComments;
-  // Server-backed wins (BRIEF-25 locked decision 8, display half): once a
-  // posted comment's own GitHub thread renders in this chunk, the local
-  // submitted card demotes out of display — one copy, the live one. With
-  // no conversation loaded (local briefs, pre-fetch) there are no own
-  // threads here, so local cards keep rendering as the only copy.
+  // Server-backed wins: once a posted comment's own GitHub thread renders in
+  // this chunk, the local submitted card demotes out of display. With no
+  // conversation loaded there are no own threads, so local cards stay.
   const ownChunkThreads = useMemo(
     () =>
       [...(conversationThreadsByRow?.values() ?? [])]
@@ -121,18 +118,15 @@ export function DiffTable({
   );
   const activeCommentAnchor = readOnly ? null : anchorForChunk;
   /**
-   * Why comment composition is disabled (BRIEF-24 read-only posture on a
-   * historical revision). When set, the commentable rows stay focusable but
-   * carry `aria-disabled` + an `aria-describedby` reason (BRIEF-23 pattern —
-   * keyboard/SR users learn WHY before activation), and selection/composer
-   * entry is inert. Undefined → rows are writable as usual.
+   * Why comment composition is disabled. When set, commentable rows stay
+   * focusable but carry `aria-disabled` + an `aria-describedby` reason, and
+   * selection/composer entry is inert.
    */
   const postureDisabledReason = useReviewFlow(
     (state) => state.composerDisabledReason,
   );
   const composerDisabledReason = readOnlyReason ?? postureDisabledReason;
-  // Post a staged draft NOW (BRIEF-43 own-draft, current head); undefined
-  // hides the Post affordance entirely.
+  // Post a staged draft now; undefined hides the Post affordance entirely.
   const postComment = useReviewFlow((state) => state.postComment);
   const postReviewComment = readOnly ? undefined : postComment;
   // Wait-shaped reason every Post is blocked right now (submit in flight).
@@ -153,9 +147,7 @@ export function DiffTable({
   // Instance-scoped id for the read-only reason the disabled rows point at
   // (declared before the no-diff early return — hooks order).
   const composerDisabledReasonId = `${useId()}-composer-disabled`;
-  // Expansion for the live threads rendered under rows (visible state,
-  // local to this table instance) — declared with the other hooks, before
-  // the no-diff early return.
+  // Declared with the other hooks, before the no-diff early return.
   const [expandedConversation, setExpandedConversation] = useState<
     ReadonlySet<number>
   >(new Set());
@@ -326,7 +318,7 @@ export function DiffTable({
                       if (composerDisabledReason !== undefined) return;
                       // Range anchoring starts from the line-number gutter
                       // only — a mousedown on the code cell stays native so
-                      // the code text is selectable (BRIEF-14).
+                      // the code text is selectable.
                       if (
                         !(event.target instanceof Element) ||
                         event.target.closest("[data-line-number]") === null
@@ -353,8 +345,8 @@ export function DiffTable({
                       }
                       // Plain mouseup: composer entry is gutter-only — the
                       // code column is reserved for text selection, so a
-                      // double-click word-select never pops the composer
-                      // (BRIEF-14). Keyboard entry stays row-level (Enter).
+                      // double-click word-select never pops the composer.
+                      // Keyboard entry stays row-level (Enter).
                       if (
                         !(event.target instanceof Element) ||
                         event.target.closest("[data-line-number]") === null

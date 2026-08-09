@@ -11,11 +11,10 @@ export interface SummarySectionProps {
 }
 
 /**
- * The Brief's summary block: single-column text (BRIEF-104 retired the
- * BRIEF-4 two-column changelog split — an optional "## Changelog" renders as
- * plain markdown), plus the original-PR-description disclosure. The attribute
- * jump-rail is the single risk-surface summary (ADR 0032 #11) — this section
- * carries no risk chip lane of its own.
+ * The Brief's summary block: single-column text (an optional "## Changelog"
+ * renders as plain markdown, never a second column), plus the
+ * original-PR-description disclosure. The attribute jump-rail is the single
+ * risk-surface summary — this section carries no risk chip lane of its own.
  */
 export function SummarySection({ brief }: SummarySectionProps) {
   const [descriptionOpen, setDescriptionOpen] = useState(false);
@@ -33,8 +32,8 @@ export function SummarySection({ brief }: SummarySectionProps) {
           {brief.artifactKind === "delta" ? (
             <DeltaContext brief={brief} />
           ) : null}
-          {/* Nested inside the cap (BRIEF-134): the disclosure is part of the
-              summary content, and focusing it expands the cap around it. */}
+          {/* Nested inside the cap: the disclosure is part of the summary
+              content, and focusing it expands the cap around it. */}
           <button
             className={styles["descriptionToggle"]}
             data-testid="pr-description-toggle"

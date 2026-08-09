@@ -21,80 +21,80 @@ export type {
 
 export interface BriefViewProps {
   /**
-   * Live webhook-maintained PR state (DB route, BRIEF-103): the header's
-   * state badge prefers it over the artifact's stamped snapshot. Absent on
-   * the local file path.
+   * Live webhook-maintained PR state (DB route): the header's state badge
+   * prefers it over the artifact's stamped snapshot. Absent on the local file
+   * path.
    */
   livePrState?: LivePrState | undefined;
   artifacts: LocalBriefSummary[];
   briefId: string;
-  /** Raw View/Compare URL params (ADR 0024 plan step 6); undefined keys mean
-   * "nothing chosen yet", resolved against comparison availability in BriefScreen's comparison overlay hook. */
+  /** Raw View/Compare URL params; undefined keys mean "nothing chosen yet",
+   * resolved against comparison availability in BriefScreen's comparison
+   * overlay hook. */
   searchParams: BriefSearchParams;
   /** The already-fetched Brief to render (DB path: assembled client-side). */
   brief: Brief;
   comparisonPlan?: BriefComparisonPlan;
   /**
-   * The DB route's submit transport (BRIEF-23). Absent on the local file
-   * path — no GitHub identity there, Submit keeps its demo behavior.
+   * The DB route's submit transport. Absent on the local file path — no
+   * GitHub identity there, Submit keeps its demo behavior.
    */
   submitReview?: SubmitReviewAction;
   /**
-   * The DB route's live-conversation plan (BRIEF-25). Absent on the local
-   * file path — no conversation section there.
+   * The DB route's live-conversation plan. Absent on the local file path —
+   * no conversation section there.
    */
   conversation?: ConversationPlan;
   /**
-   * Hard read-only posture (BRIEF-24, ADR 0019 #6 as amended by BRIEF-127:
-   * base drift only): the comment composer and Submit disable with this
-   * reason — the rendered diff's base is not the PR's, so anchors can land
-   * wrong or nowhere. Absent → the span is writable.
+   * Hard read-only posture on base drift: the comment composer and Submit
+   * disable with this reason — the rendered diff's base is not the PR's, so
+   * anchors can land wrong or nowhere. Absent → the span is writable.
    */
   readOnly?: { reason: string } | undefined;
   /**
-   * The rendered span's head is not the PR head (BRIEF-127): writable, but
-   * batch Submit requires the explicit ack in the SubmitModal.
+   * The rendered span's head is not the PR head: writable, but batch Submit
+   * requires the explicit ack in the SubmitModal.
    */
   staleHead?: boolean | undefined;
   /**
-   * Opens the delta lens (BRIEF-102 since-marker link). Route-owned and
-   * stable; absent where no navigation is wired (the local demo path).
+   * Opens the delta lens from the since-marker link. Route-owned and stable;
+   * absent where no navigation is wired (the local demo path).
    */
   openDeltaLens?: (() => void) | undefined;
   /**
-   * Navigates the URL Scope axis back to `full` (BRIEF-134): the IntentBar's
-   * jumps route through this from Changes scope. Route-owned; absent where
-   * no navigation is wired.
+   * Navigates the URL Scope axis back to `full`: the IntentBar's jumps route
+   * through this from Changes scope. Route-owned; absent where no navigation
+   * is wired.
    */
   exitChangesScope?: (() => void) | undefined;
   /**
-   * The `?thread=` landing target (BRIEF-24 reads it): opens the conversation
-   * section and lands on that thread. Absent → no auto-open.
+   * The `?thread=` landing target: opens the conversation section and lands
+   * on that thread. Absent → no auto-open.
    */
   conversationFocusThreadId?: number | undefined;
-  /** Reviewer/verdict filter (BRIEF-99), carried in the URL by the route. */
+  /** Reviewer/verdict filter, carried in the URL by the route. */
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
   /**
    * The DB route's unified revision/compare controls, rendered in the sticky
-   * header's control slot (BRIEF-24 UX pass). Absent on the local path.
+   * header's control slot. Absent on the local path.
    */
   headerControls?: ReactNode | undefined;
-  /** Own-draft state plan (BRIEF-43); absent on every plain reviewer view. */
+  /** Own-draft state plan; absent on every plain reviewer view. */
   ownDraft?: OwnDraftPlan | undefined;
   /**
-   * Repo-config snapshot for this span (BRIEF-52): attribute source markers,
-   * de-emphasis weights, floor co-fire. Absent/null = render as if no repo
-   * config exists (local path, pre-BRIEF-52 rows, failed context fetch).
+   * Repo-config snapshot for this span: attribute source markers, de-emphasis
+   * weights, floor co-fire. Absent/null = render as if no repo config exists
+   * (local path, legacy rows, failed context fetch).
    */
   repoConfig?: RepoConfigContext | null | undefined;
 }
 
 /**
- * Source-agnostic review screen (BRIEF-19 PR 3.2): the caller supplies the
- * Brief — local file store or the DB read API. `briefId` keys the per-brief
- * Mind-Map session store; `artifacts` feeds the LOCAL timeline/comparisons
- * and may be empty (every comparison affordance then self-disables).
+ * Source-agnostic review screen: the caller supplies the Brief — local file
+ * store or the DB read API. `briefId` keys the per-brief Mind-Map session
+ * store; `artifacts` feeds the LOCAL timeline/comparisons and may be empty
+ * (every comparison affordance then self-disables).
  */
 export function BriefView({
   livePrState,

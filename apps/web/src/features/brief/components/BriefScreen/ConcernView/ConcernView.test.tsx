@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-// Characterization: the Concern view carries the same repo-config display
-// weight as the Story view (BRIEF-52) — source variants and de-emphasis
-// arrive via data-attrs on the chunk rows' chips.
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { parseBrief } from "../../../utils/validation";

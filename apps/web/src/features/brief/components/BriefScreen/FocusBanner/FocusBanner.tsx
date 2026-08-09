@@ -14,12 +14,10 @@ export interface FocusBannerProps {
 }
 
 /**
- * Focus mode (Z) strips the page chrome and centers a single chunk in a
- * narrow reading column — the visible payoff of "focus". The banner is a
- * sibling of <main> (not inside it) so it is a true full-bleed strip like
- * the top bar; sticky chunk headers stack below it via the measured
- * --focus-banner-h. data-focus-banner sits on the strip: focusScrollOffset()
- * must measure it whole, padding included.
+ * The banner must render as a sibling of <main>, not inside it, to be a true
+ * full-bleed strip; sticky chunk headers stack below it via the measured
+ * --focus-banner-h. `data-focus-banner` sits on the outer strip because
+ * focusScrollOffset() must measure it whole, padding included.
  */
 export function FocusBanner({
   activeChunkId,

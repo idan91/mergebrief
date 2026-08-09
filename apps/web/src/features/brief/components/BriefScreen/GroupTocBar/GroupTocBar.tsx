@@ -10,7 +10,7 @@ export interface GroupTocBarProps {
   groups: GroupView[];
   activeGroupId: string | null;
   jumpToGroup: (groupId: string) => void;
-  /** Groups carrying live conversation threads (BRIEF-25 markers). */
+  /** Groups carrying live conversation threads. */
   conversationGroupIds?: ReadonlySet<string> | undefined;
 }
 
@@ -33,7 +33,7 @@ function magnitudeAt(distance: number): number {
  * Right-edge table-of-contents bar for the Story view: one line per
  * Change-group. The active (in-viewport) group stays lit; hovering feathers the
  * nearby lines and surfaces the group's name in a callout. Navigation only —
- * line length is uniform and encodes nothing (see plan: no LoC-as-verdict).
+ * line length is uniform and encodes nothing.
  */
 export function GroupTocBar({
   groups,
@@ -73,7 +73,7 @@ export function GroupTocBar({
     frameRef.current = window.requestAnimationFrame(() => {
       frameRef.current = null;
       // Checked inside the rAF gate: once per frame, not once per raw
-      // pointer-move event (perf review).
+      // pointer-move event.
       if (prefersReducedMotion()) return;
       setMagFromPointer(pointerY);
     });

@@ -1,11 +1,7 @@
-// The BRIEF-24 raw span diff toggle (locked decision #7): inside the Changes
-// Only pane, a switch that swaps the netted-out comparison summary for the
-// GitHub-style raw diff of the SAME span (compare baseline → selected head).
-// The diff renders through the existing pipeline — `buildRawSpanDiffChunks`
-// (parseUnifiedDiffPatch) feeding `DiffTable` in read-only mode. FE-only and
-// ephemeral: the parent keys this component by the span descriptor, so
-// switching compare lens or revision remounts it and resets the toggle to off
-// (the summary). The whole-PR diff is fetched lazily — only once toggled on.
+// Inside the Changes Only pane, a switch that swaps the netted-out comparison
+// summary for the raw diff of the SAME span. The toggle is ephemeral: the
+// parent keys this component by the span descriptor, so switching compare lens
+// or revision resets it to off. The whole-PR diff is fetched lazily.
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 
@@ -23,14 +19,12 @@ export interface RawSpanDiffProps {
   children: ReactNode;
 }
 
-// The raw diff is a comparison lens, not the Brief's own chunks: its rows carry
-// no meaningful comment anchors, so `DiffTable` is always read-only here (the
-// reason keeps the disabled rows keyboard-discoverable — BRIEF-23 pattern).
+// The raw diff's rows carry no meaningful comment anchors, so `DiffTable` is
+// always read-only here; the reason keeps disabled rows keyboard-discoverable.
 const READ_ONLY_REASON =
   "This is the raw diff for the comparison — comment from the brief itself.";
-// Shared inert singletons: a read-only table paints no overlay and no comments,
-// so these never mutate — hoisted so every file's table shares one identity
-// (no per-render allocation; perf review).
+// A read-only table paints no overlay, so this never mutates — hoisted so
+// every file's table shares one identity.
 const EMPTY_COMPARISON_VIEW: ChunkComparisonView = {
   marks: new Map(),
   runs: [],
@@ -55,18 +49,15 @@ interface RawSpanDiffState {
 function useRawSpanDiff(query: ComparisonQuery<string>): RawSpanDiffState {
   const [showRaw, setShowRaw] = useState(false);
   // The toggle GATES the descriptor's own `enabled`, never overrides it: a
-  // descriptor disabled to guard an unavailable span must stay unfetched even
-  // when the reviewer opens the raw view (codex round 1) — the body then
-  // degrades to the not-viewable copy.
+  // descriptor guarding an unavailable span stays unfetched even when the
+  // reviewer opens the raw view.
   const guarded = query.enabled === false;
   const diff = useQuery({
     ...query,
     enabled: showRaw && !guarded,
   });
-  // A guarded descriptor must also veto CACHED data: `enabled: false` only
-  // blocks fetching — react-query still serves a previously-cached body for
-  // the same key, which would render a span the descriptor says is
-  // unavailable (codex round 4). The guard wins over the cache.
+  // `enabled: false` only blocks fetching — react-query still serves a cached
+  // body for the same key, so the guard has to veto the cache too.
   const body = guarded ? undefined : diff.data;
   const chunks = useMemo(
     () => (body === undefined ? [] : buildRawSpanDiffChunks(body)),
@@ -88,7 +79,7 @@ export function RawSpanDiff({ query, children }: RawSpanDiffProps) {
     <div className={styles["wrap"]}>
       <div className={styles["toolbar"]}>
         {/* Toggle-button contract: the accessible NAME stays stable across
-            presses; only aria-pressed flips (codex round 1). */}
+            presses; only aria-pressed flips. */}
         <button
           aria-pressed={raw.showRaw}
           className={styles["toggle"]}
@@ -115,10 +106,8 @@ function RawSpanDiffBody({ state }: RawSpanDiffBodyProps) {
       </p>
     );
   }
-  // A SUCCESSFUL fetch with no per-file chunks is a legitimate no-change span
-  // (identical content at base and head — e.g. every edit netted out): say so
-  // honestly instead of the failure copy (codex round 2). "Not viewable"
-  // stays for error AND for a descriptor that disabled itself (never fetched).
+  // A SUCCESSFUL fetch with no per-file chunks is a legitimate no-change span,
+  // not a failure; "not viewable" stays for errors and guarded descriptors.
   if (state.isSuccess && state.chunks.length === 0) {
     return (
       <p className={styles["meta"]} role="status">

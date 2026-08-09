@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-// The ticket-gated intent bar (BRIEF-54): always-visible neutral header,
-// body collapsed by default and never auto-expanding, quotes text-only,
-// sourceUrl scheme-sanitized, groupIds reuse the group-jump machinery.
 import { act, createRef } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -208,7 +205,7 @@ describe("IntentBar", () => {
     expect(container.querySelector("strong")).toBeNull();
   });
 
-  it("exposes an imperative expand+scroll handle for the mark-ready jump (PR 4)", () => {
+  it("exposes an imperative expand+scroll handle for the mark-ready jump", () => {
     const ref = createRef<IntentBarHandle>();
     const scrollIntoView = vi.fn();
     Element.prototype.scrollIntoView = scrollIntoView;
@@ -238,7 +235,7 @@ function bodyText(): string {
   return panel?.textContent ?? "";
 }
 
-describe("IntentBar — BRIEF-85 alarm buckets", () => {
+describe("IntentBar — alarm buckets", () => {
   const WITH_ALARMS: IntentCheck = {
     ...PRECISE,
     deviations: [item("drops the cache the ticket asked to keep")],
@@ -320,10 +317,10 @@ describe("IntentBar — BRIEF-85 alarm buckets", () => {
     expect(screen.queryByText("1 deviations")).toBeNull();
   });
 
-  it("renders a pre-BRIEF-85 brief (no alarm items) byte-identically to the old bar", () => {
-    // The whole back-compat promise in one assertion: an intent check whose
-    // alarm arrays are empty must produce exactly the markup it produced
-    // before the buckets existed — no stray glyph, caution, chip, or heading.
+  it("renders a brief with no alarm items byte-identically to the old bar", () => {
+    // An intent check whose alarm arrays are empty must produce exactly the
+    // markup it produced before the buckets existed — no stray glyph,
+    // caution, chip, or heading.
     const { container } = render(
       <IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />,
     );
