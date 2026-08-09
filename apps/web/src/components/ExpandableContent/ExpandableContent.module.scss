@@ -3,7 +3,7 @@
 
 @layer components {
   .root {
-    --prose-cap: #{functions.to-rem(200px)};
+    --expandable-content-text-cap: #{functions.to-rem(200px)};
 
     // Collapsing scrolls the block back into view; without this it lands
     // under the sticky header.
@@ -12,7 +12,7 @@
     );
 
     @media (width >= 1440px) {
-      --prose-cap: #{functions.to-rem(280px)};
+      --expandable-content-text-cap: #{functions.to-rem(280px)};
     }
   }
 
@@ -26,7 +26,7 @@
   }
 
   .root[data-state="collapsed"] .body {
-    max-block-size: var(--prose-cap);
+    max-block-size: var(--expandable-content-text-cap);
 
     // The fade rides the CONTENT, never a surface-colored overlay: the block
     // sits on more than one background and an overlay would paint the wrong
@@ -37,7 +37,7 @@
   .root[data-state="expanded"] .body {
     // A measured height rather than `none`, so the transition has a target in
     // both directions; the ResizeObserver keeps the value current.
-    max-block-size: var(--prose-full, none);
+    max-block-size: var(--expandable-content-text-full, none);
   }
 
   .toggle {

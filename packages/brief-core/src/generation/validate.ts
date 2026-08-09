@@ -5,11 +5,11 @@ import {
 } from "./repo-context";
 import type { RevisionChangeFile } from "../diff/revchanges";
 import {
-  ProseSurfaces,
+  TextSurfaces,
   RiskSurfaceAttributes,
   type ChangeGroup,
   type LengthViolation,
-  type ProseSurface,
+  type TextSurface,
   type Chunk,
   type IntentBucket,
   type IntentCheck,
@@ -944,7 +944,7 @@ export function validateNarrativeMarksOverlap(
  * artifact); the PR lede/changelog deliberately stays out — its BRIEF-104
  * caps are prompt-enforced and were not the observed gap.
  */
-export const PROSE_LENGTH_CAPS: Record<ProseSurface, number> = {
+export const TEXT_LENGTH_CAPS: Record<TextSurface, number> = {
   "group-title": 150,
   "group-summary": 250,
   "narrative-overview": 250,
@@ -952,14 +952,14 @@ export const PROSE_LENGTH_CAPS: Record<ProseSurface, number> = {
   "risk-note": 200,
 };
 
-function checkProseLength(
-  surface: ProseSurface,
+function checkTextLength(
+  surface: TextSurface,
   field: string,
   text: string,
   violations: LengthViolation[],
   issues: string[],
 ): void {
-  const cap = PROSE_LENGTH_CAPS[surface];
+  const cap = TEXT_LENGTH_CAPS[surface];
   if (text.length <= cap) return;
   violations.push({ surface, field, actual: text.length, cap });
   issues.push(`${field} is ${text.length} chars — exceeds the ${cap}-char cap`);
@@ -973,22 +973,22 @@ function checkProseLength(
  * `maxLength` (grammar budget + decode hard-fail + cross-model strictness).
  * The prompt carries the caps; this is the floor that measures compliance.
  */
-export function validateProseLength(
+export function validateTextLength(
   groups: Pick<ChangeGroup, "id" | "title" | "summary">[],
   chunks: Pick<Chunk, "id" | "riskNotes">[],
 ): { violations: LengthViolation[]; issues: string[] } {
   const violations: LengthViolation[] = [];
   const issues: string[] = [];
   for (const group of groups) {
-    checkProseLength(
-      ProseSurfaces.GROUP_TITLE,
+    checkTextLength(
+      TextSurfaces.GROUP_TITLE,
       `group ${group.id} title`,
       group.title,
       violations,
       issues,
     );
-    checkProseLength(
-      ProseSurfaces.GROUP_SUMMARY,
+    checkTextLength(
+      TextSurfaces.GROUP_SUMMARY,
       `group ${group.id} summary`,
       group.summary,
       violations,
@@ -997,8 +997,8 @@ export function validateProseLength(
   }
   for (const chunk of chunks) {
     for (const note of chunk.riskNotes ?? []) {
-      checkProseLength(
-        ProseSurfaces.RISK_NOTE,
+      checkTextLength(
+        TextSurfaces.RISK_NOTE,
         `chunk ${chunk.id} riskNotes[${note.attr}]`,
         note.note,
         violations,
@@ -1009,23 +1009,23 @@ export function validateProseLength(
   return { violations, issues };
 }
 
-/** The revision-narrative side of `validateProseLength` (BRIEF-148). */
-export function validateNarrativeProseLength(
+/** The revision-narrative side of `validateTextLength` (BRIEF-148). */
+export function validateNarrativeTextLength(
   overview: string,
   chunks: Pick<RevisionNarrativeChunk, "id" | "summary">[],
 ): { violations: LengthViolation[]; issues: string[] } {
   const violations: LengthViolation[] = [];
   const issues: string[] = [];
-  checkProseLength(
-    ProseSurfaces.NARRATIVE_OVERVIEW,
+  checkTextLength(
+    TextSurfaces.NARRATIVE_OVERVIEW,
     "narrative overview",
     overview,
     violations,
     issues,
   );
   for (const chunk of chunks) {
-    checkProseLength(
-      ProseSurfaces.NARRATIVE_CHUNK_SUMMARY,
+    checkTextLength(
+      TextSurfaces.NARRATIVE_CHUNK_SUMMARY,
       `narrative chunk ${chunk.id} summary`,
       chunk.summary,
       violations,

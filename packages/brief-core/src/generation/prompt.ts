@@ -12,11 +12,11 @@ import { REPO_INSTRUCTION_CLASSES, type RepoContext } from "./repo-context";
 /**
  * System prompt builder. The closed vocabularies are interpolated from
  * `types.ts` so the prompt can never drift from the schema the model must
- * satisfy. Glosses mirror `docs/mvp/labeling-schema.md` and
+ * satisfy. Descriptions mirror `docs/mvp/labeling-schema.md` and
  * `docs/mvp/risk-surface.md`.
  */
 
-const CATEGORY_GLOSS: Record<Category, string> = {
+const CATEGORY_DESCRIPTIONS: Record<Category, string> = {
   bugfix: "correct a defect in existing behavior",
   "logic-refactor": "behavior-preserving restructure of logic",
   "move-with-edits": "relocation of code with edits inside the move",
@@ -27,7 +27,7 @@ const CATEGORY_GLOSS: Record<Category, string> = {
   "schema-change": "data-model / migration change",
 };
 
-const CONCERN_GLOSS: Record<Concern, string> = {
+const CONCERN_DESCRIPTIONS: Record<Concern, string> = {
   implementation: "the functional change itself (default role: carrier)",
   test: "tests, fixtures (incl. .test.* / .spec.* files) — supporting",
   doc: "docs, READMEs, changesets, doc-only files — supporting",
@@ -36,7 +36,7 @@ const CONCERN_GLOSS: Record<Concern, string> = {
   generated: "generated / vendored output (lockfiles, bundles) — supporting",
 };
 
-const RISK_GLOSS: Record<RiskSurfaceAttribute, string> = {
+const RISK_DESCRIPTIONS: Record<RiskSurfaceAttribute, string> = {
   // about the CODE
   "no-tests": "the changed code path has no test coverage in the repo",
   "no-types": "lacks type annotations / heavily any-typed / dynamically typed",
@@ -96,9 +96,9 @@ const LINE_RANGE_COMPUTE = `Compute absolute line numbers from each hunk header 
 
 function bullets<T extends string>(
   tokens: readonly T[],
-  gloss: Record<T, string>,
+  descriptions: Record<T, string>,
 ): string {
-  return tokens.map((t) => `- \`${t}\`: ${gloss[t]}`).join("\n");
+  return tokens.map((t) => `- \`${t}\`: ${descriptions[t]}`).join("\n");
 }
 
 function lines(items: readonly string[]): string {
@@ -219,13 +219,13 @@ The "Linked context" section, when present, holds text the script fetched from U
 
 ## Category — the intent of a change-group (pick ONE dominant)
 
-${bullets(Categories, CATEGORY_GLOSS)}
+${bullets(Categories, CATEGORY_DESCRIPTIONS)}
 
 Not categories (common mistakes): test-only, config-only, generated-code — those are **concerns**, not intents.
 
 ## Concern — the artifact kind of a chunk (mostly derivable from file path)
 
-${bullets(Concerns, CONCERN_GLOSS)}
+${bullets(Concerns, CONCERN_DESCRIPTIONS)}
 
 ## Role — carrier vs supporting (per chunk)
 
@@ -240,7 +240,7 @@ ${STYLE_FILES_CARRIER_RULE}
 
 Severity is NOT your job — it emerges later from combinations. Attach an attribute only when the diff or repo context supports it. **Be consistent with your own prose: if you note a risk in the summary (a changed contract with existing consumers → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it — never describe a risk in prose without flagging it on a chunk.**
 
-${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
+${bullets(RiskSurfaceAttributes, RISK_DESCRIPTIONS)}
 
 Firing discipline for the observational trio (all three are about the change itself — never about who or what authored it):
 
@@ -350,11 +350,11 @@ You may describe how the follow-up addresses the **supplied** review comments. B
 
 ## Category — the intent of a change-group (pick ONE dominant)
 
-${bullets(Categories, CATEGORY_GLOSS)}
+${bullets(Categories, CATEGORY_DESCRIPTIONS)}
 
 ## Concern — the artifact kind of a chunk
 
-${bullets(Concerns, CONCERN_GLOSS)}
+${bullets(Concerns, CONCERN_DESCRIPTIONS)}
 
 ## Role — carrier vs supporting (per chunk)
 
@@ -366,7 +366,7 @@ ${STYLE_FILES_CARRIER_RULE}
 
 Attach an attribute only when the incremental diff supports it — and **be consistent with your own prose: if you note a risk in the summary or \`wholePrImpact\` (a changed contract with existing consumers → \`cross-service\`, a weakened check → \`removes-validation\`, an auth touch → \`touches-auth\`, etc.), attach the matching attribute to the chunk that causes it. Never describe a risk without flagging it on a chunk.**
 
-${bullets(RiskSurfaceAttributes, RISK_GLOSS)}
+${bullets(RiskSurfaceAttributes, RISK_DESCRIPTIONS)}
 
 Firing discipline for the observational trio (about the change itself — never about who or what authored it): \`new-dependency\` fires only when a manifest gains a new direct dependency (a version-only bump is the \`lib-bump\` / \`dependency-update\` Category, not this attribute); \`new-abstraction\` fires on the *existence* of a new named abstraction only, never on relocations (\`pure-move\` / \`move-with-edits\`); \`comment-contradicts-code\` fires only when BOTH the comment and the code are visible in the incremental diff — else stay silent. \`removes-validation\` fires only when the diff deletes or rewrites an existing check — a chunk that only ADDS lines almost never qualifies.
 
@@ -427,7 +427,7 @@ The PR's title, description, and linked context; the previous head SHA and curre
 
 ## Categories (context only — already assigned on the full Brief; you never assign one)
 
-${bullets(Categories, CATEGORY_GLOSS)}
+${bullets(Categories, CATEGORY_DESCRIPTIONS)}
 
 ## Chunk granularity
 

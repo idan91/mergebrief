@@ -69,25 +69,25 @@ describe("single-column render (BRIEF-104: split retired)", () => {
       commentsAddressed: "Addressed the retry-count comment.",
     };
     render(<SummarySection brief={deltaBrief} />);
-    const prose = screen.getByTestId("summary-prose");
+    const summaryText = screen.getByTestId("summary-text");
     const commentsEyebrow = screen.getByText("Comments addressed");
-    expect(prose.contains(commentsEyebrow)).toBe(true);
+    expect(summaryText.contains(commentsEyebrow)).toBe(true);
     expect(screen.getByText("Delta brief")).toBeTruthy();
   });
 });
 
-describe("SummarySection capped-prose adoption", () => {
+describe("SummarySection expandable-content adoption", () => {
   it("nests the description toggle inside the capped body", () => {
     render(<SummarySection brief={briefFixture} />);
-    const prose = screen.getByTestId("summary-prose");
+    const summaryText = screen.getByTestId("summary-text");
     const toggle = screen.getByTestId("pr-description-toggle");
-    expect(prose.contains(toggle)).toBe(true);
+    expect(summaryText.contains(toggle)).toBe(true);
   });
 
   it("never auto-opens the description when the summary expands", () => {
     render(<SummarySection brief={briefFixture} />);
     expect(screen.queryByTestId("pr-description")).toBeNull();
-    fireEvent.click(screen.getByTestId("summary-prose-toggle"));
+    fireEvent.click(screen.getByTestId("summary-text-toggle"));
     expect(screen.queryByTestId("pr-description")).toBeNull();
   });
 

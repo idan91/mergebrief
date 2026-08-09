@@ -10,14 +10,14 @@ import {
 import styles from "./ExpandableContent.module.scss";
 import { exceedsCap, parseCapPx } from "./utils";
 
-/** Used only where the stylesheet's `--prose-cap` cannot be resolved. */
+/** Used only where the stylesheet's `--expandable-content-text-cap` cannot be resolved. */
 const CAP_FALLBACK_PX = 200;
 const ROOT_FONT_SIZE_FALLBACK_PX = 16;
 
 // csstype's CSSProperties has no `--*` index; a typed extension (the
 // DiffTable/Header pattern) keeps the custom property cast-free.
 interface ExpandableContentStyle extends CSSProperties {
-  "--prose-full"?: string;
+  "--expandable-content-text-full"?: string;
 }
 
 export interface ExpandableContentProps {
@@ -30,7 +30,7 @@ export interface ExpandableContentProps {
 }
 
 /**
- * Text clipped to `--prose-cap` with a mask fade, an expand control, and
+ * Text clipped to `--expandable-content-text-cap` with a mask fade, an expand control, and
  * WCAG 2.4.11 focus-expands. The SSR default is `collapsed`, so fitting
  * content corrects to `fits` after hydration by dropping the control only —
  * the clip itself never moves, which is what keeps the correction shift-free.
@@ -40,7 +40,7 @@ export function ExpandableContent({
   expandLabel = "Show full summary",
   collapseLabel = "Collapse summary",
   className,
-  testId = "capped-prose",
+  testId = "expandable-content",
 }: ExpandableContentProps) {
   const [clipped, setClipped] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -63,7 +63,7 @@ export function ExpandableContent({
       );
       const capPx =
         parseCapPx(
-          getComputedStyle(root).getPropertyValue("--prose-cap"),
+          getComputedStyle(root).getPropertyValue("--expandable-content-text-cap"),
           Number.isFinite(rootFontSize)
             ? rootFontSize
             : ROOT_FONT_SIZE_FALLBACK_PX,
@@ -91,7 +91,7 @@ export function ExpandableContent({
   const style: ExpandableContentStyle =
     contentHeightPx === undefined
       ? {}
-      : { "--prose-full": `${Math.ceil(contentHeightPx) + 1}px` };
+      : { "--expandable-content-text-full": `${Math.ceil(contentHeightPx) + 1}px` };
 
   return (
     <div

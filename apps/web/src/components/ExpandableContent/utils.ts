@@ -4,7 +4,7 @@ export const CAP_HYSTERESIS_PX = 8;
 const CAP_PATTERN = /^(-?\d*\.?\d+)(px|rem)$/;
 
 /**
- * Resolves the computed `--prose-cap` token to pixels. An unregistered custom
+ * Resolves the computed `--expandable-content-text-cap` token to pixels. An unregistered custom
  * property's computed value is its specified token, so a rem cap arrives
  * unresolved and has to be scaled by the root font size here.
  */

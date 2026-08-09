@@ -468,7 +468,7 @@ describe("effort threading — delta + narrative (BRIEF-75)", () => {
 
 // --- text length floor (BRIEF-148) — delta + narrative pipelines ------------
 
-describe("prose length floor (BRIEF-148) — delta + narrative pipelines", () => {
+describe("text length floor (BRIEF-148) — delta + narrative pipelines", () => {
   /** FakeGenerator with per-label fixture overrides for over-cap text. */
   class OverridingGenerator extends FakeGenerator {
     constructor(private readonly overrides: Record<string, unknown>) {
@@ -536,7 +536,7 @@ describe("prose length floor (BRIEF-148) — delta + narrative pipelines", () =>
       },
     ]);
     expect(delta.generationWarnings?.join("\n")).toContain(
-      "prose length issues",
+      "text length issues",
     );
   });
 
@@ -558,7 +558,7 @@ describe("prose length floor (BRIEF-148) — delta + narrative pipelines", () =>
       },
     ]);
     expect(narrative.generationWarnings?.join("\n")).toContain(
-      "prose length issues",
+      "text length issues",
     );
   });
 

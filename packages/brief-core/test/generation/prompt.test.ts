@@ -187,7 +187,7 @@ describe("summary succinctness (BRIEF-104)", () => {
   });
 });
 
-describe("prose length caps (BRIEF-148)", () => {
+describe("text length caps (BRIEF-148)", () => {
   it("caps group title and summary in both the full and delta prompts", () => {
     for (const text of [buildSystemPrompt(), buildDeltaSystemPrompt()]) {
       expect(text).toContain("**Group text is scan-length");

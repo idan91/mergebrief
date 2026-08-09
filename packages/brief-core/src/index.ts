@@ -104,9 +104,9 @@ export {
 // Structural validators, exported for post-generation stitching (BRIEF-143):
 // pure warn-issue functions the worker re-runs on a merged artifact.
 export {
-  PROSE_LENGTH_CAPS,
+  TEXT_LENGTH_CAPS,
   validatePartition,
-  validateProseLength,
+  validateTextLength,
   validateReadingOrder,
 } from "./generation/validate";
 // The anchored prompt contract (BRIEF-143 PR 4): the worker builds the
@@ -118,9 +118,9 @@ export {
   Categories,
   Concerns,
   FreshRestartReasons,
-  ProseSurfaces,
+  TextSurfaces,
   type LengthViolation,
-  type ProseSurface,
+  type TextSurface,
   Roles,
   RiskSurfaceAttributes,
   Specificities,

@@ -9,8 +9,8 @@ import {
   validateReadingOrder,
   validateRiskAttributes,
   validateRepoAttributeTokens,
-  validateProseLength,
-  validateNarrativeProseLength,
+  validateTextLength,
+  validateNarrativeTextLength,
 } from "../../src/generation/validate";
 import type { Chunk, RiskSurfaceAttribute } from "../../src/types";
 
@@ -1323,9 +1323,9 @@ const group = (id: string, title: string, summary: string) => ({
   summary,
 });
 
-describe("validateProseLength (BRIEF-148 — warn-only length floor)", () => {
+describe("validateTextLength (BRIEF-148 — warn-only length floor)", () => {
   it("passes text at or under every cap with no violations", () => {
-    const { violations, issues } = validateProseLength(
+    const { violations, issues } = validateTextLength(
       [group("g1", "a".repeat(150), "b".repeat(250))],
       [
         {
@@ -1339,7 +1339,7 @@ describe("validateProseLength (BRIEF-148 — warn-only length floor)", () => {
   });
 
   it("flags an over-cap group title and summary with structured violations", () => {
-    const { violations, issues } = validateProseLength(
+    const { violations, issues } = validateTextLength(
       [group("g2", "t".repeat(151), "s".repeat(251))],
       [],
     );
@@ -1363,7 +1363,7 @@ describe("validateProseLength (BRIEF-148 — warn-only length floor)", () => {
   });
 
   it("flags an over-cap riskNotes note per attribute and skips absent riskNotes", () => {
-    const { violations } = validateProseLength(
+    const { violations } = validateTextLength(
       [],
       [
         { id: "c1" },
@@ -1387,9 +1387,9 @@ describe("validateProseLength (BRIEF-148 — warn-only length floor)", () => {
   });
 });
 
-describe("validateNarrativeProseLength (BRIEF-148)", () => {
+describe("validateNarrativeTextLength (BRIEF-148)", () => {
   it("flags an over-cap overview and chunk summary, passes compliant ones", () => {
-    const { violations, issues } = validateNarrativeProseLength(
+    const { violations, issues } = validateNarrativeTextLength(
       "o".repeat(251),
       [
         { id: "rc1", summary: "fine" },
@@ -1414,7 +1414,7 @@ describe("validateNarrativeProseLength (BRIEF-148)", () => {
   });
 
   it("is silent when everything fits", () => {
-    const { violations, issues } = validateNarrativeProseLength("short", [
+    const { violations, issues } = validateNarrativeTextLength("short", [
       { id: "rc1", summary: "also short" },
     ]);
     expect(violations).toEqual([]);

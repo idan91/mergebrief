@@ -32,9 +32,9 @@ import {
   validateMarksNarrativeCoverage,
   validateNarrativeGroups,
   validateNarrativeMarksOverlap,
-  validateNarrativeProseLength,
+  validateNarrativeTextLength,
   validatePartition,
-  validateProseLength,
+  validateTextLength,
   validateReadingOrder,
   validateRepoAttributeTokens,
   validateRiskAttributes,
@@ -308,8 +308,8 @@ export async function categorize(
 
   // Warn-only length floor (BRIEF-148): the prompt carries the caps; this
   // measures compliance and stamps the structured violations for the FE.
-  const prose = validateProseLength(generated.changeGroups, trio.chunks);
-  warnIssues(prose.issues, collector.log, "prose length");
+  const textLength = validateTextLength(generated.changeGroups, trio.chunks);
+  warnIssues(textLength.issues, collector.log, "text length");
 
   const partial = {
     ...rest,
@@ -329,8 +329,8 @@ export async function categorize(
   const brief: Brief = {
     ...partial,
     ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
-    ...(prose.violations.length > 0
-      ? { lengthViolations: prose.violations }
+    ...(textLength.violations.length > 0
+      ? { lengthViolations: textLength.violations }
       : {}),
   };
   return brief;
@@ -463,8 +463,8 @@ export async function categorizeDelta(
   warnIssues(trio.issues, collector.log, "risk attrs");
 
   // Warn-only length floor (BRIEF-148), same posture as the full brief.
-  const prose = validateProseLength(generated.changedGroups, trio.chunks);
-  warnIssues(prose.issues, collector.log, "prose length");
+  const textLength = validateTextLength(generated.changedGroups, trio.chunks);
+  warnIssues(textLength.issues, collector.log, "text length");
 
   const partial = {
     ...generated,
@@ -484,8 +484,8 @@ export async function categorizeDelta(
   const delta: DeltaBrief = {
     ...partial,
     ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
-    ...(prose.violations.length > 0
-      ? { lengthViolations: prose.violations }
+    ...(textLength.violations.length > 0
+      ? { lengthViolations: textLength.violations }
       : {}),
   };
   return delta;
@@ -620,17 +620,17 @@ export async function categorizeRevisionNarrative(
     );
   }
   // Warn-only length floor (BRIEF-148): overview + hover-callout summaries.
-  const prose = validateNarrativeProseLength(
+  const textLength = validateNarrativeTextLength(
     generated.overview,
     generated.chunks,
   );
-  warnIssues(prose.issues, collector.log, "prose length");
+  warnIssues(textLength.issues, collector.log, "text length");
   const warnings = collector.warnings();
   const narrative: RevisionNarrative = {
     artifactKind: "revisionNarrative",
     ...generated,
-    ...(prose.violations.length > 0
-      ? { lengthViolations: prose.violations }
+    ...(textLength.violations.length > 0
+      ? { lengthViolations: textLength.violations }
       : {}),
     pr: buildPrRef(input.locator, input.meta, input.headSha),
     prevHeadSha: input.prevHeadSha,

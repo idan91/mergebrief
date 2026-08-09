@@ -282,7 +282,7 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
           <ExpandableContent
             collapseLabel="Collapse intent check"
             expandLabel="Show full intent check"
-            testId="intent-prose"
+            testId="intent-text"
           >
             <p className={styles["framing"]}>
               This is the AI&rsquo;s fallible read of the PR&rsquo;s stated

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The capped-prose state machine (BRIEF-134): SSR-collapsed, corrected to
+// The expandable-content state machine (BRIEF-134): SSR-collapsed, corrected to
 // `fits` post-hydration, focus-expands inside the clipped body.
 import { act } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
@@ -62,13 +62,13 @@ afterEach(() => {
 });
 
 function state(): string | null {
-  return screen.getByTestId("capped-prose").getAttribute("data-state");
+  return screen.getByTestId("expandable-content").getAttribute("data-state");
 }
 
-function renderProse(props: { expandLabel?: string } = {}) {
+function renderText(props: { expandLabel?: string } = {}) {
   return render(
     <ExpandableContent expandLabel={props.expandLabel}>
-      <p>Summary prose</p>
+      <p>Summary text</p>
     </ExpandableContent>,
   );
 }
@@ -76,7 +76,7 @@ function renderProse(props: { expandLabel?: string } = {}) {
 describe("ExpandableContent", () => {
   it("clips over-cap content and offers the expand control", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
-    renderProse();
+    renderText();
 
     expect(state()).toBe("collapsed");
     const toggle = screen.getByRole("button", { name: "Show full summary" });
@@ -85,21 +85,21 @@ describe("ExpandableContent", () => {
 
   it("corrects to `fits` post-hydration when the content is short", () => {
     contentHeight = CAP_FALLBACK_PX - 40;
-    renderProse();
+    renderText();
 
     expect(state()).toBe("fits");
   });
 
   it("treats content inside the hysteresis band as fitting", () => {
     contentHeight = CAP_FALLBACK_PX + 8;
-    renderProse();
+    renderText();
 
     expect(state()).toBe("fits");
   });
 
   it("expands on toggle and swaps to the collapse label", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
-    renderProse();
+    renderText();
 
     const toggle = screen.getByRole("button", { name: "Show full summary" });
     fireEvent.click(toggle);
@@ -114,7 +114,7 @@ describe("ExpandableContent", () => {
 
   it("collapses again on a second toggle", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
-    renderProse();
+    renderText();
 
     fireEvent.click(screen.getByRole("button", { name: "Show full summary" }));
     fireEvent.click(screen.getByRole("button", { name: "Collapse summary" }));
@@ -137,7 +137,7 @@ describe("ExpandableContent", () => {
 
   it("does not expand when focus lands on the toggle itself", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
-    renderProse();
+    renderText();
 
     fireEvent.focus(screen.getByRole("button", { name: "Show full summary" }));
 
@@ -146,7 +146,7 @@ describe("ExpandableContent", () => {
 
   it("re-measures on content resize", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
-    renderProse();
+    renderText();
     expect(state()).toBe("collapsed");
 
     contentHeight = CAP_FALLBACK_PX - 40;
@@ -157,7 +157,7 @@ describe("ExpandableContent", () => {
 
   it("reports `fits` when expanded content shrinks below the cap", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
-    renderProse();
+    renderText();
     fireEvent.click(screen.getByRole("button", { name: "Show full summary" }));
 
     contentHeight = CAP_FALLBACK_PX - 40;
@@ -170,10 +170,10 @@ describe("ExpandableContent", () => {
     // Collapsing removes the content the reader scrolled through, so without
     // this the viewport lands far below where the block now ends.
     contentHeight = CAP_FALLBACK_PX + 400;
-    renderProse();
+    renderText();
     fireEvent.click(screen.getByRole("button", { name: "Show full summary" }));
 
-    const root = screen.getByTestId("capped-prose");
+    const root = screen.getByTestId("expandable-content");
     root.getBoundingClientRect = () => new DOMRect(0, -800, 600, 1000);
     const scrollIntoView = vi.fn();
     root.scrollIntoView = scrollIntoView;
@@ -185,10 +185,10 @@ describe("ExpandableContent", () => {
 
   it("leaves the scroll position alone when the block is already in view", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
-    renderProse();
+    renderText();
     fireEvent.click(screen.getByRole("button", { name: "Show full summary" }));
 
-    const root = screen.getByTestId("capped-prose");
+    const root = screen.getByTestId("expandable-content");
     root.getBoundingClientRect = () => new DOMRect(0, 40, 600, 1000);
     const scrollIntoView = vi.fn();
     root.scrollIntoView = scrollIntoView;
@@ -202,14 +202,14 @@ describe("ExpandableContent", () => {
     // A host that mounts this inside a `hidden` panel measures zero until the
     // panel opens; treating that as `fits` would flash the content uncapped.
     contentHeight = 0;
-    renderProse();
+    renderText();
 
     expect(state()).toBe("collapsed");
   });
 
   it("takes host-supplied toggle copy", () => {
     contentHeight = CAP_FALLBACK_PX + 400;
-    renderProse({ expandLabel: "Show full intent check" });
+    renderText({ expandLabel: "Show full intent check" });
 
     expect(
       screen.getByRole("button", { name: "Show full intent check" }),

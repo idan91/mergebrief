@@ -313,7 +313,7 @@ describe("stitchBrief", () => {
     ]);
   });
 
-  it("recomputes the prose length floor over the MERGED artifact (BRIEF-148)", () => {
+  it("recomputes the text length floor over the MERGED artifact (BRIEF-148)", () => {
     // The CARRIED group's summary is over-cap — categorize() never saw it,
     // so only the merged-artifact recompute can stamp it.
     const verbosePrevious = brief(
@@ -344,7 +344,7 @@ describe("stitchBrief", () => {
           },
         ],
         generationWarnings: [
-          "⚠ prose length issues: group tmpB summary is 999 chars — exceeds the 250-char cap",
+          "⚠ text length issues: group tmpB summary is 999 chars — exceeds the 250-char cap",
           "⚠ risk attrs issues: unrelated line survives",
         ],
       },
@@ -364,7 +364,7 @@ describe("stitchBrief", () => {
     expect(warningText).toContain(
       "anchored stitch: group g1 summary is 300 chars",
     );
-    // categorize()'s tmp-id prose line is filtered; other warnings survive.
+    // categorize()'s tmp-id text-length line is filtered; other warnings survive.
     expect(warningText).not.toContain("tmpB");
     expect(warningText).toContain("risk attrs issues");
   });

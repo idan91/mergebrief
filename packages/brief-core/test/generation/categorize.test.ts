@@ -132,7 +132,7 @@ describe("categorize — PR lifecycle stamping (BRIEF-103)", () => {
   });
 });
 
-describe("categorize — prose length floor (BRIEF-148)", () => {
+describe("categorize — text length floor (BRIEF-148)", () => {
   it("stamps lengthViolations and warns when a group summary exceeds its cap", async () => {
     const verbose = {
       ...twoGroupBriefGen,
@@ -159,7 +159,7 @@ describe("categorize — prose length floor (BRIEF-148)", () => {
       },
     ]);
     expect(brief.generationWarnings?.join("\n")).toContain(
-      "prose length issues",
+      "text length issues",
     );
   });
 
@@ -859,7 +859,7 @@ describe("categorize with repo context — adversarial case", () => {
     expect(schema.safeParse(badToken).success).toBe(false);
   });
 
-  it("prose cannot suppress a built-in attribute mechanically (harness-side floor)", async () => {
+  it("free text cannot suppress a built-in attribute mechanically (harness-side floor)", async () => {
     // The model fired touches-auth despite instructions saying never to —
     // nothing in the pipeline lets text remove it.
     const generator = new CapturingGenerator(

@@ -569,18 +569,18 @@ export const AnchoringDetailSchema = z.object({
 export type AnchoringDetail = z.infer<typeof AnchoringDetailSchema>;
 
 /**
- * Prose surfaces the BRIEF-148 length floor covers. The PR lede/changelog
+ * Text surfaces the BRIEF-148 length floor covers. The PR lede/changelog
  * deliberately stays out — its BRIEF-104 caps are prompt-enforced and were
  * not the observed gap.
  */
-export const ProseSurfaces = {
+export const TextSurfaces = {
   GROUP_TITLE: "group-title",
   GROUP_SUMMARY: "group-summary",
   NARRATIVE_OVERVIEW: "narrative-overview",
   NARRATIVE_CHUNK_SUMMARY: "narrative-chunk-summary",
   RISK_NOTE: "risk-note",
 } as const;
-export type ProseSurface = ValueOf<typeof ProseSurfaces>;
+export type TextSurface = ValueOf<typeof TextSurfaces>;
 
 /**
  * One over-cap text field (BRIEF-148): the structured side of a warn-only
@@ -592,11 +592,11 @@ export type ProseSurface = ValueOf<typeof ProseSurfaces>;
  */
 export const LengthViolationSchema = z.object({
   surface: z.enum([
-    ProseSurfaces.GROUP_TITLE,
-    ProseSurfaces.GROUP_SUMMARY,
-    ProseSurfaces.NARRATIVE_OVERVIEW,
-    ProseSurfaces.NARRATIVE_CHUNK_SUMMARY,
-    ProseSurfaces.RISK_NOTE,
+    TextSurfaces.GROUP_TITLE,
+    TextSurfaces.GROUP_SUMMARY,
+    TextSurfaces.NARRATIVE_OVERVIEW,
+    TextSurfaces.NARRATIVE_CHUNK_SUMMARY,
+    TextSurfaces.RISK_NOTE,
   ]),
   field: z
     .string()

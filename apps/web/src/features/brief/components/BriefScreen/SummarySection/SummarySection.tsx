@@ -27,7 +27,7 @@ export function SummarySection({ brief }: SummarySectionProps) {
       <div className={styles["eyebrow"]}>
         {brief.artifactKind === "delta" ? "Delta brief" : "Brief"}
       </div>
-      <ExpandableContent testId="summary-prose">
+      <ExpandableContent testId="summary-text">
         <div>
           <Markdown content={brief.summary} />
           {brief.artifactKind === "delta" ? (
