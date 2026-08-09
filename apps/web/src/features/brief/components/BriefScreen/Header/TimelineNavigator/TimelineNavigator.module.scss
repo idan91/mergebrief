@@ -2,9 +2,8 @@
 @use "mixins";
 
 @layer components {
-  // One flat row in the header's lens toolbar (BRIEF-28 round 2): arrows +
-  // picker + stepper dots, then the View and Compare lens groups — the same
-  // shape as the DB path's DbBriefControls.
+  // One flat row: arrows + picker + stepper dots, then the View and Compare
+  // lens groups — the same shape as the DB path's DbBriefControls.
   .timeline {
     display: flex;
     flex: 1;
@@ -44,8 +43,8 @@
     }
   }
 
-  // Segmented lens groups: the shared vocabulary (DbCompareBar, the header's
-  // Story/Concerns viewbar) — bordered wrapper, borderless options, tinted
+  // Segmented lens groups, shared with DbCompareBar and the header's
+  // Story/Concerns viewbar: bordered wrapper, borderless options, tinted
   // active state.
   .lens {
     display: flex;

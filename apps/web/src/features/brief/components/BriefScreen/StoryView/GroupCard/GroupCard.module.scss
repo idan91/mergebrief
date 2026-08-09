@@ -455,8 +455,8 @@
 }
 
 @layer components {
-  /* Group-header risk union row (BRIEF-52): compact chip lane under the
-     category row; wraps rather than truncates at narrow widths. */
+  /* Compact chip lane under the category row; wraps rather than truncates
+     at narrow widths. */
   .groupRiskRow {
     display: flex;
     flex-wrap: wrap;
@@ -466,7 +466,7 @@
 }
 
 @layer components {
-  /* De-emphasized flag rows (BRIEF-52): quiet via a dotted inline-start
+  /* De-emphasized flag rows: quiet via a dotted inline-start
      marker — never whole-row opacity, which would drop child text and
      controls below 4.5:1 (WCAG 1.4.3). The visible "De-emphasized by repo
      policy" note carries the state textually. */

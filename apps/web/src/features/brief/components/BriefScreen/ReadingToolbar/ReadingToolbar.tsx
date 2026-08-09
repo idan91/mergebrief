@@ -17,20 +17,18 @@ export interface GroupStepTarget {
 
 export interface ReadingToolbarProps {
   /**
-   * The legality table's toolbar cell (BRIEF-134 `deriveRegionBlocks`):
    * `full` = the Story bar; `filter-and-attrs` = the Concerns bar, which
    * carries Filter + Risk attrs only and targets chunks instead of groups.
    */
   variant: "full" | "filter-and-attrs";
   /**
-   * The conversation filter's data + state (BRIEF-99, re-homed here by
-   * BRIEF-134). Absent (local path, facets not yet resolved) = no filter
-   * surface at all.
+   * The conversation filter's data + state. Absent (local path, facets not
+   * yet resolved) = no filter surface at all.
    */
   filter?: FilterDisclosureProps | undefined;
   rail: AttributeRail;
   jumpToGroup: (groupId: string) => void;
-  /** The Concerns variant's risk-attr target (ADR 0032 #11: chunks there). */
+  /** The Concerns variant's risk-attr target — chunks, not groups. */
   jumpToChunk: (chunkId: string) => void;
   collapseSupporting: boolean;
   setCollapseSupporting: (value: boolean) => void;
@@ -40,13 +38,10 @@ export interface ReadingToolbarProps {
 }
 
 /**
- * The reading toolbar (BRIEF-134): one sticky bar above the conversation
- * slot, pinned below the header (FocusBanner pattern — publishes its
- * measured height as --toolbar-h so sticky chunk headers stack
- * beneath it). Two clusters split by auto-margin: left = what's shown
- * (Filter · Risk attrs · Collapse supporting), right = where you are
- * (group stepper <=1120px where the gutter TOC dies · changes nav while a
- * comparison is active). The right cluster may be legitimately empty.
+ * One sticky bar above the conversation slot, pinned below the header and
+ * publishing its measured height as --toolbar-h so sticky chunk headers
+ * stack beneath it. Two clusters split by auto-margin: left = what's shown,
+ * right = where you are. The right cluster may be legitimately empty.
  */
 export function ReadingToolbar({
   variant,
@@ -63,12 +58,10 @@ export function ReadingToolbar({
   const { jumpPrev, jumpNext } = useRevisionNavigation();
   const barRef = useRef<HTMLDivElement | null>(null);
 
-  // FocusBanner pattern: sticky chunk headers pin below the bar via the
-  // measured height; 0px whenever the bar unmounts (focus mode, changes view).
-  // The CSS-side fallback is also 0px — deliberately: unlike --top-bar-h
-  // there is no one honest static value (changes view/focus SSR has no bar),
-  // so a pre-hydration scroll pins chunk headers barless until this effect
-  // publishes; hydration corrects it in the same paint the bar gains height.
+  // Sticky chunk headers pin below the bar via the measured height; 0px
+  // whenever the bar unmounts. The CSS-side fallback is 0px too — there is
+  // no one honest static value, so a pre-hydration scroll pins chunk headers
+  // barless until this effect publishes.
   useEffect(() => {
     const el = barRef.current;
     const setHeight = (value: string) =>
@@ -136,21 +129,19 @@ export function ReadingToolbar({
           }
         />
       ) : null}
-      {/* The Concerns bar ends here (legality table: Filter + Risk attrs
-          only) — collapse-supporting reads `role`, which ConcernView doesn't
-          carry, and both position clusters are Story wayfinding. */}
+      {/* The Concerns bar ends here: collapse-supporting reads `role`, which
+          ConcernView doesn't carry, and both position clusters are Story
+          wayfinding. */}
       {variant === "filter-and-attrs" ? null : (
         <div className={styles["navCluster"]}>
-          {/* Owner amendment (2026-08-06): rides the right cluster beside
-              the steppers, not the left filter cluster the spec drafted. */}
           <button
             aria-pressed={collapseSupporting}
             className={styles["tbtn"]}
             type="button"
             onClick={() => setCollapseSupporting(!collapseSupporting)}
           >
-            {/* Compression ladder (spec'd, 1280): CSS swaps which label
-                renders; the accessible name follows the visible one. */}
+            {/* CSS swaps which label renders; the accessible name follows
+                the visible one. */}
             <span className={styles["labelShort"]}>Collapse</span>
             <span className={styles["labelLong"]}>Collapse supporting</span>
           </button>

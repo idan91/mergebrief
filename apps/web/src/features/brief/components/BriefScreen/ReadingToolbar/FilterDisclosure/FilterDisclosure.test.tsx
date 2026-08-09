@@ -1,8 +1,4 @@
 // @vitest-environment jsdom
-// The toolbar's Filter disclosure (BRIEF-134): the ONLY filter surface —
-// trigger carrying the active-state receipt (hidden-thread count
-// critical), the BRIEF-99 panel anchored beneath it, and the
-// always-mounted live region that announces what the diff lost.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -87,7 +83,7 @@ describe("FilterDisclosure trigger", () => {
 });
 
 describe("FilterDisclosure panel", () => {
-  it("opens the BRIEF-99 panel anchored off the trigger and toggles closed", () => {
+  it("opens the filter panel anchored off the trigger and toggles closed", () => {
     renderDisclosure();
     const trigger = screen.getByRole("button", { name: /^Filter/ });
     expect(screen.queryByTestId("conversation-filter-panel")).toBeNull();
@@ -109,7 +105,7 @@ describe("FilterDisclosure panel", () => {
 
   it("Escape closes the panel at capture and returns focus to the trigger", () => {
     // Capture-phase consumption: the same Escape must not also fire global
-    // shortcuts (the RiskChipDisclosure grammar).
+    // shortcuts.
     const bubbleListener = vi.fn();
     document.addEventListener("keydown", bubbleListener);
     try {

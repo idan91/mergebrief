@@ -1,17 +1,12 @@
 @use "functions";
 
 @layer components {
-  // Keycap-split lockup (BRIEF-103 spec): bordered cells divided by
-  // hairlines. 18px FIXED height + middle alignment is load-bearing — a
-  // prototype draft inflated the identity row's line box (chrome geometry,
-  // so height stays px per BRIEF-84).
-  // Shrinkable (after the title and repoRef): the badge carries unbounded
-  // artifact strings (OpenRouter author-prefixed ids, fallback provider
-  // tokens), so it must be able to ellipsize under pressure or a long id
-  // re-opens the identity-row overflow the PR-2 audit closed. The full id
-  // stays reachable in the Brief-details panel (PR 4). No own margins: the
-  // identity row's flex gap governs spacing — margins would stack on it
-  // (and indent the wrapped riders line at ≤880px).
+  // Keycap-split lockup: bordered cells divided by hairlines. The FIXED
+  // height + middle alignment stop the badge inflating the identity row's
+  // line box. Shrinkable after the title and repoRef — the badge carries
+  // unbounded artifact strings, so it must ellipsize under pressure or a
+  // long id re-opens the identity-row overflow. No own margins: the identity
+  // row's flex gap governs spacing.
   .badge {
     display: inline-flex;
     flex: 0 1 auto;
@@ -25,8 +20,8 @@
     white-space: nowrap;
   }
 
-  // Neutral mark cell (API/CLI tints rejected — class is carried by the
-  // TEXT end tag, never color alone).
+  // Neutral mark cell — the class is carried by the TEXT end tag, never
+  // color alone.
   .markCell {
     display: inline-flex;
     align-items: center;
@@ -65,9 +60,8 @@
     text-overflow: ellipsis;
   }
 
-  // Textual adapter-class end tag: xs, letter-spaced, line-height 1, with
-  // the spec's 1px optical down-nudge (on the inner text span so the cell's
-  // own border stays put).
+  // Textual adapter-class end tag, with a 1px optical down-nudge on the
+  // inner text span so the cell's own border stays put.
   .classTag {
     display: inline-flex;
     align-items: center;

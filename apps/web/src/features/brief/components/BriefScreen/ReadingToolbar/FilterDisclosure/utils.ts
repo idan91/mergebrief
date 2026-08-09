@@ -1,12 +1,12 @@
-// Closure-free trigger-label logic (ADR 0037): directly unit-testable.
+// Closure-free trigger-label logic, so it is directly unit-testable.
 import type { ConversationFilter } from "@web/features/conversation/utils/filter";
 
 /**
  * The `N noun` receipts following the trigger's `Filter` label while the
- * filter is active (BRIEF-134 spec): selected verdicts, selected reviewers,
- * then the hidden-inline-thread count — the critical number, always
- * last. Zero-count entries contribute nothing; an inactive filter (recency
- * alone does not count) yields an empty list and a plain `Filter` trigger.
+ * filter is active: selected verdicts, selected reviewers, then the
+ * hidden-inline-thread count — the critical number, always last. Zero-count
+ * entries contribute nothing; an inactive filter (recency alone does not
+ * count) yields an empty list and a plain `Filter` trigger.
  */
 export function filterTriggerSegments(
   filter: ConversationFilter,

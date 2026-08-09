@@ -29,17 +29,17 @@ export interface StoryViewProps {
   startReadThrough?: () => void;
   markReviewed: (chunkId: string) => void;
   toggleChunk: (chunkId: string) => void;
-  /** Inline conversation threads per chunk (BRIEF-25); absent on the local path. */
+  /** Inline conversation threads per chunk; absent on the local path. */
   conversationByChunk?: ReadonlyMap<string, DigestRow[]> | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
   /**
-   * Per-group changed-since data (BRIEF-102); absent without a checkpoint.
-   * Split into primitives at the GroupCard boundary (memo discipline).
+   * Per-group changed-since data; absent without a checkpoint. Split into
+   * primitives at the GroupCard boundary so the memo holds.
    */
   sinceMarkers?:
     | { counts: ReadonlyMap<string, number>; baselineShortSha: string }
     | undefined;
-  /** Opens the delta lens (BRIEF-102); route-owned, absent on the local path. */
+  /** Opens the delta lens; route-owned, absent on the local path. */
   openDeltaLens?: (() => void) | undefined;
 }
 
@@ -52,9 +52,8 @@ export function StoryView(props: StoryViewProps) {
       className={styles["storyView"]}
       data-zen={props.focusMode ? "on" : undefined}
     >
-      {/* The chunks-count label row dissolved into the reading toolbar
-          (BRIEF-134); Start read-through stays here — an ENTRY action lives
-          in the flow it enters, and scrolls away with it. */}
+      {/* Start read-through stays in the flow it enters, and scrolls away
+          with it. */}
       {props.startReadThrough && !props.focusMode ? (
         <div className={`${styles["entryRow"]} reveal`}>
           <button

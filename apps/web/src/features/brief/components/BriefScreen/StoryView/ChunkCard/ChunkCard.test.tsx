@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-// The chunk header's file path is selectable (BRIEF-14): copying it must not
-// toggle the chunk, while a plain click still does.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -124,7 +122,7 @@ function selectFilePath(toggle: HTMLElement) {
   selection?.addRange(range);
 }
 
-describe("ChunkCard — selectable file path (BRIEF-14)", () => {
+describe("ChunkCard — selectable file path", () => {
   it("copies the full file path without toggling the chunk", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", {

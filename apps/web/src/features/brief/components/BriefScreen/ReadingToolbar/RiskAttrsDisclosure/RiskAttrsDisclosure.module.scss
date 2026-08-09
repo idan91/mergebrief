@@ -55,9 +55,9 @@
     color: var(--line2);
   }
 
-  // Amber count ties the trigger to the RiskBadge palette it opens onto
-  // (owner ask, 2026-08-06) — code-risk hue, not the intent bar's forbidden
-  // epistemic yellow. Bold 13px on the dark bg clears the 3:1 large-text bar.
+  // Amber count ties the trigger to the RiskBadge palette it opens onto —
+  // code-risk hue, not the intent bar's epistemic yellow. Bold 13px on the
+  // dark bg clears the 3:1 large-text bar.
   .count {
     color: var(--amber);
     font-variant-numeric: tabular-nums;
@@ -78,10 +78,9 @@
     }
   }
 
-  // Positioned by floating-ui (style={floatingStyles}), rendered in-tree:
-  // z-index clears the sticky chunk headers (z 10) from inside the bar's
-  // own stacking context. radius-md matches the trigger family (owner
-  // finding: lg read mismatched against the radius-sm trigger).
+  // Positioned by floating-ui, rendered in-tree: z-index clears the sticky
+  // chunk headers (z 10) from inside the bar's own stacking context.
+  // radius-md matches the trigger family.
   .panel {
     z-index: 60;
     min-inline-size: functions.to-rem(260px);

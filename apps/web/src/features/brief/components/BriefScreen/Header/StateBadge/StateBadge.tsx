@@ -5,16 +5,12 @@ import styles from "./StateBadge.module.scss";
 
 export interface StateBadgeProps {
   /**
-   * The artifact's stamped `pr` block (BRIEF-103) — the LOCAL path's data
-   * source. Pre-stamping artifacts carry no `state`, and without a live
-   * overlay the badge simply doesn't render — the snapshot is the data
-   * contract there, no fallback.
+   * The artifact's stamped `pr` block — the LOCAL path's data source.
+   * Pre-stamping artifacts carry no `state`, and without a live overlay the
+   * badge simply doesn't render; there is no fallback.
    */
   pr: PrRef;
-  /**
-   * Live webhook-maintained state (DB route). Supersedes the stamp when
-   * present (spec: "DB path live via webhooks" — no staleness there).
-   */
+  /** Live webhook-maintained state (DB route); supersedes the stamp. */
   live?: LivePrState | undefined;
 }
 
@@ -35,10 +31,9 @@ const BADGE_LABEL: Record<BadgeVariant, string> = {
 };
 
 /**
- * GitHub conventions wholesale (spec: State badge): merged wins over closed
- * (a merged PR's wire state IS closed), draft supersedes open. The live DB
- * vocabulary folds merged INTO the state; the artifact stamp carries it as
- * a separate boolean — both resolve to the same four variants.
+ * GitHub conventions: merged wins over closed (a merged PR's wire state IS
+ * closed), draft supersedes open. The live DB vocabulary folds merged INTO
+ * the state; the artifact stamp carries it as a separate boolean.
  */
 function badgeVariant(
   pr: PrRef,
@@ -57,10 +52,9 @@ function badgeVariant(
 }
 
 /**
- * The PR state pill (BRIEF-103): tinted, never solid — the self-review
- * chip's treatment in GitHub's state colors. The visible text is the state
- * word alone; screen readers get a "pull request" prefix so the word isn't
- * free-floating in the header's reading order.
+ * The PR state pill. The visible text is the state word alone; screen
+ * readers get a "pull request" prefix so the word isn't free-floating in the
+ * header's reading order.
  */
 export function StateBadge({ pr, live }: StateBadgeProps) {
   const variant = badgeVariant(pr, live);

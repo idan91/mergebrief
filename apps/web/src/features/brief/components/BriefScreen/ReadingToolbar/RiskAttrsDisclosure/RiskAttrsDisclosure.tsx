@@ -17,9 +17,8 @@ import type { AttributeRail } from "../../../../utils/viewModel";
 import styles from "./RiskAttrsDisclosure.module.scss";
 
 /**
- * The lens-dependent jump target (ADR 0032 #11): attribute chips carry both
- * id sets; the LENS picks which one a click walks — groups in Story, chunks
- * in Concerns.
+ * The lens-dependent jump target: attribute chips carry both id sets; the
+ * LENS picks which one a click walks — groups in Story, chunks in Concerns.
  */
 export interface RiskAttrsTargets {
   kind: "group" | "chunk";
@@ -32,24 +31,18 @@ export interface RiskAttrsDisclosureProps {
 }
 
 /**
- * The toolbar's Risk-attrs disclosure (BRIEF-134, replaces the in-flow
- * AttributeJumpRail): trigger `Risk attrs · N` opening an anchored panel of
- * attribute chips (ADR 0032 #11 — attribute-keyed, never group-ranked).
- * Clicking a chip CYCLES through its carrying targets in story order —
- * groups under the Story lens, chunks under Concerns (`targets`). A floor
- * firing puts an emphasis dot on the trigger — it NEVER auto-opens the
- * panel.
+ * Trigger `Risk attrs · N` opening an anchored panel of attribute chips —
+ * attribute-keyed, never group-ranked. Clicking a chip CYCLES through its
+ * carrying targets in story order. A floor firing puts an emphasis dot on
+ * the trigger — it NEVER auto-opens the panel.
  *
  * Positioned by floating-ui but rendered IN-TREE, not portaled: anchored to
- * a sticky bar, a body portal repositions via JS a frame behind every
- * scroll event and visibly stutters — in-tree the panel rides the bar
- * natively, so scroll tracking is disabled below. flip/shift still keep the
- * panel inside the viewport at open time.
- * Escape is claimed at CAPTURE phase (RiskChipDisclosure grammar): with the
- * panel open it dismisses the panel and must not leak to bubble-phase
- * shortcut listeners (focus-mode exit) — useDismiss stops propagation, but
- * only registers at capture when told to (`capture.escapeKey` defaults to
- * false in @floating-ui/react 0.27).
+ * a sticky bar, a body portal repositions via JS a frame behind every scroll
+ * event and visibly stutters — in-tree the panel rides the bar natively, so
+ * scroll tracking is disabled below. flip/shift still keep the panel inside
+ * the viewport at open time. Escape is claimed at CAPTURE phase so
+ * dismissing the panel cannot leak to bubble-phase shortcut listeners;
+ * useDismiss only registers at capture when told to.
  */
 export function RiskAttrsDisclosure({
   rail,
@@ -64,12 +57,11 @@ export function RiskAttrsDisclosure({
     onOpenChange: setOpen,
     placement: "bottom-start",
     // 14px from the trigger's bottom edge: the trigger sits inside the bar's
-    // 8px inset (+1px border), leaving a ~5px visible gap below the bar —
-    // the same clearance the CSS-anchored panel rendered.
+    // 8px inset (+1px border), leaving a ~5px visible gap below the bar.
     middleware: [offset(14), flip(), shift({ padding: 8 })],
     // No ancestorScroll: in-tree the panel moves with the sticky bar
-    // natively; JS scroll-tracking would only re-derive the same coords a
-    // frame late (the portal-era stutter).
+    // natively; JS scroll-tracking would re-derive the same coords a frame
+    // late and stutter.
     whileElementsMounted: (reference, floating, update) =>
       autoUpdate(reference, floating, update, { ancestorScroll: false }),
   });

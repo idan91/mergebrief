@@ -7,8 +7,7 @@
     flex-direction: column;
   }
 
-  // The read-through entry affordance's own slim row (BRIEF-134: the
-  // chunks-count label bar dissolved into the reading toolbar).
+  // The read-through entry affordance's own slim row.
   .entryRow {
     display: flex;
     justify-content: flex-end;
@@ -194,7 +193,7 @@
   }
 
   // Explains order, never rank — kept smaller/more muted than .railSummary,
-  // no chip/badge treatment (see .readingOrder in GroupCard.module.scss).
+  // no chip/badge treatment.
   .railWhy {
     margin-block-start: functions.to-rem(6px);
     color: var(--faint);

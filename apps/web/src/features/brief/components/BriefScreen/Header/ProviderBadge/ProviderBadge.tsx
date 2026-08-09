@@ -1,9 +1,7 @@
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { Brief } from "../../../../types";
-// One .svg asset per mark (imported as components via vite-plugin-svgr so
-// currentColor inherits). Each file carries its own origin comment —
-// the BRIEF-103 accuracy gate: real logos only, one-to-one from official
-// sources, fills normalized to currentColor, verified rendering at 12px.
+// One .svg asset per mark, imported as components via vite-plugin-svgr so
+// currentColor inherits. Real logos only — never a hand-drawn approximation.
 import AnthropicMark from "./marks/anthropic.svg?react";
 import ClaudeCodeMark from "./marks/claude-code.svg?react";
 import GenericProviderMark from "./marks/generic.svg?react";
@@ -17,12 +15,12 @@ import {
 } from "./ProviderBadge.types";
 
 /**
- * Adapter CLASS per provider token (ADR 0030 #6): a harness-CLI run must be
- * visibly distinct from an API/SDK run — the CLI owns routing and auth, so
+ * Adapter CLASS per provider token: a harness-CLI run must be visibly
+ * distinct from an API/SDK run — the CLI owns routing and auth, so
  * "claude-code" and "anthropic" are different trust shapes even when the
  * same model served. Carried in TEXT (the end tag), never color alone.
- * Pinned to `Providers` in packages/generators/src/config/registry.ts —
- * kept as plain data here (client code must not pull provider SDKs).
+ * Mirrors `Providers` in packages/generators/src/config/registry.ts — kept
+ * as plain data here, since client code must not pull provider SDKs.
  */
 const PROVIDER_CLASS_TAG: Record<string, ProviderGenerationType> = {
   anthropic: ProviderGenerationTypes.API,
@@ -34,9 +32,8 @@ const PROVIDER_CLASS_TAG: Record<string, ProviderGenerationType> = {
 
 /**
  * Official marks by provider slug. `codex` is deliberately absent: OpenAI
- * publishes no standalone Codex logomark (checked the brand kit,
- * developers.openai.com/codex, and the openai/codex repo, 2026-08-04), so
- * it takes the named fallback rather than an approximation.
+ * publishes no standalone Codex logomark, so it takes the named fallback
+ * rather than an approximation.
  */
 const PROVIDER_CONFIGS: Record<string, MarkConfig> = {
   anthropic: { mark: AnthropicMark, name: "Anthropic" },
@@ -46,16 +43,14 @@ const PROVIDER_CONFIGS: Record<string, MarkConfig> = {
 };
 
 export interface ProviderBadgeProps {
-  /** The artifact's origin stamp; absent → no badge (pre-ADR-0013 artifacts). */
+  /** The artifact's origin stamp; absent → no badge on older artifacts. */
   generation: Brief["generation"];
 }
 
 /**
- * The keycap-split origin badge (BRIEF-103 spec): neutral mark cell →
- * mono model cell (full model id + effort — OpenRouter author prefixes kept,
- * origin never abbreviates identity) → textual API/CLI end tag. Fixed
- * 18px height riding INSIDE the meta-height line box; non-interactive
- * origin chrome (badge-as-trigger rejected).
+ * Neutral mark cell → mono model cell (full model id + effort; origin never
+ * abbreviates identity) → textual API/CLI end tag. Fixed 18px height riding
+ * INSIDE the meta-height line box; non-interactive origin chrome.
  */
 export function ProviderBadge({ generation }: ProviderBadgeProps) {
   if (!generation) return null;
@@ -72,9 +67,9 @@ export function ProviderBadge({ generation }: ProviderBadgeProps) {
     : undefined;
   return (
     <span className={styles["badge"]} data-provider-badge="">
-      {/* `title`: pointer users get the provider name as the native browser
-          tooltip (Idan 2026-08-04) — the logo alone isn't universally
-          recognizable. Screen readers keep the sr-only sibling. */}
+      {/* `title` gives pointer users the provider name — the logo alone
+          isn't universally recognizable. Screen readers keep the sr-only
+          sibling. */}
       <span className={styles["markCell"]} title={providerConfig?.name}>
         {providerConfig && Mark ? (
           <>
@@ -86,8 +81,8 @@ export function ProviderBadge({ generation }: ProviderBadgeProps) {
             <ScreenReaderOnly>{providerConfig.name}</ScreenReaderOnly>
           </>
         ) : (
-          // Named fallback (accuracy gate): generic glyph + the provider
-          // token as visible text — never a hand-drawn brand approximation.
+          // Named fallback: generic glyph + the provider token as visible
+          // text — never a hand-drawn brand approximation.
           <>
             <GenericProviderMark
               aria-hidden="true"

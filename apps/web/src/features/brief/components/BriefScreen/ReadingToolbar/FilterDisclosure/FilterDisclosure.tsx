@@ -22,30 +22,24 @@ import styles from "./FilterDisclosure.module.scss";
 
 export interface FilterDisclosureProps extends ConversationFilterPanelProps {
   /**
-   * Threads the filter removes from the DIFF (BRIEF-99 decision 9) — an
-   * unannounced gap inline reads as "nothing was said about this line".
-   * The critical trigger number, and the live region's text.
+   * Threads the filter removes from the DIFF — an unannounced gap inline
+   * reads as "nothing was said about this line". The critical trigger
+   * number, and the live region's text.
    */
   hiddenInlineThreads: number;
 }
 
 /**
- * The toolbar's Filter disclosure (BRIEF-134, re-homes the BRIEF-99 bar):
- * the ONLY filter surface. Inactive = plain `Filter`; active = the receipt
- * (`Filter · N verdicts · N reviewers · N hidden`). Opens the full BRIEF-99
- * panel anchored beneath the trigger — RiskChipDisclosure grammar: Escape
- * consumed at capture and focus returned to the trigger, outside pointerdown
- * closes, chip clicks keep it open.
+ * The ONLY filter surface. Inactive = plain `Filter`; active = the receipt
+ * (`Filter · N verdicts · N reviewers · N hidden`).
  *
  * Positioned by floating-ui but rendered IN-TREE, not portaled: anchored to
- * a sticky bar, a body portal repositions via JS a frame behind every
- * scroll event and visibly stutters — in-tree the panel rides the bar
- * natively, so scroll tracking is disabled below. flip/shift still keep the
- * panel inside the viewport at open time.
- * useDismiss claims Escape at CAPTURE phase (`capture.escapeKey` — the 0.27
- * default is bubble) so dismissal never leaks to bubble-phase shortcut
- * listeners; presses inside the panel count as inside, so chip clicks keep
- * it open.
+ * a sticky bar, a body portal repositions via JS a frame behind every scroll
+ * event and visibly stutters — in-tree the panel rides the bar natively, so
+ * scroll tracking is disabled below. flip/shift still keep the panel inside
+ * the viewport at open time. useDismiss claims Escape at CAPTURE phase so
+ * dismissal never leaks to bubble-phase shortcut listeners; presses inside
+ * the panel count as inside, so chip clicks keep it open.
  *
  * The `role="status"` region lives HERE, ALWAYS mounted while the disclosure
  * renders — inside the panel it would unmount on close, and a live region
@@ -68,12 +62,11 @@ export function FilterDisclosure({
     onOpenChange: setOpen,
     placement: "bottom-start",
     // 14px from the trigger's bottom edge: the trigger sits inside the bar's
-    // 8px inset (+1px border), leaving a ~5px visible gap below the bar —
-    // the same clearance the CSS-anchored panel rendered.
+    // 8px inset (+1px border), leaving a ~5px visible gap below the bar.
     middleware: [offset(14), flip(), shift({ padding: 8 })],
     // No ancestorScroll: in-tree the panel moves with the sticky bar
-    // natively; JS scroll-tracking would only re-derive the same coords a
-    // frame late (the portal-era stutter).
+    // natively; JS scroll-tracking would re-derive the same coords a frame
+    // late and stutter.
     whileElementsMounted: (reference, floating, update) =>
       autoUpdate(reference, floating, update, { ancestorScroll: false }),
   });

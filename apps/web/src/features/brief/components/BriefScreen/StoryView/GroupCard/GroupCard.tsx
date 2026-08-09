@@ -32,8 +32,8 @@ export interface GroupCardProps {
   model: BriefViewModel;
   jumpToChunk: (chunkId: string) => void;
   /**
-   * Changed-since marker inputs (BRIEF-102), primitives so the memo boundary
-   * survives parent re-renders. Marker renders iff the shortsha is present
+   * Changed-since marker inputs, primitives so the memo boundary survives
+   * parent re-renders. Marker renders iff the shortsha is present
    * (a checkpoint exists); count 0 = "unchanged since your last review".
    */
   sinceChangedFileCount?: number | undefined;
@@ -73,10 +73,9 @@ export const GroupCard = memo(function GroupCard({
     toggleRiskFlag,
     toggleRiskGroup,
   } = useReviewActions();
-  // Own-draft state (BRIEF-43, ADR 0031): risk flags render as a read-only
-  // MIRROR — no author dispositions exist, so every disposition control
-  // (checkboxes, Address/Dismiss) disappears while the flags themselves stay
-  // fully visible. The author's disposition mechanism is code: fix and push.
+  // In the own-draft state risk flags are a read-only MIRROR — no author
+  // dispositions exist, so every disposition control disappears while the
+  // flags themselves stay fully visible.
   const flagsReadOnly = useReviewFlow((state) => state.flagsReadOnly);
 
   const dominant = dominants[group.id] ?? group.group.dominantCategory;
@@ -155,9 +154,9 @@ export const GroupCard = memo(function GroupCard({
         </div>
         {group.headerRisk.shown.length > 0 ||
         group.headerRisk.deEmphasized.length > 0 ? (
-          /* Deduped union of member-chunk attributes (ADR 0032 #11): floor
-             first, fully-de-emphasized attributes behind "+n". Disclosure,
-             never a count-as-severity signal or an aggregate glyph. */
+          /* Deduped union of member-chunk attributes: floor first,
+             fully-de-emphasized attributes behind "+n". Disclosure, never a
+             count-as-severity signal or an aggregate glyph. */
           <div
             aria-label="Risk-surface attributes in this group"
             className={styles["groupRiskRow"]}
@@ -167,7 +166,7 @@ export const GroupCard = memo(function GroupCard({
             {group.headerRisk.shown.map((attr) => {
               // A shown chip means at least one LOUD firing exists — take a
               // loud firing's meta so a quiet-first chunk order can't render
-              // the header chip de-emphasized (codex r1).
+              // the header chip de-emphasized.
               const metas = group.chunks
                 .map((chunk) => model.riskMetaByChunk.get(chunk.id)?.get(attr))
                 .filter((m) => m !== undefined);
@@ -296,7 +295,7 @@ export const GroupCard = memo(function GroupCard({
               selectedCount === openRiskFlagIds.length;
             const hasSelection = selectedCount > 0;
             // Fully-quiet attribute section: every firing de-emphasized →
-            // the section title drops the amber prominence (codex r13).
+            // the section title drops the amber prominence.
             const allQuiet = riskGroup.flags.every((flag) => flag.deEmphasized);
             return (
               <div

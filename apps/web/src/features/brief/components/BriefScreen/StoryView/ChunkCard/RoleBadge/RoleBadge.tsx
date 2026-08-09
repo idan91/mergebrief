@@ -6,9 +6,9 @@ export interface RoleBadgeProps {
 }
 
 /**
- * @description Chunk-role tag. Carrier reads loud (bright neutral, filled),
- * supporting reads quiet (muted outline) — weight, not hue, so it doesn't
- * collide with the concern-dot palette.
+ * Carrier reads loud (bright neutral, filled), supporting reads quiet (muted
+ * outline) — weight, not hue, so it doesn't collide with the concern-dot
+ * palette.
  */
 export function RoleBadge({ role }: RoleBadgeProps) {
   return role === Roles.CARRIER ? (

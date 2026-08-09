@@ -71,8 +71,8 @@
 
     // Selectability must be granted on the BUTTON: WebKit ignores a
     // child's `user-select: text` under an unselectable ancestor, so the
-    // .file override alone never worked in Safari (BRIEF-14). The twist
-    // opts back out below.
+    // .file override alone never works in Safari. The twist opts back out
+    // below.
     // stylelint-disable-next-line property-no-vendor-prefix
     -webkit-user-select: text;
     user-select: text;
@@ -102,8 +102,8 @@
     white-space: nowrap;
 
     // File paths are copyable despite the button parent — UA stylesheets
-    // make button text unselectable (BRIEF-14). Safari only honors the
-    // prefixed form (WebKit bug 208677) and the build has no autoprefixer.
+    // make button text unselectable. Safari only honors the prefixed form
+    // (WebKit bug 208677) and the build has no autoprefixer.
     // stylelint-disable-next-line property-no-vendor-prefix
     -webkit-user-select: text;
     user-select: text;
@@ -228,9 +228,8 @@
   }
 }
 
-/* Conversation jump flash (BRIEF-25 focus contract): a transient highlight
-   on the chunk the digest jumped to. Motion collapses to a static ring
-   when the user prefers reduced motion. */
+/* A transient highlight on the chunk the digest jumped to. Motion collapses
+   to a static ring when the user prefers reduced motion. */
 .chunk[data-conversation-flash] {
   animation: conversation-flash 1.4s ease-out 1;
 }

@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-// BRIEF-28: the busy header regrouped — one merged context line, a single
-// stats group, and the rare actions behind a More-actions menu with proper
-// menu-button semantics.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -53,7 +50,7 @@ const brief: Brief = {
   concernView: [],
 };
 
-/** A full prop set keyed on the own-draft plan — for rerender-based tests. */
+/** A full prop set keyed on the own-draft state — for rerender-based tests. */
 function headerProps(ownDraft: HeaderProps["ownDraft"]): HeaderProps {
   return {
     brief,
@@ -104,9 +101,8 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
     clearDrafts,
     availability: { previousBrief: false, lastReview: false },
     compareState: { view: "full", compare: "off" },
-    // The drawer variant avoids a router dependency; the local Link
-    // variant (href/params) is asserted in briefScreen.test.tsx, which
-    // mounts the real local route.
+    // The drawer variant avoids a router dependency; the local Link variant
+    // is asserted in briefScreen.test.tsx, which mounts the real local route.
     openSummaryPreviewDrawer,
     controlsSlot: <div data-testid="controls-slot" />,
     ...overrides,
@@ -115,10 +111,9 @@ function renderHeader(overrides: Partial<HeaderProps> = {}) {
   return { clearDrafts, openSummaryPreviewDrawer, openSubmit };
 }
 
-describe("Header identity row (BRIEF-103)", () => {
+describe("Header identity row", () => {
   it("renders the one-line identity: wordmark, title, repo + PR link — no context line", () => {
     renderHeader();
-    // Wordmark loses the "/ review" suffix.
     expect(screen.getByText("MergeBrief").textContent).toBe("MergeBrief");
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
       "Tighten the cross-param leak",
@@ -127,17 +122,17 @@ describe("Header identity row (BRIEF-103)", () => {
     const link = screen.getByRole("link", { name: /#7/ });
     expect(link.getAttribute("href")).toBe("https://example.com/pr/7");
     expect(link.getAttribute("target")).toBe("_blank");
-    // The muted context line is gone: artifact identity lives in the
-    // timeline navigator, the rest in the details panel (PR 4).
+    // Artifact identity lives in the timeline navigator, the rest in the
+    // details panel.
     expect(screen.queryByText(/local brief @/)).toBeNull();
     expect(screen.queryByText(/brief _3/)).toBeNull();
     expect(screen.queryByText(/basebase\.\.headhead/)).toBeNull();
   });
 
-  it("renders the keycap origin badge in the riders (BRIEF-103 PR 3)", () => {
+  it("renders the keycap origin badge in the riders", () => {
     renderHeader();
     // Full semantics are pinned in ProviderBadge.test.tsx; the header pins
-    // the wiring — badge present, interim "via …" note gone.
+    // only the wiring.
     const badge = document.querySelector("[data-provider-badge]");
     expect(badge?.textContent).toContain("m-1 · high");
     expect(badge?.textContent).toContain("API");
@@ -145,7 +140,7 @@ describe("Header identity row (BRIEF-103)", () => {
   });
 });
 
-describe("state badge (BRIEF-103)", () => {
+describe("state badge", () => {
   const stamped = (
     state: "open" | "closed",
     draft: boolean,
@@ -164,8 +159,7 @@ describe("state badge (BRIEF-103)", () => {
     });
     const badge = document.querySelector("[data-state-badge]");
     expect(badge?.getAttribute("data-variant")).toBe("draft");
-    // Same story, told together (spec: Chips): the chip is the badge's
-    // immediate DOM sibling.
+    // The chip must be the badge's immediate DOM sibling.
     expect(badge?.nextElementSibling?.matches("[data-self-review-chip]")).toBe(
       true,
     );
@@ -192,9 +186,8 @@ describe("state badge (BRIEF-103)", () => {
   );
 
   it("renders from LIVE webhook state on an UNSTAMPED artifact (DB route)", () => {
-    // The reported gap: every DB brief generated before stamping has no
-    // pr.state — the badge must come from the live pull-request row there
-    // (spec: "DB path live via webhooks").
+    // A DB brief generated before stamping has no pr.state — the badge must
+    // come from the live pull-request row there.
     renderHeader({ livePrState: { state: "open", draft: false } });
     const badge = document.querySelector("[data-state-badge]");
     expect(badge?.getAttribute("data-variant")).toBe("open");
@@ -232,7 +225,7 @@ describe("state badge (BRIEF-103)", () => {
   });
 });
 
-describe("generation warnings chip (BRIEF-103)", () => {
+describe("generation warnings chip", () => {
   const warned = {
     ...brief,
     generationWarnings: [
@@ -243,7 +236,7 @@ describe("generation warnings chip (BRIEF-103)", () => {
     ],
   };
 
-  it("opens the Brief-details panel LANDED on the warnings text (PR 4)", () => {
+  it("opens the Brief-details panel LANDED on the warnings text", () => {
     renderHeader({ brief: warned });
     const chip = screen.getByRole("button", {
       name: /2 generation warnings/,
@@ -251,12 +244,11 @@ describe("generation warnings chip (BRIEF-103)", () => {
     expect(chip.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(chip);
     expect(chip.getAttribute("aria-expanded")).toBe("true");
-    // The text lives in the panel's Generation section now…
     const note = document.querySelector("[data-details-warnings]");
     expect(note?.textContent).toContain("salvaged brief");
     expect(note?.textContent).toContain("modelUsage reports m-2");
-    // …and the chip path LANDS there: focus moves to the block so a screen
-    // reader announces it on arrival.
+    // The chip path LANDS there: focus moves to the block so a screen reader
+    // announces it on arrival.
     expect(document.activeElement).toBe(note);
   });
 
@@ -291,13 +283,13 @@ describe("generation warnings chip (BRIEF-103)", () => {
   });
 });
 
-describe("Header (BRIEF-28)", () => {
+describe("Header menu and stats", () => {
   it("shows the progress facts on the lens row, LOC as plain text", () => {
     renderHeader();
     expect(screen.getByText("chunks").textContent).toContain("1/2");
     expect(screen.getByText("flags").textContent).toContain("0/1");
     const loc = screen.getByText("adjusted lines");
-    // The LOC popover is dead (BRIEF-103): the cell is not a button.
+    // The LOC cell is plain text, not a button.
     expect(loc.closest("button")).toBeNull();
   });
 
@@ -421,7 +413,7 @@ describe("Header (BRIEF-28)", () => {
   });
 });
 
-describe("Header own-draft state (BRIEF-43)", () => {
+describe("Header own-draft state", () => {
   it("renders no self-review chip outside the own-draft state", () => {
     renderHeader();
     expect(screen.queryByText("Self-review — your draft")).toBeNull();
@@ -540,7 +532,7 @@ describe("Header own-draft state (BRIEF-43)", () => {
     renderHeader({ ownDraft: { markReady: vi.fn(), pending: true } });
     const cta = screen.getByRole("button", { name: /marking ready/i });
     // Hard `disabled` would dump keyboard focus on <body> mid-mutation; the
-    // in-flight guard in the mark-ready flow already no-ops repeat clicks.
+    // mark-ready flow's in-flight guard already no-ops repeat clicks.
     expect((cta as HTMLButtonElement).disabled).toBe(false);
     expect(cta.getAttribute("aria-disabled")).toBe("true");
     cta.focus();
@@ -624,7 +616,7 @@ describe("Header own-draft state (BRIEF-43)", () => {
   });
 });
 
-describe("repo-config origin chip (BRIEF-52, ADR 0032 #8)", () => {
+describe("repo-config origin chip", () => {
   const APPLIED = {
     files: [
       {
@@ -647,7 +639,7 @@ describe("repo-config origin chip (BRIEF-52, ADR 0032 #8)", () => {
     policy: null,
   };
 
-  it("renders NO chip in the ok state — ok lives in the details panel (PR 4)", () => {
+  it("renders NO chip in the ok state — ok lives in the details panel", () => {
     renderHeader({ repoConfig: APPLIED });
     expect(document.querySelector("[data-repo-config-chip]")).toBeNull();
     // The panel's Repo config section carries the ok-state instead.
@@ -755,7 +747,7 @@ describe("repo-config chip — applied-with-warning flips to warning state", () 
   });
 });
 
-describe("Header lens control legality (BRIEF-134 PR 4)", () => {
+describe("Header lens control legality", () => {
   it("active lens control switches lenses and carries no disabled semantics", () => {
     const setViewMode = vi.fn();
     renderHeader({ setViewMode, lensControl: { state: "active" } });
@@ -766,9 +758,8 @@ describe("Header lens control legality (BRIEF-134 PR 4)", () => {
   });
 
   it("disabled lens greys the control, keeps it focusable, and no-ops with the announced reason", () => {
-    // The disabled-Compare pattern + the BRIEF-99 focus rule: aria-disabled
-    // and a no-op (never hard disabled — that would dump keyboard focus),
-    // with the honest reason announced on the attempted switch.
+    // aria-disabled and a no-op — never hard disabled, which would dump
+    // keyboard focus — with the reason announced on the attempted switch.
     const setViewMode = vi.fn();
     const announce = vi.fn();
     renderHeader({

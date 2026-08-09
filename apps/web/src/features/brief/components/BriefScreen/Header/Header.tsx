@@ -27,15 +27,13 @@ import { StateBadge } from "./StateBadge/StateBadge";
 import { TimelineNavigator } from "./TimelineNavigator/TimelineNavigator";
 import styles from "./Header.module.scss";
 
-// Historical import site: the Lens vocabulary now lives with the mode model.
 export type { ViewMode } from "../modeLegality";
 export type LayoutMode = "stacked" | "split";
 
 /**
- * Own-draft state wiring (BRIEF-43, ADR 0031): present only while the viewer
- * reads their OWN DRAFT PR. The header then labels the state with the
- * self-review chip and puts "Mark ready for review" — the state's terminal
- * action — in the slot the Receipt CTA otherwise holds.
+ * Present only while the viewer reads their OWN DRAFT PR: the header labels
+ * the state with the self-review chip and puts "Mark ready for review" in the
+ * slot the Receipt CTA otherwise holds.
  */
 export interface OwnDraftHeaderProps {
   /** The state's terminal action (opens the soft gate or marks ready directly). */
@@ -52,15 +50,13 @@ export interface OwnDraftHeaderProps {
 export interface HeaderProps {
   brief: Brief;
   /**
-   * Repo-config snapshot for this span (BRIEF-52, ADR 0032 #8): drives the
-   * understated "repo config @ sha" chip with the per-file expansion;
-   * absent/null (or an all-absent surface) renders no chip.
+   * Drives the "repo config @ sha" chip; absent/null (or an all-absent
+   * surface) renders no chip.
    */
   repoConfig?: RepoConfigContext | null | undefined;
   /**
-   * Live webhook-maintained PR state (DB route, BRIEF-103): the state
-   * badge prefers it over the artifact's stamped snapshot. Absent on the
-   * local file path.
+   * Live webhook-maintained PR state (DB route): the state badge prefers it
+   * over the artifact's stamped snapshot. Absent on the local file path.
    */
   livePrState?: LivePrState | undefined;
   briefId: string;
@@ -71,34 +67,33 @@ export interface HeaderProps {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   /**
-   * The legality table's lens-control cell (BRIEF-134 `deriveRegionBlocks`):
    * `disabled` greys the Story/Concerns control — aria-disabled + no-op,
-   * never hard `disabled` (the BRIEF-99 focus rule) — and carries the honest
-   * reason (the disabled-Compare-options pattern), never a silent override.
+   * never hard `disabled` (that dumps keyboard focus) — and carries the
+   * honest reason, never a silent override.
    */
   lensControl: LensControlState;
-  /** Voices the disabled lens reason on an attempted switch (BRIEF-24 pattern). */
+  /** Voices the disabled lens reason on an attempted switch. */
   announce: (message: string) => void;
   openSubmit: () => void;
   clearDrafts: () => void;
-  /** Compare availability at the selected timeline point (ADR 0024). */
+  /** Compare availability at the selected timeline point. */
   availability: CompareOptionFlags;
-  /** Resolved, normalized View/Compare state (ADR 0024 plan step 6). */
+  /** Resolved, normalized View/Compare state. */
   compareState: BriefSearch;
   /**
-   * DB-backed briefs (BRIEF-19) open the summary preview as the IN-PAGE
-   * drawer via this callback: the standalone `/briefs/:id/summary-preview`
-   * route loads through the local file store and cannot resolve a `db:` id.
+   * DB-backed briefs open the summary preview as the IN-PAGE drawer via this
+   * callback: the standalone `/briefs/:id/summary-preview` route loads through
+   * the local file store and cannot resolve a `db:` id.
    * Absent → the local cross-route link renders as before.
    */
   openSummaryPreviewDrawer?: (() => void) | undefined;
   /**
-   * The DB route's unified revision/compare controls (BRIEF-24): rendered in
-   * the local TimelineNavigator's slot so BOTH paths keep their controls in
-   * the sticky header — discoverable and never scrolled out of reach.
+   * The DB route's unified revision/compare controls: rendered in the local
+   * TimelineNavigator's slot so BOTH paths keep their controls in the sticky
+   * header — discoverable and never scrolled out of reach.
    */
   controlsSlot?: ReactNode | undefined;
-  /** Own-draft state (BRIEF-43); absent on every plain reviewer view. */
+  /** Own-draft state; absent on every plain reviewer view. */
   ownDraft?: OwnDraftHeaderProps | undefined;
 }
 
@@ -132,9 +127,7 @@ export function Header({
     if (!el) return;
     // Write only on CHANGE: the observer fires every resize frame, and a
     // same-value setProperty still invalidates every var(--top-bar-h)
-    // consumer (sticky chunk headers, the progress bar) — one source of the
-    // resize stutter (Idan, 2026-08-04). Horizontal resizes rarely change
-    // the height, so most frames now write nothing.
+    // consumer, which stutters the resize.
     let lastHeight = "";
     const apply = () => {
       const next = `${el.offsetHeight}px`;
@@ -148,16 +141,13 @@ export function Header({
     return () => observer.disconnect();
   }, []);
 
-  // Terminal-action slot focus continuity (BRIEF-43): when the own-draft
-  // state flips (either direction), the focused slot button unmounts and its
-  // replacement mounts — without this, keyboard focus is dumped on <body>.
-  // Track whether the slot's button holds focus (an unmounting element fires
-  // no blur, so the flag survives the swap exactly when it should) and, on a
-  // slot swap, move focus to the swapped-in button. The flag is CONSUMED on
-  // every swap — cleared first, re-armed only by the real onFocus the
-  // focus() call triggers — so a swap that happened while focus was
-  // elsewhere can never leave a stale `true` behind for a LATER external
-  // flip to steal focus with (review round 3).
+  // Terminal-action slot focus continuity: when the own-draft state flips,
+  // the focused slot button unmounts and its replacement mounts — without
+  // this, keyboard focus is dumped on <body>. An unmounting element fires no
+  // blur, so the flag survives the swap. It is CONSUMED on every swap —
+  // cleared first, re-armed only by the real onFocus the focus() call
+  // triggers — so a swap while focus was elsewhere leaves no stale `true`
+  // for a later flip to steal focus with.
   const terminalSlotRef = useRef<HTMLButtonElement>(null);
   const terminalSlotFocused = useRef(false);
   const wasOwnDraft = useRef(ownDraft !== undefined);
@@ -178,9 +168,9 @@ export function Header({
   };
   const prLink = isHttpUrl(brief.pr.url) ? brief.pr.url : null;
 
-  // The lens legality cell (BRIEF-134): a disabled control keeps its radios
-  // focusable and operable — the change handler no-ops and announces the
-  // reason instead (controlled inputs snap back on the same render).
+  // A disabled control keeps its radios focusable and operable — the change
+  // handler no-ops and announces the reason instead (controlled inputs snap
+  // back on the same render).
   const lensDisabled = lensControl.state === "disabled";
   const lensReasonId = useId();
   const selectLens = (mode: ViewMode) => {
@@ -193,9 +183,9 @@ export function Header({
 
   return (
     <header className={styles["header"]} ref={headerRef}>
-      {/* Tier 1 — the one-line identity row (BRIEF-103): wordmark · state
-          badge · title (truncates first) · repo + PR link · riders ·
-          [spacer] · CTA · overflow. */}
+      {/* Tier 1 — the one-line identity row: wordmark · state badge · title
+          (truncates first) · repo + PR link · riders · [spacer] · CTA ·
+          overflow. */}
       <div className={styles["identityRow"]}>
         {/* Lead + riders are inert on wide viewports (display: contents —
             one flex line); at ≤880px they become the two content rows of
@@ -203,8 +193,7 @@ export function Header({
         <div className={styles["lead"]}>
           <div className={styles["wordmark"]}>MergeBrief</div>
           <StateBadge live={livePrState} pr={brief.pr} />
-          {/* Own-draft: the self-review chip sits adjacent to the Draft badge —
-              same story, told together (spec: Chips). */}
+          {/* The self-review chip must stay adjacent to the Draft badge. */}
           {ownDraft !== undefined ? <SelfReviewChip /> : null}
           <h1 className={styles["title"]}>{brief.pr.title}</h1>
           <span className={styles["repoRef"]}>
@@ -240,9 +229,8 @@ export function Header({
           ) : null}
         </span>
         <span aria-hidden="true" className={styles["spacer"]} />
-        {/* The terminal-action slot: it always holds the state's terminal
-            action — Submit (→ submit modal) on a reviewer view, Mark ready for
-            review in the own-draft state (BRIEF-43, ADR 0031). */}
+        {/* The terminal-action slot: Submit on a reviewer view, Mark ready for
+            review in the own-draft state. */}
         {ownDraft !== undefined ? (
           /* aria-disabled, never hard disabled, while pending: a disabled
              element dumps keyboard focus on <body>; the click path is safe
@@ -291,10 +279,9 @@ export function Header({
         />
       </div>
       {/* Tier 2 — the lens toolbar: everything that changes WHAT is on
-          screen (revision, View/Compare, Story/Concerns), flattened to one
-          wrappable line, plus the quiet stats group (BRIEF-103: moved off
-          the identity row). Story/Concerns organizes content rather than
-          comparison, so it parks at the far end. */}
+          screen, flattened to one wrappable line, plus the quiet stats group.
+          Story/Concerns organizes content rather than comparison, so it parks
+          at the far end. */}
       <div className={styles["lensRow"]}>
         {controlsSlot !== undefined ? (
           controlsSlot
@@ -387,20 +374,16 @@ export function Header({
 }
 
 /**
- * The own-draft state label (BRIEF-43, ADR 0031): behavioral differences must
- * read as visible STATE, never as bugs — this chip is that label. It is
- * non-dismissible (no close affordance) and renders only in the own-draft
- * state. The tooltip explains what the state hides and how it ends.
+ * The own-draft state label: non-dismissible (no close affordance), rendered
+ * only in the own-draft state.
  *
  * WCAG 1.4.13 (content on hover/focus): the tooltip is DISMISSABLE — while
- * it is visible (hovered OR focused, both tracked in React), a document-level
- * CAPTURE listener claims Escape and hides it, so dismissal works for a
- * hover-without-focus pointer user too, without moving the pointer or focus,
- * and the key never reaches page-level handling (focus-mode exit) — the CHIP
- * stays, only the tooltip goes. HOVERABLE — visible-state CSS re-enables
- * pointer events so the pointer can travel onto the tooltip text. PERSISTENT
- * — it stays while hovered or focused. Leaving (blur/mouse-out) re-arms it
- * for the next hover.
+ * visible (hovered OR focused, both tracked in React), a document-level
+ * CAPTURE listener claims Escape and hides only the tooltip, so a
+ * hover-without-focus pointer user can dismiss it without moving the pointer,
+ * and the key never reaches page-level handling. HOVERABLE — visible-state
+ * CSS re-enables pointer events so the pointer can travel onto the tooltip.
+ * PERSISTENT — it stays while hovered or focused; leaving re-arms it.
  */
 function SelfReviewChip() {
   const tooltipId = useId();
@@ -463,16 +446,15 @@ function SelfReviewChip() {
 interface HeaderMenuProps {
   briefId: string;
   clearDrafts: () => void;
-  /** Own-draft state (BRIEF-43): the Summary preview item is submit machinery. */
+  /** Summary preview is submit machinery, hidden in the own-draft state. */
   hideSummaryPreview: boolean;
   openSummaryPreviewDrawer?: (() => void) | undefined;
 }
 
 /**
- * Overflow for the header's rare actions (BRIEF-28): "Summary preview" and
- * "Clear local drafts" don't earn permanent top-level placement next to the
- * primary CTA. Standard menu-button semantics: Escape/outside-click close,
- * focus returns to the trigger, arrow keys move between items.
+ * Overflow for the header's rare actions. Standard menu-button semantics:
+ * Escape/outside-click close, focus returns to the trigger, arrow keys move
+ * between items.
  */
 function HeaderMenu({
   briefId,
@@ -645,20 +627,18 @@ const REPO_CONFIG_ERROR_OUTCOMES = new Set([
 ]);
 
 /**
- * The repo-config origin chip (ADR 0032 #8), WARNING-ONLY from
- * BRIEF-103 PR 4: the ok-state lives in the Brief-details panel, so the
- * chip renders only when something needs the author's or reviewer's
- * attention (error outcome, applied-with-warning, or a collision) —
- * ADR 0032 #5 stays satisfied, the mini-callout table is unchanged.
+ * The repo-config origin chip, WARNING-ONLY: the ok-state lives in the
+ * Brief-details panel, so the chip renders only when something needs the
+ * author's or reviewer's attention (error outcome, applied-with-warning, or
+ * a collision).
  */
 function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
   const anyPresent =
     repoConfig.files.some((file) => file.outcome !== "absent") ||
     repoConfig.collisions.length > 0;
   if (!anyPresent) return null;
-  // Warning state also on applied-with-warning files (a dropped de-emphasis
-  // rule, near-cap usage): ADR 0032 #5 — "config errors surface to both
-  // author and reviewer (same chip, warning state)".
+  // Warning state also on applied-with-warning files: config problems must
+  // surface to author and reviewer alike.
   const anyError =
     repoConfig.files.some(
       (file) =>

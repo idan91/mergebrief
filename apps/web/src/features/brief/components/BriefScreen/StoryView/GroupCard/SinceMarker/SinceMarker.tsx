@@ -14,10 +14,9 @@ export interface SinceMarkerProps {
 }
 
 /**
- * Per-group changed-since marker (BRIEF-102): surfaces the last-review delta
- * where people actually read — the group header — with Compare off. Router-
- * free by design: BriefView renders without a RouterProvider in tests, so
- * navigation arrives as an injected callback, never a router hook.
+ * Surfaces the last-review delta in the group header with Compare off.
+ * Router-free by design: BriefView renders without a RouterProvider in
+ * tests, so navigation arrives as an injected callback, never a router hook.
  */
 export function SinceMarker({
   changedFileCount,

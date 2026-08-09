@@ -1,6 +1,3 @@
-// The Filter trigger's active-state receipt (BRIEF-134): which `N noun`
-// segments follow the label. Hidden-thread count is the critical number;
-// a zero contributes no segment; an inactive filter contributes none at all.
 import { describe, expect, it } from "vitest";
 
 import {

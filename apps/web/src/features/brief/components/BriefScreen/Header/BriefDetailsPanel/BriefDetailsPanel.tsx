@@ -15,19 +15,14 @@ export interface BriefDetailsPanelProps {
 }
 
 /**
- * The ⓘ Brief-details disclosure (BRIEF-103 PR 4) and its second trigger,
- * the generation-warnings count chip — co-located so ONE close path owns
- * focus return (a close that leaves keyboard focus on an unmounted portal
- * node would dump it on <body>, the exact failure the header's terminal
- * slot machinery exists to prevent).
+ * The ⓘ Brief-details disclosure and its second trigger, the
+ * generation-warnings count chip — co-located so ONE close path owns focus
+ * return; a close that leaves keyboard focus on an unmounted portal node
+ * would dump it on <body>.
  *
  * One anchored callout in the RiskChipDisclosure grammar — hover previews,
  * click is canonical, Escape-at-capture dismisses without reaching page
- * shortcuts (`aria-expanded` + `aria-controls` on both triggers). Carries
- * everything the old muted context line and LOC popover held: Artifact
- * identity, Generation origin (+ the BRIEF-11 warnings text the chip
- * lands on), and the repo-config surface's ok-state (that chip itself is
- * warning-only from this PR on).
+ * shortcuts.
  */
 export function BriefDetailsPanel({
   brief,
@@ -96,9 +91,8 @@ export function BriefDetailsPanel({
   };
 
   // Escape must dismiss a hover-opened callout too — focus may be anywhere,
-  // so listen at the document while open, capture phase, and consume the
-  // key so it never reaches page-level handling (focus-mode exit) — same
-  // contract as RiskChipDisclosure.
+  // so listen at the document while open, capture phase, and consume the key
+  // so it never reaches page-level handling.
   useEffect(() => {
     if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -154,10 +148,9 @@ export function BriefDetailsPanel({
         ) : null}
       </span>
       {warnings.length > 0 ? (
-        // The generation-warnings count chip (spec: Chips): the text left
-        // the header in PR 2; this chip opens the SAME panel, landed on the
-        // warnings block. A landed-open chip click closes again (a button
-        // announcing aria-expanded must collapse on activation).
+        // Opens the SAME panel, landed on the warnings block. A landed-open
+        // chip click closes again — a button announcing aria-expanded must
+        // collapse on activation.
         <button
           aria-controls={open ? detailId : undefined}
           aria-expanded={open && landing === "warnings"}
@@ -250,7 +243,6 @@ function ArtifactSection({
           <span className="red">−{totalDeleted}</span>
         </dd>
       </dl>
-      {/* The killed LOC popover's caveat (BRIEF-103): same words, new home. */}
       <p className={styles["caveat"]}>
         <b>Adjusted ≈ git for this local brief.</b> Move detection is not in the
         current categorizer output, so moved/generated exclusions are not
@@ -289,8 +281,7 @@ function GenerationSection({
         <p className={styles["caveat"]}>No origin stamp on this artifact.</p>
       )}
       {warnings.length > 0 ? (
-        // The full BRIEF-11 text (salvage, feedback retry, served-model
-        // mismatch) — the header chip's landing target, hence focusable.
+        // The header chip's landing target, hence focusable.
         <div
           className={styles["warnings"]}
           data-details-warnings=""
@@ -324,9 +315,8 @@ function RepoConfigSection({
           No .mergebrief configuration applied to this generation.
         </p>
       ) : (
-        // Slimmed on purpose (spec): file + applied-or-not + warning line.
-        // Bytes-of-budget and per-file blob SHAs stay out; the warning-state
-        // chip's own callout keeps the full table.
+        // Slimmed on purpose: bytes-of-budget and per-file blob SHAs stay
+        // out; the warning-state chip's own callout keeps the full table.
         <ul className={styles["configList"]}>
           {repoConfig.files
             .filter((file) => file.outcome !== "absent")

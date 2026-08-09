@@ -43,10 +43,9 @@
       color: var(--text);
     }
 
-    // Active (a filter applied) = accent-tinted fill — the neutral --panel
-    // fill was near-invisible on the --bg bar (owner a11y finding). The
-    // luminance shift survives greyscale; the counts receipt carries the
-    // state in text as well, so the cue is never colour-alone.
+    // Active = accent-tinted fill; a neutral --panel fill is near-invisible
+    // on the --bg bar. The luminance shift survives greyscale and the counts
+    // receipt carries the state in text, so the cue is never colour-alone.
     &[data-state="active"] {
       border-color: color-mix(in srgb, var(--color-accent) 55%, var(--line));
       background: color-mix(in srgb, var(--color-accent) 16%, transparent);
@@ -70,9 +69,8 @@
     font-weight: 650;
   }
 
-  // Positioned by floating-ui (style={floatingStyles}), rendered in-tree:
-  // z-index clears the sticky chunk headers (z 10) from inside the bar's
-  // own stacking context. radius-md matches the trigger family.
+  // Positioned by floating-ui, rendered in-tree: z-index clears the sticky
+  // chunk headers (z 10) from inside the bar's own stacking context.
   // Wider than the risk panel: two labelled chip rows plus the footer.
   .panel {
     z-index: 60;

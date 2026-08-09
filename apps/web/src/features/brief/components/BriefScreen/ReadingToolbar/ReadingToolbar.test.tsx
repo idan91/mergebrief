@@ -1,7 +1,4 @@
 // @vitest-environment jsdom
-// The reading toolbar (BRIEF-134): sticky control bar above the conversation
-// slot. Left cluster = what's shown (Filter slot · Risk attrs · Collapse
-// supporting); right cluster = where you are (group stepper · changes nav).
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -201,9 +198,8 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
   });
 
   it("Escape with the panel open never leaks to bubble-phase shortcut listeners", () => {
-    // The focus-mode exit shortcut listens on window at bubble phase
-    // (useKeyboardShortcuts): dismissing the panel must consume Escape so
-    // closing it cannot also exit focus mode.
+    // The focus-mode exit shortcut listens on window at bubble phase, so
+    // dismissing the panel must consume Escape.
     const windowSpy = vi.fn();
     window.addEventListener("keydown", windowSpy);
     try {
@@ -245,7 +241,7 @@ describe("ReadingToolbar risk-attrs disclosure", () => {
   });
 });
 
-describe("ReadingToolbar Concerns variant (mode legality, BRIEF-134 PR 4)", () => {
+describe("ReadingToolbar Concerns variant (mode legality)", () => {
   it("renders Filter + Risk attrs only — no collapse toggle, no nav cluster", () => {
     renderToolbar({
       variant: "filter-and-attrs",
@@ -267,8 +263,8 @@ describe("ReadingToolbar Concerns variant (mode legality, BRIEF-134 PR 4)", () =
   });
 
   it("risk-attr chips cycle through carrying CHUNKS, story order", () => {
-    // ADR 0032 #11: attribute-keyed targets follow the lens — groups in
-    // Story, chunks in Concerns.
+    // Attribute-keyed targets follow the lens — groups in Story, chunks in
+    // Concerns.
     const jumpChunk = vi.fn();
     const jumpGroup = vi.fn();
     renderToolbar({

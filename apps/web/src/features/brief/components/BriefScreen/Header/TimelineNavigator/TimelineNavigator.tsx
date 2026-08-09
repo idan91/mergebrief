@@ -15,23 +15,21 @@ import type { BriefTimeline } from "../../../../utils/timeline";
 import styles from "./TimelineNavigator.module.scss";
 
 export interface TimelineNavigatorProps {
-  /** Compare availability at the selected timeline point (ADR 0024). */
+  /** Compare availability at the selected timeline point. */
   availability: CompareOptionFlags;
   briefId: string;
-  /** Resolved, normalized View/Compare state (ADR 0024 plan step 6). */
+  /** Resolved, normalized View/Compare state. */
   compareState: BriefSearch;
   timeline: BriefTimeline;
 }
 
 /**
- * Timeline points continue to navigate Brief heads only (ADR 0019 decision 1,
- * unchanged by ADR 0024). The **View** and **Compare** controls here replace
- * the old `Full / Delta` lens (ADR 0024 plan step 6): they write canonical
- * `view`/`compare` search params, always through `withView`/`withCompare` so
- * the URL only ever holds a normalized, valid combination. Previous/Next/
- * select preserve the current search verbatim — the selected View/Compare
- * choice sticks across timeline navigation within the session and
- * re-normalizes against the newly selected point's own availability.
+ * Timeline points navigate Brief heads only. The View and Compare controls
+ * write canonical `view`/`compare` search params, always through
+ * `withView`/`withCompare` so the URL only ever holds a normalized, valid
+ * combination. Previous/Next/select preserve the current search verbatim —
+ * the choice sticks across timeline navigation and re-normalizes against the
+ * newly selected point's own availability.
  */
 export function TimelineNavigator({
   availability,

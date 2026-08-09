@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-// BRIEF-103 PR 3: the keycap-split origin badge — official marks for
-// sourced providers, named fallback for the rest, class carried in text.
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
@@ -47,8 +45,8 @@ describe("ProviderBadge", () => {
   );
 
   it("codex takes the named fallback: generic glyph + visible token, CLI tag", () => {
-    // Accuracy gate: no standalone official Codex mark exists, so no brand
-    // approximation ships — the pill names the provider in text instead.
+    // No standalone official Codex mark exists, so no brand approximation
+    // ships — the pill names the provider in text instead.
     render(
       <ProviderBadge
         generation={{ provider: "codex", model: "gpt-5.2-codex", effort: null }}

@@ -1,6 +1,4 @@
 // @vitest-environment jsdom
-// BRIEF-103 PR 4: the ⓘ Brief-details disclosure — three sections, keyboard
-// path, SR labels, the warnings-chip second trigger, and focus return.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -186,7 +184,6 @@ describe("BriefDetailsPanel sections — full brief", () => {
     expect(text).toContain("a".repeat(40));
     expect(text).toContain("+137");
     expect(text).toContain("−76");
-    // The killed LOC popover's caveat, word for word.
     expect(text).toContain("Adjusted ≈ git for this local brief.");
   });
 

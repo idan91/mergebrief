@@ -39,11 +39,11 @@ export interface ChunkCardProps {
   addressedReviewComments: AddressedReviewComment[];
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
-  /** Inline conversation threads at this chunk (BRIEF-25); absent = none. */
+  /** Inline conversation threads at this chunk; absent = none. */
   conversationRows?: DigestRow[] | undefined;
   conversationComposer?: ThreadComposerWiring | undefined;
   /**
-   * Per-attribute display meta for THIS chunk (BRIEF-52): source variant,
+   * Per-attribute display meta for THIS chunk: source variant,
    * de-emphasis, implication. Absent = plain built-in chips.
    */
   riskMeta?: ReadonlyMap<string, AttributeDisplayMeta> | undefined;
@@ -132,9 +132,9 @@ export const ChunkCard = memo(function ChunkCard({
   // pair's first mousedown) — the dblclick compensator must know what the
   // pair actually did, not infer it from selection presence.
   const togglesThisPair = useRef(0);
-  // Selected per chunk (BRIEF-27): this card re-renders only when ITS
-  // slice changes, instead of trusting a parent-built map whose array
-  // identities churned on every comment interaction anywhere.
+  // Selected per chunk so this card re-renders only when ITS slice changes,
+  // instead of trusting a parent-built map whose array identities churn on
+  // every comment interaction anywhere.
   const comments = useChunkReviewComments(chunk.id);
 
   const riskChips = riskChipView(chunk.riskSurface);
@@ -143,9 +143,8 @@ export const ChunkCard = memo(function ChunkCard({
     () => buildChunkComparisonView(chunk, comparison.marks),
     [chunk, comparison.marks],
   );
-  // Live threads split (smoke feedback 2026-07-08): humans render row-level
-  // inside the diff (under their lines); bots keep ONE aggregated
-  // chunk-level disclosure.
+  // Humans render row-level inside the diff, under their lines; bots keep
+  // ONE aggregated chunk-level disclosure.
   const conversationSplit = useMemo(
     () => splitInlineRows(conversationRows ?? []),
     [conversationRows],
@@ -173,8 +172,8 @@ export const ChunkCard = memo(function ChunkCard({
       data-state={expanded ? "open" : "collapsed"}
       data-testid="brief-chunk"
       id={chunk.id}
-      // Programmatic focus target for the conversation jump contract
-      // (BRIEF-25): move focus with the scroll, never leave it behind.
+      // Programmatic focus target for the conversation jump: move focus with
+      // the scroll, never leave it behind.
       tabIndex={-1}
     >
       <div className={styles["head"]}>
@@ -188,11 +187,10 @@ export const ChunkCard = memo(function ChunkCard({
             if (event.detail <= 1) togglesThisPair.current = 0;
           }}
           onClick={(event) => {
-            // Selecting the file path (selectable inside this button —
-            // BRIEF-14) must not toggle the chunk open/closed. Keyboard
-            // activation (detail 0) always toggles. Residual edge: re-
-            // selecting the EXACT same range reads as unchanged and
-            // toggles — the cost is a toggle, not a lost selection.
+            // Selecting the file path (selectable inside this button) must
+            // not toggle the chunk open/closed. Keyboard activation
+            // (detail 0) always toggles. Residual edge: re-selecting the
+            // EXACT same range reads as unchanged and toggles.
             if (event.detail > 0) {
               const selection = snapshotSelection();
               // Either endpoint counts: a shift-click extension keeps its

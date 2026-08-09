@@ -3,8 +3,7 @@
 
 @layer components {
   // The hover wrapper IS the identity row's flex item — flex-centering it
-  // keeps the trigger dead-centered instead of riding the span's inline
-  // line box (measured 1.5px low in the design audit).
+  // keeps the trigger dead-centered instead of riding the inline line box.
   .hoverArea {
     display: inline-flex;
     flex: none;
@@ -51,9 +50,8 @@
     @include mixins.focus-visible;
   }
 
-  // Generation warnings as a count chip (BRIEF-103): amber tinted pill, the
-  // same treatment family as the state badge / self-review chip. Fixed
-  // height + middle alignment (badge-height discipline).
+  // Fixed height + middle alignment so the chip can't inflate the identity
+  // row.
   .warningsChip {
     display: inline-flex;
     flex: none;
@@ -130,7 +128,6 @@
     }
   }
 
-  // The BRIEF-11 warnings text (the header chip's landing target).
   .warnings {
     display: flex;
     flex-direction: column;

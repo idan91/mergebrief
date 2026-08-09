@@ -1,10 +1,8 @@
 @use "functions";
 
 @layer components {
-  // GitHub-convention PR state pill (BRIEF-103): tinted (color-mix bg +
-  // toned border — the self-review chip's treatment), never solid fill.
-  // Badge-height discipline: fixed height + middle alignment so the pill
-  // can never inflate the identity row's line box (a prototype defect).
+  // Tinted, never solid fill. The fixed height + middle alignment stop the
+  // pill inflating the identity row's line box.
   .badge {
     --badge-color: var(--color-text-2);
 

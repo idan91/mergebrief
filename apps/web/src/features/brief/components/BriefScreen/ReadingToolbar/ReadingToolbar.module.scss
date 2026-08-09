@@ -2,11 +2,10 @@
 @use "mixins";
 
 @layer components {
-  // Sticky below the header (FocusBanner pattern); the component publishes
-  // its measured height as --toolbar-h for sticky chunk headers.
-  // flex-wrap: nowrap enforces the fixed height; NO overflow: hidden — a
-  // fixed-height box with overflow hidden clips its own anchored panels
-  // (third instance of this bug family; see BRIEF-103's focus-menu clip).
+  // Sticky below the header; the component publishes its measured height as
+  // --toolbar-h for sticky chunk headers. flex-wrap: nowrap enforces the
+  // fixed height; NO overflow: hidden — a fixed-height box with overflow
+  // hidden clips its own anchored panels.
   .toolbar {
     position: sticky;
     inset-block-start: var(--top-bar-h);
@@ -21,9 +20,8 @@
     margin-block-end: functions.to-rem(14px);
 
     // Concentric corners with a UNIFORM inset: inner radius (sm 4) +
-    // inset (8) = outer radius (lg 12). The earlier 12px-inline/4px-block
-    // asymmetry made the frame read cramped at the edges (owner finding,
-    // both rounds 2026-08-06).
+    // inset (8) = outer radius (lg 12). An asymmetric inset reads cramped at
+    // the edges.
     padding: functions.to-rem(8px);
     border: 1px solid var(--line);
     border-radius: var(--radius-lg);
@@ -56,10 +54,9 @@
       @include mixins.focus-ring;
     }
 
-    // Pressed = accent-tinted fill: the old --panel fill on the --bg bar was
-    // near-invisible (owner a11y finding). The luminance shift survives
-    // greyscale, so the cue is not colour-alone; aria-pressed carries the
-    // semantic state.
+    // Pressed = accent-tinted fill; a neutral --panel fill on the --bg bar
+    // is near-invisible. The luminance shift survives greyscale, so the cue
+    // is not colour-alone.
     &[aria-pressed="true"] {
       border-color: color-mix(in srgb, var(--color-accent) 55%, var(--line));
       background: color-mix(in srgb, var(--color-accent) 16%, transparent);
@@ -67,8 +64,8 @@
     }
   }
 
-  // Label compression ladder (spec'd at 1280): long label by default, short
-  // below. display toggling also swaps the accessible name with it.
+  // Label compression ladder: long label by default, short below 1280px.
+  // display toggling also swaps the accessible name with it.
   .labelShort {
     display: none;
   }
