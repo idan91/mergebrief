@@ -86,7 +86,7 @@ describe("IntentBar", () => {
     expect(screen.getByText("add the widget endpoint")).toBeTruthy();
   });
 
-  it("renders a broad corpus as the same quiet bar with an unavailability line and no buckets", () => {
+  it("renders broad sources as the same quiet bar with an unavailability line and no buckets", () => {
     render(<IntentBar intentCheck={BROAD} jumpToGroup={() => {}} />);
     expect(screen.getByText(/intent check unavailable/i)).toBeTruthy();
     expect(screen.queryByText("1 accomplished")).toBeNull();
@@ -96,7 +96,7 @@ describe("IntentBar", () => {
     expect(screen.queryByText("Accomplished")).toBeNull();
   });
 
-  it("renders a none corpus with its own reason line", () => {
+  it("renders empty sources with its own reason line", () => {
     render(
       <IntentBar
         intentCheck={{
@@ -346,7 +346,7 @@ describe("IntentBar — BRIEF-85 alarm buckets", () => {
     expect(classes.size).toBe(1);
   });
 
-  it("keeps the alarm buckets out of a broad/none corpus entirely", () => {
+  it("keeps the alarm buckets out of broad/none sources entirely", () => {
     const broadWithAlarms: IntentCheck = {
       ...BROAD,
       deviations: [item("should never render")],

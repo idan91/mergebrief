@@ -286,9 +286,7 @@ function GenerationSection({
           ) : null}
         </dl>
       ) : (
-        <p className={styles["caveat"]}>
-          No origin stamp on this artifact.
-        </p>
+        <p className={styles["caveat"]}>No origin stamp on this artifact.</p>
       )}
       {warnings.length > 0 ? (
         // The full BRIEF-11 text (salvage, feedback retry, served-model

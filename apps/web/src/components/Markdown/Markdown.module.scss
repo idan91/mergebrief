@@ -10,7 +10,7 @@
     // not a restoration of the unstyled ~1.5em UA sizes model h1/h2 used to
     // hit. The renderer demotes h1→h3 and h2→h4 (document-outline rule), and
     // the components map cannot tell a demoted h1 from a source-authored h3,
-    // so each level carries ONE style serving both. Prose line-height (1.65)
+    // so each level carries ONE style serving both. Text line-height (1.65)
     // and the existing block rhythm are kept.
     h3,
     h4,
@@ -101,7 +101,7 @@
       color: var(--text);
       font-family: var(--mono);
 
-      // Earned em (ADR 0037 #5): inline code is sized by whichever prose
+      // Earned em (ADR 0037 #5): inline code is sized by whichever text
       // element encloses it, and that varies WITHIN this component — p/li
       // render at --font-size-xl, h3/h4 at --font-size-lg. A fixed step
       // would shout inside a heading or shrink inside a paragraph.

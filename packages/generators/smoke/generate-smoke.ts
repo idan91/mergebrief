@@ -93,9 +93,7 @@ async function main(): Promise<void> {
   // Origin prints AFTER generation: run-time capability discovery
   // (openai's effort-knob 400 sniff) can change it mid-run.
   process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
-  console.error(
-    `[smoke] origin: ${JSON.stringify(generator.origin("low"))}`,
-  );
+  console.error(`[smoke] origin: ${JSON.stringify(generator.origin("low"))}`);
   console.error(`[smoke] OK in ${seconds}s — schema-valid output received`);
 }
 

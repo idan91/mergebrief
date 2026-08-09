@@ -243,7 +243,7 @@ describe("generation warnings chip (BRIEF-103)", () => {
     ],
   };
 
-  it("opens the Brief-details panel LANDED on the warnings prose (PR 4)", () => {
+  it("opens the Brief-details panel LANDED on the warnings text (PR 4)", () => {
     renderHeader({ brief: warned });
     const chip = screen.getByRole("button", {
       name: /2 generation warnings/,

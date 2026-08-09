@@ -104,7 +104,7 @@ describe("BriefDetailsPanel disclosure semantics", () => {
 });
 
 describe("warnings-chip trigger", () => {
-  it("opens the panel landed on the warnings prose (focused role=note)", () => {
+  it("opens the panel landed on the warnings text (focused role=note)", () => {
     renderPanel();
     fireEvent.click(warningsChip());
     const note = warningsNote();
@@ -135,7 +135,7 @@ describe("warnings-chip trigger", () => {
     expect(document.activeElement).toBe(warningsChip());
   });
 
-  it("lands on the warnings prose even when the panel is ALREADY open plain", () => {
+  it("lands on the warnings text even when the panel is ALREADY open plain", () => {
     renderPanel();
     fireEvent.click(infoTrigger());
     expect(warningsNote()).toBeTruthy();
@@ -190,7 +190,7 @@ describe("BriefDetailsPanel sections — full brief", () => {
     expect(text).toContain("Adjusted ≈ git for this local brief.");
   });
 
-  it("Generation: provider, model, effort, warnings prose", () => {
+  it("Generation: provider, model, effort, warnings text", () => {
     renderPanel();
     fireEvent.click(infoTrigger());
     const generation = document.querySelector(

@@ -1302,7 +1302,7 @@ describe("fanOutIntentCheck (BRIEF-85 grammar budget)", () => {
       items: [
         // Alarm item with an unverifiable quote — the validator must still drop it.
         genItem("deviations", "ungrounded alarm", {
-          quote: "this ask appears nowhere in the corpus",
+          quote: "this ask appears nowhere in the sources",
         }),
       ],
     });
@@ -1310,7 +1310,7 @@ describe("fanOutIntentCheck (BRIEF-85 grammar budget)", () => {
       fanned,
       [{ id: "g1" }],
       [],
-      [{ url: "", content: "the corpus text" }],
+      [{ url: "", content: "the source text" }],
     );
     expect(intentCheck.deviations).toEqual([]);
     expect(issues.join("\n")).toContain("possible fabrication");

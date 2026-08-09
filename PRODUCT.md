@@ -18,7 +18,7 @@ Clear, principled, and practical. The product should feel like an expert reviewe
 
 ## Anti-references
 
-Do not look like an AI bug-bot, verdict engine, severity dashboard, or noisy SaaS reviewer that floods a PR with speculative findings. Avoid AI-authored review prose, approval-like badges, hidden telemetry cues, generic summary dashboards, and black-box analysis theatre.
+Do not look like an AI bug-bot, verdict engine, severity dashboard, or noisy SaaS reviewer that floods a PR with speculative findings. Avoid AI-authored review text, approval-like badges, hidden telemetry cues, generic summary dashboards, and black-box analysis theatre.
 
 ## Design Principles
 

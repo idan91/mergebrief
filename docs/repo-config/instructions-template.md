@@ -8,7 +8,7 @@ honors these classes only (see `docs/repo-config/authoring.md`):
 - domain glossary and summary terminology — the repo's own names for its concepts
 - noise and generated-path de-emphasis — paths whose churn is low-signal for a reviewer
 - repo-specific reading conventions — structural foundation relations between directories (facts feeding foundation-first ordering, never importance)
-- summary phrasing preferences — tone and framing of the prose
+- summary phrasing preferences — tone and framing of the text
 
 ```markdown
 ## Grouping

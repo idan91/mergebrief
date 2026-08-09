@@ -63,7 +63,9 @@ export function ExpandableContent({
       );
       const capPx =
         parseCapPx(
-          getComputedStyle(root).getPropertyValue("--expandable-content-text-cap"),
+          getComputedStyle(root).getPropertyValue(
+            "--expandable-content-text-cap",
+          ),
           Number.isFinite(rootFontSize)
             ? rootFontSize
             : ROOT_FONT_SIZE_FALLBACK_PX,
@@ -91,7 +93,9 @@ export function ExpandableContent({
   const style: ExpandableContentStyle =
     contentHeightPx === undefined
       ? {}
-      : { "--expandable-content-text-full": `${Math.ceil(contentHeightPx) + 1}px` };
+      : {
+          "--expandable-content-text-full": `${Math.ceil(contentHeightPx) + 1}px`,
+        };
 
   return (
     <div

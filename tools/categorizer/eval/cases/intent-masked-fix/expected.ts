@@ -50,7 +50,7 @@ export const properties: EvalProperty[] = [
   {
     id: "masked-fix-claim-flagged",
     description:
-      "the claimed-but-unmade redelivery fix lands in claimedButUnachieved (the corpus claims a fix; only the log level moved)",
+      "the claimed-but-unmade redelivery fix lands in claimedButUnachieved (the sources claim a fix; only the log level moved)",
     check: (brief) =>
       (brief.intentCheck?.claimedButUnachieved ?? []).some((item) =>
         /redeliver|ingest|dispatch fail/i.test(`${item.intent} ${item.quote}`),

@@ -19,7 +19,7 @@ describe("Markdown — suggestion fences (BRIEF-56)", () => {
     expect(screen.queryByText(/```/)).toBeNull();
   });
 
-  it("leaves fences as plain code without the opt-in (brief prose)", () => {
+  it("leaves fences as plain code without the opt-in (brief text)", () => {
     render(<Markdown content={body} />);
     expect(screen.queryByText("Suggested change")).toBeNull();
   });

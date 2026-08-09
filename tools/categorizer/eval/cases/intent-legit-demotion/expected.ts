@@ -41,13 +41,13 @@ export const properties: EvalProperty[] = [
   {
     id: "legit-no-deviations",
     description:
-      "no deviation is manufactured — the diff does what the ticket asked, so nothing opposes the corpus",
+      "no deviation is manufactured — the diff does what the ticket asked, so nothing opposes the sources",
     check: (brief) => (brief.intentCheck?.deviations ?? []).length === 0,
   },
   {
     id: "legit-no-masking-alarm",
     description:
-      "claimedButUnachieved stays empty — a demotion the corpus ASKED for is not a masked fix, however much it looks like one",
+      "claimedButUnachieved stays empty — a demotion the sources ASKED for is not a masked fix, however much it looks like one",
     check: (brief) =>
       (brief.intentCheck?.claimedButUnachieved ?? []).length === 0,
   },

@@ -347,7 +347,7 @@ describe("evaluatePairCase", () => {
     );
   });
 
-  it("carries a labeled prose-length note when a side's summary is over cap (BRIEF-148)", async () => {
+  it("carries a labeled text-length note when a side's summary is over cap (BRIEF-148)", async () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
     if (!cases.ok) throw new Error(cases.error);
@@ -379,8 +379,8 @@ describe("evaluatePairCase", () => {
     expect(evaluated.ok).toBe(true);
     if (!evaluated.ok) throw new Error(evaluated.error);
     const notes = evaluated.value.outcome.notes.join("\n");
-    expect(notes).toContain("revised prose length: 1/1 runs over cap");
-    expect(notes).not.toContain("base prose length");
+    expect(notes).toContain("revised text length: 1/1 runs over cap");
+    expect(notes).not.toContain("base text length");
   });
 
   it("rebaseline writes and re-reads the baseline at the same key", async () => {
@@ -437,7 +437,7 @@ describe("selectCases", () => {
   const singles = [{ id: "s1" }, { id: "s2" }];
   const pairs = [{ id: "p1" }];
 
-  it("passes both corpora through with no filter", () => {
+  it("passes both case sets through with no filter", () => {
     const result = selectCases(singles, pairs, undefined);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -445,7 +445,7 @@ describe("selectCases", () => {
     expect(result.value.pairs).toHaveLength(1);
   });
 
-  it("--case selects from either corpus and errors on an unknown id", () => {
+  it("--case selects from either case set and errors on an unknown id", () => {
     const pairHit = selectCases(singles, pairs, "p1");
     expect(pairHit.ok && pairHit.value.pairs).toHaveLength(1);
     const miss = selectCases(singles, pairs, "nope");
@@ -454,7 +454,7 @@ describe("selectCases", () => {
     expect(miss.error).toContain("p1");
   });
 
-  it("an empty combined corpus is an error", () => {
+  it("an empty combined case set is an error", () => {
     expect(selectCases([], [], undefined).ok).toBe(false);
   });
 });
@@ -528,7 +528,7 @@ const PAIRS_DIR = joinPath(
   "../eval/pair-cases",
 );
 
-describe("committed pair corpus", () => {
+describe("committed pair case set", () => {
   it("every committed pair case loads with unique, non-empty properties", async () => {
     const cases = await loadPairCases(PAIRS_DIR);
     expect(cases.ok).toBe(true);

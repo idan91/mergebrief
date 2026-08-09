@@ -501,7 +501,7 @@ describe("harnessTimeoutError / redactSecrets", () => {
     expect(error.message).toContain("tail");
   });
 
-  it("leaves prose after 'Basic' alone while redacting encoded credentials", () => {
+  it("leaves text after 'Basic' alone while redacting encoded credentials", () => {
     const out = redactSecrets(
       "Basic usage failed; sent Basic dXNlcjpwYXNz here",
     );

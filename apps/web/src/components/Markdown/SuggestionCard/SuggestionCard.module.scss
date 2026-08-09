@@ -30,8 +30,8 @@
     font-family: var(--mono);
     font-size: var(--font-size-md);
 
-    // Diff rows are code, not prose: without this the enclosing renderer's
-    // prose line-height (1.6+) leaks in and inflates every row.
+    // Diff rows are code, not text: without this the enclosing renderer's
+    // text line-height (1.6+) leaks in and inflates every row.
     line-height: 1.45;
     table-layout: fixed;
 

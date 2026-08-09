@@ -15,7 +15,7 @@ import type { Result } from "types";
 import { categorize } from "brief-core";
 import { extractConfigFlag } from "brief-core/cli-config";
 import { loadBaseline, preflightBaselineKeys, saveBaseline } from "./baseline";
-import { proseLengthNotes } from "./length";
+import { textLengthNotes } from "./length";
 import { loadPrices, priceUsage } from "./cost";
 import { loadCases, type EvalCase } from "./loadCase";
 import { scoreRuns } from "./properties";
@@ -223,7 +223,7 @@ async function evaluateCase(
         notes: [
           ...result.failureMessages,
           ...scored.notes,
-          ...proseLengthNotes(result.briefs),
+          ...textLengthNotes(result.briefs),
         ],
       },
       rebaselined,
@@ -248,17 +248,13 @@ async function main(): Promise<void> {
     console.error(generator.error);
     process.exit(2);
   }
-  const origin = generator.value.generator.origin(
-    generator.value.effort,
-  );
+  const origin = generator.value.generator.origin(generator.value.effort);
   const key = `${origin.provider}:${origin.model}`;
-  const billingKind: BillingKind = SUBSCRIPTION_PROVIDERS.has(
-    origin.provider,
-  )
+  const billingKind: BillingKind = SUBSCRIPTION_PROVIDERS.has(origin.provider)
     ? BillingKinds.SUBSCRIPTION
     : BillingKinds.API;
 
-  // Load BOTH corpora unfiltered, then select — `--case` may name a single
+  // Load BOTH case sets unfiltered, then select — `--case` may name a single
   // OR a revision-pair case; an id in neither is the error.
   const allCases = await loadCases(CASES_DIR);
   if (!allCases.ok) {

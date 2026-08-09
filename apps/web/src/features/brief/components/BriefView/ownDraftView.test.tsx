@@ -380,7 +380,7 @@ describe("own-draft Brief view (BRIEF-43)", () => {
     expect(screen.queryByText(/stated ask.* not found/)).toBeNull();
   });
 
-  it("soft gate: a broad corpus contributes no tension count (precise-only, like the gap line)", () => {
+  it("soft gate: a broad set of sources contributes no tension count (precise-only, like the gap line)", () => {
     const briefBroad: Brief = {
       ...briefFixture,
       intentCheck: {

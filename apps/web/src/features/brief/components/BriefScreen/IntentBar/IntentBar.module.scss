@@ -91,7 +91,7 @@
     padding: functions.to-rem(10px) functions.to-rem(12px) functions.to-rem(2px);
   }
 
-  // Panel prose is capped at a readable measure — the BAR stays full-width
+  // Panel text is capped at a readable measure — the BAR stays full-width
   // (spec lock); the cap costs no region height because the panel only
   // exists opened.
   .framing {

@@ -136,7 +136,7 @@
     // There is deliberately no em token family. An em token pins nothing —
     // it computes differently at every site — and four near-identical ratios
     // was renamed drift, not a scale. Genuine parent-relative text (inline
-    // code in prose, a shared leaf rendered into hosts of differing size)
+    // code in text, a shared leaf rendered into hosts of differing size)
     // writes its em value explicitly at the site, with a justification and a
     // line-scoped stylelint disable. Everything else uses the px steps above.
 

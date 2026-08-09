@@ -72,7 +72,7 @@ function isHttpUrl(value: string): boolean {
  * no warning colors); the body is collapsed by default and NEVER
  * auto-expands (auto-open on model inference is the anchoring the design
  * exists to prevent). The intent check is the AI's fallible read, framed as
- * such — never a verdict. Broad/none corpora render the same quiet bar with
+ * such — never a verdict. Broad/none sources render the same quiet bar with
  * a single unavailability line.
  */
 export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(

@@ -4,7 +4,7 @@ import type { EvalProperty } from "../../properties";
  * BRIEF-54 positive case: the copybutton-new-export diff with an authored
  * precise ticket (fixture link, tasks.example). Three of the ticket's four
  * asks are in the diff; "document the component on the docs site" is not —
- * the statedButMissing target. Corpus rule: the DIFF is the publishable
+ * the statedButMissing target. Source rule: the DIFF is the publishable
  * artifact (components#7); the ticket text is authored fixture data.
  *
  * Vacuity note (BRIEF-85): `intent-alarm-buckets-empty` also passes if a

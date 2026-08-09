@@ -156,7 +156,7 @@ The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surfa
 _Avoid_: engine, backend, core (informal)
 
 **Engagement Layer**:
-The human-reviewer workflow built on the **Analysis Layer**: no-AI-authored-prose rule, Seeds, private Mind-Map Space, human-written Comments, Approval + Receipt. Human-only — does not apply to AI-agent reviewers. The v1 product surface.
+The human-reviewer workflow built on the **Analysis Layer**: no-AI-authored-text rule, Seeds, private Mind-Map Space, human-written Comments, Approval + Receipt. Human-only — does not apply to AI-agent reviewers. The v1 product surface.
 _Avoid_: UI layer, frontend, workflow (informal)
 
 **Mind-Map Space**:
@@ -239,7 +239,7 @@ _Avoid_: risk ranking, hotspot list
 - A reviewer records a **Disposition** on a **Flag**: **addressed** (a **Comment** targets it) or **dismissed** (with reason). Dispositions are frozen into the **Receipt** on **Submit**.
 - On submit, the review lands **natively on GitHub** (comments + approve/request-changes) authored by the reviewer. A **Signature line** links to the static **Review Summary**, which renders the **Receipt**. The review otherwise reads as a normal human review. Receipt aggregates across all reviewers when multi-reviewer.
 - A **Brief**'s **Trigger** (compute) is independent of its **Entry** (human reach): compute fires eagerly on every push; the reviewer **Entry** comment posts only when the PR is ready. **Draft-first** changes only the Entry timing, never the Trigger.
-- The **Analysis Layer** is reviewer-agnostic. A human reviewer consumes it through the **Engagement Layer** (v1). An AI-agent reviewer consumes it directly via API (v1.5+ headless) — the no-AI-prose rule and Mind-Map Space are human-mode only and do not apply to agent-mode.
+- The **Analysis Layer** is reviewer-agnostic. A human reviewer consumes it through the **Engagement Layer** (v1). An AI-agent reviewer consumes it directly via API (v1.5+ headless) — the no-AI-text rule and Mind-Map Space are human-mode only and do not apply to agent-mode.
 
 ## Example dialogue
 
@@ -256,7 +256,7 @@ _Avoid_: risk ranking, hotspot list
 - **"Dismissal" vs "Disposition"** — *Dismissal* was used for the whole flag-decision concept. Resolved: **Disposition** is the umbrella (*addressed* or *dismissed*); **Dismissal** is only the *dismissed* value.
 - **"User"** in early scope was ambiguous (author vs reviewer). Resolved: **Reviewer** is the primary v1 surface; the **Author** self-review surface is a *secondary* v1 surface (promoted 2026-06 — see ADR 0009 / `center-of-gravity.md`), consuming the same shared **Brief** plus the **Intent check** and **Soft gate**. Both are named explicitly when referenced.
 - **"Critical code areas might mislead reviewer"** — the original concern was anchoring bias. Resolved by Risk Surface + Playbook + no-verdict model. Anchoring is the design's chief enemy at the brief layer.
-- **"Pure AI code review comments"** was an informal phrase. Resolved as a strict product rule: the agent never authors prose that ships as a **Comment**. Seeds and validation only.
+- **"Pure AI code review comments"** was an informal phrase. Resolved as a strict product rule: the agent never authors text that ships as a **Comment**. Seeds and validation only.
 - **Intent lived on the chunk** in the original model. Resolved: intent (**Category**, **Summary**) lives on the **Change-group**; the chunk carries **Concern**, **Role**, and **LoC**. A test/doc chunk supports a group's intent rather than re-deriving its own. See ADR 0005.
 - **`test-only` / `config-only` / `generated-code` as Categories** conflated *artifact* with *intent*. Resolved: these are **Concern** values, not Categories. Category is purely intent (what kind of change); Concern is artifact (what kind of file).
 - **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.

@@ -1,12 +1,12 @@
 import type { Brief } from "brief-core/types";
 
 /**
- * BRIEF-148: per-case prose-length compliance note. The pipeline already
+ * BRIEF-148: per-case text-length compliance note. The pipeline already
  * stamps `lengthViolations` on every artifact (warn-only floor); this rolls
  * a case's runs into one printed number so length compliance is a report
  * fact, not eyeballing. Quiet when every run fits (report convention).
  */
-export function proseLengthNotes(
+export function textLengthNotes(
   briefs: readonly Pick<Brief, "lengthViolations">[],
   label = "",
 ): string[] {
@@ -20,7 +20,7 @@ export function proseLengthNotes(
   );
   const prefix = label === "" ? "" : `${label} `;
   return [
-    `${prefix}prose length: ${offendingRuns}/${briefs.length} runs over cap, ` +
+    `${prefix}text length: ${offendingRuns}/${briefs.length} runs over cap, ` +
       `${violations.length} violation(s) — worst: ${worst.field} ${worst.actual}/${worst.cap} chars`,
   ];
 }

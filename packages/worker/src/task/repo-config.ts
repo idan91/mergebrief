@@ -240,9 +240,7 @@ function validateAndShape(
  * merged per-file outcome table + collision disclosures, recorded right
  * after acquisition so failed/superseded runs keep their outcomes.
  */
-export function buildRepoConfigOrigin(
-  acquired: AcquiredRepoConfig,
-): string {
+export function buildRepoConfigOrigin(acquired: AcquiredRepoConfig): string {
   return JSON.stringify(
     repoConfigOriginSchema.parse({
       files: acquired.files.map((file) => ({ ...file })),

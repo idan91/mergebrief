@@ -245,7 +245,7 @@ describe("text length caps (BRIEF-148)", () => {
 describe("intent-check prompt section (BRIEF-54, ADR 0009 §2 as amended)", () => {
   const brief = buildSystemPrompt();
 
-  it("judges the composite corpus, never a fallback chain", () => {
+  it("judges the composite sources, never a fallback chain", () => {
     expect(brief).toContain("## Intent check");
     expect(brief).toMatch(/title.*description.*ticket-like/is);
     expect(brief).toContain("judged together");
@@ -313,7 +313,7 @@ describe("intent-check alarm buckets in the prompt (BRIEF-85, ADR 0009 §2 secon
   });
 
   it("states the retracted-nowhere rule with the acknowledged escape hatch", () => {
-    expect(brief).toContain("nowhere retracts");
+    expect(brief).toContain("nowhere retract");
     expect(brief).toMatch(
       /acknowledged: true[\s\S]*?quiet receipt, not an alarm/,
     );

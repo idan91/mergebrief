@@ -6,7 +6,7 @@ import type { Result } from "types";
 import { AnchorStates, categorize } from "brief-core";
 import type { Brief } from "brief-core/types";
 import type { Effort, Generator } from "generators";
-import { proseLengthNotes } from "./length";
+import { textLengthNotes } from "./length";
 import {
   planAnchoredGeneration,
   stitchBrief,
@@ -409,7 +409,7 @@ export function selectCases<S extends SelectableCase, P extends SelectableCase>(
     }
   }
   if (selectedSingles.length + selectedPairs.length === 0) {
-    return { ok: false, error: "no cases found — the corpus is empty" };
+    return { ok: false, error: "no cases found — the case set is empty" };
   }
   return {
     ok: true,
@@ -499,11 +499,11 @@ export async function evaluatePairCase(
         notes: [
           ...result.failureMessages,
           ...scored.notes,
-          ...proseLengthNotes(
+          ...textLengthNotes(
             result.pairs.map((pair) => pair.base),
             "base",
           ),
-          ...proseLengthNotes(
+          ...textLengthNotes(
             result.pairs.map((pair) => pair.revised),
             "revised",
           ),

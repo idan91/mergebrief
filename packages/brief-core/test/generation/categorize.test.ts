@@ -356,7 +356,7 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
     ).toBe(true);
   });
 
-  it("verifies quotes against the SANITIZED corpus — a stripped fence token never flags fabrication", async () => {
+  it("verifies quotes against the SANITIZED sources — a stripped fence token never flags fabrication", async () => {
     // The prompt render strips `<linked_context` tokens from link bodies, so
     // the model quotes from the stripped view. The verification source must
     // apply the identical strip — against the RAW content this quote (which
@@ -398,7 +398,7 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
     expect(brief.generationWarnings).toBeUndefined();
   });
 
-  it("applies the forged-fence defusal to the corpus when repo context is in play", async () => {
+  it("applies the forged-fence defusal to the sources when repo context is in play", async () => {
     // With repo context, renderUser defuses forged `<repo_instructions`
     // tokens everywhere — the model reads (and quotes) the defused text, so
     // the verification source must match it.
@@ -503,7 +503,7 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
           {
             bucket: "claimedButUnachieved",
             intent: "claims the loop is fixed",
-            quote: "this claim appears nowhere in the corpus",
+            quote: "this claim appears nowhere in the sources",
             sourceUrl: ticketUrl,
             groupIds: ["g2"],
             acknowledged: false,

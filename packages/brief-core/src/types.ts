@@ -436,7 +436,7 @@ export const IntentItemSchema = z.object({
   quote: z
     .string()
     .describe(
-      'verbatim supporting quote from the intent corpus — the SHORTEST span that still carries the ask: a full clause, never a bare fragment (~200 chars is a ceiling, never a target), never paraphrased. "" on doneButUnstated (no ticket side)',
+      'verbatim supporting quote from the intent sources — the SHORTEST span that still carries the ask: a full clause, never a bare fragment (~200 chars is a ceiling, never a target), never paraphrased. "" on doneButUnstated (no ticket side)',
     ),
   sourceUrl: z
     .string()
@@ -478,7 +478,7 @@ export const IntentCheckSchema = z.object({
   specificity: z
     .enum([Specificities.PRECISE, Specificities.BROAD, Specificities.NONE])
     .describe(
-      "how actionable the combined intent corpus is: precise (defines this change), broad (epic/parent/support — too general), none (no usable stated intent). broad/none ⇒ all five buckets empty",
+      "how actionable the combined intent sources are: precise (defines this change), broad (epic/parent/support — too general), none (no usable stated intent). broad/none ⇒ all five buckets empty",
     ),
   scopeNote: z
     .string()
@@ -498,17 +498,17 @@ export const IntentCheckSchema = z.object({
   doneButUnstated: z
     .array(IntentItemSchema)
     .describe(
-      'work the diff does that the corpus never asked for — quote and sourceUrl MUST be "" (empty when specificity is broad/none)',
+      'work the diff does that the sources never asked for — quote and sourceUrl MUST be "" (empty when specificity is broad/none)',
     ),
   deviations: z
     .array(IntentItemSchema)
     .describe(
-      "stated asks the diff moves AGAINST that the corpus nowhere retracts (a reversal acknowledged in the PR description ⇒ acknowledged: true — quiet receipt, not alarm). Behavior moved against the ask belongs here; only its signal touched ⇒ claimedButUnachieved; uncertain ⇒ accomplished, never a guessed alarm. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
+      "stated asks the diff moves AGAINST that the sources nowhere retract (a reversal acknowledged in the PR description ⇒ acknowledged: true — quiet receipt, not alarm). Behavior moved against the ask belongs here; only its signal touched ⇒ claimedButUnachieved; uncertain ⇒ accomplished, never a guessed alarm. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
     ),
   claimedButUnachieved: z
     .array(IntentItemSchema)
     .describe(
-      "asks the corpus claims fixed/delivered while the diff operates only on the problem's signal/check path (log demotion, catch-and-swallow, test skip/delete, threshold bump) — nothing in the diff plausibly fixes the problem itself. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
+      "asks the sources claim fixed/delivered while the diff operates only on the problem's signal/check path (log demotion, catch-and-swallow, test skip/delete, threshold bump) — nothing in the diff plausibly fixes the problem itself. Verbatim quote + at least one groupId required (both-sides grounding). Empty when specificity is broad/none",
     ),
 });
 
@@ -541,7 +541,7 @@ export const IntentGenerationItemSchema = IntentItemSchema.extend({
   bucket: z
     .enum(IntentBuckets)
     .describe(
-      "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the corpus nowhere retracts. claimedButUnachieved: an ask the corpus claims is fixed while the diff touches only the problem's signal/check path",
+      "which factual bucket this item belongs to. accomplished: a stated ask the diff delivers. statedButMissing: a stated ask absent from the diff. doneButUnstated: work the diff does that was never asked for. deviations: a stated ask the diff moves AGAINST and the sources nowhere retract. claimedButUnachieved: an ask the sources claim is fixed while the diff touches only the problem's signal/check path",
     ),
 });
 
@@ -636,12 +636,12 @@ export const BriefSchema = z.object({
     .array(LengthViolationSchema)
     .optional()
     .describe(
-      "prose fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
+      "text fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
     ),
   summary: z
     .string()
     .describe(
-      "Markdown, deliberately short: a lede of 1-3 short sentences stating what the PR does and why (plain prose, no headings), then optionally a '## Changelog' of 1-3 bullets when the change warrants one. Hard caps, never targets. The lede is required; the changelog is not.",
+      "Markdown, deliberately short: a lede of 1-3 short sentences stating what the PR does and why (plain text, no headings), then optionally a '## Changelog' of 1-3 bullets when the change warrants one. Hard caps, never targets. The lede is required; the changelog is not.",
     ),
   changeGroups: z.array(ChangeGroupSchema),
   chunks: z.array(ChunkSchema),
@@ -757,12 +757,12 @@ export const DeltaBriefSchema = z.object({
     .array(LengthViolationSchema)
     .optional()
     .describe(
-      "prose fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
+      "text fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
     ),
   summary: z
     .string()
     .describe(
-      "Markdown reload, deliberately short: a lede of 1-3 short sentences on what changed *since the baseline* (plain prose, no headings), then optionally a '## Changelog' of 1-3 bullets covering the follow-up commits. Hard caps, never targets. Frame it as 'since you last looked'.",
+      "Markdown reload, deliberately short: a lede of 1-3 short sentences on what changed *since the baseline* (plain text, no headings), then optionally a '## Changelog' of 1-3 bullets covering the follow-up commits. Hard caps, never targets. Frame it as 'since you last looked'.",
     ),
   commentsAddressed: z
     .string()
@@ -810,7 +810,7 @@ export const RevisionNarrativeChunkSchema = z.object({
   briefChangeGroupId: z
     .string()
     .describe(
-      "id of an existing change-group on the CURRENT FULL BRIEF this chunk explains. Never invent an id — if no group fits confidently, use the closest one and note the uncertainty in `summary` prose instead.",
+      "id of an existing change-group on the CURRENT FULL BRIEF this chunk explains. Never invent an id — if no group fits confidently, use the closest one and note the uncertainty in the `summary` text instead.",
     ),
   file: z.string().describe("file path the chunk lives in"),
   addedRanges: z
@@ -860,7 +860,7 @@ export const RevisionNarrativeSchema = z
       .array(LengthViolationSchema)
       .optional()
       .describe(
-        "prose fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
+        "text fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
       ),
     overview: z
       .string()

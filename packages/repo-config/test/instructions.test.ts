@@ -9,7 +9,7 @@ function validate(content: string) {
 
 /** instructions.md (ADR 0032 #10): no schema, budget check only, carried whole. */
 describe("instructions.md validation", () => {
-  it("carries the prose whole when within budget", () => {
+  it("carries the text whole when within budget", () => {
     const content =
       "# Repo instructions\n\nGroup the `db/` tree as one unit.\n";
     const result = validate(content);

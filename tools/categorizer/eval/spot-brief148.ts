@@ -19,7 +19,7 @@ import { withUsageSink } from "./usageSink";
 /**
  * BRIEF-148 cross-model length spot check (length numbers only, no property
  * verdicts): run a case fixture through the --config generator and print
- * prose-length compliance. Exists because the eval harness refuses
+ * text-length compliance. Exists because the eval harness refuses
  * cross-key runs before spend (by design). A SINGLE case id runs the full
  * brief; a PAIR case id runs a fresh revised-side brief plus the revision
  * NARRATIVE over the pair's incremental diff — the narrative surfaces
@@ -32,7 +32,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 function printViolations(violations: readonly LengthViolation[]): void {
   if (violations.length === 0) {
-    console.info("  prose length: CLEAN");
+    console.info("  text length: CLEAN");
     return;
   }
   for (const v of violations) {
@@ -86,7 +86,7 @@ async function main(): Promise<void> {
   if (!pairs.ok) throw new Error(pairs.error);
   const pair = pairs.value[0];
   if (single === undefined && pair === undefined) {
-    throw new Error(`unknown case "${caseId}" (singles and pair corpora)`);
+    throw new Error(`unknown case "${caseId}" (singles and pair case sets)`);
   }
 
   for (let run = 1; run <= runs; run++) {

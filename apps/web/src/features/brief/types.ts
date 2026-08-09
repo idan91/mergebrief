@@ -335,7 +335,7 @@ export interface Brief {
    */
   generationWarnings?: string[];
   /**
-   * @description Prose fields exceeding the BRIEF-148 length caps —
+   * @description Text fields exceeding the BRIEF-148 length caps —
    * pipeline-stamped; absent when everything fits.
    */
   lengthViolations?: LengthViolation[];
@@ -420,7 +420,7 @@ export interface RevisionNarrative {
   generation: Generation;
   generationWarnings?: string[];
   /**
-   * @description Prose fields exceeding the BRIEF-148 length caps —
+   * @description Text fields exceeding the BRIEF-148 length caps —
    * pipeline-stamped; absent when everything fits.
    */
   lengthViolations?: LengthViolation[];

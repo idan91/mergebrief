@@ -14,7 +14,7 @@ import {
 } from "../../src/generation/repo-context";
 
 describe("REPO_INSTRUCTION_CLASSES", () => {
-  it("carries both lists, non-empty, prose-shaped", () => {
+  it("carries both lists, non-empty, text-shaped", () => {
     expect(REPO_INSTRUCTION_CLASSES.MAY_FOLLOW.length).toBeGreaterThanOrEqual(
       5,
     );
