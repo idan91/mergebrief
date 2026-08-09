@@ -1,6 +1,6 @@
-// Boundary guard for the conversation GET's wire body (BRIEF-25). Parsed
-// against a REALISTIC wire body — route tests that seed the query cache
-// bypass the parser (BRIEF-21 lesson), so this is the contract test.
+// Boundary guard for the conversation GET's wire body, parsed against a
+// REALISTIC wire body — route tests that seed the query cache bypass the
+// parser, so this is the contract test.
 import { describe, expect, it } from "vitest";
 import {
   ReviewCommentSide as SOURCE_REVIEW_COMMENT_SIDE,
@@ -230,11 +230,9 @@ const VOCABULARY_PINS: readonly VocabularyPin[] = [
 
 /**
  * EXACT per-interface shape pins. `Equals` compares key sets AND property
- * types AND modifiers, so it catches what mutual assignability cannot: an
- * OPTIONAL field renamed or retyped (`{ anchorSha?: string }` and
- * `{ anchorOid?: string }` are mutually assignable, and optional fields are
- * exactly how this contract evolves). One pin per nested interface, so a
- * failure names the shape that drifted instead of the whole envelope.
+ * types AND modifiers, catching what mutual assignability cannot: an OPTIONAL
+ * field renamed or retyped. One pin per nested interface, so a failure names
+ * the shape that drifted instead of the whole envelope.
  */
 const SHAPE_PINS = {
   ConversationAuthor: true satisfies Equals<ConversationAuthor, SourceAuthor>,
@@ -249,12 +247,11 @@ const SHAPE_PINS = {
 } as const;
 
 describe("lockstep pins (conversation mirror vs its github source)", () => {
-  // This module mirrors the github package's `PrConversation` domain shape
-  // (the api conversation GET serializes it verbatim). Nothing structurally
-  // couples the two, and CI's per-package path filter does not run this suite
-  // when `packages/github` changes — a parser change shipping green under CI
-  // is exactly the BRIEF-23 incident. These pins import the source at dev time
-  // (never in the client bundle) so either side moving turns the other red.
+  // This module mirrors the github package's `PrConversation` domain shape,
+  // and nothing structurally couples the two — CI's per-package path filter
+  // does not run this suite when `packages/github` changes. These pins import
+  // the source at dev time (never in the client bundle) so either side moving
+  // turns the other red.
   it.each(VOCABULARY_PINS)(
     "$label equals its github source map",
     ({ mirror, source }) => {
@@ -267,9 +264,8 @@ describe("lockstep pins (conversation mirror vs its github source)", () => {
   it.each(Object.entries(SHAPE_PINS))(
     "%s is exactly its github counterpart (key set, types, modifiers)",
     (_shape, pinned) => {
-      // The pin itself is compile-time (gated by `pnpm -C apps/web
-      // typecheck`, which includes test files); this asserts each one is
-      // present, so a pin cannot be silently deleted from the suite.
+      // The pin itself is compile-time (typecheck includes test files); this
+      // asserts each one is present, so a pin cannot be silently deleted.
       expect(pinned).toBe(true);
     },
   );

@@ -1,4 +1,4 @@
-// BRIEF-95 cutoff derivations: strictly-after comparison, absent-cutoff and
+// Cutoff derivations: strictly-after comparison, absent-cutoff and
 // unparsable-date safety, and the count spanning thread + PR-level comments.
 import { describe, expect, it } from "vitest";
 

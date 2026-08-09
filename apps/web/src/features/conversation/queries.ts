@@ -1,11 +1,8 @@
-// Flat at the feature root by the queries.ts convention (brief/queries.ts
-// precedent): the feature's queryOptions door, referenced by routes.
-// react-query descriptor for the live conversation GET (BRIEF-25, ADR 0027).
-// Refresh policy: refetch on navigation and window-focus (react-query
-// defaults over a short staleTime) plus a manual refresh control (the
-// section invalidates this key) — NO background poll. Expected failure
-// statuses are RESULT KINDS the section renders as its error state (no
-// fallback tier); only a malformed 200 throws (contract violation).
+// react-query descriptors for the live conversation GET, referenced by
+// routes. Refresh policy: refetch on navigation and window-focus plus a
+// manual refresh control (the section invalidates this key) — NO background
+// poll. Expected failure statuses are RESULT KINDS the section renders as its
+// error state; only a malformed 200 throws (contract violation).
 import { queryOptions, type QueryKey } from "@tanstack/react-query";
 
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
@@ -40,10 +37,9 @@ export function conversationQueryKey(repoId: string, prNumber: number) {
  * refetches honest without hammering the shared budget.
  */
 export function conversationQueryOptions(repoId: string, prNumber: number) {
-  // Deliberately widened to `QueryKey` (the dbComparisonMarksQueryOptions
-  // precedent): the descriptor crosses plan boundaries typed as plain
-  // UseQueryOptions, and a narrower inferred key breaks that assignment
-  // (queryFn context contravariance).
+  // Deliberately widened to `QueryKey`: the descriptor crosses plan
+  // boundaries typed as plain UseQueryOptions, and a narrower inferred key
+  // breaks that assignment (queryFn context contravariance).
   const queryKey: QueryKey = conversationQueryKey(repoId, prNumber);
   return queryOptions({
     queryKey,
@@ -66,10 +62,8 @@ export function conversationQueryOptions(repoId: string, prNumber: number) {
       }
       return { kind: "ready", conversation: parsed.value };
     },
-    // The LOCKED refresh contract is refetch on navigation and window
-    // focus (codex on the section PR): always-refetch on those events — the
-    // server's 60s per-PR cache absorbs the cost, so this stays cheap while
-    // never serving a stale section on return.
+    // Always-refetch on navigation and window focus: the server's 60s per-PR
+    // cache absorbs the cost, so a return never shows a stale section.
     staleTime: 30_000,
     refetchOnMount: "always",
     refetchOnWindowFocus: "always",
@@ -82,10 +76,9 @@ export type CollaboratorsResult =
   /** Alphabetical by login — pool order is the autocomplete ranking. */
   | { readonly kind: "ready"; readonly candidates: readonly MentionCandidate[] }
   /**
-   * 401/404/502/503 — all EXPECTED: 404 is the route's viewerCanPush denial
-   * (read-only viewers get no roster by design), the rest are auth/upstream
-   * blips. The pool quietly falls back to thread participants; a mention
-   * pool never earns an error surface.
+   * 401/404/502/503 — all EXPECTED: 404 is the route's viewerCanPush denial,
+   * the rest auth/upstream blips. The pool falls back to thread participants;
+   * a mention pool never earns an error surface.
    */
   | { readonly kind: "unavailable" };
 
@@ -94,12 +87,12 @@ export function collaboratorsQueryKey(repoId: string) {
 }
 
 /**
- * The repo's collaborator roster as mention candidates (BRIEF-94). Server-side
- * it is cached ~60s per repo on the installation token; the long client
- * staleTime reflects how slowly a roster churns — no focus-refetch, no poll.
+ * The repo's collaborator roster as mention candidates. Server-side it is
+ * cached ~60s per repo on the installation token; the long client staleTime
+ * reflects how slowly a roster churns — no focus-refetch, no poll.
  */
 export function collaboratorsQueryOptions(repoId: string) {
-  // Widened to `QueryKey` for the same plan-boundary contravariance reason as
+  // Widened to `QueryKey` for the same contravariance reason as
   // conversationQueryOptions above.
   const queryKey: QueryKey = collaboratorsQueryKey(repoId);
   return queryOptions({

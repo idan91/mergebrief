@@ -1,8 +1,7 @@
-// One-liner derivation for digest rows (BRIEF-25 design consult): strip
-// markdown to plain text → first non-empty text line → cap ~80ch →
-// fallback for code-only bodies. Heading, table, and code lines are
-// DROPPED, not merely unmarked — otherwise bot digests render
-// "## Walkthrough" garbage.
+// One-liner derivation for digest rows: strip markdown to plain text → first
+// non-empty text line → cap ~80ch → fallback for code-only bodies. Heading,
+// table, and code lines are DROPPED, not merely unmarked — otherwise bot
+// digests render their own section headings as the summary.
 
 const MAX_DIGEST_LINE = 80;
 const CODE_ONLY_FALLBACK = "suggested change";
@@ -19,12 +18,11 @@ function stripInline(line: string): string {
       .replaceAll(/\[([^\]]*)\]\([^)]*\)/g, "$1")
       .replaceAll(/`([^`]*)`/g, "$1")
       // Emphasis contents cannot be whitespace-flanked (spaced asterisks
-      // are literal — codex round 10).
+      // are literal).
       .replaceAll(/\*\*(\S(?:.*?\S)?)\*\*/g, "$1")
       .replaceAll(/\*(\S(?:.*?\S)?)\*/g, "$1")
-      // GFM does not emphasize intraword underscores (user_id, foo__bar__baz
-      // stay intact): only delimiter pairs at word boundaries unwrap — the
-      // double-underscore branch included (codex round 8).
+      // GFM does not emphasize intraword underscores: only delimiter pairs at
+      // word boundaries unwrap, double-underscore included.
       .replaceAll(/(?<![A-Za-z0-9_])__(.+?)__(?![A-Za-z0-9_])/g, "$1")
       .replaceAll(/(?<![A-Za-z0-9_])_(.+?)_(?![A-Za-z0-9_])/g, "$1")
       .replaceAll(/<\/?[a-zA-Z][^>]*>/g, "")
@@ -40,18 +38,15 @@ function stripInline(line: string): string {
 export function deriveDigestLine(body: string): string {
   const rawLines = body.split("\n");
   // Fence state remembers the opener (char + length): a ```` fence legally
-  // contains ``` lines and only a matching, >=-length marker closes it
-  // (codex round 12).
+  // contains ``` lines and only a matching, >=-length marker closes it.
   let fence: { char: string; length: number } | null = null;
   let inTable = false;
   for (const [index, rawLine] of rawLines.entries()) {
     // Quote markers unwrap FIRST so structural filters (headings, tables,
-    // fences) apply inside blockquotes too — `> ## Walkthrough` is still a
-    // heading (codex round 5).
+    // fences) apply inside blockquotes too.
     const line = rawLine.trim().replace(/^(>\s*)+/, "");
     // The structural lookahead must not read an INDENTED-CODE next line as
-    // markdown structure (codex round 11): `    ---` after text is code,
-    // not a Setext underline.
+    // markdown structure: `    ---` after text is code, not a Setext underline.
     const nextRaw = rawLines[index + 1];
     const nextIsIndentedCode =
       nextRaw !== undefined &&
@@ -62,7 +57,7 @@ export function deriveDigestLine(body: string): string {
         ? undefined
         : nextRaw.trim().replace(/^(>\s*)+/, "");
     // Indent classifies BEFORE fences: an indented ``` is code content, not
-    // a fence toggle (codex round 10). Both plain and quoted forms.
+    // a fence toggle. Both plain and quoted forms.
     const indentedCode =
       /^(\t| {4})/.test(rawLine) ||
       /^(\t| {4})/.test(rawLine.replace(/^ {0,3}(> ?)+/, ""));
@@ -76,7 +71,7 @@ export function deriveDigestLine(body: string): string {
         continue;
       }
       // A CLOSER allows only trailing whitespace — ```ts inside an open
-      // fence is content (codex round 13).
+      // fence is content.
       if (
         char === fence.char &&
         marker.length >= fence.length &&
@@ -95,17 +90,16 @@ export function deriveDigestLine(body: string): string {
     }
     // Once a separator row opened a table, EVERY following line is a body
     // row until a blank line breaks the table (GFM continues pipe-less
-    // single-cell rows too — codex round 6).
+    // single-cell rows too).
     if (inTable) continue;
-    // Indented code blocks are code, not text (rounds 6-7: plain indent
-    // wins over quote reading; quote markers count after 0-3 spaces).
+    // Indented code blocks are code, not text: plain indent wins over quote
+    // reading, and quote markers count after 0-3 spaces.
     if (indentedCode) continue;
     // Headings and table rows are structure, not content.
     if (/^#{1,6}\s/.test(line)) continue;
-    // Separator check FIRST: a leading-pipe separator (`|---|---|`) must
-    // still enter table mode so pipe-less body rows drop (codex round 2) —
-    // but only a PIPED separator is a table; a bare `---` is a horizontal
-    // rule and must not swallow following text (codex round 3).
+    // Separator check FIRST: a leading-pipe separator (`|---|---|`) must still
+    // enter table mode so pipe-less body rows drop — but only a PIPED separator
+    // is a table; a bare `---` is a horizontal rule and must not swallow text.
     if (TABLE_SEPARATOR.test(line)) {
       if (line.includes("|")) {
         inTable = true;
@@ -113,7 +107,7 @@ export function deriveDigestLine(body: string): string {
       continue;
     }
     // A leading pipe is only a table row when a separator establishes the
-    // table (GFM requires one) — otherwise it is text (codex round 5).
+    // table (GFM requires one) — otherwise it is text.
     if (
       line.startsWith("|") &&
       next !== undefined &&
@@ -132,7 +126,7 @@ export function deriveDigestLine(body: string): string {
       continue;
     }
     // A Setext heading reveals itself the same way: text underlined by
-    // `---`/`===` is a heading, and headings drop (codex round 4).
+    // `---`/`===` is a heading, and headings drop.
     if (next !== undefined && /^\s*(-+|=+)\s*$/.test(next)) {
       continue;
     }

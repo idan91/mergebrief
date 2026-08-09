@@ -2,11 +2,10 @@ import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMenti
 import type { ConversationThread } from "../types";
 
 /**
- * Mention-autocomplete pool for a thread's reply box (BRIEF-56 decision 7):
- * the humans already in the conversation, first-seen order, deduped. Bots
- * are excluded — mentioning one from a review reply is never the intent.
- * Entries carry the payload's author avatar; display names come only from
- * the collaborators merge (BRIEF-94 — the conversation payload has none).
+ * Mention-autocomplete pool for a thread's reply box: the humans already in
+ * the conversation, first-seen order, deduped. Bots are excluded. Entries
+ * carry the payload's author avatar; display names come only from the
+ * collaborators merge — the conversation payload has none.
  */
 export function mentionCandidatesFromThread(
   thread: ConversationThread,
@@ -25,11 +24,10 @@ export function mentionCandidatesFromThread(
 }
 
 /**
- * The thread composer's full pool (BRIEF-94 decision 6). Pool order is the
- * autocomplete's RANKING (the hook prefix-filters in array order, capped):
- * participants first — they keep their first-seen position but pick up the
- * collaborator entry's name/avatar by login match — then the remaining
- * collaborators in the order given (the query sorts them alphabetically).
+ * The thread composer's full pool. Pool order is the autocomplete's RANKING
+ * (the hook prefix-filters in array order, capped): participants first —
+ * keeping their first-seen position but picking up the collaborator entry's
+ * name/avatar by login match — then the remaining collaborators as given.
  */
 export function mergeMentionCandidates(
   participants: readonly MentionCandidate[],

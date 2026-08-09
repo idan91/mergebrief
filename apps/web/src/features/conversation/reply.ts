@@ -1,10 +1,7 @@
-// Flat at the feature root with reason (ADR 0037 SS4): the feature's one
-// write transport - a single file earns no category folder.
-// Reply transport (BRIEF-25, locked decision 7): replies post IMMEDIATELY
-// with the viewer's token — GitHub's create-review comments[] has no
-// in_reply_to, so there is no batched alternative. Expected failure
-// statuses are RESULT KINDS the composer renders; only a malformed 2xx
-// throws (contract violation). Mirrors the submit transport's posture.
+// Reply transport: replies post IMMEDIATELY with the viewer's token —
+// GitHub's create-review comments[] has no in_reply_to, so there is no
+// batched alternative. Expected failure statuses are RESULT KINDS the
+// composer renders; only a malformed 2xx throws (contract violation).
 import { ApiError, ApiErrorKind, apiFetch } from "../../data/apiFetch";
 
 export type ReplyResult =

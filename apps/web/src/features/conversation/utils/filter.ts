@@ -1,19 +1,13 @@
-// Conversation filter state and reductions (BRIEF-99). The digest answers
-// "who reviewed this and what did they say?" only once you can slice it:
-// verdict-state chips with counts, per-reviewer chips, and a recency toggle.
-//
-// Locked decisions (docs/plans/brief-99-reviewer-filter-bar.md):
+// Conversation filter state and reductions:
 // - The reviewer family filters reviews, threads AND PR-level comments; the
 //   verdict family and the recency toggle are review-only concepts.
 // - OR within a family, AND across families; an empty family is INACTIVE
 //   (no filter), never "show nothing".
-// - Counts are faceted: each family's counts ignore its own selection (so an
-//   unselected chip still says how much it would add) but honour the other
-//   family's, and are always computed AFTER the recency reduction.
-// - Latest-per-reviewer is the DEFAULT — the product question is what stands
-//   now, not what was ever said.
-// - DISMISSED has no chip (it reads as confusing), so any active verdict
-//   filter hides dismissed reviews.
+// - Counts are faceted: each family's counts ignore its own selection but
+//   honour the other family's, and are computed AFTER the recency reduction.
+// - Latest-per-reviewer is the DEFAULT.
+// - DISMISSED has no chip, so any active verdict filter hides dismissed
+//   reviews.
 import { toggleSet } from "@web/utils/collections";
 import { buildInlineThreads } from "./digest";
 import {
@@ -26,9 +20,9 @@ import type { BriefChunk } from "../../brief/types";
 import type { ValueOf } from "types";
 
 /**
- * The verdict states that earn a chip, in render order. DISMISSED is absent
- * by decision, so it can never be selected — and therefore never survives an
- * active verdict filter.
+ * The verdict states that earn a chip, in render order. DISMISSED is absent,
+ * so it can never be selected — and therefore never survives an active
+ * verdict filter.
  */
 export const FilterVerdictStates = {
   APPROVED: ReviewVerdictStates.APPROVED,
@@ -65,8 +59,8 @@ export interface ConversationFilter {
 /** Search-param projection of the filter; `undefined` = key omitted from the URL. */
 // A type alias, not an interface: only aliases carry an implicit index
 // signature, and this shape is spread into route search objects. Keys are
-// OPTIONAL to match the route precedent (`BriefSearchParams`) under
-// `exactOptionalPropertyTypes` — an absent key, not an explicit undefined.
+// OPTIONAL under `exactOptionalPropertyTypes` — an absent key, never an
+// explicit undefined.
 export type ConversationFilterSearch = {
   readonly verdicts?: string;
   readonly reviewers?: string;
@@ -131,9 +125,8 @@ export function conversationFilterSearch(
 
 /**
  * A COMMENTED review with an empty body is GitHub's envelope around inline
- * comments (`Add single comment` mints one), not a verdict anyone stated —
- * the strip has always hidden them. They must also stay out of the recency
- * reduction and the counts: otherwise an approver who later leaves one
+ * comments, not a verdict anyone stated. They must also stay out of the
+ * recency reduction and the counts: otherwise an approver who later leaves one
  * inline comment loses their standing approval to an envelope that renders
  * nothing.
  */
@@ -160,9 +153,7 @@ function isNewer(
 
 /**
  * One review per author — the most recent. Authors keep first-appearance
- * order, so repeated renders are stable (flipping the toggle DOES move a
- * reviewer whose newest review sits later in the feed — that is the point of
- * the reduction, not a reshuffle).
+ * order, so repeated renders are stable.
  */
 export function latestReviewPerAuthor(
   reviews: readonly ConversationReview[],
@@ -212,8 +203,8 @@ function reviewsUnder(
 
 /**
  * The conversation as the filter leaves it. Returning a `PrConversation`
- * keeps the digest and the inline-thread builders — both of which consume
- * this shape — filtered by one call, with no second filtering path to drift.
+ * keeps the digest and inline-thread builders filtered by one call, with no
+ * second filtering path to drift.
  */
 export function applyConversationFilter(
   conversation: PrConversation,
@@ -245,9 +236,8 @@ export interface VerdictFacet {
 
 /**
  * Verdict chip counts: computed after the recency reduction and under the
- * reviewer selection, but blind to the verdict selection itself — a chip has
- * to say what it would add, not what it already contributes. States with no
- * reviews at all yield no chip.
+ * reviewer selection, but blind to the verdict selection itself — a chip says
+ * what it would add. States with no reviews yield no chip.
  */
 export function verdictFacets(
   conversation: PrConversation,
@@ -277,8 +267,8 @@ export interface ReviewerFacet {
 /**
  * Every author with activity on the PR — reviews, threads or PR comments —
  * humans first, then bots, each alphabetically. Deliberately NOT faceted:
- * chips that vanish as you select would move the target mid-click, and
- * thread authors have no verdict to be faceted by anyway.
+ * chips that vanish as you select would move the target mid-click, and thread
+ * authors have no verdict to be faceted by.
  */
 export function reviewerFacets(
   conversation: PrConversation,
@@ -304,9 +294,8 @@ export function reviewerFacets(
 /**
  * Drop reviewer selections nobody on this PR matches — the same
  * degrade-to-looser rule the verdict vocabulary gets. A shared link whose
- * logins have since changed (a rename, a different revision) would otherwise
- * arrive as an ACTIVE family matching nothing, emptying a PR full of
- * activity. Call once the conversation resolves.
+ * logins have since changed would otherwise arrive as an ACTIVE family
+ * matching nothing. Call once the conversation resolves.
  */
 export function reconcileReviewers(
   filter: ConversationFilter,
@@ -327,13 +316,11 @@ const NO_OWN_THREADS: ReadonlySet<number> = new Set<number>();
  * Threads the filter removes FROM THE DIFF. Counted against the inline set
  * rather than every thread: the digest carries outdated and resolved-bot
  * threads that never render inline, so counting those would warn about an
- * absence the reader could not have noticed. The bar reports this because an
- * unannounced gap in the diff reads as "nothing was said about this line".
+ * absence the reader could not have noticed.
  *
  * ONE digest build, then subtract by author: placement is per-thread and
  * inline inclusion is per-row, so removing a reviewer can only drop whole
- * rows — it can never re-group the survivors. Building the filtered digest
- * too would double an already expensive pass on every chip click.
+ * rows, never re-group the survivors.
  */
 export function countHiddenInlineThreads(
   conversation: PrConversation,
@@ -394,9 +381,8 @@ export function withNoReviewers(
 }
 
 /**
- * The empty-state clear link: both families back to inactive, recency
- * PRESERVED — resetting to the default would silently re-collapse a history
- * the reader explicitly opted into.
+ * Both families back to inactive, recency PRESERVED — resetting to the
+ * default would silently re-collapse a history the reader opted into.
  */
 export function withNoFilters(filter: ConversationFilter): ConversationFilter {
   return {

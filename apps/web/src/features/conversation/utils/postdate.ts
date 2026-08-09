@@ -1,7 +1,5 @@
-// BRIEF-95: comments newer than the viewed revision's generation start
-// postdate the brief — its story cannot account for them. The cutoff is
-// per-revision (an older revision honestly marks more); an absent cutoff
-// (local path, legacy metas) marks nothing.
+// Comments newer than the viewed revision's generation start postdate the
+// brief. The cutoff is per-revision; an absent cutoff marks nothing.
 import type { PrConversation } from "../types";
 
 /** True when the comment is strictly newer than the generation cutoff. */

@@ -1,6 +1,5 @@
-// One-liner derivation spec (BRIEF-25 design consult): strip markdown to
-// plain text → first non-empty line → cap ~80ch → fallback for code-only
-// bodies. Without it bot digest lines render "## Walkthrough" garbage.
+// One-liner derivation spec: strip markdown to plain text → first non-empty
+// line → cap ~80ch → fallback for code-only bodies.
 import { describe, expect, it } from "vitest";
 import { deriveDigestLine } from "./digestLine";
 

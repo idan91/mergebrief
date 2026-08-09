@@ -1,27 +1,21 @@
-// Flat at the feature root alongside `reply.ts` (ADR 0037 SS4): the feature's
-// write transports are one file per outward write, each named for its route
-// pair — a `transport/` category for two files would only add a hop between
-// `queries.ts` and its siblings.
-// Thread-resolution transport (BRIEF-93): POSTs the resolve/unresolve routes
-// with the viewer's token. Expected failure statuses are RESULT KINDS the
-// affordances render; only a malformed 200 throws (contract violation).
+// Thread-resolution transport: POSTs the resolve/unresolve routes with the
+// viewer's token. Expected failure statuses are RESULT KINDS the affordances
+// render; only a malformed 200 throws (contract violation).
 //
 // The 403 is its OWN kind, not folded into `upstream`/`not-found`: the route
 // only returns it at the MUTATION stage, after the viewer re-proved repo
 // access, so it carries a real capability signal (raced revocation, read-only
 // collaborator) that the FE answers with honest copy plus a capability
-// refetch. The reply route's 403 collapses to 404 server-side precisely
-// because it carries none — the two postures are not interchangeable.
+// refetch. The reply route's 403 collapses to 404 server-side because it
+// carries none.
 //
-// Deterministic-400 mirroring (apps/web AGENTS.md): the routes' only 400 is a
-// malformed `:prNumber`/`:commentId`, and both come from already-parsed server
-// data (the PR view's number, a thread's `rootCommentId`) — unreachable from a
-// valid UI state, so there is no cap or budget to mirror. A 400 that happens
-// anyway surfaces as its own recoverable kind rather than a silent throw.
+// The routes' only 400 is a malformed `:prNumber`/`:commentId`, both from
+// already-parsed server data — unreachable from a valid UI state, so there is
+// no cap to mirror; it surfaces as its own recoverable kind rather than a
+// silent throw.
 //
 // Both directions are idempotent server-side (a converged state answers 200
-// with `alreadyInTargetState`), so retrying after ANY failure kind is safe —
-// including after the indeterminate throw path.
+// with `alreadyInTargetState`), so retrying after ANY failure kind is safe.
 import { ApiError, ApiErrorKind, apiFetch } from "../../data/apiFetch";
 
 export type ResolveThreadResult =

@@ -1,7 +1,6 @@
 // The digest-row visual language, shared by the ConversationSection subtree,
-// the promoted ThreadRowView subtree, and InlineThreads consumers — promoted
-// to the feature root as the nearest common ancestor (ADR 0037 promotion
-// rule); no component owns these atoms alone.
+// the promoted ThreadRowView subtree, and InlineThreads consumers; no
+// component owns these atoms alone.
 @use "functions";
 
 @layer components {
@@ -24,11 +23,9 @@
   }
 
   /* Disclosure rows: full-width buttons, >=44px targets (WCAG 2.5.8 aim).
-     `relative` is load-bearing for hit-testing, not for layout: the slim
-     variant's hit-area pseudo is positioned, and a positioned box paints above
-     a STATIC later sibling regardless of tree order. Every row button (this
-     component, PrCommentRow, BotGroupRowView) being positioned is what makes
-     tree order actually govern which row owns a contested point. */
+     `relative` is load-bearing for hit-testing, not layout: a positioned box
+     paints above a STATIC later sibling regardless of tree order, so every row
+     button must be positioned for tree order to govern contested points. */
   .rowButton {
     position: relative;
     display: flex;
@@ -50,11 +47,10 @@
     }
   }
 
-  /* The slim resolved row (BRIEF-93): a settled thread earns one faint line,
-     not a framed row — borderless, ~22px, a 2px tick where the frame was, the
-     whole run at the faint floor. `center`, not the full row's `baseline`, is
-     deliberate: the mono-xs label/count against the sans-sm author/excerpt
-     mis-centers on a shared baseline at this height. */
+  /* The slim resolved row: a settled thread earns one faint line, not a
+     framed row. `center`, not the full row's `baseline`, is deliberate: the
+     mono-xs label/count against the sans-sm author/excerpt mis-centers on a
+     shared baseline at this height. */
   .rowButton[data-variant="slim"] {
     align-items: center;
     gap: functions.to-rem(6px);
@@ -69,21 +65,11 @@
     font-size: var(--font-size-sm);
 
     /* Target growth on a 22px row with NO layout change: a transparent
-       ::before claiming the list gap below. Chosen over min-height/padding
-       (both grow the visible row) and over a wrapper spacer (adds gaps
-       between stacked slim rows).
-       4px is a CEILING, not a preference — it is the smallest gap any host
-       list renders these rows at (.rows/.nested here, InlineThreads' lists).
-       Reaching further overlaps the next box, and overlap cannot be made
-       safe by paint order: a positioned pseudo paints above a STATIC later
-       sibling, so a deeper reach stole the top ~16px of the group's
-       "Show N more" .action button — the common case, since resolved rows
-       sort last in a group. Staying inside unowned whitespace is what makes
-       this robust against every neighbour, present and future.
-       That caps the target at 22 + 4 = 26px, which clears WCAG 2.5.8's 24px
-       floor but NOT the 44px aim: 44 exclusive px per row is arithmetically
-       impossible at a 26px pitch, and widening the pitch is the locked
-       design's one forbidden move. */
+       ::before claiming the list gap below. 4px is a CEILING — the smallest
+       gap any host list renders these rows at — because a deeper reach
+       overlaps the next box, and a positioned pseudo paints above a STATIC
+       later sibling. That caps the target at 26px: clears WCAG 2.5.8's 24px
+       floor, not its 44px aim, which is impossible at this pitch. */
     &::before {
       content: "";
       position: absolute;
@@ -91,8 +77,8 @@
       inset-inline: 0;
     }
 
-    /* A borderless row carries no standing click affordance; hover supplies it
-       — the raised-hover surface tier under a brighter run. */
+    /* A borderless row carries no standing click affordance; hover supplies
+       it. */
     &:hover {
       background: var(--color-surface-2);
       color: var(--color-text-2);
@@ -129,7 +115,7 @@
   }
 
   /* Text-carrying chips (WCAG 1.4.1); factual tones — resolved is NOT a
-     success green (approval-like badges are the named anti-reference). */
+     success green. */
   .chip {
     flex-shrink: 0;
     padding-block: functions.to-rem(1px);
@@ -142,7 +128,7 @@
 
     &[data-state="open"] {
       // Earned oddity: the open-thread chip's border is the comment-highlight
-      // amber darkened for a 1px edge; faithful to the pre-sweep value.
+      // amber darkened for a 1px edge.
       --chip-open-border: #8a6d3b;
 
       border-color: var(--chip-open-border);
@@ -154,8 +140,8 @@
       color: var(--dim);
     }
 
-    /* BRIEF-95: the comment postdates the viewed brief. Accent, not amber —
-       origin must not read as the open-thread state. */
+    /* The comment postdates the viewed brief. Accent, not amber — origin must
+       not read as the open-thread state. */
     &[data-state="after-brief"] {
       border-color: var(--color-accent);
       color: var(--color-accent);
@@ -226,9 +212,9 @@
     font-size: var(--font-size-lg);
   }
 
-  /* Author · date · chips read as ONE baseline-aligned run on the left;
-     only the quote action floats right (space-between would scatter the
-     run — and default stretch inflates pills to the action's height). */
+  /* Author · date · chips read as ONE baseline-aligned run on the left; only
+     the quote action floats right (space-between would scatter the run, and
+     default stretch inflates pills to the action's height). */
   .commentHead {
     display: flex;
     align-items: baseline;
@@ -281,9 +267,8 @@
   }
 
   /* The 44px AIM lands where fingers do; desktop keeps the compact 24px
-     floor (locked constraint: targets >=24px, aim 44). Slim rows opt out
-     EXPLICITLY (not by specificity): their 22px height is the design, and the
-     ::before above already carries their target on every pointer type. */
+     floor. Slim rows opt out EXPLICITLY (not by specificity): the ::before
+     above already carries their target on every pointer type. */
   @media (pointer: coarse) {
     .action,
     .rowButton:not([data-variant="slim"]) {
@@ -299,7 +284,7 @@
 
   .error {
     // Earned oddity: a warmer red than --color-negative (#e06c6c) for inline
-    // conversation errors; faithful to the pre-sweep value.
+    // conversation errors.
     --error-text: #d9836c;
 
     margin: 0;

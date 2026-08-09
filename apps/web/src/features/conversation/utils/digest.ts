@@ -1,12 +1,11 @@
-// Digest view-model builder (BRIEF-25, locked decisions 5/6): the
-// conversation organized by the BRIEF'S structure — threads grouped by chunk
-// in reading order, unresolved first — not GitHub's chronological feed.
-// Bot walls collapse, never hide: humans get one row per thread; bots one
-// aggregated row per (bot author, chunk group), expandable to per-thread
-// rows. Outdated threads live in a revision-labeled group (their anchor-time
-// coordinates are never trusted); unanchored fresh threads and PR-level
-// comments form the general group. Sorting never reads bot self-assigned
-// severity — that text stays inside comment bodies.
+// Digest view-model builder: the conversation organized by the BRIEF'S
+// structure — threads grouped by chunk in reading order, unresolved first —
+// not GitHub's chronological feed. Bot walls collapse, never hide: humans get
+// one row per thread; bots one aggregated row per (bot author, chunk group),
+// expandable to per-thread rows. Outdated threads live in a revision-labeled
+// group (their anchor-time coordinates are never trusted); unanchored fresh
+// threads and PR-level comments form the general group. Sorting never reads
+// bot self-assigned severity.
 import type { BriefChunk } from "../../brief/types";
 import { placeThread, type ThreadPlacement } from "./anchor";
 import { deriveDigestLine } from "./digestLine";
@@ -27,9 +26,8 @@ export interface DigestThreadRow {
   /** Short anchor revision label — outdated rows only. */
   readonly anchorLabel?: string;
   /**
-   * The viewed revision's generation cutoff (BRIEF-95), stamped on every
-   * row so the detail renderers — section and inline alike — can mark
-   * comments that postdate the brief without new prop plumbing.
+   * The viewed revision's generation cutoff, stamped on every row so the
+   * detail renderers can mark comments that postdate the brief.
    */
   readonly briefGeneratedAt?: string;
 }
@@ -59,7 +57,7 @@ export interface BuildConversationDigestInput {
   readonly conversation: PrConversation;
   readonly chunks: readonly BriefChunk[];
   readonly ownThreadIds: ReadonlySet<number>;
-  /** The viewed revision's generation cutoff (BRIEF-95); absent marks nothing. */
+  /** The viewed revision's generation cutoff; absent marks nothing. */
   readonly briefGeneratedAt?: string | undefined;
 }
 
@@ -90,8 +88,7 @@ function threadRow(
 /**
  * The row index inside the chunk's diff (from `rowId` = `chunkId:index`) —
  * the ONE reading-order axis. LEFT old-line and RIGHT new-line numbers are
- * not comparable (codex round 1); the placement already resolved both to a
- * row position.
+ * not comparable; the placement already resolved both to a row position.
  */
 function placementRowIndex(row: DigestThreadRow): number {
   if (row.placement.kind !== "chunk") return Number.MAX_SAFE_INTEGER;
@@ -208,8 +205,8 @@ export function buildConversationDigest(
 }
 
 /**
- * Inline placement (locked decision 6): what renders AT a chunk, as opposed
- * to the digest. Fresh human threads inline per-thread (resolved ones too —
+ * Inline placement: what renders AT a chunk, as opposed to the digest.
+ * Fresh human threads inline per-thread (resolved ones too —
  * they collapse visually, they don't hide); bots inline as ONE aggregated
  * disclosure per bot carrying only their UNRESOLVED threads — resolved and
  * outdated bot threads are digest-only, and nothing unanchored ever floats
@@ -253,11 +250,10 @@ export interface InlineRowSplit {
 }
 
 /**
- * Split a chunk's inline rows for rendering (Idan, smoke feedback
- * 2026-07-08): human threads go row-level inside the diff — under the exact
- * line they discuss, like the artifact's addressed-comments display — while
- * bots keep the single aggregated disclosure (bots under every line would
- * rebuild the wall the digest collapses).
+ * Split a chunk's inline rows for rendering: human threads go row-level
+ * inside the diff, under the exact line they discuss, while bots keep the
+ * single aggregated disclosure (bots under every line would rebuild the wall
+ * the digest collapses).
  */
 export function splitInlineRows(rows: readonly DigestRow[]): InlineRowSplit {
   const byRow = new Map<number, DigestThreadRow[]>();

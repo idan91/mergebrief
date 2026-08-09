@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// The pool hook (BRIEF-94): a plain candidate array over the shared
-// collaborators query — disabled/local path, non-ready, and ready all pinned,
-// because every downstream boundary is optional and a dropped hand-off would
-// otherwise regress to participants-only silently.
+// The pool hook: a plain candidate array over the shared collaborators query.
+// Disabled/local path, non-ready and ready are all pinned — every downstream
+// boundary is optional, so a dropped hand-off would silently regress to
+// participants-only.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";

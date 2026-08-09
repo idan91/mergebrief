@@ -1,6 +1,6 @@
-// Thread-resolution transport (BRIEF-93): expected failure statuses are result
-// kinds the affordances render — never throws for those. The 403 is its OWN
-// kind (GitHub refused a viewer who looked capable), not a 404-style miss.
+// Thread-resolution transport: expected failure statuses are result kinds the
+// affordances render — never throws for those. The 403 is its OWN kind
+// (GitHub refused a viewer who looked capable), not a 404-style miss.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../data/apiFetch";

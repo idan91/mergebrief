@@ -1,10 +1,9 @@
-// Own-comment reconciliation (BRIEF-25, locked decision 8): server-backed
-// wins, exact join on review id. Fetched threads carrying a review id the
-// reviewer's submits recorded are the reviewer's own; the local session
-// record demotes to a pointer (keeps disposition/evidence links) and any
-// local DRAFT matching an own thread flips to submitted — closing BRIEF-23's
-// residual (a missed sessionStorage flip no longer resurrects posted drafts
-// after the first refetch).
+// Own-comment reconciliation: server-backed wins, exact join on review id.
+// Fetched threads carrying a review id the reviewer's submits recorded are
+// the reviewer's own; the local session record demotes to a pointer (keeping
+// disposition/evidence links) and any local DRAFT matching an own thread
+// flips to submitted, so a missed sessionStorage flip never resurrects
+// posted drafts after the first refetch.
 import { describe, expect, it } from "vitest";
 import type { ReviewComment } from "../../review/utils/comments";
 import type { ConversationThread } from "../types";
@@ -233,7 +232,7 @@ describe("reconcileOwnComments", () => {
   });
 });
 
-describe("demotedSubmittedCommentIds (BRIEF-56 display half)", () => {
+describe("demotedSubmittedCommentIds display half", () => {
   it("demotes a submitted record whose own server thread renders", () => {
     expect(
       demotedSubmittedCommentIds(

@@ -1,13 +1,9 @@
-// Own-comment reconciliation (BRIEF-25, locked decision 8): server-backed
-// wins, exact join on review id. The submit flow records each created
-// review's id; fetched threads whose ROOT comment carries a recorded id are
-// the reviewer's own. Per-comment linkage joins on (path, line, side) with a
-// body tiebreak — collision worst case is display-level only.
-//
-// This closes BRIEF-23's accepted M1 residual: the durable sessionStorage
-// "submitted" flip stops being critical after the first refetch — a
-// local DRAFT matching an own server thread is reported for flipping, so a
-// missed flip can no longer re-ship posted comments.
+// Own-comment reconciliation: server-backed wins, exact join on review id.
+// Fetched threads whose ROOT comment carries a recorded submit id are the
+// reviewer's own. Per-comment linkage joins on (path, line, side) with a body
+// tiebreak — collision worst case is display-level only. A local DRAFT
+// matching an own server thread is reported for flipping, so a missed
+// sessionStorage flip can never re-ship posted comments.
 import type { ReviewComment } from "../../review/utils/comments";
 import type { ConversationThread, ThreadSide } from "../types";
 
@@ -44,7 +40,7 @@ function anchorMatchesThread(
     // The outbound map anchors on endLine; the thread's line IS that anchor.
     comment.anchor.endLine === thread.line &&
     // Exact side join — our submits always send side, so a side-less thread
-    // never matches (a default here could false-flip a draft; codex round 2).
+    // never matches; defaulting here could false-flip a draft.
     thread.side !== undefined &&
     LOCAL_SIDE_TO_WIRE[comment.anchor.side] === thread.side
   );
@@ -75,12 +71,10 @@ export function reconcileOwnComments(
 
 /**
  * The two-pass claim shared by reconciliation and display demotion.
- * PASS 1 — exact (anchor AND body) matches claim first, globally: an
- * earlier local's anchor-only fallback must never steal a thread whose
- * body exactly matches a later local (codex round 3 — the stolen draft
- * would never flip and could re-ship). PASS 2 — anchor-only fallback over
- * what remains (collision worst case is display-level only, per the
- * locked decision).
+ * PASS 1 — exact (anchor AND body) matches claim first, globally: an earlier
+ * local's anchor-only fallback must never steal a thread whose body exactly
+ * matches a later local, or the stolen draft never flips and can re-ship.
+ * PASS 2 — anchor-only fallback over what remains.
  */
 function matchLocalsToOwnThreads(
   localComments: readonly ReviewComment[],
@@ -121,12 +115,11 @@ function matchLocalsToOwnThreads(
 }
 
 /**
- * Local SUBMITTED records whose own server thread already renders at the
- * same anchor — the server copy wins (BRIEF-25 locked decision 8) and the
- * local card demotes out of display. Drafts never demote: they are not on
- * GitHub yet (a matched draft is the resurrection path's business), and
- * with the conversation not loaded the caller passes no threads, so local
- * cards keep rendering as the only copy.
+ * Local SUBMITTED records whose own server thread already renders at the same
+ * anchor — the server copy wins and the local card demotes out of display.
+ * Drafts never demote: they are not on GitHub yet, and with the conversation
+ * not loaded the caller passes no threads, so local cards keep rendering as
+ * the only copy.
  */
 export function demotedSubmittedCommentIds(
   localComments: readonly ReviewComment[],

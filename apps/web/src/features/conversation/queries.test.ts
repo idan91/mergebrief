@@ -1,7 +1,6 @@
-// queryFn behavior for the conversation GET (BRIEF-25): expected failure
-// statuses are RESULT KINDS the section renders inline (error state — no
-// fallback tier), a 200 parses through the boundary guard (route tests that
-// seed the cache bypass it — BRIEF-21 lesson), and only a malformed 200
+// queryFn behavior for the conversation GET: expected failure statuses are
+// RESULT KINDS the section renders inline, a 200 parses through the boundary
+// guard (route tests that seed the cache bypass it), and only a malformed 200
 // throws typed.
 import { describe, expect, it, vi } from "vitest";
 

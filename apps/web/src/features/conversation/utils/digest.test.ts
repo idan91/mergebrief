@@ -1,11 +1,9 @@
-// Digest view-model builder (BRIEF-25, locked decisions 5/6): threads
-// grouped by chunk in READING ORDER (the Brief's structure, not GitHub's
-// feed), unresolved first within a group; humans one row per thread; bots
-// one aggregated row per (bot author, chunk-group) with per-thread rows on
-// expand; resolved/outdated bot threads never inline (digest-only is the
-// section itself); outdated threads in their own revision-labeled group;
-// unanchored + PR-level comments in the general group. Sorting never uses
-// bot self-assigned severity.
+// Digest view-model builder: threads grouped by chunk in READING ORDER,
+// unresolved first within a group; humans one row per thread; bots one
+// aggregated row per (bot author, chunk-group) with per-thread rows on
+// expand; resolved/outdated bot threads never inline; outdated threads in
+// their own revision-labeled group; unanchored + PR-level comments in the
+// general group. Sorting never uses bot self-assigned severity.
 import { describe, expect, it } from "vitest";
 import type { BriefChunk } from "../../brief/types";
 import {

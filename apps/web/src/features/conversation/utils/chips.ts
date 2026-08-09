@@ -1,12 +1,12 @@
 // Thread-state chip derivations, shared by the section digest and the
-// promoted ThreadRowView (nearest common ancestor per ADR 0037). Chips carry
-// TEXT (WCAG 1.4.1) and stay factual — `resolved` never dresses as success.
+// promoted ThreadRowView. Chips carry TEXT (WCAG 1.4.1) and stay factual —
+// `resolved` never dresses as success.
 import type { DigestRow } from "./digest";
 import type { ConversationThread } from "../types";
 
 /**
- * GitHub facts wear GitHub words (locked decision 4). A resolved+outdated
- * thread reads as outdated — that is why it left the code view.
+ * GitHub facts wear GitHub words. A resolved+outdated thread reads as
+ * outdated — that is why it left the code view.
  */
 export function threadStateChip(thread: ConversationThread): string {
   if (thread.isOutdated) return "outdated";

@@ -1,14 +1,12 @@
-// Conversation wire shapes + boundary guards (BRIEF-25). Mirrors the api
-// package's conversation GET contract (itself the github package's
-// `PrConversation` domain shape, JSON-serialized: optional fields are ABSENT
-// keys, never null). Hand-rolled guards returning `Result`, matching the
-// read-API convention (no zod in this bundle); parsed at the boundary, never
-// cast.
+// Conversation wire shapes + boundary guards. Mirrors the api package's
+// conversation GET contract (itself the github package's `PrConversation`
+// domain shape, JSON-serialized: optional fields are ABSENT keys, never
+// null). Hand-rolled guards returning `Result` (no zod in this bundle);
+// parsed at the boundary, never cast.
 //
-// Vocabulary (ADR 0027): GitHub facts wear GitHub words — thread chips are
-// open / resolved / outdated; review states are GitHub's SHOUT literals.
-// Mind-map dispositions keep the product's words; `linked-comment` evidence
-// is the bridge.
+// GitHub facts wear GitHub words — thread chips are open / resolved /
+// outdated; review states are GitHub's SHOUT literals. Mind-map dispositions
+// keep the product's words; `linked-comment` evidence is the bridge.
 import type { MentionCandidate } from "@web/components/MarkdownTextarea/useMentionAutocomplete";
 import type { Result as SharedResult, ValueOf } from "types";
 
@@ -192,9 +190,9 @@ function parseThread(value: unknown): ConversationThread | undefined {
   if (typeof value["isOutdated"] !== "boolean") return undefined;
   if (!optionalString(value["anchorSha"])) return undefined;
   if (typeof value["hasMoreComments"] !== "boolean") return undefined;
-  // Contract: `line` is absent ONLY for outdated or file-level threads —
-  // a fresh LINE thread without a line would silently unanchor, a FILE
-  // thread WITH one would place inline (codex round 1).
+  // Contract: `line` is absent ONLY for outdated or file-level threads — a
+  // fresh LINE thread without a line would silently unanchor, a FILE thread
+  // WITH one would place inline.
   const isFileLevel = subjectType === ThreadSubjectTypes.FILE;
   if (isFileLevel && value["line"] !== undefined) return undefined;
   if (!isFileLevel && !value["isOutdated"] && value["line"] === undefined) {
@@ -280,11 +278,10 @@ function parsePrLevelComment(value: unknown): PrLevelComment | undefined {
 }
 
 /**
- * Parse the collaborators GET's body (BRIEF-94) into mention candidates;
- * `ok: false` = contract violation. `hasMore` is parsed (contract) but not
- * surfaced — a truncated pool is still a pool. `avatarUrl` is defensively
- * https-gated: a non-https value drops the FIELD (the entry stays) — this
- * string lands in an `<img src>`.
+ * Parse the collaborators GET's body into mention candidates; `ok: false` =
+ * contract violation. `hasMore` is parsed but not surfaced — a truncated pool
+ * is still a pool. `avatarUrl` is https-gated: a non-https value drops the
+ * FIELD (the entry stays), since the string lands in an `<img src>`.
  */
 export function parseCollaborators(
   value: unknown,

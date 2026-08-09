@@ -1,8 +1,6 @@
-// GitHub→chunk anchor mapping (BRIEF-25) — the inverse of submit.ts's
-// old→LEFT / new→RIGHT outbound map, over the same DiffLine rows
-// createCommentAnchor reads. Exhaustive over the plan's case list:
-// side/line inversion, multi-line END-line placement, outdated
-// short-circuit, rename→file-not-in-brief, context-line miss.
+// GitHub→chunk anchor mapping — the inverse of submit.ts's old→LEFT /
+// new→RIGHT outbound map, over the same DiffLine rows createCommentAnchor
+// reads.
 import { describe, expect, it } from "vitest";
 import type { BriefChunk } from "../../brief/types";
 import type { ConversationThread } from "../types";

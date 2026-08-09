@@ -1,6 +1,6 @@
-// Curated feature entry (ADR 0037): the externally consumed entry
-// components. Internal conversation files import their targets directly,
-// never this index (import/no-cycle).
+// Curated feature entry: the externally consumed entry components. Internal
+// conversation files import their targets directly, never this index
+// (import/no-cycle).
 export {
   ConversationSection,
   type ConversationPlan,

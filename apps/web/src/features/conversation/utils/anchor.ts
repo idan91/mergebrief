@@ -1,12 +1,11 @@
-// GitHub→chunk anchor mapping (BRIEF-25, ADR 0027): the pure inverse of
-// submit.ts's outbound old→LEFT / new→RIGHT map, over the same
-// `DiffLine {oldLine?, newLine?}` rows `createCommentAnchor` reads.
+// GitHub→chunk anchor mapping: the pure inverse of submit.ts's outbound
+// old→LEFT / new→RIGHT map, over the same `DiffLine {oldLine?, newLine?}`
+// rows `createCommentAnchor` reads.
 //
 // Placement is a pure function of (thread anchor revision, viewed revision):
 // fresh threads land inline at their chunk row; outdated threads are
 // digest-only — their coordinates describe the ANCHOR-TIME diff, so no row
-// match is ever attempted. Unanchored threads render only in the digest;
-// nothing floats mid-code.
+// match is ever attempted. Unanchored threads render only in the digest.
 import type { BriefChunk } from "../../brief/types";
 import { rowId } from "../../review/utils/comments";
 import type { ConversationThread, ThreadSide } from "../types";

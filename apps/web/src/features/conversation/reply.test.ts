@@ -1,6 +1,5 @@
-// Reply transport (BRIEF-25): expected failure statuses are result kinds
-// the composer renders — never throws for those; a malformed 2xx throws
-// typed (contract violation).
+// Reply transport: expected failure statuses are result kinds the composer
+// renders — never throws for those; a malformed 2xx throws typed.
 import { describe, expect, it, vi } from "vitest";
 
 import type * as ApiFetchModule from "../../data/apiFetch";
