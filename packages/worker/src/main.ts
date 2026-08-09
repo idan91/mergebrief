@@ -1,8 +1,7 @@
 // The worker startup wiring (`pnpm start` / the compose `worker` service).
 // This is the ONE place env is read and real dependencies are wired — the
-// library modules stay env-INJECTED (same posture as
-// `apps/web/src/server/webhookApp.ts`). A misconfigured worker must fail
-// LOUDLY at boot, never limp into draining jobs it cannot complete.
+// library modules stay env-INJECTED. A misconfigured worker must fail LOUDLY
+// at boot, never limp into draining jobs it cannot complete.
 import { createGenerator } from "generators";
 import { createAppClient, loadConfig as loadGitHubConfig } from "github";
 import { Logger as GraphileLogger } from "graphile-worker";
@@ -16,10 +15,7 @@ import { startWorker } from "./runner";
 /** Where failed-generation raw outputs are dumped for debugging (ephemeral). */
 const FAILURE_DUMP_DIR = "out";
 
-/**
- * Load `packages/worker/.env` if present, then return the ambient env.
- * Mirrors the web startup wiring's `readEnv`: the file is optional.
- */
+/** Load `packages/worker/.env` if present, then return the ambient env. */
 function readEnv(): NodeJS.ProcessEnv {
   try {
     process.loadEnvFile();
@@ -29,11 +25,10 @@ function readEnv(): NodeJS.ProcessEnv {
   return process.env;
 }
 
-// The process logger (ADR 0034): built once from the loaded env; everything
-// in this process — composition, task, graphile lifecycle — logs through it.
-// Its own construction can fail on config (bad LOG_LEVEL) — that too must
-// stay down (BRIEF-149), and with the boundary itself broken, bare console is
-// the honest fallback.
+// The one process logger: everything here — composition, task, graphile
+// lifecycle — logs through it. Its own construction can fail on config (bad
+// LOG_LEVEL); that too must stay down, and with the boundary broken, bare
+// console is the only channel left.
 const env = readEnv();
 const logger = (() => {
   try {
@@ -46,13 +41,9 @@ const logger = (() => {
 })();
 
 /**
- * Config errors exit 0 (BRIEF-149): deterministic — a restart can never fix
- * one, so under the compose worker's `restart: on-failure` policy a zero
- * exit stays down (no restart loop) with the reason as the log's last line.
- * (In NDJSON mode pino's destination is synchronous, so the line lands
- * before the exit; the dev pino-pretty transport is async and may drop it —
- * accepted, compose is the contract here.) Transient faults keep the
- * throw → exit(1) path and its restart self-heal.
+ * Config errors exit 0: a restart can never fix one, so under compose's
+ * `restart: on-failure` a zero exit stays down with the reason as the log's
+ * last line. Transient faults keep the throw → exit(1) restart self-heal.
  */
 function exitOnConfigError(message: string): never {
   logger.error(message);
@@ -60,7 +51,7 @@ function exitOnConfigError(message: string): never {
 }
 
 async function main(): Promise<void> {
-  // The DATABASE_URL_FILE shadow warning (BRIEF-131) must reach the operator.
+  // The DATABASE_URL_FILE shadow warning must reach the operator.
   const config = loadConfig(env, {
     onWarning: (message) => logger.warn(message),
   });
@@ -78,16 +69,14 @@ async function main(): Promise<void> {
     );
   }
 
-  // Generator construction goes through the registry boundary (BRIEF-11): the
-  // instance config (or zero-config default) selects the adapter; keys
-  // resolve by env-var NAME and harness adapters run their startup checks here
-  // — a misconfigured instance refuses boot before taking jobs.
+  // The instance config (or zero-config default) selects the adapter; keys
+  // resolve by env-var NAME and adapters run their startup checks here — a
+  // misconfigured instance refuses boot before taking jobs.
   const generator = await createGenerator(config.value.generator, {
     env,
     failureDir: FAILURE_DUMP_DIR,
-    // warn, not info: everything the registry surfaces through this sink is
-    // degraded/suspicious (served-model mismatch, billing-floor and
-    // billing-route warnings — BRIEF-150) and should be alertable (ADR 0034 #5).
+    // warn, not info: everything the registry surfaces here is
+    // degraded/suspicious and should be alertable.
     log: (message) => logger.warn(message),
   });
   if (!generator.ok) {
@@ -101,8 +90,8 @@ async function main(): Promise<void> {
     exitOnConfigError(message);
   }
 
-  // Pool error observer (ADR 0034 #7 posture, mirrors the web tier): a DB
-  // restart surfaces as warn lines, not an unhandled-'error' process crash.
+  // Pool error observer: a DB restart surfaces as warn lines, not an
+  // unhandled-'error' process crash.
   const handle = createDb(config.value.databaseUrl, {
     onError: (error) =>
       logger.warn("postgres pool error (idle client)", { err: error }),
@@ -115,13 +104,13 @@ async function main(): Promise<void> {
     generator: generator.value,
     github: appGitHubPort(createAppClient(githubConfig.value)),
     publicBaseUrl: config.value.publicBaseUrl,
-    // Instance-config effort (BRIEF-75); absent → brief-core's medium default.
+    // Absent → brief-core's medium default.
     ...(configuredEffort === undefined ? {} : { effort: configuredEffort }),
-    // Cross-revision regeneration policy (BRIEF-143); absent → never.
+    // Absent → never.
     ...(configuredFullRegeneration === undefined
       ? {}
       : { fullRegeneration: configuredFullRegeneration }),
-    // The daily generation cap (BRIEF-20); no `spend` block → uncapped.
+    // No `spend` block → uncapped.
     spend: config.value.spend,
     log: logger,
   });
@@ -130,12 +119,12 @@ async function main(): Promise<void> {
     databaseUrl: config.value.databaseUrl,
     // MERGEBRIEF_AUTO_MIGRATE=false → read-only schema check at boot.
     autoMigrate: config.value.autoMigrate,
-    // helpers.abortSignal is graphile's graceful-shutdown signal — threading
-    // it through lets SIGTERM abort an in-flight stream (job back to queue)
-    // instead of riding out the kill grace into a stuck job lock. helpers.job
-    // carries the attempt counts the failure events read.
+    // helpers.abortSignal is graphile's graceful-shutdown signal: SIGTERM
+    // aborts an in-flight stream (job back to queue) instead of riding out the
+    // kill grace into a stuck job lock. helpers.job carries the attempt counts
+    // the failure events read.
     taskList: { generate: (payload, helpers) => generate(payload, helpers) },
-    // graphile's lifecycle logs (jobId/workerId scope) flow through the boundary.
+    // graphile's lifecycle logs flow through the logging boundary.
     logger: new GraphileLogger(createGraphileLogFactory(logger)),
   });
   logger.info("worker: listening for generate jobs");
@@ -151,9 +140,9 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  // Structured `err`, not message-into-msg: the boundary's serializer scrubs
-  // URL-shaped secrets (BRIEF-88) — a drizzle migrate failure quotes
-  // DATABASE_URL back, which the old message-only line emitted verbatim.
+  // Boot failures are the documented exemption to the message-only rule:
+  // nothing provider-shaped reaches here, and the boundary's serializer scrubs
+  // the URL-shaped secrets a migrate failure quotes back.
   logger.error("worker: boot failed", { err: error });
   process.exit(1);
 });

@@ -1,11 +1,7 @@
-// The daily generation cap (BRIEF-20) — the instance's one spend guardrail.
-// Pure helpers only; the enforcement point (the single boundary where a run
-// starts, before any provider call) lives in `generate.ts`.
-//
-// WHY UTC: the reset boundary has to be one instant for the whole instance —
-// a per-repo or per-viewer local day would make the count ambiguous during
-// the overlap. The FE renders the reset time in the VIEWER's zone, so the
-// operator's timezone never leaks into the product.
+// The daily generation cap's window. Pure helpers only; the enforcement point
+// (the single boundary where a run starts, before any provider call) lives in
+// `generate.ts`. UTC because the reset boundary must be ONE instant for the
+// whole instance — a local day would make the count ambiguous in the overlap.
 
 /** The half-open window `[from, to)` covering `instant`'s UTC calendar day. */
 export interface UtcDay {

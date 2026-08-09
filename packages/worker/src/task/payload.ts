@@ -1,6 +1,5 @@
-// The drain side of the job-payload handshake (see `GenerateJobPayload` in
-// the shared `types` package): `persistence/src/stores/ingest.ts` serializes
-// `{ installation_id, pull_request_id, head_sha }` with STRING ids (JSON
+// The drain side of the job-payload handshake (`GenerateJobPayload` in the
+// shared `types` package): the ingest serializer writes STRING ids (JSON
 // cannot carry bigint); this boundary Zod-validates the untrusted job row
 // back into branded ids. Anything that doesn't parse is a poisoned/foreign
 // job, not a transient failure — callers drop it rather than retry.

@@ -1,15 +1,12 @@
-// The worker's repo-config phase (ADR 0032 #4/#5, plan PR 4): fetch the three
-// fixed `.mergebrief/` paths from the DEFAULT BRANCH (fresh per generation,
-// no cache), validate via `repo-config`'s pure core, and shape the results
-// for the two consumers — the categorizer's `RepoContext` injection and the
-// `brief.repo_config` origin snapshot.
+// The worker's repo-config phase: fetch the three fixed `.mergebrief/` paths
+// from the DEFAULT BRANCH (fresh per generation, no cache), validate via
+// `repo-config`'s pure core, and shape the results for the two consumers —
+// the `RepoContext` injection and the `brief.repo_config` origin snapshot.
 //
 // FAIL-OPEN is the whole contract here: nothing in this module ever throws
-// for an expected failure, and `acquireRepoConfig` never rejects — a GitHub
+// for an expected failure and `acquireRepoConfig` never rejects — a GitHub
 // 5xx, an unreadable blob, or a validation surprise degrades to "generate
-// without repo config" with a LOUD `fetch-failed` outcome on the record. A
-// PR author cannot induce a GitHub 5xx, so fail-open is not a scrutiny-
-// evasion channel (ADR 0032 #4).
+// without repo config" with a LOUD `fetch-failed` outcome on the record.
 import type { CustomRiskAttributeInput, RepoContext } from "brief-core";
 import { RepoFileKind } from "github";
 import {
@@ -49,7 +46,7 @@ const SLOTS = [
 export interface AcquiredRepoConfig {
   /** Injection input for `categorize`; undefined when nothing applies. */
   readonly repoContext: RepoContext | undefined;
-  /** Validated workflow settings (PR 7 consumes `entryCommentOnDrafts`). */
+  /** Validated workflow settings; the entry gate reads `entryCommentOnDrafts`. */
   readonly settings: RepoSettingsV1 | undefined;
   /** Validated policy (de-emphasis rules feed the snapshot). */
   readonly policy: ValidatedRepoPolicy | undefined;
@@ -73,11 +70,10 @@ function nothingAcquired(
 
 /**
  * Fetch + validate the repo-config surface for one generation. Never throws.
- * Failure granularity (codex PR 4 r1):
+ * Failure granularity:
  *   - a per-file FETCH failure marks that file `fetch-failed` and validation
  *     still runs on whatever fetched cleanly;
- *   - an unexpected crash in validation/shaping (should be impossible — the
- *     core is pure and never-throws by contract) degrades to no config while
+ *   - an unexpected crash in validation/shaping degrades to no config while
  *     KEEPING each slot's fetch truth: absent stays `absent`, fetch problems
  *     keep their outcome, and a cleanly-fetched file is marked `invalid` with
  *     a static detail (its content is what the validator crashed on).
@@ -139,8 +135,8 @@ async function fetchSlots(
   for (const [index, slot] of SLOTS.entries()) {
     const result = results[index];
     if (result === undefined || !result.ok) {
-      // GitHub 5xx / transport failure: fail-open, loud (ADR 0032 #4). The
-      // detail is a `mapRequestError` product — sanitized by construction.
+      // GitHub 5xx / transport failure: fail-open, loud. The detail is a
+      // `mapRequestError` product — sanitized by construction.
       const detail =
         result === undefined ? "no fetch result" : result.error.message;
       overrides.set(slot.path, {
@@ -236,9 +232,9 @@ function validateAndShape(
 }
 
 /**
- * Serialize the `generation.repo_config` origin data (ADR 0032 #8): the
- * merged per-file outcome table + collision disclosures, recorded right
- * after acquisition so failed/superseded runs keep their outcomes.
+ * Serialize the `generation.repo_config` origin data: the merged per-file
+ * outcome table + collision disclosures, recorded right after acquisition so
+ * failed/superseded runs keep their outcomes.
  */
 export function buildRepoConfigOrigin(acquired: AcquiredRepoConfig): string {
   return JSON.stringify(
@@ -250,10 +246,10 @@ export function buildRepoConfigOrigin(acquired: AcquiredRepoConfig): string {
 }
 
 /**
- * Serialize the `brief.repo_config` snapshot (ADR 0032 #8/#11): the merged
- * per-file outcome table, collision disclosures, and — when a policy applied
- * — the definitions of the custom attributes that actually FIRED on this
- * brief plus the de-emphasis rules in effect.
+ * Serialize the `brief.repo_config` snapshot: the merged per-file outcome
+ * table, collision disclosures, and — when a policy applied — the definitions
+ * of the custom attributes that actually FIRED on this brief plus the
+ * de-emphasis rules in effect.
  */
 export function buildRepoConfigArtifact(
   acquired: AcquiredRepoConfig,

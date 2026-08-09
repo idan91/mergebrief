@@ -112,9 +112,8 @@ function stubGenerator(): StubGenerator {
   const calls: string[] = [];
   const requests: { label: string; system: string; user: string }[] = [];
   const outputs: Record<string, unknown> = {
-    // Coverage-valid by default (BRIEF-143): the anchored path's hard
-    // coverage check requires every PR file (stub default: a.ts) in exactly
-    // one group.
+    // Coverage-valid by default: the anchored path's hard coverage check
+    // requires every PR file (stub default: a.ts) in exactly one group.
     brief: {
       summary: "stub brief",
       intentCheck: {
@@ -176,8 +175,7 @@ function stubGenerator(): StubGenerator {
       if (output === undefined)
         throw new Error(`no stub output for ${req.label}`);
       // Parsing through the request's own schema types the return without a
-      // cast AND asserts the canned output is schema-valid (same trick as the
-      // categorizer's FakeGenerator).
+      // cast AND asserts the canned output is schema-valid.
       return req.schema.parse(output);
     },
     origin(effort: Effort) {
@@ -396,8 +394,8 @@ describe("generate task", () => {
     expect(JSON.parse(brief?.body ?? "{}")).toMatchObject({
       summary: "stub brief",
       index: 1,
-      // The PR lifecycle snapshot (BRIEF-103) — pins the info→PrMetadata
-      // stamping wiring, not just the widened interface.
+      // The PR lifecycle snapshot — pins the info→PrMetadata stamping
+      // wiring, not just the widened interface.
       pr: { state: "open", draft: false, merged: false },
     });
 
@@ -414,7 +412,7 @@ describe("generate task", () => {
     expect(generator.calls).toEqual(["brief"]);
   });
 
-  it("threads the instance-config effort into the stored brief's origin (BRIEF-75)", async () => {
+  it("threads the instance-config effort into the stored brief's origin", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -439,7 +437,7 @@ describe("generate task", () => {
     });
   });
 
-  it("stamps anchor origin `none` on the row and the artifact body (BRIEF-143)", async () => {
+  it("stamps anchor origin `none` on the row and the artifact body", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -560,8 +558,8 @@ describe("generate task", () => {
 
     // Same head re-queued (review-submitted gap-filler / redelivery): the
     // brief is already stored and the ready comment is already live — the
-    // rerun verifies the body via one fetch and posts NOTHING (BRIEF-41:
-    // delete+repost here would re-ping the thread with no new information).
+    // rerun verifies the body via one fetch and posts NOTHING — delete+repost
+    // here would re-ping the thread with no new information.
     const second = await trigger(HEAD_1);
     await task(second.payload);
 
@@ -899,7 +897,7 @@ describe("generate task", () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    // Non-default effort so the narrative-site threading is pinned too (BRIEF-75).
+    // Non-default effort so the narrative-site threading is pinned too.
     const task = createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
@@ -940,9 +938,9 @@ describe("generate task", () => {
       headIndex: 2,
       generation: { effort: "low" },
     });
-    // Pins the worker call-site wiring of `marksFiles` (BRIEF-73): the stub
-    // narrative covers nothing, so the marks↔narrative coverage check must
-    // have run and landed its warning in the persisted artifact.
+    // Pins the worker call-site wiring of `marksFiles`: the stub narrative
+    // covers nothing, so the marks↔narrative coverage check must have run and
+    // landed its warning in the persisted artifact.
     const narrativeWarnings = narrativeBody["generationWarnings"];
     expect(Array.isArray(narrativeWarnings)).toBe(true);
     expect(
@@ -957,7 +955,7 @@ describe("generate task", () => {
     const first = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
-    // Non-default effort so the delta-warm threading is pinned too (BRIEF-75).
+    // Non-default effort so the delta-warm threading is pinned too.
     const task = createGenerateTask({
       handle: harness.handle,
       publicBaseUrl: PUBLIC_URL,
@@ -1214,7 +1212,7 @@ describe("generate task", () => {
     });
 
     // The SDK's connection error carries NO status and name "Error" — only
-    // an instanceof check can catch it (PR #29 review finding).
+    // an instanceof check can catch it.
     generator.failNextWith = new APIConnectionError({});
     await expect(task(payload)).rejects.toThrow("Connection error");
 
@@ -1373,7 +1371,7 @@ describe("generate task", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Repo-config phase (BRIEF-52, ADR 0032 — plan PR 4).
+// Repo-config phase.
 // ---------------------------------------------------------------------------
 
 function fileOf(content: string, blobSha: string): RepoFileResult {
@@ -1386,7 +1384,7 @@ function fileOf(content: string, blobSha: string): RepoFileResult {
 }
 
 // ---------------------------------------------------------------------------
-// Anchored generation (BRIEF-143 PR 3).
+// Anchored generation.
 // ---------------------------------------------------------------------------
 
 /** Incremental diff touching only b.ts. */
@@ -1462,7 +1460,7 @@ function twoGroupBriefOutput(
   };
 }
 
-describe("generate task — anchored generation (BRIEF-143)", () => {
+describe("generate task — anchored generation", () => {
   const SPAN = `${HEAD_1}...${HEAD_2}`;
 
   /** Two-revision run: rev1 with gA/gB, then rev2 with the given output. */
@@ -1626,7 +1624,7 @@ describe("generate task — anchored generation (BRIEF-143)", () => {
     );
   });
 
-  it("threads the anchor view and anchored prompt into the model call (PR 4)", async () => {
+  it("threads the anchor view and anchored prompt into the model call", async () => {
     const { generator } = await runTwoRevisions({});
     const briefRequests = generator.requests.filter((r) => r.label === "brief");
     expect(briefRequests).toHaveLength(2);
@@ -2047,7 +2045,7 @@ describe("generate task — repo-config origin on the generation record", () => 
 });
 
 // ---------------------------------------------------------------------------
-// Entry-comment draft gate (BRIEF-58, ADR 0020 #4 as amended / ADR 0032 #13).
+// Entry-comment draft gate.
 // ---------------------------------------------------------------------------
 
 describe("generate task — entry-comment draft gate", () => {
@@ -2301,7 +2299,7 @@ function captureLogger() {
   return { logger, lines };
 }
 
-describe("generate task — observability (BRIEF-51, ADR 0034)", () => {
+describe("generate task — observability", () => {
   it("a transient failure emits job.fail (permanent: false) with attempt counts and job bindings", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const github = stubGitHub(HEAD_1);
@@ -2477,7 +2475,7 @@ describe("generate task — observability (BRIEF-51, ADR 0034)", () => {
   });
 });
 
-describe("generate task — daily generation cap (BRIEF-20)", () => {
+describe("generate task — daily generation cap", () => {
   const UNCAPPED = { dailyGenerationCap: null, perRepo: {} };
 
   /** Burn one STARTED run for acme/widget so the cap has something to count. */
@@ -2568,7 +2566,7 @@ describe("generate task — daily generation cap (BRIEF-20)", () => {
     expect(trip?.["prId"]).toBe(String(pr.id));
     expect(trip?.["cap"]).toBe(1);
     expect(typeof trip?.["dayUtc"]).toBe("string");
-    // Nothing interpolated into msg (ADR 0034 #4).
+    // Nothing interpolated into msg.
     expect(String(trip?.["msg"])).not.toContain("acme/widget");
   });
 

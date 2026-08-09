@@ -1,6 +1,4 @@
 // ENTRY POINT — the whole public surface (`package.json` `exports["."]`).
-// Mirrors the sibling packages' documented-export style: named exports only,
-// grouped by the folder/module it lives in. Map: `AGENTS.md`.
 // The runnable entry is `src/main.ts` (startup wiring, `pnpm start`) — it is
 // deliberately NOT exported here; this surface exists for tests and for any
 // future embedding of the worker in another process.
@@ -26,8 +24,7 @@ export type { GenerateTaskDeps, Logger } from "./task/generate";
 export { parseGeneratePayload } from "./task/payload";
 export type { ParsedGeneratePayload } from "./task/payload";
 
-// The daily generation cap's window helper (BRIEF-20); enforcement lives
-// inside the task.
+// The daily generation cap's window helper; enforcement lives inside the task.
 export { utcDayBounds } from "./task/spend";
 export type { UtcDay } from "./task/spend";
 
@@ -39,9 +36,9 @@ export type {
   PullRequestSource,
 } from "./task/github-port";
 
-// Anchored-generation machinery (BRIEF-143): pure plan + stitch helpers,
-// exported for the eval harness's revision-pair runner (tools/categorizer) —
-// the pairs must exercise the SAME partition/stitch the production task runs.
+// Anchored-generation machinery: pure plan + stitch helpers, exported so the
+// eval harness's revision-pair runner exercises the SAME partition/stitch the
+// production task runs.
 export { planAnchoredGeneration, stitchBrief } from "./task/anchoring";
 export type {
   AnchorPlan,

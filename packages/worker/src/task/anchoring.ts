@@ -1,9 +1,8 @@
-// Pure anchored-generation helpers (BRIEF-143 PR 3): the plan step (partition
-// previous groups into frozen | re-look, with remap-as-invariant-assertion)
-// and the stitch step (carry frozen groups verbatim, keep the regenerated
-// rest, rewrite ids by descent, recompute the mechanical rollup, enforce
-// coverage). No I/O, no model calls — `generate.ts` wires these around the
-// existing categorize call.
+// Pure anchored-generation helpers: the plan step (partition previous groups
+// into frozen | re-look, with remap-as-invariant-assertion) and the stitch
+// step (carry frozen groups verbatim, keep the regenerated rest, rewrite ids
+// by descent, recompute the mechanical rollup, enforce coverage). No I/O, no
+// model calls — `generate.ts` wires these around the categorize call.
 import {
   assignGroupIds,
   GroupVerdicts,
@@ -30,9 +29,8 @@ export interface AnchorPlanArgs {
   readonly compareFiles?: CompareFiles;
   /**
    * True when the PR-base SHA moved since the previous brief (rebase /
-   * base-advance): three-dot compare data lies after a rewrite, so
-   * everything re-looks BEFORE the partition even runs (spec: rebase noise
-   * takes the conservative path).
+   * base-advance): three-dot compare data lies after a rewrite, so everything
+   * re-looks BEFORE the partition even runs.
    */
   readonly baseShaMoved: boolean;
 }
@@ -175,10 +173,9 @@ export function planAnchoredGeneration(args: AnchorPlanArgs): AnchorPlan {
       demote("previous group has no chunks — nothing carriable");
       continue;
     }
-    // Remap-as-invariant (PR 2 review): under the file-level predicate a
-    // frozen file has no hunks, so this is identity — but contradictory
-    // evidence (a hunk in a "clean" file) must demote, never carry wrong
-    // lines.
+    // Under the file-level predicate a frozen file has no hunks, so this is
+    // identity — but contradictory evidence (a hunk in a "clean" file) must
+    // demote, never carry wrong lines.
     const remapped: Chunk[] = [];
     let demoted: string | undefined;
     for (const chunk of chunks) {
@@ -293,16 +290,14 @@ export function stitchBrief(
           ),
         };
 
-  // ---- claims (PR 4): a generated group under a frozen id UNFREEZES it ----
+  // ---- claims: a generated group under a frozen id UNFREEZES it -----------
   // The prompt contract forbids frozen ids except as claim targets (a new
   // file joining a frozen group); a claim means the model re-examined the
   // whole group, so its version wins and the carry is cancelled. A claim is
   // validated MECHANICALLY: the claiming group must re-emit at least one of
-  // the frozen group's previous files (the spec's claim re-emits "all its
-  // chunks, previous and new files alike") — a bare id collision with zero
-  // file overlap is a numbering slip, not a claim, and routes through
-  // descent like any other temp id (which renames it away from the reserved
-  // frozen id) instead of cancelling a carry it never referenced.
+  // the frozen group's previous files — a bare id collision with zero file
+  // overlap is a numbering slip, not a claim, and routes through descent like
+  // any other temp id instead of cancelling a carry it never referenced.
   const frozenFilesById = new Map(
     plan.frozen.map((carry) => [
       carry.group.id,
@@ -535,7 +530,7 @@ export function stitchBrief(
     };
   }
 
-  // ---- coverage: every PR file in exactly one group (hard, per spec) ------
+  // ---- coverage: every PR file in exactly one group (hard) ----------------
   const ownersByFile = new Map<string, Set<string>>();
   for (const chunk of mergedChunks) {
     const owners = ownersByFile.get(chunk.file) ?? new Set<string>();
@@ -574,14 +569,14 @@ export function stitchBrief(
     };
   }
 
-  // Full structural validators on the artifact actually persisted (spec
-  // §Stitch & validation) — warn-register, matching their fresh-path posture.
+  // Full structural validators on the artifact actually persisted —
+  // warn-register, matching their fresh-path posture.
   for (const issue of validatePartition(mergedGroups, mergedChunks)) {
     warnings.push(`anchored stitch: ${issue}`);
   }
-  // Length floor over the MERGED artifact (BRIEF-148) — carried groups
-  // included, so a pre-cap carry is measured too; replaces the partial
-  // stamp `categorize()` computed on the re-emitted regions alone.
+  // Length floor over the MERGED artifact — carried groups included, so a
+  // pre-cap carry is measured too; replaces the partial stamp `categorize()`
+  // computed on the re-emitted regions alone.
   const textLength = validateTextLength(mergedGroups, mergedChunks);
   for (const issue of textLength.issues) {
     warnings.push(`anchored stitch: ${issue}`);

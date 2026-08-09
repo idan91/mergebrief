@@ -1,4 +1,4 @@
-// Unit tests for the pure anchored-generation helpers (BRIEF-143 PR 3):
+// Unit tests for the pure anchored-generation helpers:
 // planAnchoredGeneration (partition + remap-as-invariant + shared-file
 // exclusivity) and stitchBrief (carry + drop + id descent + coverage).
 import { describe, expect, it } from "vitest";
@@ -250,7 +250,7 @@ describe("stitchBrief", () => {
   }
 
   it("carries frozen groups verbatim, keeps regenerated groups, rewrites ids by descent", () => {
-    // The model (unaware of freezing in PR 3) re-emitted BOTH regions.
+    // The model, unaware of freezing, re-emitted BOTH regions.
     const generated = brief(
       [group("tmpA", "alpha rewritten"), group("tmpB", "beta v2")],
       [chunk("x1", "tmpA", "a.ts", 5, 8), chunk("x2", "tmpB", "b.ts", 1, 3)],
@@ -313,7 +313,7 @@ describe("stitchBrief", () => {
     ]);
   });
 
-  it("recomputes the text length floor over the MERGED artifact (BRIEF-148)", () => {
+  it("recomputes the text length floor over the MERGED artifact", () => {
     // The CARRIED group's summary is over-cap — categorize() never saw it,
     // so only the merged-artifact recompute can stamp it.
     const verbosePrevious = brief(
@@ -369,7 +369,7 @@ describe("stitchBrief", () => {
     expect(warningText).toContain("risk attrs issues");
   });
 
-  it("drops a stale lengthViolations stamp when the merged artifact fits (BRIEF-148)", () => {
+  it("drops a stale lengthViolations stamp when the merged artifact fits", () => {
     const generated = brief(
       [group("tmpB", "beta v2")],
       [chunk("x2", "tmpB", "b.ts", 1, 3)],
@@ -536,7 +536,7 @@ describe("stitchBrief", () => {
     expect(result.error.message).toContain("b.ts");
   });
 
-  it("a claimed frozen id unfreezes the group — model version wins, carry cancelled (PR 4)", () => {
+  it("a claimed frozen id unfreezes the group — model version wins, carry cancelled", () => {
     // The model claimed frozen g1 (new file c.ts belongs to it) and
     // re-emitted it fully, alongside its re-look take on g2.
     const generated = brief(
@@ -601,10 +601,10 @@ describe("stitchBrief", () => {
     ).toBe(true);
   });
 
-  it("a frozen-id re-emission with ONLY its own files is not a claim — the carry survives (BRIEF-143 fix)", () => {
-    // pair-subtractive recording, runs 2/5: the model re-emitted frozen g1
-    // with just its previous file. Nothing in the re-look diff touches a.ts,
-    // so the "claim" carries no evidence and must not cancel the carry.
+  it("a frozen-id re-emission with ONLY its own files is not a claim — the carry survives", () => {
+    // The model re-emitted frozen g1 with just its previous file. Nothing in
+    // the re-look diff touches a.ts, so the "claim" carries no evidence and
+    // must not cancel the carry.
     const generated = brief(
       [group("g1", "alpha drifted"), group("tmpB", "beta v2")],
       [chunk("x1", "g1", "a.ts", 5, 8), chunk("x2", "tmpB", "b.ts", 1, 3)],
@@ -628,9 +628,9 @@ describe("stitchBrief", () => {
     ).toBe(true);
   });
 
-  it("scrubs generated chunks on files outside the PR and drops groups they empty (BRIEF-143 fix)", () => {
-    // pair-subtractive recording, runs 2-4: the revision reverted a file out
-    // of the PR, but the model kept narrating it from the anchor brief.
+  it("scrubs generated chunks on files outside the PR and drops groups they empty", () => {
+    // The revision reverted a file out of the PR, but the model kept
+    // narrating it from the anchor brief.
     const generated = brief(
       [group("tmpB", "beta v2"), group("tmpC", "ghost of departed work")],
       [
@@ -655,7 +655,7 @@ describe("stitchBrief", () => {
     ).toBe(true);
   });
 
-  it("a departed-file chunk cannot serve as claim evidence (BRIEF-143 fix)", () => {
+  it("a departed-file chunk cannot serve as claim evidence", () => {
     // The model claims frozen g1 with its old file plus a departed file —
     // after the scrub the claim has no new evidence, so the carry survives.
     const generated = brief(
@@ -681,7 +681,7 @@ describe("stitchBrief", () => {
     ).toBeUndefined();
   });
 
-  it("another frozen group's file is not claim evidence — both carries survive (BRIEF-143 fix)", () => {
+  it("another frozen group's file is not claim evidence — both carries survive", () => {
     // The model merges two frozen groups into one re-emission under g1. No
     // frozen file can be evidence (the re-look diff never touches them), so
     // the claim is rejected and both carries stay verbatim.

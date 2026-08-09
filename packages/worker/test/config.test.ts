@@ -36,7 +36,7 @@ describe("loadConfig", () => {
     expect(result.value.autoMigrate).toBe(true);
   });
 
-  it("exposes MERGEBRIEF_AUTO_MIGRATE=false through persistence's loader (BRIEF-131)", () => {
+  it("exposes MERGEBRIEF_AUTO_MIGRATE=false through persistence's loader", () => {
     const result = loadConfig({
       ...VALID_ENV,
       MERGEBRIEF_AUTO_MIGRATE: "false",

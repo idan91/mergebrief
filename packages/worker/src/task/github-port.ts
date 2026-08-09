@@ -1,8 +1,8 @@
-// The worker's GitHub boundary: the four reads a generate job needs, pre-bound to
+// The worker's GitHub boundary: the reads a generate job needs, pre-bound to
 // one PR so the task logic never handles octokit instances or repo
-// coordinates. The REAL implementation mints an installation-scoped client
-// via `github`'s App auth (ADR 0016 trust boundary — the worker acts as the
-// App, never as a user); tests substitute an in-memory port.
+// coordinates. The REAL implementation mints an installation-scoped client —
+// the worker acts as the App, never as a user; tests substitute an in-memory
+// port.
 import {
   deleteComment,
   fetchComment,
@@ -44,24 +44,22 @@ export interface PullRequestSource {
     head: string,
   ): Promise<Result<string, GitHubApiError>>;
   /**
-   * The `base...head` compare per-file status metadata (BRIEF-143) — the
-   * rename/binary/mode signals the anchoring predicate needs and the raw
-   * diff cannot carry.
+   * The `base...head` compare per-file status metadata — the rename/binary/
+   * mode signals the anchoring predicate needs and the raw diff cannot carry.
    */
   fetchCompareFiles(
     base: string,
     head: string,
   ): Promise<Result<CompareFiles, GitHubApiError>>;
   /**
-   * One repo file from the DEFAULT BRANCH (`ref` deliberately unset — the
-   * contents API's default-branch semantics ARE the ADR 0032 #3 trust rule;
-   * a PR head must never be able to weaken its own scrutiny).
+   * One repo file from the DEFAULT BRANCH (`ref` deliberately unset): a PR
+   * head must never be able to weaken its own scrutiny.
    */
   fetchRepoFile(
     path: string,
     maxBytes: number,
   ): Promise<Result<RepoFileResult, GitHubApiError>>;
-  /** Post the branded Entry comment (ADR 0016 #3); returns the comment id. */
+  /** Post the branded Entry comment; returns the comment id. */
   postEntryComment(
     body: string,
   ): Promise<Result<{ readonly commentId: bigint }, GitHubApiError>>;

@@ -1,9 +1,7 @@
-// The Entry comment — the product's front door on GitHub (ADR 0016 #3:
-// activation = ONE branded comment per PR, maintained delete+repost per
-// settled head, bottom-of-thread freshness; ADR 0020: clicking the deep link
-// is Entry — navigation, never a compute trigger). Pure builders only; the
-// delete+repost orchestration lives in `generate.ts`. The body carries no
-// secrets: a public deep link and public SHAs.
+// The Entry comment — ONE branded comment per PR, maintained by delete+repost
+// per settled head; the deep link is navigation, never a compute trigger.
+// Pure builders only; the delete+repost orchestration lives in `generate.ts`.
+// The body carries no secrets: a public deep link and public SHAs.
 
 export interface EntryCommentLink {
   /** The web deployment's public origin (`PUBLIC_BASE_URL`). */
@@ -42,11 +40,11 @@ export interface EntryCommentPrLink {
 }
 
 /**
- * The capped body (BRIEF-20): this push got no brief because the repo hit
- * its daily generation cap. Used ONLY to UPDATE an Entry comment that
- * already exists — a capped PR never gets a comment created for it, so the
- * cap can never make MergeBrief louder on a thread than it already was.
- * Spanless link: there is no brief for this head to deep-link at.
+ * The capped body: this push got no brief because the repo hit its daily
+ * generation cap. Used ONLY to UPDATE an Entry comment that already exists —
+ * a capped PR never gets one created for it, so the cap can never make
+ * MergeBrief louder on a thread than it already was. Spanless link: there is
+ * no brief for this head to deep-link at.
  */
 export function entryCommentCappedBody(link: EntryCommentPrLink): string {
   const origin = link.publicBaseUrl.replace(/\/+$/, "");

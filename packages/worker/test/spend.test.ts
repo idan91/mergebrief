@@ -2,9 +2,8 @@ import { describe, expect, it } from "vitest";
 import { utcDayBounds } from "../src/task/spend";
 
 /**
- * The cap window (BRIEF-20). The boundary is the whole point: the day the
- * counter asks about must be half-open so 23:59:59.999 and 00:00:00.000
- * never land in the same bucket.
+ * The cap window is half-open: 23:59:59.999 and 00:00:00.000 must never land
+ * in the same bucket.
  */
 describe("utcDayBounds", () => {
   it("brackets the UTC calendar day containing the instant", () => {

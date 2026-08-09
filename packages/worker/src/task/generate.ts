@@ -1,18 +1,17 @@
-// The `generate` task (BRIEF-3 Part 2) — the drain side of the pipeline the
-// webhook enqueues into. One job = "bring this PR's artifacts up to date at
-// this head": the shared Brief (plus, when a previous briefed head exists,
-// the mechanical comparison marks and the revision narrative), then the
-// pre-warmed delta cores — one per DISTINCT checkpoint SHA on the PR (ADR
-// 0006 #4 as amended 2026-07-05), each guarded by the huge-span skip (#7).
-// The generation engine (`categorizer`) is reused as-is behind its
+// The `generate` task — the drain side of the pipeline the webhook enqueues
+// into. One job = "bring this PR's artifacts up to date at this head": the
+// shared Brief (plus, when a previous briefed head exists, the mechanical
+// comparison marks and the revision narrative), then the pre-warmed delta
+// cores — one per DISTINCT checkpoint SHA on the PR, each guarded by the
+// huge-span skip. The generation engine is reused as-is behind its
 // `Generator` port; this module owns ONLY orchestration: payload validation,
 // tenancy, idempotent skip/reuse, projection transitions, and error mapping.
 //
-// STATE MODEL (`generation` projection, kind `brief` — the row `ingest.ts`
-// queued): queued → running(phase) → succeeded | failed | superseded.
+// STATE MODEL (`generation` projection, kind `brief`):
+// queued → running(phase) → succeeded | failed | superseded.
 //   - superseded (terminal, NOT a failure): the PR head advanced past the
 //     job's head, or the PR reached a terminal state — no retry, `attempts`
-//     untouched (ADR 0006 #6). Part 3 extends this to mid-call aborts.
+//     untouched, no salvage or dump.
 //   - failed: recorded via `markFailed` (which sanitizes). PERMANENT
 //     failures (404/406/unrenderable inputs, deterministic generation
 //     failures) return normally so graphile does NOT retry a job that cannot
@@ -101,8 +100,7 @@ import {
   buildRepoConfigOrigin,
 } from "./repo-config";
 
-// The structured boundary (packages/logging, ADR 0034) — re-exported for the
-// worker's internal modules (repo-config) and `index.ts`.
+// Re-exported for the worker's internal modules and `index.ts`.
 export type { Logger };
 
 /** The message-only log shape brief-core and the generators contract take. */
@@ -114,19 +112,15 @@ export interface GenerateTaskDeps {
   readonly github: GitHubPort;
   /** The web deployment's public origin — the Entry comment's deep-link base. */
   readonly publicBaseUrl: string;
-  /** Head-poll cadence during streaming (ADR 0006 #6); default ~20s. */
+  /** Head-poll cadence during streaming; default ~20s. */
   readonly headPollIntervalMs?: number;
-  /** Instance-config reasoning effort (BRIEF-75); absent → engine default. */
+  /** Instance-config reasoning effort; absent → engine default. */
   readonly effort?: Effort;
-  /**
-   * Cross-revision regeneration policy (BRIEF-143); absent → `never`
-   * (anchored). Consumed by the stitch step (PR 3); threaded now so the
-   * config vocabulary reaches the task in one shape.
-   */
+  /** Cross-revision regeneration policy; absent → `never` (anchored). */
   readonly fullRegeneration?: FullRegeneration;
   /**
-   * The instance daily generation cap (BRIEF-20); absent → uncapped, which
-   * is also what a config file with no `spend` block means.
+   * The instance daily generation cap; absent → uncapped, which is also what
+   * a config file with no `spend` block means.
    */
   readonly spend?: SpendPolicy;
   readonly log?: Logger;
@@ -135,8 +129,8 @@ export interface GenerateTaskDeps {
 const DEFAULT_HEAD_POLL_INTERVAL_MS = 20_000;
 
 /**
- * The cooperative-cancellation supervisor (ADR 0006 #6, amended 2026-07-05).
- * Two mechanisms share one AbortController:
+ * The cooperative-cancellation supervisor. Two mechanisms share one
+ * AbortController:
  *   - `assertCurrent()` — the cheap head check run BEFORE each artifact call;
  *   - `startPolling()` — a ~20s head-poll DURING streaming, so a superseding
  *     push aborts the in-flight SDK call (stopping output-token spend)
@@ -257,8 +251,8 @@ function unwrapGitHub<T>(result: Result<T, GitHubApiError>): T {
  * would re-spend tokens for the same outcome.
  */
 function isTransientGenerationError(error: unknown): boolean {
-  // Generator adapters classify their own transport failures (BRIEF-11
-  // decision 5): provider-transient is the only kind a retry can help.
+  // Adapters classify their own transport failures: provider-transient is the
+  // only kind a retry can help.
   if (error instanceof GeneratorError) {
     return error.kind === GeneratorErrorKind.PROVIDER_TRANSIENT;
   }
@@ -277,8 +271,8 @@ function isTransientGenerationError(error: unknown): boolean {
 
 /**
  * Artifact origin data from the engine's `Generation` metadata. `effort` is
- * null for adapters without an effort knob (ADR 0013); the store column is a
- * plain string, so null normalizes to the honest "none".
+ * null for adapters without an effort knob; the store column is a plain
+ * string, so null normalizes to the honest "none".
  */
 function originOf(generation: Brief["generation"]): {
   provider: string;
@@ -325,9 +319,8 @@ export interface GenerateTaskHelpers {
   /**
    * The slice of graphile's `Job` row the failure events read (snake_case —
    * graphile's own column shape rides through structurally). `attempts`
-   * INCLUDES the in-flight attempt; `job.retries.exhausted` is minted at
-   * `attempts === max_attempts` (ADR 0034 #5 — graphile has no distinct
-   * exhausted event).
+   * INCLUDES the in-flight attempt; the retries-exhausted event is minted at
+   * `attempts === max_attempts` because graphile has none of its own.
    */
   readonly job?: {
     readonly attempts: number;
@@ -355,9 +348,9 @@ export function createGenerateTask(
       return;
     }
     const payload = parsed.value;
-    // The pipeline's correlation key (ADR 0034 #6): {prId, headSha} on every
-    // job line — the durable join to the webhook leg (deliveries coalesce,
-    // so no delivery id owns a job; the payload grows NO correlation fields).
+    // The pipeline's correlation key: {prId, headSha} on every job line — the
+    // durable join to the webhook leg, since deliveries coalesce and no
+    // delivery id owns a job.
     const jobLog = log.child({
       prId: String(payload.pullRequestId),
       headSha: payload.headSha,
@@ -388,8 +381,8 @@ export function createGenerateTask(
       const permanent = error instanceof PermanentJobError;
       const attempt = helpers?.job?.attempts;
       const maxAttempts = helpers?.job?.max_attempts;
-      // Message-only (BRIEF-11 defense in depth): no `err` field — provider
-      // cause chains may carry request contents.
+      // Message-only: no `err` field — provider cause chains may carry
+      // request contents, which the boundary's URL scrub does not cover.
       jobLog.error(
         permanent
           ? `generate: permanent failure — ${message}`
@@ -406,8 +399,7 @@ export function createGenerateTask(
         maxAttempts !== undefined &&
         attempt >= maxAttempts
       ) {
-        // THE worker alert (ADR 0034 #5): graphile is out of retries for
-        // this job — minted here because graphile has no distinct event.
+        // THE worker alert: graphile is out of retries for this job.
         jobLog.error("generate: retries exhausted", {
           evt: "job.retries.exhausted",
           attempt,
@@ -435,12 +427,10 @@ function noopLogger(): Logger {
 }
 
 /**
- * `provider.error` (ADR 0034 #5): emitted when the failure is a provider
- * call gone wrong — a `GeneratorError` (the adapters' own classification),
+ * Emitted when the failure is a provider call gone wrong — a `GeneratorError`,
  * the SDK's connection error, or any error carrying a numeric HTTP status.
- * 401/403 = credentials/config broken (alert now); sustained 429/5xx =
- * provider degraded. Message-only posture: fields carry classification,
- * never the raw error object.
+ * Message-only posture: fields carry classification, never the raw error
+ * object (cause chains may hold request contents).
  */
 function emitProviderError(
   log: Logger,
@@ -521,11 +511,12 @@ async function runGeneration(
     pr.prNumber,
   );
 
-  // ---- Daily generation cap (BRIEF-20) -------------------------------------
+  // ---- Daily generation cap ------------------------------------------------
   // THE enforcement point: the single boundary where a run starts, before any
-  // provider call AND before the projection says `running` — the gate must
-  // not count the very run it is deciding on. At the cap the run is SKIPPED,
-  // not deferred: terminal `capped`, no retry, no queue growth.
+  // GitHub/provider call AND before the projection says `running` — the gate
+  // must not count the very run it is deciding on. At the cap the run is
+  // SKIPPED, not deferred: terminal `capped`, no retry, no attempt consumed.
+  // The counter sums ATTEMPTS, not rows.
   const cap =
     deps.spend === undefined ? null : capForRepo(deps.spend, pr.repoSlug);
   if (cap !== null) {
@@ -544,9 +535,8 @@ async function runGeneration(
         dayUtc: day.label,
       });
       if (liveEntryCommentId !== null) {
-        // UPDATE ONLY (grill decision): a capped PR never gets an Entry
-        // comment created for it — the cap must not make MergeBrief louder
-        // on a thread than it already was.
+        // UPDATE ONLY: a capped PR never gets an Entry comment created for it
+        // — the cap must not make MergeBrief louder on a thread than it was.
         await refreshEntryComment(
           entryCommentCappedBody({
             publicBaseUrl: deps.publicBaseUrl,
@@ -557,12 +547,9 @@ async function runGeneration(
           }),
         );
       }
-      // Do NOT overwrite a `failed` row. graphile retries a transient
-      // failure by re-running this task, so an at-cap retry lands here with
-      // the previous attempt's real failure recorded — stamping `capped`
-      // over it would erase why the job actually broke and end the retry
-      // chain under a status that blames the guardrail. The run is skipped
-      // either way; only the record differs.
+      // Do NOT overwrite a `failed` row: an at-cap graphile retry lands here
+      // with the previous attempt's real failure recorded, and stamping
+      // `capped` over it would erase why the job actually broke.
       const current = await projection.get(target);
       if (current?.status !== GenerationStatus.FAILED) {
         await projection.markCapped(target);
@@ -652,10 +639,9 @@ async function runGeneration(
       .toReversed()
       .find((row) => row.headSha !== headSha);
 
-    // Hoisted prevHead→head span fetch (BRIEF-143): the anchoring plan needs
-    // it BEFORE the model call; the revision-artifact phase below reuses the
-    // same Result (unwrap deferred there so failure semantics — permanent
-    // 406 after the brief write — stay byte-identical to the pre-hoist code).
+    // The anchoring plan needs the prevHead→head span BEFORE the model call;
+    // the revision-artifact phase below reuses the same Result (unwrap stays
+    // deferred there so a permanent 406 still lands after the brief write).
     const prevSpanFetch =
       prevBrief === undefined
         ? undefined
@@ -663,33 +649,32 @@ async function runGeneration(
 
     let briefRef: { id: BriefRowId; headIndex: number };
     let generatedBrief: Brief | undefined;
-    // Repo-config phase (ADR 0032 #4): three default-branch reads, fresh per
-    // generation, validated pure-side. NEVER fails the job — a fetch failure
-    // degrades to no-config with a loud `fetch-failed` outcome on the record.
-    // ALSO acquired on a skip drain of a DRAFT PR: the entry gate below needs
+    // Repo-config phase: three default-branch reads, fresh per generation,
+    // validated pure-side. NEVER fails the job — a fetch failure degrades to
+    // no-config with a loud `fetch-failed` outcome on the record. ALSO
+    // acquired on a skip drain of a DRAFT PR: the entry gate below needs
     // `settings.entryCommentOnDrafts`, and fail-open's undefined settings
-    // correctly default the gate CLOSED (no entry churn on drafts).
+    // correctly default the gate CLOSED.
     const repoConfig =
       existing === undefined || info.draft
         ? await acquireRepoConfig(source, log)
         : undefined;
     if (repoConfig !== undefined && existing === undefined) {
       // Per-file outcomes land on the GENERATION record NOW — before the model
-      // call — so a failed or superseded run still shows its config outcomes
-      // (plan PR 4; codex round 2). GENERATION runs only: a draft SKIP drain
-      // acquires config for the entry gate, but recording it would overwrite
-      // the record with config that never shaped the stored brief (Fable r1).
+      // call — so a failed or superseded run still shows its config outcomes.
+      // GENERATION runs only: a draft SKIP drain acquires config for the entry
+      // gate, but recording it would overwrite the record with config that
+      // never shaped the stored brief.
       await projection.recordRepoConfig(
         target,
         buildRepoConfigOrigin(repoConfig),
       );
     }
-    // Entry-comment draft gate (ADR 0020 #4 as amended / ADR 0032 #13): the
-    // branded Entry comment stays OFF draft PRs unless the repo opts in via
-    // `.mergebrief/settings.yaml` `entryCommentOnDrafts: true`. Generation
-    // itself is untouched — this gates the COMMENT only. The comment then
-    // posts when `ready_for_review` triggers the next drain (draft=false →
-    // the skip branch's ready flip posts it).
+    // Entry-comment draft gate: the branded Entry comment stays OFF draft PRs
+    // unless the repo opts in via `.mergebrief/settings.yaml`
+    // `entryCommentOnDrafts: true`. Generation itself is untouched — this
+    // gates the COMMENT only; `ready_for_review` triggers the next drain,
+    // whose skip-branch ready flip posts it.
     const entryCommentAllowed =
       !info.draft || repoConfig?.settings?.entryCommentOnDrafts === true;
     if (!entryCommentAllowed) {
@@ -697,11 +682,10 @@ async function runGeneration(
         "generate: entry comment suppressed — draft PR without entryCommentOnDrafts",
       );
       // Suppression means OFF, not "leave whatever is there": a comment posted
-      // before the PR converted to draft (possibly a stale "Generating…" from
-      // a superseded run) must not linger through the draft phase (Fable r1).
-      // BUT the sweep is destructive, so it only runs on KNOWN-off settings —
-      // a settings fetch failure closes the POSTING gate (safe) without
-      // deleting a possibly-legitimate opt-in comment (Fable r2).
+      // before the PR converted to draft must not linger through the draft
+      // phase. BUT the sweep is destructive, so it only runs on KNOWN-off
+      // settings — a settings fetch failure closes the POSTING gate without
+      // deleting a possibly-legitimate opt-in comment.
       const settingsUnknown =
         repoConfig?.files.some(
           (file) =>
@@ -714,13 +698,12 @@ async function runGeneration(
     }
     if (existing === undefined) {
       const headIndex = (priorBriefs.at(-1)?.headIndex ?? 0) + 1;
-      // ---- Anchoring decision (BRIEF-143): policy × previous brief --------
-      // `always` = kill-switch (today's fresh path, byte-compatible);
-      // `on-model-swap` restarts fresh once when the stamped provider/model
-      // moved; otherwise a recoverable previous brief anchors this
-      // generation — partition now, stitch after the model call. Every
-      // degradation (missing row, unrecoverable body) falls back to a fresh
-      // generation stamped `none`.
+      // ---- Anchoring decision: policy × previous brief --------------------
+      // `always` = kill-switch (the fresh path); `on-model-swap` restarts
+      // fresh once when the stamped provider/model moved; otherwise a
+      // recoverable previous brief anchors this generation — partition now,
+      // stitch after the model call. Every degradation (missing row,
+      // unrecoverable body) falls back to a fresh generation stamped `none`.
       const policy = deps.fullRegeneration ?? FullRegenerations.NEVER;
       let anchor: Anchor = { state: AnchorStates.NONE };
       let anchorPlan: ReturnType<typeof planAnchoredGeneration> | undefined;
@@ -769,8 +752,8 @@ async function runGeneration(
               baseShaMoved: prevBrief.baseSha !== info.baseSha,
             });
             anchor = { state: AnchorStates.ANCHORED };
-            // The prompt contract (PR 4): the model receives the trimmed
-            // previous brief plus the mechanical frozen partition.
+            // The prompt contract: the model receives the trimmed previous
+            // brief plus the mechanical frozen partition.
             anchorView = {
               previousBrief: previousBody,
               frozenGroupIds: anchorPlan.frozen.map((carry) => carry.group.id),
@@ -802,9 +785,9 @@ async function runGeneration(
         ),
       );
       await projection.markRunning(target, GenerationPhase.WRITING);
-      // Anchored stitch (BRIEF-143): carry frozen groups verbatim over the
-      // model's take, rewrite ids by descent, enforce coverage. A coverage
-      // failure is a pipeline error — permanent, never salvage.
+      // Anchored stitch: carry frozen groups verbatim over the model's take,
+      // rewrite ids by descent, enforce coverage. A coverage failure is a
+      // pipeline error — permanent, never salvage.
       let finalBrief = brief;
       if (anchorPlan !== undefined) {
         const stitched = stitchBrief({
@@ -830,9 +813,9 @@ async function runGeneration(
         ...(repoConfig === undefined
           ? {}
           : {
-              // The snapshot's fired attributes come from the PERSISTED
-              // chunks — the stitched artifact, not the model's raw take
-              // (Fable r1: they'd disagree on carried/dropped regions).
+              // Fired attributes come from the PERSISTED chunks — the
+              // stitched artifact, not the model's raw take, which disagrees
+              // on carried/dropped regions.
               repoConfig: buildRepoConfigArtifact(repoConfig, stamped.chunks),
             }),
       });
@@ -876,19 +859,16 @@ async function runGeneration(
       }
     }
 
-    // ---- Entry comment: ready flip (ADR 0016 #3) -----------------------------
+    // ---- Entry comment: ready flip -------------------------------------------
     // The brief artifact now EXISTS — the FE's render trigger — so the deep
     // link renders the Brief itself; replace the generating comment (the
     // delete+repost IS the "ready" ping) before the slower revision/delta
-    // work. Supersession gate first: a superseded run must post nothing (the
-    // superseding head's own job will post for the newer revision).
-    // Skip-branch reruns (review-submitted gap-filler on an already-briefed
-    // head, BRIEF-41): when the live comment already carries this head's ready
-    // body, reposting would only re-ping the thread — leave it in place. The
-    // check is skip-branch-only (a fresh generation's comment says
-    // "generating", so a GET would always mismatch), and any miss — stuck
-    // generating body, swept draft comment, manual deletion, fetch failure —
-    // falls through to the normal refresh.
+    // work. Supersession gate first: a superseded run must post nothing.
+    // On a skip-branch rerun, when the live comment already carries this
+    // head's ready body, reposting would only re-ping the thread — leave it
+    // in place. The check is skip-branch-only (a fresh generation's comment
+    // says "generating", so a GET would always mismatch), and any miss falls
+    // through to the normal refresh.
     await watch.assertCurrent();
     if (entryCommentAllowed) {
       const readyBody = entryCommentBody(deepLink());
@@ -932,7 +912,7 @@ async function runGeneration(
       });
     }
 
-    // ---- Delta cores: one per distinct checkpoint SHA (ADR 0006 #4) ---------
+    // ---- Delta cores: one per distinct checkpoint SHA -----------------------
     const deltaCount = await warmDeltaCores(payload, {
       store,
       repo,
@@ -964,9 +944,9 @@ async function runGeneration(
     }
 
     await projection.markSucceeded(target);
-    // Sweep projections of heads this one replaced pre-drain (debounce
-    // replacement means no worker run ever carried them — ADR 0006 #6's
-    // terminal-superseded applies to them the same as to a drained abort).
+    // Sweep projections of heads this one replaced pre-drain: debounce
+    // replacement means no worker run ever carried them, so terminal
+    // `superseded` applies the same as to a drained abort.
     const swept = await projection.supersedeStaleBriefs(pullRequestId, headSha);
     if (swept > 0) {
       log.info(`generate: swept ${swept} stale queued brief projection(s)`);
@@ -988,9 +968,9 @@ async function runGeneration(
   }
 
   /**
-   * Delete-only sweep for the suppressed state (BRIEF-58): remove the live
-   * Entry comment (404-tolerant) and clear the stored id. Failures never
-   * fail the job — the next drain retries naturally.
+   * Delete-only sweep for the suppressed state: remove the live Entry comment
+   * (404-tolerant) and clear the stored id. Failures never fail the job — the
+   * next drain retries naturally.
    */
   async function removeEntryComment(): Promise<void> {
     if (liveEntryCommentId === null) {
@@ -1184,7 +1164,7 @@ interface RevisionArtifactInputs {
   /** Signal-wrapped generator + the supersession watch gating its calls. */
   readonly generator: Generator;
   readonly watch: SupersessionWatch;
-  /** Instance-config reasoning effort (BRIEF-75); undefined → engine default. */
+  /** Instance-config reasoning effort; undefined → engine default. */
   readonly effort: Effort | undefined;
   readonly wholePrChangedLines: number;
   readonly links: LinkedContext[];
@@ -1195,7 +1175,7 @@ interface RevisionArtifactInputs {
  * Comparison marks (mechanical, always) + revision narrative (generated,
  * best-effort — a narrative failure never fails the Brief, mirroring
  * `generateAndWrite`). Marks are written BEFORE the narrative call so a
- * failed narrative still leaves highlights available (ADR 0021/0024).
+ * failed narrative still leaves highlights available.
  */
 async function writeRevisionArtifacts(
   payload: ParsedGeneratePayload,
@@ -1222,8 +1202,8 @@ async function writeRevisionArtifacts(
     prevBrief.headIndex,
     revDiff,
   );
-  // Persistence's strict schema is coordinates-only (D13): pass exactly the
-  // SHA pair + files, never the CLI's read-time label/index context.
+  // Persistence's strict schema is coordinates-only: pass exactly the SHA
+  // pair + files, never the read-time label/index context.
   const marksWritten = await store.comparisonMarks.write({
     pullRequestId,
     marks: {
@@ -1233,9 +1213,8 @@ async function writeRevisionArtifacts(
     },
   });
   if (!marksWritten.ok) {
-    // Marks are critical for the comparison UI: surface loudly (the CLI
-    // never catches marks failures either), but classify as permanent — the
-    // same inputs would fail identically on retry.
+    // Marks are critical for the comparison UI: surface loudly, but classify
+    // as permanent — the same inputs would fail identically on retry.
     throw new PermanentJobError(marksWritten.error.message);
   }
 
@@ -1291,9 +1270,9 @@ async function writeRevisionArtifacts(
     return;
   }
 
-  // Supersession gate BEFORE spending on the narrative call (ADR 0006 #6);
-  // deliberately outside the try — a supersession must propagate, never be
-  // swallowed as a narrative failure.
+  // Supersession gate BEFORE spending on the narrative call; deliberately
+  // outside the try — a supersession must propagate, never be swallowed as a
+  // narrative failure.
   await inputs.watch.assertCurrent();
   try {
     const narrative = await categorizeRevisionNarrative(
@@ -1339,7 +1318,7 @@ interface DeltaWarmInputs {
   /** Signal-wrapped generator + the supersession watch gating its calls. */
   readonly generator: Generator;
   readonly watch: SupersessionWatch;
-  /** Instance-config reasoning effort (BRIEF-75); undefined → engine default. */
+  /** Instance-config reasoning effort; undefined → engine default. */
   readonly effort: Effort | undefined;
   readonly briefHeadIndex: number;
   readonly wholePrChangedLines: number;
@@ -1348,8 +1327,8 @@ interface DeltaWarmInputs {
 }
 
 /**
- * Pre-warm one delta core per DISTINCT checkpoint SHA on the PR (ADR 0006 #4
- * as amended: every settled push-bundle, never lazy). Per checkpoint:
+ * Pre-warm one delta core per DISTINCT checkpoint SHA on the PR — every
+ * settled push-bundle, never lazy. Per checkpoint:
  * skip-if-stored → span marks (mechanical, before the LLM call) → huge-span
  * skip (the view falls back to the full Brief; absence IS the signal) →
  * generate + write. A failed span aborts the job with its classification;
@@ -1369,7 +1348,7 @@ async function warmDeltaCores(
 
   let generated = 0;
   for (const baselineSha of distinctShas) {
-    // eslint-disable-next-line no-await-in-loop -- spans run sequentially by design (one model call at a time, ADR 0015)
+    // eslint-disable-next-line no-await-in-loop -- spans run sequentially by design (one model call at a time)
     const already = await store.deltas.get(pullRequestId, baselineSha, headSha);
     if (already !== undefined) {
       continue;
@@ -1404,8 +1383,8 @@ async function warmDeltaCores(
     const baselineIndex =
       priorBriefs.find((row) => row.headSha === baselineSha)?.headIndex ?? null;
     if (prefetched?.marksWritten !== true) {
-      // Span marks BEFORE the LLM call (delta-CLI ordering): a failed delta
-      // still leaves highlights for the checkpoint span.
+      // Span marks BEFORE the LLM call: a failed delta still leaves
+      // highlights for the checkpoint span.
       const marks = buildComparisonMarks(
         headSha,
         baselineSha,
@@ -1446,7 +1425,7 @@ async function warmDeltaCores(
       incrementalDiff,
       links: inputs.links,
     };
-    // Supersession gate BEFORE each delta spend (ADR 0006 #6).
+    // Supersession gate BEFORE each delta spend.
     // eslint-disable-next-line no-await-in-loop
     await inputs.watch.assertCurrent();
     // eslint-disable-next-line no-await-in-loop
