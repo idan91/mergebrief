@@ -1,9 +1,7 @@
-// Flat at the feature root by the queries.ts convention (brief/queries.ts
-// precedent): the feature's queryOptions door, referenced by routes.
-// Query + mutation for the org switcher (BRIEF-19 PR 2.2). The read goes
-// through the isomorphic boundary; the switch is a client-only POST (mutations
-// never run during SSR), after which the caller invalidates EVERYTHING — a
-// tenant switch changes what every query is allowed to see.
+// The feature's queryOptions door, referenced by routes. The read goes through
+// the isomorphic boundary; the switch is a client-only POST, after which the
+// caller invalidates EVERYTHING — a tenant switch changes what every query is
+// allowed to see.
 import { queryOptions } from "@tanstack/react-query";
 
 import { ApiError, ApiErrorKind, apiFetchJson } from "../../data/apiFetch";

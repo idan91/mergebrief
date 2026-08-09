@@ -1,8 +1,8 @@
-// apiFetch boundary unit tests (BRIEF-19 PR 3.1). The SSR branch is exercised
-// through `dispatchInProcess` with a fake Hono-shaped app — asserting the two
-// invariants that make SSR *not* a second authz path (ADR 0016 #5c): the
-// viewer's cookie is forwarded verbatim, and a composition failure maps to the
-// same sanitized 503 the server entry answers, never a thrown internal error.
+// apiFetch boundary unit tests. The SSR branch runs through
+// `dispatchInProcess` with a fake Hono-shaped app, asserting the two invariants
+// that keep SSR from becoming a second authz path: the viewer's cookie is
+// forwarded verbatim, and a composition failure maps to the same sanitized 503
+// the server entry answers, never a thrown internal error.
 import { createLogger } from "logging";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -53,7 +53,7 @@ describe("dispatchInProcess", () => {
     expect(res.status).toBe(401);
   });
 
-  it("forwards method, body, and content-type for a mutation (BRIEF-23)", async () => {
+  it("forwards method, body, and content-type for a mutation", async () => {
     const app = fakeApp((request) => {
       expect(request.method).toBe("POST");
       expect(request.headers.get("content-type")).toBe("application/json");
@@ -109,12 +109,10 @@ describe("dispatchInProcess", () => {
     expect(body).toContain("service unavailable");
   });
 
-  it("reports a composition failure through the injected log sink, with the raw cause as the err field (ADR 0034)", async () => {
+  it("reports a composition failure through the injected log sink, with the raw cause as the err field", async () => {
     // The boundary is isomorphic, so the SSR branch cannot import the server
-    // logger at module scope — it is injected. The RAW error rides `err`:
-    // scrubbing is the logging boundary's job (BRIEF-88), not this call site's.
-    // `error` is the right level: the whole read surface is down until an
-    // operator acts.
+    // logger at module scope — it is injected. The RAW error rides `err`;
+    // scrubbing is the logging boundary's job, not this call site's.
     const sink = fakeLogSink();
     const cause = new Error("connect ECONNREFUSED 10.0.0.4:5432");
     await dispatchInProcess(
@@ -131,9 +129,8 @@ describe("dispatchInProcess", () => {
     expect(fields?.["err"]).toBe(cause);
   });
 
-  // End-to-end guarantee (BRIEF-88): with the REAL logger injected, the
-  // boundary's err serializer scrubs URL-shaped credentials before the line
-  // is emitted — this call site no longer sanitizes anything itself.
+  // With the REAL logger injected, the boundary's err serializer scrubs
+  // URL-shaped credentials before the line is emitted.
   it("emits no credentials through the real logging seam", async () => {
     const written: string[] = [];
     const logger = createLogger({

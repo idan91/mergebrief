@@ -1,16 +1,15 @@
-// The isomorphic read-API fetch boundary (BRIEF-19 PR 3.1, ADR 0016 #5c).
+// The isomorphic read-API fetch boundary.
 //
 // Client branch: a plain relative `fetch` — the browser attaches the session
-// cookie itself. Server (SSR) branch: IN-PROCESS dispatch of the same Hono app
-// the server entry mounts, with the incoming request's cookie forwarded — the
+// cookie itself. SSR branch: IN-PROCESS dispatch of the same Hono app the
+// server entry mounts, with the incoming cookie forwarded, so the
 // server-rendered read traverses the IDENTICAL authz middleware. Reaching
-// persistence directly from a server function is forbidden (it would bypass
-// the gate — a second enforcement path). The origin in the synthesized URL is
-// irrelevant: Hono routes on the path.
+// persistence directly from a server function is forbidden — that is a second
+// enforcement path. The synthesized URL's origin is irrelevant: Hono routes on
+// the path.
 //
-// Composition failure (Postgres down / misconfig) maps to the same sanitized
-// 503 the server entry answers for /api/* — a typed, expected error state,
-// never a leaked internal.
+// Composition failure maps to the same sanitized 503 the server entry answers
+// for `/api/*`; never a leaked internal.
 import { createIsomorphicFn } from "@tanstack/react-start";
 import type { ValueOf } from "types";
 
@@ -65,9 +64,9 @@ interface DispatchableApp {
 }
 
 /**
- * The narrow request-init surface this boundary forwards (BRIEF-23 adds the
- * submit mutation). Typed explicitly — not `RequestInit` — so the SSR branch
- * provably forwards every field it accepts.
+ * The narrow request-init surface this boundary forwards. Typed explicitly —
+ * not `RequestInit` — so the SSR branch provably forwards every field it
+ * accepts.
  */
 export interface ApiFetchInit {
   readonly method?: "GET" | "POST";
@@ -76,10 +75,10 @@ export interface ApiFetchInit {
 }
 
 /**
- * The slice of the `packages/logging` `Logger` the SSR branch needs (ADR
- * 0034). Injected rather than imported: this module is isomorphic, and
- * `server/logger` is `server-only` — importing it here would drag the server
- * entry into the client bundle. The real `Logger` satisfies this structurally.
+ * The slice of the `packages/logging` `Logger` the SSR branch needs. Injected,
+ * never imported: this module is isomorphic and `server/logger` is
+ * `server-only`, so importing it here would drag the server entry into the
+ * client bundle. The real `Logger` satisfies this structurally.
  */
 export interface DispatchLogSink {
   error(msg: string, fields?: Record<string, unknown>): void;
@@ -102,10 +101,9 @@ export async function dispatchInProcess(
   try {
     app = await getApp();
   } catch (error) {
-    // `error` can quote DATABASE_URL back on a Postgres misconfig — the
-    // logging boundary's `err` serializer scrubs URL-shaped substrings from every
-    // string field (BRIEF-88), so the raw error rides `err` as-is. Level
-    // `error`: every read is 503ing until an operator fixes the composition.
+    // `error` can quote DATABASE_URL back on a Postgres misconfig, so it rides
+    // as a FIELD — the logging boundary's `err` serializer scrubs URL-shaped
+    // substrings; `msg` bypasses redaction.
     logger.error("apiFetch: webhook app composition failed", { err: error });
     return new Response(JSON.stringify({ error: "service unavailable" }), {
       status: 503,

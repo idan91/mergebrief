@@ -1,8 +1,5 @@
-// API-token settings section (BRIEF-17 PR 4): mint form (name, installation
-// picker from the live accessible set, expiry incl. no-expiry), the
-// SHOWN-ONCE token display with its treat-as-password disclaimer, and the
-// list with last-used + revoke. All flow state lives in the facade hook
-// (`useTokenSettings`) — this component only wires it to the DOM.
+// API-token settings section. All flow state lives in `useTokenSettings` —
+// this component only wires it to the DOM.
 import {
   useTokenSettings,
   ExpiryChoice,
@@ -159,7 +156,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             {token.revokedAt === null ? (
               <button
                 // Token-specific accessible name: multiple rows must be
-                // distinguishable when navigating by buttons (codex PR4 R3).
+                // distinguishable when navigating by buttons.
                 aria-label={`Revoke ${token.name}`}
                 className={styles["revoke"]}
                 disabled={state.revokePendingId === token.id}

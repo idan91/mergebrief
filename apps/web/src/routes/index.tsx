@@ -40,15 +40,14 @@ function BriefPicker() {
     setPending(true);
     setError(null);
     try {
-      // Behavior follows the visible auth state (BRIEF-97): signed in →
-      // the api route generates with the VIEWER's token (works with no gh
-      // CLI and no App installation); signed out → the local gh-CLI path.
+      // Behavior follows the VISIBLE auth state: signed in generates through
+      // the api route on the viewer's token; signed out uses the local gh CLI.
       const briefId =
         session.kind === "ready"
           ? await generateBriefViaApi(url)
           : await generateBrief({ data: { url } });
-      // The list is cached forever (staleTime: Infinity) — a fresh brief
-      // must invalidate it or the picker shows the load-time snapshot.
+      // The list is cached with staleTime Infinity — a fresh brief must
+      // invalidate it or the picker shows the load-time snapshot.
       await queryClient.invalidateQueries({ queryKey: ["briefs", "local"] });
       await navigate({ to: "/briefs/$briefId", params: { briefId } });
     } catch (caught) {
@@ -154,7 +153,7 @@ function BriefPickerError({ error }: { error: Error }) {
     <main className="main" id="main-content" tabIndex={-1}>
       <section className={sharedStyles["errorState"]}>
         <h1>Brief list failed to load</h1>
-        {/* Curated copy only (BRIEF-20) — see briefs.$briefId's boundary. */}
+        {/* Curated copy only: a raw server message would leak internals. */}
         <p>{briefErrorDetail(error)}</p>
       </section>
     </main>

@@ -1,7 +1,5 @@
-// Settings page (BRIEF-17 PR 4): today it hosts the API-token section; other
-// per-user settings join here later. Session-gated the same way the picker's
-// DB sections are — logged-out viewers get the sign-in pointer, never a
-// broken form.
+// Settings page. Session-gated like the picker's DB sections — logged-out
+// viewers get the sign-in pointer, never a broken form.
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
@@ -27,9 +25,8 @@ function SettingsPage() {
       {session.kind === "ready" ? (
         <TokenSettings enabled />
       ) : session.kind === "unavailable" ? (
-        // A backend/GitHub failure is NOT proof the viewer is logged out —
-        // telling a signed-in user to sign in again would be dishonest
-        // (codex PR4 R2). Recoverable copy instead.
+        // A backend/GitHub failure is NOT proof the viewer is logged out, so
+        // the copy stays recoverable rather than telling them to sign in.
         <p className={styles["signedOut"]} role="alert">
           The server is unavailable right now — your tokens are untouched.
           Refresh to retry.

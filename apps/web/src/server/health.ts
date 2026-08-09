@@ -1,14 +1,12 @@
-// The health surface (BRIEF-51, ADR 0034 #7): bare top-level `/healthz` +
-// `/readyz`, answered in the server entry BEFORE the Hono branch and the
-// page router — deliberately outside `/api`, unauthenticated (cohort norm),
-// zero interaction with session middleware or the Bearer carve-out.
+// The health surface: bare top-level `/healthz` + `/readyz`, answered in the
+// server entry BEFORE the Hono branch and the page router — deliberately
+// outside `/api`, unauthenticated, with no session middleware in the path.
 //
-// `/healthz` is static liveness: 200 with zero dependencies, alive even
-// while Hono-app composition is failing. `/readyz` is readiness: the webhook
-// composition resolves and one `SELECT 1` round-trips. Both answer constant
-// tiny JSON — no version, dependency, or tenant detail leaks either way.
-// Compose probes `/healthz` and NEVER `/readyz` (a DB blip must not trigger
-// restart churn).
+// `/healthz` is static liveness: 200 with zero dependencies, alive even while
+// Hono-app composition is failing. `/readyz` is readiness: the composition
+// resolves and one `SELECT 1` round-trips. Both answer constant tiny JSON — no
+// version, dependency, or tenant detail leaks either way. Compose probes
+// `/healthz` and NEVER `/readyz`, so a DB blip cannot trigger restart churn.
 
 export interface HealthDeps {
   /** Composition + `SELECT 1` — `checkReadiness` in `webhookApp.ts`. */

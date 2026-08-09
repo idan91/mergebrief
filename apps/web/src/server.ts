@@ -1,15 +1,10 @@
-// Custom TanStack Start server entry (BRIEF-2 stage 5). TanStack Start 1.168
-// resolves `src/server.{ts,js}` as the server entry (overriding the framework
-// default) — verified via `@tanstack/start-plugin-core`'s `resolveStartEntryPlan`
-// (`defaultEntry: 'server'`). This entry mounts the webhook Hono app on the web
-// origin: `/api/*` (ONE registered namespace since BRIEF-18 — OAuth + auth
-// management live under `/api/auth/*`) is handed to `honoApp.fetch`; every
-// other path falls through to Start's default page handler, so `/` and
-// `/briefs/*` are untouched.
+// Custom TanStack Start server entry: TanStack Start resolves `src/server.ts`
+// as the server entry. `/api/*` — the app's ONE registered namespace, OAuth and
+// auth management included — is handed to `honoApp.fetch`; every other path
+// falls through to Start's default page handler.
 //
-// We do NOT use `createServerFn` here: that is RPC framing, whereas GitHub POSTs
-// a raw HMAC-signed body that must reach the webhook route byte-for-byte. Handing
-// the untouched `Request` to `honoApp.fetch` preserves exactly those bytes.
+// Not `createServerFn`: that is RPC framing, whereas GitHub POSTs a raw
+// HMAC-signed body that must reach the webhook route byte-for-byte.
 import {
   createStartHandler,
   defaultStreamHandler,
@@ -31,10 +26,9 @@ function isHonoPath(pathname: string): boolean {
 }
 
 /**
- * Stamp `cache-control: no-store` on SSR'd HTML documents (BRIEF-19, ADR 0016
- * #5c): loader-prefetched pages embed authz-gated, per-viewer data in the
- * HTML, which must never land in a shared proxy/CDN cache. Static assets
- * (non-HTML) keep their own caching.
+ * Stamp `cache-control: no-store` on SSR'd HTML documents: they embed
+ * authz-gated, per-viewer data that must never land in a shared proxy/CDN
+ * cache. Non-HTML assets keep their own caching.
  */
 function withNoStoreForDocuments(response: Response): Response {
   const contentType = response.headers.get("content-type") ?? "";
@@ -53,8 +47,8 @@ function withNoStoreForDocuments(response: Response): Response {
 const serverEntry: ServerEntry = {
   async fetch(request, requestOpts) {
     const { pathname } = new URL(request.url);
-    // Health surface (BRIEF-51, ADR 0034 #7): answered BEFORE the Hono
-    // branch and the page router — unauthenticated, constant JSON.
+    // Health surface answered BEFORE the Hono branch and the page router, so
+    // it stays reachable even if router init throws. Unauthenticated JSON.
     const health = await handleHealthRequest(pathname, { checkReadiness });
     if (health !== undefined) {
       return health;

@@ -1,6 +1,5 @@
-// Parser tests against REALISTIC wire bodies (the BRIEF-21 lesson: route
-// tests that seed the query cache bypass the parser — the parser gets its own
-// tests here so a shape drift cannot ship green).
+// Parser tests against REALISTIC wire bodies: route tests that seed the query
+// cache bypass the parser, so a shape drift would otherwise ship green.
 import { describe, expect, it } from "vitest";
 
 import { parseMintedToken, parseTokensView } from "./types";

@@ -1,5 +1,5 @@
-// Spec 1 (BRIEF-113): the fixture brief renders end to end through the real
-// server — story sections, chunk cards, diff rows — with a clean console.
+// The fixture brief renders end to end through the real server — story
+// sections, chunk cards, diff rows — with a clean console.
 import { expect, test } from "@playwright/test";
 
 import {

@@ -1,8 +1,6 @@
-// Flat at the feature root by the queries.ts convention (brief/queries.ts
-// precedent): the feature's queryOptions door, referenced by routes.
-// Query + mutations for the API-token settings section (BRIEF-17 PR 4). The
-// list read goes through the isomorphic boundary; mint and revoke are client-only
-// fetches (mutations never run during SSR), same split as the org switcher.
+// The feature's queryOptions door, referenced by routes. The list read goes
+// through the isomorphic boundary; mint and revoke are client-only fetches
+// (mutations never run during SSR).
 import { queryOptions } from "@tanstack/react-query";
 
 import { ApiError, ApiErrorKind, apiFetchJson } from "../../data/apiFetch";
@@ -63,8 +61,8 @@ export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
       "/api/auth/tokens",
     );
   }
-  // The JSON parse is part of the boundary too (codex PR4 R2): a 201 with a
-  // non-JSON body is the same typed MALFORMED as a wrong shape.
+  // The JSON parse is part of the boundary too: a 201 with a non-JSON body is
+  // the same typed MALFORMED as a wrong shape.
   let body: unknown;
   try {
     body = await response.json();

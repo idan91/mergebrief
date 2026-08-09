@@ -303,10 +303,8 @@ async function renderAt(initialPath: string) {
 }
 
 /**
- * Characterization coverage for the full View/Compare state matrix (ADR 0024
- * plan step 9): route-level behavior through the actual routed screen, not
- * store internals. Complements the pure-logic coverage in compareState.test.ts
- * and the component-level coverage in comparisonRendering.test.tsx.
+ * Characterization coverage for the full View/Compare state matrix:
+ * route-level behavior through the actual routed screen, not store internals.
  */
 describe("comparison state matrix characterization", () => {
   afterEach(() => cleanup());

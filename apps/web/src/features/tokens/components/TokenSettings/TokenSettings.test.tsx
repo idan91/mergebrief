@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-// Token settings behavior (BRIEF-17 PR 4): mint flow with the live
-// installation picker, the SHOWN-ONCE minted token (never re-renderable from
-// any client state after dismissal — the section's one subtle beat), the
-// deterministic-400 mirror (empty name cannot submit), and revoke.
+// Token settings behavior: mint flow with the live installation picker, the
+// SHOWN-ONCE minted token (never re-renderable from any client state after
+// dismissal), the deterministic-400 mirror, and revoke.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,

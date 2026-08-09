@@ -19,10 +19,8 @@ import styles from "./routeShared.module.scss";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 
 export const Route = createFileRoute("/briefs/$briefId")({
-  // View/Compare (ADR 0024): session-only, URL-carried state. Keys are
-  // omitted (not defaulted here) when absent or unrecognized so the page can
-  // tell "nothing chosen yet" (product-aware default) apart from an explicit
-  // choice (normalize) — see `resolveBriefSearch`.
+  // Unrecognized or absent keys are OMITTED, not defaulted, so the page can
+  // tell "nothing chosen yet" apart from an explicit choice.
   validateSearch: (search: Record<string, unknown>): BriefSearchParams => {
     const view = parseViewParam(search["view"]);
     const compare = parseCompareParam(search["compare"]);
@@ -31,10 +29,8 @@ export const Route = createFileRoute("/briefs/$briefId")({
       ...(compare !== undefined ? { compare } : {}),
     };
   },
-  // Migration (ADR 0024 plan step 10): a direct link to a Delta artifact's own
-  // id used to render that Delta in place — Delta is no longer a route target,
-  // it's Changes Only + Your last review on its head Brief. Redirect before
-  // the loader runs so the old URL never renders the pre-ADR-0024 shape.
+  // A Delta artifact id is no longer a route target. Redirect before the
+  // loader runs so the old URL never renders the superseded shape.
   beforeLoad: async ({ context, params }) => {
     const artifacts = await context.queryClient.ensureQueryData(
       localBriefsQueryOptions(),
@@ -63,15 +59,12 @@ export const Route = createFileRoute("/briefs/$briefId")({
 });
 
 function BriefRoute() {
-  // Navigation guard (BRIEF-56) — see PrBriefRoute; same composers render
-  // on the local-brief path.
   useUnsavedComposerBlocker();
   const { briefId } = Route.useParams();
   const searchParams = Route.useSearch();
   const artifacts = useSuspenseQuery(localBriefsQueryOptions()).data;
   const navigate = Route.useNavigate();
-  // Scope-axis exit for the IntentBar's jumps (BRIEF-134): route-owned —
-  // the brief feature never touches the router (BRIEF-102 rule).
+  // Route-owned: the brief feature never touches the router.
   const exitChangesScope = useCallback(() => {
     void navigate({ search: (prev) => ({ ...prev, view: "full" as const }) });
   }, [navigate]);
@@ -91,8 +84,8 @@ function BriefError({ error }: { error: Error }) {
     <main className="main" id="main-content" tabIndex={-1}>
       <section className={styles["errorState"]}>
         <h1>Brief failed to load</h1>
-        {/* Curated copy only (BRIEF-20): a raw server message here would
-            print the deployment's filesystem paths into the page. */}
+        {/* Curated copy only: a raw server message here would print the
+            deployment's filesystem paths into the page. */}
         <p>{briefErrorDetail(error)}</p>
       </section>
     </main>

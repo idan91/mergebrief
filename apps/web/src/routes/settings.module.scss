@@ -11,8 +11,7 @@
       margin-block: functions.to-rem(8px) functions.to-rem(4px);
       font-size: var(--font-size-3xl);
 
-      // Pre-scale rendering pinned (implicit UA bold + body line-height
-      // before the base heading defaults landed).
+      // Pinned: overrides the base heading defaults.
       font-weight: 700;
       line-height: 1.55;
     }

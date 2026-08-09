@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Org-switcher behavior (BRIEF-19 PR 2.2): menu-button a11y pattern, switch
-// POST + full reset, remember-as-default, failure surfaced without a reset.
+// Org-switcher behavior: menu-button a11y pattern, switch POST + full reset,
+// remember-as-default, failure surfaced without a reset.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,

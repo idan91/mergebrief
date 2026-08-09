@@ -56,8 +56,7 @@ async function renderBriefScreen(brief = briefFixture) {
 }
 
 /**
- * Characterization suite — pins the screen's critical couplings against the
- * pre-split BriefApp so they stay green through the Slice A→D refactor. Asserts
+ * Characterization suite — pins the screen's critical couplings. Asserts
  * behaviour observable through the rendered screen, not store internals.
  */
 function statText(label: string): string | null {
@@ -203,15 +202,9 @@ describe("brief screen characterization", () => {
       name: "Focused change-group context",
     });
 
-    // Open the composer on a commentable diff row, then leave it via Escape
-    // — not the Cancel button. Regression: CommentComposer never wired
-    // Escape to its own dismiss handler (unlike Modal, which does this for
-    // every other overlay in the app), so Escape did nothing while it was
-    // open; `activeCommentAnchor` never cleared, `shortcutsDisabled` stayed
-    // true, and J/K/Z stayed dead until the reviewer noticed they had to
-    // click Cancel/save explicitly.
-    // Composer entry is gutter-only since BRIEF-14 (the code column is
-    // reserved for text selection).
+    // Leave the composer via Escape, not the Cancel button: Escape must clear
+    // `activeCommentAnchor` so J/K/Z come back. Composer entry is gutter-only
+    // — the code column is reserved for text selection.
     const gutter = document.querySelector(
       "[data-commentable] [data-line-number]",
     );
@@ -256,7 +249,7 @@ describe("brief screen characterization", () => {
 
   it("links Summary preview from the header menu on the local path", async () => {
     await renderBriefScreen();
-    // The local path renders the cross-route LINK variant (BRIEF-28 menu).
+    // The local path renders the cross-route LINK variant.
     fireEvent.click(screen.getByRole("button", { name: /more actions/i }));
     const item = screen.getByRole("menuitem", { name: /^summary preview$/i });
     expect(item.getAttribute("href")).toContain(
@@ -265,8 +258,8 @@ describe("brief screen characterization", () => {
   });
 
   it("lists unique risk-attribute names in the toolbar's risk-attrs panel", async () => {
-    // BRIEF-134: the in-flow jump-rail became the toolbar's anchored panel —
-    // closed until the trigger opens it (never auto-open, even on floor fire).
+    // The panel stays closed until the trigger opens it — never auto-open,
+    // even on floor fire.
     await renderBriefScreen();
     expect(document.querySelector("[data-attribute-jump-rail]")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
@@ -285,7 +278,7 @@ describe("brief screen characterization", () => {
     ).toBeTruthy();
   });
 
-  it("renders the intent bar directly beneath the summary (BRIEF-134)", async () => {
+  it("renders the intent bar directly beneath the summary", async () => {
     await renderBriefScreen({
       ...briefFixture,
       intentCheck: {
@@ -313,7 +306,7 @@ describe("brief screen characterization", () => {
     expect(summary.nextElementSibling).toBe(intentBar);
   });
 
-  it("focus mode empties the region: summary + toolbar leave, lens control greys (BRIEF-134)", async () => {
+  it("focus mode empties the region: summary + toolbar leave, lens control greys", async () => {
     await renderBriefScreen();
     expect(screen.getByTestId("brief-summary")).toBeTruthy();
     expect(screen.getByTestId("reading-toolbar")).toBeTruthy();
@@ -337,11 +330,9 @@ describe("brief screen characterization", () => {
 
   // Changes-only's disabled lens is not reachable here: the single-artifact
   // local fixture has no comparison baseline, so `changes` normalizes back to
-  // `full` (normalizeBriefSearch). Its cell is pinned by modeLegality.test
-  // (derivation) + Header.test (control behavior); this suite pins the same
-  // BriefScreen wiring through the focus path above.
+  // `full`. That cell is pinned by modeLegality.test + Header.test.
 
-  it("concerns renders the trimmed toolbar whose risk-attr chips target chunks (BRIEF-134)", async () => {
+  it("concerns renders the trimmed toolbar whose risk-attr chips target chunks", async () => {
     await renderBriefScreen();
     fireEvent.click(screen.getByRole("radio", { name: "Concerns" }));
 
@@ -353,8 +344,8 @@ describe("brief screen characterization", () => {
     expect(screen.queryByRole("button", { name: /Collapse/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Next group" })).toBeNull();
 
-    // Chips target CHUNKS under the Concerns lens (ADR 0032 #11): the jump
-    // lands on the carrying chunk, which pivots back to the story flow.
+    // Chips target CHUNKS under the Concerns lens: the jump lands on the
+    // carrying chunk, which pivots back to the story flow.
     fireEvent.click(screen.getByRole("button", { name: /Risk attrs/ }));
     const chip = document.querySelector<HTMLButtonElement>(
       "[data-attribute-jump-rail] button",

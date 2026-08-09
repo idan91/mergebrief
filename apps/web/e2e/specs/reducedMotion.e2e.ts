@@ -1,8 +1,6 @@
-// Spec 4 (BRIEF-113): the reduced-motion contract. `prefersReducedMotion()`
-// is read at CALL time inside the chunk scroller, so the only honest way to
-// judge it is a real media query in a real browser — jsdom has no
-// `matchMedia` implementation to emulate against, and the value it would
-// return is whatever the test stubbed.
+// The reduced-motion contract. `prefersReducedMotion()` is read at CALL time
+// inside the chunk scroller, so only a real media query in a real browser can
+// judge it — jsdom has no `matchMedia` to emulate against.
 //
 // The observable is the scroll REQUEST, not the resulting offset: a smooth
 // scroll animates over frames, so asserting on `window.scrollY` would race
@@ -69,9 +67,8 @@ test("read-through scrolls smoothly by default", async ({ page }) => {
 test("read-through snaps when the viewer asks for reduced motion", async ({
   page,
 }) => {
-  // `page.emulateMedia` is used rather than the `reducedMotion` fixture
-  // option: the option did not reach `matchMedia` in this Playwright build
-  // (measured — the query still returned false), while `emulateMedia` does.
+  // `page.emulateMedia` rather than the `reducedMotion` fixture option: the
+  // option does not reach `matchMedia` in this Playwright build.
   await page.emulateMedia({ reducedMotion: "reduce" });
   const behaviors = await readThroughBehaviors(page);
   expect(behaviors).toContain("auto");

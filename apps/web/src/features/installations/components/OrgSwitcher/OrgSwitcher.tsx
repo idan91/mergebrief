@@ -1,7 +1,5 @@
-// Org switcher dropdown (BRIEF-19 PR 2.2): current installation as the
-// trigger, a menu of accessible installations (menuitemradio — switching is
-// choosing one of a set), and a remember-as-default checkbox applied to the
-// next switch. WAI-ARIA menu-button pattern: arrows/Home/End roam, Escape and
+// Org switcher dropdown. WAI-ARIA menu-button pattern: menuitemradio items
+// (switching is choosing one of a set), arrows/Home/End roam, Escape and
 // outside-click close, focus returns to the trigger.
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useId, useRef, useState } from "react";

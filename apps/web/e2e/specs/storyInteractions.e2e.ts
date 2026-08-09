@@ -1,6 +1,6 @@
-// Spec 3 (BRIEF-113): the story surface's interactive affordances — the
-// disclosure/jump behaviours that only exist once the page is hydrated, and
-// that jsdom cannot judge because they turn on layout and real focus.
+// The story surface's interactive affordances — disclosure and jump
+// behaviours that only exist once the page is hydrated, and that jsdom cannot
+// judge because they turn on layout and real focus.
 import { expect, test } from "@playwright/test";
 
 import { FIXTURE_BRIEF_REV2 } from "../fixtures/ids";
@@ -42,7 +42,6 @@ test("the risk-attrs disclosure jumps to the carrying group", async ({
 }) => {
   await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
 
-  // BRIEF-134: the in-flow rail became the toolbar's anchored disclosure.
   // The label compresses to "Attrs" below 1280, so match either form.
   const rail = page.getByRole("button", { name: /attrs/i });
   await expect(rail).toHaveAttribute("aria-expanded", "false");

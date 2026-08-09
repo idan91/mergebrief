@@ -15,11 +15,10 @@
     h1 {
       margin-block: functions.to-rem(18px) functions.to-rem(10px);
       color: var(--text);
-      /* stylelint-disable-next-line declaration-property-value-allowed-list -- TODO(BRIEF-44): off-scale — hero display, the only display-size in the app shell; consolidate if a second consumer appears */
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- TODO: off-scale hero display, the only display size in the app shell; consolidate if a second consumer appears */
       font-size: functions.to-rem(34px);
 
-      // Pre-scale rendering pinned (implicit UA bold + body line-height
-      // before the base heading defaults landed).
+      // Pinned: overrides the base heading defaults.
       font-weight: 700;
       letter-spacing: 0;
       line-height: 1.55;
@@ -140,8 +139,6 @@
   }
 
   .listLabel {
-    // 16px = the pre-a11y-sweep spacing (4px label margin + the 12px grid
-    // gap it sat inside before the heading moved out of the <ul>).
     margin-block-end: functions.to-rem(16px);
     color: var(--faint);
     font-size: var(--font-size-md);
@@ -149,7 +146,7 @@
     text-transform: uppercase;
     letter-spacing: 0.02em;
 
-    // Pre-scale body line-height pinned (base heading defaults set 1.35).
+    // Pinned: overrides the base heading defaults.
     line-height: 1.55;
   }
 

@@ -306,9 +306,8 @@ describe("Read-through progress + auto-advance", () => {
   });
 
   it("auto-advances in focus mode entered via Z, same as Start read-through", async () => {
-    // Z-focus and Start-read-through are visually identical; gating advance
-    // on the entry path read as broken (found in the PR #17 browser pass).
-    // Viewed advances in ANY focus mode.
+    // Z-focus and Start-read-through are visually identical, so gating advance
+    // on the entry path reads as broken. Viewed advances in ANY focus mode.
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 

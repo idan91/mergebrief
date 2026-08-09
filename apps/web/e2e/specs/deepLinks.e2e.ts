@@ -1,6 +1,5 @@
-// Spec 2 (BRIEF-113): the View/Compare deep-link contract — the URL params
-// that select which revision span the page renders. `validateSearch` treats
-// an unrecognized value as "absent", and `resolveBriefSearch` normalizes an
+// The View/Compare deep-link contract. `validateSearch` treats an
+// unrecognized value as absent, and `resolveBriefSearch` normalizes an
 // explicit-but-unavailable pair down instead of erroring, because this state
 // is user-editable and shareable. Both halves are asserted here.
 import { expect, test } from "@playwright/test";

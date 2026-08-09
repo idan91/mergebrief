@@ -1,6 +1,5 @@
-// Spec 5 (BRIEF-113): the axe-core sweep. Every stable page state the rest
-// of the suite reaches gets swept; serious/critical fail, moderate/minor are
-// attached to the report (ADR 0038 §4).
+// The axe-core sweep. Every stable page state the rest of the suite reaches
+// gets swept; serious/critical fail, moderate/minor are attached to the report.
 import { expect, test } from "@playwright/test";
 
 import { FIXTURE_BRIEF_REV1, FIXTURE_BRIEF_REV2 } from "../fixtures/ids";
@@ -40,10 +39,9 @@ test("the shortcuts dialog is clean", async ({ page }, testInfo) => {
 
 test("the submit modal is clean on all views", async ({ page }, testInfo) => {
   await gotoBrief(page, `/briefs/${FIXTURE_BRIEF_REV2}`);
-  // BRIEF-137: one modal owns the whole flow — the header CTA lands on the
-  // advisory view (the fixture has unresolved items), Continue reaches the
-  // verdict-first form, and the receipt is a preview view inside the same
-  // dialog.
+  // One modal owns the whole flow: the header CTA lands on the advisory view
+  // (the fixture has unresolved items), Continue reaches the verdict-first
+  // form, and the receipt is a preview view inside the same dialog.
   await page.getByRole("button", { name: "Submit", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Before you submit" }),

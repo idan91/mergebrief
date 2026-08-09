@@ -1,10 +1,9 @@
-// The DB-backed brief route (BRIEF-19): the deep-link target PR comments
-// point at. Loader SSR-prefetches exactly what the link names (PR-meta + the
-// brief when the span is known — hybrid strategy); the heavy/dynamic rest
-// (live diff, status polling) is client-side. The wait UX is the pure
-// `briefRouteState` machine; render trigger = artifact EXISTS (ADR 0006
-// #10), status only flavors the wait. Composition only: the body switch,
-// state cards, and plan assembly live in `features/pulls`.
+// The DB-backed brief route: the deep-link target PR comments point at. The
+// loader SSR-prefetches exactly what the link names (PR-meta, plus the brief
+// when the span is known); live diff and status polling stay client-side. The
+// render trigger is artifact EXISTS — status only flavors the wait state.
+// Composition only: the body switch, state cards, and plan assembly live in
+// `features/pulls`.
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo } from "react";
@@ -43,16 +42,16 @@ import {
   type ConversationFilterSearch,
 } from "@web/features/conversation/utils/filter";
 
-/** 3–5s window per the plan; one lightweight PR-meta read per tick. */
+/** One lightweight PR-meta read per tick. */
 const META_POLL_MS = 4000;
 
 interface PrBriefSearch extends BriefSearchParams, ConversationFilterSearch {
   base?: string;
   head?: string;
   /**
-   * The outdated-thread jump target (BRIEF-24/25 handoff): the thread's
-   * databaseId. This route owns head navigation and reserves the param;
-   * the conversation section reads it to open/flash the thread.
+   * The outdated-thread jump target: the thread's databaseId. This route owns
+   * head navigation and reserves the param; the conversation section reads it
+   * to open/flash the thread.
    */
   thread?: number;
 }
@@ -114,12 +113,11 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
   validateSearch: (search: Record<string, unknown>): PrBriefSearch => {
     const base = search["base"];
     const head = search["head"];
-    // `head` is the revision-selection key (BRIEF-24): kept on its own so a
-    // `?head=<sha>` deep link (e.g. an outdated-thread jump) selects a
-    // revision — its base is resolved from `revisions[]`, never the URL. A
-    // lone `base` still cannot address anything, so it is kept only alongside
-    // a head (the pinned convenience of a full span); an unknown head degrades
-    // to latest downstream rather than 404ing a stale link.
+    // `head` is the revision-selection key, kept on its own so a `?head=<sha>`
+    // deep link selects a revision — its base resolves from `revisions[]`,
+    // never the URL. A lone `base` cannot address anything, so it survives only
+    // alongside a head; an unknown head degrades to latest downstream rather
+    // than 404ing a stale link.
     const view = parseViewParam(search["view"]);
     const compare = parseCompareParam(search["compare"]);
     const thread = parseThreadParam(search["thread"]);
@@ -129,8 +127,8 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       ...(view !== undefined ? { view } : {}),
       ...(compare !== undefined ? { compare } : {}),
       ...(thread !== undefined ? { thread } : {}),
-      // Conversation filter (BRIEF-99): parsed and re-projected, so unknown
-      // tokens drop and the surviving selection lands in canonical order.
+      // Parsed and re-projected, so unknown tokens drop and the surviving
+      // selection lands in canonical order.
       ...conversationFilterSearch(parseConversationFilter(search)),
     };
   },
@@ -144,14 +142,11 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
     const explicit = spanFromSearch(deps);
     try {
       if (explicit !== undefined) {
-        // Deep link with a span: meta + brief in parallel — no waterfall. But
-        // while the PR's first Brief is still generating, the Entry-comment
-        // "Brief is generating…" link names a span whose artifact 404s; that
-        // must NOT 404 the page — the component renders the same diff-first
-        // wait state a span-unknown load produces (deriveBriefRouteState
-        // degrades the current-span-while-generating case). So swallow ONLY a
-        // brief-query NOT_FOUND here; a missing PR (meta NOT_FOUND) is still a
-        // real 404, and any other brief failure still propagates.
+        // Deep link with a span: meta + brief in parallel, no waterfall. While
+        // the PR's first brief is still generating the link names a span whose
+        // artifact 404s, and that must NOT 404 the page. Swallow ONLY a
+        // brief-query NOT_FOUND; a missing PR is still a real 404 and any other
+        // brief failure propagates.
         const [metaResult, briefResult] = await Promise.allSettled([
           context.queryClient.ensureQueryData(
             prMetaQueryOptions(repoId, prNumber),
@@ -167,14 +162,11 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
           if (!isNotFoundError(briefResult.reason)) {
             mapLoaderError(briefResult.reason);
           }
-          // The brief 404s while the PR's first Brief is still generating —
-          // swallowed above so the page shows the wait state. But
-          // `ensureQueryData` has already written an ERROR entry into the brief
-          // query cache, and `dbBriefQueryOptions` is retry:false +
-          // staleTime Infinity: when the poll flips `briefAvailable` and the
-          // render-state `useSuspenseQuery` mounts, it would THROW that cached
-          // error instead of refetching (a hard error boundary until a manual
-          // reload). Drop the errored entry so the first render fetches fresh.
+          // `ensureQueryData` already wrote an ERROR entry into the brief query
+          // cache, and `dbBriefQueryOptions` is retry:false + staleTime
+          // Infinity — the later `useSuspenseQuery` would THROW that cached
+          // error instead of refetching. Drop it so the first render fetches
+          // fresh.
           context.queryClient.removeQueries({
             queryKey: dbBriefQueryOptions(
               repoId,
@@ -192,11 +184,9 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
       const meta = await context.queryClient.ensureQueryData(
         prMetaQueryOptions(repoId, prNumber),
       );
-      // A `?head=` deep link (or a fresh link on a multi-revision PR) resolves
-      // through the timeline: prefetch the SELECTED revision's brief with ITS
-      // OWN base (`deps.base` disambiguates duplicate-head rows), so a
-      // historical head SSRs correctly. An unknown head degrades to latest
-      // here too — never a 404.
+      // Prefetch the SELECTED revision's brief with ITS OWN base (`deps.base`
+      // disambiguates duplicate-head rows) so a historical head SSRs correctly.
+      // An unknown head degrades to latest — never a 404.
       const timeline = resolveDbTimeline(meta.revisions, deps.head, deps.base);
       if (timeline !== undefined) {
         await context.queryClient.ensureQueryData(
@@ -229,17 +219,14 @@ export const Route = createFileRoute("/repos/$repoId/pulls/$prNumber")({
 });
 
 /**
- * The one remaining hard read-only reason (BRIEF-127 narrowed ADR 0019 #6):
- * a superseded BASE renders a diff that is not the PR's current one, so line
- * anchors can land wrong or nowhere on GitHub — write-safety, not staleness.
- * Head-mismatch staleness is writable with a submit ack instead.
+ * The one hard read-only reason: a superseded BASE renders a diff that is not
+ * the PR's current one, so line anchors can land wrong or nowhere on GitHub.
+ * Head-mismatch staleness is writable behind a submit ack instead.
  */
 const BASE_DRIFT_REASON =
   "This brief was generated against a superseded base of the pull request. Switch to the latest revision to comment or submit a review.";
 
 function PrBriefRoute() {
-  // Navigation guard (BRIEF-56): in-app navigation and hard unloads
-  // confirm while any composer on this screen holds never-saved text.
   // Route-level so BriefScreen itself stays renderable without a router.
   useUnsavedComposerBlocker();
   const params = Route.useParams();
@@ -266,11 +253,9 @@ function PrBriefRoute() {
         : false,
   }).data;
 
-  // BRIEF-24: a briefed PR exposes a revision timeline; `?head=` (+ `base`,
-  // which disambiguates duplicate-head rows from a retarget re-brief) selects
-  // a point (unknown head degrades to latest — never a 404). Absent → the
-  // legacy explicit-span / current-head flow is unchanged (metas without
-  // revisions).
+  // `?head=` (+ `base`, which disambiguates duplicate-head rows from a
+  // retarget re-brief) selects a timeline point; an unknown head degrades to
+  // latest. Absent, the legacy explicit-span / current-head flow applies.
   const timeline = useMemo(
     () => resolveDbTimeline(meta.revisions, search.head, search.base),
     [meta.revisions, search.base, search.head],
@@ -290,21 +275,17 @@ function PrBriefRoute() {
     [explicit, meta, timeline],
   );
 
-  // Write posture (ADR 0019 #6 as amended by BRIEF-127). The submit route
-  // pins commit_id to the viewed head and comment anchors are read against
-  // the RENDERED (base…head) diff, so two distinct stale shapes exist:
-  // - HEAD mismatch (historical revision, or the PR head advanced past the
-  //   newest brief): GitHub accepts a review pinned to the older head and
-  //   marks its comments outdated — writable, but Submit requires an
-  //   explicit ack (`staleHead`, consumed by the SubmitModal).
-  // - BASE mismatch (same head, retarget re-brief against a superseded
-  //   base): the rendered diff is not the PR's current one, so anchors can
-  //   land wrong or nowhere — stays hard read-only.
+  // Write posture. The submit route pins commit_id to the viewed head and
+  // anchors are read against the RENDERED (base…head) diff, so two stale
+  // shapes exist:
+  // - HEAD mismatch: GitHub accepts a review pinned to the older head and
+  //   marks its comments outdated — writable behind an explicit ack.
+  // - BASE mismatch: the rendered diff is not the PR's current one, so anchors
+  //   can land wrong or nowhere — stays hard read-only.
   // `meta.baseSha` is comparable here: with `briefAvailable` it is the latest
-  // brief row's own base (`buildPrView`), the same row `revisions[]` ends
-  // with; a null meta base (defensive) cannot veto.
-  // Derived as primitives so the memo below survives poll ticks (each meta
-  // refetch rebuilds `timeline` object identities).
+  // brief row's own base, the same row `revisions[]` ends with; a null meta
+  // base cannot veto. Derived as primitives so the memo below survives poll
+  // ticks, which rebuild `timeline` object identities.
   const selectedHeadIsCurrent =
     timeline !== undefined && timeline.selected.headSha === meta.headSha;
   const selectedBaseIsCurrent =
@@ -344,16 +325,13 @@ function PrBriefRoute() {
     [navigate],
   );
 
-  // Outdated-thread → revision jump (BRIEF-24 owns the head-navigation half):
-  // a thread anchored on a briefed head navigates to `?head=<anchor>&thread=<id>`
-  // (its own base). A miss keeps the affordance disabled — no guessing.
-  // `revisionJump` flows into conversationPlan → conversationComposer →
-  // every memoized ChunkCard, so its identity must survive PR-meta poll
-  // ticks (which rebuild `timeline` and its point objects). Key the memo on
-  // a PRIMITIVE fingerprint of the span list — `(head base)` pairs,
-  // whitespace-joined; SHAs are hex, the separators cannot collide (the
-  // backend's spanKey uses the same property) — and rebuild the pairs from
-  // that key.
+  // Outdated-thread → revision jump: a thread anchored on a briefed head
+  // navigates to `?head=<anchor>&thread=<id>` with its own base; a miss keeps
+  // the affordance disabled rather than guessing. `revisionJump` reaches every
+  // memoized ChunkCard, so its identity must survive PR-meta poll ticks (which
+  // rebuild `timeline` and its point objects) — hence the memo keys on a
+  // PRIMITIVE fingerprint of the span list, and the pairs are rebuilt from it.
+  // SHAs are hex, so the separators cannot collide.
   const revisionSpansKey = useMemo(
     () =>
       timeline === undefined
@@ -370,8 +348,8 @@ function PrBriefRoute() {
     return {
       knownHeads: new Set(spans.map((span) => span.headSha)),
       onJump: (anchorSha: string, threadId: number) => {
-        // Duplicate heads: the HIGHEST-index row wins — the backend's
-        // current-entry (`at(-1)`) choice for the same ambiguity.
+        // Duplicate heads: the HIGHEST-index row wins, matching the backend's
+        // current-entry choice for the same ambiguity.
         const span = spans.findLast((s) => s.headSha === anchorSha);
         void navigate({
           search: (current) => ({
@@ -407,9 +385,9 @@ function PrBriefRoute() {
   }, [navigate, pinnedSpan, search.base, search.head, timeline?.degraded]);
 
   // Re-anchor keyboard focus onto the Brief heading region on a state swap or
-  // a revision selection (ADR 0019 #7). Keyed by the full SPAN identity —
-  // duplicate-head revisions differ only by base, and moving between them
-  // swaps the content and read-only posture just like any other selection.
+  // a revision selection. Keyed by the full SPAN identity — duplicate-head
+  // revisions differ only by base, and moving between them swaps content and
+  // read-only posture like any other selection.
   const selectedSpanKey =
     timeline === undefined
       ? undefined
@@ -418,9 +396,8 @@ function PrBriefRoute() {
     document.getElementById("main-content")?.focus();
   }, [state.kind, selectedSpanKey]);
 
-  // Stable across renders (navigate is): PrBriefContent derives the
-  // since-marker's delta-lens callback from this, and GroupCard's memo
-  // boundary rides on that identity (BRIEF-102).
+  // Stable across renders (navigate is): GroupCard's memo boundary rides on
+  // the identity PrBriefContent derives from this.
   const onNavigateSearch = useCallback(
     (next: BriefSearch) => {
       void navigate({
@@ -431,9 +408,9 @@ function PrBriefRoute() {
     [navigate],
   );
 
-  // Conversation filter (BRIEF-99). Identity is stabilized on the raw param
-  // STRINGS: the parsed filter holds fresh Sets every render, and it rides
-  // into the memo boundaries that keep inline threads off the render path.
+  // Identity is stabilized on the raw param STRINGS: the parsed filter holds
+  // fresh Sets every render, and it rides into the memo boundaries that keep
+  // inline threads off the render path.
   const conversationFilter = useMemo(
     () =>
       parseConversationFilter({
@@ -446,8 +423,7 @@ function PrBriefRoute() {
     [search.reviewers, search.reviews, search.verdicts],
   );
   // `replace`: a filter is a triage gesture, not a destination — ten chip
-  // clicks must not become ten back-button steps. Keys absent from the
-  // projection are deleted, so clearing a family cleans the URL.
+  // clicks must not become ten back-button steps.
   const onConversationFilterChange = useCallback(
     (next: ConversationFilter) => {
       void navigate({

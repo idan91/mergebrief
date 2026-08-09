@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 
-/** The impact levels that fail a run (ADR 0038 §4); the rest are logged. */
+/** The impact levels that fail a run; the rest are logged. */
 const BLOCKING_IMPACTS = new Set(["serious", "critical"]);
 
 interface AxeViolation {

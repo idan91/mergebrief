@@ -13,11 +13,9 @@ export function hasUnsavedComposerText(): boolean {
 }
 
 /**
- * Marks this composer as holding never-saved text (BRIEF-56 navigation
- * guard). "Never-saved" is the operative word: reply drafts persist
- * themselves on blur/unmount and must NOT register — only text that a
- * navigation would actually destroy (an open CommentComposer, an unsaved
- * draft edit) belongs here.
+ * Marks this composer as holding never-saved text. "Never-saved" is the
+ * operative word: reply drafts persist themselves on blur/unmount and must NOT
+ * register — only text a navigation would actually destroy belongs here.
  */
 export function useUnsavedComposerText(id: string, unsaved: boolean): void {
   useEffect(() => {

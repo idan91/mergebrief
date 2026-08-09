@@ -1,14 +1,11 @@
-// Facade hook for the token settings section (BRIEF-17 PR 4) — owns the
-// whole flow state (`useReviewSubmit` is the template): the mint form, the
-// SHOWN-ONCE minted token, the revoke mutation, and the deterministic-400
-// mirrors (the server 400s an empty/over-long name — mirrored here so the
-// form can never submit a payload the server deterministically rejects).
+// Facade hook for the token settings section: the mint form, the SHOWN-ONCE
+// minted token, the revoke mutation, and the deterministic-400 mirrors that
+// stop the form submitting a payload the server always rejects.
 //
-// SHOWN-ONCE (the section's one subtle beat): the minted token material
-// lives in exactly ONE place — this hook's `mintedToken` state. Dismissing
-// clears that state AND resets the mutation (react-query's `mutation.data`
-// would otherwise silently retain the material) — after dismissal nothing in
-// client state can re-render it.
+// SHOWN-ONCE: the minted token material lives in exactly ONE place — this
+// hook's `mintedToken` state. Dismissing clears that state AND resets the
+// mutation (react-query's `mutation.data` would otherwise retain the
+// material), so nothing in client state can re-render it afterwards.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -58,8 +55,8 @@ export interface TokenSettingsState {
 
 export function useTokenSettings(enabled: boolean): TokenSettingsState {
   const queryClient = useQueryClient();
-  // `enabled` gates the fetches too (codex PR4 R1): a disabled mount must
-  // never hit the protected /api/auth/* endpoints.
+  // `enabled` gates the fetches too: a disabled mount must never hit the
+  // protected /api/auth/* endpoints.
   const tokensQuery = useQuery({ ...tokensQueryOptions(), enabled });
   const installationsQuery = useQuery({
     ...installationsQueryOptions(),

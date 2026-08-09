@@ -1,5 +1,5 @@
-// Health surface (BRIEF-51, ADR 0034 #7): /healthz static liveness, /readyz
-// composition + SELECT 1 — constant tiny JSON either way, nothing leaked.
+// /healthz is static liveness, /readyz is composition + SELECT 1 — constant
+// tiny JSON either way, nothing leaked.
 import { describe, expect, it } from "vitest";
 import { handleHealthRequest } from "./health";
 
