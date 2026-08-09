@@ -1,11 +1,9 @@
-// The viewer's allowed-repo set (ADR 0016 #5b): the installation∩user-access
-// intersection from GitHub (`GET /user/installations/{id}/repositories`,
-// VIEWER token), cached per (principal, installation) for the same 60s
-// constant as the positive authz cache. Extracted from pulls.ts (BRIEF-17
-// PR 3) so `/api/pulls` and `/api/repos` share ONE resolver instance and ONE
-// cache — one GitHub fetch serves both endpoints inside the TTL, and there is
-// exactly one fail-closed code path (a GitHub failure is a 401/502, NEVER a
-// DB-only listing).
+// The viewer's allowed-repo set: the installation∩user-access intersection from
+// GitHub (`GET /user/installations/{id}/repositories`, VIEWER token), cached
+// per (principal, installation) for the same 60s constant as the positive authz
+// cache. `/api/pulls` and `/api/repos` share ONE resolver instance and ONE
+// cache, so there is exactly one fail-closed code path (a GitHub failure is a
+// 401/502, NEVER a DB-only listing).
 import {
   createUserOctokit,
   GitHubApiErrorCode,
@@ -48,8 +46,8 @@ export interface AllowedRepoResolver {
 }
 
 /**
- * Build the shared resolver. ONE instance per app (`createApp`) — the cache
- * identity is what makes `/api/pulls` and `/api/repos` share fetches.
+ * Build the shared resolver. ONE instance per app — the cache identity is what
+ * makes `/api/pulls` and `/api/repos` share fetches.
  */
 export function createAllowedRepoResolver(
   deps: AuthRouteDeps,
@@ -103,7 +101,7 @@ export function createAllowedRepoResolver(
         );
       }
       if (!repos.ok) {
-        // Fail closed — a DB-only fallback would leak rows (ADR 0016 #5b).
+        // Fail closed — a DB-only fallback would leak rows.
         const status =
           repos.error.code === GitHubApiErrorCode.UNAUTHORIZED ? 401 : 502;
         return { ok: false, error: { status } };

@@ -1,6 +1,5 @@
-// API-token mint/list/revoke (BRIEF-17 PR 2 — ADR 0016 #4 as amended
-// 2026-07-09). The BROWSER-ONLY management surface for the second
-// presentation channel:
+// API-token mint/list/revoke — the BROWSER-ONLY management surface for the
+// second presentation channel:
 //   POST   /api/auth/tokens      → mint (token material returned exactly ONCE)
 //   GET    /api/auth/tokens      → the viewer's tokens, metadata only
 //   DELETE /api/auth/tokens/:id  → owner-scoped soft revoke
@@ -42,7 +41,7 @@ const NO_STORE = { "cache-control": "no-store" } as const;
 
 /** Entropy for the opaque token (bytes) — same budget as the session cookie. */
 const TOKEN_BYTES = 32;
-/** Default expiry when the mint names none (ADR 0016 #4: 90 days). */
+/** Default expiry when the mint names none. */
 const DEFAULT_EXPIRY_DAYS = 90;
 /** Upper bound on a chosen expiry — 10 years; beyond that, use no-expiry. */
 const MAX_EXPIRY_DAYS = 3650;
@@ -156,10 +155,10 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     // The opaque secret: prefix + 32 random bytes; stored only as SHA-256.
     const token = `${API_TOKEN_PREFIX}${randomBytes(TOKEN_BYTES).toString("base64url")}`;
 
-    // LINK the session's grant — never copy credential material (D15,
-    // BRIEF-40): both channels now share one physical pair, rotated through
-    // `grantAuth.refreshGrant`'s serialized CAS. The D9 mint audit is emitted
-    // by persistence INSIDE this same transaction (codex PR2 R1).
+    // LINK the session's grant — never copy credential material: both channels
+    // share one physical pair, rotated through `grantAuth.refreshGrant`'s
+    // serialized CAS. The mint audit is emitted by persistence INSIDE this same
+    // transaction.
     const minted = await tokenAuth(deps.handle).mintToken({
       installationId: target.installationId,
       userId: currentSession.reviewerId,

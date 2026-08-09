@@ -1,5 +1,4 @@
-// The PR-conversation surface (BRIEF-25, ADR 0027): a gated live-fetch GET and
-// a gated reply POST.
+// The PR-conversation surface: a gated live-fetch GET and a gated reply POST.
 //
 // READ — GET /api/repos/:repoId/pulls/:prNumber/conversation: fetched live
 // from GitHub over the package's GraphQL primitive with the INSTALLATION
@@ -8,10 +7,10 @@
 // fragment both). 60s positive TTL, response `no-store`, nothing persisted.
 // No REST fallback tier: a fetch failure is the section's error state.
 //
-// WRITE — POST .../comments/:commentId/replies: the VIEWER's token (ADR 0016
-// #4 — authorship stays the reviewer's), lazy-decrypt + refresh-once, fresh
-// repo re-resolve before the mutating call (gated-route rule), and the PR's
-// conversation cache key is evicted on success so the next read reflects it.
+// WRITE — POST .../comments/:commentId/replies: the VIEWER's token (authorship
+// stays the reviewer's), lazy-decrypt + refresh-once, fresh repo re-resolve
+// before the mutating call (gated-route rule), and the PR's conversation cache
+// key is evicted on success so the next read reflects it.
 //
 // The installation octokit enters through `InstallationGitHubPort`
 // (`./github-port` — injected by the startup wiring over the App-JWT
@@ -191,7 +190,7 @@ export function conversationRoutes(
     );
     if (!fetched.ok) {
       // 404-collapse posture identical to the other reads; everything else is
-      // an honest upstream error (no REST fallback tier — ADR 0027).
+      // an honest upstream error (no REST fallback tier).
       if (fetched.error.code === GitHubApiErrorCode.NOT_FOUND) {
         return errorJson(c, "not found", 404);
       }
@@ -326,7 +325,7 @@ export function conversationRoutes(
         }
         // Gated-route rule: ANY in-route GitHub denial (403/404) collapses to
         // the gate's 404 posture — a root comment gone and a permission denial
-        // must be indistinguishable from a cold denial (codex round 1).
+        // must be indistinguishable from a cold denial.
         if (
           created.error.code === GitHubApiErrorCode.NOT_FOUND ||
           created.error.code === GitHubApiErrorCode.FORBIDDEN
@@ -340,11 +339,11 @@ export function conversationRoutes(
       // FE's post-reply refetch reflects the reply inside the TTL.
       cache.delete(cacheKey(ctx.installationId, repoId, pr.prNumber));
 
-      // Audit posture consistent with submit (D9: numeric-only) — but the
-      // GitHub write above is the COMMIT POINT: a local audit failure must
-      // never turn a posted reply into an error response (the composer's
-      // upstream copy invites a retry, which would double-post). Best-effort:
-      // log and keep the 201 (codex on the reply-UI PR).
+      // Audit posture consistent with submit (numeric-only) — but the GitHub
+      // write above is the COMMIT POINT: a local audit failure must never turn
+      // a posted reply into an error response (the composer's upstream copy
+      // invites a retry, which would double-post). Best-effort: log and keep
+      // the 201.
       try {
         await audit(deps.handle, {
           installationId: ctx.installationId,
@@ -356,7 +355,7 @@ export function conversationRoutes(
         });
       } catch (auditError) {
         // Posted to GitHub, our audit write failed — a data-integrity signal
-        // the operator alerts on (ADR 0034 taxonomy).
+        // the operator alerts on.
         c.get("logger").error("reply audit failed after posted reply", {
           evt: "audit.fail",
           commentId: String(created.value.commentId),
@@ -379,14 +378,11 @@ export function conversationRoutes(
 }
 
 /**
- * Drop OUR Entry comment from the PR-level comments (BRIEF-57): it is the
- * product's front door on GitHub, not conversation — inside the app it would
- * render as a bot comment linking to the page the viewer is already on.
- * Filtered by the EXACT stored id (`pull_request.entry_comment_id`, rotated
- * on every delete+repost) — never by author or body shape, so no other
- * bot's comment and no human comment quoting ours can be swallowed. A
- * mid-repost race (fetch between the new post and the row update) can show
- * the comment for at most one cache TTL — accepted.
+ * Drop OUR Entry comment from the PR-level comments: it is the product's front
+ * door on GitHub, not conversation. Filtered by the EXACT stored id — never by
+ * author or body shape, so no other bot's comment and no human comment quoting
+ * ours can be swallowed. A mid-repost race can show the comment for at most
+ * one cache TTL.
  */
 function withoutEntryComment(
   conversation: PrConversation,

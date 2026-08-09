@@ -1,11 +1,10 @@
-// Reviewer authentication routes (BRIEF-2 stage 6, PR C — ADR 0016 #4 + ADR
-// 0018 D11, plan decision #3). GitHub OAuth (user-to-server) login:
+// Reviewer authentication routes. GitHub OAuth (user-to-server) login:
 //   GET  /api/auth/github          → CSRF nonce cookie + 302 to GitHub
 //   GET  /api/auth/github/callback → verify state, exchange code, create the
 //                                encrypted session, set the session cookie
 //   POST /api/auth/logout          → delete the session + clear the cookie
-// plus the serialized token-refresh orchestrator (`refreshSessionToken`) that
-// stage 7 calls on a 401 — built and tested here.
+// plus the serialized token-refresh orchestrator (`refreshSessionToken`) the
+// authz gate calls on a 401.
 //
 // TRUST SHAPE: a session cookie carries a high-entropy RANDOM token; the DB
 // stores only its SHA-256 (globally unique). Session resolution PRECEDES tenant
@@ -77,7 +76,7 @@ export interface AuthDeps {
 export interface AuthRouteDeps {
   readonly handle: AppDatabase;
   readonly auth: AuthDeps;
-  /** Instance draft-PR policy (BRIEF-64); echoed on PR-meta for FE copy. */
+  /** Instance draft-PR policy; echoed on PR-meta for FE copy. */
   readonly draftPolicy?: DraftPolicy;
 }
 
@@ -87,8 +86,8 @@ export interface AuthRouteDeps {
 
 const STATE_COOKIE = "rs_oauth_state";
 /**
- * The session cookie name. Exported so the stage-7 authz middleware reads the
- * SAME cookie this route sets, rather than re-declaring the string.
+ * The session cookie name. Exported so the authz middleware reads the SAME
+ * cookie this route sets, rather than re-declaring the string.
  */
 export const SESSION_COOKIE = "rs_session";
 /** Entropy for the CSRF state nonce and the session token (bytes). */
@@ -106,12 +105,11 @@ export function sha256Hex(value: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// The viewer principal — ONE shape for both presentation channels (ADR 0016
-// #4 as amended, BRIEF-17). A cookie session resolves to its row; a Bearer
-// `mergebrief_...` token resolves through `tokenAuth` and is SYNTHESIZED into
-// the same shape, so every gated route (repo gate, pulls list, submit,
-// conversation, diff) works unchanged on either channel. `channel` is what
-// `refreshSessionToken` dispatches on — the ONLY behavioral fork.
+// The viewer principal — ONE shape for both presentation channels. A cookie
+// session resolves to its row; a Bearer `mergebrief_...` token resolves through
+// `tokenAuth` and is SYNTHESIZED into the same shape, so every gated route
+// works unchanged on either channel. `channel` is what `refreshSessionToken`
+// dispatches on — the ONLY behavioral fork.
 // ---------------------------------------------------------------------------
 
 export const AuthChannel = {
@@ -125,10 +123,9 @@ export type AuthChannel = ValueOf<typeof AuthChannel>;
  * hash and `reviewerId`/`reviewerLogin` the minting user's — the field names
  * keep the session vocabulary so downstream cache keys, audit rows, and the
  * refresh CAS seed are channel-agnostic. `ghTokenCiphertext`/`keyRef` come
- * from the GRANT row at resolution (D15 — the referent rows carry no
- * credential material): the ciphertext doubles as the refresh CAS seed (the
- * value observed BEFORE a failing GitHub call), exactly as it did when it
- * lived on the session row.
+ * from the GRANT row at resolution (the referent rows carry no credential
+ * material): the ciphertext doubles as the refresh CAS seed — the value
+ * observed BEFORE a failing GitHub call.
  */
 export type ViewerPrincipal = ReviewerSessionRow & {
   readonly channel: AuthChannel;
@@ -176,8 +173,7 @@ export function principalFromApiToken({
 }
 
 // ---------------------------------------------------------------------------
-// Refresh orchestrator (exported: used by the logout-adjacent flows here and by
-// stage 7's authz middleware on a 401).
+// Refresh orchestrator — exported: the authz gate calls it on a 401.
 // ---------------------------------------------------------------------------
 
 export const RefreshErrorCode = {
@@ -257,26 +253,20 @@ async function rotateGitHubTokens(
 
 /**
  * Refresh the viewer's GitHub user access token — ONE orchestrator for both
- * presentation channels since D15 anchored rotation on the grant row. The
- * caller passes the principal it ALREADY resolved (the stage-7 middleware
- * read it to get the token that just 401'd), so `principal.ghTokenCiphertext`
- * is the correct compare-and-swap seed: the ciphertext observed BEFORE the
- * failing GitHub call. `grantAuth.refreshGrant` takes the grant row lock and,
- * if that ciphertext no longer matches, another request (EITHER channel)
- * already rotated → the short-circuit returns the stored (now fresh) access
- * token, decrypted, WITHOUT a GitHub call (no double-spend of the single-use
- * refresh token). Otherwise it decrypts the stored refresh token, calls
- * GitHub `refreshUserToken`, re-encrypts BOTH rotated tokens, and applies the
- * patch to the grant row.
+ * presentation channels, anchored on the grant row. The caller passes the
+ * principal it ALREADY resolved, so `principal.ghTokenCiphertext` is the
+ * correct compare-and-swap seed: the ciphertext observed BEFORE the failing
+ * GitHub call. `grantAuth.refreshGrant` takes the grant row lock and, if that
+ * ciphertext no longer matches, another request (EITHER channel) already
+ * rotated → the short-circuit returns the stored (now fresh) access token
+ * WITHOUT a GitHub call (no double-spend of the single-use refresh token).
  *
- * Failure postures stay per-channel (ADR 0016 #4 as amended): cookie →
- * delete the session and force re-login; bearer → delete NOTHING (an
- * api_token is a user-managed, listable credential; a dead one keeps 401ing
- * until its owner revokes or re-mints, it is never silently removed). On
+ * Failure postures stay per-channel: cookie → delete the session and force
+ * re-login; bearer → delete NOTHING (an api_token is a user-managed, listable
+ * credential; a dead one keeps 401ing until its owner revokes or re-mints). On
  * cookie success the session's `expires_at` mirrors the grant's rotated
- * `refresh_expires_at` (D11 lifetime semantics) — including on the
- * short-circuit path, because the rotation may have been won by the Bearer
- * channel, which never mirrors.
+ * `refresh_expires_at` — including on the short-circuit path, because the
+ * rotation may have been won by the Bearer channel, which never mirrors.
  */
 export async function refreshSessionToken(
   deps: AuthRouteDeps,
@@ -342,9 +332,8 @@ export async function refreshSessionToken(
   }
 
   const grant = refreshed.value;
-  // Re-verify the REFERENT after the rotation: the grant lock no longer sees
-  // session/token state (pre-D15 the per-row refresh re-checked liveness
-  // under its own lock), so a referent that died mid-request — logout, sweep,
+  // Re-verify the REFERENT after the rotation: the grant lock does not see
+  // session/token state, so a referent that died mid-request — logout, sweep,
   // owner revoke — must not receive the fresh token. The rotation itself
   // stands either way (it benefits the grant's surviving referents).
   if (isCookie) {
@@ -499,12 +488,11 @@ export function authRoute(deps: AuthRouteDeps): Hono {
         403,
       );
     }
-    // BRIEF-19 (D14): bind the session to the user's DEFAULT installation when
-    // it is still in their LIVE accessible set, else the first accessible one.
-    // The default is a cross-session per-user setting (user_settings), and it
-    // is NEVER trusted as an id on its own — a dangling default (installation
-    // purged/uninstalled since it was set) degrades to the first accessible
-    // installation rather than binding to something GitHub no longer grants.
+    // Bind the session to the user's DEFAULT installation when it is still in
+    // their LIVE accessible set, else the first accessible one. The default is
+    // NEVER trusted as an id on its own — a dangling default degrades to the
+    // first accessible installation rather than binding to something GitHub no
+    // longer grants.
     const settings = await userSettingsStore(deps.handle).get(
       user.value.reviewerId,
     );
@@ -532,9 +520,9 @@ export function authRoute(deps: AuthRouteDeps): Hono {
       return c.json({ error: "could not persist the session" }, 500);
     }
 
-    // D15: the credential pair lands on a fresh grant row; the session LINKS
-    // it. Session lifetime = refresh-token lifetime; access-token freshness is
-    // handled by lazy refresh (`refreshSessionToken`, wired on a 401 in stage 7).
+    // The credential pair lands on a fresh grant row; the session LINKS it.
+    // Session lifetime = refresh-token lifetime; access-token freshness is
+    // handled by lazy refresh on a 401.
     const grants = grantAuth(deps.handle);
     const grant = await grants.createGrant({
       ghTokenCiphertext: sealedAccess.value,

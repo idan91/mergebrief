@@ -1,11 +1,10 @@
-// The PR view the list and PR-meta endpoints share (BRIEF-19 PR 1.2): one
-// `pull_request` row joined with its CURRENT-SPAN derivation. The current head
-// is the newest brief-kind `generation` projection's head (the projection row
-// is written at ingest, so it exists from the first webhook — before any
-// artifact); `briefAvailable` is true only when the latest brief artifact IS
-// for that head (render trigger = artifact EXISTS, ADR 0006 #10 — status is
-// display-only). `baseSha` prefers the brief row and falls back to the base
-// SHA persisted at ingest, so the span is known before any brief lands.
+// The PR view the list and PR-meta endpoints share: one `pull_request` row
+// joined with its CURRENT-SPAN derivation. The current head is the newest
+// brief-kind `generation` projection's head (written at ingest, so it exists
+// from the first webhook — before any artifact); `briefAvailable` is true only
+// when the latest brief artifact IS for that head (render trigger = artifact
+// EXISTS — status is display-only). `baseSha` prefers the brief row and falls
+// back to the base SHA persisted at ingest.
 import type {
   BriefSpanRow,
   GenerationPhase,
@@ -34,33 +33,30 @@ export interface PrView {
   readonly state: PrState;
   /**
    * The span's lower bound: the brief's base when one exists, else the base
-   * SHA persisted at ingest (BRIEF-19 follow-up — the span is known before
-   * any brief lands). Null only for rows ingested before `base_sha` existed.
+   * SHA persisted at ingest. Null only for rows ingested before `base_sha`
+   * existed.
    */
   readonly baseSha: string | null;
   /** The current push's head; null only when nothing was ever projected. */
   readonly headSha: string | null;
   readonly briefAvailable: boolean;
-  /** GitHub draft state (BRIEF-43) — the FE derives own-draft author affordances. */
+  /** GitHub draft state — the FE derives own-draft author affordances. */
   readonly draft: boolean;
   /**
-   * Whether the requesting viewer is this PR's author (BRIEF-43), computed
-   * PER REQUEST server-side by comparing the session's reviewer login to the
-   * row's stored `author_login`. The login itself is NEVER serialized — only
-   * this derived boolean crosses to the FE. False for any signed-out/token-less
-   * read (those never reach this builder — the authz gate 401s first) and for
-   * any null/missing author or viewer login.
+   * Whether the requesting viewer is this PR's author, computed PER REQUEST
+   * server-side by comparing the session's reviewer login to the row's stored
+   * `author_login`. The login itself is NEVER serialized — only this derived
+   * boolean crosses to the FE. False for any null/missing author or viewer
+   * login.
    */
   readonly viewerIsAuthor: boolean;
   /**
-   * Whether the requesting viewer may resolve/unresolve review threads on
-   * this PR (BRIEF-93): GitHub push permission OR PR authorship — GitHub's
-   * own rule for `resolveReviewThread`. PR-level and viewer-derived
-   * server-side; affordance only (buttons hidden without it, ADR 0031), with
-   * GitHub's mutation-time enforcement as the truth. On the LIST path the
-   * per-repo capability is unknown (no per-repo access check runs there), so
-   * rows fall back to authorship-only — the brief page must read this from
-   * PR meta, not the list.
+   * Whether the requesting viewer may resolve/unresolve review threads on this
+   * PR: GitHub push permission OR PR authorship — GitHub's own rule for
+   * `resolveReviewThread`. Affordance only, with GitHub's mutation-time
+   * enforcement as the truth. On the LIST path the per-repo capability is
+   * unknown (no per-repo access check runs there), so rows fall back to
+   * authorship-only — the brief page must read this from PR meta, not the list.
    */
   readonly viewerCanResolve: boolean;
   readonly generation: GenerationSummaryView | null;

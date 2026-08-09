@@ -1,21 +1,18 @@
 // POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,
-// unresolve} — the thread-resolution routes (BRIEF-93). Behind the FULL
-// per-repo gate; run the resolve/unresolveReviewThread mutations with the
-// VIEWER's token (ADR 0016 #4). GitHub itself enforces who may flip a thread
-// (push permission or PR authorship — the same rule `viewerCanResolve`
-// mirrors for affordances, ADR 0031), so the route needs no capability check
-// of its own: a viewer whose access was revoked inside the pr-view TTL gets
-// the mutation-stage 403 and the FE's clean error + refetch path.
+// unresolve} — the thread-resolution routes. Behind the FULL per-repo gate;
+// run the resolve/unresolveReviewThread mutations with the VIEWER's token.
+// GitHub itself enforces who may flip a thread (push permission or PR
+// authorship — the same rule `viewerCanResolve` mirrors for affordances), so
+// the route needs no capability check of its own: a viewer whose access was
+// revoked inside the pr-view TTL gets the mutation-stage 403 and the FE's
+// clean error + refetch path.
 //
-// The two directions are separate routes (not a body flag): the FE's
-// standalone Resolve/Unresolve buttons and the Reply & resolve sequencing all
-// target one direction explicitly, and a body-less POST keeps the failure
-// matrix per direction honest. Both share one handler core.
+// The two directions are separate routes (not a body flag), sharing one
+// handler core.
 //
-// Success (fresh flip OR convergence) busts the PR's shared conversation
-// cache (reply-write pattern) so the FE's post-write refetch reflects the
-// write inside the 60s TTL, and audits with the direction's own action
-// (`resolve-thread` / `unresolve-thread`).
+// Success (fresh flip OR convergence) busts the PR's shared conversation cache
+// so the FE's post-write refetch reflects the write inside the 60s TTL, and
+// audits with the direction's own action.
 import { Hono, type Context } from "hono";
 import {
   createUserOctokit,
@@ -112,8 +109,8 @@ function resolveRepoFailure(
  * Map a walk/mutation-stage failure: runs AFTER the gate and the fresh
  * re-resolve both succeeded, so there is no existence to hide. FORBIDDEN is a
  * genuine permission gap (read-only viewer / raced revocation) → an honest,
- * FE-actionable 403 (mark-ready posture). NOT_FOUND covers the PR vanishing
- * AND a `commentId` matching no thread → 404.
+ * FE-actionable 403. NOT_FOUND covers the PR vanishing AND a `commentId`
+ * matching no thread → 404.
  */
 function mutationFailure(
   c: Context<AuthzEnv>,
@@ -270,10 +267,10 @@ export function resolveThreadRoute(
     // the slim-row transition immediately.
     evictConversation(ctx.installationId, repoId, pr.prNumber);
 
-    // Audit with the direction's own action (D9: numeric-only). The GitHub
-    // write above is the commit point — mirror the reply route's posture and
-    // never turn a landed flip into an error response over a local audit
-    // failure (the FE would invite a retry of a done action).
+    // Audit with the direction's own action (numeric-only). The GitHub write
+    // above is the commit point — never turn a landed flip into an error
+    // response over a local audit failure (the FE would invite a retry of a
+    // done action).
     try {
       await audit(deps.handle, {
         installationId: ctx.installationId,

@@ -1,10 +1,7 @@
-// `GET /api/version` (BRIEF-17 PR 5 — ADR 0029 #8: "skew visibility, not
-// negotiation"). The server exposes its version; the CLI's `auth status`
-// surfaces it and the API changelog is keyed to it. Gated by the session
-// layer (both channels) like every `/api/*` surface — it doubles as the
-// CLI's cheapest authenticated liveness probe. The CLI is the first
-// consumer, but this is a shared API capability (ADR 0028 #2), not a
-// per-CLI endpoint.
+// `GET /api/version` — skew visibility, not negotiation: the server exposes its
+// version and the API changelog is keyed to it. Gated by the session layer
+// (both channels) like every `/api/*` surface — it doubles as the CLI's
+// cheapest authenticated liveness probe.
 import { Hono } from "hono";
 import type { AuthRouteDeps } from "./auth";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";

@@ -1,6 +1,5 @@
-// The reviewer authorization gate (BRIEF-2 stage 7, PR C — ADR 0016 #5's
-// SINGLE enforcement point, as amended for BRIEF-19). The gate is built from
-// two composable layers with ONE enforcement point and two compositions:
+// The reviewer authorization gate — the SINGLE enforcement point, built from
+// two composable layers with two compositions:
 //   `sessionLayer`   — opaque cookie → session row → expiry → tenant ctx (no
 //                      cookie / unknown / expired session → 401 — never a hint
 //                      that the repo exists). Reused ALONE by session-scoped
@@ -8,33 +7,32 @@
 //   `repoAuthzLayer` — parse+brand `:repoId`, verify the viewer's GitHub access
 //                      to the repo by its NUMERIC id (`GET /repositories/{id}`
 //                      with the viewer's own token — rename-proof); any non-2xx
-//                      collapses to 404 (no existence leak) and emits the D9
+//                      collapses to 404 (no existence leak) and emits the
 //                      `auth` denial audit row; on success shapes the request
 //                      context (`repoId`, `repoFullName`, `accessToken`).
 // `createAuthzMiddleware` = the composition of both — the per-repo gate in
 // front of every read under `/api/repos/:repoId/*`.
 //
-// CACHING (ADR 0016 #4 as amended): a POSITIVE cache keyed
-// `(sessionHash, repoId)` with a 60s TTL skips the GitHub round-trip on repeat
-// authorized reads. NEGATIVES ARE NEVER CACHED — a revoked grant must re-deny
-// on the very next request; a granted-then-revoked viewer is stale for at most
-// 60s. The cache is a closure created ONCE per `repoAuthzLayer` (not a module
-// global), so tests get a fresh cache per `createApp`.
+// CACHING: a POSITIVE cache keyed `(sessionHash, repoId)` with a 60s TTL skips
+// the GitHub round-trip on repeat authorized reads. NEGATIVES ARE NEVER CACHED
+// — a revoked grant must re-deny on the very next request; a granted-then-
+// revoked viewer is stale for at most 60s. The cache is a closure created ONCE
+// per `repoAuthzLayer`, so tests get a fresh cache per `createApp`.
 //
-// REFRESH (D11): a 401 from GitHub means the viewer's ~8h access token expired;
-// the layer runs the serialized `refreshSessionToken` orchestrator and retries
-// the access check ONCE with the rotated token. A refresh failure has already
+// REFRESH: a 401 from GitHub means the viewer's ~8h access token expired; the
+// layer runs the serialized `refreshSessionToken` orchestrator and retries the
+// access check ONCE with the rotated token. A refresh failure has already
 // deleted the session, so it is a clean 401 → re-login.
 //
-// LOGGING (D9, as renamed by ADR 0034): each request gets ONE structured
-// `evt: "api.access"` line (method/path/status/latency/decision + numeric
-// repo/reviewer ids + reqId) — the purgeable web access log, NOT the
-// never-purged audit ledger, and NEVER any token/cookie/PII. The line itself
-// is emitted by the `requestLogging` middleware after the handler; the
-// layers here only STAMP the gate's decision (+ ids) into context via
-// `stampAccess`. `sessionLayer` stamps its own denials; the last layer in a
-// composition stamps the allowed path after the handler. A session-only
-// composition appends `accessStampLayer` so its line carries the reviewer id.
+// LOGGING: each request gets ONE structured access line (method/path/status/
+// latency/decision + numeric repo/reviewer ids + reqId) — the purgeable web
+// access log, NOT the never-purged audit ledger, and NEVER any
+// token/cookie/PII. The line itself is emitted by the `requestLogging`
+// middleware after the handler; the layers here only STAMP the gate's decision
+// into context via `stampAccess`. `sessionLayer` stamps its own denials; the
+// last layer in a composition stamps the allowed path after the handler. A
+// session-only composition appends `accessStampLayer` so its line carries the
+// reviewer id.
 import type { MiddlewareHandler } from "hono";
 import { every } from "hono/combine";
 import { getCookie } from "hono/cookie";
@@ -86,14 +84,12 @@ export interface AuthzVariables extends RequestLogVariables {
   readonly repoFullName: string;
   /**
    * Whether GITHUB reported push (write) permission for the viewer on this
-   * repo during the access check (BRIEF-93) — cached with the positive entry,
-   * so ≤60s stale like `repoFullName`. For writes it is an affordance signal
-   * only: GitHub's mutation-time enforcement stays the truth. BRIEF-94 also
-   * makes it a SECURITY GATE on the collaborators read (an installation-token
-   * fetch has no GitHub-side backstop), so a probe shape without a
-   * `permissions` block must keep parsing as `false` — never loosen the
-   * default. A just-revoked push viewer keeps roster access for at most the
-   * gate's own ≤60s revocation window (accepted posture).
+   * repo during the access check — cached with the positive entry, so ≤60s
+   * stale like `repoFullName`. For writes it is an affordance signal only:
+   * GitHub's mutation-time enforcement stays the truth. It is also a SECURITY
+   * GATE on the collaborators read (an installation-token fetch has no
+   * GitHub-side backstop), so a probe shape without a `permissions` block must
+   * keep parsing as `false` — never loosen the default.
    */
   readonly viewerCanPush: boolean;
   readonly accessToken?: string;
@@ -104,13 +100,12 @@ export interface AuthzEnv {
 }
 
 /**
- * Positive-cache TTL — short enough that a revoked grant self-heals fast
- * (ADR 0016 #4 as amended: 60s, tightened from the original 5min). PR 1.2's
+ * Positive-cache TTL — short enough that a revoked grant self-heals fast. The
  * per-session allowed-repo-set cache deliberately shares this constant.
  */
 
 // Gate denials are per-viewer state like every gated-route response — the
-// no-store contract covers middleware 401/404s too (BRIEF-25 codex review).
+// no-store contract covers middleware 401/404s too.
 const NO_STORE = { "cache-control": "no-store" } as const;
 export const AUTHZ_CACHE_TTL_MS = 60 * 1000;
 /**
@@ -152,12 +147,10 @@ function parseRepoId(raw: string | undefined): RepoId | undefined {
   return isRepoId(value) ? value : undefined;
 }
 
-// Gate outcomes reach the `api.access` line via `stampAccess` — numeric ids
-// only, never a token. `decision` is the GATE's outcome; the line's `status`
-// is the RESPONSE status (the `requestLogging` middleware reads both after
-// the handler). On deny paths they coincide; on the allowed path the stamp
-// lands AFTER `next()`, so `status`/`durationMs` reflect what the handler
-// actually returned (the D9 log contract).
+// Gate outcomes reach the access line via `stampAccess` — numeric ids only,
+// never a token. `decision` is the GATE's outcome; the line's `status` is the
+// RESPONSE status. On the allowed path the stamp lands AFTER `next()`, so
+// `status`/`durationMs` reflect what the handler actually returned.
 
 /**
  * Layer 1 — resolve the reviewer session and tenant ctx from the opaque
@@ -172,13 +165,11 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
   return async (c, next) => {
     const startedAt = Date.now();
 
-    // Bearer presentation (BRIEF-17, ADR 0016 #4 as amended; BRIEF-18): the
-    // auth-management routes moved under `/api/auth/*` for one registered
-    // namespace, so the browser-only rule is now a carve-out — Bearer is
-    // accepted on `/api/*` EXCEPT `/api/auth/*` (login, logout, token
-    // mint/list/revoke, installation binding stay cookie-only: a stolen API
-    // token must never mint tokens or rebind sessions). Where not accepted,
-    // the header is IGNORED (falls through to the cookie path), never honored.
+    // Bearer is accepted on `/api/*` EXCEPT `/api/auth/*` (login, logout,
+    // token mint/list/revoke, installation binding stay cookie-only: a stolen
+    // API token must never mint tokens or rebind sessions). Where not
+    // accepted, the header is IGNORED (falls through to the cookie path),
+    // never honored.
     const authorization = c.req.header("authorization");
     if (
       authorization !== undefined &&
@@ -267,12 +258,10 @@ export function repoAuthzLayer(
   deps: AuthRouteDeps,
 ): MiddlewareHandler<AuthzEnv> {
   // key `${sessionTokenHash}:${repoId}` → the GitHub-verified `owner/name` +
-  // the viewer's push capability, until expiry. Positive only, bounded
-  // (never-reused keys can't be allowed to grow unbounded). Storing the
+  // the viewer's push capability, until expiry. Positive only. Storing the
   // verified full name (not just `true`) lets name-addressed GitHub calls
   // downstream reuse the authz check's result instead of trusting the row's
-  // possibly-stale `repo_slug`; the capability rides the same entry so a
-  // cache-hit request still knows it (BRIEF-93).
+  // possibly-stale `repo_slug`.
   const positiveCache = createTtlCache<{
     readonly fullName: string;
     readonly viewerCanPush: boolean;
@@ -351,7 +340,7 @@ export function repoAuthzLayer(
     }
 
     // Any other non-2xx (403/404/5xx), or a retry that is still non-2xx →
-    // collapse to 404 (no existence leak) AND emit the D9 denial. Never cached.
+    // collapse to 404 (no existence leak) AND emit the denial. Never cached.
     if (!repo.ok) {
       await audit(deps.handle, {
         installationId: c.get("ctx").installationId,

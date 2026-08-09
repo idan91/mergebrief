@@ -1,9 +1,8 @@
-// A tiny bounded TTL cache (BRIEF-2 stage 7). Both request-scoped caches — the
-// positive authz cache and the per-session diff cache — key on values that are
-// NEVER reused (session token hashes are one-time-random; diff keys also vary
-// per SHA pair), so a plain Map with only lazy delete-on-same-key-lookup would
-// accumulate one dead entry per distinct key ever seen and never shrink. This
-// bounds memory without a background timer (which would leak across tests):
+// A tiny bounded TTL cache. Its callers key on values that are NEVER reused
+// (session token hashes are one-time-random; diff keys also vary per SHA pair),
+// so a plain Map with only lazy delete-on-same-key-lookup would accumulate one
+// dead entry per distinct key ever seen and never shrink. This bounds memory
+// without a background timer (which would leak across tests):
 //   - `get` lazily drops an expired entry;
 //   - `set` sweeps expired entries once the map hits `maxEntries`, then, if it
 //     is still full, evicts the OLDEST-inserted key (Map preserves insertion

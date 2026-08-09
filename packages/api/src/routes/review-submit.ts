@@ -1,20 +1,17 @@
-// POST /api/repos/:repoId/pulls/:prNumber/review — the review-submit route
-// (BRIEF-23 PR 2). Behind the FULL per-repo gate; posts ONE grouped formal
-// review with the VIEWER's token (ADR 0016 #4 — the reviewer authors their own
-// review, never the App), pinned to the commitId the reviewer actually read.
+// POST /api/repos/:repoId/pulls/:prNumber/review — the review-submit route.
+// Behind the FULL per-repo gate; posts ONE grouped formal review with the
+// VIEWER's token (the reviewer authors their own review, never the App),
+// pinned to the commitId the reviewer actually read.
 //
 // Deliberately NOT here: the checkpoint write. The `pull_request_review`
 // webhook — including the echo of this very submit — is the ONLY checkpoint
-// writer (grill-locked #1), so one code path covers in-app and native
-// github.com reviews. This route posts the review and emits the `submit`
-// audit row; nothing else.
+// writer, so one code path covers in-app and native github.com reviews.
 //
-// 422 handling (grill-locked #3/#6): GitHub's create-review is atomic — one
-// invalid comment 422s the whole review. An anchoring 422 gets ONE automatic
-// degradation retry with every comment folded into the review body (quoted
-// `file:line` + selectedText); nothing is silently dropped, and the response
-// carries `commentsDegraded` for the receipt. An unknown-commit 422 fails
-// CLOSED (409, "reload") — never a retry at a different SHA.
+// 422 handling: GitHub's create-review is atomic — one invalid comment 422s
+// the whole review. An anchoring 422 gets ONE automatic degradation retry with
+// every comment folded into the review body; nothing is silently dropped, and
+// the response carries `commentsDegraded`. An unknown-commit 422 fails CLOSED
+// (409, "reload") — never a retry at a different SHA.
 import { Hono, type Context } from "hono";
 import {
   createPullRequestReview,
@@ -237,9 +234,9 @@ async function resolveSessionToken(
 
 /**
  * Mount the submit route behind its own per-repo gate instance.
- * `evictConversation` is the conversation surface's cache hook (BRIEF-25):
- * a submitted review is a conversation write, so success drops the PR's
- * cached conversation.
+ * `evictConversation` is the conversation surface's cache hook: a submitted
+ * review is a conversation write, so success drops the PR's cached
+ * conversation.
  */
 export function reviewSubmitRoute(
   deps: AuthRouteDeps,
@@ -415,11 +412,11 @@ export function reviewSubmitRoute(
     }
 
     // A submitted review is a conversation write — the cached conversation
-    // is stale the moment it lands (BRIEF-25).
+    // is stale the moment it lands.
     evictConversation(ctx.installationId, c.get("repoId"), pr.prNumber);
 
-    // Audit the successful post (D9: numeric-only; the checkpoint itself is
-    // the webhook's to write when the echo arrives).
+    // Audit the successful post (numeric-only; the checkpoint itself is the
+    // webhook's to write when the echo arrives).
     await audit(deps.handle, {
       installationId: ctx.installationId,
       actorType: AuditActorType.REVIEWER,

@@ -1,18 +1,16 @@
-// POST /api/repos/:repoId/pulls/:prNumber/comments — the inline post-now route
-// (BRIEF-43 PR 4). Behind the FULL per-repo gate; posts ONE standalone inline
-// review comment with the VIEWER's token (ADR 0016 #4), pinned to the commit
-// the anchor was read against (`commitId`).
+// POST /api/repos/:repoId/pulls/:prNumber/comments — the inline post-now route.
+// Behind the FULL per-repo gate; posts ONE standalone inline review comment
+// with the VIEWER's token, pinned to the commit the anchor was read against.
 //
 // NOT gated on viewerIsAuthor or draft: GitHub separately authorizes the write
 // (anyone with repo access may comment on a PR), so the own-draft affordance is
 // a UX placement, not a security boundary — this route only needs to be
-// session-authed and repo-gated, exactly like mark-ready (ADR 0031). Mounted
-// BEFORE `readsRoute` in `app.ts` (single-gate rule) so a POST here traverses
-// exactly one per-repo gate.
+// session-authed and repo-gated, exactly like mark-ready. Mounted BEFORE
+// `readsRoute` in `app.ts` (single-gate rule) so a POST here traverses exactly
+// one per-repo gate.
 //
 // A posted comment IS a conversation write, so on success the PR's cached
-// conversation is evicted (the FE refetches and the new thread renders with the
-// "yours" tag once the returned review id is recorded — BRIEF-25).
+// conversation is evicted.
 import { Hono, type Context } from "hono";
 import {
   createInlineReviewComment,
@@ -39,21 +37,18 @@ import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
 
 // ---------------------------------------------------------------------------
-// Boundary schema — shape only. The FE already maps the composer's chunk-region
-// anchor to GitHub's wire shape (side old→LEFT / new→RIGHT, multi-line as
-// start_line..line). Each deterministic reject below is mirrored client-side
-// (apps/web AGENTS.md) so the UI never resubmits an unrecoverable payload:
+// Boundary schema — shape only. Each deterministic reject below MUST stay
+// mirrored client-side, or the UI resubmits the same state in an unrecoverable
+// loop:
 //   - commitId must be a 40-hex SHA — the FE always sends the viewed head;
 //   - body 1..65536 — the composer blocks an empty body at save time, and the
 //     Post affordance blocks an over-cap body with recoverable copy
 //     (`postCommentBlockedReason` in apps/web features/review/comments — keep
 //     in lockstep with MAX_BODY_LENGTH here);
-//   - startLine < line — the anchor→wire map only sets startLine on a true
-//     multi-line range (startLine strictly before the end line);
+//   - startLine < line — set only on a true multi-line range;
 //   - startSide requires startLine — GitHub 422s a dangling start_side, which
 //     would misclassify as a stale-anchor 409 ("reload") and trap a direct API
-//     client in an unfixable retry loop; the FE's anchor→wire map always sets
-//     the pair together, so this only bites hand-built payloads.
+//     client in an unfixable retry loop.
 // ---------------------------------------------------------------------------
 
 const MAX_BODY_LENGTH = 65_536;
@@ -151,7 +146,7 @@ function writeFailure(
   // A 422 means the anchor no longer sits on the pinned commit's diff — the
   // head advanced under the composer. Fail with a distinct 409 so the FE tells
   // the author to reload (the draft survives locally), never a retry-looking
-  // 502 (mirrors review-submit's unknown-commit fail-closed).
+  // 502.
   if (error.staleAnchor === true) {
     return errorJson(c, "pull request changed since it was read", 409);
   }
@@ -170,9 +165,9 @@ function writeFailure(
 
 /**
  * Mount the inline post-now route behind its own per-repo gate instance.
- * `evictConversation` is the conversation surface's cache hook (BRIEF-25): a
- * posted inline comment is a conversation write, so success drops the PR's
- * cached conversation.
+ * `evictConversation` is the conversation surface's cache hook: a posted inline
+ * comment is a conversation write, so success drops the PR's cached
+ * conversation.
  */
 export function inlineCommentRoute(
   deps: AuthRouteDeps,
@@ -318,7 +313,7 @@ export function inlineCommentRoute(
     // FE's post-write refetch reflects the new thread inside the TTL.
     evictConversation(ctx.installationId, repoId, pr.prNumber);
 
-    // Audit posture consistent with the conversation reply (D9: numeric-only).
+    // Audit posture consistent with the conversation reply (numeric-only).
     // The GitHub write above is the COMMIT POINT: a local audit failure must
     // never turn a posted comment into an error response (that would invite a
     // double-posting retry). Best-effort — log and keep the 201.
@@ -333,7 +328,7 @@ export function inlineCommentRoute(
       });
     } catch (auditError) {
       // Posted to GitHub, our audit write failed — a data-integrity signal
-      // the operator alerts on (ADR 0034 taxonomy).
+      // the operator alerts on.
       c.get("logger").error("post-now audit failed after posted comment", {
         evt: "audit.fail",
         commentId: String(posted.value.commentId),

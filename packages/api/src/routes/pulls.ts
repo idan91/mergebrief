@@ -1,12 +1,11 @@
-// The session-scoped PR list (BRIEF-19 PR 1.2): `GET /api/pulls` returns the
-// viewer's readable PRs across the session's installation — the ONE read that
-// cannot reuse the per-repo gate (there is no `:repoId` yet).
+// The session-scoped PR list: `GET /api/pulls` returns the viewer's readable
+// PRs across the session's installation — the ONE read that cannot reuse the
+// per-repo gate (there is no `:repoId` yet).
 //
-// TENANCY (ADR 0016 #5b as amended): the authorized repo set comes from the
-// SHARED allowed-set resolver (`allowed-repos.ts`, one cache with
-// `/api/repos` — BRIEF-17 PR 3). The tenant query then filters
-// `installation_id = ctx AND repo_id IN (allowed)`. A GitHub failure fails
-// the list (401/502) — NEVER a DB-only listing, which would leak rows the
+// TENANCY: the authorized repo set comes from the SHARED allowed-set resolver
+// (`allowed-repos.ts`, one cache with `/api/repos`). The tenant query then
+// filters `installation_id = ctx AND repo_id IN (allowed)`. A GitHub failure
+// fails the list (401/502) — NEVER a DB-only listing, which would leak rows the
 // viewer can no longer see.
 import { Hono } from "hono";
 import { artifactStore, forTenant, generationProjection } from "persistence";
@@ -17,10 +16,10 @@ import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
 import { buildPrView } from "./pr-view";
 
 // Per-viewer state on a gated route — no-store on EVERY response, error
-// paths included (AGENTS.md rule; codex PR3 R1).
+// paths included.
 const NO_STORE = { "cache-control": "no-store" } as const;
 
-/** Hard row cap (plan: flat list, no cursor); also the Zod upper bound. */
+/** Hard row cap (flat list, no cursor); also the Zod upper bound. */
 const LIST_MAX_ROWS = 100;
 
 const listQuerySchema = z.object({

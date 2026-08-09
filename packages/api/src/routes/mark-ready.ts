@@ -1,16 +1,15 @@
-// POST /api/repos/:repoId/pulls/:prNumber/ready — the mark-ready route
-// (BRIEF-43 PR 2). Behind the FULL per-repo gate; runs the GraphQL
-// `markPullRequestReadyForReview` mutation with the VIEWER's token (ADR 0016
-// #4 / ADR 0031 — GitHub itself enforces that only the author/maintainer may
-// mark ready, so this route needs NO viewerIsAuthor check of its own; it only
-// needs to be session-authed and repo-gated like every gated route).
+// POST /api/repos/:repoId/pulls/:prNumber/ready — the mark-ready route. Behind
+// the FULL per-repo gate; runs the GraphQL `markPullRequestReadyForReview`
+// mutation with the VIEWER's token (GitHub itself enforces that only the
+// author/maintainer may mark ready, so this route needs NO viewerIsAuthor check
+// of its own; it only needs to be session-authed and repo-gated).
 //
 // On mutation success the route flips OUR `draft` mirror to false in the same
 // request (a narrow tenant-scoped `setDraft`, never a full re-upsert). The
-// later `ready_for_review` webhook lands as an idempotent no-op via PR 1's
-// upsert semantics, so no ordering machinery is needed.
+// later `ready_for_review` webhook lands as an idempotent no-op, so no ordering
+// machinery is needed.
 //
-// Race matrix (self-passed — the poll/webhook is the reconciler, not this route):
+// Race matrix (the poll/webhook is the reconciler, not this route):
 //   - Double-click double-POST: both requests resolve; the first flips the PR,
 //     the second either reads `isDraft:false` (converged) or races the mutation
 //     into GitHub's "not a draft" (converged). Both return 200; `setDraft` is
@@ -20,9 +19,9 @@
 //   - Mark-ready on an already-closed PR: GitHub rejects the mutation with an
 //     ordinary error (not "not a draft"); it maps to a sanitized 4xx/502 and
 //     the row is NOT flipped.
-//   - Stale redelivery regressing `draft=true` after the flip: an accepted PR-1
-//     pattern — a late `opened`/redelivered event can re-set draft; the pr-view
-//     poll self-heals. This route builds no ordering guard for it.
+//   - Stale redelivery regressing `draft=true` after the flip: accepted — a
+//     late `opened`/redelivered event can re-set draft; the pr-view poll
+//     self-heals. This route builds no ordering guard for it.
 import { Hono, type Context } from "hono";
 import {
   createUserOctokit,
@@ -264,8 +263,8 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     // GitHub state on a local mirror race.
     await forTenant(deps.handle, ctx).pullRequests.setDraft(pr.id, false);
 
-    // Audit the mark-ready (D9: numeric-only; no metadata — `mark-ready` is the
-    // action, the converged/fresh distinction is not PII-worthy to record).
+    // Audit the mark-ready (numeric-only; no metadata — the converged/fresh
+    // distinction is not worth recording).
     await audit(deps.handle, {
       installationId: ctx.installationId,
       actorType: AuditActorType.REVIEWER,

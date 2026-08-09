@@ -1,6 +1,5 @@
-// Multi-org session endpoints (BRIEF-19 PR 2.1 — ADR 0016 #4 as amended, ADR
-// 0018 D14). Two session-gated routes let a reviewer who spans installations
-// see and switch which one their session is bound to:
+// Multi-org session endpoints. Two session-gated routes let a reviewer who
+// spans installations see and switch which one their session is bound to:
 //   GET  /api/auth/installations  → the LIVE accessible set (id + account login)
 //                               annotated with current (session) + default
 //                               (user_settings).
@@ -10,13 +9,13 @@
 // TRUST SHAPE (the whole point): the accessible set is ALWAYS re-derived from
 // GitHub with the viewer's own token (`GET /user/installations`) — never taken
 // from the caller. A switch target is honoured ONLY if it is in that live set;
-// otherwise 403 with NO session/settings mutation (D14: dangling ids degrade,
-// never bind). A 401 from the ~8h access token drives ONE serialized refresh
-// then a single retry, exactly like the per-repo gate and the PR list.
+// otherwise 403 with NO session/settings mutation. A 401 from the ~8h access
+// token drives ONE serialized refresh then a single retry, exactly like the
+// per-repo gate and the PR list.
 //
 // The session row's `installation_id` IS the tenant stamp, so the rebinding is
-// an atomic, ctx-safe `reviewer_session` UPDATE (persistence `rebindInstallation`),
-// and the switch emits a D9 `auth` audit row (numeric-only metadata).
+// an atomic, ctx-safe `reviewer_session` UPDATE, and the switch emits an `auth`
+// audit row (numeric-only metadata).
 import { Hono } from "hono";
 import {
   GitHubApiErrorCode,
@@ -197,7 +196,7 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     const { installations, session: currentSession } = resolved.value;
 
     // Validate against the LIVE set — never trust the caller's id. A target the
-    // viewer can no longer reach is a 403 + a D9 denial, and NOTHING mutates.
+    // viewer can no longer reach is a 403 + a denial audit, and NOTHING mutates.
     if (
       !installations.some(
         (installation) => installation.installationId === target,
@@ -235,7 +234,7 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       defaultId = updated.defaultInstallationId;
     }
 
-    // D9: record the successful switch (numeric-only metadata) under the NEW tenant.
+    // Record the successful switch (numeric-only metadata) under the NEW tenant.
     await audit(deps.handle, {
       installationId: target,
       actorType: AuditActorType.REVIEWER,

@@ -1,11 +1,10 @@
-// `GET /api/repos` (BRIEF-17 PR 3 — ADR 0028 consequence): the CLI's
-// owner/name → repoId resolution. The locked contract (plan decision 3):
-// the installation∩user-access intersection via the SHARED allowed-set
-// resolver (one cache with /api/pulls); `repoId` stringified (bigint is not
-// JSON-native); a FLAT array, deliberately unpaginated (an installation's
-// repo grant is a bounded set); `no-store` (per-viewer state); a GitHub
-// failure is a 401/502 — never a DB-only fallback. Lives under `/api/*`, so
-// both presentation channels (cookie + Bearer) authenticate.
+// `GET /api/repos` — owner/name → repoId resolution for the CLI. The contract:
+// the installation∩user-access intersection via the SHARED allowed-set resolver
+// (one cache with /api/pulls); `repoId` stringified (bigint is not JSON-native);
+// a FLAT array, deliberately unpaginated (an installation's repo grant is a
+// bounded set); `no-store` (per-viewer state); a GitHub failure is a 401/502 —
+// never a DB-only fallback. Lives under `/api/*`, so both presentation channels
+// (cookie + Bearer) authenticate.
 import { Hono } from "hono";
 import type { AuthRouteDeps } from "./auth";
 import type { AllowedRepoResolver } from "./allowed-repos";

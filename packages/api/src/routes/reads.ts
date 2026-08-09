@@ -1,5 +1,4 @@
-// The reviewer read API (BRIEF-2 stage 7, PR C — plan decision #4). Four GETs,
-// ALL behind the authz gate (`createAuthzMiddleware`), that return the
+// The reviewer read API. Four GETs, ALL behind the authz gate, that return the
 // tenant-scoped artifacts a reviewer's client renders:
 //   brief / marks / narrative  → the stored artifact `body` verbatim (already
 //                                 JSON — returned as-is, never re-parsed);
@@ -7,13 +6,12 @@
 //                                 with the VIEWER's token and cached per session.
 //
 // TENANCY: the gate resolves `ctx` from the session; every read filters through
-// persistence's ctx-bound interfaces (`forTenant` / `artifactStore`). This module
-// never sees a raw handle and never trusts a caller-supplied installation id.
+// persistence's ctx-bound interfaces. This module never sees a raw handle and
+// never trusts a caller-supplied installation id.
 //
-// DIFF PROXY (ADR 0016 #10): the diff is NEVER persisted — it is proxied live
-// and held only in an ephemeral, per-session in-memory cache (~60s TTL) keyed by
-// `(sessionHash, repoId, prNumber, base, head)`, so a repeat diff read makes no
-// second GitHub call. The cache is a closure Map created once per app instance.
+// DIFF PROXY: the diff is NEVER persisted — it is proxied live and held only in
+// an ephemeral, per-session in-memory cache (~60s TTL) keyed by
+// `(sessionHash, repoId, prNumber, base, head)`.
 //
 // VALIDATION: params/queries are Zod-validated → 400 on a bad shape; a missing
 // PR / artifact is a 404; GitHub fetch failures are sanitized to 404/502. No
@@ -58,21 +56,15 @@ const briefQuerySchema = z.object({ base: shaSchema, head: shaSchema });
 const marksQuerySchema = z.object({ baseline: shaSchema, head: shaSchema });
 const narrativeQuerySchema = z.object({ prevHead: shaSchema, head: shaSchema });
 /**
- * Diff span endpoints. Beyond a non-empty SHA, these must NOT contain a `:` —
- * GitHub's compare endpoint reads `owner:ref` as a CROSS-REPO selector, which
- * would let a caller redirect the diff proxy at a fork outside the `repoId` the
- * authz gate approved. Rejecting `:` confines the compare to the resolved PR's
- * own repo (defense-in-depth; the fetch already runs under the viewer's token).
+ * Diff span refs must NOT contain a `:` — GitHub's compare endpoint reads
+ * `owner:ref` as a CROSS-REPO selector, which would let a caller redirect the
+ * diff proxy at a fork outside the `repoId` the authz gate approved.
  */
 const diffRefSchema = shaSchema.refine((value) => !value.includes(":"), {
   message: "diff ref must not select a cross-repo owner:ref span",
 });
 const diffQuerySchema = z.object({ base: diffRefSchema, head: diffRefSchema });
-/**
- * Delta span query (BRIEF-21). The read never reaches GitHub, but the same
- * no-`:` rule as the diff route keeps every span-selecting query on this
- * surface a plain SHA pair (defense-in-depth, one shape to reason about).
- */
+/** Same no-`:` rule as the diff route, though this read never reaches GitHub. */
 const deltaQuerySchema = z.object({
   baseline: diffRefSchema,
   head: diffRefSchema,
@@ -81,24 +73,20 @@ const deltaQuerySchema = z.object({
 /** Per-session diff cache TTL — short; the diff is live, this only debounces. */
 const DIFF_CACHE_TTL_MS = 60 * 1000;
 /**
- * Hard cap on cached diffs (keyed session×repo×PR×span). Bounds memory: keys are
- * never reused (fresh session hash + new SHA pair per push), so an uncapped Map
- * would grow for the process lifetime. Diffs are larger than authz entries, so a
- * tighter cap; oldest is evicted past it (ADR 0016 #10 — never persisted).
+ * Hard cap on cached diffs. Keys are never reused (fresh session hash + new SHA
+ * pair per push), so an uncapped Map would grow for the process lifetime; the
+ * oldest entry is evicted past the cap.
  */
 const DIFF_CACHE_MAX_ENTRIES = 2_000;
 /**
- * Per-entry byte cap. The entry-count cap alone doesn't bound bytes — a run of
- * large-PR diffs could still balloon the map — so an oversized diff (rare, and
- * cheap to re-proxy) is served but NOT cached. This bounds worst-case cache
- * memory to `MAX_ENTRIES × MAX_ENTRY_BYTES` without byte-accounting in the cache.
+ * Per-entry byte cap: the entry-count cap alone doesn't bound bytes, so an
+ * oversized diff (cheap to re-proxy) is served but NOT cached.
  */
 const DIFF_CACHE_MAX_ENTRY_BYTES = 1_000_000;
 
 /**
- * Split a GitHub-verified `owner/repo` full name into its parts. Defensive
- * validation only — the value comes from the authz gate's access check, but a
- * malformed shape must still never reach a GitHub call.
+ * Split a GitHub-verified `owner/repo` full name. Defensive only — a malformed
+ * shape must never reach a GitHub call.
  */
 function splitRepoSlug(
   slug: string,
@@ -124,8 +112,7 @@ function splitRepoSlug(
 export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   const app = new Hono<AuthzEnv>();
   const authz = createAuthzMiddleware(deps);
-  // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff,
-  // bounded (never-reused keys can't be allowed to grow unbounded).
+  // key `${sessionHash}:${repoId}:${prNumber}:${base}:${head}` → cached diff.
   const diffCache = createTtlCache<string>(DIFF_CACHE_MAX_ENTRIES);
 
   // The gate guards every read under this prefix.
@@ -157,10 +144,10 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   }
 
   // GET PR meta — the PR row + current-span derivation + latest brief-kind
-  // generation summary, plus previous-brief comparison availability (BRIEF-19
-  // 4.1). The FE's single poll target: render when `briefAvailable`, drive
-  // the wait UX from `generation`, offer Compare only when `comparisons`
-  // carries a baseline (fail closed — absent means not offered).
+  // generation summary, plus previous-brief comparison availability. The FE's
+  // single poll target: render when `briefAvailable`, drive the wait UX from
+  // `generation`, offer Compare only when `comparisons` carries a baseline
+  // (fail closed — absent means not offered).
   app.get("/api/repos/:repoId/pulls/:prNumber", async (c) => {
     const ctx = c.get("ctx");
     const resolved = await resolvePr(
@@ -185,22 +172,20 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       latestBriefs.get(resolved.pr.id),
       latestGenerations.get(resolved.pr.id),
       c.get("repoFullName"),
-      // Per-request author derivation (BRIEF-43): the viewer's verified login
-      // from the session. `viewerIsAuthor` is computed here, never cached.
+      // The viewer's verified login from the session; `viewerIsAuthor` is
+      // derived per request, never cached.
       c.get("session").reviewerLogin,
-      // Push capability from the gate's access check (BRIEF-93) — ≤60s stale
-      // via the positive cache, same budget as `repoFullName`.
+      // Push capability from the gate's access check — ≤60s stale via the
+      // positive cache, same budget as `repoFullName`.
       c.get("viewerCanPush"),
     );
-    // Compare availability + the browsable revision timeline (BRIEF-24). Both
-    // are derived from ONE lean listing per artifact kind, joined in memory —
-    // never one existence probe per revision. Only assembled once a brief
-    // exists (`briefAvailable`); otherwise there is no head, no history.
+    // Compare availability + the browsable revision timeline, both derived
+    // from ONE lean listing per artifact kind joined in memory — never one
+    // existence probe per revision.
     //
-    // INVARIANT: `briefAvailable` implies `headSha !== null`. `buildPrView`
-    // sets `briefAvailable = latestBrief !== undefined && latestBrief.headSha
-    // === headSha`, and `brief.head_sha` is NOT NULL — so the null check below
-    // is TypeScript narrowing only and can never skip stored revisions.
+    // INVARIANT: `briefAvailable` implies `headSha !== null` (`brief.head_sha`
+    // is NOT NULL), so the null check below is TypeScript narrowing only and
+    // can never skip stored revisions.
     let comparisons: RevisionComparisons = {};
     let revisions: RevisionView[] | undefined;
     if (view.briefAvailable && view.headSha !== null) {
@@ -226,10 +211,9 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
           pullRequestId,
         ),
       ]);
-      // Per-head generation start times (BRIEF-95): `created_at` is the first
-      // enqueue for that head — the earliest bound of what the brief's
-      // acquisition could have seen. One row per head (natural key), shared by
-      // duplicate-head (retarget) revisions.
+      // `created_at` is the first enqueue for that head — the earliest bound of
+      // what the brief's acquisition could have seen. One row per head, shared
+      // by duplicate-head (retarget) revisions.
       const generatedAtByHead = new Map(
         briefGenerations.map((row) => [row.headSha, row.createdAt]),
       );
@@ -237,13 +221,10 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       const deltaSpans = comparisonSpanSet(deltaRows);
       const narrativeSpans = narrativeSpanSet(narrativeRows);
       // The generation-pending refinement (a DB probe) is wired for the
-      // CURRENT head SHA only: history is never actively warming, so an older
-      // head with no marks degrades straight to baseline-unavailable. Gated by
+      // CURRENT head SHA only: history is never actively warming. Gated by
       // headSha — not row identity — because lastReview is a pure function of
-      // (checkpoint, headSha): duplicate rows sharing the current head (a
-      // retarget re-brief) must report the identical pending/unavailable
-      // state. The probe memoizes per baseline, so duplicates still cost at
-      // most one generation query per request.
+      // (checkpoint, headSha), so duplicate rows sharing the current head must
+      // report identical state. The probe memoizes per baseline.
       const latestPendingProbe = makeLatestPendingProbe(
         deps,
         ctx,
@@ -272,9 +253,9 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
             baseSha: entry.baseSha,
             headIndex: entry.headIndex,
             createdAt: entry.createdAt.toISOString(),
-            // Missing projection row (purged / pre-D10 data): the artifact's
-            // own write time is the honest late fallback — never earlier than
-            // the real generation start, so it can only under-mark.
+            // Missing projection row: the artifact's own write time is the
+            // honest late fallback — never earlier than the real generation
+            // start, so it can only under-mark.
             generatedAt: (
               generatedAtByHead.get(entry.headSha) ?? entry.createdAt
             ).toISOString(),
@@ -285,8 +266,6 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
           };
         }),
       );
-      // Top-level `comparisons` stays the CURRENT revision's — byte-compatible
-      // with BRIEF-21 (same derivations, same generation-pending probe).
       comparisons = revisions.at(-1)?.comparisons ?? {};
     }
     return c.json(
@@ -294,10 +273,9 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
         ...view,
         comparisons,
         ...(revisions === undefined ? {} : { revisions }),
-        // Instance draft policy (BRIEF-64): meta-only (instance-wide, so the
-        // list would repeat it per row for nothing). Drives the own-draft
-        // view's copy — the FE must show the CONFIGURED window, never a
-        // hardcoded duration.
+        // Meta-only (instance-wide, so the list would repeat it per row for
+        // nothing). The FE must show the CONFIGURED window, never a hardcoded
+        // duration.
         draftPolicy: deps.draftPolicy ?? DEFAULT_DRAFT_POLICY,
       },
       200,
@@ -336,12 +314,11 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     return artifactJson(c, row.body);
   });
 
-  // GET brief-context — the brief's repo-config snapshot (ADR 0032 #8):
-  // per-file outcome table + collisions + policy snapshot, for the FE's
-  // source markers, de-emphasis weights, and origin chip. A separate
-  // lean endpoint (never the multi-hundred-KB body) so the `/brief` wire
-  // shape — which the CLI also parses — stays untouched. `repoConfig` is
-  // null for rows predating BRIEF-52.
+  // GET brief-context — the brief's repo-config snapshot: per-file outcome
+  // table + collisions + policy snapshot, for the FE's source markers,
+  // de-emphasis weights, and origin chip. A separate lean endpoint (never the
+  // multi-hundred-KB body) so the `/brief` wire shape — which the CLI also
+  // parses — stays untouched. `repoConfig` is null for older rows.
   app.get("/api/repos/:repoId/pulls/:prNumber/brief-context", async (c) => {
     const query = briefQuerySchema.safeParse({
       base: c.req.query("base"),
@@ -404,7 +381,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   });
 
   // GET delta — the pre-warmed reviewer-personal delta core for
-  // (baseline = checkpoint SHA, head). Reviewer-agnostic artifact (D8);
+  // (baseline = checkpoint SHA, head). Reviewer-agnostic artifact;
   // per-reviewer relevance is derived in PR-meta, not here.
   app.get("/api/repos/:repoId/pulls/:prNumber/delta", async (c) => {
     const query = deltaQuerySchema.safeParse({
@@ -472,7 +449,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
   // GET diff — LIVE proxy of the requested `base...head` span diff (GitHub's
   // compare endpoint) with the viewer's token, cached per session (~60s).
-  // Never persisted (ADR 0016 #10).
+  // Never persisted.
   app.get("/api/repos/:repoId/pulls/:prNumber/diff", async (c) => {
     const query = diffQuerySchema.safeParse({
       base: c.req.query("base"),
@@ -570,25 +547,23 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 // Helpers.
 // ---------------------------------------------------------------------------
 
-/** The PR-meta `comparisons.previousBrief` payload (BRIEF-19 4.1). */
 interface PreviousBriefComparisonView {
   readonly baselineSha: string;
   readonly baselineIndex: number;
   readonly narrativeAvailable: boolean;
 }
 
-/** One revision's Compare availability envelope (BRIEF-24, mirrors top-level). */
+/** One revision's Compare availability envelope; mirrors the top-level shape. */
 interface RevisionComparisons {
   readonly previousBrief?: PreviousBriefComparisonView;
   readonly lastReview?: LastReviewComparisonView;
 }
 
 /**
- * A browsable Brief revision (BRIEF-24). `baseSha` is PER-ENTRY and
- * critical: the base drifts across revisions (base-branch advance /
- * retarget) and the brief GET is an exact `(pr, base, head)` lookup, so a
- * consumer must never derive base from the top-level view. Ordered by
- * `headIndex`; present only when a brief exists.
+ * A browsable Brief revision. `baseSha` is PER-ENTRY and critical: the base
+ * drifts across revisions (base-branch advance / retarget) and the brief GET is
+ * an exact `(pr, base, head)` lookup, so a consumer must never derive base from
+ * the top-level view. Ordered by `headIndex`.
  */
 interface RevisionView {
   readonly headSha: string;
@@ -596,18 +571,16 @@ interface RevisionView {
   readonly headIndex: number;
   readonly createdAt: string;
   /**
-   * When this revision's brief generation STARTED (the generation row's
-   * `created_at`, BRIEF-95) — the conversation cutoff: comments newer than
-   * this postdate the brief. Falls back to `createdAt` (the artifact write,
-   * strictly later) when the projection row is gone.
+   * When this revision's brief generation STARTED — the conversation cutoff:
+   * comments newer than this postdate the brief. Falls back to `createdAt` (the
+   * artifact write, strictly later) when the projection row is gone.
    */
   readonly generatedAt: string;
   readonly comparisons: RevisionComparisons;
 }
 
-// Span-existence joins. Marks / delta / narrative listings are keyed by their
-// natural SHA pair; a `Set` of packed keys turns per-revision availability into
-// an in-memory lookup (space separator — SHAs are hex, never contain it).
+// Span-existence joins: a `Set` of packed keys turns per-revision availability
+// into an in-memory lookup (space separator — SHAs are hex, never contain it).
 const SPAN_KEY_SEP = " ";
 function spanKey(baseline: string, head: string): string {
   return `${baseline}${SPAN_KEY_SEP}${head}`;
@@ -624,13 +597,12 @@ function narrativeSpanSet(
 }
 
 /**
- * Previous-brief comparison availability for a GIVEN briefed head. The previous
- * briefed head is the highest-index brief BELOW this one whose head differs
- * (the worker's own baseline rule) — restricting to a lower index is what makes
- * this correct for a HISTORICAL head, not only the latest. Offered only when
- * the mechanical marks row exists (marks are the sole highlight truth, ADR
- * 0024); the narrative only adds callout text, so its absence downgrades
- * `narrativeAvailable` rather than withdrawing the offer.
+ * Previous-brief comparison availability for a GIVEN briefed head: the
+ * highest-index brief BELOW this one whose head differs (the worker's own
+ * baseline rule) — restricting to a lower index is what makes this correct for
+ * a HISTORICAL head, not only the latest. Offered only when the mechanical
+ * marks row exists (marks are the sole highlight truth); a missing narrative
+ * only downgrades `narrativeAvailable`.
  */
 function derivePreviousBriefComparison(
   target: BriefSpanRow,
@@ -668,8 +640,8 @@ function isNonTerminal(status: GenerationStatus): boolean {
 }
 
 /**
- * Why `lastReview` is unavailable despite a recorded checkpoint (BRIEF-21).
- * API-response vocabulary only — never stored, so no DB CHECK/migration.
+ * Why `lastReview` is unavailable despite a recorded checkpoint. API-response
+ * vocabulary only — never stored, so no DB CHECK/migration.
  */
 export const LastReviewUnavailableReason = {
   /** No marks and no live generation — GC'd baseline / rewritten history. */
@@ -682,11 +654,10 @@ export type LastReviewUnavailableReason = ValueOf<
 >;
 
 /**
- * The PR-meta `comparisons.lastReview` union (BRIEF-21): the reviewer-personal
- * "since MY last review" comparison. Marks existence IS the offer (ADR 0024);
- * the delta core is optional richness (`deltaAvailable` — the worker skips it
- * on huge spans, "absence is the signal"). Structurally compatible with the
- * local path's shape (`brief.server.ts` `buildComparisonAvailability`).
+ * The PR-meta `comparisons.lastReview` union: the reviewer-personal "since MY
+ * last review" comparison. Marks existence IS the offer; the delta core is
+ * optional richness (`deltaAvailable` — the worker skips it on huge spans).
+ * Structurally compatible with the local path's shape.
  */
 export type LastReviewComparisonView =
   | {
@@ -707,13 +678,12 @@ interface CheckpointBaseline {
  * permanently BASELINE_UNAVAILABLE — the one DB read the `lastReview`
  * derivation may need. Wired for the LATEST head only (history is never
  * actively warming) and MEMOIZED per baseline, so at most one generation query
- * per PR-meta request even when duplicate rows share the current head, never
- * one per revision. Two pending signals, because production writes NO
- * delta-kind projection rows today (warmDeltaCores runs inside the brief job —
- * codex review on PR #45): (a) the current head's BRIEF generation is still
- * non-terminal — marks land before it succeeds, so its warming window IS the
- * delta's; (b) a non-terminal delta-kind row for the exact span, kept for when
- * delta generation gets its own projection.
+ * per request. Two pending signals, because production writes NO delta-kind
+ * projection rows today (delta warming runs inside the brief job): (a) the
+ * current head's BRIEF generation is still non-terminal — marks land before it
+ * succeeds, so its warming window IS the delta's; (b) a non-terminal
+ * delta-kind row for the exact span, kept for when delta generation gets its
+ * own projection.
  */
 function makeLatestPendingProbe(
   deps: AuthRouteDeps,
@@ -753,14 +723,13 @@ function makeLatestPendingProbe(
 
 /**
  * Derive `lastReview` at a GIVEN head from the REQUESTING reviewer's checkpoint.
- * Absent (undefined) when there is nothing to explain: no checkpoint (the
- * reviewer never submitted) or the checkpoint IS this head (empty span — up to
- * date). Marks existence IS the offer (ADR 0024); row existence also encodes
- * DIRECTION — the worker only warms forward spans, so a checkpoint newer than
- * this head simply has no marks and offers nothing, no special-casing.
+ * Absent when there is nothing to explain: no checkpoint, or the checkpoint IS
+ * this head (empty span). Marks existence IS the offer; row existence also
+ * encodes DIRECTION — the worker only warms forward spans, so a checkpoint
+ * newer than this head simply has no marks and offers nothing.
  *
  * `pendingProbe` is supplied for the latest head only; for a historical head a
- * missing marks span is BASELINE_UNAVAILABLE outright (no per-revision query).
+ * missing marks span is BASELINE_UNAVAILABLE outright.
  */
 async function deriveLastReviewComparison(
   headSha: string,
@@ -777,8 +746,7 @@ async function deriveLastReviewComparison(
   if (markSpans.has(spanKey(baselineSha, headSha))) {
     // Deterministic: `briefs` is headIndex-ascending, so `find` resolves the
     // LOWEST index when duplicate rows share the checkpoint SHA (a retarget
-    // re-brief) — the same resolution BRIEF-21's top-level derivation used
-    // (byte-compat), and either duplicate labels the same commit.
+    // re-brief) — either duplicate labels the same commit.
     const baselineIndex = briefs.find(
       (row) => row.headSha === baselineSha,
     )?.headIndex;

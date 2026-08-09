@@ -1,10 +1,9 @@
-// POST /api/generate — brief an arbitrary PR URL with the VIEWER's token
-// (BRIEF-97). Session-gated only (`sessionLayer`, no per-repo gate): the
-// target repo comes from the pasted URL, not from an installation — the
-// viewer-token GitHub fetch inside the engine IS the access check. Its denial
-// posture is a uniform 404: FORBIDDEN and NOT_FOUND are indistinguishable to
-// the caller (no existence leak), mirroring the cold-denial posture of the
-// repo-gated routes.
+// POST /api/generate — brief an arbitrary PR URL with the VIEWER's token.
+// Session-gated only (`sessionLayer`, no per-repo gate): the target repo comes
+// from the pasted URL, not from an installation — the viewer-token GitHub fetch
+// inside the engine IS the access check. Its denial posture is a uniform 404:
+// FORBIDDEN and NOT_FOUND are indistinguishable to the caller (no existence
+// leak), mirroring the cold-denial posture of the repo-gated routes.
 //
 // The engine is an injected port (`AppDeps.urlBriefEngine`): the web
 // startup wiring supplies the octokit-PrSource + file-backed generation
@@ -72,11 +71,10 @@ export interface UrlBriefEngine {
 const bodySchema = z.object({ url: z.string().min(1).max(500) });
 
 /**
- * Collapse concurrent generations for the same PR-head into one run — the
- * local-loop stand-in for a Postgres advisory lock (ADR 0006 #6). Joining a
- * flight is access-safe: every caller proved they can READ the PR via their
- * own `fetchHeadSha` before reaching the flight, and the shared result is a
- * briefId, not viewer state. A rejected run frees the key for retry.
+ * Collapse concurrent generations for the same PR-head into one run. Joining a
+ * flight is access-safe: every caller proved they can READ the PR via their own
+ * `fetchHeadSha` before reaching the flight, and the shared result is a briefId,
+ * not viewer state. A rejected run frees the key for retry.
  */
 function createSingleFlight<T>() {
   const inFlight = new Map<string, Promise<T>>();
@@ -100,8 +98,8 @@ function errorJson(
 // Runtime clamp on the ONE engine-authored string that reaches a response
 // body. The port contract says config messages carry env-var NAMES only, but
 // the engine is an injected, swappable implementation — a TS comment is not a
-// trust boundary; this route is. First line, URL-shaped substrings redacted
-// (`sanitizeGenerationError` precedent), bounded length, generic fallback.
+// trust boundary; this route is. First line, URL-shaped substrings redacted,
+// bounded length, generic fallback.
 const CONFIG_MESSAGE_MAX = 300;
 const URL_SHAPED = /\w+:\/\/\S+/g;
 
@@ -177,9 +175,9 @@ export function generateRoute(
       return errorJson(c, "unauthorized", 401);
     }
 
-    // One refresh-once budget per REQUEST, shared across every engine call
-    // (gated-route rule): the token can expire between the head fetch and the
-    // generation's own reads.
+    // One refresh-once budget per REQUEST, shared across every engine call:
+    // the token can expire between the head fetch and the generation's own
+    // reads.
     let refreshSpent = false;
     const spendRefresh = async (): Promise<boolean> => {
       if (refreshSpent) {

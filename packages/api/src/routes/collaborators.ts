@@ -1,4 +1,4 @@
-// The collaborators surface (BRIEF-94): one gated live-fetch GET —
+// The collaborators surface: one gated live-fetch GET —
 // GET /api/repos/:repoId/collaborators — the @mention autocomplete pool.
 //
 // Fetched from GitHub over the package's GraphQL primitive with the
@@ -6,11 +6,10 @@
 // shared token means one rate budget and ONE cache entry per repo). 60s
 // positive TTL, response `no-store`, nothing persisted.
 //
-// GUARD — `viewerCanPush` (grill decision 4): GitHub itself denies the
-// roster to viewers without push access; serving it on the installation
-// token would otherwise leak logins + names to any read-access viewer (on a
-// public repo, anyone). Non-push viewers get the gate's 404 posture BEFORE
-// any GitHub call; the FE treats it as an empty pool.
+// GUARD — `viewerCanPush`: GitHub itself denies the roster to viewers without
+// push access; serving it on the installation token would otherwise leak
+// logins + names to any read-access viewer (on a public repo, anyone).
+// Non-push viewers get the gate's 404 posture BEFORE any GitHub call.
 import { Hono, type Context } from "hono";
 import { GitHubApiErrorCode } from "github";
 import type { InstallationId, RepoId } from "persistence";

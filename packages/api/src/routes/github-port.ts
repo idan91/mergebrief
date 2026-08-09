@@ -1,9 +1,8 @@
-// The installation-octokit interface (BRIEF-25; widened by BRIEF-94): every
-// installation-token read this package performs enters through this port —
-// injected by the startup wiring over the App-JWT client, substituted in
-// tests. This package never constructs App auth itself. A shared installation
-// token means one rate budget and one cache entry per resource, reused across
-// viewers (ADR 0027) — viewer tokens would fragment both.
+// The installation-octokit interface: every installation-token read this
+// package performs enters through this port — injected by the startup wiring
+// over the App-JWT client, substituted in tests. This package never constructs
+// App auth itself. A shared installation token means one rate budget and one
+// cache entry per resource, reused across viewers.
 import {
   fetchPullRequestConversation,
   getInstallationClient,
@@ -32,11 +31,10 @@ export interface InstallationGitHubPort {
 }
 
 /**
- * The production port over `github`'s App-JWT client. Minting the
- * installation token talks to GitHub and can reject — that rejection must
- * become a sanitized Result (the route's 502), never an unhandled 500
- * outside the no-store policy (codex round 1). The static messages carry
- * nothing from the thrown error.
+ * Minting the installation token talks to GitHub and can reject — that
+ * rejection must become a sanitized Result (the route's 502), never an
+ * unhandled 500 outside the no-store policy. The static messages carry nothing
+ * from the thrown error.
  */
 function mintFailure(context: string): { ok: false; error: GitHubApiError } {
   return {
