@@ -166,7 +166,7 @@ export const PrRefSchema = z.object({
     .enum(PrLifecycleStates)
     .optional()
     .describe(
-      "PR state at generation time (snapshot by design — BRIEF-103). CLI-assigned, optional: pre-stamping artifacts omit it.",
+      "PR state at generation time (snapshot by design). CLI-assigned, optional: pre-stamping artifacts omit it.",
     ),
   draft: z
     .boolean()
@@ -571,19 +571,19 @@ export const BriefSchema = z.object({
     .array(z.string())
     .optional()
     .describe(
-      "warning lines the generation pipeline emitted (salvage, feedback retry, served-model mismatch). CLI-collected, never model-produced (BRIEF-11 UI surfacing).",
+      "warning lines the generation pipeline emitted (salvage, feedback retry, served-model mismatch). CLI-collected, never model-produced.",
     ),
   anchor: AnchorSchema.optional().describe(
-    "cross-revision anchor origin (BRIEF-143): anchored | fresh-restart(reason) | none. CLI-assigned, never model-produced; optional on the read path — pre-feature briefs lack it.",
+    "cross-revision anchor origin: anchored | fresh-restart(reason) | none. CLI-assigned, never model-produced; optional on the read path — pre-feature briefs lack it.",
   ),
   anchoring: AnchoringDetailSchema.optional().describe(
-    "internal per-group carried-vs-regenerated stamp for anchored generations (BRIEF-143). Pipeline-assigned, never model-produced, not user-visible; present only on anchored briefs.",
+    "internal per-group carried-vs-regenerated stamp for anchored generations. Pipeline-assigned, never model-produced, not user-visible; present only on anchored briefs.",
   ),
   lengthViolations: z
     .array(LengthViolationSchema)
     .optional()
     .describe(
-      "text fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
+      "text fields exceeding the length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
     ),
   summary: z
     .string()
@@ -602,7 +602,7 @@ export const BriefSchema = z.object({
       "optional reading order over changeGroups (ADR 0025): a strict permutation of their ids — each group exactly once, no revisits — in foundation-first order (schema/types → logic → call sites/wiring), falling back to context-first/churn-last for independent groups. Omit when no clear order applies. Mechanically validated post-parse as a permutation of the emitted group ids; dropped with a warning (not a hard failure) if it isn't.",
     ),
   intentCheck: IntentCheckSchema.optional().describe(
-    "the ticket-gated intent check (BRIEF-54). Optional on the read path only — pre-feature briefs lack it; generation always produces it (required on BriefGenerationSchema).",
+    "the ticket-gated intent check. Optional on the read path only — pre-feature briefs lack it; generation always produces it (required on BriefGenerationSchema).",
   ),
 });
 
@@ -685,14 +685,12 @@ export const DeltaBriefSchema = z.object({
   generationWarnings: z
     .array(z.string())
     .optional()
-    .describe(
-      "warning lines the generation pipeline emitted. CLI-collected (BRIEF-11 UI surfacing).",
-    ),
+    .describe("warning lines the generation pipeline emitted. CLI-collected."),
   lengthViolations: z
     .array(LengthViolationSchema)
     .optional()
     .describe(
-      "text fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
+      "text fields exceeding the length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
     ),
   summary: z
     .string()
@@ -784,13 +782,13 @@ export const RevisionNarrativeSchema = z
       .array(z.string())
       .optional()
       .describe(
-        "warning lines the generation pipeline emitted. CLI-collected (BRIEF-11 UI surfacing).",
+        "warning lines the generation pipeline emitted. CLI-collected.",
       ),
     lengthViolations: z
       .array(LengthViolationSchema)
       .optional()
       .describe(
-        "text fields exceeding the BRIEF-148 length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
+        "text fields exceeding the length caps (warn-only floor). Pipeline-assigned, never model-produced; absent when everything fits.",
       ),
     overview: z
       .string()
