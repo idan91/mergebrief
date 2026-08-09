@@ -81,8 +81,8 @@
     background: var(--color-background);
     color: var(--text);
 
-    // Comments are text-first (grill decision 6): the body composes in the
-    // UI sans; code stays mono inside fences and the suggestion diff card.
+    // Comments are text-first: the body composes in the UI sans; code stays
+    // mono inside fences and the suggestion diff card.
     font-family: var(--sans);
     font-size: var(--font-size-lg);
     line-height: 1.6;

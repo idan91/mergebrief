@@ -12,10 +12,9 @@ import styles from "./Markdown.module.scss";
 export interface MarkdownProps {
   content: string;
   /**
-   * Render ```suggestion fences as Suggested-change cards (comment bodies
-   * only — model/brief text never carries them). Addition rows only: the
-   * fence holds just the replacement text; the old side needs the diff
-   * context an anchored consumer supplies via MarkdownPreview.
+   * Render ```suggestion fences as Suggested-change cards. Addition rows
+   * only: the fence holds just the replacement text; the old side needs the
+   * diff context an anchored consumer supplies via MarkdownPreview.
    */
   renderSuggestions?: boolean;
 }
@@ -31,10 +30,9 @@ export function Markdown({
   return (
     // dir="auto": RTL-first content right-aligns, matching the composer.
     <div className={styles["markdown"]} dir="auto">
-      {/* Model/user-authored markdown must not inject page-level headings
-          into the document outline (every page owns its single h1): h1/h2
-          demote to h3/h4 — exactly the levels this component's stylesheet
-          designs for. */}
+      {/* Authored markdown must not inject page-level headings into the
+          document outline (every page owns its single h1), so h1/h2 demote
+          to h3/h4. */}
       <ReactMarkdown
         components={{ h1: "h3", h2: "h4" }}
         remarkPlugins={[remarkGfm]}

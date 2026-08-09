@@ -30,10 +30,9 @@ export function stripSuggestionBlocks(markdown: string): string {
 }
 
 /**
- * Addition-only rows for a suggestion WITHOUT an anchor (comments pulled
- * from GitHub): the fence carries only the replacement text — the old side
- * lives in the PR diff context, which the conversation read does not fetch
- * (diffHunk; recorded on the conversation-backend ticket).
+ * Addition-only rows for a suggestion WITHOUT an anchor: the fence carries
+ * only the replacement text, and the old side lives in the PR diff context
+ * that the conversation read does not fetch.
  */
 export function buildSuggestionAdditionRows(
   suggestionText: string,

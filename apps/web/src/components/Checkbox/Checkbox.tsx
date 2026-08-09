@@ -1,11 +1,8 @@
-// A checkbox drawn in the app's own grammar (line, radius-sm, accent fill)
-// rather than the platform's, which arrives at whatever size and blue the OS
-// picked and ignores the token scale entirely.
-//
-// The native input is still the control — it is visually replaced, never
-// swapped for a div: keyboard behaviour, form semantics, the checked state a
-// screen reader reads, and `:focus-visible` all come free, and the drawn box
-// is a sibling that reacts to `:checked`.
+// A checkbox drawn in the app's own grammar rather than the platform's. The
+// native input is still the control — visually replaced, never swapped for a
+// div, so keyboard behaviour, form semantics, the screen-reader checked state
+// and `:focus-visible` all come free; the drawn box is a sibling reacting to
+// `:checked`.
 import type { ReactNode } from "react";
 
 import styles from "./Checkbox.module.scss";

@@ -18,11 +18,10 @@
   }
 
   .box {
-    // Earned oddities (ADR 0037 #5). The dialog fill sits between
-    // --color-surface-1 (#111114) and --color-surface-2 (#15151a) — a modal
-    // reads as its own plane, not a panel; fold candidate if that stops being
-    // true. The textarea's focus border is a one-off lift above
-    // --color-outline-2 (#2b2b32), scoped to the focused state.
+    // Off-scale: the dialog fill sits between --color-surface-1 and
+    // --color-surface-2 so a modal reads as its own plane, not a panel. The
+    // textarea's focus border is a one-off lift above --color-outline-2,
+    // scoped to the focused state.
     --box-fill: #131316;
     --textarea-focus-border: #45454f;
 
@@ -66,9 +65,8 @@
   }
 }
 
-// Shared dialog-content vocabulary (formerly ModalContent.module.scss —
-// a stylesheet named for a component that never existed): the Modal owns
-// its content styling surface; feature modals import these classes.
+// Shared dialog-content vocabulary: the Modal owns its content styling
+// surface; feature modals import these classes.
 @layer components {
   .copy {
     margin-block: functions.to-rem(10px) functions.to-rem(14px);
@@ -170,7 +168,6 @@
     margin-block-start: functions.to-rem(18px);
   }
 
-  /* Opt-in "post my drafts before marking ready" checkbox (BRIEF-43). */
   .postDraftsToggle {
     display: flex;
     align-items: center;

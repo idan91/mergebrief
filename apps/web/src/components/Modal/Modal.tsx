@@ -4,7 +4,7 @@ import styles from "./Modal.module.scss";
 
 // Focusable elements inside the dialog box, for the Tab trap. `aria-disabled`
 // controls are deliberately NOT excluded — they stay focusable so they keep
-// announcing why they are off (the MarkReadyModal/SubmitModal pattern).
+// announcing why they are off.
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -34,13 +34,10 @@ export function Modal({
   const triggerRef = useRef<HTMLElement | null>(null);
 
   // Move focus into the dialog on open; return it to the trigger on close.
-  // The return is a deferred FALLBACK, not a claim: it runs a microtask after
-  // this commit's effects, so a close path that re-homes focus itself — a
-  // jump-to-flag landing on its target, or the mark-ready flow's rescues of
-  // dropped focus onto the terminal slot — always wins. Only focus the close
-  // DROPPED (on <body>, where `inert` expels it) comes back to the trigger;
-  // focus stranded inside the closed box (inert-less environments) is left
-  // for the overlay's own rescue, which keys on exactly that state.
+  // The return is a deferred FALLBACK: it runs a microtask after this commit's
+  // effects, so a close path that re-homes focus itself always wins. Only
+  // focus the close DROPPED (on <body>, where `inert` expels it) comes back;
+  // focus stranded inside the closed box is left for the overlay's own rescue.
   useEffect(() => {
     if (!open) return;
     triggerRef.current =

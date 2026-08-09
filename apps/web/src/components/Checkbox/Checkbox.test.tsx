@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-// The app-styled checkbox: the box is DRAWN, but the control underneath is
-// still a real `<input type="checkbox">` — visually replaced, never swapped
-// for a div. These cases pin the parts a hand-rolled div would lose.
+// These cases pin the parts a hand-rolled div would lose: the box is drawn,
+// but the control underneath is still a real `<input type="checkbox">`.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

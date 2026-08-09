@@ -6,9 +6,8 @@ export interface SuggestionCardProps {
 }
 
 /**
- * The one "Suggested change" card (BRIEF-56): anchored consumers pass
- * del+add rows with line numbers; anchor-less consumers (comments pulled
- * from GitHub) pass addition-only rows and the number columns collapse.
+ * Anchored consumers pass del+add rows with line numbers; anchor-less
+ * consumers pass addition-only rows and the number columns collapse.
  */
 export function SuggestionCard({ rows }: SuggestionCardProps) {
   const withNumbers = rows.some(

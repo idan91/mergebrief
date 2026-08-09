@@ -1,7 +1,6 @@
-// Toolbar icon map: each glyph is its own .svg asset under ./icons/
-// (imported as a component via vite-plugin-svgr so currentColor inherits);
-// this module only composes them. All decorative — every toolbar button
-// carries its own aria-label.
+// Each glyph is its own .svg under ./icons/, imported as a component via
+// vite-plugin-svgr so currentColor inherits. All decorative — every toolbar
+// button carries its own aria-label.
 import BoldIcon from "./icons/bold.svg?react";
 import BulletedListIcon from "./icons/bulleted-list.svg?react";
 import CodeIcon from "./icons/code.svg?react";

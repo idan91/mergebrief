@@ -4,39 +4,29 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-// Guard test for ADR 0037 decision 8: an undefined CSS custom property is
-// invisible at build time — the declaration silently drops (or renders its
-// fallback, which is how var(--accent, Highlight) shipped OS colors instead of
-// the design blue). Nothing in the toolchain catches it, so this test does:
-// every var(...) custom-property reference in apps/web must resolve to a
-// definition.
+// An undefined CSS custom property is invisible at build time — the
+// declaration silently drops, or renders its fallback. Nothing else in the
+// toolchain catches it, so this test does: every var(...) reference in
+// apps/web must resolve to a definition.
 //
 // A custom property counts as defined when it is
 //   1. declared in src/styles/tokens.scss (the global token surface), or
 //   2. registered with @property in any global stylesheet, or
-//   3. published from non-test TS/TSX at runtime — either a setProperty call
-//      or a style-object key (the focus-banner height and the diff row count
-//      reach CSS this way), or
-//   4. declared in the consuming stylesheet itself (component-local tokens,
-//      such as the per-variant color Badge.module.scss sets).
+//   3. published from non-test TS/TSX at runtime — a setProperty call or a
+//      style-object key, or
+//   4. declared in the consuming stylesheet itself (component-local tokens).
 //
-// (4) is file-scoped rather than selector-scoped: proving an *ancestor*
-// selector actually matches would need a full cascade model, and the value of
-// this guard is catching names that exist nowhere at all.
-//
-// _*.scss partials are the one exception to file scoping: a mixin body is
-// inlined into whichever rule includes it, so a partial legitimately reads
-// custom properties its callers supply (rail-scroller documents its scroller
-// background as a caller-set mixin parameter). Rather than model @use/@include
-// resolution, partials are checked against every declaration in the app —
-// still red on a name that exists nowhere, which is the bug class this guards.
+// (4) is file-scoped, not selector-scoped: proving an ancestor selector
+// actually matches would need a full cascade model, and the bug class here is
+// names that exist nowhere at all. _*.scss partials are the exception — a
+// mixin body is inlined into its caller's rule, so a partial legitimately
+// reads properties its callers supply; partials are checked against every
+// declaration in the app.
 //
 // The TS scan is deliberately narrow, because a loose one masks the very bug
 // it guards: comments are stripped, *.test.ts(x) is excluded, and only
-// setProperty arguments and style-object keys count. Reading a property back
-// (getPropertyValue), naming one in a test selector, or mentioning one in
-// text is not a definition. For the same reason, no comment in this file may
-// carry a real token name inside quotes or backticks.
+// setProperty arguments and style-object keys count. For the same reason, no
+// comment in this file may carry a real token name inside quotes or backticks.
 
 const STYLES_DIR = fileURLToPath(new URL(".", import.meta.url));
 const SRC_ROOT = resolve(STYLES_DIR, "..");

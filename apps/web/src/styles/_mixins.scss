@@ -1,17 +1,9 @@
 @use "functions" as functions;
 
-// ONE focus ring, app-wide (owner ruling, 2026-07-26). The pre-sweep code
-// carried eleven per-site offset/width overrides; every one was checked
-// against its actual geometry and none was forced by a clipping ancestor or
-// a viewport edge, so the variation was drift, not design. The mixins take
-// NO geometry parameters on purpose — a parameter is how the drift regrows.
-// A site that genuinely needs a different ring re-adds an argument here with
-// the clipping evidence in its commit, and nowhere else.
-// `focus-ring` omits the state selector, for the sites that paint the ring on
-// a SIBLING of the focused control (`.input:focus-visible + .track`) or that
-// add their own declarations alongside it; everything else uses
-// `focus-visible`. Centralising both is what restores the prefers-contrast
-// width bump that every hand-rolled outline was missing.
+// ONE focus ring, app-wide. No geometry parameters on purpose — a parameter
+// is how per-site drift regrows. `focus-ring` omits the state selector for
+// sites that paint the ring on a SIBLING of the focused control
+// (`.input:focus-visible + .track`); everything else uses `focus-visible`.
 @mixin focus-ring {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
@@ -28,9 +20,8 @@
   }
 }
 
-// Reserved for the future responsiveness pass (owner call, 2026-07-26).
-// Existing media queries are hand-authored range-syntax; whether these become
-// the responsive vocabulary gets decided when that work is tackled.
+// Unused: existing media queries are hand-authored range-syntax. Reserved for
+// a future responsiveness pass.
 @mixin for-size($size, $limit-type: min, $size-type: width) {
   @if $size-type == width {
     @media (#{$limit-type}-width: $size) {
@@ -50,14 +41,11 @@
 }
 
 // Vertical scroll region inside a sticky rail. Horizontal scrolling is hard-
-// disabled (the styled classic scrollbar consumes inline space, which would
-// otherwise trip overflow-x: auto into a horizontal bar). The always-visible
-// thin scrollbar plus scroll-shadows make cut-off content read as "more
-// below": the shadows sit at the viewport edges (background-attachment:
-// scroll) while solid covers scroll with the content (attachment: local), so
-// each shadow only shows once content has actually moved past that edge.
-// The caller must set --scroller-bg to the surface the scroller sits on —
-// the covers paint over it.
+// disabled: the styled scrollbar consumes inline space, which would otherwise
+// trip overflow-x: auto into a horizontal bar. The shadows sit at the viewport
+// edges (attachment: scroll) while the solid covers scroll with the content
+// (attachment: local), so each shadow shows only past that edge.
+// The caller must set --scroller-bg to the surface the scroller sits on.
 @mixin rail-scroller {
   min-block-size: 0;
   overflow: hidden auto;

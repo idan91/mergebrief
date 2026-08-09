@@ -2,9 +2,8 @@
 
 @layer components {
   .footer {
-    // Earned oddity: the quietest text in the app — between --color-text-3
-    // (#8a8a93, the readable floor) and --color-text-4 (#3b3b43, the
-    // decorative ghost tier). Legibility here is deliberately marginal.
+    // Off-scale: sits between --color-text-3 (the readable floor) and
+    // --color-text-4 (ghost). Legibility here is deliberately marginal.
     --footer-text: #4a4a52;
 
     max-inline-size: functions.to-rem(980px);

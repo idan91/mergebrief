@@ -6,7 +6,7 @@ import { Markdown } from "./Markdown";
 
 afterEach(cleanup);
 
-describe("Markdown — suggestion fences (BRIEF-56)", () => {
+describe("Markdown — suggestion fences", () => {
   const body = "Try this:\n```suggestion\nreturn next;\n```";
 
   it("renders a Suggested-change card when opted in (comment bodies)", () => {

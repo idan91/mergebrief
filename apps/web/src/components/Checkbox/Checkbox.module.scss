@@ -37,8 +37,8 @@
     pointer-events: none;
   }
 
-  /* Square-with-a-hint-of-radius on a dark ground — the app's own control
-     grammar (1px line, surface fill), NOT the platform's rounded blue tile. */
+  /* The app's own control grammar (1px line, surface fill), not the
+     platform's rounded blue tile. */
   .box {
     position: relative;
     flex-shrink: 0;
@@ -53,15 +53,9 @@
   }
 
   /* The tick is drawn, not typed: a glyph would inherit the font stack and
-     land differently per platform — the exact drift this component exists to
-     remove. Two borders rotated into an L, centred on the box's own centre
-     (the rotation pivots around the pseudo-element's middle, so nudging
-     `top`/`left` by hand lands it off by the tick's own asymmetry). The -1px
-     Y bias is measured, not guessed: the ink of an L sits in the element's
-     bottom-right, so rotating it about the element centre leaves the MARK
-     low — 1.5px up equalises the gaps above and below at render (checked at
-     20x). Strokes are 1.5px to sit with the app's 1px linework rather than
-     the platform's heavy tick. */
+     land differently per platform. Two borders rotated into an L; the -1.5px
+     Y bias is measured — an L's ink sits bottom-right, so rotating about the
+     element centre otherwise leaves the mark low. */
   .box::after {
     content: "";
     position: absolute;
@@ -79,9 +73,8 @@
       transform 0.12s;
   }
 
-  /* Checked is the same vocabulary the filter chips use for pressed: accent
-     line, raised ground, accent mark. A solid accent fill with a knocked-out
-     tick is the native look this component replaces. */
+  /* Checked uses the same vocabulary the filter chips use for pressed:
+     accent line, raised ground, accent mark. */
   .input:checked + .box {
     border-color: var(--color-accent);
     background: var(--color-surface-3);

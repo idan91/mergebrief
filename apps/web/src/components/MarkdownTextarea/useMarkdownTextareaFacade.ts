@@ -36,8 +36,7 @@ export interface MarkdownTextareaFacadeArgs {
   /**
    * A read-only surface must be INERT, not just visually locked: toolbar
    * clicks and formatting shortcuts still fire on a read-only textarea, and
-   * a mid-flight mutation would diverge from what the pending request ships
-   * (capture-at-initiation rule).
+   * a mid-flight mutation would diverge from what the pending request ships.
    */
   readOnly: boolean;
   /**

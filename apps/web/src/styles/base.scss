@@ -37,12 +37,9 @@
     color: inherit;
   }
 
-  // The designed heading scale (owner call 2026-07-27): heading LEVEL is
-  // outline semantics — pick it for the document structure, never for the
-  // size. This scale is only the unstyled DEFAULT so a new heading can never
-  // explode to UA sizes; overriding per-site with tokens (as almost every
-  // existing heading does, from a 13px h1 in the Brief header to a 20px h2
-  // on a group card) is expected and normal.
+  // Heading LEVEL is outline semantics — pick it for document structure,
+  // never for size. This scale is only the unstyled default; overriding
+  // per-site with tokens is expected.
   h1,
   h2,
   h3,
@@ -81,11 +78,10 @@
     @include mixins.focus-ring;
   }
 
-  // The routes programmatically focus the main region on state swaps to
-  // re-anchor screen readers/keyboard (BRIEF-19). The focus is needed; the
-  // ring is not — it's a reading region, not an interactive control, and
-  // browsers treat programmatic focus on load as focus-visible, painting a
-  // page-wide outline (BRIEF-21 smoke).
+  // Routes programmatically focus the main region on state swaps to re-anchor
+  // screen readers/keyboard. The focus is needed; the ring is not — browsers
+  // treat programmatic focus on load as focus-visible and would paint a
+  // page-wide outline on a reading region.
   main:focus-visible {
     outline: none;
   }
@@ -178,9 +174,8 @@
       }
     }
 
-    /* In-flow control rows (filter bars, toolbars) rather than the modal
-       footers .btn was sized for — same button grammar, tightened so it can
-       sit beside chips without dominating them. */
+    /* For in-flow control rows (filter bars, toolbars) rather than the modal
+       footers .btn is sized for: same grammar, tightened to sit beside chips. */
     &.compact {
       padding-block: functions.to-rem(4px);
       padding-inline: functions.to-rem(10px);
@@ -189,10 +184,9 @@
       font-weight: 500;
     }
 
-    /* Spent, not gone: these controls disable themselves ON click, and the
-       browser blurs a focused element the moment it becomes `disabled` — so
-       they carry aria-disabled and no-op instead, and this is what that
-       looks like. */
+    /* These controls disable themselves ON click, and a browser blurs a
+       focused element the moment it becomes `disabled` — so they carry
+       aria-disabled and no-op instead. */
     &[aria-disabled="true"] {
       border-color: var(--line);
       color: var(--dim);
@@ -287,10 +281,8 @@
     }
   }
 
-  // Focus mode (Z, BriefPage): isolate the group holding the active chunk, and
-  // within it the active chunk only. data-active-group is set by StoryView on
-  // the active group (only in focus mode); data-current on the active chunk's
-  // ChunkCard <article>. No :has() — it would re-run on every scroll-spy
+  // Focus mode isolates the group holding the active chunk, and within it the
+  // active chunk only. No :has() — it would re-run on every scroll-spy
   // data-current toggle and tank scroll performance.
   [data-zen="on"] .story-group:not([data-active-group]) {
     display: none;
@@ -300,13 +292,9 @@
     display: none;
   }
 
-  // The surviving group collapses from the split grid to a single centered
-  // reading column, so entering focus visibly transforms the page even when the
-  // focused chunk was already at the top of the viewport.
   // Fixed track lengths (not minmax) so the collapse animates:
   // grid-template-columns only interpolates between structurally identical
-  // track lists of plain lengths. Reduced-motion zeroes the transition
-  // globally (see the prefers-reduced-motion block below).
+  // track lists of plain lengths. Reduced-motion zeroes the transition below.
   [data-zen="on"] .story-group {
     display: grid;
     grid-template-columns: minmax(0, 880px) 280px;

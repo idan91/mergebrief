@@ -14,8 +14,8 @@ import { exceedsCap, parseCapPx } from "./utils";
 const CAP_FALLBACK_PX = 200;
 const ROOT_FONT_SIZE_FALLBACK_PX = 16;
 
-// csstype's CSSProperties has no `--*` index; a typed extension (the
-// DiffTable/Header pattern) keeps the custom property cast-free.
+// csstype's CSSProperties has no `--*` index; a typed extension keeps the
+// custom property cast-free.
 interface ExpandableContentStyle extends CSSProperties {
   "--expandable-content-text-full"?: string;
 }

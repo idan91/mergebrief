@@ -57,8 +57,8 @@ export interface MarkdownTextareaProps {
   /**
    * Candidate pool for `@`-mention autocomplete; empty/absent disables it.
    * The pool is injected (thread participants, repo collaborators) — the
-   * component never fetches. Pool order is the ranking (BRIEF-94
-   * decision 6): the hook prefix-filters in array order and caps the list.
+   * component never fetches. Pool order IS the ranking: the hook
+   * prefix-filters in array order and caps the list.
    */
   mentionCandidates?: readonly MentionCandidate[] | undefined;
   /** Preview-tab renderer; defaults to the shared Markdown component. */
@@ -78,10 +78,10 @@ const MODE_LABELS: Record<MarkdownTextareaMode, string> = {
 };
 
 /**
- * The one markdown composing surface (BRIEF-56): Write/Preview tabs, a
- * formatting toolbar, and keyboard shortcuts around a plain controlled
- * textarea. Consumers own the value, submission, error copy, and any
- * surrounding card chrome; this component owns editing affordances only.
+ * The one markdown composing surface: Write/Preview tabs, a formatting
+ * toolbar, and keyboard shortcuts around a plain controlled textarea.
+ * Consumers own the value, submission, error copy, and surrounding chrome;
+ * this component owns editing affordances only.
  */
 export function MarkdownTextarea({
   value,
@@ -185,10 +185,9 @@ export function MarkdownTextarea({
       <p className={styles["empty"]}>Nothing to preview.</p>
     );
 
-  // Root-level shortcut scope — these must work from the textarea, the
-  // tabs, AND the focused preview panel (a textarea-only handler would die
-  // the moment the write panel hides): Cmd/Ctrl+Enter submit,
-  // Cmd/Ctrl+Shift+P mode toggle, Escape to the consumer's cancel/blur.
+  // Root-level shortcut scope — these must work from the textarea, the tabs,
+  // AND the focused preview panel; a textarea-only handler would die the
+  // moment the write panel hides.
   const onRootKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     // IME commit/cancel keys are never editor commands.
     if (event.nativeEvent.isComposing) return;
@@ -223,9 +222,7 @@ export function MarkdownTextarea({
   return (
     <div
       // Group role names the editor region for SR users; the keydown is a
-      // composite-widget shortcut scope (Cmd+Shift+P / Escape work from the
-      // textarea, tabs, and focused preview panel alike) — it adds no
-      // keyboard-only interaction a non-focusable wrapper would trap.
+      // composite-widget shortcut scope, not a keyboard-only interaction.
       aria-label="Markdown editor"
       className={styles["markdownTextarea"]}
       data-testid="markdown-textarea"

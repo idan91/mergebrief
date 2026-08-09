@@ -117,9 +117,8 @@ function CalloutEyebrow({ children }: { children: ReactNode }) {
 export interface CalloutTitleProps {
   children: ReactNode;
   /**
-   * Max lines before the title clamps with an ellipsis (BRIEF-148): a
-   * display-side guard for model-authored text — data stays intact, only
-   * the presentation clamps. Unset = no clamp.
+   * Max lines before the title clamps with an ellipsis — a display-side
+   * guard for model-authored text; the data stays intact. Unset = no clamp.
    */
   clamp?: number | undefined;
 }

@@ -5,9 +5,9 @@ import { activeMentionQuery, insertMention } from "./utils";
 const MAX_MENTION_OPTIONS = 5;
 
 /**
- * One entry of the injected candidate pool (BRIEF-94). `name`/`avatarUrl`
- * are optional so thread participants (login-only today) and collaborators
- * (rich) ride the same pool; insertion always uses the login.
+ * One entry of the injected candidate pool. `name`/`avatarUrl` are optional
+ * so thread participants (login-only today) and collaborators (rich) ride
+ * the same pool; insertion always uses the login.
  */
 export interface MentionCandidate {
   readonly login: string;
@@ -47,9 +47,7 @@ export interface MentionAutocompleteArgs {
 }
 
 /**
- * `@`-mention autocomplete over an injected candidate pool (BRIEF-56
- * decision 7: participants-seeded; BRIEF-94 widened the entry shape to
- * carry name/avatar for the collaborators source). Filtering is
+ * `@`-mention autocomplete over an injected candidate pool. Filtering is
  * prefix-on-login in POOL ORDER — the caller's ordering IS the ranking.
  * Combobox-with-listbox keyboard contract; suppressed inside code fences.
  */

@@ -5,7 +5,7 @@
 // Three layers, in order: primitives (raw palette, barred from .module.scss by
 // stylelint), the canonical semantic families (what components consume), and
 // legacy aliases that point at canon and carry no values of their own
-// (ADR 0037 #6 — consumers retire onto --color-* file-by-file).
+// (consumers retire onto --color-* file-by-file).
 @layer tokens {
   :root {
     // ── Primitives ───────────────────────────────────────────────────────
@@ -23,11 +23,9 @@
     --mono: "IBM Plex Mono", ui-monospace, menlo, monospace;
     --sans: "Instrument Sans", -apple-system, "Helvetica Neue", sans-serif;
 
-    // ── Surfaces (BRIEF-44 phase 2) ──────────────────────────────────────
-    // Four tiers, deliberately. The whole #0d0d10–#111114 band collapsed into
-    // surface-1: ≤4/255 per channel was never a perceivable distinction, and
-    // "raised" was a fiction — panel2 is DARKER than panel. Sunken wells sit
-    // at page level rather than earning a fourth dark tier.
+    // ── Surfaces ─────────────────────────────────────────────────────────
+    // Four tiers: ≤4/255 per channel is not a perceivable distinction, so
+    // sunken wells sit at page level rather than earning a fifth tier.
     --color-background: var(--gray-950); // page bg AND sunken wells
     --color-surface-1: var(--gray-900); // base panel / nested fill
     --color-surface-2: #15151a; // raised: hovers, popovers, toolbars
@@ -37,14 +35,13 @@
     --color-text-1: var(--gray-100); // primary
     --color-text-2: var(--gray-400); // muted / secondary
 
-    // Faint floor for readable text. Lightened from the palette's original
-    // #62626b (~3.3:1 — fails WCAG AA) to ~5.8:1 on the page background,
-    // with margin to survive the top radial glow.
+    // Faint floor for readable text: ~5.8:1 on the page background, with
+    // margin to survive the top radial glow (WCAG AA).
     --color-text-3: #8a8a93;
 
     // Ghost: decorative separators only (e.g. slim row separators).
     // Deliberately below contrast — NEVER for text a reader must parse;
-    // line numbers count as text (WCAG 1.4.3, #211) and use text-3.
+    // line numbers count as text (WCAG 1.4.3) and use text-3.
     --color-text-4: #3b3b43;
 
     // ── Outline / border ─────────────────────────────────────────────────
@@ -57,8 +54,8 @@
     --color-negative: var(--red-400);
     --color-warning: var(--amber-400);
 
-    // GitHub's merged-PR purple (BRIEF-103 state badge). Semantic on purpose:
-    // "merged" is a status in this product's vocabulary, not a decoration.
+    // GitHub's merged-PR purple. Semantic on purpose: "merged" is a status in
+    // this product's vocabulary, not a decoration.
     --color-merged: var(--violet-400);
 
     // ── Other semantic colors ────────────────────────────────────────────
@@ -82,11 +79,9 @@
     --color-comment-highlight: #d9b36c;
     --focus-ring: var(--color-accent);
 
-    // ── Legacy aliases (ADR 0037 #6) ─────────────────────────────────────
+    // ── Legacy aliases ───────────────────────────────────────────────────
     // Value-less pointers at canon, retiring file-by-file as sweeps touch
-    // each module. --accent/--muted/--danger were consumed before they were
-    // ever declared, so each rendered as its fallback (or nothing) until the
-    // BRIEF-44 defect fix; they stay pointed at canon.
+    // each module. Never give one a value of its own.
     --bg: var(--color-background);
     --panel: var(--color-surface-1);
     --panel2: var(--color-surface-1);
@@ -111,15 +106,12 @@
     --color-border: var(--color-outline-1);
     --color-border-strong: var(--color-outline-2);
 
-    // ── Type scale (BRIEF-44 phase 2) ────────────────────────────────────
-    // Seven deliberate steps, 10/11/12/13/15/17/20 — deltas 1,1,1,2,2,3, so
-    // the scale widens as it climbs. `md` is the body anchor: the unmarked
-    // choice is the right one. The pre-sweep drift (21 near-duplicate sizes,
-    // including half-pixel steps like 12.5 and 11.5) collapsed into these;
-    // roles never earn a token at an equal value (ADR 0037 #5).
-    // BRIEF-84: expressed as rem via to-rem() so the scale follows the
-    // reader's browser font-size preference (WCAG 1.4.4); the px arguments
-    // are the design values, exact at the 16px root default.
+    // ── Type scale ───────────────────────────────────────────────────────
+    // Seven steps, 10/11/12/13/15/17/20 — deltas 1,1,1,2,2,3, so the scale
+    // widens as it climbs. `md` is the body anchor; roles never earn a token
+    // at an equal value. Expressed as rem via to-rem() so the scale follows
+    // the reader's browser font-size preference (WCAG 1.4.4); the px
+    // arguments are the design values, exact at the 16px root default.
     --font-size-xs: #{functions.to-rem(10px)}; // micro labels, badges, gutter numerals
     --font-size-sm: #{functions.to-rem(11px)}; // secondary labels, meta rows
     --font-size-md: #{functions.to-rem(12px)}; // body (dominant)
@@ -133,16 +125,12 @@
     // value in the app; deliberately left alone.
     --font-size-root: clamp(14px, 0.8rem + 0.2vw, 15px);
 
-    // There is deliberately no em token family. An em token pins nothing —
-    // it computes differently at every site — and four near-identical ratios
-    // was renamed drift, not a scale. Genuine parent-relative text (inline
-    // code in text, a shared leaf rendered into hosts of differing size)
-    // writes its em value explicitly at the site, with a justification and a
-    // line-scoped stylelint disable. Everything else uses the px steps above.
+    // There is deliberately no em token family — an em token pins nothing.
+    // Genuine parent-relative text writes its em value at the site, with a
+    // justification and a line-scoped stylelint disable.
 
-    // ── Radius scale (BRIEF-44 phase 2) ──────────────────────────────────
-    // Six steps. `md` kills the 6/7/8/9/10px drift band — those were one
-    // role (cards and panels) wearing five values. `xs` earns its own step
+    // ── Radius scale ─────────────────────────────────────────────────────
+    // Six steps. `md` is the one card/panel corner; `xs` earns its own step
     // because 2→4px visibly balls the 3–4px markers it is used on.
     --radius-xs: 2px; // tiny bars, markers, inner slivers
     --radius-sm: 4px; // chips, inputs, inner corners
@@ -151,10 +139,8 @@
     --radius-pill: 999px; // pills
     --radius-circle: 50%; // avatars, dots, round icon buttons
 
-    // ── Elevation (BRIEF-44 phase 2) ─────────────────────────────────────
-    // Three steps plus the upward cast. sm and md are the exact pre-sweep
-    // values of their dominant members; lg is the midpoint of the
-    // dark-overlay cluster (50–60% → 55%) on the most common geometry.
+    // ── Elevation ────────────────────────────────────────────────────────
+    // Three steps plus the upward cast.
     --shadow-elevation-sm: 0 8px 24px rgb(0 0 0 / 40%); // small popovers
     --shadow-elevation-md: 0 12px 40px rgb(0 0 0 / 22%); // soft raised cards
     --shadow-elevation-lg: 0 16px 48px rgb(0 0 0 / 55%); // menus, drawers, modals
@@ -163,10 +149,9 @@
     // Unique geometry; no step on the ladder above matches it.
     --shadow-elevation-up: 0 -24px 80px rgb(0 0 0 / 60%);
 
-    // Rings. Already semantic, and the highlight/clear pair is animation
-    // load-bearing: --shadow-ring-clear is the transparent end-state of the
-    // comment-flash keyframes and must keep --shadow-ring-highlight's
-    // geometry or the animation would jump.
+    // --shadow-ring-clear is the transparent end-state of the comment-flash
+    // keyframes: it must keep --shadow-ring-highlight's geometry or the
+    // animation jumps.
     --shadow-ring-highlight: 0 0 0 2px var(--color-comment-highlight);
     --shadow-ring-clear: 0 0 0 2px transparent;
     --shadow-ring-muted: 0 0 0 3px var(--color-outline-2);

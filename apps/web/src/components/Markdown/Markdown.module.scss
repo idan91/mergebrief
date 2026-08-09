@@ -6,12 +6,9 @@
     font-size: var(--font-size-xl);
     line-height: 1.65;
 
-    // The markdown heading scale — a DESIGNED choice for this dense dark UI,
-    // not a restoration of the unstyled ~1.5em UA sizes model h1/h2 used to
-    // hit. The renderer demotes h1→h3 and h2→h4 (document-outline rule), and
-    // the components map cannot tell a demoted h1 from a source-authored h3,
-    // so each level carries ONE style serving both. Text line-height (1.65)
-    // and the existing block rhythm are kept.
+    // The renderer demotes h1→h3 and h2→h4, and the components map cannot
+    // tell a demoted h1 from a source-authored h3 — so each level carries ONE
+    // style serving both.
     h3,
     h4,
     h5,
@@ -51,10 +48,9 @@
       margin-block-end: functions.to-rem(12px);
     }
 
-    // Flush marker column (owner call, 2026-07-29): markers positioned
-    // INSIDE start exactly at the content edge — outside markers
-    // right-align against the text column, so a "2." can never sit flush
-    // with a bullet. The hanging indent keeps wrapped lines off the
+    // Markers positioned INSIDE start exactly at the content edge — outside
+    // markers right-align against the text column, so a "2." could never sit
+    // flush with a bullet. The hanging indent keeps wrapped lines off the
     // marker column.
     ul,
     ol {
@@ -89,9 +85,8 @@
     }
 
     code {
-      // Earned oddity (ADR 0037 #5): inline-code fill. Sits above
-      // --color-surface-3 (#1c1c22) in hue but below it in luminance, so it
-      // reads as its own inline tier rather than a panel.
+      // Off-scale: above --color-surface-3 in hue but below it in luminance,
+      // so inline code reads as its own tier rather than a panel.
       --code-fill: #1a1a1f;
 
       padding-block: functions.to-rem(1px);
@@ -101,15 +96,14 @@
       color: var(--text);
       font-family: var(--mono);
 
-      // Earned em (ADR 0037 #5): inline code is sized by whichever text
-      // element encloses it, and that varies WITHIN this component — p/li
-      // render at --font-size-xl, h3/h4 at --font-size-lg. A fixed step
-      // would shout inside a heading or shrink inside a paragraph.
+      // Earned em: inline code is sized by whichever text element encloses
+      // it, and that varies WITHIN this component — p/li at --font-size-xl,
+      // h3/h4 at --font-size-lg. A fixed step would shout inside a heading.
       font-size: 0.9em; /* stylelint-disable-line declaration-property-value-allowed-list -- earned parent-relative exception, justified above */
     }
 
     strong {
-      // Earned oddity: bold text sits just under --color-text (#ececee).
+      // Off-scale: bold text sits just under --color-text.
       --strong-text: #d7d7dc;
 
       color: var(--strong-text);

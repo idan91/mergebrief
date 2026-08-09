@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// The expandable-content state machine (BRIEF-134): SSR-collapsed, corrected to
-// `fits` post-hydration, focus-expands inside the clipped body.
+// The expandable-content state machine: SSR-collapsed, corrected to `fits`
+// post-hydration, focus-expands inside the clipped body.
 import { act } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

@@ -19,9 +19,8 @@
   }
 
   .suggestionDiff {
-    // Earned oddity: the suggestion diff sits one step below
-    // --color-background (#0a0a0c) so it reads as sunken inside the card it
-    // lives in — the only surface in the app darker than the page.
+    // Off-scale: one step below --color-background so the diff reads as
+    // sunken inside its card — the only surface darker than the page.
     --diff-fill: #0b0b0e;
 
     inline-size: 100%;
@@ -51,8 +50,8 @@
     min-inline-size: functions.to-rem(32px);
     padding-inline-end: functions.to-rem(8px);
 
-    // Line numbers are text under WCAG 1.4.3, not decoration — same finding
-    // as DiffTable's gutter (#211 axe sweep); text-4 sat at ~1.7:1.
+    // Line numbers are text under WCAG 1.4.3, not decoration: text-4 sits at
+    // ~1.7:1 and fails.
     color: var(--color-text-3);
     text-align: end;
     user-select: none;
