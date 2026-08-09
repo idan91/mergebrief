@@ -155,7 +155,7 @@
     }
 
     /* BRIEF-95: the comment postdates the viewed brief. Accent, not amber —
-       provenance must not read as the open-thread state. */
+       origin must not read as the open-thread state. */
     &[data-state="after-brief"] {
       border-color: var(--color-accent);
       color: var(--color-accent);

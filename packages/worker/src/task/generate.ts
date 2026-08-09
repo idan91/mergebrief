@@ -98,7 +98,7 @@ import { RepoConfigOutcome, RepoConfigPaths } from "repo-config";
 import {
   acquireRepoConfig,
   buildRepoConfigArtifact,
-  buildRepoConfigProvenance,
+  buildRepoConfigOrigin,
 } from "./repo-config";
 
 // The structured boundary (packages/logging, ADR 0034) — re-exported for the
@@ -214,7 +214,7 @@ function createSupersessionWatch(
 function withAbortSignal(generator: Generator, signal: AbortSignal): Generator {
   return {
     generate: (req) => generator.generate({ ...req, signal }),
-    provenance: (effort) => generator.provenance(effort),
+    origin: (effort) => generator.origin(effort),
   };
 }
 
@@ -280,7 +280,7 @@ function isTransientGenerationError(error: unknown): boolean {
  * null for adapters without an effort knob (ADR 0013); the store column is a
  * plain string, so null normalizes to the honest "none".
  */
-function provenanceOf(generation: Brief["generation"]): {
+function originOf(generation: Brief["generation"]): {
   provider: string;
   model: string;
   effort: string;
@@ -463,8 +463,8 @@ function emitProviderError(
   if (!isProviderFailure) {
     return;
   }
-  // provenance() is pure metadata; any effort yields the same provider name.
-  const provider = deps.generator.provenance(deps.effort ?? "medium").provider;
+  // origin() is pure metadata; any effort yields the same provider name.
+  const provider = deps.generator.origin(deps.effort ?? "medium").provider;
   log.error(error instanceof Error ? error.message : String(error), {
     evt: "provider.error",
     provider,
@@ -681,7 +681,7 @@ async function runGeneration(
       // the record with config that never shaped the stored brief (Fable r1).
       await projection.recordRepoConfig(
         target,
-        buildRepoConfigProvenance(repoConfig),
+        buildRepoConfigOrigin(repoConfig),
       );
     }
     // Entry-comment draft gate (ADR 0020 #4 as amended / ADR 0032 #13): the
@@ -731,7 +731,7 @@ async function runGeneration(
           prevBrief.baseSha,
           prevBrief.headSha,
         );
-        const current = deps.generator.provenance(deps.effort ?? "medium");
+        const current = deps.generator.origin(deps.effort ?? "medium");
         if (
           policy === FullRegenerations.ON_MODEL_SWAP &&
           prevRow !== undefined &&
@@ -824,7 +824,7 @@ async function runGeneration(
         headSha,
         headIndex,
         commitCount: info.commitCount,
-        ...provenanceOf(brief.generation),
+        ...originOf(brief.generation),
         body: JSON.stringify(stamped),
         ...anchorColumnsOf(anchor),
         ...(repoConfig === undefined
@@ -1260,14 +1260,14 @@ async function writeRevisionArtifacts(
 
   const writeNarrative = async (
     body: string,
-    provenance: Brief["generation"],
+    origin: Brief["generation"],
   ): Promise<void> => {
     const written = await store.revisionNarratives.write({
       pullRequestId,
       briefId: briefRef.id,
       prevHeadSha,
       headSha,
-      ...provenanceOf(provenance),
+      ...originOf(origin),
       body,
     });
     if (!written.ok) {
@@ -1463,7 +1463,7 @@ async function warmDeltaCores(
       pullRequestId,
       baselineSha,
       headSha,
-      ...provenanceOf(delta.generation),
+      ...originOf(delta.generation),
       body: JSON.stringify(delta),
     });
     if (!written.ok) {

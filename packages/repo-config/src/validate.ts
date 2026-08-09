@@ -224,7 +224,7 @@ interface InstructionsResult {
 function validateInstructions(
   file: RepoConfigFileInput | undefined,
 ): InstructionsResult {
-  // Provenance path is the canonical fixed slot (ADR 0032 #2/#3), never the
+  // Origin path is the canonical fixed slot (ADR 0032 #2/#3), never the
   // caller-supplied `file.path` — the three paths are structural, not data.
   const path = RepoConfigPaths.INSTRUCTIONS;
   if (file === undefined) {

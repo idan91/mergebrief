@@ -13,7 +13,7 @@ import type { FetchedPr } from "../../src/github";
 class FakeGenerator implements Generator {
   constructor(private readonly fixture: unknown) {}
 
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     return { provider: "fake", model: "fake-model", effort };
   }
 
@@ -552,14 +552,14 @@ describe("categorize — generation warnings surfaced on the artifact (BRIEF-11)
       commitRange,
       new WarningGenerator(twoGroupBriefGen, [
         "⚠ salvaged brief: dropped 1 invalid tags entry",
-        "warning: requested model m but modelUsage reports other — provenance stamp stays the declaration",
+        "warning: requested model m but modelUsage reports other — origin stamp stays the declaration",
         "thinking… (brief)", // progress noise — must NOT be collected
         "note: could not remove temp dir /tmp/x", // operational — NOT collected
       ]),
     );
     expect(brief.generationWarnings).toEqual([
       "⚠ salvaged brief: dropped 1 invalid tags entry",
-      "warning: requested model m but modelUsage reports other — provenance stamp stays the declaration",
+      "warning: requested model m but modelUsage reports other — origin stamp stays the declaration",
     ]);
   });
 
@@ -604,14 +604,14 @@ class EffortCapturingGenerator extends FakeGenerator {
 }
 
 describe("categorize — effort threading (BRIEF-75)", () => {
-  it("requests medium and stamps medium provenance when no effort is given (byte-identical pin)", async () => {
+  it("requests medium and stamps a medium origin when no effort is given (byte-identical pin)", async () => {
     const generator = new EffortCapturingGenerator(twoGroupBriefGen);
     const brief = await categorize(pr, 1, commitRange, generator);
     expect(generator.lastEffort).toBe("medium");
     expect(brief.generation.effort).toBe("medium");
   });
 
-  it("threads an explicit effort into the request AND the provenance stamp", async () => {
+  it("threads an explicit effort into the request AND the origin stamp", async () => {
     const generator = new EffortCapturingGenerator(twoGroupBriefGen);
     const brief = await categorize(
       pr,
@@ -637,7 +637,7 @@ class CapturingGenerator implements Generator {
 
   constructor(private readonly fixture: unknown) {}
 
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     return { provider: "fake", model: "fake-model", effort };
   }
 

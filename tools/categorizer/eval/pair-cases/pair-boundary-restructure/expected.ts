@@ -1,5 +1,5 @@
 // BRIEF-143 revision-pair case — AUTHORED fixture (own-repo file shapes,
-// difflib-generated diffs; PR locator is a placeholder). Provenance: the
+// difflib-generated diffs; PR locator is a placeholder). Origin: the
 // BRIEF-143 PR 5 stack; generator script documented in that PR.
 // Boundary restructure: rev2 unifies health+status around a shared probe — merge/split among re-looked groups only. Spec §Mechanism merge/split rule.
 import type { PairEvalProperty } from "../../pairs";

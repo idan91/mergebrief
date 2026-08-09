@@ -136,7 +136,7 @@ describe("summaryLines", () => {
     expect(text).toContain("brief _2 | base1234..abc12300, 5 commit(s)");
   });
 
-  it("shows generation provenance", () => {
+  it("shows generation origin", () => {
     expect(text).toContain("via anthropic/claude-opus-4-8 · effort medium");
   });
 
@@ -163,7 +163,7 @@ describe("deltaSummaryLines", () => {
     expect(text).toContain("35788079 → _2 (a01bcf1d)");
   });
 
-  it("shows generation provenance", () => {
+  it("shows generation origin", () => {
     expect(deltaSummaryLines(delta).join("\n")).toContain(
       "via anthropic/claude-opus-4-8 · effort medium",
     );

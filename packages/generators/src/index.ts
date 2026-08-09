@@ -26,7 +26,7 @@ export {
   type Effort,
   type FreshRestartReason,
   type Generation,
-} from "./contract/provenance";
+} from "./contract/generation";
 export { GeneratorError, GeneratorErrorKind } from "./contract/errors";
 
 // --- config/ — how an instance CHOOSES an adapter ---------------------------

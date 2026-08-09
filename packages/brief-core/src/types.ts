@@ -627,7 +627,7 @@ export const BriefSchema = z.object({
       "warning lines the generation pipeline emitted (salvage, feedback retry, served-model mismatch). CLI-collected, never model-produced (BRIEF-11 UI surfacing).",
     ),
   anchor: AnchorSchema.optional().describe(
-    "cross-revision anchor provenance (BRIEF-143): anchored | fresh-restart(reason) | none. CLI-assigned, never model-produced; optional on the read path — pre-feature briefs lack it.",
+    "cross-revision anchor origin (BRIEF-143): anchored | fresh-restart(reason) | none. CLI-assigned, never model-produced; optional on the read path — pre-feature briefs lack it.",
   ),
   anchoring: AnchoringDetailSchema.optional().describe(
     "internal per-group carried-vs-regenerated stamp for anchored generations (BRIEF-143). Pipeline-assigned, never model-produced, not user-visible; present only on anchored briefs.",

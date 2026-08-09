@@ -11,6 +11,6 @@ export function withUsageSink(
 ): Generator {
   return {
     generate: (req) => inner.generate({ ...req, onUsage: sink }),
-    provenance: (effort) => inner.provenance(effort),
+    origin: (effort) => inner.origin(effort),
   };
 }

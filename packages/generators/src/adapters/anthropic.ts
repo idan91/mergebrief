@@ -11,7 +11,7 @@ import {
   schemaFeedbackMessage,
 } from "../validation/enforceSchema";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
-import type { Effort, Generation } from "../contract/provenance";
+import type { Effort, Generation } from "../contract/generation";
 
 // ---------------------------------------------------------------------------
 // The structural slice of the SDK client the adapter touches — lets tests
@@ -88,7 +88,7 @@ export class AnthropicGenerator implements Generator {
     this.model = model;
   }
 
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     return { provider: "anthropic", model: this.model, effort };
   }
 

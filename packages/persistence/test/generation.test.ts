@@ -360,7 +360,7 @@ describe("generationProjection — D10 transitions", () => {
   });
 });
 
-describe("repo-config provenance on the generation row (ADR 0032 #8)", () => {
+describe("repo-config origin on the generation row (ADR 0032 #8)", () => {
   it("recordRepoConfig round-trips; a re-queue through ingest clears it", async () => {
     // PGlite harness: the ingest enqueue needs the graphile_worker stub.
     const harness = await createPgliteHarness();

@@ -48,7 +48,7 @@ describe("validateRepoConfig — outcome table", () => {
     expect(result.outcomes[1]?.blobSha).toBe("sha-fake");
   });
 
-  it("reports the canonical slot path in provenance, not the caller-supplied path", () => {
+  it("reports the canonical slot path in the origin, not the caller-supplied path", () => {
     const result = validateRepoConfig({
       settings: {
         path: "../evil/elsewhere.yaml",

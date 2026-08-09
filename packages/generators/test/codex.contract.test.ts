@@ -25,7 +25,7 @@ function makeCodexHarness(): GeneratorContractHarness {
   let scriptDir = "";
 
   return {
-    expectedProvenance: {
+    expectedOrigin: {
       provider: "codex",
       model: "codex-default",
       effort: "medium",

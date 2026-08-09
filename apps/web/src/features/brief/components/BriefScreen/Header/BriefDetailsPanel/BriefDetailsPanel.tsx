@@ -287,7 +287,7 @@ function GenerationSection({
         </dl>
       ) : (
         <p className={styles["caveat"]}>
-          No provenance stamp on this artifact.
+          No origin stamp on this artifact.
         </p>
       )}
       {warnings.length > 0 ? (

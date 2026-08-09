@@ -29,7 +29,7 @@ const REPO_2: RepoId = brandWith(isRepoId, 222n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
-const PROVENANCE = { provider: "anthropic", model: "claude", effort: "high" };
+const ORIGIN = { provider: "anthropic", model: "claude", effort: "high" };
 
 describe("pull_request title persistence", () => {
   it("round-trips title on upsert and refreshes it on conflict", async () => {
@@ -156,7 +156,7 @@ describe("briefs.latestForPullRequests", () => {
       headIndex: 1,
       commitCount: 1,
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
     await store.briefs.write({
       pullRequestId: pr1.id,
@@ -165,7 +165,7 @@ describe("briefs.latestForPullRequests", () => {
       headIndex: 2,
       commitCount: 2,
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
 
     const latest = await store.briefs.latestForPullRequests([pr1.id, pr2.id]);
@@ -189,7 +189,7 @@ describe("briefs.latestForPullRequests", () => {
       headIndex: 1,
       commitCount: 1,
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
 
     const latest = await artifactStore(
@@ -217,7 +217,7 @@ describe("comparison existence seams (BRIEF-19 4.1)", () => {
       headIndex: 2,
       commitCount: 2,
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
     if (!brief.ok) throw new Error("brief write failed");
 
@@ -252,7 +252,7 @@ describe("comparison existence seams (BRIEF-19 4.1)", () => {
       prevHeadSha: "head-1",
       headSha: "head-2",
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
     if (!narrative.ok) throw new Error("narrative write failed");
     expect(
@@ -278,7 +278,7 @@ describe("comparison existence seams (BRIEF-19 4.1)", () => {
       baselineSha: "cp-1",
       headSha: "head-2",
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
     if (!written.ok) throw new Error("delta write failed");
     expect(await store.deltas.existsForSpan(pr.id, "cp-1", "head-2")).toBe(
@@ -319,7 +319,7 @@ describe("comparison existence seams (BRIEF-19 4.1)", () => {
       baselineSha: "head-1",
       headSha: "head-2",
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
     if (!bDelta.ok) throw new Error("delta write failed");
 
@@ -354,7 +354,7 @@ describe("batched span listings (BRIEF-24 per-revision joins)", () => {
       headIndex: 2,
       commitCount: 2,
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
     await store.briefs.write({
       pullRequestId: pr.id,
@@ -363,7 +363,7 @@ describe("batched span listings (BRIEF-24 per-revision joins)", () => {
       headIndex: 1,
       commitCount: 1,
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
 
     const rows = await store.briefs.listForPullRequest(pr.id);
@@ -391,7 +391,7 @@ describe("batched span listings (BRIEF-24 per-revision joins)", () => {
       headIndex: 2,
       commitCount: 2,
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
     if (!brief.ok) throw new Error("brief write failed");
 
@@ -414,7 +414,7 @@ describe("batched span listings (BRIEF-24 per-revision joins)", () => {
       baselineSha: "cp-1",
       headSha: "head-2",
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
     await store.revisionNarratives.write({
       pullRequestId: pr.id,
@@ -422,7 +422,7 @@ describe("batched span listings (BRIEF-24 per-revision joins)", () => {
       prevHeadSha: "head-1",
       headSha: "head-2",
       body: "{}",
-      ...PROVENANCE,
+      ...ORIGIN,
     });
 
     expect(await store.comparisonMarks.listForPullRequest(pr.id)).toEqual([

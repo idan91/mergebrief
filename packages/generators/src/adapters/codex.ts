@@ -21,7 +21,7 @@ import {
   stripInjectedNulls,
   withAllRequired,
 } from "../validation/openaiStrict";
-import type { Effort, Generation } from "../contract/provenance";
+import type { Effort, Generation } from "../contract/generation";
 
 /**
  * Codex CLI adapter (ADR 0030): one `codex exec --json` process per attempt,
@@ -34,7 +34,7 @@ import type { Effort, Generation } from "../contract/provenance";
  *    `agent_message`, whose `text` is a JSON *string* — the floor's parse
  *    is the documented second parse of the double-parse quirk.
  * 2. Abort rejections propagate UNTOUCHED (ADR 0006 #6).
- * 3. Provenance is honest within the static declaration: no JSONL event
+ * 3. Origin is honest within the static declaration: no JSONL event
  *    carries a model id and ModelRerouted has no JSONL counterpart, so a
  *    silent reroute is UNOBSERVABLE here (the documented blind spot —
  *    upgrading to verification waits on the CLI's JSONL gaining a model
@@ -78,7 +78,7 @@ export class CodexGenerator implements Generator {
     this.env = options.env;
   }
 
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     return {
       provider: "codex",
       model: this.model ?? CODEX_DEFAULT_MODEL_TOKEN,

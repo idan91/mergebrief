@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod/v4";
 import { GeneratorError, GeneratorErrorKind } from "../src/contract/errors";
 import type { Generator } from "../src/contract/generator";
-import { GenerationSchema, type Generation } from "../src/contract/provenance";
+import { GenerationSchema, type Generation } from "../src/contract/generation";
 
 /**
  * The shared Generator conformance suite (BRIEF-11 testing strategy): every
@@ -67,7 +67,7 @@ export interface GeneratorContractHarness {
   /** True when the rejection is this transport's untouched abort shape. */
   isAbortRejection(error: unknown): boolean;
   /** The origin this adapter must declare at effort "medium". */
-  expectedProvenance: Generation;
+  expectedOrigin: Generation;
   /**
    * Whether the transport can script a `{ refusal: true }` turn. CLIs with
    * no in-band refusal signal leave this false and skip the refusal case.
@@ -241,11 +241,11 @@ export function describeGeneratorContract(
       expect(dumps(dir)).toHaveLength(0);
     });
 
-    it("declares provenance matching the Generation schema", async () => {
+    it("declares an origin matching the Generation schema", async () => {
       const handle = await harness.make([{ raw: contractPayloads.valid }], dir);
-      const provenance = handle.generator.provenance("medium");
-      expect(provenance).toEqual(harness.expectedProvenance);
-      expect(GenerationSchema.safeParse(provenance).success).toBe(true);
+      const origin = handle.generator.origin("medium");
+      expect(origin).toEqual(harness.expectedOrigin);
+      expect(GenerationSchema.safeParse(origin).success).toBe(true);
     });
   });
 }

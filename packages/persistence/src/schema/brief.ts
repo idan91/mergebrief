@@ -1,7 +1,7 @@
 // `brief` — immutable span artifact keyed by BOTH endpoints (D3):
 // `(installation_id, pull_request_id, base_sha, head_sha)`. `base_sha` is
 // the PR-base role — distinct name from Delta's `baseline_sha` (checkpoint)
-// by design. Provenance columns surface on the Receipt (D6); `head_index` +
+// by design. Origin columns surface on the Receipt (D6); `head_index` +
 // `commit_count` back ADR 0012's display label (`index + head8`).
 import { bigint, integer, pgTable, text, unique } from "drizzle-orm/pg-core";
 import type { BriefRowId, PullRequestRowId } from "../types";

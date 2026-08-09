@@ -81,7 +81,7 @@ describe("ProviderBadge", () => {
     expect(badge().textContent).not.toContain("API");
   });
 
-  it("keeps the OpenRouter author prefix — provenance never abbreviates identity", () => {
+  it("keeps the OpenRouter author prefix — origin never abbreviates identity", () => {
     render(
       <ProviderBadge
         generation={{

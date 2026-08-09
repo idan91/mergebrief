@@ -159,7 +159,7 @@ describe("OpenRouter request translation", () => {
     expect(body["model"]).toBe(SLUG);
   });
 
-  it("omits reasoning and records the provenance gap when unsupported", async () => {
+  it("omits reasoning and records the origin gap when unsupported", async () => {
     const scripted = scriptedFetch(
       () =>
         new Response(sse('{"ok":true}'), {
@@ -171,7 +171,7 @@ describe("OpenRouter request translation", () => {
     const generator = await mustCore(scripted);
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     expect(scripted.bodies[0]?.["reasoning"]).toBeUndefined();
-    expect(generator.provenance("high")).toEqual({
+    expect(generator.origin("high")).toEqual({
       provider: "openrouter",
       model: SLUG,
       effort: null,
@@ -202,7 +202,7 @@ describe("OpenRouter reasoning backstop", () => {
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     expect(scripted.bodies).toHaveLength(2);
     expect(scripted.bodies[1]?.["reasoning"]).toBeUndefined();
-    expect(generator.provenance("high").effort).toBeNull();
+    expect(generator.origin("high").effort).toBeNull();
   });
 
   it("recovers when the knob rejection arrives wrapped in metadata.raw", async () => {
@@ -225,7 +225,7 @@ describe("OpenRouter reasoning backstop", () => {
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     expect(scripted.bodies).toHaveLength(2);
     expect(scripted.bodies[1]?.["reasoning"]).toBeUndefined();
-    expect(generator.provenance("high").effort).toBeNull();
+    expect(generator.origin("high").effort).toBeNull();
   });
 });
 
@@ -359,7 +359,7 @@ describe("OpenRouter served-model verification", () => {
       "warning: requested model test-lab/test-model-1 but the stream reports other-lab/shadow-model",
     );
     expect(assemblyLogs.join("\n")).not.toContain("stream reports");
-    expect(generator.provenance("medium").model).toBe(SLUG);
+    expect(generator.origin("medium").model).toBe(SLUG);
   });
 
   it("falls back to the construction log when the caller gave no request log", async () => {
@@ -535,7 +535,7 @@ function makeOpenRouterHarness(): GeneratorContractHarness {
   let recorded: { messages: { role: string; content: string }[] }[] = [];
 
   return {
-    expectedProvenance: {
+    expectedOrigin: {
       provider: "openrouter",
       model: SLUG,
       effort: "medium",

@@ -27,7 +27,7 @@ class SequenceGenerator implements Generator {
   calls = 0;
   readonly requests: { system: string; user: string }[] = [];
   constructor(private readonly outputs: unknown[]) {}
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     return { provider: "fake", model: "fake-model", effort };
   }
   async generate<S extends z.ZodType>(

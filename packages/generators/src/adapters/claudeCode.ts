@@ -23,7 +23,7 @@ import {
   type HarnessTimeouts,
 } from "../harness/run";
 import { enumPreservingJsonSchema } from "../validation/jsonSchema";
-import type { Effort, Generation } from "../contract/provenance";
+import type { Effort, Generation } from "../contract/generation";
 
 /**
  * Claude Code CLI adapter (ADR 0030): one `claude -p` process per attempt,
@@ -35,7 +35,7 @@ import type { Effort, Generation } from "../contract/provenance";
  *    (validate → salvage → one feedback retry → dump + throw).
  * 2. Abort rejections propagate UNTOUCHED (ADR 0006 #6) — the harness
  *    rejects with the signal's reason and nothing here wraps it.
- * 3. Provenance is honest: `effort: null` (headless claude has no effort
+ * 3. Origin is honest: `effort: null` (headless claude has no effort
  *    knob — ADR 0010's triage loses that lever here); the model stamp is
  *    the declaration, and the envelope's `modelUsage` keys are compared
  *    post-run — a served-model mismatch logs a warning and fires the
@@ -148,7 +148,7 @@ export class ClaudeCodeGenerator implements Generator {
     this.env = options.env;
   }
 
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     // Honest capability gap: no headless effort knob — the requested effort
     // is deliberately NOT echoed into the stamp (ADR 0013 #5).
     void effort;
@@ -323,7 +323,7 @@ export class ClaudeCodeGenerator implements Generator {
     }
     if (envelope.modelUsage.includes(this.model)) return;
     log(
-      `warning: requested model ${this.model} but modelUsage reports ${envelope.modelUsage.join(", ")} — provenance stamp stays the declaration`,
+      `warning: requested model ${this.model} but modelUsage reports ${envelope.modelUsage.join(", ")} — origin stamp stays the declaration`,
     );
     this.onModelMismatch?.(this.model, envelope.modelUsage);
   }

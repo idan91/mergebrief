@@ -197,7 +197,7 @@ class RecordingGenerator implements Generator {
   requests: { system: string; user: string }[] = [];
   constructor(private readonly fixture: unknown) {}
 
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     return { provider: "fake", model: "fake-model", effort };
   }
 

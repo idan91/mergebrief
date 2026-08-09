@@ -76,8 +76,8 @@ async function main(): Promise<void> {
     usage.outputTokens += u.outputTokens;
     usage.cacheReadTokens += u.cacheReadTokens;
   });
-  const provenance = generator.provenance(effort);
-  const key = `${provenance.provider}:${provenance.model}`;
+  const origin = generator.origin(effort);
+  const key = `${origin.provider}:${origin.model}`;
 
   const singles = await loadCases(join(here, "cases"));
   if (!singles.ok) throw new Error(singles.error);

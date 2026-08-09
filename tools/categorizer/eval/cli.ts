@@ -248,12 +248,12 @@ async function main(): Promise<void> {
     console.error(generator.error);
     process.exit(2);
   }
-  const provenance = generator.value.generator.provenance(
+  const origin = generator.value.generator.origin(
     generator.value.effort,
   );
-  const key = `${provenance.provider}:${provenance.model}`;
+  const key = `${origin.provider}:${origin.model}`;
   const billingKind: BillingKind = SUBSCRIPTION_PROVIDERS.has(
-    provenance.provider,
+    origin.provider,
   )
     ? BillingKinds.SUBSCRIPTION
     : BillingKinds.API;

@@ -83,7 +83,7 @@ describe("artifactStore.briefs — idempotent content-addressed write (D6)", () 
     expect(read?.body).toBe("v2-longer");
   });
 
-  it("round-trips the repo-config provenance column, clearing it when a rewrite omits it", async () => {
+  it("round-trips the repo-config origin column, clearing it when a rewrite omits it", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const store: ArtifactStore = artifactStore(handle, CTX_A);
@@ -129,7 +129,7 @@ describe("artifactStore.briefs — idempotent content-addressed write (D6)", () 
   });
 });
 
-describe("artifactStore.briefs — anchor provenance columns (BRIEF-143)", () => {
+describe("artifactStore.briefs — anchor origin columns (BRIEF-143)", () => {
   it("round-trips anchor state + reason and updates them on rewrite", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
@@ -234,7 +234,7 @@ describe("artifactStore.briefs — anchor provenance columns (BRIEF-143)", () =>
 });
 
 describe("artifactStore.deltas / diffSnapshots — same D6 write discipline", () => {
-  it("delta: idempotent span rewrite, provenance written, cross-tenant rejected", async () => {
+  it("delta: idempotent span rewrite, origin written, cross-tenant rejected", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
     const aStore = artifactStore(handle, CTX_A);
@@ -278,7 +278,7 @@ describe("artifactStore.deltas / diffSnapshots — same D6 write discipline", ()
     expect(foreign.error.code).toBe(ArtifactErrorCode.PARENT_NOT_IN_TENANT);
   });
 
-  it("diff_snapshot: idempotent per-sha rewrite, no provenance, cross-tenant rejected", async () => {
+  it("diff_snapshot: idempotent per-sha rewrite, no origin, cross-tenant rejected", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
     const aStore = artifactStore(handle, CTX_A);

@@ -18,7 +18,7 @@
 //   (d) for `comparison_marks` Zod-validates the coordinates-only body and
 //       REJECTS any `baselineLabel` / `baselineIndex` / per-line content key
 //       (the D13 coordinates-only rule; `.strict()` schemas).
-// Provenance columns (`provider`/`model`/`effort`) are written for
+// Origin columns (`provider`/`model`/`effort`) are written for
 // `brief`/`delta`/`revision_narrative` only — `diff_snapshot` and
 // `comparison_marks` are mechanical, not LLM output (D6/D13).
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
@@ -150,14 +150,14 @@ export type DiffSnapshotRow = typeof diffSnapshot.$inferSelect;
 export type RevisionNarrativeRow = typeof revisionNarrative.$inferSelect;
 export type ComparisonMarksRow = typeof comparisonMarks.$inferSelect;
 
-/** Provenance trio surfaced on the Receipt (D6). */
-export interface Provenance {
+/** Origin trio surfaced on the Receipt (D6). */
+export interface Origin {
   readonly provider: string;
   readonly model: string;
   readonly effort: string;
 }
 
-export interface BriefWriteInput extends Provenance {
+export interface BriefWriteInput extends Origin {
   readonly pullRequestId: PullRequestRowId;
   /** PR-base SHA — the whole-PR span's lower bound (D3). */
   readonly baseSha: string;
@@ -182,7 +182,7 @@ export interface BriefWriteInput extends Provenance {
   readonly anchorReason?: string;
 }
 
-export interface DeltaWriteInput extends Provenance {
+export interface DeltaWriteInput extends Origin {
   readonly pullRequestId: PullRequestRowId;
   /** Checkpoint baseline — a prior head at last submit (D3). */
   readonly baselineSha: string;
@@ -197,7 +197,7 @@ export interface DiffSnapshotWriteInput {
   readonly body: string;
 }
 
-export interface RevisionNarrativeWriteInput extends Provenance {
+export interface RevisionNarrativeWriteInput extends Origin {
   readonly pullRequestId: PullRequestRowId;
   /** The anchoring `brief` row; verified in-tenant + same-PR (D12). */
   readonly briefId: BriefRowId;

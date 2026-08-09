@@ -88,7 +88,7 @@ const BASE_SHA = "a".repeat(40);
 const HEAD_SHA = "b".repeat(40);
 const PREV_HEAD_SHA = "c".repeat(40);
 const CHECKPOINT_SHA = "d".repeat(40);
-const PROVENANCE = {
+const ORIGIN = {
   provider: "anthropic",
   model: "claude-fable-5",
   effort: "high",
@@ -154,7 +154,7 @@ async function seedFullGraph(
       headSha: HEAD_SHA,
       headIndex: 1,
       commitCount: 3,
-      ...PROVENANCE,
+      ...ORIGIN,
       ...artifact('{"brief":true}'),
     })
     .returning({ id: brief.id });
@@ -168,7 +168,7 @@ async function seedFullGraph(
     pullRequestId,
     baselineSha: CHECKPOINT_SHA,
     headSha: HEAD_SHA,
-    ...PROVENANCE,
+    ...ORIGIN,
     ...artifact('{"delta":true}'),
   });
   await db.insert(diffSnapshot).values({
@@ -183,7 +183,7 @@ async function seedFullGraph(
     briefId: briefRow.id,
     prevHeadSha: PREV_HEAD_SHA,
     headSha: HEAD_SHA,
-    ...PROVENANCE,
+    ...ORIGIN,
     ...artifact('{"narrative":true}'),
   });
   await db.insert(comparisonMarks).values({

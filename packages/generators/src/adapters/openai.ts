@@ -19,7 +19,7 @@ export interface OpenAiAssemblyOptions {
   baseUrl?: string | undefined;
   /** Attribution headers (openrouter sets referer/title, PR 8). */
   defaultHeaders?: Record<string, string> | undefined;
-  /** Provenance provider token; "openai" here, "openrouter" in PR 8. */
+  /** Origin provider token; "openai" here, "openrouter" in PR 8. */
   provider: string;
   log?: Logger | undefined;
   /** Injected for fetch-level test fixtures. */

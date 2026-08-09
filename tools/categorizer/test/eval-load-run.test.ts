@@ -78,7 +78,7 @@ describe("runCase", () => {
 });
 
 describe("withUsageSink", () => {
-  it("injects onUsage into every request and preserves provenance", async () => {
+  it("injects onUsage into every request and preserves origin", async () => {
     const seen: unknown[] = [];
     const inner: Generator = {
       generate: async (req) => {
@@ -86,7 +86,7 @@ describe("withUsageSink", () => {
         // The Zod schema in the request parses {} fine for this stub.
         return {};
       },
-      provenance: (effort) => ({ provider: "p", model: "m", effort }),
+      origin: (effort) => ({ provider: "p", model: "m", effort }),
     };
     const totals = {
       calls: 0,
@@ -122,7 +122,7 @@ describe("withUsageSink", () => {
       outputTokens: 4,
       cacheReadTokens: 2,
     });
-    expect(wrapped.provenance("medium")).toEqual({
+    expect(wrapped.origin("medium")).toEqual({
       provider: "p",
       model: "m",
       effort: "medium",

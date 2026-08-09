@@ -104,7 +104,7 @@
     }
   }
 
-  // Lead (wordmark → repo link) and riders (provenance, chips): inert on
+  // Lead (wordmark → repo link) and riders (origin, chips): inert on
   // wide viewports via display: contents — the identity row lays out as one
   // flex line; the ≤880px block turns them into the grid's two content rows.
   .lead {
@@ -509,7 +509,7 @@
       grid-area: riders;
       min-inline-size: 0;
 
-      // Riderless briefs (no provenance, no chips): the empty row collapses
+      // Riderless briefs (no origin, no chips): the empty row collapses
       // and the CTA centers against the lead line alone.
       &:empty {
         display: none;
@@ -577,8 +577,8 @@
 }
 
 @layer components {
-  /* Repo-config provenance chip (BRIEF-52): understated, same register as
-     the generation provenance line; warning state gains the amber accent. */
+  /* Repo-config origin chip (BRIEF-52): understated, same register as
+     the generation origin line; warning state gains the amber accent. */
   .repoConfigChip {
     border: 1px solid color-mix(in srgb, currentcolor 25%, transparent);
     border-radius: var(--radius-pill);

@@ -84,7 +84,7 @@ export async function createOpenRouterCore(
     listing.value.supportedParameters.includes("reasoning");
   if (!reasoningSupported) {
     log(
-      `note: ${options.model} lists no reasoning support on OpenRouter — provenance will record effort: null`,
+      `note: ${options.model} lists no reasoning support on OpenRouter — origin will record effort: null`,
     );
   }
 
@@ -99,7 +99,7 @@ export async function createOpenRouterCore(
       // caller's artifact-warning collection, not just the process log.
       const shown = MODEL_SLUG.test(served) ? served : "(unrecognized id)";
       (requestLog ?? log)(
-        `warning: requested model ${options.model} but the stream reports ${shown} — provenance stamp stays the declaration`,
+        `warning: requested model ${options.model} but the stream reports ${shown} — origin stamp stays the declaration`,
       );
       options.onModelMismatch?.(options.model, shown);
     },

@@ -1,5 +1,5 @@
 // BRIEF-143 revision-pair case — AUTHORED fixture (own-repo file shapes,
-// difflib-generated diffs; PR locator is a placeholder). Provenance: the
+// difflib-generated diffs; PR locator is a placeholder). Origin: the
 // BRIEF-143 PR 5 stack; generator script documented in that PR.
 // Risky increment: the token guard on the health route is REMOVED in rev2. Completeness side of spec pair 5.
 import type { PairEvalProperty } from "../../pairs";

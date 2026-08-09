@@ -1,5 +1,5 @@
 import type { z } from "zod/v4";
-import type { Effort, Generation } from "./provenance";
+import type { Effort, Generation } from "./generation";
 
 /** Progress sink — defaults to no-op so callers stay usable in tests. */
 export type Logger = (message: string) => void;
@@ -71,6 +71,6 @@ export interface GenerateRequest<S extends z.ZodType> {
  */
 export interface Generator {
   generate<S extends z.ZodType>(req: GenerateRequest<S>): Promise<z.infer<S>>;
-  /** Provenance for an artifact this generator produced at the given effort. */
-  provenance(effort: Effort): Generation;
+  /** Origin stamp for an artifact this generator produced at the given effort. */
+  origin(effort: Effort): Generation;
 }

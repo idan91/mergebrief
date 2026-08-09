@@ -217,7 +217,7 @@ class FakeGenerator implements Generator {
     this.onCall = onCall;
   }
 
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     return { provider: "fake", model: "fake-model", effort };
   }
 
@@ -274,7 +274,7 @@ describe("categorizeRevisionNarrative", () => {
     } as Brief,
   };
 
-  it("fills CLI-owned metadata and generation provenance", async () => {
+  it("fills CLI-owned metadata and generation origin", async () => {
     const narrative = await categorizeRevisionNarrative(
       input,
       new FakeGenerator(),
@@ -439,21 +439,21 @@ describe("effort threading — delta + narrative (BRIEF-75)", () => {
     }),
   };
 
-  it("delta defaults to medium in request and provenance (byte-identical pin)", async () => {
+  it("delta defaults to medium in request and origin (byte-identical pin)", async () => {
     const generator = new FakeGenerator();
     const delta = await categorizeDelta(deltaInput, generator);
     expect(generator.efforts).toEqual(["medium"]);
     expect(delta.generation.effort).toBe("medium");
   });
 
-  it("delta threads an explicit effort into request AND provenance", async () => {
+  it("delta threads an explicit effort into request AND origin", async () => {
     const generator = new FakeGenerator();
     const delta = await categorizeDelta(deltaInput, generator, () => {}, "low");
     expect(generator.efforts).toEqual(["low"]);
     expect(delta.generation.effort).toBe("low");
   });
 
-  it("narrative threads an explicit effort into request AND provenance", async () => {
+  it("narrative threads an explicit effort into request AND origin", async () => {
     const generator = new FakeGenerator();
     const narrative = await categorizeRevisionNarrative(
       narrativeInput,

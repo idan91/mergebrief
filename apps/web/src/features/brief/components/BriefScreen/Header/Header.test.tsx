@@ -134,14 +134,14 @@ describe("Header identity row (BRIEF-103)", () => {
     expect(screen.queryByText(/basebase\.\.headhead/)).toBeNull();
   });
 
-  it("renders the keycap provenance badge in the riders (BRIEF-103 PR 3)", () => {
+  it("renders the keycap origin badge in the riders (BRIEF-103 PR 3)", () => {
     renderHeader();
     // Full semantics are pinned in ProviderBadge.test.tsx; the header pins
     // the wiring — badge present, interim "via …" note gone.
     const badge = document.querySelector("[data-provider-badge]");
     expect(badge?.textContent).toContain("m-1 · high");
     expect(badge?.textContent).toContain("API");
-    expect(document.querySelector("[data-provenance]")).toBeNull();
+    expect(document.querySelector("[data-origin]")).toBeNull();
   });
 });
 
@@ -237,7 +237,7 @@ describe("generation warnings chip (BRIEF-103)", () => {
     ...brief,
     generationWarnings: [
       "⚠ salvaged brief: dropped 1 invalid tags entry",
-      "warning: requested model m-1 but modelUsage reports m-2 — provenance stamp stays the declaration",
+      "warning: requested model m-1 but modelUsage reports m-2 — origin stamp stays the declaration",
       // Duplicate — the chip counts unique events.
       "⚠ salvaged brief: dropped 1 invalid tags entry",
     ],
@@ -624,7 +624,7 @@ describe("Header own-draft state (BRIEF-43)", () => {
   });
 });
 
-describe("repo-config provenance chip (BRIEF-52, ADR 0032 #8)", () => {
+describe("repo-config origin chip (BRIEF-52, ADR 0032 #8)", () => {
   const APPLIED = {
     files: [
       {

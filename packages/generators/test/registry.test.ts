@@ -9,7 +9,7 @@ import {
   RUNTIME_MARKER_VAR,
   validateGeneratorConfig,
 } from "../src/config/registry";
-import { Efforts } from "../src/contract/provenance";
+import { Efforts } from "../src/contract/generation";
 
 /**
  * The registry + construction boundary (BRIEF-11 decision 1): static compiled-in
@@ -26,7 +26,7 @@ describe("createGenerator", () => {
     const result = await createGenerator(defaultGeneratorConfig, deps);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.provenance("medium")).toEqual({
+    expect(result.value.origin("medium")).toEqual({
       provider: "anthropic",
       model: "claude-opus-4-8",
       effort: "medium",
@@ -99,14 +99,14 @@ describe("createGenerator", () => {
     expect(result.error.issues.join("; ")).toContain("MY_KEY");
   });
 
-  it("honors a configured model in provenance", async () => {
+  it("honors a configured model in the origin", async () => {
     const result = await createGenerator(
       { provider: "anthropic", model: "claude-sonnet-5" },
       deps,
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.provenance("low").model).toBe("claude-sonnet-5");
+    expect(result.value.origin("low").model).toBe("claude-sonnet-5");
   });
 
   it("rejects unknown keys inside a provider block (strict)", async () => {

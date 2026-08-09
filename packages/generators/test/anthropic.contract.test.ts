@@ -131,7 +131,7 @@ function makeHandle(
 function makeAnthropicHarness(): GeneratorContractHarness {
   return {
     supportsRefusal: true,
-    expectedProvenance: {
+    expectedOrigin: {
       provider: "anthropic",
       model: "claude-opus-4-8",
       effort: "medium",

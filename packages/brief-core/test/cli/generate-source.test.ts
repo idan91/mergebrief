@@ -111,7 +111,7 @@ const briefGen = {
 };
 
 class FakeGenerator implements Generator {
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     return { provider: "fake", model: "fake-model", effort };
   }
   async generate<S extends z.ZodType>(

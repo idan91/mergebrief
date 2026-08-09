@@ -74,7 +74,7 @@ const FLOOR_SET: ReadonlySet<string> = new Set(FLOOR_ATTRIBUTES);
  * and superseded generations keep their outcomes. The brief artifact's
  * schema below EXTENDS this with the policy snapshot.
  */
-export const repoConfigProvenanceSchema = z
+export const repoConfigOriginSchema = z
   .object({
     files: z.tuple([
       slotOutcomeSchema(RepoConfigPaths.INSTRUCTIONS),
@@ -91,7 +91,7 @@ export const repoConfigProvenanceSchema = z
  * attributes can never appear de-emphasized in a stored snapshot — same
  * invariant as the live schema.
  */
-export const repoConfigArtifactSchema = repoConfigProvenanceSchema
+export const repoConfigArtifactSchema = repoConfigOriginSchema
   .extend({
     policy: z
       .object({
@@ -111,7 +111,7 @@ export const repoConfigArtifactSchema = repoConfigProvenanceSchema
   })
   .strict();
 
-export type RepoConfigProvenance = z.infer<typeof repoConfigProvenanceSchema>;
+export type RepoConfigOrigin = z.infer<typeof repoConfigOriginSchema>;
 export type RepoConfigArtifact = z.infer<typeof repoConfigArtifactSchema>;
 export type RepoConfigArtifactFile = RepoConfigArtifact["files"][number];
 export type FiredCustomAttribute = z.infer<typeof firedCustomAttributeSchema>;

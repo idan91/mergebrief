@@ -3,7 +3,7 @@ import {
   AnchorSchema,
   AnchorStates,
   FreshRestartReasons,
-} from "../src/contract/provenance";
+} from "../src/contract/generation";
 
 /**
  * The anchor origin stamp (BRIEF-143): every brief records whether it was

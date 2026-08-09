@@ -12,7 +12,7 @@ import {
   stripInjectedNulls,
   withAllRequired,
 } from "../validation/openaiStrict";
-import type { Effort, Generation } from "../contract/provenance";
+import type { Effort, Generation } from "../contract/generation";
 
 /**
  * Shared core for OpenAI-compatible chat-completions providers (ADR 0030):
@@ -25,7 +25,7 @@ import type { Effort, Generation } from "../contract/provenance";
  *    native enforcement bonus layer; every answer runs `runWithSchemaFloor`.
  * 2. Abort rejections propagate UNTOUCHED (ADR 0006 #6) — the SDK's
  *    APIUserAbortError is recognized and passed through unchanged.
- * 3. Provenance is honest: `reasoning_effort` support is discovered at run
+ * 3. Origin is honest: `reasoning_effort` support is discovered at run
  *    time (a 400 naming the parameter → retry once without it and cache
  *    "no knob" for the instance's lifetime); once discovered absent, the
  *    stamp records `effort: null` (ADR 0013 #5 capability gap).
@@ -87,7 +87,7 @@ export interface OpenAiChatTransport {
 
 export interface OpenAiCompatibleCoreOptions {
   transport: OpenAiChatTransport;
-  /** Provenance provider token ("openai" | "openrouter"). */
+  /** Origin provider token ("openai" | "openrouter"). */
   provider: string;
   model: string;
   failureDir: string;
@@ -149,7 +149,7 @@ export class OpenAiCompatibleCore implements Generator {
       options.knobRejectionMarker ?? "reasoning_effort";
   }
 
-  provenance(effort: Effort): Generation {
+  origin(effort: Effort): Generation {
     return {
       provider: this.provider,
       model: this.model,
@@ -300,7 +300,7 @@ export class OpenAiCompatibleCore implements Generator {
           throw new APIUserAbortError();
         }
         log(
-          `warning: ${this.model} rejected reasoning_effort — retrying without it; provenance will record effort: null`,
+          `warning: ${this.model} rejected reasoning_effort — retrying without it; origin will record effort: null`,
         );
         const { reasoning_effort: _dropped, ...rest } = body;
         try {

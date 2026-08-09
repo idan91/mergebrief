@@ -87,7 +87,7 @@ export type {
   DiffSnapshotStore,
   RevisionNarrativeStore,
   ComparisonMarksStore,
-  Provenance,
+  Origin,
   BriefWriteInput,
   DeltaWriteInput,
   DiffSnapshotWriteInput,

@@ -171,7 +171,7 @@ describe("CodexGenerator invocation profile", () => {
     expect(existsSync(String(Reflect.get(meta, "path")))).toBe(false);
   });
 
-  it("passes --model when configured and stamps it in provenance", async () => {
+  it("passes --model when configured and stamps it in the origin", async () => {
     const scriptDir = tempDir("codex-model-");
     writeFileSync(
       join(scriptDir, "turns.json"),
@@ -187,7 +187,7 @@ describe("CodexGenerator invocation profile", () => {
     );
     if (!Array.isArray(argv)) throw new Error("expected argv array");
     expect(argv.slice(-2)).toEqual(["--model", "gpt-5.6-sol"]);
-    expect(generator.provenance("low")).toEqual({
+    expect(generator.origin("low")).toEqual({
       provider: "codex",
       model: "gpt-5.6-sol",
       effort: "low",
@@ -198,7 +198,7 @@ describe("CodexGenerator invocation profile", () => {
     const generator = makeGenerator({});
     // The reroute blind spot: no JSONL event carries a model id, so the
     // stamp is the static declaration — here, the CLI's own default.
-    expect(generator.provenance("medium")).toEqual({
+    expect(generator.origin("medium")).toEqual({
       provider: "codex",
       model: "codex-default",
       effort: "medium",
@@ -330,7 +330,7 @@ describe("codex registry entry", () => {
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.provenance("high")).toEqual({
+    expect(result.value.origin("high")).toEqual({
       provider: "codex",
       model: "codex-default",
       effort: "high",

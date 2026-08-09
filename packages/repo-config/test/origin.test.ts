@@ -4,7 +4,7 @@
 // floor attributes in deEmphasize (codex PR 4 round 1).
 import { describe, expect, it } from "vitest";
 import { FLOOR_ATTRIBUTES, RepoConfigPaths } from "../src/constants";
-import { repoConfigArtifactSchema } from "../src/provenance";
+import { repoConfigArtifactSchema } from "../src/origin";
 
 const APPLIED = (path: string) => ({
   path,

@@ -26,7 +26,7 @@ function makeClaudeCodeHarness(): GeneratorContractHarness {
   let scriptDir = "";
 
   return {
-    expectedProvenance: {
+    expectedOrigin: {
       provider: "claude-code",
       model: "claude-opus-4-8",
       effort: null,

@@ -11,7 +11,7 @@ import { CodexGenerator, CODEX_PROBE } from "../adapters/codex";
 import { createOpenAiCore } from "../adapters/openai";
 import { createOpenRouterCore } from "../adapters/openrouter";
 import { configError, type ConfigError } from "../contract/errors";
-import { Efforts } from "../contract/provenance";
+import { Efforts } from "../contract/generation";
 import { AnthropicGenerator } from "../adapters/anthropic";
 import type { Generator, Logger } from "../contract/generator";
 import { probeHarnessCli } from "../harness/probe";

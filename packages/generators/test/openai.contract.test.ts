@@ -64,7 +64,7 @@ function makeOpenAiHarness(): GeneratorContractHarness {
   let recorded: RecordedRequest[] = [];
 
   return {
-    expectedProvenance: {
+    expectedOrigin: {
       provider: "openai",
       model: "gpt-test-1",
       effort: "medium",

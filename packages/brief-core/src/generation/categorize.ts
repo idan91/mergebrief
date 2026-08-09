@@ -319,7 +319,7 @@ export async function categorize(
     pr: buildPrRef(pr.locator, pr.meta, commitRange.head),
     index,
     commitRange,
-    generation: generator.provenance(effort),
+    generation: generator.origin(effort),
   };
   warnIssues(
     validatePartition(partial.changeGroups, partial.chunks),
@@ -474,7 +474,7 @@ export async function categorizeDelta(
     headSha: input.headSha,
     baselineIndex: input.baselineIndex ?? null,
     headIndex: input.headIndex ?? null,
-    generation: generator.provenance(effort),
+    generation: generator.origin(effort),
   };
   warnIssues(
     validatePartition(partial.changedGroups, partial.chunks),
@@ -637,7 +637,7 @@ export async function categorizeRevisionNarrative(
     headSha: input.headSha,
     prevIndex: input.prevIndex,
     headIndex: input.headIndex,
-    generation: generator.provenance(effort),
+    generation: generator.origin(effort),
     ...(warnings.length > 0 ? { generationWarnings: warnings } : {}),
   };
   return narrative;

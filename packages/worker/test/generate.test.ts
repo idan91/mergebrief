@@ -48,7 +48,7 @@ import {
   PARKED_ATTRIBUTE_CANDIDATES,
   RepoConfigPaths,
   repoConfigArtifactSchema,
-  repoConfigProvenanceSchema,
+  repoConfigOriginSchema,
   RESERVED_ATTRIBUTE_WORDS,
 } from "repo-config";
 import { createGenerateTask } from "../src/task/generate";
@@ -180,7 +180,7 @@ function stubGenerator(): StubGenerator {
       // categorizer's FakeGenerator).
       return req.schema.parse(output);
     },
-    provenance(effort: Effort) {
+    origin(effort: Effort) {
       return { provider: "stub", model: "stub-model", effort };
     },
   };
@@ -414,7 +414,7 @@ describe("generate task", () => {
     expect(generator.calls).toEqual(["brief"]);
   });
 
-  it("threads the instance-config effort into the stored brief's provenance (BRIEF-75)", async () => {
+  it("threads the instance-config effort into the stored brief's origin (BRIEF-75)", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -439,7 +439,7 @@ describe("generate task", () => {
     });
   });
 
-  it("stamps anchor provenance `none` on the row and the artifact body (BRIEF-143)", async () => {
+  it("stamps anchor origin `none` on the row and the artifact body (BRIEF-143)", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
     const github = stubGitHub(HEAD_1);
@@ -504,7 +504,7 @@ describe("generate task", () => {
         }
         return inner.generate(req);
       },
-      provenance: (effort: Effort) => inner.provenance(effort),
+      origin: (effort: Effort) => inner.origin(effort),
     };
     const task = createGenerateTask({
       handle: harness.handle,
@@ -1135,7 +1135,7 @@ describe("generate task", () => {
           });
         });
       },
-      provenance: (effort: Effort) => ({
+      origin: (effort: Effort) => ({
         provider: "stub",
         model: "stub-model",
         effort,
@@ -1245,7 +1245,7 @@ describe("generate task", () => {
           });
         });
       },
-      provenance: (effort: Effort) => ({
+      origin: (effort: Effort) => ({
         provider: "stub",
         model: "stub-model",
         effort,
@@ -1522,7 +1522,7 @@ describe("generate task — anchored generation (BRIEF-143)", () => {
       twoGroupBriefOutput("tmpA", "alpha rewritten", "tmpB", "beta v2");
     if (options.rev2Model !== undefined) {
       const model = options.rev2Model;
-      generator.provenance = (effort) => ({
+      generator.origin = (effort) => ({
         provider: "stub",
         model,
         effort,
@@ -1533,7 +1533,7 @@ describe("generate task — anchored generation (BRIEF-143)", () => {
     return { pr: second.pr, generator, github };
   }
 
-  it("carries frozen groups verbatim and stamps anchored provenance", async () => {
+  it("carries frozen groups verbatim and stamps anchored origin", async () => {
     const { pr } = await runTwoRevisions({});
     const store = artifactStore(harness.handle, ctx);
     const row = await store.briefs.get(pr.id, BASE, HEAD_2);
@@ -1984,7 +1984,7 @@ describe("vocabulary lockstep (categorizer ↔ repo-config)", () => {
   });
 });
 
-describe("generate task — repo-config provenance on the generation record", () => {
+describe("generate task — repo-config origin on the generation record", () => {
   it("records per-file outcomes on the projection row BEFORE generation, surviving a failed run", async () => {
     const { pr, payload } = await trigger(HEAD_1);
     const generator = stubGenerator();
@@ -2010,10 +2010,10 @@ describe("generate task — repo-config provenance on the generation record", ()
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
-    const provenance = repoConfigProvenanceSchema.parse(
+    const origin = repoConfigOriginSchema.parse(
       JSON.parse(row?.repoConfig ?? "null"),
     );
-    const byPath = new Map(provenance.files.map((f) => [f.path, f]));
+    const byPath = new Map(origin.files.map((f) => [f.path, f]));
     expect(byPath.get(RepoConfigPaths.SETTINGS)?.outcome).toBe("invalid");
     expect(byPath.get(RepoConfigPaths.INSTRUCTIONS)?.outcome).toBe("absent");
     // No brief artifact exists — the generation record is the only witness.
@@ -2038,11 +2038,11 @@ describe("generate task — repo-config provenance on the generation record", ()
     const row = await generationProjection(harness.handle, ctx).get(
       target(pr, HEAD_1),
     );
-    const provenance = repoConfigProvenanceSchema.parse(
+    const origin = repoConfigOriginSchema.parse(
       JSON.parse(row?.repoConfig ?? "null"),
     );
-    expect(provenance.files.every((f) => f.outcome === "absent")).toBe(true);
-    expect(provenance.collisions).toEqual([]);
+    expect(origin.files.every((f) => f.outcome === "absent")).toBe(true);
+    expect(origin.collisions).toEqual([]);
   });
 });
 
@@ -2395,7 +2395,7 @@ describe("generate task — observability (BRIEF-51, ADR 0034)", () => {
       async generate(): Promise<never> {
         throw Object.assign(new Error("rate limited"), { status: 429 });
       },
-      provenance: (effort: Effort) => ({
+      origin: (effort: Effort) => ({
         provider: "stub",
         model: "stub-model",
         effort,
@@ -2432,7 +2432,7 @@ describe("generate task — observability (BRIEF-51, ADR 0034)", () => {
           "provider rejected the key",
         );
       },
-      provenance: (effort: Effort) => ({
+      origin: (effort: Effort) => ({
         provider: "stub",
         model: "stub-model",
         effort,

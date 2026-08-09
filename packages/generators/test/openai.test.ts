@@ -172,17 +172,17 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     expect(recorded.bodies[2]?.["reasoning_effort"]).toBeUndefined();
     // …and origin records the capability gap (ADR 0013 #5).
-    expect(generator.provenance("high")).toEqual({
+    expect(generator.origin("high")).toEqual({
       provider: "openai",
       model: "gpt-test-1",
       effort: null,
     });
   });
 
-  it("keeps effort in provenance once the provider accepted the knob", async () => {
+  it("keeps effort in the origin once the provider accepted the knob", async () => {
     const { generator } = await coreWith(() => sse('{"ok":true}'));
     await generator.generate(request());
-    expect(generator.provenance("low")).toEqual({
+    expect(generator.origin("low")).toEqual({
       provider: "openai",
       model: "gpt-test-1",
       effort: "low",
@@ -203,7 +203,7 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
       generator.generate(request()),
     ]);
     expect(results).toEqual([{ ok: true }, { ok: true }]);
-    expect(generator.provenance("high").effort).toBeNull();
+    expect(generator.origin("high").effort).toBeNull();
   });
 
   it("does not treat an unrelated 400 as a knob rejection", async () => {

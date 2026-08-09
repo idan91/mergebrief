@@ -109,9 +109,9 @@ describe("ClaudeCodeGenerator invocation profile", () => {
     expect(system).toBe("you are a test");
   });
 
-  it("declares effort-less provenance regardless of requested effort", () => {
+  it("declares an effort-less origin regardless of requested effort", () => {
     const generator = makeGenerator({});
-    expect(generator.provenance("high")).toEqual({
+    expect(generator.origin("high")).toEqual({
       provider: "claude-code",
       model: "claude-opus-4-8",
       effort: null,
@@ -307,7 +307,7 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
     ]);
     expect(logs.join("\n")).toContain("modelUsage reports claude-haiku-4-5");
     // The stamp stays the declaration (ADR 0013 #5).
-    expect(generator.provenance("medium").model).toBe("claude-opus-4-8");
+    expect(generator.origin("medium").model).toBe("claude-opus-4-8");
   });
 
   it("surfaces a missing modelUsage as unverifiable (empty served list)", async () => {
@@ -360,7 +360,7 @@ describe("claude-code registry entry", () => {
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.provenance("low")).toMatchObject({
+    expect(result.value.origin("low")).toMatchObject({
       provider: "claude-code",
     });
   });

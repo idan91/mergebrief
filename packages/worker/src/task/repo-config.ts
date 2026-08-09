@@ -15,7 +15,7 @@ import { RepoFileKind } from "github";
 import {
   INSTRUCTIONS_BUDGET_BYTES,
   repoConfigArtifactSchema,
-  repoConfigProvenanceSchema,
+  repoConfigOriginSchema,
   POLICY_MAX_BYTES,
   RepoConfigOutcome,
   RepoConfigPaths,
@@ -240,11 +240,11 @@ function validateAndShape(
  * merged per-file outcome table + collision disclosures, recorded right
  * after acquisition so failed/superseded runs keep their outcomes.
  */
-export function buildRepoConfigProvenance(
+export function buildRepoConfigOrigin(
   acquired: AcquiredRepoConfig,
 ): string {
   return JSON.stringify(
-    repoConfigProvenanceSchema.parse({
+    repoConfigOriginSchema.parse({
       files: acquired.files.map((file) => ({ ...file })),
       collisions: [...acquired.collisions],
     }),
