@@ -306,8 +306,7 @@ describe("createLogger URL scrubbing — err serializer", () => {
   });
 
   it("folds a duck-typed error-like's cause chain, scrubbed", () => {
-    // A hand-built `{message, cause}` (no Error prototype) must route
-    // through pino's serializer like a real Error — otherwise the cause's
+    // Must route through pino's serializer like a real Error, or the cause's
     // non-enumerable message/stack vanish in the deep copy.
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
@@ -323,9 +322,8 @@ describe("createLogger URL scrubbing — err serializer", () => {
   });
 
   it("survives a frozen error-like without throwing, still scrubbed", () => {
-    // pino's serializer tags its input with a symbol; on a frozen object
-    // that write throws, and pino runs serializers uncaught — the logger
-    // must degrade (no cause folding), never crash the call site.
+    // pino's serializer tags its input with a symbol; that write throws on a
+    // frozen object, and pino runs serializers uncaught.
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
     log.error("boom", {

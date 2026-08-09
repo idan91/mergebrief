@@ -12,10 +12,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import { persistRunBriefs } from "../eval/specimens";
 
 /**
- * Specimens are the only inspectable evidence for flaky properties
- * (BRIEF-55/67). An all-failure invocation must never destroy the previous
- * run's specimens — on 2026-07-20 a failed cross-model run wiped the case
- * dir and wrote nothing, losing the evidence the drift investigation needed.
+ * Specimens are the only inspectable evidence for flaky properties. An
+ * all-failure invocation must never destroy the previous run's specimens.
  */
 
 const tempDirs: string[] = [];

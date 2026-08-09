@@ -1,9 +1,8 @@
 import type { Generator, TokenUsage } from "generators";
 
 /**
- * Decorate a Generator so every request reports usage into `sink` —
- * how the harness observes cost without `categorize()` knowing about
- * usage at all (the callback rides the GenerateRequest, BRIEF-59 PR 1).
+ * Decorate a Generator so every request reports usage into `sink` — how the
+ * harness observes cost without `categorize()` knowing about usage at all.
  */
 export function withUsageSink(
   inner: Generator,

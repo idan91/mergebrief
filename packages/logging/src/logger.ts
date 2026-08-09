@@ -1,7 +1,5 @@
-// The structured-logging boundary (ADR 0034 #1): call sites depend on `Logger`
-// and `createLogger` only — pino is constructed here and nowhere else, and
-// its types never leak. A later OTel/metrics addition reimplements this
-// interface without touching call sites.
+// The structured-logging boundary: pino is constructed here and nowhere else,
+// and no pino type or value ever appears in an exported signature.
 import { pino, stdSerializers } from "pino";
 import type { ValueOf } from "types";
 
@@ -19,8 +17,8 @@ export interface Logger {
   child(bindings: LogFields): Logger;
 }
 
-// Four levels only (matches graphile-worker; ADR 0034 #1) — fatal moments
-// log `error` and exit.
+// Four levels only (matches graphile-worker); no `fatal` — fatal moments log
+// `error` and exit.
 export const LogLevels = {
   ERROR: "error",
   WARN: "warn",
@@ -43,14 +41,12 @@ export interface LoggerConfig {
 }
 
 /**
- * Pure env → config decision: `LOG_LEVEL` (default `info`), format switched
- * on `NODE_ENV` — JSON unless `development` (ADR 0034 #3). An unknown
- * LOG_LEVEL throws: a misconfigured process must fail loudly at boot, not
- * limp along at a level the operator didn't choose.
+ * Pure env → config decision. An unknown `LOG_LEVEL` throws so a
+ * misconfigured process fails loudly at boot rather than limping along at a
+ * level the operator didn't choose.
  */
 export function resolveLoggerConfig(env: NodeJS.ProcessEnv): LoggerConfig {
-  // `||` on purpose: a blank `LOG_LEVEL=` line (common in .env templates)
-  // means unset, not a misconfiguration.
+  // `||` on purpose: a blank `LOG_LEVEL=` means unset, not a misconfiguration.
   const raw = env["LOG_LEVEL"] || LogLevels.INFO;
   if (!isLogLevel(raw)) {
     throw new Error(
@@ -61,8 +57,9 @@ export function resolveLoggerConfig(env: NodeJS.ProcessEnv): LoggerConfig {
 }
 
 // Secret vocabulary redacted at top level AND one wildcard depth, plus the
-// sensitive request headers (ADR 0034 #4). `remove: true` — redacted keys
-// VANISH from the line, no `[Redacted]` placeholder.
+// sensitive request headers; `remove: true` makes redacted keys VANISH with no
+// placeholder. Extending the vocabulary is non-breaking; narrowing it needs a
+// decision-record amendment.
 const SECRET_KEYS = [
   "token",
   "accessToken",
@@ -83,20 +80,13 @@ const REDACT_PATHS = [
   ...SECRET_KEYS.map((key) => `*.${key}`),
 ];
 
-// Substring scrub (BRIEF-88): key-path redaction removes secret-named FIELDS
-// but is structurally blind to secrets embedded in strings — a pg/drizzle
-// error quotes DATABASE_URL back inside `err.message`/`err.stack`, and pino's
-// stock err serializer also copies every enumerable own prop verbatim.
-// Scope is `err`/`error` values (every string field of the serialized error,
-// post-serialization) plus `msg` — NOT the rest of the LogFields bag, which
-// stays key-path redaction's job: a secret placed under an arbitrary field
-// name still emits verbatim, so structured secrets must ride the SECRET_KEYS
-// vocabulary. Full-URL redaction on purpose: query-string tokens
-// (`?access_token=…`) have no userinfo shape a narrower regex could target.
-// `file://` is EXEMPT: every consumer is ESM, so Node renders stack frames
-// as `file:///abs/path:10:5` — blanket redaction would erase the entire
-// stack (path disclosure to the operator's own logs is acceptable). The `\b`
-// keeps the lookahead from sliding one character right and matching `ile://`.
+// Substring scrub for secrets embedded in strings, which key-path redaction is
+// structurally blind to. Scope is `err`/`error` (every string field of the
+// serialized error) plus `msg` ONLY — a secret under any other field name still
+// emits verbatim, so structured secrets must ride SECRET_KEYS. There is
+// deliberately no disable knob. `file://` is EXEMPT: consumers are ESM, so
+// redacting it would erase every stack frame. The `\b` keeps the lookahead from
+// sliding one character right and matching `ile://`.
 const URL_SHAPED = /\b(?!file:\/\/)\w+:\/\/\S+/g;
 const REDACTED_URL = "[redacted-url]";
 
@@ -105,8 +95,8 @@ function scrubString(text: string): string {
 }
 
 // Copy-on-write: the non-Error path hands us the CALLER's object, which must
-// not be mutated. `seen` breaks cycles the serializer's own guard cannot see
-// (it only tags error-like values, not plain nested objects).
+// not be mutated. `seen` breaks cycles pino's own guard misses (it only tags
+// error-like values, not plain nested objects).
 function scrubValue(value: unknown, seen: WeakSet<object>): unknown {
   if (typeof value === "string") {
     return scrubString(value);
@@ -132,10 +122,8 @@ function scrubValue(value: unknown, seen: WeakSet<object>): unknown {
   return value;
 }
 
-// Mirrors pino-std-serializers' own guard EXACTLY (`err-helpers.js`): routing
-// must match what the serializer would do internally, or duck-typed
-// error-likes (a hand-built `{message, cause}`, a cross-realm Error) skip the
-// cause-chain folding and lose their diagnostics to the plain deep-copy.
+// Must mirror pino-std-serializers' own guard exactly, or duck-typed
+// error-likes skip cause-chain folding and lose their diagnostics.
 function isErrorLike(value: unknown): value is Error {
   if (value instanceof Error) {
     return true;
@@ -148,19 +136,17 @@ function isErrorLike(value: unknown): value is Error {
   );
 }
 
-// Error-likes go through pino's serializer first (cause chains fold into
-// message/stack); anything else — a thrown string, a number — is deep-scrubbed
-// as-is, so the scrub holds regardless of input shape.
+// Non-error input (a thrown string, a number) is deep-scrubbed as-is, so the
+// scrub holds regardless of input shape.
 function scrubbedErrSerializer(value: unknown): unknown {
   let serialized = value;
   if (isErrorLike(value)) {
     try {
       serialized = stdSerializers.err(value);
     } catch {
-      // A frozen/non-extensible error-like makes pino's cycle-tag write
-      // throw, and pino calls serializers with no try/catch — a logger must
-      // never crash its call site. Fall back to deep-scrubbing the raw
-      // value: diagnostics degrade (no cause folding), secrets still die.
+      // A frozen error-like makes pino's cycle-tag write throw, and pino calls
+      // serializers with no try/catch — a logger must never crash its call
+      // site. Diagnostics degrade here; the scrub below still runs.
     }
   }
   return scrubValue(serialized, new WeakSet());
@@ -199,10 +185,9 @@ function wrap(instance: PinoLike): Logger {
 }
 
 /**
- * The ONE place pino is constructed. Level + format from the injected env
- * (`resolveLoggerConfig`); secret redaction with `remove: true`; the
- * URL-scrubbing `err`/`error` serializer (BRIEF-88); string level labels
- * (`"level":"warn"`) for a greppable operator contract.
+ * The ONE place pino is constructed. Env is injected — this package never
+ * reads `process.env`. String level labels (`"level":"warn"`) are part of the
+ * operator-facing line shape; changing the rendering is a breaking change.
  */
 export function createLogger(options: CreateLoggerOptions = {}): Logger {
   const { env = {}, base, destination } = options;
@@ -211,16 +196,15 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
   const pinoOptions = {
     level,
     redact: { paths: REDACT_PATHS, remove: true },
-    // Both keys on purpose: all call sites use `err:` today, but an `error:`
-    // slip-up under pino's default path would DROP message/stack (non-
-    // enumerable) while emitting enumerable props — the exact leak shape.
+    // Both keys on purpose: an `error:` slip-up under pino's default path
+    // drops message/stack while emitting enumerable props — the leak shape.
     serializers: { err: scrubbedErrSerializer, error: scrubbedErrSerializer },
     formatters: {
       level: (label: string) => ({ level: label }),
     },
     ...(base === undefined ? {} : { base }),
-    // pino-pretty is a devDependency: the transport is only referenced in
-    // dev mode and resolves lazily inside pino's worker thread.
+    // pino-pretty is a devDependency: referenced only in dev mode, resolved
+    // lazily inside pino's worker thread.
     ...(pretty && destination === undefined
       ? { transport: { target: "pino-pretty" } }
       : {}),

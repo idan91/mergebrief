@@ -1,11 +1,10 @@
 import type { ValueOf } from "types";
 
 /**
- * BRIEF-59 decision 4 — rule-based verdicts, no statistics theater: at
- * n=5 a proportion test has no power, so the harness detects CLIFFS
- * (stable → broken), never drifts. Flaky properties are informational by
- * construction — a flaky property is itself a finding (the prompt
- * coin-flips there, or the property is badly written).
+ * Rule-based verdicts, no statistics theater: at n=5 a proportion test has no
+ * power, so the harness detects CLIFFS (stable → broken), never drifts. Flaky
+ * properties are informational by construction — flakiness is itself a
+ * finding, either in the prompt or in the property.
  */
 
 /** Pass count over a set of scored runs for one property. */

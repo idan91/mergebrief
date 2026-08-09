@@ -33,25 +33,24 @@ import { persistRunBriefs } from "./specimens";
 import { withUsageSink } from "./usageSink";
 
 /**
- * `pnpm -C tools/categorizer eval` — the BRIEF-59 regression runner.
+ * `pnpm -C tools/categorizer eval` — the generation regression runner.
  *
  *   eval [--config <mergebrief.config.yaml>] [--case <id>] [--runs N]
  *        [--rebaseline] [--prices <prices.json>]
  *
  * Exit codes: 0 clean · 1 = ≥1 REGRESSION · 2 = config/usage error.
- * On-demand local only — never CI (decision 3). Report artifacts land in
- * out/eval-report.{json,md}; the terminal gets the same lines.
+ * On-demand only, never wired into CI — every run is live API spend. Report
+ * artifacts land in out/eval-report.{json,md}.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CASES_DIR = join(here, "cases");
-/** Revision-pair source (BRIEF-143) — one pair = TWO generations per run. */
+/** Revision-pair source — one pair = TWO generations per run. */
 const PAIRS_DIR = join(here, "pair-cases");
 const OUT_DIR = "out";
 /**
- * Mirrors brief-core's DEFAULT_EFFORT (BRIEF-75): with no configured effort
- * the eval must request and record the same medium the engine defaults to —
- * the origin-derived baseline key and the generations must agree.
+ * Must mirror brief-core's DEFAULT_EFFORT: the origin-derived baseline key and
+ * the generations have to agree on effort.
  */
 const DEFAULT_EFFORT: Effort = "medium";
 /** Providers billed by subscription — no meterable marginal cost.
@@ -70,10 +69,9 @@ export interface EvalArgs {
   rebaseline: boolean;
   pricesPath: string;
   /**
-   * Vacuous-pass mode (BRIEF-143): pair cases run BOTH generations fresh —
-   * no anchor view, no stitch. The anchoring-dependent properties MUST fail
-   * under this flag; a property that still passes is vacuous. Never
-   * combinable with --rebaseline.
+   * Vacuous-pass probe: pair cases run BOTH generations fresh — no anchor
+   * view, no stitch. Anchoring-dependent properties MUST fail under this flag;
+   * one that still passes is vacuous. Never combinable with --rebaseline.
    */
   pairFresh: boolean;
 }
@@ -292,8 +290,8 @@ async function main(): Promise<void> {
     }
   }
 
-  // Pre-flight: invocation size IS the spend control (decision 7). A pair
-  // case costs TWO generations per run (base + anchored revision).
+  // Invocation size IS the spend control. A pair case costs TWO generations
+  // per run (base + anchored revision).
   const generationCount =
     singleCases.length * args.runs + pairCases.length * args.runs * 2;
   const caseCount = singleCases.length + pairCases.length;
@@ -367,8 +365,8 @@ async function main(): Promise<void> {
     usage !== null && row !== undefined ? priceUsage(key, usage, row) : null;
 
   if (args.rebaseline) {
-    // Cost is shown on EVERY spend (decision 7) — the first real spend is
-    // a rebaseline run. An incomplete rebaseline must not read as done.
+    // Cost is shown on EVERY spend, and an incomplete rebaseline must not
+    // read as done.
     console.error(
       renderCostLine({ key, billing: { kind: billingKind }, usage, costUsd }),
     );

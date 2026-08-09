@@ -8,7 +8,7 @@ const over = (field: string, actual: number) => ({
   cap: 250,
 });
 
-describe("textLengthNotes (BRIEF-148)", () => {
+describe("textLengthNotes", () => {
   it("is silent when no run carries violations", () => {
     expect(textLengthNotes([{}, { lengthViolations: [] }])).toEqual([]);
   });

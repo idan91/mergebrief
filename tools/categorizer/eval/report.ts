@@ -8,14 +8,13 @@ import {
 } from "./verdicts";
 
 /**
- * Report building (BRIEF-59 decision 6): pure — no I/O, no process exit.
- * The regression count is the ONLY automation surface; everything else is
- * for a human reading the terminal or pasting the markdown into a PR.
+ * Report building: pure — no I/O, no process exit. The regression count is the
+ * ONLY automation surface; everything else is for a human reading the terminal
+ * or pasting the markdown into a PR.
  */
 
-/** The slice of a property the report needs — singles (`EvalProperty`) and
- * revision pairs (`PairEvalProperty`, BRIEF-143) both satisfy it; the report
- * never calls `check`. */
+/** The slice of a property the report needs — `EvalProperty` and
+ * `PairEvalProperty` both satisfy it; the report never calls `check`. */
 export interface PropertyDescriptor {
   id: string;
   description: string;
@@ -126,9 +125,8 @@ export function buildReport(input: ReportInput): BuiltReport {
 }
 
 function buildCase(outcome: CaseOutcome): CaseReportEntry {
-  // A baseline id with no matching property (renamed/removed in
-  // expected.ts) must not vanish silently — that would drop it from
-  // gating with a clean report.
+  // A baseline id with no matching property must not vanish silently — that
+  // drops it from gating under a clean-looking report.
   const knownIds = new Set(outcome.properties.map((p) => p.id));
   const staleNotes = Object.keys(outcome.baseline?.properties ?? {})
     .filter((id) => !knownIds.has(id))
@@ -203,9 +201,8 @@ function renderLines(
     if (allUnbaselined) {
       lines.push(`  no baseline for this generator — run eval --rebaseline`);
     } else if (unbaselined.length > 0) {
-      // A partially-baselined case must never read as clean: a property
-      // added to expected.ts without a rebaseline would otherwise fail
-      // forever without a single terminal line.
+      // A partially-baselined case must never read as clean: a property added
+      // without a rebaseline would otherwise fail silently forever.
       lines.push(
         `  ${unbaselined.length} propert${unbaselined.length === 1 ? "y has" : "ies have"} ` +
           `no baseline entry (${unbaselined.map((p) => p.id).join(", ")}) — run eval --rebaseline`,
@@ -233,15 +230,14 @@ function renderLines(
   return lines;
 }
 
-/** Exported for the rebaseline path — cost is shown on EVERY spend
- * (decision 7), and the first real spend is a --rebaseline run. */
+/** Exported for the rebaseline path — cost is shown on EVERY spend. */
 export function renderCostLine(
   input: Pick<ReportInput, "key" | "billing" | "usage" | "costUsd">,
 ): string {
   if (input.billing.kind === BillingKinds.SUBSCRIPTION) {
-    // The harness cannot verify which account the CLI authenticated with —
-    // never assert "subscription" as fact (2026-08-06: this line read
-    // "subscription" while an env API key was billing the Console account).
+    // The harness cannot verify which account the CLI authenticated with, so
+    // it must never assert "subscription" as fact — an env API key may be
+    // billing a different account entirely.
     return `cost: billed to the ${input.key} CLI's authenticated account — check its usage page`;
   }
   if (input.usage === null) {

@@ -12,14 +12,13 @@ export interface PersistableRuns {
 
 /**
  * Persist every scored run's brief — flaky-property diagnosis needs
- * specimens, not just pass counts (BRIEF-55's grouping drift was
- * uninspectable). Wiped per CASE per invocation: `--case` iteration
- * refreshes that case's specimens and leaves the other cases' (from an
- * earlier full run) in place — check mtimes when reading across cases.
+ * specimens, not just pass counts. Wiped per CASE per invocation, so a
+ * `--case` run leaves other cases' older specimens in place; check mtimes
+ * when reading across cases.
  *
- * An invocation that scored NOTHING keeps the previous specimens and
- * records its failure messages instead — an all-failure run must never
- * destroy the evidence it failed to replace (BRIEF-67 incident).
+ * An invocation that scored NOTHING keeps the previous specimens and records
+ * its failure messages instead — an all-failure run must never destroy the
+ * evidence it failed to replace.
  */
 export function persistRunBriefs(
   runsDir: string,

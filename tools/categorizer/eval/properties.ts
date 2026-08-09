@@ -2,10 +2,9 @@ import type { Brief } from "brief-core/types";
 import type { PropertyScore } from "./verdicts";
 
 /**
- * One mechanical predicate over a parsed Brief (BRIEF-59 decision 2).
- * Properties anchor on run-stable facts — group counts, file→group
- * bindings, order relations, attribute firings — never on chunk
- * boundaries, which are themselves model output.
+ * One mechanical predicate over a parsed Brief. Properties anchor on
+ * run-stable facts — group counts, file→group bindings, order relations,
+ * attribute firings — never on chunk boundaries, which are model output.
  */
 export interface EvalProperty {
   /** Stable id — the baseline join key. Kebab-case, unique per case. */

@@ -1,9 +1,6 @@
-// Adapter for graphile-worker's `@graphile/logger`: the worker startup
-// wiring passes `createGraphileLogFactory(logger)` to `new Logger(...)` so
-// graphile's lifecycle logs (jobId/workerId/taskIdentifier scope) flow
-// through the boundary. Types are structural on purpose — this package stays
-// free of graphile imports; compatibility is checked where the worker
-// passes the factory in.
+// Adapter for graphile-worker's `@graphile/logger`. Types are structural on
+// purpose — this package stays framework-free, with no graphile imports;
+// compatibility is checked where the worker passes the factory in.
 import type { Logger } from "./logger";
 
 /** Structural mirror of `@graphile/logger`'s `LogFunction`. */
@@ -18,9 +15,8 @@ export type GraphileLogFactory = (
   scope: Record<string, unknown>,
 ) => GraphileLogFunction;
 
-// graphile levels: "error" | "warning" | "info" | "debug" (string const
-// enum). Anything unrecognized logs as info — never drop a line over a
-// vocabulary mismatch.
+// graphile levels: "error" | "warning" | "info" | "debug". Anything
+// unrecognized logs as info — never drop a line over a vocabulary mismatch.
 function forward(
   logger: Logger,
   level: string,

@@ -5,9 +5,9 @@ import type { Result } from "types";
 import type { InvocationUsage } from "./report";
 
 /**
- * Prices are USER-SUPPLIED config, never hardcoded (BRIEF-59 decision 7):
- * baked-in rates go stale and silently mis-report. Absent file → tokens-only
- * reporting. Keys are `${provider}:${model}`, rates are $ per Mtok.
+ * Prices are USER-SUPPLIED config, never hardcoded: baked-in rates go stale
+ * and silently mis-report. Absent file → tokens-only reporting. Keys are
+ * `${provider}:${model}`, rates are $ per Mtok.
  */
 const PriceRowSchema = z.object({
   inputPerMTok: z.number().nonnegative(),
@@ -76,7 +76,7 @@ export function priceUsage(
   }
   if (cacheRate === undefined) {
     // No cache rate: the whole prompt bills at the input rate — an honest
-    // overcount (cost is never understated), matching decision 7's posture.
+    // overcount, since cost must never be understated.
     return perTok(usage.inputTokens, row.inputPerMTok) + output;
   }
   // Guard a pathological wire report (cached > prompt) from going negative —

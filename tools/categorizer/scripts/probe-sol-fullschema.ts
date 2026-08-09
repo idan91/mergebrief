@@ -1,7 +1,7 @@
 /**
  * One-off probe: run a single eval fixture through the configured generator
  * (openrouter gpt-5.6-sol) and print the raw generation result — success or
- * the full error — without the eval harness's baseline gate. Verifies #132's
+ * the full error — without the eval harness's baseline gate. Verifies
  * metadata.raw surfacing on the strict-json_schema 400.
  *
  *   pnpm -C tools/categorizer exec tsx scripts/probe-sol-fullschema.ts

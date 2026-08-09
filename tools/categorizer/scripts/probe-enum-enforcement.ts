@@ -1,5 +1,5 @@
 /**
- * Spike probe (issue #21): does the Anthropic platform enforce `enum` in a
+ * Spike probe: does the Anthropic platform enforce `enum` in a
  * structured-output schema server-side (constrained decoding), or only treat it
  * as text?
  *
@@ -13,7 +13,7 @@
  * constrained decoding it *cannot* emit those tokens.
  *
  * Exit codes: 0 = enforcement confirmed on the treatment run, 2 = schema
- * rejected by the API (gate 1), 3 = not confirmed (invalid tokens still appear).
+ * rejected by the API, 3 = not confirmed (invalid tokens still appear).
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
@@ -125,7 +125,8 @@ async function main(): Promise<number> {
     analyze(controlResp.content, controlResp.stop_reason),
   );
 
-  // Treatment run — hand-built enum-preserving format. A 400 here is gate 1.
+  // Treatment run — hand-built enum-preserving format; a 400 here means the
+  // API rejected the schema outright.
   let treatmentReport: RunReport;
   try {
     const treatmentResp = await client.messages.create({

@@ -9,9 +9,8 @@ import {
 } from "../eval/baseline";
 
 /**
- * Baselines are checked-in snapshots keyed by provider:model (BRIEF-59
- * decision 5): comparing across keys is refused, not fudged — a Sonnet
- * baseline says nothing about a GPT run.
+ * Baselines are checked-in snapshots keyed by provider:model; comparing across
+ * keys is refused, not fudged — a Sonnet baseline says nothing about a GPT run.
  */
 
 const tempDirs: string[] = [];
@@ -87,8 +86,7 @@ describe("baseline round-trip", () => {
 });
 
 describe("preflightBaselineKeys", () => {
-  /** Cross-model runs must be refused BEFORE any generation spends money
-   * (2026-07-20 incident: full spend, then exit 2 at the baseline lookup). */
+  /** Cross-model runs must be refused BEFORE any generation spends money. */
   it("passes when every case's baseline matches the run key", () => {
     const a = tempDir();
     const b = tempDir();

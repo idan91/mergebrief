@@ -1,5 +1,5 @@
-// Revision-pair machinery (BRIEF-143 PR 5): the pair runner drives the SAME
-// plan/stitch the production worker runs — fake generators only, no API.
+// Revision-pair machinery: the pair runner drives the SAME plan/stitch the
+// production worker runs — fake generators only, no API.
 import { existsSync, mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -347,7 +347,7 @@ describe("evaluatePairCase", () => {
     );
   });
 
-  it("carries a labeled text-length note when a side's summary is over cap (BRIEF-148)", async () => {
+  it("carries a labeled text-length note when a side's summary is over cap", async () => {
     const root = writePairCase("demo-pair", EXPECTED_TS);
     const cases = await loadPairCases(root);
     if (!cases.ok) throw new Error(cases.error);
@@ -506,9 +506,9 @@ describe("scorePairRuns", () => {
 });
 
 // ---------------------------------------------------------------------------
-// The committed pair source (BRIEF-143): every case must load, and the shared
-// property builders must be shown to FAIL against broken pairs — mechanical
-// vacuous-pass evidence before any live baseline lands (BRIEF-59 trap).
+// The committed pair source: every case must load, and the shared property
+// builders must be shown to FAIL against broken pairs — mechanical
+// vacuous-pass evidence before any live baseline lands.
 // ---------------------------------------------------------------------------
 
 import { dirname, join as joinPath } from "node:path";

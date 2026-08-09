@@ -19,18 +19,14 @@ import type { CaseOutcome } from "./report";
 import { persistRunBriefs } from "./specimens";
 
 /**
- * Revision-pair cases (BRIEF-143 PR 5): a pair = a base fixture + a
- * constructed increment. The runner drives the SAME machinery production
- * runs — fresh categorize for the base, `planAnchoredGeneration` over the
- * increment, anchored categorize for the revision, `stitchBrief` for the
- * merged artifact — so the property pairs measure the real pipeline, not a
- * re-implementation. Each case's increment is provably scoped (authored
- * diffs over own-repo files; the compare metadata is part of the fixture).
+ * Revision-pair cases: a pair = a base fixture + a constructed increment. The
+ * runner drives the SAME machinery production runs — fresh categorize, plan,
+ * anchored categorize, stitch — so properties measure the real pipeline, not a
+ * re-implementation.
  *
- * Baselines follow the BRIEF-59 discipline; a pair case without a
- * baseline.json reports scores with verdicts withheld (the CLI's normal
- * no-baseline posture) — baselines land via `--rebaseline --case <id>` as
- * an explicit reviewed commit AFTER the vacuous-pass check (README).
+ * A pair case without a baseline.json reports scores with verdicts withheld;
+ * baselines land via `--rebaseline --case <id>` as an explicit reviewed commit
+ * AFTER the vacuous-pass check.
  */
 
 const PairIncrementSchema = z.object({
@@ -76,9 +72,8 @@ export interface RevisionPair {
 
 /**
  * One mechanical predicate over a revision pair. Same register as
- * `EvalProperty` (BRIEF-59 decision 2): anchor on run-stable facts — group
- * survival, id carry, attribute presence, coverage — never chunk boundaries
- * or free-form text.
+ * `EvalProperty`: anchor on run-stable facts — group survival, id carry,
+ * attribute presence, coverage — never chunk boundaries or free-form text.
  */
 export interface PairEvalProperty {
   id: string;
@@ -253,9 +248,9 @@ export interface PairRunResult {
  */
 /**
  * `anchored` = the production path (plan → anchored categorize → stitch).
- * `fresh` = the vacuous-pass mode (README ritual): BOTH generations run
- * fresh, no anchor view, no stitch — the anchoring-dependent properties
- * (untouched survival, anchored stamp) MUST fail here, or they are vacuous.
+ * `fresh` = the vacuous-pass probe: BOTH generations run fresh, no anchor
+ * view, no stitch — the anchoring-dependent properties MUST fail here, or
+ * they are vacuous.
  */
 export type PairRunMode = "anchored" | "fresh";
 
@@ -307,11 +302,8 @@ export async function runPairCase(
           : undefined,
       );
       if (mode === "fresh") {
-        // No stitch, no anchoring detail — the anchored-path guarantees are
-        // absent, as under production's `full-regeneration: always` (which
-        // stamps `anchor: none`; here the stamp is simply absent — the
-        // anchoredStamp property fails either way). Plan rides for
-        // inspection.
+        // No stitch and no anchor stamp — the anchored-path guarantees are
+        // absent by design. The plan rides along for inspection.
         pairs.push({ base, revised: generated, plan });
         runNumbers.push(run);
         continue;
@@ -425,8 +417,8 @@ export interface EvaluatedPairCase {
 
 /**
  * Evaluate one pair case end to end: run, persist BOTH sides' specimens,
- * score, and load-or-write the baseline (BRIEF-59 discipline). Lives here —
- * not in the CLI — so the whole path is coverable with a fake generator.
+ * score, load-or-write the baseline. Lives here — not in the CLI — so the
+ * whole path is coverable with a fake generator.
  */
 export async function evaluatePairCase(
   pairCase: PairCase,

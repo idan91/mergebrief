@@ -17,13 +17,11 @@ import { renderCostLine } from "./report";
 import { withUsageSink } from "./usageSink";
 
 /**
- * BRIEF-148 cross-model length spot check (length numbers only, no property
- * verdicts): run a case fixture through the --config generator and print
- * text-length compliance. Exists because the eval harness refuses
- * cross-key runs before spend (by design). A SINGLE case id runs the full
- * brief; a PAIR case id runs a fresh revised-side brief plus the revision
- * NARRATIVE over the pair's incremental diff — the narrative surfaces
- * (overview + hover-callout chunk summaries) are only reachable this way.
+ * Cross-model length spot check (length numbers only, no property verdicts).
+ * Exists because the eval harness deliberately refuses cross-key runs before
+ * spend. A SINGLE case id runs the full brief; a PAIR case id runs a fresh
+ * revised-side brief plus the revision NARRATIVE over the pair's incremental
+ * diff — the narrative surfaces are only reachable this way.
  *
  *   pnpm -C tools/categorizer exec tsx eval/spot-brief148.ts <configPath> <caseId> <runs>
  */
@@ -62,8 +60,8 @@ async function main(): Promise<void> {
   });
   if (!constructed.ok) throw new Error(constructed.error.issues.join("; "));
   const effort: Effort = loaded.value.generator.effort ?? "medium";
-  // Cost on every spend (decision 7): sum usage and print the same line the
-  // harness prints — tokens only (no price row lookup for spot runs).
+  // Cost on every spend: the same line the harness prints, tokens only (no
+  // price row lookup for spot runs).
   const usage = {
     calls: 0,
     inputTokens: 0,
@@ -111,9 +109,8 @@ async function main(): Promise<void> {
       );
       printViolations(brief.lengthViolations ?? []);
     } else if (pair !== undefined) {
-      // Narrative mode: fresh revised-side brief, then the revision
-      // narrative over the pair's incremental diff — the only path that
-      // exercises narrative-overview / narrative-chunk-summary caps.
+      // The only path that exercises the narrative-overview and
+      // narrative-chunk-summary caps.
       // eslint-disable-next-line no-await-in-loop -- serial by design
       const brief = await categorize(
         pair.fixture.revised.pr,

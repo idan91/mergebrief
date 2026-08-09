@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildReport, type CaseOutcome } from "../eval/report";
 
 /**
- * Report = the measurement artifact (BRIEF-59 decision 6): terminal text,
- * report JSON, and a paste-ready markdown block. Quiet when clean; the
- * regression count is the only automation input (exit code).
+ * Report = the measurement artifact: terminal text, report JSON, and a
+ * paste-ready markdown block. Quiet when clean; the regression count is the
+ * only automation input (exit code).
  */
 
 function outcome(overrides: Partial<CaseOutcome> = {}): CaseOutcome {
@@ -160,8 +160,8 @@ describe("buildReport", () => {
       usage: null,
       costUsd: null,
     });
-    // Never asserts "subscription" as fact — the harness cannot verify
-    // which account the CLI authenticated with (BRIEF-104 billing lesson).
+    // Never asserts "subscription" as fact — the harness cannot verify which
+    // account the CLI authenticated with.
     expect(subscription.terminal).toContain("CLI's authenticated account");
     expect(subscription.terminal).not.toContain("subscription");
     expect(subscription.terminal).not.toContain("$0");

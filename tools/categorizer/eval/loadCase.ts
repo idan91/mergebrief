@@ -9,10 +9,9 @@ import type { RepoContext } from "brief-core";
 import type { EvalProperty } from "./properties";
 
 /**
- * Case loading (BRIEF-59 decision 5): each `cases/<id>/` dir carries a
- * fully cached `fixture.json` (no GitHub at eval time) and an
- * `expected.ts` exporting the case's property checklist. The fixture is
- * Zod-validated — it crosses a file boundary and hand-edits happen.
+ * Each `cases/<id>/` dir carries a fully cached `fixture.json` (no GitHub at
+ * eval time) and an `expected.ts` exporting the case's property checklist. The
+ * fixture is Zod-validated — it crosses a file boundary and gets hand-edited.
  */
 
 const PrFileSchema = z.object({
@@ -45,9 +44,9 @@ export const FixtureSchema = z.object({
     head: z.string(),
     commitCount: z.number().int().positive(),
   }),
-  /** Optional PARSED repo-config shape (`RepoContext`), embedded directly:
-   * the harness deliberately skips the `.mergebrief/` file parsers — the
-   * fixture snapshots what the generation actually received. */
+  /** Optional PARSED repo-config shape, embedded directly: the harness skips
+   * the `.mergebrief/` file parsers so the fixture snapshots exactly what the
+   * generation received. */
   repoContext: z
     .object({
       instructions: z

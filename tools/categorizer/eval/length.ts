@@ -1,10 +1,9 @@
 import type { Brief } from "brief-core/types";
 
 /**
- * BRIEF-148: per-case text-length compliance note. The pipeline already
- * stamps `lengthViolations` on every artifact (warn-only floor); this rolls
- * a case's runs into one printed number so length compliance is a report
- * fact, not eyeballing. Quiet when every run fits (report convention).
+ * Per-case text-length compliance note: rolls a case's runs into one printed
+ * number so length compliance is a report fact, not eyeballing. Quiet when
+ * every run fits.
  */
 export function textLengthNotes(
   briefs: readonly Pick<Brief, "lengthViolations">[],

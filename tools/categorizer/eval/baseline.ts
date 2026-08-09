@@ -5,9 +5,9 @@ import type { Result } from "types";
 
 /**
  * A case's checked-in baseline: property pass counts from main at a given
- * provider:model key (BRIEF-59 decision 5). Re-baselining is an explicit,
- * reviewed commit — `saveBaseline` writes sorted, newline-terminated JSON
- * so the diff reads like a snapshot update.
+ * provider:model key. Re-baselining is an explicit, reviewed commit —
+ * `saveBaseline` writes sorted, newline-terminated JSON so the diff reads
+ * like a snapshot update.
  */
 export interface CaseBaseline {
   /** `${provider}:${model}` of the generator that produced it. */
@@ -60,10 +60,9 @@ export function loadBaseline(
 }
 
 /**
- * Refuse a cross-key run BEFORE any generation happens: `loadBaseline`'s
- * key check used to fire only after a case's runs had already spent API
- * money (2026-07-20 incident — full cross-model spend, then exit 2).
- * A case with no baseline yet passes; the late per-case load still runs.
+ * Refuse a cross-key run BEFORE any generation happens, so a mismatch cannot
+ * spend live API money first. A case with no baseline yet passes; the
+ * per-case load still runs later.
  */
 export function preflightBaselineKeys(
   cases: ReadonlyArray<{ id: string; dir: string }>,

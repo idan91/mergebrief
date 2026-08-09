@@ -6,10 +6,10 @@ import {
 } from "../eval/verdicts";
 
 /**
- * BRIEF-59 decision 4: N=5 runs; baseline classes stable-pass (all) /
- * flaky (some) / stable-fail (none); REGRESSION = stable-pass failing ≥2
- * of 5; 1/5 = WARN; flaky never gates; stable-fail passing = IMPROVEMENT.
- * Verdicts only at >= MIN_VERDICT_RUNS on BOTH sides.
+ * Verdict rules: baseline classes stable-pass (all) / flaky (some) /
+ * stable-fail (none); REGRESSION = stable-pass failing ≥2 of 5; 1/5 = WARN;
+ * flaky never gates; stable-fail passing = IMPROVEMENT. Verdicts only at
+ * >= MIN_VERDICT_RUNS on BOTH sides.
  */
 
 describe("classifyBaseline", () => {
