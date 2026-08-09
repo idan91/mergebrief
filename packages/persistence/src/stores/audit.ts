@@ -1,17 +1,16 @@
-// The `audit(...)` emit (ADR 0018 D9): one immutable, tenant-scoped append per
-// M1 boundary — `generate` (worker write), `delete` (purge), `config`, and auth
-// *denials* (action `auth` + a decision in metadata). High-volume firehoses
-// (every-request auth-success, every-fetch `view`) are excluded — they belong
-// in the purgeable web access log, not this never-purged ledger.
+// The `audit(...)` emit: one immutable, tenant-scoped append per boundary —
+// `generate` (worker write), `delete` (purge), `config`, and auth *denials*
+// (action `auth` + a decision in metadata). High-volume firehoses (every-request
+// auth-success, every-fetch `view`) are excluded — they belong in the purgeable
+// web access log, not this never-purged ledger.
 //
-// NUMERIC-ONLY (D1/D9): the entry carries no name/login/route/method/header/IP
-// — nothing identifying, because the log cannot be purged. The only string
-// fields are `action` (closed vocabulary) and the open-ended `target_type`.
+// NUMERIC-ONLY: the entry carries no name/login/route/method/header/IP —
+// nothing identifying, because the log cannot be purged. The only string fields
+// are `action` (closed vocabulary) and the open-ended `target_type`.
 // `metadata` is guarded by a CLOSED KEY ALLOWLIST — that allowlist (plus the
-// short/printable/no-"@" value rules) IS the PII enforcement, not a
-// convention: an un-erasable table cannot rely on callers' judgment. There are
-// no update/delete helpers — append-only by convention (the
-// `REVOKE UPDATE/DELETE` is the hosted hardening step).
+// short/printable/no-"@" value rules) IS the PII enforcement, not a convention:
+// an un-erasable table cannot rely on callers' judgment. There are no
+// update/delete helpers — this table is append-only.
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
 import { auditLog } from "../schema/audit-log";
@@ -25,9 +24,8 @@ import type {
 export type AuditLogRow = typeof auditLog.$inferSelect;
 
 /**
- * The closed metadata-key allowlist. Covers the M1 emits (generate | delete |
- * config | auth-denial); extending it is a deliberate code change reviewed
- * against the numeric-only rule, never a runtime decision.
+ * The closed metadata-key allowlist. Extending it is a deliberate code change
+ * reviewed against the numeric-only rule, never a runtime decision.
  */
 export const AuditMetadataKey = {
   DECISION: "decision",
@@ -75,11 +73,11 @@ export const AuditMetadataSchema = z.record(
 );
 
 /**
- * `targetType` is deliberately open-ended (D9: `pull_request | brief | … `),
- * but "open-ended" means open CLASS of target, not open TEXT: a class token
- * is lowercase snake_case, ≤64 chars — never a route, slug, email, or any
- * other identifying string. Shape-validated here and CHECK-backstopped in
- * migration 0002 so caller discipline isn't the enforcement.
+ * `targetType` is deliberately open-ended (`pull_request | brief | …`), but
+ * "open-ended" means open CLASS of target, not open TEXT: a class token is
+ * lowercase snake_case, ≤64 chars — never a route, slug, email, or any other
+ * identifying string. Shape-validated here and CHECK-backstopped in the DB so
+ * caller discipline isn't the enforcement.
  */
 export const AuditTargetTypeSchema = z
   .string()
@@ -100,7 +98,7 @@ export type AuditMetadata = Partial<
 /**
  * An audit entry. Compile-time numeric-only guarantee: no string *name* fields
  * beyond the closed `action` and the open `targetType`. `installationId` is the
- * numeric tenant scope (a plain column, NOT an FK — D9); the caller passes
+ * numeric tenant scope (a plain column, NOT an FK); the caller passes
  * `ctx.installationId`.
  */
 export interface AuditEntry {
@@ -118,12 +116,12 @@ export interface AuditEntry {
 
 /**
  * Emit one append-only audit row on the given drizzle executor. In-package
- * interface (NOT re-exported from `index.ts`): a transaction `tx` is assignable to
- * `AppDrizzle`, so a purge routine can append its `delete` entry in the SAME
- * transaction as the deletes it records (D5/D9 — the ledger survives because
- * `audit_log` has no FK, and the emit commits atomically with the cascade).
- * Validates `metadata` against the non-PII scalar schema (Zod boundary) —
- * malformed metadata is a programmer error and throws.
+ * interface (NOT re-exported from `index.ts`): a transaction `tx` is assignable
+ * to `AppDrizzle`, so a purge routine can append its `delete` entry in the SAME
+ * transaction as the deletes it records — the ledger survives because
+ * `audit_log` has no FK, and the emit commits atomically with the cascade.
+ * Validates `metadata` against the non-PII scalar schema — malformed metadata
+ * is a programmer error and throws.
  */
 export async function insertAudit(
   executor: AppDrizzle,
@@ -158,8 +156,8 @@ export async function insertAudit(
 
 /**
  * Emit one append-only audit row. Accepts the opaque `AppDatabase`; unwrapped
- * in-package so no raw handle escapes (D2b). Convenience over `insertAudit` for
- * single-shot, non-transactional emits (`generate` / `config` / auth-denial).
+ * in-package so no raw handle escapes. Convenience over `insertAudit` for
+ * single-shot, non-transactional emits.
  */
 export async function audit(
   handle: AppDatabase,

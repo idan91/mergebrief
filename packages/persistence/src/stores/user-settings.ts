@@ -1,15 +1,13 @@
-// The per-user settings boundary (BRIEF-19; ADR 0018 D14). Like `sessionAuth` and
-// `audit`, this is a NON-tenant surface: it is deliberately NOT ctx-bound and
-// NOT reachable through `forTenant`, because `user_settings` is keyed by GitHub
-// user id, not `installation_id` (a person spans installations — D14/D2b). The
-// containment tests in `test/tenant.test.ts` treat it exactly like `audit`: it
-// takes the opaque `AppDatabase`, unwraps via the in-package `internal()`, and
-// exposes no raw query surface.
+// The per-user settings boundary. Like `sessionAuth` and `audit`, this is a
+// NON-tenant surface: deliberately NOT ctx-bound and NOT reachable through
+// `forTenant`, because `user_settings` is keyed by GitHub user id, not
+// `installation_id` (a person spans installations). It still takes the opaque
+// `AppDatabase`, unwraps via the in-package `internal()`, and exposes no raw
+// query surface.
 //
 // The only setting today is `default_installation_id` — the installation a
 // multi-org reviewer's login binds to when it is still in their live accessible
-// set (read at login, written by the switch endpoint). Typed columns only,
-// never a JSON blob (D14).
+// set. Typed columns only, never a JSON blob.
 import { eq } from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
 import { userSettings } from "../schema/user-settings";
@@ -38,7 +36,7 @@ export interface UserSettingsStore {
 /**
  * Build the non-tenant, user-id-keyed settings store over the opaque
  * `AppDatabase`. Uses the in-package `internal()` unwrap; never exposes a raw
- * query surface (D2b), and is intentionally NOT ctx-bound (see the file header).
+ * query surface, and is intentionally NOT ctx-bound (see the file header).
  */
 export function userSettingsStore(handle: AppDatabase): UserSettingsStore {
   const db = internal(handle);

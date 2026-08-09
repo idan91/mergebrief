@@ -1,28 +1,18 @@
-// Migration-cost amortization for the PGlite test harnesses (BRIEF-114).
+// Migration-cost amortization for the PGlite test harnesses.
 //
-// Applying the checked-in `drizzle/` migrations to a virgin PGlite costs
-// ~0.6s, and every harness call used to pay it — ~200 times in the api suite
-// alone. Under v8 coverage instrumentation that pushed individual setups past
-// the 5s hook timeout, which is the "flake" the QA docs used to carry (#205).
-// It was never nondeterministic: it was a deterministic cost sitting on a
-// threshold.
-//
-// The fix: migrate ONCE, `dumpDataDir()` the migrated cluster, and boot every
+// Migrating a virgin PGlite costs ~0.6s and every harness call used to pay it,
+// which under coverage instrumentation pushed setups past the 5s hook timeout.
+// Instead: migrate ONCE, `dumpDataDir()` the migrated cluster, and boot every
 // instance from that snapshot via `loadDataDir` (~0.12s). Per-test isolation is
-// unchanged — each caller still gets its own PGlite with its own storage; only
-// the migration work is shared.
+// unchanged — only the migration work is shared.
 //
 // Two levels of sharing, because vitest gives each test FILE its own process
 // and each package its own vitest run:
 //   - an in-process memo, so a file's tests migrate at most once between them;
 //   - a content-addressed file in `os.tmpdir()`, so every other worker,
 //     package and subsequent run reuses the same migrated cluster.
-// The cache key digests every input the snapshot is a function of: the
-// migration SQL, meta/_journal.json (the migrator reads order and statement
-// splitting from it, not from the directory listing), and the resolved
-// PGlite + drizzle-orm build paths. Any change to any of them lands on a new
-// key, so a stale snapshot can never be read — test/pglite-snapshot.test.ts
-// pins this key-completeness invariant.
+// The cache key digests every input the snapshot is a function of, so a stale
+// snapshot can never be read; test/pglite-snapshot.test.ts pins that.
 import { createHash } from "node:crypto";
 import {
   access,
@@ -58,10 +48,9 @@ export async function snapshotKey(
   const require = createRequire(import.meta.url);
   digest.update(require.resolve("@electric-sql/pglite"));
   digest.update(require.resolve("drizzle-orm/pglite/migrator"));
-  // The journal is a first-class input, not a proxy: drizzle's migrator takes
-  // the applied set, application ORDER, and statement-breakpoint splitting
-  // from meta/_journal.json — a journal-only change with byte-identical .sql
-  // files still needs a new key.
+  // Drizzle's migrator takes the applied set, ORDER, and statement-breakpoint
+  // splitting from meta/_journal.json — a journal-only change with
+  // byte-identical .sql files still needs a new key.
   digest.update(
     await readFile(join(migrationsFolder, "meta", "_journal.json")),
   );

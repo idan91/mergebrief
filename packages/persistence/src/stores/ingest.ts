@@ -1,26 +1,25 @@
-// The transactional ingest boundary (BRIEF-2 stage 4, plan decision #1): the ONE
-// write path a generation-relevant webhook takes. `triggerGeneration` runs a
-// single transaction that (1) upserts the `pull_request` aggregate root,
-// (2) upserts the `(kind: brief, head)` `generation` projection row as
-// `queued`, and (3) enqueues graphile-worker's `generate` job by calling the
-// `graphile_worker.add_job` SQL function BY NAME on the same transaction —
-// graphile's documented transactional-enqueue pattern. This package never
-// imports the `graphile-worker` npm package: the graphile schema and its
-// `jobs` table stay graphile-owned; we only call its public SQL function.
+// The transactional ingest boundary: the ONE write path a generation-relevant
+// webhook takes. `triggerGeneration` runs a single transaction that
+// (1) upserts the `pull_request` aggregate root, (2) upserts the
+// `(kind: brief, head)` `generation` projection row as `queued`, and
+// (3) enqueues graphile-worker's `generate` job by calling the
+// `graphile_worker.add_job` SQL function BY NAME on the same transaction.
+// This package never imports the `graphile-worker` npm package: the graphile
+// schema and its `jobs` table stay graphile-owned; we only call its public SQL
+// function.
 //
 // IDEMPOTENCY CONTRACT (webhook redelivery / rapid pushes): re-running the
 // same trigger lands on the same `pull_request` row (natural-key upsert), the
-// same `generation` row with `attempts` incremented and `phase`/`error` reset
-// (NULLS NOT DISTINCT natural key, exactly `generation.ts#upsertQueued`), and
-// the SAME job — `job_key = generate:{pull_request_id}` with
-// `job_key_mode => 'replace'` replaces the pending job and pushes its
-// `run_at` out to now + debounce, so the debounce is TRAILING: the job fires
+// same `generation` row with `attempts` incremented and `phase`/`error` reset,
+// and the SAME job — `job_key = generate:{pull_request_id}` with
+// `job_key_mode => 'replace'` replaces the pending job and pushes its `run_at`
+// out to now + debounce, so the debounce is TRAILING: the job fires
 // `debounceSeconds` after the LAST trigger, once.
 //
-// ERRORS: the only expected failure is a caller-supplied invalid debounce
-// (mirrors `purge.ts`'s INVALID_GRACE guard). Everything else — DB down,
-// missing `graphile_worker` schema — is an infra/programmer error and throws,
-// rolling the whole transaction back (no partial writes, no orphaned job).
+// ERRORS: the only expected failure is a caller-supplied invalid debounce.
+// Everything else — DB down, missing `graphile_worker` schema — is an
+// infra/programmer error and throws, rolling the whole transaction back (no
+// partial writes, no orphaned job).
 import { sql } from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
 import { generation } from "../schema/generation";
@@ -52,7 +51,6 @@ function existingPrIsTerminal() {
   return sql`${pullRequest.state} in (${PrState.CLOSED}, ${PrState.MERGED})`;
 }
 
-/** The one BRIEF-2 job kind (plan decision #1); the worker lands in BRIEF-3. */
 const GENERATE_TASK_IDENTIFIER = "generate";
 
 // ---------------------------------------------------------------------------
@@ -83,7 +81,7 @@ type IngestExecutor = Pick<ReturnType<typeof internal>, "insert">;
 
 /**
  * The terminal-preserving `pull_request` upsert (same values/onConflict shape
- * as `tenant.ts#pullRequests.upsert`, installation stamped from ctx — D2b).
+ * as `tenant.ts#pullRequests.upsert`, installation stamped from ctx).
  * With `preserveTerminal`, a `state: open` input landing on a closed/merged
  * row keeps the stored terminal lifecycle (stale redeliveries and state-only
  * events must never resurrect a terminal PR); non-lifecycle fields refresh
@@ -154,16 +152,14 @@ export interface TriggerGenerationInput {
   readonly pullRequest: PullRequestUpsertInput;
   /** The head SHA the queued brief generation targets. */
   readonly headSha: string;
-  /** Trailing-debounce window; defaults to 60s (plan decision #1). */
+  /** Trailing-debounce window; defaults to 60s. */
   readonly debounceSeconds?: number;
   /**
-   * Trailing-debounce window applied INSTEAD of `debounceSeconds` when a
-   * prior brief generation for this PR has SUCCEEDED (BRIEF-64: draft
-   * push-storm damping). The condition is deliberately "a brief exists to
-   * look at": queued/failed/superseded priors don't damp — with no readable
-   * brief, the next attempt should fire on the normal window. Policy (which
-   * events pass this, and the window value) is the caller's; this store owns
-   * only the transactional prior-success check.
+   * Trailing-debounce window applied INSTEAD of `debounceSeconds` when a prior
+   * brief generation for this PR has SUCCEEDED (push-storm damping). The
+   * condition is deliberately "a brief exists to look at":
+   * queued/failed/superseded priors don't damp. Policy is the caller's; this
+   * store owns only the transactional prior-success check.
    */
   readonly regenerationDebounceSeconds?: number;
   /**
@@ -200,16 +196,15 @@ export interface IngestRoutines {
   /**
    * Persist PR state fields through the SAME terminal-preserving upsert as
    * `triggerGeneration` — WITHOUT touching the generation projection or
-   * enqueueing work. For state-only events (`converted_to_draft`, BRIEF-43)
-   * that carry no regen rationale: re-triggering the worker's skip-path is not
-   * a no-op (Entry-comment repost ping, compare-diff spend, phantom `queued`
-   * status, and a full LLM re-run if the head's last generation failed).
-   * Terminal lifecycles are preserved unless `reopen` is set — the one
-   * state-only event that legitimately leaves a terminal state is a
-   * `reopened` delivery arriving where policy suppresses the enqueue
-   * (BRIEF-64 drafts-off): without the flag the row would wedge closed
-   * forever, since no later event passes through `triggerGeneration`'s
-   * reopen path either.
+   * enqueueing work. For state-only events (`converted_to_draft`) that carry
+   * no regen rationale: re-triggering the worker's skip-path is not a no-op
+   * (Entry-comment repost ping, compare-diff spend, phantom `queued` status,
+   * and a full LLM re-run if the head's last generation failed). Terminal
+   * lifecycles are preserved unless `reopen` is set — the one state-only event
+   * that legitimately leaves a terminal state is a `reopened` delivery
+   * arriving where policy suppresses the enqueue: without the flag the row
+   * would wedge closed forever, since no later event passes through
+   * `triggerGeneration`'s reopen path either.
    */
   recordState(
     input: PullRequestUpsertInput,
@@ -234,10 +229,8 @@ export function ingestRoutines(
 
     async triggerGeneration(input) {
       const debounceSeconds = input.debounceSeconds ?? DEFAULT_DEBOUNCE_SECONDS;
-      // Guard the primitives themselves (same reasoning as `purge.ts`
-      // graceDays): a negative/NaN debounce would enqueue a job that fires
-      // immediately or never — no upstream validation should be trusted to
-      // catch it.
+      // A negative/NaN debounce would enqueue a job that fires immediately or
+      // never — no upstream validation should be trusted to catch it.
       for (const [name, value] of [
         ["debounceSeconds", debounceSeconds],
         ["regenerationDebounceSeconds", input.regenerationDebounceSeconds],
@@ -254,13 +247,11 @@ export function ingestRoutines(
       }
 
       return db.transaction(async (tx) => {
-        // 1. Upsert the `pull_request` aggregate root (shared helper).
-        // Preserve a terminal lifecycle unless this is an explicit `reopened`.
-        // A stale/late generation trigger (redelivery, or a review on an
-        // already-closed PR) writes `state: open` too, and must not resurrect a
-        // closed/merged PR — so on conflict we keep the stored terminal
-        // state/closed_at/purge_after via a CASE keyed on the EXISTING row's
-        // state. `reopened` bypasses the guard and applies the open lifecycle.
+        // 1. Upsert the `pull_request` aggregate root. A stale/late trigger
+        // (redelivery, or a review on an already-closed PR) writes
+        // `state: open` too and must not resurrect a closed/merged PR, so on
+        // conflict the stored terminal lifecycle is kept via a CASE keyed on
+        // the EXISTING row's state. `reopened` bypasses the guard.
         const preserveTerminal = input.reopen !== true;
         const prRow = await upsertPullRequestRow(
           tx,
@@ -280,11 +271,10 @@ export function ingestRoutines(
           return { ok: true, value: { pullRequest: prRow } };
         }
 
-        // 1b. Pick the effective window (BRIEF-64): the regeneration window
-        // applies only when a prior brief for this PR SUCCEEDED — checked on
-        // THIS tx so the read and the enqueue can't interleave with another
-        // trigger's projection write. Runs before step 2, which would upsert
-        // the current head's own (queued) row.
+        // 1b. The regeneration window applies only when a prior brief for this
+        // PR SUCCEEDED — checked on THIS tx so the read and the enqueue can't
+        // interleave with another trigger's projection write. Must run before
+        // step 2, which upserts the current head's own (queued) row.
         let effectiveDebounceSeconds = debounceSeconds;
         if (input.regenerationDebounceSeconds !== undefined) {
           const prior = await tx
@@ -303,10 +293,9 @@ export function ingestRoutines(
         }
 
         // 2. Project the brief generation as `queued` — replicates
-        // `generation.ts#upsertQueued`'s insert/onConflict INLINE on this tx
-        // (NULLS NOT DISTINCT natural key; re-queue bumps `attempts`, resets
-        // `phase`/`error`). No parent-in-tenant check: the parent row was
-        // written by THIS transaction one statement ago.
+        // `generation.ts#upsertQueued`'s insert/onConflict INLINE on this tx.
+        // No parent-in-tenant check: the parent row was written by THIS
+        // transaction one statement ago.
         const genRows = await tx
           .insert(generation)
           .values({
@@ -331,8 +320,7 @@ export function ingestRoutines(
               phase: null,
               error: null,
               // A fresh attempt re-acquires repo config; stale origin data
-              // from a prior drain must not survive the re-queue (same
-              // reset as generationProjection.upsertQueued).
+              // from a prior drain must not survive the re-queue.
               repoConfig: null,
               updatedAt: new Date(),
             },
@@ -345,8 +333,8 @@ export function ingestRoutines(
 
         // 3. Enqueue on the SAME tx via graphile's public SQL function (named
         // notation, so extra defaulted parameters in real graphile don't
-        // matter). Ids cross as STRINGS — JSON cannot carry bigint; the
-        // BRIEF-3 worker re-brands them through `TenantContextSchema`.
+        // matter). Ids cross as STRINGS — JSON cannot carry bigint; the worker
+        // re-brands them through `TenantContextSchema`.
         const jobKey = `generate:${prRow.id}`;
         const payload = {
           installation_id: String(installationId),

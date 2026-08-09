@@ -1,15 +1,15 @@
-// The `generation` status-projection write helpers (ADR 0018 D10). `generation`
-// is a mutable CQRS mirror of a worker job — NOT a queue, NOT a lock, NOT a
-// domain entity: graphile-worker deletes succeeded jobs, so the web tier polls
-// this. These helpers only REFLECT state (queued→running→succeeded/failed);
-// single-flight, retries, and the dead-letter live in graphile, never here.
+// The `generation` status-projection write helpers. `generation` is a mutable
+// CQRS mirror of a worker job — NOT a queue, NOT a lock, NOT a domain entity:
+// graphile-worker deletes succeeded jobs, so the web tier polls this. These
+// helpers only REFLECT state (queued→running→succeeded/failed); single-flight,
+// retries, and the dead-letter live in graphile, never here.
 //
 // The natural key is `(installation_id, pull_request_id, kind, head_sha,
 // baseline_sha)` with NULLS NOT DISTINCT — `baseline_sha` is null for briefs,
 // so without it every brief upsert would insert a second row instead of
 // conflicting. `attempts` is incremented on re-queue; `updated_at` is bumped on
 // every mutation. Like the artifact writes, `upsertQueued` verifies the parent
-// `pull_request` belongs to ctx in-transaction (stage-3 invariant (a)).
+// `pull_request` belongs to ctx in-transaction.
 import {
   and,
   asc,
@@ -142,7 +142,7 @@ export interface GenerationProjection {
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * Reflect `superseded` — a terminal mid-call abort because the PR head
-   * advanced (ADR 0006 #6). An abort is NOT a failure: it leaves `attempts`
+   * advanced. An abort is NOT a failure: it leaves `attempts`
    * untouched (unlike a re-queue) and clears `phase`/`error` (like
    * `markSucceeded`), so a superseded job never consumes a retry.
    */
@@ -150,8 +150,8 @@ export interface GenerationProjection {
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
-   * Reflect `capped` (BRIEF-20) — the terminal skip a repo's daily
-   * generation cap produces. Like `markSuperseded` this is NOT a failure:
+   * Reflect `capped` — the terminal skip a repo's daily generation cap
+   * produces. Like `markSuperseded` this is NOT a failure:
    * `attempts` is untouched and `phase`/`error` are cleared, so a capped run
    * consumes no retry and shows no error text.
    */
@@ -168,8 +168,8 @@ export interface GenerationProjection {
     error: string,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
-   * Attach the repo-config per-file outcome table (ADR 0032 #8) — written
-   * right after acquisition, BEFORE generation, so failed and superseded
+   * Attach the repo-config per-file outcome table — written right after
+   * acquisition, BEFORE generation, so failed and superseded
    * runs still carry `invalid`/`over-budget`/`fetch-failed` outcomes. A
    * re-queue clears it (the fresh attempt re-acquires).
    */
@@ -180,36 +180,25 @@ export interface GenerationProjection {
   /** Tenant-scoped read of the projection row; absence is `undefined`. */
   get(target: GenerationTarget): Promise<GenerationRow | undefined>;
   /**
-   * The daily spend cap's counter (BRIEF-20): how much of ONE repo's budget
-   * the half-open window `[from, to)` has already consumed.
+   * The daily spend cap's counter: how much of ONE repo's budget the half-open
+   * window `[from, to)` has already consumed.
    *
-   * Counts ATTEMPTS, not rows — `sum(GREATEST(attempts, 1))` over the
-   * started rows. One row can be re-queued many times (`upsertQueued`
-   * increments `attempts`), and each re-queue is another paid run against
-   * the same natural key; counting rows would let a hot PR spend a
-   * multiple of the cap. Bias is deliberate: `attempts` also increments for
-   * a re-queue that has not run yet, so the tally can slightly OVER-count
-   * and cap early — the safe direction for a money guardrail.
+   * Counts ATTEMPTS, not rows — `sum(GREATEST(attempts, 1))` over the started
+   * rows: each re-queue is another paid run against the same natural key, so
+   * counting rows would let a hot PR spend a multiple of the cap. The tally can
+   * slightly OVER-count and cap early; that is the safe direction here.
    *
    * "Started" = any status other than `queued` and `capped`:
-   * - `queued` is excluded because such a row has not reached the worker and
-   *   has spent nothing — and, critically, because the run being decided on
-   *   is still `queued` at gate time, so counting it would make a cap of N
-   *   behave like N−1 (a cap of 1 would block every run). The known cost of
-   *   the exclusion: `upsertQueued` re-queues an already-started row back to
-   *   `queued`, so that row's earlier attempts drop out of the tally until
-   *   it runs again — a transient under-count on a re-pushed PR. Do NOT
-   *   "fix" it by counting `queued`; that trade was made knowingly.
+   * - `queued` is excluded because the run being decided on is still `queued`
+   *   at gate time, so counting it would make a cap of N behave like N−1. The
+   *   known cost: a re-queued row's earlier attempts drop out of the tally
+   *   until it runs again. Do NOT "fix" that by counting `queued`.
    * - `capped` is the skip itself and must never feed the counter that
    *   produced it.
-   * `superseded` and `failed` DO count: they reached a provider call and
-   * spent.
+   * `superseded` and `failed` DO count: they reached a provider call and spent.
    *
-   * Scoped by `repo_id`, GitHub's immutable numeric id — not the slug the
-   * instance config keys its overrides on: a repo rename must not silently
-   * reset the day's count. The join rides the `pull_request` natural-key
-   * index (installation_id, repo_id, …); the tenant filter is ctx's, like
-   * every other read here.
+   * Scoped by `repo_id`, GitHub's immutable numeric id, not the slug — a repo
+   * rename must not silently reset the day's count.
    */
   countStartedRunsForRepo(input: {
     readonly repoId: RepoId;
@@ -217,19 +206,18 @@ export interface GenerationProjection {
     readonly to: Date;
   }): Promise<number>;
   /**
-   * The NEWEST brief-kind projection per PR (by `updated_at`), batched for
-   * the BRIEF-19 list/PR-meta endpoints: its `head_sha` IS the current push,
-   * its status drives the wait UX. Span kinds (`delta`,
-   * `revision-narrative`) never shadow it; PRs with no brief-kind row are
-   * absent from the map.
+   * The NEWEST brief-kind projection per PR (by `updated_at`), batched for the
+   * list and PR-meta endpoints: its `head_sha` IS the current push, its status
+   * drives the wait UX. Span kinds (`delta`, `revision-narrative`) never shadow
+   * it; PRs with no brief-kind row are absent from the map.
    */
   latestBriefForPullRequests(
     pullRequestIds: readonly PullRequestRowId[],
   ): Promise<ReadonlyMap<PullRequestRowId, GenerationRow>>;
   /**
    * ALL brief-kind projection rows for ONE PR — the per-revision
-   * "generated at" join (BRIEF-95). One row per briefed head (the natural
-   * key), and `created_at` is the FIRST enqueue for that head: a re-queue
+   * "generated at" join. One row per briefed head (the natural key), and
+   * `created_at` is the FIRST enqueue for that head: a re-queue
    * conflicts and updates in place, so the timestamp stays the earliest
    * bound of what the brief's acquisition could have seen.
    */
@@ -371,8 +359,8 @@ export function generationProjection(
     },
 
     async markSuperseded(target) {
-      // Abort-on-supersession (ADR 0006 #6): not a failure, so `attempts` is
-      // deliberately left untouched and `error` is cleared. Terminal → no phase.
+      // Not a failure, so `attempts` is deliberately left untouched and
+      // `error` is cleared. Terminal → no phase.
       return transition(target, {
         status: GenerationStatus.SUPERSEDED,
         phase: null,
@@ -381,8 +369,8 @@ export function generationProjection(
     },
 
     async markCapped(target) {
-      // Same abort semantics as markSuperseded (BRIEF-20): the run never
-      // started, so `attempts` stays untouched and nothing is retried.
+      // Same abort semantics as markSuperseded: the run never started, so
+      // `attempts` stays untouched and nothing is retried.
       return transition(target, {
         status: GenerationStatus.CAPPED,
         phase: null,
@@ -440,15 +428,11 @@ export function generationProjection(
       if (pullRequestIds.length === 0) {
         return new Map();
       }
-      // DISTINCT ON (pull_request_id), superseded rows LAST, then updated_at
-      // DESC (id DESC tiebreak for same-millisecond writes) → one newest
-      // LIVE brief-kind row per PR. Superseded must never shadow a live row:
-      // `supersedeStaleBriefs` stamps swept STALE rows with a fresher
-      // updated_at than the current head's success, and a drained abort's
-      // markSuperseded likewise postdates the superseding push's queued row.
-      // Ordering by recency alone reported those stale rows as "the current
-      // push" — permanently, for the sweep case. All-superseded (e.g. a
-      // closed PR) still falls through to the newest superseded row.
+      // Superseded rows sort LAST so they never shadow a live row: a swept
+      // stale row carries a FRESHER updated_at than the current head's
+      // success, so recency alone would report it as "the current push".
+      // All-superseded (e.g. a closed PR) still falls through to the newest
+      // superseded row. id DESC tiebreaks same-millisecond writes.
       const rows = await db
         .selectDistinctOn([generation.pullRequestId])
         .from(generation)

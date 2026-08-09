@@ -1,25 +1,17 @@
-// Cross-package test harness (BRIEF-2 stage 4) — exported via the dedicated
-// `persistence/testing` subpath so consumer packages (`api`, later the worker)
-// can integration-test against a real migrated schema without reaching this
-// package's internals. Generalizes `test/helpers.ts`: a fresh in-memory PGlite
-// carrying the checked-in `drizzle/` app migrations (via the per-process
-// snapshot in `pglite-snapshot`), wrapped as the opaque `AppDatabase` — plus a
-// `graphile_worker` STUB so `add_job` calls succeed and enqueued jobs are
-// assertable as rows.
+// Cross-package test harness — exported via the dedicated `persistence/testing`
+// subpath so consumer packages can integration-test against a real migrated
+// schema without reaching this package's internals: a fresh in-memory PGlite
+// carrying the checked-in `drizzle/` migrations, wrapped as the opaque
+// `AppDatabase`, plus a `graphile_worker` STUB so `add_job` calls succeed and
+// enqueued jobs are assertable as rows.
 //
-// WHY A STUB: the real graphile-worker needs a real Postgres (LISTEN/NOTIFY,
-// advisory locks) and cannot run on PGlite. The stub reproduces exactly the
-// slice BRIEF-2 relies on: a `jobs` table and an `add_job(identifier, payload,
-// job_key, run_at, job_key_mode)` function whose named parameters match our
-// by-name call and whose `job_key` conflict behaves like graphile's
-// `job_key_mode => 'replace'` (same key → payload/run_at replaced, one row).
-// It stands in for real graphile ONLY in tests — the compose smoke (stage 5)
-// runs the real graphile-worker migrations against real Postgres.
+// The stub exists because real graphile-worker needs a real Postgres
+// (LISTEN/NOTIFY, advisory locks) and cannot run on PGlite. It stands in for
+// real graphile ONLY in tests.
 //
 // `raw` intentionally exposes an unscoped SQL surface — for TEST ASSERTIONS
-// only (counting rows across tenants, inspecting `graphile_worker.jobs`). It
-// is the harness's escape hatch, not a query API; production code never sees
-// this module (dev-only subpath, `@electric-sql/pglite` is a devDependency).
+// only. It is the harness's escape hatch, not a query API; production code
+// never sees this module (dev-only subpath, PGlite is a devDependency).
 import { drizzle } from "drizzle-orm/pglite";
 import { type AppDatabase, fromDrizzle } from "./db/handle";
 import { migratedPglite } from "./pglite-snapshot";
@@ -30,16 +22,12 @@ import * as schema from "./schema/index";
 // every worker at once under coverage instrumentation.
 export { warmPgliteSnapshot } from "./pglite-snapshot";
 
-// Faithful to the `job_key_mode => 'replace'` semantics BRIEF-2 relies on;
-// parameter names match our named-notation call in `ingest.ts`. `language
-// sql` (not plpgsql) because the parameter `job_key` must coexist with the
-// column `job_key`: plpgsql raises 42702 (ambiguous reference) on the bare
-// `on conflict (job_key)` column list, while SQL functions resolve an
-// unqualified name that matches both to the COLUMN; parameter reads are
-// function-name-qualified. One statement covers both paths — a NULL
-// `job_key` never conflicts under the (nulls-distinct) unique index, so the
-// keyless call degrades to a plain insert, exactly like the keyed branch of
-// graphile's own implementation.
+// Mirrors `job_key_mode => 'replace'`; parameter names match the
+// named-notation call in `ingest.ts`. `language sql` (not plpgsql) because
+// plpgsql raises 42702 on the bare `on conflict (job_key)` column list when a
+// parameter shares the column's name; SQL functions resolve it to the COLUMN.
+// A NULL `job_key` never conflicts, so the keyless call degrades to a plain
+// insert.
 const GRAPHILE_WORKER_STUB_SQL = `
 create schema if not exists graphile_worker;
 create table graphile_worker.jobs (
@@ -72,9 +60,8 @@ export interface PgliteHarness {
  * wrapped as the opaque `AppDatabase`, with a raw assertion window.
  */
 export async function createPgliteHarness(): Promise<PgliteHarness> {
-  // The stub is applied per instance rather than baked into the snapshot:
-  // measured at ~0ms next to the ~120ms restore, and it keeps the snapshot a
-  // faithful picture of the migrated app schema alone.
+  // Applied per instance rather than baked into the snapshot (~0ms next to the
+  // ~120ms restore), keeping the snapshot the migrated app schema alone.
   const client = await migratedPglite();
   await client.exec(GRAPHILE_WORKER_STUB_SQL);
   return {

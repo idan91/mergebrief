@@ -1,18 +1,17 @@
 // The tenant-scoped repository — the ONLY database surface this package
-// exposes to callers (ADR 0018 D2b). `forTenant(db, ctx)` binds an
-// `installation_id` once; every method then filters (reads) or stamps (writes)
-// that same id, so a caller can never address another tenant's rows per call.
+// exposes to callers. `forTenant(db, ctx)` binds an `installation_id` once;
+// every method then filters (reads) or stamps (writes) that same id, so a
+// caller can never address another tenant's rows per call.
 //
-// CRITICAL INVARIANT (stage-2 security review): the DB does NOT tie a child
-// row's `installation_id` to its parent `pull_request`'s. This repository is
-// the enforcement point:
+// CRITICAL INVARIANT: the DB does NOT tie a child row's `installation_id` to
+// its parent `pull_request`'s. This repository is the enforcement point:
 //   (a) every per-PR child WRITE stamps `installation_id` from ctx AND resolves
 //       the parent `pull_request` by (ctx.installationId, id) in the same
 //       transaction — a parent belonging to another tenant yields a Result
 //       error, never a DB write;
 //   (b) every READ filters by ctx.installationId on the queried table's own
-//       column (one-index read, D2a), which is safe precisely because (a)
-//       guarantees a child's own `installation_id` matches its parent's.
+//       column, which is safe precisely because (a) guarantees a child's own
+//       `installation_id` matches its parent's.
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { type AppDatabase, internal } from "../db/handle";
@@ -167,7 +166,7 @@ interface BasePullRequestUpsertInput {
   readonly repoId: RepoId;
   readonly prNumber: number;
   readonly repoSlug?: string;
-  /** Purgeable display label (D5 as amended), refreshed on every webhook. */
+  /** Purgeable display label, refreshed on every webhook. */
   readonly title?: string;
   /**
    * PR-base SHA, refreshed by `pull_request` events. Optional because
@@ -176,16 +175,15 @@ interface BasePullRequestUpsertInput {
    */
   readonly baseSha?: string;
   /**
-   * Whether the PR is a GitHub draft (BRIEF-43). Optional because
-   * `pull_request_review` payloads don't carry it — an omitted value preserves
-   * the stored one (and the column's `false` default on first insert) instead
-   * of forcing it false.
+   * Whether the PR is a GitHub draft. Optional because `pull_request_review`
+   * payloads don't carry it — an omitted value preserves the stored one (and
+   * the column's `false` default on first insert) instead of forcing it false.
    */
   readonly draft?: boolean;
   /**
-   * PR author login (BRIEF-43), refreshed by `pull_request` events. Optional
-   * for the same reason as `baseSha`: review payloads (and deleted authors)
-   * omit it, and an omitted value preserves the stored one.
+   * PR author login, refreshed by `pull_request` events. Optional for the same
+   * reason as `baseSha`: review payloads (and deleted authors) omit it, and an
+   * omitted value preserves the stored one.
    */
   readonly authorLogin?: string;
 }
@@ -225,7 +223,7 @@ export interface SessionCreateInput {
   readonly sessionTokenHash: string;
   readonly reviewerId: ReviewerId;
   readonly reviewerLogin?: string;
-  /** The GitHub credential pair lives on the grant row (D15) — link, never copy. */
+  /** The GitHub credential pair lives on the grant row — link, never copy. */
   readonly grantId: GrantRowId;
   readonly expiresAt: Date;
 }
@@ -235,7 +233,7 @@ export interface SessionCreateInput {
 // ---------------------------------------------------------------------------
 
 export interface PullRequestRepository {
-  /** Content-addressed upsert on the natural key; idempotent per D6. */
+  /** Content-addressed upsert on the natural key; idempotent. */
   upsert(input: PullRequestUpsertInput): Promise<PullRequestRow>;
   /** Tenant-scoped read by (repo, number). Absence is a normal `undefined`. */
   getByNumber(
@@ -244,7 +242,7 @@ export interface PullRequestRepository {
   ): Promise<PullRequestRow | undefined>;
   /**
    * The tenant's PRs across an ALLOWED repo set (the viewer's GitHub-derived
-   * installation∩user intersection — ADR 0016 #5b), newest `updated_at` first,
+   * installation∩user intersection), newest `updated_at` first,
    * capped at `limit`. An empty allowed set returns no rows (fail closed) —
    * the caller must never fall back to an unfiltered tenant listing.
    */
@@ -260,18 +258,17 @@ export interface PullRequestRepository {
     patch: PullRequestStatePatch,
   ): Promise<Result<PullRequestRow, RepositoryError>>;
   /**
-   * Store/rotate the Entry comment id after a delete+repost cycle (ADR 0016
-   * #3). A plain GitHub comment id (no branded type — D5); `notFound` if no
-   * row in ctx's tenant.
+   * Store/rotate the Entry comment id after a delete+repost cycle. A plain
+   * GitHub comment id (no branded type); `notFound` if no row in ctx's tenant.
    */
   setEntryComment(
     pullRequestId: PullRequestRowId,
-    /** `null` clears the stored id (entry comment deleted, BRIEF-58 gate). */
+    /** `null` clears the stored id (entry comment deleted). */
     entryCommentId: bigint | null,
   ): Promise<Result<PullRequestRow, RepositoryError>>;
   /**
-   * Flip the local `draft` mirror after a mark-ready mutation (BRIEF-43). A
-   * NARROW, tenant-scoped update by row id — the caller already resolved the
+   * Flip the local `draft` mirror after a mark-ready mutation. A NARROW,
+   * tenant-scoped update by row id — the caller already resolved the
    * row via `getByNumber`, so this never reconstructs the lifecycle (unlike
    * `recordState`, which is a full webhook upsert). Idempotent: re-running with
    * the same value is a no-op write. `notFound` if no row in ctx's tenant (a
@@ -286,9 +283,9 @@ export interface PullRequestRepository {
 export interface CheckpointRepository {
   /**
    * Idempotent, monotonic upsert of a reviewer's checkpoint —
-   * newest-submission-wins (BRIEF-23): an input whose `submittedAt` is older
-   * than the stored row's leaves the row untouched and returns the CURRENT
-   * row (out-of-order webhook deliveries are a success, not an error).
+   * newest-submission-wins: an input whose `submittedAt` is older than the
+   * stored row's leaves the row untouched and returns the CURRENT row
+   * (out-of-order webhook deliveries are a success, not an error).
    * Verifies the parent `pull_request` belongs to ctx (invariant (a));
    * returns `parentNotInTenant` without writing when it does not.
    */
@@ -301,14 +298,14 @@ export interface CheckpointRepository {
     reviewerId: ReviewerId,
   ): Promise<CheckpointRow | undefined>;
   /**
-   * All checkpoints on a PR (the worker derives the DISTINCT checkpoint SHAs
-   * to pre-warm delta cores for — ADR 0006 #4 as amended).
+   * All checkpoints on a PR — the worker derives the DISTINCT checkpoint SHAs
+   * to pre-warm delta cores for.
    */
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<CheckpointRow[]>;
 }
 
 export interface SessionRepository {
-  /** Stamp the tenant and insert. `reviewer_session` has no PR parent (D11). */
+  /** Stamp the tenant and insert. `reviewer_session` has no PR parent. */
   create(input: SessionCreateInput): Promise<ReviewerSessionRow>;
   /** Scoped read by token hash; absence is a normal `undefined`. */
   getByTokenHash(
@@ -539,9 +536,9 @@ export function forTenant(
               lastSubmittedSha: input.lastSubmittedSha,
               submittedAt: input.submittedAt,
             },
-            // Monotonic (BRIEF-23): newest-submission-wins. An out-of-order
-            // webhook delivery (older submitted_at) must never regress the
-            // row; equality re-applies, keeping redeliveries idempotent.
+            // Newest-submission-wins: an out-of-order delivery (older
+            // submitted_at) must never regress the row; equality re-applies,
+            // keeping redeliveries idempotent.
             setWhere: sql`${checkpoint.submittedAt} <= excluded.submitted_at`,
           })
           .returning();
@@ -634,7 +631,7 @@ export function forTenant(
     },
 
     async deleteExpired(now) {
-      // D15: orphan-clean the grants of the deleted sessions, same tx.
+      // Orphan-clean the grants of the deleted sessions, same tx.
       return db.transaction(async (tx) => {
         const rows = await tx
           .delete(reviewerSession)
@@ -654,7 +651,7 @@ export function forTenant(
     },
 
     async deleteByReviewer(reviewerId) {
-      // D15: orphan-clean the grants of the deleted sessions, same tx.
+      // Orphan-clean the grants of the deleted sessions, same tx.
       return db.transaction(async (tx) => {
         const rows = await tx
           .delete(reviewerSession)

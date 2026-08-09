@@ -6,9 +6,8 @@ import type { Brand, ValueOf } from "types";
 export type { Brand, MaybePromise, Result, ValueOf } from "types";
 
 /**
- * Branded identifiers for the id families ADR 0018 (D1) makes critical.
- * These prevent the exact installation_id/repo_id swap the tenancy
- * invariant (D2b) can't afford. Backed by `bigint` to match Postgres
+ * Branded identifiers. These prevent the exact installation_id/repo_id swap
+ * the tenancy invariant can't afford. Backed by `bigint` to match Postgres
  * `bigint` identity columns.
  */
 export type InstallationId = Brand<bigint, "InstallationId">;
@@ -51,12 +50,13 @@ export function isGrantRowId(value: bigint): value is GrantRowId {
 }
 
 /**
- * Closed vocabularies (ADR 0018). Stored as plain `text` columns — no
- * `pgEnum` — so adding a value is a code change, not a migration. The
- * `as const` map + `ValueOf` union is the compile-time contract.
+ * Closed vocabularies. Stored as plain `text` columns — no `pgEnum` — but
+ * CHECK-constrained in the DB, so adding a value needs a code change AND a
+ * migration, in lockstep. The `as const` map + `ValueOf` union is the
+ * compile-time contract.
  */
 
-/** `pull_request.state` (D5). */
+/** `pull_request.state`. */
 export const PrState = {
   OPEN: "open",
   CLOSED: "closed",
@@ -64,14 +64,14 @@ export const PrState = {
 } as const;
 export type PrState = ValueOf<typeof PrState>;
 
-/** `disposition.decision` (D7). */
+/** `disposition.decision`. */
 export const DispositionDecision = {
   ADDRESSED: "addressed",
   DISMISSED: "dismissed",
 } as const;
 export type DispositionDecision = ValueOf<typeof DispositionDecision>;
 
-/** `generation.kind` (D10, extended by D12 with `revision-narrative`). */
+/** `generation.kind`. */
 export const GenerationKind = {
   BRIEF: "brief",
   DELTA: "delta",
@@ -80,12 +80,10 @@ export const GenerationKind = {
 export type GenerationKind = ValueOf<typeof GenerationKind>;
 
 /**
- * `generation.status` (D10). `superseded` = terminal abort-on-supersession
- * (ADR 0006 #6, added BRIEF-2): a mid-call generation aborted because the PR
- * head advanced. An abort is NOT a failure — it consumes no attempt.
- * `capped` = terminal skip because the repo hit its daily generation cap
- * (BRIEF-20): also NOT a failure, and deliberately distinct from `failed` so
- * the view can say what happened and when it resets.
+ * `generation.status`. `superseded` = a mid-call generation aborted because
+ * the PR head advanced; `capped` = a skip because the repo hit its daily
+ * generation cap. Neither is a failure — both are terminal and consume no
+ * attempt.
  */
 export const GenerationStatus = {
   QUEUED: "queued",
@@ -97,7 +95,7 @@ export const GenerationStatus = {
 } as const;
 export type GenerationStatus = ValueOf<typeof GenerationStatus>;
 
-/** `generation.phase` (D10; optional determinate-progress detail). */
+/** `generation.phase` — optional determinate-progress detail. */
 export const GenerationPhase = {
   FETCHING: "fetching",
   REDACTING: "redacting",
@@ -106,7 +104,7 @@ export const GenerationPhase = {
 } as const;
 export type GenerationPhase = ValueOf<typeof GenerationPhase>;
 
-/** `audit_log.actor_type` (D9). */
+/** `audit_log.actor_type`. */
 export const AuditActorType = {
   REVIEWER: "reviewer",
   APP: "app",
@@ -115,9 +113,8 @@ export const AuditActorType = {
 export type AuditActorType = ValueOf<typeof AuditActorType>;
 
 /**
- * `audit_log.action` (D9; `view` may join later). CHECK-constrained since
- * migration 0002 — adding a value needs a code change AND a migration, in
- * lockstep (`submit` landed with 0007, BRIEF-23).
+ * `audit_log.action`. CHECK-constrained in the DB — adding a value needs a
+ * code change AND a migration, in lockstep.
  */
 export const AuditAction = {
   GENERATE: "generate",

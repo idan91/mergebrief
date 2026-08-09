@@ -1,26 +1,24 @@
-// The `ArtifactStore` interface (ADR 0018 D6): the typed write/read surface for the
-// five immutable artifact families — `brief`, `delta`, `diff_snapshot`,
+// The `ArtifactStore` interface: the typed write/read surface for the five
+// immutable artifact families — `brief`, `delta`, `diff_snapshot`,
 // `revision_narrative`, `comparison_marks`. Like `forTenant` it is bound to one
 // tenant `ctx` and is the ONLY way this package writes those tables. It unwraps
-// the opaque `AppDatabase` with the in-package `internal()` (never re-exported),
-// so consumers still cannot reach a raw query handle (D2b).
+// the opaque `AppDatabase` with the in-package `internal()` (never
+// re-exported), so consumers still cannot reach a raw query handle.
 //
 // Every write:
 //   (a) is content-addressed — `ON CONFLICT (natural_key) DO UPDATE` makes a
-//       re-write of the same span rewrite the one row in place (idempotency, D6:
-//       the natural UNIQUE key IS the content key, no hash column in M1);
+//       re-write of the same span rewrite the one row in place; the natural
+//       UNIQUE key IS the content key, and it leads with `installation_id`;
 //   (b) stamps `installation_id` from ctx AND resolves the parent
 //       `pull_request` by (ctx, id) in the SAME transaction — a parent in
-//       another tenant yields a Result error, never a DB write (stage-3
-//       invariant (a));
+//       another tenant yields a Result error, never a DB write;
 //   (c) for `revision_narrative` additionally resolves the named `brief` row by
-//       (ctx, same PR, id) in-transaction — the D12 anchoring rule;
+//       (ctx, same PR, id) in-transaction — the anchoring rule;
 //   (d) for `comparison_marks` Zod-validates the coordinates-only body and
-//       REJECTS any `baselineLabel` / `baselineIndex` / per-line content key
-//       (the D13 coordinates-only rule; `.strict()` schemas).
+//       REJECTS any `baselineLabel` / `baselineIndex` / per-line content key.
 // Origin columns (`provider`/`model`/`effort`) are written for
 // `brief`/`delta`/`revision_narrative` only — `diff_snapshot` and
-// `comparison_marks` are mechanical, not LLM output (D6/D13).
+// `comparison_marks` are mechanical, not LLM output.
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { type AppDatabase, type AppDrizzle, internal } from "../db/handle";
@@ -65,7 +63,7 @@ function fail(
 }
 
 // ---------------------------------------------------------------------------
-// comparison_marks body — coordinates-only, strict (D13).
+// comparison_marks body — coordinates-only, strict.
 // ---------------------------------------------------------------------------
 
 /**
@@ -96,9 +94,9 @@ const marksFileSchema = z
 
 /**
  * The persisted `comparison_marks` body: exactly `{baselineSha, headSha,
- * files[]}` (Stage-4 body rule). `.strict()` at every level REJECTS the CLI's
- * read-time context (`baselineLabel`, `baselineIndex`) and any per-line content
- * key — the marks content is a pure function of the SHA pair, and the
+ * files[]}`. `.strict()` at every level REJECTS the CLI's read-time context
+ * (`baselineLabel`, `baselineIndex`) and any per-line content key — the marks
+ * content is a pure function of the SHA pair, and the
  * checkpoint-equals-prevHead re-review case would otherwise demand two rows the
  * span-only unique key forbids.
  */
@@ -123,14 +121,14 @@ export interface BriefSpanRow {
   readonly baseSha: string;
   readonly headSha: string;
   readonly headIndex: number;
-  /** Row creation timestamp — the revision's briefed-at moment (BRIEF-24). */
+  /** Row creation timestamp — the revision's briefed-at moment. */
   readonly createdAt: Date;
 }
 
 /**
  * Lean comparison-span listing row — the natural-key SHA pair only, never the
- * body (marks / delta). Feeds the PR-meta per-revision availability join
- * (BRIEF-24): one listing per kind, existence derived in memory.
+ * body (marks / delta). Feeds the PR-meta per-revision availability join: one
+ * listing per kind, existence derived in memory.
  */
 export interface ComparisonSpanRow {
   readonly baselineSha: string;
@@ -139,7 +137,7 @@ export interface ComparisonSpanRow {
 
 /**
  * Lean narrative-span listing row — the prevHead/head pair only, never the
- * body (BRIEF-24 per-revision availability join).
+ * body.
  */
 export interface NarrativeSpanRow {
   readonly prevHeadSha: string;
@@ -150,7 +148,7 @@ export type DiffSnapshotRow = typeof diffSnapshot.$inferSelect;
 export type RevisionNarrativeRow = typeof revisionNarrative.$inferSelect;
 export type ComparisonMarksRow = typeof comparisonMarks.$inferSelect;
 
-/** Origin trio surfaced on the Receipt (D6). */
+/** Origin trio surfaced on the Receipt. */
 export interface Origin {
   readonly provider: string;
   readonly model: string;
@@ -159,23 +157,22 @@ export interface Origin {
 
 export interface BriefWriteInput extends Origin {
   readonly pullRequestId: PullRequestRowId;
-  /** PR-base SHA — the whole-PR span's lower bound (D3). */
+  /** PR-base SHA — the whole-PR span's lower bound. */
   readonly baseSha: string;
   readonly headSha: string;
-  /** Per-distinct-head display index (ADR 0012 label). */
+  /** Per-distinct-head display index. */
   readonly headIndex: number;
   readonly commitCount: number;
   readonly body: string;
   /**
-   * Repo-config origin + policy snapshot JSON (ADR 0032 #8/#11) — the
-   * worker serializes it; this layer stores it opaquely like `body`. Omit
-   * for generations that never ran the repo-config phase.
+   * Repo-config origin + policy snapshot JSON — the worker serializes it; this
+   * layer stores it opaquely like `body`. Omit for generations that never ran
+   * the repo-config phase.
    */
   readonly repoConfig?: string;
   /**
-   * Anchor origin (BRIEF-143) — 'anchored' | 'fresh-restart' | 'none',
-   * DB-enforced (migration 0016). Omit only for writers predating the stamp;
-   * the worker always stamps.
+   * Anchor origin — 'anchored' | 'fresh-restart' | 'none', DB-enforced. Omit
+   * only for writers predating the stamp; the worker always stamps.
    */
   readonly anchorState?: string;
   /** Fresh-restart reason ('model-swap'); only with anchorState 'fresh-restart'. */
@@ -184,7 +181,7 @@ export interface BriefWriteInput extends Origin {
 
 export interface DeltaWriteInput extends Origin {
   readonly pullRequestId: PullRequestRowId;
-  /** Checkpoint baseline — a prior head at last submit (D3). */
+  /** Checkpoint baseline — a prior head at last submit. */
   readonly baselineSha: string;
   readonly headSha: string;
   readonly body: string;
@@ -192,16 +189,16 @@ export interface DeltaWriteInput extends Origin {
 
 export interface DiffSnapshotWriteInput {
   readonly pullRequestId: PullRequestRowId;
-  /** A checkpoint SHA (D4). */
+  /** A checkpoint SHA. */
   readonly sha: string;
   readonly body: string;
 }
 
 export interface RevisionNarrativeWriteInput extends Origin {
   readonly pullRequestId: PullRequestRowId;
-  /** The anchoring `brief` row; verified in-tenant + same-PR (D12). */
+  /** The anchoring `brief` row; verified in-tenant + same-PR. */
   readonly briefId: BriefRowId;
-  /** Prior briefed head — the third SHA role (D12). */
+  /** Prior briefed head — the third SHA role. */
   readonly prevHeadSha: string;
   readonly headSha: string;
   readonly body: string;
@@ -237,18 +234,18 @@ export interface BriefStore {
    */
   listForPullRequest(pullRequestId: PullRequestRowId): Promise<BriefSpanRow[]>;
   /**
-   * The LATEST brief (highest `head_index`) per PR, batched for the BRIEF-19
-   * list/PR-meta endpoints' "current span" derivation. Lean rows (never
-   * `body`); PRs with no brief are simply absent from the map.
+   * The LATEST brief (highest `head_index`) per PR, batched for the list and
+   * PR-meta endpoints' "current span" derivation. Lean rows (never `body`);
+   * PRs with no brief are simply absent from the map.
    */
   latestForPullRequests(
     pullRequestIds: readonly PullRequestRowId[],
   ): Promise<ReadonlyMap<PullRequestRowId, BriefSpanRow>>;
   /**
-   * Lean read of ONE span's repo-config snapshot (ADR 0032 #8) — the
-   * brief-context endpoint's backing query. Never loads `body` (multi-
-   * hundred-KB). `undefined` = no brief row for the span; `null` = the row
-   * exists but predates BRIEF-52 (or its generation recorded no snapshot).
+   * Lean read of ONE span's repo-config snapshot — the brief-context
+   * endpoint's backing query. Never loads `body` (multi-hundred-KB).
+   * `undefined` = no brief row for the span; `null` = the row exists but
+   * recorded no snapshot.
    */
   getRepoConfig(
     pullRequestId: PullRequestRowId,
@@ -264,16 +261,16 @@ export interface DeltaStore {
     baselineSha: string,
     headSha: string,
   ): Promise<DeltaRow | undefined>;
-  /** Lean availability probe (BRIEF-21 PR-meta) — never loads the body. */
+  /** Lean availability probe — never loads the body. */
   existsForSpan(
     pullRequestId: PullRequestRowId,
     baselineSha: string,
     headSha: string,
   ): Promise<boolean>;
   /**
-   * All delta spans on a PR — the SHA pair only, never the body (BRIEF-24).
-   * One query backs the per-revision lastReview join; existence is derived in
-   * memory, never one probe per revision.
+   * All delta spans on a PR — the SHA pair only, never the body. One query
+   * backs the per-revision lastReview join; existence is derived in memory,
+   * never one probe per revision.
    */
   listForPullRequest(
     pullRequestId: PullRequestRowId,
@@ -299,15 +296,15 @@ export interface RevisionNarrativeStore {
     prevHeadSha: string,
     headSha: string,
   ): Promise<RevisionNarrativeRow | undefined>;
-  /** Lean availability probe (BRIEF-19 4.1) — never loads the body. */
+  /** Lean availability probe — never loads the body. */
   existsForSpan(
     pullRequestId: PullRequestRowId,
     prevHeadSha: string,
     headSha: string,
   ): Promise<boolean>;
   /**
-   * All narrative spans on a PR — the prevHead/head pair only, never the body
-   * (BRIEF-24). One query backs the per-revision previousBrief narrative join.
+   * All narrative spans on a PR — the prevHead/head pair only, never the
+   * body. One query backs the per-revision previousBrief narrative join.
    */
   listForPullRequest(
     pullRequestId: PullRequestRowId,
@@ -323,16 +320,16 @@ export interface ComparisonMarksStore {
     baselineSha: string,
     headSha: string,
   ): Promise<ComparisonMarksRow | undefined>;
-  /** Lean availability probe (BRIEF-19 4.1) — never loads the body. */
+  /** Lean availability probe — never loads the body. */
   existsForSpan(
     pullRequestId: PullRequestRowId,
     baselineSha: string,
     headSha: string,
   ): Promise<boolean>;
   /**
-   * All marks spans on a PR — the SHA pair only, never the body (BRIEF-24).
-   * One query backs BOTH per-revision joins (previousBrief marks, lastReview
-   * marks); existence is derived in memory, never one probe per revision.
+   * All marks spans on a PR — the SHA pair only, never the body. One query
+   * backs BOTH per-revision joins (previousBrief marks, lastReview marks);
+   * existence is derived in memory, never one probe per revision.
    */
   listForPullRequest(
     pullRequestId: PullRequestRowId,
@@ -688,7 +685,7 @@ export function artifactStore(
             `pull_request ${input.pullRequestId} not in tenant ${installationId}`,
           );
         }
-        // D12 anchoring: the brief must belong to (ctx, same PR).
+        // Anchoring: the brief must belong to (ctx, same PR).
         const anchors = await tx
           .select({ id: brief.id })
           .from(brief)
@@ -800,7 +797,7 @@ export function artifactStore(
         return fail(ArtifactErrorCode.INVALID_BODY, parsed.error.message);
       }
       const marks = parsed.data;
-      // The natural-key SHAs ARE the body's SHA pair (D13 pure-function rule).
+      // The natural-key SHAs ARE the body's SHA pair.
       const serialized = JSON.stringify(marks);
       return db.transaction(async (tx) => {
         if (!(await parentInTenant(tx, input.pullRequestId))) {
