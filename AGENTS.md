@@ -39,6 +39,15 @@ apps/web). Rules here apply to the whole workspace.
   consumes (parser shapes, route bodies, exported types) does NOT run the
   dependents' suites in CI — run them locally before pushing. (BRIEF-23: a
   github parser change broke two api tests under a green CI.)
+- **Comments stay lean and reference-free**: a comment earns its place only
+  by stating a constraint the code can't show on its own — one short line,
+  not a paragraph. Delete rationale essays, "why we chose X" writeups, and
+  provenance blocks. Never cite a ticket id, ADR number, PR number, or
+  review-round name in a comment or in narrative docs (`docs/plans/**`,
+  `README.md`, `CONTEXT.md`, `PRODUCT.md`, any `AGENTS.md`) — that
+  belongs in the commit message and PR description, and rots once the
+  ticket closes. `docs/adr/**` is the one exception: an ADR's own number
+  and its citations of other ADRs/tickets ARE the document's identity.
 - **Generation-surface changes run the eval harness** (BRIEF-59): touching
   `packages/brief-core/src/generation/prompt.ts`, the output schema, validators/salvage,
   repo-config injection, or output-affecting adapter defaults ⇒ run
