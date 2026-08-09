@@ -87,18 +87,18 @@ describe("parseWebhookEvent — pull_request", () => {
       expect(event.baseSha).toBe("f95f852bd8fca8fcc58a9a2d6c842781e32a215e");
       expect(event.draft).toBe(false);
       // The PR author login rides every handled pull_request payload —
-      // persisted so `viewerIsAuthor` can be derived server-side (BRIEF-43).
+      // persisted so `viewerIsAuthor` can be derived server-side.
       expect(event.authorLogin).toBe("Codertocat");
       expect(typeof event.installationId).toBe("bigint");
       // The title rides every handled pull_request payload — persisted as the
-      // picker's display label (BRIEF-19 list endpoint).
+      // picker's display label.
       expect(event.title).toBe("Update the README with new information.");
     });
   }
 
   it("parses pull_request.converted_to_draft.json → converted-to-draft (draft: true)", () => {
-    // ready→draft transition (BRIEF-43 reviewer round 2): without it the row
-    // would stay draft=false indefinitely on a quiet PR.
+    // Without the ready→draft transition the row would stay draft=false
+    // indefinitely on a quiet PR.
     const event = expectOk(
       parseWebhookEvent({
         eventName: "pull_request",
@@ -289,7 +289,7 @@ describe("parseWebhookEvent — pull_request_review", () => {
     expect(typeof event.installationId).toBe("bigint");
   });
 
-  it("carries commit_id, reviewer type, and submitted_at (BRIEF-23)", () => {
+  it("carries commit_id, reviewer type, and submitted_at", () => {
     const event = expectOk(
       parseWebhookEvent({
         eventName: "pull_request_review",

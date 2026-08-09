@@ -1,9 +1,8 @@
-// Conversation primitive (BRIEF-25): the package's first GraphQL surface.
-// `fetchPullRequestConversation` returns the pre-threaded conversation in one
-// query; these tests drive the wire→domain mapping (fixture list per plan:
-// human thread, reply chain, resolved, outdated, bot author, PR-level
-// comment, pagination page) and the sanitized failure paths (no fallback
-// tier — a GraphQL failure is the section's error state).
+// Conversation primitive: `fetchPullRequestConversation` returns the
+// pre-threaded conversation in one query. Drives the wire→domain mapping
+// (human thread, reply chain, resolved, outdated, bot author, PR-level comment,
+// pagination page) and the sanitized failure paths — there is no fallback
+// tier, so a GraphQL failure is the section's error state.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -25,8 +24,8 @@ import {
 } from "./fixtures/graphql-error";
 
 function mockGraphqlOctokit(graphql: ReturnType<typeof vi.fn>): Octokit {
-  // The double assertion is the sanctioned test-only escape hatch for
-  // injecting a structural mock where the full `Octokit` type is expected.
+  // The double assertion injects a structural mock where the full `Octokit`
+  // type is expected.
   const stub = { graphql };
   return stub as unknown as Octokit;
 }
@@ -269,8 +268,8 @@ describe("fetchPullRequestConversation — mapping", () => {
   });
 
   it("parses 64-bit ids from fullDatabaseId (BigInt-as-string wire scalar)", async () => {
-    // Live-verified 2026-07-07: fullDatabaseId serializes as a string and
-    // modern REST ids already exceed 32-bit Int (deprecated databaseId).
+    // fullDatabaseId serializes as a string; modern REST ids already exceed
+    // 32-bit Int (the deprecated databaseId).
     const graphql = vi.fn().mockResolvedValue(
       conversationResponse({
         threads: [
@@ -569,8 +568,8 @@ describe("fetchPullRequestConversation — failure paths", () => {
   });
 
   it("maps a null repository/pullRequest (missing or inaccessible resource) to not-found", async () => {
-    // Both fields are nullable in GitHub's schema (verified via introspection
-    // 2026-07-07): a missing resource can be a null field in a 2xx response.
+    // Both fields are nullable in GitHub's schema: a missing resource can be a
+    // null field in a 2xx response.
     for (const data of [
       { repository: null },
       { repository: { pullRequest: null } },

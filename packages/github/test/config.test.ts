@@ -1,8 +1,7 @@
-// Stage 1 config tests. Valid env loads, required fields are enforced, the
-// PEM-vs-PATH exclusivity is checked both ways, GITHUB_APP_ID must be
-// numeric, and no secret value ever leaks into `issues`. Hermetic: env is
-// always an injected object literal; the one PRIVATE_KEY_PATH case uses a
-// real temp file (mirrors `tools/categorizer/test/manifest.test.ts`) rather
+// Config tests: valid env loads, required fields are enforced, the PEM-vs-PATH
+// exclusivity is checked both ways, GITHUB_APP_ID must be numeric, and no
+// secret value ever leaks into `issues`. Hermetic: env is always an injected
+// object literal; the one PRIVATE_KEY_PATH case uses a real temp file rather
 // than touching the repo or process.env.
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

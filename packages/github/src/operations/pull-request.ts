@@ -1,7 +1,6 @@
-// Pull-request read primitives (BRIEF-2 stage 2): minimal PR metadata and the
-// unified diff. The diff uses the `application/vnd.github.diff` media type,
-// which returns the raw diff as a string body. Failures are sanitized via
-// `mapRequestError`.
+// Pull-request read primitives: PR metadata and the unified diff. The diff
+// uses the `application/vnd.github.diff` media type, which returns the raw
+// diff as a string body. Failures are sanitized via `mapRequestError`.
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
@@ -49,10 +48,7 @@ export interface PullRequestFile {
   readonly deletions: number;
 }
 
-/**
- * Fetch the PR fields the webhook mapping (BRIEF-2) and the worker's
- * generation inputs (BRIEF-3) need: SHAs, state, title/body/url, commit count.
- */
+/** Fetch the PR fields the webhook mapping and generation inputs need. */
 export async function fetchPullRequest(
   octokit: Octokit,
   ref: PullRequestRef,
@@ -84,9 +80,8 @@ export async function fetchPullRequest(
 }
 
 /**
- * List a PR's changed files (path + additions/deletions) via the paginated
- * `pulls.listFiles` endpoint — the worker's per-file generation input and the
- * whole-PR churn denominator for the huge-span heuristic (ADR 0006 #7).
+ * List a PR's changed files — the per-file generation input and the whole-PR
+ * churn denominator for the huge-span heuristic.
  */
 export async function fetchPullRequestFiles(
   octokit: Octokit,
@@ -116,9 +111,8 @@ export async function fetchPullRequestFiles(
 }
 
 /**
- * Fetch a PR's unified diff. Requests the `diff` media type, so GitHub returns
- * the raw diff text as the response body (octokit types it as the PR object, so
- * we narrow the runtime string ourselves).
+ * Fetch a PR's unified diff. octokit types the `diff` media-type response as
+ * the PR object, so the runtime string is narrowed here.
  */
 export async function fetchDiff(
   octokit: Octokit,
@@ -142,11 +136,10 @@ export async function fetchDiff(
 }
 
 /**
- * List a PR's review comments as RAW wire objects, fully paginated
- * (BRIEF-97). Deliberately unvalidated here: brief-core's
- * `normalizeReviewComment` is the single boundary parser for this shape
- * (outdated-semantics rules, ADR 0007) — declaring a second Zod shape in
- * this package would drift from it. Callers normalize, never trust.
+ * List a PR's review comments as RAW wire objects, fully paginated.
+ * Deliberately unvalidated here: brief-core's `normalizeReviewComment` is the
+ * single boundary parser for this shape, and a second Zod shape would drift
+ * from it. Callers normalize, never trust.
  */
 export async function fetchReviewCommentsRaw(
   octokit: Octokit,
@@ -169,9 +162,8 @@ export async function fetchReviewCommentsRaw(
 }
 
 /**
- * Count the commits in a `base...head` span (BRIEF-97). `total_commits` is
- * the span total independent of pagination — `per_page: 1` keeps the
- * response minimal since the commit list itself is unused.
+ * Count the commits in a `base...head` span. `total_commits` is the span total
+ * independent of pagination, so `per_page: 1` keeps the response minimal.
  */
 export async function fetchCompareCommitCount(
   octokit: Octokit,
@@ -201,8 +193,8 @@ export interface CommitRef {
 }
 
 /**
- * Resolve a possibly-abbreviated commit-ish to its full 40-char SHA
- * (BRIEF-97) — artifacts are keyed by full SHAs (exact-equality FE joins).
+ * Resolve a possibly-abbreviated commit-ish to its full 40-char SHA —
+ * artifacts are keyed by full SHAs and joined by exact equality.
  */
 export async function resolveCommitSha(
   octokit: Octokit,
@@ -221,10 +213,8 @@ export async function resolveCommitSha(
 }
 
 /**
- * Fetch the unified diff for an explicit `base...head` span via the compare
- * endpoint (`GET /repos/{owner}/{repo}/compare/{base}...{head}`) with the diff
- * media type, so the response is exactly the requested range rather than the
- * whole-PR diff. Same string-narrowing and sanitization as `fetchDiff`.
+ * Fetch the unified diff for an explicit `base...head` span, so the response
+ * is exactly the requested range rather than the whole-PR diff.
  */
 export async function fetchCompareDiff(
   octokit: Octokit,
@@ -251,10 +241,8 @@ export async function fetchCompareDiff(
 }
 
 /**
- * One compare `files[]` entry: new-side path + GitHub's per-file status.
- * `status` stays an OPEN string on purpose — consumers must treat unknown
- * values conservatively (touched), so a new GitHub status must degrade, not
- * fail a parse (BRIEF-143).
+ * One compare `files[]` entry. `status` stays an OPEN string on purpose: a new
+ * GitHub status must degrade to conservative handling, not fail a parse.
  */
 export interface CompareFile {
   readonly filename: string;
@@ -274,8 +262,7 @@ export interface CompareFiles {
    * The compare relation head-vs-base ('ahead' | 'diverged' | 'behind' |
    * 'identical'; open string). Only 'ahead' means a fast-forward span whose
    * three-dot diff equals the true tree diff — a same-base force-push shows
-   * 'diverged' here while the base SHA never moves (BRIEF-143). Absent when
-   * the response omitted it: treat as not-fast-forward.
+   * 'diverged' while the base SHA never moves. Absent means not-fast-forward.
    */
   readonly status?: string;
 }
@@ -297,12 +284,10 @@ const compareFilesSchema = z.object({
 });
 
 /**
- * Fetch the compare endpoint's per-file JSON metadata for a `base...head`
- * span (BRIEF-143): filename, status (added/removed/modified/renamed/…), and
- * `previous_filename` for renames — the signals the raw diff media type
- * cannot carry (pure renames, binaries, and mode-only changes have no
- * hunks). `per_page: 1` minimizes the commit list riding the same response;
- * the `files[]` array is NOT paginated — it is capped, hence `complete`.
+ * Per-file JSON metadata for a `base...head` span — the signals the raw diff
+ * media type cannot carry (pure renames, binaries, and mode-only changes have
+ * no hunks). `per_page: 1` minimizes the commit list riding the same response;
+ * `files[]` is NOT paginated, it is capped — hence `complete`.
  */
 export async function fetchCompareFiles(
   octokit: Octokit,
@@ -326,8 +311,8 @@ export async function fetchCompareFiles(
       parsed.data.status === undefined ? {} : { status: parsed.data.status };
     if (parsed.data.files === undefined) {
       // A 200 without `files[]` (degraded/oversized compare) proves nothing —
-      // report incomplete so the touched predicate re-looks everything
-      // instead of wrongly confirming "untouched" (BRIEF-143 conservatism).
+      // report incomplete so the touched predicate re-looks everything instead
+      // of wrongly confirming "untouched".
       return { ok: true, value: { files: [], complete: false, ...spanStatus } };
     }
     const files = parsed.data.files.map((file) => ({

@@ -1,12 +1,9 @@
-// Repo-file fetch for the `.mergebrief/` config surface (BRIEF-52/58, ADR
-// 0032 #3/#4): read ONE file's content via the contents API. Default-branch
-// resolution is delegated to GitHub — when `ref` is omitted, the contents API
-// serves the repository's default branch. That is this module's ref-resolution
-// decision (plan PR 1): no `repos` row is persisted anywhere, and a separate
-// `repos.get` round-trip would only add a call and a staleness window for the
-// same answer. The blob SHA feeds origin tracking (ADR 0032 #8); the size guard
-// rejects oversize blobs BEFORE decoding (accident guard — the semantic
-// byte-budget caps live in `repo-config`, not here).
+// Repo-file fetch for the `.mergebrief/` config surface: read ONE file's
+// content via the contents API. Default-branch resolution is delegated to
+// GitHub — omitting `ref` serves the repository's default branch, avoiding a
+// `repos.get` round-trip and its staleness window. The size guard rejects
+// oversize blobs BEFORE decoding; the semantic byte budgets live in
+// `repo-config`, not here.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
 import { z } from "zod";
@@ -28,18 +25,18 @@ export interface RepoFileContent {
   readonly kind: typeof RepoFileKind.FILE;
   /** UTF-8 decoded file content. */
   readonly content: string;
-  /** Git blob SHA of the served content — the origin stamp (ADR 0032 #8). */
+  /** Git blob SHA of the served content — the origin stamp. */
   readonly blobSha: string;
   /** Blob size in bytes, as reported by GitHub. */
   readonly size: number;
 }
 
-/** The path does not exist on the resolved ref (404 — an outcome, not an error). */
+/** The path does not exist on the resolved ref — an outcome, not an error. */
 export interface RepoFileAbsent {
   readonly kind: typeof RepoFileKind.ABSENT;
 }
 
-/** The blob exceeds `maxBytes`; rejected before decode. SHA/size kept for origin tracking. */
+/** The blob exceeds `maxBytes`; rejected before decode. */
 export interface RepoFileTooLarge {
   readonly kind: typeof RepoFileKind.TOO_LARGE;
   readonly blobSha: string;
@@ -61,12 +58,9 @@ export interface GetRepoFileInput {
   readonly maxBytes: number;
 }
 
-// The contents API returns an ARRAY for a directory and an object whose
-// `type` discriminates file/symlink/submodule otherwise. Only `type: "file"`
-// with base64 content is acceptable here; anything else is an unexpected
-// shape for a config-file read (`encoding: "none"` — GitHub's 1–100 MB blob
-// escape hatch — can only be reached past the size guard by a cap that big,
-// which no caller uses).
+// The contents API returns an ARRAY for a directory, otherwise an object whose
+// `type` discriminates file/symlink/submodule. Only `type: "file"` with base64
+// content is acceptable for a config-file read.
 const contentsFileSchema = z.object({
   type: z.string(),
   size: z.number().int().nonnegative(),
@@ -85,10 +79,8 @@ const BASE64_BODY = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /**
  * Decode a contents-API base64 payload strictly: canonical alphabet/padding
- * only, and the result must be valid UTF-8 (config files are text; silently
- * replacing bytes with U+FFFD would hand a corrupted file downstream as if
- * it were the committed content). Returns undefined when the payload is not
- * a well-formed UTF-8 text blob.
+ * only, and the result must be valid UTF-8 — replacing bytes with U+FFFD would
+ * hand a corrupted file downstream as if it were the committed content.
  */
 function decodeBase64Utf8(
   wrapped: string,

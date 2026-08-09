@@ -1,11 +1,9 @@
-// Review-submit primitive (BRIEF-23): create one formal, grouped pull-request
-// review — `POST /repos/{owner}/{repo}/pulls/{n}/reviews` — pinned to the
-// commit the reviewer actually read (`commit_id`, never head-at-delivery).
+// Review-submit primitive: one formal, grouped pull-request review pinned to
+// the commit the reviewer actually read (`commit_id`, never head-at-delivery).
 // GitHub's create-review is ATOMIC: one invalid comment 422s the whole review.
-// The route's degradation retry needs to tell an anchoring 422 apart from an
-// unknown-commit 422, so this module classifies the 422 body INTERNALLY (the
-// body itself, like every response body, never leaves `mapRequestError`'s
-// sanitization — only the derived class does).
+// The caller's degradation retry needs to tell an anchoring 422 apart from an
+// unknown-commit 422, so the 422 body is classified INTERNALLY — the body
+// itself never escapes sanitization, only the derived class does.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
 import { z } from "zod";
@@ -16,10 +14,7 @@ import {
 } from "../errors";
 import type { Result, ValueOf } from "../types";
 
-/**
- * GitHub wire values for the review `event` (like `HANDLED_EVENT_NAMES`,
- * these are GitHub's literals, not our kebab-case vocabulary).
- */
+/** GitHub wire values for the review `event` — not our kebab-case vocabulary. */
 export const ReviewEvent = {
   APPROVE: "APPROVE",
   REQUEST_CHANGES: "REQUEST_CHANGES",
@@ -58,10 +53,9 @@ export interface CreatePullRequestReviewInput {
 
 /**
  * The 422 classes the submit route reacts to differently: `unknown-commit` →
- * fail closed ("PR was rewritten — reload"); `invalid-comments` → one
- * degradation retry with comments folded into the body; `unknown` → treat as
- * a plain failure. Classification is best-effort over GitHub's response text
- * — GitHub does not expose a stable machine-readable discriminator.
+ * fail closed; `invalid-comments` → one degradation retry with comments folded
+ * into the body; `unknown` → a plain failure. Classification is best-effort
+ * over the response text — GitHub exposes no stable discriminator.
  */
 export const ReviewValidationClass = {
   UNKNOWN_COMMIT: "unknown-commit",
@@ -129,9 +123,7 @@ function classifyValidation422(error: RequestError): ReviewValidationClass {
 
 /**
  * Create one grouped formal review on a PR, authored by whoever the octokit's
- * token identifies (the viewer's user-to-server token — ADR 0016 #4). Returns
- * the created review's id. Failures are sanitized via `mapRequestError`; a
- * 422 additionally carries its `ReviewValidationClass`.
+ * token identifies. A 422 additionally carries its `ReviewValidationClass`.
  */
 export async function createPullRequestReview(
   octokit: Octokit,
@@ -162,7 +154,7 @@ export async function createPullRequestReview(
             })),
           }),
     });
-    // Same precision guard as comments.ts: JSON.parse rounds ints past 2^53.
+    // JSON.parse rounds ints past 2^53 before we see them.
     if (!Number.isSafeInteger(response.data.id)) {
       return {
         ok: false,

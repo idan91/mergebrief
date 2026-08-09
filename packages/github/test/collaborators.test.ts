@@ -1,7 +1,7 @@
-// Collaborators primitive (BRIEF-94): everyone who can collaborate on the
-// repo — direct collaborators AND org/team-granted members (`affiliation:
-// ALL` is critical). These tests drive the wire→domain mapping, the
-// capped cursor loop, and the sanitized failure paths.
+// Collaborators primitive: everyone who can collaborate on the repo — direct
+// collaborators AND org/team-granted members (`affiliation: ALL` is critical).
+// Drives the wire→domain mapping, the capped cursor loop, and the sanitized
+// failure paths.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { listRepoCollaborators } from "../src/operations/collaborators";
@@ -17,8 +17,8 @@ import {
 } from "./fixtures/graphql-error";
 
 function mockGraphqlOctokit(graphql: ReturnType<typeof vi.fn>): Octokit {
-  // The double assertion is the sanctioned test-only escape hatch for
-  // injecting a structural mock where the full `Octokit` type is expected.
+  // The double assertion injects a structural mock where the full `Octokit`
+  // type is expected.
   const stub = { graphql };
   return stub as unknown as Octokit;
 }

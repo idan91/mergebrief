@@ -1,20 +1,8 @@
-// GitHub client env config (BRIEF-2, stage 1). Zod-parsed from an INJECTED
-// env map — this module NEVER reads `process.env` implicitly at import time:
-// `loadConfig(env)` takes the env explicitly so tests are hermetic and the
-// read happens where the caller decides (startup wiring), mirroring
-// `packages/persistence/src/config.ts`.
-//
-//   GITHUB_APP_ID                    required; numeric GitHub App id.
-//   GITHUB_APP_PRIVATE_KEY            PEM contents. Exactly one of this OR
-//   GITHUB_APP_PRIVATE_KEY_PATH       ...this (a path read to get the PEM)
-//                                     is required — never both, never neither.
-//   GITHUB_WEBHOOK_SECRET             required. Consumed by the webhook route
-//                                     (stage 2) to verify inbound HMAC signatures.
-//   GITHUB_OAUTH_CLIENT_ID            required. Consumed by the OAuth routes
-//   GITHUB_OAUTH_CLIENT_SECRET        required. (later stage — reviewer auth).
-//
-// This stage only parses and shapes these values into `GitHubConfig`; it does
-// not verify webhooks or perform an OAuth exchange.
+// GitHub client env config, Zod-parsed from an INJECTED env map — this module
+// NEVER reads `process.env` implicitly at import time; `loadConfig(env)` takes
+// the env explicitly so the read happens where the caller decides.
+// Exactly one of GITHUB_APP_PRIVATE_KEY (PEM contents) or
+// GITHUB_APP_PRIVATE_KEY_PATH (a file read to get the PEM) is required.
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 import type { Result, ValueOf } from "./types";
@@ -24,18 +12,12 @@ import type { Result, ValueOf } from "./types";
 // ---------------------------------------------------------------------------
 
 export interface GitHubConfig {
-  /** Numeric GitHub App id (`GITHUB_APP_ID`). */
   readonly appId: number;
-  /**
-   * PEM-encoded App private key, resolved from either `GITHUB_APP_PRIVATE_KEY`
-   * directly or by reading the file at `GITHUB_APP_PRIVATE_KEY_PATH`.
-   */
+  /** PEM-encoded App private key, from the inline env var or the key file. */
   readonly privateKey: string;
-  /** HMAC secret for verifying webhook deliveries (stage 2). */
+  /** HMAC secret for verifying webhook deliveries. */
   readonly webhookSecret: string;
-  /** OAuth App client id (reviewer-auth routes, later stage). */
   readonly oauthClientId: string;
-  /** OAuth App client secret (reviewer-auth routes, later stage). */
   readonly oauthClientSecret: string;
 }
 
@@ -52,9 +34,8 @@ export interface ConfigError {
   readonly code: ConfigErrorCode;
   readonly message: string;
   /**
-   * Per-field problems as `field: reason`. Deliberately excludes the
-   * offending VALUES — the private key, webhook secret, and OAuth client
-   * secret are all credentials that must never reach a log.
+   * Per-field problems as `field: reason` — never the offending VALUES: the
+   * private key, webhook secret, and OAuth client secret are all credentials.
    */
   readonly issues: readonly string[];
 }
@@ -108,8 +89,7 @@ const ConfigSchema = z
 type ParsedEnv = z.infer<typeof ConfigSchema>;
 
 // ---------------------------------------------------------------------------
-// Private-key resolution — the one step that isn't pure Zod parsing (reads a
-// file when GITHUB_APP_PRIVATE_KEY_PATH is used instead of the inline PEM).
+// Private-key resolution — the one step that isn't pure Zod parsing.
 // ---------------------------------------------------------------------------
 
 function invalidConfigError(issue: string): ConfigError {
@@ -127,9 +107,8 @@ function resolvePrivateKey(data: ParsedEnv): Result<string, ConfigError> {
 
   const path = data.GITHUB_APP_PRIVATE_KEY_PATH;
   if (path === undefined) {
-    // Unreachable in practice: the schema's superRefine already enforces
-    // exactly one of GITHUB_APP_PRIVATE_KEY / GITHUB_APP_PRIVATE_KEY_PATH.
-    // Handled explicitly (no bare `as`) rather than asserted past the checker.
+    // Unreachable: superRefine already enforces exactly one of the two.
+    // Handled explicitly rather than asserted past the checker.
     return {
       ok: false,
       error: invalidConfigError(
@@ -142,8 +121,8 @@ function resolvePrivateKey(data: ParsedEnv): Result<string, ConfigError> {
   try {
     pem = readFileSync(path, "utf8");
   } catch {
-    // Message deliberately omits the underlying fs error (may echo the path
-    // or platform details); the path itself is not a credential.
+    // Message omits the underlying fs error, which may echo path or platform
+    // details.
     return {
       ok: false,
       error: invalidConfigError(
@@ -169,10 +148,9 @@ function resolvePrivateKey(data: ParsedEnv): Result<string, ConfigError> {
 // ---------------------------------------------------------------------------
 
 /**
- * Parse GitHub client config from an injected env map into a `GitHubConfig`,
- * or a `ConfigError` listing the invalid fields (values omitted — the
- * private key and both secrets are credentials). Unknown env keys are
- * ignored. Never reads `process.env` itself — the caller passes it.
+ * Parse GitHub client config from an injected env map, or a `ConfigError`
+ * listing invalid fields (values omitted — they are credentials). Never reads
+ * `process.env` itself; the caller passes it.
  */
 export function loadConfig(
   env: NodeJS.ProcessEnv | Record<string, string | undefined>,

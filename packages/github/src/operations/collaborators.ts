@@ -1,10 +1,8 @@
-// Repo-collaborators primitive (BRIEF-94): the @mention candidate pool —
-// everyone who can collaborate on the repo. GraphQL because REST's
-// collaborators list carries no display name; `affiliation: ALL` is
-// critical — it includes org/team-granted members, the bulk of the
-// intended pool, not just direct collaborators. Nodes are `User` objects
-// (GitHub App bots cannot be repo collaborators), so no bot filtering is
-// needed here. Failures funnel through `mapGraphqlError`.
+// Repo-collaborators primitive: the @mention candidate pool. GraphQL because
+// REST's collaborators list carries no display name; `affiliation: ALL` is
+// critical — it includes org/team-granted members, the bulk of the intended
+// pool. Nodes are `User` objects (App bots cannot be repo collaborators), so
+// no bot filtering is needed. Failures funnel through `mapGraphqlError`.
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
@@ -83,7 +81,7 @@ const MAX_COLLABORATOR_PAGES = 3;
 
 const FETCH_CONTEXT = "list repo collaborators";
 
-/** Sanitized not-found for a null repository/collaborators field (expected failure). */
+/** Sanitized not-found for a null repository/collaborators field. */
 function resourceNotFoundError(): GitHubApiError {
   return {
     code: GitHubApiErrorCode.NOT_FOUND,
@@ -92,11 +90,10 @@ function resourceNotFoundError(): GitHubApiError {
 }
 
 /**
- * List everyone with access to the repo — direct collaborators plus
- * org/team-granted members — with login, display name, and avatar for the
- * mention-autocomplete pool. Intended to run on an installation-token
- * octokit (ADR 0027 posture: shared rate budget, cacheable per repo).
- * Order is GitHub's wire order; ranking is the consumer's concern.
+ * List everyone with access to the repo for the mention-autocomplete pool.
+ * Intended to run on an installation-token octokit (shared rate budget,
+ * cacheable per repo). Order is GitHub's wire order; ranking is the
+ * consumer's concern.
  */
 export async function listRepoCollaborators(
   octokit: Octokit,

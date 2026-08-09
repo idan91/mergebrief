@@ -1,7 +1,7 @@
-// Structural `GraphqlResponseError` fixture (BRIEF-25): the class is not
-// exported from the octokit umbrella, so tests shape it the way
-// `@octokit/graphql` builds it — an Error named "GraphqlResponseError"
-// carrying the GraphQL `errors` array and the raw response.
+// Structural `GraphqlResponseError` fixture: the class is not exported from the
+// octokit umbrella, so tests shape it the way `@octokit/graphql` builds it — an
+// Error named "GraphqlResponseError" carrying the `errors` array and the raw
+// response.
 
 // A leaked auth header/token must never surface in a sanitized error — tests
 // plant this in thrown errors and assert it never escapes.

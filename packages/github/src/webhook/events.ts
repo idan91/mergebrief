@@ -1,14 +1,9 @@
-// Webhook event parsing (BRIEF-2 stage 2). Turns an already-JSON-parsed
-// webhook body (`unknown`) plus its `x-github-event` name into a typed,
-// discriminated `ParsedWebhookEvent`. This is a PARSING primitive only: it
-// extracts and brands the fields BRIEF-2 downstream consumes and classifies
-// anything else as `ignored` — it does NOT decide generation-vs-purge or write
-// tenant state (that mapping is stage 4, a separate package).
+// Webhook event parsing: an already-JSON-parsed body plus its `x-github-event`
+// name into a typed, discriminated `ParsedWebhookEvent`. A PARSING primitive
+// only — it never decides generation-vs-purge or writes tenant state.
 //
-// The authoritative payload shapes are GitHub's, modelled by
-// `@octokit/webhooks` (`WebhookEventName` below constrains our handled set to
-// real event names); we wrap only the fields we read in Zod so a malformed
-// delivery is an expected `Result` error, never a throw.
+// Only the fields we read are wrapped in Zod, so a malformed delivery is an
+// expected `Result` error rather than a throw.
 import { z } from "zod";
 import type { WebhookEventName } from "@octokit/webhooks/types";
 import type { InstallationId, RepoId, ReviewerId } from "persistence";
@@ -24,7 +19,6 @@ import type { Result, ValueOf } from "../types";
 // Closed vocabularies (kebab-case values; SHOUT_CASE keys).
 // ---------------------------------------------------------------------------
 
-/** Discriminant of `ParsedWebhookEvent`. */
 export const ParsedWebhookEventKind = {
   PULL_REQUEST: "pull-request",
   PULL_REQUEST_REVIEW: "pull-request-review",
@@ -34,7 +28,6 @@ export const ParsedWebhookEventKind = {
 } as const;
 export type ParsedWebhookEventKind = ValueOf<typeof ParsedWebhookEventKind>;
 
-/** Normalized `pull_request` actions BRIEF-2 handles (kebab-case). */
 export const PullRequestAction = {
   OPENED: "opened",
   SYNCHRONIZE: "synchronize",
@@ -46,14 +39,12 @@ export const PullRequestAction = {
 } as const;
 export type PullRequestAction = ValueOf<typeof PullRequestAction>;
 
-/** Normalized `installation` actions BRIEF-2 handles. */
 export const InstallationAction = {
   CREATED: "created",
   DELETED: "deleted",
 } as const;
 export type InstallationAction = ValueOf<typeof InstallationAction>;
 
-/** Normalized `installation_repositories` actions BRIEF-2 handles. */
 export const InstallationRepositoriesAction = {
   ADDED: "added",
   REMOVED: "removed",
@@ -110,10 +101,9 @@ export interface ParsedPullRequestEvent {
   readonly baseSha: string;
   readonly draft: boolean;
   /**
-   * The PR author's GitHub login (BRIEF-43) — persisted so `viewerIsAuthor`
-   * can be derived server-side. Absent when GitHub omits the author (a deleted
-   * account sends `pull_request.user: null`); an omitted value preserves the
-   * stored one instead of nulling it (same as review events omitting base_sha).
+   * Absent when GitHub omits the author (a deleted account sends
+   * `pull_request.user: null`); an omitted value preserves the stored one
+   * instead of nulling it.
    */
   readonly authorLogin?: string;
   /** Present on `synchronize` — the pre-push head, for force-push detection. */
@@ -139,7 +129,7 @@ export interface ParsedPullRequestReviewEvent {
   readonly reviewerType: string;
   /** GitHub review state, e.g. `approved` / `changes_requested` / `commented`. */
   readonly reviewState: string;
-  /** The SHA the review was submitted against — the checkpoint SHA (BRIEF-23). */
+  /** The SHA the review was submitted against — the checkpoint SHA. */
   readonly commitId: string;
   /** GitHub's `review.submitted_at` — drives newest-submission-wins upserts. */
   readonly submittedAt: Date;
@@ -422,10 +412,9 @@ export interface ParseWebhookEventInput {
 }
 
 /**
- * Parse a webhook delivery into a typed `ParsedWebhookEvent`. An event/action
- * outside BRIEF-2's handled set is a normal, non-error `{ kind: "ignored" }`
- * ok-value; only a MALFORMED handled payload (missing/ill-typed required
- * field) or a missing event name is a `Result` error. Never throws for these.
+ * Parse a webhook delivery. An event/action outside the handled set is a
+ * normal, non-error `{ kind: "ignored" }` ok-value; only a malformed handled
+ * payload or a missing event name is a `Result` error.
  */
 export function parseWebhookEvent(
   input: ParseWebhookEventInput,

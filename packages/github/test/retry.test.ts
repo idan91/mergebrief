@@ -1,7 +1,7 @@
-// Regression tests for the 406 retry tuning (BRIEF-3 Part 4): a 406 from
-// GitHub ("diff too large to render") is PERMANENT for the requested span, so
-// the bundled retry plugin must not retry it. Exercised through the REAL
-// `createUserOctokit` construction with an injected fetch counting calls.
+// Regression tests for the 406 retry tuning: a 406 from GitHub ("diff too large
+// to render") is PERMANENT for the requested span, so the bundled retry plugin
+// must not retry it. Exercised through the REAL `createUserOctokit`
+// construction with an injected fetch counting calls.
 import { describe, expect, it, vi } from "vitest";
 import { Octokit } from "octokit";
 import { DO_NOT_RETRY_STATUSES, retryOptions } from "../src/auth/retry";
@@ -53,8 +53,8 @@ describe("406 retry tuning", () => {
 
   it("keeps the retry plugin's default non-retryable statuses alongside 406", () => {
     // Supplying `doNotRetry` REPLACES the plugin's defaults ([400, 401, 403,
-    // 404, 410, 422, 451] — verified against @octokit/plugin-retry's source);
-    // dropping any would silently re-enable retries on a permanent status.
+    // 404, 410, 422, 451]); dropping any would silently re-enable retries on a
+    // permanent status.
     expect(DO_NOT_RETRY_STATUSES).toEqual([
       400, 401, 403, 404, 406, 410, 422, 451,
     ]);

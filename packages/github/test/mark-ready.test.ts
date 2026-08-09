@@ -1,9 +1,8 @@
-// Mark-ready mutation tests (BRIEF-43): drive the resolve-then-mutate flow,
-// the converged paths (read-time non-draft + the "not a draft" mutation race),
-// the null-resource not-found, and the sanitized failure paths. GraphQL is
-// stubbed at the `octokit.graphql` interface (same structural mock as
-// conversation.test.ts). No network, no throttle concerns (GraphQL calls are
-// not on the notification-triggering REST throttle list).
+// Mark-ready mutation tests: the resolve-then-mutate flow, the converged paths
+// (read-time non-draft + the "not a draft" mutation race), the null-resource
+// not-found, and the sanitized failure paths. GraphQL is stubbed at the
+// `octokit.graphql` interface — no throttle concerns, since GraphQL calls are
+// not on the notification-triggering REST throttle list.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { markPullRequestReadyForReview } from "../src/operations/mark-ready";

@@ -1,11 +1,8 @@
-// Branded-id construction at the webhook boundary (BRIEF-2 stage 2). GitHub
-// sends numeric ids as JSON numbers; the persistence layer models the same
-// ids as branded `bigint`s (ADR 0018 D1). These are LOCAL runtime guards that
-// mirror `packages/persistence/src/types.ts` — the brand tag strings are
-// identical, so a value this guard narrows to `InstallationId` unifies with
-// persistence's `InstallationId` at compile time while keeping ZERO runtime
-// coupling to the DB layer (same reasoning AGENTS.md gives for `Result`/
-// `ValueOf`). The branded types themselves are a type-only import.
+// Branded-id construction at the webhook boundary. GitHub sends numeric ids as
+// JSON numbers; persistence models them as branded `bigint`s. These are LOCAL
+// guards mirroring persistence's — the brand tag strings are identical, so the
+// narrowed types unify at compile time with ZERO runtime coupling to the DB
+// layer. The branded types themselves are a type-only import.
 import { z } from "zod";
 import type { InstallationId, RepoId, ReviewerId } from "persistence";
 
@@ -66,20 +63,16 @@ function brandedIdSchema<B extends bigint>(
     });
 }
 
-/** Zod schema producing a branded `InstallationId` from a JSON number. */
 export const installationIdSchema = brandedIdSchema(
   isInstallationId,
   "installation id",
 );
-/** Zod schema producing a branded `RepoId` from a JSON number. */
 export const repoIdSchema = brandedIdSchema(isRepoId, "repository id");
-/** Zod schema producing a branded `ReviewerId` from a JSON number. */
 export const reviewerIdSchema = brandedIdSchema(isReviewerId, "reviewer id");
 
 /**
- * A positive `bigint` from a JSON number, UNbranded — used for actor ids
- * (`sender.id`) that the audit ledger stores numerically but that have no
- * dedicated branded family in `persistence`.
+ * A positive `bigint` from a JSON number, UNbranded — for actor ids that have
+ * no dedicated branded family in `persistence`.
  */
 export const positiveBigIntSchema = z
   .number({ invalid_type_error: "id must be a number" })

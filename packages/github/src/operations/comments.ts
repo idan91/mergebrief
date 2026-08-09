@@ -1,10 +1,8 @@
-// Entry-comment operations (BRIEF-2 stage 2, ADR 0016 #3: the single branded
-// "brief ready" comment is maintained delete-and-repost). The PR-conversation
-// comment lives on the issues timeline, so it uses the issues-comments
-// endpoints — but for a pull request those are authorized by `Pull requests:
-// write` (ADR 0016 / docs/self-host/github-app.md), so the App needs NO
-// `Issues` scope. Every failure funnels through `mapRequestError` (no tokens/
-// headers/bodies leak).
+// Entry-comment operations — the single comment is maintained by
+// delete-and-repost. It lives on the issues timeline, so it uses the
+// issues-comments endpoints; for a pull request those are authorized by
+// `Pull requests: write`, so the App needs NO `Issues` scope. Every failure
+// funnels through `mapRequestError`.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
 import {
@@ -36,9 +34,8 @@ export interface FetchCommentInput {
 }
 
 /**
- * Read a previously posted Entry comment's current body. A 404 (comment
- * deleted, or the PR/repo removed) is an expected state for the
- * delete-and-repost flow — it maps to `ok` with `undefined`, never an error.
+ * Read a previously posted Entry comment's current body. A 404 is an expected
+ * state for the delete-and-repost flow, so it maps to `ok` with `undefined`.
  */
 export async function fetchComment(
   octokit: Octokit,
@@ -61,8 +58,7 @@ export async function fetchComment(
 
 /**
  * Post the Entry comment on a PR's conversation timeline and return its id
- * (branded downstream by persistence, a plain `bigint` here). Uses
- * `issues.createComment` — authorized by `Pull requests: write` for a PR.
+ * (branded downstream by persistence, a plain `bigint` here).
  */
 export async function postEntryComment(
   octokit: Octokit,
@@ -75,9 +71,8 @@ export async function postEntryComment(
       issue_number: input.prNumber,
       body: input.body,
     });
-    // Same precision guard as `ids.ts`: JSON.parse rounds ints past 2^53 before
-    // we see them, and a lossy comment id would silently break the later
-    // delete-and-repost cycle (deleteComment maps the wrong-id 404 to ok).
+    // JSON.parse rounds ints past 2^53 before we see them; a lossy comment id
+    // would silently break the delete-and-repost cycle.
     if (!Number.isSafeInteger(response.data.id)) {
       return {
         ok: false,
@@ -91,9 +86,8 @@ export async function postEntryComment(
 }
 
 /**
- * Delete a previously posted Entry comment. Idempotent by design: a 404 means
- * the comment is already gone (deleted, or the PR/repo removed), which for a
- * delete-and-repost flow is a success, not a failure — so it maps to `ok`.
+ * Delete a previously posted Entry comment. Idempotent: a 404 means the comment
+ * is already gone, which is a success for a delete-and-repost flow.
  */
 export async function deleteComment(
   octokit: Octokit,

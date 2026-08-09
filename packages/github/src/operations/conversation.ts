@@ -1,10 +1,9 @@
-// PR-conversation primitive (BRIEF-25, ADR 0027): the package's FIRST GraphQL
-// surface. One query returns the pre-threaded conversation — review threads
-// with `isResolved`/`isOutdated` first-class (REST exposes no thread-resolution
-// state at all, which is what forces GraphQL), review verdicts, and PR-level
-// comments. Domain ids are REST `databaseId` numbers; GraphQL `node_id` never
-// leaves this module. Failures funnel through `mapGraphqlError` (the taxonomy
-// sibling of `mapRequestError` — same sanitization: no upstream text).
+// PR-conversation primitive. One query returns the pre-threaded conversation —
+// review threads with `isResolved`/`isOutdated` first-class (REST exposes no
+// thread-resolution state at all, which is what forces GraphQL), review
+// verdicts, and PR-level comments. Domain ids are REST `databaseId` numbers;
+// GraphQL `node_id` never leaves this module. Failures funnel through
+// `mapGraphqlError`.
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
@@ -26,8 +25,7 @@ export type ThreadSubjectType = ValueOf<typeof ThreadSubjectType>;
 
 /**
  * GitHub wire values for a submitted review's state. `PENDING` is deliberately
- * absent: a pending review is a draft, not conversation — the primitive skips
- * pending nodes during mapping.
+ * absent: a pending review is a draft, and those nodes are skipped in mapping.
  */
 export const ReviewVerdictState = {
   COMMENTED: "COMMENTED",
@@ -56,8 +54,8 @@ export interface ConversationComment {
   /** GitHub permalink to this comment. */
   readonly url: string;
   /**
-   * The formal review this comment belongs to, when any — the own-comment
-   * join key against the submit flow's returned review id (BRIEF-23).
+   * The formal review this comment belongs to — the own-comment join key
+   * against the submit flow's returned review id.
    */
   readonly reviewId?: number;
 }
@@ -125,10 +123,9 @@ export interface FetchPullRequestConversationInput {
 // Wire schemas — Zod-validated at the boundary (no bare `as` off the wire).
 // ---------------------------------------------------------------------------
 
-// `avatarUrl` is `URI!` on Actor and every implementer, so github.com cannot
-// omit it — but it is DECORATIVE, and an author-field defect is node-level
-// by this module's own posture: optional keeps a hypothetical omission
-// (GHES, schema drift) from failing the whole conversation fetch.
+// `avatarUrl` is `URI!` on Actor, so github.com cannot omit it — but it is
+// decorative, and optional keeps a hypothetical omission (GHES, schema drift)
+// from failing the whole conversation fetch.
 const authorSchema = z
   .object({
     login: z.string(),
@@ -137,9 +134,8 @@ const authorSchema = z
   })
   .nullable();
 
-// `fullDatabaseId` is GitHub's BigInt scalar (serialized as a string; the
-// legacy `databaseId` Int is deprecated for 64-bit ids). Verified live
-// 2026-07-07. Parsed to a JS number behind a safe-integer guard.
+// `fullDatabaseId` is GitHub's BigInt scalar, serialized as a string; the
+// legacy `databaseId` Int is deprecated for 64-bit ids.
 const wireCommentSchema = z.object({
   fullDatabaseId: z.string().nullable(),
   author: authorSchema,
@@ -201,9 +197,9 @@ const wireIssueCommentSchema = z.object({
 });
 
 // `repository` and `pullRequest` are nullable in GitHub's schema — a missing
-// or inaccessible resource can arrive as a null FIELD in a 2xx response (not
-// only as a GraphQL error). `reviews` is likewise a nullable connection;
-// `reviewThreads`/`comments` are NON_NULL (introspected live 2026-07-07).
+// or inaccessible resource can arrive as a null FIELD in a 2xx response, not
+// only as a GraphQL error. `reviews` is likewise a nullable connection;
+// `reviewThreads`/`comments` are NON_NULL.
 const conversationResponseSchema = z.object({
   repository: z
     .object({
@@ -331,9 +327,9 @@ function resourceNotFoundError(): GitHubApiError {
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a wire `fullDatabaseId` (BigInt-as-string) into the domain's number
- * id. `undefined` for null/unparseable/unsafe values — the caller drops the
- * node (node-level defects drop the node; envelope defects fail the fetch).
+ * Parse a wire `fullDatabaseId` (BigInt-as-string) into the domain's number id.
+ * `undefined` for null/unparseable/unsafe values — node-level defects drop the
+ * node, envelope defects fail the fetch.
  */
 function parseDatabaseId(value: string | null): number | undefined {
   if (value === null || !/^\d+$/.test(value)) {
@@ -379,8 +375,8 @@ function mapThread(
   thread: z.infer<typeof wireThreadSchema>,
 ): ConversationThread | undefined {
   // The ROOT must be nodes[0] BEFORE any filtering: a null/unmappable root
-  // with visible replies must skip the whole thread, never promote a reply
-  // to thread identity/reply target (codex round 2).
+  // with visible replies skips the whole thread, never promotes a reply to
+  // thread identity/reply target.
   const commentNodes = thread.comments.nodes ?? [];
   const wireRoot = commentNodes[0];
   if (wireRoot === null || wireRoot === undefined) {
@@ -448,12 +444,9 @@ function mapReviews(
 }
 
 /**
- * Fetch a PR's full conversation — review threads (pre-threaded, resolution
- * and outdatedness first-class), review verdicts, and PR-level comments — in
- * one GraphQL query, cursor-paging threads to exhaustion (capped). Intended
- * to run on an installation-token octokit: reads share one rate budget and
- * one cache entry per PR (ADR 0027). Failures are sanitized; there is no
- * REST fallback tier.
+ * Fetch a PR's full conversation in one GraphQL query, cursor-paging threads to
+ * exhaustion (capped). Intended to run on an installation-token octokit, so
+ * reads share one rate budget and one cache entry per PR. No REST fallback.
  */
 export async function fetchPullRequestConversation(
   octokit: Octokit,
@@ -568,10 +561,9 @@ export interface CreateReviewCommentReplyInput {
 
 /**
  * Reply to an existing review thread, authored by whoever the octokit's token
- * identifies (the viewer's user-to-server token — ADR 0016 #4). GitHub API
- * fact (ADR 0027): replies post IMMEDIATELY, outside any pending review —
+ * identifies. Replies post IMMEDIATELY, outside any pending review —
  * create-review's `comments[]` cannot express `in_reply_to`, so there is no
- * batched alternative. Returns the created reply's comment id.
+ * batched alternative.
  */
 export async function createReviewCommentReply(
   octokit: Octokit,
@@ -585,7 +577,7 @@ export async function createReviewCommentReply(
       comment_id: input.commentId,
       body: input.body,
     });
-    // Same precision guard as comments.ts: JSON.parse rounds ints past 2^53.
+    // JSON.parse rounds ints past 2^53 before we see them.
     if (!Number.isSafeInteger(response.data.id)) {
       return {
         ok: false,

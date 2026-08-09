@@ -1,5 +1,5 @@
-// Wire-shaped fixtures for the collaborators connection (BRIEF-94). Nodes are
-// GraphQL `User` objects — `name` is nullable, `login`/`avatarUrl` are not.
+// Wire-shaped fixtures for the collaborators connection. Nodes are GraphQL
+// `User` objects — `name` is nullable, `login`/`avatarUrl` are not.
 
 export interface GqlCollaboratorOptions {
   readonly login?: string;

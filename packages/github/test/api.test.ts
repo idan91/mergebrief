@@ -1,7 +1,7 @@
-// Comment ops + fetch primitives against a hand-written, injected octokit stub
-// (vitest `vi.fn()` — no new mock libraries). Asserts: success maps to the
-// Result ok-shape; a 404 from deleteComment is idempotent ok; a 403/404 from a
-// fetch maps to a sanitized Result error that leaks NO token/header/body.
+// Comment ops + fetch primitives against a hand-written, injected octokit stub.
+// Asserts: success maps to the Result ok-shape; a 404 from deleteComment is
+// idempotent ok; a 403/404 from a fetch maps to a sanitized Result error that
+// leaks NO token/header/body.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -55,9 +55,8 @@ function requestError(
   });
 }
 
-// Build a minimal octokit stub. The double assertion is the sanctioned
-// test-only escape hatch for injecting a structural mock where the full
-// `Octokit` type is expected — we only implement the methods under test.
+// The double assertion injects a structural mock where the full `Octokit` type
+// is expected; only the methods under test are implemented.
 function mockOctokit(overrides: {
   createComment?: ReturnType<typeof vi.fn>;
   deleteComment?: ReturnType<typeof vi.fn>;
@@ -270,7 +269,7 @@ describe("fetchRepositoryById", () => {
 
   it("captures permissions.push as viewerCanPush when GitHub returns permissions", async () => {
     // A user-to-server read includes the VIEWER's effective `permissions`
-    // block — `push` is the write-capability signal (BRIEF-93).
+    // block — `push` is the write-capability signal.
     const request = vi.fn().mockResolvedValue({
       data: {
         id: 1,
@@ -662,7 +661,7 @@ describe("fetchPullRequest / fetchDiff", () => {
   });
 });
 
-describe("fetchCompareFiles (BRIEF-143)", () => {
+describe("fetchCompareFiles", () => {
   it("returns per-file status entries with previous_filename mapped through", async () => {
     const compareBasehead = vi.fn().mockResolvedValue({
       data: {
@@ -784,7 +783,7 @@ describe("fetchCompareFiles (BRIEF-143)", () => {
   });
 });
 
-describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha (BRIEF-97)", () => {
+describe("fetchReviewCommentsRaw / fetchCompareCommitCount / resolveCommitSha", () => {
   it("pages through review comments and returns the raw wire objects", async () => {
     const wire = [
       { id: 1, body: "b1" },

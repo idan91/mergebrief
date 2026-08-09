@@ -1,10 +1,7 @@
-// Repository lookups (BRIEF-2 stage 2; BRIEF-19 PR 1.2). Id-based (`GET
-// /repositories/{id}`) rather than by `owner/repo` so it survives renames —
-// this is the primitive the stage-7 authorization gate calls with a viewer
-// token, but here it is generic over any authenticated `Octokit`. The
-// installation∩user intersection (`GET /user/installations/{id}/repositories`)
-// backs the BRIEF-19 list endpoint's allowed-repo set. Failures are sanitized
-// via `mapRequestError`.
+// Repository lookups, id-based rather than by `owner/repo` so they survive
+// renames. Generic over any authenticated `Octokit`; the authorization gate
+// calls them with a viewer token. Failures are sanitized via
+// `mapRequestError`.
 import type { Octokit } from "octokit";
 import type { InstallationId, RepoId } from "persistence";
 import { z } from "zod";
@@ -21,10 +18,10 @@ export interface RepositoryInfo {
   readonly fullName: string;
   readonly private: boolean;
   /**
-   * Whether the AUTHENTICATED viewer holds write (`push`) permission on the
-   * repo (BRIEF-93). Only meaningful on a user-to-server read — GitHub scopes
-   * the `permissions` block to the requesting identity; absent (installation
-   * token, defensive) parses as `false`, never as a capability grant.
+   * Whether the AUTHENTICATED viewer holds write (`push`) permission. Only
+   * meaningful on a user-to-server read — GitHub scopes the `permissions`
+   * block to the requesting identity; absent parses as `false`, never as a
+   * capability grant.
    */
   readonly viewerCanPush: boolean;
 }
@@ -32,19 +29,13 @@ export interface RepositoryInfo {
 const repositoryResponseSchema = z.object({
   full_name: z.string().min(1),
   private: z.boolean(),
-  // `push` itself is tolerant-optional: a permissions block missing it must
-  // degrade to no-capability (false), never fail the whole repo parse — this
-  // fetch is the authz gate's only probe, and a capability-signal glitch must
-  // not turn into a full access denial.
+  // `push` is tolerant-optional: a permissions block missing it degrades to
+  // no-capability rather than failing the whole repo parse, which would turn a
+  // capability-signal glitch into a full access denial.
   permissions: z.object({ push: z.boolean().optional() }).optional(),
 });
 
-/**
- * Fetch a repository by its numeric id. Returns the id (echoed from the
- * caller's branded `repoId`), full name, and visibility. A non-2xx response
- * (404/403/…) becomes a sanitized `GitHubApiError` carrying only status + a
- * static message.
- */
+/** Fetch a repository by its numeric id. */
 export async function fetchRepositoryById(
   octokit: Octokit,
   repoId: RepoId,
@@ -81,16 +72,11 @@ const installationRepositoryItemSchema = z.object({
 });
 
 /**
- * The repos of `installationId` that the AUTHENTICATED USER can also access —
- * the exact installation∩user-access intersection (ADR 0016 #5b), fetched with
- * the viewer's own token via `GET /user/installations/{installation_id}/
- * repositories`, paginated to EXHAUSTION: this map is the list endpoint's
- * authorization universe, so an incomplete page would silently hide valid PRs
- * (a correctness bug, not a fail-closed posture). Returns numeric-id →
- * GitHub-verified `owner/name` (numeric keys are rename-proof; the verified
- * names serve display, mirroring the per-repo gate's `repoFullName`). A
- * non-2xx (including the 401 that triggers the caller's token refresh)
- * becomes a sanitized `GitHubApiError`.
+ * The repos of `installationId` the AUTHENTICATED USER can also access — the
+ * installation∩user-access intersection, fetched with the viewer's own token
+ * and paginated to EXHAUSTION: this map is the list endpoint's authorization
+ * universe, so an incomplete page would silently hide valid PRs. Numeric keys
+ * are rename-proof; the verified names serve display.
  */
 export async function listInstallationRepositoriesForUser(
   octokit: Octokit,

@@ -1,26 +1,18 @@
-// Standalone inline review-comment write (BRIEF-43 PR 4): post ONE review
-// comment on a PR's diff, anchored to file+line/range and PINNED to the commit
-// the anchor was read against (`commit_id`), authored by whoever the octokit's
-// token identifies — the VIEWER's user-to-server token (ADR 0016 #4 / ADR
-// 0031). GitHub itself authorizes the write (anyone with repo access may
-// comment), so the own-draft gate is a UX affordance placement, not a security
-// boundary — this primitive is authorization-agnostic.
+// Standalone inline review-comment write: ONE review comment on a PR's diff,
+// anchored to file+line/range and PINNED to the commit the anchor was read
+// against. GitHub itself authorizes the write (anyone with repo access may
+// comment), so this primitive is authorization-agnostic.
 //
-// REST, not GraphQL: this mirrors the package's other comment writes
-// (`comments.ts`, `review.ts`, the conversation reply) — the anchor maps 1:1
-// to the REST `path/line/side/start_line/start_side` shape, and the response
-// hands us the REST `databaseId` (the comment id) AND the `pull_request_review_id`
-// GitHub assigns to the wrapping review DIRECTLY, no node-id round-trip. That
-// review id is the own-comment reconciliation join key (BRIEF-25): recording
-// it lets the fetched thread render with the "yours" tag. GraphQL's
-// `addPullRequestReviewThread` returns node ids we would then have to resolve
-// back to databaseIds for that same join, so REST is the strictly simpler interface.
+// REST, not GraphQL: the anchor maps 1:1 to the REST
+// `path/line/side/start_line/start_side` shape, and the response hands back the
+// comment id AND the `pull_request_review_id` of the wrapping review directly,
+// with no node-id round-trip. That review id is the own-comment reconciliation
+// join key.
 //
-// Failures funnel through `mapRequestError` (no token/header/body bytes leak).
-// A 422 means the anchor no longer sits on the pinned commit's diff (the head
-// advanced under the composer): flagged `staleAnchor` so the route can tell the
-// FE to reload rather than surfacing it as a retry-looking upstream error —
-// the SAME best-effort posture review.ts takes on its unknown-commit 422.
+// Failures funnel through `mapRequestError`. A 422 means the anchor no longer
+// sits on the pinned commit's diff (the head advanced under the composer):
+// flagged `staleAnchor` so the caller can reload rather than surface a
+// retry-looking upstream error.
 import type { Octokit } from "octokit";
 import { RequestError } from "octokit";
 import {
@@ -51,11 +43,10 @@ export interface InlineReviewCommentResult {
   /** REST `databaseId` of the created comment. */
   readonly commentId: bigint;
   /**
-   * The id of the review GitHub wraps this standalone comment in, when it
-   * assigns one (`pull_request_review_id`) — the own-comment reconciliation
-   * join key (BRIEF-25). Absent when GitHub returns no wrapping review id or
-   * an unsafe one; the comment still posted, it just cannot be tagged "yours"
-   * by the review-id join until the next fetch reconciles it another way.
+   * The id of the review GitHub wraps this standalone comment in — the
+   * own-comment reconciliation join key. Absent when GitHub returns no wrapping
+   * review id or an unsafe one; the comment still posted, it just cannot be
+   * joined by review id until a later fetch reconciles it.
    */
   readonly reviewId?: bigint;
 }
@@ -90,14 +81,13 @@ export async function createInlineReviewComment(
       ...(input.startSide === undefined ? {} : { start_side: input.startSide }),
       body: input.body,
     });
-    // Same precision guard as comments.ts/review.ts: JSON.parse rounds ints
-    // past 2^53, and a lossy comment id would break every downstream join.
+    // JSON.parse rounds ints past 2^53; a lossy comment id would break every
+    // downstream join.
     if (!Number.isSafeInteger(response.data.id)) {
       return { ok: false, error: unexpectedResponseError(CONTEXT) };
     }
-    // The wrapping review id is best-effort: a null or lossy value drops to
-    // `undefined` (the comment posted regardless — never fail a good write on
-    // an unusable join key).
+    // Best-effort: a null or lossy value drops to `undefined` rather than
+    // failing a write that already succeeded.
     const rawReviewId = response.data.pull_request_review_id;
     const reviewId =
       typeof rawReviewId === "number" && Number.isSafeInteger(rawReviewId)

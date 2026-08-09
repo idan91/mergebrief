@@ -1,24 +1,16 @@
-// GitHub OAuth (user-to-server) helpers for reviewer login (BRIEF-2 stage 6,
-// PR C — ADR 0016 #4, plan decision #3). Wraps `@octokit/oauth-app`
-// (GitHub-official) for the web flow: build the authorization URL, exchange the
-// callback code for an expiring user access token + rotating refresh token, and
-// refresh that token later. Plus two thin user-token REST reads (the
-// authenticated user and the app installations reachable to that user) the
+// GitHub OAuth (user-to-server) helpers for reviewer login, wrapping
+// `@octokit/oauth-app` for the web flow, plus the user-token REST reads the
 // callback needs to resolve the tenant.
 //
-// SECURITY: every expected failure is a `Result`, never a throw. NO error
-// message ever echoes a code, token, or client secret — the octokit errors
-// thrown by `createToken`/`refreshToken` carry the exchanged credentials in
-// their request options, so they are swallowed and replaced with a static,
-// safe-to-log message. REST failures funnel through `mapRequestError`, the
-// package's single sanitization chokepoint.
+// SECURITY: no error message ever echoes a code, token, or client secret — the
+// octokit errors thrown by `createToken`/`refreshToken` carry the exchanged
+// credentials in their request options, so they are swallowed and replaced with
+// a static message. REST failures funnel through `mapRequestError`.
 //
-// EXPIRATION REQUIRED: these helpers assume the GitHub App has
-// "Expire user authorization tokens" enabled — that is what makes GitHub return
-// a `refreshToken` + expiries. If the App is misconfigured (no refresh token in
-// the exchange response), `exchangeWebFlowCode` returns a clear
-// `EXPIRATION_NOT_ENABLED` error rather than silently minting a non-expiring
-// session.
+// EXPIRATION REQUIRED: these helpers assume the App has "Expire user
+// authorization tokens" enabled — that is what makes GitHub return a
+// `refreshToken` + expiries. Without it `exchangeWebFlowCode` errors rather
+// than silently minting a non-expiring session.
 import { Octokit } from "octokit";
 import { OAuthApp, type Options } from "@octokit/oauth-app";
 import { retryOptions } from "./retry";
@@ -32,19 +24,14 @@ import {
 import { isInstallationId, isReviewerId } from "../ids";
 import type { Result, ValueOf } from "../types";
 
-// ---------------------------------------------------------------------------
-// The github-app-typed OAuth client. Typing it with `Options<"github-app">`
-// makes `createToken`/`refreshToken` resolve to the WithExpiration
-// authentication shapes (refresh token + expiries), not the OAuth-App variant.
-// ---------------------------------------------------------------------------
+// `Options<"github-app">` makes `createToken`/`refreshToken` resolve to the
+// WithExpiration authentication shapes, not the OAuth-App variant.
 
 export type GitHubOAuthApp = OAuthApp<Options<"github-app">>;
 
 /**
- * The mapped, sanitized token bundle returned by the web-flow exchange and by a
- * refresh. `accessToken` is the ~8h user token; `refreshToken` is the ~6mo
- * single-use rotating token (D11). Both expiries are `Date`s (octokit hands
- * them back as ISO strings).
+ * `accessToken` is the ~8h user token; `refreshToken` is the ~6mo single-use
+ * rotating token. Expiries arrive from octokit as ISO strings.
  */
 export interface OAuthTokens {
   readonly accessToken: string;
@@ -73,11 +60,7 @@ export interface OAuthError {
 // Client construction + authorization URL.
 // ---------------------------------------------------------------------------
 
-/**
- * Construct the github-app-typed `OAuthApp` from client credentials. Synchronous
- * and does not perform a network call — it only holds the client id/secret for
- * later token requests.
- */
+/** Construct the github-app-typed `OAuthApp`. No network call. */
 export function createOAuthApp(config: {
   clientId: string;
   clientSecret: string;
@@ -91,8 +74,7 @@ export function createOAuthApp(config: {
 
 /**
  * Build the GitHub authorization URL the reviewer is redirected to. `state` is
- * the caller's CSRF nonce (echoed back on the callback); `redirectUrl` is the
- * callback endpoint. Pure/synchronous — no network.
+ * the caller's CSRF nonce, echoed back on the callback.
  */
 export function buildAuthorizationUrl(
   oauthApp: GitHubOAuthApp,
@@ -106,8 +88,7 @@ export function buildAuthorizationUrl(
 }
 
 // ---------------------------------------------------------------------------
-// Token exchange + refresh. Both map octokit's `authentication` result into the
-// sanitized `OAuthTokens`; a missing refresh token/expiry means the App lacks
+// Token exchange + refresh. A missing refresh token/expiry means the App lacks
 // token expiration and is a clear error, never a silent non-expiring session.
 // ---------------------------------------------------------------------------
 
@@ -148,9 +129,8 @@ function toOAuthTokens(
 }
 
 /**
- * Exchange the web-flow `code` (with its `state`) for user tokens. On any thrown
- * error (bad code, GitHub 4xx, network) returns a sanitized `EXCHANGE_FAILED` —
- * the underlying octokit error carries the code/secret and is never surfaced.
+ * Exchange the web-flow `code` for user tokens. The underlying octokit error
+ * carries the code/secret, so it is never surfaced.
  */
 export async function exchangeWebFlowCode(
   oauthApp: GitHubOAuthApp,
@@ -174,9 +154,8 @@ export async function exchangeWebFlowCode(
 }
 
 /**
- * Rotate an expiring user token using its refresh token. GitHub refresh tokens
- * are single-use (D11): a successful call invalidates `input.refreshToken` and
- * returns a fresh pair. A thrown error becomes a sanitized `REFRESH_FAILED`.
+ * Rotate an expiring user token. GitHub refresh tokens are single-use: success
+ * invalidates `input.refreshToken` and returns a fresh pair.
  */
 export async function refreshUserToken(
   oauthApp: GitHubOAuthApp,
@@ -199,8 +178,7 @@ export async function refreshUserToken(
 }
 
 // ---------------------------------------------------------------------------
-// User-token REST reads. Both build a fresh user-scoped `Octokit`; failures are
-// sanitized via `mapRequestError` (no token/header/body leaks).
+// User-token REST reads. Failures are sanitized via `mapRequestError`.
 // ---------------------------------------------------------------------------
 
 const userResponseSchema = z.object({
@@ -209,9 +187,8 @@ const userResponseSchema = z.object({
 });
 
 /**
- * Resolve the authenticated reviewer (`GET /user`) for a user access token,
- * branding the numeric id as `ReviewerId`. An ill-shaped 2xx body or a
- * non-positive id is a sanitized `REQUEST_FAILED`, never an `as` cast.
+ * Resolve the authenticated reviewer for a user access token, branding the
+ * numeric id. An ill-shaped 2xx body or non-positive id fails the parse.
  */
 export async function fetchAuthenticatedUser(
   accessToken: string,
@@ -252,10 +229,9 @@ const installationsResponseSchema = z.object({
 });
 
 /**
- * List the app installations reachable to the user (`GET /user/installations`),
- * branding each numeric id as `InstallationId`. The callback uses this to pick
- * the tenant a new session belongs to (THE TENANT MODEL). Empty is a valid `ok`
- * result — the caller decides that "the app isn't installed for this account".
+ * List the app installations reachable to the user, branding each numeric id.
+ * Empty is a valid `ok` result — the caller decides what "no installations"
+ * means.
  */
 export async function listAppInstallationsForUser(
   accessToken: string,
@@ -291,10 +267,8 @@ export async function listAppInstallationsForUser(
 }
 
 /**
- * One app installation reachable to the authenticated user: its numeric id
- * (branded) plus the login of the account it is installed on (org or user) —
- * the display label the multi-org picker shows. Numeric id is rename-proof;
- * the login serves display, mirroring the per-repo gate's `repoFullName`.
+ * One app installation reachable to the authenticated user. The numeric id is
+ * rename-proof; the account login serves display only.
  */
 export interface UserInstallation {
   readonly installationId: InstallationId;
@@ -312,14 +286,9 @@ const userInstallationsResponseSchema = z.object({
 });
 
 /**
- * List the app installations reachable to the user WITH their account logins
- * (`GET /user/installations`, VIEWER token — user-to-server). This is the
- * richer sibling of `listAppInstallationsForUser` (ids only): the BRIEF-19
- * multi-org endpoints need the account login for display AND re-derive this
- * live accessible set to validate a switch target (NEVER trusting the caller's
- * id). A non-2xx (including the 401 that triggers the caller's token refresh)
- * becomes a sanitized `GitHubApiError`; an ill-shaped id fails the parse rather
- * than being force-cast.
+ * Richer sibling of `listAppInstallationsForUser`: ids plus account logins,
+ * read with the VIEWER token. Callers re-derive this live accessible set to
+ * validate an org-switch target, never trusting the caller's id.
  */
 export async function listUserInstallations(
   accessToken: string,
@@ -358,13 +327,12 @@ export async function listUserInstallations(
 }
 
 /**
- * A thin user-scoped `Octokit` for an access token. The stage-7 authorization
- * gate uses it for the viewer's repo-access check; exposed here so that
- * boundary reuses the same construction (and the same default global `fetch`).
+ * A thin user-scoped `Octokit` for an access token — exposed so the viewer
+ * authorization gate reuses the same construction.
  */
 export function createUserOctokit(accessToken: string): Octokit {
   // Same permanent-status retry tuning as the App's installation clients —
-  // notably 406 (diff too large; see `retry.ts`): the read API's diff proxy
-  // must fail fast to its 413 mapping, not retry an unrenderable span.
+  // notably 406 (diff too large): the read API's diff proxy must fail fast to
+  // its 413 mapping, not retry an unrenderable span.
   return new Octokit({ auth: accessToken, retry: retryOptions() });
 }

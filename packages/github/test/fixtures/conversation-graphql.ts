@@ -1,8 +1,7 @@
-// GraphQL response fixtures for the conversation primitive (BRIEF-25):
-// builders mirroring the wire shape `octokit.graphql` resolves with — the
-// `data` content directly, no envelope. Covers the plan's fixture list:
-// human thread, reply chain, resolved, outdated, bot author, PR-level
-// comment, pagination page.
+// GraphQL response fixtures for the conversation primitive: builders mirroring
+// the wire shape `octokit.graphql` resolves with — the `data` content directly,
+// no envelope. Covers human thread, reply chain, resolved, outdated, bot
+// author, PR-level comment, and a pagination page.
 
 interface GqlCommentOverrides {
   readonly databaseId?: number | null;

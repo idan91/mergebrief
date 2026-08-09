@@ -1,10 +1,8 @@
-// OAuth helper mapping + sanitization (BRIEF-2 stage 6). The `OAuthApp` is
-// stubbed at the injected interface (a hand-written object with `createToken` /
-// `refreshToken` as `vi.fn()` — no new mock libraries, mirroring api.test.ts).
-// Asserts: octokit's `authentication` result maps to the sanitized
-// `OAuthTokens` (ISO strings → Date); a missing refresh token (App without
-// token expiration) is a clear `EXPIRATION_NOT_ENABLED`; and a thrown exchange/
-// refresh error never leaks the code/token/secret it carried.
+// OAuth helper mapping + sanitization. The `OAuthApp` is stubbed at the
+// injected interface. Asserts: octokit's `authentication` result maps to the
+// sanitized `OAuthTokens`; a missing refresh token (App without token
+// expiration) is a clear `EXPIRATION_NOT_ENABLED`; and a thrown
+// exchange/refresh error never leaks the code/token/secret it carried.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   exchangeWebFlowCode,
@@ -38,9 +36,8 @@ function leakyError(): Error {
   return error;
 }
 
-// Build a minimal OAuthApp stub. The double assertion is the sanctioned
-// test-only escape hatch for injecting a structural mock where the full
-// `OAuthApp` type is expected — we only implement the methods under test.
+// The double assertion injects a structural mock where the full `OAuthApp`
+// type is expected; only the methods under test are implemented.
 function mockOAuthApp(overrides: {
   createToken?: ReturnType<typeof vi.fn>;
   refreshToken?: ReturnType<typeof vi.fn>;
@@ -143,8 +140,7 @@ describe("refreshUserToken", () => {
 });
 
 // `listUserInstallations` builds its own user-scoped Octokit, which reads the
-// global `fetch` at call time — so it is stubbed at the HTTP boundary (no new mock
-// libraries), mirroring the api-package integration tests.
+// global `fetch` at call time — so it is stubbed at the HTTP boundary.
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,

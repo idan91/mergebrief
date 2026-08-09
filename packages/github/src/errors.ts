@@ -1,10 +1,7 @@
-// The single sanitization chokepoint for GitHub REST failures (BRIEF-2 stage
-// 2). Every API-call wrapper (comments, repo, pull-request) funnels a thrown
-// error through `mapRequestError` so that NO auth header, token, request URL,
-// or raw response body ever reaches a `Result` error — only an HTTP status and
-// a static, caller-supplied context string. `RequestError` is octokit's own
-// error class (re-exported from the umbrella package); it carries `.status`,
-// `.request`, and `.response`, none of which we surface.
+// The single sanitization chokepoint for GitHub API failures: every thrown
+// error funnels through `mapRequestError`/`mapGraphqlError` so no auth header,
+// token, request URL, or raw response body reaches a `Result` error — only an
+// HTTP status and a static, caller-supplied context string.
 import { RequestError } from "octokit";
 import type { ValueOf } from "./types";
 
@@ -22,19 +19,17 @@ export interface GitHubApiError {
   /** HTTP status, when the failure was an HTTP response (absent for network/transport errors). */
   readonly status?: number;
   /**
-   * A sanitized, human-readable summary. Derived only from the HTTP status and
-   * a static context label — never the upstream message, response body, or any
-   * request header (which may carry the installation token).
+   * Sanitized summary. Derived only from the HTTP status and a static context
+   * label — never the upstream message, response body, or request headers
+   * (which may carry the installation token).
    */
   readonly message: string;
 }
 
 /**
  * GitHub signals throttling with a 403 (NOT 429) plus rate-limit headers:
- * `x-ratelimit-remaining: 0` for the primary limit, or a `retry-after` header
- * for a secondary/abuse limit. Reading these headers (never the body) lets us
- * classify throttling distinctly from a genuine permission denial without
- * leaking any secret — the sanitized message still carries only the status.
+ * `x-ratelimit-remaining: 0` for the primary limit, or `retry-after` for a
+ * secondary/abuse limit. Headers only — never the body.
  */
 function isRateLimited403(error: RequestError): boolean {
   const headers = error.response?.headers;
@@ -69,9 +64,8 @@ function codeForStatus(status: number): GitHubApiErrorCode {
 
 /**
  * Map any thrown value from an octokit request into a sanitized
- * `GitHubApiError`. `context` is a STATIC verb phrase supplied by the caller
- * (e.g. `"post entry comment"`) — never interpolated from user/GitHub input —
- * so the resulting message carries no untrusted or secret bytes.
+ * `GitHubApiError`. `context` must be a STATIC verb phrase supplied by the
+ * caller — never interpolated from user/GitHub input.
  */
 export function mapRequestError(
   error: unknown,
@@ -103,11 +97,9 @@ export function unexpectedResponseError(context: string): GitHubApiError {
 }
 
 // GraphQL failures arrive as `GraphqlResponseError` — HTTP 200 with an
-// `errors` array whose entries carry a `type` discriminator (`NOT_FOUND`,
-// `FORBIDDEN`, `RATE_LIMITED`, …). The octokit umbrella does not export the
-// class, and importing `@octokit/graphql` directly would make `instanceof`
-// hostage to pnpm resolving the same copy octokit uses — so detection is
-// structural: the stable contract is the error name plus the errors array.
+// `errors` array carrying a `type` discriminator. The octokit umbrella does
+// not export the class, so detection is structural (name + errors array)
+// rather than `instanceof`.
 interface GraphqlErrorEntry {
   readonly type?: string;
 }
@@ -116,8 +108,8 @@ function isGraphqlResponseError(error: unknown): error is {
   readonly name: string;
   readonly errors: readonly GraphqlErrorEntry[];
 } {
-  // Fully structural — no `instanceof Error`, which would reject a wrapped or
-  // cross-realm error carrying the same shape (codex round 2).
+  // Fully structural — `instanceof Error` would reject a wrapped or
+  // cross-realm error carrying the same shape.
   if (typeof error !== "object" || error === null) {
     return false;
   }
@@ -141,11 +133,9 @@ const GRAPHQL_TYPE_PRECEDENCE: ReadonlyArray<{
 ];
 
 /**
- * Map any thrown value from an `octokit.graphql` call into a sanitized
- * `GitHubApiError` — the GraphQL sibling of `mapRequestError`, with the same
- * contract: `context` is a STATIC verb phrase, and no upstream message,
- * token, or response text ever reaches the result. HTTP-level failures
- * (thrown as `RequestError`) delegate to the REST taxonomy.
+ * Sanitizing sibling of `mapRequestError` for `octokit.graphql` calls: same
+ * contract — `context` is a STATIC verb phrase, and no upstream message,
+ * token, or response text reaches the result.
  */
 export function mapGraphqlError(
   error: unknown,

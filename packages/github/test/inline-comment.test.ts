@@ -1,9 +1,7 @@
-// Standalone inline review-comment write tests (BRIEF-43 PR 4): drive the
-// REST create-review-comment primitive — the happy path (comment id + the
-// wrapping review id GitHub assigns), the null-review-id degradation, the
-// precision guards, the 422 stale-anchor flag, and the sanitized failure
-// paths. REST is stubbed at the `octokit.rest.pulls.createReviewComment` interface
-// (the same structural mock style the other operation suites use).
+// Standalone inline review-comment write tests: the happy path (comment id +
+// the wrapping review id GitHub assigns), the null-review-id degradation, the
+// precision guards, the 422 stale-anchor flag, and the sanitized failure paths.
+// REST is stubbed at the `octokit.rest.pulls.createReviewComment` interface.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";
 import { createInlineReviewComment } from "../src/operations/inline-comment";

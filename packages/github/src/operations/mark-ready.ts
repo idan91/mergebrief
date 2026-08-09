@@ -1,16 +1,12 @@
-// Mark-ready mutation (BRIEF-43): flip a draft PR to ready-for-review with the
-// VIEWER's own token — GitHub itself enforces that only the author or a
-// maintainer may do this, so no MergeBrief role model is involved (ADR 0031).
-// GraphQL, like the conversation primitive: resolve the PR's node id first
-// (the mutation takes a node ID, never a number), then run the mutation. The
-// node id never leaves this module. Failures funnel through `mapGraphqlError`
-// (no upstream text, no token).
+// Mark-ready mutation: flip a draft PR to ready-for-review with the VIEWER's
+// own token — GitHub itself enforces that only the author or a maintainer may
+// do this, so no local role model is involved. The mutation takes a node ID,
+// never a number, so the PR's node id is resolved first and never leaves this
+// module. Failures funnel through `mapGraphqlError`.
 //
-// Convergence: a PR that is ALREADY out of draft is not a failure — the caller
-// wants the PR ready, and it is. Both the read-time check (`isDraft: false`)
-// and the race backstop (GitHub's "Pull request is not a draft" mutation
-// error) resolve to `ok: true` with `alreadyReady: true`; the route treats
-// that as converged (200, state refreshed), never an error.
+// Convergence: a PR ALREADY out of draft is not a failure. Both the read-time
+// check and the race backstop (GitHub's "Pull request is not a draft" mutation
+// error) resolve to `ok: true` with `alreadyReady: true`.
 import type { Octokit } from "octokit";
 import { z } from "zod";
 import {
@@ -29,12 +25,9 @@ export interface MarkPullRequestReadyInput {
 
 export interface MarkReadyResult {
   /**
-   * True when GitHub reported the PR was ALREADY out of draft — either the
-   * read-time `isDraft` was already false, or the mutation raced a concurrent
-   * ready transition and GitHub rejected it as "not a draft". Both are
-   * converged states, not failures; surfaced so the route/caller can tell a
-   * no-op apart from a fresh flip (audit/telemetry), while treating both as
-   * success.
+   * True when the PR was ALREADY out of draft — read-time or racing the
+   * mutation. A converged state, not a failure; surfaced only so a caller can
+   * tell a no-op apart from a fresh flip.
    */
   readonly alreadyReady: boolean;
 }
@@ -43,7 +36,7 @@ const CONTEXT = "mark pull request ready for review";
 
 // `repository` and `pullRequest` are nullable in GitHub's schema — a missing
 // or inaccessible resource can arrive as a null FIELD in a 2xx response, not
-// only as a GraphQL error (same contract the conversation primitive relies on).
+// only as a GraphQL error.
 const nodeIdResponseSchema = z.object({
   repository: z
     .object({
@@ -88,13 +81,10 @@ function resourceNotFoundError(): GitHubApiError {
   };
 }
 
-// GitHub rejects `markPullRequestReadyForReview` on a non-draft PR with a
-// GraphQL error whose message reads "Pull request is not a draft". The
-// discriminator lives ONLY in the human-readable message (no stable machine
-// code), so classification is best-effort over the message text — the SAME
-// best-effort posture as review.ts's 422 classifier. The message is read to
-// test a regex and is NEVER copied into the returned error (mapGraphqlError
-// still owns sanitization), so no upstream text or token can leak.
+// GitHub rejects the mutation on a non-draft PR with a GraphQL error whose
+// discriminator lives ONLY in the human-readable message, so classification is
+// best-effort. The message is regex-tested and NEVER copied into the returned
+// error, so no upstream text can leak.
 const notADraftShapeSchema = z.object({
   errors: z.array(z.object({ message: z.string().optional() })).optional(),
 });
@@ -112,11 +102,8 @@ function isAlreadyReadyError(error: unknown): boolean {
 
 /**
  * Mark a draft PR ready for review, authored by whoever the octokit's token
- * identifies (the viewer's user-to-server token — ADR 0016 #4 / ADR 0031).
- * Resolves the PR node id first; if the PR is already out of draft the
- * mutation is skipped entirely (converged). A mutation that races a concurrent
- * ready transition ("not a draft") likewise converges. All other failures are
- * sanitized `GitHubApiError`s.
+ * identifies. An already-non-draft PR skips the mutation entirely; one that
+ * races a concurrent ready transition likewise converges.
  */
 export async function markPullRequestReadyForReview(
   octokit: Octokit,
