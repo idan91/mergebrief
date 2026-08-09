@@ -147,8 +147,8 @@ export interface UseReadingSessionInput {
   compareViewFull: boolean;
   model: BriefViewModel;
   /**
-   * Own-draft state (BRIEF-43): flag dispositions are unreachable there
-   * (read-only mirror), so progress is chunk read-through only.
+   * Own-draft state: flag dispositions are unreachable there (read-only
+   * mirror), so progress is chunk read-through only.
    */
   ownDraftActive: boolean;
   repoConfig: RepoConfigContext | null | undefined;
@@ -210,7 +210,7 @@ export function useReadingSession(
 ): UseReadingSessionValue {
   const { brief, briefId, compareViewFull, model, ownDraftActive, repoConfig } =
     input;
-  // Session/domain state lives in the per-brief Mind-Map store (ADR 0022).
+  // Session/domain state lives in the per-brief Mind-Map store.
   const dispositions = useMindMap((state) => state.dispositions);
   const dominants = useMindMap((state) => state.dominants);
   const reclassifiedGroups = useMindMap((state) => state.reclassifiedGroups);
@@ -411,11 +411,10 @@ export function useReadingSession(
     const entering = !focusModeRef.current;
     setFocusMode(entering);
     if (!entering) return;
-    // Concerns+focus does not exist (BRIEF-134 legality table: focus implies
-    // Story). This snap is the ENTRY half of that contract; the other half is
-    // the header lens control greying while focus is on (`modeLegality`'s
-    // CONCERNS_FOCUS_LENS_REASON), so the lens can never leave Story
-    // mid-focus and this line can never silently fight a user choice.
+    // Concerns+focus does not exist: focus implies Story. This snap is the
+    // entry half; the other half is the header lens control greying while
+    // focus is on (`modeLegality`'s CONCERNS_FOCUS_LENS_REASON), so the lens
+    // can never leave Story mid-focus.
     setViewMode("story");
     // align="top" required: the focus banner only mounts once `focusMode`
     // flips true, so the scroll must pre-reserve its height via

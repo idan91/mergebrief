@@ -67,7 +67,7 @@ export interface UseComparisonOverlayInput {
   brief: Brief;
   briefId: string;
   comparisonPlan: BriefComparisonPlan | undefined;
-  /** Raw View/Compare URL params (ADR 0024 plan step 6). */
+  /** Raw View/Compare URL params. */
   searchParams: BriefSearchParams;
 }
 
@@ -93,19 +93,18 @@ export interface UseComparisonOverlayValue {
   /** The ACTIVE baseline's raw span-diff descriptor (Changes Only toggle). */
   activeRawSpanDiff: ComparisonQuery<string> | undefined;
   /**
-   * Last-review marks fetched INDEPENDENT of the active baseline
-   * (BRIEF-102): the per-group since-marker renders with Compare off. Null
-   * without a checkpoint (or while loading).
+   * Last-review marks fetched INDEPENDENT of the active baseline: the
+   * per-group since-marker renders with Compare off. Null without a
+   * checkpoint (or while loading).
    */
   sinceReviewMarks: ComparisonMarks | null;
 }
 
 /**
- * Comparison overlay (ADR 0024): the active Compare baseline drives both the
- * Full Brief highlights and the Changes Only content. Marks are mechanical —
- * the sole source of truth for highlights; the narrative/Delta only supplies
- * callout text and the changed-only summaries (highlights never derive from
- * them). One state machine parameterized by baseline, not two.
+ * The active Compare baseline drives both the Full Brief highlights and the
+ * Changes Only content. Marks are the sole source of truth for highlights;
+ * the narrative/Delta only supplies callout text and the changed-only
+ * summaries. One state machine parameterized by baseline, not two.
  */
 export function useComparisonOverlay(
   input: UseComparisonOverlayInput,
@@ -196,10 +195,10 @@ export function useComparisonOverlay(
   const delta =
     (comparisonPlan === undefined ? localDelta.data : planDelta.data) ?? null;
 
-  // Since-marker source (BRIEF-102): the last-review marks, fetched whenever
-  // the checkpoint slot EXISTS rather than when it is the active baseline.
-  // Shares the queryKey with the active fetch above, so React Query dedupes
-  // when Compare = last-review is on.
+  // Since-marker source: the last-review marks, fetched whenever the
+  // checkpoint slot EXISTS rather than when it is the active baseline. Shares
+  // the queryKey with the active fetch above, so React Query dedupes when
+  // Compare = last-review is on.
   const localSinceIds = resolveLocalComparisonIds(
     "last-review",
     timeline.selectedPoint?.comparisons,

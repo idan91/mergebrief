@@ -1,6 +1,6 @@
 // The conversation glue facade: the section's open/landing state, the shared
 // conversation query and its per-chunk digest, the composer wiring, and the
-// digest→diff jump choreography (BRIEF-25).
+// digest→diff jump choreography.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -36,11 +36,11 @@ export interface UseConversationWiringInput {
   /** The route's conversation plan; absent on the local path — every output
    * then self-disables. */
   conversation: ConversationPlan | undefined;
-  /** The `?thread=` landing target (BRIEF-24): opens the section on mount AND
-   * on in-app navigation that changes the target after mount. */
+  /** The `?thread=` landing target: opens the section on mount AND on in-app
+   * navigation that changes the target after mount. */
   conversationFocusThreadId: number | undefined;
-  /** Reviewer/verdict filter (BRIEF-99) — separate from the plan so a chip
-   * click cannot churn the plan identity the ChunkCard memos ride on. */
+  /** Reviewer/verdict filter — separate from the plan so a chip click cannot
+   * churn the plan identity the ChunkCard memos ride on. */
   conversationFilter: ConversationFilter | undefined;
   jumpToChunk: (chunkId: string, behavior?: ScrollBehavior) => void;
   model: BriefViewModel;
@@ -55,13 +55,10 @@ export interface ConversationFilterFacets {
   readonly hiddenInlineThreads: number;
   /**
    * The filter AS APPLIED — reviewer selections nobody on this PR matches
-   * dropped (`reconcileReviewers`). The trigger's receipt and the panel's
-   * pressed states read THIS one: the counts describe what actually
-   * filters, so a stale shared link (`?reviewers=ghost`) cannot make the
-   * trigger claim an active filter that filters nothing. Chip clicks build
-   * the next state from it too — the first interaction writes the dropped
-   * login out of the URL, the same degrade-to-looser rule the section
-   * applies.
+   * dropped. The trigger's receipt and the panel's pressed states read THIS
+   * one, so a stale shared link (`?reviewers=ghost`) cannot claim an active
+   * filter that filters nothing. Chip clicks build the next state from it
+   * too, writing the dropped login out of the URL.
    */
   readonly applied: ConversationFilter;
 }
@@ -99,14 +96,11 @@ export function useConversationWiring(
     submittedReviewIds,
   } = input;
 
-  // The conversation section collapses to its summary header by default — it
-  // sits ABOVE the change groups, so expanded-by-default would push the Brief
-  // down. The C shortcut expands. A `?thread=` landing (BRIEF-24) opens it so
-  // its target is reachable — including when the param arrives via in-app
-  // navigation AFTER mount (an initializer alone would leave the section
-  // collapsed). The user can still collapse it afterwards: the effect
-  // re-fires only when the TARGET changes, not on every render (navigation
-  // event, not state sync).
+  // Collapsed by default: the section sits ABOVE the change groups, so
+  // expanded-by-default would push the Brief down. A `?thread=` landing opens
+  // it — including when the param arrives via in-app navigation AFTER mount,
+  // which an initializer alone would miss. The effect re-fires only when the
+  // TARGET changes, so the user can still collapse it afterwards.
   const [open, setOpen] = useState(conversationFocusThreadId !== undefined);
   useEffect(() => {
     if (conversationFocusThreadId !== undefined) setOpen(true);
@@ -124,8 +118,8 @@ export function useConversationWiring(
     });
   }, []);
 
-  // Inline conversation threads (BRIEF-25): the same query the section runs
-  // (react-query dedupes on the key), disabled on the local path.
+  // Inline conversation threads: the same query the section runs (react-query
+  // dedupes on the key), disabled on the local path.
   const queryClient = useQueryClient();
   const conversationQuery = useQuery({
     ...(conversation?.queryOptions ??
@@ -136,8 +130,8 @@ export function useConversationWiring(
     conversationQuery.data?.kind === "ready"
       ? conversationQuery.data.conversation
       : undefined;
-  // The filter reaches the diff too (BRIEF-99): a reviewer chip that left
-  // their inline threads in place would answer "who said what" only halfway.
+  // The filter reaches the diff too: a reviewer chip that left their inline
+  // threads in place would answer "who said what" only halfway.
   const conversationByChunk = useMemo(() => {
     if (conversationData === undefined) return undefined;
     const filtered = applyConversationFilter(
@@ -172,11 +166,10 @@ export function useConversationWiring(
     conversation?.briefGeneratedAt,
   ]);
 
-  // The Filter disclosure renders in the toolbar ABOVE the section (and
-  // outside its collapsed-by-default body), so the facets are computed HERE
-  // — this hook already holds the shared query, the reading-ordered chunks
-  // and the filter. Reconciled first, so the counts describe the same
-  // conversation the section and the diff render.
+  // The Filter disclosure renders in the toolbar ABOVE the section and
+  // outside its collapsed body, so the facets are computed here. Reconciled
+  // first, so the counts describe the same conversation the section and the
+  // diff render.
   const conversationFilterFacets = useMemo(() => {
     if (conversationData === undefined) return undefined;
     const applied = reconcileReviewers(
@@ -197,9 +190,8 @@ export function useConversationWiring(
 
   // Slim transport (draft reads/writes and announce copy live inside
   // ReplyComposer's session-store reads): identity stable per plan, so it
-  // never busts ChunkCard's memo.
-  // Collaborator mention pool (BRIEF-94): same query key as the section's —
-  // one fetch serves both surfaces.
+  // never busts ChunkCard's memo. The mention pool shares the section's query
+  // key — one fetch serves both surfaces.
   const mentionPool = useMentionPool(conversation?.collaborators);
 
   const conversationComposer = useMemo<ThreadComposerWiring | undefined>(
@@ -214,9 +206,8 @@ export function useConversationWiring(
               void queryClient.invalidateQueries({
                 queryKey: conversation.queryOptions.queryKey,
               }),
-            // Resolution rides the inline (at-chunk) threads too (BRIEF-93):
-            // the same thread, the same capability, refetched through the same
-            // shared query key.
+            // Resolution rides the inline (at-chunk) threads too: same
+            // thread, same capability, same shared query key.
             ...(conversation.resolution === undefined
               ? {}
               : {
@@ -251,11 +242,10 @@ export function useConversationWiring(
     [conversation, queryClient],
   );
 
-  // The conversation jump contract (BRIEF-25): move focus WITH the scroll and
-  // flash the target (reduced-motion respected in CSS). When the digest hands
-  // us a row target, land on the thread's OWN row inside the diff — the chunk
-  // top is only the fallback (bot threads aggregate at the chunk; a resolved
-  // bot thread has no row at all).
+  // Move focus WITH the scroll and flash the target. When the digest hands us
+  // a row target, land on the thread's OWN row inside the diff — the chunk top
+  // is only the fallback (bot threads aggregate at the chunk; a resolved bot
+  // thread has no row at all).
   // One live flash timer: a repeat jump inside the window must RESTART the
   // flash (remove → reflow → re-add; a matching attribute never restarts a
   // CSS animation) instead of letting the first jump's timer cut it short.

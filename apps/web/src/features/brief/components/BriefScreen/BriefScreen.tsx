@@ -65,46 +65,42 @@ import styles from "./BriefScreen.module.scss";
 
 export type { BriefComparisonPlan } from "./useComparisonOverlay";
 // The door for the copy constants: tests live outside this subtree and may
-// not reach into the hook files directly (ADR 0037 §2).
+// not reach into the hook files directly.
 export { markReadyBatchFailureCopy } from "./utils";
 import { groupSinceMarkers } from "./utils";
 export { POST_COMMENT_COPY } from "./useOwnDraftFlow";
 
 /**
- * Own-draft composer block on a stale view (BRIEF-127 preserves BRIEF-43):
- * post-now exists only at the current head, so a stale-staged draft would
- * have no exit — unlike reviewer views, whose exit is Submit behind the ack.
+ * Own-draft composer block on a stale view: post-now exists only at the
+ * current head, so a stale-staged draft would have no exit — unlike reviewer
+ * views, whose exit is Submit behind the ack.
  */
 export const OWN_DRAFT_STALE_COMPOSER_REASON =
   "This isn't the pull request's current revision. Switch to the latest revision to comment.";
 
 /**
- * Own-draft state wiring (BRIEF-43, ADR 0031): injected by the DB route ONLY
- * while `draft && viewerIsAuthor` holds on the PrView (derived at read time,
- * single source: `features/pulls/ownDraft`). Present → the screen labels the
- * state (self-review chip), hides the submit/receipt machinery, renders flags
- * as a read-only mirror, and puts "Mark ready for review" in the terminal-
- * action slot. Absent (local path, any reviewer view) → nothing changes.
+ * Own-draft state wiring: injected by the DB route ONLY while
+ * `draft && viewerIsAuthor` holds on the PrView (single source:
+ * `features/pulls/ownDraft`). Present → the screen labels the state, hides the
+ * submit/receipt machinery, renders flags as a read-only mirror, and puts
+ * "Mark ready for review" in the terminal-action slot.
  */
 export interface OwnDraftPlan {
   /**
    * POSTs mark-ready; on success it awaits the pr-view invalidation, so the
    * own-draft UI stays stable until the refreshed PrView actually flips.
    *
-   * ABSENT while a historical revision is in view: the soft gate lists the
-   * rendered Brief's flags and the contract is "ALL current-head flags", so
-   * the action (and the gate with it) only exists on the current head. The
-   * CTA then stays focusable and a click announces why (the BRIEF-24
-   * disabled-with-reason pattern).
+   * ABSENT while a historical revision is in view: the soft gate lists ALL
+   * current-head flags, so the action (and the gate with it) only exists on
+   * the current head. The CTA then stays focusable and a click announces why.
    */
   readonly markReady?: MarkReadyAction;
   /**
-   * Posts a staged draft comment NOW as a standalone inline review comment
-   * (per-comment post-now, ADR 0031). Anchors from the comment's chunk-region
-   * data; `commit_id` is pinned to the viewed head by the route. ABSENT on the
-   * same terms as `markReady` — only while the CURRENT head is in view (a
-   * historical/advanced span would pin a stale commit, so the composer is
-   * already read-only there); its absence hides the Post affordance.
+   * Posts a staged draft comment NOW as a standalone inline review comment.
+   * Anchors from the comment's chunk-region data; `commit_id` is pinned to the
+   * viewed head by the route. ABSENT on the same terms as `markReady` — only
+   * while the CURRENT head is in view, since a historical/advanced span would
+   * pin a stale commit; its absence hides the Post affordance.
    */
   readonly postComment?: (
     anchor: CommentAnchor,
@@ -114,9 +110,9 @@ export interface OwnDraftPlan {
 
 export interface BriefScreenProps {
   /**
-   * Live webhook-maintained PR state (DB route, BRIEF-103): the header's
-   * state badge prefers it over the artifact's stamped snapshot. Absent on
-   * the local file path.
+   * Live webhook-maintained PR state (DB route): the header's state badge
+   * prefers it over the artifact's stamped snapshot. Absent on the local file
+   * path.
    */
   livePrState?: LivePrState | undefined;
   artifacts: LocalBriefSummary[];
@@ -130,31 +126,30 @@ export interface BriefScreenProps {
   conversation?: ConversationPlan | undefined;
   readOnly?: { reason: string } | undefined;
   /**
-   * The `?thread=` landing target (BRIEF-24 reads it): opens the conversation
-   * section and lands on that thread. Absent → no auto-open.
+   * The `?thread=` landing target: opens the conversation section and lands on
+   * that thread. Absent → no auto-open.
    */
   conversationFocusThreadId?: number | undefined;
-  /** Reviewer/verdict filter (BRIEF-99), carried in the URL by the route. */
+  /** Reviewer/verdict filter, carried in the URL by the route. */
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
   headerControls?: ReactNode | undefined;
   ownDraft?: OwnDraftPlan | undefined;
   /**
-   * The rendered span's head is not the PR head (BRIEF-127): the composer
-   * stays live, but the SubmitModal gates Submit behind an explicit ack.
+   * The rendered span's head is not the PR head: the composer stays live, but
+   * the SubmitModal gates Submit behind an explicit ack.
    */
   staleHead?: boolean | undefined;
   /**
-   * Opens the delta lens (BRIEF-102 since-marker link). Route-owned and
-   * stable; absent where no navigation is wired (the local demo path).
+   * Opens the delta lens from the since-marker link. Route-owned and stable;
+   * absent where no navigation is wired (the local demo path).
    */
   openDeltaLens?: (() => void) | undefined;
   /**
-   * Navigates the URL Scope axis back to `full` (BRIEF-134 legality): the
-   * IntentBar renders in Changes scope (its table row) but its jump targets
-   * only exist in the full story flow, so its jumps route through this
-   * first. Route-owned (the screen never touches the router — BRIEF-102
-   * rule); absent where no navigation is wired.
+   * Navigates the URL Scope axis back to `full`: the IntentBar renders in
+   * Changes scope but its jump targets only exist in the full story flow, so
+   * its jumps route through this first. Route-owned — the screen never touches
+   * the router; absent where no navigation is wired.
    */
   exitChangesScope?: (() => void) | undefined;
 }
@@ -182,8 +177,8 @@ export function BriefScreen({
 }: BriefScreenProps) {
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
 
-  // Comparison overlay (ADR 0024): timeline, View/Compare resolution, and
-  // the active baseline's marks/narrative/delta — see the hook.
+  // Comparison overlay: timeline, View/Compare resolution, and the active
+  // baseline's marks/narrative/delta — see the hook.
   const {
     activeCompare,
     activeRawSpanDiff,
@@ -204,9 +199,8 @@ export function BriefScreen({
     searchParams,
   });
 
-  // Per-group changed-since data (BRIEF-102): derived once per marks/model
-  // change so StoryView's per-card primitive props stay stable across
-  // unrelated screen re-renders.
+  // Derived once per marks/model change so StoryView's per-card primitive
+  // props stay stable across unrelated screen re-renders.
   const sinceMarkers = useMemo(() => {
     const counts = groupSinceMarkers(model.groups, sinceReviewMarks);
     return counts === undefined || sinceReviewMarks === null
@@ -214,22 +208,20 @@ export function BriefScreen({
       : { counts, baselineShortSha: sinceReviewMarks.baselineSha.slice(0, 7) };
   }, [model.groups, sinceReviewMarks]);
 
-  // Own-draft state (BRIEF-43): the plan's presence IS the state — see the
-  // block around `useMarkReadyFlow` below.
+  // The plan's presence IS the own-draft state.
   const ownDraftActive = ownDraft !== undefined;
-  // Own-draft stale views keep the composer read-only (BRIEF-127 preserves
-  // BRIEF-43): post-now is the only write path in own-draft state and it
-  // exists only at the current head, so a stale-staged draft would have no
-  // exit. Reviewer stale views stay writable — their exit is batch Submit
-  // behind the receipt ack.
+  // Own-draft stale views keep the composer read-only: post-now is the only
+  // write path there and it exists only at the current head, so a stale-staged
+  // draft would have no exit. Reviewer stale views stay writable — their exit
+  // is batch Submit behind the receipt ack.
   const composerDisabledReason =
     readOnly?.reason ??
     (ownDraftActive && staleHead === true
       ? OWN_DRAFT_STALE_COMPOSER_REASON
       : undefined);
 
-  // The reading session (ADR 0022): per-brief Mind-Map store wiring, the
-  // progress/receipt derivation, and the scroll/nav machinery — see the hook.
+  // The reading session: per-brief Mind-Map store wiring, the progress/receipt
+  // derivation, and the scroll/nav machinery — see the hook.
   const session = useReadingSession({
     brief,
     briefId,
@@ -256,8 +248,8 @@ export function BriefScreen({
     viewMode,
   } = session;
 
-  // Region block presence derives from the spec's legality table (BRIEF-134):
-  // ONE derivation over the three axes — no per-block ad-hoc gating below.
+  // Region block presence: ONE derivation over the three axes — no per-block
+  // ad-hoc gating below.
   const blocks = deriveRegionBlocks({
     lens: viewMode,
     scope: compareState.view,
@@ -294,11 +286,10 @@ export function BriefScreen({
   const [submitOpen, setSubmitOpen] = useState(false);
   const [summaryPreviewOpen, setSummaryPreviewOpen] = useState(false);
 
-  // Post-now in-flight tracking (BRIEF-43) — the MODULE-LEVEL registry's
-  // per-brief view, subscribed here. Module state, not component state: a
-  // same-tab remount with the same briefId (historical-revision round trip)
-  // resets component state while the fetch closure survives — the registry
-  // keeps the lockdown and the submit block alive across it.
+  // The MODULE-LEVEL post-now registry's per-brief view. Module state, not
+  // component state: a same-tab remount with the same briefId resets component
+  // state while the fetch closure survives — the registry keeps the lockdown
+  // and the submit block alive across it.
   const postingCommentIds = useInFlightPosts(briefId);
 
   // The ephemeral review-flow store (composer anchor, risk targets/selection,
@@ -328,10 +319,10 @@ export function BriefScreen({
     flowStore,
     (state) => state.dismissTarget !== null || state.evidenceTarget !== null,
   );
-  // The review-comment draft (BRIEF-137) is store-owned so it survives the
-  // submit surface closing, but the screen reads it through a stable getter —
-  // never a subscription: the raw string changes per keystroke, and this
-  // file's store discipline is booleans/transitions only (see above).
+  // The review-comment draft is store-owned so it survives the submit surface
+  // closing, but the screen reads it through a stable getter — never a
+  // subscription: the raw string changes per keystroke, and this file's store
+  // discipline is booleans/transitions only (see above).
   const getReviewComment = useCallback(
     () => flowStore.getState().reviewComment,
     [flowStore],
@@ -388,10 +379,9 @@ export function BriefScreen({
   // captured the drafts — posting one now would double-post when the review
   // lands), and the memoized card tree receives it as the Post block reason.
   const submitPending = submitFlow.pending;
-  // Per-comment post-now (BRIEF-43, ADR 0031): present only in own-draft
-  // state at the current head (`ownDraft.postComment`) — off the current head
-  // the composer is read-only (the OWN_DRAFT_STALE_COMPOSER_REASON carve-out
-  // above), so no draft can be staged to post.
+  // Per-comment post-now: present only in own-draft state at the current head
+  // — off the current head the composer is read-only, so no draft can be
+  // staged to post.
   const postComment = ownDraft?.postComment;
   // The own-draft post-now flow (registry choreography, settled-post drain,
   // double-post guards in both directions) — see the hook.
@@ -424,8 +414,8 @@ export function BriefScreen({
     flowActions.setDismissTarget(null);
     flowActions.setEvidenceTarget(null);
   }, [flowActions]);
-  // The mark-ready soft gate (BRIEF-54) reaches the expanded intent bar
-  // through this handle; null when the Brief carries no intentCheck.
+  // The mark-ready soft gate reaches the expanded intent bar through this
+  // handle; null when the Brief carries no intentCheck.
   const intentBarRef = useRef<IntentBarHandle>(null);
   const exitToStoryView = session.exitToStoryView;
   const showIntentBar = useCallback(() => {
@@ -480,8 +470,8 @@ export function BriefScreen({
   // Plain handlers: every consumer below is non-memoized, so useCallback
   // would buy nothing (the memo boundary lives at ChunkCard/GroupCard).
   const submitFromModal = () => {
-    // Read-only posture (BRIEF-24): the submit control disables focusably with
-    // the reason (below) — this guards the click path itself.
+    // Read-only posture: the submit control disables focusably with the reason
+    // (below) — this guards the click path itself.
     if (readOnly !== undefined) {
       announce(readOnly.reason);
       return;
@@ -564,8 +554,8 @@ export function BriefScreen({
         {blocks.summary ? (
           <>
             <SummarySection brief={brief} />
-            {/* Directly beneath the capped summary (BRIEF-134): the bar was
-                never demoted, only buried. One table row with the summary. */}
+            {/* Directly beneath the capped summary — one legality row with
+                it. */}
             {brief.intentCheck ? (
               <IntentBar
                 intentCheck={brief.intentCheck}
@@ -585,14 +575,12 @@ export function BriefScreen({
           />
         ) : null}
 
-        {/* The reading toolbar (BRIEF-134): sticky above the conversation
-            slot — every control renders above everything it governs, and
-            stays reachable while scrolling an expanded digest. The Filter
-            disclosure is the ONLY filter surface (the BRIEF-99 in-flow band
-            is re-homed into its anchored panel): it still governs the diff's
-            inline threads, and it sits above the collapsed-by-default
-            section it filters. Concerns renders the trimmed variant
-            (Filter + Risk attrs, chunk targets). */}
+        {/* Sticky above the conversation slot — every control renders above
+            everything it governs, and stays reachable while scrolling an
+            expanded digest. The Filter disclosure is the ONLY filter surface:
+            it governs the diff's inline threads and sits above the
+            collapsed-by-default section it filters. Concerns renders the
+            trimmed variant (Filter + Risk attrs, chunk targets). */}
         {blocks.toolbar !== "none" ? (
           <ReadingToolbar
             variant={blocks.toolbar}
@@ -682,12 +670,9 @@ export function BriefScreen({
         )}
       </main>
       {/* Submit-review machinery + receipt: HIDDEN (not broken) in the
-          own-draft state (BRIEF-43, ADR 0031). The receipt is the terminal
-          artifact of submitting a review; in own-draft the terminal action is
-          mark-ready — no submit, no receipt ceremony, and none of these
-          surfaces (nor their toasts) is reachable: the Header CTA slot swaps,
-          the menu drops Summary preview, and no keyboard shortcut opens any
-          of them. */}
+          own-draft state, whose terminal action is mark-ready. None of these
+          surfaces stays reachable: the Header CTA slot swaps, the menu drops
+          Summary preview, and no keyboard shortcut opens any of them. */}
       {ownDraftActive ? null : (
         <>
           <SubmitModal
@@ -723,13 +708,10 @@ export function BriefScreen({
       {/* Flag-disposition machinery: unmounted with its controls — flags are
           a read-only mirror in the own-draft state (no author dispositions). */}
       {ownDraftActive ? null : <RiskFlagModals flagsById={model.flagsById} />}
-      {/* The mark-ready soft gate (BRIEF-43): mounted only in the own-draft
-          state, only while the action exists (current head in view — a
-          historical revision's flags are not the gate's contract), and only
-          when there is something to gate ON — risk flags OR unposted drafts
-          (the batch expectation is global, not flags-only). Both zero skips
-          the modal entirely (the CTA acts directly, and nothing gate-shaped
-          exists in the DOM). */}
+      {/* The mark-ready soft gate: mounted only in the own-draft state, only
+          while the action exists (current head in view), and only when there
+          is something to gate ON — risk flags OR unposted drafts. Both zero
+          skips the modal entirely and the CTA acts directly. */}
       {ownDraftActive &&
       markReady.available &&
       (model.flags.length > 0 || markReady.unpostedDraftCount > 0) ? (

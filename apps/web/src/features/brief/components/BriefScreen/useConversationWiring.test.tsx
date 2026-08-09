@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The INLINE (at-chunk) conversation wiring: this hook builds the composer the
 // diff-embedded thread rows get, so a dropped field here silently removes an
-// affordance from the chunk view while the section keeps it (BRIEF-93). Pins
+// affordance from the chunk view while the section keeps it. Pins
 // the resolution pass-through and its refetch target.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, renderHook, waitFor } from "@testing-library/react";
@@ -142,7 +142,7 @@ function renderWiring(
   return { result, invalidate };
 }
 
-describe("useConversationWiring — resolution (BRIEF-93)", () => {
+describe("useConversationWiring — resolution", () => {
   it("passes the plan's resolution to the inline composer", () => {
     const setResolved = vi.fn();
     const refetchCapability = vi.fn();
@@ -169,11 +169,11 @@ describe("useConversationWiring — resolution (BRIEF-93)", () => {
   });
 });
 
-// BRIEF-99 decision 2 is an explicit override: the filter reaches the DIFF,
-// not just the digest. Nothing else in the suite would notice if this memo
-// stopped filtering (or dropped its filter dep) — the section's own tests
-// would stay green while the diff quietly kept every thread.
-describe("useConversationWiring — inline filtering (BRIEF-99)", () => {
+// The filter reaches the DIFF, not just the digest. Nothing else in the suite
+// would notice if this memo stopped filtering (or dropped its filter dep) —
+// the section's own tests would stay green while the diff quietly kept every
+// thread.
+describe("useConversationWiring — inline filtering", () => {
   async function inlineRows(filter?: ConversationFilter) {
     const { result } = renderWiring(
       plan(undefined, conversationWith(["alice", "bob"])),
@@ -214,7 +214,7 @@ describe("useConversationWiring — inline filtering (BRIEF-99)", () => {
 // The Filter disclosure renders in the toolbar ABOVE the section, outside
 // its disclosure body, so this hook — not the section — owns the facets it
 // draws.
-describe("useConversationWiring — filter facets (BRIEF-99)", () => {
+describe("useConversationWiring — filter facets", () => {
   it("exposes the RECONCILED filter — a ghost selection never reaches the receipt", async () => {
     // `?reviewers=ghost` filters nothing (degrade-to-looser), so the
     // trigger receipt must not count it: `applied` is what the disclosure

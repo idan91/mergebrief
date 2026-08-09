@@ -182,13 +182,13 @@ describe("Full Brief comparison overlay (step 7)", () => {
     const title = screen.getByText(
       "Adds the validate(a) guard on the shared path.",
     );
-    // Display-side length guard (BRIEF-148): the span summary clamps at 4
-    // lines — data untouched, presentation only.
+    // Display-side length guard: the span summary clamps at 4 lines — data
+    // untouched, presentation only.
     expect(title.getAttribute("data-clamp")).toBe("");
     expect(title.style.webkitLineClamp).toBe("4");
   });
 
-  it("degrades to the chunk's group with a note when the narrative misses the span (BRIEF-73)", () => {
+  it("degrades to the chunk's group with a note when the narrative misses the span", () => {
     const view = buildChunkComparisonView(chunkA, previousBriefMarks);
     const run = view.runs[0];
     expect(run).toBeDefined();
@@ -269,7 +269,7 @@ describe("Changes Only rendering (step 8)", () => {
     );
   });
 
-  it("shows the muted fresh-restart line only on a fresh-restart brief (BRIEF-143)", () => {
+  it("shows the muted fresh-restart line only on a fresh-restart brief", () => {
     const restarted: Brief = {
       ...fullBrief,
       anchor: { state: "fresh-restart", reason: "model-swap" },
@@ -288,7 +288,7 @@ describe("Changes Only rendering (step 8)", () => {
     expect(screen.getByText("Regenerated fresh — model change.")).toBeTruthy();
   });
 
-  it("shows the fresh-restart line even when the narrative is unavailable (BRIEF-143)", () => {
+  it("shows the fresh-restart line even when the narrative is unavailable", () => {
     const restarted: Brief = {
       ...fullBrief,
       anchor: { state: "fresh-restart", reason: "model-swap" },
@@ -308,7 +308,7 @@ describe("Changes Only rendering (step 8)", () => {
     expect(screen.getByText(/Revision summary unavailable/)).toBeTruthy();
   });
 
-  it("shows the fresh-restart line above the skip-reason empty state too (BRIEF-143)", () => {
+  it("shows the fresh-restart line above the skip-reason empty state too", () => {
     const restarted: Brief = {
       ...fullBrief,
       anchor: { state: "fresh-restart", reason: "model-swap" },
@@ -328,7 +328,7 @@ describe("Changes Only rendering (step 8)", () => {
     expect(screen.getByText(/No revision summary/)).toBeTruthy();
   });
 
-  it("shows the muted length-guidance line only when the brief stamps violations (BRIEF-148)", () => {
+  it("shows the muted length-guidance line only when the brief stamps violations", () => {
     const verbose: Brief = {
       ...fullBrief,
       lengthViolations: [
@@ -356,7 +356,7 @@ describe("Changes Only rendering (step 8)", () => {
     ).toBeTruthy();
   });
 
-  it("shows the length-guidance line for narrative-only violations (BRIEF-148)", () => {
+  it("shows the length-guidance line for narrative-only violations", () => {
     const verboseNarrative: RevisionNarrative = {
       ...narrative,
       lengthViolations: [
@@ -384,7 +384,7 @@ describe("Changes Only rendering (step 8)", () => {
     ).toBeTruthy();
   });
 
-  it("shows the length-guidance line on a violating delta in Your last review (BRIEF-148)", () => {
+  it("shows the length-guidance line on a violating delta in Your last review", () => {
     const verboseDelta: Brief = {
       ...delta,
       lengthViolations: [
@@ -412,7 +412,7 @@ describe("Changes Only rendering (step 8)", () => {
     ).toBeTruthy();
   });
 
-  it("hides the length-guidance line on a clean brief (BRIEF-148)", () => {
+  it("hides the length-guidance line on a clean brief", () => {
     render(
       <ChangesOnlyView
         compare="previous-brief"
@@ -427,7 +427,7 @@ describe("Changes Only rendering (step 8)", () => {
     expect(screen.queryByText(/exceeds length guidance/)).toBeNull();
   });
 
-  it("hides the fresh-restart line on a none-stamped brief (always instances) (BRIEF-143)", () => {
+  it("hides the fresh-restart line on a none-stamped brief (always instances)", () => {
     const none: Brief = { ...fullBrief, anchor: { state: "none" } };
     render(
       <ChangesOnlyView
@@ -443,7 +443,7 @@ describe("Changes Only rendering (step 8)", () => {
     expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
   });
 
-  it("hides the fresh-restart line on anchored and unstamped briefs (BRIEF-143)", () => {
+  it("hides the fresh-restart line on anchored and unstamped briefs", () => {
     const anchored: Brief = { ...fullBrief, anchor: { state: "anchored" } };
     const { unmount } = render(
       <ChangesOnlyView
@@ -472,7 +472,7 @@ describe("Changes Only rendering (step 8)", () => {
     expect(screen.queryByText(/Regenerated fresh/)).toBeNull();
   });
 
-  it("renders deduped narrative generationWarnings on the compare surface (BRIEF-78)", () => {
+  it("renders deduped narrative generationWarnings on the compare surface", () => {
     const warned: RevisionNarrative = {
       ...narrative,
       generationWarnings: [
@@ -570,7 +570,7 @@ function withClient(node: ReactNode) {
   );
 }
 
-describe("Changes Only raw span diff toggle (BRIEF-24 #7)", () => {
+describe("Changes Only raw span diff toggle", () => {
   it("offers no toggle when no raw span diff descriptor is supplied", () => {
     render(
       <ChangesOnlyView
@@ -652,7 +652,7 @@ describe("Changes Only raw span diff toggle (BRIEF-24 #7)", () => {
   it("resets the toggle on a lens switch even when both lenses share the SAME span", async () => {
     // checkpoint == previous head: both descriptors carry an identical
     // queryKey, so the span alone cannot distinguish the views — the lens is
-    // part of the remount key (codex round 1).
+    // part of the remount key.
     const { rerender } = render(
       withClient(
         <ChangesOnlyView

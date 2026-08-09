@@ -37,9 +37,8 @@ export const MARK_READY_EXIT_ANNOUNCEMENT =
 
 export interface UseMarkReadyFlowInput {
   /**
-   * The route's mark-ready transport (`ownDraft.markReady`); ABSENT while a
-   * historical revision is in view — the CTA then stays focusable and a
-   * click announces why (the BRIEF-24 disabled-with-reason pattern).
+   * The route's mark-ready transport; ABSENT while a historical revision is
+   * in view — the CTA then stays focusable and a click announces why.
    */
   action: MarkReadyAction | undefined;
   /** Page-level live-region channel (clear-then-set). */
@@ -55,7 +54,7 @@ export interface UseMarkReadyFlowInput {
   /** The rendered Brief's intent check (the gate's soft-gate lines). */
   intentCheck: IntentCheck | undefined;
   jumpToChunk: (chunkId: string) => void;
-  /** The plan's presence IS the state (BRIEF-43, ADR 0031). */
+  /** The plan's presence IS the state. */
   ownDraftActive: boolean;
   /** The own-draft flow's single per-comment post path (the batch awaits it). */
   postDraft: (
@@ -124,14 +123,11 @@ export function useMarkReadyFlow(
     action,
     announce,
   });
-  // Entering the own-draft state closes every reviewer overlay: the overlays
-  // unmount, but their open flags are plain local state — left set, they keep
-  // `shortcutsDisabled` stuck true and resurrect the overlay once the PR is
-  // marked ready. A PrView can flip INTO own-draft mid-session, so this is a
-  // real path. Focus rescue: the unmount already dropped focus on <body> (no
-  // blur fires); the overlay-open snapshot rides a latest-ref (this render's
-  // value — resets land next render) and orphaned focus is re-homed on the
-  // terminal-slot CTA, with the live region explaining the change.
+  // Entering own-draft closes every reviewer overlay: their open flags are
+  // plain local state, so a left-set flag keeps `shortcutsDisabled` stuck and
+  // resurrects the overlay once the PR is marked ready. The unmount drops
+  // focus on <body> without a blur, so orphaned focus is re-homed on the
+  // terminal-slot CTA and the live region explains the change.
   const overlayWasOpenRef = useLatestRef(reviewerOverlayOpen);
   const gateOpenRef = useLatestRef(markReadyGateOpen);
   useEffect(() => {
@@ -186,7 +182,7 @@ export function useMarkReadyFlow(
   }, [announce, gateOpenRef, markReadyAvailable, ownDraftActive]);
   const requestMarkReady = useCallback(() => {
     // Historical revision: no action/gate — the CTA stays focusable and the
-    // click explains itself (disabled-with-reason pattern).
+    // click explains itself.
     if (!markReadyAvailable) {
       announce(MARK_READY_HISTORICAL_REASON);
       return;

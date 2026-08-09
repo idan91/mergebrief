@@ -19,7 +19,7 @@ import {
   type PostCommentResult,
 } from "@web/features/pulls/transport/postComment";
 
-/** Toast copy for per-comment post-now (BRIEF-43): failures always keep the draft. */
+/** Toast copy for per-comment post-now: failures always keep the draft. */
 export const POST_COMMENT_COPY = {
   posted: "Comment posted to GitHub.",
   unauthorized:
@@ -121,15 +121,13 @@ export function useOwnDraftFlow(
     applySettledPosts(briefId, actions, announce);
   }, [actions, announce, briefId, postingCommentIds]);
 
-  // Double-post guard, twice over: the module-level registry is the
-  // synchronous re-entrancy gate (survives the same-tab remount a ref/state
-  // pair dies with), and its subscribed view disables the in-flight comment's
-  // Post/Edit/Delete controls. Keyed by comment id: distinct drafts post
-  // concurrently, one draft cannot double-fire. Accepted scope: per-TAB only
-  // — cross-tab dedupe would need a server-side idempotency key.
+  // Double-post guard: the module-level registry is the synchronous
+  // re-entrancy gate (survives the same-tab remount a ref/state pair dies
+  // with), keyed by comment id so distinct drafts still post concurrently.
+  // Per-TAB only — cross-tab dedupe would need a server-side idempotency key.
   //
   // EVERY outcome is RECORDED on the settled queue, never announced from this
-  // closure — after a remount-mid-flight, this closure's announce targets the
+  // closure — after a remount-mid-flight this closure's announce targets the
   // orphaned mount and the failure warning would be lost. With
   // `batchOwnsMessaging`, entries queue a NULL copy so the batch's summary
   // toast is deterministically the LAST live-region write.

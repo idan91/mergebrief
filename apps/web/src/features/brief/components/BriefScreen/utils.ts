@@ -1,5 +1,5 @@
-// Closure-free BriefScreen logic (ADR 0037 decision 3): derivations extracted
-// from the screen/hooks so they are unit-testable directly, without rendering.
+// Closure-free BriefScreen logic: derivations extracted from the screen/hooks
+// so they are unit-testable directly, without rendering.
 import type {
   RiskEvidence,
   RiskEvidenceKind,
@@ -46,11 +46,10 @@ export function countComparisonRuns(
 }
 
 /**
- * Per-group changed-since counts (BRIEF-102): DISTINCT member files with a
- * nonempty entry in the last-review marks. `undefined` without marks — no
- * checkpoint means no marker, distinct from a checkpoint with zero changes
- * ("unchanged since your last review"). Mechanical marks only, mirroring the
- * highlight rule (ADR 0024): narrative/Delta text never decides the count.
+ * Per-group changed-since counts: DISTINCT member files with a nonempty entry
+ * in the last-review marks. `undefined` without marks — no checkpoint means no
+ * marker, distinct from a checkpoint with zero changes. Mechanical marks only:
+ * narrative/Delta text never decides the count.
  */
 export function groupSinceMarkers(
   groups: { id: string; chunks: { file: string }[] }[],
@@ -77,7 +76,7 @@ export function groupSinceMarkers(
 }
 
 /**
- * BRIEF-54 soft-gate line: count of precise stated-but-missing asks. Zero on
+ * Soft-gate line: count of precise stated-but-missing asks. Zero on
  * broad/none or a pre-feature Brief. Never feeds the gate's OPEN condition.
  */
 export function countIntentGaps(intentCheck: IntentCheck | undefined): number {
@@ -87,10 +86,10 @@ export function countIntentGaps(intentCheck: IntentCheck | undefined): number {
 }
 
 /**
- * BRIEF-85 soft-gate line 2: count of precise intent TENSIONS — unacknowledged
+ * Soft-gate line 2: count of precise intent TENSIONS — unacknowledged
  * deviations plus claimed-but-unachieved. Acknowledged deviations are excluded:
- * the description already owns that reversal. Precise-only and caller-gated
- * like `countIntentGaps`; never part of the gate's OPEN condition.
+ * the description already owns that reversal. Never part of the gate's OPEN
+ * condition.
  */
 export function countIntentTensions(
   intentCheck: IntentCheck | undefined,

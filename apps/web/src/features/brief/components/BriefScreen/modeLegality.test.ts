@@ -7,9 +7,8 @@ import {
 } from "./modeLegality";
 
 /**
- * The spec's legality table (brief-134-details-spec.md, "The mode model"),
- * asserted column by column — the table is the source of truth, these are
- * its four columns plus the axis-precedence boundaries between them.
+ * The legality table asserted column by column, plus the axis-precedence
+ * boundaries between the columns.
  */
 describe("deriveRegionBlocks", () => {
   it("Full+Story renders the whole region", () => {
@@ -88,9 +87,8 @@ describe("deriveRegionBlocks", () => {
   });
 
   it("Concerns+focus does not exist: focus derives the Story column regardless of lens", () => {
-    // The explicit contract replacing the silent setViewMode("story"): even
-    // if a concerns lens value reaches the derivation while focus is on, the
-    // region renders the Focus column (Story implied).
+    // Even if a concerns lens value reaches the derivation while focus is on,
+    // the region renders the Focus column (Story implied).
     expect(
       deriveRegionBlocks({ lens: "concerns", scope: "full", focus: true }),
     ).toEqual(
