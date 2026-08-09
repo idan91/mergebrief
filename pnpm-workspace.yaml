@@ -14,7 +14,7 @@ overrides:
   # line, both fixed in 1.1.18; reached via vite > stylus > glob > minimatch.
   "brace-expansion@1": "1.1.18"
 
-# `pnpm audit --prod --audit-level=high` is a blocking gate (ADR 0038 §9).
+# `pnpm audit --prod --audit-level=high` is a blocking gate.
 # Every entry below is an advisory we have read and accepted, with the reason
 # — an unexplained id is a defect. Keyed by GHSA because none of these carry
 # a CVE id. Re-check an entry whenever the owning dependency is bumped; the

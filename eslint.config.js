@@ -1,4 +1,4 @@
-// The ESLint sliver (ADR 0038 §7): flat config, NON-type-aware, zero custom
+// The ESLint sliver: flat config, NON-type-aware, zero custom
 // plugins, and deliberately tiny. oxlint (`.oxlintrc.json`) is the primary
 // linter and owns every rule it can express; this file carries ONLY the two
 // house conventions oxlint cannot state:
@@ -13,7 +13,7 @@
 // Adding a rule here that oxlint already runs is a defect — double-reporting
 // the same violation is worse than not reporting it.
 //
-// The third candidate from ADR 0038 §7 — SHOUT_CASE keys on exported `as
+// A third candidate — SHOUT_CASE keys on exported `as
 // const` maps — is NOT here. Without type information the only expressible
 // selector is "exported `as const` object literal", which cannot tell a
 // vocabulary map (the enum replacement the convention is about) from a frozen

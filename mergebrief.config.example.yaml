@@ -21,7 +21,7 @@ generator:
   # The documented cost knob:
   model: claude-sonnet-5
 
-  # Cross-revision regeneration policy (BRIEF-143): never (default) keeps
+  # Cross-revision regeneration policy: never (default) keeps
   # each new revision's brief anchored to the previous one; on-model-swap
   # runs one fresh restart when the configured provider/model changed since
   # the previous brief; always regenerates every revision from scratch
@@ -64,7 +64,7 @@ generator:
   #   inactivityMs: 180000           #   output-inactivity watchdog (default 3 min)
   #   killGraceMs: 5000              #   SIGINT → SIGKILL grace (default 5 s)
 
-# --- Draft-PR generation policy (spend knobs; BRIEF-64) ----------------------
+# --- Draft-PR generation policy (spend knobs) -------------------------------
 # Both keys optional; omit the whole block for the defaults shown.
 # drafts:
 #   # on | off — whether briefs generate for draft PRs at all. Default: on.
@@ -77,7 +77,7 @@ generator:
 #   # A draft's FIRST brief always uses the normal window regardless.
 #   debounceSeconds: 900
 
-# --- Daily generation cap (BRIEF-20) -----------------------------------------
+# --- Daily generation cap ----------------------------------------------------
 # The spend guardrail: at most N generations per REPO per UTC calendar day.
 # Omit the block (or both keys) for no cap at all — the default.
 #

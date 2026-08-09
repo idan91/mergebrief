@@ -1,4 +1,4 @@
-// Coverage policy shared by every package suite (ADR 0038 §3). Only the
+// Coverage policy shared by every package suite. Only the
 // exclusion set is shared — the lines threshold stays in each package's own
 // vitest config, because the floors differ while the debt is paid down.
 //
@@ -21,14 +21,14 @@ export const coverageExclude = [
   "**/drizzle/**",
   "**/*.gen.*",
   // `**/types.ts` is deliberately NOT excluded. Under types-owner-first
-  // (BRIEF-82) a domain's `types.ts` owns its Zod parsers and brand guards
+  // a domain's `types.ts` owns its Zod parsers and brand guards
   // alongside the shapes — real runtime code that must count against the
   // floor. A genuinely type-only module compiles to nothing and v8 reports
   // it as 0/0 lines (100%), so excluding the pattern would buy nothing and
   // hide the parsers.
   // Ambient declarations, on the other hand, are never emitted at all.
   "**/*.d.ts",
-  // The package entry barrel (BRIEF-90) — re-exports only, no behaviour.
+  // The package entry barrel — re-exports only, no behaviour.
   "src/index.ts",
   // Not source at all; the uncovered-file scan otherwise tries to parse it
   // and logs a rolldown error per stray file.

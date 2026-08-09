@@ -1,4 +1,4 @@
-# External-Postgres compose (BRIEF-131): web + worker only — YOUR database
+# External-Postgres compose: web + worker only — YOUR database
 # (managed provider or any Postgres 15+) replaces the bundled `postgres`
 # service. A separate checked-in file, not a profile or override, on purpose:
 # `depends_on` cannot reference a profiled-out service without erroring, and
@@ -43,7 +43,7 @@ services:
     # secrets:
     #   - database-url
     volumes:
-      # URL-box/demo brief artifacts (BRIEF-97) — same mount as the default
+      # URL-box/demo brief artifacts — same mount as the default
       # compose; host-persisted so recreates never wipe generated briefs.
       - ./tools/categorizer/out:/app/tools/categorizer/out
       # CA bundle for sslmode=verify-full against a provider whose CA is not
@@ -52,7 +52,7 @@ services:
       # Instance config (mergebrief.config.yaml) — uncomment here AND in the
       # worker service; both read the same file.
       # - ./mergebrief.config.yaml:/app/mergebrief.config.yaml:ro
-    # Liveness only (ADR 0034 #7): /healthz is static — never /readyz here,
+    # Liveness only: /healthz is static — never /readyz here,
     # or a DB blip would trigger web restart churn.
     healthcheck:
       test:
@@ -93,7 +93,7 @@ services:
     # No HTTP surface to probe; liveness = the runner process itself.
     # on-failure: transient crashes (nonzero exit, e.g. a network blip or
     # provider failover) self-heal; config errors exit 0 and STAY DOWN
-    # (BRIEF-149) — the reason is the last line of `docker compose logs worker`.
+    # The reason is the last line of `docker compose logs worker`.
     restart: on-failure
     logging: *log-rotation
 # The compose `secrets:` block the commented service entries reference —

@@ -1,6 +1,6 @@
 name: Weekly full suite
 
-# Drift detector (ADR 0038 §10). Affected filtering is an optimisation with
+# Drift detector. Affected filtering is an optimisation with
 # a failure mode — a dependency edge the graph does not know about, a test
 # that only breaks in combination — so once a week everything runs with no
 # filters at all. There is no flake-tracking infrastructure by design: a red

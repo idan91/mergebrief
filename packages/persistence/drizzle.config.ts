@@ -8,7 +8,7 @@ if (databaseUrl === undefined) {
   );
 }
 
-// Scoped to the app schema only. graphile-worker (BRIEF-3) owns its own
+// Scoped to the app schema only. graphile-worker owns its own
 // `graphile_worker` schema — drizzle must never introspect, generate, or
 // migrate it. Restricting schemaFilter to `public` keeps that boundary
 // enforced regardless of what else lives in the target database.

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "GitHub App client: JWT + installation-token auth (BRIEF-2 stage 1); webhook verify, event parsing, comment ops, and diff/PR fetch land in stage 2.",
+  "description": "GitHub App client: JWT + installation-token auth, webhook verification and event parsing, comment operations, and diff/PR fetch.",
   "exports": {
     ".": "./src/index.ts"
   },

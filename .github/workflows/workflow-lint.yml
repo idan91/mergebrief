@@ -1,6 +1,6 @@
 name: Workflow lint
 
-# actionlint + zizmor over .github/workflows (ADR 0038 §8). actionlint
+# actionlint + zizmor over .github/workflows. actionlint
 # catches expression/schema/shell mistakes; zizmor catches the CI security
 # classes the fork-safety bundle exists to prevent — unpinned actions,
 # credential persistence, template injection, over-broad permissions.

@@ -1,6 +1,6 @@
 name: Audit
 
-# Supply-chain gate (ADR 0038 §9). Blocking, and deliberately narrow: only
+# Supply-chain gate. Blocking, and deliberately narrow: only
 # a dependency-graph change can introduce a new advisory, so PRs that do not
 # touch a manifest or the lockfile have nothing to check. The weekly run is
 # what catches advisories published against dependencies we already have.

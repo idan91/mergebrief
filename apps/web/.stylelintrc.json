@@ -50,7 +50,7 @@
         ]
       },
       {
-        "message": "ADR 0037 token bar (BRIEF-44/BRIEF-84): no raw color, font-size, border-radius, or box-shadow literal — use a semantic token from src/styles/tokens.scss (--color-*, --font-size-xs..3xl, --radius-xs..circle, --shadow-*), or an earned component-local token declared in this file with a one-line justification. Spacing (margin/padding/gap) never carries raw px — wrap the px value in functions.to-rem() so rhythm scales with the reader's font size (BRIEF-84 taxonomy: docs/plans/brief-84-px-to-rem.md)."
+        "message": "Token bar: no raw color, font-size, border-radius, or box-shadow literal — use a semantic token from src/styles/tokens.scss (--color-*, --font-size-xs..3xl, --radius-xs..circle, --shadow-*), or an earned component-local token declared in this file with a one-line justification. Spacing (margin/padding/gap) never carries raw px — wrap the px value in functions.to-rem() so rhythm scales with the reader's font size (taxonomy: docs/plans/brief-84-px-to-rem.md)."
       }
     ]
   }

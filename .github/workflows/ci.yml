@@ -3,7 +3,7 @@ name: CI
 on:
   pull_request:
 
-# Fork-safety bundle (ADR 0038 §8). No ambient scopes: every job re-grants
+# Fork-safety bundle. No ambient scopes: every job re-grants
 # the minimum it needs, no checkout leaves credentials in .git/config for a
 # later step to reuse, and every action is pinned to a commit SHA.
 # `pull_request_target` is banned in this repo — it would run fork code with
@@ -142,7 +142,7 @@ jobs:
 
           # `...[<ref>]` = packages changed since <ref> PLUS every package
           # that depends on them, read off the real workspace graph. That is
-          # the BRIEF-23/26 hole: a github-package change now runs api's
+          # the path-filter hole: a github-package change now runs api's
           # suite too.
           filters=(--filter "!$WORKSPACE_ROOT_PROJECT")
           if [ "$RUN_ALL" = "true" ]; then

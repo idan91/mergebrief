@@ -37,7 +37,7 @@
     "typescript/no-explicit-any": "error",
     "typescript/consistent-type-imports": "error",
     "typescript/no-non-null-assertion": "error",
-    // The root standard's "no bare `as`" rule (BRIEF-44). `as const` and
+    // The root standard's "no bare `as`" rule. `as const` and
     // `satisfies` are unaffected; boundaries narrow with Zod or a type guard,
     // and a genuinely-unavoidable cast takes a line-scoped disable + reason.
     "typescript/consistent-type-assertions": [
@@ -47,7 +47,7 @@
     // The closest oxlint gets to the root standard's `enum` ban: it covers
     // `const enum` only. Plain `enum` is NOT expressible here — oxlint has no
     // `no-enum` and no `no-restricted-syntax` (checked, oxlint 1.72), so that
-    // half of the rule stays prose (ADR 0037 #8).
+    // half of the rule stays prose.
     "oxc/no-const-enum": "error",
     // Named exports only; the four framework-required default exports are
     // carved out per-path in the overrides.
@@ -84,7 +84,7 @@
   ],
   "overrides": [
     {
-      // ADR 0034's logging-seam scope, stated as paths: every line in these
+      // The logging-boundary scope, stated as paths: every line in these
       // files goes through `packages/logging`, so NO console level survives
       // (the global rule's warn/error/info allowance is client-side only).
       "files": [
@@ -146,8 +146,7 @@
     },
     {
       // The categorize/delta CLI entries (+ their output writer) live in
-      // brief-core since BRIEF-68 — same files, same carve-out as before the
-      // move: stdout printing is their interface.
+      // brief-core — stdout printing is their interface.
       "files": ["packages/brief-core/src/**"],
       "rules": {
         "no-console": "off"

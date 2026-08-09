@@ -1,4 +1,4 @@
-// E2E v1 (ADR 0038 §4, BRIEF-113): the unauthenticated dummy-brief suite.
+// E2E v1: the unauthenticated dummy-brief suite.
 // Chromium only, single worker, hermetic — no DB, no GitHub, no live spend,
 // so it runs on fork PRs. Retries here are the ADR's single carve-out from
 // the no-retry flake policy: the browser layer is the one place a retry

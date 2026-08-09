@@ -1,7 +1,7 @@
 name: Eval presence
 
 # Mechanical enforcement of the eval-harness convention (root CLAUDE.md,
-# ADR 0038 §10). Changing the generation surface without running
+# Changing the generation surface without running
 # `pnpm -C tools/categorizer eval` is how output quality regresses silently,
 # but the harness costs live API spend — so this job NEVER runs the eval. It
 # only checks that the PR body says what was run, or says why nothing was.

@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The long-lived background worker (BRIEF-3, ADR 0015): drains graphile-worker's `generate` jobs and runs brief/delta generation off the human path.",
+  "description": "The long-lived background worker: drains graphile-worker's `generate` jobs and runs brief/delta generation off the human path.",
   "exports": {
     ".": "./src/index.ts"
   },

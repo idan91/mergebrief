@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "The Brief domain core: schema, taxonomy prompt, categorize engine, repo-context, delta/comparison logic. Extracted from tools/categorizer (BRIEF-68); the dev CLIs and the eval harness stay there and consume this package.",
+  "description": "The Brief domain core: schema, taxonomy prompt, categorize engine, repo-context, delta/comparison logic. The dev CLIs and the eval harness live in tools/categorizer and consume this package.",
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
