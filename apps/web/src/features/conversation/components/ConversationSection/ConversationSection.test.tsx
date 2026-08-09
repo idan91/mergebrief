@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-// The in-flow conversation section (BRIEF-25): verdict strip + digest over
-// canned query data. Pins the a11y contract (disclosure buttons carry
-// aria-expanded; chips carry text), expansion surviving refetch (visible
-// state, never entry-path memory), the specific error states, the teaching
-// empty state, and the reconciliation flip (server-backed wins).
+// The in-flow conversation section: verdict strip + digest over canned query
+// data. Pins the a11y contract (disclosure buttons carry aria-expanded; chips
+// carry text), expansion surviving refetch, the specific error states, the
+// empty state, and the reconciliation flip.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -277,7 +276,7 @@ describe("ConversationSection", () => {
     expect(screen.getByText("open")).toBeDefined();
   });
 
-  it("counts comments past the generation cutoff in the header line (BRIEF-95)", async () => {
+  it("counts comments past the generation cutoff in the header line", async () => {
     // Cutoff between the fixtures' 10:00 and 11:00 comments → exactly one.
     renderSection({
       plan: {
@@ -299,7 +298,7 @@ describe("ConversationSection", () => {
     expect(screen.queryByText("after this brief")).toBeNull();
   });
 
-  it("chips a postdating comment inside the expanded thread detail (BRIEF-95)", async () => {
+  it("chips a postdating comment inside the expanded thread detail", async () => {
     renderSection({
       plan: {
         ...plan([ready()]),
@@ -377,7 +376,7 @@ describe("ConversationSection", () => {
           ...botThread,
           isOutdated: true,
           // Unresolved AND outdated: the group chip must still read
-          // outdated, not open (codex round 2).
+          // outdated, not open.
           isResolved: false,
         },
       ],
@@ -535,7 +534,7 @@ async function openThread() {
   return row;
 }
 
-describe("thread resolution wiring (BRIEF-93)", () => {
+describe("thread resolution wiring", () => {
   it("offers no resolve action when the plan carries no resolution", async () => {
     renderSection({ plan: plan([ready()]) });
     await openThread();
@@ -586,7 +585,7 @@ describe("thread resolution wiring (BRIEF-93)", () => {
   });
 });
 
-describe("quote reply (BRIEF-56)", () => {
+describe("quote reply", () => {
   it("Quote reply prefills the reply box with the quoted comment", async () => {
     renderSection({ plan: plan([ready()]) });
     await openThread();
@@ -699,9 +698,8 @@ describe("ReplyComposer", () => {
   });
 
   it("an explicit draft reset wins: an untouched composer does not resurrect cleared text", async () => {
-    // REVERSED from an earlier round: re-persisting on unmount would also
-    // resurrect a posted twin's text and let a stale twin clobber newer
-    // edits — an EXPLICIT Clear local drafts beats the leftover display.
+    // Re-persisting on unmount would resurrect a posted twin's text and let
+    // a stale twin clobber newer edits — an explicit clear must win.
     const { persistReplyDraft } = await import("@web/features/review/session");
     const durable = vi.mocked(persistReplyDraft);
     const { view, tap } = renderSection({
@@ -810,7 +808,7 @@ describe("ReplyComposer", () => {
   });
 });
 
-describe("Fable round fixes", () => {
+describe("disclosure and focus behaviour", () => {
   it("the heading is a natively focusable disclosure with the summary visible collapsed", async () => {
     const onToggle = vi.fn();
     renderSection({ plan: plan([ready()]), open: false, onToggle });
@@ -858,7 +856,7 @@ describe("Fable round fixes", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Outdated-thread revision jump (BRIEF-24 handoff).
+// Outdated-thread revision jump.
 // ---------------------------------------------------------------------------
 
 function outdatedHumanConversation(anchorSha: string): PrConversation {
@@ -907,7 +905,7 @@ function jumpPlan(
   };
 }
 
-describe("ConversationSection — outdated-thread revision jump (BRIEF-24)", () => {
+describe("ConversationSection — outdated-thread revision jump", () => {
   it("offers an enabled jump when the anchor was a briefed head", async () => {
     const { plan: jp, onJump } = jumpPlan("anchor-1", ["anchor-1"]);
     renderSection({ plan: jp });
@@ -945,7 +943,7 @@ describe("ConversationSection — outdated-thread revision jump (BRIEF-24)", () 
   it("reveals a target hidden behind the group's show-more cap before landing", async () => {
     // 51 unresolved threads + a resolved target: sorted last (resolved sinks),
     // it falls past the 50-row cap and would never render — the landing
-    // effect must lift the cap for its group first (codex round 1).
+    // effect must lift the cap for its group first.
     const filler = Array.from({ length: 51 }, (_, i) => {
       const id = 20_000 + i;
       return {
@@ -1049,12 +1047,11 @@ describe("ConversationSection — outdated-thread revision jump (BRIEF-24)", () 
     ).not.toBeNull();
     // …and NOT the inline diff rows' attribute: the section renders above
     // the change groups, so sharing `data-conversation-thread` would shadow
-    // the diff row for BriefScreen's "Jump to comment" landing (codex
-    // round 5).
+    // the diff row for BriefScreen's "Jump to comment" landing.
     expect(document.querySelector("[data-conversation-thread]")).toBeNull();
   });
 
-  describe("filter bar (BRIEF-99)", () => {
+  describe("filter bar", () => {
     /** A conversation with two humans and one bot, each holding a thread. */
     function filterConversation(): PrConversation {
       const base = conversation();
@@ -1131,9 +1128,9 @@ describe("ConversationSection — outdated-thread revision jump (BRIEF-24)", () 
     });
 
     it("keeps unfiltered totals in the header — filter state never appears there", async () => {
-      // BRIEF-134: the toolbar trigger is the ONE place filter state renders;
-      // the header keeps describing the whole conversation (`N threads · N
-      // open`), so a hard filter cannot dress totals up as data loss.
+      // The toolbar trigger is the ONE place filter state renders; the
+      // header keeps describing the whole conversation, so a hard filter
+      // cannot dress totals up as data loss.
       renderSection(filterProps(parseConversationFilter({ reviewers: "bob" })));
       await waitFor(() =>
         expect(screen.getByText(/2 threads · 1 open$/)).toBeDefined(),

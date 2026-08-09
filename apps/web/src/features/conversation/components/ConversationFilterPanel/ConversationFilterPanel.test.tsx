@@ -1,9 +1,8 @@
 // @vitest-environment jsdom
-// The BRIEF-99 filter UI, re-homed as anchored-panel content (BRIEF-134):
-// chips are aria-pressed toggle buttons carrying text, counts split
-// human/bot, All/None act on the reviewer family only, and every BRIEF-99
-// lock holds in the panel container. The trigger, the hidden-thread receipt
-// and the live region belong to the disclosure wrapper, not here.
+// The filter UI as anchored-panel content: chips are aria-pressed toggle
+// buttons carrying text, counts split human/bot, and All/None act on the
+// reviewer family only. The trigger, the hidden-thread receipt and the live
+// region belong to the disclosure wrapper, not here.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

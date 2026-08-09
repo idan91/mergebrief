@@ -5,8 +5,8 @@
     display: grid;
     gap: functions.to-rem(14px);
 
-    /* Above the change groups now — breathing room on BOTH sides so the
-       collapsed header never sits flush against the group list. */
+    /* Breathing room on BOTH sides so the collapsed header never sits flush
+       against the group list. */
     margin-block: functions.to-rem(20px) functions.to-rem(24px);
     padding: functions.to-rem(16px);
     border: 1px solid var(--line);
@@ -25,8 +25,7 @@
     margin: 0;
     font-size: var(--font-size-xl);
 
-    // Pre-scale rendering pinned (implicit UA bold + body line-height
-    // before the base heading defaults landed).
+    // Pinned to the pre-scale rendering: implicit UA bold + body line-height.
     font-weight: 700;
     line-height: 1.55;
   }
@@ -70,8 +69,8 @@
     font-weight: 400;
   }
 
-  /* BRIEF-95: how much of the conversation postdates the viewed brief.
-     Factual dim note, visible collapsed too — that is when it matters. */
+  /* How much of the conversation postdates the viewed brief — visible while
+     collapsed too, which is when it matters. */
   .afterBriefNote {
     margin: 0;
     color: var(--dim);

@@ -1,21 +1,17 @@
-// The BRIEF-99 filter UI as anchored-panel CONTENT (BRIEF-134 re-home): two
-// chip rows — verdict states with counts, per-reviewer — and a footer with
-// the recency toggle and All/None/Clear. Chips are `aria-pressed` toggle
-// buttons carrying TEXT (WCAG 1.4.1), the same vocabulary the digest's own
-// chips use.
+// The filter UI as anchored-panel CONTENT: two chip rows — verdict states
+// with counts, per-reviewer — and a footer with the recency toggle and
+// All/None/Clear. Chips are `aria-pressed` toggle buttons carrying TEXT, not
+// color alone (WCAG 1.4.1).
 //
-// Every BRIEF-99 lock holds inside the panel: OR within a family, AND
-// across; faceted toggle-aware verdict counts; zero-count chips unrendered;
-// a selected chip whose count zeroes out still renders (something must stay
-// to unpress it); All/None/Clear never disable UNDER the pointer that just
-// used them — `aria-disabled` + no-op, keeping focus.
+// Selection is OR within a family, AND across; verdict counts are faceted;
+// zero-count chips are unrendered unless selected (something must stay to
+// unpress); All/None/Clear never disable UNDER the pointer that just used
+// them — `aria-disabled` plus a no-op, keeping focus.
 //
 // The trigger, the hidden-thread receipt and the always-mounted live region
-// belong to the disclosure wrapper (the toolbar's FilterDisclosure): a
-// region living here would unmount with the panel, which is exactly the
-// insertion screen readers skip. Selection lives in the URL, so this
-// component is pure props: it renders the facets it is handed and reports
-// the next filter state.
+// belong to the disclosure wrapper: a region living here would unmount with
+// the panel, which is exactly the insertion screen readers skip. Selection
+// lives in the URL, so this component is pure props.
 import { Checkbox } from "@web/components/Checkbox/Checkbox";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import {
@@ -41,7 +37,7 @@ export interface ConversationFilterPanelProps {
   onChange: (next: ConversationFilter) => void;
 }
 
-/** Chip text — the digest's own verdict vocabulary (ADR 0027). */
+/** Chip text — the digest's own verdict vocabulary. */
 const VERDICT_LABEL: Record<FilterVerdictState, string> = {
   APPROVED: "approved",
   CHANGES_REQUESTED: "changes requested",
@@ -56,10 +52,8 @@ const VERDICT_ORDER: readonly FilterVerdictState[] = [
 
 /**
  * The chips to draw: every state with reviews behind it, PLUS any state the
- * filter selects. Decision 5's "zero-count states render no chip" governs
- * UNSELECTED states — a selected chip that vanishes when the reviewer
- * selection empties its count would leave an active filter with nothing to
- * unpress.
+ * filter selects. Zero-count states drop out only while UNSELECTED — a
+ * selected chip that vanished would leave an active filter nothing to unpress.
  */
 function chipFacets(
   facets: readonly VerdictFacet[],
@@ -155,9 +149,8 @@ export function ConversationFilterPanel({
         </div>
       ) : null}
 
-      {/* Footer: the global recency toggle (deliberately OUTSIDE the chip
-          gates — it governs the reviews the whole section reads) and the
-          quick actions. Real buttons (the repo's `.btn`, compact variant),
+      {/* The recency toggle sits OUTSIDE the chip gates — it governs the
+          reviews the whole section reads. Quick actions are real buttons,
           not text links: these ACT on the view. */}
       <div className={styles["foot"]}>
         <Checkbox

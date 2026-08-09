@@ -1,9 +1,8 @@
-// Inline thread disclosures at a chunk (BRIEF-25, locked decisions 2/6):
-// fresh threads render AT the code they discuss — humans per thread, bots as
-// ONE aggregated disclosure per bot (unresolved only; resolved/outdated bot
-// threads are digest-only). Same keyboard pattern as the section: a plain
-// list of aria-expanded disclosure buttons. Expansion state is local to the
-// chunk instance (visible state, never entry-path memory).
+// Inline thread disclosures at a chunk: fresh threads render AT the code they
+// discuss — humans per thread, bots as ONE aggregated disclosure per bot
+// (unresolved only; resolved/outdated bot threads are digest-only). Same
+// aria-expanded pattern as the section; expansion state is local to the chunk
+// instance.
 import { useState } from "react";
 
 import { toggleSet } from "@web/utils/collections";

@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
-// The thread row's two renderings (BRIEF-93): the full disclosure row, and
-// the slim "resolved" line a settled thread collapses to. Pins which state
-// picks which variant (outdated wins over resolved), that the slim row stays
-// the SAME single-button disclosure (no new actions), and that its accessible
-// name still carries who said what — "resolved" alone would name every
-// settled row identically.
+// The thread row's two renderings: the full disclosure row, and the slim
+// "resolved" line a settled thread collapses to. Pins which state picks which
+// variant (outdated wins over resolved), that the slim row stays the SAME
+// single-button disclosure, and that its accessible name still carries who
+// said what — "resolved" alone would name every settled row identically.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -169,7 +168,7 @@ function renderRow(row: DigestThreadRow, expanded = false) {
   return { view, toggle };
 }
 
-describe("ThreadRowView — slim resolved rows (BRIEF-93)", () => {
+describe("ThreadRowView — slim resolved rows", () => {
   it("renders a collapsed resolved thread as the slim variant", () => {
     const { view } = renderRow(threadRow({ isResolved: true, isOwn: true }));
     const row = screen.getByTestId("thread-row");

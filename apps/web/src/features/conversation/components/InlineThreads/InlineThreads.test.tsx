@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Inline threads at a chunk (BRIEF-25): same disclosure pattern as the
-// section (aria-expanded buttons), bots aggregated into one disclosure per
-// author, and the detail hides its jump button (the rows already sit at
-// their chunk).
+// Inline threads at a chunk: same disclosure pattern as the section
+// (aria-expanded buttons), bots aggregated into one disclosure per author,
+// and the detail hides its jump button (the rows already sit at their
+// chunk).
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";

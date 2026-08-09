@@ -8,9 +8,8 @@
     gap: functions.to-rem(10px);
   }
 
-  /* Label ABOVE its chip run, both flush left (owner round 2026-08-06):
-     the inline fixed-gutter layout left a dead gap after short labels and
-     wrapped long chip runs out of alignment with their heading. */
+  /* Label ABOVE its chip run, both flush left: an inline fixed gutter left a
+     dead gap after short labels and misaligned wrapped chip runs. */
   .rowLabel {
     color: var(--dim);
     font-family: var(--mono);
@@ -59,9 +58,9 @@
       border-color: var(--color-text-4);
     }
 
-    /* Selected = accent-tinted fill + a check glyph: surface-3 alone was
-       nearly indistinguishable from the resting chip (owner a11y finding).
-       The glyph is decorative — aria-pressed carries the state. */
+    /* Accent-tinted fill plus a check glyph: surface-3 alone was nearly
+       indistinguishable from the resting chip. The glyph is decorative —
+       aria-pressed carries the state. */
     &[aria-pressed="true"] {
       border-color: var(--color-accent);
       background: color-mix(
@@ -100,7 +99,6 @@
     background: var(--line);
   }
 
-  /* Footer row: recency toggle leading, quick actions trailing. */
   .foot {
     display: flex;
     flex-wrap: wrap;

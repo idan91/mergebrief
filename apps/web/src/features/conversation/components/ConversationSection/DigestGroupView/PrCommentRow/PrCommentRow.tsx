@@ -8,13 +8,13 @@ export interface PrCommentRowProps {
   comment: PrLevelComment;
   expanded: boolean;
   toggle: (commentId: number) => void;
-  /** The viewed revision's generation cutoff (BRIEF-95); absent marks nothing. */
+  /** The viewed revision's generation cutoff; absent marks nothing. */
   briefGeneratedAt?: string | undefined;
 }
 
 /**
- * A PR-level (non-thread) comment row — the same disclosure pattern as the
- * thread rows (one interaction model), with the comment body as its detail.
+ * A PR-level (non-thread) comment row — same disclosure pattern as the thread
+ * rows, with the comment body as its detail.
  */
 export function PrCommentRow({
   comment,

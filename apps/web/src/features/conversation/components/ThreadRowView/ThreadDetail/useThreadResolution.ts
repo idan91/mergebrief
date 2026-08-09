@@ -1,18 +1,16 @@
-// The thread-resolution facade hook (BRIEF-93): ThreadDetail wires the
-// transport in, this hook owns pending/error/copy for both entry points — the
-// standalone Resolve/Unresolve action and the Reply & resolve combo's second
-// leg. `useMarkReady` is the template (same result-kind → copy shape, same
-// synchronous in-flight guard).
+// Thread-resolution facade: ThreadDetail wires the transport in, this hook
+// owns pending/error/copy for both entry points — the standalone
+// Resolve/Unresolve action and the Reply & resolve combo's second leg.
 //
-// Async-mutation rules (apps/web AGENTS.md) as they apply here:
+// Async-mutation rules as they apply here:
 // - the DIRECTION is captured at initiation, so a refetch landing mid-flight
 //   (which flips `isResolved`) can never redirect the request in progress;
 // - the GitHub write is the commit point — a throw AROUND it gets INDETERMINATE
 //   copy, never "nothing happened";
 // - result copy also goes through the page live region, so it outlives the
 //   request even if this detail collapsed while it was in flight;
-// - no optimistic update: every settled outcome refetches and the row re-renders
-//   from server truth (a converged flip included).
+// - no optimistic update: every settled outcome refetches and the row
+//   re-renders from server truth.
 import { useCallback, useRef, useState } from "react";
 
 import { useReviewActions } from "@web/features/review/session";
@@ -32,9 +30,9 @@ export const RESOLVE_COPY = {
     "GitHub refused the change — your permission to resolve threads here may have changed.",
   invalid: "The request was rejected as invalid — reload and try again.",
   upstream: "GitHub rejected the change or is unreachable — try again shortly.",
-  // INDETERMINATE (submit/reply discipline): a throw can land after the POST
-  // reached GitHub. Both directions are idempotent, so retrying is safe — but
-  // the copy must not claim the thread is unchanged.
+  // INDETERMINATE: a throw can land after the POST reached GitHub. Both
+  // directions are idempotent, so retrying is safe — but the copy must not
+  // claim the thread is unchanged.
   failed:
     "Something went wrong — the thread may or may not have changed. The conversation was refreshed; check the thread before retrying.",
 } as const;
@@ -92,8 +90,8 @@ export function useThreadResolution(
   const { announce } = useReviewActions();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Synchronous double-click guard (useReviewSubmit/useMarkReady): state
-  // updates are async and aria-disabled does not block the click event.
+  // Synchronous double-click guard: state updates are async and aria-disabled
+  // does not block the click event.
   const inFlight = useRef(false);
 
   const run = useCallback(

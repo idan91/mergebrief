@@ -27,13 +27,11 @@ function SlimSeparator() {
 }
 
 /**
- * One thread's digest row: a plain `<button aria-expanded>` disclosure over
- * the thread detail. Promoted to a ConversationSection sibling — DiffTable
- * and InlineThreads render it at the chunk (ADR 0037 promotion rule).
+ * One thread's digest row: a `<button aria-expanded>` disclosure over the
+ * thread detail. Also rendered at the chunk by DiffTable and InlineThreads.
  *
- * A settled thread collapses to the SLIM variant (BRIEF-93): one faint line
- * instead of a framed row. Same single button, same handler — the collapsed
- * row carries no actions of its own.
+ * A settled thread collapses to the slim variant — one faint line, same single
+ * button and handler; the collapsed row carries no actions of its own.
  */
 export function ThreadRowView({
   row,
@@ -46,19 +44,16 @@ export function ThreadRowView({
   const { thread } = row;
   const author = thread.comments[0]?.author;
   const commentCount = thread.comments.length;
-  // Outdated wins over resolved (the chip's rule, unchanged): outdated is WHY
-  // the thread left the code view, and that fact outranks settledness — so
+  // Outdated wins over resolved: it is WHY the thread left the code view, so
   // those rows stay full. Expanding any thread restores the full row too.
   const slim = thread.isResolved && !thread.isOutdated && !expanded;
   return (
     <li
       className={rowStyles["row"]}
-      // The ?thread= landing target — a DISTINCT attribute from the inline
-      // diff rows' `data-conversation-thread`. The section renders ABOVE the
-      // change groups, so sharing that name would shadow the diff row in
-      // document order and break the digest's "Jump to comment" landing on
-      // the thread's own row. Section rows only: `hideJump` marks the inline
-      // (at-chunk) renders of this same component.
+      // The ?thread= landing target — DISTINCT from the inline diff rows'
+      // `data-conversation-thread`: the section renders above the change
+      // groups, so sharing that name would shadow the diff row in document
+      // order. Section rows only; `hideJump` marks the at-chunk renders.
       data-conversation-section-thread={
         hideJump ? undefined : thread.rootCommentId
       }

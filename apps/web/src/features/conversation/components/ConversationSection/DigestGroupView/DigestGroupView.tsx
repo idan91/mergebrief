@@ -6,7 +6,7 @@ import { BotGroupRowView } from "./BotGroupRowView/BotGroupRowView";
 import { PrCommentRow } from "./PrCommentRow/PrCommentRow";
 import styles from "./DigestGroupView.module.scss";
 
-/** Rows shown per digest group before "Show more" (locked decision 6). */
+/** Rows shown per digest group before "Show more". */
 export const GROUP_ROW_CAP = 50;
 
 export interface DigestGroupViewProps {
@@ -22,16 +22,14 @@ export interface DigestGroupViewProps {
     target?: { rowId: string; threadId: number },
   ) => void;
   composer: ThreadComposerWiring;
-  /** The viewed revision's generation cutoff (BRIEF-95) — PR-level rows only;
-   * thread rows carry it stamped on the digest row itself. */
+  /** Generation cutoff for PR-level rows only; thread rows carry their own. */
   briefGeneratedAt?: string | undefined;
 }
 
 /**
- * One digest group (a chunk's threads, or the PR-level bucket): thread rows,
- * per-bot collapsed groups, and PR-level comments — which share the group's
- * ~50-row budget and the SAME disclosure pattern (no second interaction
- * model).
+ * One digest group (a chunk's threads, or the PR-level bucket). Thread rows,
+ * per-bot groups and PR-level comments share the group's row budget and the
+ * same disclosure pattern.
  */
 export function DigestGroupView({
   group,

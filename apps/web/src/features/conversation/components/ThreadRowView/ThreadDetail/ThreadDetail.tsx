@@ -33,9 +33,8 @@ export function ThreadDetail({
   hideJump = false,
 }: ThreadDetailProps) {
   const { thread, placement } = row;
-  // Resolution flow state (BRIEF-93) lives in the facade hook; this detail is
-  // the nearest common ancestor of its two consumers — the standalone action
-  // below and the composer's Reply & resolve leg.
+  // This detail is the nearest common ancestor of the flow's two consumers:
+  // the standalone action below and the composer's Reply & resolve leg.
   const resolution = useThreadResolution({
     threadId: thread.rootCommentId,
     isResolved: thread.isResolved,
@@ -47,9 +46,9 @@ export function ThreadDetail({
   const focusResolveAction = useCallback(() => {
     resolveButtonRef.current?.focus();
   }, []);
-  // Quote-reply (BRIEF-56): the button quotes the selection when one lives
-  // inside THIS detail, else the whole comment; `R` requires a selection.
-  // Nonce-triggered so quoting the same text twice appends twice.
+  // The button quotes the selection when one lives inside THIS detail, else
+  // the whole comment; `R` requires a selection. Nonce-triggered so quoting
+  // the same text twice appends twice.
   const detailRef = useRef<HTMLDivElement | null>(null);
   const [quote, setQuote] = useState<
     { block: string; nonce: number } | undefined
@@ -98,12 +97,10 @@ export function ThreadDetail({
       ) {
         return;
       }
-      // Overlay stand-down, same convention as the page shortcuts: an open
-      // modal owns the keyboard — R must not append-and-yank-focus behind it.
+      // An open modal owns the keyboard — R must not act behind it.
       if (document.querySelector('[aria-modal="true"]') !== null) return;
-      // Containment scopes the shortcut: with the same thread rendered
-      // inline AND in the section, only the detail holding the selection
-      // reacts.
+      // Containment scopes the shortcut: with the same thread rendered inline
+      // AND in the section, only the detail holding the selection reacts.
       const text = selectionRef.current();
       if (text === null || text.trim() === "") return;
       event.preventDefault();
@@ -213,7 +210,6 @@ export function ThreadDetail({
         focusResolveAction={focusResolveAction}
         threadId={thread.rootCommentId}
       />
-      {/* Bottom of the expanded thread, next to the composer (locked design). */}
       {resolution.available ? (
         <ThreadResolveAction
           error={resolution.error}

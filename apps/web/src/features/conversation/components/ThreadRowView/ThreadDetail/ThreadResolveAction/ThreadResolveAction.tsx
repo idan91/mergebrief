@@ -10,22 +10,21 @@ export interface ThreadResolveActionProps {
   error: string | null;
   onToggle: () => void;
   /**
-   * Hands the button's node to the owner (the `exposeTextarea` pattern), which
-   * needs it as a focus destination when the composer's combo action retires
-   * mid-flow. Called with null on unmount.
+   * Hands the button's node to the owner, which needs it as a focus
+   * destination when the composer's combo action retires mid-flow. Called
+   * with null on unmount.
    */
   exposeButton?: ((element: HTMLButtonElement | null) => void) | undefined;
 }
 
 /**
- * The standalone resolve/unresolve action at the bottom of an expanded thread
- * (BRIEF-93, GitHub's model): ONE button, whose direction is the thread's
- * state. The caller renders it only when the viewer may resolve — there is no
- * disabled-dead variant (ADR 0031).
+ * The standalone resolve/unresolve action: ONE button whose direction is the
+ * thread's state. The caller renders it only when the viewer may resolve —
+ * there is no disabled-dead variant.
  *
- * Focusable-disabled while pending (the ReplyComposer/SubmitModal pattern): a
- * hard `disabled` would drop keyboard and screen-reader focus to `<body>` the
- * moment the request starts. The click guard lives in the hook.
+ * Focusable-disabled while pending: a hard `disabled` would drop keyboard and
+ * screen-reader focus to `<body>` the moment the request starts. The click
+ * guard lives in the hook.
  */
 export function ThreadResolveAction({
   resolved,

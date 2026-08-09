@@ -1,15 +1,11 @@
-// The PR-conversation section (BRIEF-25, ADR 0027): an IN-FLOW section at
-// the Brief's end — not a drawer (the drawer is the Receipt's). Verdict
-// strip on top, then the digest: threads grouped by chunk in the Brief's
-// reading order, unresolved first, bots collapsed per author (never
-// hidden). Chips carry TEXT (WCAG 1.4.1) and stay factual — `resolved`
-// never dresses as success. Digest rows are ONE keyboard pattern: a plain
-// list of `<button aria-expanded>` disclosures.
+// The in-flow PR-conversation section: verdict strip, then threads grouped
+// by chunk in the Brief's reading order, unresolved first, bots collapsed
+// per author (never hidden). Chips carry TEXT, not color alone (WCAG 1.4.1).
+// Digest rows are one keyboard pattern: `<button aria-expanded>` disclosures.
 //
-// Live data: refetch on focus/navigation via the query's staleTime, plus
-// the manual refresh control here — no background poll. Expansion state is
-// keyed by thread id in component state, so it survives refetch (visible
-// state, never entry-path memory).
+// No background poll — refetch on focus/navigation via the query's staleTime
+// plus the manual refresh control. Expansion state is keyed by thread id in
+// component state so it survives refetch.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -48,27 +44,22 @@ import styles from "./ConversationSection.module.scss";
 export interface ConversationPlan {
   readonly queryOptions: ReturnType<typeof conversationQueryOptions>;
   /**
-   * The repo's collaborator roster for mention autocomplete (BRIEF-94).
-   * Absent on the local demo path; a non-ready result (viewerCanPush 404,
-   * upstream blip) degrades to participants-only silently.
+   * Collaborator roster for mention autocomplete. Absent on the local demo
+   * path; a non-ready result degrades to participants-only silently.
    */
   readonly collaborators?: ReturnType<typeof collaboratorsQueryOptions>;
-  /** Immediate viewer-token reply to a thread's root comment (BRIEF-25 #7). */
+  /** Immediate viewer-token reply to a thread's root comment. */
   readonly postReply: (
     rootCommentId: number,
     body: string,
   ) => Promise<ReplyResult>;
-  /**
-   * Resolve/unresolve transport + the PR-level capability (BRIEF-93). Absent on
-   * the local demo path — no affordance renders at all.
-   */
+  /** Absent on the local demo path — no resolve affordance renders at all. */
   readonly resolution?: ConversationResolutionPlan;
-  /** Outdated-thread revision jump (BRIEF-24); absent when there is no timeline. */
+  /** Absent when there is no revision timeline. */
   readonly revisionJump?: ThreadRevisionJump;
   /**
-   * The VIEWED revision's generation start (BRIEF-95): comments newer than
-   * this postdate the brief and get marked — per revision, so an older
-   * revision honestly marks more. Absent (local path, legacy metas) marks
+   * The VIEWED revision's generation start: newer comments postdate the brief
+   * and get marked, so an older revision honestly marks more. Absent marks
    * nothing.
    */
   readonly briefGeneratedAt?: string;
@@ -89,27 +80,23 @@ export interface ConversationSectionProps {
     chunkId: string,
     target?: { rowId: string; threadId: number },
   ) => void;
-  /** Store flip for drafts the reconciliation proved posted (BRIEF-23 residual). */
+  /** Store flip for drafts the reconciliation proved posted. */
   markCommentsSubmitted: (ids: readonly string[]) => void;
   /** Collapsed/expanded state is the PAGE's (the C shortcut expands it). */
   open: boolean;
   onToggle: () => void;
   /**
-   * A thread to land on after an outdated-thread revision jump (BRIEF-24 reads
-   * `?thread=`): once the conversation is loaded, its digest row expands,
-   * scrolls into view, flashes, and takes focus.
+   * A thread to land on: once the conversation is loaded, its digest row
+   * expands, scrolls into view, flashes, and takes focus.
    */
   focusThreadId?: number | undefined;
   /**
-   * Reviewer/verdict filter (BRIEF-99), carried in the URL by the route. The
-   * surface that writes it is the toolbar's Filter disclosure ABOVE this
-   * section (a filter inside a collapsed-by-default disclosure is a control
-   * nobody finds); the section only READS it, so the digest, the strip and
-   * the diff agree.
+   * URL-carried reviewer/verdict filter. This section only READS it — the
+   * toolbar's Filter disclosure above owns writes — so the digest, the strip
+   * and the diff agree.
    *
    * Deliberately not on the plan: the plan's identity feeds the memo
-   * boundaries that keep the diff's chunk cards off the render path, and a
-   * verdict chip cannot change a single inline row.
+   * boundaries that keep the diff's chunk cards off the render path.
    */
   filter?: ConversationFilter | undefined;
 }
@@ -122,10 +109,9 @@ const VERDICT_LABEL: Record<ConversationReview["state"], string> = {
 };
 
 /**
- * The in-flow conversation section. Error states are SPECIFIC (locked
- * design constraint); the empty state teaches. Own threads carry a
- * "yours" tag from the review-id reconciliation, and drafts the
- * reconciliation proved posted flip to submitted (server-backed wins).
+ * Error states stay specific and the empty state teaches. Own threads carry a
+ * "yours" tag from the review-id reconciliation, and drafts the reconciliation
+ * proved posted flip to submitted (server-backed wins).
  */
 export function ConversationSection({
   plan,
@@ -142,8 +128,8 @@ export function ConversationSection({
 }: ConversationSectionProps) {
   const queryClient = useQueryClient();
   const query = useQuery(plan.queryOptions);
-  // Collaborator mention pool (BRIEF-94) — shared query key with the inline
-  // wiring; non-ready = empty = participants-only autocomplete.
+  // Shared query key with the inline wiring; non-ready = empty =
+  // participants-only autocomplete.
   const mentionPool = useMentionPool(plan.collaborators);
   const [expandedThreads, setExpandedThreads] = useState<ReadonlySet<number>>(
     new Set(),
@@ -180,8 +166,8 @@ export function ConversationSection({
     );
     if (ids.length === 0) return;
     for (const id of ids) flippedRef.current.add(id);
-    // Server-backed wins: these drafts ARE on GitHub. Live flip + durable
-    // write (the provider may outlive neither — same discipline as submit).
+    // These drafts ARE on GitHub: live flip plus a durable write, since the
+    // provider may outlive neither.
     markCommentsSubmitted(ids);
     try {
       markSnapshotCommentsSubmitted(briefId, ids);
@@ -203,12 +189,11 @@ export function ConversationSection({
     [conversation, filterProp],
   );
 
-  // Everything below the bar reads the FILTERED conversation — one call, so
-  // the strip, the digest and the diff can never disagree about what is in.
+  // Everything below reads the FILTERED conversation through this one call,
+  // so the strip, the digest and the diff can never disagree.
   //
-  // A `?thread=` landing target is EXEMPT: the filter keys persist in the
-  // URL, so `?thread=123&reviewers=alice` is easy to share, and a filtered-out
-  // target would land nowhere at all — the jump would silently do nothing.
+  // A `?thread=` landing target is EXEMPT: filter keys persist in the URL, so
+  // a filtered-out target would make the jump silently do nothing.
   const filtered = useMemo(() => {
     if (conversation === undefined) return undefined;
     const next = applyConversationFilter(conversation, filter);
@@ -250,13 +235,11 @@ export function ConversationSection({
       queryKey: plan.queryOptions.queryKey,
     });
 
-  // Inbound `?thread=` landing (BRIEF-24): once the conversation is loaded and
-  // the section is open, reveal the targeted thread, then scroll+flash+focus
-  // its row. Lands ONCE per target id (a ref, not state — re-runs must not
-  // re-yank focus while the reviewer reads), but the target is only marked
-  // landed AFTER its row was actually found and focused — a row still hidden
-  // (or data still settling) retries on the next conversation refetch instead
-  // of being silently spent.
+  // Inbound `?thread=` landing: reveal the targeted thread, then
+  // scroll+flash+focus its row. Lands ONCE per target id (a ref, not state —
+  // re-runs must not re-yank focus while the reviewer reads), and is only
+  // marked landed AFTER the row was found and focused, so a still-hidden row
+  // retries on the next refetch instead of being silently spent.
   const landedThreadRef = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (focusThreadId === undefined || !open || conversation === undefined) {
@@ -292,9 +275,7 @@ export function ConversationSection({
       if (row !== null) {
         // Found — only now is the target spent.
         landedThreadRef.current = focusThreadId;
-        // Reduced motion: land instantly. The flash side is already CSS-gated
-        // (`@media (prefers-reduced-motion: reduce)` swaps the animation for
-        // a static ring where the flash is styled).
+        // Reduced motion lands instantly; the flash is CSS-gated where styled.
         row.scrollIntoView({
           behavior: prefersReducedMotion() ? "auto" : "smooth",
           block: "center",
@@ -313,10 +294,9 @@ export function ConversationSection({
     window.requestAnimationFrame(land);
   }, [conversation, digest, focusThreadId, open]);
 
-  // Every conversation write evicts server-side; the post-reply refetch
-  // makes the reply visible in-section (locked decision 9). Draft reads,
-  // draft writes, and announce copy live INSIDE ReplyComposer (session-store
-  // reads) — only the transport rides here.
+  // Every conversation write evicts server-side; the post-reply refetch makes
+  // the reply visible in-section. Draft reads/writes and announce copy live
+  // inside ReplyComposer — only the transport rides here.
   const composer: ThreadComposerWiring = {
     briefId,
     post: plan.postReply,
@@ -334,9 +314,8 @@ export function ConversationSection({
         }),
   };
 
-  // BRIEF-95: comments the viewed revision's brief cannot account for. Per
-  // revision — an older revision honestly counts more; zero (or no cutoff)
-  // renders nothing.
+  // Comments the viewed revision's brief cannot account for — an older
+  // revision honestly counts more; zero (or no cutoff) renders nothing.
   const afterBriefCount = useMemo(
     () =>
       conversation === undefined
@@ -346,8 +325,7 @@ export function ConversationSection({
   );
 
   // Empty-bodied COMMENTED reviews (GitHub's envelope around inline comments)
-  // are already gone: `applyConversationFilter` drops them, the same predicate
-  // the counts and the recency reduction use.
+  // are already dropped by `applyConversationFilter`.
   const verdicts = filtered?.reviews ?? [];
 
   return (
@@ -357,9 +335,8 @@ export function ConversationSection({
       data-conversation-section
     >
       <div className={styles["head"]}>
-        {/* The heading IS the disclosure (summary counts stay visible;
-            expanding reveals the digest). Also the C shortcut's focus
-            target — a button is natively focusable. */}
+        {/* The heading IS the disclosure, and the C shortcut's focus target —
+            a button is natively focusable. */}
         <h2 className={styles["heading"]}>
           <button
             aria-expanded={open}
@@ -376,10 +353,9 @@ export function ConversationSection({
               ▶
             </span>
             Conversation
-            {/* Totals ONLY (BRIEF-134): the header describes the whole
-                conversation; filter state renders in exactly one place —
-                the toolbar's Filter trigger, whose hidden count already
-                receipts what a filter removed. */}
+            {/* Totals ONLY: the header describes the whole conversation;
+                filter state renders in exactly one place — the toolbar's
+                Filter trigger. */}
             {conversation !== undefined ? (
               <span className={styles["headSummary"]}>
                 {conversation.threads.length} thread

@@ -13,12 +13,11 @@ export interface RevisionJumpActionProps {
 }
 
 /**
- * The outdated-thread revision jump (BRIEF-24). Rendered only for an outdated
- * thread that carries an anchor commit AND a timeline is present. On a hit
- * (the anchor was a briefed head) it navigates to that revision; on a miss —
- * the common case — it stays disabled (focusable, with a reachable reason) and
- * the sibling "View on GitHub" permalink is the fallback. No nearest-revision
- * guessing.
+ * The outdated-thread revision jump, rendered only for an outdated thread that
+ * carries an anchor commit with a timeline present. When the anchor was a
+ * briefed head it navigates there; otherwise it stays focusable-disabled with
+ * a reachable reason, and the sibling GitHub permalink is the fallback. No
+ * nearest-revision guessing.
  */
 export function RevisionJumpAction({ thread, jump }: RevisionJumpActionProps) {
   const reasonId = `${useId()}-jump-reason`;

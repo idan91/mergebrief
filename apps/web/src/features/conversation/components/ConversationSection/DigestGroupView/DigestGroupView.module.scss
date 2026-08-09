@@ -37,8 +37,7 @@
     }
   }
 
-  /* The 44px AIM lands where fingers do; desktop keeps the compact 24px
-     floor (locked constraint: targets >=24px, aim 44). */
+  /* Touch targets: 24px floor everywhere, 44px where fingers do the aiming. */
   @media (pointer: coarse) {
     .groupJump {
       min-height: functions.to-rem(44px);

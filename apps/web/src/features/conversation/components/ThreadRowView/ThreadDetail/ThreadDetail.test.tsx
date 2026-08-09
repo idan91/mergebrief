@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
-// The thread detail's resolution affordances (BRIEF-93): the standalone
-// Resolve/Unresolve action and the Reply & resolve combo. Pins the ADR 0031
-// posture (hidden without capability, never disabled-dead), the direction each
-// thread state offers, the refetch-not-optimistic state update, the 403's
-// double refetch (conversation AND capability), and the combo's three honest
-// outcomes — including that a landed reply is NEVER re-posted.
+// The thread detail's resolution affordances: the standalone
+// Resolve/Unresolve action and the Reply & resolve combo. Pins the posture
+// (hidden without capability, never disabled-dead), the direction each thread
+// state offers, the refetch-not-optimistic state update, the 403's double
+// refetch (conversation AND capability), and the combo's three outcomes —
+// including that a landed reply is NEVER re-posted.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -124,7 +124,7 @@ interface RenderOptions {
   isResolved?: boolean;
   /** Absent = no resolution wiring at all (the local demo path). */
   canResolve?: boolean | undefined;
-  /** Repo-collaborator mention pool riding the composer wiring (BRIEF-94). */
+  /** Repo-collaborator mention pool riding the composer wiring. */
   mentionPool?: ThreadComposerWiring["mentionPool"];
   reply?: ReplyResult | (() => Promise<ReplyResult>);
   resolve?: ResolveThreadResult | (() => Promise<ResolveThreadResult>);
@@ -229,7 +229,7 @@ const RESOLVE_BUTTON = { name: /^Resolv/ };
 const UNRESOLVE_BUTTON = { name: /^Unresolv/ };
 const COMBO_BUTTON = { name: /^Reply & resolve/ };
 
-describe("ThreadDetail — standalone resolve/unresolve (BRIEF-93)", () => {
+describe("ThreadDetail — standalone resolve/unresolve", () => {
   it("shows no resolution action on the local path (no wiring)", () => {
     renderDetail();
     expect(screen.queryByRole("button", RESOLVE_BUTTON)).toBeNull();
@@ -367,7 +367,7 @@ describe("ThreadDetail — standalone resolve/unresolve (BRIEF-93)", () => {
   });
 });
 
-describe("ThreadDetail — Reply & resolve combo (BRIEF-93)", () => {
+describe("ThreadDetail — Reply & resolve combo", () => {
   it("appears only once the composer has text", () => {
     renderDetail({ canResolve: true });
     expect(screen.queryByRole("button", COMBO_BUTTON)).toBeNull();
@@ -477,9 +477,9 @@ describe("ThreadDetail — Reply & resolve combo (BRIEF-93)", () => {
     combo.focus();
     expect(document.activeElement).toBe(combo);
     fireEvent.click(combo);
-    // The handoff runs in an effect AFTER the retirement commit — asserting
-    // activeElement on the unmount tick races that flush (CI flake, PR #222
-    // run 30850729385): await the focus itself, not the unmount.
+    // The handoff runs in an effect AFTER the retirement commit, so asserting
+    // activeElement on the unmount tick races that flush: await the focus
+    // itself, not the unmount.
     await waitFor(() =>
       expect(document.activeElement).toBe(screen.getByTestId("thread-resolve")),
     );
@@ -621,7 +621,7 @@ describe("ThreadDetail — Reply & resolve combo (BRIEF-93)", () => {
   });
 });
 
-describe("ThreadDetail — mention pool hand-off (BRIEF-94)", () => {
+describe("ThreadDetail — mention pool hand-off", () => {
   it("merges the composer's roster after the thread's participants (order = ranking)", () => {
     renderDetail({
       mentionPool: [

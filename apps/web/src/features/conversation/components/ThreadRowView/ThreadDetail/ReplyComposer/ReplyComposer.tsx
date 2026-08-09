@@ -22,8 +22,8 @@ const REPLY_COPY = {
     "This thread is no longer on GitHub — it may have been deleted. Your draft is saved locally.",
   invalid: "The reply was rejected as invalid — reload and try again.",
   upstream: "GitHub rejected the reply or is unreachable — try again shortly.",
-  // INDETERMINATE (same discipline as submit): a throw can land after the
-  // POST reached GitHub — never claim "nothing was posted".
+  // INDETERMINATE: a throw can land after the POST reached GitHub — never
+  // claim "nothing was posted".
   failed:
     "Something went wrong posting the reply — it may or may not have posted. Check the thread on GitHub before retrying.",
 } as const;
@@ -40,10 +40,9 @@ const REPLY_FAILURE_COPY: Record<
 };
 
 /**
- * Reply & resolve outcomes (BRIEF-93). The two legs are sequenced FE-side
- * (reply, then resolve), so the compound action has three honest ends and each
- * one names exactly what did and did not happen. Never a shared "failed":
- * whether the reply landed decides whether retrying is safe.
+ * Reply & resolve outcomes. The legs are sequenced FE-side, so each end names
+ * exactly what did and did not happen — never a shared "failed": whether the
+ * reply landed decides whether retrying is safe.
  */
 const COMBO_COPY = {
   both: "Reply posted and the thread resolved.",
@@ -56,9 +55,7 @@ const COMBO_COPY = {
     "Your reply posted, but resolving the thread failed. The reply is on GitHub — use Resolve on the thread to finish.",
   /**
    * The reply landed and the resolve THREW — it may have reached GitHub before
-   * the connection died. Same discipline as every other throw around a write:
-   * never assert a failure that may not have happened, and never invite a blind
-   * retry of a possibly-applied change.
+   * the connection died, so never assert a failure that may not have happened.
    */
   partialIndeterminate:
     "Your reply posted; the thread may or may not have been resolved. The conversation was refreshed — check the thread before resolving it again.",
@@ -71,7 +68,7 @@ export interface ReplyComposerProps {
   threadId: number;
   post: (rootCommentId: number, body: string) => Promise<ReplyResult>;
   onPosted: () => void;
-  /** Mention-autocomplete pool (participants + collaborators — BRIEF-56/94). */
+  /** Mention-autocomplete pool: participants plus collaborators. */
   mentionCandidates?: readonly MentionCandidate[] | undefined;
   /**
    * Quote-reply prefill: a new nonce appends the (already `> `-prefixed)
@@ -80,10 +77,9 @@ export interface ReplyComposerProps {
    */
   quote?: { block: string; nonce: number } | undefined;
   /**
-   * The Reply & resolve leg (BRIEF-93): resolves the thread AFTER the reply
-   * lands, reporting the attempt's outcome. Absent = no capability or an
-   * already-resolved thread, and the secondary action never renders. The
-   * primary action stays a plain reply either way.
+   * Resolves the thread AFTER the reply lands, reporting the attempt's
+   * outcome. Absent = no capability or an already-resolved thread, and the
+   * secondary action never renders. The primary action stays a plain reply.
    */
   resolveAfterPost?: (() => Promise<ResolveAttempt>) | undefined;
   /**
@@ -104,8 +100,8 @@ export function ReplyComposer({
   resolveAfterPost,
   focusResolveAction,
 }: ReplyComposerProps) {
-  // Draft reads/writes go straight to the session stores (the PR 3 wiring
-  // re-shape): no draft prop chain through the digest tree.
+  // Draft reads/writes go straight to the session stores — no draft prop
+  // chain through the digest tree.
   const draft = useMindMap(
     (state) => state.replyDrafts[String(threadId)] ?? "",
   );
@@ -120,13 +116,11 @@ export function ReplyComposer({
   >(null);
   const pending = pendingAction !== null;
   const [error, setError] = useState<string | null>(null);
-  // Synchronous double-click guard (same as useReviewSubmit): state updates
-  // are async, a ref is not — aria-disabled does not block the click event.
+  // Synchronous double-click guard: state updates are async, a ref is not —
+  // aria-disabled does not block the click event.
   const inFlight = useRef(false);
-  // Typing stays LOCAL: a per-keystroke store write would re-render the
-  // whole digest and rebuild the receipt memo chain. The store draft syncs
-  // on blur, unmount, and post — the persistence points that matter for
-  // surviving navigation.
+  // Typing stays LOCAL: a per-keystroke store write would re-render the whole
+  // digest. The store draft syncs on blur, unmount, and post.
   const [local, setLocal] = useState(draft);
   const localRef = useRef(local);
   localRef.current = local;
@@ -134,10 +128,9 @@ export function ReplyComposer({
   // same thread rendered inline and in the section, an untouched twin's
   // unmount/blur must never clobber the draft the edited one saved.
   const dirtyRef = useRef(false);
-  // Mirrors the STORE's current value (not "what this composer last wrote"):
-  // comparing against it means an external reset (Clear local drafts) can't
-  // silently un-persist text the user still SEES — behavior follows visible
-  // state.
+  // Mirrors the STORE's current value, not "what this composer last wrote":
+  // comparing against it stops an external reset from silently un-persisting
+  // text the user still sees.
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const setDraftRef = useRef(setReplyDraft);
@@ -172,10 +165,9 @@ export function ReplyComposer({
   const overCap = local.length > MAX_REPLY_LENGTH;
   const blocked = pending || local.trim() === "" || overCap;
 
-  // Quote-reply prefill (BRIEF-56): appended to the LOCAL draft only —
-  // same persistence path as typing (blur/unmount/post). Skipped while a
-  // post is in flight: the composer is read-only and a mutation would
-  // diverge from the captured request body.
+  // Quote-reply prefill appends to the LOCAL draft only, same persistence
+  // path as typing. Skipped while a post is in flight: the composer is
+  // read-only and a mutation would diverge from the captured request body.
   const textareaElement = useRef<HTMLTextAreaElement | null>(null);
   const consumedQuoteNonce = useRef(0);
   useEffect(() => {
@@ -230,9 +222,8 @@ export function ReplyComposer({
       setError(copy);
       announce(copy);
     };
-    // Outcome (b) of the combo: the reply never landed, so the resolve leg was
-    // never reached — say both halves, or the reviewer is left guessing whether
-    // the thread closed anyway.
+    // The reply never landed, so the resolve leg was never reached — say both
+    // halves, or the reviewer guesses whether the thread closed anyway.
     const replyFailureCopy = (copy: string) =>
       resolveLeg === undefined
         ? copy
@@ -257,9 +248,8 @@ export function ReplyComposer({
         draftRef.current = "";
         dirtyRef.current = false;
         setReplyDraft(threadId, "");
-        // Success must persist independent of component lifetime (BRIEF-23
-        // rule): the provider may have unmounted while the POST was in
-        // flight — clear the DURABLE draft directly too.
+        // The provider may have unmounted while the POST was in flight —
+        // clear the DURABLE draft directly too.
         try {
           persistReplyDraft(briefId, threadId, "");
         } catch (persistError) {
@@ -277,9 +267,8 @@ export function ReplyComposer({
         if (outcome === "resolved") {
           announce(COMBO_COPY.both);
         } else {
-          // Outcome (c): partial. The inline copy stays put next to the
-          // Resolve button that finishes the job — and stays honest about
-          // whether the resolve is KNOWN to have failed or merely unproven.
+          // Partial: the copy stays next to the Resolve button that finishes
+          // the job, and distinguishes a known failure from an unproven one.
           fail(
             outcome === "indeterminate"
               ? COMBO_COPY.partialIndeterminate
@@ -293,11 +282,9 @@ export function ReplyComposer({
       } finally {
         inFlight.current = false;
         // Focus handoff, decided BEFORE the state update that unmounts the
-        // button: the combo retires as soon as it is neither busy nor holding
-        // text, and an unmount under the caret drops focus to <body> (Tab then
-        // restarts from the top of the page). Recorded here, performed in the
-        // effect below — focusing now would land on a node React is about to
-        // remove.
+        // button: an unmount under the caret drops focus to <body>. Recorded
+        // here, performed in the effect above — focusing now would land on a
+        // node React is about to remove.
         handoffFocusRef.current =
           comboButtonRef.current !== null &&
           document.activeElement === comboButtonRef.current &&
@@ -346,10 +333,9 @@ export function ReplyComposer({
         </p>
       ) : null}
       <div className={rowStyles["detailActions"]}>
-        {/* Focusable-disabled (SubmitModal pattern): a hard `disabled`
-            would drop keyboard/SR focus to <body> the moment posting starts
-            — and strand it there on success. The click guard lives in
-            submit(). */}
+        {/* Focusable-disabled: a hard `disabled` would drop keyboard/SR focus
+            to <body> the moment posting starts, and strand it there on
+            success. The click guard lives in submit(). */}
         <button
           aria-busy={pendingAction === "reply" || undefined}
           aria-disabled={blocked || undefined}
@@ -359,11 +345,10 @@ export function ReplyComposer({
         >
           {pendingAction === "reply" ? "Posting…" : "Reply"}
         </button>
-        {/* SECONDARY, and only with text in the box: closing a thread you have
-            nothing to say on is the standalone Resolve button's job. It also
-            stays mounted for its OWN run — the reply leg clears the draft at
-            the commit point, and a busy control that vanishes mid-request
-            drops both the aria-busy state and the focus sitting on it. */}
+        {/* Only with text in the box: closing a thread you have nothing to say
+            on is the standalone Resolve button's job. It stays mounted for its
+            own run — a busy control that vanishes mid-request drops both the
+            aria-busy state and the focus sitting on it. */}
         {resolveAfterPost !== undefined &&
         (local.trim() !== "" || pendingAction === "reply-and-resolve") ? (
           <button
