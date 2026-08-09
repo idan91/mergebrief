@@ -275,7 +275,7 @@ describe("buildBriefViewModel", () => {
   });
 });
 
-describe("buildBriefViewModel — repo-config display weight (BRIEF-52)", () => {
+describe("buildBriefViewModel — repo-config display weight", () => {
   function briefWithRisk() {
     const base = twoGroupBrief();
     // The fixture's empty arrays infer never[]; push through a typed view.
@@ -359,7 +359,7 @@ describe("buildBriefViewModel — repo-config display weight (BRIEF-52)", () => 
   });
 });
 
-describe("buildAttributeRail (ADR 0032 #11 — jump-rail)", () => {
+describe("buildAttributeRail — jump-rail", () => {
   const railSnapshot = {
     files: [],
     collisions: [],
@@ -401,12 +401,12 @@ describe("buildAttributeRail (ADR 0032 #11 — jump-rail)", () => {
     );
   });
 
-  it("carrying chunks ride alongside carrying groups, story order, loud only (BRIEF-134)", () => {
+  it("carrying chunks ride alongside carrying groups, story order, loud only", () => {
     const rail = buildAttributeRail(
       buildBriefViewModel(railBrief(), railSnapshot),
     );
     // touches-billing fires loudly on c1 (g1) and c2 (g2) — chunk targets
-    // mirror the group targets in the same story order (Concerns lens, PR 4).
+    // mirror the group targets in the same story order (Concerns lens).
     const billing = rail.entries.find((e) => e.attr === "touches-billing");
     expect(billing?.chunkIds).toEqual(["c1", "c2"]);
     const auth = rail.entries.find((e) => e.attr === "touches-auth");

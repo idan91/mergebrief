@@ -1,22 +1,14 @@
-// The local-brief path's error boundary vocabulary (BRIEF-20 error-leak
-// sweep; the BRIEF-97 cause-leak family).
+// The local-brief path's error boundary vocabulary.
 //
-// WHY: server-function rejections cross to an unauthenticated browser, and
-// TanStack's serializer ships the Error's own message. Node's own errors are
-// generous with detail a browser has no business seeing — `readFile` on a
-// missing brief throws `ENOENT: no such file or directory, open
-// '/app/tools/categorizer/out/<id>.delta.json'`, disclosing the deployment's
-// absolute filesystem layout to anyone who guesses a brief id.
+// Server-function rejections cross to an unauthenticated browser and TanStack
+// ships the Error's own message — a raw `readFile` ENOENT would disclose the
+// deployment's absolute filesystem layout to anyone guessing a brief id. So
+// server modules map every failure onto one of these curated strings (the raw
+// error goes to the server log and nowhere else), and error components render
+// a server message only when it IS one of them.
 //
-// THE RULE: server modules map every failure onto one of these curated
-// strings (the raw error goes to the server log and nowhere else), and the
-// route error components render a server message only when it IS one of
-// them. Both halves matter — the allowlist is what keeps a message that
-// escapes some future code path from reaching the page.
-//
-// Pure and client-safe on purpose: this module is imported from both the
-// `server/` modules and the route error components, so it must never touch
-// `server-only` (import-protection would break the client build).
+// Pure and client-safe on purpose: imported from both `server/` modules and
+// route error components, so it must never touch `server-only`.
 
 import type { ValueOf } from "types";
 
@@ -39,11 +31,11 @@ export const BriefErrorMessage = {
 export type BriefErrorMessage = ValueOf<typeof BriefErrorMessage>;
 
 /**
- * The URL-box generation path's own closed set (BRIEF-97 copy, allowlisted
- * here by BRIEF-20). Separate map, same rule — `generate.server.ts` throws
- * these exact strings and the server-function boundary passes only these
- * through. A bad PR URL gets a curated sentence too: `parsePrUrl` reflects
- * the whole pasted string, which must not reach a `role="alert"` render.
+ * The URL-box generation path's own closed set. Separate map, same rule —
+ * `generate.server.ts` throws these exact strings and the server-function
+ * boundary passes only these through. A bad PR URL gets a curated sentence
+ * too: `parsePrUrl` reflects the whole pasted string, which must not reach a
+ * `role="alert"` render.
  */
 export const GenerateErrorMessage = {
   NOT_A_PR_URL:
@@ -73,12 +65,10 @@ const URL_SHAPED = /\w+:\/\/\S+/g;
 
 /**
  * Clamp a generator-CONFIG message before it crosses to the browser: first
- * line only, URL-shaped substrings redacted, length capped. These messages
- * are authored from ConfigError issues (env-var NAMES, config fields), so
- * they are safe BY CONSTRUCTION — but construction is a comment, not a trust
- * boundary, and this is the boundary. Mirrors `clampConfigMessage` in
- * `packages/api/src/routes/generate.ts`, which does the same for the api
- * route's 503 body.
+ * line only, URL-shaped substrings redacted, length capped. The upstream
+ * messages carry only env-var names and config fields, but that safety is a
+ * convention — this is the boundary that enforces it. Mirrors
+ * `clampConfigMessage` in `packages/api/src/routes/generate.ts`.
  */
 export function clampConfigMessage(message: string): string {
   const clamped = (message.split("\n", 1)[0] ?? "")

@@ -83,7 +83,7 @@ describe("parseBrief", () => {
     if (!parsed.ok) return;
     expect("generationWarnings" in parsed.value).toBe(false);
   });
-  it("carries lengthViolations through, dropping malformed entries (BRIEF-148)", () => {
+  it("carries lengthViolations through, dropping malformed entries", () => {
     const parsed = parseBrief({
       pr,
       summary: "Adds accordion and collapsible components.",
@@ -113,7 +113,7 @@ describe("parseBrief", () => {
     ]);
   });
 
-  it("omits lengthViolations when absent, empty, or fully malformed (BRIEF-148)", () => {
+  it("omits lengthViolations when absent, empty, or fully malformed", () => {
     const base = {
       pr,
       summary: "Adds accordion and collapsible components.",
@@ -133,7 +133,7 @@ describe("parseBrief", () => {
     }
   });
 
-  it("carries the anchor stamp through and drops a malformed one (BRIEF-143)", () => {
+  it("carries the anchor stamp through and drops a malformed one", () => {
     const restart = parseBrief({
       pr,
       summary: "Adds accordion and collapsible components.",
@@ -185,7 +185,7 @@ describe("parseBrief", () => {
     expect("anchor" in absent.value).toBe(false);
   });
 
-  it("carries the pr lifecycle snapshot through (BRIEF-103)", () => {
+  it("carries the pr lifecycle snapshot through", () => {
     const parsed = parseBrief({
       pr: { ...pr, state: "closed", draft: false, merged: true },
       summary: "Adds accordion and collapsible components.",
@@ -419,10 +419,10 @@ describe("parseBrief", () => {
     expect(parsed.value.intentCheck?.specificity).toBe("broad");
   });
 
-  // BRIEF-85 back-compat: `preciseIntentCheck` above is deliberately a
-  // PRE-BRIEF-85 shape — no alarm arrays, no `acknowledged` on its items.
-  // Every one of these asserts that such a Brief keeps working.
-  it("defaults the BRIEF-85 alarm buckets to empty on a pre-BRIEF-85 intentCheck", () => {
+  // Back-compat: `preciseIntentCheck` above is deliberately an older shape —
+  // no alarm arrays, no `acknowledged` on its items. Every one of these
+  // asserts that such a Brief keeps working.
+  it("defaults the alarm buckets to empty on an older intentCheck", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       intentCheck: preciseIntentCheck,
@@ -435,7 +435,7 @@ describe("parseBrief", () => {
     expect(parsed.value.intentCheck?.claimedButUnachieved).toEqual([]);
   });
 
-  it("reads a missing `acknowledged` as false on every pre-BRIEF-85 item", () => {
+  it("reads a missing `acknowledged` as false on every older item", () => {
     const parsed = parseBrief({
       ...twoGroupBriefInput,
       intentCheck: preciseIntentCheck,
@@ -496,9 +496,7 @@ describe("parseBrief", () => {
 
   it("re-sweeps `acknowledged` off the four non-deviations buckets (dead field)", () => {
     // Generation forces this, but the file-backed demo path parses arbitrary
-    // local JSON — so the read path re-sweeps rather than trusting it. Without
-    // this, a hand-authored brief renders an "acknowledged" chip inside an
-    // alarm bucket, directly under its AI-inferred-tension caution.
+    // local JSON — so the read path re-sweeps rather than trusting it.
     const ackEverywhere = {
       intent: "x",
       quote: "keep the widget cache",
@@ -595,7 +593,7 @@ describe("parseBrief", () => {
     expect(parsed.value.intentCheck).toBeUndefined();
   });
 
-  it("reports every warn-and-drop through the injected sink (ADR 0034)", () => {
+  it("reports every warn-and-drop through the injected sink", () => {
     const warn = vi.fn<ParseWarnSink["warn"]>(() => {});
     const parsed = parseBrief(
       {
@@ -618,13 +616,9 @@ describe("parseBrief", () => {
   });
 
   it("stays silent when the caller injects no sink (the client path)", () => {
-    // No sink and no console noise. This is the BROWSER contract only — it is
-    // not a claim that the drop is reported elsewhere in general. Coverage is
-    // per call site: the local-file path passes the process logger
-    // (`brief.server.ts`), and the hosted path resolves one when it runs
-    // server-side (`features/pulls/queries.ts` via `getSsrWarnSink`). A future
-    // caller that passes nothing on the server gets NO signal — passing a sink
-    // is the caller's job.
+    // No sink and no console noise — the BROWSER contract only. Coverage is
+    // per call site: a caller that passes nothing on the server gets NO
+    // signal, so passing a sink is the caller's job.
     const spy = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const parsed = parseBrief({
@@ -671,7 +665,7 @@ describe("parseRevisionNarrativeArtifact", () => {
     chunks: [],
   };
 
-  it("carries generationWarnings through, dropping non-string entries (BRIEF-73)", () => {
+  it("carries generationWarnings through, dropping non-string entries", () => {
     const parsed = parseRevisionNarrativeArtifact({
       ...narrativeWire,
       generationWarnings: ["⚠ revision narrative coverage issues: …", 7],
@@ -792,7 +786,7 @@ function briefWith(riskSurface: unknown) {
   };
 }
 
-describe("risk tokens (BRIEF-52 widened vocabulary)", () => {
+describe("risk tokens (widened vocabulary)", () => {
   it("accepts a repo-defined kebab-case token alongside built-ins", () => {
     expect(parseBrief(briefWith(["touches-auth", "touches-billing"])).ok).toBe(
       true,

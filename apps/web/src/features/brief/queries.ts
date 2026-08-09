@@ -1,5 +1,4 @@
-// Flat at the feature root with reason (ADR 0037 SS4, the in-ADR precedent):
-// it touches server/ and must stay out of the barrels.
+// Flat at the feature root: it touches server/ and must stay out of the barrels.
 import { queryOptions } from "@tanstack/react-query";
 
 import { apiFetch } from "../../data/apiFetch";
@@ -48,9 +47,8 @@ async function generateErrorCopy(response: Response): Promise<string> {
 }
 
 /**
- * Signed-in generate path (BRIEF-97): POST /api/generate runs the pipeline
- * with the VIEWER's token — works for any repo the account can read, no gh
- * CLI and no App installation involved.
+ * Signed-in generate path: runs the pipeline with the VIEWER's token — works
+ * for any repo the account can read, no gh CLI and no App installation.
  */
 export async function generateBriefViaApi(url: string): Promise<string> {
   const response = await apiFetch("/api/generate", {

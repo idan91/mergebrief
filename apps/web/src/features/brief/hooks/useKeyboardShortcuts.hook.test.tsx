@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// The hook half of the C-shortcut contract (BRIEF-25): without a section to
-// jump to (local path) the key is a no-op that must NOT be swallowed — the
-// early return sits before preventDefault, which the pure resolver tests
-// cannot reach (Fable review).
+// The hook half of the C-shortcut contract: without a section to jump to
+// (local path) the key is a no-op that must NOT be swallowed — the early
+// return sits before preventDefault, which the pure resolver tests cannot
+// reach.
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 

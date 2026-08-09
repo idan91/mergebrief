@@ -1,10 +1,8 @@
-// Lockstep drift pins for the brief vocabulary mirror (BRIEF-44 PR 7).
+// Lockstep drift pins for the brief vocabulary mirror.
 //
-// `types.ts` is a hand-rolled mirror of brief-core's closed vocabularies, so
-// NOTHING structurally couples the two — and CI is path-filtered per package,
-// meaning a brief-core vocabulary change does not run this suite in CI
-// (BRIEF-23 shipped a parser break under a green CI). These pins import the
-// SOURCE package directly at dev time (the app bundle never imports it) so
+// `types.ts` is a hand-rolled mirror of brief-core's closed vocabularies, and
+// CI is path-filtered per package, so nothing catches drift. These pins import
+// the SOURCE package directly at dev time (the app bundle never imports it) so
 // whichever side moves, the OTHER side's suite goes red locally.
 import { describe, expect, it } from "vitest";
 import {
@@ -61,12 +59,9 @@ describe("lockstep pins (brief vocabulary mirror vs brief-core)", () => {
     "$label derives every key from its wire value",
     ({ mirror }) => {
       // Closes the swap hole multiset equality leaves open: two keys trading
-      // values keeps the value set identical while every call site that reads
-      // `Categories.PURE_MOVE` starts returning the wrong token.
-      //
-      // Strict SHOUT_CASE→kebab-case derivation, so this doubles as the
-      // convention gate for these maps (root CLAUDE.md: keys SHOUT_CASE,
-      // values kebab-case) — `LOGICREFACTOR: "logic-refactor"` fails here.
+      // values keeps the value set identical while call sites read the wrong
+      // token. Strict SHOUT_CASE→kebab-case derivation, so this doubles as the
+      // key/value casing gate.
       for (const [key, value] of Object.entries(mirror)) {
         expect(key.toLowerCase().replaceAll("_", "-")).toBe(value);
       }
@@ -74,12 +69,9 @@ describe("lockstep pins (brief vocabulary mirror vs brief-core)", () => {
   );
 
   it("mirrors brief-core's intent-check and skip-reason unions exactly", () => {
-    // These two mirrors are plain unions on the FE side (deliberately — the
-    // `ComparisonBaselineLabel` precedent), so the pin is type-level, gated by
-    // `pnpm -C apps/web typecheck`, which includes test files. `Equals` is
-    // exact: a token added, removed, or renamed on either side fails to
-    // compile. Unknown `specificity` makes validation DROP the whole
-    // intentCheck, so drift here silently deletes the intent bar.
+    // These two mirrors are plain unions on the FE side, so the pin is
+    // type-level, gated by typecheck. Unknown `specificity` makes validation
+    // DROP the whole intentCheck, so drift here silently deletes the intent bar.
     const specificityPin: Equals<Specificity, SourceSpecificity> = true;
     const skipReasonPin: Equals<RevisionNarrativeSkipReason, SourceSkipReason> =
       true;

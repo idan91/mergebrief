@@ -1,6 +1,6 @@
 /**
  * Collapse concurrent calls for the same key into one underlying run — the
- * local-loop stand-in for a Postgres advisory lock (ADR 0006 #6). A rejected
+ * local-loop stand-in for a Postgres advisory lock. A rejected
  * run is not cached: the key is freed so the next call tries again.
  */
 export function createSingleFlight<T>() {

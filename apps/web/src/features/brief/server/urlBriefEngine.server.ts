@@ -37,11 +37,10 @@ import { getServerLogger } from "../../../server/logger";
 const logger = getServerLogger();
 
 /**
- * The api route's UrlBriefEngine over the viewer's token (BRIEF-97): an
- * octokit-backed PrSource feeding the SAME file-backed generation pipeline
- * the gh-CLI path runs. FORBIDDEN folds into NOT_FOUND here — the port's
- * closed error vocabulary has no forbidden member by design (uniform-404
- * posture; see packages/api/src/routes/generate.ts).
+ * The api route's UrlBriefEngine over the viewer's token: an octokit-backed
+ * PrSource feeding the SAME file-backed generation pipeline the gh-CLI path
+ * runs. FORBIDDEN folds into NOT_FOUND here — the port's closed error
+ * vocabulary has no forbidden member, keeping the uniform-404 posture.
  */
 class SourceError extends Error {
   readonly kind: UrlBriefError["kind"];
@@ -141,10 +140,10 @@ export function octokitPrSource(octokit: UserOctokit): PrSource {
 }
 
 /**
- * Map a thrown failure to the port's Result shape. Message discipline
- * (BRIEF-11): provider/GitHub cause chains never reach the wire — the log
- * line is message-only, and the wire carries curated kinds; only CONFIG
- * passes text (env-var names, clamped again at the route).
+ * Map a thrown failure to the port's Result shape. Provider/GitHub cause
+ * chains never reach the wire — the log line is message-only and the wire
+ * carries curated kinds; only CONFIG passes text (env-var names, clamped
+ * again at the route).
  */
 function toUrlBriefError(error: unknown, action: string): UrlBriefError {
   if (error instanceof SourceError) {
@@ -179,7 +178,7 @@ async function run<T>(
 }
 
 /**
- * Retry-once-with-PAT wrapper (BRIEF-97 fallback): a GitHub App user token is
+ * Retry-once-with-PAT wrapper: a GitHub App user token is
  * INSTALLATION-SCOPED by GitHub's design — it cannot read a private repo the
  * App is not installed on, even for the repo's owner. The operator may set
  * `MERGEBRIEF_URL_BOX_TOKEN` (a classic/fine-grained PAT) as the backstop for

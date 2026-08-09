@@ -26,11 +26,10 @@ import { getServerLogger } from "../../../server/logger";
 const logger = getServerLogger();
 
 /**
- * Anchor at the WORKSPACE ROOT, never bare cwd (the BRIEF-70 rule): web and
- * worker run with different working directories, and in the docker image
- * cwd is `/app` — `resolve(cwd, "../..")` silently escaped the image into
- * `/tools/...`, so every composed artifact landed on the container's root
- * FS and died with it (found live, BRIEF-97).
+ * Anchor at the WORKSPACE ROOT, never bare cwd: web and worker run with
+ * different working directories, and in the docker image cwd is `/app`, so a
+ * relative climb escapes the image and artifacts land on the container's
+ * root FS.
  */
 function workspaceRoot(): string {
   let dir = resolve(process.cwd());
@@ -60,9 +59,9 @@ loadEnv();
 /**
  * Shared with `urlBriefEngine.server` and `brief.server` — ONE store.
  * `MERGEBRIEF_OUT_DIR` repoints it at another directory: the browser suite
- * (BRIEF-113) boots the server over its committed fixture set so the local
- * path serves exactly those artifacts and nothing a developer happens to
- * have generated. Read AFTER `loadEnv` so `.env` can set it too.
+ * boots the server over its committed fixture set so the local path serves
+ * exactly those artifacts and nothing a developer happens to have generated.
+ * Read AFTER `loadEnv` so `.env` can set it too.
  */
 export const OUT_DIR = process.env["MERGEBRIEF_OUT_DIR"]
   ? resolve(process.env["MERGEBRIEF_OUT_DIR"])
@@ -112,7 +111,7 @@ function isSpawnGhMissing(error: unknown): boolean {
   );
 }
 
-/** The constructed generator plus the loaded config's effort (BRIEF-75). */
+/** The constructed generator plus the loaded config's effort. */
 export interface SharedGeneration {
   generator: Generator;
   effort: Effort | undefined;
@@ -128,10 +127,9 @@ let sharedGenerator: Promise<SharedGeneration> | undefined;
  */
 export function sharedGeneratorOnce(): Promise<SharedGeneration> {
   sharedGenerator ??= (async () => {
-    // Instance config (BRIEF-11 decision 6): MERGEBRIEF_CONFIG →
-    // mergebrief.config.yaml, else zero-config defaults. The web dogfood
-    // follows the same fail-fast rule as the worker; issues name env vars
-    // and config fields only, so the message is browser-safe.
+    // Instance config: MERGEBRIEF_CONFIG → mergebrief.config.yaml, else
+    // zero-config defaults. Issues name env vars and config fields only, so
+    // the message is browser-safe.
     const loaded = loadGeneratorConfig(process.env);
     if (!loaded.ok) {
       throw new GeneratorConfigurationError(
@@ -187,10 +185,8 @@ const singleFlight = createSingleFlight<string>();
  *
  * `gh`/SDK failures carry raw command lines and stderr in their `.message` —
  * fine for a server log, not for an unauthenticated browser response. Those
- * are logged here and replaced with the curated messages from the plan's
- * error states; a construction ConfigError (GeneratorError kind config)
- * names env VARS only, so it is safe and specific and passes through
- * unwrapped.
+ * are logged here and replaced with curated copy; a construction ConfigError
+ * names env VARS only, so it passes through unwrapped.
  */
 export async function generateBriefFromUrl(
   url: string,
@@ -201,10 +197,7 @@ export async function generateBriefFromUrl(
     locator = parsePrUrl(url);
   } catch {
     // `parsePrUrl` reflects the WHOLE pasted string (uncapped) in its
-    // message, and this rejection is rendered into a role="alert". The
-    // caller knows what they pasted; the page does not need to repeat it.
-    // (The api route reflects it deliberately behind its own clamp — the
-    // boundary that differs is this server function, not brief-core.)
+    // message, and this rejection is rendered into a role="alert".
     throw new Error(GenerateErrorMessage.NOT_A_PR_URL);
   }
 
@@ -212,9 +205,9 @@ export async function generateBriefFromUrl(
   try {
     head = await engine.fetchHeadSha(locator);
   } catch (error) {
-    // Message-only logging (BRIEF-11 defense in depth): serializing the
-    // full error object exposes the CAUSE CHAIN recursively — provider text
-    // there may carry request contents. So no `err` field, message only.
+    // Message-only logging: serializing the full error object exposes the
+    // CAUSE CHAIN recursively, and provider text there may carry request
+    // contents. So no `err` field, message only.
     logger.error(
       `generateBriefFromUrl: failed to fetch PR metadata — ${errorMessage(error)}`,
     );
@@ -224,9 +217,8 @@ export async function generateBriefFromUrl(
     // unauthenticated browser. The server log line above is the only place
     // the raw content belongs.
     //
-    // `spawn gh ENOENT` = no gh binary in this deployment (the compose
-    // containers, BRIEF-97) — blaming the URL or gh auth misleads; the
-    // signed-in path is the one that works here.
+    // `spawn gh ENOENT` = no gh binary in this deployment — blaming the URL
+    // or gh auth misleads; the signed-in path is the one that works here.
     if (isSpawnGhMissing(error)) {
       // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
       throw new Error(GenerateErrorMessage.NO_GH_CLI);

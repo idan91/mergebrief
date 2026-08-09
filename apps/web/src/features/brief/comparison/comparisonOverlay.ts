@@ -3,8 +3,8 @@ import type { ComparisonMarkFiles, ComparisonSource } from "./comparison";
 import type { RevisionNarrativeSkipReason } from "../types";
 
 /**
- * @description The comparison overlay state shared down the story view (ADR
- * 0024). One state machine parameterized by the active Compare baseline —
+ * @description The comparison overlay state shared down the story view. One
+ * state machine parameterized by the active Compare baseline —
  * mechanical marks drive the highlights; `source` binds each run's callout
  * (Revision narrative for Previous Brief, Delta for Your last review).
  */
@@ -13,7 +13,7 @@ export interface ComparisonOverlayState {
   compare: CompareParam;
   /**
    * @description The mechanical marks to paint, or null when the overlay is off
-   * or unavailable. Highlighting is derived ONLY from these (ADR 0024).
+   * or unavailable. Highlighting is derived ONLY from these.
    */
   marks: ComparisonMarkFiles | null;
   /** The narrative source a run's callout binds against (per-baseline adapter). */

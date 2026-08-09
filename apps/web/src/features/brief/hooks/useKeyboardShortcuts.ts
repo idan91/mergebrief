@@ -109,7 +109,6 @@ export function resolveShortcut(
 
   if (key === "z") return { type: "toggleFocus" };
   if (key === "?") return { type: "toggleHelp" };
-  // C — jump to the Conversation section (BRIEF-25).
   if (key === "c") return { type: "jumpToConversation" };
   return null;
 }

@@ -1,10 +1,10 @@
 import type { ComparisonAvailability, LocalBriefSummary } from "../types";
 
 /**
- * @description One timeline point's Compare availability (ADR 0024 plan step
- * 5). Always present as an object; individual keys are absent when that
- * baseline has no mechanical marks for this head — timeline navigation itself
- * never depends on comparison availability (ADR 0019 decision 1 still holds).
+ * @description One timeline point's Compare availability. Always present as an
+ * object; individual keys are absent when that baseline has no mechanical
+ * marks for this head — timeline navigation itself never depends on
+ * comparison availability.
  */
 export interface BriefTimelinePoint {
   briefId: string;

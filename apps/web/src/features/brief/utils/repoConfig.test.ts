@@ -1,8 +1,7 @@
-// BRIEF-52 repo-config snapshot support: wire parsing (the /brief-context
-// envelope), display-weight resolution (source, de-emphasis, floor co-fire),
-// and the LOCKSTEP pins — the FE's mirrored floor list and glob matcher must
-// never drift from their sources (repo-config / categorizer, imported here
-// at dev time only; the app bundle never imports those packages).
+// Repo-config snapshot support: wire parsing, display-weight resolution, and
+// the LOCKSTEP pins — the FE's mirrored floor list and glob matcher must never
+// drift from their sources (imported here at dev time only; the app bundle
+// never imports those packages).
 import { describe, expect, it } from "vitest";
 import {
   ATTRIBUTE_NAME_MAX_CHARS,
@@ -60,7 +59,7 @@ describe("parseBriefContext", () => {
     expect(parsed.value).toEqual(SNAPSHOT);
   });
 
-  it("null snapshot (pre-BRIEF-52 row) parses to null", () => {
+  it("null snapshot parses to null", () => {
     const parsed = parseBriefContext({ repoConfig: null });
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) throw new Error("unreachable");
@@ -200,7 +199,7 @@ describe("lockstep pins (FE copies vs their sources)", () => {
   it("every mirrored wire-contract constant equals its repo-config source", () => {
     // A legitimate cap/vocabulary bump upstream must turn a test red HERE —
     // the best-effort context query would otherwise silently drop every
-    // source marker for new briefs (Fable round 14).
+    // source marker for new briefs.
     expect([...OUTCOMES]).toEqual(Object.values(RepoConfigOutcome));
     expect([...SLOT_PATHS]).toEqual([
       RepoConfigPaths.INSTRUCTIONS,
@@ -237,7 +236,7 @@ describe("lockstep pins (FE copies vs their sources)", () => {
   });
 });
 
-describe("parseBriefContext — canonical-shape tightening (codex r1)", () => {
+describe("parseBriefContext — canonical-shape tightening", () => {
   const slots = SNAPSHOT.files;
   it.each([
     ["missing a slot", { ...SNAPSHOT, files: slots.slice(0, 2) }],

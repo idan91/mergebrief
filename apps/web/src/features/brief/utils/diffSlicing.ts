@@ -1,8 +1,7 @@
-// Pure unified-diff parsing + per-chunk slicing (moved verbatim out of
-// brief.server.ts for BRIEF-19 PR 3.1). Shared by two paths: the local-brief
-// server functions slice sidecar patches on the server; the DB-brief route
-// slices the LIVE proxied diff on the client (the diff is never persisted —
-// ADR 0016 #10). No I/O, no framework imports — keep it that way.
+// Pure unified-diff parsing + per-chunk slicing. Shared by two paths: the
+// local-brief server functions slice sidecar patches on the server; the
+// DB-brief route slices the LIVE proxied diff on the client (the diff is never
+// persisted). No I/O, no framework imports — keep it that way.
 import type { BriefChunk, DiffLine, LineRange } from "../types";
 
 /**
@@ -129,8 +128,7 @@ const DIFF_HEADER = /^diff --git a\/(?<pre>.+?) b\/(?<post>.+)$/;
  * POST-change path (chunks reference files by their new name); a deleted
  * file (post side `/dev/null`) keys by its pre-change path. Pure — a sibling
  * of `parseUnifiedDiffPatch`: the two together turn a whole-PR diff into
- * per-file display rows (the live diff attach path and the BRIEF-24 raw span
- * diff both compose them).
+ * per-file display rows.
  */
 export function splitUnifiedDiffByFile(
   diff: string,

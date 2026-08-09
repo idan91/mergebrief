@@ -163,8 +163,8 @@ describe("isCompareAvailable", () => {
   });
 });
 
-describe("lastReviewUnavailableReasonTitle (BRIEF-21)", () => {
-  it("maps each unavailable reason to its honest plan copy", () => {
+describe("lastReviewUnavailableReasonTitle", () => {
+  it("maps each unavailable reason to its honest copy", () => {
     expect(lastReviewUnavailableReasonTitle("pending")).toBe(
       "Delta still generating",
     );

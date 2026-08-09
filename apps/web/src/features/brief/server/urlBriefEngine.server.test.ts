@@ -1,4 +1,4 @@
-// The viewer-token engine (BRIEF-97): kind mapping (FORBIDDEN must fold into
+// The viewer-token engine: kind mapping (FORBIDDEN must fold into
 // NOT_FOUND — the uniform-404 posture), metadata assembly, comment
 // normalization, and the CONFIG passthrough. GitHub ops and the generation
 // pipeline are mocked; the mapping logic under test is this module's own.
@@ -39,8 +39,8 @@ const { GeneratorConfigurationError } = await import("./generate.server");
 const { GitHubApiErrorCode, createUserOctokit } = await import("github");
 const { UrlBriefErrorKind } = await import("api");
 
-// The sanctioned test-only double assertion (api.test.ts precedent): the
-// source only forwards this handle to the mocked ops, never calls into it.
+// Test-only double: the source only forwards this handle to the mocked ops,
+// never calls into it.
 const octokitStub = { marker: "octokit" } as unknown as ReturnType<
   typeof createUserOctokit
 >;

@@ -1,7 +1,4 @@
-// Unit tests for the pure diff-slicing module (BRIEF-19 PR 3.1). The behavior
-// was previously private to brief.server.ts and covered only through the
-// local-brief server functions; the DB-brief path slices the LIVE diff on the
-// client, so the logic moves to this shared module. Expected values are worked
+// Unit tests for the pure diff-slicing module. Expected values are worked
 // examples from the unified-diff format, not recomputations.
 import { describe, expect, it } from "vitest";
 import { parseUnifiedDiffPatch, sliceChunkDiff } from "./diffSlicing";

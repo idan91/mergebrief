@@ -109,11 +109,10 @@ function categoryArray(value: unknown): Result<Category[]> {
 }
 
 /**
- * BRIEF-52: the risk vocabulary is per-generation (built-ins ∪ that repo's
- * custom names, enum-enforced server-side at decode time), so the FE cannot
- * enumerate it. It CAN enforce the token shape both sources share: lower
- * kebab-case, ≤ 50 chars — imported from repoConfig.ts so there is exactly
- * ONE lockstep-pinned mirror of the contract (Fable round 15).
+ * The risk vocabulary is per-generation (built-ins ∪ that repo's custom names,
+ * enforced server-side at decode time), so the FE cannot enumerate it. It CAN
+ * enforce the token shape both sources share: lower kebab-case, ≤ 50 chars —
+ * imported from repoConfig.ts so there is exactly ONE mirror of the contract.
  */
 function isRiskToken(value: unknown): value is RiskToken {
   return (
@@ -169,8 +168,8 @@ function parsePrRef(value: unknown): Result<PrRef> {
         "Expected pr repo, number, title, http(s) url, sha, and description",
     };
   }
-  // Lifecycle snapshot (BRIEF-103): optional, lenient — a malformed value is
-  // dropped rather than failing the artifact (badge display metadata only).
+  // Lifecycle snapshot: optional, lenient — a malformed value is dropped
+  // rather than failing the artifact (badge display metadata only).
   const state = value["state"];
   const draft = value["draft"];
   const merged = value["merged"];
@@ -327,7 +326,7 @@ const ComparisonBaselineLabels = {
 } as const;
 
 /**
- * Parse the header fields of a `.comparison.json` marks sidecar (ADR 0024)
+ * Parse the header fields of a `.comparison.json` marks sidecar
  * needed for comparison availability — deliberately ignores `files`, which
  * availability scanning never needs.
  */
@@ -364,7 +363,7 @@ export function parseComparisonMarksSummary(
 }
 
 /**
- * Parse a full `.comparison.json` marks sidecar (ADR 0024): the header fields
+ * Parse a full `.comparison.json` marks sidecar: the header fields
  * (via `parseComparisonMarksSummary`) plus the per-file changed-line ranges
  * (reusing the revision-change file parser — identical `files` shape).
  */
@@ -430,9 +429,9 @@ const RevisionNarrativeSkipReasons = {
 } as const;
 
 /**
- * Parse a fetched `.revision-narrative.json`, discriminating on `artifactKind`
- * (ADR 0024): a real `revisionNarrative` or a `revisionNarrativeSkipped` stub.
- * The stub's `skipped` reason must be one of the two known values.
+ * Parse a fetched `.revision-narrative.json`, discriminating on
+ * `artifactKind`: a real `revisionNarrative` or a `revisionNarrativeSkipped`
+ * stub. The stub's `skipped` reason must be one of the two known values.
  */
 export function parseRevisionNarrativeArtifact(
   value: unknown,
@@ -657,12 +656,10 @@ function parseReadingOrderStep(value: unknown): Result<ReadingOrderStep> {
 }
 
 /**
- * Mirrors the categorizer's `validateReadingOrder` warn-and-drop posture
- * (ADR 0025) at the FE boundary: a `readingOrder` must be an exact
- * permutation of the parsed Brief's `changeGroups` ids (no missing, no
- * extra, no duplicates) to survive. Artifacts can drift after the server
- * validated them — old artifacts, hand-edited demos, partial regeneration —
- * so the FE re-checks rather than trusting the field on sight.
+ * Mirrors the categorizer's warn-and-drop posture at the FE boundary: a
+ * `readingOrder` must be an exact permutation of the parsed Brief's
+ * `changeGroups` ids to survive. Artifacts can drift after the server
+ * validated them, so the FE re-checks rather than trusting the field.
  */
 function isReadingOrderPermutation(
   stepGroupIds: string[],
@@ -681,8 +678,8 @@ function isReadingOrderPermutation(
 /**
  * Parses an optional `readingOrder`, dropping it (with a console warning,
  * never a hard failure) when malformed or when it isn't a permutation of
- * `groupIds`. Full Brief only — callers must not wire this into Delta
- * parsing (ADR 0025: Reading order is out of scope for Delta Briefs).
+ * `groupIds`. Full Brief only — Reading order is out of scope for Delta
+ * Briefs, so callers must not wire this into Delta parsing.
  */
 function parseReadingOrder(
   value: unknown,
@@ -721,10 +718,10 @@ function parseIntentItem(value: unknown): Result<IntentItem> {
   }
   const groupIds = stringArray(value["groupIds"]);
   if (!groupIds.ok) return groupIds;
-  // `acknowledged` (BRIEF-85) is absent on every pre-BRIEF-85 item and dead in
-  // four of the five buckets — a missing or non-boolean value reads `false`
-  // rather than failing the whole check. Only `true` is critical (it moves
-  // a deviation out of the alarm register), so anything else is safely false.
+  // `acknowledged` is absent on older items and dead in four of the five
+  // buckets — a missing or non-boolean value reads `false` rather than failing
+  // the whole check. Only `true` is critical (it moves a deviation out of the
+  // alarm register), so anything else is safely false.
   const acknowledged = value["acknowledged"] === true;
   return {
     ok: true,
@@ -733,13 +730,10 @@ function parseIntentItem(value: unknown): Result<IntentItem> {
 }
 
 /**
- * Parses an optional `intentCheck` (BRIEF-54), dropping it to `undefined`
- * (with a console warning, never a hard failure) when malformed. Mirrors
- * `parseReadingOrder`'s warn-and-drop posture: server-validated artifacts
- * can still drift (old briefs, hand-edited demos), so the FE re-checks
- * rather than trusting the field. Full Brief only — never wired into
- * `parseDeltaBrief`. groupIds are NOT cross-validated here; the render-time
- * jump guard (`jumpToGroup`) already ignores dangling ids.
+ * Parses an optional `intentCheck`, dropping it to `undefined` (warn, never a
+ * hard failure) when malformed — server-validated artifacts can still drift.
+ * Full Brief only — never wired into `parseDeltaBrief`. groupIds are NOT
+ * cross-validated here; `jumpToGroup` already ignores dangling ids.
  */
 function parseIntentCheck(
   value: unknown,
@@ -773,10 +767,9 @@ function parseIntentCheck(
     parseIntentItem,
     "doneButUnstated",
   );
-  // The BRIEF-85 alarm buckets are ABSENT on every pre-BRIEF-85 Brief, and
-  // those Briefs must keep rendering today's bar rather than losing the whole
-  // intent check. So a missing array reads as empty; a PRESENT-but-malformed
-  // one still drops the check, exactly like its four siblings.
+  // The alarm buckets are ABSENT on older Briefs, which must keep rendering
+  // their bar rather than losing the whole intent check. So a missing array
+  // reads as empty; a PRESENT-but-malformed one still drops the check.
   const deviations = parseOptionalIntentBucket(
     value["deviations"],
     "deviations",
@@ -815,10 +808,7 @@ function parseIntentCheck(
     scopeNote,
     // `acknowledged` is meaningful ONLY in `deviations`. Generation forces it
     // false elsewhere, but the file-backed demo path parses arbitrary local
-    // JSON — so mirror that sweep here rather than trusting it. Otherwise a
-    // hand-authored brief could render an "acknowledged" chip inside an alarm
-    // bucket, directly under the tension caution: a contradictory register the
-    // design forbids.
+    // JSON, so mirror that sweep here rather than trusting it.
     accomplished: unacknowledged(accomplished.value),
     statedButMissing: unacknowledged(statedButMissing.value),
     doneButUnstated: unacknowledged(doneButUnstated.value),
@@ -835,9 +825,9 @@ function unacknowledged(items: IntentItem[]): IntentItem[] {
 }
 
 /**
- * An intent bucket that may be absent (BRIEF-85's alarm pair on a
- * pre-BRIEF-85 Brief) — `undefined` yields `[]`, anything else goes through
- * the same per-item parser as the required buckets.
+ * An intent bucket that may be absent (the alarm pair on an older Brief) —
+ * `undefined` yields `[]`, anything else goes through the same per-item
+ * parser as the required buckets.
  */
 function parseOptionalIntentBucket(
   value: unknown,
@@ -898,7 +888,7 @@ function parseCommitRange(value: unknown): CommitRange | undefined {
   return { base, head, commitCount };
 }
 
-/** Anchor stamp (BRIEF-143): known states only; malformed/unknown → absent
+/** Anchor stamp: known states only; malformed/unknown → absent
  * (warned — a drift here means the stored-brief contract moved). */
 function parseAnchor(
   value: unknown,
@@ -933,7 +923,7 @@ function parseGenerationWarnings(value: unknown): string[] | undefined {
 }
 
 /**
- * Length-violation stamp (BRIEF-148): pipeline-assigned diagnostics — the
+ * Length-violation stamp: pipeline-assigned diagnostics — the
  * UI only needs "any present" for the muted line, so malformed entries are
  * dropped silently and an empty result reads as absent.
  */
@@ -956,12 +946,10 @@ function parseLengthViolations(value: unknown): LengthViolation[] | undefined {
 }
 
 /**
- * The one log level `parseBrief` emits (ADR 0034): a dropped optional section
- * is degraded output, never operator-actionable failure. INJECTED because
- * this module is shared client/server — the server caller passes the process
- * logger; the client passes nothing and the drops stay silent (a browser has
- * no operator, and a `console.warn` nobody reads does not earn its level).
- * `packages/logging`'s `Logger` satisfies this structurally.
+ * The one log level `parseBrief` emits: a dropped optional section is degraded
+ * output, never operator-actionable failure. INJECTED because this module is
+ * shared client/server — the server caller passes the process logger; the
+ * client passes nothing and the drops stay silent.
  */
 export interface ParseWarnSink {
   warn(msg: string): void;

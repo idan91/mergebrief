@@ -20,9 +20,9 @@ import {
 } from "../types";
 
 /**
- * The group header's deduped union of member-chunk attribute chips (ADR
- * 0032 #11 display): floor first, fully-de-emphasized attributes collapsed
- * behind "+n". Never counts-as-severity, never an aggregate glyph.
+ * The group header's deduped union of member-chunk attribute chips: floor
+ * first, fully-de-emphasized attributes collapsed behind "+n". Never
+ * counts-as-severity, never an aggregate glyph.
  */
 export interface GroupHeaderRisk {
   /** Chips rendered individually — floor-first, then first appearance. */
@@ -54,13 +54,13 @@ export interface RiskFlag {
   file: string;
   groupId: string;
   description: string;
-  /** built-in vs repo-policy (structural marker from the snapshot, BRIEF-52). */
+  /** built-in vs repo-policy (structural marker from the snapshot). */
   source: AttributeSource;
   /** Quiet render (repo de-emphasis); already false on floor co-fire chunks. */
   deEmphasized: boolean;
   /** Repo-authored reviewer hint (custom attributes only). */
   implication?: string;
-  /** Chunk-specific factual evidence from the chunk's `riskNotes` (ADR 0026). */
+  /** Chunk-specific factual evidence from the chunk's `riskNotes`. */
   note?: string;
 }
 
@@ -73,7 +73,7 @@ export interface BriefViewModel {
   totalDeleted: number;
   concernChunks: Map<Concern, BriefChunk[]>;
   chunkToGroup: Map<string, string>;
-  /** Per-chunk attribute display meta, keyed `chunkId` → `attr` (BRIEF-52). */
+  /** Per-chunk attribute display meta, keyed `chunkId` → `attr`. */
   riskMetaByChunk: Map<string, Map<string, AttributeDisplayMeta>>;
 }
 
@@ -157,8 +157,8 @@ export function buildBriefViewModel(
 ): BriefViewModel {
   const chunkToGroup = new Map<string, string>();
 
-  // Per-chunk display meta first (BRIEF-52): source, de-emphasis, and the
-  // floor co-fire un-quiet rule all resolve from the artifact's snapshot.
+  // Per-chunk display meta first: source, de-emphasis, and the floor co-fire
+  // un-quiet rule all resolve from the artifact's snapshot.
   const riskMetaByChunk = new Map<string, Map<string, AttributeDisplayMeta>>();
   for (const chunk of brief.chunks) {
     const chunkFiresFloor = chunk.riskSurface.some(isFloorAttribute);
@@ -352,12 +352,10 @@ function sortByConcern(chunks: BriefChunk[]): BriefChunk[] {
 }
 
 /**
- * @description Orders `groups` by the Brief's Reading order (ADR 0025) when
- * one is present and valid, attaching each group's step index + why-line;
- * otherwise preserves today's source order untouched (the degrade path —
- * `readingOrder` absent or invalid renders exactly as before this feature).
- * Re-verifies the permutation defensively: the FE boundary parser
- * (`validation.ts`) already drops an invalid `readingOrder`, but callers can
+ * @description Orders `groups` by the Brief's Reading order when one is
+ * present and valid, attaching each group's step index + why-line; otherwise
+ * preserves source order. Re-verifies the permutation defensively:
+ * `validation.ts` already drops an invalid `readingOrder`, but callers can
  * hand a `Brief` built outside that parser (fixtures, tests).
  */
 function orderGroupsByReadingOrder(
@@ -393,7 +391,7 @@ function sumLoc(chunks: BriefChunk[], key: keyof BriefChunk["loc"]): number {
   return chunks.reduce((total, chunk) => total + chunk.loc[key], 0);
 }
 
-/** One jump-rail entry (ADR 0032 #11): an attribute + its carrying groups. */
+/** One jump-rail entry: an attribute + its carrying groups. */
 export interface AttributeRailEntry {
   attr: RiskToken;
   source: AttributeSource;
@@ -401,7 +399,7 @@ export interface AttributeRailEntry {
   /** Groups with at least one LOUD firing, in story (display) order. */
   groupIds: string[];
   /** Chunks with a LOUD firing, story order — the Concerns-lens targets
-      (BRIEF-134: Story cycles groups, Concerns cycles chunks). */
+      (Story cycles groups, Concerns cycles chunks). */
   chunkIds: string[];
 }
 
@@ -412,7 +410,7 @@ export interface AttributeRail {
 }
 
 /**
- * Build the attribute-keyed jump-rail (ADR 0032 #11): fired attributes with
+ * Build the attribute-keyed jump-rail: fired attributes with
  * their carrying groups in story order — floor pinned first, then first
  * appearance; DE-EMPHASIZED firings are excluded entirely (a group carries
  * an attribute only via a loud firing). Attribute-keyed, never group-ranked.

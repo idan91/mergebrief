@@ -1,16 +1,12 @@
-// Repo-config snapshot support (BRIEF-52, ADR 0032 #8/#11): FE-local types +
-// parser for the /brief-context payload, and the display-weight resolution
-// the Story/Concern views apply — attribute source (built-in vs repo-policy),
-// de-emphasis (quiet render), and the floor co-fire un-quiet rule. Display
-// weight ALWAYS derives from the generation-time snapshot stored with the
-// artifact, never live policy (self-contained historical rendering).
+// Repo-config snapshot support: FE-local types + parser for the
+// /brief-context payload, and the display-weight resolution the Story/Concern
+// views apply. Display weight ALWAYS derives from the generation-time snapshot
+// stored with the artifact, never live policy (historical rendering stays
+// self-contained).
 //
-// FE-local by convention (this feature hand-rolls wire validation rather
-// than importing workspace Zod schemas — and importing `repo-config` or
-// `categorizer` here would drag the generator engine into the client
-// bundle). The floor list and the glob matcher are small mirrored copies,
-// pinned to their sources by lockstep tests (repoConfig.test.ts imports the
-// real packages at dev time and asserts equality).
+// FE-local because importing `repo-config` or `categorizer` here would drag
+// the generator engine into the client bundle. The floor list and the glob
+// matcher are small mirrored copies, pinned by lockstep tests.
 import type { Result } from "./validation";
 
 export type RepoConfigOutcome =
@@ -63,9 +59,8 @@ export interface RepoConfigContext {
 }
 
 /**
- * Floor attributes (ADR 0032 #11) — can never be de-emphasized, pinned
- * first in every chip ordering. Mirrors `repo-config`'s FLOOR_ATTRIBUTES
- * (lockstep-tested).
+ * Floor attributes — can never be de-emphasized, pinned first in every chip
+ * ordering. Mirrors `repo-config`'s FLOOR_ATTRIBUTES (lockstep-tested).
  */
 export const FLOOR_ATTRIBUTES = [
   "touches-auth",
@@ -184,8 +179,8 @@ function parseRule(value: unknown): DeEmphasisRule | undefined {
 
 /**
  * Parse the /brief-context envelope `{ repoConfig: <snapshot|null> }`.
- * `null` (row predates BRIEF-52 or generation recorded nothing) is a valid
- * result — every affordance then renders as if no repo config exists.
+ * `null` (generation recorded nothing) is a valid result — every affordance
+ * then renders as if no repo config exists.
  */
 export function parseBriefContext(
   value: unknown,
@@ -205,7 +200,7 @@ export function parseBriefContext(
     return { ok: false, error: "Expected repoConfig.files array" };
   }
   // Exactly the three canonical slots, in order — a snapshot the writer's
-  // schema would reject must not drive display metadata (codex r1).
+  // schema would reject must not drive display metadata.
   if (filesRaw.length !== SLOT_PATHS.length) {
     return { ok: false, error: "Expected exactly three repoConfig file slots" };
   }
@@ -355,7 +350,7 @@ function ruleAppliesTo(rule: DeEmphasisRule, file: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Display-weight resolution (ADR 0032 #11).
+// Display-weight resolution.
 // ---------------------------------------------------------------------------
 
 export type AttributeSource = "built-in" | "repo-policy";

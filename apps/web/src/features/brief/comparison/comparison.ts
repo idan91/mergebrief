@@ -8,15 +8,15 @@ import type {
 } from "../types";
 
 /**
- * The full-Brief comparison overlay (ADR 0021/0024): join a baseline's shared,
- * mechanical changed-line set onto a chunk's base→head diff rows by head line
+ * The full-Brief comparison overlay: join a baseline's shared, mechanical
+ * changed-line set onto a chunk's base→head diff rows by head line
  * number (added/context) or old line number (deletions), group the marked rows
  * into contiguous runs, and bind a run to its callout content behind a
  * per-baseline adapter (Previous Brief → Revision narrative; Your last review →
  * Delta Brief).
  *
  * Pure; highlighting comes ONLY from the mechanical marks — a run's callout is
- * additive and never decides which lines are marked (ADR 0024).
+ * additive and never decides which lines are marked.
  */
 
 export type ComparisonRowKind = "added" | "removed";
@@ -65,19 +65,19 @@ export interface ComparisonCalloutContent {
   summary?: string;
   /**
    * @description True when the span has no narrative coverage and the content
-   * degraded to the full Brief's chunk/group at that head line (BRIEF-73) —
-   * the callout renders, with a note that the span summary is missing.
+   * degraded to the full Brief's chunk/group at that head line — the callout
+   * renders, with a note that the span summary is missing.
    */
   degraded?: boolean;
 }
 
 /**
  * @description The narrative source a run's callout binds against, discriminated
- * by the active Compare baseline (ADR 0024). `previous-brief` resolves the title
- * from the *full Brief's* Change-group (the taxonomy owner) and the body from the
+ * by the active Compare baseline. `previous-brief` resolves the title from the
+ * *full Brief's* Change-group (the taxonomy owner) and the body from the
  * Revision narrative chunk; `last-review` reuses the existing Delta matching
- * logic behind an adapter — deliberately not unified, to keep the Delta boundary
- * honest until a cleaner adapter exists (plan step 7).
+ * logic behind an adapter — deliberately not unified, to keep the Delta
+ * boundary honest.
  */
 export type ComparisonSource =
   | {
@@ -193,7 +193,7 @@ function runLines(
 }
 
 /**
- * Degraded fallback (BRIEF-73): the run always lives inside a full-Brief
+ * Degraded fallback: the run always lives inside a full-Brief
  * chunk's rendered diff, so when the narrative under-covers the span the
  * callout falls back to that chunk's own Change-group — group title plus the
  * chunk's summary (or the group's, mirroring the Delta adapter's `??`) —
@@ -225,12 +225,11 @@ function bindBriefChunkFallback(
 
 /**
  * Previous-Brief callout: title from the full Brief's Change-group, body from
- * the matching Revision narrative chunk summary (ADR 0024). Degrades honestly —
- * no narrative at all (null / failed) → unavailable; no chunk matching the
- * span → degraded fallback to the full Brief's own chunk/group; a matched
- * chunk whose `briefChangeGroupId` is not in the rendered Brief keeps its span
- * summary under the chunk's own group title (BRIEF-73; the rail still
- * renders, marks never depend on this).
+ * the matching Revision narrative chunk summary. Degrades honestly — no
+ * narrative at all (null / failed) → unavailable; no chunk matching the span →
+ * degraded fallback to the full Brief's own chunk/group; a matched chunk whose
+ * `briefChangeGroupId` is not in the rendered Brief keeps its span summary
+ * under the chunk's own group title. Marks never depend on any of this.
  */
 export function bindRevisionNarrativeCallout(
   run: ComparisonRun,
@@ -273,10 +272,9 @@ export function bindRevisionNarrativeCallout(
 }
 
 /**
- * Your-last-review callout: the existing Delta matching logic (ADR 0021),
- * preserved behind this adapter rather than rewritten (plan step 7 — "until a
- * cleaner adapter is introduced"). Added runs match a Delta chunk on head line;
- * removed runs on old line. Absent Delta or no match → unavailable.
+ * Your-last-review callout: the existing Delta matching logic, preserved behind
+ * this adapter rather than rewritten. Added runs match a Delta chunk on head
+ * line; removed runs on old line. Absent Delta or no match → unavailable.
  */
 export function bindDeltaCallout(
   run: ComparisonRun,

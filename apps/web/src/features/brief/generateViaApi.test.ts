@@ -1,6 +1,6 @@
-// generateBriefViaApi (BRIEF-97): every deterministic route rejection maps to
-// recoverable copy (repo rule — the FE resubmits the same state), and the 503
-// config path surfaces the server-authored env-name copy verbatim.
+// Every deterministic route rejection maps to recoverable copy (the FE
+// resubmits the same state); the 503 config path surfaces the server-authored
+// env-name copy verbatim.
 import { describe, expect, it, vi } from "vitest";
 
 const apiFetch = vi.hoisted(() => vi.fn());

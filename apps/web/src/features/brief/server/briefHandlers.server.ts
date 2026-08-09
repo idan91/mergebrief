@@ -28,15 +28,11 @@ import type {
 
 /**
  * The local-brief server functions' BODIES, each ending at the curation
- * boundary (BRIEF-20). They live here rather than inline in
- * `brief.functions.ts` for one reason: a `createServerFn` wrapper cannot be
- * invoked without the Start server runtime, so an inline handler is
- * untestable — and this boundary is exactly the thing that must not silently
- * regress. `brief.handlers.test` drives every entry of `briefHandlers` and
- * asserts the rejection is curated, so deleting a wrapper fails the suite.
- *
- * `brief.functions.ts` stays the RPC surface: validators + one-line
- * delegation.
+ * boundary. They live here rather than inline in `brief.functions.ts` because
+ * a `createServerFn` wrapper cannot be invoked without the Start server
+ * runtime, so an inline handler is untestable — and this boundary must not
+ * silently regress. `brief.functions.ts` stays the RPC surface: validators +
+ * one-line delegation.
  */
 
 const logger = getServerLogger();
@@ -47,7 +43,7 @@ const logger = getServerLogger();
  * backstop for anything that doesn't (a Node error from a path nobody
  * mapped, a framework internal). The raw reason is logged server-side and
  * replaced; no `cause` is attached — TanStack's serializer walks
- * non-enumerable own props (the BRIEF-97 cause-leak family).
+ * non-enumerable own props, so a cause would ship too.
  */
 async function curated<T>(action: string, body: () => Promise<T>): Promise<T> {
   try {
@@ -56,11 +52,9 @@ async function curated<T>(action: string, body: () => Promise<T>): Promise<T> {
     const detail = briefErrorDetail(error);
     const raw = error instanceof Error ? error.message : String(error);
     if (raw !== detail) {
-      // Reaching here means a failure nobody mapped escaped a reader — worth
-      // an operator's attention (the mapped, routine arms log themselves, at
-      // their own level, inside brief.server). The raw error rides as a
-      // FIELD, never interpolated into `msg`: the logging boundary redacts and
-      // serializes fields, and `msg` bypasses that entirely (ADR 0034 #4).
+      // A failure nobody mapped escaped a reader — worth an operator's
+      // attention. The raw error rides as a FIELD, never interpolated into
+      // `msg`: the logging boundary redacts fields, and `msg` bypasses that.
       logger.warn(`${action}: unmapped read failure`, { err: error });
     }
     // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser

@@ -247,7 +247,7 @@ describe("bindRevisionNarrativeCallout", () => {
     });
   });
 
-  // The scenario chunk's own group, for the degraded fallback (BRIEF-73).
+  // The scenario chunk's own group, for the degraded fallback.
   const briefWithOwnGroup: Brief = {
     ...fullBrief,
     changeGroups: [
@@ -264,7 +264,7 @@ describe("bindRevisionNarrativeCallout", () => {
     ],
   };
 
-  it("degrades to the chunk's own group when no narrative chunk matches the span (BRIEF-73)", () => {
+  it("degrades to the chunk's own group when no narrative chunk matches the span", () => {
     const elsewhere: RevisionNarrative = {
       ...narrative,
       chunks: [
@@ -301,7 +301,7 @@ describe("bindRevisionNarrativeCallout", () => {
     });
   });
 
-  it("keeps the span summary under the chunk's own group when the narrative group is dangling (BRIEF-73)", () => {
+  it("keeps the span summary under the chunk's own group when the narrative group is dangling", () => {
     const orphan: RevisionNarrative = {
       ...narrative,
       chunks: [{ ...narrative.chunks[0]!, briefChangeGroupId: "missing" }],

@@ -29,11 +29,8 @@ describe("findJumpTarget", () => {
 });
 
 /**
- * Regression coverage for the pre-existing jump-nav no-op: `useRevisionNavigation`
- * used to query `main .diff .railbtn-focus`, a class selector CSS-module
- * hashing never emits, so it silently matched zero elements. This exercises the
- * real DOM query end-to-end — it would have failed (no focus change) against
- * the old class selector.
+ * Exercises the real DOM query end-to-end: a class selector here would match
+ * zero elements, since CSS-module hashing never emits the authored classname.
  */
 function renderRails(): HTMLButtonElement[] {
   document.body.innerHTML = `

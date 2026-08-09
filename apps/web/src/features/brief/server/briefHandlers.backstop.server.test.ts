@@ -1,4 +1,4 @@
-// The other half of the curation pin (BRIEF-20). `briefHandlers.server.test`
+// The other half of the curation pin. `briefHandlers.server.test`
 // drives REAL failures — which `brief.server` already reduces to curated
 // copy, so it cannot tell whether the outer wrapper is still there. This
 // file forces the readers to throw a RAW Node-shaped error (the exact

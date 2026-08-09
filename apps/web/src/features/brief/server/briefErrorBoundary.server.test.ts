@@ -1,7 +1,6 @@
-// The local-brief error boundary (BRIEF-20 error-leak sweep). A server
-// function's rejection is SERIALIZED TO THE BROWSER, so the assertions here
-// are about what must NOT be in the message: absolute paths, node error
-// codes, and reflected caller input.
+// The local-brief error boundary. A server function's rejection is SERIALIZED
+// TO THE BROWSER, so the assertions here are about what must NOT be in the
+// message: absolute paths, node error codes, and reflected caller input.
 import { describe, expect, it } from "vitest";
 
 import { readComparisonMarks, readLocalBrief } from "./brief.server";
@@ -16,8 +15,7 @@ const ABSENT_ID = "no-such-brief_1_deadbeef";
 
 describe("readLocalBrief on a missing artifact", () => {
   it("reports a curated not-found, never the ENOENT path disclosure", async () => {
-    // Before BRIEF-20 this rejected with
-    // `ENOENT: no such file or directory, open '<abs>/…delta.json'`,
+    // A raw rejection here would be `ENOENT: … open '<abs>/…delta.json'`,
     // handing the deployment's filesystem layout to any visitor.
     await expect(readLocalBrief(ABSENT_ID)).rejects.toThrow(
       BriefErrorMessage.NOT_FOUND,

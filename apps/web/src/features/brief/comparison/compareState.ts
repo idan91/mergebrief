@@ -1,16 +1,15 @@
 import type { BriefTimelinePoint } from "../utils/timeline";
 
 /**
- * @description The **View** control (ADR 0024 plan step 6): `full` renders the
- * whole Brief; `changes` renders only the selected comparison span. Deliberately
- * distinct from the pre-existing `ViewMode` (Story/Concerns display density) —
- * this is the "Full Brief vs Changes Only" axis the plan introduces.
+ * @description The **View** control: `full` renders the whole Brief; `changes`
+ * renders only the selected comparison span. Deliberately distinct from
+ * `ViewMode` (Story/Concerns display density) — this is the "Full Brief vs
+ * Changes Only" axis.
  */
 export type ViewParam = "full" | "changes";
 
 /**
- * @description The **Compare** control (ADR 0024 plan step 6). Canonical
- * values match the marks artifact's `baselineLabel` for `previous-brief`;
+ * @description The **Compare** control. Canonical values match the marks artifact's `baselineLabel` for `previous-brief`;
  * `last-review` is the user-facing name for the `checkpoint` baseline.
  */
 export type CompareParam = "previous-brief" | "last-review" | "off";
@@ -24,8 +23,8 @@ export interface BriefSearch {
  * @description Raw View/Compare search params as parsed from the URL —
  * `undefined` means the key was absent (or held an unrecognized value),
  * distinct from an explicit `off`/`full`. Only this "nothing chosen yet"
- * state triggers the product-aware fresh-arrival default (plan: session-only
- * persistence, defaults recompute per arrival).
+ * state triggers the product-aware fresh-arrival default — persistence is
+ * session-only, so defaults recompute per arrival.
  */
 export interface BriefSearchParams {
   view?: ViewParam;
@@ -53,8 +52,7 @@ export const LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE =
   "History rewritten since your last review";
 
 /**
- * Honest reason copy for a checkpoint that EXISTS but cannot be compared
- * (BRIEF-21 PR-meta `lastReview.unavailable` vocab — exact plan copy).
+ * Honest reason copy for a checkpoint that EXISTS but cannot be compared.
  * Distinct from `LAST_REVIEW_UNAVAILABLE_TITLE`, which covers "never
  * submitted" (the field-absent case).
  */
@@ -89,12 +87,11 @@ export function comparisonAvailability(
 }
 
 /**
- * Product default comparison precedence (ADR 0024 Product Model): **Your last
- * review** wins whenever its marks exist, even if the Delta narrative failed —
- * falling back to Previous Brief would silently switch the user's baseline,
- * which is worse than a missing summary. This one rule backs both explicit
- * `changes + off` normalization and (separately) the fresh-arrival default
- * below.
+ * Product default comparison precedence: **Your last review** wins whenever
+ * its marks exist, even if the Delta narrative failed — falling back to
+ * Previous Brief would silently switch the user's baseline, which is worse
+ * than a missing summary. Backs both `changes + off` normalization and the
+ * fresh-arrival default below.
  */
 export function defaultComparison(
   availability: CompareOptionFlags,
@@ -115,7 +112,7 @@ function isAvailable(
 
 /**
  * Normalize an explicit View/Compare pair against what's actually available
- * for the selected timeline point (ADR 0024 plan step 6). Two invalid shapes
+ * for the selected timeline point. Two invalid shapes
  * collapse deterministically instead of erroring, since URL state is
  * user-editable and shareable:
  *
@@ -154,7 +151,7 @@ export function normalizeBriefSearch(
  *   personal baseline (**Your last review**) earns `Changes Only` by default
  *   for a *returning* reviewer; **Previous Brief** stays directly selectable
  *   but is never force-defaulted for a first-time reviewer on a non-first
- *   Brief (plan: "do not force it as the default").
+ *   Brief.
  * - Otherwise (any explicit selection present): normalize it.
  */
 export function resolveBriefSearch(
@@ -198,7 +195,7 @@ export function isCompareAvailable(
   return isAvailable(compare, availability);
 }
 
-/** Short, honest reason a Compare option is disabled — exact plan copy. */
+/** Short, honest reason a Compare option is disabled. */
 export function compareUnavailableTitle(
   compare: "previous-brief" | "last-review",
 ): string {

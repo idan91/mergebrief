@@ -31,7 +31,7 @@ describe("generateBriefFromUrl", () => {
     const engine = fakeEngine();
 
     // brief-core's parsePrUrl reflects the whole pasted string; this
-    // boundary replaces it (BRIEF-20 — the rejection renders in an alert).
+    // boundary replaces it — the rejection renders in an alert.
     const pasted = "https://example.com/not-a-pr?token=shhh";
     const message = await generateBriefFromUrl(pasted, engine).catch(
       (error: unknown) =>
@@ -98,7 +98,7 @@ describe("generateBriefFromUrl", () => {
   it("never attaches the raw error as cause — server-fn errors serialize cause to the browser", async () => {
     // TanStack's server-fn serializer walks NON-enumerable own props, so a
     // `cause` would ship spawn args / stderr / provider text to an
-    // unauthenticated browser (BRIEF-97 security-gate finding).
+    // unauthenticated browser.
     const rawFetch = Object.assign(new Error("spawn gh ENOENT"), {
       code: "ENOENT",
       spawnargs: ["pr", "view"],

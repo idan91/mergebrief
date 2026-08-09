@@ -1,4 +1,4 @@
-// THE PIN for the curation convention (BRIEF-20, apps/web AGENTS.md): every
+// THE PIN for the curation convention: every
 // local-brief handler's rejection must be a string this codebase authored.
 // Deleting a `curated()` wrapper makes this suite fail — which is the whole
 // point, because the failure mode it guards (a Node error's absolute path

@@ -4,10 +4,10 @@ import { GenerateErrorMessage } from "../utils/briefErrors";
 import { briefHandlers } from "./briefHandlers.server";
 
 // The RPC surface: validators plus one-line delegation to `briefHandlers`,
-// which owns the curation boundary every rejection must pass through
-// (BRIEF-20 — a rejection here is a client-visible string). Keep handlers
-// one-liners: a `createServerFn` wrapper cannot be invoked without the Start
-// server runtime, so logic inline here is logic nothing can test.
+// which owns the curation boundary every rejection must pass through — a
+// rejection here is a client-visible string. Keep handlers one-liners: a
+// `createServerFn` wrapper cannot be invoked without the Start server
+// runtime, so logic inline here is logic nothing can test.
 
 interface LocalBriefRequest {
   briefId: string;

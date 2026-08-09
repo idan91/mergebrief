@@ -33,15 +33,13 @@ import { BriefErrorMessage } from "../utils/briefErrors";
 const logger = getServerLogger();
 
 /**
- * A read failure already reduced to browser-safe copy (BRIEF-20). Node's own
- * errors carry the deployment's absolute paths (`ENOENT: … open
- * '/app/tools/categorizer/out/<id>.delta.json'`) and cross the server-function
- * boundary verbatim, so every throw out of this module goes through here: the
- * raw detail is logged, the message is one of the curated strings.
+ * A read failure already reduced to browser-safe copy. Node's own errors carry
+ * the deployment's absolute paths and cross the server-function boundary
+ * verbatim, so every throw out of this module goes through here: the raw detail
+ * is logged, the message is one of the curated strings.
  *
  * NEVER attach `{ cause }` — TanStack's serializer walks non-enumerable own
- * props, so a cause chain ships straight to an unauthenticated browser
- * (the BRIEF-97 lesson, same posture as `generate.server.ts`).
+ * props, so a cause chain ships straight to an unauthenticated browser.
  */
 class BriefReadError extends Error {}
 
@@ -49,8 +47,7 @@ class BriefReadError extends Error {}
  * Routine outcomes — a link to a brief this instance doesn't have, or an id
  * that fails the charset guard. Both are what an id-guessing crawler
  * produces at whatever rate it likes, so they must not sustain an alertable
- * warn rate (ADR 0034 #5: warn = degraded/suspicious, alertable on sustained
- * rate). A broken or unparsable artifact is different — that IS degraded.
+ * warn rate. A broken or unparsable artifact is different — that IS degraded.
  */
 const ROUTINE_REASONS: ReadonlySet<string> = new Set<string>([
   BriefErrorMessage.NOT_FOUND,
@@ -60,8 +57,7 @@ const ROUTINE_REASONS: ReadonlySet<string> = new Set<string>([
 /**
  * Log the raw reason (server-side only) and throw the curated one. The raw
  * value rides as a structured FIELD, never interpolated into `msg` — the
- * logging boundary redacts and serializes fields, and `msg` bypasses that
- * entirely (ADR 0034 #4).
+ * logging boundary redacts and serializes fields, and `msg` bypasses that.
  */
 function failRead(
   reason: BriefErrorMessage,
@@ -110,7 +106,7 @@ async function readLocalBriefSummaries(): Promise<LocalBriefSummary[]> {
     entries = await readdir(OUT_DIR);
   } catch (error) {
     // No out dir yet — a fresh checkout/container that never ran the local
-    // generator (BRIEF-3 compose smoke). Zero local briefs, not a 500.
+    // generator. Zero local briefs, not a 500.
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return [];
     }
@@ -194,9 +190,9 @@ interface LegacyRevisionChangesEntry {
 }
 
 /**
- * Read every legacy `.revchanges.json` sidecar's header fields (ADR 0021,
- * migrated by ADR 0024 plan step 10). Kept during migration as a
- * previous-brief marks alias: a brief with only a `.revchanges.json` and no
+ * Read every legacy `.revchanges.json` sidecar's header fields. Kept during
+ * migration as a previous-brief marks alias: a brief with only a
+ * `.revchanges.json` and no
  * `.comparison.json` still offers the Previous Brief comparison — the data is
  * shape-identical (`RevisionChanges.files` and `ComparisonMarks.files` share
  * the same per-file range shape), so `readComparisonMarks` maps one onto the
@@ -243,8 +239,8 @@ async function readLocalRevisionChangesEntries(
 }
 
 /**
- * Read and validate every `.comparison.json` sidecar's header fields (ADR
- * 0024). A malformed sidecar is skipped, not fatal — same fail-closed
+ * Read and validate every `.comparison.json` sidecar's header fields. A
+ * malformed sidecar is skipped, not fatal — same fail-closed
  * discipline as `readRevisionChanges`: a marks-scanning glitch degrades
  * comparison availability rather than the whole listing.
  */
@@ -299,7 +295,7 @@ function briefStemFromSummary(summary: LocalBriefSummary): string | undefined {
 }
 
 /**
- * Comparison availability for one full-Brief summary (plan step 5): the
+ * Comparison availability for one full-Brief summary: the
  * mechanical marks are the source of truth for availability; a narrative or
  * Delta artifact is optional extra context. `stem_` prefix matching (not just
  * a headSha match) guards against a same-headSha collision across PRs.
@@ -331,7 +327,7 @@ function buildComparisonAvailability(
       baselineIndex: previousBriefMarks.baselineIndex,
     };
   } else {
-    // Migration alias (ADR 0024 plan step 10): no `.comparison.json` marks for
+    // Migration alias: no `.comparison.json` marks for
     // this head, but a legacy `.revchanges.json` sidecar exists for this exact
     // brief (sidecar is keyed by the brief's own id, not the stem prefix — it
     // predates the label-keyed marks filename). `marksId` is the brief's own
@@ -379,7 +375,7 @@ export async function readLocalBrief(briefId: string): Promise<Brief> {
 }
 
 /**
- * Read the revision-changes sidecar (ADR 0021) for a brief, or `null` when it is
+ * Read the revision-changes sidecar for a brief, or `null` when it is
  * absent (first brief) — never an error: the overlay must never block the brief.
  * A malformed sidecar fails closed (logged, treated as absent), so a generation
  * glitch degrades the overlay rather than the whole review.
@@ -420,7 +416,7 @@ export async function readRevisionChanges(
 }
 
 /**
- * Read a full `.comparison.json` marks sidecar (ADR 0024) by its marks id, or
+ * Read a full `.comparison.json` marks sidecar by its marks id, or
  * `null` when absent/malformed. Fail-closed like `readRevisionChanges`: a
  * generation glitch degrades the overlay, never the review. The id is the
  * sidecar filename minus `.comparison.json` (label-keyed, so checkpoint and
@@ -464,7 +460,7 @@ export async function readComparisonMarks(
 }
 
 /**
- * Migration fallback (ADR 0024 plan step 10): when no `.comparison.json`
+ * Migration fallback: when no `.comparison.json`
  * exists for a marks id, try the legacy `.revchanges.json` sidecar of the same
  * id — the availability builder only ever hands out a legacy `marksId` when
  * that sidecar is what backs the Previous Brief option (see
@@ -488,7 +484,7 @@ async function readLegacyRevisionChangesAsMarks(
 }
 
 /**
- * Read a `.revision-narrative.json` artifact (ADR 0024) by its narrative id —
+ * Read a `.revision-narrative.json` artifact by its narrative id —
  * a real narrative or a skip stub, discriminated by `artifactKind`. `null` when
  * absent (generation failed: marks still render with "summary unavailable") or
  * malformed. The id is the sidecar filename minus `.revision-narrative.json`.
@@ -737,6 +733,3 @@ function isFileDiffSidecar(value: unknown): value is FileDiffSidecar {
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
 }
-
-// `sliceChunkDiff` / `parseUnifiedDiffPatch` moved to ./diffSlicing (pure,
-// shared with the client-side DB-brief path — BRIEF-19 PR 3.1).

@@ -5,11 +5,9 @@ import { localBriefQueryOptions } from "./queries";
 import type { LocalBriefSummary } from "./types";
 import { BriefView } from "./components/BriefView/BriefView";
 
-// Curated feature entry (ADR 0037): components only. NEVER re-export
-// anything that touches server/ — a server edge through this barrel would
-// put server-only code on the client graph and fail the import-protection
-// build. Internal brief files import their targets directly, never this
-// index (import/no-cycle).
+// Curated feature entry: components only. NEVER re-export anything that
+// touches server/ — a server edge here fails the import-protection build.
+// Internal brief files import their targets directly, never this index.
 export {
   BriefView,
   type BriefComparisonPlan,
@@ -19,10 +17,10 @@ export {
 export interface BriefPageProps {
   artifacts: LocalBriefSummary[];
   briefId: string;
-  /** Raw View/Compare URL params (ADR 0024 plan step 6); undefined keys mean
-   * "nothing chosen yet", resolved against comparison availability in BriefScreen's comparison overlay hook. */
+  /** Raw View/Compare URL params; undefined keys mean "nothing chosen yet",
+   * resolved against comparison availability in BriefScreen's comparison overlay hook. */
   searchParams: BriefSearchParams;
-  /** Navigates the Scope axis to `full` (BRIEF-134); route-owned. */
+  /** Navigates the Scope axis to `full`; route-owned. */
   exitChangesScope?: (() => void) | undefined;
 }
 

@@ -62,8 +62,7 @@ describe("buildRawSpanDiffChunks", () => {
   // Metadata-only patches carry no hunks: the parser either returns nothing
   // (header-only patches) or mislabels the metadata as context rows with
   // meaningless 0-based line numbers. The builder renders them as note rows
-  // instead — an honest, line-number-free statement of the change
-  // (codex round 3).
+  // instead — an honest, line-number-free statement of the change.
   it("renders a mode-only change as metadata notes, not garbled context rows", () => {
     const diff = [
       "diff --git a/bin/run.sh b/bin/run.sh",
@@ -110,9 +109,9 @@ describe("buildRawSpanDiffChunks", () => {
   });
 
   it("renders a rename-with-edits patch as notes THEN hunks — metadata never as code", () => {
-    // The mixed shape (codex round 5): rename metadata followed by real
-    // hunks. The metadata must come out as note rows ahead of the parsed
-    // hunk — never as context rows wearing 0-based line numbers.
+    // The mixed shape: rename metadata followed by real hunks. The metadata
+    // must come out as note rows ahead of the parsed hunk — never as context
+    // rows wearing 0-based line numbers.
     const diff = [
       "diff --git a/old.ts b/new.ts",
       "similarity index 90%",

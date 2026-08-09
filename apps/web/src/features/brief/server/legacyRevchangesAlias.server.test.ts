@@ -35,8 +35,7 @@ function briefFixture(sha: string, index: number, title: string) {
 }
 
 /**
- * Migration coverage (ADR 0024 plan step 10, carried into Stage 4): a brief
- * whose head has only a legacy `.revchanges.json` — no `.comparison.json` —
+ * Migration coverage: a brief whose head has only a legacy `.revchanges.json` — no `.comparison.json` —
  * still offers the Previous Brief comparison. Mirrors the real local demo
  * effect: Brief _2 gains Previous Brief once its `.comparison.json` sibling
  * hasn't been (re)generated.

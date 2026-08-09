@@ -1,12 +1,8 @@
-// Brief artifact shapes + closed vocabularies (ADR 0021/0024/0025/0026).
-// Mirrors brief-core's `types.ts`: the vocabularies below carry the SAME wire
-// values, re-declared here as as-const maps. Hand-rolled by design — this
-// feature parses artifacts with its own guards (`validation.ts`) rather than
-// importing the generator's Zod schemas, which would drag brief-core into the
-// client bundle. The mirrored vocabularies and unions are pinned to their
-// source by lockstep tests (`types.test.ts` imports brief-core at dev time and
-// asserts equality), because CI's per-package path filter would otherwise let
-// an upstream vocabulary change land green (BRIEF-23).
+// Brief artifact shapes + closed vocabularies. Mirrors brief-core's `types.ts`
+// with the SAME wire values, hand-rolled by design — this feature parses
+// artifacts with its own guards (`validation.ts`) rather than importing the
+// generator's Zod schemas, which would drag brief-core into the client bundle.
+// `types.test.ts` pins the mirror against the source at dev time.
 export const Categories = {
   BUGFIX: "bugfix",
   LOGIC_REFACTOR: "logic-refactor",
@@ -66,10 +62,10 @@ export type RiskSurfaceAttribute = ValueOf<typeof RiskSurfaceAttributes>;
 
 /**
  * @description A risk-surface token on a stored chunk: a built-in
- * `RiskSurfaceAttribute` or a repo-policy custom attribute name (BRIEF-52 —
- * the closed vocabulary is per-generation and enum-enforced server-side, so
- * the static type here is honestly `string`; source and display weight
- * derive from the artifact's policy snapshot, see repoConfig.ts).
+ * `RiskSurfaceAttribute` or a repo-policy custom attribute name. The closed
+ * vocabulary is per-generation and enforced server-side, so the static type
+ * here is honestly `string`; source and display weight derive from the
+ * artifact's policy snapshot (see repoConfig.ts).
  */
 export type RiskToken = string;
 
@@ -78,8 +74,8 @@ export type PrLifecycleState = "open" | "closed";
 
 /**
  * @description Live PR lifecycle from the DB route's webhook-maintained
- * pull-request row (BRIEF-103 spec: "DB path live via webhooks") — folds
- * merged into the state like the DB vocabulary does. When present it
+ * pull-request row — folds merged into the state like the DB
+ * vocabulary does. When present it
  * SUPERSEDES the artifact's stamped snapshot; the local file path never
  * has it and falls back to the stamp. Structural on purpose: the pulls
  * feature's `PrSummary` slice assigns without a lateral import.
@@ -97,9 +93,9 @@ export interface PrRef {
   sha: string;
   description: string;
   /**
-   * @description PR lifecycle snapshot stamped at generation time
-   * (BRIEF-103) — a snapshot by design, no staleness hint. Absent on
-   * pre-stamping artifacts; the state badge simply doesn't render.
+   * @description PR lifecycle snapshot stamped at generation time — a
+   * snapshot by design, no staleness hint. Absent on pre-stamping
+   * artifacts; the state badge simply doesn't render.
    */
   state?: PrLifecycleState;
   draft?: boolean;
@@ -117,7 +113,7 @@ export interface LineRange {
 }
 
 /**
- * @description Mechanical prevHead→head changed lines for one file (ADR 0021).
+ * @description Mechanical prevHead→head changed lines for one file.
  */
 export interface RevisionChangeFile {
   file: string;
@@ -154,7 +150,7 @@ export interface DiffLine {
 
 /**
  * @description One short factual note evidencing a risk-surface attribute on
- * a chunk (ADR 0026) — e.g. the both-sides citation required for
+ * a chunk — e.g. the both-sides citation required for
  * `comment-contradicts-code`.
  */
 export interface RiskNote {
@@ -189,7 +185,7 @@ export interface ChangeGroup {
 }
 
 /**
- * @description One step of a Brief's Reading order (ADR 0025): `groupId`
+ * @description One step of a Brief's Reading order: `groupId`
  * references a `ChangeGroup.id`; `why` is a short comprehension-language line
  * on why this group comes next (never importance/priority/severity language).
  */
@@ -205,21 +201,18 @@ export interface ConcernRollup {
 }
 
 /**
- * @description How actionable the composite intent source is (BRIEF-54,
- * ADR 0009 §2 as amended). `precise` populates the three buckets; `broad`
- * and `none` render as "intent check unavailable". Plain union (the
- * `ComparisonBaselineLabel` precedent) — a small closed set used only for
- * typing.
+ * @description How actionable the composite intent source is. `precise`
+ * populates the three buckets; `broad` and `none` render as "intent check
+ * unavailable".
  */
 export type Specificity = "precise" | "broad" | "none";
 
 /**
- * @description One item shared by all three intent buckets (BRIEF-54). The
- * grill-locked three-shape factoring overflowed Anthropic's structured-
- * output grammar, so one shape carries every bucket; the per-bucket field
- * rules (statedButMissing has no `groupIds`; `doneButUnstated` has no
- * `quote`/`sourceUrl`) are enforced server-side and mirrored in rendering.
- * `sourceUrl` is `""` for a PR title/description citation.
+ * @description One item shared by all three intent buckets — a per-bucket
+ * shape overflowed the structured-output grammar, so one shape carries every
+ * bucket. The per-bucket field rules (`statedButMissing` has no `groupIds`;
+ * `doneButUnstated` has no `quote`/`sourceUrl`) are enforced server-side and
+ * mirrored in rendering. `sourceUrl` is `""` for a PR title/description citation.
  */
 export interface IntentItem {
   intent: string;
@@ -227,16 +220,16 @@ export interface IntentItem {
   sourceUrl: string;
   groupIds: string[];
   /**
-   * @description BRIEF-85: meaningful only on `deviations` — the PR
-   * description acknowledges the reversal, making the item a quiet receipt
-   * rather than an alarm. Generation forces it `false` in every other bucket;
-   * pre-BRIEF-85 Briefs have no such field and read as `false`.
+   * @description Meaningful only on `deviations` — the PR description
+   * acknowledges the reversal, making the item a quiet receipt rather than an
+   * alarm. Generation forces it `false` in every other bucket; older Briefs
+   * have no such field and read as `false`.
    */
   acknowledged: boolean;
 }
 
 /**
- * @description The ticket-gated intent check (BRIEF-54): did this PR do what
+ * @description The ticket-gated intent check: did this PR do what
  * its stated intent asked? Factual buckets, never a verdict. Full Brief
  * only — never present on a Delta Brief. Boundary-parsed defensively
  * (`validation.ts`): a malformed field is dropped to `undefined`, so by the
@@ -251,16 +244,15 @@ export interface IntentCheck {
   statedButMissing: IntentItem[];
   doneButUnstated: IntentItem[];
   /**
-   * @description BRIEF-85 alarm bucket: stated asks the diff moves AGAINST
-   * that the source nowhere retracts. Items whose `acknowledged` is true are
-   * quiet receipts (the description owns the reversal) and render at the tail,
-   * apart from the unacknowledged ones. Empty on a pre-BRIEF-85 Brief.
+   * @description Alarm bucket: stated asks the diff moves AGAINST that the
+   * source nowhere retracts. Items whose `acknowledged` is true are quiet
+   * receipts (the description owns the reversal) and render at the tail,
+   * apart from the unacknowledged ones. Empty on an older Brief.
    */
   deviations: IntentItem[];
   /**
-   * @description BRIEF-85 alarm bucket: asks the source claims are fixed
-   * while the diff touches only the problem's signal/check path. Empty on a
-   * pre-BRIEF-85 Brief.
+   * @description Alarm bucket: asks the source claims are fixed while the
+   * diff touches only the problem's signal/check path. Empty on an older Brief.
    */
   claimedButUnachieved: IntentItem[];
 }
@@ -291,7 +283,7 @@ export interface Generation {
 }
 
 /**
- * @description Cross-revision anchor origin (BRIEF-143), CLI-assigned:
+ * @description Cross-revision anchor origin, CLI-assigned:
  * `anchored` = incremental regeneration against the previous brief;
  * `fresh-restart` = a deliberate from-scratch run (reason names why, e.g.
  * "model-swap"); `none` = first generation or anchoring off. Absent on
@@ -304,7 +296,7 @@ export interface BriefAnchor {
 }
 
 /**
- * @description One text field exceeding the BRIEF-148 length caps —
+ * @description One text field exceeding the length caps —
  * pipeline-stamped (warn-only floor), never model-produced. The FE renders
  * a single muted "consider a stronger model" line when any are present;
  * the entries themselves are diagnostic, not itemized in the UI.
@@ -329,14 +321,14 @@ export interface Brief {
   anchor?: BriefAnchor;
   /**
    * @description Warning lines the generation pipeline emitted (salvage,
-   * feedback retry, served-model mismatch) — CLI-collected (BRIEF-11).
+   * feedback retry, served-model mismatch) — CLI-collected.
    * Rendered under the header meta line so a degraded generation is
    * visible, not just finished.
    */
   generationWarnings?: string[];
   /**
-   * @description Text fields exceeding the BRIEF-148 length caps —
-   * pipeline-stamped; absent when everything fits.
+   * @description Text fields exceeding the length caps — pipeline-stamped;
+   * absent when everything fits.
    */
   lengthViolations?: LengthViolation[];
   baselineSha?: string;
@@ -347,7 +339,7 @@ export interface Brief {
   reviewComments?: AddressedReviewComment[];
   wholePrImpact?: string;
   /**
-   * @description Reading order over `changeGroups` (ADR 0025), full Brief
+   * @description Reading order over `changeGroups`, full Brief
    * only — never present on a Delta Brief. Boundary-parsed defensively: a
    * present-but-invalid permutation is dropped client-side (`validation.ts`),
    * so by the time a `Brief` reaches the rest of the app this is either a
@@ -355,18 +347,18 @@ export interface Brief {
    */
   readingOrder?: ReadingOrderStep[];
   /**
-   * @description The ticket-gated intent check (BRIEF-54), full Brief only.
+   * @description The ticket-gated intent check, full Brief only.
    * Absent on pre-feature Briefs and on Delta Briefs — the intent bar
    * renders only when this is present.
    */
   intentCheck?: IntentCheck;
 }
 
-/** Which comparison baseline a mechanical marks sidecar is relative to (ADR 0024). */
+/** Which comparison baseline a mechanical marks sidecar is relative to. */
 export type ComparisonBaselineLabel = "previous-brief" | "checkpoint";
 
 /**
- * @description Top-level fields of a `.comparison.json` marks sidecar (ADR 0024)
+ * @description Top-level fields of a `.comparison.json` marks sidecar
  * needed to determine comparison availability. `files` is intentionally omitted
  * here — availability only needs the header; readers that need per-line marks
  * fetch the full sidecar separately.
@@ -379,18 +371,18 @@ export interface ComparisonMarksSummary {
 }
 
 /**
- * @description Full `.comparison.json` marks sidecar (ADR 0024): the header
- * fields plus the per-file mechanical changed-line ranges. Structurally the
- * same `files` shape as `RevisionChanges`, so both feed the same FE mark-join.
- * These marks are the *sole* source of truth for which lines are highlighted —
- * narrative/Delta summaries never decide marks (ADR 0021/0024).
+ * @description Full `.comparison.json` marks sidecar: the header fields plus
+ * the per-file mechanical changed-line ranges. Structurally the same `files`
+ * shape as `RevisionChanges`, so both feed the same FE mark-join. These marks
+ * are the *sole* source of truth for which lines are highlighted — narrative
+ * and Delta summaries never decide marks.
  */
 export interface ComparisonMarks extends ComparisonMarksSummary {
   files: RevisionChangeFile[];
 }
 
 /**
- * @description A revision-narrative chunk (ADR 0024): an incremental
+ * @description A revision-narrative chunk: an incremental
  * `prevHead→head` change attached to an existing full-Brief Change-group via
  * `briefChangeGroupId`. `addedRanges`/`removedRanges` are head/old-side coords,
  * same join semantics as the mechanical marks. FE mirror of the categorizer's
@@ -407,7 +399,7 @@ export interface RevisionNarrativeChunk {
 
 /**
  * @description The shared, per-revision "what changed" narrative for the
- * Previous-Brief comparison (ADR 0024). Every chunk attaches to a full-Brief
+ * Previous-Brief comparison. Every chunk attaches to a full-Brief
  * Change-group; it carries no reviewer Checkpoint or `wholePrImpact`.
  */
 export interface RevisionNarrative {
@@ -420,15 +412,15 @@ export interface RevisionNarrative {
   generation: Generation;
   generationWarnings?: string[];
   /**
-   * @description Text fields exceeding the BRIEF-148 length caps —
-   * pipeline-stamped; absent when everything fits.
+   * @description Text fields exceeding the length caps — pipeline-stamped;
+   * absent when everything fits.
    */
   lengthViolations?: LengthViolation[];
   overview: string;
   chunks: RevisionNarrativeChunk[];
 }
 
-/** Why a Previous-Brief narrative was deliberately not generated (ADR 0024). */
+/** Why a Previous-Brief narrative was deliberately not generated. */
 export type RevisionNarrativeSkipReason =
   | "span too large"
   | "disabled by config";
@@ -437,7 +429,7 @@ export type RevisionNarrativeSkipReason =
  * @description Explicit skip stub written when a Previous-Brief span never got
  * a generated narrative (huge span or config-disabled). Distinct from an absent
  * file (generation failed): a stub means "deliberately skipped, retry won't
- * help" and the FE surfaces the reason rather than a failure state (ADR 0024).
+ * help" and the FE surfaces the reason rather than a failure state.
  */
 export interface RevisionNarrativeSkipped {
   artifactKind: "revisionNarrativeSkipped";
@@ -472,7 +464,7 @@ export interface PreviousBriefComparisonAvailability {
    * for huge spans or when disabled by config). narrativeId-present means
    * "there is a narrative artifact to fetch", NOT "a summary is available":
    * readers must discriminate on the fetched file's `artifactKind` and treat
-   * a stub as narrative-unavailable with a knowable skip reason (ADR 0024).
+   * a stub as narrative-unavailable with a knowable skip reason.
    */
   narrativeId?: string;
   baselineSha: string;
@@ -483,7 +475,7 @@ export interface PreviousBriefComparisonAvailability {
  * @description Availability of the personal "Your last review" comparison for
  * one Brief head, approximated locally from available Delta artifacts.
  * `deltaId` is optional: `delta-cli` writes checkpoint marks before the Delta
- * LLM call, so marks can exist without a Delta (ADR 0024 marks-emission rule).
+ * LLM call, so marks can exist without a Delta.
  * A marks-only baseline is still "available" — the marks are the comparison.
  */
 export interface LastReviewComparisonAvailability {
@@ -494,7 +486,7 @@ export interface LastReviewComparisonAvailability {
 }
 
 /**
- * @description Comparison availability for one Brief head (ADR 0024). Absent
+ * @description Comparison availability for one Brief head. Absent
  * keys mean that baseline has no mechanical marks for this head — the FE
  * disables the corresponding Compare option.
  */
@@ -515,6 +507,6 @@ export interface LocalBriefSummary {
   headSha?: string;
   baselineIndex?: number | null;
   headIndex?: number | null;
-  /** Only populated for `artifactKind: "brief"` entries (ADR 0024, plan step 5). */
+  /** Only populated for `artifactKind: "brief"` entries. */
   comparisons?: ComparisonAvailability;
 }
