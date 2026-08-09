@@ -39,9 +39,7 @@
     }
 
     &[data-state="active"] {
-      // Earned oddity (ported from the retired SummaryPreview picker): the
-      // active pick sits one blue step off --line (#1f1f24) — an accidental
-      // split kept faithfully by the sweep.
+      // Off-scale: the active pick sits one blue step off --line (#1f1f24).
       --active-fill: #1f1f25;
 
       background: var(--active-fill);
@@ -136,9 +134,8 @@
   }
 
   .receiptBody {
-    // Earned oddity (ported from the retired ReceiptDrawer): receipt body
-    // text sits between --color-text-muted and --color-text; faithful to the
-    // pre-sweep value.
+    // Off-scale: receipt body text sits between --color-text-muted and
+    // --color-text.
     --body-text: #c9c9d0;
 
     padding-block: functions.to-rem(18px);

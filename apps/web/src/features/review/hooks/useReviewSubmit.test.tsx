@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Facade-hook tests for the DB submit flow (BRIEF-23 PR 3): pending gate,
-// blocked reason, result-kind copy (posted / degraded / fail-closed reload /
-// re-login), draft flip on success only.
+// Facade-hook tests for the DB submit flow: pending gate, blocked reason,
+// result-kind copy (posted / degraded / fail-closed reload / re-login), and
+// the draft flip on success only.
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -110,10 +110,9 @@ describe("useReviewSubmit", () => {
   });
 
   it("blocks submit while blocked externally, unblocking when the reason clears", () => {
-    // Same-tab re-ship window (BRIEF-43, reviewer round 5): a post-now still
-    // in flight when the submit machinery mounts would ship the still-draft
-    // comment; the screen passes the in-flight reason and submit must both
-    // surface it AND refuse to run until it clears.
+    // Same-tab re-ship window: a post-now still in flight when the submit
+    // machinery mounts would ship the still-draft comment, so submit must
+    // both surface the reason AND refuse to run until it clears.
     const reason = "A comment is still posting to GitHub — wait.";
     const { rendered, input, action } = setup({ blockedExternally: reason });
     expect(rendered.result.current.blockedReasonWith("")).toBe(reason);
@@ -169,7 +168,7 @@ describe("useReviewSubmit", () => {
     expect(recordSubmittedReview).toHaveBeenCalledWith(5);
     expect(closeSubmit).toHaveBeenCalledTimes(1);
     // The review is live: the conversation refetches so the posted comments
-    // render as their GitHub threads (BRIEF-56 feedback round).
+    // render as their GitHub threads.
     expect(invalidateConversation).toHaveBeenCalledTimes(1);
     expect(announce).toHaveBeenCalledWith(expect.stringMatching(/posted/i));
     expect(rendered.result.current.error).toBeNull();

@@ -6,11 +6,8 @@ import type { MindMapState } from "./store";
 
 /**
  * The frozen, serializable session snapshot persisted per brief to
- * sessionStorage — Sets flattened to arrays. This is also the input the Receipt
- * builder (Slice E) consumes. Persists more than the old DemoReviewSnapshot
- * (dominants and reclassifications now survive refresh) and drops
- * the old review-perspective toggle (killed per ADR 0031; was local UI only).
- * The `v2` key avoids colliding with old `v1` data.
+ * sessionStorage — Sets flattened to arrays. Also the Receipt builder's input.
+ * The `v2` storage key avoids colliding with old `v1` data.
  */
 export interface SessionSnapshot {
   briefId: string;
@@ -20,7 +17,7 @@ export interface SessionSnapshot {
   reviewedChunkIds: string[];
   reviewComments: ReviewComment[];
   reviewOutcome: ReviewOutcome;
-  /** Absent in pre-BRIEF-25 stored snapshots; hydrates to []. */
+  /** Absent in older stored snapshots; hydrates to []. */
   submittedReviewIds?: number[];
   /** Reply drafts per thread root id; absent in older snapshots. */
   replyDrafts?: Record<string, string>;
@@ -187,13 +184,11 @@ export function writeSnapshot(snapshot: SessionSnapshot): void {
 }
 
 /**
- * Record a successful submit directly in the PERSISTED snapshot (BRIEF-23):
- * flip the given comment ids to `submitted`, and — when the submit carried a
- * verdict — reset the outcome to `comment` so a follow-up defaults to a
- * comment-only review instead of re-posting the same approval. A submit can
- * resolve after the brief's provider unmounted (its persistence subscriber
- * is gone by then), so mutating the orphaned store alone would let a reload
- * re-ship posted comments as drafts and re-arm the delivered verdict. No-op
+ * Record a successful submit directly in the PERSISTED snapshot: flip the
+ * given comment ids to `submitted`, and — when the submit carried a verdict —
+ * reset the outcome to `comment`. A submit can resolve after the provider (and
+ * its persistence subscriber) unmounted, so mutating the orphaned store alone
+ * would let a reload re-ship posted comments and re-arm the verdict. No-op
  * when nothing is persisted.
  */
 export function markSnapshotCommentsSubmitted(
@@ -214,8 +209,8 @@ export function markSnapshotCommentsSubmitted(
       flipped.has(comment.id) ? { ...comment, status: "submitted" } : comment,
     ),
     ...(resetOutcomeToComment ? { reviewOutcome: "comment" } : {}),
-    // The created review id is the own-comment join key (BRIEF-25) — written
-    // durably in the SAME snapshot write as the flips.
+    // The created review id is the own-comment join key — written durably in
+    // the SAME snapshot write as the flips.
     submittedReviewIds:
       reviewId === undefined || recorded.includes(reviewId)
         ? recorded
@@ -224,11 +219,10 @@ export function markSnapshotCommentsSubmitted(
 }
 
 /**
- * Persist one reply draft DIRECTLY (BRIEF-25): the composer's unmount can
- * race the provider's debounced sessionStorage flush, so the last local
- * edit writes durably itself — same discipline as
- * `markSnapshotCommentsSubmitted`. An empty body clears the entry. No-op
- * when nothing is persisted for the brief.
+ * Persist one reply draft DIRECTLY: the composer's unmount can race the
+ * provider's debounced sessionStorage flush, so the last local edit writes
+ * durably itself. An empty body clears the entry. No-op when nothing is
+ * persisted for the brief.
  */
 export function persistReplyDraft(
   briefId: string,

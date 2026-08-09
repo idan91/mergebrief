@@ -7,8 +7,7 @@
   }
 
   .comment {
-    // Earned oddity: one blue step off --color-surface (#111114) — an
-    // accidental split the faithful sweep preserves rather than snaps.
+    // Off-scale: one blue step off --color-surface (#111114).
     --comment-fill: #111115;
 
     border: 1px solid var(--line);

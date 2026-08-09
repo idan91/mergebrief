@@ -13,10 +13,8 @@ import {
 } from "../../utils/state";
 import styles from "./SubmitModal.module.scss";
 
-/** The modal's in-flow position: the verdict form is the default; the
- * receipt is a pure preview one step away; the advisory list is a
- * conditional first stop, never a destination — no back-navigation to it
- * (BRIEF-137 locked decisions 1 and 3). */
+/** The modal's in-flow position: verdict is the default, receipt a preview
+ * one step away, advisory a conditional first stop with no way back to it. */
 type SubmitView = "advisory" | "verdict" | "receipt";
 
 const OUTCOMES: readonly ReviewOutcome[] = [
@@ -33,25 +31,24 @@ export interface SubmitModalProps {
   setOutcome: (outcome: ReviewOutcome) => void;
   submit: () => void;
   /**
-   * The pre-submit advisory list (BRIEF-137 decision 1): nonempty at open →
-   * the modal lands on the advisory view first. Captured at open — items
-   * resolving mid-flow don't reshuffle the view.
+   * The pre-submit advisory list: nonempty at open → the modal lands on the
+   * advisory view first. Captured at open, so items resolving mid-flow don't
+   * reshuffle the view.
    */
   unresolvedItems: UnresolvedItem[];
   /** Closes the whole modal and jumps the page to the item (screen-owned). */
   jumpToItem: (item: UnresolvedItem) => void;
-  /** Live submit in flight (BRIEF-23) — the control disables, focusably. */
+  /** Live submit in flight — the control disables, focusably. */
   submitPending?: boolean;
   /**
    * Screen-owned reason Submit must not run regardless of content (read-only
-   * posture, BRIEF-24) — wins over the live content rule.
+   * posture) — wins over the live content rule.
    */
   blockedReasonOverride?: string | undefined;
   /**
    * The live content rule evaluated against the current review-comment draft
-   * (`useReviewSubmit.blockedReasonWith`) — this component subscribes to the
-   * draft and re-derives per keystroke so the owning screen doesn't have to.
-   * Absent on the local demo path.
+   * — this component subscribes to the draft and re-derives per keystroke so
+   * the owning screen doesn't have to. Absent on the local demo path.
    */
   blockedReasonWith?:
     | ((reviewComment: string) => string | undefined)
@@ -61,10 +58,9 @@ export interface SubmitModalProps {
   /** Persistent post-submit note (anchoring degradation). */
   submitNote?: string | null;
   /**
-   * The viewed span's head is no longer the PR head (BRIEF-127): Submit
-   * requires the explicit ack below — comments stay pinned to the reviewed
-   * revision and may appear as outdated on GitHub. Evaluated live: a poll
-   * tick may flip it while the modal is open.
+   * The viewed span's head is no longer the PR head: Submit requires the
+   * explicit ack below. Evaluated live — a poll tick may flip it while the
+   * modal is open.
    */
   staleHead?: boolean;
 }
@@ -89,13 +85,10 @@ export function SubmitModal({
   const reviewComment = useReviewFlow((state) => state.reviewComment);
   const { setReviewComment } = useReviewActions();
 
-  // View position is modal-local and resets on open (BRIEF-137 decision 5:
-  // close is non-destructive for DATA — outcome and draft live in stores —
-  // but never for position). The stale ack (BRIEF-127) is deliberately NOT
-  // sticky: reopening re-requires the check, and so does staleness RETURNING
-  // while the modal stays open (acked → head caught up → advanced again) — a
-  // prior consent must not pre-authorize new staleness. All resets ride the
-  // render-time adjustment pattern (no effect, no flicker).
+  // View position is modal-local and resets on open; data (outcome, draft)
+  // lives in stores and survives close. The stale ack is deliberately NOT
+  // sticky — reopening re-requires it, and so does staleness RETURNING while
+  // the modal stays open: prior consent must not pre-authorize new staleness.
   // Lazy initializers cover a mounted-open modal (tests; the app mounts it
   // closed): the open-transition adjustment below only runs on transitions.
   const [view, setView] = useState<SubmitView>(() =>
@@ -104,9 +97,8 @@ export function SubmitModal({
   const [ackStale, setAckStale] = useState(false);
   const [wasOpen, setWasOpen] = useState(open);
   const [wasStale, setWasStale] = useState(staleHead);
-  // Advisory items are CAPTURED at open (BRIEF-137 decision on Q3): nothing
-  // can change them while the modal traps focus, and a live list would let a
-  // mid-flow refetch reshuffle the view under the reviewer.
+  // Advisory items are CAPTURED at open: a live list would let a mid-flow
+  // refetch reshuffle the view under the reviewer.
   const [advisoryItems, setAdvisoryItems] = useState<UnresolvedItem[]>(() =>
     open ? unresolvedItems : [],
   );
@@ -360,10 +352,8 @@ function unresolvedKindLabel(kind: UnresolvedItem["kind"]): string {
   return labels[kind];
 }
 
-/** The frozen receipt rendering — ported from the retired ReceiptDrawer so
- * the ADR 0002 surface (mechanical claims, visible "not checked" line)
- * survives the move; runs of blank lines left by empty sections collapse
- * (content identical, voids gone). */
+/** The frozen receipt rendering: mechanical claims plus a visible "not
+ * checked" line; blank-line runs left by empty sections collapse. */
 function receiptText(receipt: Receipt): string {
   return rawReceiptText(receipt).replace(/\n{3,}/g, "\n");
 }
@@ -371,8 +361,8 @@ function receiptText(receipt: Receipt): string {
 function rawReceiptText(receipt: Receipt): string {
   const { progress, addressed, dismissed, comments } = receipt;
   const openFlags = receipt.open;
-  // The submit-facing split (BRIEF-23): drafts ship on the next submit;
-  // submitted ones were already posted and are listed as the record they are.
+  // Drafts ship on the next submit; submitted ones were already posted and
+  // are listed as the record they are.
   const draftComments = comments.filter(
     (comment) => comment.status === "draft",
   );

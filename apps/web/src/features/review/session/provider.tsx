@@ -55,7 +55,7 @@ export function MindMapProvider({
   storeRef.current ??= createMindMapStore(deriveInitialState(model));
   const store = storeRef.current;
 
-  // Hydrate post-mount (server render has no storage; matches prior behaviour).
+  // Hydrate post-mount: the server render has no storage.
   useEffect(() => {
     const persisted = snapshot ?? readSnapshot(briefId);
     if (persisted) store.setState(snapshotToState(persisted));
@@ -101,7 +101,7 @@ export function useMindMapActions(): MindMapActions {
  * The chunk-scoped slice of the session's review comments. `useShallow`
  * keeps the returned array identity stable while the chunk's own comments
  * are reference-unchanged, so a memoized consumer re-renders only when its
- * slice changes — not on every comment interaction elsewhere (BRIEF-27).
+ * slice changes — not on every comment interaction elsewhere.
  */
 export function useChunkReviewComments(chunkId: string): ReviewComment[] {
   return useMindMap(

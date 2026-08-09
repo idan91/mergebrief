@@ -96,11 +96,9 @@ export function buildSuggestionDiffRows(
 }
 
 /**
- * Mirrors of the post-now route's deterministic Zod caps (packages/api
- * inline-comment schema, `MAX_BODY_LENGTH`/`MAX_PATH_LENGTH`) — an over-cap
- * payload is a deterministic 400 there, and the UI would resubmit the same
- * draft, so it must block HERE with recoverable copy instead (apps/web
- * AGENTS.md; the submitBlockedReason pattern). Keep in lockstep with the route.
+ * Mirrors of the post-now route's Zod caps — keep in lockstep. An over-cap
+ * payload is a deterministic 400 there and the UI would resubmit the same
+ * draft, so it must block HERE with recoverable copy instead.
  */
 export const MAX_POSTED_COMMENT_LENGTH = 65_536;
 export const MAX_POSTED_COMMENT_PATH_LENGTH = 1_024;

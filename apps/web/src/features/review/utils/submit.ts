@@ -1,7 +1,7 @@
-// Submit assembly (BRIEF-23 PR 3): pure mapping from the session's review
-// state to the submit route's wire contract. The FE owns the anchor→GitHub
-// translation (the server validates shape only): side old→LEFT / new→RIGHT,
-// multi-line ranges as start_line..line, commitId = the Brief's viewed head.
+// Pure mapping from the session's review state to the submit route's wire
+// contract. The FE owns the anchor→GitHub translation (the server validates
+// shape only): side old→LEFT / new→RIGHT, multi-line ranges as
+// start_line..line, commitId = the Brief's viewed head.
 import type { CommentAnchor, ReviewComment } from "./comments";
 import type { Receipt } from "./receipt";
 import type { ReviewOutcome } from "./state";
@@ -44,12 +44,9 @@ const SIDE_TO_WIRE: Record<CommentAnchor["side"], WireSide> = {
 };
 
 /**
- * Route-cap mirrors (packages/api review-submit schema): selectedText is
- * quote metadata capped at 4000 chars, a review carries at most 100
- * comments, and the route pre-validates that the DEGRADATION FOLD of the
- * whole payload fits GitHub's 65536-char body cap. Anything the route would
- * 400 deterministically must block client-side with recoverable copy — the
- * UI resubmits the same draft set, so a route 400 is unrecoverable there.
+ * Mirrors of the submit route's caps — keep in lockstep. Anything the route
+ * would 400 deterministically must block client-side with recoverable copy:
+ * the UI resubmits the same draft set, so a route 400 is unrecoverable there.
  */
 const MAX_SELECTED_TEXT_LENGTH = 4_000;
 const MAX_COMMENTS_PER_SUBMIT = 100;
@@ -96,9 +93,8 @@ export function buildSubmitPayload(
 
 /**
  * The submit transport's outcome, as the review flow renders it. Implemented
- * by `features/pulls/submitReview` (the DB route); typed here so the review
- * feature owns its vocabulary and the heavy component depends only on this
- * module.
+ * by `features/pulls/submitReview`; typed here so the review feature owns its
+ * vocabulary.
  */
 export type SubmitReviewResult =
   | { kind: "submitted"; reviewId: number; commentsDegraded: boolean }
@@ -124,10 +120,9 @@ export type SubmitReviewAction = (
 ) => Promise<SubmitReviewResult>;
 
 /**
- * The one-line signature carried as the GitHub review body (ADR 0002: the
- * receipt is "linked from a one-line signature on your normal GitHub
- * review"). Mechanical claims only; never empty — GitHub requires a body for
- * REQUEST_CHANGES, and this line satisfies it for every outcome.
+ * The one-line signature carried as the GitHub review body. Mechanical claims
+ * only; never empty — GitHub requires a body for REQUEST_CHANGES, and this
+ * line satisfies it for every outcome.
  */
 export function buildSignatureLine(
   receipt: Receipt,
@@ -146,9 +141,8 @@ export function buildSignatureLine(
 
 /**
  * Separator between the reviewer's own comment and the signature line —
- * GitHub renders `---` as a horizontal rule, visually fencing the tool's
- * mechanical claims off from the reviewer's words (ADR 0002: the review
- * itself stays theirs).
+ * GitHub renders `---` as a horizontal rule, fencing the tool's mechanical
+ * claims off from the reviewer's words.
  */
 const REVIEW_BODY_SEPARATOR = "\n\n---\n\n";
 

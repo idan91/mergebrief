@@ -11,12 +11,10 @@ import {
 } from "./state";
 
 /**
- * The Receipt (ADR 0002) as a structured value, not a rendered string. Built
- * from the frozen session snapshot so both the in-app SubmitModal receipt view and the
- * static Review Summary render the same content their own way. Carries the real
- * disposition data (evidence / reason) rather than pre-formatted text, so each
- * consumer keeps its own labelling and fallbacks. No invented "mechanical
- * verified" buckets — only data that actually exists (defer-don't-fake).
+ * The Receipt as a structured value, not a rendered string: both the in-app
+ * receipt view and the static Review Summary render it their own way. Carries
+ * real disposition data (evidence / reason) rather than pre-formatted text so
+ * each consumer keeps its own labelling and fallbacks.
  */
 export interface ReceiptAddressedFlag {
   /** The source RiskFlag's id — the stable per-flag key. */
@@ -62,12 +60,12 @@ export interface ReceiptComment {
   firstLine: string;
   /**
    * @description `draft` ships on the NEXT submit; `submitted` was already
-   * posted to GitHub by an earlier one (BRIEF-23).
+   * posted to GitHub by an earlier one.
    */
   status: "draft" | "submitted";
 }
 
-/** The permanent repo-config record on the Receipt (ADR 0032 #8). */
+/** The permanent repo-config record on the Receipt. */
 export interface ReceiptRepoConfig {
   files: { path: string; outcome: string; blobSha: string | null }[];
   collisions: string[];
@@ -84,7 +82,7 @@ export interface Receipt {
   open: ReceiptOpenFlag[];
   comments: ReceiptComment[];
   reclassifiedCount: number;
-  /** Present when the span had a repo-config surface (BRIEF-52). */
+  /** Present when the span had a repo-config surface. */
   repoConfig?: ReceiptRepoConfig;
 }
 
@@ -176,11 +174,9 @@ export function buildReceipt(
 }
 
 /**
- * The Receipt's permanent repo-config record (ADR 0032 #8): the per-file
- * table plus the de-emphasis tuning in effect at generation time. Undefined
- * when there was no surface at all (no snapshot, or all-absent + no
- * collisions) — the Receipt stays byte-identical for repos without a
- * `.mergebrief/`.
+ * The per-file table plus the de-emphasis tuning in effect at generation
+ * time. Undefined when there was no surface at all, so the Receipt stays
+ * byte-identical for repos without a `.mergebrief/`.
  */
 function buildReceiptRepoConfig(
   repoConfig: RepoConfigContext | null | undefined,
@@ -194,7 +190,7 @@ function buildReceiptRepoConfig(
     repoConfig.files.find((file) => file.path.endsWith("policy.yaml"))
       ?.blobSha ?? null;
   // Count ATTRIBUTES, not rules — one attribute may carry several
-  // path-scoped rules (Fable r1 on this PR).
+  // path-scoped rules.
   const deEmphasized = new Set(
     (repoConfig.policy?.deEmphasize ?? []).map((rule) => rule.attribute),
   ).size;

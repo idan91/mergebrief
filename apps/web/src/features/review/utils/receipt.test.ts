@@ -136,7 +136,7 @@ describe("buildReceipt", () => {
           },
           {
             // Posted by an earlier submit — the receipt must distinguish it
-            // from the drafts the NEXT submit will ship (BRIEF-23).
+            // from the drafts the NEXT submit will ship.
             id: "c0",
             anchor,
             body: "Already posted.",
@@ -172,7 +172,7 @@ describe("buildReceipt", () => {
   });
 });
 
-describe("receipt repo-config record (BRIEF-52, ADR 0032 #8)", () => {
+describe("receipt repo-config record", () => {
   const SNAPSHOT = {
     files: [
       {

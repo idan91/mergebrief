@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Submitted comments are read-only records (BRIEF-23): GitHub holds the
-// posted text, and a re-submit ships drafts only — so Edit/Delete must not
-// be offered once a comment has been posted.
+// Submitted comments are read-only records: GitHub holds the posted text and
+// a re-submit ships drafts only, so Edit/Delete must not be offered once a
+// comment has been posted.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -49,7 +49,7 @@ describe("CommentThread", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeDefined();
   });
 
-  it("moves focus into the editor when Edit opens it (BRIEF-56)", () => {
+  it("moves focus into the editor when Edit opens it", () => {
     renderThread("draft");
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     expect(document.activeElement).toBe(screen.getByLabelText("Edit comment"));
@@ -123,9 +123,8 @@ describe("CommentThread", () => {
     expect(screen.getByText(/posted to GitHub/i)).toBeDefined();
   });
 
-  // Post-now (BRIEF-43): the Post affordance exists ONLY when the own-draft
-  // route injected the `post` action — its absence is what keeps the reviewer
-  // state (and every non-current-head own-draft view) untouched (ADR 0004).
+  // The Post affordance exists ONLY when the own-draft route injected the
+  // `post` action — its absence keeps the reviewer state untouched.
   it("shows no Post button when the post action is absent (reviewer state)", () => {
     renderThread("draft");
     expect(screen.queryByRole("button", { name: "Post" })).toBeNull();
@@ -149,9 +148,8 @@ describe("CommentThread", () => {
   });
 
   it("renders Post as a primary CTA anchored in the draft card footer", () => {
-    // BRIEF-43 UX follow-up: Post is promoted from a tiny inline text button to
-    // a primary CTA at the bottom-right of the footer. Asserted via the footer
-    // container + data attribute, never hashed class names.
+    // Asserted via the footer container + data attribute, never hashed
+    // class names.
     const post = vi.fn();
     render(
       <CommentThread
@@ -176,7 +174,7 @@ describe("CommentThread", () => {
   });
 
   it("disables Post/Edit/Delete with a pending label while posting", () => {
-    // In-flight (4a): mutating controls disable so a mid-flight edit cannot
+    // In flight: mutating controls disable so a mid-flight edit cannot
     // produce a submitted record whose body was never posted; Collapse (a
     // pure view toggle) stays live.
     const post = vi.fn();
@@ -211,10 +209,8 @@ describe("CommentThread", () => {
   });
 
   it("blocks Post while the inline editor is open, re-enabling on cancel", async () => {
-    // Reviewer round 2 #2: Post ships the last SAVED body — with the editor
-    // holding unsaved text, a post would silently discard the amendment when
-    // the success flip lands. Post must block until the edit is saved or
-    // cancelled.
+    // Post ships the last SAVED body — with unsaved text in the editor, a
+    // post would silently discard the amendment when the success flip lands.
     const post = vi.fn();
     render(
       <CommentThread
@@ -244,7 +240,7 @@ describe("CommentThread", () => {
   });
 
   it("blocks Post with recoverable copy when the body exceeds the route cap", () => {
-    // Deterministic-400 mirror (apps/web AGENTS.md): an over-cap body would
+    // Deterministic-400 mirror: an over-cap body would
     // 400 at the route and the UI would resubmit the same draft — the
     // affordance must block client-side with a reason instead.
     const post = vi.fn();
@@ -268,9 +264,8 @@ describe("CommentThread", () => {
   });
 
   it("blocks Post with delete-the-draft copy when the anchor path exceeds the route cap", () => {
-    // Route MAX_PATH_LENGTH mirror (reviewer round 4 #1): an over-long path
-    // is a deterministic 400 no edit can fix — the only recovery is deleting
-    // the draft, so the copy must say that (mirrors submitBlockedReason).
+    // Route MAX_PATH_LENGTH mirror: an over-long path is a deterministic 400
+    // no edit can fix — the only recovery is deleting the draft.
     const post = vi.fn();
     const base = comment("draft");
     const overlongPath = {
@@ -296,10 +291,8 @@ describe("CommentThread", () => {
   });
 
   it("blocks Post with the external wait reason while a review submit is in flight", () => {
-    // Reviewer round 7 #2 (the reverse race): a Submit review in flight
-    // already CAPTURED this draft — posting it mid-submit would double-post
-    // it when the review lands. The screen passes the wait-shaped reason and
-    // the affordance must disable with it.
+    // The reverse race: a Submit review in flight already CAPTURED this draft
+    // — posting it mid-submit would double-post it when the review lands.
     const post = vi.fn();
     const reason =
       "A review is being submitted — wait for it to finish before posting this comment.";
@@ -323,12 +316,10 @@ describe("CommentThread", () => {
   });
 
   it("keeps the posting lockdown when the post action is gone (own-draft exit mid-post)", () => {
-    // Reviewer round 6 #1: the own-draft state can exit while a post is
-    // settling (mark-ready confirmed, same span → no remount). The ACTION
-    // vanishes with the plan, but Edit/Delete must stay locked on the
-    // still-posting draft — re-enabled controls could flip a submitted
-    // record whose edited body never posted, or orphan the GitHub comment
-    // on delete.
+    // The own-draft state can exit while a post is settling (same span → no
+    // remount). The ACTION vanishes, but Edit/Delete must stay locked on the
+    // still-posting draft — re-enabled controls could flip a submitted record
+    // whose edited body never posted, or orphan the GitHub comment on delete.
     render(
       <CommentThread
         comment={comment("draft")}

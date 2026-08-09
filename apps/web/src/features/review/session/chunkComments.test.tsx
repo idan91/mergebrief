@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// BRIEF-27: the per-chunk comment selector must keep a stable array
-// identity while the chunk's own slice is unchanged — that identity is
-// what lets React.memo on ChunkCard actually skip re-renders.
+// The per-chunk comment selector must keep a stable array identity while the
+// chunk's own slice is unchanged — that identity is what lets React.memo on
+// ChunkCard actually skip re-renders.
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it } from "vitest";
@@ -88,7 +88,7 @@ function MindMapTestWrapper({ children }: MindMapTestWrapperProps) {
   );
 }
 
-describe("useChunkReviewComments (BRIEF-27)", () => {
+describe("useChunkReviewComments", () => {
   it("keeps identity stable across other chunks' comment interactions", () => {
     const { result } = renderHook(
       () => ({
@@ -98,8 +98,8 @@ describe("useChunkReviewComments (BRIEF-27)", () => {
       }),
       { wrapper: MindMapTestWrapper },
     );
-    // Baseline BEFORE the unrelated save: the save itself is the ticket's
-    // headline interaction, so identity churn during it must fail here.
+    // Baseline BEFORE the unrelated save, so identity churn during the save
+    // fails here.
     const bBeforeSave = result.current.b;
     act(() => {
       result.current.actions.saveComment({

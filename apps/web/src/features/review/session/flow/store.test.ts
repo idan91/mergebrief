@@ -187,7 +187,7 @@ describe("ReviewFlow store", () => {
     });
 
     it("keeps an edit made after the shipped text was captured", () => {
-      // Capture-at-initiation (BRIEF-23): a mid-flight edit is user content —
+      // Capture-at-initiation: a mid-flight edit is user content —
       // the success sweep must not silently drop it.
       store.getState().actions.setReviewComment("Solid change.");
       store.getState().actions.setReviewComment("Solid change, but check X.");

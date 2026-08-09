@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
-// The one-modal submit flow (BRIEF-137): verdict-first default view, receipt
-// as pure preview, live blocked-reason against the store draft, and the
-// stale-view submit ack (BRIEF-127) ported from the retired ReceiptDrawer —
-// the ack is modal-local and resets on reopen.
+// The one-modal submit flow: verdict-first default view, receipt as pure
+// preview, live blocked-reason against the store draft, and the stale-head
+// submit ack (modal-local, resets on reopen).
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -189,7 +188,7 @@ describe("SubmitModal views", () => {
   });
 });
 
-describe("SubmitModal advisory view (BRIEF-137)", () => {
+describe("SubmitModal advisory view", () => {
   afterEach(cleanup);
 
   const items = [
@@ -265,7 +264,7 @@ describe("SubmitModal advisory view (BRIEF-137)", () => {
   });
 });
 
-describe("SubmitModal stale-head ack (BRIEF-127)", () => {
+describe("SubmitModal stale-head ack", () => {
   afterEach(cleanup);
 
   it("renders no ack UI and submits directly when the view is current", () => {

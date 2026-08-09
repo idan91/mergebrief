@@ -20,7 +20,7 @@ import styles from "./CommentComposer.module.scss";
 export interface CommentComposerProps {
   anchor: CommentAnchor;
   cancel: () => void;
-  /** Mention-autocomplete pool (repo collaborators — BRIEF-94); absent on the local path. */
+  /** Mention-autocomplete pool (repo collaborators); absent on the local path. */
   mentionCandidates?: readonly MentionCandidate[] | undefined;
   save: (anchor: CommentAnchor, body: string) => void;
 }
@@ -35,23 +35,18 @@ export function CommentComposer({
   const errorId = useId();
   const guardId = useId();
   // The composer's text exists nowhere else until saved as a draft —
-  // navigation would destroy it (BRIEF-56 navigation guard).
+  // navigation would destroy it.
   useUnsavedComposerText(guardId, composer.body.trim() !== "");
-  // Selected here — the only consumer — so the count doesn't thread
-  // through four component layers and bust every ChunkCard's memo on
-  // save/delete; only a mounted (open) composer subscribes (BRIEF-27).
+  // Selected here — the only consumer — so the count doesn't thread through
+  // four component layers and bust every ChunkCard's memo on save/delete;
+  // only a mounted (open) composer subscribes.
   const existingReviewCommentCount = useMindMap(
     (state) => state.reviewComments.length,
   );
 
-  // Escape-to-close, mirroring Modal's convention: the composer is an overlay
-  // that holds `shortcutsDisabled` while open (BriefPage), but — unlike
-  // Modal — it never wired Escape to its own dismiss handler. Without this,
-  // Escape does nothing while the composer is open (the global J/K/Z listener
-  // stands down because `disabled` is true, and there is no other close path
-  // for Escape), so the composer never unmounts, `activeCommentAnchor` never
-  // clears, and J/K/Z stay dead until the reviewer notices they must click
-  // Cancel/save explicitly.
+  // Escape-to-close: the composer holds `shortcutsDisabled` while open, so
+  // without its own Escape handler the global shortcuts stay dead until the
+  // reviewer clicks Cancel or Save.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") cancel();

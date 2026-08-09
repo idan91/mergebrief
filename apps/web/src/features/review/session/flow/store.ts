@@ -17,30 +17,29 @@ const ANNOUNCE_CLEAR_MS = 30;
  * the store is its distribution channel to the card tree.
  */
 export interface ReviewFlowPosture {
-  /** Read-only reason for the comment affordances (BRIEF-24); undefined = writable. */
+  /** Read-only reason for the comment affordances; undefined = writable. */
   composerDisabledReason: string | undefined;
-  /** Own-draft state (BRIEF-43): risk flags render as a read-only mirror. */
+  /** Own-draft state: risk flags render as a read-only mirror. */
   flagsReadOnly: boolean;
   /** Comment ids with a post-now request in flight (registry-subscribed). */
   postingCommentIds: ReadonlySet<string>;
   /** Wait-shaped reason every Post is blocked right now (submit in flight). */
   postBlockedExternally: string | undefined;
-  /** Post a staged draft NOW (BRIEF-43 own-draft, current head); undefined hides Post. */
+  /** Post a staged draft NOW against the current head; undefined hides Post. */
   postComment: ((comment: ReviewComment) => void) | undefined;
 }
 
 /**
- * @description Ephemeral review-flow UI state (ADR 0022's transient half):
- * composer anchoring, risk-disposition targets/selection, and the page toast.
- * Deliberately OUTSIDE the persisted Mind-Map snapshot — none of this
- * survives a reload.
+ * @description Ephemeral review-flow UI state: composer anchoring,
+ * risk-disposition targets/selection, and the page toast. Deliberately
+ * OUTSIDE the persisted Mind-Map snapshot — none of this survives a reload.
  */
 export interface ReviewFlowState extends ReviewFlowPosture {
   composerAnchor: CommentAnchor | null;
   dismissTarget: DismissTarget | null;
   evidenceTarget: EvidenceTarget | null;
-  /** The free-text review-comment draft (BRIEF-137): survives the submit
-   * modal closing, deliberately not a reload. */
+  /** The free-text review-comment draft: survives the submit modal closing,
+   * deliberately not a reload. */
   reviewComment: string;
   selectedRiskFlags: ReadonlySet<string>;
   /** The page live-region message; empty = hidden. */
@@ -55,7 +54,7 @@ export interface ReviewFlowActions {
   /**
    * @description Opens the composer at the anchor — unless the read-only
    * posture blocks composition, in which case the reason is announced instead
-   * (BRIEF-24: surface WHY through the live region, never a dead control).
+   * (surface WHY through the live region, never a dead control).
    */
   openComposer: (anchor: CommentAnchor) => void;
   cancelComposer: () => void;
@@ -80,8 +79,8 @@ export interface ReviewFlowActions {
   setReviewComment: (body: string) => void;
   /**
    * @description Clears the review-comment draft only when it still equals
-   * the text a successful submit SHIPPED (capture-at-initiation, BRIEF-23):
-   * an edit made while the request was in flight is never silently dropped.
+   * the text a successful submit SHIPPED (capture-at-initiation): an edit
+   * made while the request was in flight is never silently dropped.
    */
   consumeReviewComment: (sent: string) => void;
   /**

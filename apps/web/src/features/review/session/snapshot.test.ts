@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// Durable submitted-flip (BRIEF-23): a submit can resolve AFTER the brief's
-// provider unmounted (its persistence subscriber is gone), so the flip must
-// write to sessionStorage directly — otherwise the reloaded session re-ships
-// the same comments as drafts and double-posts them.
+// Durable submitted-flip: a submit can resolve AFTER the brief's provider
+// unmounted (its persistence subscriber is gone), so the flip must write to
+// sessionStorage directly — otherwise the reloaded session re-ships the same
+// comments as drafts and double-posts them.
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { ReviewComment } from "../utils/comments";
@@ -81,7 +81,7 @@ describe("markSnapshotCommentsSubmitted", () => {
   });
 });
 
-describe("submittedReviewIds (BRIEF-25)", () => {
+describe("submittedReviewIds", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
   });
@@ -91,7 +91,7 @@ describe("submittedReviewIds (BRIEF-25)", () => {
     expect(readSnapshot(BRIEF_ID)?.submittedReviewIds).toEqual([4_647_663_464]);
   });
 
-  it("accepts a pre-BRIEF-25 snapshot without the key (legacy tolerance)", () => {
+  it("accepts an older snapshot without the key (legacy tolerance)", () => {
     writeSnapshot(snapshot([]));
     const stored = readSnapshot(BRIEF_ID);
     expect(stored).toBeDefined();
@@ -110,7 +110,7 @@ describe("submittedReviewIds (BRIEF-25)", () => {
   });
 });
 
-describe("replyDrafts (BRIEF-25)", () => {
+describe("replyDrafts", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
   });

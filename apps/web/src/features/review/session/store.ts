@@ -12,7 +12,7 @@ import type { BulkDisposition, Disposition } from "./disposition";
 export interface MindMapState {
   /**
    * @description Keyed by brief-local `flag.id`.
-   * TODO(adr-0022): move to region@SHA.
+   * TODO: move to region@SHA.
    */
   dispositions: Record<string, Disposition>;
   dominants: Record<string, Category>;
@@ -22,12 +22,12 @@ export interface MindMapState {
   reviewOutcome: ReviewOutcome;
   /**
    * @description Review ids returned by this session's successful submits —
-   * the own-comment join keys against fetched conversation threads (BRIEF-25).
+   * the own-comment join keys against fetched conversation threads.
    */
   submittedReviewIds: number[];
   /**
-   * @description Conversation reply drafts, keyed by thread root comment id
-   * (BRIEF-25) — a half-written reply survives navigation.
+   * @description Conversation reply drafts, keyed by thread root comment id —
+   * a half-written reply survives navigation.
    */
   replyDrafts: Record<string, string>;
 }
@@ -62,12 +62,12 @@ export interface MindMapActions {
    * @description After a successful submit: exactly the POSTED comments flip
    * to `submitted` (ids captured at click time — a draft added or edited
    * while the request was in flight stays a draft), so a later re-submit
-   * ships only comments GitHub never saw (BRIEF-23).
+   * ships only comments GitHub never saw.
    */
   markCommentsSubmitted: (ids: readonly string[]) => void;
   /**
    * @description Record a successful submit's created review id — the
-   * server-backed join key for own-comment reconciliation (BRIEF-25).
+   * server-backed join key for own-comment reconciliation.
    */
   recordSubmittedReview: (reviewId: number) => void;
   /**

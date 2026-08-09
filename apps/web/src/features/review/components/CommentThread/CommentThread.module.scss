@@ -60,7 +60,7 @@
   }
 
   /* Draft card footer: secondary text actions on the left, the primary Post
-     CTA anchored bottom-right (BRIEF-43 UX follow-up). */
+     CTA anchored bottom-right. */
   .footer {
     display: flex;
     align-items: flex-end;
@@ -99,7 +99,7 @@
     }
   }
 
-  /* The recoverable why-not for a blocked Post (BRIEF-43 cap mirror). */
+  /* The recoverable why-not for a blocked Post. */
   .postBlocked {
     margin-block: 0 functions.to-rem(4px);
     margin-inline: functions.to-rem(12px);

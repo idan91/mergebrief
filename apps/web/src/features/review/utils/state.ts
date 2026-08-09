@@ -18,7 +18,7 @@ export type UnresolvedItemKind =
 /**
  * @description A batch of flags a dismiss modal is open FOR, with its display
  * label. Owned here (disposition domain): the modal renders it, the flow
- * store holds it — neither may reach into the other's subtree (ADR 0037).
+ * store holds it — neither may reach into the other's subtree.
  */
 export interface DismissTarget {
   flagIds: string[];

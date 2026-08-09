@@ -1,7 +1,5 @@
-// The submit-flow facade hook (BRIEF-23 PR 3): the heavy Brief screen wires
-// props in, this hook owns pending/blocked/error/note state and the
-// result-kind copy. The action is injected by the DB route; absent action =
-// the local demo path (flow unavailable, the mock stays).
+// Owns pending/blocked/error/note state and the result-kind copy. The action
+// is injected by the DB route; absent action = the local demo path.
 import { useCallback, useRef, useState } from "react";
 
 import type { ReviewComment } from "../utils/comments";
@@ -24,13 +22,9 @@ export interface UseReviewSubmitInput {
   comments: ReviewComment[];
   receipt: Receipt;
   /**
-   * Reads the reviewer's free-text review comment (BRIEF-137) — posted above
-   * the signature line, separator-fenced; empty = signature-only body (the
-   * pre-137 behavior). A GETTER, not the string: the draft changes per
-   * keystroke, and the screen that owns this hook must not re-render with it
-   * (the store-subscription discipline is booleans/transitions only). The
-   * editing surface subscribes to the raw text itself and re-derives its
-   * live disabled state via `blockedReasonWith`.
+   * Reads the reviewer's free-text review comment. A GETTER, not the string:
+   * the draft changes per keystroke and the owning screen must not re-render
+   * with it — the editing surface subscribes to the raw text itself.
    */
   getReviewComment: () => string;
   /**
@@ -46,8 +40,8 @@ export interface UseReviewSubmitInput {
    */
   markSubmitted: (ids: readonly string[]) => void;
   /**
-   * Records the created review id in the live session store — the
-   * own-comment join key for conversation reconciliation (BRIEF-25).
+   * Records the created review id — the own-comment join key for
+   * conversation reconciliation.
    */
   recordSubmittedReview: (reviewId: number) => void;
   /**
@@ -57,11 +51,9 @@ export interface UseReviewSubmitInput {
    */
   announce: (message: string) => void;
   /**
-   * Refetches the live conversation after a successful submit so the posted
-   * comments render as their GitHub threads (and the local submitted cards
-   * demote) without waiting for an unrelated refetch. Undefined off the
-   * DB path. The demotion bridges GitHub's read-after-write lag: local
-   * cards keep rendering until the refetched threads actually contain them.
+   * Refetches the live conversation after a successful submit. Undefined off
+   * the DB path. Local submitted cards keep rendering until the refetched
+   * threads actually contain them (GitHub's read-after-write lag).
    */
   invalidateConversation: (() => void) | undefined;
   closeSubmit: () => void;
@@ -73,11 +65,9 @@ export interface UseReviewSubmitInput {
   resetOutcome: () => void;
   /**
    * A screen-owned reason Submit must not proceed right now, folded into
-   * `blockedReasonWith` and hard-guarding `submit()` itself. BRIEF-43: a
-   * post-now request still in flight when the own-draft state exits (ready
-   * flip mid-request) — the payload capture would ship the still-draft
-   * comment, and the settling 201 would flip it AFTER the review already
-   * re-shipped it (duplicate on GitHub). Absent → no external block.
+   * `blockedReasonWith` and hard-guarding `submit()` itself — e.g. a post-now
+   * request still in flight, where the capture would ship a still-draft
+   * comment that the settling 201 then flips (duplicate on GitHub).
    */
   blockedExternally?: string | undefined;
 }
@@ -88,10 +78,8 @@ export interface UseReviewSubmitValue {
   pending: boolean;
   /**
    * Why Submit is disabled (reachable text, not hover-only), evaluated
-   * against a caller-supplied review-comment draft — the editing surface
-   * subscribes to the raw text and re-derives the disabled state per
-   * keystroke without re-rendering the owning screen. The external block
-   * (transient, wait-shaped) wins over the content rules.
+   * against a caller-supplied review-comment draft so the owning screen need
+   * not re-render per keystroke. The external block wins over content rules.
    */
   blockedReasonWith: (reviewComment: string) => string | undefined;
   /** The current failure copy; announced assertively where rendered. */
@@ -151,9 +139,8 @@ export function useReviewSubmit(
   // Synchronous double-click guard: state updates are async, a ref is not.
   const inFlight = useRef(false);
 
-  // The external block wins the display: it is the transient, wait-shaped
-  // reason (a post-now settling), and the content reasons re-surface once it
-  // clears.
+  // The external block wins the display: it is transient, and the content
+  // reasons re-surface once it clears.
   const blockedReasonWith = useCallback(
     (reviewComment: string) =>
       blockedExternally ??
@@ -225,11 +212,9 @@ export function useReviewSubmit(
               if (verdictDelivered) {
                 resetOutcome();
               }
-              // Durable writes too: the provider (and its persistence
-              // subscriber) may have unmounted while the request was in
-              // flight — live-store changes alone would never reach
-              // sessionStorage, and a reload would re-ship these drafts and
-              // re-arm the verdict.
+              // Durable write too: the provider (and its persistence
+              // subscriber) may have unmounted mid-flight, so live-store
+              // changes alone would never reach sessionStorage.
               markSnapshotCommentsSubmitted(
                 briefId,
                 draftIds,
@@ -237,14 +222,13 @@ export function useReviewSubmit(
                 result.reviewId,
               );
             } catch (persistError) {
-              // Best-effort: the review IS on GitHub (sessionStorage quota /
-              // security errors land here). Log and keep going — the success
-              // copy must not turn into a retry prompt.
+              // Best-effort: the review IS on GitHub, so the success copy
+              // must not turn into a retry prompt.
               console.error("submit: local persistence failed", persistError);
             }
             closeSubmit();
-            // The review is live on GitHub — refetch the conversation so
-            // the posted comments render as their real threads.
+            // Live on GitHub now — refetch so posted comments render as
+            // their real threads.
             invalidateConversation?.();
             if (result.commentsDegraded) {
               setNote(COPY.degradedNote);

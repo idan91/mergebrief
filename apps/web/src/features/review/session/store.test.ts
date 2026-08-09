@@ -130,7 +130,7 @@ describe("comments + outcome", () => {
     expect(store.getState().reviewOutcome).toBe("approve");
   });
 
-  it("submitted comments are immutable — update/delete no-op (BRIEF-23)", () => {
+  it("submitted comments are immutable — update/delete no-op", () => {
     const store = freshStore();
     const comment: Omit<ReviewComment, "id"> = {
       anchor: {
@@ -159,7 +159,7 @@ describe("comments + outcome", () => {
     expect(store.getState().reviewComments).toHaveLength(1);
   });
 
-  it("markCommentsSubmitted flips exactly the given ids (BRIEF-23)", () => {
+  it("markCommentsSubmitted flips exactly the given ids", () => {
     const store = freshStore();
     const comment: Omit<ReviewComment, "id"> = {
       anchor: {
@@ -213,7 +213,7 @@ describe("snapshot round-trip", () => {
 });
 
 describe("recordSubmittedReview", () => {
-  it("appends the created review id and dedupes repeats (BRIEF-25 join keys)", () => {
+  it("appends the created review id and dedupes repeats", () => {
     const store = freshStore();
     store.getState().actions.recordSubmittedReview(4_647_663_464);
     store.getState().actions.recordSubmittedReview(4_647_663_464);
@@ -225,7 +225,7 @@ describe("recordSubmittedReview", () => {
 });
 
 describe("setReplyDraft", () => {
-  it("persists a draft per thread and clears on empty (BRIEF-25)", () => {
+  it("persists a draft per thread and clears on empty", () => {
     const store = freshStore();
     store.getState().actions.setReplyDraft(9001, "half a thought");
     expect(store.getState().replyDrafts).toEqual({ "9001": "half a thought" });

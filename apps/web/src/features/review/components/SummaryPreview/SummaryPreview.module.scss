@@ -29,11 +29,10 @@
 
     h1 {
       margin-block-end: functions.to-rem(6px);
-      /* stylelint-disable-next-line declaration-property-value-allowed-list -- TODO(BRIEF-44): off-scale — display numeral, single consumer, no scale membership earned; consolidate if a second appears */
+      /* stylelint-disable-next-line declaration-property-value-allowed-list -- TODO: off-scale — display numeral, single consumer, no scale membership earned; consolidate if a second appears */
       font-size: functions.to-rem(28px);
 
-      // Pre-scale rendering pinned (implicit UA bold + body line-height
-      // before the base heading defaults landed).
+      // Pins the implicit UA bold + body line-height.
       font-weight: 700;
       line-height: 1.55;
     }
@@ -66,8 +65,7 @@
       margin-block-end: functions.to-rem(14px);
       font-size: var(--font-size-xl);
 
-      // Pre-scale rendering pinned (implicit UA bold + body line-height
-      // before the base heading defaults landed).
+      // Pins the implicit UA bold + body line-height.
       font-weight: 700;
       line-height: 1.55;
     }
@@ -77,7 +75,7 @@
       color: var(--dim);
       font-size: var(--font-size-md);
 
-      // Same pre-scale pin as the h2 above.
+      // Same pin as the h2 above.
       font-weight: 700;
       line-height: 1.55;
     }

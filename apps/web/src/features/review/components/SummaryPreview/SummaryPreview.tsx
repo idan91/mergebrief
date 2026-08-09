@@ -58,8 +58,8 @@ export function SummaryPreview({
         </div>
 
         <section className={styles["card"]}>
-          {/* Read-only document (BRIEF-137): the verdict is chosen in the
-              submit modal; this surface only reflects it. */}
+          {/* Read-only document: the verdict is chosen in the submit modal;
+              this surface only reflects it. */}
           <div className={styles["row"]}>
             <span>Review outcome</span>
             <span className={styles["outcomeValue"]}>

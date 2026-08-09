@@ -1,7 +1,6 @@
-// Curated feature entry (ADR 0037): the externally consumed entry
-// components. Session state stays at `./session`, logic modules (submit,
-// comments, receipt, …) are imported directly. Internal review files import
-// their targets directly, never this index (import/no-cycle).
+// Curated feature entry: the externally consumed components only. Session
+// state stays at `./session`, logic modules are imported directly, and
+// internal review files never import this index (import/no-cycle).
 export {
   AddressedComments,
   ReviewComments,

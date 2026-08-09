@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// BRIEF-27: the submit label's count is selected from the store inside the
-// composer — this pins the store-to-label wiring itself, not just the
+// The submit label's count is selected from the store inside the composer —
+// this pins the store-to-label wiring itself, not just the
 // reviewCommentSubmitLabel helper.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -87,7 +87,7 @@ function renderComposer(reviewComments: ReviewComment[]) {
   );
 }
 
-describe("CommentComposer — store-backed submit label (BRIEF-27)", () => {
+describe("CommentComposer — store-backed submit label", () => {
   it('reads "Start review" from an empty store', () => {
     renderComposer([]);
     expect(screen.getByRole("button", { name: "Start review" })).toBeTruthy();
@@ -109,7 +109,7 @@ describe("CommentComposer — store-backed submit label (BRIEF-27)", () => {
   });
 });
 
-describe("CommentComposer — navigation-guard registration (BRIEF-56)", () => {
+describe("CommentComposer — navigation-guard registration", () => {
   it("registers while holding never-saved text, releases on unmount", () => {
     renderComposer([]);
     expect(hasUnsavedComposerText()).toBe(false);
@@ -122,7 +122,7 @@ describe("CommentComposer — navigation-guard registration (BRIEF-56)", () => {
   });
 });
 
-describe("CommentComposer — error association (BRIEF-56)", () => {
+describe("CommentComposer — error association", () => {
   it("associates the empty-body error with the textarea", () => {
     renderComposer([]);
     fireEvent.click(screen.getByRole("button", { name: "Start review" }));

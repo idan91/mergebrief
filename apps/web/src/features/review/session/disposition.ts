@@ -1,11 +1,10 @@
 import type { RiskEvidence } from "../utils/state";
 
 /**
- * A flag's Disposition (CONTEXT.md) as one discriminated union, replacing the
- * three parallel maps (status / evidence / reason). `addressed` carries optional
- * evidence so "addressed, pending evidence" stays a real, representable state
- * (it still yields a missing-evidence item). Keyed by brief-local flag id for
- * now — region-anchoring (ADR 0007) is deferred behind the store interface.
+ * A flag's Disposition as one discriminated union. `addressed` carries
+ * optional evidence so "addressed, pending evidence" stays a representable
+ * state (it still yields a missing-evidence item). Keyed by brief-local flag
+ * id for now — region-anchoring is deferred behind the store interface.
  */
 export type Disposition =
   | { kind: "open" }
