@@ -1,10 +1,8 @@
-// The client module — the boundary (ADR 0028: internals may be SDK-shaped; this
-// IS the test boundary). Takes an injected fetch-compatible function, so command
-// tests run against the REAL api Hono app (`app.request` is fetch-shaped)
-// with zero network and zero mock drift. Implements the stream/exit
-// invariant's error half: every non-2xx becomes a `CliError` carrying the
-// 6-code mapping and ONE stderr-ready line (server error text + HTTP
-// status); bodies pass through VERBATIM (ADR 0029 #1 — never re-shaped).
+// The client boundary. Takes an injected fetch-compatible function, so command
+// tests run against the REAL api Hono app (`app.request` is fetch-shaped) with
+// zero network. Every non-2xx becomes a `CliError` carrying the 6-code mapping
+// and ONE stderr-ready line (server error text + HTTP status); bodies pass
+// through VERBATIM — never re-shaped.
 import { CliError, ExitCode, exitCodeForStatus } from "./exit";
 
 /** `fetch`-compatible; `app.request` satisfies it in tests. */
@@ -97,9 +95,8 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
         );
       }
 
-      // Proxy/IdP detection (plan decision, PR 5): the API never redirects
-      // and never serves HTML. Either one means the base URL sits behind an
-      // interactive login — point at the deploy doc's /api/* exemption.
+      // Proxy/IdP detection: the API never redirects and never serves HTML.
+      // Either one means the base URL sits behind an interactive login.
       const contentType = response.headers.get("content-type") ?? "";
       if (
         (response.status >= 300 && response.status < 400) ||

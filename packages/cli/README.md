@@ -199,8 +199,8 @@ Usage: mergebrief [options] [command]
 MergeBrief — PR briefs for humans and agents, over your deployment's API
 
 Options:
-  --json                       machine output: the documented JSON contract (ADR
-                               0029) (default: false)
+  --json                       machine output: the documented JSON contract
+                               (default: false)
   --agents                     print the packaged agent guide and exit (default:
                                false)
   --profile <name>             config profile (default: owners match, then the

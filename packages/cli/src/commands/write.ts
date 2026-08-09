@@ -1,9 +1,8 @@
-// The write commands (BRIEF-17 PR 7, plan decision 4): `reply` and `submit`.
-// Thin POSTs over the server's locked validation — the CLI performs exactly
-// ONE client-side shape check (`commitId` present, exit 2) and relays
-// everything else: a 4xx validation rejection maps to exit 5, which is what
-// makes an agent's submit loop self-correcting without stderr parsing
-// (ADR 0029 #6). Receipts pass through VERBATIM.
+// `reply` and `submit` — thin POSTs over the server's locked validation. The
+// CLI performs exactly ONE client-side shape check (`commitId` present,
+// exit 2) and relays everything else: a 4xx validation rejection maps to
+// exit 5, which is what makes an agent's submit loop self-correcting without
+// stderr parsing. Receipts pass through VERBATIM.
 import { CliError, ExitCode } from "../exit";
 import type { ApiClient } from "../client";
 
@@ -60,11 +59,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 /**
  * Assemble the submit payload. `-F` (file/stdin) and the convenience flags
- * are mutually exclusive — a defined precedence beats a silent merge (the
- * invisible-mode-gates rule: behavior follows what the invocation visibly
- * says). The ONE client-side shape check: `commitId` must be present
- * (exit 2) — it is never auto-fetched (plan decision 4: the reviewer pins
- * the commit they actually read); the server owns every other rule.
+ * are mutually exclusive — a defined precedence beats a silent merge. The ONE
+ * client-side shape check: `commitId` must be present (exit 2) and is never
+ * auto-fetched — the reviewer pins the commit they actually read. The server
+ * owns every other rule.
  */
 export function buildSubmitPayload(input: SubmitInput): unknown {
   const hasFlags =
@@ -79,10 +77,9 @@ export function buildSubmitPayload(input: SubmitInput): unknown {
   }
 
   if (input.payload !== undefined) {
-    // The ONE client-side shape check (codex PR67 R1: one check, one error):
-    // commitId must be present — everything else, including a payload the
-    // server would reject wholesale, flows through; server validation owns
-    // the rest (exit 5, the self-correcting arm).
+    // The ONE client-side shape check: commitId must be present — everything
+    // else, including a payload the server would reject wholesale, flows
+    // through to server validation (exit 5, the self-correcting arm).
     if (
       !isRecord(input.payload) ||
       typeof input.payload["commitId"] !== "string" ||
@@ -129,10 +126,9 @@ export async function runSubmit(
     body: payload,
   });
 
-  // `commentsDegraded` must be PROMINENT in both output modes (plan decision
-  // 4): the receipt carries it verbatim for --json consumers, and a stderr
-  // warning fires in both modes (stderr is free on exit-0 runs — the
-  // invariant governs stdout).
+  // `commentsDegraded` must be PROMINENT in both output modes: the receipt
+  // carries it verbatim for --json consumers, and a stderr warning fires in
+  // both modes (stderr is free on exit-0 runs — the invariant governs stdout).
   let degraded = false;
   try {
     const parsed: unknown = JSON.parse(response.bodyText);

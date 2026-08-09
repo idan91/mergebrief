@@ -1,9 +1,9 @@
-// The `--group` hunk-level filter (BRIEF-17 PR 6, plan decision 4): join a
-// change-group's brief chunk ranges against unified-diff hunk headers and
-// keep WHOLE hunks only — never trimmed, so the output is itself a valid
-// diff (`git apply --check` clean). `addedRanges` join the hunk's NEW side,
-// `removedRanges` its OLD side. Chunk files absent from the diff are
-// reported so the command can fail loud rather than silently under-show.
+// The `--group` hunk-level filter: join a change-group's brief chunk ranges
+// against unified-diff hunk headers and keep WHOLE hunks only — never
+// trimmed, so the output is itself a valid diff (`git apply --check` clean).
+// `addedRanges` join the hunk's NEW side, `removedRanges` its OLD side. Chunk
+// files absent from the diff are reported so the command can fail loud rather
+// than silently under-show.
 
 /** The slice of a brief chunk the filter needs (new-side file path). */
 export interface ChunkSpan {

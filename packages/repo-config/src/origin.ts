@@ -1,9 +1,7 @@
-// The artifact-facing shape of repo-config origin data (ADR 0032 #8/#11): the
-// JSON the worker serializes into `brief.repo_config` and the read surfaces
-// (api/web) parse back. One Zod schema owns the contract so writer and
-// readers cannot drift — the FE renders source markers, de-emphasis weight,
-// and the origin chip's per-file table from THIS snapshot, never from
-// live policy (self-contained historical rendering).
+// The artifact-facing shape of repo-config origin data: the JSON the worker
+// serializes into `brief.repo_config` and the read surfaces (api/web) parse
+// back. One Zod schema owns the contract so writer and readers cannot drift —
+// the FE renders from THIS snapshot, never from live policy.
 import { z } from "zod/v4";
 import {
   ATTRIBUTE_NAME_MAX_CHARS,
@@ -25,10 +23,9 @@ const outcomeEnum = z.enum([
 ]);
 
 /**
- * Per-file origin row — mirrors `RepoConfigFileOutcome` (validate.ts),
- * pinned to ONE canonical slot path per tuple position (codex PR 4 r1: the
- * read boundary must reject reordered/duplicated/foreign paths, not just
- * trust the writer).
+ * Per-file origin row — mirrors `RepoConfigFileOutcome` (validate.ts), pinned
+ * to ONE canonical slot path per tuple position: the read boundary must
+ * reject reordered/duplicated/foreign paths, not just trust the writer.
  */
 function slotOutcomeSchema<P extends string>(path: P) {
   return z
@@ -47,10 +44,9 @@ function slotOutcomeSchema<P extends string>(path: P) {
 /**
  * A custom-attribute definition as snapshotted on the artifact: the
  * validated definition plus its name (the record key at validation time).
- * Only attributes that actually FIRED on the brief are snapshotted — the
- * chip expansion needs criteria/implication for rendered attributes only.
- * Field constraints mirror the policy schema (codex PR 4 r1): a snapshot
- * that could not have come from a validated policy must not parse.
+ * Only attributes that actually FIRED on the brief are snapshotted. Field
+ * constraints mirror the policy schema: a snapshot that could not have come
+ * from a validated policy must not parse.
  */
 const firedCustomAttributeSchema = z
   .object({
@@ -70,9 +66,9 @@ const FLOOR_SET: ReadonlySet<string> = new Set(FLOOR_ATTRIBUTES);
 /**
  * `generation.repo_config` — the per-file outcome table (EXACTLY the three
  * fixed paths, stable order instructions/settings/policy) + collision
- * disclosures (ADR 0032 #5 chip), written right after acquisition so failed
- * and superseded generations keep their outcomes. The brief artifact's
- * schema below EXTENDS this with the policy snapshot.
+ * disclosures, written right after acquisition so failed and superseded
+ * generations keep their outcomes. The brief artifact's schema below EXTENDS
+ * this with the policy snapshot.
  */
 export const repoConfigOriginSchema = z
   .object({

@@ -7,7 +7,7 @@ function validate(content: string) {
   return validateRepoConfig({ instructions: instructionsFile(content) });
 }
 
-/** instructions.md (ADR 0032 #10): no schema, budget check only, carried whole. */
+/** instructions.md: no schema, budget check only, carried whole. */
 describe("instructions.md validation", () => {
   it("carries the text whole when within budget", () => {
     const content =

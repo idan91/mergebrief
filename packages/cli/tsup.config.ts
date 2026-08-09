@@ -1,6 +1,6 @@
-// Single-file bundle (ADR 0028 #6): everything — commander, zod — bundles
-// into dist/mergebrief.js; no workspace runtime deps (compile-time `types`
-// only). The shebang lives in src/bin.ts and survives the bundle.
+// Single-file bundle: everything — commander, zod — bundles into
+// dist/mergebrief.js; no workspace runtime deps (compile-time `types` only).
+// The shebang lives in src/bin.ts and survives the bundle.
 import { defineConfig } from "tsup";
 
 export default defineConfig({

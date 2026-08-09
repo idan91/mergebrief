@@ -1,9 +1,6 @@
-// The command surface (BRIEF-17 PR 5: `auth login`, `auth status`, `repos`;
-// the read/write commands land in the next PRs). `runCli` is the whole CLI
-// behind an injected-deps boundary — command tests run it against the REAL api
-// Hono app and assert the contract surface directly: captured stdout/stderr
-// + the returned exit code (ADR 0029 #5: exit 0 ⇒ stdout is documented JSON;
-// exit ≠ 0 ⇒ empty stdout, ONE stderr line).
+// `runCli` is the whole CLI behind an injected-deps boundary — command tests
+// run it against the REAL api Hono app and assert the contract surface:
+// exit 0 ⇒ stdout is documented JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line.
 import { Command } from "commander";
 import { createApiClient, type ApiClient, type FetchLike } from "./client";
 import {
@@ -37,7 +34,7 @@ export interface CliDeps {
   readonly fetch: FetchLike;
   /** Read a file for `submit -F <file>`; injected for tests. */
   readonly readFile?: ((path: string) => string) | undefined;
-  /** `$PAGER` hook for `diff` on a TTY (cosmetic — ADR 0029 #7); optional. */
+  /** `$PAGER` hook for `diff` on a TTY (cosmetic); optional. */
   readonly pager?: ((text: string) => Promise<void>) | undefined;
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly configDir: string;
@@ -52,7 +49,7 @@ export interface CliDeps {
   readonly gitOriginUrl: () => string | undefined;
 }
 
-/** The two-level `auth status` shape (ADR 0029 #2b) — additive-only. */
+/** The two-level `auth status` shape — additive-only. */
 interface AuthStatusBody {
   readonly profile: string;
   readonly baseUrl: string;
@@ -61,7 +58,7 @@ interface AuthStatusBody {
     readonly reachable: boolean;
     /** null when unreachable (undetermined). */
     readonly authenticated: boolean | null;
-    /** The server's version (ADR 0029 #8), null when undetermined. */
+    /** The server's version, null when undetermined. */
     readonly version: string | null;
   };
 }
@@ -69,7 +66,7 @@ interface AuthStatusBody {
 interface GlobalOptions {
   readonly json: boolean;
   readonly profile?: string;
-  /** `-R owner/name` — overrides origin-remote inference (plan decision 3). */
+  /** `-R owner/name` — overrides origin-remote inference. */
   readonly repo?: string;
 }
 
@@ -144,7 +141,7 @@ function emitStatus(deps: CliDeps, json: boolean, body: AuthStatusBody): void {
     deps.stdout(`${JSON.stringify(body)}\n`);
     return;
   }
-  // TTY rendering — explicitly NON-contractual (ADR 0029 #7).
+  // TTY rendering — explicitly NON-contractual.
   const auth =
     body.server.authenticated === true
       ? "authenticated"
@@ -169,7 +166,6 @@ async function runAuthLogin(
   if (!config.ok) {
     throw new CliError(ExitCode.USAGE, config.error);
   }
-  // The explicit-profile arm matches the resolution order (codex PR5 R1):
   // MERGEBRIEF_PROFILE selects the login target exactly like --profile.
   const profileName =
     global.profile ?? deps.env["MERGEBRIEF_PROFILE"] ?? "default";
@@ -199,15 +195,13 @@ async function runAuthLogin(
   };
   saveConfig(deps.configDir, next);
 
-  // Verify immediately and report as the documented auth-status shape (the
-  // login output IS an auth status — no third synthesized shape).
+  // The login output IS an auth status — no third synthesized shape.
   const savedProfile = next.profiles[profileName];
   if (savedProfile === undefined) {
     throw new Error("profile vanished after save"); // unreachable
   }
-  // Verify the credential BEING INSTALLED (codex PR5 R1): the env override
-  // must not mask a bad paste (or fail a good one) — it applies to commands
-  // resolving a stored profile, never to login's own verification.
+  // Verify the credential BEING INSTALLED: the env override must not mask a
+  // bad paste, so it never applies to login's own verification.
   const resolved: ResolvedProfile = {
     name: profileName,
     profile: savedProfile,
@@ -237,8 +231,8 @@ async function runRepos(
   };
   const { body, bodyText } = await loadRepos(cacheDeps, options);
   if (global.json) {
-    // Passthrough: the server body VERBATIM — not one byte more (codex PR5
-    // R1: an appended newline is a byte the server never sent).
+    // Passthrough: the server body VERBATIM — not one byte more (even an
+    // appended newline is a byte the server never sent).
     deps.stdout(bodyText);
     return;
   }
@@ -248,7 +242,7 @@ async function runRepos(
 }
 
 /** Resolve the PR-addressed commands' target repo: `-R` beats the origin
- * remote; no prompts, ever (plan decision 3). */
+ * remote; no prompts, ever. */
 async function resolveTarget(
   deps: CliDeps,
   global: GlobalOptions,
@@ -347,11 +341,7 @@ function buildProgram(deps: CliDeps): Command {
     .description(
       "MergeBrief — PR briefs for humans and agents, over your deployment's API",
     )
-    .option(
-      "--json",
-      "machine output: the documented JSON contract (ADR 0029)",
-      false,
-    )
+    .option("--json", "machine output: the documented JSON contract", false)
     .option("--agents", "print the packaged agent guide and exit", false)
     .option(
       "--profile <name>",
@@ -465,7 +455,6 @@ function buildProgram(deps: CliDeps): Command {
       ) => {
         const global = globals();
         if (global.json) {
-          // ADR 0029 #7: the raw unified diff IS diff's machine format.
           throw new CliError(
             ExitCode.USAGE,
             "diff has no JSON arm — its raw output is the machine format",
@@ -548,7 +537,7 @@ function buildProgram(deps: CliDeps): Command {
         };
         // Usage validation BEFORE any network work: a malformed PR number or
         // a missing --commit must exit 2 even when target resolution would
-        // fail (e.g. exit 4 from a non-covered repo).
+        // fail with exit 4.
         const prNumber = parsePrNumber(raw);
         const payload = buildSubmitPayload(input);
         const { client, repoId } = await resolveTarget(deps, global);
@@ -596,8 +585,7 @@ export async function runCli(
   argv: readonly string[],
   deps: CliDeps,
 ): Promise<number> {
-  // Root-level guide (plan decision 8): print and exit before any parsing
-  // side effects — agents read this first.
+  // Print and exit before any parsing side effects — agents read this first.
   if (argv.includes("--agents")) {
     deps.stdout(AGENTS_GUIDE);
     return ExitCode.OK;

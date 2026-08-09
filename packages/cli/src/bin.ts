@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// The thin bin over the client module (ADR 0028 #1): real-world deps wired
-// here and ONLY here — the whole CLI stays testable behind `runCli`.
+// Real-world deps are wired here and ONLY here — the whole CLI stays testable
+// behind `runCli`.
 import { execFileSync, spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -47,7 +47,7 @@ function gitOriginUrl(): string | undefined {
   }
 }
 
-/** `$PAGER` for `diff` on a TTY — cosmetics only (ADR 0029 #7). */
+/** `$PAGER` for `diff` on a TTY — cosmetics only. */
 function makePager(): ((text: string) => Promise<void>) | undefined {
   const pager = process.env["PAGER"];
   if (!process.stdout.isTTY || pager === undefined || pager.length === 0) {

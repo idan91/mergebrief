@@ -1,7 +1,7 @@
-// Zod schemas for the two versioned YAML files (ADR 0032 #7/#11). Everything
-// is `.strict()` — an unknown or mistyped key (an `atributes:` typo) must take
-// the invalid path, never silently no-op. Byte-size caps are enforced OUTSIDE
-// Zod (see validate.ts); these schemas own STRUCTURAL validity only.
+// Zod schemas for the two versioned YAML files. Everything is `.strict()` —
+// an unknown or mistyped key (an `atributes:` typo) must take the invalid
+// path, never silently no-op. Byte-size caps are enforced OUTSIDE Zod (see
+// validate.ts); these schemas own STRUCTURAL validity only.
 
 import { z } from "zod/v4";
 import {
@@ -16,9 +16,9 @@ import {
 // --- settings.yaml (v1) -----------------------------------------------------
 
 /**
- * `settings.yaml` v1 (ADR 0032 #13). One workflow knob today. `.strict()` so a
- * typo'd key is rejected, not ignored; `version` must be the literal `1` (an
- * unknown/missing version takes the invalid path).
+ * `settings.yaml` v1. One workflow knob today. `.strict()` so a typo'd key is
+ * rejected, not ignored; `version` must be the literal `1` (an unknown or
+ * missing version takes the invalid path).
  */
 export const settingsV1Schema = z
   .object({
@@ -32,9 +32,9 @@ export type RepoSettingsV1 = z.infer<typeof settingsV1Schema>;
 // --- policy.yaml (v1) -------------------------------------------------------
 
 /**
- * One custom risk attribute (ADR 0032 #11) — a flat fact. No tier/severity/
- * weight, and none can sneak in (`.strict()`). `paths` pre-filters chunks
- * before model evaluation; entries are non-empty glob strings.
+ * One custom risk attribute — a flat fact. No tier/severity/weight, and none
+ * can sneak in (`.strict()`). `paths` pre-filters chunks before model
+ * evaluation; entries are non-empty glob strings.
  */
 export const customAttributeSchema = z
   .object({
@@ -47,10 +47,10 @@ export const customAttributeSchema = z
 export type CustomAttribute = z.infer<typeof customAttributeSchema>;
 
 /**
- * Custom attribute NAME schema (ADR 0032 #11): lower-kebab charset + length
- * cap. These names later extend a model json_schema enum per generation, so
- * the charset restriction is a security control — anything off-charset is
- * rejected (whole-file invalid), never sanitized.
+ * Custom attribute NAME schema: lower-kebab charset + length cap. These names
+ * later extend a model json_schema enum per generation, so the charset
+ * restriction is a SECURITY CONTROL — anything off-charset is rejected
+ * (whole-file invalid), never sanitized.
  */
 const attributeNameSchema = z
   .string()
@@ -59,11 +59,11 @@ const attributeNameSchema = z
   .regex(ATTRIBUTE_NAME_PATTERN);
 
 /**
- * A single de-emphasis rule (ADR 0032 #11): quiet an attribute's render,
- * optionally scoped to paths. `attribute` is validated for existence
- * (built-in non-floor or a surviving custom name) in validate.ts, not here —
- * the schema only owns shape. Floor attributes are rejected at the schema
- * level (below) because that is a whole-file invalidation, not a warn-and-drop.
+ * A single de-emphasis rule: quiet an attribute's render, optionally scoped to
+ * paths. `attribute` existence (built-in non-floor or a surviving custom name)
+ * is validated in validate.ts — the schema only owns shape. Floor attributes
+ * are rejected at the schema level (below) because that is a whole-file
+ * invalidation, not a warn-and-drop.
  */
 export const deEmphasisRuleSchema = z
   .object({
@@ -77,10 +77,10 @@ export type DeEmphasisRule = z.infer<typeof deEmphasisRuleSchema>;
 const FLOOR_ATTRIBUTE_SET: ReadonlySet<string> = new Set(FLOOR_ATTRIBUTES);
 
 /**
- * `policy.yaml` v1 (ADR 0032 #11). `.strict()`; `version` literal `1`;
- * `attributes` is a name→definition record (≤ 20 entries, names charset-gated);
- * `deEmphasize` may not name a floor attribute — one that does invalidates the
- * whole file (reject-whole, never a warn-and-drop for floor).
+ * `policy.yaml` v1. `.strict()`; `version` literal `1`; `attributes` is a
+ * name→definition record (≤ 20 entries, names charset-gated); `deEmphasize`
+ * may not name a floor attribute — one that does invalidates the whole file
+ * (reject-whole, never a warn-and-drop for floor).
  */
 export const policyV1Schema = z
   .object({

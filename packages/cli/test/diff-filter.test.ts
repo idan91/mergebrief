@@ -1,8 +1,8 @@
-// Table-driven hunk-filter units (BRIEF-17 PR 6, test-first): the `--group`
-// filter keeps WHOLE hunks only (a trimmed hunk would not `git apply`),
-// joins brief chunk ranges — `addedRanges` against the hunk's NEW side,
-// `removedRanges` against its OLD side — and reports chunk files missing
-// from the diff so the command can fail loud.
+// Table-driven hunk-filter units: the `--group` filter keeps WHOLE hunks only
+// (a trimmed hunk would not `git apply`), joins brief chunk ranges —
+// `addedRanges` against the hunk's NEW side, `removedRanges` against its OLD
+// side — and reports chunk files missing from the diff so the command can
+// fail loud.
 import { describe, expect, it } from "vitest";
 import {
   filterDiffByChunks,

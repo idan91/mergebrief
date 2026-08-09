@@ -1,7 +1,6 @@
-// Per-profile config (BRIEF-17 plan, tech-stack decisions): Zod-validated
-// JSON at `<configDir>/config.json`, written 0600 (the token is stored
-// PLAINTEXT by design — no OS keychain in v1; the mint UI carries the
-// disclaimer). Profile resolution order is LOCKED:
+// Per-profile config: Zod-validated JSON at `<configDir>/config.json`,
+// written 0600 — the token is stored PLAINTEXT by design (no OS keychain in
+// v1; the mint UI carries the disclaimer). Profile resolution order is LOCKED:
 //   explicit `--profile` flag / MERGEBRIEF_PROFILE env
 //     → `owners:` match on the git-remote owner
 //       → the default profile.
@@ -70,8 +69,8 @@ export function saveConfig(configDir: string, config: CliConfig): void {
   mkdirSync(configDir, { recursive: true, mode: 0o700 });
   const path = join(configDir, "config.json");
   writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
-  // `mode` only applies on CREATE (codex PR5 R1) — an existing file keeps its
-  // old permissions through the rewrite, so enforce 0600 explicitly.
+  // `mode` only applies on CREATE — an existing file keeps its old
+  // permissions through the rewrite, so enforce 0600 explicitly.
   chmodSync(path, 0o600);
 }
 
@@ -93,8 +92,7 @@ export interface ResolveProfileInput {
 
 /**
  * The locked resolution order. A named profile that does not exist is a hard
- * USAGE error (never a silent fallback — the invisible-mode-gates rule:
- * behavior follows visible state).
+ * USAGE error, never a silent fallback.
  */
 export function resolveProfile(input: ResolveProfileInput): ResolvedProfile {
   const { config, env } = input;
@@ -141,8 +139,7 @@ export function ownerFromOriginUrl(url: string): string | undefined {
   return match?.[1];
 }
 
-/** Parse `owner/name` from a git origin remote URL, if possible (used by the
- * PR-addressed commands' origin inference). */
+/** Parse `owner/name` from a git origin remote URL, if possible. */
 export function fullNameFromOriginUrl(url: string): string | undefined {
   const match = /[:/]([^/:]+\/[^/]+?)(?:\.git)?$/.exec(url.trim());
   return match?.[1];

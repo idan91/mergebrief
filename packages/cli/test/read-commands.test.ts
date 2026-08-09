@@ -1,8 +1,8 @@
-// Read-command tests (BRIEF-17 PR 6): passthrough byte-fidelity against the
-// REAL api app (pr list / pr meta / groups / conversation / diff), the
-// TTY-vs-`--json` split, `diff --json` rejection, and the `delta` union —
-// both arms — over controlled PR-meta bodies (the arms are pure CLI logic;
-// the passthrough tests cover the real wire).
+// Read-command tests: passthrough byte-fidelity against the REAL api app
+// (pr list / pr meta / groups / conversation / diff), the TTY-vs-`--json`
+// split, `diff --json` rejection, and the `delta` union — both arms — over
+// controlled PR-meta bodies (the arms are pure CLI logic; the passthrough
+// tests cover the real wire).
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";

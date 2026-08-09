@@ -1,14 +1,11 @@
-// The packaged agent guide (BRIEF-17 plan decision 8): printed by the
-// `--agents` root flag. Content order is locked: contract invariants first,
-// the exit table with next-moves, the reviewer loop, the author loop, and
-// the delta union spelled out. Shipped as a constant so the single-file
-// bundle carries it with zero runtime file reads.
+// The packaged agent guide, printed by the `--agents` root flag. Shipped as a
+// constant so the single-file bundle carries it with zero runtime file reads.
 export const AGENTS_GUIDE = `# MergeBrief for agents
 
 You are driving a code-review comprehension tool over its \`--json\` contract.
 Read this whole guide once; the invariants make unattended loops safe.
 
-## Contract invariants (ADR 0029)
+## Contract invariants
 
 - **exit 0 ⇒ stdout is documented JSON** (or the raw unified diff, for
   \`diff\`). **exit ≠ 0 ⇒ stdout is EMPTY** and stderr carries exactly one

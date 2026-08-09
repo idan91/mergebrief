@@ -1,8 +1,8 @@
 // Command tests over the REAL api Hono app (the injected-fetch boundary:
 // `app.request` is fetch-shaped) on PGlite — true integration, no network,
 // no mock drift. Assertions live on the contract surface: captured stdout /
-// stderr + exit code (ADR 0029 #5), passthrough byte-fidelity, and the
-// repos cache's self-healing triggers.
+// stderr + exit code, passthrough byte-fidelity, and the repos cache's
+// self-healing triggers.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -259,9 +259,7 @@ function freshIo(): { out: string[]; err: string[] } {
   return { out: [], err: [] };
 }
 
-describe("auth login profile selection + verification (codex PR5 R1)", () => {
-  // Fresh harness per test lives in the outer describe; these reuse module
-  // scope via a local setup identical to the main suite.
+describe("auth login profile selection + verification", () => {
   let harness: PgliteHarness;
   let kp: KeyProvider;
   let appFetch: CliDeps["fetch"];

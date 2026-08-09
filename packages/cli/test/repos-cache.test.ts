@@ -1,13 +1,7 @@
-// Repos command + cache tests (BRIEF-17 PR 5c — split from the scaffold PR
-// at the LOC gate). Same harness: the REAL api app behind the injected
+// Repos command + cache tests over the REAL api app behind the injected
 // fetch, plus CONTROLLED bodies for the trigger table. Includes the
-// stream/exit invariant pin (exit ≠ 0 ⇒ empty stdout) — the revoked-token
-// arm drives the repos command.
-// Command tests over the REAL api Hono app (the injected-fetch boundary:
-// `app.request` is fetch-shaped) on PGlite — true integration, no network,
-// no mock drift. Assertions live on the contract surface: captured stdout /
-// stderr + exit code (ADR 0029 #5), passthrough byte-fidelity, and the
-// repos cache's self-healing triggers.
+// stream/exit invariant pin (exit ≠ 0 ⇒ empty stdout, ONE stderr line) — the
+// revoked-token arm drives the repos command.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -224,8 +218,8 @@ describe("mergebrief repos command + cache", () => {
     expect(apiRepoHits).toBe(1);
 
     // Second run: served from DISK — no /api/repos request at all (no TTL),
-    // and STILL byte-identical (the cache returns raw bytes, never
-    // re-serialized — ADR 0029 #1 holds on the cached path too).
+    // and STILL byte-identical: the cache returns raw bytes, never
+    // re-serialized.
     const second = deps({ fetch: countingFetch });
     expect(await runCli(["repos", "--json"], second.deps)).toBe(ExitCode.OK);
     expect(apiRepoHits).toBe(1);

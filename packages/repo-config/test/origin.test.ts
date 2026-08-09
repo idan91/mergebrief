@@ -1,7 +1,7 @@
-// The brief.repo_config artifact contract (ADR 0032 #8/#11): the read
-// boundary must reject snapshots that could not have come from the writer —
-// wrong/reordered/duplicated slot paths, unconstrained fired definitions,
-// floor attributes in deEmphasize (codex PR 4 round 1).
+// The brief.repo_config artifact contract: the read boundary must reject
+// snapshots that could not have come from the writer — wrong, reordered or
+// duplicated slot paths, unconstrained fired definitions, floor attributes in
+// deEmphasize.
 import { describe, expect, it } from "vitest";
 import { FLOOR_ATTRIBUTES, RepoConfigPaths } from "../src/constants";
 import { repoConfigArtifactSchema } from "../src/origin";

@@ -1,7 +1,6 @@
-// Repo addressing (plan decision 3, CLI side): the per-profile disk cache of
-// `GET /api/repos` (`<cacheDir>/<profile>/repos.json`, NO TTL — XDG cache =
-// safe-to-delete signal) and the self-healing resolution used by every
-// PR-addressed command:
+// Repo addressing: the per-profile disk cache of `GET /api/repos`
+// (`<cacheDir>/<profile>/repos.json`, NO TTL — XDG cache = safe-to-delete
+// signal) and the self-healing resolution used by every PR-addressed command:
 //   cache miss            → refresh once, retry
 //   slug not in the cache → refresh once, retry (rename self-heal)
 //   `--refresh`           → bypass the cache outright
@@ -29,7 +28,7 @@ function cachePath(deps: RepoCacheDeps): string {
 }
 
 /** A cache read keeps the RAW disk bytes alongside the parsed shape — the
- * verbatim-passthrough promise (ADR 0029 #1) holds on the cached path too. */
+ * verbatim-passthrough promise holds on the cached path too. */
 function readCache(
   deps: RepoCacheDeps,
 ): { body: ReposBody; bodyText: string } | undefined {
@@ -51,7 +50,7 @@ function readCache(
 /**
  * Fetch `GET /api/repos` and persist the VERBATIM body to the profile cache.
  * Returns both the parsed shape (for resolution) and the raw text (for
- * passthrough output — ADR 0029 #1).
+ * verbatim passthrough output).
  */
 export async function refreshRepos(
   deps: RepoCacheDeps,
@@ -84,8 +83,7 @@ export async function loadRepos(
 }
 
 /**
- * Resolve `owner/name` → repoId with the self-healing triggers. Used by the
- * PR-addressed commands (PR 6) and covered by trigger-table tests here.
+ * Resolve `owner/name` → repoId with the self-healing triggers.
  */
 export async function resolveRepoId(
   deps: RepoCacheDeps,

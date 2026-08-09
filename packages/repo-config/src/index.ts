@@ -3,10 +3,9 @@
  * `exports["."]`). Everything importable from `"repo-config"` is re-exported
  * here, grouped by the module it lives in. Map + invariants: `AGENTS.md`.
  *
- * The package (ADR 0032): the `.mergebrief/` repo-local config surface —
- * Zod schemas + budget caps + the pure, source-agnostic `validateRepoConfig`
- * (reject-whole, collision resolution, outcome model) that the generator
- * consumes.
+ * The package: the `.mergebrief/` repo-local config surface — Zod schemas +
+ * budget caps + the pure, source-agnostic `validateRepoConfig` (reject-whole,
+ * collision resolution, outcome model) that the generator consumes.
  */
 
 // --- constants.ts — fixed paths, caps, vocabulary, outcome map --------------
@@ -40,7 +39,7 @@ export {
   type RepoSettingsV1,
 } from "./schemas";
 
-// --- validate.ts — the pure validation contract (PRs 3–6 consume it) --------
+// --- validate.ts — the pure validation contract -----------------------------
 export {
   validateRepoConfig,
   type RepoConfigFileInput,

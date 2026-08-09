@@ -1,13 +1,12 @@
-// The pure, source-agnostic core of the repo-config surface (ADR 0032 #5/#6/
-// #7/#11). Takes already-fetched file contents (server fetch today, CLI
-// working-tree reads later) and returns a validated config + a per-file
+// The pure, source-agnostic core of the repo-config surface. Takes
+// already-fetched file contents and returns a validated config + a per-file
 // outcome table. It never fetches, never touches the filesystem, never throws
 // for expected failures.
 //
-// Secret/echo hygiene (ADR 0032 #12): outcome `detail`/`warning` strings carry
-// path + a sanitized reason ONLY — never file content, YAML values, or raw
-// `yaml`-lib messages (those can quote source). Zod issue paths/codes are fine;
-// received values are NOT.
+// Secret/echo hygiene: outcome `detail`/`warning` strings carry path + a
+// sanitized reason ONLY — never file content, YAML values, or raw `yaml`-lib
+// messages (those can quote source). Zod issue paths/codes are fine; received
+// values are NOT.
 
 import { parse as parseYaml } from "yaml";
 import { RiskSurfaceAttributes } from "brief-core";
@@ -32,7 +31,7 @@ import {
   type RepoSettingsV1,
 } from "./schemas";
 
-// --- Public contract (names consumed by PRs 3–6 — keep them) ----------------
+// --- Public contract --------------------------------------------------------
 
 /**
  * One repo-local file as handed to validation. `undefined` at the input = absent
@@ -122,7 +121,7 @@ function nearingCapWarning(bytes: number, budget: number): string | null {
  * Anything else in a Zod issue path is an untrusted, author-supplied key (a
  * custom attribute name, or an off-charset key surfaced by `invalid_key`) and
  * is replaced with `<key>` — those strings are YAML content and must never be
- * echoed (ADR 0032 #12).
+ * echoed.
  */
 const SAFE_PATH_SEGMENTS: ReadonlySet<string> = new Set([
   "version",
@@ -199,9 +198,9 @@ const YAML_PARSE_ERROR = "invalid-yaml" as const;
  * still THROWING on genuine syntax errors (so malformed YAML is still rejected
  * whole): at the default level it routes recoverable warnings (e.g. unresolved
  * tags) through `process.emitWarning`, echoing the offending SOURCE LINE to
- * stderr — a content leak (ADR 0032 #12). `"silent"` would over-suppress,
- * recovering from real errors and defeating reject-whole. The thrown error is
- * discarded here too (its message can quote source).
+ * stderr — a content leak. `"silent"` would over-suppress, recovering from
+ * real errors and defeating reject-whole. The thrown error is discarded here
+ * too (its message can quote source).
  */
 function tryParseYaml(
   content: string,
@@ -224,8 +223,8 @@ interface InstructionsResult {
 function validateInstructions(
   file: RepoConfigFileInput | undefined,
 ): InstructionsResult {
-  // Origin path is the canonical fixed slot (ADR 0032 #2/#3), never the
-  // caller-supplied `file.path` — the three paths are structural, not data.
+  // Origin path is the canonical fixed slot, never the caller-supplied
+  // `file.path` — the three paths are structural, not data.
   const path = RepoConfigPaths.INSTRUCTIONS;
   if (file === undefined) {
     return { outcome: makeOutcome(path, null, RepoConfigOutcome.ABSENT) };

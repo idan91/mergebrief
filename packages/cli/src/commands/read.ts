@@ -1,8 +1,7 @@
-// The read commands (BRIEF-17 PR 6, plan decision 4): `pr [n]`, `groups`,
-// `conversation`, `diff` (+ `--group` hunk filter), `delta`. Passthrough by
-// default (ADR 0029 #1); `delta` is one of the two CLI-synthesized shapes
-// (#2a). The blessed composition pattern: one command may make two API reads
-// (`delta` = pr-meta → delta; `diff --group` = brief + diff).
+// The read commands: `pr [n]`, `groups`, `conversation`, `diff` (+ `--group`
+// hunk filter), `delta`. Passthrough by default; `delta` is one of the two
+// CLI-synthesized shapes. One command may make two API reads (`delta` =
+// pr-meta → delta; `diff --group` = brief + diff).
 import { z } from "zod";
 import type { ApiClient } from "../client";
 import { CliError, ExitCode } from "../exit";
@@ -119,8 +118,8 @@ export async function runPrMeta(
   io: ReadIo,
 ): Promise<void> {
   if (io.json) {
-    // TRUE passthrough (codex PR67 R1): the json arm must never parse — a
-    // shape the CLI does not recognize still belongs to the consumer.
+    // TRUE passthrough: the json arm must never parse — a shape the CLI does
+    // not recognize still belongs to the consumer.
     const response = await client.request({
       path: `/api/repos/${repoId}/pulls/${prNumber}`,
     });
@@ -183,7 +182,7 @@ export interface DiffOptions {
  * `diff <n>`: the raw unified diff IS the machine format — `--json` is
  * rejected by the caller (exit 2) before this runs. `--group` filters to a
  * change-group's whole hunks on the brief's OWN span; combining it with a
- * custom `--base`/`--head` is a hard usage error (plan decision 4).
+ * custom `--base`/`--head` is a hard usage error.
  */
 export async function runDiff(
   client: ApiClient,
@@ -249,8 +248,8 @@ export async function runDiff(
   if (groupChunks !== undefined) {
     const filtered = filterDiffByChunks(text, groupChunks);
     if (filtered.missingFiles.length > 0) {
-      // Fail LOUD (plan decision 4): a silently under-shown group is worse
-      // than an error — the brief and the live diff disagree about files.
+      // Fail LOUD: a silently under-shown group is worse than an error — the
+      // brief and the live diff disagree about files.
       throw new CliError(
         ExitCode.GENERIC,
         `group "${options.group}" references files missing from the live diff (${filtered.missingFiles.join(", ")}) — the brief may lag a push; retry after regeneration`,
@@ -271,7 +270,7 @@ export interface DeltaOptions {
   readonly head?: string | undefined;
 }
 
-/** The `delta` union — one of the two CLI-synthesized shapes (ADR 0029 #2a). */
+/** The `delta` union — one of the two CLI-synthesized shapes. */
 export async function runDelta(
   client: ApiClient,
   repoId: string,
@@ -298,8 +297,8 @@ export async function runDelta(
       "--baseline and --head must be given together",
     );
   } else {
-    // Checkpoint resolution via PR-meta (the CLI's own join — recorded in
-    // the envelope's baselineSha).
+    // Checkpoint resolution via PR-meta — the CLI's own join, recorded in
+    // the envelope's baselineSha.
     const meta = await fetchPrMeta(client, repoId, prNumber);
     const lastReview = meta.slice.comparisons?.lastReview;
     if (lastReview === undefined) {
@@ -334,7 +333,7 @@ export async function runDelta(
 }
 
 // ---------------------------------------------------------------------------
-// Minimal TTY renderings — explicitly NON-contractual (ADR 0029 #7).
+// Minimal TTY renderings — explicitly NON-contractual.
 // ---------------------------------------------------------------------------
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -72,10 +72,8 @@ describe("validateRepoConfig — outcome table", () => {
 
 describe("validateRepoConfig — prototype pollution resistance", () => {
   // Pins the invariant against a future yaml/zod upgrade regressing their
-  // built-in guards. `__proto__`/`constructor` keys must never mutate a
-  // prototype, and the strict/charset schemas reject them regardless.
-  // A fresh object read at assertion time — reflects any live Object.prototype
-  // mutation regardless of when it was created.
+  // built-in guards: `__proto__`/`constructor` keys must never mutate a
+  // prototype. Read at assertion time, so it reflects any live mutation.
   const freshProbe: Record<string, unknown> = {};
 
   it("does not pollute Object.prototype via a top-level __proto__ key", () => {
@@ -93,8 +91,8 @@ describe("validateRepoConfig — prototype pollution resistance", () => {
     const result = validateRepoConfig({ policy: policyFile(content) });
     expect(freshProbe["criteria"]).toBeUndefined();
     const attrs = result.policy?.attributes;
-    // Direct integrity checks (not vacuous): the attributes object's own
-    // prototype is untampered, and `criteria` does not resolve via inheritance.
+    // Direct integrity checks, not vacuous: the prototype is untampered and
+    // `criteria` does not resolve via inheritance.
     expect(
       attrs === undefined || Object.getPrototypeOf(attrs) === Object.prototype,
     ).toBe(true);
@@ -104,13 +102,10 @@ describe("validateRepoConfig — prototype pollution resistance", () => {
   });
 
   it("rejects a constructor-named attribute (fails safe), with no pollution", () => {
-    // Rejection here is INCIDENTAL, not a deliberate guard: yaml attaches the
-    // nested value as an own `constructor` property, which shadows the record
-    // object's `.constructor`; zod's `isPlainObject` then reads
-    // `constructor.prototype` (now undefined) and the record itself throws
-    // invalid_type. If a dependency upgrade changes that heuristic this test
-    // fails loudly — the fix would be an explicit `constructor`/`prototype`
-    // reject in the attribute-name validation, mirroring zod's `__proto__` skip.
+    // Rejection here is INCIDENTAL, not a deliberate guard: the own
+    // `constructor` property shadows the record's, so zod's `isPlainObject`
+    // fails it. If a dependency upgrade changes that heuristic, the fix is an
+    // explicit `constructor`/`prototype` reject in attribute-name validation.
     const content =
       "version: 1\nattributes:\n  constructor:\n    criteria: x\n";
     const result = validateRepoConfig({ policy: policyFile(content) });

@@ -1,11 +1,11 @@
-// Write-command tests (BRIEF-17 PR 7): payload plumbing (file / stdin /
-// flags, with the mutual-exclusion rule pinned), the ONE client-side shape
-// check (commitId, exit 2), receipt passthrough byte-fidelity against the
-// real app, the commentsDegraded warning in both modes, and the exit-5
-// self-correction path against REAL server validation.
+// Write-command tests: payload plumbing (file / stdin / flags, with the
+// mutual-exclusion rule pinned), the ONE client-side shape check (commitId,
+// exit 2), receipt passthrough byte-fidelity against the real app, the
+// commentsDegraded warning in both modes, and the exit-5 self-correction path
+// against REAL server validation.
 //
 // Long file timeout: octokit's write-path throttle spaces consecutive POSTs
-// ~3s (BRIEF-23 lesson) — several tests submit through the real app.
+// ~3s, and several tests submit through the real app.
 import { createHash, randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -107,7 +107,7 @@ describe("buildSubmitPayload plumbing", () => {
 });
 
 describe("write commands over the real api app", () => {
-  // Write-path throttle spaces consecutive review POSTs (BRIEF-23 gotcha).
+  // Octokit's write-path throttle spaces consecutive review POSTs ~3s.
   vi.setConfig({ testTimeout: 30_000 });
 
   let harness: PgliteHarness;

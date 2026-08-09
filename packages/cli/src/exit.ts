@@ -1,5 +1,5 @@
-// The 6-code exit contract (ADR 0029 #6) — a PUBLIC surface: additive-only,
-// never renumbered. These codes are what make unattended agent loops safe:
+// The 6-code exit contract — a PUBLIC surface: additive-only, never
+// renumbered. These codes are what make unattended agent loops safe:
 // 3 → re-mint, 4 → wrong target, 5 → fix the payload and retry.
 import type { ValueOf } from "types";
 
@@ -35,7 +35,7 @@ export class CliError extends Error {
   }
 }
 
-/** Map an HTTP failure status to the contract (ADR 0029 #6). */
+/** Map an HTTP failure status to the contract. */
 export function exitCodeForStatus(status: number): ExitCode {
   if (status === 401) return ExitCode.AUTH;
   if (status === 404) return ExitCode.NOT_FOUND;

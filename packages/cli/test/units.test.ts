@@ -1,7 +1,6 @@
-// Pure-unit coverage for the contract surfaces (BRIEF-17 PR 5, test-first):
-// the 6-code exit mapping table (ADR 0029 #6 — additive-only, never
-// renumbered), profile resolution order (locked), origin-URL parsing, and
-// the client's proxy/IdP detection.
+// Pure-unit coverage for the contract surfaces: the 6-code exit mapping table
+// (additive-only, never renumbered), profile resolution order (locked),
+// origin-URL parsing, and the client's proxy/IdP detection.
 import { describe, expect, it } from "vitest";
 import { createApiClient } from "../src/client";
 import {
@@ -189,7 +188,7 @@ describe("client proxy/IdP detection", () => {
   });
 });
 
-describe("saveConfig permissions (codex PR5 R1)", () => {
+describe("saveConfig permissions", () => {
   it("re-tightens an existing config file to 0600 on rewrite", async () => {
     const { mkdtempSync, statSync, writeFileSync } = await import("node:fs");
     const { tmpdir } = await import("node:os");

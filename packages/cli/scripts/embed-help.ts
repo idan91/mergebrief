@@ -1,8 +1,7 @@
-// README flag-appendix generator (BRIEF-17 plan decision 8): runs each
-// command's `--help` through the REAL program (commander's structured help
-// is the canonical flag contract) and splices the output between the
-// README's marker comments. `--check` mode rewrites nothing and exits 1 on
-// staleness — the CI gate judges by exit code.
+// README flag-appendix generator: runs each command's `--help` through the
+// REAL program and splices the output between the README's marker comments.
+// `--check` rewrites nothing and exits 1 on staleness — the gate judges by
+// exit code.
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";

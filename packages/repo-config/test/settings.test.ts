@@ -4,8 +4,8 @@ import { validateRepoConfig } from "../src/validate";
 import { padYamlToBytes, settingsFile, yaml } from "./helpers";
 
 /**
- * settings.yaml (ADR 0032 #13): version-gated, strict, one v1 knob with a
- * default. Byte cap enforced outside Zod; unknown/mistyped keys reject whole.
+ * settings.yaml: version-gated, strict, one v1 knob with a default. Byte cap
+ * enforced outside Zod; unknown/mistyped keys reject whole.
  */
 function validate(content: string) {
   return validateRepoConfig({ settings: settingsFile(content) });
