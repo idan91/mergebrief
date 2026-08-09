@@ -10,7 +10,7 @@ one debounced graphile `generate` job (`ingestRoutines`). Plan:
 
 Deliberately NOT here: OAuth login/callback/logout, the authz middleware, and
 the read API (PR C); the `apps/web` catch-all mount and the real-Postgres/
-graphile composition root (stage 5); any worker/LLM code (BRIEF-3).
+graphile startup wiring (stage 5); any worker/LLM code (BRIEF-3).
 
 ## Invariants (enforced, don't weaken)
 
@@ -20,7 +20,7 @@ graphile composition root (stage 5); any worker/LLM code (BRIEF-3).
 - **Tenant from the signed payload.** `TenantContext` derives from the
   payload's `installation.id` (branded by `github`'s parser, revalidated via
   `parseTenantContext`) — never from a spoofable header. All writes go
-  through persistence's ctx-bound seams (`forTenant`, `ingestRoutines`,
+  through persistence's ctx-bound interfaces (`forTenant`, `ingestRoutines`,
   `purgeRoutines`); this package never sees a raw DB handle (D2b).
 - **Fast 200, no compute.** The webhook handler only upserts rows and
   enqueues one job — no LLM calls, no GitHub API calls, no generation.

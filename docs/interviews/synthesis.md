@@ -7,7 +7,7 @@
 ## Data-quality flags
 
 1. ~~Duplicate sheet~~ — **resolved.** `faang-staff` has distinct content (Interview C).
-2. ~~Interview A provenance~~ — **resolved: self-capture (founder).** Excluded from quota and wedge tallies. Observations kept, always labeled self-report.
+2. ~~Interview A origin~~ — **resolved: self-capture (founder).** Excluded from quota and wedge tallies. Observations kept, always labeled self-report.
 3. **C's wedge mention is a paraphrase** ("review briefing") — verify it predated section 7.
 4. **Interview C sheet incomplete.** No Linear-reaction / artifact-reaction rows. Backfill or mark "not asked".
 5. Artifact reactions are founder-administered — demand characteristics apply. D's *negative* reaction is therefore the most trustworthy artifact data in the set (you don't coach someone into criticizing your own design).
@@ -18,7 +18,7 @@
 - **A — SELF-CAPTURE (founder; non-countable).** Senior SWE, 6 YoE, ~450-eng org. ~90% AI-heavy. Tools: Claude Code/Cursor, Unblocked.
 - **B (Jorge)** — Mid-level SWE, 5 YoE, 5-person squad, ~50-eng startup. ~80–85% AI-heavy. Tools: Cursor, CodeRabbit, Linear (Diffs beta user).
 - **C (FAANG staff)** — Staff SWE, infra/platform-adjacent, ~9 immediate / ~40 org. ~35–50% AI-heavy. Tools: CodeRabbit + Claude Code.
-- **D (FE tech lead)** — Senior FE tech lead, 10-person squad, ~500-eng org. ~95% AI-heavy. Tools: Cursor, OpenSpec, Unblocked. **Skeptic** — the first interviewee to push back on the wedge. *Provenance: record whether D is C's FE-tech-lead referral (adjacent network) — likely, so the non-adjacent stranger is still outstanding.*
+- **D (FE tech lead)** — Senior FE tech lead, 10-person squad, ~500-eng org. ~95% AI-heavy. Tools: Cursor, OpenSpec, Unblocked. **Skeptic** — the first interviewee to push back on the wedge. *Origin: record whether D is C's FE-tech-lead referral (adjacent network) — likely, so the non-adjacent stranger is still outstanding.*
 
 Sample now spans mid-level→staff, startup→500-eng org, backend/infra→frontend, AI-share 35–95%. Not a monoculture on persona — but still not a monoculture-break on *network* (all peer/referral).
 
@@ -75,7 +75,7 @@ B's quote remains the lone direct Linear data point — supports the "grouping =
 
 ## Cross-cutting observations
 
-- **Playbook-as-noise (D) — the load-bearing risk.** First direct challenge to the moat, from the target ICP, equivalent to the Phase 1 null hypothesis. Carry it as the thing the gate must beat, not a footnote.
+- **Playbook-as-noise (D) — the critical risk.** First direct challenge to the moat, from the target ICP, equivalent to the Phase 1 null hypothesis. Carry it as the thing the gate must beat, not a footnote.
 - **ICP tension: senior vs junior (D).** D twice locates the playbook's value in junior engineers. If the wedge is junior-shaped, the **senior-only Phase 1 premise is in question** — either the proof bar is right and hard, or the cohort is wrong. Confront in the next planning pass (touches `phase-1.md` cohort rationale and the Phase 1.5 junior gate).
 - **Private space challenged (D):** "what benefit over a pending review you don't submit? historical context? use as data?" Need a crisp mind-map-vs-native-draft-review differentiator. His "use as data / historical context" question accidentally names the **org-learned-playbooks / data-exhaust moat** — the answer exists but is v2 and absent from the demo.
 - **"Is this safe?" overconfidence (C):** Claude Code "overconfidently blesses code." Field support for receipt-not-approval / no-verdict.
@@ -85,8 +85,8 @@ B's quote remains the lone direct Linear data point — supports the "grouping =
 
 ## Actions
 
-- [x] ~~Mark Interview A's provenance~~ — self-capture; excluded.
-- [ ] **Record D's provenance** (C's FE-tech-lead referral? → adjacent network).
+- [x] ~~Mark Interview A's origin~~ — self-capture; excluded.
+- [ ] **Record D's origin** (C's FE-tech-lead referral? → adjacent network).
 - [ ] **Make the final interview the non-adjacent stranger** (Reddit). Network-break is now the single biggest outstanding validity gap.
 - [ ] **Recode D's wedge-checklist with valence** (intent = wants, playbook = rejects, private-space = skeptical); add a valence column to the capture template.
 - [ ] **Add a large multi-group complex PR** to the gate set; use a larger PR (or both) as the interview artifact so it stops underselling to skeptics.

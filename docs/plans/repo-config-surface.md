@@ -29,9 +29,9 @@ fetch-failed`). (3) categorizer prompt: `REPO_INSTRUCTION_CLASSES` const,
 `<repo_instructions>` fencing + contract preamble, fenced custom-attributes
 block with `paths` pre-filtering, budget enforcement, adversarial fixtures.
 (4) worker wiring (fetch → validate → inject, fail-open) + persistence
-provenance (per-file path/SHA/outcome + policy snapshot on the artifact) +
+origin data (per-file path/SHA/outcome + policy snapshot on the artifact) +
 migration. (5) FE: chip source variants, de-emphasis rendering, group-header
-union chips, jump-rail, provenance chip with warning states; entry-comment
+union chips, jump-rail, origin chip with warning states; entry-comment
 draft gate; docs + authoring template.
 
 ## Locked decisions (ADR 0032 — do not re-litigate)
@@ -39,7 +39,7 @@ draft gate; docs + authoring template.
 Gist index only; the ADR carries the full text and rationale.
 
 1. **Operator/code-owner line** (#1): instance = provider/model/spend, boot
-   fail-fast; repo = policy/prose/workflow, generation-time fail-open. No
+   fail-fast; repo = policy/text/workflow, generation-time fail-open. No
    shared keys. Straddle rule recorded (narrow-never-widen), zero straddling
    knobs v1.
 2. **Layout** (#2): `.mergebrief/{instructions.md, settings.yaml, policy.yaml,
@@ -50,17 +50,17 @@ Gist index only; the ADR carries the full text and rationale.
    code-context / third-party agent files — AGENTS.md NOT read, revisit
    trigger recorded).
 4. **Fetch** (#4): fresh per generation, three fixed paths, no cache; blob SHA
-   → provenance; fetch failure = fail-open + loud `fetch-failed`.
+   → origin data; fetch failure = fail-open + loud `fetch-failed`.
 5. **Failure semantics** (#5): syntactic invalidity → reject-whole (never
    partial use); name collision (valid schema) → built-in wins + disclosure
    chip, uniform across versions/upgrades. Errors visible to author AND
    reviewer.
 6. **Caps as injected budget** (#6): instructions 16 KB budget; policy 32 KB /
    4k-char criteria / ≤20 attributes; settings 4 KB. Schema constants.
-   Usage shown in provenance; warn before reject.
+   Usage shown in the origin data; warn before reject.
 7. **Versioning** (#7): required integer `version: 1` per YAML; unknown
-   version/keys = invalid path (strict). Prose unversioned.
-8. **Provenance** (#8): per-file `path + blob SHA + outcome` on the generation
+   version/keys = invalid path (strict). Free text unversioned.
+8. **Origin tracking** (#8): per-file `path + blob SHA + outcome` on the generation
    record; understated header chip (expandable, warning state on error);
    Receipt carries the full table + de-emphasis tuning permanently.
 9. **Trust tiers** (#9): validated / semi-trusted / untrusted named;
@@ -69,7 +69,7 @@ Gist index only; the ADR carries the full text and rationale.
     (grouping boundaries, glossary/terminology, noise paths, reading
     *conventions* — foundation relations only — summary phrasing); must-ignore
     list; operative source = `REPO_INSTRUCTION_CLASSES` const, unit-tested
-    into the prompt; class changes gate on ADR amendment + eval run. Prose
+    into the prompt; class changes gate on ADR amendment + eval run. Free text
     never mints facts. Root file only; scoped files = separate Later ticket.
 11. **Policy semantics** (#11): flat facts `{criteria, implication?, paths?}`,
     no tier representable; de-emphasis-never-suppression; floor =
@@ -82,8 +82,8 @@ Gist index only; the ADR carries the full text and rationale.
     generation-time policy snapshot stored on the artifact.
 12. **Injection posture** (#12): no agentic surface; defense table (write
     gate, caps, fencing, port-level schema enforcement, harness-side policy
-    application, provenance, adversarial fixture). Residual risk =
-    self-inflicted prose degradation only.
+    application, origin tracking, adversarial fixture). Residual risk =
+    self-inflicted text degradation only.
 13. **settings.yaml v1** (#13): `entryCommentOnDrafts` default `false` —
     implements ADR 0020 #4 (verified unbuilt: no draft gate in `generate.ts`);
     entry comment posts on `ready_for_review` (webhook already parses it);
@@ -171,7 +171,7 @@ force-with-lease with explicit `:sha`.
 | 3 prompt-repo-context | Opus high | Fencing + contract preamble + budget + adversarial fixtures; the one prompt everything rides on |
 | 4 worker-wiring-provenance | Opus high | Fail-open paths, migration, snapshot shape; tenancy invariants on new columns |
 | 5 fe-attribute-display | Opus high | Chip variants + de-emphasis + floor co-fire rule across Story/Concern views |
-| 6 fe-jump-rail-provenance | Opus medium | New rail component + provenance chip; follows PR 5's patterns |
+| 6 fe-jump-rail-provenance | Opus medium | New rail component + origin chip; follows PR 5's patterns |
 | 7 settings-entry-gate-docs | Opus medium | Small worker gate + ready_for_review post + docs/template writing |
 
 ### PR 1 — `feature/BRIEF-52/github-repo-file` (~250–400 LOC)
@@ -222,7 +222,7 @@ force-with-lease with explicit `:sha`.
 
 1. Generate task: fetch 3 paths (PR 1) → `validateRepoConfig` (PR 2) →
    inject (PR 3). Fail-open on fetch failure; all outcomes recorded.
-2. Persistence: repo-config provenance on the generation record (per-file
+2. Persistence: repo-config origin data on the generation record (per-file
    path + blob SHA + outcome) + policy snapshot (fired custom-attribute
    definitions + de-emphasis rules in effect) stored with the brief artifact
    (D6 idempotent writes; tenancy stamping per D2b). Migration (drizzle-kit
@@ -246,7 +246,7 @@ force-with-lease with explicit `:sha`.
 1. Jump-rail: separate collapsible row sibling to GroupTocBar — attribute
    names + counts, click cycles carrying groups in story order, floor pinned
    first, de-emphasized excluded; collapsed unless a floor attribute fired.
-2. Provenance chip (header, both author + reviewer surfaces): "repo config @
+2. Origin chip (header, both author + reviewer surfaces): "repo config @
    sha", expandable per-file table, warning state on any non-applied outcome;
    Receipt/Review Summary gains the permanent per-file table + de-emphasis
    tuning line.
@@ -294,7 +294,7 @@ pnpm lint                       # exit code, per branch
 ```
 
 Runtime pass before the stack waits on Idan: `/verify` recipe (seeded repo
-with a `.mergebrief/` dir on the default branch; confirm provenance chip,
+with a `.mergebrief/` dir on the default branch; confirm origin chip,
 custom attribute firing, de-emphasis render, draft-PR entry silence, ready
 flip post; broken-YAML repo showing the warning chip to both roles).
 

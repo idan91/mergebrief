@@ -80,9 +80,9 @@ is where regressions hide) · main thread, after PR 1 merges.
    stays in TimelineNavigator.
 4. Stats group moves to the lens row (controls flex-1 · stats · Story/
    Concerns); LOC popover deleted, cell becomes plain text.
-5. Generation-warnings prose → compact amber count chip (panel wiring
+5. Generation-warnings text → compact amber count chip (panel wiring
    lands in PR 4; until then the chip reuses `RiskChipDisclosure` with the
-   prose as detail so warnings never go dark between PRs).
+   text as detail so warnings never go dark between PRs).
 6. Narrow-viewport wrap rule: everything after the repo link wraps; CTA +
    overflow pinned (adapt the ≤880px block).
 7. CTA copy `Receipt` → `Submit`; receipt surface's final CTA gains
@@ -133,7 +133,7 @@ thread, stacked on PR 3.
    aria-controls, hover preview, click canonical, Escape-at-capture).
 2. Three sections: Artifact (kind, brief index, commit range + count, full
    SHAs, LOC "adjusted ≈ git" caveat) · Generation (provider, model,
-   effort, warnings prose — no timestamps; the artifact's Generation
+   effort, warnings text — no timestamps; the artifact's Generation
    stamp carries none, spec amended 2026-08-04) · Repo config (ok-state; table
    slimmed to file + applied-or-not + warning line; bytes and per-file
    sha dropped).

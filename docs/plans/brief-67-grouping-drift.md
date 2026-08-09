@@ -30,7 +30,7 @@ internal anatomy (types, hook, view, styles) into one story group. Run-to-run
 variance also cuts the other way in product (components#11 collapsed 5→1), so
 the fix targets a stable consolidation rule, not a group-count nudge.
 
-**Sequencing consequence: BRIEF-74's full-corpus rebaseline waits for PR C** —
+**Sequencing consequence: BRIEF-74's full-source rebaseline waits for PR C** —
 rebaselining now would bake ~20–30% grouping as the reference.
 
 Incident found en route (2026-07-20 12:43): an eval invocation whose runs all
@@ -49,7 +49,7 @@ lookup. Both fixed in PR A.
   goes up.** No per-commit review agents.
 - **Confirmed specialist skills (mandatory): `typescript-eng`, `tdd`.**
   Test-first for PR A guard logic and PR B snapshot pinning.
-- **Spend cap for PR C: ~$5** (1–2 × $0.45 five-run probes + ~$4 full-corpus
+- **Spend cap for PR C: ~$5** (1–2 × $0.45 five-run probes + ~$4 full-source
   gate). Stop and report if the first two probes don't improve the pass rate.
 - Lint/gates judged by exit codes (`pnpm oxlint`); no prettier in this repo.
 - Full eval runs exceed the 600s Bash timeout — background them.
@@ -79,21 +79,21 @@ missing-key exit path, wipe-guard on zero-brief results, rebaseline bypass.
 Model/effort/invocation: mechanical — main thread, medium effort suffices
 (any capable model; no subagent needed).
 
-### PR B — prompt-builder prose dedupe (folded ticket scope)
+### PR B — prompt-builder text dedupe (folded ticket scope)
 
 Branch `refactor/BRIEF-67/prompt-prose-dedupe`, base main. ~250–400 LOC
 (mostly moved lines + snapshot fixtures).
 
 The three builders in `packages/brief-core/src/prompt.ts`
 (`buildSystemPrompt`, `buildDeltaSystemPrompt`,
-`buildRevisionNarrativeSystemPrompt`) duplicate prose rules (line-range rules
-etc.) and share only RISK_GLOSS; every gloss edit needs manual multi-way sync
+`buildRevisionNarrativeSystemPrompt`) duplicate text rules (line-range rules
+etc.) and share only RISK_GLOSS; every description edit needs manual multi-way sync
 — part of how BRIEF-55/69 edits had unintended grouping side effects.
 
 1. First commit: snapshot tests in `packages/brief-core/test/prompt.test.ts`
    pinning all three builders' full output (with and without repoContext for
    the brief builder).
-2. Second commit: extract shared prose blocks into module-level constants;
+2. Second commit: extract shared text blocks into module-level constants;
    snapshots must pass unchanged — **byte-identical is the gate, so no eval
    run** (per CLAUDE.md, no generation-surface change).
 
@@ -115,7 +115,7 @@ applies** (CLAUDE.md / BRIEF-59).
 2. Iterate: `pnpm -C tools/categorizer eval --case copybutton-new-export
    --runs 5` (~$0.45/probe, default config = anthropic:claude-opus-4-8;
    never `--config`). Target ≥4/5. Max 2 probes, then stop + report.
-3. Full-corpus gate run (~$4) once the probe holds; report in the PR body.
+3. Full-source gate run (~$4) once the probe holds; report in the PR body.
    Watch the other grouping-adjacent case (`pure-move-persistence`) for
    regression.
 4. NO rebaseline in this PR — that is BRIEF-74, which unblocks on merge.

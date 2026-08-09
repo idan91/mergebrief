@@ -50,7 +50,7 @@ net — store unit tests alone don't prove the *screen* still works.
   Slice B), (b) wrap it in `QueryClientProvider` with the client **pre-seeded** (`setQueryData`)
   for `localBriefQueryOptions(fixtureId)` + `localRevisionChangesQueryOptions(fixtureId)` from a
   committed JSON fixture (or mock `brief.functions`), plus the router context and
-  `MindMapProvider`, and (c) resolve Suspense. Assert the load-bearing couplings end-to-end:
+  `MindMapProvider`, and (c) resolve Suspense. Assert the critical couplings end-to-end:
   groups render; disposing a flag moves the receipt counts; marking a carrier chunk reviewed
   updates progress; reclassifying a group resets its playbook checks. **Written in Slice A
   against the pre-split screen** so it stays green across Slice B's extraction — it is the guard
@@ -234,11 +234,11 @@ persistence-coverage changes** (dominants/reclassifications/playbook checks now 
    - `features/review/components/`: `CommentComposer` (+ colocated `useCommentComposer`
      facade hook for the markdown/imperative logic), `CommentThread`, `ReceiptDrawer`,
      `SummaryPreview` (moved here), `DismissModal`, `EvidenceModal`, `PreSubmitModal`.
-3. Extract generic shells to `src/components/`. **Real ≥2-use seams** (justified by the
+3. Extract generic shells to `src/components/`. **Real ≥2-use interfaces** (justified by the
    two-adapter rule): `Modal` (3 modals), `Drawer` (2 drawers), `Markdown` (5+ sites:
    `briefs.$briefId.tsx` 608/624/996/1703/1993 + the two `ReactMarkdown` wrappers).
    **Single-use, extract by convention only** (one site today — `Toast`, `Switch` at line 1112):
-   promote if it reads cleaner, but don't claim a seam that isn't there. Feature components
+   promote if it reads cleaner, but don't claim an interface that isn't there. Feature components
    supply only content.
 4. Move the inline pure helpers: domain ones (`briefMetaLine`, `artifactHeaderLabel`,
    `summarizeProgress`) into their feature module; generic ones (`toggleSet`, `rangeBetween`)
@@ -300,7 +300,7 @@ scoped.
 ## Out of scope / deferred
 
 - **Region-anchored Dispositions** (ADR 0022 / ADR 0007) — keyed by brief-local id until
-  push→regenerate + persistence (ADR 0008) land. `TODO(adr-0022)` marks the seam.
+  push→regenerate + persistence (ADR 0008) land. `TODO(adr-0022)` marks the boundary.
 - **Mechanical "verified / not-checked" Receipt buckets** beyond the current static list — no
   data behind them yet.
-- **SSR on/off** is a separate, orthogonal decision; this refactor keeps `ssr: true`.
+- **SSR on/off** is a separate, independent decision; this refactor keeps `ssr: true`.

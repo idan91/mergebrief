@@ -1,6 +1,6 @@
 // ENTRY — the package's public surface (`package.json` `exports["."]`).
 
-// The seam: interface + factory. pino never leaks past logger.ts.
+// The boundary: interface + factory. pino never leaks past logger.ts.
 export {
   createLogger,
   resolveLoggerConfig,
@@ -13,7 +13,7 @@ export {
   type LogLevel,
 } from "./logger";
 
-// graphile-worker adapter (worker composition root).
+// graphile-worker adapter (worker startup wiring).
 export {
   createGraphileLogFactory,
   type GraphileLogFactory,

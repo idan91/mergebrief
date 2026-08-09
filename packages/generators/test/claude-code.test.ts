@@ -15,7 +15,7 @@ import { createGenerator, Providers } from "../src/config/registry";
 /**
  * Adapter-specific behavior on real fake-claude processes: invocation
  * profile (argv), envelope classification, trust-but-verify modelUsage,
- * and registry construction (boot probe). The pipeline conformance cases
+ * and registry construction (startup check). The pipeline conformance cases
  * live in claude-code.contract.test.ts.
  */
 
@@ -395,7 +395,7 @@ describe("claude-code registry entry", () => {
     expect(result.error.issues.join("; ")).toContain('"modle"');
   });
 
-  // BRIEF-150: the billing checks ride the boot probe end to end.
+  // BRIEF-150: the billing checks ride the startup check end to end.
   it("constructs silently on a floor-version subscription login", async () => {
     const warnings: string[] = [];
     const result = await createGenerator(

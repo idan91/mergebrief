@@ -2,7 +2,7 @@
 // fixed `.mergebrief/` paths from the DEFAULT BRANCH (fresh per generation,
 // no cache), validate via `repo-config`'s pure core, and shape the results
 // for the two consumers — the categorizer's `RepoContext` injection and the
-// `brief.repo_config` provenance snapshot.
+// `brief.repo_config` origin snapshot.
 //
 // FAIL-OPEN is the whole contract here: nothing in this module ever throws
 // for an expected failure, and `acquireRepoConfig` never rejects — a GitHub
@@ -236,7 +236,7 @@ function validateAndShape(
 }
 
 /**
- * Serialize the `generation.repo_config` provenance (ADR 0032 #8): the
+ * Serialize the `generation.repo_config` origin data (ADR 0032 #8): the
  * merged per-file outcome table + collision disclosures, recorded right
  * after acquisition so failed/superseded runs keep their outcomes.
  */

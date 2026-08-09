@@ -1,6 +1,6 @@
 # BRIEF-68 — split tools/categorizer: domain core → packages/brief-core
 
-Ticket: BRIEF-68 (board). Pure-move refactor: the production-load-bearing
+Ticket: BRIEF-68 (board). Pure-move refactor: the production-critical
 domain core leaves `tools/` (which implies dev-only) for `packages/`
 (the production graph); dev CLIs + eval harness + the direct
 `@anthropic-ai/sdk` dependency stay in `tools/categorizer`.

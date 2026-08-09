@@ -6,7 +6,7 @@ import {
 } from "../src/contract/provenance";
 
 /**
- * The anchor provenance stamp (BRIEF-143): every brief records whether it was
+ * The anchor origin stamp (BRIEF-143): every brief records whether it was
  * generated anchored to a previous brief, as a fresh restart (with a reason),
  * or with no anchor at all (first generation).
  */

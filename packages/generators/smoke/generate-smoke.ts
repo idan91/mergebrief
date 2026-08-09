@@ -1,6 +1,6 @@
 /**
  * Manual live smoke for generator adapters (BRIEF-11 PR 11). ONE real
- * `generate()` against a real backend with a tiny schema; prints provenance
+ * `generate()` against a real backend with a tiny schema; prints the origin stamp
  * and the output; exits nonzero on any failure (a schema-floor violation
  * included). NEVER wired into vitest or CI — it spends money and needs
  * live auth (see docs/dev/generator-smoke-recipe.md for when to run it).

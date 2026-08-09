@@ -1,4 +1,4 @@
-// The isomorphic read-API fetch seam (BRIEF-19 PR 3.1, ADR 0016 #5c).
+// The isomorphic read-API fetch boundary (BRIEF-19 PR 3.1, ADR 0016 #5c).
 //
 // Client branch: a plain relative `fetch` — the browser attaches the session
 // cookie itself. Server (SSR) branch: IN-PROCESS dispatch of the same Hono app
@@ -65,7 +65,7 @@ interface DispatchableApp {
 }
 
 /**
- * The narrow request-init surface this seam forwards (BRIEF-23 adds the
+ * The narrow request-init surface this boundary forwards (BRIEF-23 adds the
  * submit mutation). Typed explicitly — not `RequestInit` — so the SSR branch
  * provably forwards every field it accepts.
  */
@@ -103,7 +103,7 @@ export async function dispatchInProcess(
     app = await getApp();
   } catch (error) {
     // `error` can quote DATABASE_URL back on a Postgres misconfig — the
-    // logging seam's `err` serializer scrubs URL-shaped substrings from every
+    // logging boundary's `err` serializer scrubs URL-shaped substrings from every
     // string field (BRIEF-88), so the raw error rides `err` as-is. Level
     // `error`: every read is 503ing until an operator fixes the composition.
     logger.error("apiFetch: webhook app composition failed", { err: error });

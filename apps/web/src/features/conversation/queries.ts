@@ -41,7 +41,7 @@ export function conversationQueryKey(repoId: string, prNumber: number) {
  */
 export function conversationQueryOptions(repoId: string, prNumber: number) {
   // Deliberately widened to `QueryKey` (the dbComparisonMarksQueryOptions
-  // precedent): the descriptor crosses plan seams typed as plain
+  // precedent): the descriptor crosses plan boundaries typed as plain
   // UseQueryOptions, and a narrower inferred key breaks that assignment
   // (queryFn context contravariance).
   const queryKey: QueryKey = conversationQueryKey(repoId, prNumber);
@@ -99,7 +99,7 @@ export function collaboratorsQueryKey(repoId: string) {
  * staleTime reflects how slowly a roster churns — no focus-refetch, no poll.
  */
 export function collaboratorsQueryOptions(repoId: string) {
-  // Widened to `QueryKey` for the same plan-seam contravariance reason as
+  // Widened to `QueryKey` for the same plan-boundary contravariance reason as
   // conversationQueryOptions above.
   const queryKey: QueryKey = collaboratorsQueryKey(repoId);
   return queryOptions({

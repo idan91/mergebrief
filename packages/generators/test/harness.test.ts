@@ -509,7 +509,7 @@ describe("harnessTimeoutError / redactSecrets", () => {
     expect(out).not.toContain("dXNlcjpwYXNz");
     expect(out).toContain("here");
     // Scheme case-insensitivity (RFC 7235) without loosening the token check:
-    // any scheme casing redacts, lowercase prose still survives.
+    // any scheme casing redacts, lowercase text still survives.
     const lower = redactSecrets(
       "using basic dXNlcjpwYXNz; basic authentication failed",
     );
@@ -686,7 +686,7 @@ describe("probeHarnessCli", () => {
   });
 
   it("redacts interpreter strings before they reach logs or errors", async () => {
-    // Interpreters may embed untrusted CLI stdout; the probe seam redacts
+    // Interpreters may embed untrusted CLI stdout; the startup-check boundary redacts
     // both channels regardless of adapter discipline.
     const warnings: string[] = [];
     const warned = await probeHarnessCli({

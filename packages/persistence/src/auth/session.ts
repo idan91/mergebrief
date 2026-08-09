@@ -1,4 +1,4 @@
-// The reviewer-session auth seam (BRIEF-2 stage 6, PR C — ADR 0016 #4 + ADR
+// The reviewer-session auth boundary (BRIEF-2 stage 6, PR C — ADR 0016 #4 + ADR
 // 0018 D11, re-anchored by D15/BRIEF-40). This is the PRE-TENANT resolver:
 // unlike `forTenant(db, ctx)`, nothing here is bound to an `installation_id`.
 // It CANNOT be — session resolution is the authN primitive that PRECEDES
@@ -78,7 +78,7 @@ export interface SessionAuth {
    * Rebind the session to a DIFFERENT installation (BRIEF-19 multi-org switch —
    * D14). The session row's `installation_id` IS the tenant stamp, so the switch
    * endpoint validates the target is in the viewer's LIVE accessible set (never
-   * trusting the caller) BEFORE calling this — this seam only persists a
+   * trusting the caller) BEFORE calling this — this boundary only persists a
    * pre-validated rebinding. Atomic, ctx-safe: `SELECT … FOR UPDATE` the row by
    * its hash, then UPDATE its `installation_id` scoped by the locked row's OWN
    * current `installation_id` + `id` (the gate value comes from the row, never

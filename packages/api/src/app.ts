@@ -1,5 +1,5 @@
 // The Hono app factory (BRIEF-2 stage 4 + stage 6). Dependencies are INJECTED:
-// tests pass a PGlite `AppDatabase` + secrets/stubs; the composition root (the
+// tests pass a PGlite `AppDatabase` + secrets/stubs; the startup wiring (the
 // `apps/web` catch-all mount) passes `createDb(DATABASE_URL)` + the Zod-parsed
 // GitHub config + the crypto key provider. This module never reads
 // `process.env` and never constructs a DB — same injection discipline as
@@ -37,15 +37,15 @@ export interface AppDeps {
   readonly handle: AppDatabase;
   readonly webhookSecret: string;
   /**
-   * The process logger (packages/logging seam, ADR 0034) — the composition
-   * root constructs it; routes reach the per-request child via
+   * The process logger (packages/logging boundary, ADR 0034) — the startup
+   * wiring constructs it; routes reach the per-request child via
    * `c.get("logger")`, never a global.
    */
   readonly logger: Logger;
-  /** Reviewer-auth bundle (OAuth creds, crypto seam, cookie/redirect policy). */
+  /** Reviewer-auth bundle (OAuth creds, crypto boundary, cookie/redirect policy). */
   readonly auth: AuthDeps;
   /**
-   * Installation-octokit seam for the installation-token reads: the
+   * Installation-octokit interface for the installation-token reads: the
    * conversation fetch (BRIEF-25) and the collaborators list (BRIEF-94).
    */
   readonly github: InstallationGitHubPort;

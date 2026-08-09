@@ -29,7 +29,7 @@ drift by agents or outside contributors fails `pnpm lint`, not review.
 - **Prettier whole-repo** `--check .` (root); stylelint stays web-only.
 - Already covered elsewhere — do NOT add: madge (skip), publint (parked),
   zizmor/actionlint + freshness gates (BRIEF-112), lychee (BRIEF-117).
-- Result-not-throw, entry-barrel policy, types-owner-first stay prose.
+- Result-not-throw, entry-barrel policy, types-owner-first stay text-only.
 
 ## Git requirements (git-eng — mandatory)
 

@@ -28,7 +28,7 @@ Read these before implementation; they define the boundaries this plan relies on
 | [ADR 0008 — Brief & Delta: Persistence Model and Fetching](../adr/0008-brief-delta-persistence-and-fetching.md) | Supporting | Defines Brief, Delta core, carry-over overlay, and diff artifact keys; use this when mapping local artifacts to production storage. |
 | [ADR 0011 — Delta Comments Addressed and Per-Chunk Summary](../adr/0011-delta-comments-addressed-and-per-chunk-summary.md) | Supporting | Explains the existing Delta per-chunk summaries that `Changes Only + Your last review` reuses. |
 | [ADR 0012 — Brief Index, Commit Range, and Comments on Brief](../adr/0012-brief-index-commit-range-and-comments-on-brief.md) | Supporting | Defines Brief indices and endpoint labels; required for **Previous Brief** selection and artifact naming. |
-| [ADR 0013 — Provider-Agnostic Generation and BYOK](../adr/0013-provider-agnostic-generation-and-byok.md) | Supporting | Defines the Generator/provenance boundary the new Revision narrative prompt should use. |
+| [ADR 0013 — Provider-Agnostic Generation and BYOK](../adr/0013-provider-agnostic-generation-and-byok.md) | Supporting | Defines the Generator/origin boundary the new Revision narrative prompt should use. |
 | [ADR 0020 — Brief Trigger and Activation Model](../adr/0020-brief-trigger-and-activation-model.md) | Supporting | Defines eager/debounced Brief generation, which this plan extends for non-first Brief comparison generation. |
 
 ## Product Model
@@ -231,7 +231,7 @@ Prompt instruction:
 - Summarize only the incremental changed lines.
 - If a changed line belongs to a full Brief group, use that group's ID.
 - If the model cannot confidently align a changed line, still emit a chunk with the
-  closest group and mark uncertainty in prose rather than inventing a group.
+  closest group and mark uncertainty in text rather than inventing a group.
 
 ### 4. Wire Generation for Non-First Briefs
 
@@ -414,7 +414,7 @@ Out of scope:
 Categorizer:
 
 - Schema accepts a valid Revision narrative and rejects invented fields.
-- `categorizeRevisionNarrative` fills CLI-owned metadata and generation provenance.
+- `categorizeRevisionNarrative` fills CLI-owned metadata and generation origin.
 - Validation warns when `briefChangeGroupId` does not exist.
 - `generateAndWrite` writes Revision narrative for non-first Briefs and skips it for
   first Briefs.

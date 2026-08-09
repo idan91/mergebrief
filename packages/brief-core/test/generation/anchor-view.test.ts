@@ -276,7 +276,7 @@ describe("categorize — anchored threading (BRIEF-143)", () => {
 
   it("keeps frozen-id anchors alive through the in-categorize validators (BRIEF-143 fix)", async () => {
     // The anchored contract TELLS the model to reference frozen ids (whole
-    // orderings; intent verdicts over the whole corpus). The validators must
+    // orderings; intent verdicts over the whole source). The validators must
     // treat the frozen ids as live anchors — not prune them as unknown.
     const fixture = {
       ...minimalGen,

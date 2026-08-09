@@ -17,7 +17,7 @@ import { createGenerator, Providers } from "../src/config/registry";
 /**
  * Adapter-specific behavior on real fake-codex processes: invocation
  * profile (argv, schema tempfile), last-agent-message selection, opaque
- * classification with untrusted-message hygiene, provenance (effort echoed,
+ * classification with untrusted-message hygiene, origin (effort echoed,
  * reroute blind spot), and registry construction. Pipeline conformance
  * lives in codex.contract.test.ts.
  */

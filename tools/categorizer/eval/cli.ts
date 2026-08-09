@@ -45,18 +45,18 @@ import { withUsageSink } from "./usageSink";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CASES_DIR = join(here, "cases");
-/** Revision-pair corpus (BRIEF-143) — one pair = TWO generations per run. */
+/** Revision-pair source (BRIEF-143) — one pair = TWO generations per run. */
 const PAIRS_DIR = join(here, "pair-cases");
 const OUT_DIR = "out";
 /**
  * Mirrors brief-core's DEFAULT_EFFORT (BRIEF-75): with no configured effort
  * the eval must request and record the same medium the engine defaults to —
- * the provenance-derived baseline key and the generations must agree.
+ * the origin-derived baseline key and the generations must agree.
  */
 const DEFAULT_EFFORT: Effort = "medium";
 /** Providers billed by subscription — no meterable marginal cost.
  * Construction is checked against the closed Provider vocabulary; lookup
- * takes the provenance's provider string. */
+ * takes the origin's provider string. */
 const SUBSCRIPTION_PROVIDERS: ReadonlySet<string> = new Set<Provider>([
   Providers.CLAUDE_CODE,
   Providers.CODEX,

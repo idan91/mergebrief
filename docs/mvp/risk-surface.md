@@ -172,7 +172,7 @@ Registered here so labelers don't reinvent them; not valid tokens until unblocke
   translation key, route string, queue name) that doesn't resolve against the repo's
   registries. The genuinely un-linted hallucinated surface: compilers catch unresolved
   *imports* pre-review, nothing catches these. Needs per-repo registry knowledge + repo
-  context — parked until the `ContextSource` seam exists (ADR 0014). Note: plain
+  context — parked until the `ContextSource` interface exists (ADR 0014). Note: plain
   `unresolved-import` was **rejected**, not parked — compilers/CI own that lane (ADR 0026).
 - **`diverges-from-sibling-pattern`** — solves the task unlike sibling files do. Needs
   sibling *selection* (a judgment with bad FP shape: accusing the author of inconsistency

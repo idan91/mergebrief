@@ -12,7 +12,7 @@ MergeBrief's text grow. Today the type scale is px (`tokens.scss`), so the
 preference is inert. Inventory (2026-08-03): font-size is 99% tokenized —
 the text fix is the 7 scale tokens + 2 disabled off-scale sites; the mass
 is ~890 spacing/sizing px across 56 `.module.scss` files. `html` has no
-font-size lock, so rem scaling works once values are rem. The seam exists
+font-size lock, so rem scaling works once values are rem. The interface exists
 and is unused: `to-rem()` in `src/styles/_functions.scss` (2 call sites).
 
 ## Unit taxonomy (the decision — encode in ADR 0037 amendment, PR C)
@@ -26,7 +26,7 @@ compile-time, exact at the 16px root, so zero visual delta at defaults):
    component grows as a unit with its text.
 3. Text-coupled sizing: `inline-size`/`block-size`/`min-*`/`max-*` (and
    physical `width`/`height`/`min-height`/`max-width`) on elements that
-   contain or bound text — buttons, rows, inputs, drawers, prose measure
+   contain or bound text — buttons, rows, inputs, drawers, text measure
    caps (`980px` main column, `740px` drawer), touch targets (44px rows).
 4. Spacing-like insets: offsets that separate content
    (`calc(100% + 6px)` dropdown gaps, list `text-indent`,

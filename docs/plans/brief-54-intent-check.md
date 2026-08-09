@@ -2,7 +2,7 @@
 
 > Status: **LOCKED — grill closed 2026-07-24, not started.**
 > Ticket: Notion BRIEF-54. ADRs: **0009 §2 as amended 2026-07-24** (composite
-> intent corpus — the amendment lands with this plan), **0031** (shared
+> intent sources — the amendment lands with this plan), **0031** (shared
 > section, single view), **0014** (linked-context boundary, reused untouched),
 > **0032** (fencing/trust posture, hand-built json_schema enum enforcement).
 > Design is locked; the schema/prompt PR is the only design-sensitive part.
@@ -19,8 +19,8 @@ modal gains one count-only secondary line (precise source + gaps only). Both
 consumers see the same section; it is never a verdict.
 
 **Technical:** four moves. (1) `brief-core`: `IntentCheck` schemas on
-`BriefGenerationSchema` (full brief only), prompt section for the composite
-corpus judgment, post-parse validators (warn-and-drop), warnings wiring.
+`BriefGenerationSchema` (full brief only), prompt section for the composite-
+source judgment, post-parse validators (warn-and-drop), warnings wiring.
 (2) Eval: intent cases + adversarial ticket-injection fixture; rebaseline.
 (3) FE: the intent bar component stacked with the attribute jump-rail.
 (4) FE: the mark-ready modal line. No new fetch, no new generation call, no
@@ -29,7 +29,7 @@ optional field).
 
 ## Locked decisions (grill 2026-07-24 — do not re-litigate)
 
-1. **Composite intent corpus** (amends ADR 0009 §2's fallback chain): intent =
+1. **Composite intent sources** (amends ADR 0009 §2's fallback chain): intent =
    PR title + description + ALL ticket-like linked blocks, judged together.
    Model resolves sources in-prompt; no harness URL heuristics.
 2. **Schema** (no optionals — strict structured-output; Sol lesson):
@@ -149,8 +149,8 @@ The only design-sensitive PR. **Model: Fable, high effort, main thread.**
    (custom-attribute extension) still composes. Confirm the hand-built
    json_schema emits the `specificity` enum (existing pipeline — expect zero
    changes; assert in test).
-2. `prompt.ts`: new "## Intent check" section — composite-corpus judgment,
-   source resolution + `ticketUrls` rules, specificity gloss
+2. `prompt.ts`: new "## Intent check" section — composite-source judgment,
+   source resolution + `ticketUrls` rules, specificity description
    (precise/broad/none), the three buckets with citation rules
    (verbatim quote ≤ ~200 chars; groupIds must reference emitted groups),
    scopeNote bound ("one sentence, scope facts, usually empty"), buckets

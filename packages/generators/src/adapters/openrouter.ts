@@ -23,11 +23,11 @@ import {
  *    silently route to a provider that ignores `response_format`.
  * 3. Effort translates to OpenRouter's `reasoning: { effort }` shape, sent
  *    only when the model listed `reasoning` support — the core's knob
- *    discovery is pre-seeded from the preflight, so provenance records the
+ *    discovery is pre-seeded from the preflight, so the origin stamp records the
  *    gap without burning a 400 (ADR 0013 #5).
  * 4. Trust-but-verify: stream chunks carry the served model id; a mismatch
  *    against the configured slug logs a warning and fires the hook — the
- *    provenance stamp stays the declaration.
+ *    origin stamp stays the declaration.
  */
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -129,7 +129,7 @@ type OpenRouterWireBody = Omit<OpenAiChatRequest, "reasoning_effort"> & {
   reasoning?: { effort: string };
 };
 
-/** Wrap the SDK into the core's seam, translating OpenRouter extensions. */
+/** Wrap the SDK into the core's boundary, translating OpenRouter extensions. */
 function openRouterTransport(
   client: OpenAI,
   config: {

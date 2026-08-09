@@ -70,7 +70,7 @@ threads), reply composer, own-comment reconciliation.
    `coderabbitai · 23 threads · 4 open` — expand for per-thread lines;
    inline at chunks, one aggregated disclosure per bot. Resolved/outdated
    bot threads never render inline (digest-only). Sort: unresolved first,
-   then reading order; never by bot self-assigned severity (that prose stays
+   then reading order; never by bot self-assigned severity (that text stays
    inside comment bodies). ~50 rows per digest group, then "show more". No
    virtualization, no bot-filter toggle in v1.
 7. **Replies: immediate, reply-only, viewer token.** GitHub API fact:
@@ -88,7 +88,7 @@ threads), reply composer, own-comment reconciliation.
    record renders only until the first post-submit refetch, then demotes to
    a pointer (keeps disposition/evidence links). Drafts never appear in the
    section. This closes BRIEF-23's accepted M1 residual: the durable
-   sessionStorage "submitted" flip stops being load-bearing after first
+   sessionStorage "submitted" flip stops being critical after first
    fetch. Per-comment linkage joins on (path, line, side), body tiebreak;
    collision worst case is display-level only.
 9. **Cache discipline:** conversation GET sits in the same 60s-positive-TTL

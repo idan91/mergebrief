@@ -1,10 +1,10 @@
-// Session-auth seam tests (BRIEF-2 stage 6, D11 — re-anchored by D15/BRIEF-40).
+// Session-auth boundary tests (BRIEF-2 stage 6, D11 — re-anchored by D15/BRIEF-40).
 // Exercises the PRE-TENANT, token-hash-keyed resolver against real migrations
 // on PGlite: the grant-JOINed find, delete-by-hash with same-transaction
 // grant orphan-clean (shared grants survive, last-referent grants die), and
 // the `setExpiresAt` mirror the cookie channel writes after a rotation.
-// Rotation itself lives on the grant seam — see grant.test.ts. Rows are
-// seeded through the tenant repository so the seam is tested exactly as
+// Rotation itself lives on the grant boundary — see grant.test.ts. Rows are
+// seeded through the tenant repository so the boundary is tested exactly as
 // production writes them.
 import { sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";

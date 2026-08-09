@@ -1,6 +1,6 @@
-// The installation-octokit seam (BRIEF-25; widened by BRIEF-94): every
+// The installation-octokit interface (BRIEF-25; widened by BRIEF-94): every
 // installation-token read this package performs enters through this port —
-// injected by the composition root over the App-JWT client, substituted in
+// injected by the startup wiring over the App-JWT client, substituted in
 // tests. This package never constructs App auth itself. A shared installation
 // token means one rate budget and one cache entry per resource, reused across
 // viewers (ADR 0027) — viewer tokens would fragment both.
@@ -19,7 +19,7 @@ import {
 import type { InstallationId } from "persistence";
 import type { Result } from "types";
 
-/** The installation-token reads this package performs (test seam). */
+/** The installation-token reads this package performs (test interface). */
 export interface InstallationGitHubPort {
   fetchPullRequestConversation(
     installationId: InstallationId,

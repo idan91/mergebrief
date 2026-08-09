@@ -158,7 +158,7 @@ export class AnthropicGenerator implements Generator {
           };
         }
         // The pipeline owns validation (identical message shapes via
-        // parseStructuredText), so only the raw text crosses the seam.
+        // parseStructuredText), so only the raw text crosses the boundary.
         return { raw };
       },
     });

@@ -68,7 +68,7 @@ compose/ops docs (#213/#214).
 ## Specialist skills (mandatory)
 
 - `typescript-eng` — Zod config schemas, boot-path logic, persistence
-  seams.
+  boundaries.
 - `tdd` — **test-first for PR 1's decision matrix**: write the failing
   cases for the TLS gate (loopback/non-loopback × no-sslmode/each-mode),
   `_FILE` precedence (file-only / env-only / both+warning / missing
@@ -81,7 +81,7 @@ compose/ops docs (#213/#214).
   `migrate.ts` — `new Pool({ connectionString })`, no explicit `ssl`
   options; `pg-connection-string@2.14.x` in the lockfile parses
   `sslmode`/`sslrootcert` from the DSN.
-- Config seam: `packages/persistence/src/db/config.ts` — Zod, value-free
+- Config boundary: `packages/persistence/src/db/config.ts` — Zod, value-free
   error messages (DATABASE_URL never logged; keep it that way).
 - Migration mechanism: worker migrates at boot before claiming jobs
   (`runner.ts`), web lazily at first `/api` composition
@@ -103,7 +103,7 @@ compose/ops docs (#213/#214).
    (loopback/non-loopback — cover IPv6 `::1`, `localhost`, unix-socket
    DSNs if `pg` accepts them) + sslmode presence check + refusal message
    naming the three choices. Tests first, then wire into config load for
-   BOTH services (single seam preferred — find where both read config).
+   BOTH services (single boundary preferred — find where both read config).
 3. (commit 3, TDD) **Auto-migrate check mode**:
    `MERGEBRIEF_AUTO_MIGRATE` env (default true), check-only ledger
    comparison, refusal with pending count + manual command. Applies to

@@ -6,7 +6,7 @@ import { chunksFor, dominantCategories, fires } from "../../briefQueries";
  * test + barrel export), +326 -0. THE BRIEF-55 seed case: the observed FP
  * stamped `cross-service` on the new prop-types file ("exported public
  * API surface") although nothing consumes it yet. The cross-service
- * properties are the measurement target for any gloss tightening.
+ * properties are the measurement target for any description tightening.
  */
 export const properties: EvalProperty[] = [
   {

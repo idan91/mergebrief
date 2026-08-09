@@ -17,7 +17,7 @@ import type { Effort, Generation } from "../contract/provenance";
 /**
  * Shared core for OpenAI-compatible chat-completions providers (ADR 0030):
  * the openai adapter and the openrouter adapter (PR 8) differ in preflight,
- * headers and provenance — the streaming request, schema floor wiring, and
+ * headers and origin reporting — the streaming request, schema floor wiring, and
  * error taxonomy live here once.
  *
  * Invariants:
@@ -69,7 +69,7 @@ export interface OpenAiChatRequest {
 }
 
 /**
- * The transport seam: adapters wrap the official `openai` client (or a
+ * The transport boundary: adapters wrap the official `openai` client (or a
  * fetch-fixture-backed one in tests) into this one streaming call.
  * Provider-specific body extensions (openrouter's `provider` routing block,
  * PR 8) are the WRAPPER's job — it spreads them before calling the SDK, so
@@ -134,7 +134,7 @@ export class OpenAiCompatibleCore implements Generator {
   private readonly failureDir: string;
   /**
    * Instance-lifetime effort-knob cache: null = unknown, true/false once
-   * discovered. Discovered-absent surfaces in provenance as effort null.
+   * discovered. Discovered-absent surfaces in the origin stamp as effort null.
    */
   private effortSupported: boolean | null;
   private readonly knobRejectionMarker: string;
@@ -338,7 +338,7 @@ export class OpenAiCompatibleCore implements Generator {
       log(`…writing ${req.label} (${elapsed()}${size})`);
     }, 5000);
     try {
-      // The ORIGINAL optional req.log crosses the seam (not the normalized
+      // The ORIGINAL optional req.log crosses the boundary (not the normalized
       // no-op): a wrapper's `requestLog ?? constructionLog` fallback must
       // still fire for callers that gave no per-request logger.
       const stream = await this.transport.streamChat(body, {
@@ -407,7 +407,7 @@ export class OpenAiCompatibleCore implements Generator {
 }
 
 /** True for a 400 whose provider message names the effort knob's wire
- * parameter. The text is PROVIDER-authored status prose (never model
+ * parameter. The text is PROVIDER-authored status text (never model
  * output) — sniffing it is the documented discovery mechanism. OpenRouter
  * wraps upstream rejections behind a generic message, so the extracted
  * metadata.raw is scanned too (BRIEF-76): a catalog-listed-but-broken

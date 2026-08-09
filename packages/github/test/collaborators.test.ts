@@ -1,6 +1,6 @@
 // Collaborators primitive (BRIEF-94): everyone who can collaborate on the
 // repo — direct collaborators AND org/team-granted members (`affiliation:
-// ALL` is load-bearing). These tests drive the wire→domain mapping, the
+// ALL` is critical). These tests drive the wire→domain mapping, the
 // capped cursor loop, and the sanitized failure paths.
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";

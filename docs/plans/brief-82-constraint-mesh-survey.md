@@ -197,7 +197,7 @@ automation is a minority:
 **0/9.** Verified by repo-wide greps at the pinned SHAs: no
 stryker/mutmut/cosmic-ray/cargo-mutants configuration or invocation in any
 of the nine repos (each per-repo grep returned zero relevant hits; ruff's
-and esbuild's only "mutation" hits are GraphQL strings and prose). The
+and esbuild's only "mutation" hits are GraphQL strings and text). The
 practice has zero adoption in this cohort, including the repos most famous
 for test rigor.
 
@@ -276,7 +276,7 @@ only "cucumber" hits in the cohort are Zod enum test *data* —
   Vitest: `no-restricted-imports` banning `path` repo-wide and `vitest`
   self-imports inside `packages/` (`vitest-dev/vitest: eslint.config.js` @
   `ec367cf`). ruff: clippy `disallowed-methods` banning `std::env::var`,
-  `std::fs::*`, `Path::exists` with per-ban rationale — seam enforcement as
+  `std::fs::*`, `Path::exists` with per-ban rationale — boundary enforcement as
   lint (`astral-sh/ruff: clippy.toml` @ `2742f95`). esbuild: a grep-as-lint
   Makefile target failing the build on any `"path/filepath"` import
   (`evanw/esbuild: Makefile` L84–86 @ `6ff1d8b`).

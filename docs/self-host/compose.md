@@ -220,7 +220,7 @@ work through this section.
 
 Set `POSTGRES_PASSWORD` (and optionally `POSTGRES_USER`/`POSTGRES_DB`) in
 `.env` **before the first boot** — see the callout at the top of this page
-for why "before" is load-bearing. Both services' `DATABASE_URL` derives from
+for why "before" is critical. Both services' `DATABASE_URL` derives from
 these values automatically.
 
 ```sh

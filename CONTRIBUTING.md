@@ -40,7 +40,7 @@ Three axes, three attach points. (Full glossary in [`CONTEXT.md`](./CONTEXT.md).
 - **Category** — the *intent* of a Change-group (`bugfix`, `lib-bump`, `schema-change`, …).
   One dominant per group, optional secondaries.
 - **Concern** — the *artifact* a chunk touches (`implementation`, `test`, `doc`, `spec`,
-  `config`, `generated`). Orthogonal to Category.
+  `config`, `generated`). Independent of Category.
 - **Risk Surface** — zero or more *factual attributes* on a chunk (`no-tests`,
   `mutates-state`, `new-dependency`, …), in three buckets: about the code, about the change,
   about the blast radius. Facts a reviewer can check in seconds. Never verdicts — severity,
@@ -89,7 +89,7 @@ The rarest change, and the highest bar — every Category dilutes the recognizab
 others. Be ready to show that real Change-groups exist whose intent no current Category
 expresses (and that the gap isn't actually a Concern, the classic mistake: `test-only` and
 `config-only` looked like Categories and were not). Register in `labeling-schema.md` and
-gloss in `CONTEXT.md` in the same PR. (While the playbook layer is parked, no checklist
+describe in `CONTEXT.md` in the same PR. (While the playbook layer is parked, no checklist
 ships with it; ADR 0035 governs what happens when that layer revives.)
 
 ### Deprecate a token
@@ -104,7 +104,7 @@ The markdown is the source of truth; the code mirrors it. A PR that changes *tok
 renames, or removes one) must update the mirrors in the same PR:
 
 - `packages/brief-core/src/types.ts` — the closed enums the output schema validates against.
-- `packages/brief-core/src/generation/prompt.ts` — the gloss maps interpolated into the prompt.
+- `packages/brief-core/src/generation/prompt.ts` — the description maps interpolated into the prompt.
 - `apps/web/src/features/brief/types.ts` — the FE copy of the vocabularies.
 
 Token changes touch the generation surface, so the eval harness applies
@@ -123,7 +123,7 @@ code from the markdown is a welcome future contribution.
 ## Ground rules
 
 - **No verdicts, anywhere.** No severity grades, no "critical", no scores, no "this is
-  probably a bug". Attributes are facts. This is the product's load-bearing rule and it
+  probably a bug". Attributes are facts. This is the product's critical rule and it
   applies to contributed content too.
 - **Register first.** The index in `labeling-schema.md` gates validity. Deep content for an
   unregistered token will be bounced back.

@@ -1,5 +1,5 @@
 // The daily generation cap (BRIEF-20) — the instance's one spend guardrail.
-// Pure helpers only; the enforcement point (the single seam where a run
+// Pure helpers only; the enforcement point (the single boundary where a run
 // starts, before any provider call) lives in `generate.ts`.
 //
 // WHY UTC: the reset boundary has to be one instant for the whole instance —

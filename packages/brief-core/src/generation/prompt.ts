@@ -76,7 +76,7 @@ const RISK_GLOSS: Record<RiskSurfaceAttribute, string> = {
 };
 
 /**
- * Prose blocks shared VERBATIM by more than one builder (BRIEF-67): a gloss
+ * Text blocks shared VERBATIM by more than one builder (BRIEF-67): a description
  * edit here lands in every prompt that states the rule — no manual sync,
  * pinned byte-for-byte by prompt-snapshots.test.ts. Variants that differ on
  * purpose (the delta prompt's condensed rules) stay inline in their builder.

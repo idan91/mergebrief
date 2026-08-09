@@ -8,14 +8,14 @@ bundle (`dist/mergebrief.js`, tsup, no workspace runtime deps).
 
 **Entry point: `src/bin.ts`** (the tsup bundle entry — shebang + real-world
 deps wired here and ONLY here). The whole CLI stays testable behind
-`runCli` in `src/program.ts` (injected-deps seam; command tests run it
+`runCli` in `src/program.ts` (injected-deps boundary; command tests run it
 against the REAL api Hono app via its fetch-shaped `app.request`).
 
 ```
 src/
   bin.ts            ENTRY — bundle entry; the one place real deps are wired
   program.ts        runCli — the whole command surface (commander wiring)
-  client.ts         the API-client seam (injected fetch; CliError mapping)
+  client.ts         the API-client boundary (injected fetch; CliError mapping)
   exit.ts           the 6-code exit contract — PUBLIC, additive-only,
                     never renumbered (ADR 0029 #6)
   agents-guide.ts   the packaged --agents guide (constant; zero file reads)

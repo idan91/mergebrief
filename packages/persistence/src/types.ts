@@ -6,7 +6,7 @@ import type { Brand, ValueOf } from "types";
 export type { Brand, MaybePromise, Result, ValueOf } from "types";
 
 /**
- * Branded identifiers for the id families ADR 0018 (D1) makes load-bearing.
+ * Branded identifiers for the id families ADR 0018 (D1) makes critical.
  * These prevent the exact installation_id/repo_id swap the tenancy
  * invariant (D2b) can't afford. Backed by `bigint` to match Postgres
  * `bigint` identity columns.

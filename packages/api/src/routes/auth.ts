@@ -56,14 +56,14 @@ import { z } from "zod";
 // ---------------------------------------------------------------------------
 
 /**
- * The auth bundle injected into `createApp`. Credentials + crypto seam + the
- * cookie/redirect policy — all supplied by the composition root, never read
+ * The auth bundle injected into `createApp`. Credentials + crypto boundary + the
+ * cookie/redirect policy — all supplied by the startup wiring, never read
  * from `process.env` here.
  */
 export interface AuthDeps {
   readonly oauthClientId: string;
   readonly oauthClientSecret: string;
-  /** Resolves `sessionKeyRef` → key bytes for token sealing (env→KMS seam). */
+  /** Resolves `sessionKeyRef` → key bytes for token sealing (env→KMS boundary). */
   readonly keyProvider: KeyProvider;
   /** The env var NAME the session tokens seal under (e.g. `"SESSION_KEY_V1"`). */
   readonly sessionKeyRef: string;

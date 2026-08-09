@@ -22,7 +22,7 @@ OTel are off-by-default or absent in every default self-host deploy.
 
 ## Considered Options
 
-- Logger: pino behind a thin seam / LogLayer / zero-dependency hand-rolled
+- Logger: pino behind a thin boundary / LogLayer / zero-dependency hand-rolled
   logger / winston.
 - Hono glue: hono-pino / @hono/structured-logger / hand-rolled middleware.
 - Health: endpoints inside the Hono `/api` app vs the server entry; single
@@ -32,14 +32,14 @@ OTel are off-by-default or absent in every default self-host deploy.
 
 ## Decision
 
-1. **Logger = pino (major 10) behind our own seam** in a new
-   `packages/logging` package. The seam exports a minimal `Logger`
+1. **Logger = pino (major 10) behind our own boundary** in a new
+   `packages/logging` package. The boundary exports a minimal `Logger`
    interface — `error/warn/info/debug(msg, fields?)` + `child(bindings)` —
    and `createLogger(opts)`, the only place pino is constructed. pino types
    never leak to call sites; a later OTel/metrics addition reimplements the
    interface without touching call sites. Four levels only (matches
    graphile-worker); fatal moments log `error` and exit. `pino-pretty` is a
-   devDependency. Rejected: LogLayer (a facade over loggers — our seam IS
+   devDependency. Rejected: LogLayer (a facade over loggers — our boundary IS
    the facade), zero-dep hand-roll (viable but forfeits battle-tested
    serialization + redaction for one small dep), winston (heavier, no
    stronger fit).
@@ -145,13 +145,13 @@ higher: stdout JSON + level env + unauthenticated health pair. Every
 stronger option (metrics endpoints, tracing, in-app shipping) is
 off-by-default, reverted (Forgejo's 2-day OTel revert), or absent in
 default deploys. Building to the observed standard keeps v1 small, and the
-seam + stable-`evt` contract make every deferred addition (OTel, metrics,
+boundary + stable-`evt` contract make every deferred addition (OTel, metrics,
 LOG_FORMAT, structured-logger adoption) a contained, non-breaking upgrade.
 
 ## Consequences
 
 - New package `packages/logging`; all three processes construct one logger
-  at their composition root and inject it (worker AGENTS.md discipline).
+  at their startup wiring and inject it (worker AGENTS.md discipline).
 - The D9 rename (`read` → `api.access`) and the compose healthcheck move
   are breaking for anyone scripted against them — recorded as
   breaking-change entries at implementation (pre-cutover, cost ≈ 0).

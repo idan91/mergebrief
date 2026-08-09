@@ -109,7 +109,7 @@ export interface ClaudeCodeGeneratorOptions {
   /**
    * Served-model mismatch surfacing hook (trust-but-verify): fired when the
    * result envelope's `modelUsage` keys don't include the requested model.
-   * The provenance stamp stays the declaration either way.
+   * The origin stamp stays the declaration either way.
    */
   onModelMismatch?: ((requested: string, served: string[]) => void) | undefined;
 }
@@ -189,7 +189,7 @@ export class ClaudeCodeGenerator implements Generator {
         attempt: async (feedback) => {
           // Stateless CLI: the feedback retry is a fresh process whose
           // prompt stitches the failed output + validation errors after the
-          // original user turn (the CLI has no assistant-turn seam).
+          // original user turn (the CLI has no assistant-turn boundary).
           const prompt = feedback
             ? `${req.user}\n\n[Your previous response]\n${feedback.raw}\n\n${schemaFeedbackMessage(feedback.error)}`
             : req.user;
@@ -297,7 +297,7 @@ export class ClaudeCodeGenerator implements Generator {
       // Parsed candidate + raw fallback: the floor validates the candidate
       // first and falls back to the raw text if it was reshaped in flight.
       // An explicit null candidate rides through — it is schema-valid for
-      // null-accepting schemas and the floor is the judge, not this seam.
+      // null-accepting schemas and the floor is the judge, not this boundary.
       return { raw: envelope.result, parsed: envelope.structuredOutput };
     }
     if (envelope.result === "") {

@@ -35,7 +35,7 @@ import { describe, expect, it } from "vitest";
 // it guards: comments are stripped, *.test.ts(x) is excluded, and only
 // setProperty arguments and style-object keys count. Reading a property back
 // (getPropertyValue), naming one in a test selector, or mentioning one in
-// prose is not a definition. For the same reason, no comment in this file may
+// text is not a definition. For the same reason, no comment in this file may
 // carry a real token name inside quotes or backticks.
 
 const STYLES_DIR = fileURLToPath(new URL(".", import.meta.url));
@@ -58,7 +58,7 @@ const JS_PUBLISHED = new RegExp(
 );
 
 /** Blanks out comment bodies while preserving line count, so a token name
- * mentioned in prose is never read as a usage or a definition. */
+ * mentioned in text is never read as a usage or a definition. */
 function stripComments(source: string): string {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, (block) => block.replace(/[^\n]/g, " "))

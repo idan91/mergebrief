@@ -1,7 +1,7 @@
 // `diff_snapshot` — the config-gated baseline snapshot (D4): the persisted
 // `base→checkpoint` diff, written only at submit. The ONE persisted-code
 // exception to "no raw code in the DB". `sha` is a checkpoint SHA. No
-// provenance columns — a fetched diff, not LLM output (D6).
+// origin columns — a fetched diff, not LLM output (D6).
 import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
 import type { PullRequestRowId } from "../types";
 import { artifactColumns, tenantColumns } from "./columns";

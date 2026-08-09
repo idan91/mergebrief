@@ -1,4 +1,4 @@
-// The per-user settings seam (BRIEF-19; ADR 0018 D14). Like `sessionAuth` and
+// The per-user settings boundary (BRIEF-19; ADR 0018 D14). Like `sessionAuth` and
 // `audit`, this is a NON-tenant surface: it is deliberately NOT ctx-bound and
 // NOT reachable through `forTenant`, because `user_settings` is keyed by GitHub
 // user id, not `installation_id` (a person spans installations — D14/D2b). The
@@ -27,7 +27,7 @@ export interface UserSettingsStore {
    * Idempotently upsert the user's default installation. Creates the row on
    * first write, updates + bumps `updated_at` thereafter. The caller has
    * ALREADY validated the target is in the viewer's live accessible set
-   * (NEVER trust an unvalidated id here — this seam only persists).
+   * (NEVER trust an unvalidated id here — this boundary only persists).
    */
   setDefaultInstallation(
     ghUserId: ReviewerId,

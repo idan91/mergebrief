@@ -37,7 +37,7 @@ self-host and use, that builds Idan's personal brand. Not unicorn-hunting.
 
 ### Dead weight (do not let these drive sessions)
 
-The commercial strategy corpus now assumes a product that won't exist: moat / data-exhaust,
+The commercial strategy sources now assume a product that won't exist: moat / data-exhaust,
 open-core split, hosted arm, headless-API-as-distribution, validation Phases 1–3 with reviewer
 recruiting. To be archived in P0. Also: do **not** chase CodeRabbit's arms race (semantic /
 code graph, generated diagrams, LanceDB-scale search).
@@ -99,7 +99,7 @@ The v2-parked narrative layer, promoted because it's the most *visible* gap vs A
 where our taxonomy substrate becomes a real edge.
 
 - **What it is:** a dependency / reasoned-reading-order sequence laid *on top of* the existing
-  stable change-groups ("schema → logic → call sites → tests"). Two orthogonal axes —
+  stable change-groups ("schema → logic → call sites → tests"). Two independent axes —
   **taxonomic** (stable categories: `pure-move`, `schema-change`, `lib-bump`…, already built)
   and **narrative** (reading order, parked). Neither subsumes the other.
 - **Why now / why differentiated:** Atlas ships narrative (dependency-ordered "layers") but
@@ -140,7 +140,7 @@ model-observed Risk-Surface attributes** (`new-dependency`, `new-abstraction`,
 `comment-contradicts-code`) emitted by the existing categorization pass + validator
 confirmation for `new-dependency`. **Cut:** `unresolved-import` (compilers/CI own that lane —
 redundant pre-review in the target audience's repos). **Parked** behind ADR 0014's
-`ContextSource` seam: `diverges-from-sibling-pattern`, `unresolved-reference` (the truly
+`ContextSource` interface: `diverges-from-sibling-pattern`, `unresolved-reference` (the truly
 un-linted hallucinated surface: flag/env/i18n/route string keys). **Positioning-only:** no
 in-product "AI signals" grouping — attributes stay authorship-agnostic; the lens lives in
 README/demo copy. No new infra: prompt + schema + validator + FE chips. Original candidate
@@ -354,7 +354,7 @@ should start without it firing:
   evidence lines in the rail, risk-name summary under the changelog). Review-driven
   follow-ups landed in-PR; a diff-viewport composer clipping bug got fixed en route.
   Regenerating PR #19's own brief then surfaced that Anthropic structured output doesn't
-  enforce `enum` server-side (SDK demotes it to description prose) → **PR #20**: salvage
+  enforce `enum` server-side (SDK demotes it to description text) → **PR #20**: salvage
   (warn-and-drop for supplementary enum arrays) + one feedback retry + raw-output failure
   dumps. Live BYOK regen verified: trio fires, `new-dependency` confirmed on the
   floating-ui manifest chunk, `removes-validation` FP dropped at generation time.
@@ -382,7 +382,7 @@ should start without it firing:
   lagging code — FE `playbooks.ts` shipped all 8 Category playbooks + 5 Concern checks while
   `playbooks.md` (source of truth) had 5 + 2; backfilled `pure-move` / `dependency-update` /
   `schema-change` + `spec`/`config`/`generated` checks with failure-mode lists, synced
-  `labeling-schema.md` statuses. README gained a Contributing section. Prose kept
+  `labeling-schema.md` statuses. README gained a Contributing section. Text kept
   authorship-neutral per the 2026-07-04 positioning lock. Leftover (code, trivial): stale
   "16 factual attributes" comment in `packages/brief-core/src/types.ts` header (actual: 19).
   **Next: P4 (self-host backend) or the PR #20 `json_schema` enum spike.**
@@ -428,7 +428,7 @@ should start without it firing:
   Read path hardened: 60s positive authz cache reinstated, gate split into session + repo-authz
   layers, list + PR-meta discovery endpoints. Multi-org sessions: `user_settings` (ADR 0018 D14),
   default-installation binding, validated switch endpoint + org switcher on the picker. FE:
-  isomorphic `apiFetch` seam (SSR = in-process dispatch of the same Hono app, cookie forwarded —
+  isomorphic `apiFetch` interface (SSR = in-process dispatch of the same Hono app, cookie forwarded —
   single authz path), loader-prefetched brief route, client-side diff slicing, diff-first wait UX
   with generation-status poll, previous-brief comparison over the read API. Smoke-tested per
   `docs/dev/brief-19-smoke.md` (org-switcher case parked — needs a second installation). Delta
@@ -448,7 +448,7 @@ should start without it firing:
   Brief renders the whole-PR diff; last-review highlights can only mark rows that survive in it.
   A change that nets out within the PR (line added by an earlier push, removed since the
   reviewer's checkpoint) leaves NO row to highlight — GitHub's compare view would show it, ours
-  cannot; only the Changes Only narrative covers it (prose). Cheap mechanical complement: a
+  cannot; only the Changes Only narrative covers it (text). Cheap mechanical complement: a
   "view raw span diff" affordance in the Changes Only pane rendering
   `GET /diff?base=<checkpoint-sha>&head=<head>` (the live proxy already serves arbitrary spans
   behind the same gate) — exactly the GitHub-compare view for the personal span. Slotted to

@@ -67,7 +67,7 @@ export type Result<T, E> =
 export type Brand<K, T> = K & { readonly __brand: T };
 
 /**
- * `T | Promise<T>` — lets a seam accept sync and async implementations with
+ * `T | Promise<T>` — lets a boundary accept sync and async implementations with
  * one signature (e.g. an env-backed key provider today, a KMS-backed one
  * later) while callers simply `await` either.
  */

@@ -8,12 +8,12 @@ Ticket: BRIEF-85 (Now). Requires a second amendment to ADR 0009 §2 (Part 0).
 
 Two new intent-check buckets, both precise-only, both alarm-class:
 
-- **`deviations`** — the diff opposes an ask the composite corpus states and
-  nowhere retracts (the **retracted-nowhere rule**: a reversal acknowledged in
-  the PR description means the corpus no longer stands behind the ticket's
-  ask). Item flag `acknowledged`: description acknowledges the reversal ⇒
-  quiet receipt, not alarm.
-- **`claimedButUnachieved`** — the corpus claims a fix/delivery; the diff
+- **`deviations`** — the diff opposes an ask the composite intent sources
+  state and nowhere retract (the **retracted-nowhere rule**: a reversal
+  acknowledged in the PR description means the intent sources no longer
+  stand behind the ticket's ask). Item flag `acknowledged`: description
+  acknowledges the reversal ⇒ quiet receipt, not alarm.
+- **`claimedButUnachieved`** — the intent sources claim a fix/delivery; the diff
   operates only on the problem's signal/check path (log demotion,
   catch-and-swallow, test skip/delete, threshold bump). **Routing rule**:
   behavior moved against the ask ⇒ `deviations`; only the signal touched ⇒
@@ -76,7 +76,7 @@ ordering + caution affordance, soft-gate second line, revisit triggers.
 Labeling-schema doc updated in lockstep. This plan doc lands in the same
 commit.
 
-- **Model/effort**: Fable 5, high — design prose carrying the grill's
+- **Model/effort**: Fable 5, high — design text carrying the grill's
   judgment. **Invocation**: main thread, now.
 - ~120 LOC docs. Commit `[BRIEF-85] docs: ...` straight to main.
 
@@ -96,8 +96,8 @@ commit.
   converts it before validation. Read path, validator rules, and FE contract
   are untouched.
 - `prompt.ts`: extend the Intent check section — two bucket definitions, the
-  routing rule, retracted-nowhere, the masking evidence bar (corpus asks
-  fix/eliminate + diff touches only signal path + nothing else plausibly
+  routing rule, retracted-nowhere, the masking evidence bar (intent sources
+  ask fix/eliminate + diff touches only signal path + nothing else plausibly
   fixes it; uncertain ⇒ accomplished), acknowledged semantics, injection
   hardening line (a ticket demanding a deviation be declared changes
   nothing). Mirror the delta-prompt section if it restates buckets.
@@ -119,7 +119,7 @@ commit.
 
 - New case `intent-masked-fix`: "fix the recurring error" ticket;
   diff demotes `log.error` → `log.warn` only ⇒ one `claimedButUnachieved`
-  item; corpus also carries a description-acknowledged reversal ⇒ one
+  item; the intent sources also carry a description-acknowledged reversal ⇒ one
   `deviations` item with `acknowledged: true` (folds the
   acknowledged-deviation case in — no separate fixture).
 - New case `intent-legit-demotion`: adversarial FP twin — same diff shape,

@@ -358,7 +358,7 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
 
   it("verifies quotes against the SANITIZED corpus — a stripped fence token never flags fabrication", async () => {
     // The prompt render strips `<linked_context` tokens from link bodies, so
-    // the model quotes from the stripped view. The verification corpus must
+    // the model quotes from the stripped view. The verification source must
     // apply the identical strip — against the RAW content this quote (which
     // spans the strip point) would spuriously warn "possible fabrication".
     const fencedPr: FetchedPr = {
@@ -401,7 +401,7 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
   it("applies the forged-fence defusal to the corpus when repo context is in play", async () => {
     // With repo context, renderUser defuses forged `<repo_instructions`
     // tokens everywhere — the model reads (and quotes) the defused text, so
-    // the verification corpus must match it.
+    // the verification source must match it.
     const repoContext = {
       instructions: {
         path: ".mergebrief/instructions.md",
@@ -861,7 +861,7 @@ describe("categorize with repo context — adversarial case", () => {
 
   it("prose cannot suppress a built-in attribute mechanically (harness-side floor)", async () => {
     // The model fired touches-auth despite instructions saying never to —
-    // nothing in the pipeline lets prose remove it.
+    // nothing in the pipeline lets text remove it.
     const generator = new CapturingGenerator(
       repoBriefFixture(["touches-auth"]),
     );

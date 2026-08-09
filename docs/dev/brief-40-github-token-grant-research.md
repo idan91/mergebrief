@@ -44,7 +44,7 @@ CLI token its own grant via a second authorization.
    `DELETE /applications/{client_id}/grant` deletes the grant and "all
    OAuth tokens associated with the application for the user" (CONFIRMED,
    both endpoints apply to GitHub Apps).
-5. **Other load-bearing facts — CONFIRMED.** No API exists to list a
+5. **Other critical facts — CONFIRMED.** No API exists to list a
    user's tokens for an app. Per-token revocation granularity exists
    (delete-token vs delete-grant). `POST /applications/{client_id}/token`
    (check) and `PATCH` (reset) work for GitHub Apps without user
@@ -249,7 +249,7 @@ unless noted:
     and take an `access_token` in the body — they explicitly cover GitHub
     Apps ("GitHub applications with OAuth authorizations").
 
-## 5. Other load-bearing findings
+## 5. Other critical findings
 
 - **No token-listing API.** The OAuth-applications REST page exposes only
   check / reset / delete-token / delete-grant; no endpoint enumerates a

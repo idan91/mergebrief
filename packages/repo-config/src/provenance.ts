@@ -1,8 +1,8 @@
-// The artifact-facing shape of repo-config provenance (ADR 0032 #8/#11): the
+// The artifact-facing shape of repo-config origin data (ADR 0032 #8/#11): the
 // JSON the worker serializes into `brief.repo_config` and the read surfaces
 // (api/web) parse back. One Zod schema owns the contract so writer and
 // readers cannot drift — the FE renders source markers, de-emphasis weight,
-// and the provenance chip's per-file table from THIS snapshot, never from
+// and the origin chip's per-file table from THIS snapshot, never from
 // live policy (self-contained historical rendering).
 import { z } from "zod/v4";
 import {
@@ -25,7 +25,7 @@ const outcomeEnum = z.enum([
 ]);
 
 /**
- * Per-file provenance row — mirrors `RepoConfigFileOutcome` (validate.ts),
+ * Per-file origin row — mirrors `RepoConfigFileOutcome` (validate.ts),
  * pinned to ONE canonical slot path per tuple position (codex PR 4 r1: the
  * read boundary must reject reordered/duplicated/foreign paths, not just
  * trust the writer).
@@ -86,7 +86,7 @@ export const repoConfigProvenanceSchema = z
   .strict();
 
 /**
- * `brief.repo_config` — the provenance table plus the policy snapshot in
+ * `brief.repo_config` — the origin table plus the policy snapshot in
  * effect at generation time (`null` when no valid policy applied). Floor
  * attributes can never appear de-emphasized in a stored snapshot — same
  * invariant as the live schema.

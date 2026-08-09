@@ -1,5 +1,5 @@
 // One-liner derivation for digest rows (BRIEF-25 design consult): strip
-// markdown to plain text → first non-empty prose line → cap ~80ch →
+// markdown to plain text → first non-empty text line → cap ~80ch →
 // fallback for code-only bodies. Heading, table, and code lines are
 // DROPPED, not merely unmarked — otherwise bot digests render
 // "## Walkthrough" garbage.
@@ -50,7 +50,7 @@ export function deriveDigestLine(body: string): string {
     // heading (codex round 5).
     const line = rawLine.trim().replace(/^(>\s*)+/, "");
     // The structural lookahead must not read an INDENTED-CODE next line as
-    // markdown structure (codex round 11): `    ---` after prose is code,
+    // markdown structure (codex round 11): `    ---` after text is code,
     // not a Setext underline.
     const nextRaw = rawLines[index + 1];
     const nextIsIndentedCode =
@@ -97,7 +97,7 @@ export function deriveDigestLine(body: string): string {
     // row until a blank line breaks the table (GFM continues pipe-less
     // single-cell rows too — codex round 6).
     if (inTable) continue;
-    // Indented code blocks are code, not prose (rounds 6-7: plain indent
+    // Indented code blocks are code, not text (rounds 6-7: plain indent
     // wins over quote reading; quote markers count after 0-3 spaces).
     if (indentedCode) continue;
     // Headings and table rows are structure, not content.
@@ -105,7 +105,7 @@ export function deriveDigestLine(body: string): string {
     // Separator check FIRST: a leading-pipe separator (`|---|---|`) must
     // still enter table mode so pipe-less body rows drop (codex round 2) —
     // but only a PIPED separator is a table; a bare `---` is a horizontal
-    // rule and must not swallow following prose (codex round 3).
+    // rule and must not swallow following text (codex round 3).
     if (TABLE_SEPARATOR.test(line)) {
       if (line.includes("|")) {
         inTable = true;
@@ -113,7 +113,7 @@ export function deriveDigestLine(body: string): string {
       continue;
     }
     // A leading pipe is only a table row when a separator establishes the
-    // table (GFM requires one) — otherwise it is prose (codex round 5).
+    // table (GFM requires one) — otherwise it is text (codex round 5).
     if (
       line.startsWith("|") &&
       next !== undefined &&

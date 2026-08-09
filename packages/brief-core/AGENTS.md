@@ -41,7 +41,7 @@ src/
     config.ts     `--config` flag extraction (`brief-core/cli-config`)
   github/         PR fetch surface (CLI/dev + web generate-from-URL; the
                   worker uses its own github-port); folder barrel re-exports
-    source.ts     PrSource port (BRIEF-97) — the transport seam buildInputs
+    source.ts     PrSource port (BRIEF-97) — the transport boundary buildInputs
                   reads through; ghPrSource (gh CLI) is the default impl
     fetch.ts      gh exec + PR/compare fetching
     linked-context.ts  PR-description link chasing + SSRF guard (HTTP, not

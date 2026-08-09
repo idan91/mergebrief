@@ -3,7 +3,7 @@
 Grill completed 2026-08-06 (wayfinder judged the ticket too small for a map).
 Ticket: "Succinct generated PR summary and changelog" (BRIEF-104, Notion).
 Target shape fixed by the BRIEF-134 close-out amendment; the BRIEF-134 stack
-(#234–#237) is merged, so the capped-prose primitive this rides on is live.
+(#234–#237) is merged, so the capped-text primitive this rides on is live.
 
 ## Locked decisions
 
@@ -61,7 +61,7 @@ Target shape fixed by the BRIEF-134 close-out amendment; the BRIEF-134 stack
 
 Scope: `packages/brief-core` only. Est. ~80–150 changed LOC in
 `generation/prompt.ts` + test updates (prompt-snapshot churn rides along;
-snapshots are pinned prose, reviewed as text).
+snapshots are pinned wording, reviewed as text).
 
 1. **Full-brief builder** (`buildSystemPrompt`, the `summary` bullet in
    "What a brief contains"): replace the "(1) concise one-paragraph
@@ -76,7 +76,7 @@ snapshots are pinned prose, reviewed as text).
    lines — shortest verbatim span that carries the ask; one-sentence
    `intent` text. No changes to bucket semantics, routing, or the
    alarm-register rules.
-4. **Tests first** (tdd): `prompt-snapshots.test.ts` pins prose
+4. **Tests first** (tdd): `prompt-snapshots.test.ts` pins text
    byte-for-byte — update pins to the new wording as the red step;
    `prompt.test.ts` line-presence pins likewise. brief-core suite +
    typecheck + root lint.

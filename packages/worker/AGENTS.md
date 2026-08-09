@@ -11,13 +11,13 @@ tools/categorizer in BRIEF-68), reused as-is behind its `Generator` port.
 ## Map
 
 **Entry points: `src/index.ts`** (the public surface, `exports["."]` — tests +
-future embedding) and **`src/main.ts`** (the runnable composition root,
+future embedding) and **`src/main.ts`** (the runnable startup wiring,
 `pnpm start` — deliberately not exported).
 
 ```
 src/
   index.ts            ENTRY — sectioned re-exports = the public surface
-  main.ts             composition root — the ONE place env is read + deps wired
+  main.ts             startup wiring — the ONE place env is read + deps wired
   config.ts           Zod env config (DATABASE_URL, MERGEBRIEF_CONFIG,
                       PUBLIC_BASE_URL, GitHub App creds)
   runner.ts           boot order (app-schema → queue-schema migrations) +
@@ -28,11 +28,11 @@ src/
     payload.ts          GenerateJobPayload boundary (string ids → branded)
     entry-comment.ts    Entry-comment pure builders (delete+repost lives
                         in generate.ts)
-    github-port.ts      the GitHub seam: PR reads + repo-file read behind a
+    github-port.ts      the GitHub boundary: PR reads + repo-file read behind a
                         testable port
     repo-config.ts      the `.mergebrief/` phase (ADR 0032): fetch 3 default-
                         branch paths → validateRepoConfig → RepoContext +
-                        provenance/artifact serialization. NEVER fails the job
+                        origin/artifact serialization. NEVER fails the job
 test/                 generate.test.ts = integration via persistence/testing
 ```
 
@@ -42,7 +42,7 @@ test/                 generate.test.ts = integration via persistence/testing
   `GenerateJobPayload` type in `types` — string ids, snake_case. Both sides
   (ingest serializer, `src/task/payload.ts` parser) plus their tests move in
   lockstep; the compile-time pin in `payload.ts` breaks the build on drift.
-- **Tenancy:** everything goes through persistence's ctx-bound seams
+- **Tenancy:** everything goes through persistence's ctx-bound interfaces
   (`forTenant`, `artifactStore`, `generationProjection`); the installation id
   enters ONLY via the validated payload (ADR 0016 — never a spoofable source).
 - **Abort is not a failure** (ADR 0006 #6): supersession → terminal
@@ -68,7 +68,7 @@ test/                 generate.test.ts = integration via persistence/testing
   stays off draft PRs unless `.mergebrief/settings.yaml` opts in; the
   delete-only sweep runs ONLY on known-off settings (a settings fetch
   failure suppresses posting but never deletes a live comment).
-- **The daily generation cap gates ONE seam** (BRIEF-20): the cap check sits
+- **The daily generation cap gates ONE boundary** (BRIEF-20): the cap check sits
   in `runGeneration` before `markRunning` and before any GitHub/provider
   call, so the run it is deciding on can never count itself. At the cap the
   run is SKIPPED — terminal `capped` (not `failed`, no retry, no attempt
@@ -82,7 +82,7 @@ test/                 generate.test.ts = integration via persistence/testing
   concurrency C admits up to `cap + C - 1` runs before the cap bites.
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema
   (`startWorker`); the `graphile_worker` schema stays graphile-owned.
-- **Logging goes through the `packages/logging` seam** (BRIEF-51, ADR 0034):
+- **Logging goes through the `packages/logging` boundary** (BRIEF-51, ADR 0034):
   `main.ts` builds the one process logger; the task takes it via
   `GenerateTaskDeps.log` and stamps `{prId, headSha}` child bindings on every
   job line; graphile lifecycle logs ride `createGraphileLogFactory`. The
@@ -90,7 +90,7 @@ test/                 generate.test.ts = integration via persistence/testing
   (`attempts === max_attempts`), `provider.error`, `spend.cap.trip` — come
   ONLY from the ADR 0034 taxonomy table. JOB/PROVIDER failure logs are MESSAGE-ONLY (no `err`
   field): provider cause chains may carry request contents (BRIEF-11) — and
-  the logging seam's URL scrub (BRIEF-88) targets URL-shaped secrets, not
+  the logging boundary's URL scrub (BRIEF-88) targets URL-shaped secrets, not
   prompt/diff payloads, so it is no substitute. Boot failures (`main.ts`
   catch) are exempt: nothing provider-shaped reaches them, and the `err`
   field keeps the stack the operator needs.

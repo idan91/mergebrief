@@ -12,9 +12,9 @@ import {
 import { Efforts } from "../src/contract/provenance";
 
 /**
- * The registry + construction seam (BRIEF-11 decision 1): static compiled-in
+ * The registry + construction boundary (BRIEF-11 decision 1): static compiled-in
  * registry, config discriminated union derived from it, async
- * createGenerator returning Result — composition roots convert to loud boot
+ * createGenerator returning Result — startup wiring converts to loud boot
  * failures, the library never throws for expected misconfiguration.
  */
 

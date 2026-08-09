@@ -25,7 +25,7 @@ export interface BriefDetailsPanelProps {
  * click is canonical, Escape-at-capture dismisses without reaching page
  * shortcuts (`aria-expanded` + `aria-controls` on both triggers). Carries
  * everything the old muted context line and LOC popover held: Artifact
- * identity, Generation provenance (+ the BRIEF-11 warnings prose the chip
+ * identity, Generation origin (+ the BRIEF-11 warnings text the chip
  * lands on), and the repo-config surface's ok-state (that chip itself is
  * warning-only from this PR on).
  */
@@ -82,7 +82,7 @@ export function BriefDetailsPanel({
     }
   };
 
-  // The warnings-chip path lands ON the warnings prose. A callback ref, not
+  // The warnings-chip path lands ON the warnings text. A callback ref, not
   // an effect: Callout's FloatingPortal mounts its children one commit
   // AFTER the open flip, so an [open]-keyed effect fires before the node
   // exists. Landing happens exactly once per open (the flag re-arms on
@@ -154,7 +154,7 @@ export function BriefDetailsPanel({
         ) : null}
       </span>
       {warnings.length > 0 ? (
-        // The generation-warnings count chip (spec: Chips): the prose left
+        // The generation-warnings count chip (spec: Chips): the text left
         // the header in PR 2; this chip opens the SAME panel, landed on the
         // warnings block. A landed-open chip click closes again (a button
         // announcing aria-expanded must collapse on activation).
@@ -291,7 +291,7 @@ function GenerationSection({
         </p>
       )}
       {warnings.length > 0 ? (
-        // The full BRIEF-11 prose (salvage, feedback retry, served-model
+        // The full BRIEF-11 text (salvage, feedback retry, served-model
         // mismatch) — the header chip's landing target, hence focusable.
         <div
           className={styles["warnings"]}

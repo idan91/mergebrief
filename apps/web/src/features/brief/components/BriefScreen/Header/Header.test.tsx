@@ -251,7 +251,7 @@ describe("generation warnings chip (BRIEF-103)", () => {
     expect(chip.getAttribute("aria-expanded")).toBe("false");
     fireEvent.click(chip);
     expect(chip.getAttribute("aria-expanded")).toBe("true");
-    // The prose lives in the panel's Generation section now…
+    // The text lives in the panel's Generation section now…
     const note = document.querySelector("[data-details-warnings]");
     expect(note?.textContent).toContain("salvaged brief");
     expect(note?.textContent).toContain("modelUsage reports m-2");

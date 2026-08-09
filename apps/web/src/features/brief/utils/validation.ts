@@ -723,7 +723,7 @@ function parseIntentItem(value: unknown): Result<IntentItem> {
   if (!groupIds.ok) return groupIds;
   // `acknowledged` (BRIEF-85) is absent on every pre-BRIEF-85 item and dead in
   // four of the five buckets — a missing or non-boolean value reads `false`
-  // rather than failing the whole check. Only `true` is load-bearing (it moves
+  // rather than failing the whole check. Only `true` is critical (it moves
   // a deviation out of the alarm register), so anything else is safely false.
   const acknowledged = value["acknowledged"] === true;
   return {

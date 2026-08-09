@@ -1,4 +1,4 @@
-// The worker's GitHub seam: the four reads a generate job needs, pre-bound to
+// The worker's GitHub boundary: the four reads a generate job needs, pre-bound to
 // one PR so the task logic never handles octokit instances or repo
 // coordinates. The REAL implementation mints an installation-scoped client
 // via `github`'s App auth (ADR 0016 trust boundary — the worker acts as the

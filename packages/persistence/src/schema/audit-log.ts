@@ -1,4 +1,4 @@
-// `audit_log` — the append-only SOC2-readiness seam (D9). NO outbound FKs
+// `audit_log` — the append-only SOC2-readiness boundary (D9). NO outbound FKs
 // (audit must survive the target's deletion), numeric-only (never purged,
 // so it must hold nothing identifying — no names, no route/method/headers/
 // IP), never swept by retention (D5). Append-only is convention in M1; the

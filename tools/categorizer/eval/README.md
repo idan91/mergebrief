@@ -41,10 +41,10 @@ sections, output schema, salvage) and model bumps, where any property
 could move. An honestly-scoped run beats the real alternative at
 full-suite prices: not gating at all.
 
-## Prose-length note (BRIEF-148)
+## Text-length note (BRIEF-148)
 
 Every case report carries a length-compliance note when any run's
-artifact stamps `lengthViolations` (the warn-only prose floor); silence
+artifact stamps `lengthViolations` (the warn-only text-length floor); silence
 means every run fit the caps. Pair cases report base/revised sides
 separately. For a cross-model length check, the harness refuses
 cross-key runs before spend — use the one-off spot script instead
@@ -86,24 +86,24 @@ case before believing a demotion.
 - `fixture.json` — a fully cached generation input (FetchedPr shape +
   commitRange + optional PARSED `repoContext`). No GitHub at eval time.
   Built from a real PR (or an explicit commit span) via ad-hoc `gh api`
-  captures — provenance lives in the PR that added each case.
+  captures — origin info lives in the PR that added each case.
 - `expected.ts` — `export const properties: EvalProperty[]`. Anchor on
   run-stable facts (files, group relations, attribute names, categories);
-  NEVER on chunk boundaries or prose text. One bounded exception
+  NEVER on chunk boundaries or free text. One bounded exception
   (BRIEF-54): intent-check items may be keyword-matched — their `quote`
   fields are validator-tethered verbatim ticket substrings and the
   regexes match planted markers in fixture-authored ticket text, not
-  free model prose. A throwing predicate counts as a fail with a note.
+  free model text. A throwing predicate counts as a fail with a note.
   Empty lists are rejected.
 - `baseline.json` — pass counts from main, keyed `provider:model`.
   Cross-key comparison is refused; v1 maintains the Anthropic default key
   only. Re-baselining is an explicit reviewed commit.
 
-**Corpus rule: own-repos only.** This repo goes public (BRIEF-38); every
+**Source rule: own-repos only.** This repo goes public (BRIEF-38); every
 checked-in diff must be publishable. No third-party diffs without a
 license decision.
 
-Seed corpus: `copybutton-new-export` (BRIEF-55 cross-service FP) ·
+Seed sources: `copybutton-new-export` (BRIEF-55 cross-service FP) ·
 `button-under-split` (sub-file intent splitting; its diff also carries
 the dormant `unresolved-reference` probe — App.tsx switches
 `variant="primary"` to `type="primary"`, an invalid value that the
@@ -114,7 +114,7 @@ silently stops being passed) · `pure-move-persistence` ·
 Added post-seed: `delta-read-api-contract` (BRIEF-66 positive
 cross-service probe — modified EXISTING wire contracts from
 code-review#45; baselined at 1/5, the measured post-BRIEF-55 under-fire
-that a future gloss re-tune targets); the four `intent-*` cases
+that a future description re-tune targets); the four `intent-*` cases
 (BRIEF-54 intent check — precise/broad/none specificity boundaries plus
 the adversarial ticket-injection posture; diffs reuse the published
 components#7/#10 fixtures, ticket texts are authored data on
@@ -122,18 +122,18 @@ tasks.example URLs; all baselined stable-pass 5/5).
 
 BRIEF-85 (alarm buckets) added a **twin pair**: `intent-masked-fix` and
 `intent-legit-demotion` share ONE diff byte-identically and differ in their
-surrounding corpus (ticket text plus PR title/body framing), so a model that
-fires on the diff *shape* rather than the corpus passes one and fails the
-other. They are also the corpus's first
+surrounding sources (ticket text plus PR title/body framing), so a model that
+fires on the diff *shape* rather than the sources passes one and fails the
+other. They are also the source set's first
 **authored diff** — hand-written over this repo's own `packages/api` webhook
 route, because no real own-repo PR carries a fake-fix shape and that shape is
-the point of the case (own-repo files, so the corpus rule holds by
+the point of the case (own-repo files, so the source rule holds by
 construction; PR locators are placeholders). The same change extended
 `intent-adversarial-ticket`'s ticket with a manufactured-alarm injection
 block, which invalidated that case's checked-in `adv-*` baseline — the
 predicates were unchanged but the input moved, and stable predicates
 preserve nothing when the input does. Re-recorded in #156 (all seven
-properties 5/5; the hardening changed no original verdict); provenance
+properties 5/5; the hardening changed no original verdict); origin info
 in its `expected.ts` header.
 
 ## Cost (decision 7)
@@ -152,7 +152,7 @@ from diff bytes. Six measured points (2026-07-25,
 `anthropic:claude-opus-4-8`, 5 runs each, standalone invocations).
 Sizes are the fixtures' `pr.diff` bytes; the six cases carry only
 THREE distinct diffs — each same-size pair below is byte-identical,
-differing in its ticket corpus and PR title/body framing:
+differing in its ticket sources and PR title/body framing:
 
 | case | diff | cost / 5 runs |
 | --- | --- | --- |
@@ -165,11 +165,11 @@ differing in its ticket corpus and PR title/body framing:
 
 The 4 KB `intent-broad-epic` costs 1.7× the 11 KB
 `intent-precise-ticket`, and the twins' byte-identical 2 KB diff costs
-$0.44 under one corpus and $0.22 under the other. One
+$0.44 under one source set and $0.22 under the other. One
 hypothesis — inferred from these points, not isolated — is that an
-ambiguous corpus makes the model deliberate longer. Only these six
+ambiguous source set makes the model deliberate longer. Only these six
 cases have been measured standalone; per-case figures for the rest of
-the corpus would be apportionment, not measurement.
+the source set would be apportionment, not measurement.
 
 Shown, never capped. Pre-flight prints the generation count; the report
 prints token totals (via the generators' `onUsage`) and dollars only if
@@ -206,7 +206,7 @@ for the revision, `stitchBrief` — so the property pairs measure the real
 pipeline. **One pair run = TWO generations**; the pre-flight line counts
 them.
 
-Corpus: one synthetic pair per change-impact category — `pair-additive`,
+Source set: one synthetic pair per change-impact category — `pair-additive`,
 `pair-meaning-changing`, `pair-risk-add`, `pair-risk-remove`,
 `pair-subtractive`, `pair-new-material`, `pair-boundary-restructure`,
 `pair-ask-edit`, `pair-rebase-noise`, `pair-intent-transition` — with
@@ -218,7 +218,7 @@ anchored stamp) are pipeline guarantees — any failure is a pipeline bug;
 model-judged rows (description updates, verdict transitions, summary
 stability) ride the stable-pass/flaky discipline (BRIEF-74 map).
 
-**No baselines are committed yet** (BRIEF-143 PR 5 lands the corpus dry).
+**No baselines are committed yet** (BRIEF-143 PR 5 lands the source set dry).
 A pair case without `baseline.json` reports scores with verdicts withheld.
 Recording the first baselines is a deliberate, reviewed step:
 
@@ -229,7 +229,7 @@ Recording the first baselines is a deliberate, reviewed step:
    `pnpm eval --case pair-additive --runs 1 --pair-fresh` — the flag runs
    BOTH generations fresh (no anchor view, no stitch — exactly what
    `full-regeneration: always` produces in production), so
-   `untouched-survives-*` and `anchored-stamp` MUST fail (prose
+   `untouched-survives-*` and `anchored-stamp` MUST fail (text
    byte-equality and the missing stamp fail deterministically).
    `id-carried-*` and `survivor-order-stable-*` are expected to fail too
    but CAN coincide — a fresh model take may renumber identically or
@@ -245,7 +245,7 @@ Recording the first baselines is a deliberate, reviewed step:
    confirmation, not a requirement.
 
 Deliberately not covered (know before you hunt): spec pair 3 RIGHT (a
-material increment adds/changes a changelog bullet) needs prose-level
+material increment adds/changes a changelog bullet) needs text-level
 summary parsing and spec pair 3's summary rows are only partially pinned
 (`summary-lede-stable`); pair 6 RIGHT's removed-chunk half rides
 `pair-subtractive`'s group-death property rather than a chunk-level one.

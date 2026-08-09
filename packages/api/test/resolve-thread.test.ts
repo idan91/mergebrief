@@ -1,6 +1,6 @@
 // Thread-resolution route tests (BRIEF-93): `app.request()` against
 // `createApp` over the PGlite harness, GitHub stubbed at the global-fetch
-// seam (mark-ready.test.ts pattern). Covers: gate posture (401/404
+// boundary (mark-ready.test.ts pattern). Covers: gate posture (401/404
 // collapse), both directions' happy paths (audit emitted, cache busted),
 // read-time convergence, thread/PR not-found, the mutation-stage 403
 // (github-permission, NOT the 404 collapse), fresh-re-resolve denial

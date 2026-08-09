@@ -2,7 +2,7 @@
 // knobs, Zod-parsed from an INJECTED env map. This module NEVER reads
 // `process.env` implicitly at import time: `loadConfig(env)` takes the env
 // explicitly so tests are hermetic and the read happens where the caller
-// decides (composition root), not as an import side effect.
+// decides (startup wiring), not as an import side effect.
 //
 //   DATABASE_URL             required; a postgres(ql):// connection URL.
 //   DATABASE_URL_FILE        optional; path to a file holding the URL

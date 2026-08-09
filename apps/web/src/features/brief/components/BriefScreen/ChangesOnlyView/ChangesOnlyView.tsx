@@ -92,10 +92,10 @@ function PreviousBriefChanges({
   narrative,
   skipReason,
 }: PreviousBriefChangesProps) {
-  // Fresh-restart provenance (BRIEF-143): the ONE user-visible trace of the
+  // Fresh-restart origin (BRIEF-143): the ONE user-visible trace of the
   // anchoring machinery — a muted line when this revision's brief was
   // deliberately regenerated from scratch (anchor chain restarted).
-  // Independent of narrative availability (it is brief provenance, not
+  // Independent of narrative availability (it is brief origin, not
   // narrative content); hidden for anchored revisions, for
   // `full-regeneration: always` instances (stamped `none`), and on
   // pre-feature briefs (no stamp).
@@ -107,8 +107,8 @@ function PreviousBriefChanges({
           : "Regenerated fresh."}
       </p>
     ) : null;
-  // Length-cap provenance (BRIEF-148): one muted line when the pipeline
-  // stamped over-cap prose (warn-only floor) on the brief OR this span's
+  // Length-cap origin (BRIEF-148): one muted line when the pipeline
+  // stamped over-cap text (warn-only floor) on the brief OR this span's
   // narrative — the actionable read is "pick a stronger model", so the
   // entries are not itemized here.
   const lengthNote = hasLengthViolations(brief, narrative) ? (
@@ -355,7 +355,7 @@ function countLines(ranges: LineRange[]): number {
  * The added/context rows for a narrative chunk, pulled from the full Brief's
  * head-coordinate diffs (the incremental added side is a subset of base→head).
  * Removed (prevHead-only) lines have no row at head, so they are summarized as a
- * count instead — an honest seam: the FE holds base→head diffs, not the
+ * count instead — an honest boundary: the FE holds base→head diffs, not the
  * prevHead→head incremental diff.
  */
 function addedRowsForNarrativeChunk(

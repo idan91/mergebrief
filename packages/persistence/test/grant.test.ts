@@ -1,4 +1,4 @@
-// Grant seam tests (BRIEF-40 — ADR 0018 D15). Exercises `grantAuth` against
+// Grant boundary tests (BRIEF-40 — ADR 0018 D15). Exercises `grantAuth` against
 // real migrations on PGlite: create, the serialized `refreshGrant` CAS in all
 // four branches — (a) refresh applies the patch, (b) compare-and-swap
 // short-circuit when the seen token ciphertext no longer matches (callback

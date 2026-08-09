@@ -11,7 +11,7 @@ export interface SummarySectionProps {
 }
 
 /**
- * The Brief's summary block: single-column prose (BRIEF-104 retired the
+ * The Brief's summary block: single-column text (BRIEF-104 retired the
  * BRIEF-4 two-column changelog split — an optional "## Changelog" renders as
  * plain markdown), plus the original-PR-description disclosure. The attribute
  * jump-rail is the single risk-surface summary (ADR 0032 #11) — this section

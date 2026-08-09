@@ -80,7 +80,7 @@ if (argv[0] === "auth" && argv[1] === "status") {
   }
   if (scenario === "auth-fail-if-credentials") {
     // Billing-route pin for the PROBE path: authenticated only when no
-    // credential var leaked through the spawn seam.
+    // credential var leaked through the spawn boundary.
     const leaked = Object.keys(process.env).filter((name) =>
       /API_KEY|AUTH_TOKEN|ACCESS_TOKEN|USE_BEDROCK|USE_VERTEX|BASE_URL/.test(
         name,

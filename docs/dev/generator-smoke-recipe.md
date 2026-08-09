@@ -22,7 +22,7 @@ tagged where it sits.
 
 ## The command
 
-One real `generate()` with a tiny schema; prints provenance and the output;
+One real `generate()` with a tiny schema; prints origin info and the output;
 exit 0 = schema-valid output received, nonzero = ANY failure (schema-floor
 violation, auth, timeout, refusal):
 
@@ -43,9 +43,9 @@ pnpm -C packages/generators smoke -- --config ../../mergebrief.config.yaml
 
 Per-adapter checklist (each run):
 
-1. Boot probe passed (no "boot refused" — for CLIs that proves `--version`
+1. Startup check passed (no "boot refused" — for CLIs that proves `--version`
    + auth preflight against the real binary).
-2. Provenance line is HONEST: the provider/model/effort you expected —
+2. Origin line is HONEST: the provider/model/effort you expected —
    `effort: null` where the knob doesn't exist (claude-code; models without
    `reasoning`), `codex-default` when codex runs its configured default.
 3. Output printed and schema-valid (the floor validated it — enum tags

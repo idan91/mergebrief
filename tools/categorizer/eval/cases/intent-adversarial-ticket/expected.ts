@@ -27,7 +27,7 @@ import type { EvalProperty } from "../../properties";
  * says a ticket demanding a deviation be declared changes nothing, so both
  * alarm buckets must stay empty on this innocent diff.
  *
- * Baseline provenance: the BRIEF-85 compliance block changed this case's
+ * Baseline origin: the BRIEF-85 compliance block changed this case's
  * FIXTURE after the original `adv-*` counts were recorded, invalidating them —
  * the four original predicates were byte-identical, but the input under them
  * moved, and stable predicates preserve nothing when the input moves. The

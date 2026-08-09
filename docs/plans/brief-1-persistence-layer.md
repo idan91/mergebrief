@@ -16,7 +16,7 @@ topology).
 ## Scope
 
 **In:** a new workspace package that owns everything DB — Drizzle schema for the **11 M1
-tables**, migrations, the tenant-scoped repository (`forTenant`), the `ArtifactStore` seam,
+tables**, migrations, the tenant-scoped repository (`forTenant`), the `ArtifactStore` boundary,
 the `audit(...)` emit interface, and the `generation` projection write helpers. Plus the
 `docker-compose.yml` Postgres service needed to run it locally.
 
@@ -35,10 +35,10 @@ packages/persistence/          # new workspace package: "persistence"
   src/
     schema/                    # Drizzle tables, one file per table + shared column groups
     tenant.ts                  # forTenant(ctx) — the ONLY exported DB surface
-    artifact-store.ts          # ArtifactStore seam (D6)
+    artifact-store.ts          # ArtifactStore boundary (D6)
     audit.ts                   # audit(...) emit (D9)
     generation.ts              # status-projection upsert helpers (D10)
-    crypto.ts                  # gh-token encrypt/decrypt via key-provider seam (D11)
+    crypto.ts                  # gh-token encrypt/decrypt via key-provider boundary (D11)
     types.ts                   # branded ids, Result, ValueOf
   test/
 docker-compose.yml             # postgres service (dev + test); worker/web join in BRIEF-3
@@ -54,11 +54,11 @@ docker-compose.yml             # postgres service (dev + test); worker/web join 
 | # | Table | Key decision refs |
 |---|---|---|
 | 1 | `pull_request` | D5 (aggregate root; **no `activated_at`**; nullable `purge_after` + partial index) |
-| 2 | `brief` | D3/D6 (span key `base_sha`+`head_sha`; provenance; inline body) |
+| 2 | `brief` | D3/D6 (span key `base_sha`+`head_sha`; origin; inline body) |
 | 3 | `delta` | D3/D6 (`baseline_sha` = checkpoint; reviewer-agnostic core) |
 | 4 | `diff_snapshot` | D4 (config-gated; the *only* persisted-code table) |
-| 5 | `revision_narrative` | **D12** (FK `brief_id` CASCADE; `prev_head_sha` third SHA role; provenance) |
-| 6 | `comparison_marks` | **D13** (coordinates-only; no provenance; SHA-pair key) |
+| 5 | `revision_narrative` | **D12** (FK `brief_id` CASCADE; `prev_head_sha` third SHA role; origin) |
+| 6 | `comparison_marks` | **D13** (coordinates-only; no origin; SHA-pair key) |
 | 7 | `checkpoint` | D7 (webhook-driven; unique per reviewer×PR) |
 | 8 | `disposition` | D7 (table now, rows M2; content-coordinate anchored) |
 | 9 | `generation` | D10 (CQRS projection; `kind` includes `revision-narrative`) |
@@ -81,11 +81,11 @@ is mechanical.
 | # | Stage | Model | Effort | Rationale |
 |---|---|---|---|---|
 | 1 | Package scaffold | Sonnet | low | mechanical; conventions copied from `tools/categorizer` |
-| 2 | Schema + first migration | **Fable** | high | the load-bearing stage — encodes every ADR decision; errors ripple |
+| 2 | Schema + first migration | **Fable** | high | the critical stage — encodes every ADR decision; errors ripple |
 | 3 | Tenant repository | Opus | high | design-sensitive API surface; invariant crisply specified (D2b) |
 | 4 | ArtifactStore + write paths | Opus | medium | subtle `ON CONFLICT` semantics, well-trodden patterns |
 | 5 | Purge + retention | Opus | high | deletion correctness; ADR enumerates survivors, tests prove it |
-| 6 | Token crypto helper | Opus | medium | standard AES-GCM behind the key seam; security gate is the real check |
+| 6 | Token crypto helper | Opus | medium | standard AES-GCM behind the key boundary; security gate is the real check |
 
 1. **Package scaffold** — workspace entry, package.json (incl. `migrate` script →
    `drizzle-kit migrate`), tsconfig, oxlint pickup, vitest config, `docker-compose.yml`
@@ -98,7 +98,7 @@ is mechanical.
    raw handle not exported (compile-time enforcement — package exports only the repo
    factory); context shape shared by web (authz middleware) and worker (job payload) per
    D2b.
-4. **ArtifactStore + write paths** — D6 seam over the typed tables; idempotent
+4. **ArtifactStore + write paths** — D6 boundary over the typed tables; idempotent
    content-addressed writes (`ON CONFLICT DO UPDATE`); `generation` projection helpers
    (D10 transitions); `audit(...)` emit (D9: generate | delete | config | auth-denial).
    **`comparison_marks` body rule:** persist only `{baselineSha, headSha, files[]}` from the
@@ -111,7 +111,7 @@ is mechanical.
    + explicit `reviewer_session` delete, audit retained per D5/D9); `purge_after` sweep
    query; TTL sweep for sessions.
 6. **Token crypto helper** — `crypto.ts`: encrypt/decrypt for `gh_token_ciphertext` behind
-   the key-provider seam (env-resolved key by `key_ref`, D11 — direct key, not per-row
+   the key-provider boundary (env-resolved key by `key_ref`, D11 — direct key, not per-row
    envelope). Table consumers arrive in BRIEF-2.
 
 Each stage ends with: typecheck + vitest + lint green, security-review gate, commit.
@@ -139,7 +139,7 @@ Stage handoffs carry no conversational context — each stage's brief is this pl
   `AuditAction`, `PrState`).
 - **No `any`, no bare `as`** — `unknown` + type guards; **Zod at boundaries** (artifact body
   shape checks, job-payload/tenant-context parse) — zod already a workspace dep.
-- **Branded types** for the id families D1 makes load-bearing: `InstallationId`, `RepoId`,
+- **Branded types** for the id families D1 makes critical: `InstallationId`, `RepoId`,
   `ReviewerId`, `PullRequestRowId` — prevents the exact `installation_id`/`repo_id` swap
   the tenancy invariant can't afford. Same for `Sha` roles if cheap.
 - **Result types** for expected failures (purge target missing, decrypt failure, artifact

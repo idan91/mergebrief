@@ -92,7 +92,7 @@ function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
 }
 
 /** Nested-fence strip shared by the prompt render AND the intent-check
- * verification corpus — the two views must stay byte-identical. */
+ * verification source — the two views must stay byte-identical. */
 const LINKED_CONTEXT_FENCE = /<\/?linked_context/gi;
 
 /** Render the untrusted linked-context section, fenced so it reads as data. */
@@ -259,9 +259,9 @@ export async function categorize(
     readingOrder !== undefined && readingOrderIssues.length === 0;
 
   // Intent check (BRIEF-54): ticketUrls ⊆ the URLs actually injected as
-  // linked context; quotes verify against the composite corpus — the PR
+  // linked context; quotes verify against the composite source — the PR
   // title/description rides as the "" source, matching the sourceUrl
-  // convention. The corpus must be the SAME sanitized view the prompt
+  // convention. The source text must be the SAME sanitized view the prompt
   // rendered (linked_context fence strip + forged-fence defusal when repo
   // context is in play) — verifying against raw text would flag a model
   // quote as fabricated when the harness altered the text it read.

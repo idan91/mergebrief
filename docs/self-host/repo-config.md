@@ -4,12 +4,12 @@ A repository can commit a `.mergebrief/` directory to shape its own briefs
 (ADR 0032). This is the **code-owner's** surface — distinct from the
 operator's instance config (`mergebrief.config.yaml`, env-located, never in
 the repo): instance config decides provider/model/spend and refuses boot when
-invalid; repo config decides policy/prose/workflow and degrades **that
+invalid; repo config decides policy/text/workflow and degrades **that
 repo's** briefs loudly when invalid, never the instance.
 
 ```
 .mergebrief/
-  instructions.md    # prose guidance to generation (semi-trusted, bounded)
+  instructions.md    # text guidance to generation (semi-trusted, bounded)
   settings.yaml      # workflow behavior (v1: entryCommentOnDrafts)
   policy.yaml        # risk policy: custom attributes + display de-emphasis
   rules/             # RESERVED for future generated output — leave empty
@@ -29,10 +29,10 @@ Receipt.
 
 ## `instructions.md` (16 KB budget)
 
-Free prose the generator may follow **only** within the enumerated
+Free-form text the generator may follow **only** within the enumerated
 instruction classes — see the authoring guide
 (`docs/repo-config/authoring.md`) and the template
-(`docs/repo-config/instructions-template.md`). Prose shapes presentation and
+(`docs/repo-config/instructions-template.md`). Text shapes presentation and
 comprehension; it can never mint a risk attribute, change a label
 vocabulary, or alter the output schema — that asymmetry is why `policy.yaml`
 exists separately. Over 16 KB the file is rejected whole (loudly), never
@@ -86,7 +86,7 @@ deEmphasize:                       # optional display tuning — quiet, never su
 
 Invalid YAML, unknown keys, an unknown/missing `version`, or an over-cap
 file → the file is rejected **whole** (never partially used); generation
-proceeds without it and the error shows on the provenance chip to both
+proceeds without it and the error shows on the origin chip to both
 author and reviewer. A GitHub fetch failure fails **open**: the brief
 generates without repo config, recorded loudly as `fetch-failed`.
 

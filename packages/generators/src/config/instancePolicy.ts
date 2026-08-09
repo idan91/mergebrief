@@ -5,7 +5,7 @@ import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 
 /**
  * The narrow instance-policy loader (BRIEF-64 decision 1, ADR 0020 as
- * amended): the api composition root reads ONLY the `drafts` block out of
+ * amended): the api startup wiring reads ONLY the `drafts` block out of
  * `mergebrief.config.yaml`. Deliberately tolerant of everything else in the
  * file — an invalid generator block or an unknown root key is the FULL
  * loader's (worker's) problem; the api process must boot without adapter
@@ -71,7 +71,7 @@ export function validateDraftsBlock(
   return { ok: true, value: parsed.data };
 }
 
-/** Env-driven load for the api composition root. Unset env var = defaults. */
+/** Env-driven load for the api startup wiring. Unset env var = defaults. */
 export function loadInstancePolicy(
   env: Record<string, string | undefined>,
 ): Result<LoadedInstancePolicy, ConfigError> {

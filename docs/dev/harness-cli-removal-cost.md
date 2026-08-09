@@ -2,17 +2,17 @@
 
 What stripping the `claude-code` and `codex` adapters would take, if the
 release-time ship/no-ship call goes against shipping them. Survey of the
-seam as of 2026-08-08 (main @ 315ada64). **No removal happens on the
+boundary as of 2026-08-08 (main @ 315ada64). **No removal happens on the
 BRIEF-141 map** — this documents the cost so the release call is informed.
 
 ## Verdict up front
 
-The seam is clean: no package outside `packages/generators` imports any
+The boundary is clean: no package outside `packages/generators` imports any
 harness or CLI-adapter export, and the compose worker never had the
 binaries. Removal is a single-package surgery plus docs/example edits —
 roughly **-3,400 LOC deleted, ~200 LOC edited, zero cross-package
 fallout**. One deliberate casualty: the BRIEF-140 spawn-env credential
-strip seam lives inside `harness/run.ts` and dies with it (it exists only
+strip boundary lives inside `harness/run.ts` and dies with it (it exists only
 to guard CLI spawns — nothing else consumes it).
 
 ## Deleted outright (≈1,230 source + ≈2,190 test LOC)
@@ -24,7 +24,7 @@ Source:
 | `src/adapters/claudeCode.ts` | 371 | adapter |
 | `src/adapters/codex.ts` | 246 | adapter (+ `CODEX_PROBE` consumed by registry) |
 | `src/harness/run.ts` | 423 | spawn/stream machinery; **contains the BRIEF-140 `envForSpawn` credential strip-list** |
-| `src/harness/probe.ts` | 111 | boot probe (`--version` + auth preflight) |
+| `src/harness/probe.ts` | 111 | startup check (`--version` + auth preflight) |
 | `src/harness/redact.ts` | 81 | secret redaction + timeout error |
 
 Tests:
@@ -84,7 +84,7 @@ run it too; only the two harness contract entries go.
 - Compose files, worker Dockerfile, `packages/worker` — never had the
   binaries or any harness import.
 - `packages/brief-core`, `apps/web`, `tools/categorizer` runtime code —
-  grep confirms the only hits are prose comments ("eval harness",
+  grep confirms the only hits are text comments ("eval harness",
   "codex round N" review annotations), not code coupling.
 - The three API adapters and the shared contract suite.
 - Coverage floors: generators loses ~2,190 test LOC against ~1,230

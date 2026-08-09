@@ -14,7 +14,7 @@
 // conversation cache key is evicted on success so the next read reflects it.
 //
 // The installation octokit enters through `InstallationGitHubPort`
-// (`./github-port` — injected by the composition root over the App-JWT
+// (`./github-port` — injected by the startup wiring over the App-JWT
 // client, substituted in tests). This package never constructs App auth
 // itself.
 import { Hono, type Context } from "hono";

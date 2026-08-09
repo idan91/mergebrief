@@ -1,4 +1,4 @@
-// BRIEF-19 user_settings tests (PGlite). Prove the D14 NON-tenant seam: a row
+// BRIEF-19 user_settings tests (PGlite). Prove the D14 NON-tenant boundary: a row
 // keyed by GitHub user id, readable/writable WITHOUT a tenant ctx, that
 // survives session deletion (the whole point — a default that outlives any one
 // session). Idempotent upsert of the default installation.

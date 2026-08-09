@@ -8,7 +8,7 @@
  * docs/dev/harness-cli-capabilities.md §2): thread/turn/item events, the
  * answer as the LAST `item.completed` `agent_message` whose `item.text` is
  * a JSON STRING (the double-parse quirk). No model id anywhere in JSONL —
- * the verified provenance blind spot.
+ * the verified origin blind spot.
  */
 const {
   appendFileSync,
@@ -58,7 +58,7 @@ function drainStdinThen(fn) {
   process.stdin.on("end", () => fn(stdin));
 }
 
-// Boot-probe surface: `--version`; `login status` as the auth probe seam
+// Startup-check surface: `--version`; `login status` as the auth-probe boundary
 // (real-CLI equivalent probed at adapter implementation, PR 6).
 const argv = process.argv.slice(2);
 if (argv.includes("--version")) {

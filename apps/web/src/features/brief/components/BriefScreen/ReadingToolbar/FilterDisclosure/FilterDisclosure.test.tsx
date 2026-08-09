@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The toolbar's Filter disclosure (BRIEF-134): the ONLY filter surface —
 // trigger carrying the active-state receipt (hidden-thread count
-// load-bearing), the BRIEF-99 panel anchored beneath it, and the
+// critical), the BRIEF-99 panel anchored beneath it, and the
 // always-mounted live region that announces what the diff lost.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";

@@ -82,7 +82,7 @@ export interface PrComparisons {
 
 /**
  * One browsable Brief revision on PR meta (BRIEF-24). `baseSha` is PER-ENTRY
- * and load-bearing: the base drifts across revisions (base-branch advance /
+ * and critical: the base drifts across revisions (base-branch advance /
  * retarget) and the brief GET is an exact `(pr, base, head)` lookup, so the
  * navigator fetches each revision with ITS OWN base — never the top-level
  * view's. Ordered by `headIndex` ascending; `comparisons` mirrors the

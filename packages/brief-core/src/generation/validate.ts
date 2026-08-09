@@ -124,7 +124,7 @@ export function validateReadingOrder(
 }
 
 /**
- * One intent-corpus source the quote check can verify against: the PR
+ * One intent-source origin the quote check can verify against: the PR
  * title/description composite rides as `url: ""`, fetched linked context as
  * its URL — mirroring the `sourceUrl` convention on the schema.
  */
@@ -141,7 +141,7 @@ function normalizeWhitespace(text: string): string {
 /**
  * Minimum words for an alarm-bucket quote to count as verified (BRIEF-104):
  * below this, the substring check stops discriminating — a generic fragment
- * appears in almost any corpus, so it cannot ground an alarm.
+ * appears in almost any source text, so it cannot ground an alarm.
  */
 const ALARM_QUOTE_MIN_WORDS = 5;
 
@@ -342,7 +342,7 @@ export function validateIntentCheck(
    * costs more than a miss. The word floor (BRIEF-104) exists because the
    * substring check's power is a function of quote length: with the prompt
    * now nudging toward the shortest span, a bare fragment ("the split")
-   * would verify against almost any corpus and launder a fabricated alarm.
+   * would verify against almost any source text and launder a fabricated alarm.
    */
   function quoteVerifies(
     bucket: string,
@@ -542,7 +542,7 @@ const TOML_NON_DEP_KEYS = new Set([
   "dynamic",
 ]);
 
-/** A value that looks like a version/range/source spec rather than prose. */
+/** A value that looks like a version/range/source spec rather than text. */
 const VERSION_SHAPED =
   /^(?:[\^~]|[<>]=?|==?|\d|\*|workspace:|npm:|file:|link:|git\+|git:|https?:\/\/)/;
 
@@ -969,7 +969,7 @@ function checkProseLength(
  * Length check for brief-shaped output — full brief change-groups or delta
  * `changedGroups`, plus per-chunk riskNotes (BRIEF-148). WARN-ONLY by locked
  * design: never trim (mechanically unknowable which sentence carried the
- * substance), never retry (full regen spend for a prose nit), never a schema
+ * substance), never retry (full regen spend for a text nit), never a schema
  * `maxLength` (grammar budget + decode hard-fail + cross-model strictness).
  * The prompt carries the caps; this is the floor that measures compliance.
  */

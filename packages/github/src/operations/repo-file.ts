@@ -4,7 +4,7 @@
 // serves the repository's default branch. That is this module's ref-resolution
 // decision (plan PR 1): no `repos` row is persisted anywhere, and a separate
 // `repos.get` round-trip would only add a call and a staleness window for the
-// same answer. The blob SHA feeds provenance (ADR 0032 #8); the size guard
+// same answer. The blob SHA feeds origin tracking (ADR 0032 #8); the size guard
 // rejects oversize blobs BEFORE decoding (accident guard — the semantic
 // byte-budget caps live in `repo-config`, not here).
 import type { Octokit } from "octokit";
@@ -28,7 +28,7 @@ export interface RepoFileContent {
   readonly kind: typeof RepoFileKind.FILE;
   /** UTF-8 decoded file content. */
   readonly content: string;
-  /** Git blob SHA of the served content — the provenance stamp (ADR 0032 #8). */
+  /** Git blob SHA of the served content — the origin stamp (ADR 0032 #8). */
   readonly blobSha: string;
   /** Blob size in bytes, as reported by GitHub. */
   readonly size: number;
@@ -39,7 +39,7 @@ export interface RepoFileAbsent {
   readonly kind: typeof RepoFileKind.ABSENT;
 }
 
-/** The blob exceeds `maxBytes`; rejected before decode. SHA/size kept for provenance. */
+/** The blob exceeds `maxBytes`; rejected before decode. SHA/size kept for origin tracking. */
 export interface RepoFileTooLarge {
   readonly kind: typeof RepoFileKind.TOO_LARGE;
   readonly blobSha: string;

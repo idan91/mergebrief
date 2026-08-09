@@ -3,7 +3,7 @@ import type { EvalProperty } from "../../properties";
 /**
  * BRIEF-54 none case: the button-under-split diff with a boilerplate title
  * ("updates"), an empty body, and no links — no usable stated intent
- * anywhere in the corpus. Specificity must be none. The second property
+ * anywhere in the source. Specificity must be none. The second property
  * borrows the base case's headline grouping check as a canary that the
  * intent-check addition does not perturb the base story.
  *

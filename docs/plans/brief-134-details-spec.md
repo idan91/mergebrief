@@ -60,7 +60,7 @@ per-block ad-hoc gating conditions (the old
   exist — the current silent `setViewMode("story")` on focus entry
   (`useReadingSession.ts`) becomes an explicit contract.
 
-## Capped-prose primitive (shared: SummarySection + IntentBar panel)
+## Capped-text primitive (shared: SummarySection + IntentBar panel)
 
 One shared component, never hand-rolled twice.
 
@@ -97,7 +97,7 @@ never auto-expanded, fallible framing) is UNTOUCHED. ADR 0009 §86 rules
 register, not visibility — the bar was buried by 826–1052px of summary, not
 demoted by treatment. Capping the summary puts it above the fold; that IS
 the promotion. ADR 0009 gets a compliance note, no amendment. The intent
-panel body uses the capped-prose primitive when opened.
+panel body uses the capped-text primitive when opened.
 
 ## Reading toolbar
 
@@ -122,7 +122,7 @@ Rules:
   with overflow-hidden CLIPS ITS OWN anchored panels — third instance of
   this bug family; see BRIEF-103's focus-mode menu clip). Panel z-index
   must clear the sticky chunk headers.
-- The **label compression ladder is load-bearing** at 1280:
+- The **label compression ladder is critical** at 1280:
   `Risk attrs` → `Attrs`, `Collapse supporting` → `Collapse`. Spec'd, not
   improvised.
 - `Collapse supporting` is an `aria-pressed` toggle button (no switch
@@ -140,7 +140,7 @@ trigger is the only filter surface:
 
 - Inactive: plain `Filter` button (discoverable at zero state).
 - Active: `Filter · 2 verdicts · 3 reviewers · 4 hidden` — hidden-thread
-  count is the load-bearing number.
+  count is the critical number.
 - Opens the full BRIEF-99 bar UI as an anchored panel (RiskChipDisclosure
   grammar). All BRIEF-99 locks hold inside the panel: OR-within/AND-across,
   faceted toggle-aware counts, zero-count chips unrendered, selected chips

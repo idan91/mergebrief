@@ -1,5 +1,5 @@
 // Repo-local generation context (BRIEF-52/58, ADR 0032): the `.mergebrief/`
-// surface's two prompt-side artifacts — semi-trusted prose instructions
+// surface's two prompt-side artifacts — semi-trusted text instructions
 // (`instructions.md`, bounded by REPO_INSTRUCTION_CLASSES) and validated
 // custom risk attributes (`policy.yaml`, flat facts evaluated in the same
 // single call). This module owns the injection contract: the class-list
@@ -55,7 +55,7 @@ export const INSTRUCTIONS_INJECTION_BUDGET_BYTES = 16 * 1024;
 
 /** `.mergebrief/instructions.md` as fetched from the default branch. */
 export interface RepoInstructionsInput {
-  /** Repo-relative path, for the fence attribute + provenance. */
+  /** Repo-relative path, for the fence attribute + origin tracking. */
   readonly path: string;
   /** Git blob SHA of the served content (ADR 0032 #8). */
   readonly blobSha: string;

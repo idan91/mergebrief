@@ -1,6 +1,6 @@
 // BRIEF-19 PR 2.1 multi-org endpoint tests: GET /api/auth/installations and
 // POST /api/auth/installation. Same harness as pulls.test.ts: `app.request()` over
-// PGlite, GitHub stubbed at the global-fetch seam. The accessible set is ALWAYS
+// PGlite, GitHub stubbed at the global-fetch boundary. The accessible set is ALWAYS
 // re-derived from GitHub (`GET /user/installations`, viewer token) — a switch
 // to anything outside it is a 403 with NO session/settings mutation (D14).
 import { randomBytes, createHash } from "node:crypto";

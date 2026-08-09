@@ -18,7 +18,7 @@ adding any GitHub-comment noise.
 ## Locked decisions (grill 2026-07-17)
 
 1. **Plumbing — enqueue-side enforcement (api).** Instance config gains a
-   top-level `drafts` block. The api composition root reads
+   top-level `drafts` block. The api startup wiring reads
    `MERGEBRIEF_CONFIG` via a NEW narrow loader (`loadInstancePolicy` or
    similar) that parses ONLY the `drafts` key — it must NOT validate the
    generator block nor require provider keys in the api process. Policy is
@@ -148,7 +148,7 @@ deferred; see revisit triggers.
 2. **Enqueue path** (`packages/api/src/routes/webhook.ts` + ingest
    pass-through): window-selection function per decision 7; `generate: off`
    guards per decision 5 (draft trigger → `recordState`; review-on-known-
-   draft skip); `WebhookRouteDeps` + composition root wiring. Tests extend
+   draft skip); `WebhookRouteDeps` + startup wiring. Tests extend
    `test/webhook.test.ts` (PGlite harness): each window case asserts the
    enqueued job's `run_at`/debounce, off-mode asserts no job + state
    written, ready-flip asserts job-key replacement.

@@ -3,7 +3,7 @@
 > Status: **READY — wayfinder map closed 2026-07-09, not started.**
 > Ticket: Notion BRIEF-17; map: "Wayfinder map: Brief CLI (BRIEF-17)" (all 8
 > decision tickets closed 2026-07-08/09).
-> ADRs: **0028** (thin-client seam), **0029** (output contract), **0016 #4
+> ADRs: **0028** (thin-client boundary), **0029** (output contract), **0016 #4
 > as amended 2026-07-09** (API tokens as second presentation channel).
 > Grills ran with Fable pre-cutoff; design is locked — execution does not
 > require Fable.
@@ -31,12 +31,12 @@ guide, self-host deploy doc, two changelogs.
 Full detail lives on the map's tickets; gists here, contracts inline where
 implementation needs them.
 
-1. **Seam (ADR 0028):** CLI only, strict `--json`; no MCP, no published SDK
+1. **Boundary (ADR 0028):** CLI only, strict `--json`; no MCP, no published SDK
    in v1. Thin-client hard constraint: public HTTP API only at runtime —
    no `persistence`/`github` imports, no direct Postgres; compile-time
    types from `packages/types` OK. One code path local + deployed
    (configurable base URL). Internals may be SDK-shaped (thin bin over a
-   client module) — recommended, it is also the test seam.
+   client module) — recommended, it is also the test boundary.
 2. **Auth (ADR 0016 #4 amended):** opaque `mergebrief_...` Bearer tokens;
    SHA-256 hash rows wrapping the envelope-encrypted GitHub token +
    refresh token (reuse `spendRefresh` machinery); installation-bound at
@@ -114,7 +114,7 @@ implementation needs them.
   optional `owners:` mapping; resolution order = explicit flag/env →
   `owners:` match on git-remote owner → default profile. Cache under
   `~/.cache/mergebrief/<profile>/` (XDG = safe-to-delete signal).
-- **Test seam: injected fetch.** The client module takes a
+- **Test boundary: injected fetch.** The client module takes a
   `fetch`-compatible function; command tests run against the REAL api Hono
   app (`app.request` is fetch-shaped) over the PGlite harness — true
   integration, no network, no mock-drift. Pure units (hunk filter, cache
@@ -172,7 +172,7 @@ the window holds):
 | 2 token-routes | Fable high if reached before 2026-07-12, else Opus high | Security-critical: Bearer presentation inside the gate + mint/revoke; posture subtleties (401-no-hint, /auth vs /api split) |
 | 3 repos-endpoint | Opus medium | Pattern-following: pulls.ts allowed-set + mount-order rule |
 | 4 web-token-ui | Opus medium | Settings CRUD UI; shown-once flow is the only subtle beat |
-| 5 cli-scaffold-auth | Fable high if reached before 2026-07-12, else Opus high | Foundational contracts: client seam, config/profiles, exit mapping, cache — package idioms compound downstream |
+| 5 cli-scaffold-auth | Fable high if reached before 2026-07-12, else Opus high | Foundational contracts: client boundary, config/profiles, exit mapping, cache — package idioms compound downstream |
 | 6 cli-read-commands | Opus high | `--group` hunk join + delta envelope carry the correctness weight |
 | 7 cli-write-commands | Opus medium | Thin POSTs over locked server validation; receipts + payload plumbing |
 | 8 cli-docs | Opus medium | Writing + one embed script + CI gate |
@@ -185,7 +185,7 @@ persistence only.
 
 1. `api_tokens` schema (sibling of `reviewer-session.ts`): id, name,
    user id, installation binding, SHA-256 token hash, envelope-encrypted
-   GitHub token + refresh token (same crypto seams as sessions),
+   GitHub token + refresh token (same crypto boundaries as sessions),
    `expires_at` nullable (no-expiry allowed), `last_used_at`,
    `created_at`, revocation. Tenant scoping per ADR 0016 #6.
 2. `tokenAuth` module mirroring `session.ts` (`sessionAuth`): resolve by
@@ -243,7 +243,7 @@ split `repos`+cache into its own PR.
 1. Package scaffold: `mergebrief`, `private: true`, bin, tsup single-file
    bundle, vitest, oxlint wiring, CI path-filtered job, pnpm-link dogfood
    script.
-2. Client module (the seam): injected fetch, base-URL + Bearer wiring,
+2. Client module (the boundary): injected fetch, base-URL + Bearer wiring,
    stream/exit invariant implementation, 6-code error mapping, proxy
    HTML/302 detection → actionable error pointing at deploy docs, generic
    extra-static-headers per profile (IdP escape hatch).
@@ -293,7 +293,7 @@ split `repos`+cache into its own PR.
 
 1. `packages/cli/README.md`: quickstart (mint walkthrough + disclaimer,
    `auth login`, first `pr`), narrative command reference with one captured
-   JSON example per command + load-bearing-fields prose (`headSha`,
+   JSON example per command + critical-fields text (`headSha`,
    `commentsDegraded`, group ids, union tags), exit-code table, commitId
    carry-through, cache-reset line, install story (launch channels +
    pinning line).
@@ -344,7 +344,7 @@ self-heal; revoke the token and confirm 401 → exit 3. Dogfood install via
 ## Context for a fresh session (read before PR 1)
 
 - **Session machinery to mirror:** `packages/persistence/src/session.ts`
-  (`sessionAuth`, refresh patch/rejection), crypto seams in
+  (`sessionAuth`, refresh patch/rejection), crypto boundaries in
   `packages/persistence/src/crypto.ts`; `sha256Hex` +
   session-cookie handling in `packages/api/src/routes/auth.ts`.
 - **Gate + mount rules:** `packages/api/AGENTS.md` — one gate per request

@@ -97,7 +97,7 @@ Submit on the DB path.
   (`pullRequestReviewEventSchema`) + `:304` (`parsePullRequestReview`) —
   filters to `submitted` at `:421`; add `review.commit_id`,
   `review.user.type`, `review.submitted_at` to schema + parsed event.
-- **Persistence seam:** `packages/persistence/src/tenant.ts:407`
+- **Persistence boundary:** `packages/persistence/src/tenant.ts:407`
   (`checkpoints.upsertOnSubmit`) — exists, idempotent, tenant-verified; add
   the monotonic `WHERE`. Audit vocab:
   `packages/persistence/src/types.ts:106` (`AuditAction`) + the CHECK

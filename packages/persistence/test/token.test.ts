@@ -1,7 +1,7 @@
-// API-token seam tests (BRIEF-17 PR 1 — ADR 0016 #4 as amended, re-anchored
+// API-token boundary tests (BRIEF-17 PR 1 — ADR 0016 #4 as amended, re-anchored
 // by D15/BRIEF-40). Exercises the `api_token` schema and the PRE-TENANT,
 // hash-keyed `tokenAuth` resolver against real migrations on PGlite,
-// mirroring `session.test.ts`. Credential rotation lives on the grant seam —
+// mirroring `session.test.ts`. Credential rotation lives on the grant boundary —
 // see grant.test.ts.
 //
 // The hash-only-storage assertion is structural: the table's exact column set

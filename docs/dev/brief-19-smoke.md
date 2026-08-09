@@ -164,7 +164,7 @@ DB-backed `/repos/<repoId>/pulls/<N>` route, which v1 never reaches.
 2. In the signed-in window, copy the pinned URL
    (`/repos/<repoId>/pulls/<N>?base=...&head=...`) into a new tab:
    **expect** brief content in the first paint (View Source shows the group
-   titles — that's SSR through the in-process seam) and response header
+   titles — that's SSR through the in-process interface) and response header
    `cache-control: no-store` (Network tab → the document request).
 3. Malformed-link checks (same tab):
    - `/repos/<repoId>/pulls/99999` → 404 error page.

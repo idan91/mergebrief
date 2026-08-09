@@ -6,7 +6,7 @@ decisions 1–3 locked on the BRIEF-141 wayfinder map; do not relitigate.
 
 ## Scope
 
-Extend the claude-code boot probe (ADR 0030 #5) with two billing checks:
+Extend the claude-code startup check (ADR 0030 #5) with two billing checks:
 
 1. **Version-floor warning, non-fatal**: installed CLI older than `2.1.226`
    (the billing-attribution-verified floor) ⇒ `warn` — older versions
@@ -38,7 +38,7 @@ version itself):
 probe's `authArgv` — the assertion reads the stdout of a spawn that already
 happens. Why not the SDK:
 
-- The SDK spawns its own CLI subprocess, outside the harness spawn seam —
+- The SDK spawns its own CLI subprocess, outside the harness spawn boundary —
   it would bypass `envForSpawn` credential stripping, the kill ladder, and
   the watchdog timers (`harness/run.ts` invariants, BRIEF-140).
 - The SDK resolves/bundles its own CLI executable by default — risk of

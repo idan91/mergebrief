@@ -1,7 +1,7 @@
 // GitHub client env config (BRIEF-2, stage 1). Zod-parsed from an INJECTED
 // env map — this module NEVER reads `process.env` implicitly at import time:
 // `loadConfig(env)` takes the env explicitly so tests are hermetic and the
-// read happens where the caller decides (composition root), mirroring
+// read happens where the caller decides (startup wiring), mirroring
 // `packages/persistence/src/config.ts`.
 //
 //   GITHUB_APP_ID                    required; numeric GitHub App id.

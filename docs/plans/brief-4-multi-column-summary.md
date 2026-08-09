@@ -13,13 +13,13 @@ wasted.
 ## Confirmed design brief (from /impeccable shape, 2026-07-18)
 
 - **Layout:** 2-column grid on wide containers. Column 1 = overview +
-  what-it-does prose. Column 2 = changelog + risk-surface chips (+ DeltaContext
+  what-it-does text. Column 2 = changelog + risk-surface chips (+ DeltaContext
   for delta briefs). 68ch cap **per column**, not per section.
 - **Trigger:** container query on `.summary` (`container-type: inline-size`;
   precedent: `DiffTable.module.scss`). 2-col engages only when BOTH hold:
   - the `## Changelog` section exists in the summary markdown, AND
   - the container fits two ~55ch columns + gap (~120ch threshold).
-  No changelog → always single column (risk chips stay under prose). Confirmed
+  No changelog → always single column (risk chips stay under text). Confirmed
   choice: "split only if changelog" — avoids a sparse orphan column.
 - **Mechanism:** split `brief.summary` markdown at the `## Changelog` h2 in the
   viewModel (string-level, unit-testable, not in the component), render as two

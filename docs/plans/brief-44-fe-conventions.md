@@ -68,7 +68,7 @@ follow-up ticket. Where this document's decision list conflicts, the ADR wins.
    allowed-list` for the token bar; oxlint rules for whatever it expresses of
    the TS standards (no-explicit-any, enum ban, restricted assertions,
    named exports, no-console in server dirs, import/no-cycle, lateral-import
-   restriction if path patterns allow). What lint can't express stays prose,
+   restriction if path patterns allow). What lint can't express stays text,
    listed honestly. Test-as-enforcement: a guard test parsing every
    `var(--x)` usage and asserting definition in `tokens.scss` or locally.
    Editor-level `typescript-plugin-css-modules` (no build-time d.ts codegen;
@@ -79,7 +79,7 @@ follow-up ticket. Where this document's decision list conflicts, the ADR wins.
 10. **AGENTS.md.** The why + full rules land as an ADR; `apps/web/AGENTS.md`
     gets a lean ~10-line entry: only what agents cannot infer (placement
     procedure, token bar, inline-vs-utils, data-attr rule) + pointer to the
-    ADR. Lint-enforced rules stay out of prose.
+    ADR. Lint-enforced rules stay out of text.
 11. **BriefPage split shape** (all under `features/brief/components/`):
     `BriefPage/` (route wrapper) · `BriefView/` (data plumbing) ·
     `BriefScreen/` (layout + wiring, keeps the JSX; regions are already child
@@ -137,7 +137,7 @@ after PR 4 and after PR 5b — the memory note is the handoff.
 | 4 | Structure motion: `@web/` alias + rewrite 89 deep imports, `lib/`→`utils/`, `features/brief/comparison/` topic folder, folder the `src/components` strays (Callout, ScreenReaderOnly) | ~700 (moves) | Opus 5, low |
 | 5a | BriefPage split I: extract the five facade hooks + `utils.ts` + `useLatestRef` promotion. Step 0: verify `characterization/` selectors (data-attrs vs class/text; fix selectors first if needed — June lesson) | ~700 (moved) | Fable 5, medium |
 | 5b | BriefPage split II: three component folders + `RiskFlagModals/` + `data-testid`/data-attr adoption on extracted components | ~500 | Opus 5, medium |
-| 6 | Convention-violation cleanup + oxlint rules landing together: console.*→logging seam (ADR 0034), PascalCase vocab maps → SHOUT_CASE, inline-props export fix, no-cycle/no-console/enum/any rules | ~250 | Opus 5, medium |
+| 6 | Convention-violation cleanup + oxlint rules landing together: console.*→logging boundary (ADR 0034), PascalCase vocab maps → SHOUT_CASE, inline-props export fix, no-cycle/no-console/enum/any rules | ~250 | Opus 5, medium |
 | 7 | Wire-mirror drift pins (BRIEF-23-class gap; lockstep pins everywhere repoConfig already has them) | ~200 | Opus 5, high |
 | 8 | Phase 2: scale normalization (deliberate type/radius/shadow scales, collapse fractionals, earned-oddity declarations) — screenshot-reviewed by Idan against the 3b baseline | ~200 | Fable 5, medium |
 

@@ -26,5 +26,5 @@ Group order today is raw LLM emission order — the prompt gives no ordering ins
 
 - Brief schema gains optional `readingOrder: { groupId, why }[]`; post-parse validation (permutation of group IDs) warns and drops the field rather than failing the Brief — the `validatePartition` precedent.
 - Prompt cost is marginal tokens on the existing call, not a new call — no config gate needed (contrast ADR 0024's narrative). Watch for attention dilution of the main Brief output during dogfooding; the escape hatch is moving to a second call later, which the optional-field shape does not preclude.
-- `CONTEXT.md` gains **Reading order** and **Read-through**; `narrative`/`story` stay reserved for generated prose, `walkthrough` (CodeRabbit) and `layers`/`cohorts` (Atlas) are avoided.
+- `CONTEXT.md` gains **Reading order** and **Read-through**; `narrative`/`story` stay reserved for generated text, `walkthrough` (CodeRabbit) and `layers`/`cohorts` (Atlas) are avoided.
 - The why-line is comprehension language under the no-verdict stance: "mechanical rename — read last," never "low importance." Nothing anywhere surfaces a rank or score.

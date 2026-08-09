@@ -7,7 +7,7 @@
 // repo-gated routes.
 //
 // The engine is an injected port (`AppDeps.urlBriefEngine`): the web
-// composition root supplies the octokit-PrSource + file-backed generation
+// startup wiring supplies the octokit-PrSource + file-backed generation
 // pipeline; this route owns URL validation, dedupe-by-head, single-flight,
 // and the refresh-once budget. Token rides as a string so no octokit type
 // crosses the port.
@@ -53,7 +53,7 @@ export interface GeneratedBriefRef {
 }
 
 /**
- * The generation port the composition root injects. Every GitHub read inside
+ * The generation port the startup wiring injects. Every GitHub read inside
  * runs with the passed viewer token; expected failures come back as `Result`
  * with browser-safe messages (the engine owns detailed server-side logging).
  */

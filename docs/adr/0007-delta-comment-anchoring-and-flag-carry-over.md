@@ -43,6 +43,6 @@ The ownership split buys free correctness for the highest-volume case — GitHub
 
 - **New state required:** per-`(reviewer, flag)` disposition records, carried across SHAs and re-evaluated each delta. The positional line-map is derivable from the same tree diff ADR 0006 already computes — no new fetch.
 - **Dependency on GitHub** for shipped-comment position/`outdated`; its force-push outdating is coarse (binary) and is surfaced as-is rather than refined.
-- **User-facing vocabulary** (`New` / `Reopened` / `Settled` / `Dropped`, and comment `moved` / `orphaned`) is added to `CONTEXT.md`; the FE may gloss `Settled` as "still holds."
+- **User-facing vocabulary** (`New` / `Reopened` / `Settled` / `Dropped`, and comment `moved` / `orphaned`) is added to `CONTEXT.md`; the FE may describe `Settled` as "still holds."
 - **Over-reopening on trivial edits is accepted by design** — the cost of the no-inference rule, and the cheap side of the asymmetry.
 - Together with ADR 0006 this specifies the delta subsystem (generation + state + carry-over). Line-level / sub-operation attribution remains deferred (ADR 0005).

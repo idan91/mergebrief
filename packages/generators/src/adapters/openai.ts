@@ -26,7 +26,7 @@ export interface OpenAiAssemblyOptions {
   fetch?: typeof globalThis.fetch | undefined;
 }
 
-/** Wrap the official SDK into the core's transport seam. */
+/** Wrap the official SDK into the core's transport boundary. */
 export function sdkTransport(client: OpenAI): OpenAiChatTransport {
   return {
     streamChat: async (body, options) =>
@@ -88,7 +88,7 @@ function sanitizedOrigin(baseUrl: string): string {
 }
 
 /**
- * `/models/{id}` as the boot probe: 401 → bad key, 404 → bad model id, one
+ * `/models/{id}` as the startup check: 401 → bad key, 404 → bad model id, one
  * request for both. Messages carry status + model id only — never the key.
  */
 async function modelPreflight(

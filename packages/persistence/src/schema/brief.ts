@@ -27,7 +27,7 @@ export const brief = pgTable(
     model: text("model").notNull(),
     effort: text("effort").notNull(),
     /**
-     * Repo-config provenance + generation-time policy snapshot (ADR 0032 #8/
+     * Repo-config origin + generation-time policy snapshot (ADR 0032 #8/
      * #11): JSON — per-file `path + blob SHA + outcome` table, collision
      * disclosures, and the fired custom-attribute definitions + de-emphasis
      * rules in effect (the FE renders display weight from THIS snapshot,
@@ -35,7 +35,7 @@ export const brief = pgTable(
      */
     repoConfig: text("repo_config"),
     /**
-     * Anchor provenance (BRIEF-143): how this brief relates to its
+     * Anchor origin (BRIEF-143): how this brief relates to its
      * predecessor — 'anchored' | 'fresh-restart' | 'none' (CHECK-constrained,
      * migration 0016). Nullable: rows predating the feature.
      */

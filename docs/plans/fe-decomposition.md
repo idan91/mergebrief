@@ -104,7 +104,7 @@ splits out as PR 1b.
 2. Conversation glue block (~306–464) → `useConversationWiring` facade
    hook alongside the other five.
 3. Ride-along in touched files only: `conversationGroupIds` body →
-   `BriefScreen/utils.ts`; provenance-comment strip (Classes A–C) in
+   `BriefScreen/utils.ts`; origin-comment strip (Classes A–C) in
    BriefScreen.tsx + the extracted files; drop the ~13 dead useCallbacks
    whose consumers are non-memoized (audit list).
 
@@ -125,7 +125,7 @@ splits out as PR 1b.
 3. Ride-alongs: `botGroupChip(row)` extracted next to `threadStateChip`;
    the raw PR-comment row JSX (~697–725) becomes a component; the
    duplicate inline set-toggle adopts `toggleSetMember`; ReplyComposer's
-   switch → kind-keyed failure map; provenance strip (13 hits).
+   switch → kind-keyed failure map; origin-comment strip (13 hits).
 4. A11y invariants preserved verbatim: focus rescues, live-region
    choreography, locked chip-precedence copy.
 
@@ -147,7 +147,7 @@ splits out as PR 1b.
    with their components.
 4. Ride-alongs: route's `PrBriefError` ternary + readOnly-reason ternary
    → kind-keyed maps; header-comment PR-sequencing tags dropped in moved
-   files; provenance strip (4 hits).
+   files; origin-comment strip (4 hits).
 
 ## Out of scope (later items of the audit plan)
 
@@ -157,7 +157,7 @@ splits out as PR 1b.
   `SummaryPreview.reviewOutcomeLabel`, `useOwnDraftFlow` failure map),
   remaining util extractions (ReceiptDrawer `formatReceiptBody`,
   GroupCard derivations, `repoConfigChipState`, ChunkCard partition),
-  remaining dead useCallbacks, remaining provenance comments.
+  remaining dead useCallbacks, remaining origin comments.
 - Structure hygiene: flat hooks → `hooks/` (pulls/review/tokens),
   ADR 0037 §4 loose-file rule, Header three-way split,
   `ModalContent.module.scss` ghost component, `validation.ts` split,

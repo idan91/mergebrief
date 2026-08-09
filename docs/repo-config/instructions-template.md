@@ -26,7 +26,7 @@ honors these classes only (see `docs/repo-config/authoring.md`):
 
 - `generated/**` and `*.snap` churn is low-signal; de-emphasize it in
   summaries.
-- Lockfile-only chunks need no prose.
+- Lockfile-only chunks need no text.
 
 ## Reading conventions
 

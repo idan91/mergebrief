@@ -14,7 +14,7 @@ together once the stack is complete** — PRs go up ready-for-review and wait.
   commits, push, PR creation). Requirements folded in below.
 - **typescript-eng** — strict-TS house rules (no `any`, no bare `as`,
   `Result` for expected failures, named exports, extensionless imports).
-- **test-driven-development** — tests first for seam, middleware, and task
+- **test-driven-development** — tests first for boundary, middleware, and task
   logic (vitest).
 - **verify** — end-to-end runtime pass after PR 3 (see Testing guide).
 
@@ -46,7 +46,7 @@ together once the stack is complete** — PRs go up ready-for-review and wait.
 
 ## Non-negotiables (from ADR 0034)
 
-- Call sites import ONLY the `packages/logging` seam; pino types never leak.
+- Call sites import ONLY the `packages/logging` boundary; pino types never leak.
 - Secrets as structured fields, never in `msg`; redact `remove: true`.
 - `evt` names exactly as the ADR table; no new first-class names without a
   taxonomy change.
@@ -80,7 +80,7 @@ largest — diff-stat after each part, split trigger at ~1000.
   `webhook.verify.fail` (the silent 401 site), `webhook.dispatch.fail`
   (+ start reading `x-github-delivery`), `audit.fail` (inline-comment +
   conversation audit sites), `token.refresh.fail` (github oauth path).
-  Remaining bare `console.*` in api/web-server move to the seam as plain
+  Remaining bare `console.*` in api/web-server move to the boundary as plain
   leveled logs.
 - `/healthz` + `/readyz` in the TanStack server entry; compose web
   healthcheck `/` → `/healthz`; compose `json-file` rotation defaults.
@@ -96,11 +96,11 @@ largest — diff-stat after each part, split trigger at ~1000.
 
 - Inject `new Logger(logFactory)` via the packages/logging adapter in
   worker `main.ts`; replace the 5 `console.error` sites + the injected
-  `log` seams (`createGenerator`/`createGenerateTask`) with seam loggers.
+  `log` boundaries (`createGenerator`/`createGenerateTask`) with boundary loggers.
 - Task-level child bindings `{prId, headSha}`; mint `job.fail`
   (permanent/transient split already in `generate.ts`) and
   `job.retries.exhausted` (`attempt === maxAttempts`); `provider.error`
-  `{provider, status}` through the generator log seam.
+  `{provider, status}` through the generator log boundary.
 - Payload contract untouched (coalescing — ADR 0034 #6).
 - **Model/effort/invocation:** Fable, medium effort, main thread.
 
@@ -112,7 +112,7 @@ largest — diff-stat after each part, split trigger at ~1000.
   `evt`s), short Datadog + CloudWatch sections, rotation paragraph.
 - `compose.md` link + healthcheck doc line.
 - **Model/effort/invocation:** Fable, low effort, main thread (same
-  session; operator-facing prose quality matters more than code
+  session; operator-facing text quality matters more than code
   capability).
 
 ## Testing guide

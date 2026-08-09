@@ -19,7 +19,7 @@ ticket: anthropic `output_config.effort`, openai/openrouter runtime-discovered
 `reasoning_effort` / `reasoning.effort`, codex `model_reasoning_effort` flag,
 claude-code honest `effort: null`). Any design that touches adapter code —
 e.g. baking effort into the generator instance at construction — is wrong: the
-contract is per-request effort with per-request provenance.
+contract is per-request effort with per-request origin.
 
 **Out of scope** (recorded on the ticket): extending the vocab with
 `xhigh`/`max` (cross-provider + output-affecting on the reference model —
@@ -87,10 +87,10 @@ TDD: write the failing loader tests first.
    twins) take an optional `effort: Effort = "medium"` parameter; delete the
    module constant. Keep parameter position consistent with the existing
    optional-args tail (repoContext precedent).
-2. Pin test: calling without effort produces requests + provenance at
+2. Pin test: calling without effort produces requests + origin data at
    `medium` (the byte-identical guarantee).
 3. Threading test: an explicit `low`/`high` reaches `GenerateRequest.effort`
-   AND `generation.effort` provenance for all three artifact kinds.
+   AND `generation.effort` origin data for all three artifact kinds.
 
 ### Part 3 — callers + docs (~80 LOC)
 
@@ -100,7 +100,7 @@ TDD: write the failing loader tests first.
 2. `packages/brief-core/src/index.ts` (`generateAndWrite`, CLI path) and
    `packages/brief-core/src/delta-cli.ts`: thread from their `--config` load.
 3. `tools/categorizer/eval/cli.ts`: replace its own `EFFORT = "medium"`
-   mirror with the loaded config's effort — **load-bearing**: the eval's
+   mirror with the loaded config's effort — **critical**: the eval's
    `provider:model` baseline key derives from `provenance(EFFORT)`; the eval
    must request and record the same effort the config names, or reports lie.
    (Baselines stay keyed `provider:model`; a non-default-effort eval run is
@@ -134,13 +134,13 @@ reasoning); NO baseline or prompt files may change in this PR.
    run accompany this merge.
 2. **Testing guide** — manual verification recipe:
    - zero-config boot (env var unset) → generate on the dev instance →
-     brief provenance shows `effort: "medium"` (unchanged behavior);
-   - `mergebrief.config.yaml` with `effort: low` → regenerate → provenance
-     shows `low` (UI provenance chip / brief JSON `generation.effort`);
+     brief origin data shows `effort: "medium"` (unchanged behavior);
+   - `mergebrief.config.yaml` with `effort: low` → regenerate → origin data
+     shows `low` (UI origin chip / brief JSON `generation.effort`);
    - invalid value (`effort: max`) → boot fails with a per-field ConfigError
      naming `effort` (fail-loud, values omitted);
    - claude-code adapter configured with any effort → warning-free boot,
-     provenance `effort: null` (honest gap).
+     origin data `effort: null` (honest gap).
    Cost note: each manual generation is live API spend on the configured
    provider — two generations suffice.
 

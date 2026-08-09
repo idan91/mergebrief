@@ -1,4 +1,4 @@
-// The API-token auth seam (BRIEF-17 PR 1 — ADR 0016 #4 as amended, re-anchored
+// The API-token auth boundary (BRIEF-17 PR 1 — ADR 0016 #4 as amended, re-anchored
 // by D15/BRIEF-40). Mirrors `session.ts`: this is the PRE-TENANT resolver for
 // the SECOND presentation channel (CLI/agent Bearer tokens over the same
 // session machinery). Nothing here is bound to an `installation_id` —
@@ -16,7 +16,7 @@
 // `tokenHash`, and no operation accepts or returns token material. Mint's
 // `installationId` arrives pre-validated — the mint route derives it from the
 // viewer's cookie session and validates it against their LIVE accessible set
-// (never caller-asserted; ADR 0016 #4) before calling this seam.
+// (never caller-asserted; ADR 0016 #4) before calling this boundary.
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { insertAudit } from "../stores/audit";
 import { type AppDatabase, internal } from "../db/handle";

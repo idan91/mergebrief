@@ -3,7 +3,7 @@
 // stage 5) build deps and hand them in; routes are internal wiring.
 export { createApp } from "./app";
 export type { ApiApp, AppDeps, AuthDeps } from "./app";
-// Generate-from-URL port (BRIEF-97): the web composition root implements
+// Generate-from-URL port (BRIEF-97): the web startup wiring implements
 // UrlBriefEngine; the error vocabulary is part of the port contract.
 export { UrlBriefErrorKind } from "./routes/generate";
 export type {
@@ -12,8 +12,8 @@ export type {
   UrlBriefError,
 } from "./routes/generate";
 
-// The installation-octokit seam (BRIEF-25; widened by BRIEF-94 with the
-// collaborators read): the composition root wires `appInstallationPort` over
+// The installation-octokit interface (BRIEF-25; widened by BRIEF-94 with the
+// collaborators read): the startup wiring wires `appInstallationPort` over
 // the App-JWT client; tests substitute the port.
 export { appInstallationPort } from "./routes/github-port";
 export type { InstallationGitHubPort } from "./routes/github-port";

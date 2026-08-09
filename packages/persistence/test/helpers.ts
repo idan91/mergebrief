@@ -11,7 +11,7 @@ import * as schema from "../src/schema/index";
 /**
  * A migrated, isolated PGlite that closes itself when the test ends.
  *
- * The close is load-bearing, not hygiene: a live instance pins ~215MB of WASM
+ * The close is critical, not hygiene: a live instance pins ~215MB of WASM
  * heap that V8 never reclaims on its own, so one leaked instance per test
  * walked this suite into swap and produced the "a different test times out
  * every run" reports (#205). Registering the cleanup here rather than in each

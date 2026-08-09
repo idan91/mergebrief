@@ -1,4 +1,4 @@
-// The `ArtifactStore` seam (ADR 0018 D6): the typed write/read surface for the
+// The `ArtifactStore` interface (ADR 0018 D6): the typed write/read surface for the
 // five immutable artifact families — `brief`, `delta`, `diff_snapshot`,
 // `revision_narrative`, `comparison_marks`. Like `forTenant` it is bound to one
 // tenant `ctx` and is the ONLY way this package writes those tables. It unwraps
@@ -167,13 +167,13 @@ export interface BriefWriteInput extends Provenance {
   readonly commitCount: number;
   readonly body: string;
   /**
-   * Repo-config provenance + policy snapshot JSON (ADR 0032 #8/#11) — the
+   * Repo-config origin + policy snapshot JSON (ADR 0032 #8/#11) — the
    * worker serializes it; this layer stores it opaquely like `body`. Omit
    * for generations that never ran the repo-config phase.
    */
   readonly repoConfig?: string;
   /**
-   * Anchor provenance (BRIEF-143) — 'anchored' | 'fresh-restart' | 'none',
+   * Anchor origin (BRIEF-143) — 'anchored' | 'fresh-restart' | 'none',
    * DB-enforced (migration 0016). Omit only for writers predating the stamp;
    * the worker always stamps.
    */

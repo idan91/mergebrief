@@ -106,7 +106,7 @@ describe("migration check — checkAppSchemaWith", () => {
   });
 });
 
-// The boot-seam dispatch itself (BRIEF-131 review finding): apply-vs-check
+// The startup dispatch boundary itself (BRIEF-131 review finding): apply-vs-check
 // selection and refusal propagation, pinned via the injectable deps.
 describe("migration check — ensureAppSchema dispatch", () => {
   const URL = "postgres://user:pass@localhost:5432/app";

@@ -1,7 +1,7 @@
 // Flat at the feature root by the queries.ts convention (brief/queries.ts
 // precedent): the feature's queryOptions door, referenced by routes.
 // Query + mutations for the API-token settings section (BRIEF-17 PR 4). The
-// list read goes through the isomorphic seam; mint and revoke are client-only
+// list read goes through the isomorphic boundary; mint and revoke are client-only
 // fetches (mutations never run during SSR), same split as the org switcher.
 import { queryOptions } from "@tanstack/react-query";
 

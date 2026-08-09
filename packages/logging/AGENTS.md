@@ -1,9 +1,9 @@
 # packages/logging — agent notes
 
-The structured-logging seam (BRIEF-51, ADR 0034). Exports a minimal
+The structured-logging boundary (BRIEF-51, ADR 0034). Exports a minimal
 `Logger` interface and `createLogger` — the ONE place pino is constructed.
 Every process (web server, worker, CLI-facing API) builds one logger at its
-composition root and injects it; call sites depend on this package only.
+startup wiring and injects it; call sites depend on this package only.
 
 ## Map
 

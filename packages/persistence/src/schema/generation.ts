@@ -40,7 +40,7 @@ export const generation = pgTable(
     /** Sanitized reason when failed. */
     error: text("error"),
     /**
-     * Repo-config per-file provenance (ADR 0032 #8): JSON `{files, collisions}`
+     * Repo-config per-file origin (ADR 0032 #8): JSON `{files, collisions}`
      * written right after acquisition — BEFORE generation — so failed and
      * superseded runs still show `invalid`/`over-budget`/`fetch-failed`
      * outcomes. The policy snapshot lives on the brief artifact, not here.

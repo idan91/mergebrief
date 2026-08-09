@@ -31,7 +31,7 @@ posture on historical heads; raw-span-diff toggle in the Changes Only pane.
    BRIEF-19's designated single poll target. Shape:
    `revisions: [{ headSha, baseSha, headIndex, createdAt, comparisons }]`,
    ordered by `headIndex`, present when `briefAvailable`.
-2. **`baseSha` is per-entry and load-bearing.** Base drifts across
+2. **`baseSha` is per-entry and critical.** Base drifts across
    revisions (base-branch advance / retarget) and the brief GET is an exact
    `(pr, base, head)` lookup — deriving base from the top-level view 404s
    on drifted history. `createdAt` is the one projection addition to

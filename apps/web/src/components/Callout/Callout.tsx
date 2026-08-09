@@ -140,7 +140,7 @@ function CalloutBody({ children }: { children: ReactNode }) {
   return <span className={styles["body"]}>{children}</span>;
 }
 
-/** De-emphasized provenance line under the payload ("In: <group>"). */
+/** De-emphasized origin line under the payload ("In: <group>"). */
 function CalloutContext({ children }: { children: ReactNode }) {
   return <span className={styles["context"]}>{children}</span>;
 }

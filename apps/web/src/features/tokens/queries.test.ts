@@ -1,6 +1,6 @@
 // queryFn-level tests (codex PR4 R1 + the AGENTS.md invariant): component
 // tests seed the cache and BYPASS the wire parser — these prove the apiFetch
-// seam actually runs the parser and surfaces a typed MALFORMED for bad 200
+// boundary actually runs the parser and surfaces a typed MALFORMED for bad 200
 // bodies (the BRIEF-21 parseDeltaBrief lesson).
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";

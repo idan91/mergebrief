@@ -30,7 +30,7 @@ export interface ExpandableContentProps {
 }
 
 /**
- * Prose clipped to `--prose-cap` with a mask fade, an expand control, and
+ * Text clipped to `--prose-cap` with a mask fade, an expand control, and
  * WCAG 2.4.11 focus-expands. The SSR default is `collapsed`, so fitting
  * content corrects to `fits` after hydration by dropping the control only —
  * the clip itself never moves, which is what keeps the correction shift-free.

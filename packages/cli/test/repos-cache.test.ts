@@ -3,7 +3,7 @@
 // fetch, plus CONTROLLED bodies for the trigger table. Includes the
 // stream/exit invariant pin (exit ≠ 0 ⇒ empty stdout) — the revoked-token
 // arm drives the repos command.
-// Command tests over the REAL api Hono app (the injected-fetch seam:
+// Command tests over the REAL api Hono app (the injected-fetch boundary:
 // `app.request` is fetch-shaped) on PGlite — true integration, no network,
 // no mock drift. Assertions live on the contract surface: captured stdout /
 // stderr + exit code (ADR 0029 #5), passthrough byte-fidelity, and the
@@ -61,7 +61,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-/** GitHub stub at the GLOBAL fetch seam (the api app's octokit uses it). */
+/** GitHub stub at the GLOBAL fetch boundary (the api app's octokit uses it). */
 function stubGitHub(
   repos: () => ReadonlyArray<{ id: number; full_name: string }>,
 ): {
@@ -203,8 +203,8 @@ describe("mergebrief repos command + cache", () => {
     const token = await seedToken();
     await login(token);
 
-    // Count /api/repos hits at the CLI's OWN fetch seam (the server has its
-    // separate 60s allowed-set cache — that seam is the api suite's concern).
+    // Count /api/repos hits at the CLI's OWN fetch boundary (the server has its
+    // separate 60s allowed-set cache — that boundary is the api suite's concern).
     let apiRepoHits = 0;
     const countingFetch: CliDeps["fetch"] = async (input, init) => {
       if (input.endsWith("/api/repos")) apiRepoHits += 1;
@@ -260,7 +260,7 @@ describe("mergebrief repos command + cache", () => {
     // The triggers are CLI-side logic — drive them with a CONTROLLED
     // /api/repos fetch so each server body is exact. (Against the real app
     // the server's own 60s allowed-set cache masks a rename within its TTL —
-    // that seam belongs to the api suite; the real-app path is covered by
+    // that boundary belongs to the api suite; the real-app path is covered by
     // the command tests above.)
     function controlled(
       bodies: () => { repos: { repoId: string; fullName: string }[] },

@@ -1,4 +1,4 @@
-// The webhook composition root (BRIEF-2 stage 5). This is the ONE place the
+// The webhook startup wiring (BRIEF-2 stage 5). This is the ONE place the
 // injected libraries are wired to real env + a real database: `apps/web` reads
 // `process.env` here (mirroring `generate.server.ts`'s `loadEnv`), the `api`,
 // `github`, and `persistence` packages stay env-INJECTED (they never read env
@@ -100,7 +100,7 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
   // the first token seal — and, worse, a key changed post-deploy would make
   // every stored ciphertext undecryptable, which the authz gate treats as a
   // burned session (mass logout). The resolved bytes are discarded; the
-  // provider re-resolves per seal (the KMS-seam contract).
+  // provider re-resolves per seal (the KMS-boundary contract).
   const keyProvider = envKeyProvider(env);
   const sessionKey = await keyProvider.resolveKey(SESSION_KEY_REF);
   if (!sessionKey.ok) {
@@ -110,7 +110,7 @@ async function buildWebhookApp(): Promise<WebhookComposition> {
   }
 
   const { databaseUrl } = persistenceConfig.value;
-  // Boot migrations, both idempotent (BRIEF-3: every composition root may run
+  // Boot migrations, both idempotent (BRIEF-3: every startup wiring may run
   // them; whoever boots first applies, the rest no-op): the app schema the
   // webhook writes to, then the graphile_worker schema `add_job` needs.
   // Under MERGEBRIEF_AUTO_MIGRATE=false (BRIEF-131) the app-schema step is a

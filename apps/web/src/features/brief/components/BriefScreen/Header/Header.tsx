@@ -637,7 +637,7 @@ function isHttpUrl(value: unknown): value is string {
   }
 }
 
-/** Error-class outcomes that flip the provenance chip to its warning state. */
+/** Error-class outcomes that flip the origin chip to its warning state. */
 const REPO_CONFIG_ERROR_OUTCOMES = new Set([
   "invalid",
   "over-budget",
@@ -645,7 +645,7 @@ const REPO_CONFIG_ERROR_OUTCOMES = new Set([
 ]);
 
 /**
- * The repo-config provenance chip (ADR 0032 #8), WARNING-ONLY from
+ * The repo-config origin chip (ADR 0032 #8), WARNING-ONLY from
  * BRIEF-103 PR 4: the ok-state lives in the Brief-details panel, so the
  * chip renders only when something needs the author's or reviewer's
  * attention (error outcome, applied-with-warning, or a collision) —

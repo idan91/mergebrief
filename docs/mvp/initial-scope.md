@@ -9,7 +9,7 @@
 
 - **AI assists, human authorizes.** Author owns AI-generated code. Reviewer owns AI-assisted review. The tool issues a *receipt* of what it verified, never an "approval".
 - **Tool never blocks reviewer on AI.** Categories, flags, and brief contents are all overridable. Soft-fail on AI outage.
-- **No AI-authored prose ships.** The agent surfaces structure (categories, playbooks, seeds) and post-hoc validation (feedback on what the reviewer wrote). The reviewer writes every comment.
+- **No AI-authored text ships.** The agent surfaces structure (categories, playbooks, seeds) and post-hoc validation (feedback on what the reviewer wrote). The reviewer writes every comment.
 - **Private thinking, public outcome.** Discussion with the agent stays in the tool's mind-map space. Only finalized human comments + scoped receipt land on the PR.
 - **Diff-by-intent, not diff-by-line.** The unit of review is the categorized chunk + its playbook, not the raw line diff.
 
@@ -58,8 +58,8 @@ The brief contains:
 ### 3. Reviewer Writing — "No AI-Authored Comments"
 
 - **Primary path (E):** human writes the comment cold. After comment is drafted, agent validates (factual? misunderstood the code? misses adjacent issue?). Reviewer revises or submits.
-- **Secondary path (C):** agent offers *structured seeds* for stuck reviewers — `{ category, location, issue-shape }`, not prose. Reviewer expands the seed into their own sentence.
-- **Hard rule:** no AI-authored prose ever ships as a comment.
+- **Secondary path (C):** agent offers *structured seeds* for stuck reviewers — `{ category, location, issue-shape }`, not text. Reviewer expands the seed into their own sentence.
+- **Hard rule:** no AI-authored text ever ships as a comment.
 - **Persistent agent chat panel** is available throughout — reviewer can ask questions about code, intent, sections at any time. Chat history persists per (PR × reviewer).
 
 ### 4. Missed-Points Pass — Category-Scoped Only

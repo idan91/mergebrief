@@ -6,7 +6,7 @@
 // rows. Outdated threads live in a revision-labeled group (their anchor-time
 // coordinates are never trusted); unanchored fresh threads and PR-level
 // comments form the general group. Sorting never reads bot self-assigned
-// severity — that prose stays inside comment bodies.
+// severity — that text stays inside comment bodies.
 import type { BriefChunk } from "../../brief/types";
 import { placeThread, type ThreadPlacement } from "./anchor";
 import { deriveDigestLine } from "./digestLine";

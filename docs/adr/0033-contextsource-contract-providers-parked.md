@@ -1,6 +1,6 @@
 # ContextSource Contract Locked; All Providers Parked to v2
 
-The `ContextSource` seam (ADR 0014 #5) got its design pass (BRIEF-13 wayfinder map,
+The `ContextSource` boundary (ADR 0014 #5) got its design pass (BRIEF-13 wayfinder map,
 2026-07-17/18): the **provider contract, trust posture, and enrichment scope are locked**
 so that any future provider is an implementation, not a redesign — and **no provider
 ships in v1**. The local/git retrieval provider was killed by its own gating spike
@@ -11,16 +11,16 @@ untouched and remain v1's only generation context beyond the PR itself.
 
 ## Context
 
-- The 2026-07 reprioritization reframed the seam story-first: the known comprehension
+- The 2026-07 reprioritization reframed the boundary story-first: the known comprehension
   gaps are repo-reading gaps (a summary can't see a changed call site's callee outside
-  the diff), not missing risk detectors. BRIEF-13 was bumped to design the seam with
+  the diff), not missing risk detectors. BRIEF-13 was bumped to design the boundary with
   BRIEF-61 inheriting the contract.
 - Hard constraint carried in: the generator is a **single structured call with no
   tools** (ADR 0032 #12's injection posture rests on it; re-verified against the
   ADR 0030 harness adapters). Retrieval is harness-side and deterministic, never
   model-directed.
 - The map resolved three design tickets (contract, scope, retrieval heuristics) before
-  Idan rescoped both providers to v2; the remaining detail tickets (seam location,
+  Idan rescoped both providers to v2; the remaining detail tickets (boundary location,
   budgets, citation validator, eval-hook spec) were closed **undesigned** — deliberate:
   detail designed months ahead of build goes stale.
 
@@ -41,7 +41,7 @@ untouched and remain v1's only generation context beyond the PR itself.
   (mechanically checkable); **no provider relevance scores or rankings** (a score is a
   verdict-shaped import, ADR 0014). Order/truncation = harness budget logic.
 - **Fan-out:** parallel across providers pre-assembly; per-provider timeout;
-  **fail-open per provider** with loud provenance outcomes (repo-config vocabulary);
+  **fail-open per provider** with loud origin outcomes (repo-config vocabulary);
   nothing in the phase can fail a generation; fresh per generation, no cache.
 - **Registration:** static `as const` registry of provider **types** (token, Zod
   options schema, egress tier, factory) + an instance-config `contextSources:` list of
@@ -57,14 +57,14 @@ untouched and remain v1's only generation context beyond the PR itself.
 ### 2. Enrichment scope (locked)
 
 - **Structure is configuration-shaped, never evidence-shaped.** Retrieved context may
-  inform **prose** (PR summary, group summaries/titles, narrative) and
+  inform **text** (PR summary, group summaries/titles, narrative) and
   **citation-backed risk attributes** — never grouping boundaries, reading order, or
   category/concern/role assignment. Same diff + same config ⇒ same skeleton, with or
   without retrieval. `instructions.md` keeps its grouping influence: it is an
   *instruction to MergeBrief* (code-owner-authored, default-branch write-gated,
-  stable, provenance-stamped); retrieved context is *evidence about the change*
+  stable, origin-stamped); retrieved context is *evidence about the change*
   (untrusted, machine-sampled, run-varying). Extends ADR 0032 #3's two-lane table
-  with a structure/prose column.
+  with a structure/text column.
 - **Brief call only** — delta cores and the revision narrative consume the (enriched)
   Brief and inherit second-hand.
 - **Gate: every brief when providers are configured** — amends ADR 0014 #5's
@@ -93,8 +93,8 @@ v1 doesn't ship everything: the contract above is its insurance policy.
 
 ### 5. Undesigned residuals (v2 revival work, deliberately not pre-designed)
 
-Seam location/package; budget model + caps; cite-or-stay-silent validator mechanics +
-provenance display; eval-hook spec (BRIEF-59 fixtures for context value); parked
+Boundary location/package; budget model + caps; cite-or-stay-silent validator mechanics +
+origin display; eval-hook spec (BRIEF-59 fixtures for context value); parked
 attributes' promotion (`unresolved-reference`, `diverges-from-sibling-pattern` — stay
 parked per ADR 0026, names stay reserved in `PARKED_ATTRIBUTE_CANDIDATES`).
 

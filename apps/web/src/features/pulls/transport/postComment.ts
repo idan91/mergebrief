@@ -1,6 +1,6 @@
 // Inline post-now transport (BRIEF-43 PR 4): posts one staged draft comment
 // immediately as a standalone inline review comment (own-draft state only).
-// Rides the same isomorphic apiFetch seam as every mutation. Expected failure
+// Rides the same isomorphic apiFetch boundary as every mutation. Expected failure
 // statuses are RESULT KINDS the own-draft flow renders as toast copy — only a
 // malformed 2xx throws (contract violation). Mirrors the reply/submit posture.
 //

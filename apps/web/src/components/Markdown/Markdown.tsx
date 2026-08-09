@@ -13,7 +13,7 @@ export interface MarkdownProps {
   content: string;
   /**
    * Render ```suggestion fences as Suggested-change cards (comment bodies
-   * only — model/brief prose never carries them). Addition rows only: the
+   * only — model/brief text never carries them). Addition rows only: the
    * fence holds just the replacement text; the old side needs the diff
    * context an anchored consumer supplies via MarkdownPreview.
    */

@@ -97,8 +97,8 @@ Full config surface, per-provider notes, and the boundary reasoning:
 
 **Repos can shape their own briefs** by committing a `.mergebrief/`
 directory — custom risk attributes and display tuning (`policy.yaml`),
-prose guidance to generation (`instructions.md`), and workflow settings
-(`settings.yaml`), all read from the default branch with full provenance on
+text guidance to generation (`instructions.md`), and workflow settings
+(`settings.yaml`), all read from the default branch with full origin tracking on
 every brief: [`docs/self-host/repo-config.md`](./docs/self-host/repo-config.md).
 
 ## The CLI (humans + agents)

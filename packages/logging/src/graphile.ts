@@ -1,7 +1,7 @@
-// Adapter for graphile-worker's `@graphile/logger`: the worker composition
-// root passes `createGraphileLogFactory(logger)` to `new Logger(...)` so
+// Adapter for graphile-worker's `@graphile/logger`: the worker startup
+// wiring passes `createGraphileLogFactory(logger)` to `new Logger(...)` so
 // graphile's lifecycle logs (jobId/workerId/taskIdentifier scope) flow
-// through the seam. Types are structural on purpose — this package stays
+// through the boundary. Types are structural on purpose — this package stays
 // free of graphile imports; compatibility is checked where the worker
 // passes the factory in.
 import type { Logger } from "./logger";

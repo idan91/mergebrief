@@ -1,6 +1,6 @@
 // The command surface (BRIEF-17 PR 5: `auth login`, `auth status`, `repos`;
 // the read/write commands land in the next PRs). `runCli` is the whole CLI
-// behind an injected-deps seam — command tests run it against the REAL api
+// behind an injected-deps boundary — command tests run it against the REAL api
 // Hono app and assert the contract surface directly: captured stdout/stderr
 // + the returned exit code (ADR 0029 #5: exit 0 ⇒ stdout is documented JSON;
 // exit ≠ 0 ⇒ empty stdout, ONE stderr line).

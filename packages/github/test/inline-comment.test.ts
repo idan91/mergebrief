@@ -2,7 +2,7 @@
 // REST create-review-comment primitive — the happy path (comment id + the
 // wrapping review id GitHub assigns), the null-review-id degradation, the
 // precision guards, the 422 stale-anchor flag, and the sanitized failure
-// paths. REST is stubbed at the `octokit.rest.pulls.createReviewComment` seam
+// paths. REST is stubbed at the `octokit.rest.pulls.createReviewComment` interface
 // (the same structural mock style the other operation suites use).
 import { RequestError, type Octokit } from "octokit";
 import { describe, expect, it, vi } from "vitest";

@@ -24,7 +24,7 @@ lands on**. Deep internal review-flow polish (receipt, dismiss/evidence modals, 
   check runs *inside* P1 (it's grilling-free and frontend-only) so the demo's framing knows
   what narrative slice, if any, it can show. (Agreed 2026-06-30.)
 - **README may stake the AI-authored-code positioning now** ("built for the reality a machine
-  wrote the code") in copy, ahead of the feature landing (candidate lens, post-P2). Free in prose.
+  wrote the code") in copy, ahead of the feature landing (candidate lens, post-P2). Free in the text.
 - **Keyboard nav (#9) is IN P1** — full cheap-win: `J`/`K` advance/back, `Z` focus mode, `?`
   shortcuts hint. (Resolved 2026-06-30.)
 - **Mobile brief header (#7) is DEFERRED** — the shared demo is desktop-framed, so the broken

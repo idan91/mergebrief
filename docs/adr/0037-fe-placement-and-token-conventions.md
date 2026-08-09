@@ -40,7 +40,7 @@ part of the same module, never a lateral import surface.
 - **Enforcement tooling:** adopt ESLint/Biome for richer rules · **extend
   existing tools only — stylelint in apps/web, oxlint at root (chosen)** —
   a second linter is a permanent tax for a handful of rules, and what the
-  existing tools can't express can be a guard test or honest prose.
+  existing tools can't express can be a guard test or honest text.
 - **Typed CSS modules:** build-time d.ts codegen · **editor-only
   `typescript-plugin-css-modules` (chosen)** — codegen adds a build step and
   churn for a bug class the data-attr + plugin combination already narrows.
@@ -197,7 +197,7 @@ ESLint, no Biome):
 - **Editor-level** `typescript-plugin-css-modules` for classname
   autocomplete/checking; no build-time d.ts codegen.
 
-What lint cannot express stays prose, listed honestly: the subtree
+What lint cannot express stays text, listed honestly: the subtree
 ownership/promotion procedure (2), the inline-vs-utils split (3), the
 topic-folder threshold (4), earned-oddity justifications (5), and data-attr
 adoption at birth (7). These live in this ADR and, compressed, in
@@ -207,7 +207,7 @@ rule nor `no-restricted-syntax`, so only `const enum` is caught — and the
 **lateral-import restriction**, which needs a per-file _relative_ path
 predicate (`no lateral import outside MY subtree`); oxlint's overrides only
 select which rules apply to a file, and `import/no-restricted-paths` does not
-exist, so the rule cannot be stated. Both remain prose + review.
+exist, so the rule cannot be stated. Both remain text + review.
 
 ### 9. Path alias
 
@@ -225,12 +225,12 @@ self-correcting rather than policed. Faithful-first tokenization keeps the
 mechanical sweep reviewable as a no-op and quarantines every visual decision
 in one screenshot-gated PR. And capping enforcement at existing tools keeps
 the convention honest: rules are either mechanically checked or explicitly
-listed as prose, never assumed to be enforced when they aren't.
+listed as text, never assumed to be enforced when they aren't.
 
 ## Consequences
 
 - `apps/web/AGENTS.md` gains a lean placement entry (the non-inferable
-  rules + pointer here); lint-enforced rules stay out of prose there.
+  rules + pointer here); lint-enforced rules stay out of the text there.
 - `src/lib/` → `src/utils/`; `@web/` alias lands with the structure-motion
   PR; `features/brief/comparison/` becomes the first topic folder.
 - stylelint config, oxlint rules, and the var-defined guard test land per
@@ -260,7 +260,7 @@ superseded. **rem** (always via `functions.to-rem(<px>)` — the px design
 value stays readable in source; compile-time exact at the 16px root):
 `font-size`; all spacing rhythm (`margin*`/`padding*`/`gap` — stylelint
 now bans raw px on these); text-coupled sizing (touch-target min-heights,
-prose/panel measure caps, menu/dialog widths, line-number gutters); and
+text/panel measure caps, menu/dialog widths, line-number gutters); and
 spacing-like insets (dropdown gap offsets, `text-indent`,
 `text-underline-offset`). **px** (chrome, never scales): border widths
 and hairlines, `outline`, radii, shadows, blur, icon boxes and decorative

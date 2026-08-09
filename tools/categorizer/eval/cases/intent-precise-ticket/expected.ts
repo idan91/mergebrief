@@ -8,7 +8,7 @@ import type { EvalProperty } from "../../properties";
  * artifact (components#7); the ticket text is authored fixture data.
  *
  * Vacuity note (BRIEF-85): `intent-alarm-buckets-empty` also passes if a
- * regressed model rates this corpus broad/none (the validator empties every
+ * regressed model rates this source broad/none (the validator empties every
  * bucket mechanically). It is anchored by `intent-precise` and
  * `intent-accomplished-anchored`, which both fail in that world — read them
  * together.

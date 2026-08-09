@@ -1,7 +1,7 @@
 // `delta` — the shared, reviewer-agnostic delta core (D3/D6/D8). Lower
 // bound is `baseline_sha` = a reviewer's Checkpoint SHA (NOT the PR base —
 // D3's SHA-role separation). Deliberately NO `reviewer_id`: the per-reviewer
-// layer is the M2 `delta_overlay` seam (D8).
+// layer is the M2 `delta_overlay` boundary (D8).
 import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
 import type { PullRequestRowId } from "../types";
 import { artifactColumns, tenantColumns } from "./columns";

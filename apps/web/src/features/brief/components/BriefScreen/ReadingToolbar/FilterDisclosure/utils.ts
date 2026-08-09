@@ -4,7 +4,7 @@ import type { ConversationFilter } from "@web/features/conversation/utils/filter
 /**
  * The `N noun` receipts following the trigger's `Filter` label while the
  * filter is active (BRIEF-134 spec): selected verdicts, selected reviewers,
- * then the hidden-inline-thread count — the load-bearing number, always
+ * then the hidden-inline-thread count — the critical number, always
  * last. Zero-count entries contribute nothing; an inactive filter (recency
  * alone does not count) yields an empty list and a plain `Filter` trigger.
  */

@@ -78,7 +78,7 @@ export interface RevisionPair {
  * One mechanical predicate over a revision pair. Same register as
  * `EvalProperty` (BRIEF-59 decision 2): anchor on run-stable facts — group
  * survival, id carry, attribute presence, coverage — never chunk boundaries
- * or free prose.
+ * or free-form text.
  */
 export interface PairEvalProperty {
   id: string;
@@ -105,8 +105,8 @@ function isPairProperty(value: unknown): value is PairEvalProperty {
 
 /**
  * Load every `pair-cases/<id>/` (pair.json + expected.ts exporting
- * `pairProperties`). A missing directory is an empty corpus, not an error —
- * the pair corpus lands incrementally.
+ * `pairProperties`). A missing directory is an empty source, not an error —
+ * the pair source lands incrementally.
  */
 export async function loadPairCases(
   pairsDir: string,
@@ -381,14 +381,14 @@ export function scorePairRuns(
   return { scores, notes };
 }
 
-/** Generic case shape the corpus selector needs. */
+/** Generic case shape the source selector needs. */
 interface SelectableCase {
   id: string;
 }
 
 /**
- * Select across BOTH corpora: `--case` may name a single OR a pair case; an
- * id in neither is the error; an empty combined corpus is the error.
+ * Select across BOTH sources: `--case` may name a single OR a pair case; an
+ * id in neither is the error; an empty combined source is the error.
  */
 export function selectCases<S extends SelectableCase, P extends SelectableCase>(
   singles: readonly S[],

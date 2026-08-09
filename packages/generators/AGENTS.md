@@ -15,7 +15,7 @@ src/
   index.ts                ENTRY — sectioned re-exports = the public surface
   contract/               what an adapter IS
     generator.ts            Generator interface, GenerateRequest, Logger
-    provenance.ts           Effort, Generation (the provenance stamp)
+    provenance.ts           Effort, Generation (the origin stamp)
     errors.ts               GeneratorError + kinds, ConfigError
   config/                 how an instance CHOOSES an adapter
     registry.ts             provider registry + per-adapter option schemas
@@ -34,7 +34,7 @@ src/
   harness/                how the CLI adapters RUN local binaries
     run.ts                  spawn (no shell), watchdog timers, kill ladder
     redact.ts               redactSecrets, harnessTimeoutError
-    probe.ts                boot probe (--version + auth preflight)
+    probe.ts                startup check (--version + auth preflight)
 test/                     per-module suites; contract.ts = the shared
                           conformance suite every adapter runs; shims/ =
                           fake CLI binaries (fake the binary, not the spawn)
@@ -61,14 +61,14 @@ and `docs/self-host/generators.md`.
   return schema-valid output or throw — never a silent text-mode degrade.
 - **Abort is not a failure** (ADR 0006 #6): an abort rejection propagates to
   the caller untouched — no salvage, no feedback retry, no failure dump.
-- **Provenance is honest** (ADR 0013 #5): `Generation` records what was
+- **Origin is honest** (ADR 0013 #5): `Generation` records what was
   requested/declared; capability gaps (no effort knob, unknown served model)
   surface rather than being papered over.
 - **No secrets in errors**: error messages may name an env VAR, never echo
   its value, a key, or a connection string. Untrusted provider/CLI strings
   reach messages only through allowlists or `redactSecrets`.
 - **No credential env var reaches a CLI spawn** (BRIEF-140): every harness
-  spawn (generation AND boot probe) goes through `envForSpawn`, which
+  spawn (generation AND startup check) goes through `envForSpawn`, which
   strips `HARNESS_STRIPPED_CREDENTIAL_VARS` — env credentials outrank the
   CLI's own login in its auth precedence, so a leaked var would silently
   rebill generations to an API/cloud account. `CLAUDE_CODE_OAUTH_TOKEN`

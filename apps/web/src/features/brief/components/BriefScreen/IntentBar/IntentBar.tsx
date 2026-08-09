@@ -25,7 +25,7 @@ export interface IntentBarHandle {
   expandAndScrollTo: () => void;
 }
 
-/** Neutral one-liner shown when the intent corpus is not checkable. */
+/** Neutral one-liner shown when the intent source is not checkable. */
 const UNAVAILABLE_REASON: Record<
   Exclude<IntentCheck["specificity"], "precise">,
   string

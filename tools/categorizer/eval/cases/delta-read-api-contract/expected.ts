@@ -8,11 +8,11 @@ import { chunksFor, dominantCategories, fires } from "../../briefQueries";
  * here is EXISTING and MODIFIED — the PR-meta response body the deployed
  * web app already consumes grows a field, and the shared `pull_request`
  * schema both the api and worker containers read gains a column. The
- * tightened BRIEF-55 gloss ("newly-added exports are NOT cross-service")
+ * tightened BRIEF-55 description ("newly-added exports are NOT cross-service")
  * must not over-generalize into silencing these fires.
  *
  * Baseline reality check: recorded at 1/5 — the under-fire is REAL and
- * this case measures it. Because 1/5 is flaky-class, a future gloss
+ * this case measures it. Because 1/5 is flaky-class, a future description
  * re-tune that lifts it will surface as an informational FLAKY-DELTA
  * line plus a rebaseline, never an IMPROVEMENT verdict (that class is
  * reserved for 0/5 stable-fails) — the promotion evidence is the delta

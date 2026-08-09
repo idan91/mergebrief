@@ -1,7 +1,7 @@
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { Brief } from "../../../../types";
 // One .svg asset per mark (imported as components via vite-plugin-svgr so
-// currentColor inherits). Each file carries its own provenance comment —
+// currentColor inherits). Each file carries its own origin comment —
 // the BRIEF-103 accuracy gate: real logos only, one-to-one from official
 // sources, fills normalized to currentColor, verified rendering at 12px.
 import AnthropicMark from "./marks/anthropic.svg?react";
@@ -46,16 +46,16 @@ const PROVIDER_CONFIGS: Record<string, MarkConfig> = {
 };
 
 export interface ProviderBadgeProps {
-  /** The artifact's provenance stamp; absent → no badge (pre-ADR-0013 artifacts). */
+  /** The artifact's origin stamp; absent → no badge (pre-ADR-0013 artifacts). */
   generation: Brief["generation"];
 }
 
 /**
- * The keycap-split provenance badge (BRIEF-103 spec): neutral mark cell →
+ * The keycap-split origin badge (BRIEF-103 spec): neutral mark cell →
  * mono model cell (full model id + effort — OpenRouter author prefixes kept,
- * provenance never abbreviates identity) → textual API/CLI end tag. Fixed
+ * origin never abbreviates identity) → textual API/CLI end tag. Fixed
  * 18px height riding INSIDE the meta-height line box; non-interactive
- * provenance chrome (badge-as-trigger rejected).
+ * origin chrome (badge-as-trigger rejected).
  */
 export function ProviderBadge({ generation }: ProviderBadgeProps) {
   if (!generation) return null;

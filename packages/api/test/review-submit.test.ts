@@ -1,5 +1,5 @@
 // Submit-route integration tests (BRIEF-23 PR 2): `app.request()` against
-// `createApp` over the PGlite harness, GitHub stubbed at the global-fetch seam
+// `createApp` over the PGlite harness, GitHub stubbed at the global-fetch boundary
 // (same pattern as reads.test.ts). Covers: gate posture (401/404 collapse),
 // body validation, the grouped create-review POST pinned to commitId,
 // refresh-once mid-submit, the one degradation retry on an anchoring 422, the

@@ -1,5 +1,5 @@
-// The client module — the seam (ADR 0028: internals may be SDK-shaped; this
-// IS the test seam). Takes an injected fetch-compatible function, so command
+// The client module — the boundary (ADR 0028: internals may be SDK-shaped; this
+// IS the test boundary). Takes an injected fetch-compatible function, so command
 // tests run against the REAL api Hono app (`app.request` is fetch-shaped)
 // with zero network and zero mock drift. Implements the stream/exit
 // invariant's error half: every non-2xx becomes a `CliError` carrying the

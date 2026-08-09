@@ -17,7 +17,7 @@ the existing categorization pass, with mechanical validator confirmation for
 `unresolved-import`, and **without** any in-product "AI signals" grouping: the attributes are
 authorship-agnostic facts in the brief; the AI-failure-mode framing lives in positioning copy
 (README, demo) only. `diverges-from-sibling-pattern` and the narrower `unresolved-reference`
-are parked behind the `ContextSource` seam (ADR 0014).
+are parked behind the `ContextSource` boundary (ADR 0014).
 
 ## Context
 
@@ -40,12 +40,12 @@ decisions:
 - **The existing 16 attributes are already model-emitted observations** (`dense-logic` has
   thresholds; `hot-path` requires labeler judgment). A purity split between "mechanically
   verified" and "model-believed" had only one surviving mechanical member
-  (`new-dependency`) — too thin to justify a provenance tier and distinct rendering.
+  (`new-dependency`) — too thin to justify an origin tier and distinct rendering.
 - **`diverges-from-sibling-pattern` stacks three blockers:** sibling *selection* is a
   judgment problem with the worst FP shape of the set (accusing the author of inconsistency
   based on our sampling error); intentional divergence is routine (`logic-refactor` toward a
   new pattern *should* diverge); and ADR 0014 deliberately deferred consume-side repo
-  enrichment behind the `ContextSource` seam, escalation-tier (ADR 0010). Fetching itself is
+  enrichment behind the `ContextSource` boundary, escalation-tier (ADR 0010). Fetching itself is
   cheap (tree call + 2–4 sibling fetches per group); the blockers are judgment and sequencing.
 - **Runtime cost was a non-factor.** LLM emission of new attributes is ~400 extra prompt
   tokens; the rejected alternative (stuffing the repo tree into the prompt so the LLM could
@@ -68,13 +68,13 @@ decisions:
    registry knowledge + `ContextSource`.
 4. **`diverges-from-sibling-pattern` deferred** behind the general `ContextSource` build
    (ADR 0014), escalation-tier (ADR 0010). Never built as a one-off fetch for one attribute;
-   when the seam lands, it and `unresolved-reference` are the first candidates riding it.
+   when the boundary lands, it and `unresolved-reference` are the first candidates riding it.
 5. **Positioning-only lens.** No in-product "AI-authorship" grouping, section, or chip
    family. The attributes are authorship-agnostic facts — humans add needless dependencies
    and write lying comments too — and a visible "AI-ish" grouping is verdict-adjacent: it
    implicitly asserts authorship the tool cannot know. The lens exists in README/marketing
    copy ("built for the reality that a machine wrote the code"); the brief stays neutral.
-6. **No provenance tier for now.** Revisit a mechanical-vs-model-observed distinction (with
+6. **No origin tier for now.** Revisit a mechanical-vs-model-observed distinction (with
    distinct rendering) only if mechanical attributes multiply.
 
 ## Why This Way
@@ -99,7 +99,7 @@ badge "because it's the differentiator") get answered by this ADR instead of re-
   attributes; the copy must bridge ("these attributes target where AI-authored code
   characteristically fails") without the product asserting authorship.
 - When `ContextSource` lands (ADR 0014), `diverges-from-sibling-pattern` and
-  `unresolved-reference` are the queued consumers — both need the seam plus their own
+  `unresolved-reference` are the queued consumers — both need the boundary plus their own
   FP-framing pass before promotion.
 - Reaffirms ADR 0003 (category-scoped, no general bug hunt) and ADR 0014 (cited facts only,
   deferred enrichment).

@@ -466,10 +466,10 @@ describe("effort threading — delta + narrative (BRIEF-75)", () => {
   });
 });
 
-// --- prose length floor (BRIEF-148) — delta + narrative pipelines ------------
+// --- text length floor (BRIEF-148) — delta + narrative pipelines ------------
 
 describe("prose length floor (BRIEF-148) — delta + narrative pipelines", () => {
-  /** FakeGenerator with per-label fixture overrides for over-cap prose. */
+  /** FakeGenerator with per-label fixture overrides for over-cap text. */
   class OverridingGenerator extends FakeGenerator {
     constructor(private readonly overrides: Record<string, unknown>) {
       super();

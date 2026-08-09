@@ -39,7 +39,7 @@ composer — all pure `apps/web`, zero new scopes, zero backend.
    suggestion diff card stays; no disabled control advertising an unbuilt
    flow.
 6. **Composer body font → sans.** Mono survives only inside code fences and
-   the suggestion diff card. Comments are prose-first; code-first identity
+   the suggestion diff card. Comments are text-first; code-first identity
    lives in the diff table.
 7. **Mentions: participants-seeded v1.** Candidate pool = conversation
    participants + PR author (already in the conversation payload — no

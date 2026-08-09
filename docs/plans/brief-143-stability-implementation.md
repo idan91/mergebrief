@@ -35,7 +35,7 @@ checklist this plan expands.
 - `test-driven-development` — all parts; non-negotiable for PR 2 and PR 3
   (pure functions guarding mechanical invariants).
 - Repo conventions: coverage floors ride `pnpm test` (ADR 0038); logging via
-  `packages/logging` seam, levels per ADR 0034.
+  `packages/logging` boundary, levels per ADR 0034.
 
 ## Model & invocation
 
@@ -48,7 +48,7 @@ subagents.
 
 ## The stack
 
-### PR 1 — config + provenance plumbing (~300–400 LOC, effort: medium)
+### PR 1 — config + origin plumbing (~300–400 LOC, effort: medium)
 
 No behavior change. Ships the vocabulary the rest of the stack consumes.
 
@@ -56,7 +56,7 @@ No behavior change. Ships the vocabulary the rest of the stack consumes.
    `packages/generators/src/config/registry.ts`, validated per-provider like
    effort; threaded through `GenerateTaskDeps` (as-const map + `ValueOf`, no
    enum).
-2. `anchor` provenance: `anchored | fresh-restart(reason) | none` — field on
+2. `anchor` origin: `anchored | fresh-restart(reason) | none` — field on
    the brief artifact contract (`packages/generators/src/contract/provenance.ts`
    neighborhood) + columns/JSON on brief rows
    (`packages/persistence/src/stores/artifact-store.ts`, schema + migration).

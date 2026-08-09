@@ -2,7 +2,7 @@ import type { Brief } from "brief-core/types";
 
 /**
  * Minimal schema-valid Brief factory for eval-harness tests. Runs entirely
- * offline — the harness's run executor takes an injected generate seam, so
+ * offline — the harness's run executor takes an injected generate boundary, so
  * suites never touch a live adapter.
  */
 export function makeBrief(overrides: Partial<Brief> = {}): Brief {

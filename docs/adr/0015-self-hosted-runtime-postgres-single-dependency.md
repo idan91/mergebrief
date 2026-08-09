@@ -22,16 +22,16 @@ Job shape: long-running (minutes, up to ~10 min Opus stream — ADR 0006 #10), l
 3. **Debounce** via job keys on `(repo, pr)`; **single-flight** via advisory lock; **cancellation** by head-SHA comparison at safe checkpoints — never aborting a generation a human is awaiting (ADR 0006 #6).
 4. **Migrations via Drizzle** (typed schema-as-code; large artifacts stay `TEXT` per ADR 0008, not ORM-mapped).
 5. **M1 retention** = retain working artifacts during the PR's life + freeze the Receipt at submit + persist the baseline snapshot + sweep on close + grace. Ref-counted GC deferred.
-6. The retention sweep is **config-driven** and a **deletion seam** (purge by PR / by repo) is left in place, so compliance-grade retention + data-eviction / right-to-erasure (Q7 / GPT-5.5 #6) is additive, not a retrofit.
+6. The retention sweep is **config-driven** and a **deletion boundary** (purge by PR / by repo) is left in place, so compliance-grade retention + data-eviction / right-to-erasure (Q7 / GPT-5.5 #6) is additive, not a retrofit.
 
 ## Why This Way
 
-The self-host constraint makes "fewest services" the dominant criterion. Postgres is already required, so the queue and lock ride on it for free, and brokers solve a throughput/decoupling problem we sit ~5 orders of magnitude away from. One opinionated store is itself an adoption feature (Sentry / GitLab / Plausible). Deferring GC honors useful-tool-first, while the config-driven sweep + deletion seam keep the compliance door open without building the eviction engine before storage hurts.
+The self-host constraint makes "fewest services" the dominant criterion. Postgres is already required, so the queue and lock ride on it for free, and brokers solve a throughput/decoupling problem we sit ~5 orders of magnitude away from. One opinionated store is itself an adoption feature (Sentry / GitLab / Plausible). Deferring GC honors useful-tool-first, while the config-driven sweep + deletion boundary keep the compliance door open without building the eviction engine before storage hurts.
 
 ## Consequences
 
 - **Self-host = `docker compose up`** (web, worker, postgres). No broker or cache to operate.
 - The queue lives **behind a port** → swapping to a real broker is a one-adapter change if volume ever demands it.
 - The worker needs **its own small DB pool** (a 10-min job must not starve the web pool) and uses claim-commit-run-update, never a transaction held open for the whole job.
-- **Compliance / retention / eviction, secret redaction, encryption-at-rest, audit deletion** are deferred to the trust/tenancy ADR (Q7); the seam in Decision #6 is the only piece that had to land now.
+- **Compliance / retention / eviction, secret redaction, encryption-at-rest, audit deletion** are deferred to the trust/tenancy ADR (Q7); the boundary in Decision #6 is the only piece that had to land now.
 - Builds on ADR 0006 (worker/lock), ADR 0008 (single relational DB + retention logical model), and the OSS-self-host distribution model (`docs/system-overview.md` §1).

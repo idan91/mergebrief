@@ -3,7 +3,7 @@ import type { EvalProperty } from "../../properties";
 /**
  * BRIEF-54 broad case: the button-under-split diff with a thin PR body and
  * an epic-style umbrella ticket (authored fixture link). The composite
- * corpus (one-line title + epic) defines no checkable change — specificity
+ * source (one-line title + epic) defines no checkable change — specificity
  * must be broad, never a guessed gap (ADR 0009 unavailable-over-
  * provisional; the buckets themselves are mechanically emptied by the
  * validator, so the judgment under test is the specificity token).

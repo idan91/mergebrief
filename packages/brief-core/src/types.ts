@@ -56,7 +56,7 @@ export const Concerns = [
 ] as const;
 
 /**
- * Specificity — how actionable the composite intent corpus is (BRIEF-54,
+ * Specificity — how actionable the composite intent source is (BRIEF-54,
  * ADR 0009 §2 as amended). Named here rather than inlined in
  * `IntentCheckSchema`'s `z.enum` so the FE's mirrored union can be pinned to
  * it (BRIEF-44 PR 7); the enum's wire values are unchanged.
@@ -457,14 +457,14 @@ export const IntentItemSchema = z.object({
 
 /**
  * The ticket-gated intent check (ADR 0009 §2 as twice amended): did this PR
- * do what its composite intent corpus (title + description + all ticket-like
+ * do what its composite intent source (title + description + all ticket-like
  * linked blocks, judged together) asked? Factual buckets, never a verdict.
  * `specificity` is the master switch — broad/none means the buckets MUST be
  * empty ("never a guessed gap"), enforced mechanically post-parse. No optional
  * fields (strict structured-output; empty string / empty array = N/A).
  *
- * BRIEF-85 adds the alarm pair: `deviations` (diff opposes an ask the corpus
- * states and nowhere retracts) + `claimedButUnachieved` (corpus claims a
+ * BRIEF-85 adds the alarm pair: `deviations` (diff opposes an ask the source
+ * states and nowhere retracts) + `claimedButUnachieved` (source claims a
  * fix/delivery, diff touches only the signal/check path). Routing: behavior
  * moved against the ask ⇒ deviations; only the signal touched ⇒
  * claimedButUnachieved; uncertain ⇒ accomplished — never a guessed alarm.
@@ -560,7 +560,7 @@ export type IntentCheckGeneration = z.infer<typeof IntentCheckGenerationSchema>;
 
 /**
  * Which groups an anchored generation carried verbatim vs regenerated
- * (BRIEF-143) — internal pipeline provenance, never rendered.
+ * (BRIEF-143) — internal pipeline origin tracking, never rendered.
  */
 export const AnchoringDetailSchema = z.object({
   carried: z.array(z.string()),
@@ -583,7 +583,7 @@ export const ProseSurfaces = {
 export type ProseSurface = ValueOf<typeof ProseSurfaces>;
 
 /**
- * One over-cap prose field (BRIEF-148): the structured side of a warn-only
+ * One over-cap text field (BRIEF-148): the structured side of a warn-only
  * length check, stamped onto the artifact so the FE can surface a
  * "consider a stronger model" line without parsing warning strings.
  * Pipeline-assigned, never model-produced — NOT part of any generation
@@ -663,7 +663,7 @@ export const BriefSchema = z.object({
  * What the model actually generates for a full brief: BriefSchema minus the
  * CLI-owned metadata (`pr`, `index`, `commitRange`), which the CLI fills after
  * generation so the model never echoes identifiers it cannot know (ADR 0012).
- * `intentCheck` is REQUIRED here (the model always judges the corpus) while
+ * `intentCheck` is REQUIRED here (the model always judges the source) while
  * staying optional on the stored/read `BriefSchema` — pre-BRIEF-54 briefs
  * simply have no intent bar. It also uses the GENERATION shape (one tagged
  * `items` array, a grammar-budget requirement — see `IntentItemSchema`);

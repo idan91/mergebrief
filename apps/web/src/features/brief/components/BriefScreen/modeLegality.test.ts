@@ -9,7 +9,7 @@ import {
 /**
  * The spec's legality table (brief-134-details-spec.md, "The mode model"),
  * asserted column by column — the table is the source of truth, these are
- * its four columns plus the axis-precedence seams between them.
+ * its four columns plus the axis-precedence boundaries between them.
  */
 describe("deriveRegionBlocks", () => {
   it("Full+Story renders the whole region", () => {

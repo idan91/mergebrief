@@ -12,7 +12,7 @@ Grounding: ADR 0016 (App/auth/tenancy) · ADR 0020 (trigger/entry) · ADR 0006 a
 `docs/self-host/github-app.md` (App registration — already done for dev) ·
 `packages/persistence` (BRIEF-1 surface: tenant repo, artifact store, sessions, crypto).
 
-## The seam (agreed in grill 1)
+## The boundary (agreed in grill 1)
 
 **BRIEF-2 = ingest + identity + read surface.** Complete and testable with **zero LLM calls**:
 webhooks land → rows + queued jobs visible in Postgres; OAuth login → session row; read API →
@@ -46,7 +46,7 @@ packaging, and the FE switch from static JSON to the live API. No FE work in BRI
    check — **no DB imports**) and new `packages/api` (**Hono app**: webhook route, auth
    routes, read routes; imports `github` + `persistence`), mounted into `apps/web` via one
    catch-all server route. One origin (one ngrok tunnel serves webhook + OAuth callback), no
-   CORS, lift-out seam preserved. ADR 0015 topology unchanged — this is packaging.
+   CORS, lift-out boundary preserved. ADR 0015 topology unchanged — this is packaging.
 6. **Documented-not-built knobs** (named in code comments where they'd land, never
    implemented): `on-first-view` trigger, `max-checkpoints-per-bundle`, refresh-token
    session cap.
@@ -173,7 +173,7 @@ get no conversation history).
   pattern): webhook POST with valid signature → `pull_request` row + queued job +
   `generation` row, idempotent on redelivery; invalid signature → 401, no writes;
   `installation` deleted → purge invoked (tenant-scoped, audit emit); auth flow with octokit
-  exchange mocked at the HTTP seam; refresh race test (two concurrent expired-session
+  exchange mocked at the HTTP boundary; refresh race test (two concurrent expired-session
   requests → one exchange, both succeed); authz gate 200/404/401 shaping + cache behavior
   (second read within TTL → no GitHub call); denial → audit row.
 - Graphile enqueue asserted at the DB level (row in `graphile_worker.jobs` with the right

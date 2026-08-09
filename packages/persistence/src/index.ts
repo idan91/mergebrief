@@ -23,7 +23,7 @@ export type { AppDatabase, AppSchema, CreateDbOptions } from "./db/handle";
 
 // Programmatic, idempotent app-schema migration for composition roots
 // (worker/compose boot). The graphile_worker schema stays graphile-owned.
-// `ensureAppSchema` (BRIEF-131) is the boot seam: apply, or — under
+// `ensureAppSchema` (BRIEF-131) is the boot boundary: apply, or — under
 // MERGEBRIEF_AUTO_MIGRATE=false — check the ledger read-only and refuse
 // when behind. `checkAppSchemaWith` (executor-injected) stays in-package.
 export {
@@ -71,7 +71,7 @@ export type {
   SessionCreateInput,
 } from "./stores/tenant";
 
-// The ArtifactStore seam (D6) — ctx-bound typed writes/reads for the five
+// The ArtifactStore interface (D6) — ctx-bound typed writes/reads for the five
 // artifact families. Same containment: built over the opaque handle, no raw
 // surface exposed.
 export {
@@ -128,7 +128,7 @@ export {
 } from "./stores/audit";
 export type { AuditEntry, AuditMetadata, AuditLogRow } from "./stores/audit";
 
-// The transactional ingest seam (BRIEF-2 stage 4): webhook trigger → PR
+// The transactional ingest boundary (BRIEF-2 stage 4): webhook trigger → PR
 // upsert + queued `generation` projection + debounced graphile `generate`
 // job, in ONE transaction. Calls `graphile_worker.add_job` by name — no
 // graphile-worker npm dependency here.
@@ -140,7 +140,7 @@ export type {
   TriggerGenerationInput,
 } from "./stores/ingest";
 
-// Purge + retention routines (D5/D9/D11) — the tenant-scoped deletion seam.
+// Purge + retention routines (D5/D9/D11) — the tenant-scoped deletion boundary.
 export { purgeRoutines, PurgeErrorCode } from "./stores/purge";
 export type {
   PurgeRoutines,
@@ -148,7 +148,7 @@ export type {
   InstallationPurgeCounts,
 } from "./stores/purge";
 
-// The per-user settings seam (BRIEF-19, D14) — the SECOND non-tenant surface
+// The per-user settings boundary (BRIEF-19, D14) — the SECOND non-tenant surface
 // after `audit`. Keyed by GitHub user id (a person spans installations), so it
 // is NOT ctx-bound and NOT reachable through `forTenant`.
 export { userSettingsStore } from "./stores/user-settings";
@@ -159,7 +159,7 @@ export type {
 
 // --- auth/ — the PRE-tenant resolvers (they PRODUCE the tenant) --------------
 
-// The grant seam (BRIEF-40, D15) — ONE `github_grant` row per GitHub
+// The grant boundary (BRIEF-40, D15) — ONE `github_grant` row per GitHub
 // authorization holds the encrypted pair; BOTH presentation channels rotate
 // through `refreshGrant`'s serialized CAS. Pre-tenant like its referents.
 export { grantAuth, GrantAuthErrorCode } from "./auth/grant";
@@ -172,7 +172,7 @@ export type {
   GrantRefreshRejection,
 } from "./auth/grant";
 
-// The reviewer-session auth seam (BRIEF-2 stage 6, D11) — the PRE-TENANT,
+// The reviewer-session auth boundary (BRIEF-2 stage 6, D11) — the PRE-TENANT,
 // token-hash-keyed session resolver (find / delete / expiry mirror). NOT
 // ctx-bound: it PRODUCES the tenant, so it precedes `forTenant` scoping.
 export { sessionAuth, SessionAuthErrorCode } from "./auth/session";
@@ -182,7 +182,7 @@ export type {
   SessionWithGrant,
 } from "./auth/session";
 
-// The API-token auth seam (BRIEF-17, ADR 0016 #4 as amended) — the SECOND
+// The API-token auth boundary (BRIEF-17, ADR 0016 #4 as amended) — the SECOND
 // presentation channel's PRE-TENANT, hash-keyed resolver. Like `sessionAuth`
 // it PRODUCES the tenant, so it precedes `forTenant` scoping.
 export { tokenAuth, TokenAuthErrorCode } from "./auth/token";
@@ -195,7 +195,7 @@ export type {
   ApiTokenMetadataRow,
 } from "./auth/token";
 
-// GitHub OAuth token crypto (D11) — AES-256-GCM behind the key-provider seam.
+// GitHub OAuth token crypto (D11) — AES-256-GCM behind the key-provider interface.
 export {
   encryptToken,
   decryptToken,

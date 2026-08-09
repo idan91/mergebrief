@@ -71,7 +71,7 @@ export function createDb(
 
 /**
  * Wrap an already-constructed drizzle handle (e.g. the PGlite driver in tests,
- * or a future alternate driver) as an `AppDatabase`. In-package seam; not
+ * or a future alternate driver) as an `AppDatabase`. In-package interface; not
  * re-exported from `index.ts`.
  */
 export function fromDrizzle(db: AppDrizzle): AppDatabase {

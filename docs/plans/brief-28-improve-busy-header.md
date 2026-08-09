@@ -73,7 +73,7 @@ Overview/Changelog/Images body, local-verification note (CI blocked).
    rules.
 3. `Header.test.tsx` (new): jsdom + cleanup; menu open/close/Escape/focus
    return; both menu actions fire their callbacks; merged meta line
-   renders index/range/provenance; stats numbers render; keyboard nav.
+   renders index/range/origin; stats numbers render; keyboard nav.
 4. Visual smoke: dev server + playwright screenshot at 1440/1120/880/560
    widths, wide-viewport check of sticky behavior.
 5. Verify, commit chunked, push, PR, review loop.

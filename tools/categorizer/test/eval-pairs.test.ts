@@ -506,7 +506,7 @@ describe("scorePairRuns", () => {
 });
 
 // ---------------------------------------------------------------------------
-// The committed pair corpus (BRIEF-143): every case must load, and the shared
+// The committed pair source (BRIEF-143): every case must load, and the shared
 // property builders must be shown to FAIL against broken pairs — mechanical
 // vacuous-pass evidence before any live baseline lands (BRIEF-59 trap).
 // ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ import { createGenerator, Providers } from "../src/config/registry";
 /**
  * Adapter-specific behavior on fetch-level fixtures: request construction
  * (strict json_schema, reasoning_effort), the 400-sniff no-knob discovery
- * with its instance-lifetime cache and provenance gap, error-status
+ * with its instance-lifetime cache and origin gap, error-status
  * mapping, /models preflight arms, and the baseUrl escape hatch. Pipeline
  * conformance lives in openai.contract.test.ts.
  */
@@ -171,7 +171,7 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
     // Instance-lifetime cache: the NEXT generate never sends the knob…
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     expect(recorded.bodies[2]?.["reasoning_effort"]).toBeUndefined();
-    // …and provenance records the capability gap (ADR 0013 #5).
+    // …and origin records the capability gap (ADR 0013 #5).
     expect(generator.provenance("high")).toEqual({
       provider: "openai",
       model: "gpt-test-1",

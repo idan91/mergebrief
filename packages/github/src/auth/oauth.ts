@@ -359,8 +359,8 @@ export async function listUserInstallations(
 
 /**
  * A thin user-scoped `Octokit` for an access token. The stage-7 authorization
- * gate uses it for the viewer's repo-access check; exposed here so that seam
- * reuses the same construction (and the same default global `fetch`).
+ * gate uses it for the viewer's repo-access check; exposed here so that
+ * boundary reuses the same construction (and the same default global `fetch`).
  */
 export function createUserOctokit(accessToken: string): Octokit {
   // Same permanent-status retry tuning as the App's installation clients —

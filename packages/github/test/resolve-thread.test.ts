@@ -2,7 +2,7 @@
 // — the lean `reviewThreads` page walk that maps a root comment id to the
 // thread's node id, the converged read-time paths, the multi-page cursor walk
 // and its page cap, the not-found paths, and the sanitized failure paths.
-// GraphQL is stubbed at the `octokit.graphql` seam (same structural mock as
+// GraphQL is stubbed at the `octokit.graphql` interface (same structural mock as
 // mark-ready.test.ts / conversation.test.ts). No network, no throttle concerns
 // (GraphQL calls are not on the notification-triggering REST throttle list).
 import { RequestError, type Octokit } from "octokit";

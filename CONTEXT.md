@@ -59,14 +59,14 @@ _Avoid_: Delta Brief, reviewer delta, update summary
 
 **Reading order**:
 The reasoned sequence over a **Brief**'s **Change-groups** — a strict permutation (each group appears exactly once, no revisits), each step carrying a one-line *why-this-next* rationale. The rule: **foundation-first** (groups whose changes other groups build on come first: schema/types → core logic → call sites/wiring), falling back to **context-first, churn-last** for independent groups (dominant-intent groups first; mechanically-known low-signal Categories such as `pure-move`, `lib-bump`, `dependency-update` last — keyed on Category, never a free-floating importance judgment). Orders the *existing* groups; it is never a new grouping and never exposes a score or rank label (no-verdict holds). Within-group order stays structural (carrier → supporting, Concern order).
-_Avoid_: narrative (reserved for generated prose), story, layers/cohorts (Atlas's terms), walkthrough (CodeRabbit's term), importance/priority/severity (verdict language)
+_Avoid_: narrative (reserved for generated text), story, layers/cohorts (Atlas's terms), walkthrough (CodeRabbit's term), importance/priority/severity (verdict language)
 
 **Read-through**:
 The experience of following the **Reading order**: stepping through **Change-groups** in sequence (keyboard next/prev, focus on the current group), end to end, once. The theatre sense — a first sequential pass through the whole piece. The Read-through follows the Reading order; it never reorders or filters it.
 _Avoid_: walkthrough (CodeRabbit's term), tour (onboarding connotation), guided review
 
 **Carry-over status**:
-How a prior **Flag** is classified in a **Delta Brief** relative to this reviewer's **Checkpoint**. One of: **New** (not present at the Checkpoint); **Reopened** (the reviewer had addressed or dismissed it and its region was touched in the span — so the prior decision must be re-made); **Settled** (addressed/dismissed and its region untouched — the prior decision still holds; FE may gloss as "still holds"); **Dropped** (the attribute no longer fires at head — the risk condition is gone, independent of any reviewer action). Decision order: Dropped → Reopened → Settled → New. Reopen is purely positional — *any* change to the flagged region reopens; meaningfulness is never inferred. On ambiguity, classify as Reopened, never Settled.
+How a prior **Flag** is classified in a **Delta Brief** relative to this reviewer's **Checkpoint**. One of: **New** (not present at the Checkpoint); **Reopened** (the reviewer had addressed or dismissed it and its region was touched in the span — so the prior decision must be re-made); **Settled** (addressed/dismissed and its region untouched — the prior decision still holds; FE may describe as "still holds"); **Dropped** (the attribute no longer fires at head — the risk condition is gone, independent of any reviewer action). Decision order: Dropped → Reopened → Settled → New. Reopen is purely positional — *any* change to the flagged region reopens; meaningfulness is never inferred. On ambiguity, classify as Reopened, never Settled.
 _Avoid_: still-resolved, cleared, gone, stale, resolved (as state names)
 
 **Comment anchoring**:
@@ -76,7 +76,7 @@ _Avoid_: re-anchor (informal), outdated (GitHub's word, only for shipped comment
 **Chunk**:
 A contiguous run of changed lines sharing **one Concern and one Change-group** — the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC.
 _Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
-_Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree (ADR 0005); until then, express it via dominant+secondary Categorization on the group plus a prose callout in the Summary.
+_Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree (ADR 0005); until then, express it via dominant+secondary Categorization on the group plus a text callout in the Summary.
 
 **Change-group**:
 A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent* — it carries the Categorization and the summary. Spans files and Concerns: one or more carrier chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
@@ -84,7 +84,7 @@ A cluster of chunks that together accomplish one coherent piece of work (e.g., "
 _Avoid_: chapter (Linear's narrative-only term), story, cluster, section
 
 **Category**:
-A taxonomy entry describing the *intent* of a Change-group, not opinion about it. Examples: `pure-move`, `move-with-edits`, `lib-bump`, `logic-refactor`, `new-feature`, `bugfix`, `schema-change`, `dependency-update`. Category answers "what kind of change"; Concern answers "what kind of artifact" — they are orthogonal axes.
+A taxonomy entry describing the *intent* of a Change-group, not opinion about it. Examples: `pure-move`, `move-with-edits`, `lib-bump`, `logic-refactor`, `new-feature`, `bugfix`, `schema-change`, `dependency-update`. Category answers "what kind of change"; Concern answers "what kind of artifact" — they are independent axes.
 _Avoid_: type, classification, label, tag, kind. ("Label" and "tag" are not used in product or UX language — Category is the single word.) Also: `test-only`, `config-only`, `generated-code` are NOT Categories — they were artifact-concerns masquerading as intent; they are now Concern values.
 
 **Categorization**:
@@ -96,7 +96,7 @@ The single Category surfaced as primary when a Change-group's Categorization con
 _Avoid_: main tag, primary type, main label
 
 **Concern**:
-The artifact a chunk touches: `implementation`, `test`, `doc`, `spec`, `config`, `generated`. Orthogonal to Category. Mostly derivable from file path. The Concern view pivots the brief by Concern to route attention — how much of the PR is real implementation vs supporting scaffolding. Default resolution of the overloaded "spec": `spec` = specification document (distinct from `doc`); `.spec.ts`/`.test.ts` files map to `test`.
+The artifact a chunk touches: `implementation`, `test`, `doc`, `spec`, `config`, `generated`. Independent of Category. Mostly derivable from file path. The Concern view pivots the brief by Concern to route attention — how much of the PR is real implementation vs supporting scaffolding. Default resolution of the overloaded "spec": `spec` = specification document (distinct from `doc`); `.spec.ts`/`.test.ts` files map to `test`.
 _Avoid_: production (env-restrictive), file-type, type, bucket
 
 **Role**:
@@ -136,11 +136,11 @@ The AI's explicit label on categorization or flag output when its confidence is 
 _Avoid_: low confidence (informal only), unknown, maybe
 
 **Receipt**:
-The scoped tool-verification content: mechanical claims the tool verified, what it didn't check, the disposition of flags (addressed vs dismissed with reason), and the **Generation provenance** of the analysis. Never an "approval". Delivered via the **Review Summary** linked from the signature line on the GitHub review — not inlined into the review body.
+The scoped tool-verification content: mechanical claims the tool verified, what it didn't check, the disposition of flags (addressed vs dismissed with reason), and the **Generation origin** of the analysis. Never an "approval". Delivered via the **Review Summary** linked from the signature line on the GitHub review — not inlined into the review body.
 _Avoid_: AI approval, stamp, attestation
 
-**Generation provenance**:
-Which provider, model, and effort produced a **Brief** or **Delta Brief** — recorded on the artifact and surfaced on the **Receipt** (and as an understated header label), so the reader always knows what generated the analysis and never mistakes it for a verdict. Becomes load-bearing once the provider can vary (BYOK / multiple SDKs).
+**Generation origin**:
+Which provider, model, and effort produced a **Brief** or **Delta Brief** — recorded on the artifact and surfaced on the **Receipt** (and as an understated header label), so the reader always knows what generated the analysis and never mistakes it for a verdict. Becomes critical once the provider can vary (BYOK / multiple SDKs).
 _Avoid_: model tag, attribution, watermark, AI signature (collides with Signature line)
 
 **Signature line**:
@@ -192,11 +192,11 @@ A transient, non-blocking nudge shown to the **Author** at the ready-for-review 
 _Avoid_: pre-submit gate, block, author approval
 
 **Comment**:
-Reviewer-authored prose that ships to the PR. In this product, comments are never AI-authored — the agent provides structure (seeds) and post-hoc validation, but the reviewer writes the sentence.
+Reviewer-authored text that ships to the PR. In this product, comments are never AI-authored — the agent provides structure (seeds) and post-hoc validation, but the reviewer writes the sentence.
 _Avoid_: review comment, feedback (informal only)
 
 **Seed**:
-A structured, non-prose hint from the agent — `{ category, location, issue-shape }` — that a stuck reviewer can expand into their own comment. Seeds are scaffolding, not drafts.
+A structured, non-text hint from the agent — `{ category, location, issue-shape }` — that a stuck reviewer can expand into their own comment. Seeds are scaffolding, not drafts.
 _Avoid_: suggestion, draft, AI comment
 
 **Approval**:
@@ -208,7 +208,7 @@ A reviewer finalizing their review on GitHub (the **Approval** plus any **Commen
 _Avoid_: send, post, finish (informal)
 
 **Repo instructions**:
-The `.mergebrief/instructions.md` file (ADR 0032) — repo-committed prose guidance to generation, read from the default branch only, honored strictly within the enumerated instruction classes (grouping boundaries, glossary/terminology, noise paths, reading conventions, summary phrasing). Semi-trusted: prose shapes presentation and comprehension; only validated `policy.yaml` creates facts — instructions can never mint a risk attribute, change a vocabulary, or alter the schema.
+The `.mergebrief/instructions.md` file (ADR 0032) — repo-committed text guidance to generation, read from the default branch only, honored strictly within the enumerated instruction classes (grouping boundaries, glossary/terminology, noise paths, reading conventions, summary phrasing). Semi-trusted: text shapes presentation and comprehension; only validated `policy.yaml` creates facts — instructions can never mint a risk attribute, change a vocabulary, or alter the schema.
 _Avoid_: repo prompt, custom prompt, system prompt (it is data, never system-level)
 
 **De-emphasis**:

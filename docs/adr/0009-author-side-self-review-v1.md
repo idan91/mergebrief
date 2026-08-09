@@ -10,12 +10,12 @@
 > ADR's analysis and decisions otherwise stand.
 
 > **Amended 2026-07-24 (BRIEF-54 grill):** #2's intent-source **fallback chain**
-> (linked ticket → PR description → none) is superseded by a **composite intent
-> corpus**: PR title + description + all ticket-like linked blocks are judged
+> (linked ticket → PR description → none) is superseded by **composite intent
+> sources**: PR title + description + all ticket-like linked blocks are judged
 > *together*; the model resolves sources in-prompt and cites per-claim
 > (verbatim quote + source URL for ticket-side buckets, change-group ids for
 > diff-side). Specificity (precise/broad/none) is judged on the combined
-> corpus — a split or vague corpus is `broad` ⇒ unavailable, so
+> sources — split or vague sources are `broad` ⇒ unavailable, so
 > unavailable-over-provisional stands unchanged, as do the three buckets,
 > never-a-verdict, and de-emphasis. "De-emphasized" is realized as the
 > **intent bar**: an always-visible neutral-counts header row stacked with the
@@ -28,15 +28,15 @@
 > *precise* bucket grammar grows from three to **five factual buckets**; the
 > two additions are alarm-class:
 >
-> - **`deviations`** — the diff moves *against* an ask the composite corpus
->   states and **nowhere retracts** (the retracted-nowhere rule: a reversal
->   acknowledged in the PR description means the corpus no longer stands
+> - **`deviations`** — the diff moves *against* an ask the composite sources
+>   state and **nowhere retract** (the retracted-nowhere rule: a reversal
+>   acknowledged in the PR description means the sources no longer stand
 >   behind the ticket's ask). Each item carries `acknowledged: boolean` —
 >   when the description acknowledges the reversal the item is a quiet
 >   receipt, not an alarm. `acknowledged` lives on the shared item shape
 >   (which the grammar budget forces — see the wire-shape note below) and is
 >   forced-`false` outside `deviations` (dead-field precedent).
-> - **`claimedButUnachieved`** — the corpus claims a fix/delivery while the
+> - **`claimedButUnachieved`** — the sources claim a fix/delivery while the
 >   diff operates only on the problem's *signal/check path* (log demotion,
 >   catch-and-swallow, test skip/delete, threshold bump). **Routing rule**:
 >   behavior moved against the ask ⇒ `deviations`; only the signal touched ⇒

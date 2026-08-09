@@ -1,7 +1,7 @@
 // Repo-collaborators primitive (BRIEF-94): the @mention candidate pool —
 // everyone who can collaborate on the repo. GraphQL because REST's
 // collaborators list carries no display name; `affiliation: ALL` is
-// load-bearing — it includes org/team-granted members, the bulk of the
+// critical — it includes org/team-granted members, the bulk of the
 // intended pool, not just direct collaborators. Nodes are `User` objects
 // (GitHub App bots cannot be repo collaborators), so no bot filtering is
 // needed here. Failures funnel through `mapGraphqlError`.

@@ -88,7 +88,7 @@ export async function probeHarnessCli(
       `${args.command}: version probe failed (exit ${version.exitCode ?? "signal"})`,
     ]);
   }
-  // Interpreter strings may embed untrusted CLI stdout: redact at this seam
+  // Interpreter strings may embed untrusted CLI stdout: redact at this boundary
   // so the no-secrets invariant holds regardless of adapter discipline.
   const versionWarning = args.interpretVersionOutput?.(version.stdout) ?? null;
   if (versionWarning !== null) args.log?.(redactSecrets(versionWarning));
@@ -130,7 +130,7 @@ export async function probeHarnessCli(
   if (args.interpretAuthOutput) {
     const verdict = args.interpretAuthOutput(auth.stdout);
     if (!verdict.ok) {
-      // Same redaction seam on the refusal path (transient never applies:
+      // Same redaction boundary on the refusal path (transient never applies:
       // a wrong billing route is deterministic config, not a flaky network).
       return configError(verdict.error.issues.map(redactSecrets));
     }

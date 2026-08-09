@@ -202,7 +202,7 @@ export interface EnsureAppSchemaOptions {
   readonly autoMigrate: boolean;
 }
 
-/** Injectable apply/check implementations — a TEST seam (the real ones need
+/** Injectable apply/check implementations — a TEST interface (the real ones need
  * a live pg). Not re-exported from `index.ts`; production callers omit it. */
 export interface EnsureAppSchemaDeps {
   readonly apply: (databaseUrl: string) => Promise<void>;
@@ -212,7 +212,7 @@ export interface EnsureAppSchemaDeps {
 }
 
 /**
- * The one boot-time seam both composition roots call (BRIEF-131): apply the
+ * The one boot-time boundary both startup-wiring paths call (BRIEF-131): apply the
  * app-schema migrations, or — under `MERGEBRIEF_AUTO_MIGRATE=false` — verify
  * read-only that nothing is pending. The returned error is the operator
  * refusal; infra failures still throw.

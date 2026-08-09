@@ -1,7 +1,7 @@
 // ENTRY POINT — the whole public surface (`package.json` `exports["."]`).
 // Mirrors the sibling packages' documented-export style: named exports only,
 // grouped by the folder/module it lives in. Map: `AGENTS.md`.
-// The runnable entry is `src/main.ts` (composition root, `pnpm start`) — it is
+// The runnable entry is `src/main.ts` (startup wiring, `pnpm start`) — it is
 // deliberately NOT exported here; this surface exists for tests and for any
 // future embedding of the worker in another process.
 
@@ -31,7 +31,7 @@ export type { ParsedGeneratePayload } from "./task/payload";
 export { utcDayBounds } from "./task/spend";
 export type { UtcDay } from "./task/spend";
 
-// The GitHub seam: installation-scoped PR reads behind a testable port.
+// The GitHub boundary: installation-scoped PR reads behind a testable port.
 export { appGitHubPort, splitRepoSlug } from "./task/github-port";
 export type {
   CompareFiles,

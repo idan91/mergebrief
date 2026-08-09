@@ -1,10 +1,10 @@
 /**
  * Spike probe (issue #21): does the Anthropic platform enforce `enum` in a
  * structured-output schema server-side (constrained decoding), or only treat it
- * as prose?
+ * as text?
  *
  * Runs the **same adversarial request twice** on the production model:
- *  - Control:   the SDK's `zodOutputFormat` (strips `enum` → prose).
+ *  - Control:   the SDK's `zodOutputFormat` (strips `enum` → text).
  *  - Treatment: `enumPreservingOutputFormat` (keeps `enum` as real keywords).
  *
  * The prompt demands verbatim out-of-vocabulary tokens at three enum positions

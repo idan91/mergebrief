@@ -56,7 +56,7 @@ disabled-with-tooltip states for the degradation tiers.
   rendering (local `.delta.json` path proves the components). Disabled
   Compare control with reason tooltip for the unavailable states.
 - **Out of scope:** timeline navigation (BRIEF-24), per-reviewer delta
-  overlays (M2 `delta_overlay` seam), any write-side change.
+  overlays (M2 `delta_overlay` boundary), any write-side change.
 
 ## Context for a fresh session (read before PR 1)
 
@@ -174,12 +174,12 @@ consumes PR 1's response contract; no parallelism worth the handoff cost.
 
 Tenancy-sensitive contract work. **Model: Fable, high effort, main thread.**
 
-1. Persistence read seams (ctx-bound, under `forTenant`):
+1. Persistence read boundaries (ctx-bound, under `forTenant`):
    `checkpoints.getForReviewer(pullRequestId, reviewerId)`,
    `deltas.getForSpan(pullRequestId, baselineSha, headSha)` (or EXISTS +
    body read, matching how marks/narrative reads are shaped),
    `generation.latestDeltaForBaseline(pullRequestId, baselineSha)` for the
-   `pending` discriminator. Reuse existing seams where they already fit —
+   `pending` discriminator. Reuse existing boundaries where they already fit —
    check before adding.
 2. `GET .../delta?baseline&head`: full gate; query Zod-validated (SHA shape,
    reject `:` like the diff route); artifact body as stored; 404 collapse
@@ -225,7 +225,7 @@ for the offer wiring, characterization harness stays green.
 
 | PR | Est. LOC | Gate |
 |---|---|---|
-| 1 delta-read-api | 450–650 | if seams + endpoint + PR-meta > 900 with tests, split seams+endpoint / PR-meta growth |
+| 1 delta-read-api | 450–650 | if boundaries + endpoint + PR-meta > 900 with tests, split boundaries+endpoint / PR-meta growth |
 | 2 fe-last-review-compare | 450–700 | tooltip/disabled-state surface splits off if > 900 |
 
 ## Verification (every PR)

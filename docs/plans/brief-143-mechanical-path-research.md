@@ -26,7 +26,7 @@ repo-relative. Sections mirror the research brief: (a) computability of
   (`previous-brief` = prevHead→head, `checkpoint` = checkpoint→head), keyed
   `(baselineSha, headSha, baselineLabel)`. Persisted coordinates-only via
   `store.comparisonMarks.write` (`packages/worker/src/task/generate.ts:1104-1117`;
-  ADR 0018 D13 — never code-bearing, no provenance).
+  ADR 0018 D13 — never code-bearing, no origin tracking).
 
 ### How the prevHead→head compare diff is obtained
 
@@ -309,8 +309,8 @@ the fast-forward case.
 
 ### Would a stitched artifact break marks / narrative consumers?
 
-- **Comparison marks are id-free** (file + ranges only, D13) — orthogonal
-  to stitching.
+- **Comparison marks are id-free** (file + ranges only, D13) — independent
+  of stitching.
 - **Narrative generation** consumes the brief as alignment context —
   group id/title/summary + chunk file/ranges/group-id
   (`renderBriefContext`, `categorize.ts:490-511`) — and its output is
@@ -327,7 +327,7 @@ the fast-forward case.
 
 ### Where a stitch step could sit in the worker pipeline
 
-- The generation seam is `generateArtifacts()` in
+- The generation boundary is `generateArtifacts()` in
   `packages/worker/src/task/generate.ts`: fresh-brief branch runs
   `categorize(...)` at `generate.ts:690-700`, marks
   `GenerationPhase.WRITING` at 701, and persists via `store.briefs.write`
@@ -352,7 +352,7 @@ model analysis from CLI-assembled metadata, validators are exported pure
 functions, and every downstream consumer either ignores ids (marks), joins
 by file+line (delta callout, slicing), or resolves ids with fallbacks
 (narrative callout) — so a stitched artifact is structurally viable at one
-clear seam. The two hard constraints are: ids from a carried-over region
+clear boundary. The two hard constraints are: ids from a carried-over region
 and a regenerated region must be made non-colliding and internally coherent
 (partition/readingOrder/intentCheck invariants), and carried-over chunk
 ranges are unusable without head-coordinate remapping. Whole-brief-scoped

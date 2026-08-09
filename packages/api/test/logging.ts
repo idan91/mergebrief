@@ -1,4 +1,4 @@
-// Shared test logging seam (BRIEF-51): `createApp` requires a logger, so
+// Shared test logging interface (BRIEF-51): `createApp` requires a logger, so
 // suites inject one that captures NDJSON lines instead of writing to stdout
 // — assertable where a test cares, silent everywhere else.
 import { createLogger, type Logger } from "logging";

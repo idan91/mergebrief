@@ -67,7 +67,7 @@ viewport-heights.** The best non-focus case still misses the yardstick by 68%.
 
 ## Findings
 
-**1. The region is a summary-prose problem wearing a control-strip costume.**
+**1. The region is a summary-text problem wearing a control-strip costume.**
 `SummarySection` is **65–94%** of the region in every mode:
 
 | Mode | Summary share |
@@ -83,12 +83,12 @@ collapsed conversation section and the chunks row — is **94px on the local
 path** and **245–345px on the DB path**. Deleting every control strip outright
 would still leave every mode over the yardstick.
 
-**2. A narrower viewport makes it worse, not better.** Summary prose reflows
+**2. A narrower viewport makes it worse, not better.** Summary text reflows
 taller as the column narrows: +123px going from 1440 to 1280 on artifact 194.
 The region grows ~12% while the available viewport shrinks 12%.
 
 **3. The two-column summary wastes its right column.** With a changelog
-present, the lead prose column runs 800px+ while the changelog column ends
+present, the lead text column runs 800px+ while the changelog column ends
 around 340px — roughly 500px of empty right column inside the tallest block
 on the page.
 
@@ -134,11 +134,11 @@ header BRIEF-134's text describes.
 Hitting ≈500px at 1440×900 is not reachable by compacting control strips.
 It requires one of:
 
-- `SummarySection` capped (the capped-prose primitive locked at charting), and/or
+- `SummarySection` capped (the capped-text primitive locked at charting), and/or
 - BRIEF-104's 1–3-line summary landing, and/or
 - moving occupants out of flow into the persistent tier.
 
-The measured numbers say the first two are load-bearing and the third is
+The measured numbers say the first two are critical and the third is
 where the control strips go. A pure trim pass on the strips buys at most
 ~345px in the worst mode and ~94px in the common local one.
 
@@ -149,5 +149,5 @@ Harness scripts were throwaway and are not committed. Recipe:
 `github_grant` row via `grantId` — the skill's inline-ciphertext description
 predates BRIEF-40 D15; `reviewerId` is the numeric GitHub user id, not the
 login; `BriefWriteInput` requires `provider` / `model` / `effort`; the web
-composition root additionally requires `GITHUB_OAUTH_CLIENT_ID`,
+startup wiring additionally requires `GITHUB_OAUTH_CLIENT_ID`,
 `GITHUB_OAUTH_CLIENT_SECRET` and `PUBLIC_BASE_URL`).

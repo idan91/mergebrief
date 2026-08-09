@@ -56,7 +56,7 @@ async function renderBriefScreen(brief = briefFixture) {
 }
 
 /**
- * Characterization suite — pins the screen's load-bearing couplings against the
+ * Characterization suite — pins the screen's critical couplings against the
  * pre-split BriefApp so they stay green through the Slice A→D refactor. Asserts
  * behaviour observable through the rendered screen, not store internals.
  */

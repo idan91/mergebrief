@@ -5,7 +5,7 @@ import { z } from "zod/v4";
  *
  * The SDK's `zodOutputFormat` runs the JSON schema through a keyword whitelist
  * (`transformJSONSchema`) that **drops `enum`/`const`**, demoting closed
- * vocabularies to description prose the model may ignore. The Anthropic platform
+ * vocabularies to description text the model may ignore. The Anthropic platform
  * *does* support `enum`/`const` in structured-output schemas, so decoding can be
  * constrained server-side — invalid tokens then cannot be generated at all.
  *
@@ -101,7 +101,7 @@ function transformNode(
   if (title !== undefined) strict["title"] = title;
 
   // The whole point of this module: closed vocabularies survive as real
-  // keywords, so the server constrains decoding instead of hoping the prose is
+  // keywords, so the server constrains decoding instead of hoping the text is
   // read. Both `enum` (finite set) and `const` (singleton) are carried.
   const enumValues = pop(working, "enum");
   if (enumValues !== undefined) strict["enum"] = enumValues;
@@ -140,7 +140,7 @@ function transformNode(
     }
   }
 
-  // Any leftover (unsupported) keyword is demoted to prose, verbatim from the
+  // Any leftover (unsupported) keyword is demoted to text, verbatim from the
   // SDK, so the model still sees it as guidance even though it is not enforced.
   const leftovers = Object.entries(working);
   if (leftovers.length > 0) {

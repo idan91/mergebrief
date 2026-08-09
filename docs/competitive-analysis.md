@@ -194,7 +194,7 @@ v2 at best), bundled linter/SAST breadth, Code Peek-style host-search navigation
    product. BRIEF-54 is concrete; the promote-intent-check ticket just got more
    urgent, and external copy should stake this ground before their marketing does.
 3. **No-verdict stays structural.** Their surface is severity labels + verdicts +
-   auto-generated review prose — everything the noise complaint (§3) is about. Our
+   auto-generated review text — everything the noise complaint (§3) is about. Our
    anti-noise stance can't be bolted onto their architecture.
 4. **Open vs paywall.** Their best comprehension UI is going Pro+; ours is OSS +
    self-host + BYOK. "The good review UI is free and yours" is now a direct,
@@ -272,7 +272,7 @@ But the **honest counter-risk** stands (unchanged from "Moat Honesty"): the mark
 9. **GitHub Marketplace distribution** (CodeRabbit) — discovery channel for the eventual hosted arm (M1 is self-host).
 
 **Deliberately do NOT take (these are what we're positioned against):**
-- Auto-verdicts / "approve-reject" gates, AI-authored review prose, severity-graded bug assertions, "catch the most bugs" as the headline metric. Taking these collapses us into the noisy bug-bot lane we can't win and don't want.
+- Auto-verdicts / "approve-reject" gates, AI-authored review text, severity-graded bug assertions, "catch the most bugs" as the headline metric. Taking these collapses us into the noisy bug-bot lane we can't win and don't want.
 
 ## 5. Strategic implications
 

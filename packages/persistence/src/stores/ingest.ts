@@ -1,4 +1,4 @@
-// The transactional ingest seam (BRIEF-2 stage 4, plan decision #1): the ONE
+// The transactional ingest boundary (BRIEF-2 stage 4, plan decision #1): the ONE
 // write path a generation-relevant webhook takes. `triggerGeneration` runs a
 // single transaction that (1) upserts the `pull_request` aggregate root,
 // (2) upserts the `(kind: brief, head)` `generation` projection row as
@@ -221,7 +221,7 @@ export interface IngestRoutines {
 // Factory.
 // ---------------------------------------------------------------------------
 
-/** Build the tenant-scoped ingest seam over the opaque handle. */
+/** Build the tenant-scoped ingest boundary over the opaque handle. */
 export function ingestRoutines(
   handle: AppDatabase,
   ctx: TenantContext,
@@ -330,7 +330,7 @@ export function ingestRoutines(
               attempts: sql`${generation.attempts} + 1`,
               phase: null,
               error: null,
-              // A fresh attempt re-acquires repo config; stale provenance
+              // A fresh attempt re-acquires repo config; stale origin data
               // from a prior drain must not survive the re-queue (same
               // reset as generationProjection.upsertQueued).
               repoConfig: null,

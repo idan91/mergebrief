@@ -1,6 +1,6 @@
 // Worker env config (BRIEF-3 Part 1; BRIEF-11 instance config). Zod-parsed
 // from an INJECTED env map — this module NEVER reads `process.env` implicitly
-// at import time: the composition root (`main.ts`) decides when and what to
+// at import time: the startup wiring (`main.ts`) decides when and what to
 // read, mirroring `packages/persistence/src/config.ts`.
 //
 //   DATABASE_URL             required; postgres(ql):// URL (validated by

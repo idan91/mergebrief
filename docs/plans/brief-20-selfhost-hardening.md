@@ -36,12 +36,12 @@ no auth changes, no port re-binding.
 
 ## Implementation notes (PR 1 — spend guardrail)
 
-- **Enforcement point: the single seam where a generation run starts in
+- **Enforcement point: the single boundary where a generation run starts in
   the worker** (before any provider call, after the job is claimed) — one
   choke point covers every entry path. Verify at implementation whether
-  URL-box/userspace generations flow through the same seam; if they
+  URL-box/userspace generations flow through the same boundary; if they
   don't, decide-and-document whether they count (lean: they do — same
-  bill) and enforce at their seam too with the same store query.
+  bill) and enforce at their boundary too with the same store query.
 - **Counting**: query the generation store for runs of that repo in the
   current UTC day. Determine which run states count — lean: any run that
   reached a provider call (superseded runs count, they spent; capped

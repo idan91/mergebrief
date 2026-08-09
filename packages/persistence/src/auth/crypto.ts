@@ -1,6 +1,6 @@
 // GitHub OAuth token encryption for `reviewer_session.gh_token_ciphertext`
 // (ADR 0018 D11). AES-256-GCM (authenticated encryption) behind a key-provider
-// seam, matching the identity/generator ports elsewhere in the system.
+// interface, matching the identity/generator ports elsewhere in the system.
 //
 // ENCRYPTION MODEL (D11 / ADR 0016 #7): DIRECT encryption with a
 // provider-resolved key — NOT a per-row envelope DEK. Reviewer tokens are
@@ -44,7 +44,7 @@ const VERSION = "v1";
 const SEPARATOR = ".";
 
 // ---------------------------------------------------------------------------
-// Key provider seam + its M1 env implementation.
+// Key provider interface + its M1 env implementation.
 // ---------------------------------------------------------------------------
 
 /** Why a key could not be resolved. No value/material is ever surfaced. */
@@ -65,7 +65,7 @@ export interface KeyError {
 }
 
 /**
- * The key-resolution seam (ADR 0016 #7: env -> KMS). `resolveKey` maps a
+ * The key-resolution interface (ADR 0016 #7: env -> KMS). `resolveKey` maps a
  * `keyRef` to raw 32 key bytes, or a `KeyError`. Returns a `MaybePromise` so a
  * future async provider (KMS) is a drop-in with no call-site change.
  */

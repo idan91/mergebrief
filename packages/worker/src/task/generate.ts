@@ -101,7 +101,7 @@ import {
   buildRepoConfigProvenance,
 } from "./repo-config";
 
-// The structured seam (packages/logging, ADR 0034) — re-exported for the
+// The structured boundary (packages/logging, ADR 0034) — re-exported for the
 // worker's internal modules (repo-config) and `index.ts`.
 export type { Logger };
 
@@ -276,7 +276,7 @@ function isTransientGenerationError(error: unknown): boolean {
 }
 
 /**
- * Artifact provenance from the engine's `Generation` metadata. `effort` is
+ * Artifact origin data from the engine's `Generation` metadata. `effort` is
  * null for adapters without an effort knob (ADR 0013); the store column is a
  * plain string, so null normalizes to the honest "none".
  */
@@ -422,7 +422,7 @@ export function createGenerateTask(
   };
 }
 
-/** Inert seam logger for direct test invocations that pass no `log`. */
+/** Inert boundary logger for direct test invocations that pass no `log`. */
 function noopLogger(): Logger {
   const inert: Logger = {
     error: () => {},
@@ -512,7 +512,7 @@ async function runGeneration(
   // rotation, and deleting by a stale id would orphan the newer comment.
   let liveEntryCommentId: bigint | null = prRow.entryCommentId;
 
-  // The GitHub seam is opened BEFORE the spend gate: a capped run posts no
+  // The GitHub boundary is opened BEFORE the spend gate: a capped run posts no
   // GitHub reads, but it may still have to update an Entry comment that is
   // already on the thread.
   const source = await github.forPullRequest(
@@ -522,7 +522,7 @@ async function runGeneration(
   );
 
   // ---- Daily generation cap (BRIEF-20) -------------------------------------
-  // THE enforcement point: the single seam where a run starts, before any
+  // THE enforcement point: the single boundary where a run starts, before any
   // provider call AND before the projection says `running` — the gate must
   // not count the very run it is deciding on. At the cap the run is SKIPPED,
   // not deferred: terminal `capped`, no retry, no queue growth.
@@ -1233,7 +1233,7 @@ async function writeRevisionArtifacts(
     },
   });
   if (!marksWritten.ok) {
-    // Marks are load-bearing for the comparison UI: surface loudly (the CLI
+    // Marks are critical for the comparison UI: surface loudly (the CLI
     // never catches marks failures either), but classify as permanent — the
     // same inputs would fail identically on retry.
     throw new PermanentJobError(marksWritten.error.message);

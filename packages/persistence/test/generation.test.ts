@@ -398,7 +398,7 @@ describe("repo-config provenance on the generation row (ADR 0032 #8)", () => {
     );
 
     // Re-queue via the PRODUCTION ingest path (not the projection helper):
-    // stale provenance must not survive into the fresh attempt.
+    // stale origin data must not survive into the fresh attempt.
     const second = await ingest.triggerGeneration({
       pullRequest: {
         repoId: brandWith(isRepoId, 900n),

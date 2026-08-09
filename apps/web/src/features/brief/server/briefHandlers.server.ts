@@ -59,7 +59,7 @@ async function curated<T>(action: string, body: () => Promise<T>): Promise<T> {
       // Reaching here means a failure nobody mapped escaped a reader — worth
       // an operator's attention (the mapped, routine arms log themselves, at
       // their own level, inside brief.server). The raw error rides as a
-      // FIELD, never interpolated into `msg`: the logging seam redacts and
+      // FIELD, never interpolated into `msg`: the logging boundary redacts and
       // serializes fields, and `msg` bypasses that entirely (ADR 0034 #4).
       logger.warn(`${action}: unmapped read failure`, { err: error });
     }

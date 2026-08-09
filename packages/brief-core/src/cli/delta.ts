@@ -147,7 +147,7 @@ async function main(): Promise<void> {
 
   loadEnv();
   // Explicit --config only (no ambient MERGEBRIEF_CONFIG); absent →
-  // zero-config default through the registry seam (BRIEF-11).
+  // zero-config default through the registry interface (BRIEF-11).
   const loaded =
     flagged.configPath !== null
       ? loadGeneratorConfigFile(flagged.configPath)

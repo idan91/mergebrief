@@ -20,7 +20,7 @@ usable by a human.
 60s positive authz cache, split the gate into session + repo-authz layers, add
 the two missing discovery endpoints (list, PR-meta). (2) Multi-org sessions:
 `user_settings` (D14), default-installation binding, a validated switch
-endpoint. (3) FE: an isomorphic `apiFetch` seam (SSR = in-process dispatch of
+endpoint. (3) FE: an isomorphic `apiFetch` boundary (SSR = in-process dispatch of
 the same Hono app with the cookie forwarded — never a second authz path),
 loader-prefetched brief route, client-side diff slicing, generation-status
 poll. (4) Previous-brief comparison availability + rendering over the existing
@@ -73,7 +73,7 @@ Load-bearing facts a new session would otherwise have to re-derive:
 - **Bounded TTL cache:** `packages/api/src/routes/ttl-cache.ts`
   (`createTtlCache`) — reuse it for both new caches; keys are never-reused
   (session hashes), hence the bounding discipline.
-- **SSR seam target:** `apps/web/src/server/webhookApp.ts` exposes
+- **SSR boundary target:** `apps/web/src/server/webhookApp.ts` exposes
   `getWebhookApp()` (memoized Hono app singleton, 5s failure cooldown);
   `apps/web/src/server.ts` routes `/api/*` + `/auth/*` to it in-process.
   The SSR branch of `apiFetch` dispatches against this same app — origin
@@ -166,7 +166,7 @@ Tenancy-sensitive. **Model: Fable, high effort, main thread.**
 3. `GET /api/repos/:repoId/pulls/:prNumber` (PR-meta): full gate; PR row +
    `briefAvailable` (EXISTS on brief for current span) + latest brief-kind
    generation summary `{ status, phase, attempts, error, updatedAt } | null`.
-4. Persistence read seams as needed (`pullRequests.listForRepos`,
+4. Persistence read boundaries as needed (`pullRequests.listForRepos`,
    `briefs.existsForSpan`, `generation.latestForHead`) — ctx-bound, tested.
 Tests first: tenancy (cross-installation rows never leak), allowed-set
 filtering, cap, cache behavior, PR-meta 404 posture identical to artifact GETs.
@@ -179,7 +179,7 @@ PR 3.2** — disjoint packages (api/persistence vs apps/web); sequence its merge
 after 1.2.
 1. Migration + schema: `user_settings` per ADR 0018 D14 (PK `gh_user_id`,
    `default_installation_id` nullable, timestamps). NON-tenant-scoped: new
-   `userSettings` seam (NOT under `forTenant`); type-level containment tests
+   `userSettings` boundary (NOT under `forTenant`); type-level containment tests
    treat it like `audit`.
 2. Login binding: callback binds `default_installation_id` when present in
    the live accessible set, else first accessible (replaces bare `[0]`;
@@ -202,7 +202,7 @@ on switch: invalidate all queries, navigate to picker. Keyboard/ARIA per
 
 **PR 3.1 — `feature/BRIEF-19/fe-data-layer` (~500–700 LOC, after 1.2)**
 **Model: Sonnet, high effort, main thread.**
-1. `apiFetch` seam: client branch = relative `fetch`; server branch =
+1. `apiFetch` boundary: client branch = relative `fetch`; server branch =
    `(await getWebhookApp()).fetch(new Request("http://internal" + path,
    { headers: { cookie } }))` with the incoming request's cookie; composition
    failure → typed error state (mirrors the 503 posture). 401 during SSR →
@@ -216,7 +216,7 @@ on switch: invalidate all queries, navigate to picker. Keyboard/ARIA per
 5. Root picker: login-aware (session → DB PR list leads, using the list
    endpoint; login CTA otherwise); local Briefs section demoted below,
    unchanged behavior.
-Tests: seam unit tests (cookie forwarding, error mapping), extracted-module
+Tests: boundary unit tests (cookie forwarding, error mapping), extracted-module
 unit tests (moved cases), picker states.
 
 **PR 3.2 — `feature/BRIEF-19/fe-brief-route` (~650–900 LOC, stacked on 3.1)**
@@ -264,7 +264,7 @@ Tests: availability derivation (no marks → absent; marks w/o narrative →
 |---|---|---|
 | 1.1 authz-cache | 350–450 | measure after step 2; if the layer split balloons, split it out |
 | 1.2 list + PR-meta | 600–800 | if > 900 with tests, split PR-meta into its own PR |
-| 2.1 multi-org backend | 500–650 | migration + seam vs auth routes is the natural split line |
+| 2.1 multi-org backend | 500–650 | migration + boundary vs auth routes is the natural split line |
 | 2.2 org switcher UI | 200–300 | — |
 | 3.1 fe-data-layer | 500–700 | extraction (step 3) is the split candidate if > 900 |
 | 3.2 fe-brief-route | 650–900 | wait UX (step 3) splits off if > 1000 |

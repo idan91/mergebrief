@@ -3,7 +3,7 @@
 The `mergebrief` CLI's machine output is a public contract consumed by
 user-owned agent scripts — nothing of ours can migrate them. This ADR fixes
 what is promised, and how the contract evolves without breaking consumers
-(BRIEF-17; client seam per ADR 0028).
+(BRIEF-17; client boundary per ADR 0028).
 
 ## Decision
 
@@ -20,7 +20,7 @@ what is promised, and how the contract evolves without breaking consumers
    `{available: false, reason}`; `baselineSha` records the checkpoint
    resolution the CLI itself performed. (b) `auth status` — CLI-owned by
    necessity (no single server response backs it); MUST include the server
-   version. Any other command inventing its own shape is a seam violation.
+   version. Any other command inventing its own shape is a boundary violation.
 3. **Stability promise: additive-only from day one** — fields are never
    removed, renamed, or retyped within a major; new fields may appear any
    release; consumers tolerant-read. Holds explicitly even pre-1.0. The

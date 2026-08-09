@@ -1,5 +1,5 @@
-// The submit mutation over the isomorphic apiFetch seam (BRIEF-23 PR 3).
-// Client-only in practice (a user click), but it rides the same seam as the
+// The submit mutation over the isomorphic apiFetch boundary (BRIEF-23 PR 3).
+// Client-only in practice (a user click), but it rides the same boundary as the
 // reads. Expected failure statuses are RESULT KINDS the flow renders — the
 // fail-closed 409 ("PR was rewritten — reload"), the clean 401 re-login, and
 // upstream rejections — never throws for those; only a malformed 2xx throws

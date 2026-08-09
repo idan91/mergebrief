@@ -1,6 +1,6 @@
 // Reviewer-auth integration tests (BRIEF-2 stage 6): `app.request()` against
 // `createApp` over the persistence PGlite harness, with GitHub mocked at the
-// HTTP seam via a stubbed global `fetch` (no live network, no new mock libs).
+// HTTP boundary via a stubbed global `fetch` (no live network, no new mock libs).
 // The stub answers exactly the three endpoints the flow touches — the OAuth
 // token endpoint (`/login/oauth/access_token`, code exchange AND refresh), the
 // authenticated user (`/user`), and the user installations

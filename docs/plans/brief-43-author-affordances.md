@@ -84,7 +84,7 @@ acted on, not noted).
   (viewer token; node-id resolution as the conversation ops do).
 - Session-authed POST route: mutation → on success flip row `draft=false` in-request;
   already-ready GitHub error → converged (200, state refreshed); other failures →
-  typed error for the FE toast. Audit-log line per ADR 0016 seam conventions.
+  typed error for the FE toast. Audit-log line per ADR 0016 boundary conventions.
 - Reviewer focus: race semantics, token handling (no secrets in errors), idempotency
   vs the later `ready_for_review` webhook.
 

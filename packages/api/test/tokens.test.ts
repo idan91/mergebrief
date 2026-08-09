@@ -9,7 +9,7 @@
 //      is ignored), mint validates the installation against the viewer's LIVE
 //      accessible set, token material is returned exactly once.
 // Same harness as installations.test.ts: `app.request()` over PGlite, GitHub
-// stubbed at the global-fetch seam.
+// stubbed at the global-fetch boundary.
 import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,

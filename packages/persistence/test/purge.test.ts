@@ -1,4 +1,4 @@
-// Stage 5 purge + retention tests (PGlite). Prove the D5/D9/D11 deletion seam:
+// Stage 5 purge + retention tests (PGlite). Prove the D5/D9/D11 deletion boundary:
 // a PR purge cascades all 8 child tables while sparing the no-FK audit ledger
 // (an appended `delete` row proves survival) and the non-PR reviewer_session;
 // cross-tenant purge is a Result `notFound` with nothing deleted;

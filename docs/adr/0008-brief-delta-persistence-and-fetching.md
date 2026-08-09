@@ -27,7 +27,7 @@ ADR 0006 fixed delta generation/state and ADR 0007 fixed comment anchoring + fla
 - **Single relational DB for v1.** Checkpoints and Dispositions as rows; Brief / Delta / DiffSnapshot as `TEXT` columns (the exact JSON/patch string), plus a small artifact index (key + size + createdAt + the SHA/pair it belongs to).
 - **Passthrough reads.** Large artifacts are parsed **once, in the async generation worker** (to build line-maps, feed the model, compute carry-over) and stored finished. The interactive read path streams stored bytes — it does not re-parse megabytes. `TEXT` over `JSONB` because we serve these blobs, not query into them; queryable fields live in real columns.
 - **Index keys, never blobs.** B-tree composite indexes on the natural keys above; large `TEXT` values are reached by row PK (out-of-line/TOAST), never indexed or scanned.
-- **Deferred object-storage seam.** All references to artifacts go through an opaque content key, so moving the blob payloads to object storage later (DB keeps a pointer) touches one boundary, not every reference. Trigger to migrate: blob volume hurting DB size/backup, *or* a single artifact exceeding the gateway response cap.
+- **Deferred object-storage boundary.** All references to artifacts go through an opaque content key, so moving the blob payloads to object storage later (DB keeps a pointer) touches one boundary, not every reference. Trigger to migrate: blob volume hurting DB size/backup, *or* a single artifact exceeding the gateway response cap.
 
 ### Fetching
 - **`GET brief` / `GET delta` — fetched whole.** The navigable index: `summary`, `changeGroups[]`, `chunks[]` (each with `file`, `addedRanges`/`removedRanges`, `concern`, `role`, `riskSurface`, group membership), `concernView`. No diff text.
@@ -37,7 +37,7 @@ ADR 0006 fixed delta generation/state and ADR 0007 fixed comment anchoring + fla
 
 ### Size / transport
 - Brief and Delta are single responses, well under any gateway cap (e.g., Lambda's 6 MB synchronous limit).
-- Per-file diffs are bounded; the rare single file exceeding the cap is served via **signed URL / CDN** from object storage (the deferred seam), bypassing the API path — not via response streaming.
+- Per-file diffs are bounded; the rare single file exceeding the cap is served via **signed URL / CDN** from object storage (the deferred boundary), bypassing the API path — not via response streaming.
 - **No response streaming for v1.** The wait UX is diff-first + determinate progress (ADR 0006 #9–10); transport is handled by per-file pagination, not streaming.
 
 ### Retention
@@ -48,7 +48,7 @@ ADR 0006 fixed delta generation/state and ADR 0007 fixed comment anchoring + fla
 
 ## Why This Way
 
-One store keeps v1 operationally trivial while the content-addressed seam keeps the eventual object-storage split cheap; correctness comes from content-addressing (immutable artifacts keyed by SHA) plus anchored dispositions, not from fragile brief-local ids. The fetching shape is dictated by the group↔file many-to-many: the file is the only unit that is simultaneously dedup-able and size-bounded, so brief-as-index + per-file-lazy is the one model that both bounds response size and renders the group view without duplicating shared files. Retention keyed on Checkpoints keeps exactly what a live delta could need and nothing more, and the Receipt being the durable record means working state is safely disposable.
+One store keeps v1 operationally trivial while the content-addressed boundary keeps the eventual object-storage split cheap; correctness comes from content-addressing (immutable artifacts keyed by SHA) plus anchored dispositions, not from fragile brief-local ids. The fetching shape is dictated by the group↔file many-to-many: the file is the only unit that is simultaneously dedup-able and size-bounded, so brief-as-index + per-file-lazy is the one model that both bounds response size and renders the group view without duplicating shared files. Retention keyed on Checkpoints keeps exactly what a live delta could need and nothing more, and the Receipt being the durable record means working state is safely disposable.
 
 ## Consequences
 

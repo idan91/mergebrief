@@ -194,7 +194,7 @@ Notes that matter:
 - Start `postgres` ALONE for the restore. If `web` or `worker` are up they
   will migrate (and the worker will start draining jobs) against the
   database you are in the middle of replacing.
-- `--wait` is load-bearing: plain `up -d` returns as soon as the container
+- `--wait` is critical: plain `up -d` returns as soon as the container
   is CREATED, several seconds before Postgres accepts connections, and the
   `pg_restore` would fail on a closed socket. `--wait` blocks until the
   service's healthcheck passes. On an older compose without `--wait`, poll

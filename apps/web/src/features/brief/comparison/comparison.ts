@@ -76,7 +76,7 @@ export interface ComparisonCalloutContent {
  * by the active Compare baseline (ADR 0024). `previous-brief` resolves the title
  * from the *full Brief's* Change-group (the taxonomy owner) and the body from the
  * Revision narrative chunk; `last-review` reuses the existing Delta matching
- * logic behind an adapter — deliberately not unified, to keep the Delta seam
+ * logic behind an adapter — deliberately not unified, to keep the Delta boundary
  * honest until a cleaner adapter exists (plan step 7).
  */
 export type ComparisonSource =

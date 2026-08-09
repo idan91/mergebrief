@@ -2,7 +2,7 @@
 
 > Status: **LOCKED — grill closed 2026-08-01; implementation not started.**
 > Ticket: Notion BRIEF-94 "Collaborators endpoint for @mention autocomplete".
-> Grounding: BRIEF-56 mention autocomplete (candidate seam at
+> Grounding: BRIEF-56 mention autocomplete (candidate interface at
 > `useMentionAutocomplete` built to widen without rework), BRIEF-25 posting
 > posture, conversation route template (`packages/api/src/routes/
 > conversation.ts`), github op conventions (`packages/github/src/operations/`).
@@ -107,7 +107,7 @@ low/nitpick-only = clean with a note in the PR body. Idan merges.
 1. `packages/github/src/operations/collaborators.ts`:
    `listRepoCollaborators(octokit, {owner, repo})` → GraphQL
    `repository.collaborators(first: 100, affiliation: ALL)` — ALL is
-   load-bearing: it includes org members whose access comes through
+   critical: it includes org members whose access comes through
    org/team grants, the bulk of the intended pool — selecting
    `login name avatarUrl`
    (+ `__typename`/bot detection for the server-side bot filter), manual
@@ -187,7 +187,7 @@ decisions already made; a11y surface exists from BRIEF-56.
    falls back to participants; draft composers autocomplete.
 
 Invocation: **main thread, sequential after PR 3, Opus 5, medium effort**
-— wiring along established seams; the merge helper is the only novel
+— wiring along established interfaces; the merge helper is the only novel
 logic and it's specified.
 
 ## Revisit triggers

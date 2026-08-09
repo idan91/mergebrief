@@ -11,7 +11,7 @@
 // SHUTDOWN: graphile installs SIGTERM/SIGINT handlers itself
 // (`noHandleSignals` stays default-false) and shuts down GRACEFULLY — it stops
 // claiming new jobs, signals in-flight tasks via `helpers.abortSignal` (the
-// Part 3 cancellation hook), and releases its pool. The composition root
+// Part 3 cancellation hook), and releases its pool. The startup wiring
 // awaits `runner.promise` and releases ITS resources (the persistence pool)
 // after — see `main.ts`.
 import {
@@ -36,7 +36,7 @@ export interface StartWorkerOptions {
   /** The registered tasks — the `generate` task (Part 2) in production. */
   readonly taskList: TaskList;
   readonly concurrency?: number;
-  /** graphile logger (ADR 0034: the seam adapter) — omitted = graphile's console default. */
+  /** graphile logger (ADR 0034: the boundary adapter) — omitted = graphile's console default. */
   readonly logger?: GraphileLogger;
   /** BRIEF-131: false = check-only (refuse boot when the schema is behind
    * instead of applying DDL). Omitted = apply, the historical behavior. */

@@ -1,5 +1,5 @@
 // OAuth helper mapping + sanitization (BRIEF-2 stage 6). The `OAuthApp` is
-// stubbed at the injected seam (a hand-written object with `createToken` /
+// stubbed at the injected interface (a hand-written object with `createToken` /
 // `refreshToken` as `vi.fn()` — no new mock libraries, mirroring api.test.ts).
 // Asserts: octokit's `authentication` result maps to the sanitized
 // `OAuthTokens` (ISO strings → Date); a missing refresh token (App without
@@ -143,7 +143,7 @@ describe("refreshUserToken", () => {
 });
 
 // `listUserInstallations` builds its own user-scoped Octokit, which reads the
-// global `fetch` at call time — so it is stubbed at the HTTP seam (no new mock
+// global `fetch` at call time — so it is stubbed at the HTTP boundary (no new mock
 // libraries), mirroring the api-package integration tests.
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

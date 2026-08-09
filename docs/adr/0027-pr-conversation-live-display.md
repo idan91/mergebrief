@@ -46,12 +46,12 @@ conversation; comment-resolution **analysis** stays the Delta's job.
   does not store.
 - **REST-only fetch (three list endpoints + hand-rolled threading).**
   Rejected: REST has no thread-resolution surface, and the digest's
-  unresolved-first ordering is load-bearing; dropping resolution is product
+  unresolved-first ordering is critical; dropping resolution is product
   damage, not a simplification.
 - **REST backbone + minimal GraphQL side-query for resolution.** Rejected:
   pays GraphQL's full entry cost (client, error taxonomy, fixtures) while
   keeping REST's worst parts (threading join, three paginated lists). The
-  seam that preserves optionality is the domain-shaped primitive boundary,
+  interface that preserves optionality is the domain-shaped primitive boundary,
   not live REST plumbing.
 - **One GraphQL query behind a deep primitive.** Chosen: pre-threaded,
   resolution and outdated first-class, one call per cache fill; transport
@@ -82,7 +82,7 @@ local concept; aliasing them would misattribute whose state it is.
   conversation write (reply; review submit) evicts the PR's cache key.
 - The reviewer's own submitted comments become server-backed once fetched
   (joined by review id), closing BRIEF-23's accepted sessionStorage
-  residual: the local "submitted" flip stops being load-bearing after the
+  residual: the local "submitted" flip stops being critical after the
   first refetch.
 - Outdated-thread "view on its revision" navigation is deferred to the
   timeline (ADR 0019 / BRIEF-24); until then the digest offers the GitHub

@@ -16,7 +16,7 @@ coherent system-design doc** (likely `docs/system-overview.md` §3 rewritten, or
 - Auth: OAuth via `@octokit/oauth-app`, expiring + rotating tokens (both encrypted),
   serialized lazy refresh, redirect degradation; per-read authz gate + the two in-memory
   caches (authz 5-min positives, per-session diff cache).
-- Topology: Hono app in `packages/api` mounted into `apps/web` (one origin, lift-out seam);
+- Topology: Hono app in `packages/api` mounted into `apps/web` (one origin, lift-out boundary);
   `packages/github`; worker.
 - Documented-not-built knobs: `on-first-view`, `max-checkpoints-per-bundle`, refresh-token
   session cap.
@@ -26,7 +26,7 @@ Diagrams welcome. The ADRs stay the decision record; this doc is the *reader's* 
 ## [ ] Spread the Brief summary section across multiple columns
 
 Logged 2026-07-04 (during PR #19 review; deliberately NOT part of that PR). The summary
-section has grown tall — overview paragraph, what-it-does prose, "## Changelog" bullet
+section has grown tall — overview paragraph, what-it-does text, "## Changelog" bullet
 list, and now the Risk-surface name subsection — and on wide viewports it burns a full
 screen of vertical scroll in a single ~68ch column (`.summary { max-inline-size: 68ch }`)
 before the reviewer reaches the first chunk.

@@ -93,13 +93,13 @@ show a rename.
 ### `pr [n]`
 
 No argument: your PR list, verbatim (`{"pulls":[...]}`). With a number: the
-PR's metadata. Load-bearing fields: **`headSha`** — the `commitId` your
+PR's metadata. Critical fields: **`headSha`** — the `commitId` your
 `submit` must pin (never auto-fetched); `briefAvailable` — generation is
 webhook-driven, poll with backoff, nothing client-side triggers it;
 `comparisons.lastReview` — what `delta` resolves.
 
 ```json
-{"repoId":"812345","repoSlug":"acme/widgets","prNumber":7,"title":"Extract tenant seam","state":"open","baseSha":"93f1…","headSha":"4c0a…","briefAvailable":true,"generation":{"status":"succeeded","phase":null,"attempts":1,"error":null,"updatedAt":"2026-07-09T12:00:00.000Z"},"comparisons":{},"updatedAt":"2026-07-09T12:00:00.000Z"}
+{"repoId":"812345","repoSlug":"acme/widgets","prNumber":7,"title":"Extract tenant boundary","state":"open","baseSha":"93f1…","headSha":"4c0a…","briefAvailable":true,"generation":{"status":"succeeded","phase":null,"attempts":1,"error":null,"updatedAt":"2026-07-09T12:00:00.000Z"},"comparisons":{},"updatedAt":"2026-07-09T12:00:00.000Z"}
 ```
 
 ### `groups <n>`

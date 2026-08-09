@@ -47,11 +47,11 @@ import {
 
 export interface WebhookRouteDeps {
   readonly handle: AppDatabase;
-  /** `GITHUB_WEBHOOK_SECRET` — injected by the composition root (stage 5). */
+  /** `GITHUB_WEBHOOK_SECRET` — injected by the startup wiring (stage 5). */
   readonly webhookSecret: string;
   /**
    * Instance draft-PR policy (BRIEF-64), loaded from `mergebrief.config.yaml`
-   * by the composition root via `generators`' `loadInstancePolicy`. Omitted =
+   * by the startup wiring via `generators`' `loadInstancePolicy`. Omitted =
    * the zero-config default (drafts generate, no damping) — the same behavior
    * an unset `MERGEBRIEF_CONFIG` produces, so a root that doesn't wire it is
    * running defaults, not silently misconfigured.

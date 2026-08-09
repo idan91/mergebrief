@@ -490,7 +490,7 @@ describe("parseBrief", () => {
 
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) return;
-    // Only `true` is load-bearing; anything else is safely the alarm register.
+    // Only `true` is critical; anything else is safely the alarm register.
     expect(parsed.value.intentCheck?.deviations[0]?.acknowledged).toBe(false);
   });
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// BRIEF-103 PR 3: the keycap-split provenance badge — official marks for
+// BRIEF-103 PR 3: the keycap-split origin badge — official marks for
 // sourced providers, named fallback for the rest, class carried in text.
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";

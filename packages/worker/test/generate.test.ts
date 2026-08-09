@@ -335,7 +335,7 @@ beforeEach(async () => {
   };
 });
 
-/** Enqueue via the REAL ingest seam and return {pr row, job payload}. */
+/** Enqueue via the REAL ingest boundary and return {pr row, job payload}. */
 async function trigger(
   headSha: string,
 ): Promise<{ pr: PullRequestRow; payload: unknown }> {

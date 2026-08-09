@@ -53,7 +53,7 @@ ADR 0014), README/demo positioning copy (P1 surface, separate pass).
   - Delta path: mirror both additions on the delta chunk schema (~line 400 region) if it
     doesn't reuse `ChunkSchema` — delta chunks carry `riskSurface` today.
 - `tools/categorizer/src/prompt.ts`
-  - `RISK_GLOSS` dict (lines 37–66): three new glosses under "about the CHANGE"
+  - `RISK_GLOSS` dict (lines 37–66): three new descriptions under "about the CHANGE"
     (one-liners matching `docs/mvp/risk-surface.md`).
   - Brief "## Risk surface" section (~line 114): short firing-discipline paragraph for
     the trio + the `riskNotes` instruction (when to attach, citation format).

@@ -14,7 +14,7 @@
 // review id is the own-comment reconciliation join key (BRIEF-25): recording
 // it lets the fetched thread render with the "yours" tag. GraphQL's
 // `addPullRequestReviewThread` returns node ids we would then have to resolve
-// back to databaseIds for that same join, so REST is the strictly simpler seam.
+// back to databaseIds for that same join, so REST is the strictly simpler interface.
 //
 // Failures funnel through `mapRequestError` (no token/header/body bytes leak).
 // A 422 means the anchor no longer sits on the pinned commit's diff (the head

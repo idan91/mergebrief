@@ -24,7 +24,7 @@ export interface FilterDisclosureProps extends ConversationFilterPanelProps {
   /**
    * Threads the filter removes from the DIFF (BRIEF-99 decision 9) — an
    * unannounced gap inline reads as "nothing was said about this line".
-   * The load-bearing trigger number, and the live region's text.
+   * The critical trigger number, and the live region's text.
    */
   hiddenInlineThreads: number;
 }

@@ -27,7 +27,7 @@ A **Chunk** = a contiguous run of changed lines sharing one Concern and one Chan
 
 Closed set; expand deliberately. "Playbook" = status in `playbooks.md` (layer **parked to v2** — ADR 0035; column kept as the seed index).
 
-| Token | One-line gloss | Playbook |
+| Token | One-line description | Playbook |
 |---|---|---|
 | `bugfix` | correct a defect in existing behavior | ✓ |
 | `logic-refactor` | behavior-preserving restructure of logic | ✓ |
@@ -46,7 +46,7 @@ Not Categories (common mistakes): `test-only`, `config-only`, `generated-code` �
 
 Closed set. Mostly derivable from file path.
 
-| Token | Gloss | Default Role |
+| Token | Description | Default Role |
 |---|---|---|
 | `implementation` | the functional change itself | carrier |
 | `test` | tests, fixtures (incl. `.test.*` / `.spec.*` files) | supporting |
@@ -61,7 +61,7 @@ Closed set. Mostly derivable from file path.
 
 ## 3. Role — carrier vs supporting (attaches to Chunk)
 
-| Token | Gloss |
+| Token | Description |
 |---|---|
 | `carrier` | holds the Change-group's intent (the implementation that carries the change) |
 | `supporting` | serves the carrier (its tests, docs, specs, config) |
@@ -117,17 +117,17 @@ This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diff
 ## 7. Intent-check buckets — Brief-level (ADR 0009 §2, as amended)
 
 Closed set of five. Attaches to the Brief's **intent check**, not to chunks or
-change-groups. Fires only when the composite intent corpus is *precise*;
+change-groups. Fires only when the composite intent sources are *precise*;
 broad/none ⇒ all buckets empty ("never a guessed gap"). Factual, never a
 verdict.
 
-| Token | Gloss | Class |
+| Token | Description | Class |
 |---|---|---|
 | `accomplished` | stated ask the diff delivers | neutral |
 | `statedButMissing` | stated ask absent from the diff (incl. the remainder of a partial delivery) | neutral |
-| `doneButUnstated` | work the diff does that the corpus never asked for | neutral |
-| `deviations` | diff opposes an ask the corpus states and nowhere retracts; per-item `acknowledged` flag splits quiet receipt from alarm | alarm |
-| `claimedButUnachieved` | corpus claims a fix/delivery; diff touches only the problem's signal/check path | alarm |
+| `doneButUnstated` | work the diff does that the sources never asked for | neutral |
+| `deviations` | diff opposes an ask the sources state and nowhere retract; per-item `acknowledged` flag splits quiet receipt from alarm | alarm |
+| `claimedButUnachieved` | sources claim a fix/delivery; diff touches only the problem's signal/check path | alarm |
 
 Quick rules:
 
@@ -135,7 +135,7 @@ Quick rules:
   touched (log demotion, catch-and-swallow, test skip/delete, threshold bump)
   ⇒ `claimedButUnachieved`; uncertain ⇒ `accomplished` — never a guessed alarm.
 - **Retracted-nowhere:** a reversal acknowledged in the PR description means
-  the corpus no longer stands behind the ticket's ask (⇒ acknowledged
+  the sources no longer stand behind the ticket's ask (⇒ acknowledged
   deviation, or no item at all if the ask is fully superseded).
 - `acknowledged` is meaningful only in `deviations`; forced-`false` elsewhere.
 - Alarm items require verified both-sides grounding (verbatim quote + surviving

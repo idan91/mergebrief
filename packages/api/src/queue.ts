@@ -2,7 +2,7 @@
 // job by calling `graphile_worker.add_job` inside persistence's ingest
 // transaction (by-name SQL — persistence takes no `graphile-worker` npm
 // dependency). That SQL function only exists once graphile-worker's
-// `graphile_worker` schema is installed, so a composition root must install it
+// `graphile_worker` schema is installed, so a startup wiring must install it
 // BEFORE the first enqueue reaches a real Postgres.
 //
 // SCOPE — BRIEF-2 only INSTALLS/updates the schema (the enqueue side). The

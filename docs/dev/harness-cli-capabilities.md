@@ -40,10 +40,10 @@ Local version verified: **2.1.207** (`claude --version`).
 - **Field paths:** plain text answer → `.result`; schema-validated answer → `.structured_output`; session id → `.session_id`. Invalid schema input fails fast: `Error: --json-schema is not a valid JSON Schema` (behavior since v2.1.205; before that invalid schemas were silently ignored). `format` keyword accepted but not enforced. (headless docs)
 - **Envelope stability:** documented as the SDK `SDKResultMessage`: `type:"result"`, `subtype: "success" | "error_max_turns" | "error_during_execution" | "error_max_structured_output_retries"`, `duration_ms`, `duration_api_ms`, `is_error`, `num_turns`, `result`, `session_id`, `total_cost_usd`, `usage`, `modelUsage`, `permission_denials`, `structured_output`, `errors`, `uuid`. Core fields (`result`, `structured_output`, `session_id`, `total_cost_usd`, subtypes, `errors`) are confirmed across the headless + structured-outputs pages; the exact optional-field list comes from the SDK TypeScript reference via a summarizing fetch — re-verify field-by-field against a live `--output-format json` run at implementation time.
 
-### Model selection + provenance
+### Model selection + origin
 
 - `--model` takes an alias (`sonnet`, `opus`, `haiku`, `fable`) or full name (`claude-fable-5`); overrides `ANTHROPIC_MODEL` env and settings. `--fallback-model a,b` auto-falls back when primary is overloaded/unavailable (print mode only). (CLI reference; `claude --help`)
-- **Provenance:** good. The `system/init` stream event "reports session metadata including the model" (headless docs), and the result envelope's `modelUsage` is keyed by the model(s) actually billed — so a fallback-model switch is observable. Caveat from structured-outputs docs: a mid-stream model fallback can retract an already-completed structured output.
+- **Origin tracking:** good. The `system/init` stream event "reports session metadata including the model" (headless docs), and the result envelope's `modelUsage` is keyed by the model(s) actually billed — so a fallback-model switch is observable. Caveat from structured-outputs docs: a mid-stream model fallback can retract an already-completed structured output.
 
 ### Exit codes + error surfaces
 
@@ -89,10 +89,10 @@ Local version verified: **codex-cli 0.142.5** (`codex --version`).
 - `-o/--output-last-message <FILE>` writes the final message to a file — the simplest robust extraction path (works with or without `--json`).
 - **Envelope stability:** the Rust types are `ts-rs`-exported and mirrored in the official TypeScript SDK (`sdk/typescript/src/events.ts`), which suggests intent to keep stable, but no explicit stability promise found — unverified.
 
-### Model selection + provenance
+### Model selection + origin
 
 - `-m/--model <MODEL>`; also `-c model="..."` config override; `--oss`/`--local-provider` for local models. (`codex exec --help`)
-- **Provenance gap (verified in source):** no JSONL event carries a model id — `thread.started` has only `thread_id`; `turn.completed` has only `usage` (`exec_events.rs`). The model name is printed only in the *human* stderr header (`event_processor_with_human_output.rs` prints a `("model", ...)` config line). Worse: a `ModelRerouted` server notification exists and is rendered in human mode ("model rerouted: X → Y") but has **no counterpart in the JSONL processor** (`event_processor_with_jsonl_output.rs` — no model/reroute handling). So in `--json` mode you cannot confirm which model actually ran.
+- **Origin gap (verified in source):** no JSONL event carries a model id — `thread.started` has only `thread_id`; `turn.completed` has only `usage` (`exec_events.rs`). The model name is printed only in the *human* stderr header (`event_processor_with_human_output.rs` prints a `("model", ...)` config line). Worse: a `ModelRerouted` server notification exists and is rendered in human mode ("model rerouted: X → Y") but has **no counterpart in the JSONL processor** (`event_processor_with_jsonl_output.rs` — no model/reroute handling). So in `--json` mode you cannot confirm which model actually ran.
 
 ### Exit codes + error surfaces
 
@@ -133,10 +133,10 @@ Not installed locally; all facts from cursor.com docs (fetched 2026-07-12; docs 
 - **Envelope (documented, output-format page)** — notably a near-clone of Claude Code's: `json` mode returns `{"type":"result","subtype":"success","is_error":false,"duration_ms":...,"duration_api_ms":...,"result":"<full assistant text>","session_id":"<uuid>","request_id":...}`. Answer text lives in `.result` ("concatenation of all text deltas"). stream-json event types: `system`, `user`, `assistant`, `tool_call` (started/completed), terminal `result`.
 - **No native JSON-Schema enforcement of the answer** — no flag exists in the documented parameter list. Schema compliance is prompt-and-pray + adapter-side validate/retry.
 
-### Model selection + provenance
+### Model selection + origin
 
 - `--model <model>`; `--list-models` to enumerate. (parameters docs)
-- **Provenance:** the documented `result` envelope has no model field — gap. Whether the stream-json `system` init event reports the model is not shown in docs — unverified.
+- **Origin tracking:** the documented `result` envelope has no model field — gap. Whether the stream-json `system` init event reports the model is not shown in docs — unverified.
 
 ### Exit codes + error surfaces
 
@@ -172,10 +172,10 @@ Not installed locally; facts from opencode.ai/docs and source at `sst/opencode` 
 - **Answer field path:** the final answer is the `text` event(s): `.part.text` (emitted when a text part completes). There is **no terminal aggregate result event** — the adapter must collect `text` events and detect completion by process exit (session idle). Envelope is an internal event mirror, not a documented stable contract.
 - **No JSON-Schema enforcement flag** for the model's answer — none in docs or the run command's yargs builder (verified). Validate+retry must live in the adapter.
 
-### Model selection + provenance
+### Model selection + origin
 
 - `-m/--model provider/model` (e.g. `anthropic/claude-...`); `--variant` for reasoning effort; `--agent`. (docs + source)
-- **Provenance:** in default (human) format it prints `> {agent} · {modelID}`; in `--format json` mode that header is suppressed (verified in source: gated on `args.format !== "json"`), and none of the emitted event types carries a model id at the top level. Whether `step_start`/`step_finish` part payloads embed model info: unverified. Treat as a provenance gap in JSON mode.
+- **Origin tracking:** in default (human) format it prints `> {agent} · {modelID}`; in `--format json` mode that header is suppressed (verified in source: gated on `args.format !== "json"`), and none of the emitted event types carries a model id at the top level. Whether `step_start`/`step_finish` part payloads embed model info: unverified. Treat as an origin-tracking gap in JSON mode.
 
 ### Exit codes + error surfaces
 
@@ -201,7 +201,7 @@ Structured-output floor is HARD: every Generator adapter must guarantee schema-v
 
 1. **Schema enforcement tiering:** `claude -p` is the only CLI with *documented validate-and-retry semantics* against a caller-supplied schema (`--json-schema` → `structured_output` or a typed error subtype). `codex exec --output-schema` enforces shape but delivers the answer as a JSON string inside `item.text` / `-o` file, with undocumented failure semantics. cursor-agent and opencode have **no schema flag at all** — for them the adapter's validate+re-invoke wrapper *is* the enforcement mechanism. Design the port so the wrapper exists for everyone (defense-in-depth, per the enum-server-enforcement lesson) and native enforcement is an optimization.
 2. **Answer extraction is four different shapes:** `.result` / `.structured_output` (claude json envelope) vs last `item.completed agent_message .item.text` or `-o` file (codex) vs `.result` (cursor, claude-clone envelope) vs concatenated `text` events with **no terminal result event** (opencode). The adapter interface should be "give me (answer_text, structured_answer?, metadata)" and hide this entirely.
-3. **Provenance:** only claude reports the model actually used in machine-readable output (`system/init` model + `modelUsage` keyed by model). Codex `--json` has a verified provenance hole *including silent model rerouting* (reroute notification exists but is dropped by the JSONL processor). Cursor/opencode JSON modes show no model field. If provenance matters for the brief record, the adapter must echo the *requested* model and mark actual-model as unknown for non-claude backends.
+3. **Origin tracking:** only claude reports the model actually used in machine-readable output (`system/init` model + `modelUsage` keyed by model). Codex `--json` has a verified origin-tracking hole *including silent model rerouting* (reroute notification exists but is dropped by the JSONL processor). Cursor/opencode JSON modes show no model field. If knowing the model's origin matters for the brief record, the adapter must echo the *requested* model and mark actual-model as unknown for non-claude backends.
 4. **Cost/token accounting:** claude gives tokens + USD (`total_cost_usd`, `modelUsage[].cost_usd`); codex gives tokens only (`turn.completed.usage`, incl. cached + reasoning splits) — price it yourself; cursor and opencode give effectively nothing. Any per-run cost ledger must tolerate "unknown".
 5. **Timeouts are 100% the adapter's job:** none of the four has a wall-clock timeout flag. Codex has a *lived* hang precedent in this project (BRIEF-14/27/28: ~1h zero-output hang, killed manually) and opencode's exit condition is an idle event that never arrives if the provider stalls. Wrap every backend in hard timeout + output-inactivity watchdog; prefer streaming modes (`stream-json` / `--json` / `--format json`) so the watchdog has liveness signal.
 6. **Cancellation:** codex SIGINT is verified-clean (forwards turn/interrupt, exits 1). Claude/cursor/opencode SIGINT semantics are unverified — assume kill, and make adapter runs idempotent/ephemeral (codex `--ephemeral`, claude `--no-session-persistence`) so a killed run leaves no resumable junk.

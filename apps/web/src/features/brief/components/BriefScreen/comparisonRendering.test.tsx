@@ -161,7 +161,7 @@ describe("Full Brief comparison overlay (step 7)", () => {
     expect(run?.kind).toBe("added");
 
     // The prominent text comes from the Revision narrative chunk; the owning
-    // change-group renders as a de-emphasized "In:" provenance line under it.
+    // change-group renders as a de-emphasized "In:" origin line under it.
     const source: ComparisonSource = {
       kind: "previous-brief",
       brief: fullBrief,

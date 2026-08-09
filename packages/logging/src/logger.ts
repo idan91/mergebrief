@@ -1,4 +1,4 @@
-// The structured-logging seam (ADR 0034 #1): call sites depend on `Logger`
+// The structured-logging boundary (ADR 0034 #1): call sites depend on `Logger`
 // and `createLogger` only — pino is constructed here and nowhere else, and
 // its types never leak. A later OTel/metrics addition reimplements this
 // interface without touching call sites.
@@ -172,11 +172,11 @@ export interface LogDestination {
 }
 
 export interface CreateLoggerOptions {
-  /** Ambient env, injected by the composition root (never read here). */
+  /** Ambient env, injected by the startup wiring (never read here). */
   env?: NodeJS.ProcessEnv;
   /** Bindings stamped on every line this logger and its children emit. */
   base?: LogFields;
-  /** Test seam: capture lines instead of writing to stdout. Forces NDJSON. */
+  /** Test interface: capture lines instead of writing to stdout. Forces NDJSON. */
   destination?: LogDestination;
 }
 

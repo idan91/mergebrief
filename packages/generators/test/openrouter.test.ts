@@ -184,7 +184,7 @@ describe("OpenRouter reasoning backstop", () => {
     // The listing lied: reasoning is in supported_parameters, so the first
     // request carries reasoning:{effort} — OpenRouter answers 400 naming
     // `reasoning`. The transport-aware backstop retries without the knob
-    // and provenance records the gap.
+    // and origin records the gap.
     const scripted = scriptedFetch((body) =>
       body["reasoning"] !== undefined
         ? new Response(

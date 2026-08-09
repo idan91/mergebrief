@@ -1,7 +1,7 @@
 // POST /api/generate route tests (BRIEF-97): session gate, URL validation,
 // dedupe-by-head, single-flight, refresh-once, and the sanitized denial
 // posture — all against a fake UrlBriefEngine (the real engine is the web
-// composition root's concern). Harness mirrors installations.test.ts:
+// startup wiring's concern). Harness mirrors installations.test.ts:
 // app.request() over PGlite, GitHub's token endpoint stubbed at global fetch.
 import { randomBytes, createHash } from "node:crypto";
 import {

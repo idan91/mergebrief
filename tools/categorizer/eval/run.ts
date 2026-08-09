@@ -1,7 +1,7 @@
 import type { Brief } from "brief-core/types";
 
 /**
- * The run executor's seam is an injected `generate` closure — the CLI
+ * The run executor's boundary is an injected `generate` closure — the CLI
  * wires the real `categorize()` call; tests wire fakes. Serial by design:
  * runs share the provider's prompt cache and a failure storm should stop
  * costing money at the point someone can Ctrl-C.
@@ -9,7 +9,7 @@ import type { Brief } from "brief-core/types";
 export interface CaseRunResult {
   briefs: Brief[];
   /** 1-based run number that produced `briefs[i]` — briefs skip failed
-   * runs, so index+1 lies about provenance the moment any run fails. */
+   * runs, so index+1 lies about origin the moment any run fails. */
   runNumbers: number[];
   generationFailures: number;
   failureMessages: string[];

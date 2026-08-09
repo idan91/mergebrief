@@ -1,4 +1,4 @@
-// BRIEF-19 PR 1.2 read seams (PGlite): the list endpoint's tenant query
+// BRIEF-19 PR 1.2 read boundaries (PGlite): the list endpoint's tenant query
 // (`pullRequests.listForRepos` — allowed-repo filter, updated_at ordering,
 // cap) and the per-PR "current span" enrichment batches
 // (`briefs.latestForPullRequests`, `generation.latestBriefForPullRequests`).

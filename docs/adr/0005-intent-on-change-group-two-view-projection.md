@@ -9,9 +9,9 @@ Two product asks drove this: (1) show LoC (added/deleted) per category, non-prom
 ## Considered Options
 
 - **Intent on the chunk (original).** Every chunk independently categorized. Rejected: produces "bugfix in a test file" noise; no clean home for the Concern split; doesn't match how engineers frame PRs (one intent, carried by implementation, with supporting tests/docs).
-- **Concern as a pure orthogonal per-chunk axis (Option A in grilling).** Every chunk gets both an independent Category and a Concern. Rejected: still independently categorizes supporting chunks, re-deriving intent where none exists.
+- **Concern as a pure independent per-chunk axis (Option A in grilling).** Every chunk gets both an independent Category and a Concern. Rejected: still independently categorizes supporting chunks, re-deriving intent where none exists.
 - **Concern from file-path only, no intent linkage (Option C).** Compute Concern from path; leave Category on chunks. Rejected: gives the LoC split but severs the link between a test and the intent it supports.
-- **Formal sub-operation tree within a chunk.** Decompose a hunk into sub-spans ("lines 10–18 are the move, 19–31 are the fix"), each with its own Category and LoC. Deferred, not rejected: genuinely powerful (generalizes `move-with-edits`) but explodes Phase 1 labeling cost and Phase 2 categorizer difficulty. The same signal is expressed cheaply for now via dominant+secondary Categorization on the group plus a prose callout in the Summary. Revisit in v2 if reviewers want line-level operation attribution.
+- **Formal sub-operation tree within a chunk.** Decompose a hunk into sub-spans ("lines 10–18 are the move, 19–31 are the fix"), each with its own Category and LoC. Deferred, not rejected: genuinely powerful (generalizes `move-with-edits`) but explodes Phase 1 labeling cost and Phase 2 categorizer difficulty. The same signal is expressed cheaply for now via dominant+secondary Categorization on the group plus a text callout in the Summary. Revisit in v2 if reviewers want line-level operation attribution.
 - **Intent on the Change-group + carrier/supporting Role + two-view projection (chosen).**
 
 ## Why This Way

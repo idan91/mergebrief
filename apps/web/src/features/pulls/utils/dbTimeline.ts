@@ -4,7 +4,7 @@
 // `?head=` search param through `resolveDbTimeline` to pick a point.
 //
 // ADR 0019 decision 1 still holds: points navigate BRIEF heads only — a Delta
-// is a lens, never a point. `baseSha` is per-entry and load-bearing (base
+// is a lens, never a point. `baseSha` is per-entry and critical (base
 // drifts across revisions), so the selected point's OWN base drives the brief
 // GET — never the top-level view's.
 import type { PrComparisons, RevisionSummary } from "../types";

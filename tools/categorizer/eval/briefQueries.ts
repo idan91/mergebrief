@@ -3,7 +3,7 @@ import type { Brief, Category, RiskSurfaceAttribute } from "brief-core/types";
 /**
  * Query helpers for property checklists (BRIEF-59 decision 2): anchor on
  * run-stable facts — files, groups, attribute names, order relations —
- * never on chunk boundaries or free-prose text.
+ * never on chunk boundaries or free-form text.
  */
 
 /** Chunks whose file path ends with `suffix` (fixture paths are repo-relative). */

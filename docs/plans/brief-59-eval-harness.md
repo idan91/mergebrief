@@ -16,7 +16,7 @@ run-to-run variance, not change quality.
 ## Locked decisions (grill, 2026-07-18)
 
 1. **Mechanical-only scoring.** No LLM judge in v1 (judge variance + spend;
-   addable later behind the same report format). Prose quality out of scope.
+   addable later behind the same report format). Writing quality out of scope.
 2. **Property checklists per case**, not similarity indices. Chunk boundaries
    are model output — "expected label per chunk" has no stable join key.
    Properties anchor on stable facts: group-count bounds, file→group-role
@@ -37,7 +37,7 @@ run-to-run variance, not change quality.
    evidence). Rule-based on purpose — n=5 has no statistical power; we
    detect cliffs, not drifts. `--runs` override exists but verdicts only
    at ≥5.
-5. **Corpus checked in, replayable offline.** Per case: cached diff
+5. **Eval sources checked in, replayable offline.** Per case: cached diff
    (`.patch`), PR metadata JSON, any `.mergebrief/` inputs. No GitHub at
    eval time; only live calls are the generations. Own-repos-only (repo goes
    public at BRIEF-38) — rule recorded in the eval README. Location:
@@ -125,7 +125,7 @@ tests.
   and report shape are the design-carrying surface.
 - Invocation: main thread, sequential after PR 1 (consumes `onUsage`).
 
-### PR 3 — corpus + baselines + convention gate (~300 LOC code/docs + fixture data)
+### PR 3 — eval sources + baselines + convention gate (~300 LOC code/docs + fixture data)
 
 Five seed cases: cached diffs + PR meta + `.mergebrief/` inputs + authored
 `expected.ts` each. Generate baselines live (Anthropic key, 5×5 = 25

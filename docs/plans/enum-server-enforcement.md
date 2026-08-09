@@ -40,7 +40,7 @@ previously confirmed on the SDK's `main` — see PR #20's description):
   (`date-time, time, date, duration, email, hostname, uri, ipv4, ipv6, uuid`); for arrays:
   `items` (recursed), `minItems` only if 0 or 1. **`enum` and `const` are never carried
   over.** All leftover keys (including `enum`) are serialized into the `description` as a
-  `{key: value, ...}` string — i.e. demoted to prose the model may ignore.
+  `{key: value, ...}` string — i.e. demoted to text the model may ignore.
 - `parsed_output` on the response comes from the format object's `parse` function — the
   stream helper applies it. So a hand-built format object with the same
   `{ type, schema, parse }` shape keeps `generator.ts`'s existing flow working unchanged.
@@ -162,7 +162,7 @@ deep-clone the input, then recursively rebuild:
    in the leftovers.
 8. `type === "array"` → recurse `items`; carry `minItems` only if 0 or 1, else leftover.
 9. Any leftover keys → append to `description` as `{key: JSON, ...}` (same demotion string
-   the SDK builds), so unsupported keywords still reach the model as prose.
+   the SDK builds), so unsupported keywords still reach the model as text.
 
 The `parse` function: `JSON.parse` (throw `Failed to parse structured output as JSON: ...`
 on malformed), then `zodSchema.safeParse`; on failure throw an `Error` with the SDK's message
@@ -203,7 +203,7 @@ conventions):
   `import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod"`.
 - Update the `GenerateRequest.salvageFields` docstring (`generator.ts:21-28`): it currently
   states "Anthropic structured output doesn't enforce `enum` server-side (the SDK demotes it
-  to description prose)" — rewrite to reflect that enums are now enforced server-side via the
+  to description text)" — rewrite to reflect that enums are now enforced server-side via the
   hand-built schema, and salvage remains as defense-in-depth for structural failures,
   refusals, and anything enforcement doesn't cover.
 - Ride-along: fix the stale header comment in `types.ts` line 7 — "the 16 factual

@@ -16,7 +16,7 @@ import type { InstallationId } from "../types";
 /**
  * Tenant group (D2a/D2b): surrogate `bigint generated always as identity`
  * PK + the mandatory `installation_id` tenant scope. `TId` brands the PK
- * for tables whose surrogate id is load-bearing (e.g. `PullRequestRowId`).
+ * for tables whose surrogate id is critical (e.g. `PullRequestRowId`).
  */
 export function tenantColumns<TId extends bigint = bigint>() {
   return {

@@ -9,7 +9,7 @@ import type { RepoContext } from "../../src/generation/repo-context";
 /**
  * Byte-level pins on every builder's full output (BRIEF-67). The prompt is
  * the generation surface: any byte that moves is a generation change and
- * must go through the eval gate. These snapshots make prose refactors
+ * must go through the eval gate. These snapshots make text refactors
  * (shared-constant extraction, dedupe) provably inert — a refactor PR ships
  * with these files untouched. A deliberate wording change updates the
  * snapshot in the same commit AND runs the eval per CLAUDE.md.

@@ -22,7 +22,7 @@ static-demo funnel from 0017 all stand; only the latent hosted arm is removed.
   holding other orgs' source code (data-liability), unbounded LLM cost, and oncall beyond
   sustainable side-project hours; separate contractual constraints gate commercial
   publishing. A non-hosted OSS side project is the safe, sustainable form. (Details in
-  private project notes — not load-bearing on the architecture.)
+  private project notes — not critical to the architecture.)
 - **No moat, and now no reason to chase one.** `CONTEXT.md` already records taxonomy +
   playbooks as reproducible. The prior docs tried to *earn* a moat (data exhaust, org-learned
   playbooks, switching costs) for an eventual hosted business. With no business, moat-building
@@ -42,13 +42,13 @@ static-demo funnel from 0017 all stand; only the latent hosted arm is removed.
 ## Decision
 
 1. **OSS-only.** Ship and maintain the self-hostable open-source tool. Do not build, plan, or
-   carry seams *specifically* for a hosted/multi-tenant commercial offering.
+   carry boundaries *specifically* for a hosted/multi-tenant commercial offering.
 2. **BYOK remains the default** and self-host remains the primary mode (per ADR 0015–0017) —
    these are OSS properties, not commercial ones, and they stand.
 3. **Compete on the OSS axes, not features.** Open, self-hostable, no per-seat cost, no
    telemetry, hackable; plus the **stable taxonomy + community playbook commons** Atlas lacks.
    See [`../vision.md`](../vision.md).
-4. **Retire the commercial strategy corpus.** Moat-building, open-core split, headless-as-
+4. **Retire the commercial-strategy source material.** Moat-building, open-core split, headless-as-
    distribution, and the formal validation phases are archived (`docs/archive/`), not active.
 5. **Don't chase the incumbent arms race** (semantic/code graph, generated diagrams, scale).
 
@@ -63,7 +63,7 @@ contribution surface (the playbook commons) that compounds with community, not w
 
 ## Consequences
 
-- The **hosted "third run mode"** in ADR 0017 is dropped. ADR 0016's tenancy/audit seams are
+- The **hosted "third run mode"** in ADR 0017 is dropped. ADR 0016's tenancy/audit boundaries are
   no longer maintained *for a future hosted arm*; they remain only insofar as they serve
   self-host correctness.
 - **Moat / data-exhaust / org-learned-playbook** plans are archived and will not drive work.

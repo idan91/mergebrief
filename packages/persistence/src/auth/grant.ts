@@ -1,4 +1,4 @@
-// The grant seam (BRIEF-40 — ADR 0018 D15; ADR 0016 #4 as amended
+// The grant boundary (BRIEF-40 — ADR 0018 D15; ADR 0016 #4 as amended
 // 2026-07-23). A `github_grant` row is the ONE holder of a GitHub
 // authorization's encrypted credential pair; `reviewer_session` and
 // `api_token` reference it by FK. Rotation therefore lives HERE — the exact
@@ -9,7 +9,7 @@
 // (third D2b exception; the installation binding stays on referencing rows).
 //
 // Lifecycle: a grant dies with its LAST referent, in the same transaction —
-// every referent-deleting seam calls `deleteOrphanedGrants` on the ids it
+// every referent-deleting boundary calls `deleteOrphanedGrants` on the ids it
 // unlinked (module-internal helper, never on the `index.ts` surface). A
 // concurrent mint racing the last referent's delete resolves benignly in
 // BOTH interleavings, at the cost of one failed transaction: if the delete
@@ -120,7 +120,7 @@ export interface GrantAuth {
 }
 
 /**
- * Build the grant seam over the opaque `AppDatabase`. Uses the in-package
+ * Build the grant boundary over the opaque `AppDatabase`. Uses the in-package
  * `internal()` unwrap; never exposes a raw query surface (D2b).
  */
 export function grantAuth(handle: AppDatabase): GrantAuth {

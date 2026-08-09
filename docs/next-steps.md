@@ -59,7 +59,7 @@ Decided in scope but explicitly pushed past v1:
 
 Decision (2026-06-19): integrate self-reported confidence **now**, defer the calibration engine.
 
-- **Now — M1 categorizer enhancement** (behind ADR 0013's structured-output floor). Add a `confidence` field per **Categorization** and per **Flag** in the generation output — lives inside the brief JSON (TEXT passthrough), **no DB schema change** (ADR 0018 untouched). Wiring: `confidence < threshold` → emit the existing **`Uncertain`** label (forces human judgment); surface the score *understated* (like Generation provenance), **never an auto-gate or silent suppressor** (no-verdict + anti-noise). Value is twofold — asking for confidence + rationale improves the model's self-validation, and the threshold drives `Uncertain`.
+- **Now — M1 categorizer enhancement** (behind ADR 0013's structured-output floor). Add a `confidence` field per **Categorization** and per **Flag** in the generation output — lives inside the brief JSON (TEXT passthrough), **no DB schema change** (ADR 0018 untouched). Wiring: `confidence < threshold` → emit the existing **`Uncertain`** label (forces human judgment); surface the score *understated* (like Generation origin), **never an auto-gate or silent suppressor** (no-verdict + anti-noise). Value is twofold — asking for confidence + rationale improves the model's self-validation, and the threshold drives `Uncertain`.
 - **Caveat:** self-reported LLM confidence is **poorly calibrated** (systematically overconfident; not a true probability). Treat it as a *relative* signal, not a calibrated one — hence no gate.
 - **Future — the real FP-suppression rigor.** Better-calibrated signals at higher cost/complexity: **multi-pass / self-consistency** (run N times; disagreement → `Uncertain`) and **exhaust-tuned per-category thresholds** learned from **Dispositions** (dismissals/reclassifications) — the latter doubles as a data-exhaust moat candidate (see Moat Honesty).
 
@@ -75,7 +75,7 @@ Current landscape (positioning, funding, favorability, features-to-take) lives i
 
 Current state in **[`competitive-analysis.md`](./competitive-analysis.md)** (Linear Diffs GA'd May 2026: review-inside-Linear, guided reviews, agents + MCP). Durable strategic conclusions, retained:
 
-- **Narrative vs taxonomic grouping (orthogonal axes).** Linear groups by *story* (PR-specific narrative chapters); we group by *stable taxonomy* (`pure-move`, `lib-bump`, `schema-change`…). Theirs isn't cross-PR queryable and can't anchor a per-category playbook; ours can. Neither subsumes the other — either could later add the other's axis. Pitch Linear as **complement, not competitor**; watch if they add stable taxonomy + playbooks (tail risk to our edges).
+- **Narrative vs taxonomic grouping (independent axes).** Linear groups by *story* (PR-specific narrative chapters); we group by *stable taxonomy* (`pure-move`, `lib-bump`, `schema-change`…). Theirs isn't cross-PR queryable and can't anchor a per-category playbook; ours can. Neither subsumes the other — either could later add the other's axis. Pitch Linear as **complement, not competitor**; watch if they add stable taxonomy + playbooks (tail risk to our edges).
 - **Grouping is now table stakes (2026-06-07).** Change-groups + carrier/supporting + concern split + adjusted LoC put us *onto Linear's substrate* ("surface core parts first, group supporting changes separately" = carrier-vs-supporting). Stop pitching grouping as a differentiator — defensibility is the layer *on top*: stable taxonomy, per-category playbooks, risk-surface, receipt, delta.
 - **Methodological consequence:** Phase 1 tests **Treatment vs Baseline B′** (grouped substrate with the differentiator layer stripped ≈ Linear-equivalent) to isolate whether that layer beats what Linear gives free. Raw-diff baseline dropped. See `phase-1.md`.
 - **Distribution risk > feature risk.** Linear has captive PM users; we don't. Counter is the different lane + OSS self-host/BYOK (see `competitive-analysis.md` §5).
@@ -83,8 +83,8 @@ Current state in **[`competitive-analysis.md`](./competitive-analysis.md)** (Lin
 ### Two-layer / dual-consumer model (formalized in CONTEXT.md, 2026-06-07)
 
 - **Analysis Layer** (change-groups, taxonomy, playbooks, risk-surface, concern split, LoC) — reviewer-agnostic core; serves both humans and AI-agent reviewers. *(2026-06-13: this is the engine, not the moat — see the reshape at the top and `mvp/center-of-gravity.md`. The defensible core is delta + comment-to-rule + dual-consumer + integrated create-to-merge workflow, not the taxonomy/playbook alone.)*
-- **Engagement Layer** (no-AI-prose rule, private mind-map, seeds, human-written comments, approval + receipt) — human-only workflow.
-- **Dual-consumer:** human reviewer consumes Analysis via Engagement (v1); AI-agent reviewer consumes Analysis directly via API (v1.5+ headless lead-in — confirmed NOT in first release). The no-AI-prose rule and mind-map are human-mode only; agent-mode inverts the prose rule by design.
+- **Engagement Layer** (no-AI-text rule, private mind-map, seeds, human-written comments, approval + receipt) — human-only workflow.
+- **Dual-consumer:** human reviewer consumes Analysis via Engagement (v1); AI-agent reviewer consumes Analysis directly via API (v1.5+ headless lead-in — confirmed NOT in first release). The no-AI-text rule and mind-map are human-mode only; agent-mode inverts the text rule by design.
 - **Submission:** review lands natively on GitHub (comments + verdict) authored by the reviewer; a one-line signature links to a static **Review Summary** holding the receipt. Tool present but unobtrusive (ADR 0002, 2026-06-07 delivery refinement).
 
 ## Retired commercial strategy → `docs/archive/`

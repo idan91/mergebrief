@@ -11,7 +11,7 @@
 // CAPABILITY, not a mandate — retention "never" (null grace) keeps everything.
 // See README "Your data" for the product-level story.
 //
-// Design (ADR 0018 D5 / D9 / D11) — the deletion seam, tenant-ctx-bound like
+// Design (ADR 0018 D5 / D9 / D11) — the deletion boundary, tenant-ctx-bound like
 // every other DB surface in this package. Built over the opaque `AppDatabase`,
 // unwrapped in-package with `internal()` (never re-exported), so consumers
 // still cannot reach a raw query handle (D2b).
@@ -139,7 +139,7 @@ export interface PurgeRoutines {
    */
   purgeInstallation(): Promise<InstallationPurgeCounts>;
   /**
-   * The close-time retention seam (D5): atomically records the terminal
+   * The close-time retention boundary (D5): atomically records the terminal
    * `state` and sets `purge_after = closedAt + graceDays`, or NULL when
    * `graceDays` is null (retention disabled / "never" — the row is never
    * swept). Carrying the terminal state in the signature keeps this API

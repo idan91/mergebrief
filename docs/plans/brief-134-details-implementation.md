@@ -42,7 +42,7 @@ prompt change (after this stack).
   `pnpm -C apps/web build`. Run dependents locally (CI is path-filtered).
 - **Eval gate: not tripped** (FE-only; verified at map close-out).
 
-## PR 1 — capped-prose primitive + prose blocks
+## PR 1 — capped-text primitive + text blocks
 
 Branch `feature/BRIEF-134/capped-prose`. Est. ~550 LOC. Model: Opus 5,
 main thread.
@@ -107,7 +107,7 @@ Model: Opus 5, main thread.
 
 1. Toolbar Filter trigger: inactive = plain `Filter`; active =
    `Filter · N verdicts · N reviewers · N hidden` (hidden count
-   load-bearing). Renders whatever families the data has; hidden only
+   critical). Renders whatever families the data has; hidden only
    when no family exists.
 2. The full BRIEF-99 bar UI re-homes into the anchored panel (all locks
    hold: OR-within/AND-across, faceted toggle-aware counts, zero-count

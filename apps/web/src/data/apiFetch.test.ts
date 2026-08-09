@@ -1,4 +1,4 @@
-// apiFetch seam unit tests (BRIEF-19 PR 3.1). The SSR branch is exercised
+// apiFetch boundary unit tests (BRIEF-19 PR 3.1). The SSR branch is exercised
 // through `dispatchInProcess` with a fake Hono-shaped app — asserting the two
 // invariants that make SSR *not* a second authz path (ADR 0016 #5c): the
 // viewer's cookie is forwarded verbatim, and a composition failure maps to the
@@ -110,9 +110,9 @@ describe("dispatchInProcess", () => {
   });
 
   it("reports a composition failure through the injected log sink, with the raw cause as the err field (ADR 0034)", async () => {
-    // The seam is isomorphic, so the SSR branch cannot import the server
+    // The boundary is isomorphic, so the SSR branch cannot import the server
     // logger at module scope — it is injected. The RAW error rides `err`:
-    // scrubbing is the logging seam's job (BRIEF-88), not this call site's.
+    // scrubbing is the logging boundary's job (BRIEF-88), not this call site's.
     // `error` is the right level: the whole read surface is down until an
     // operator acts.
     const sink = fakeLogSink();
@@ -132,7 +132,7 @@ describe("dispatchInProcess", () => {
   });
 
   // End-to-end guarantee (BRIEF-88): with the REAL logger injected, the
-  // seam's err serializer scrubs URL-shaped credentials before the line
+  // boundary's err serializer scrubs URL-shaped credentials before the line
   // is emitted — this call site no longer sanitizes anything itself.
   it("emits no credentials through the real logging seam", async () => {
     const written: string[] = [];

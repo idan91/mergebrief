@@ -1,7 +1,7 @@
 // Flat at the feature root by the queries.ts convention (brief/queries.ts
 // precedent): the feature's queryOptions door, referenced by routes.
 // react-query descriptors for the DB-backed read API (BRIEF-19 PR 3.1), all
-// over the isomorphic `apiFetch` seam so loaders can SSR-prefetch them and the
+// over the isomorphic `apiFetch` boundary so loaders can SSR-prefetch them and the
 // client refetches through the same gate. Artifact bodies are immutable per
 // span (natural-key upserts) → Infinity staleTime; the list and PR-meta are
 // live projections → short staleTime (PR-meta is the 3.2 poll target).
@@ -123,7 +123,7 @@ export function dbBriefQueryOptions(
 }
 
 /**
- * The span's repo-config snapshot (BRIEF-52) — provenance + policy display
+ * The span's repo-config snapshot (BRIEF-52) — origin + policy display
  * weights. Best-effort: a failure renders the Brief without source markers
  * or de-emphasis, never blocks it. Immutable per span (like the brief).
  */
@@ -153,7 +153,7 @@ export function dbBriefContextQueryOptions(
 /**
  * Comparison marks for a (baseline, head) span — immutable once written.
  * The key is deliberately widened to `QueryKey`: these descriptors cross the
- * `BriefComparisonPlan` seam typed as plain `UseQueryOptions`, and a narrower
+ * `BriefComparisonPlan` boundary typed as plain `UseQueryOptions`, and a narrower
  * inferred key breaks that assignment (queryFn context contravariance).
  *
  * The DB body is D13 coordinates-only (`{ baselineSha, headSha, files }` —

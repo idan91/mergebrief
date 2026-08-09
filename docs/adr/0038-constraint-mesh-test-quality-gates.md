@@ -19,7 +19,7 @@ type-aware with most repo conventions already mechanized, prettier/stylelint
 on apps/web only, hand-rolled path-filtered CI (dependents NOT run on
 dependency changes — the BRIEF-23 incident class), and a live-spend eval
 harness convention-gated outside CI. No coverage, no E2E, no mutation, no
-BDD, no flake policy beyond prose.
+BDD, no flake policy beyond text.
 
 Standing rules fixed at charting:
 
@@ -107,7 +107,7 @@ suites — no new tier, `numRuns: 100`, failures print a reproducing seed
 ### 7. Static constraints
 
 Most conventions were already mechanized in `.oxlintrc.json` (no bare `as`,
-named-exports-only, no-cycle, no-`any`, logging seam as path-scoped
+named-exports-only, no-cycle, no-`any`, logging boundary as path-scoped
 `no-console`). Added: **a minimal ESLint sliver** (flat config,
 non-type-aware, zero custom plugins — 0/9 cohort write in-house rules)
 carrying only what oxlint cannot express: `no-restricted-syntax` banning
@@ -122,14 +122,14 @@ adopted if fallout is manageable; `exactOptionalPropertyTypes` skipped.
 actionlint** adopted on workflows. **Generated-artifact freshness gate**
 adopted (regenerate `routeTree.gen.ts` + drizzle state in CI, fail on
 porcelain diff). Result-not-throw, entry-barrel policy, and
-types-owner-first remain prose — no tool expresses them honestly.
+types-owner-first remain text — no tool expresses them honestly.
 
 _Amended 2026-08-02 (BRIEF-111 implementation)._ Two verdicts moved on
 contact with the tree: (a) the sliver ships the enum ban and the
 extensionless-import rule only — exported const-map casing has no
 non-type-aware expression that can tell a vocabulary map from a config
 record or a fixture bundle (measured: 8 reports, 8 false positives, 0 true),
-so it joins the prose rules; (b) `noUncheckedIndexedAccess` needed no
+so it joins the text rules; (b) `noUncheckedIndexedAccess` needed no
 adoption decision — it was already `true` in all twelve package tsconfigs,
 measured at 0 errors, and the rest of the strictness trio cost two
 `noImplicitReturns` fixes. Prettier's whole-repo move covers code and

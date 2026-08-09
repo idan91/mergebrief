@@ -50,7 +50,7 @@ export function redactSecrets(text: string): string {
       // Standalone `Basic <credential>`: the scheme name is case-flexible
       // (RFC 7235: schemes are case-insensitive) but the token check is NOT
       // — an /i flag would let any 8+ lowercase word match. Requiring an
-      // encoded-looking token (≥1 uppercase/digit/+/=) keeps prose like
+      // encoded-looking token (≥1 uppercase/digit/+/=) keeps text like
       // "Basic usage failed" — common in stderr diagnostics — while
       // base64("user:pass") never survives.
       .replace(

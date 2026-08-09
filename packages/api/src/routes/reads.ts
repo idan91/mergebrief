@@ -7,7 +7,7 @@
 //                                 with the VIEWER's token and cached per session.
 //
 // TENANCY: the gate resolves `ctx` from the session; every read filters through
-// persistence's ctx-bound seams (`forTenant` / `artifactStore`). This module
+// persistence's ctx-bound interfaces (`forTenant` / `artifactStore`). This module
 // never sees a raw handle and never trusts a caller-supplied installation id.
 //
 // DIFF PROXY (ADR 0016 #10): the diff is NEVER persisted — it is proxied live
@@ -338,7 +338,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
 
   // GET brief-context — the brief's repo-config snapshot (ADR 0032 #8):
   // per-file outcome table + collisions + policy snapshot, for the FE's
-  // source markers, de-emphasis weights, and provenance chip. A separate
+  // source markers, de-emphasis weights, and origin chip. A separate
   // lean endpoint (never the multi-hundred-KB body) so the `/brief` wire
   // shape — which the CLI also parses — stays untouched. `repoConfig` is
   // null for rows predating BRIEF-52.
@@ -585,7 +585,7 @@ interface RevisionComparisons {
 
 /**
  * A browsable Brief revision (BRIEF-24). `baseSha` is PER-ENTRY and
- * load-bearing: the base drifts across revisions (base-branch advance /
+ * critical: the base drifts across revisions (base-branch advance /
  * retarget) and the brief GET is an exact `(pr, base, head)` lookup, so a
  * consumer must never derive base from the top-level view. Ordered by
  * `headIndex`; present only when a brief exists.

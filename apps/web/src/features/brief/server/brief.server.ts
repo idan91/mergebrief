@@ -60,7 +60,7 @@ const ROUTINE_REASONS: ReadonlySet<string> = new Set<string>([
 /**
  * Log the raw reason (server-side only) and throw the curated one. The raw
  * value rides as a structured FIELD, never interpolated into `msg` — the
- * logging seam redacts and serializes fields, and `msg` bypasses that
+ * logging boundary redacts and serializes fields, and `msg` bypasses that
  * entirely (ADR 0034 #4).
  */
 function failRead(

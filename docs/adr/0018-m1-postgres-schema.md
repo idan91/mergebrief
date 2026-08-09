@@ -6,7 +6,7 @@ status: accepted
 
 ADR 0008's logical persistence model realized as the physical M1 schema on vanilla Postgres + Drizzle (ADR 0015), with GitHub-native numeric identity, mandatory `(installation_id, repo_id)` tenant scoping on every row (ADR 0016), and large artifacts as content-addressed `TEXT`. This ADR records the physical schema decisions; it is filled in incrementally as the schema grill resolves each entity.
 
-Decisions D1–D11 below cover all six ADR 0008 entities plus the tenant scoping, retention + deletion seam, append-only audit log, the graphile-worker boundary, the `generation` status projection, and reviewer-token storage. The table inventory and the entity→table mapping are in **Consequences**.
+Decisions D1–D11 below cover all six ADR 0008 entities plus the tenant scoping, retention + deletion boundary, append-only audit log, the graphile-worker boundary, the `generation` status projection, and reviewer-token storage. The table inventory and the entity→table mapping are in **Consequences**.
 
 > **Amended 2026-07-04** (pre-build validation against ADRs 0020/0021/0024): `activated_at`
 > dropped from D5 (the lazy Activation gate it encoded was retired by ADR 0020); **D12**
@@ -102,16 +102,16 @@ pull_request
 - **Clean mutable/immutable line:** `pull_request` is the one mutable lifecycle row; Brief/Delta/DiffSnapshot/Checkpoint/Disposition/overlay are immutable and **FK to it**.
 - **Simplifies child keys:** children carry `installation_id` (tenant filter, no join) + a `pull_request_id` FK, replacing the loose `(repo_id, pr_number)`. Brief key → `(installation_id, pull_request_id, base_sha, head_sha)`.
 - **No `repo` table in M1** — `repo_id`/`repo_slug` are columns here; a real `repo` table waits for per-repo config (M3).
-- **Deletion seam (ADR 0015 #6 / 0016 #11):** per-PR children FK `pull_request.id` **`ON DELETE CASCADE`**. Purge by PR = delete one row; by repo / installation = scoped predicate-delete on `pull_request` (cascades) + explicit deletes for the non-PR tables (reviewer sessions; audit retained — numeric-only). The DB guarantees erasure completeness (no forgotten child table). **No `installation→repo→pull_request` hierarchy in M1** — `instance = tenant` means one installation, so the small explicit purge routine is cheaper than a hierarchy we don't use.
+- **Deletion boundary (ADR 0015 #6 / 0016 #11):** per-PR children FK `pull_request.id` **`ON DELETE CASCADE`**. Purge by PR = delete one row; by repo / installation = scoped predicate-delete on `pull_request` (cascades) + explicit deletes for the non-PR tables (reviewer sessions; audit retained — numeric-only). The DB guarantees erasure completeness (no forgotten child table). **No `installation→repo→pull_request` hierarchy in M1** — `instance = tenant` means one installation, so the small explicit purge routine is cheaper than a hierarchy we don't use.
 - **Retention:** `purge_after` is **nullable** — null while the PR is open *and* when retention is disabled / set to "never" (the row is never swept). Set to `closed_at + grace` at close per config. Sweep = `WHERE purge_after IS NOT NULL AND purge_after < now()`, backed by a partial index on `purge_after`.
 - ~~`activated_at` gates compute (Activation).~~ **Dropped (2026-07-04, ADR 0020):** the lazy compute-on-first-click gate is retired — Trigger is eager-on-push, the deep-link click is pure Entry, so there is no gating state to store. Re-adding a `first_entered_at` later (e.g. if ADR 0020's `on-first-view` escape hatch is ever exercised) is an additive migration; first-entry *analytics* belong in the purgeable web access log (D9), never here.
 
-### D6 — Artifact storage: inline `TEXT` + a code-level `ArtifactStore` seam
+### D6 — Artifact storage: inline `TEXT` + a code-level `ArtifactStore` boundary
 
 - Each typed table (`brief`, `delta`, `diff_snapshot`) holds its blob **inline** as `body TEXT` (passthrough, TOASTed) with `byte_size` + `created_at`. **No shared blob table.**
 - Blob read/write is routed through a code-level **`ArtifactStore`** keyed by an opaque content key; the API's opaque key is the typed row's surrogate `id`. The deferred object-storage migration is a **localized code change** — `body` becomes an object-storage pointer and `ArtifactStore` redirects — touching one code path, not every call site (the "single boundary" of ADR 0008, realized in code rather than a table).
-- **Rejected Option B** (shared content-addressed `artifact` table): the split is ~1:1 (cross-span/PR content dedup essentially never fires), and it **breaks D5's erasure cascade** — a PR purge cascades the typed rows but *orphans the blobs*, reintroducing the deferred ref-counted GC (or forcing a redundant second cascade + duplicated tenant columns). Inline keeps erasure atomic. Soft, deliberate deviation from ADR 0008's literal "one blob table" phrasing, justified by YAGNI (object storage + GC both deferred) + the code seam giving equivalent migration locality.
-- **Provenance = columns**, not blob: `provider`, `model`, `effort` on `brief` + `delta` (surfaced on the Receipt — ADR 0013/0016 #7). `diff_snapshot` carries none — it is a fetched diff, not LLM output.
+- **Rejected Option B** (shared content-addressed `artifact` table): the split is ~1:1 (cross-span/PR content dedup essentially never fires), and it **breaks D5's erasure cascade** — a PR purge cascades the typed rows but *orphans the blobs*, reintroducing the deferred ref-counted GC (or forcing a redundant second cascade + duplicated tenant columns). Inline keeps erasure atomic. Soft, deliberate deviation from ADR 0008's literal "one blob table" phrasing, justified by YAGNI (object storage + GC both deferred) + the code boundary giving equivalent migration locality.
+- **Origin = columns**, not blob: `provider`, `model`, `effort` on `brief` + `delta` (surfaced on the Receipt — ADR 0013/0016 #7). `diff_snapshot` carries none — it is a fetched diff, not LLM output.
 - **Content-key semantics:** no content-hash column in M1 — the natural `UNIQUE` key already gives idempotent content-addressed writes (same span → same row — ADR 0006 #6). Content-hash dedup is deferred with ref-counted GC.
 
 ### D7 — Checkpoint (M1) + Disposition (table now, rows M2)
@@ -151,25 +151,25 @@ disposition
 - **Table designed in M1; rows written in M2** (needs the engagement write-side / Mind-Map dismiss flow). The forward line-map matching into New/Reopened/Settled/Dropped is M2 (ADR 0007); M1 fixes the anchored shape so the Receipt can freeze dispositions and M2 can match them forward.
 - **M1 covers only region-anchored risk-surface flags** (`region NOT NULL`). Playbook-item dispositions (nullable region + a `flag_kind` discriminator) deferred to M2 with the overlay — playbook carry-over is M2 anyway, and Playbook is demoted (CONTEXT reshape).
 
-### D8 — Carry-over overlay: M2 seam, not materialized in M1
+### D8 — Carry-over overlay: M2 boundary, not materialized in M1
 
 The overlay is the **per-reviewer** layer on the shared delta core: `Rendered Delta = delta core (shared by span) + this reviewer's overlay`. It holds flag carry-over statuses + comment anchoring (ADR 0007). Planned shape mirrors the delta core under Option A, adding `reviewer_id`:
 
 ```
-delta_overlay   -- M2; documented seam, NOT created in M1
+delta_overlay   -- M2; documented boundary, NOT created in M1
   id, installation_id, pull_request_id (FK CASCADE), reviewer_id
   baseline_sha, head_sha            -- pairs with the shared delta core's span
-  provider, model, effort           -- small-model provenance
+  provider, model, effort           -- small-model origin
   body text, byte_size, created_at  -- carry-over + anchoring (ADR 0007), passthrough
   UNIQUE (installation_id, pull_request_id, reviewer_id, baseline_sha, head_sha)
 ```
 
 - **Not materialized in M1** — nothing reads/writes it; the M2 Drizzle migration adds it with **zero rewrite** to any M1 table.
-- The single forward-compat requirement — the **delta core key stays reviewer-agnostic** (span only, no `reviewer_id`) so the overlay can be the per-reviewer layer — is already honored (D6/D7). (Contrast D9's audit log, which *is* materialized in M1 because it is a named architectural seam with an emit interface.)
+- The single forward-compat requirement — the **delta core key stays reviewer-agnostic** (span only, no `reviewer_id`) so the overlay can be the per-reviewer layer — is already honored (D6/D7). (Contrast D9's audit log, which *is* materialized in M1 because it is a named architectural boundary with an emit interface.)
 
-### D9 — Audit log (append-only seam)
+### D9 — Audit log (append-only boundary)
 
-A named SOC2-readiness seam (ADR 0016 #12): one immutable, tenant-scoped emit per boundary. **Materialized in M1** (table + a single `audit(...)` emit interface), unlike the overlay.
+A named SOC2-readiness boundary (ADR 0016 #12): one immutable, tenant-scoped emit per boundary. **Materialized in M1** (table + a single `audit(...)` emit interface), unlike the overlay.
 
 ```
 audit_log
@@ -216,7 +216,7 @@ generation
 
 **Concurrency policy:** ~~Brief = one in-flight **per PR** (shared artifact; `job_key = pull_request_id`); Delta = one **per `(PR, reviewer)`** (`job_key = delta:{pr}:{reviewer}`)~~ **Superseded (2026-07-05, BRIEF-2 grill):** there is **one job kind, `generate`, `job_key = generate:{pull_request_id}`** — every generation-relevant webhook event enqueues it (with `run_at = now + debounce`; job-key replacement of the pending job IS the trailing debounce), and the **worker derives the artifact bundle from state at execution time** (brief + marks + narrative + one delta core per distinct checkpoint SHA, huge-span rule per span). Per-kind delta job keys predate the core/overlay hardening and are retired. A **global cap** (graphile `concurrency` + a provider rate-limit budget) still bounds total parallel generations; single-flight per PR enforced by `job_key`, **not** `generation`. `generation.status` gains a terminal **`superseded`** value (mid-call abort on head advance — ADR 0006 #6 as amended); web enqueue writes the one row it can know (`kind: brief`, queued), the worker upserts rows for the artifacts it derives.
 
-### D11 — Reviewer auth: GitHub OAuth via a library, behind an identity-provider seam
+### D11 — Reviewer auth: GitHub OAuth via a library, behind an identity-provider boundary
 
 GitHub **is** the IdP — no passwords/MFA/credential storage. We build an **OAuth client + session/token store**, not an auth system, via a maintained framework-agnostic library (e.g. **Arctic** + own sessions, or **Better Auth** — both hand us the provider token, which we need). No auth SaaS on the self-host critical path; no heavy self-hostable IdP (Ory/Keycloak — against fewest-services). Since GitHub is our *only* IdP, a general auth SaaS would mostly wrap the single provider we integrate directly anyway.
 
@@ -248,7 +248,7 @@ reviewer_session   -- the self-host default adapter; the ONE secret-bearing tabl
 - **The one dynamic secret in the DB.** Every static secret stays in env (ADR 0016 #7).
 - **Encryption = direct, provider-resolved key + `key_ref`** — *not* a per-row envelope DEK: tokens are short-lived and deleted on expiry, so KEK rotation rides on natural token churn. Full envelope is the documented hardening reserved for any future *long-lived* secret.
 - **Not FK'd to `pull_request`** (per `(installation, reviewer)`). Cleared by: TTL sweep (`expires_at`), logout, and the installation-purge routine (D5).
-- **Behind an identity-provider seam** (same pattern as the key provider #7 and Generator port 0013) so the hosted arm can swap in a managed provider. **Clerk is cloud-only → cannot be a self-host dependency**; it stays a hosted-arm option, not used in M1.
+- **Behind an identity-provider boundary** (same pattern as the key provider #7 and Generator port 0013) so the hosted arm can swap in a managed provider. **Clerk is cloud-only → cannot be a self-host dependency**; it stays a hosted-arm option, not used in M1.
 
 ### D12 — Revision narrative (added 2026-07-04, from ADR 0024)
 
@@ -267,7 +267,7 @@ revision_narrative
   prev_head_sha   text   not null   -- the previously briefed head (a THIRD SHA role — neither
                                     --   Brief base nor Checkpoint baseline; own column name)
   head_sha        text   not null
-  provider / model / effort         -- LLM provenance (D6), surfaced on the Receipt
+  provider / model / effort         -- LLM origin (D6), surfaced on the Receipt
   body text, byte_size, created_at  -- passthrough, inline (D6)
   UNIQUE (installation_id, pull_request_id, prev_head_sha, head_sha)
 ```
@@ -316,7 +316,7 @@ comparison_marks
   persisted-code exception. The FE paints marks onto diff content fetched live (D4's ephemeral
   path); removed-at-head content on a GC'd span degrades to an honest "content unavailable" —
   same degradation family as delta→full-Brief.
-- **No provenance columns** — mechanical output, not LLM output (same rule as `diff_snapshot`).
+- **No origin columns** — mechanical output, not LLM output (same rule as `diff_snapshot`).
 - Reviewer-agnostic by construction (SHA-pair key, no `reviewer_id`) — a returning reviewer's
   `checkpoint→head` marks are shareable by any reviewer at the same checkpoint, mirroring the
   delta-core/overlay split (D8).
@@ -337,7 +337,7 @@ user_settings
 - **Deliberately NOT tenant-scoped** — the D2b exception, second after `audit_log`. A person
   spans installations (reviewer in one org, author in another; same human either way), so the
   row cannot carry `installation_id` as its key. Reads/writes go through a dedicated
-  `userSettings` seam, not `forTenant` — the type-level containment tests must treat it like
+  `userSettings` boundary, not `forTenant` — the type-level containment tests must treat it like
   `audit`, not like a tenant table.
 - **Typed columns, never a JSON blob.** Every new setting is a column + migration, same
   closed-vocabulary discipline as the CHECK-constrained enums — the table must not rot into a
@@ -392,15 +392,15 @@ github_grant
 | Table | Kind | Notes |
 |---|---|---|
 | `pull_request` | mutable aggregate root | retention/cascade anchor; `activated_at`, `purge_after` (nullable) |
-| `brief` | immutable artifact (inline `body`) | key `(installation_id, pull_request_id, base_sha, head_sha)` + provenance + `head_index`/`commit_count` |
+| `brief` | immutable artifact (inline `body`) | key `(installation_id, pull_request_id, base_sha, head_sha)` + origin + `head_index`/`commit_count` |
 | `delta` | immutable artifact (inline `body`) | key `(…, baseline_sha, head_sha)`, reviewer-agnostic core |
 | `diff_snapshot` | immutable artifact (inline `body`) | the configurable baseline snapshot; key `(…, sha)` |
 | `revision_narrative` | immutable artifact (inline `body`) | 1:1-optional with a `brief` row (FK, cascades); key `(…, prev_head_sha, head_sha)` (D12) |
-| `comparison_marks` | immutable artifact (inline `body`) | mechanical, coordinates-only, no provenance; key `(…, baseline_sha, head_sha)` (D13) |
+| `comparison_marks` | immutable artifact (inline `body`) | mechanical, coordinates-only, no origin; key `(…, baseline_sha, head_sha)` (D13) |
 | `checkpoint` | per-reviewer position | `last_submitted_sha`; webhook-driven |
 | `disposition` | anchored decision | table in M1, **rows written M2** |
 | `generation` | mutable CQRS status projection | poll target; not a domain entity |
-| `audit_log` | append-only seam | numeric-only, no FKs, never purged |
+| `audit_log` | append-only boundary | numeric-only, no FKs, never purged |
 | `user_settings` | per-user settings | NON-tenant-scoped (D14); keyed `gh_user_id`; typed columns only |
 | `reviewer_session` | session (cookie channel) | credential via `grant_id` FK (D15) |
 | `api_token` | user-managed credential (Bearer channel) | ADR 0016 #4 as amended (BRIEF-17); hash-resolved, mint-chosen expiry, soft-revoke; credential via `grant_id` FK (D15) |
@@ -410,7 +410,7 @@ github_grant
 
 **Deferred (additive migrations, zero rewrite):** `delta_overlay` (carry-over overlay → M2), a `repo` table (per-repo config → M3).
 
-**Entity → table (anchored to ADR 0008 / CONTEXT):** Brief→`brief`, Delta core→`delta`, Carry-over overlay→`delta_overlay` (M2 seam), DiffSnapshot→`diff_snapshot`, Checkpoint→`checkpoint`, Disposition→`disposition`, Revision narrative→`revision_narrative` (ADR 0024), Revision changes / comparison marks→`comparison_marks` (ADR 0024).
+**Entity → table (anchored to ADR 0008 / CONTEXT):** Brief→`brief`, Delta core→`delta`, Carry-over overlay→`delta_overlay` (M2 boundary), DiffSnapshot→`diff_snapshot`, Checkpoint→`checkpoint`, Disposition→`disposition`, Revision narrative→`revision_narrative` (ADR 0024), Revision changes / comparison marks→`comparison_marks` (ADR 0024).
 
 **Confirmations (per the task):**
 - **No raw diffs persisted.** Current-head diffs are fetched **on-demand by token**, ephemeral per-session cache, never in the DB (D4). The *only* persisted code is the configurable baseline snapshot.
@@ -430,7 +430,7 @@ High-level reminders so the Drizzle build doesn't re-derive these; no schema wri
 - **Column conventions:** surrogate PK via `.generatedAlwaysAsIdentity()`; SHAs as `text` (D2); timestamps `withTimezone`. Factor shared `tenant` (`id` + `installation_id`) and `stamps` (`created_at`) column groups to keep every table uniform.
 - **Two migration systems, kept apart:** graphile-worker runs its own migrations into the `graphile_worker` schema; scope Drizzle (and especially `drizzle-kit push`) to the app schema only so it never tries to manage graphile's tables (D10).
 - **Tenant repo is the only DB surface:** `forTenant(ctx)` injects `installation_id`; do not export the raw handle (D2b). Worker builds its context from the job payload; web from the authz middleware.
-- **Auth library (D11):** lean Arctic (+ own sessions) or Better Auth behind the identity-provider seam; verify the chosen lib's maintenance status at build time (Lucia is winding down).
+- **Auth library (D11):** lean Arctic (+ own sessions) or Better Auth behind the identity-provider boundary; verify the chosen lib's maintenance status at build time (Lucia is winding down).
 
 ## Model vocabulary (persistence-domain terms)
 

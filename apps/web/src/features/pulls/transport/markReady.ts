@@ -1,5 +1,5 @@
-// The mark-ready mutation over the isomorphic apiFetch seam (BRIEF-43 PR 3).
-// Client-only in practice (a user click), but it rides the same seam as every
+// The mark-ready mutation over the isomorphic apiFetch boundary (BRIEF-43 PR 3).
+// Client-only in practice (a user click), but it rides the same boundary as every
 // mutation. Expected failure statuses are RESULT KINDS the own-draft flow
 // renders as toast copy — never throws for those; only a malformed 2xx throws
 // (contract violation).
@@ -77,7 +77,7 @@ export async function markPrReady(
   return { kind: "ready" };
 }
 
-/** The invalidation seam the action needs — a `QueryClient` satisfies it. */
+/** The invalidation boundary the action needs — a `QueryClient` satisfies it. */
 export interface PrMetaInvalidator {
   invalidateQueries(filters: { queryKey: QueryKey }): Promise<void>;
 }

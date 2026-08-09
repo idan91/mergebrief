@@ -20,7 +20,7 @@ so the pre-release pass is a gates-index plus a shrinking residual.
   exactly one tag — `automated: <gate>` (step deleted, pointer left),
   `manual-until: <ticket/trigger>`, or `manual-forever: <reason>`.
   `pre-release-testing.md` becomes: gates-that-must-be-green index +
-  residual manual walkthrough. Stale "dev-db flake" prose dies everywhere
+  residual manual walkthrough. Stale "dev-db flake" text dies everywhere
   (it was never a dev-db issue — hermetic PGlite).
 - Feeds BRIEF-36; does NOT redefine the release gate.
 
@@ -59,7 +59,7 @@ so the pre-release pass is a gates-index plus a shrinking residual.
 
 - Branch `chore/BRIEF-114/test-hygiene` off main. Chunked commits:
   (1) PGlite amortization + timeout revisit, (2) QA-doc triage + flake
-  prose removal. No Co-Authored-By, no AI attribution.
+  text removal. No Co-Authored-By, no AI attribution.
 - performance-reviewer on staged changes before each commit (≥80 → fix).
   This ticket is performance-shaped — the reviewer's opinion on the
   amortization matters; don't rubber-stamp.

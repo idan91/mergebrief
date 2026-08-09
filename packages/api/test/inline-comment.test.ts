@@ -1,6 +1,6 @@
 // Inline-comment route integration tests (BRIEF-43 PR 4): `app.request()`
 // against `createApp` over the PGlite harness, GitHub stubbed at the
-// global-fetch seam (same pattern as mark-ready.test.ts). Covers gate posture
+// global-fetch boundary (same pattern as mark-ready.test.ts). Covers gate posture
 // (401 / 404 collapse), the fresh-repo-resolve write safety, the happy path
 // (comment posted + audit emitted + conversation cache evicted), the stale-
 // anchor 409, the deterministic-400 set, refresh-once, and no-store.

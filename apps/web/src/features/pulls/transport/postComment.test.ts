@@ -284,7 +284,7 @@ describe("commitPostedComment + applySettledPosts", () => {
   });
 
   it("drain is best-effort: a throwing store never propagates, durable flip intact", () => {
-    // Reviewer round 4 #2 discipline, at the new seam: the durable write
+    // Reviewer round 4 #2 discipline, at the new boundary: the durable write
     // landed at commit; a live-store failure in the drain logs and never
     // surfaces as an error (the comment IS on GitHub) — and the
     // announcement still goes out.

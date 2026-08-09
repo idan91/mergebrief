@@ -23,7 +23,7 @@ Gotchas:
 - `DATABASE_URL` is NOT in any `.env` — pass it explicitly (value above, from
   `.env.example`).
 - Secrets split: root `.env` has the GitHub/auth vars; `apps/web/.env` has only
-  `ANTHROPIC_API_KEY`. The composition root loads cwd `.env` then ambient env,
+  `ANTHROPIC_API_KEY`. The startup wiring loads cwd `.env` then ambient env,
   so source the root one into the shell.
 - Agents cannot read OR `source` `.env` — the `Read(./**/.env)` deny rule blocks
   both. Don't fight it: generate synthetic parse-only secrets instead. The read

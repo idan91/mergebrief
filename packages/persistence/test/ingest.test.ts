@@ -1,4 +1,4 @@
-// The transactional ingest seam (stage 4): PR upsert + queued generation
+// The transactional ingest boundary (stage 4): PR upsert + queued generation
 // projection + debounced graphile `generate` job, atomically. Runs on the
 // PGlite harness because it provides the `graphile_worker` stub the enqueue
 // step calls by name.

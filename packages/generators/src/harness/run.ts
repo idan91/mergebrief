@@ -8,10 +8,10 @@ import type { Logger } from "../contract/generator";
  * close, streaming line consumption as the liveness signal, the two
  * mandatory timers (hard wall-clock + output-inactivity watchdog), the
  * SIGINT → grace → SIGKILL kill ladder shared by cancellation and timer
- * fire, stderr tail capture, and the construction-time boot probe.
+ * fire, stderr tail capture, and the construction-time startup check.
  *
  * The per-CLI adapters (PRs 5-6) own only flags, envelope parsing, and
- * provenance quirks. NO CLI has a built-in timeout, and this project has a
+ * origin quirks. NO CLI has a built-in timeout, and this project has a
  * lived codex hang precedent — the timers are not optional.
  */
 
@@ -79,7 +79,7 @@ export interface HarnessRunArgs {
    * the returned promise rejects with the signal's reason UNTOUCHED.
    */
   signal?: AbortSignal;
-  /** Complete stdout lines, in order — the adapters' envelope seam. */
+  /** Complete stdout lines, in order — the adapters' envelope boundary. */
   onStdoutLine?: (line: string) => void;
   /** Spawn env; defaults to process.env (CLIs need HOME/keychain for auth). */
   env?: Record<string, string | undefined>;
@@ -383,12 +383,12 @@ function toAbortReason(signal: AbortSignal | undefined): unknown {
  * login by design — but both CLIs put env credentials ABOVE that login in
  * their auth precedence, so a leaked var silently rebills every generation
  * to an API/cloud account while the config says "subscription". Stripping
- * here, at the one seam every harness spawn crosses, makes the configured
+ * here, at the one boundary every harness spawn crosses, makes the configured
  * provider guarantee its billing route. API-provider adapters never spawn
  * CLIs and are unaffected. `CLAUDE_CODE_OAUTH_TOKEN` deliberately SURVIVES —
  * it is the subscription-plan token, i.e. the route this guarantee protects.
  * Residual hole (documented in generators.md): `apiKeyHelper` lives in the
- * CLI's settings file, not the environment — unreachable from this seam.
+ * CLI's settings file, not the environment — unreachable from this boundary.
  */
 export const HARNESS_STRIPPED_CREDENTIAL_VARS = [
   // claude: key/token outrank OAuth; the cloud switches + base-url redirect

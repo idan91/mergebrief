@@ -299,13 +299,13 @@ routing or storage of its output stream" (https://12factor.net/logs).
 - Repo pins: `hono ^4.9.10`, locked **4.12.27** (`packages/api/package.json`,
   `pnpm-lock.yaml`).
 
-### graphile-worker logger seam
+### graphile-worker logger boundary
 
 Repo pins `graphile-worker ^0.16.6`, locked **0.16.6**
 (`packages/worker/package.json`, `pnpm-lock.yaml`); everything below was
 verified against the v0.16.6 source tag or the library docs.
 
-- The seam is the `logger` option to `run()`: `new Logger(logFactory)` where
+- The boundary is the `logger` option to `run()`: `new Logger(logFactory)` where
   the `Logger` abstraction comes from **@graphile/logger**. `logFactory(scope)`
   returns `(level, message, meta?) => void`; levels are
   `error | warning | info | debug`; scope fields: `label` (`"worker"` or
@@ -338,7 +338,7 @@ verified against the v0.16.6 source tag or the library docs.
 
 - **"Bare console.* in worker/api/web-server" — TRUE, with one nuance.**
   Worker: 5 `console.error` sites in `packages/worker/src/main.ts` (boot
-  messages, fatal handler, and the injected `log` seam
+  messages, fatal handler, and the injected `log` boundary
   `(message) => console.error("[worker] " + message)` passed to
   `createGenerator`/`createGenerateTask`). API: `console.error` in
   `packages/api/src/routes/{webhook,conversation,inline-comment,authz}.ts`.
@@ -366,7 +366,7 @@ verified against the v0.16.6 source tag or the library docs.
 - Worker boot/shutdown flow for future log points:
   `packages/worker/src/runner.ts` (migrations → `run()`; graphile owns
   SIGTERM/SIGINT + `helpers.abortSignal`) and `packages/worker/src/main.ts`
-  (composition root, the one place env is read — a logger would be
+  (startup wiring, the one place env is read — a logger would be
   constructed here and injected, per `packages/worker/AGENTS.md`
   "Env is injected").
 

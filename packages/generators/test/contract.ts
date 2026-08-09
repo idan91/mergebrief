@@ -14,7 +14,7 @@ import { GenerationSchema, type Generation } from "../src/contract/provenance";
  * client for Anthropic, real-process shim binaries for the harness CLIs,
  * fetch-level fixtures for the API adapters. The suite asserts the pipeline
  * BEHAVIOR (schema floor, salvage, retry-once, dump, abort passthrough,
- * provenance), never transport internals.
+ * origin), never transport internals.
  */
 
 /** The schema every contract run generates against. */
@@ -66,7 +66,7 @@ export interface GeneratorContractHarness {
   ): ContractGeneratorHandle | Promise<ContractGeneratorHandle>;
   /** True when the rejection is this transport's untouched abort shape. */
   isAbortRejection(error: unknown): boolean;
-  /** The provenance this adapter must declare at effort "medium". */
+  /** The origin this adapter must declare at effort "medium". */
   expectedProvenance: Generation;
   /**
    * Whether the transport can script a `{ refusal: true }` turn. CLIs with

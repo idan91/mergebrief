@@ -155,7 +155,7 @@ settled push (or any event that re-queues it).
 | `openai` | API | `apiKeyEnv` (default `OPENAI_API_KEY`) | discovered at run time (a model without `reasoning_effort` records `effort: null`) | `model` required; `baseUrl` escape hatch for self-hosted compatible servers (preflight downgrades to warnings) |
 | `openrouter` | API | `apiKeyEnv` (default `OPENROUTER_API_KEY`) | gated by the model's listed `reasoning` support | full slug required; boot requires the model to list `structured_outputs`; `require_parameters` is forced on every request |
 | `claude-code` | **local CLI** | your interactive `claude /login` (OAuth/keychain) | none (`effort: null` — honest gap) | lockdown: `--tools ""`, print mode, no `--bare`; served model verified from `modelUsage` post-run |
-| `codex` | **local CLI** | your interactive `codex login` | `model_reasoning_effort` | lockdown: `--sandbox read-only --skip-git-repo-check --ephemeral`; **provenance blind spot**: codex's JSONL carries no model id, so a silent server-side reroute is unobservable — the stamp records what you configured |
+| `codex` | **local CLI** | your interactive `codex login` | `model_reasoning_effort` | lockdown: `--sandbox read-only --skip-git-repo-check --ephemeral`; **origin blind spot**: codex's JSONL carries no model id, so a silent server-side reroute is unobservable — the stamp records what you configured |
 
 `effort:` note: the committed eval baselines (`tools/categorizer/eval`)
 assume the default (anthropic at `medium`) — running an instance at a
@@ -235,12 +235,12 @@ whole point — but a few facts keep the guarantee honest:
   vars (`ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `ANTHROPIC_BASE_URL`,
   `CLAUDE_CODE_USE_BEDROCK`/`_VERTEX`, `CODEX_API_KEY`,
   `CODEX_ACCESS_TOKEN`, `OPENAI_API_KEY`, `OPENROUTER_API_KEY`) from the
-  spawned CLI's environment — generation and boot probe alike — so the
+  spawned CLI's environment — generation and startup check alike — so the
   configured provider means what it says. `CLAUDE_CODE_OAUTH_TOKEN`
   survives deliberately: it IS the subscription route. Residual hole the
   strip cannot reach: an `apiKeyHelper` configured in the CLI's own
   settings file still outranks OAuth — remove it if you have one.
-- **The boot probe asserts the billing route.** At startup the worker
+- **The startup check asserts the billing route.** At startup the worker
   reads `claude auth status` and refuses to start if the active route is
   an API key (including a settings-file `apiKeyHelper`) rather than the
   subscription login; a CLI older than 2.1.226 (see below) draws a
@@ -301,18 +301,18 @@ served-model mismatch, and a run-time effort-knob discovery (openai) all:
 `generationWarnings`, rendered under the Brief header. One exception by
 design: OpenRouter learns a model's missing `reasoning` support at BOOT
 (from its `/models` preflight), so that gap logs once at construction and
-shows as `effort: null` in provenance rather than as a per-artifact
-warning. The provenance line also shows the adapter class — `via anthropic
+shows as `effort: null` in the origin line rather than as a per-artifact
+warning. The origin line also shows the adapter class — `via anthropic
 (API)/…` vs `via claude-code (local CLI)/…` — so a CLI-generated Brief is
 never mistaken for an API one.
 
 ### Length discipline and anchoring degrade on weaker models (BRIEF-148)
 
-Brief prose carries length caps in the prompt (group titles/summaries,
+Brief text carries length caps in the prompt (group titles/summaries,
 revision-narrative overview and hover-callout summaries, risk notes), and
 cross-revision stability rides an anchored minimal-edit rule (BRIEF-143).
 Both are prompt-enforced: strong models comply; weaker models over-write
-and rewrite. The pipeline never trims or retries — over-cap prose is
+and rewrite. The pipeline never trims or retries — over-cap text is
 stamped on the artifact (`lengthViolations`) and surfaces two ways: a
 muted line on the Changes view ("Some brief text exceeds length
 guidance…") and `⚠ prose length` entries in `generationWarnings`. The

@@ -31,7 +31,7 @@ MECHANISM — how (what authors & reviewers feel)
                      reviewer-side: delta brief reloads the mental
                      model so the re-review context-switch is cheap
 
-ENGINE — load-bearing, mostly under the hood
+ENGINE — critical, mostly under the hood
   TAXONOMY           stable change-type vocabulary; powers grouping,
                      risk attachment, agent guidance, cross-PR query
   CONCERN GROUPING   impl vs test vs scaffolding split
@@ -128,7 +128,7 @@ Why it matters:
 - **It closes the re-review loop at the source:** the same issue stops recurring, so the codebase's review burden *drops* as the rule base grows.
 - **It's the playbook's real destiny:** the playbook isn't a human UI panel — it's the seed of a repo-local, comment-fed rule base that agents consume.
 
-Governance (the load-bearing part — without it the rule base fills with junk and bloats, killing D's "lightweight" requirement):
+Governance (the critical part — without it the rule base fills with junk and bloats, killing D's "lightweight" requirement):
 - **Candidates, not auto-rules.** Accepted/resolved comments become *candidates*, weighted by **recurrence** (same issue across multiple PRs = strong) and **reviewer authority** (the seniority gradient the interviews described).
 - **Role-gated promotion.** Only designated approvers — CODEOWNERS for the affected path, or a role list declared in the repo YAML — can promote a candidate to a rule. A less-experienced dev's accepted comment is a candidate, never a self-promoting rule.
 - **Rules land as PRs.** Promotion opens a PR adding the rule to the repo context md; the repo's normal review merges it. Nothing enters agent context without a reviewed, merged PR — double audit, and it can be dogfooded through this very tool.

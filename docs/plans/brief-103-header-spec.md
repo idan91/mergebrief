@@ -49,19 +49,19 @@ generation-warnings chip (when present)
 - Two-cell bordered lockup, 18px fixed height, `vertical-align: middle` so
   it rides INSIDE the meta-height line box (a draft that inflated the row
   was the prototype's first defect — fixed height + sm cell text is
-  load-bearing). 8px before / 2px after.
+  critical). 8px before / 2px after.
 - Cells: neutral mark cell (API/CLI tints rejected) → mono model cell →
   textual `API`/`CLI` end tag (xs, letter-spaced, line-height 1, 1px
   optical down-nudge). Class is carried in TEXT, never color alone.
 - Model cell: full model id + effort (`claude-opus-4-8 · medium`).
   OpenRouter ids keep the author prefix (`anthropic/claude-opus-5`) —
-  provenance never abbreviates identity.
+  origin never abbreviates identity.
 - Logos: official brand SVGs BUNDLED as local assets (CSP/self-host safe;
   nominative use) for anthropic / openai / openrouter / claude-code /
   codex (registry tokens). SVG `aria-hidden` + sibling sr-only provider
   name. Unknown/self-hosted provider → provider token as text in the mark
   cell.
-- The badge is NON-INTERACTIVE provenance chrome (badge-as-trigger
+- The badge is NON-INTERACTIVE origin chrome (badge-as-trigger
   rejected: commit range/timestamps are unrelated to the model).
 
 ## Submit CTA
@@ -79,7 +79,7 @@ generation-warnings chip (when present)
 - Three sections: **Artifact** (kind, brief index, commit range base..head
   + count, full SHAs, LOC "adjusted ≈ git" caveat — the killed stats
   popover's text) · **Generation** (provider, model, effort, warnings
-  prose; amended 2026-08-04 at implementation: the originally-listed
+  text; amended 2026-08-04 at implementation: the originally-listed
   timestamps have no data source — the artifact's Generation stamp is
   provider/model/effort only) · **Repo config** (ok-state, table slimmed to file +
   applied-or-not + warning line when present; bytes-of-budget and per-file
@@ -88,14 +88,14 @@ generation-warnings chip (when present)
 
 ## Chips
 
-- **Generation warnings**: prose block removed from the header; compact
+- **Generation warnings**: text block removed from the header; compact
   amber count chip ("2 generation warnings") when warnings exist.
 - **Repo config**: chip renders in WARNING state only (ADR 0032 #5 still
   satisfied); ok-state lives in the details panel. Keeps its own existing
   mini-callout.
 - **Self-review chip**: kept, own-draft only; equal-or-bolder than today,
   adjacent to the Draft state badge (same story, told together).
-- Registers stay distinct: state badge / provenance badge / stats — stats
+- Registers stay distinct: state badge / origin badge / stats — stats
   never become chips.
 
 ## Lens row (row 2) + progress

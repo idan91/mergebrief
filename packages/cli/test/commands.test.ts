@@ -1,4 +1,4 @@
-// Command tests over the REAL api Hono app (the injected-fetch seam:
+// Command tests over the REAL api Hono app (the injected-fetch boundary:
 // `app.request` is fetch-shaped) on PGlite — true integration, no network,
 // no mock drift. Assertions live on the contract surface: captured stdout /
 // stderr + exit code (ADR 0029 #5), passthrough byte-fidelity, and the
@@ -54,7 +54,7 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-/** GitHub stub at the GLOBAL fetch seam (the api app's octokit uses it). */
+/** GitHub stub at the GLOBAL fetch boundary (the api app's octokit uses it). */
 function stubGitHub(
   repos: () => ReadonlyArray<{ id: number; full_name: string }>,
 ): {

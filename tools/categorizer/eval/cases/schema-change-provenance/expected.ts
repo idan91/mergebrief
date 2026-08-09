@@ -2,7 +2,7 @@ import type { EvalProperty } from "../../properties";
 import { chunksFor, dominantCategories, fires } from "../../briefQueries";
 
 /**
- * code-review#112 (single-commit span cfe5a479) — repo-config provenance
+ * code-review#112 (single-commit span cfe5a479) — repo-config origin
  * column on the brief record: migration 0011 + drizzle schema + the
  * artifact-store write path + tests, with drizzle's generated snapshot
  * riding along. The schema-change seed: category, generated-concern

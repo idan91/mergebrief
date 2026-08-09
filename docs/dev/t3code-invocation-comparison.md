@@ -49,7 +49,7 @@ they only get reuse where the product is inherently conversational.
 **Ours**: one `claude -p` process per attempt, stateless by design
 (`claudeCode.ts:22-24`); the feedback retry is a fresh process with the failed
 output stitched into the prompt (`claudeCode.ts:183-191`) because the CLI has no
-assistant-turn seam. Measured cost: ~37K cache-creation input tokens per run
+assistant-turn boundary. Measured cost: ~37K cache-creation input tokens per run
 (2026-08-08, opus-4-8).
 
 **Recommendation: investigate (narrow), mostly ignore.** The persistent-session
@@ -82,7 +82,7 @@ reads `initializationResult().account` — email, `subscriptionType`, `tokenSour
 UI (`apps/server/src/provider/Layers/ClaudeProvider.ts:703-773, 540-559`).
 
 **Ours**: inherit process env, then strip `HARNESS_STRIPPED_CREDENTIAL_VARS` at
-the one spawn seam, `CLAUDE_CODE_OAUTH_TOKEN` deliberately surviving
+the one spawn boundary, `CLAUDE_CODE_OAUTH_TOKEN` deliberately surviving
 (`run.ts:393-423`).
 
 **Recommendation: keep ours (stronger); investigate their account-info read.**
@@ -92,7 +92,7 @@ which is why they point `CLAUDE_CONFIG_DIR` at the isolated dir and leave `HOME`
 alone (`ClaudeHome.ts:27-33`) — a gotcha `docs/self-host/generators.md` should
 mention for anyone sandboxing the CLI. The account probe is an **investigate**:
 the stream-json `system/init` event (or an SDK-style init read) may expose
-`tokenSource`/`subscriptionType`, which would upgrade our boot probe from "a
+`tokenSource`/`subscriptionType`, which would upgrade our startup check from "a
 credential exists" (`probe.ts:75-108`) to "the credential is the subscription
 route" — closing the residual `apiKeyHelper` hole documented in
 `run.ts:390-392` at verification time instead of leaving it dark.
@@ -152,7 +152,7 @@ normalized per model and version-gated (models catalog gates opus-4-8 at CLI
 ≥ 2.1.154, `ClaudeProvider.ts:54-57`; we run 2.1.226). If `--effort` works on our
 CLI version — one smoke run verifies it — the adapter can honor `Effort` and stop
 declaring the capability gap, restoring ADR 0010's triage lever under ADR 0013 #5
-honest-provenance rules. Verify billing is unchanged before adopting (an effort
+honest-origin rules. Verify billing is unchanged before adopting (an effort
 flag should not change the auth/billing route, but the 2026-08-08 measurement
 should be re-run once with the flag).
 
@@ -249,7 +249,7 @@ usage logs a warning and fires `onModelMismatch`, stamp stays the declaration
 (`claudeCode.ts:306-323`).
 
 **Recommendation: keep ours; version-gating is a plausible probe add-on, low
-priority.** A minimum-CLI-version check in our boot probe (we already run
+priority.** A minimum-CLI-version check in our startup check (we already run
 `--version` and discard the string, `probe.ts:48-73`) would turn "requested model
 too new for this CLI" into a boot-time `ConfigError` instead of a per-run
 mismatch warning — but our mismatch hook already surfaces it, so this is polish.

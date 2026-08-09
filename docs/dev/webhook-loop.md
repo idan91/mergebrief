@@ -37,7 +37,7 @@ GITHUB_OAUTH_CLIENT_ID=Iv1.replace-me
 GITHUB_OAUTH_CLIENT_SECRET=replace-me
 ```
 
-The composition root (`apps/web/src/server/webhookApp.ts`) reads these once on the first
+The startup wiring (`apps/web/src/server/webhookApp.ts`) reads these once on the first
 webhook request: it parses both configs, opens the DB, and installs the `graphile_worker`
 schema. A missing/invalid var makes the first request **fail loudly** rather than serve a
 broken webhook — so if the endpoint 500s on the first delivery, check the server log for the

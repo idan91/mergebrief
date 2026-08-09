@@ -208,7 +208,7 @@ async function withUrlBoxFallback<T>(
   }
 }
 
-/** The composition root's engine (wired into `createApp` by webhookApp). */
+/** This file's startup-wiring engine (wired into `createApp` by webhookApp). */
 export function createUrlBriefEngine(): UrlBriefEngine {
   // Read once at composition (generate.server's loadEnv already ran).
   const fallbackToken = process.env["MERGEBRIEF_URL_BOX_TOKEN"] || undefined;

@@ -76,7 +76,7 @@ PR goes up. Findings ≥80 confidence: fix, re-stage, re-run until clean.
 
 ## PR breakdown
 
-### PR 1 — persistence: `github_grant` schema, migration, grant-anchored auth seams
+### PR 1 — persistence: `github_grant` schema, migration, grant-anchored auth boundaries
 
 Branch: `feature/BRIEF-40/persistence-grant-entity`, base `main`.
 Estimate ~700–900 LOC incl. tests — under ceiling, no split; re-measure diff-stat after
@@ -89,7 +89,7 @@ each part and split if it blows past ~1000.
    tables, wire FKs, then drop old columns. `expires_at`→`refresh_expires_at` seeding:
    sessions carry refresh expiry today; token rows may be older — take the max per group,
    fallback now()+6mo for orphan no-expiry tokens (bounded by GitHub anyway).
-3. `src/auth/grant.ts` (new seam): `resolveGrant`, `refreshGrant` (CAS re-anchor of the
+3. `src/auth/grant.ts` (new boundary): `resolveGrant`, `refreshGrant` (CAS re-anchor of the
    current per-row `SELECT … FOR UPDATE` shape), `deleteIfOrphaned(tx, grantId)`.
 4. `session.ts`/`token.ts` rework: resolve joins grant; mint takes `grantId` instead of
    ciphertext args; session delete / token hard-delete paths call `deleteIfOrphaned` in-tx.
@@ -108,13 +108,13 @@ Estimate ~400–600 LOC incl. tests.
    `rotateGitHubTokens` + both channel refreshers collapse onto `refreshGrant`; cookie
    failure path keeps delete-session, bearer keeps never-delete (postures pinned by tests).
 2. `routes/tokens.ts` mint: link `currentSession.grantId` (copy lines die).
-3. Logout keeps local-only semantics + orphan cleanup via persistence seam.
+3. Logout keeps local-only semantics + orphan cleanup via persistence boundary.
 4. Tests: channel race matrix through `app.request()`, refresh-failure postures, mint→link
    assertion (no ciphertext duplication anywhere — grep-level test on principal shape is
    compile-time already; assert row counts).
 
 Model/effort/invocation: Fable, medium effort, main thread, sequential after PR 1 (depends
-on its seams; same session carries context).
+on its boundaries; same session carries context).
 
 ## Verification
 

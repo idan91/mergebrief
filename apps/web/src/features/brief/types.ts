@@ -205,7 +205,7 @@ export interface ConcernRollup {
 }
 
 /**
- * @description How actionable the composite intent corpus is (BRIEF-54,
+ * @description How actionable the composite intent source is (BRIEF-54,
  * ADR 0009 §2 as amended). `precise` populates the three buckets; `broad`
  * and `none` render as "intent check unavailable". Plain union (the
  * `ComparisonBaselineLabel` precedent) — a small closed set used only for
@@ -252,13 +252,13 @@ export interface IntentCheck {
   doneButUnstated: IntentItem[];
   /**
    * @description BRIEF-85 alarm bucket: stated asks the diff moves AGAINST
-   * that the corpus nowhere retracts. Items whose `acknowledged` is true are
+   * that the source nowhere retracts. Items whose `acknowledged` is true are
    * quiet receipts (the description owns the reversal) and render at the tail,
    * apart from the unacknowledged ones. Empty on a pre-BRIEF-85 Brief.
    */
   deviations: IntentItem[];
   /**
-   * @description BRIEF-85 alarm bucket: asks the corpus claims are fixed
+   * @description BRIEF-85 alarm bucket: asks the source claims are fixed
    * while the diff touches only the problem's signal/check path. Empty on a
    * pre-BRIEF-85 Brief.
    */
@@ -291,7 +291,7 @@ export interface Generation {
 }
 
 /**
- * @description Cross-revision anchor provenance (BRIEF-143), CLI-assigned:
+ * @description Cross-revision anchor origin (BRIEF-143), CLI-assigned:
  * `anchored` = incremental regeneration against the previous brief;
  * `fresh-restart` = a deliberate from-scratch run (reason names why, e.g.
  * "model-swap"); `none` = first generation or anchoring off. Absent on
@@ -304,7 +304,7 @@ export interface BriefAnchor {
 }
 
 /**
- * @description One prose field exceeding the BRIEF-148 length caps —
+ * @description One text field exceeding the BRIEF-148 length caps —
  * pipeline-stamped (warn-only floor), never model-produced. The FE renders
  * a single muted "consider a stronger model" line when any are present;
  * the entries themselves are diagnostic, not itemized in the UI.

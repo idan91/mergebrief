@@ -28,14 +28,14 @@ The word **"Activation"** conflated three independent things across the docs; th
 > a just-readied PR should be fresh when the reviewer arrives; supersession abort
 > (ADR 0006 #6) covers pushes landing after it. Mechanically:
 > `mergebrief.config.yaml` is now read by **two processes** — the worker's full
-> loader (which validates the whole file) and the web/api composition root via a
+> loader (which validates the whole file) and the web/api startup wiring via a
 > **narrow loader** (`loadInstancePolicy`: the `drafts` key only, no adapter
 > validation, no provider keys) — because the policy enforces at the ENQUEUE path
 > (api), not at drain. The `on-first-view` knob stays rejected/documented-only.
 
 ## Context
 
-"Activation" was load-bearing in three docs that meant different things by it:
+"Activation" was critical in three docs that meant different things by it:
 
 - **CONTEXT.md** (old): "the state transition when a human first clicks the deep-link… (or, under draft-first, when the draft opens). Before activation: no compute fires." — a lazy cost gate.
 - **product-backend-epic.md** workstream 2: "Activation = first deep-link click." — same lazy gate.

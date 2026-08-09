@@ -5,7 +5,7 @@ import type { PairEvalProperty, RevisionPair } from "../pairs";
  * Shared pair-property builders (BRIEF-143 PR 5): the six stability ↔
  * completeness property pairs from the spec, expressed as run-stable
  * mechanical facts (files, group relations, attribute names, id carry) —
- * never chunk boundaries or free prose. Each case's expected.ts composes
+ * never chunk boundaries or free-form text. Each case's expected.ts composes
  * from these; intent properties keyword-match planted markers per the
  * BRIEF-54 bounded exception.
  */

@@ -5,7 +5,7 @@
 // body tiebreak — collision worst case is display-level only.
 //
 // This closes BRIEF-23's accepted M1 residual: the durable sessionStorage
-// "submitted" flip stops being load-bearing after the first refetch — a
+// "submitted" flip stops being critical after the first refetch — a
 // local DRAFT matching an own server thread is reported for flipping, so a
 // missed flip can no longer re-ship posted comments.
 import type { ReviewComment } from "../../review/utils/comments";

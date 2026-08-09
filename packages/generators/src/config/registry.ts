@@ -27,7 +27,7 @@ import { probeHarnessCli } from "../harness/probe";
  * enforces via exhaustiveness).
  *
  * Construction returns `Result` — a misconfigured instance must refuse to
- * boot loudly at the composition root, never limp into jobs. `generate()`
+ * boot loudly at the startup wiring, never limp into jobs. `generate()`
  * keeps throwing (GeneratorError) — Result is for construction only.
  */
 
@@ -41,7 +41,7 @@ export const Providers = {
 } as const;
 export type Provider = ValueOf<typeof Providers>;
 
-/** What a composition root injects; roots stay the only process.env readers. */
+/** What a startup wiring injects; roots stay the only process.env readers. */
 export interface CreateGeneratorDeps {
   env: Record<string, string | undefined>;
   /** Where failed-generation raw outputs are dumped (ephemeral). */
@@ -49,7 +49,7 @@ export interface CreateGeneratorDeps {
   log?: Logger;
 }
 
-// ConfigError lives in ./errors (shared with the harness boot probe);
+// ConfigError lives in ./errors (shared with the harness startup check);
 // re-exported here so config-focused consumers keep one import site.
 export type { ConfigError } from "../contract/errors";
 
@@ -99,7 +99,7 @@ const DEFAULT_ANTHROPIC_KEY_ENV = "ANTHROPIC_API_KEY";
  * (`low | medium | high`), requested per generation. Optional on every
  * adapter — the DEFAULT (`medium`) lives at the consumption site in
  * brief-core, not here. Adapters that cannot honor it stay honest via
- * provenance (`effort: null`), never a config rejection.
+ * the origin stamp (`effort: null`), never a config rejection.
  */
 const effortOption = z.enum(Efforts).optional();
 
@@ -162,8 +162,8 @@ const DEFAULT_CLAUDE_COMMAND = "claude";
 const codexOptions = z
   .object({
     provider: z.literal(Providers.CODEX),
-    /** Model id for -m; absent → the CLI's configured default (provenance
-     * stamps "codex-default"). */
+    /** Model id for -m; absent → the CLI's configured default (the origin stamp
+     * shows "codex-default"). */
     model: z.string().min(1).optional(),
     /** Binary path or name; default "codex" (PATH-resolved). */
     command: z.string().min(1).optional(),

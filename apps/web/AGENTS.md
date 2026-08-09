@@ -17,7 +17,7 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
   extending the BRIEF-97 cause-leak rule): TanStack serializes the Error's
   message — and walks non-enumerable own props, so `{ cause }` ships too.
   Every `createServerFn` handler therefore ends at a curation boundary: the
-  raw reason is logged server-side (as a FIELD — `msg` bypasses the seam's
+  raw reason is logged server-side (as a FIELD — `msg` bypasses the boundary's
   redaction) and replaced with copy from a closed allowlist.
   `features/brief/utils/briefErrors.ts` is the template allowlist;
   `briefHandlers.server.ts` holds the wrapped handler BODIES and

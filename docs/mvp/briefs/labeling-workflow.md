@@ -20,7 +20,7 @@ How to fill in a Phase 1 brief. Follow this order — different from the order t
 
 > **A chunk is sub-file.** It's a contiguous run of changed lines sharing one Concern and one Change-group — NOT necessarily a whole file or a whole git hunk. If a file (or a single git hunk) contains parts with **different concerns or different intents**, split it into multiple chunk rows and label each separately. The inventory tables in the stubs pre-list one row per file as a *starting point* — add rows when a file splits.
 >
-> **Exception (the one unhandled case):** if the multiplicity is *interleaved within one inseparable span* (e.g., a move and a logic-fix woven line-by-line, impossible to split cleanly), keep it as one chunk and capture the secondary operation via the group's secondary Category + a prose note in the Summary. This is the deferred sub-operation tree (ADR 0005) — don't force a split that isn't there.
+> **Exception (the one unhandled case):** if the multiplicity is *interleaved within one inseparable span* (e.g., a move and a logic-fix woven line-by-line, impossible to split cleanly), keep it as one chunk and capture the secondary operation via the group's secondary Category + a text note in the Summary. This is the deferred sub-operation tree (ADR 0005) — don't force a split that isn't there.
 
 Fill the **Chunk Inventory** table. For each chunk:
 

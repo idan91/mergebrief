@@ -14,7 +14,7 @@ describe("Markdown — suggestion fences (BRIEF-56)", () => {
     expect(screen.getByText("Suggested change")).toBeTruthy();
     const table = screen.getByRole("table", { name: "Suggested change diff" });
     expect(table.textContent).toContain("return next;");
-    // The fence is stripped from the prose; the intro stays.
+    // The fence is stripped from the text; the intro stays.
     expect(screen.getByText("Try this:")).toBeTruthy();
     expect(screen.queryByText(/```/)).toBeNull();
   });

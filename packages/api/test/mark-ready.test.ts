@@ -1,5 +1,5 @@
 // Mark-ready route integration tests (BRIEF-43 PR 2): `app.request()` against
-// `createApp` over the PGlite harness, GitHub stubbed at the global-fetch seam
+// `createApp` over the PGlite harness, GitHub stubbed at the global-fetch boundary
 // (same pattern as review-submit.test.ts). Covers: gate posture (401/404
 // collapse), the fresh-flip happy path (row draft flipped + audit emitted),
 // already-ready convergence (200, no error), the GraphQL "not a draft" race

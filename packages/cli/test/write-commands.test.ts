@@ -342,7 +342,7 @@ describe("write commands over the real api app", () => {
     const requested: string[] = [];
     const out: string[] = [];
     const err: string[] = [];
-    // The fetch seam would FAIL resolution if reached — the usage error must
+    // The fetch boundary would FAIL resolution if reached — the usage error must
     // fire first, so this stub must never see an /api/repos request.
     const failingFetch: CliDeps["fetch"] = async (input, init) => {
       requested.push(input);

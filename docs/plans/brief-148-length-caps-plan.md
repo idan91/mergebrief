@@ -80,7 +80,7 @@ Branch: `feature/BRIEF-148/length-caps-core`. Model: Fable 5, main session
 Chunks (one commit each, security-reviewer gated):
 
 1. **Prompt caps** — `packages/brief-core/src/generation/prompt.ts`:
-   - Shared cap prose as BRIEF-67-style consts where full + delta share
+   - Shared cap text as BRIEF-67-style consts where full + delta share
      phrasing verbatim (group title/summary caps); narrative caps inline.
    - Full prompt: cap language on `changeGroups` title + summary bullets;
      split-don't-inflate line in "Change-group boundary".
@@ -96,7 +96,7 @@ Chunks (one commit each, security-reviewer gated):
    riskNotes notes; returns issues + structured violations. Caps as named
    consts (tuning constants, one place). Unit tests per surface incl.
    boundary values.
-3. **Wiring + stamp** — `categorize.ts` (and worker stitch seam if the
+3. **Wiring + stamp** — `categorize.ts` (and worker stitch boundary if the
    merged artifact is the right check point for anchored runs — verify
    against BRIEF-143 stitch: validators run on the MERGED artifact):
    violations → `generationWarnings` + new `lengthViolations` artifact

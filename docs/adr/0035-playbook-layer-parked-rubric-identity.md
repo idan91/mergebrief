@@ -15,7 +15,7 @@ re-litigate it: a **coverage rubric — measurement, never instruction**.
   `apps/web/src/features/brief/playbooks.ts` had zero imports; the check-off spine
   (`checkPlaybookItem`, `CheckBucket` carrier buckets, `playbookChecked/Total`
   progress counters, persisted `checkedItems`) was UI-orphaned; playbook items
-  generated no Flags (contrary to the Flag gloss); the engine prompt never referenced
+  generated no Flags (contrary to the Flag description); the engine prompt never referenced
   playbooks. The layer existed only as markdown plus dead/dormant code.
 - The junior-reviewer case was rejected: juniors learn from stories and change-groups
   like everyone else; a checklist does not teach. Juniors-as-market carries no weight
@@ -38,7 +38,7 @@ re-litigate it: a **coverage rubric — measurement, never instruction**.
   progress counters, marketing copy). Separate code PR; this ADR is the authority.
 - `CONTRIBUTING.md` retargets its pitch to the taxonomy + risk-surface commons
   (Categories / Concerns / Risk-Surface attributes — engine-consumed via closed enums
-  and prompt glosses). Playbook contribution sections are removed; risk-surface
+  and prompt descriptions). Playbook contribution sections are removed; risk-surface
   "Playbook implication" fields rename to "Reviewer implication".
 
 ### 2. Rubric identity (binding on any v2 revival)
@@ -82,7 +82,7 @@ candidate review gate for token PRs. Successor ticket carries this.
 
 - Launch surface shrinks; the commons pitch is honest again (it advertises only what
   the engine consumes).
-- The Flag model is risk-surface-only in v1; the Flag gloss in `CONTEXT.md` is
+- The Flag model is risk-surface-only in v1; the Flag description in `CONTEXT.md` is
   corrected accordingly.
 - If v2 revives the layer, the check-off spine must be rebuilt — deliberate: dormant
   code kept "for later" was masquerading as product truth.

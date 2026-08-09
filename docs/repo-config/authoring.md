@@ -6,7 +6,7 @@ The delivery mechanics (trust rule, caps, failure semantics) are in
 
 ## `instructions.md` — teach the generator your repo
 
-Write prose. The generator honors it for these purposes **only** (the
+Write free-form text. The generator honors it for these purposes **only** (the
 operative list lives in code — `REPO_INSTRUCTION_CLASSES` in the categorizer
 prompt module — and changing it requires an ADR amendment + eval run):
 
@@ -29,10 +29,10 @@ prompt module — and changing it requires an ADR amendment + eval run):
 
 Rules of thumb:
 
-- **Prose shapes presentation; only `policy.yaml` creates facts.** If you
+- **Text shapes presentation; only `policy.yaml` creates facts.** If you
   want a new risk attribute, it goes in `policy.yaml` — instructions cannot
   mint one.
-- Keep it under the 16 KB budget (the provenance chip shows usage; ≥ 80%
+- Keep it under the 16 KB budget (the origin chip shows usage; ≥ 80%
   warns). One root file in v1 — per-scope files are a designed-not-built
   extension.
 - Start from `docs/repo-config/instructions-template.md`.

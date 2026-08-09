@@ -123,8 +123,8 @@ per Idan's round-count feedback), then N post-push rounds.
 ## Surprises / gotchas for the next session
 
 - **`block-destructive.sh` hook matches keywords ANYWHERE in a Bash
-  command, including heredoc prose**: a review-prompt append containing
-  the word "truncate" was blocked (no stderr). Rephrase the prose (e.g.
+  command, including heredoc text**: a review-prompt append containing
+  the word "truncate" was blocked (no stderr). Rephrase the text (e.g.
   "clipped") rather than fighting the hook.
 
 - **Anthropic SDK ≥0.101 parses structured output EAGERLY at message_stop**

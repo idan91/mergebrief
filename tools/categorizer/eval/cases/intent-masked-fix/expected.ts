@@ -1,16 +1,16 @@
 import type { EvalProperty } from "../../properties";
 
 /**
- * BRIEF-85 masking case: the corpus claims a fix the diff never makes.
+ * BRIEF-85 masking case: the source claims a fix the diff never makes.
  *
- * Fixture provenance: unlike the seed cases, the diff here is AUTHORED —
+ * Fixture origin: unlike the seed cases, the diff here is AUTHORED —
  * hand-written over the real `packages/api` webhook route and its logging
  * test at `d98c3ff5`. No real PR in an own repo carries a fake-fix shape
  * (that would be a genuine defect), and the shape is the whole point of
- * the case. Own-repo files, so the corpus rule holds: publishable by
+ * the case. Own-repo files, so the source rule holds: publishable by
  * construction. The PR locator is a placeholder, not a real PR. The
  * `intent-legit-demotion` twin reuses this diff BYTE-IDENTICALLY, so the
- * only variable between the two cases is the intent corpus.
+ * only variable between the two cases is the intent source.
  *
  * The diff demotes `webhook.dispatch.fail` from error to warn and updates
  * the one test that pins the level. Nothing touches dispatch behaviour.

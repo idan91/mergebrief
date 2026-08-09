@@ -21,7 +21,7 @@ apps/web). Rules here apply to the whole workspace.
   or a small domain-cued support file (loose count ≤ ~5); a category earns a
   folder only when it clarifies; generic names are defects. `index.tsx`
   feature barrels remain an apps/web convention (ADR 0037).
-- **Logging goes through the `packages/logging` seam** (ADR 0034) — no bare
+- **Logging goes through the `packages/logging` boundary** (ADR 0034) — no bare
   `console.*` in `packages/api`, `packages/worker`, or server-side
   `apps/web` code. Secrets ride as structured fields (redacted by path),
   never interpolated into `msg`.

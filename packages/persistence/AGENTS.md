@@ -27,14 +27,14 @@ src/
     tenant.ts           forTenant — THE tenant-scoped repository (D2b)
     artifact-store.ts   the five artifact families (D6)
     generation.ts       generation status projection (D10)
-    ingest.ts           transactional webhook→upsert→enqueue seam
+    ingest.ts           transactional webhook→upsert→enqueue boundary
     purge.ts            purge + retention routines (D5/D9/D11)
     audit.ts            append-only audit emit + metadata allowlist (D9)
     user-settings.ts    per-user (non-tenant) settings (D14)
   auth/               PRE-tenant resolvers (they PRODUCE the tenant) + crypto
     session.ts          reviewer-session resolver (D11)
     token.ts            API-token resolver (BRIEF-17)
-    crypto.ts           AES-256-GCM token crypto behind the key-provider seam
+    crypto.ts           AES-256-GCM token crypto behind the key-provider interface
 test/                 per-module suites (PGlite against checked-in migrations)
 drizzle/              generated SQL migrations — append-only
 ```

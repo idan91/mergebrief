@@ -114,7 +114,7 @@ export function useOwnDraftFlow(
   // Drain settled posts into THIS mount: the settling closure captured the
   // store/toast of the mount that STARTED the post — orphans after a same-tab
   // remount — so flips and outcome copy must apply through whichever mount is
-  // live at settle time. The per-change re-run is load-bearing: the flip must
+  // live at settle time. The per-change re-run is critical: the flip must
   // land before the store's next whole-state flush re-persists a stale
   // snapshot — do not narrow the postingCommentIds dep.
   useEffect(() => {

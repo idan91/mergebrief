@@ -27,18 +27,18 @@ The product ships **open-source, self-hosted first**, open-core: one codebase ru
    - **Self-host** — `docker compose up`; `instance = tenant`; **code and model keys never leave the adopter**.
    - **Hosted** — *deferred, not forbidden*; same core + multi-tenancy + central auth + BYOK key handling, built only after validation and with legal headroom.
 2. **BYOK default** — the adopter brings and pays the model key.
-3. **Build one core; decide packaging later.** Do not build hosted-only machinery (multi-tenancy density, billing, central key vault) until validation passes; ADR 0016's seams (tenant scoping, auth gate, audit log) keep it additive.
+3. **Build one core; decide packaging later.** Do not build hosted-only machinery (multi-tenancy density, billing, central key vault) until validation passes; ADR 0016's boundaries (tenant scoping, auth gate, audit log) keep it additive.
 4. **Friction is a growth-stage problem, not a validation-stage one.** For a few design-partner orgs the setup is an afternoon; soften with the app-manifest flow + a one-command deploy + the static demo — don't over-invest now.
 5. **Gate:** contractual IP clearance precedes building/publishing under the author's name.
 
 ## Why This Way
 
-With no moat and no ability to run a hosted business at scale under current constraints, we compete on the axis that is winnable — being the standard for the *thesis* (mindshare), via OSS — while deferring monetization to when it is legal. Self-host also collapses the trust story (adopter is controller, ADR 0016) and the infra surface (Postgres-only, ADR 0015), which is exactly what makes `docker compose up` viable. Building one core with clean seams means the eventual hosted offering is a packaging/ops lift, not a rewrite.
+With no moat and no ability to run a hosted business at scale under current constraints, we compete on the axis that is winnable — being the standard for the *thesis* (mindshare), via OSS — while deferring monetization to when it is legal. Self-host also collapses the trust story (adopter is controller, ADR 0016) and the infra surface (Postgres-only, ADR 0015), which is exactly what makes `docker compose up` viable. Building one core with clean boundaries means the eventual hosted offering is a packaging/ops lift, not a rewrite.
 
 ## Consequences
 
 - The architecture optimizes for self-host: Postgres-only (ADR 0015), per-instance App (ADR 0016), no cloud-proprietary dependencies.
 - The **static demo** (the existing artifact-reading FE) becomes a first-class funnel artifact, not throwaway.
-- **Hosted remains available** as a future open-core arm; ADR 0016's seams (tenancy, audit, key-provider) are its readiness.
+- **Hosted remains available** as a future open-core arm; ADR 0016's boundaries (tenancy, audit, key-provider) are its readiness.
 - Phase-1 validation ships as a **self-hostable repo + demo**, not a service.
-- Founder-constraint specifics live in project memory and are **not load-bearing on the architecture** — the design would be identical for any solo, OSS-first author.
+- Founder-constraint specifics live in project memory and are **not critical to the architecture** — the design would be identical for any solo, OSS-first author.

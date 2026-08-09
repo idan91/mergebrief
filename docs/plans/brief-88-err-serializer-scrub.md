@@ -3,7 +3,7 @@
 > Status: **LOCKED — grill closed 2026-07-31, not started.**
 > Ticket: Notion BRIEF-88 (Now). One correction to the ticket text is
 > recorded below (web-boot leak path was already caught, not uncaught).
-> No ADR: scrubbing *extends* the logging seam's redaction, and
+> No ADR: scrubbing *extends* the logging boundary's redaction, and
 > `packages/logging/AGENTS.md` records extension as non-breaking; only
 > narrowing needs an ADR 0034 amendment. AGENTS.md gains the invariant.
 > Design is settled — execution PR, no Fable needed.
@@ -18,7 +18,7 @@ error quoting `DATABASE_URL` reaches NDJSON output at three live sites
 `apps/web/src/server.ts:66` composition-failure catch,
 `packages/worker/src/main.ts:109` boot catch — the last via `msg`, not
 `err`). After this plan, URL-shaped substrings are scrubbed inside the
-seam itself — every call site, present and future, is covered by
+boundary itself — every call site, present and future, is covered by
 construction, and the one call-site workaround
 (`sanitizeDispatchError` in `apps/web/src/data/apiFetch.ts`) is deleted.
 
@@ -45,7 +45,7 @@ construction, and the one call-site workaround
    as a structured field.
    *Revisit trigger:* operators repeatedly missing endpoint URLs during
    error triage → revisit with a userinfo+query-only variant.
-4. **`msg` is scrubbed too**, in the seam's `wrap()` — same regex, one
+4. **`msg` is scrubbed too**, in the boundary's `wrap()` — same regex, one
    `replace` per line. msg content is not author-controlled: `${…}`
    interpolation drags third-party error text in at runtime (~15 such
    sites exist; `worker/main.ts:109` proved the leak). Substring
@@ -63,7 +63,7 @@ construction, and the one call-site workaround
    changes from `logger.error(error.message)` to
    `logger.error("worker boot failed", { err: error })`.
 8. **`sanitizeDispatchError` collapse in scope** (final commit): delete
-   the function, pass the raw error as `err`; the seam now owns the
+   the function, pass the raw error as `err`; the boundary now owns the
    guarantee. The ticket names this as the follow-up — it lands here.
 9. **Docs**: `packages/logging/AGENTS.md` invariant added — "the `err`/
    `error` serializers and `msg` are substring-scrubbed for URL-shaped
@@ -73,7 +73,7 @@ construction, and the one call-site workaround
 ## Ticket correction (recorded, ticket stands otherwise)
 
 The ticket's second named site ("`packages/persistence/src/db/migrate.ts`
-migrate errors") leaks through **catch blocks in the composition roots**,
+migrate errors") leaks through **catch blocks in the startup wiring**,
 not through migrate.ts itself: `apps/web/src/server.ts:66` logs the raw
 error under `err` (serializer fix covers it), and
 `packages/worker/src/main.ts:109` interpolates it into `msg` (decision 7

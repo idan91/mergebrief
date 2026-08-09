@@ -9,7 +9,7 @@ the refresh orchestrator on the hottest auth path.
 Go commit-by-commit; collapse `drizzle/meta/0013_snapshot.json` (generated, ~half the
 diff).
 
-1. `14f10573` — persistence. Load-bearing files, in order:
+1. `14f10573` — persistence. Critical files, in order:
    - `drizzle/0013_github-grant.sql` — verify the ORDER: create → nullable add →
      backfill → `RAISE EXCEPTION` guard → `SET NOT NULL` + FK → drops LAST. The dedup
      `GROUP BY` is the exact ciphertext triple; the token arm contributes `NULL` to
@@ -131,7 +131,7 @@ real-Postgres race PGlite can't run.)
 -- revoke the token, then logout the fresh session → revoked token still pins ITS grant
 --   (documented D15 consequence; NOT a leak of the fix)
 -- delete the revoked token row manually → grant should now be orphan-cleanable only via
---   purge; direct row deletes bypass the seams — don't treat leftover grants here as a bug.
+--   purge; direct row deletes bypass the boundaries — don't treat leftover grants here as a bug.
 ```
 
 **Rollback** if anything looks wrong: `psql "$DATABASE_URL" < /tmp/pre-brief40.sql` and

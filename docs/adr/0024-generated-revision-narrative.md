@@ -34,7 +34,7 @@ The Revision narrative is its own lean artifact and prompt, not the existing Del
 - `Compare: Your last review` selects personal `checkpoint→head` marks and the existing Delta Brief.
 - `Compare: Off` is available only in `Full Brief`; it selects no comparison baseline, so there are no comparison highlights, callouts, or filters.
 - When both comparisons exist, they are peer options in one Compare control. **Your last review** is the default for returning reviewers; **Previous Brief** remains directly selectable rather than hidden in overflow.
-- **View** is orthogonal: `Full Brief` renders the full artifact; `Changes Only` renders a compact change-focused view.
+- **View** is independent: `Full Brief` renders the full artifact; `Changes Only` renders a compact change-focused view.
 - With `Compare: Previous Brief`, `Changes Only` renders the Revision narrative.
 - With `Compare: Your last review`, `Changes Only` renders the existing Delta Brief.
 - `Changes Only` requires an active comparison. If the user enters `Changes Only` while comparison is off, the UI selects the product default comparison; if no comparison exists, `Changes Only` is unavailable.

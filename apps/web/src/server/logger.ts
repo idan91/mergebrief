@@ -1,8 +1,8 @@
 // The web process's ONE logger (BRIEF-51, ADR 0034): built lazily from the
 // ambient env (after the optional `.env` load — same posture as the other
-// composition-root reads) and shared by the server entry, the webhook
+// startup-wiring reads) and shared by the server entry, the webhook
 // composition, and the server-only feature modules. Everything logs through
-// the `packages/logging` seam; pino never appears outside it.
+// the `packages/logging` boundary; pino never appears outside it.
 import "@tanstack/react-start/server-only";
 
 import { createLogger, type Logger } from "logging";

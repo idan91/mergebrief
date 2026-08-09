@@ -2,20 +2,20 @@ import type { EvalProperty } from "../../properties";
 
 /**
  * BRIEF-85 false-positive twin of `intent-masked-fix`: the SAME diff
- * (byte-identical, see that case's provenance note) against a ticket that
+ * (byte-identical, see that case's origin note) against a ticket that
  * ASKS for exactly this log demotion. Nothing is masked and nothing is
  * opposed, so both alarm buckets must stay empty.
  *
  * This is the case that pays for the alarm buckets' precision. The diff
  * shape alone — a log line demoted, a level assertion updated — is
- * exactly what the masking definition describes; only the corpus says
+ * exactly what the masking definition describes; only the source says
  * whether it is a fake fix or the requested work. A model that fires on
- * the shape rather than the corpus passes `intent-masked-fix` and fails
+ * the shape rather than the source passes `intent-masked-fix` and fails
  * here, which is the whole point of running them as a pair.
  *
  * Vacuity note (BRIEF-59 trap): `legit-no-deviations` and
  * `legit-no-masking-alarm` pass trivially if a regressed model rates this
- * corpus broad/none (the validator empties every bucket mechanically), so
+ * source broad/none (the validator empties every bucket mechanically), so
  * they are anchored by `legit-precise` and `legit-demotion-accomplished`,
  * both of which fail in that world. Read the four together, never the
  * negatives alone.

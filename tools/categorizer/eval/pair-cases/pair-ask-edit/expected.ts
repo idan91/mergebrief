@@ -1,5 +1,5 @@
 // BRIEF-143 revision-pair case — AUTHORED fixture (own-repo file shapes,
-// difflib-generated diffs; PR locator is a placeholder). Provenance: the
+// difflib-generated diffs; PR locator is a placeholder). Origin: the
 // BRIEF-143 PR 5 stack; generator script documented in that PR.
 // Ask edit: rev2's title/body newly ask for a version endpoint the diff does not deliver. Spec pair 4 RIGHT: an edited ask gets a fresh verdict.
 import type { PairEvalProperty } from "../../pairs";
@@ -11,7 +11,7 @@ const B = "packages/api/src/routes/health.ts";
 export const pairProperties: PairEvalProperty[] = [
   untouchedGroupSurvives(A),
   coverage([A, B]),
-  // Spec pair 4 RIGHT: the edited ask is judged against the CURRENT corpus
+  // Spec pair 4 RIGHT: the edited ask is judged against the CURRENT source
   // — the undelivered version endpoint must surface as statedButMissing.
   // Keyword-matched per the BRIEF-54 bounded exception ("version" is a
   // planted marker in the authored rev2 title/body).

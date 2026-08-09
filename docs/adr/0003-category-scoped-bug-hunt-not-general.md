@@ -11,7 +11,7 @@ The tool does not run a general line-level AI bug-finder. The only "missed point
 
 ## Why This Way
 
-The product's differentiation is comprehension scaffolding via diff-by-intent, not line-level bug catching. Adding a general bug-finder dilutes the wedge and forces head-on competition with mature incumbents. Scoping checks to the categories and playbooks already in the brief keeps the entire product internally coherent: every "missed point" is a structural fact about a category obligation, not an AI hypothesis about correctness — which sidesteps the AI-authoring-prose trap entirely (missed points are checklist items, not English sentences) and preserves the accountability principle (reviewer owns judgment; the tool reports mechanical gaps).
+The product's differentiation is comprehension scaffolding via diff-by-intent, not line-level bug catching. Adding a general bug-finder dilutes the wedge and forces head-on competition with mature incumbents. Scoping checks to the categories and playbooks already in the brief keeps the entire product internally coherent: every "missed point" is a structural fact about a category obligation, not an AI hypothesis about correctness — which sidesteps the AI-authoring-text trap entirely (missed points are checklist items, not English sentences) and preserves the accountability principle (reviewer owns judgment; the tool reports mechanical gaps).
 
 This also produces honest positioning. The tool is "a comprehension layer that runs alongside your bug-catcher of choice", not "the AI code reviewer that does everything". That positioning is itself the differentiation.
 

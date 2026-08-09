@@ -1,7 +1,7 @@
 // BRIEF-19 PR 1.2 endpoint tests: the session-scoped PR list (`GET /api/pulls`)
 // and the per-PR meta endpoint (`GET /api/repos/:repoId/pulls/:prNumber`).
 // Same harness as reads.test.ts: `app.request()` over PGlite, GitHub stubbed at
-// the global-fetch seam. The list's allowed-repo set comes from
+// the global-fetch boundary. The list's allowed-repo set comes from
 // `GET /user/installations/{id}/repositories` with the viewer's token — a
 // GitHub failure must fail the list (401/502), NEVER degrade to a DB-only
 // (leaky) listing.

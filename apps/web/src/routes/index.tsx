@@ -16,7 +16,7 @@ import styles from "./index.module.scss";
 
 export const Route = createFileRoute("/")({
   // Both lists prefetch in parallel — the session list SSRs through the
-  // in-process apiFetch seam (same authz gate), never a client waterfall.
+  // in-process apiFetch interface (same authz gate), never a client waterfall.
   loader: ({ context }) =>
     Promise.all([
       context.queryClient.ensureQueryData(localBriefsQueryOptions()),

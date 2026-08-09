@@ -260,7 +260,7 @@ key is the cheapest way to close most of the gap: it natively covers
 `baseUrl: https://openrouter.ai/api/v1`.
 
 - [ ] Live smoke per adapter you ship (`pnpm -C packages/generators smoke
-      -- --adapter …`): boot probe passes, provenance honest (effort
+      -- --adapter …`): startup check passes, origin honest (effort
       echoed/null per adapter; `codex-default` when unconfigured), output
       schema-valid, warnings explainable. Adapters: `anthropic`,
       `claude-code` (needs `claude /login`), `codex` (needs `codex login`),

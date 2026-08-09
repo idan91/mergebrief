@@ -38,7 +38,7 @@ lived codex hang precedent; exit codes are near-information-free everywhere.
    note's revisit triggers — never a silent v1 extension.
 2. **Thin per-CLI classes over a shared core.** `ClaudeCodeGenerator` and
    `CodexGenerator` own only their CLI's flags, envelope parsing, and
-   provenance quirks; the shared core owns spawn, timers, the kill ladder,
+   origin quirks; the shared core owns spawn, timers, the kill ladder,
    and the schema-floor pipeline. A generic `HarnessGenerator` with profile
    objects was rejected: answer extraction differs per CLI in kind (four
    shapes across the ecosystem, codex double-parse), so profiles stop being
@@ -72,12 +72,12 @@ lived codex hang precedent; exit codes are near-information-free everywhere.
    `auth | config | provider-transient | timeout | schema-floor | refusal |
    cli-missing | opaque` — classified from in-band JSON where the CLI
    provides it (claude `system/api_retry` categories, result `errors[]`),
-   else `opaque` plus captured stderr. Construction-time boot probes run
+   else `opaque` plus captured stderr. Construction-time startup checks run
    `<cli> --version` and an auth preflight (`claude auth status` exits 0/1;
    codex equivalent probed at implementation, `auth.json` presence as a weak
    fallback) so a misconfigured instance refuses boot instead of failing
    inside jobs.
-6. **Provenance: the CLI is the provider; honest within the static
+6. **Origin: the CLI is the provider; honest within the static
    declaration.** Provider tokens `claude-code` / `codex`; `model` = the
    requested/configured id (the CLI owns actual routing). Where the CLI makes
    reality observable, trust-but-verify: the claude adapter compares the
@@ -127,20 +127,20 @@ your subscription on your machine; the deployed worker uses API keys.
 
 - **New in `packages/generators`:** shared harness core, two adapter classes,
   two registry entries, provider vocabulary tokens `claude-code`/`codex`,
-  boot probe + auth preflight machinery, `GeneratorError`.
+  startup check + auth preflight machinery, `GeneratorError`.
 - **Testing:** real-process fake-CLI shims (`SHIM_SCENARIO` failure matrix),
   injectable timer/kill-ladder durations, shared conformance suite
   (`describeGeneratorContract`) every adapter must pass; live smoke stays
   manual and outside CI (no live keys/CLIs in CI).
 - **Docs debt (mandated):** README local-only boundary + why, per-CLI
-  isolation/lockdown story, codex provenance blind spot, retry/salvage
+  isolation/lockdown story, codex origin blind spot, retry/salvage
   visibility.
 - **Capability gaps recorded:** no effort knob on claude-code, no
-  cost/model accounting on codex — surfaced via provenance per ADR 0013 #5.
+  cost/model accounting on codex — surfaced via origin metadata per ADR 0013 #5.
 - **Revisit triggers:** vendor sanctions unattended subscription use /
   ships a server CLI distribution (deployed-mode ticket); codex JSONL gains
   a model/reroute event (verification upgrade); cursor/opencode promotion
   adds one class + entry each behind a conformance smoke gate.
-- Builds on ADR 0013 (port, floor, provenance, BYOK), ADR 0006 #6 (abort
+- Builds on ADR 0013 (port, floor, origin, BYOK), ADR 0006 #6 (abort
   semantics), ADR 0010 (triage effort lever weakened on claude-code);
   sibling: instance-level config (ADR 0006/0013 amendments, 2026-07-12).

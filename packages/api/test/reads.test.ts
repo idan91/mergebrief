@@ -1,6 +1,6 @@
 // Read-API + authz-gate integration tests (BRIEF-2 stage 7): `app.request()`
 // against `createApp` over the persistence PGlite harness, with GitHub mocked at
-// the HTTP seam via a stubbed global `fetch` (no live network, no new mock libs)
+// the HTTP boundary via a stubbed global `fetch` (no live network, no new mock libs)
 // — the same pattern as `auth.test.ts`. The stub answers the endpoints the gate
 // and the diff proxy touch: `GET /repositories/{id}` (the access check), the
 // span diff (`GET /repos/{owner}/{repo}/compare/{base}...{head}`), and the OAuth

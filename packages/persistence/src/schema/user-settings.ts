@@ -3,7 +3,7 @@
 // carry as `reviewer_id`), because a person spans installations (reviewer in
 // one org, author in another; same human either way) — the row therefore
 // cannot carry `installation_id` as its key. Reads/writes go through the
-// dedicated `userSettingsStore` seam, NOT `forTenant` (see `../user-settings`).
+// dedicated `userSettingsStore` boundary, NOT `forTenant` (see `../user-settings`).
 //
 // TYPED COLUMNS ONLY, never a JSON preferences blob (D14): every new setting is
 // a column + migration, the same closed-vocabulary discipline as the

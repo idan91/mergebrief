@@ -8,7 +8,7 @@ import {
 
 /**
  * Hand-built brief used by the screen characterization suite (and reusable by
- * store/receipt tests). Small but exercises the load-bearing couplings: an
+ * store/receipt tests). Small but exercises the critical couplings: an
  * uncertain group, one carrier chunk with a risk flag, one supporting chunk.
  */
 export const briefFixture: Brief = {

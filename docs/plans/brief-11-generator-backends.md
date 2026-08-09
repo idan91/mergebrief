@@ -34,7 +34,7 @@ docs/UI mandates the map accumulated.
 Full detail lives on the map's tickets; gists here, contracts inline where
 implementation needs them.
 
-1. **Registry + construction seam.** Static compiled-in `as const` registry;
+1. **Registry + construction boundary.** Static compiled-in `as const` registry;
    each entry = provider literal + Zod options schema + `create(opts, deps)`.
    Config discriminated union (`z.discriminatedUnion("provider", …)`) is
    **derived from the registry** — single source of truth for vocabulary,
@@ -106,7 +106,7 @@ implementation needs them.
    `reasoning: { effort }` only when preflight-cached `supported_parameters`
    includes `reasoning`; OpenAI sends `reasoning_effort` always, on a 400
    naming the param retries once without and caches "no knob" for instance
-   lifetime; dropped knob recorded as capability gap in provenance. Provenance
+   lifetime; dropped knob recorded as capability gap in origin. Origin
    keeps the full declared slug (OpenRouter vendor prefix NOT stripped);
    served-model mismatch recorded. SDK built-in retries only — no adapter
    backoff loop. AI-SDK = planned-only slot (promotion trigger: Bedrock/Vertex
@@ -163,7 +163,7 @@ implementation needs them.
    interface (generic over adapter extensions). Contract cases: valid
    passthrough; salvage without second attempt; retry-once with feedback;
    throw+dump after second failure; abort propagates untouched;
-   `GeneratorError.kind` classification; provenance shape. API adapters fake
+   `GeneratorError.kind` classification; origin shape. API adapters fake
    at **fetch level** (custom `fetch` into the `openai` SDK client; canned
    HTTP fixtures; no new mocking libraries). **AnthropicGenerator keeps its
    stub-client fake** — deliberate asymmetry, unchanged tests are the
@@ -226,10 +226,10 @@ requires it):
 |---|---|---|
 | 1 generators-extraction | Opus medium | Mechanical move + CI wiring; risk is import churn, not design |
 | 2 floor-pipeline-contract | Opus high | Characterization must hold while AnthropicGenerator migrates; contract factory typing |
-| 3 registry-create-generator | Opus high | Registry generics without `as`; three composition roots; error union |
+| 3 registry-create-generator | Opus high | Registry generics without `as`; three startup-wiring sites; error union |
 | 4 harness-core-shims | Opus high | Process lifecycle IS the risky code: timers, kill ladder, classification |
 | 5 claude-code-adapter | Opus high | Envelope parsing + modelUsage verification + lockdown profile subtleties |
-| 6 codex-adapter | Opus high | Double-parse, unverified flags to probe, provenance blind spot |
+| 6 codex-adapter | Opus high | Double-parse, unverified flags to probe, origin blind spot |
 | 7 openai-core-adapter | Opus high | Shared core + strict json_schema + 400-sniff effort fallback |
 | 8 openrouter-adapter | Opus medium | Pattern-following on PR 7's core; preflight + routing options |
 | 9 instance-config | Opus high | Boot fail-fast surface across worker/web/CLI; strict-reject semantics |
@@ -284,10 +284,10 @@ requires it):
 #### PR 4 — `feature/BRIEF-11/harness-core-shims` (~700–1000 LOC, stacked; gate: shims+tests > 1000 → split shim suite into its own PR)
 
 1. Shared harness-execution core: argv spawn (no shell), prompt via stdin
-   then close, streaming event consumption seam, injectable timers (hard
+   then close, streaming event consumption boundary, injectable timers (hard
    15 min / inactivity 3 min defaults), SIGINT → 5 s → SIGKILL ladder,
    fresh-process retry hook into `runWithSchemaFloor`, stderr capture +
-   partial-output dump, `GeneratorError` classification, boot probe helper
+   partial-output dump, `GeneratorError` classification, startup check helper
    (`--version` + auth preflight).
 2. `test/shims/fake-claude.js` + `fake-codex.js` with `SHIM_SCENARIO`
    matrix; SIGINT-recording shim (marker file via env).
@@ -303,7 +303,7 @@ requires it):
    enum-preserving schema), lockdown profile (no `--bare`; settle isolation
    ladder — `--tools ""` etc.), `system/api_retry` category → `kind` mapping,
    `modelUsage` trust-but-verify (mismatch → warning log + surfacing hook),
-   auth preflight via `claude auth status`, provenance
+   auth preflight via `claude auth status`, origin
    `{ provider: "claude-code", model: <requested>, effort: null }`.
 2. Registry entry + contract harness + adapter-specific tests on
    `fake-claude`.
@@ -315,7 +315,7 @@ requires it):
    path), `--sandbox read-only --skip-git-repo-check --ephemeral` profile,
    `-c model_reasoning_effort` (**verify the flag exists**; absent →
    null-treatment), auth preflight (probe codex equivalent; `auth.json`
-   presence as weak fallback), provenance
+   presence as weak fallback), origin
    `{ provider: "codex", model: <requested> }` + reroute blind-spot note.
 2. Registry entry + contract harness + adapter tests on `fake-codex`.
 
@@ -329,7 +329,7 @@ requires it):
    `GeneratorError.kind` mapping, attribution headers).
 2. `OpenAiGenerator`: `/models/{id}` preflight (key validity + existence),
    `reasoning_effort` with 400-sniff retry-once + instance-lifetime "no knob"
-   cache + provenance capability gap, `baseURL` escape hatch (preflight
+   cache + origin capability gap, `baseURL` escape hatch (preflight
    downgrades to warnings when set).
 3. Registry entry + contract harness (fetch-level fixtures) + adapter tests
    (request construction, error mapping, SDK retry visibility).
@@ -339,7 +339,7 @@ requires it):
 1. `OpenRouterGenerator` on the core: `/models` preflight requiring
    `structured_outputs` (cache `supported_parameters` for reasoning gating),
    forced `provider.require_parameters: true` on every request,
-   `providerRouting` options, `reasoning: { effort }` gating, provenance full
+   `providerRouting` options, `reasoning: { effort }` gating, origin full
    slug + served-model mismatch recording.
 2. Registry entry + contract harness + adapter tests.
 
@@ -370,7 +370,7 @@ requires it):
 #### PR 11 — `feature/BRIEF-11/docs-smoke` (~400–700 LOC, stacked)
 
 1. Smoke scripts `packages/generators/smoke/` (per adapter or `--adapter`
-   flag): one real `generate()` with a tiny schema, prints provenance,
+   flag): one real `generate()` with a tiny schema, prints origin,
    nonzero exit on floor violation; excluded from vitest + CI.
 2. `docs/dev/` smoke recipe (run before release, after CLI version upgrades,
    after adapter changes; what it covers that CI cannot).
@@ -378,7 +378,7 @@ requires it):
    (wording seeded from `harness-cli-deployed-feasibility.md` — subscription
    ToS is the reason; revisit triggers listed there), full config surface
    (file, `MERGEBRIEF_CONFIG`, `--config`, precedence, zero-config default,
-   `x-*` carve-out), Anthropic Sonnet cost knob, codex provenance blind spot,
+   `x-*` carve-out), Anthropic Sonnet cost knob, codex origin blind spot,
    retry/salvage visibility note, isolation/lockdown story per CLI.
 
 ## Deferred (planned slots — do NOT build)
@@ -386,10 +386,10 @@ requires it):
 - **AI-SDK adapter** — promotion trigger: Bedrock/Vertex-style auth need or a
   model unreachable via Anthropic/OpenAI/OpenRouter.
 - **cursor-agent / opencode adapters** — one class + one registry entry each
-  when promoted; capabilities note flags their envelope/provenance gaps
+  when promoted; capabilities note flags their envelope/origin gaps
   (conformance smoke gate mandatory).
 - **`tiers` config block** — lands with the ADR 0010 triage consumer.
-- **Per-run observed provenance** — trigger: codex reroute caught mattering.
+- **Per-run observed origin** — trigger: codex reroute caught mattering.
 - **Deployed harness mode** — separate board ticket, never v1; re-read the
   feasibility note's revisit triggers first.
 
@@ -430,7 +430,7 @@ End-to-end (after PR 9; `verify` skill drives the runtime): zero-config boot
 per-field issues); categorizer CLI `--config` validates the same file. Manual
 live smoke per adapter (PR 11 recipe): claude (OAuth), codex (login), OpenAI
 + OpenRouter (keys) each produce one schema-valid generation with honest
-provenance; kill a hung run manually to confirm watchdog + kill ladder in the
+origin; kill a hung run manually to confirm watchdog + kill ladder in the
 real CLI once.
 
 ## Context for a fresh session (read before PR 1)

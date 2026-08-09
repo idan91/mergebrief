@@ -23,7 +23,7 @@ const SECRET = "test-webhook-secret";
 
 // Dummy auth deps: the webhook tests never exercise the OAuth/session routes,
 // but `createApp` now requires the bundle. A throwaway 32-byte key keeps the
-// crypto seam constructible; nothing here triggers a token seal.
+// crypto boundary constructible; nothing here triggers a token seal.
 const DUMMY_AUTH: AuthDeps = {
   oauthClientId: "test-client-id",
   oauthClientSecret: "test-client-secret",

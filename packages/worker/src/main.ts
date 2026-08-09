@@ -1,4 +1,4 @@
-// The worker composition root (`pnpm start` / the compose `worker` service).
+// The worker startup wiring (`pnpm start` / the compose `worker` service).
 // This is the ONE place env is read and real dependencies are wired — the
 // library modules stay env-INJECTED (same posture as
 // `apps/web/src/server/webhookApp.ts`). A misconfigured worker must fail
@@ -18,7 +18,7 @@ const FAILURE_DUMP_DIR = "out";
 
 /**
  * Load `packages/worker/.env` if present, then return the ambient env.
- * Mirrors the web composition root's `readEnv`: the file is optional.
+ * Mirrors the web startup wiring's `readEnv`: the file is optional.
  */
 function readEnv(): NodeJS.ProcessEnv {
   try {
@@ -32,14 +32,14 @@ function readEnv(): NodeJS.ProcessEnv {
 // The process logger (ADR 0034): built once from the loaded env; everything
 // in this process — composition, task, graphile lifecycle — logs through it.
 // Its own construction can fail on config (bad LOG_LEVEL) — that too must
-// stay down (BRIEF-149), and with the seam itself broken, bare console is
+// stay down (BRIEF-149), and with the boundary itself broken, bare console is
 // the honest fallback.
 const env = readEnv();
 const logger = (() => {
   try {
     return createLogger({ env });
   } catch (error) {
-    // eslint-disable-next-line no-console -- the logging seam itself failed to construct; bare console is the only channel left
+    // eslint-disable-next-line no-console -- the logging boundary itself failed to construct; bare console is the only channel left
     console.error("worker composition: invalid logging configuration —", error);
     process.exit(0);
   }
@@ -78,9 +78,9 @@ async function main(): Promise<void> {
     );
   }
 
-  // Generator construction goes through the registry seam (BRIEF-11): the
+  // Generator construction goes through the registry boundary (BRIEF-11): the
   // instance config (or zero-config default) selects the adapter; keys
-  // resolve by env-var NAME and harness adapters run their boot probes here
+  // resolve by env-var NAME and harness adapters run their startup checks here
   // — a misconfigured instance refuses boot before taking jobs.
   const generator = await createGenerator(config.value.generator, {
     env,
@@ -135,7 +135,7 @@ async function main(): Promise<void> {
     // instead of riding out the kill grace into a stuck job lock. helpers.job
     // carries the attempt counts the failure events read.
     taskList: { generate: (payload, helpers) => generate(payload, helpers) },
-    // graphile's lifecycle logs (jobId/workerId scope) flow through the seam.
+    // graphile's lifecycle logs (jobId/workerId scope) flow through the boundary.
     logger: new GraphileLogger(createGraphileLogFactory(logger)),
   });
   logger.info("worker: listening for generate jobs");
@@ -151,7 +151,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-  // Structured `err`, not message-into-msg: the seam's serializer scrubs
+  // Structured `err`, not message-into-msg: the boundary's serializer scrubs
   // URL-shaped secrets (BRIEF-88) — a drizzle migrate failure quotes
   // DATABASE_URL back, which the old message-only line emitted verbatim.
   logger.error("worker: boot failed", { err: error });

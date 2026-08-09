@@ -36,7 +36,7 @@ import {
 
 /**
  * One repo-local file as handed to validation. `undefined` at the input = absent
- * (404). `path` is advisory (caller bookkeeping) — provenance outcomes always
+ * (404). `path` is advisory (caller bookkeeping) — origin outcomes always
  * report the canonical fixed slot path, never this field.
  */
 export interface RepoConfigFileInput {
@@ -63,7 +63,7 @@ export interface RepoConfigFileOutcome {
   readonly warning?: string;
 }
 
-/** Instructions prose carried whole once within budget. */
+/** Instructions text carried whole once within budget. */
 export interface ValidatedInstructions {
   readonly content: string;
   readonly blobSha: string;
