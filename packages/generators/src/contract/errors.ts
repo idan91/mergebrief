@@ -1,17 +1,16 @@
 import type { ValueOf } from "types";
 
 /**
- * The reconciled generation-failure taxonomy (BRIEF-11 decision 5, ADR 0030
- * #5). `generate()` keeps throwing — `Result` is for construction only — and
- * every adapter throws this one class so callers classify failures without
- * knowing the transport:
+ * The generation-failure taxonomy. `generate()` throws — `Result` is for
+ * construction only — and every adapter throws this one class so callers
+ * classify failures without knowing the transport:
  *
  *   auth                expired/invalid credentials (API 401/403, CLI auth error)
  *   config              boot-knowable misconfiguration reaching runtime
  *                       (unknown model, unsupported response format, no route)
  *   provider-transient  429/5xx-class failures after the SDK's own retries
  *   timeout             the adapter's wall-clock or inactivity watchdog fired
- *   schema-floor        validate→salvage→retry pipeline exhausted (ADR 0013 #3)
+ *   schema-floor        validate→salvage→retry pipeline exhausted
  *   refusal             the model declined to produce the artifact
  *   cli-missing         harness binary not found / not runnable
  *   opaque              unclassifiable — carries whatever context exists
@@ -39,10 +38,9 @@ export interface ConfigError {
   readonly message: string;
   readonly issues: readonly string[];
   /**
-   * Environment-dependent, not deterministic (BRIEF-149): a boot preflight
-   * that failed on network/5xx/429 may succeed on retry. Composition roots
-   * use this to keep restart self-heal for such failures while deterministic
-   * config errors stay down. Absent = deterministic.
+   * Environment-dependent, not deterministic: a boot preflight that failed
+   * on network/5xx/429 may succeed on retry, so composition roots keep
+   * restart self-heal for it. Absent = deterministic.
    */
   readonly transient?: true;
 }

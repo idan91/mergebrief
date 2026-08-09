@@ -229,9 +229,9 @@ describe("OpenRouter reasoning backstop", () => {
   });
 });
 
-// The real failing body captured from a live Sol repro (BRIEF-76 step 0,
-// 2026-07-20): OpenRouter wraps the upstream rejection as a generic 400 —
-// the actual cause lives only in error.metadata.raw.
+// A real failing body captured from a live repro: OpenRouter wraps the
+// upstream rejection as a generic 400 — the actual cause lives only in
+// error.metadata.raw.
 const CAPTURED_RAW =
   '{\n  "error": {\n    "message": "Invalid schema for response_format \'brief\': In context=(\'properties\', \'chunks\', \'items\'), \'required\' is required to be supplied and to be an array including every key in properties. Missing \'riskNotes\'.",\n    "type": "invalid_request_error",\n    "param": "text.format.schema",\n    "code": "invalid_json_schema"\n  }\n}';
 
@@ -353,7 +353,7 @@ describe("OpenRouter served-model verification", () => {
     ).resolves.toEqual({ ok: true });
     expect(mismatches).toEqual([[SLUG, "other-lab/shadow-model"]]);
     // The per-request log carries the warning — that is the caller's
-    // artifact-warning collection surface (BRIEF-11 UI surfacing); the
+    // artifact-warning collection surface; the
     // construction-time log does NOT double-log it.
     expect(requestLogs.join("\n")).toContain(
       "warning: requested model test-lab/test-model-1 but the stream reports other-lab/shadow-model",
@@ -444,11 +444,11 @@ describe("OpenRouter preflight", () => {
     const text = result.error.issues.join("; ");
     expect(text).toContain("rejected the API key");
     expect(text).not.toContain("SENTINEL");
-    // Deterministic — must stay down under BRIEF-149, never restart.
+    // Deterministic — must stay down, never restart.
     expect(result.error.transient).toBeUndefined();
   });
 
-  it("tags 5xx and network preflight failures transient (BRIEF-149)", async () => {
+  it("tags 5xx and network preflight failures transient", async () => {
     const on503 = await createOpenRouterCore({
       apiKey: "test-key",
       model: SLUG,

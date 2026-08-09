@@ -3,16 +3,15 @@ import { GeneratorError, GeneratorErrorKind } from "../contract/errors";
 import type { Logger } from "../contract/generator";
 
 /**
- * The shared harness-execution core (ADR 0030 #2/#4): everything the CLI
- * adapters have in common — argv spawn (NO shell), prompt via stdin then
- * close, streaming line consumption as the liveness signal, the two
- * mandatory timers (hard wall-clock + output-inactivity watchdog), the
- * SIGINT → grace → SIGKILL kill ladder shared by cancellation and timer
- * fire, stderr tail capture, and the construction-time startup check.
+ * The shared harness-execution core: everything the CLI adapters have in
+ * common — argv spawn (NO shell), prompt via stdin then close, streaming
+ * line consumption as the liveness signal, the two mandatory timers (hard
+ * wall-clock + output-inactivity watchdog), the SIGINT → grace → SIGKILL
+ * kill ladder shared by cancellation and timer fire, stderr tail capture,
+ * and the construction-time startup check.
  *
- * The per-CLI adapters (PRs 5-6) own only flags, envelope parsing, and
- * origin quirks. NO CLI has a built-in timeout, and this project has a
- * lived codex hang precedent — the timers are not optional.
+ * The per-CLI adapters own only flags, envelope parsing, and origin quirks.
+ * No CLI has a built-in timeout, so the timers are not optional.
  */
 
 export interface HarnessTimeouts {
@@ -47,7 +46,7 @@ const STDERR_TAIL_UNITS = 4096;
  */
 const DEFAULT_MAX_STDOUT_UNITS = 16 * 1024 * 1024;
 
-/** Per-instance timer tunables (instance config carries these, PR 9). */
+/** Per-instance timer tunables. */
 export interface HarnessTimeoutOverrides {
   hardMs?: number | undefined;
   inactivityMs?: number | undefined;
@@ -75,7 +74,7 @@ export interface HarnessRunArgs {
   stdin: string;
   timeouts: HarnessTimeouts;
   /**
-   * Cooperative cancellation (ADR 0006 #6): abort runs the kill ladder and
+   * Cooperative cancellation: abort runs the kill ladder and
    * the returned promise rejects with the signal's reason UNTOUCHED.
    */
   signal?: AbortSignal;
@@ -295,7 +294,7 @@ export async function runHarnessProcess(
       if (child.pid !== undefined) return;
       cleanup();
       // An abort that landed during the async spawn gap still wins: the
-      // abort rejection propagates untouched (ADR 0006 #6).
+      // abort rejection propagates untouched.
       if (aborted) {
         reject(toAbortReason(args.signal));
         return;
@@ -368,7 +367,7 @@ export function spawnFailureError(
   );
 }
 
-/** The abort rejection: the signal's reason, untouched (ADR 0006 #6). */
+/** The abort rejection: the signal's reason, untouched. */
 function toAbortReason(signal: AbortSignal | undefined): unknown {
   // UNTOUCHED includes falsy reasons: abort(null) sets reason to null and
   // the caller gets null back. (abort() with no argument sets an AbortError
@@ -378,17 +377,12 @@ function toAbortReason(signal: AbortSignal | undefined): unknown {
 }
 
 /**
- * Credential and billing-redirect env vars no harness CLI may inherit. The
- * harness adapters (claude-code, codex) run under the CLI's own interactive
- * login by design — but both CLIs put env credentials ABOVE that login in
- * their auth precedence, so a leaked var silently rebills every generation
- * to an API/cloud account while the config says "subscription". Stripping
- * here, at the one boundary every harness spawn crosses, makes the configured
- * provider guarantee its billing route. API-provider adapters never spawn
- * CLIs and are unaffected. `CLAUDE_CODE_OAUTH_TOKEN` deliberately SURVIVES —
- * it is the subscription-plan token, i.e. the route this guarantee protects.
- * Residual hole (documented in generators.md): `apiKeyHelper` lives in the
- * CLI's settings file, not the environment — unreachable from this boundary.
+ * Credential and billing-redirect env vars no harness CLI may inherit: both
+ * CLIs put env credentials ABOVE their own interactive login in auth
+ * precedence, so a leaked var silently rebills every generation to an
+ * API/cloud account. `CLAUDE_CODE_OAUTH_TOKEN` deliberately SURVIVES — it is
+ * the subscription route this protects. Residual hole: `apiKeyHelper` lives
+ * in the CLI's settings file, unreachable from this boundary.
  */
 export const HARNESS_STRIPPED_CREDENTIAL_VARS = [
   // claude: key/token outrank OAuth; the cloud switches + base-url redirect

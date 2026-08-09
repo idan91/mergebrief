@@ -6,8 +6,8 @@ import { configError, type ConfigError } from "../contract/errors";
 
 /**
  * Shared file→root-mapping step for the instance-config loaders (the full
- * generator loader and BRIEF-64's narrow policy loader): read the file,
- * parse the YAML, and require a mapping (or empty) root. Sanitization
+ * generator loader and the narrow policy loader): read the file, parse the
+ * YAML, and require a mapping (or empty) root. Sanitization
  * posture lives HERE once: io errors echo only the code, YAML errors echo
  * only the position — file content can carry pasted credentials.
  */
@@ -16,7 +16,7 @@ import { configError, type ConfigError } from "../contract/errors";
 export type ConfigRoot = Record<string, unknown> | null;
 
 /**
- * Resolves a `MERGEBRIEF_CONFIG` value to the file to read (BRIEF-70).
+ * Resolves a `MERGEBRIEF_CONFIG` value to the file to read.
  * Absolute paths pass through. A relative path is anchored at the
  * WORKSPACE ROOT — the nearest ancestor of `cwd` containing
  * `pnpm-workspace.yaml` — never at bare cwd: worker and web run with

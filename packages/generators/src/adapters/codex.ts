@@ -24,21 +24,21 @@ import {
 import type { Effort, Generation } from "../contract/generation";
 
 /**
- * Codex CLI adapter (ADR 0030): one `codex exec --json` process per attempt,
- * JSONL events on stdout, prompt via stdin.
+ * Codex CLI adapter: one `codex exec --json` process per attempt, JSONL
+ * events on stdout, prompt via stdin.
  *
- * Invariants (audited against every path below):
+ * Invariants:
  * 1. The schema floor is hard — `--output-schema` is strict-decoding-level
- *    enforcement with UNVERIFIED edges (capabilities note §2); every answer
- *    still runs `runWithSchemaFloor`. The answer is the LAST completed
- *    `agent_message`, whose `text` is a JSON *string* — the floor's parse
- *    is the documented second parse of the double-parse quirk.
- * 2. Abort rejections propagate UNTOUCHED (ADR 0006 #6).
+ *    enforcement with UNVERIFIED edges; every answer still runs
+ *    `runWithSchemaFloor`. The answer is the LAST completed `agent_message`,
+ *    whose `text` is a JSON *string* — the floor's parse is the second parse
+ *    of the double-parse quirk.
+ * 2. Abort rejections propagate UNTOUCHED.
  * 3. Origin is honest within the static declaration: no JSONL event
  *    carries a model id and ModelRerouted has no JSONL counterpart, so a
- *    silent reroute is UNOBSERVABLE here (the documented blind spot —
- *    upgrading to verification waits on the CLI's JSONL gaining a model
- *    event). `model` stamps the configured id, or "codex-default" when the
+ *    silent reroute is UNOBSERVABLE here — verification waits on the CLI's
+ *    JSONL gaining a model event. `model` stamps the configured id, or
+ *    "codex-default" when the
  *    CLI's own configured default runs. Effort maps to
  *    `model_reasoning_effort` — the knob exists, so it IS echoed.
  * 4. No secrets in errors: turn.failed/error carry free-form message
@@ -98,8 +98,7 @@ export class CodexGenerator implements Generator {
       // The CLI forwards --output-schema to an OpenAI-lineage backend, whose
       // strict mode rejects optional properties ("'required' ... must include
       // every key in properties") — send the all-required null-union variant
-      // and strip the stand-in nulls back out below (same shim as openaiCore;
-      // first hit: riskNotes, BRIEF-148 round).
+      // and strip the stand-in nulls back out below (same shim as openaiCore).
       codexWireSchema = withAllRequired(wireSchema);
     } catch (error) {
       throw new GeneratorError(

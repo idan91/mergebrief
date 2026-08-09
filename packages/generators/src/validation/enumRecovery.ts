@@ -3,15 +3,11 @@ import type { z } from "zod/v4";
 /**
  * Salvage for structured-output payloads that fail strict schema parsing.
  *
- * Closed vocabularies are enforced server-side via the hand-built
- * enum-preserving schema (`enumPreservingOutputFormat`), so an out-of-vocabulary
- * token should not be decodable. This salvage is defense-in-depth for anything
- * enforcement doesn't cover — a residual invalid token inside an otherwise
- * valid payload. For *supplementary* array fields, killing the whole
- * generation over one bad token is the wrong trade — this mirrors the
- * pipeline's warn-and-drop posture (`validateReadingOrder`,
- * `validateRiskAttributes`): drop the offending array element, keep the
- * artifact, surface a warning.
+ * Closed vocabularies are enforced server-side via
+ * `enumPreservingOutputFormat`; this salvage is defense-in-depth for a
+ * residual invalid token inside an otherwise valid payload. For
+ * *supplementary* array fields the posture is warn-and-drop: drop the
+ * offending array element, keep the artifact, surface a warning.
  *
  * Only elements inside the caller-named droppable fields are ever removed;
  * a bad token anywhere else (e.g. `dominantCategory`) stays a hard failure.

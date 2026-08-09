@@ -9,7 +9,7 @@ import {
 import { resolveEnvConfigPath } from "../src/config/readRoot";
 
 /**
- * The instance-config loader table (BRIEF-11 decision 6): every fail-fast
+ * The instance-config loader table: every fail-fast
  * arm, the zero-config default, the x-* carve-out, and the strictness
  * gates. Adapter-level option validation is the registry's (already-tested)
  * job — one representative valid/invalid block each suffices here.
@@ -63,7 +63,7 @@ describe("loadGeneratorConfig (env-driven)", () => {
     expect(result.value.source).toBe(path);
   });
 
-  it("surfaces a configured effort on the loaded generator block (BRIEF-75)", () => {
+  it("surfaces a configured effort on the loaded generator block", () => {
     const path = configFile(
       "generator:\n  provider: anthropic\n  effort: low\n",
     );
@@ -225,7 +225,7 @@ describe("loadGeneratorConfigFile", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("accepts and validates a drafts block (BRIEF-64 root key)", () => {
+  it("accepts and validates a drafts root key block", () => {
     const result = loadGeneratorConfigFile(
       configFile(
         "generator:\n  provider: anthropic\ndrafts:\n  generate: on\n  debounceSeconds: 900\n",

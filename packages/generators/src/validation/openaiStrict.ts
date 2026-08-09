@@ -1,5 +1,5 @@
 /**
- * OpenAI strict-mode schema shims (BRIEF-77).
+ * OpenAI strict-mode schema shims.
  *
  * OpenAI-lineage backends (openai, and OpenRouter routes that land on
  * OpenAI/Azure) enforce a rule Anthropic does not: with `strict: true`,

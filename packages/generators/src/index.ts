@@ -3,7 +3,7 @@
  * `exports["."]`). Everything importable from `"generators"` is re-exported
  * here, grouped by the folder it lives in. Map + glossary: `AGENTS.md`.
  *
- * The package (ADR 0013/0030): structured generation —
+ * The package: structured generation —
  * `(schema, system, user) → object valid against the schema` — behind one
  * `Generator` contract, with five interchangeable adapters.
  */

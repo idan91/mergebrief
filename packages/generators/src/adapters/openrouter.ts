@@ -10,8 +10,8 @@ import {
 } from "./openaiCore";
 
 /**
- * OpenRouter assembly on the shared core (ADR 0030): the same streaming
- * pipeline with OpenRouter's own request/verification surface —
+ * OpenRouter assembly on the shared core: the same streaming pipeline with
+ * OpenRouter's own request/verification surface —
  *
  * 1. `/models` boot preflight: the configured slug must exist AND list
  *    `structured_outputs` in `supported_parameters` — with
@@ -23,8 +23,8 @@ import {
  *    silently route to a provider that ignores `response_format`.
  * 3. Effort translates to OpenRouter's `reasoning: { effort }` shape, sent
  *    only when the model listed `reasoning` support — the core's knob
- *    discovery is pre-seeded from the preflight, so the origin stamp records the
- *    gap without burning a 400 (ADR 0013 #5).
+ *    discovery is pre-seeded from the preflight, so the origin stamp records
+ *    the gap without burning a 400.
  * 4. Trust-but-verify: stream chunks carry the served model id; a mismatch
  *    against the configured slug logs a warning and fires the hook — the
  *    origin stamp stays the declaration.
@@ -201,7 +201,7 @@ async function modelListing(
       ]);
     }
     // Non-auth statuses and network unreachability may clear on their own —
-    // tagged transient so restart self-heal keeps applying (BRIEF-149).
+    // tagged transient so restart self-heal keeps applying.
     return configError(
       [
         `OpenRouter /models preflight failed${typeof status === "number" ? ` (status ${status})` : " (network/config error)"}`,

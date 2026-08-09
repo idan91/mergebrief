@@ -17,10 +17,9 @@ import type { Generator, Logger } from "../contract/generator";
 import { probeHarnessCli } from "../harness/probe";
 
 /**
- * The static compiled-in generator registry (BRIEF-11 decision 1, ADR 0013
- * as amended 2026-07-12): each entry = a provider token, a strict Zod
- * options schema (carrying the provider literal as discriminant), and an
- * async `create`. The config discriminated union is DERIVED from the
+ * The static compiled-in generator registry: each entry = a provider token,
+ * a strict Zod options schema (carrying the provider literal as
+ * discriminant), and an async `create`. The config union is DERIVED from the
  * registry — one source of truth for the provider vocabulary, the config
  * schema, and unknown-provider errors. Adding an adapter = one class + one
  * options schema + one entry (+ one dispatch case, which the compiler
@@ -31,7 +30,7 @@ import { probeHarnessCli } from "../harness/probe";
  * keeps throwing (GeneratorError) — Result is for construction only.
  */
 
-/** Provider vocabulary. Harness tokens exist now; entries land in PRs 4-6. */
+/** Provider vocabulary. */
 export const Providers = {
   ANTHROPIC: "anthropic",
   CLAUDE_CODE: "claude-code",
@@ -95,7 +94,7 @@ function resolveApiKey(
 const DEFAULT_ANTHROPIC_KEY_ENV = "ANTHROPIC_API_KEY";
 
 /**
- * Normalized reasoning effort (BRIEF-75): the closed contract vocabulary
+ * Normalized reasoning effort: the closed contract vocabulary
  * (`low | medium | high`), requested per generation. Optional on every
  * adapter — the DEFAULT (`medium`) lives at the consumption site in
  * brief-core, not here. Adapters that cannot honor it stay honest via
@@ -104,12 +103,12 @@ const DEFAULT_ANTHROPIC_KEY_ENV = "ANTHROPIC_API_KEY";
 const effortOption = z.enum(Efforts).optional();
 
 /**
- * Cross-revision regeneration policy (BRIEF-143): whether a new revision's
- * brief anchors to the previous one. `never` (the DEFAULT, applied at the
- * worker's consumption site like effort's) = always anchored; `on-model-swap`
- * = fresh restart only when the previous brief's stamped provider/model
- * differs from the current config; `always` = kill-switch, every generation
- * fresh (pre-BRIEF-143 behavior, also the eval baseline-compat mode).
+ * Cross-revision regeneration policy: whether a new revision's brief anchors
+ * to the previous one. `never` (the DEFAULT, applied at the worker's
+ * consumption site like effort's) = always anchored; `on-model-swap` = fresh
+ * restart only when the previous brief's stamped provider/model differs from
+ * the current config; `always` = kill-switch, every generation fresh (also
+ * the eval baseline-compat mode).
  */
 export const FullRegenerations = {
   ALWAYS: "always",
@@ -125,17 +124,17 @@ const anthropicOptions = z
     provider: z.literal(Providers.ANTHROPIC),
     /**
      * Model id; default Opus 4.8. Sonnet (`claude-sonnet-5`) is the
-     * documented cost knob — see the config docs (PR 11).
+     * documented cost knob.
      */
     model: z.string().min(1).optional(),
-    /** NAME of the env var holding the key (BYOK-by-env-name, ADR 0013). */
+    /** NAME of the env var holding the key (BYOK-by-env-name). */
     apiKeyEnv: z.string().min(1).optional(),
     effort: effortOption,
     "full-regeneration": fullRegenerationOption,
   })
   .strict();
 
-/** Harness timer tunables (instance config, PR 9 loader parses these). */
+/** Harness timer tunables. */
 const harnessTimeouts = z
   .object({
     hardMs: z.number().int().positive().optional(),
@@ -240,10 +239,9 @@ export const GENERATOR_REGISTRY = {
     options: claudeCodeOptions,
     create: async (options, deps) => {
       const command = options.command ?? DEFAULT_CLAUDE_COMMAND;
-      // Boot probe (ADR 0030 #5): a misconfigured instance refuses boot
-      // instead of failing inside jobs. The BRIEF-150 interpreters add the
-      // billing checks: version-floor warning + subscription-route
-      // assertion (API-key route = ConfigError).
+      // Boot probe: a misconfigured instance refuses boot instead of failing
+      // inside jobs. The interpreters add the billing checks: version-floor
+      // warning + subscription-route assertion (API-key route = ConfigError).
       const probe = await probeHarnessCli({
         command,
         versionArgv: [...CLAUDE_PROBE.versionArgv],
@@ -329,7 +327,7 @@ export const GENERATOR_REGISTRY = {
         referer: options.referer,
         title: options.title,
         // No hook here: createOpenRouterCore already logs mismatches via
-        // deps.log; the hook is for UI surfacing (wired in PR 10).
+        // deps.log; the hook is for UI surfacing.
         log: deps.log,
       });
     },
@@ -338,7 +336,7 @@ export const GENERATOR_REGISTRY = {
 
 /**
  * The instance-config `generator:` block schema, derived from the registry.
- * PR 9's YAML loader parses against this; `createGenerator` re-validates so
+ * The YAML loader parses against this; `createGenerator` re-validates so
  * programmatic callers get the same errors.
  */
 export const GeneratorConfigSchema = z.discriminatedUnion("provider", [
@@ -366,13 +364,13 @@ const registryCoversUnion: AssertRegistryCoversUnion = true;
 void unionCoversRegistry;
 void registryCoversUnion;
 
-/** Zero-config default: today's behavior exactly (decision 1). */
+/** Zero-config default. */
 export const defaultGeneratorConfig: GeneratorConfig = {
   provider: Providers.ANTHROPIC,
 };
 
 /**
- * Runtime marker (BRIEF-149): the compose worker image bakes
+ * Runtime marker: the compose worker image bakes
  * `MERGEBRIEF_RUNTIME=compose-worker`, and `createGenerator` refuses harness
  * providers under it — the image ships no CLI binaries, so the generic
  * missing-binary probe error would misdiagnose a deliberate boundary.
@@ -385,7 +383,7 @@ const HARNESS_PROVIDERS: ReadonlySet<Provider> = new Set([
   Providers.CODEX,
 ]);
 
-/** Provider tokens with registry entries (harness tokens join in PRs 4-6). */
+/** Provider tokens with registry entries. */
 function registeredProviders(): string[] {
   return Object.keys(GENERATOR_REGISTRY);
 }
@@ -452,7 +450,7 @@ export function validateGeneratorConfig(
 /**
  * Validate a generator config and construct its adapter. Async because
  * harness entries run boot probes (`<cli> --version` + auth preflight) at
- * construction (PRs 4-6). Never throws for expected misconfiguration.
+ * construction. Never throws for expected misconfiguration.
  */
 export async function createGenerator(
   config: unknown,
@@ -462,8 +460,7 @@ export async function createGenerator(
   if (!parsed.success) {
     return configError(describeConfigIssues(parsed.error, config));
   }
-  // Harness CLIs are never installed in the compose worker image (BRIEF-149;
-  // the boundary is deliberate — docs/self-host/generators.md). Refuse with
+  // Harness CLIs are never installed in the compose worker image. Refuse with
   // the operator's actual options BEFORE the probe hunts for a binary that
   // cannot exist there.
   if (

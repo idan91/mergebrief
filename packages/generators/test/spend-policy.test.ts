@@ -6,7 +6,7 @@ import { loadGeneratorConfigFile } from "../src/config/loader";
 import { capForRepo, validateSpendBlock } from "../src/config/spendPolicy";
 
 /**
- * The instance `spend` block (BRIEF-20): the parse table (default/override/
+ * The instance `spend` block: the parse table (default/override/
  * unset), the positive-integer gate, and the per-repo-beats-default rule.
  * Enforcement lives in the worker's generation gate, not here.
  */

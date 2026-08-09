@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadInstancePolicy } from "../src/config/instancePolicy";
 
 /**
- * The narrow instance-policy loader (BRIEF-64 decision 1): the api process
+ * The narrow instance-policy loader: the api process
  * reads ONLY the `drafts` block out of mergebrief.config.yaml. It must
  * succeed on files whose generator block would refuse the full loader —
  * the api never validates adapters and never needs provider keys.
@@ -36,7 +36,7 @@ describe("loadInstancePolicy", () => {
     expect(result.value).toEqual({ draftPolicy: DEFAULT_POLICY, source: null });
   });
 
-  it("anchors a relative MERGEBRIEF_CONFIG at the workspace root, not cwd (BRIEF-70)", () => {
+  it("anchors a relative MERGEBRIEF_CONFIG at the workspace root, not cwd", () => {
     // The api process and the worker must resolve one env value to the
     // SAME file — pin this loader to the shared resolver, not bare cwd.
     const root = mkdtempSync(join(tmpdir(), "mergebrief-policy-ws-"));

@@ -117,7 +117,7 @@ describe("CodexGenerator invocation profile", () => {
     expect(existsSync(String(Reflect.get(meta, "path")))).toBe(false);
   });
 
-  it("sends the all-required null-union schema and strips stand-in nulls (BRIEF-148 round: OpenAI strict mode rejects optional properties)", async () => {
+  it("sends the all-required null-union schema and strips stand-in nulls (OpenAI strict mode rejects optional properties)", async () => {
     const scriptDir = tempDir("codex-optional-");
     writeFileSync(
       join(scriptDir, "turns.json"),

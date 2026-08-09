@@ -17,9 +17,9 @@ export interface OpenAiAssemblyOptions {
   model: string;
   failureDir: string;
   baseUrl?: string | undefined;
-  /** Attribution headers (openrouter sets referer/title, PR 8). */
+  /** Attribution headers (openrouter sets referer/title). */
   defaultHeaders?: Record<string, string> | undefined;
-  /** Origin provider token; "openai" here, "openrouter" in PR 8. */
+  /** Origin provider token, e.g. "openai". */
   provider: string;
   log?: Logger | undefined;
   /** Injected for fetch-level test fixtures. */
@@ -112,8 +112,8 @@ async function modelPreflight(
       return configError([`model "${model}" not found on this provider`]);
     }
     // 429/5xx and network unreachability may clear on their own — tagged
-    // transient so the compose worker's restart self-heal keeps applying
-    // (BRIEF-149). 401/403/404 above are deterministic: retry can't fix them.
+    // transient so the compose worker's restart self-heal keeps applying.
+    // 401/403/404 above are deterministic: retry can't fix them.
     if (typeof status === "number") {
       return configError(
         [`model preflight failed with status ${status} for "${model}"`],

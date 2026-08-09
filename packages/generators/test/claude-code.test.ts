@@ -306,7 +306,7 @@ describe("ClaudeCodeGenerator trust-but-verify", () => {
       { requested: "claude-opus-4-8", served: ["claude-haiku-4-5"] },
     ]);
     expect(logs.join("\n")).toContain("modelUsage reports claude-haiku-4-5");
-    // The stamp stays the declaration (ADR 0013 #5).
+    // The stamp stays the declaration.
     expect(generator.origin("medium").model).toBe("claude-opus-4-8");
   });
 
@@ -395,7 +395,7 @@ describe("claude-code registry entry", () => {
     expect(result.error.issues.join("; ")).toContain('"modle"');
   });
 
-  // BRIEF-150: the billing checks ride the startup check end to end.
+  // The billing checks ride the startup check end to end.
   it("constructs silently on a floor-version subscription login", async () => {
     const warnings: string[] = [];
     const result = await createGenerator(
@@ -456,7 +456,7 @@ describe("claude-code registry entry", () => {
   });
 });
 
-describe("claudeVersionWarning (BRIEF-150 billing floor)", () => {
+describe("claudeVersionWarning (billing floor)", () => {
   it("stays silent at the floor and above", () => {
     expect(claudeVersionWarning("2.1.226 (Claude Code)")).toBeNull();
     expect(claudeVersionWarning("2.1.227 (Claude Code)")).toBeNull();
@@ -481,8 +481,8 @@ describe("claudeVersionWarning (BRIEF-150 billing floor)", () => {
   });
 });
 
-describe("interpretClaudeAuthStatus (BRIEF-150 billing-route assertion)", () => {
-  // Route table verified against the real CLI at 2.1.226 (plan doc).
+describe("interpretClaudeAuthStatus (billing-route assertion)", () => {
+  // Route table verified against the real CLI at 2.1.226.
   it("passes the keychain subscription login silently", () => {
     const verdict = interpretClaudeAuthStatus(
       JSON.stringify({

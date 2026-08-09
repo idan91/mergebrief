@@ -12,8 +12,8 @@ import {
 import { Efforts } from "../src/contract/generation";
 
 /**
- * The registry + construction boundary (BRIEF-11 decision 1): static compiled-in
- * registry, config discriminated union derived from it, async
+ * The registry + construction boundary: static compiled-in registry, config
+ * discriminated union derived from it, async
  * createGenerator returning Result — startup wiring converts to loud boot
  * failures, the library never throws for expected misconfiguration.
  */
@@ -138,7 +138,7 @@ describe("createGenerator", () => {
   });
 });
 
-describe("compose-worker runtime marker (BRIEF-149)", () => {
+describe("compose-worker runtime marker", () => {
   const composeEnv = {
     ...env,
     [RUNTIME_MARKER_VAR]: COMPOSE_WORKER_RUNTIME,
@@ -176,7 +176,7 @@ describe("compose-worker runtime marker (BRIEF-149)", () => {
   });
 });
 
-describe("effort on the generator block (BRIEF-75)", () => {
+describe("effort on the generator block", () => {
   // Minimal valid block per adapter; openai/openrouter require a model.
   const minimalBlocks = [
     { provider: Providers.ANTHROPIC },
@@ -232,7 +232,7 @@ describe("effort on the generator block (BRIEF-75)", () => {
   });
 });
 
-describe("full-regeneration on the generator block (BRIEF-143)", () => {
+describe("full-regeneration on the generator block", () => {
   // Minimal valid block per adapter; openai/openrouter require a model.
   const minimalBlocks = [
     { provider: Providers.ANTHROPIC },

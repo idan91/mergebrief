@@ -9,18 +9,17 @@ import { salvageDroppableEnums } from "./enumRecovery";
 type Logger = (message: string) => void;
 
 /**
- * The shared schema-floor pipeline (BRIEF-11 decision 4, ADR 0013 #3 /
- * ADR 0030 #3): validate → salvage droppable enum slips → ONE feedback retry
- * → dump-and-throw. Every adapter runs generation through this — native
- * provider enforcement is a bonus layer on top, never the mechanism.
+ * The shared schema-floor pipeline: validate → salvage droppable enum slips
+ * → ONE feedback retry → dump-and-throw. Every adapter runs generation
+ * through this — native provider enforcement is a bonus layer on top, never
+ * the mechanism.
  *
  * The injected `attempt` closure absorbs transport differences: an API
  * adapter turns feedback into an assistant/user message pair on the same
  * conversation; a CLI adapter stitches it into a fresh process's prompt.
  * `attempt` REJECTIONS pass through untouched — aborts are not generation
- * failures (ADR 0006 #6), and transport-level errors carry their own
- * classification. Only a resolved attempt whose output fails the schema
- * enters salvage/retry.
+ * failures, and transport-level errors carry their own classification. Only
+ * a resolved attempt whose output fails the schema enters salvage/retry.
  */
 
 /** The failed output + validation error the retry attempt must present to the model. */
@@ -33,7 +32,7 @@ export interface FloorFeedback {
  * One transport attempt's outcome. `parsed` is a fast-path CANDIDATE (e.g. a
  * CLI's natively-enforced structured output) — the pipeline still validates
  * it against the schema before returning it; native enforcement is never the
- * mechanism (ADR 0030 #3). It is typed `unknown` because it IS untrusted —
+ * mechanism. It is typed `unknown` because it IS untrusted —
  * the schema decides. `invalidReason` lets a transport override the
  * pipeline's parse-error message when it knows better why the output is
  * unusable (e.g. "No structured output (stop_reason=max_tokens)").
@@ -147,7 +146,7 @@ export async function runWithSchemaFloor<S extends z.ZodType>(
       parseError = new Error(outcome.invalidReason);
     } else if (outcome.parsed !== undefined) {
       // Candidate first — the floor is the enforcement mechanism, so a
-      // transport-parsed value is validated like any other (ADR 0030 #3).
+      // transport-parsed value is validated like any other.
       const checked = args.schema.safeParse(outcome.parsed);
       if (checked.success) return checked.data;
       // Fall back to raw when it validates independently; otherwise keep

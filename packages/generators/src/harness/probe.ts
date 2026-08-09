@@ -10,7 +10,7 @@ import {
 } from "./run";
 
 // ---------------------------------------------------------------------------
-// Boot probe (ADR 0030 #5): a misconfigured instance refuses boot, never
+// Boot probe: a misconfigured instance refuses boot, never
 // limps into jobs. `<cli> --version` proves the binary exists and runs; the
 // auth preflight proves a credential is present.
 // ---------------------------------------------------------------------------
@@ -20,9 +20,8 @@ export interface HarnessProbeArgs {
   versionArgv: readonly string[];
   /**
    * Auth preflight argv; nonzero exit = not authenticated. REQUIRED — a
-   * probe that skips auth would let an unauthenticated CLI limp into jobs
-   * (ADR 0030 #5). An adapter whose CLI has no status command supplies its
-   * best equivalent (settled per-adapter at implementation).
+   * probe that skips auth would let an unauthenticated CLI limp into jobs.
+   * An adapter whose CLI has no status command supplies its best equivalent.
    */
   authArgv: readonly string[];
   /** Human hint appended to the auth failure (e.g. "run `claude /login`"). */

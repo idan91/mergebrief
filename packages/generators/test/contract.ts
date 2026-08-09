@@ -9,8 +9,8 @@ import type { Generator } from "../src/contract/generator";
 import { GenerationSchema, type Generation } from "../src/contract/generation";
 
 /**
- * The shared Generator conformance suite (BRIEF-11 testing strategy): every
- * adapter must pass these cases through its own transport fake — stub SDK
+ * The shared Generator conformance suite: every adapter must pass these
+ * cases through its own transport fake — stub SDK
  * client for Anthropic, real-process shim binaries for the harness CLIs,
  * fetch-level fixtures for the API adapters. The suite asserts the pipeline
  * BEHAVIOR (schema floor, salvage, retry-once, dump, abort passthrough,

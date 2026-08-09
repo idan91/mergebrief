@@ -15,20 +15,20 @@ import {
 import type { Effort, Generation } from "../contract/generation";
 
 /**
- * Shared core for OpenAI-compatible chat-completions providers (ADR 0030):
- * the openai adapter and the openrouter adapter (PR 8) differ in preflight,
- * headers and origin reporting — the streaming request, schema floor wiring, and
- * error taxonomy live here once.
+ * Shared core for OpenAI-compatible chat-completions providers: the openai
+ * and openrouter adapters differ in preflight, headers and origin reporting
+ * — the streaming request, schema floor wiring, and error taxonomy live here
+ * once.
  *
  * Invariants:
  * 1. The schema floor is hard — strict `json_schema` response_format is the
  *    native enforcement bonus layer; every answer runs `runWithSchemaFloor`.
- * 2. Abort rejections propagate UNTOUCHED (ADR 0006 #6) — the SDK's
- *    APIUserAbortError is recognized and passed through unchanged.
+ * 2. Abort rejections propagate UNTOUCHED — the SDK's APIUserAbortError is
+ *    recognized and passed through unchanged.
  * 3. Origin is honest: `reasoning_effort` support is discovered at run
  *    time (a 400 naming the parameter → retry once without it and cache
  *    "no knob" for the instance's lifetime); once discovered absent, the
- *    stamp records `effort: null` (ADR 0013 #5 capability gap).
+ *    stamp records `effort: null`.
  * 4. No secrets in errors: messages carry provider-authored status text and
  *    parameter names, never keys (the SDK redacts auth headers itself; we
  *    never interpolate request bodies or headers).
@@ -63,16 +63,16 @@ export interface OpenAiChatRequest {
   };
   reasoning_effort?: Effort;
   stream: true;
-  /** Sent iff the caller passed onUsage (BRIEF-59) — zero wire change
-   * for callers that don't observe usage. */
+  /** Sent iff the caller passed onUsage — zero wire change for callers that
+   * don't observe usage. */
   stream_options?: { include_usage: true };
 }
 
 /**
  * The transport boundary: adapters wrap the official `openai` client (or a
  * fetch-fixture-backed one in tests) into this one streaming call.
- * Provider-specific body extensions (openrouter's `provider` routing block,
- * PR 8) are the WRAPPER's job — it spreads them before calling the SDK, so
+ * Provider-specific body extensions (openrouter's `provider` routing block)
+ * are the WRAPPER's job — it spreads them before calling the SDK, so
  * the core stays provider-shape-agnostic.
  */
 export interface OpenAiChatTransport {
@@ -408,10 +408,10 @@ export class OpenAiCompatibleCore implements Generator {
 
 /** True for a 400 whose provider message names the effort knob's wire
  * parameter. The text is PROVIDER-authored status text (never model
- * output) — sniffing it is the documented discovery mechanism. OpenRouter
- * wraps upstream rejections behind a generic message, so the extracted
- * metadata.raw is scanned too (BRIEF-76): a catalog-listed-but-broken
- * knob degrades to honest effort: null, not a permanent CONFIG failure. */
+ * output) — sniffing it is the discovery mechanism. OpenRouter wraps
+ * upstream rejections behind a generic message, so the extracted
+ * metadata.raw is scanned too: a catalog-listed-but-broken knob degrades to
+ * honest effort: null, not a permanent CONFIG failure. */
 function isEffortKnobRejection(error: unknown, marker: string): boolean {
   if (typeof error !== "object" || error === null) return false;
   if (Reflect.get(error, "status") !== 400) return false;
@@ -422,8 +422,8 @@ function isEffortKnobRejection(error: unknown, marker: string): boolean {
 }
 
 /**
- * Map recognized SDK failures onto the shared taxonomy (decision 5), same
- * grid as the Anthropic adapter: 401/403 → auth; 400/404 → config;
+ * Map recognized SDK failures onto the shared taxonomy, same grid as the
+ * Anthropic adapter: 401/403 → auth; 400/404 → config;
  * 408/429/5xx + connection-level → provider-transient. Aborts and
  * unrecognized rejections return UNCHANGED.
  */
@@ -493,7 +493,7 @@ export function classifyOpenAiError(error: unknown): unknown {
  * OpenRouter wraps upstream provider rejections as a generic 400 ("Provider
  * returned error") whose real cause lives in the parsed body's
  * `error.metadata.raw` (+ `metadata.provider_name`) — text the SDK never
- * folds into `.message` (BRIEF-76). The SDK parks the body's `error` field
+ * folds into `.message`. The SDK parks the body's `error` field
  * on the APIError's `.error` property; every field here is optional wire
  * data, so absence degrades to "" and the caller keeps today's message.
  * The returned text is provider-authored and untrusted — it must only enter
@@ -527,7 +527,7 @@ function providerErrorDetail(error: unknown): string {
 /** Redact-then-bound provider message text before it enters app errors. */
 function safeProviderMessage(message: string): string {
   // 800 not 300: Azure's strict-schema 400 puts the decisive detail (which
-  // property broke the rule) past the 300-char mark (BRIEF-77).
+  // property broke the rule) past the 300-char mark.
   return redactSecrets(message).slice(0, 800);
 }
 

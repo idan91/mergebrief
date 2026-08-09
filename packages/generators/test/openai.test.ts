@@ -171,7 +171,7 @@ describe("OpenAiCompatibleCore effort-knob discovery", () => {
     // Instance-lifetime cache: the NEXT generate never sends the knob…
     await expect(generator.generate(request())).resolves.toEqual({ ok: true });
     expect(recorded.bodies[2]?.["reasoning_effort"]).toBeUndefined();
-    // …and origin records the capability gap (ADR 0013 #5).
+    // …and origin records the capability gap.
     expect(generator.origin("high")).toEqual({
       provider: "openai",
       model: "gpt-test-1",
@@ -546,11 +546,11 @@ describe("openai preflight and registry entry", () => {
     const text = direct.error.issues.join("; ");
     expect(text).toContain("rejected");
     expect(text).not.toContain("SENTINEL");
-    // Deterministic — must stay down under BRIEF-149, never restart.
+    // Deterministic — must stay down, never restart.
     expect(direct.error.transient).toBeUndefined();
   });
 
-  it("tags 5xx and network preflight failures transient (BRIEF-149)", async () => {
+  it("tags 5xx and network preflight failures transient", async () => {
     const on503 = await createOpenAiCore({
       apiKey: "test-key",
       model: "gpt-test-1",
@@ -630,7 +630,7 @@ describe("openai preflight and registry entry", () => {
   });
 });
 
-describe("OpenAiCompatibleCore strict-mode optionality (BRIEF-77)", () => {
+describe("OpenAiCompatibleCore strict-mode optionality", () => {
   const OptionalSchema = z.object({
     ok: z.boolean(),
     note: z.string().optional(),

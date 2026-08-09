@@ -41,7 +41,7 @@ describe("runWithSchemaFloor", () => {
 
   it("still validates a transport-parsed candidate against the schema", async () => {
     // An adapter claiming native enforcement can't smuggle invalid data past
-    // the floor (ADR 0030 #3): the bad candidate falls through to the raw
+    // the floor: the bad candidate falls through to the raw
     // path, which here succeeds — proving the floor, not the transport,
     // decided.
     const value = await runWithSchemaFloor({

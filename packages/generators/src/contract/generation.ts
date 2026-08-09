@@ -2,8 +2,8 @@ import { z } from "zod/v4";
 import type { ValueOf } from "types";
 
 /**
- * The port's cross-provider vocabulary (ADR 0013): the normalized effort knob
- * and the Generation origin shape every artifact records. Domain schemas
+ * The port's cross-provider vocabulary: the normalized effort knob and the
+ * Generation origin shape every artifact records. Domain schemas
  * (Brief, Delta, …) stay in their own packages — only what every adapter and
  * every artifact shares lives here.
  */
@@ -20,8 +20,7 @@ export type Effort = (typeof Efforts)[number];
 /**
  * Generation origin — which provider/model/effort produced this artifact.
  * CLI-owned metadata (the model never produces it); surfaced on the Receipt and
- * as an understated header label so the analysis is never mistaken for a verdict
- * (ADR 0012/0013).
+ * as an understated header label so the analysis is never mistaken for a verdict.
  */
 export const GenerationSchema = z.object({
   provider: z
@@ -39,11 +38,10 @@ export const GenerationSchema = z.object({
 export type Generation = z.infer<typeof GenerationSchema>;
 
 /**
- * Anchor origin (BRIEF-143): how a brief relates to its predecessor.
- * `none` = no anchoring was performed (first generations, and every
- * generation until the stitch step lands); `anchored` = incremental
- * regeneration against the previous brief; `fresh-restart` = a deliberate
- * from-scratch run (the anchor chain restarts here), always with a reason.
+ * Anchor origin: how a brief relates to its predecessor. `none` = no
+ * anchoring was performed; `anchored` = incremental regeneration against the
+ * previous brief; `fresh-restart` = a deliberate from-scratch run (the anchor
+ * chain restarts here), always with a reason.
  */
 export const AnchorStates = {
   ANCHORED: "anchored",

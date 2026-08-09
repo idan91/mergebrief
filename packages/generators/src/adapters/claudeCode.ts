@@ -26,20 +26,19 @@ import { enumPreservingJsonSchema } from "../validation/jsonSchema";
 import type { Effort, Generation } from "../contract/generation";
 
 /**
- * Claude Code CLI adapter (ADR 0030): one `claude -p` process per attempt,
- * stream-json envelopes on stdout, prompt via stdin.
+ * Claude Code CLI adapter: one `claude -p` process per attempt, stream-json
+ * envelopes on stdout, prompt via stdin.
  *
- * Invariants (audited against every path below):
+ * Invariants:
  * 1. The schema floor is hard — the CLI's own `--json-schema` enforcement is
  *    a bonus layer; every terminal answer still runs `runWithSchemaFloor`
  *    (validate → salvage → one feedback retry → dump + throw).
- * 2. Abort rejections propagate UNTOUCHED (ADR 0006 #6) — the harness
- *    rejects with the signal's reason and nothing here wraps it.
- * 3. Origin is honest: `effort: null` (headless claude has no effort
- *    knob — ADR 0010's triage loses that lever here); the model stamp is
- *    the declaration, and the envelope's `modelUsage` keys are compared
- *    post-run — a served-model mismatch logs a warning and fires the
- *    surfacing hook, never silently rewrites the stamp (ADR 0013 #5).
+ * 2. Abort rejections propagate UNTOUCHED — the harness rejects with the
+ *    signal's reason and nothing here wraps it.
+ * 3. Origin is honest: `effort: null` (headless claude has no effort knob);
+ *    the model stamp is the declaration, and the envelope's `modelUsage`
+ *    keys are compared post-run — a served-model mismatch logs a warning and
+ *    fires the surfacing hook, never silently rewrites the stamp.
  * 4. No secrets in errors: messages carry subtypes/categories/exit codes;
  *    stderr reaches messages only through `harnessTimeoutError` (redacted).
  * 5. Effort-independent lockdown profile: `--tools ""` (pure generation, no
@@ -49,7 +48,7 @@ import type { Effort, Generation } from "../contract/generation";
  *    taxonomies); the user prompt via stdin.
  */
 
-/** In-band `system/api_retry` categories → taxonomy kinds (ADR 0030 #5). */
+/** In-band `system/api_retry` categories → taxonomy kinds. */
 const API_RETRY_KIND: Record<string, GeneratorErrorKind> = {
   authentication_failed: GeneratorErrorKind.AUTH,
   oauth_org_not_allowed: GeneratorErrorKind.AUTH,
@@ -63,8 +62,8 @@ const API_RETRY_KIND: Record<string, GeneratorErrorKind> = {
 };
 
 /**
- * Documented result subtypes (capabilities note §1). Error messages render
- * subtype/category strings ONLY through these allowlists — envelope fields
+ * Documented result subtypes. Error messages render subtype/category
+ * strings ONLY through these allowlists — envelope fields
  * are untrusted CLI output and must never carry arbitrary text into errors.
  */
 const KNOWN_RESULT_SUBTYPES = new Set([
@@ -150,7 +149,7 @@ export class ClaudeCodeGenerator implements Generator {
 
   origin(effort: Effort): Generation {
     // Honest capability gap: no headless effort knob — the requested effort
-    // is deliberately NOT echoed into the stamp (ADR 0013 #5).
+    // is deliberately NOT echoed into the stamp.
     void effort;
     return { provider: "claude-code", model: this.model, effort: null };
   }
@@ -313,8 +312,8 @@ export class ClaudeCodeGenerator implements Generator {
   private verifyServedModel(envelope: ResultEnvelope, log: Logger): void {
     if (envelope.modelUsage === null) {
       // Missing/drifted modelUsage: verification is UNAVAILABLE, which must
-      // surface (ADR 0013 #5) rather than silently pass — served [] means
-      // "could not verify", distinct from a concrete mismatch.
+      // surface rather than silently pass — served [] means "could not
+      // verify", distinct from a concrete mismatch.
       log(
         `warning: result envelope carried no modelUsage — served model for ${this.model} is unverifiable`,
       );
@@ -377,12 +376,11 @@ function parseEventLine(line: string): StreamEvent | null {
 }
 
 // ---------------------------------------------------------------------------
-// Boot-probe billing checks (BRIEF-150, decisions locked on the BRIEF-141
-// wayfinder map): a version-floor warning and a billing-route assertion,
-// both reading stdout the probe already produces. The route assertion is
-// what closes the `apiKeyHelper` residual hole (run.ts BRIEF-140 note) at
-// verification time — a settings-file override is invisible to the env
-// strip, but `auth status --json` reports it as the active auth method.
+// Boot-probe billing checks: a version-floor warning and a billing-route
+// assertion, both reading stdout the probe already produces. The route
+// assertion is what closes the `apiKeyHelper` residual hole at verification
+// time — a settings-file override is invisible to the env strip, but
+// `auth status --json` reports it as the active auth method.
 // ---------------------------------------------------------------------------
 
 /** Boot-probe wiring shared with the registry entry (CODEX_PROBE pattern). */
@@ -395,9 +393,8 @@ export const CLAUDE_PROBE = {
 } as const;
 
 /**
- * Oldest CLI verified to bill subscription OAuth spend to the subscription
- * (BRIEF-141, verified 2026-08-08): older versions misattributed it to the
- * Console prepaid account.
+ * Oldest CLI verified to bill subscription OAuth spend to the subscription;
+ * older versions misattributed it to the Console prepaid account.
  */
 export const CLAUDE_BILLING_VERSION_FLOOR = "2.1.226";
 
@@ -411,14 +408,14 @@ function parseCliVersion(text: string): [number, number, number] | null {
 }
 
 /**
- * Version-floor check, warn-only (ticket decision 1: non-fatal — the floor
- * is about billing attribution, not ability to run). Unparseable output
- * warns too: "could not verify" must surface, never silently pass.
+ * Version-floor check, warn-only: the floor is about billing attribution,
+ * not ability to run. Unparseable output warns too — "could not verify"
+ * must surface, never silently pass.
  */
 export function claudeVersionWarning(stdout: string): string | null {
   const seen = parseCliVersion(stdout);
   if (seen === null) {
-    return `warning: could not read a version from the claude CLI's --version output — the billing-attribution floor ${CLAUDE_BILLING_VERSION_FLOOR} is unverifiable (BRIEF-141)`;
+    return `warning: could not read a version from the claude CLI's --version output — the billing-attribution floor ${CLAUDE_BILLING_VERSION_FLOOR} is unverifiable`;
   }
   const floor = parseCliVersion(CLAUDE_BILLING_VERSION_FLOOR);
   if (floor === null) return null; // unreachable: the floor constant parses
@@ -428,7 +425,7 @@ export function claudeVersionWarning(stdout: string): string | null {
     if (a > b) return null;
     if (a < b) {
       // Rendered digits come from the parse, never raw stdout.
-      return `warning: claude CLI ${seen.join(".")} is older than ${CLAUDE_BILLING_VERSION_FLOOR}, the oldest version verified to bill subscription OAuth runs to the subscription — older versions charged the Console API account instead (BRIEF-141); upgrade the CLI`;
+      return `warning: claude CLI ${seen.join(".")} is older than ${CLAUDE_BILLING_VERSION_FLOOR}, the oldest version verified to bill subscription OAuth runs to the subscription — older versions charged the Console API account instead; upgrade the CLI`;
     }
   }
   return null;
@@ -437,7 +434,7 @@ export function claudeVersionWarning(stdout: string): string | null {
 /**
  * The `auth status --json` fields the assertion reads (lenient shape —
  * unknown fields ignored, missing fields degrade to "unverifiable").
- * Route table verified at CLI 2.1.226 (docs/plans/brief-150 plan):
+ * Route table verified at CLI 2.1.226:
  * keychain login = `claude.ai`, CLAUDE_CODE_OAUTH_TOKEN = `oauth_token`
  * (both subscription); `api_key_helper` and any `apiKeySource` = API key.
  */
@@ -456,20 +453,18 @@ const KNOWN_API_KEY_SOURCES = new Set(["ANTHROPIC_API_KEY", "apiKeyHelper"]);
 const KNOWN_REFUSED_METHODS = new Set(["api_key_helper"]);
 
 const UNVERIFIABLE_WARNING =
-  "warning: could not read the billing route from `claude auth status` — subscription billing is unverifiable (CLI older than the auth-status JSON surface?); upgrade the CLI to restore the boot-time assertion (BRIEF-141)";
+  "warning: could not read the billing route from `claude auth status` — subscription billing is unverifiable (CLI older than the auth-status JSON surface?); upgrade the CLI to restore the boot-time assertion";
 
 function refuseBillingRoute(detail: string): ReturnType<typeof configError> {
   return configError([
-    `claude CLI billing route is ${detail}, not the subscription login — refusing to start rather than bill an API account (BRIEF-141). Remove any apiKeyHelper entry from the CLI's settings.json, unset API key env vars, then verify with \`claude auth status\``,
+    `claude CLI billing route is ${detail}, not the subscription login — refusing to start rather than bill an API account. Remove any apiKeyHelper entry from the CLI's settings.json, unset API key env vars, then verify with \`claude auth status\``,
   ]);
 }
 
 /**
- * Billing-route assertion (ticket decision 2, refuse on mismatch).
- * Positive-evidence refusals only: output that doesn't carry the fields
- * warns "unverifiable" instead of refusing — refusing on a parse gap would
- * brick every pre-floor CLI and make decision 1's non-fatal version
- * warning unreachable.
+ * Billing-route assertion — refuse on mismatch. Positive-evidence refusals
+ * only: output that doesn't carry the fields warns "unverifiable" instead of
+ * refusing, since refusing on a parse gap would brick every pre-floor CLI.
  */
 export function interpretClaudeAuthStatus(
   stdout: string,

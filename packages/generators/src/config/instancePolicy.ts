@@ -4,8 +4,8 @@ import { configError, type ConfigError } from "../contract/errors";
 import { readConfigRoot, renderKey, resolveEnvConfigPath } from "./readRoot";
 
 /**
- * The narrow instance-policy loader (BRIEF-64 decision 1, ADR 0020 as
- * amended): the api startup wiring reads ONLY the `drafts` block out of
+ * The narrow instance-policy loader: the api startup wiring reads ONLY the
+ * `drafts` block out of
  * `mergebrief.config.yaml`. Deliberately tolerant of everything else in the
  * file — an invalid generator block or an unknown root key is the FULL
  * loader's (worker's) problem; the api process must boot without adapter
@@ -82,8 +82,8 @@ export function loadInstancePolicy(
       value: { draftPolicy: DEFAULT_DRAFT_POLICY, source: null },
     };
   }
-  // Same workspace-root anchoring as the generator loader (BRIEF-70) — the
-  // api and worker processes must read the SAME file for one env value.
+  // Same workspace-root anchoring as the generator loader — the api and
+  // worker processes must read the SAME file for one env value.
   const resolved = resolveEnvConfigPath(path, process.cwd());
   if (!resolved.ok) return resolved;
   const root = readConfigRoot(resolved.value);

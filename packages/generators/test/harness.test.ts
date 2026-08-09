@@ -16,7 +16,7 @@ import { configError } from "../src/contract/errors";
 
 /**
  * Process-lifecycle tests against REAL child processes running fake CLI
- * binaries (BRIEF-11 testing strategy: fake the binary, never the spawn).
+ * binaries (fake the binary, never the spawn).
  * Timer durations are injected at tens-of-milliseconds scale with ~10x
  * ratios between tiers; assertions are about BEHAVIOR (which timer fired,
  * which signal, marker files), never about durations.
@@ -290,7 +290,7 @@ describe("runHarnessProcess", () => {
 
   it("propagates a null abort reason untouched", async () => {
     // abort(null) sets signal.reason to null — the caller must get null
-    // back, not a synthesized Error (ADR 0006 #6: untouched means falsy too).
+    // back, not a synthesized Error — untouched means falsy too.
     const controller = new AbortController();
     const promise = run("hang", { signal: controller.signal });
     setTimeout(() => controller.abort(null), 50);

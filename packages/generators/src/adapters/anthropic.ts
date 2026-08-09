@@ -50,18 +50,14 @@ export interface AnthropicStreamingClient {
 }
 
 /**
- * Anthropic adapter on the official SDK (the default per the claude-api skill):
- * Opus 4.8 with adaptive thinking, effort, prompt caching, and native
- * structured output. The system prompt (the taxonomy) is the stable prefix, so
- * it carries a cache_control breakpoint; the volatile diff goes in the user
- * turn after it. Streaming (not parse()) because adaptive thinking + a large
- * max_tokens trips the SDK's 10-minute guard.
+ * Anthropic adapter on the official SDK: Opus 4.8 with adaptive thinking,
+ * effort, prompt caching, and native structured output. The system prompt is
+ * the stable prefix, so it carries a cache_control breakpoint; the volatile
+ * diff goes in the user turn after it. Streaming (not parse()) because
+ * adaptive thinking + a large max_tokens trips the SDK's 10-minute guard.
  *
  * Parse-failure handling is the shared schema-floor pipeline
- * (`runWithSchemaFloor`): salvage droppable enum slips per `salvageFields`;
- * otherwise retry ONCE with the validation errors fed back; the raw output
- * of every failed attempt is dumped to `<failureDir>/<label>-*.failed.json`
- * so failures are never opaque.
+ * (`runWithSchemaFloor`).
  *
  * The wire format carries the enum-preserving JSON schema WITHOUT a client
  * `parse` callback: SDK ≥0.101 parses eagerly at message_stop and a `parse`
@@ -264,9 +260,8 @@ export class AnthropicGenerator implements Generator {
         }
         return { sdkParseFailure: error.message, raw: collected };
       }
-      // Recognized SDK failures adopt the shared taxonomy (decision 5);
-      // anything unrecognized — most importantly aborts — propagates
-      // UNTOUCHED (ADR 0006 #6).
+      // Recognized SDK failures adopt the shared taxonomy; anything
+      // unrecognized — most importantly aborts — propagates UNTOUCHED.
       throw classifySdkError(error);
     } finally {
       clearInterval(heartbeat);
@@ -287,7 +282,7 @@ export class AnthropicGenerator implements Generator {
 }
 
 /**
- * Map recognized SDK failures onto the shared taxonomy (decision 5):
+ * Map recognized SDK failures onto the shared taxonomy:
  * 401/403 → auth; 400/404 (bad model, unsupported request shape) → config;
  * 408/429/5xx after the SDK's own retries, and connection-level failures →
  * provider-transient. Unrecognized errors (aborts, custom rejections)

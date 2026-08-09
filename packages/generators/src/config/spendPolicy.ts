@@ -4,16 +4,10 @@ import { configError, type ConfigError } from "../contract/errors";
 import { renderKey } from "./readRoot";
 
 /**
- * The instance spend policy (BRIEF-20): the operator's daily generation cap,
- * parsed out of `mergebrief.config.yaml`'s `spend` block by the same loaders
- * that own `generator` and `drafts`. INSTANCE config only — spend is a
- * decision of whoever pays and runs the instance (ADR 0032 #1), so no key
- * here has a `.mergebrief/` repo-side counterpart and a repo file can never
- * widen it.
- *
- * The block sits in this package because this is where the instance-config
- * file is read and root-key-validated (`loader.ts`), exactly as BRIEF-64's
- * non-generator `drafts` block does; it has zero influence on brief content.
+ * The instance spend policy: the operator's daily generation cap, parsed out
+ * of `mergebrief.config.yaml`'s `spend` block by the same loaders that own
+ * `generator` and `drafts`. INSTANCE config only — no key here has a
+ * `.mergebrief/` repo-side counterpart and a repo file can never widen it.
  */
 
 /** Unset = uncapped, the zero-config default. */

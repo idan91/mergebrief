@@ -144,7 +144,7 @@ function makeAnthropicHarness(): GeneratorContractHarness {
 
 describeGeneratorContract("anthropic", makeAnthropicHarness);
 
-describe("AnthropicGenerator SDK error classification (decision 5)", () => {
+describe("AnthropicGenerator SDK error classification", () => {
   let dir: string;
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "anthropic-classify-"));

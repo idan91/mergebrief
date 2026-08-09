@@ -6,7 +6,7 @@ import {
   withAllRequired,
 } from "../src/validation/openaiStrict";
 
-// Mirrors the shapes that broke on Azure via OpenRouter (BRIEF-77): an
+// Mirrors the shapes that broke on Azure via OpenRouter: an
 // optional enum-bearing array prop nested in an array of objects
 // (chunks[].riskNotes), alongside genuinely nullable required props.
 const NestedSchema = z.object({

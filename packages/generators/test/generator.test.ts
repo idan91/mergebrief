@@ -10,13 +10,11 @@ import { AnthropicGenerator } from "../src/adapters/anthropic";
  * Exercises the parse-failure path of AnthropicGenerator (salvage → feedback
  * retry → dump-and-throw) against a stubbed SDK client.
  *
- * DELIBERATE ASYMMETRY (BRIEF-11 testing strategy): this stays a stub-level
- * SDK-client fake while the API adapters fake at fetch level. These tests
- * predate the shared schema-floor pipeline and are the characterization
- * anchor that held while AnthropicGenerator migrated onto it — do not
- * rewrite them alongside implementation changes. Promotion trigger to a
- * wire-level fake: a bug escaping through the stubbed surface, or the next
- * substantive SDK-client change.
+ * DELIBERATE ASYMMETRY: this stays a stub-level SDK-client fake while the
+ * API adapters fake at fetch level — it is the characterization anchor, so
+ * do not rewrite it alongside implementation changes. Promote to a
+ * wire-level fake if a bug escapes through the stubbed surface, or on the
+ * next substantive SDK-client change.
  */
 
 const Schema = z.object({
@@ -144,7 +142,7 @@ describe("AnthropicGenerator parse-failure handling", () => {
   });
 });
 
-describe("AnthropicGenerator cooperative cancellation (ADR 0006 #6)", () => {
+describe("AnthropicGenerator cooperative cancellation", () => {
   let dir: string;
   beforeEach(() => {
     dir = mkdtempSync(join(tmpdir(), "generator-abort-test-"));

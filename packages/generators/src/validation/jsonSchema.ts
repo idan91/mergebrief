@@ -9,13 +9,10 @@ import { z } from "zod/v4";
  * *does* support `enum`/`const` in structured-output schemas, so decoding can be
  * constrained server-side — invalid tokens then cannot be generated at all.
  *
- * This module rebuilds the SDK transform verbatim (same keyword whitelist, same
- * `additionalProperties: false` forcing, same leftover-key demotion into
- * `description`) with one difference: `enum` and `const` are carried through.
- * The result is the same `{ type, schema, parse }` shape the SDK produces, so it
- * drops straight into `generator.ts`'s existing flow. `parse` mirrors the SDK's
- * message shape exactly — the generator's retry feedback echoes it to the model
- * and the salvage path re-parses independently, so both must stay identical.
+ * This module rebuilds the SDK transform verbatim with one difference: `enum`
+ * and `const` are carried through. `parse` mirrors the SDK's message shape
+ * exactly — retry feedback echoes it to the model and salvage re-parses
+ * independently, so both must stay identical.
  */
 
 /** Structural stand-in for the SDK's AutoParseableOutputFormat (not publicly exported). */

@@ -12,7 +12,7 @@ import { createOpenRouterCore } from "../src/adapters/openrouter";
 import type { TokenUsage } from "../src/contract/generator";
 
 /**
- * onUsage reporting (BRIEF-59 PR 1): adapters with provider-reported usage
+ * onUsage reporting: adapters with provider-reported usage
  * invoke the optional callback once per underlying request (retries
  * included — callers sum). CLI adapters never call it; the OpenAI-compatible
  * core asks the wire for usage ONLY when a callback is present, so existing
