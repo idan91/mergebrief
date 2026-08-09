@@ -1,17 +1,9 @@
-// Read-API + authz-gate integration tests (BRIEF-2 stage 7): `app.request()`
-// against `createApp` over the persistence PGlite harness, with GitHub mocked at
-// the HTTP boundary via a stubbed global `fetch` (no live network, no new mock libs)
-// — the same pattern as `auth.test.ts`. The stub answers the endpoints the gate
-// and the diff proxy touch: `GET /repositories/{id}` (the access check), the
-// span diff (`GET /repos/{owner}/{repo}/compare/{base}...{head}`), and the OAuth
-// token endpoint (refresh). Call counts assert the positive cache + diff cache.
-//
-// Covers the DoD: 401 (no cookie / unknown session, no GitHub call); 404 on no
-// repo access (+ the `auth`/`repo`/`decision="404"` audit row, negative NOT
-// cached); 200 authorized brief (+ 404 on a non-existent span); positive cache
-// (access check fires once inside the 60s TTL, re-checks past it);
-// 401→refresh→retry (success and a refresh failure that deletes the session);
-// and the diff proxy per-session cache.
+// Read-API + authz-gate integration tests: `app.request()` against `createApp`
+// over the persistence PGlite harness, with GitHub mocked at the HTTP boundary
+// via a stubbed global `fetch` — the same pattern as `auth.test.ts`. The stub
+// answers the endpoints the gate and the diff proxy touch: `GET
+// /repositories/{id}` (the access check), the span diff, and the OAuth token
+// endpoint (refresh). Call counts assert the positive cache + diff cache.
 import { createHash, randomBytes } from "node:crypto";
 import {
   artifactStore,
@@ -327,8 +319,7 @@ function diffPath(base: string, head: string): string {
 const realNow = Date.now.bind(Date);
 let clockOffsetMs = 0;
 
-// Conversation port stub (BRIEF-25): these tests never exercise the
-// conversation read; a hit here is a test bug.
+// Conversation port stub: a call here is a test bug.
 const unusedConversationPort = {
   fetchPullRequestConversation: async () => {
     throw new Error("conversation port must not be called in this suite");
@@ -390,7 +381,7 @@ describe("reviewer read API + authz gate", () => {
     });
     expect(first.status).toBe(404);
 
-    // The D9 denial audit row exists (numeric-only, decision="404").
+    // The denial audit row exists (numeric-only, decision="404").
     const auditRows = await harness.raw(
       "select action, target_type, target_id, actor_id, metadata->>'decision' as decision from audit_log",
     );
@@ -438,7 +429,7 @@ describe("reviewer read API + authz gate", () => {
     expect(missing.status).toBe(404);
   });
 
-  it("brief-context returns the snapshot for a span, null for pre-BRIEF-52 rows, 404 for no row", async () => {
+  it("brief-context returns the snapshot for a span, null for rows written before snapshots existed, 404 for no row", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -471,7 +462,7 @@ describe("reviewer read API + authz gate", () => {
     expect(malformed.status).toBe(400);
   });
 
-  it("200 authorized delta read returns the stored body; a missing span is 404 (BRIEF-21)", async () => {
+  it("200 authorized delta read returns the stored body; a missing span is 404", async () => {
     const counts = stubGitHub({ repositories: () => repoOk() });
     const { cookie } = await seedSession(harness.handle, kp);
     await seedPullRequest(harness.handle);
@@ -597,8 +588,8 @@ describe("reviewer read API + authz gate", () => {
     expect(decrypted.value).toBe(ROTATED_ACCESS);
   });
 
-  it("BRIEF-40: a browser-triggered rotation does NOT strand the Bearer channel sharing the grant", async () => {
-    // Pre-D15 this was the bug: mint copied the session's pair, the browser's
+  it("a browser-triggered rotation does NOT strand the Bearer channel sharing the grant", async () => {
+    // The bug this pins: mint copied the session's pair, the browser's
     // refresh consumed the single-use refresh token, and the CLI token died on
     // its own next refresh. Now both channels share ONE grant row, so the
     // browser's rotation is the CLI's rotation.
@@ -636,7 +627,7 @@ describe("reviewer read API + authz gate", () => {
 
     // 2. CLI request afterwards: its authz gate runs a FRESH GitHub check
     //    (different session-hash cache key) with the grant's ROTATED access
-    //    token — it succeeds with NO second exchange. Pre-BRIEF-40 this is
+    //    token — it succeeds with NO second exchange. This is
     //    the request that silently died.
     const viaBearer = await app.request(briefPath("base1", "head1"), {
       headers: { Authorization: `Bearer ${bearer}` },

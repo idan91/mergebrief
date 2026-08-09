@@ -1,8 +1,8 @@
-// BRIEF-19 PR 2.1 multi-org endpoint tests: GET /api/auth/installations and
-// POST /api/auth/installation. Same harness as pulls.test.ts: `app.request()` over
-// PGlite, GitHub stubbed at the global-fetch boundary. The accessible set is ALWAYS
-// re-derived from GitHub (`GET /user/installations`, viewer token) — a switch
-// to anything outside it is a 403 with NO session/settings mutation (D14).
+// Multi-org endpoint tests: GET /api/auth/installations and
+// POST /api/auth/installation. Same harness as pulls.test.ts: `app.request()`
+// over PGlite, GitHub stubbed at the global-fetch boundary. The accessible set
+// is ALWAYS re-derived from GitHub (`GET /user/installations`, viewer token) —
+// a switch to anything outside it is a 403 with NO session/settings mutation.
 import { randomBytes, createHash } from "node:crypto";
 import {
   encryptToken,
@@ -180,8 +180,7 @@ const TOKEN_SUCCESS = {
   scope: "",
 };
 
-// Conversation port stub (BRIEF-25): these tests never exercise the
-// conversation read; a hit here is a test bug.
+// Conversation port stub: a call here is a test bug.
 const unusedConversationPort = {
   fetchPullRequestConversation: async () => {
     throw new Error("conversation port must not be called in this suite");

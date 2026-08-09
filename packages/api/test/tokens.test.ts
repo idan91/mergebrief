@@ -1,5 +1,4 @@
-// BRIEF-17 PR 2 — API tokens as a second presentation channel (ADR 0016 #4 as
-// amended 2026-07-09). Two surfaces, one auth model:
+// API tokens as a second presentation channel. Two surfaces, one auth model:
 //   1. Bearer presentation: `Authorization: Bearer mergebrief_...` resolves
 //      through `tokenAuth` into the SAME principal shape a cookie session
 //      yields, on `/api/*` only. Miss/expired/revoked/garbage → hint-free 401.
@@ -378,7 +377,7 @@ describe("Bearer presentation on /api/*", () => {
       headers: { Authorization: `Bearer ${bearer}` },
     });
     expect(res.status).toBe(401);
-    // Alert contract (ADR 0034): the bearer fork emits the same evt as the
+    // Alert contract: the bearer fork emits the same evt as the
     // cookie flow — operators key alerts off token.refresh.fail.
     const line = capture.lines().find((l) => l["evt"] === "token.refresh.fail");
     expect(line?.["level"]).toBe("error");
@@ -507,7 +506,7 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.["token_hash"]).toBe(sha256Hex(body.token));
 
-    // D15 link-never-copy: mint linked the SESSION's grant — one physical
+    // Link-never-copy: mint linked the SESSION's grant — one physical
     // pair exists after the mint, and the token row points at it.
     const grantRows = await harness.raw("select id from github_grant");
     expect(grantRows).toHaveLength(1);

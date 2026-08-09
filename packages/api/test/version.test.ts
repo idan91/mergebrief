@@ -1,4 +1,4 @@
-// `GET /api/version` (BRIEF-17 PR 5 — ADR 0029 #8): gated like every /api/*
+// `GET /api/version`: gated like every /api/*
 // surface (its second job is the CLI's cheapest authenticated probe), the
 // injected version in the body, no-store, hint-free 401 without auth.
 import { createHash, randomBytes } from "node:crypto";

@@ -1,12 +1,5 @@
-// The Hono app factory (BRIEF-2 stage 4 + stage 6). Dependencies are INJECTED:
-// tests pass a PGlite `AppDatabase` + secrets/stubs; the startup wiring (the
-// `apps/web` catch-all mount) passes `createDb(DATABASE_URL)` + the Zod-parsed
-// GitHub config + the crypto key provider. This module never reads
-// `process.env` and never constructs a DB — same injection discipline as
-// `loadConfig`.
-//
-// Routes here: the webhook trust boundary (stage 4), the reviewer OAuth routes
-// (stage 6), and the authz-gated read API (stage 7).
+// Dependencies are INJECTED: this module never reads `process.env` and never
+// constructs a DB.
 import { Hono } from "hono";
 import { requestId } from "hono/request-id";
 import type { Logger } from "logging";
@@ -36,27 +29,17 @@ export type { AuthDeps } from "./routes/auth";
 export interface AppDeps {
   readonly handle: AppDatabase;
   readonly webhookSecret: string;
-  /**
-   * The process logger (packages/logging boundary, ADR 0034) — the startup
-   * wiring constructs it; routes reach the per-request child via
-   * `c.get("logger")`, never a global.
-   */
+  /** Routes reach the per-request child via `c.get("logger")`, never a global. */
   readonly logger: Logger;
   /** Reviewer-auth bundle (OAuth creds, crypto boundary, cookie/redirect policy). */
   readonly auth: AuthDeps;
-  /**
-   * Installation-octokit interface for the installation-token reads: the
-   * conversation fetch (BRIEF-25) and the collaborators list (BRIEF-94).
-   */
+  /** Installation-octokit interface for the installation-token reads. */
   readonly github: InstallationGitHubPort;
-  /** Exposed by GET /api/version (ADR 0029 #8 — skew visibility). */
+  /** Exposed by GET /api/version for skew visibility. */
   readonly serverVersion?: string;
-  /** Instance draft-PR policy (BRIEF-64); omitted = zero-config default. */
+  /** Instance draft-PR policy; omitted = zero-config default. */
   readonly draftPolicy?: DraftPolicy;
-  /**
-   * Viewer-token generate-from-URL engine (BRIEF-97). Omitted (worker-less /
-   * test deployments) ⇒ POST /api/generate answers a curated 503.
-   */
+  /** Omitted (worker-less / test deployments) ⇒ POST /api/generate answers a curated 503. */
   readonly urlBriefEngine?: UrlBriefEngine;
 }
 
@@ -66,10 +49,8 @@ export type ApiApp = Hono<RequestLogEnv>;
 /** Build the API app over injected deps. */
 export function createApp(deps: AppDeps): ApiApp {
   const app = new Hono<RequestLogEnv>();
-  // Request id + the one api.access line per request (ADR 0034 #2/#6):
-  // inbound X-Request-Id accepted (length/charset-guarded), UUID otherwise,
-  // echoed on the response; every route below reads its child logger from
-  // context.
+  // Request id + the one api.access line per request; every route below reads
+  // its child logger from context.
   app.use(requestId());
   app.use(requestLogging(deps.logger));
   app.route("/", webhookRoute(deps));
@@ -77,21 +58,18 @@ export function createApp(deps: AppDeps): ApiApp {
   app.route("/", installationsRoute(deps));
   app.route("/", tokensRoute(deps));
   // ONE resolver instance: /api/pulls and /api/repos share the allowed-set
-  // cache (BRIEF-17 PR 3 — one GitHub fetch serves both inside the TTL).
+  // cache, so one GitHub fetch serves both inside the TTL.
   const allowedRepos = createAllowedRepoResolver(deps);
   app.route("/", versionRoute(deps, deps.serverVersion ?? "dev"));
   app.route("/", pullsRoute(deps, allowedRepos));
   // Mounted BEFORE readsRoute (single-gate rule); exact path, no :repoId.
   app.route("/", reposRoute(deps, allowedRepos));
-  // Mounted BEFORE readsRoute: readsRoute guards `/api/repos/:repoId/*` with
-  // its own gate instance, method-agnostic — mounted first, the submit POST
-  // would traverse BOTH gates (two GitHub access checks cold; a transient
-  // failure on the second 404s a just-verified request). Registration order
-  // ensures a submit POST hits exactly one per-repo gate: its own.
-  // Conversation surface (BRIEF-25): built first so the submit route can
-  // evict the PR's conversation cache on its own success path (a submitted
-  // review IS a conversation write). Mounted before readsRoute for the same
-  // single-gate reason as the submit route.
+  // Every `/api/repos/:repoId/*` module mounts BEFORE readsRoute: readsRoute's
+  // gate is method-agnostic, so mounting after it stacks a second gate (two
+  // cold access checks; a transient failure on the second 404s a just-verified
+  // request).
+  // Conversation built first so the write routes below can evict the PR's
+  // conversation cache on their success paths.
   const conversation = conversationRoutes(deps);
   app.route(
     "/",
@@ -99,34 +77,22 @@ export function createApp(deps: AppDeps): ApiApp {
       conversation.evictConversation(installationId, repoId, prNumber),
     ),
   );
-  // Mark-ready (BRIEF-43): its own per-repo gate instance, mounted BEFORE
-  // readsRoute for the same single-gate reason as the submit route.
   app.route("/", markReadyRoute(deps));
-  // Inline post-now (BRIEF-43 PR 4): a posted inline comment is a conversation
-  // write, so its success evicts the PR's conversation cache. Own per-repo
-  // gate, mounted BEFORE readsRoute for the same single-gate reason.
   app.route(
     "/",
     inlineCommentRoute(deps, (installationId, repoId, prNumber) =>
       conversation.evictConversation(installationId, repoId, prNumber),
     ),
   );
-  // Thread resolution (BRIEF-93): a resolved/unresolved thread is a
-  // conversation write, so success evicts the PR's conversation cache. Own
-  // per-repo gate, mounted BEFORE readsRoute for the same single-gate reason.
   app.route(
     "/",
     resolveThreadRoute(deps, (installationId, repoId, prNumber) =>
       conversation.evictConversation(installationId, repoId, prNumber),
     ),
   );
-  // Collaborators read (BRIEF-94): own per-repo gate instance + the
-  // viewerCanPush guard, mounted BEFORE readsRoute for the same single-gate
-  // reason as the other /api/repos/:repoId/* modules.
   app.route("/", collaboratorsRoute(deps));
-  // Generate-from-URL (BRIEF-97): session-gated only — the pasted URL's repo
-  // is outside the installation model; the engine's viewer-token fetch is the
-  // access check. Mounted before readsRoute like every session-authed route.
+  // Session-gated only: the pasted URL's repo is outside the installation
+  // model, so the engine's viewer-token fetch is the access check.
   app.route("/", generateRoute(deps, deps.urlBriefEngine));
   app.route("/", conversation.app);
   app.route("/", readsRoute(deps));

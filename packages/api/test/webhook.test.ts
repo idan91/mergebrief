@@ -197,8 +197,7 @@ async function countRows(
 // Suite.
 // ---------------------------------------------------------------------------
 
-// Conversation port stub (BRIEF-25): these tests never exercise the
-// conversation read; a hit here is a test bug.
+// Conversation port stub: a call here is a test bug.
 const unusedConversationPort = {
   fetchPullRequestConversation: async () => {
     throw new Error("conversation port must not be called in this suite");
@@ -262,7 +261,7 @@ describe("POST /api/webhooks/github", () => {
     expect(runAt - before).toBeLessThan(65_000);
   });
 
-  it("persists draft + author_login from a pull_request event (BRIEF-43)", async () => {
+  it("persists draft + author_login from a pull_request event", async () => {
     const res = await deliver(
       app,
       "pull_request",
@@ -379,7 +378,7 @@ describe("POST /api/webhooks/github", () => {
 
   it("converted_to_draft flips draft true WITHOUT touching generation or enqueueing (state-only)", async () => {
     // A ready PR converted back to draft must re-enter own-draft state — but
-    // entering draft has no regen rationale (BRIEF-43 reviewer round 3): the
+    // entering draft has no regen rationale: the
     // event is state-only. The generation projection for the already-briefed
     // head must be untouched (no phantom `queued`, no attempts bump) and no
     // job may be scheduled beyond the one the earlier trigger left.
@@ -498,7 +497,7 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "checkpoint")).toBe(0);
   });
 
-  it("submitted review writes the checkpoint pinned to review.commit_id, not head.sha (BRIEF-23)", async () => {
+  it("submitted review writes the checkpoint pinned to review.commit_id, not head.sha", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const viewedHead = "1111111111111111111111111111111111111111";
     // head.sha stays HEAD_SHA (a push landed mid-review) — commit_id must win.
@@ -520,7 +519,7 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
   });
 
-  it("Bot-authored review skips the checkpoint but still re-queues generation (BRIEF-23)", async () => {
+  it("Bot-authored review skips the checkpoint but still re-queues generation", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const res = await deliver(
       app,
@@ -532,7 +531,7 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(1);
   });
 
-  it("out-of-order review deliveries keep the newest submission (BRIEF-23 monotonic)", async () => {
+  it("out-of-order review deliveries keep the newest submission (monotonic)", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const newerSha = "2222222222222222222222222222222222222222";
     const olderSha = "3333333333333333333333333333333333333333";
@@ -559,7 +558,7 @@ describe("POST /api/webhooks/github", () => {
     expect(String(rows[0]?.["last_submitted_sha"])).toBe(newerSha);
   });
 
-  it("review redelivery is idempotent — one checkpoint row, same values (BRIEF-23)", async () => {
+  it("review redelivery is idempotent — one checkpoint row, same values", async () => {
     await seedPullRequest(harness, BigInt(REPO_ID), 2);
     const payload = pullRequestReviewPayload();
     await deliver(app, "pull_request_review", payload);
@@ -797,7 +796,7 @@ describe("POST /api/webhooks/github", () => {
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
   });
 
-  describe("draft generation policy (BRIEF-64)", () => {
+  describe("draft generation policy", () => {
     function appWithPolicy(policy: {
       generate: boolean;
       debounceSeconds: number | null;
@@ -1016,7 +1015,7 @@ describe("POST /api/webhooks/github", () => {
   });
 });
 
-describe("webhook event logging (BRIEF-51, ADR 0034)", () => {
+describe("webhook event logging", () => {
   let harness: PgliteHarness;
 
   beforeEach(async () => {

@@ -1,17 +1,9 @@
-// Reviewer-auth integration tests (BRIEF-2 stage 6): `app.request()` against
-// `createApp` over the persistence PGlite harness, with GitHub mocked at the
-// HTTP boundary via a stubbed global `fetch` (no live network, no new mock libs).
-// The stub answers exactly the three endpoints the flow touches — the OAuth
-// token endpoint (`/login/oauth/access_token`, code exchange AND refresh), the
-// authenticated user (`/user`), and the user installations
-// (`/user/installations`) — because both `@octokit/oauth-app` and the
-// user-scoped `Octokit` read `globalThis.fetch` at call time.
-//
-// Covers: login redirect + state cookie; CSRF state mismatch → 400; the happy
-// callback (session row with both ciphertexts + `Set-Cookie` for `rs_session`);
-// logout deletes the session + clears the cookie; and the refresh orchestrator
-// (rotation on success, session deletion on a GitHub refresh failure). Asserts
-// NO GitHub token/secret leaks into any response beyond the opaque session cookie.
+// Reviewer-auth integration tests: `app.request()` against `createApp` over the
+// persistence PGlite harness, GitHub mocked at the HTTP boundary via a stubbed
+// global `fetch` — both `@octokit/oauth-app` and the user-scoped `Octokit` read
+// `globalThis.fetch` at call time, so stubbing there covers both.
+// Asserts NO GitHub token/secret leaks into any response beyond the opaque
+// session cookie.
 import { randomBytes } from "node:crypto";
 import { createHash } from "node:crypto";
 import {
@@ -196,8 +188,7 @@ async function seedSession(
 // Suite.
 // ---------------------------------------------------------------------------
 
-// Conversation port stub (BRIEF-25): these tests never exercise the
-// conversation read; a hit here is a test bug.
+// Conversation port stub: a call here is a test bug.
 const unusedConversationPort = {
   fetchPullRequestConversation: async () => {
     throw new Error("conversation port must not be called in this suite");
@@ -284,7 +275,7 @@ describe("reviewer auth routes", () => {
     const row = rows[0];
     expect(String(row?.["installation_id"])).toBe(String(INSTALLATION_ID));
     expect(String(row?.["reviewer_id"])).toBe(String(REVIEWER_ID));
-    // D15: the credential pair lands on the linked grant row, sealed.
+    // The credential pair lands on the linked grant row, sealed.
     const grantRows = await harness.raw("select * from github_grant");
     expect(grantRows).toHaveLength(1);
     expect(String(row?.["grant_id"])).toBe(String(grantRows[0]?.["id"]));
@@ -317,7 +308,7 @@ describe("reviewer auth routes", () => {
     expect(await countRows(harness, "reviewer_session")).toBe(0);
   });
 
-  // Default-binding fallback matrix (D14): the callback binds the session to the
+  // Default-binding fallback matrix: the callback binds the session to the
   // user's default installation ONLY when it is in the live accessible set,
   // otherwise the first accessible one. `user_settings` is seeded before login.
   async function runCallbackAndReadInstallation(): Promise<string> {
@@ -402,7 +393,7 @@ describe("reviewer auth routes", () => {
     });
     expect(res.status).toBe(200);
     expect(await countRows(harness, "reviewer_session")).toBe(0);
-    // D15 last-referent lifecycle: the grant died with its only referent.
+    // Last-referent lifecycle: the grant died with its only referent.
     expect(await countRows(harness, "github_grant")).toBe(0);
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("rs_session=");
@@ -434,7 +425,7 @@ describe("reviewer auth routes", () => {
     if (!result.ok) throw new Error("unreachable");
     expect(result.value.accessToken).toBe(ROTATED_ACCESS);
 
-    // The rotation lands on the GRANT row (D15); the session row mirrors the
+    // The rotation lands on the GRANT row; the session row mirrors the
     // rotated refresh-token lifetime onto its own expires_at.
     const after = await harness.raw(
       "select gh_token_ciphertext, gh_refresh_token_ciphertext from github_grant",
@@ -488,7 +479,7 @@ describe("reviewer auth routes", () => {
     // Session burned → re-login required; the orphaned grant died with it.
     expect(await countRows(harness, "reviewer_session")).toBe(0);
     expect(await countRows(harness, "github_grant")).toBe(0);
-    // The failure is operator-visible (ADR 0034 taxonomy): one
+    // The failure is operator-visible: one
     // token.refresh.fail error line, numeric ids only.
     const line = capture.lines().find((l) => l["evt"] === "token.refresh.fail");
     expect(line?.["level"]).toBe("error");

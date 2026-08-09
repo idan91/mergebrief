@@ -1,9 +1,6 @@
-// Inline-comment route integration tests (BRIEF-43 PR 4): `app.request()`
-// against `createApp` over the PGlite harness, GitHub stubbed at the
-// global-fetch boundary (same pattern as mark-ready.test.ts). Covers gate posture
-// (401 / 404 collapse), the fresh-repo-resolve write safety, the happy path
-// (comment posted + audit emitted + conversation cache evicted), the stale-
-// anchor 409, the deterministic-400 set, refresh-once, and no-store.
+// Inline-comment route integration tests: `app.request()` against `createApp`
+// over the PGlite harness, GitHub stubbed at the global-fetch boundary (same
+// pattern as mark-ready.test.ts).
 import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,
@@ -27,10 +24,8 @@ import { testLogger, testLogging } from "./logging";
 
 // Not the harness: POST .../comments is on octokit's `triggersNotification`
 // list, so consecutive writes are spaced ~3s by module-global Bottleneck
-// groups, and the hard-failure case rides the retry ladder on top — measured
-// at 17.0s, i.e. 85% of the 20s this file used to allow. Matched to the 30s
-// its two throttle-bound siblings carry rather than left one bad day from a
-// flake (ADR 0038 §2).
+// groups, and the hard-failure case rides the retry ladder on top (measured
+// 17.0s). Matches the timeout its two throttle-bound siblings carry.
 vi.setConfig({ testTimeout: 30_000 });
 
 const SECRET = "test-webhook-secret";

@@ -1,17 +1,13 @@
-// Hand-rolled request-logging middleware (BRIEF-51, ADR 0034 #2/#6 — the
-// deliberate alternative to hono-pino/@hono/structured-logger; revisit at a
-// healthy structured-logger 1.x). Pairs with `hono/request-id` mounted just
-// before it: the request id (inbound `X-Request-Id` accepted, length- and
-// charset-guarded by hono; UUID minted otherwise; echoed on the response)
-// becomes a `reqId` child-logger binding, and ONE `api.access` line — the
-// D9 access-log contract, renamed from `evt: "read"` — is emitted per
-// request after the handler runs.
+// Hand-rolled request-logging middleware. Must be mounted just after
+// `hono/request-id`: the request id becomes a `reqId` child-logger binding,
+// and ONE `api.access` line is emitted per request after the handler runs.
 //
-// The line is assembled here but the authz layers own its `decision`
-// semantics: deny/allow sites stamp `decision` (+ numeric ids) into context
-// via `stampAccess`; absent a stamp, decision falls back to the response
-// status (the pre-BRIEF-51 `accessLogLayer` behavior for session-only
-// compositions and ungated routes alike).
+// The authz layers own the line's `decision` semantics: deny/allow sites stamp
+// it via `stampAccess`; absent a stamp, decision falls back to the response
+// status.
+//
+// Secrets and ids ride as structured FIELDS, never interpolated into `msg` —
+// `msg` bypasses the logging boundary's path-based redaction.
 import type { MiddlewareHandler } from "hono";
 import type { RequestIdVariables } from "hono/request-id";
 import type { LogFields, Logger } from "logging";
@@ -44,9 +40,9 @@ interface AccessStampTarget {
 }
 
 /**
- * Record the gate's outcome for the one access line. Ids arrive as the
- * branded bigints the layers hold and are stringified here — the D9 line
- * carries numeric ids as strings, never anything reversible to a token.
+ * Record the gate's outcome for the one access line. Ids arrive as branded
+ * bigints and are stringified here — the line carries numeric ids as strings,
+ * never anything reversible to a token.
  */
 export function stampAccess(
   c: AccessStampTarget,
@@ -62,7 +58,7 @@ export function stampAccess(
   });
 }
 
-/** The one place the `api.access` line is emitted (ADR 0034 taxonomy). */
+/** The one place the `api.access` line is emitted; `info` = terse operational signal. */
 export function requestLogging(
   logger: Logger,
 ): MiddlewareHandler<RequestLogEnv> {

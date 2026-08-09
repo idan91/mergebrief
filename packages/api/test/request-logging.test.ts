@@ -1,4 +1,4 @@
-// The request-logging middleware (BRIEF-51, ADR 0034 #2/#6): request-id
+// The request-logging middleware: request-id
 // accept/mint/echo + the ONE api.access line per request, assembled from
 // whatever the authz layers stamped into context.
 import { Hono } from "hono";
@@ -55,7 +55,7 @@ function buildApp(logger: Logger): Hono<RequestLogEnv> {
 }
 
 describe("requestLogging", () => {
-  it("emits one api.access line with the D9 fields + reqId", async () => {
+  it("emits one api.access line with the access fields + reqId", async () => {
     const { logger, lines } = captureLogger();
     const res = await buildApp(logger).request("/api/ok");
     expect(res.status).toBe(200);

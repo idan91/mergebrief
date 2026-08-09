@@ -1,10 +1,6 @@
-// Mark-ready route integration tests (BRIEF-43 PR 2): `app.request()` against
-// `createApp` over the PGlite harness, GitHub stubbed at the global-fetch boundary
-// (same pattern as review-submit.test.ts). Covers: gate posture (401/404
-// collapse), the fresh-flip happy path (row draft flipped + audit emitted),
-// already-ready convergence (200, no error), the GraphQL "not a draft" race
-// convergence, a hard GitHub failure leaving the row untouched, refresh-once
-// mid-request, and the double-POST idempotency guard.
+// Mark-ready route integration tests: `app.request()` against `createApp` over
+// the PGlite harness, GitHub stubbed at the global-fetch boundary (same pattern
+// as review-submit.test.ts).
 import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,
@@ -28,8 +24,7 @@ import { testLogger } from "./logging";
 
 // Some cases make several full requests over the PGlite harness (double-POST,
 // refresh-once). GraphQL is not throttled, so the only real cost is the
-// harness; since BRIEF-114 amortized the migrations the slowest case here
-// measures 3.0s, cold snapshot cache included.
+// harness; the slowest case measures 3.0s, cold snapshot cache included.
 vi.setConfig({ testTimeout: 10_000 });
 
 const SECRET = "test-webhook-secret";
@@ -290,7 +285,7 @@ async function markReady(
   });
 }
 
-// Conversation port stub (BRIEF-25): never exercised by this route.
+// Conversation port stub: never exercised by this route.
 const unusedConversationPort = {
   fetchPullRequestConversation: async () => {
     throw new Error("conversation port must not be called in this suite");

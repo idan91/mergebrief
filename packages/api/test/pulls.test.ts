@@ -1,5 +1,5 @@
-// BRIEF-19 PR 1.2 endpoint tests: the session-scoped PR list (`GET /api/pulls`)
-// and the per-PR meta endpoint (`GET /api/repos/:repoId/pulls/:prNumber`).
+// Endpoint tests: the session-scoped PR list (`GET /api/pulls`) and the per-PR
+// meta endpoint (`GET /api/repos/:repoId/pulls/:prNumber`).
 // Same harness as reads.test.ts: `app.request()` over PGlite, GitHub stubbed at
 // the global-fetch boundary. The list's allowed-repo set comes from
 // `GET /user/installations/{id}/repositories` with the viewer's token — a
@@ -197,8 +197,8 @@ const TOKEN_SUCCESS = {
   scope: "",
 };
 
-// PR-meta `revisions[]` wire shape + runtime guards (BRIEF-24) — the test
-// boundary parses, never casts.
+// PR-meta `revisions[]` wire shape + runtime guards — the test boundary
+// parses, never casts.
 interface RevisionEntry {
   readonly headSha: string;
   readonly baseSha: string;
@@ -247,8 +247,7 @@ function isMetaRevisionsBody(value: unknown): value is MetaRevisionsBody {
   );
 }
 
-// Conversation port stub (BRIEF-25): these tests never exercise the
-// conversation read; a hit here is a test bug.
+// Conversation port stub: a call here is a test bug.
 const unusedConversationPort = {
   fetchPullRequestConversation: async () => {
     throw new Error("conversation port must not be called in this suite");
@@ -340,7 +339,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   });
 
-  it("list: exposes draft + viewerIsAuthor per row, never the author login (BRIEF-43)", async () => {
+  it("list: exposes draft + viewerIsAuthor per row, never the author login", async () => {
     stubGitHub({
       installations: () =>
         installationsOk([{ id: REPO_A, full_name: "octo/verified-a" }]),
@@ -383,7 +382,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(raw).not.toContain("not-octocat");
   });
 
-  it("list: viewerCanResolve derives from authorship ONLY — no per-repo capability on the list path (BRIEF-93)", async () => {
+  it("list: viewerCanResolve derives from authorship ONLY — no per-repo capability on the list path", async () => {
     // The list endpoint's allowed-set intersection carries no permissions
     // block, so push capability is unknown there. Fail closed: the field is
     // authorship-only on list rows; the brief page reads the real capability
@@ -651,7 +650,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       title: "the pr",
       state: "open",
       headSha: "head-1",
-      // Persisted at ingest — the span is known before any brief (BRIEF-21).
+      // Persisted at ingest — the span is known before any brief.
       baseSha: "base-1",
       briefAvailable: false,
       generation: { status: GenerationStatus.QUEUED, attempts: 0 },
@@ -685,7 +684,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   });
 
-  it("meta: exposes draft + viewerIsAuthor=true when the viewer authored the draft (BRIEF-43)", async () => {
+  it("meta: exposes draft + viewerIsAuthor=true when the viewer authored the draft", async () => {
     stubGitHub({ repositories: () => repoOk() });
     // The seeded session's reviewer login is "octocat".
     const cookie = await seedSession(harness.handle, kp);
@@ -706,7 +705,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(body["authorLogin"]).toBeUndefined();
   });
 
-  it("meta: carries the instance draftPolicy — default and injected (BRIEF-64)", async () => {
+  it("meta: carries the instance draftPolicy — default and injected", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     await seedPr(harness.handle, {
@@ -745,7 +744,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   });
 
-  it("meta: viewerIsAuthor=false for a non-author viewer and for a null author (BRIEF-43)", async () => {
+  it("meta: viewerIsAuthor=false for a non-author viewer and for a null author", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     // Authored by someone else.
@@ -768,7 +767,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(noAuthorBody["draft"]).toBe(false);
   });
 
-  it("meta: viewerCanResolve=true from push permission, and it rides the gate's positive cache (BRIEF-93)", async () => {
+  it("meta: viewerCanResolve=true from push permission, and it rides the gate's positive cache", async () => {
     const counts = stubGitHub({ repositories: () => repoOk(true) });
     const cookie = await seedSession(harness.handle, kp);
     // Not the author — capability comes from `permissions.push` alone.
@@ -794,7 +793,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(counts.repositories).toBe(1);
   });
 
-  it("meta: viewerCanResolve=true for the PR author without push permission (BRIEF-93)", async () => {
+  it("meta: viewerCanResolve=true for the PR author without push permission", async () => {
     stubGitHub({ repositories: () => repoOk(false) });
     const cookie = await seedSession(harness.handle, kp);
     await seedPr(harness.handle, {
@@ -810,7 +809,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(body["viewerIsAuthor"]).toBe(true);
   });
 
-  it("meta: viewerCanResolve=false without push or authorship; an absent permissions block fails closed (BRIEF-93)", async () => {
+  it("meta: viewerCanResolve=false without push or authorship; an absent permissions block fails closed", async () => {
     // No permissions block in the repo payload at all — must parse as no
     // capability, never as a grant.
     const counts = stubGitHub({ repositories: () => repoOk() });
@@ -915,7 +914,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   });
 
-  // ------------------------------------------- meta: lastReview (BRIEF-21)
+  // ------------------------------------------------------ meta: lastReview
 
   interface MetaComparisons {
     comparisons?: { lastReview?: Record<string, unknown> };
@@ -1077,7 +1076,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   });
 
-  it("meta: lastReview is pending while the current head's BRIEF generation is warming (codex PR-45 finding)", async () => {
+  it("meta: lastReview is pending while the current head's BRIEF generation is warming", async () => {
     // Production writes no delta-kind projection rows (warmDeltaCores runs
     // inside the brief job): while that job is non-terminal and marks are
     // absent, the reason must be pending, NOT baseline-unavailable.
@@ -1135,7 +1134,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(await metaLastReview(cookie)).toBeUndefined();
   });
 
-  // -------------------------------------- meta: revisions[] (BRIEF-24)
+  // ----------------------------------------------------- meta: revisions[]
 
   async function metaBody(cookie: string): Promise<MetaRevisionsBody> {
     const res = await get(`/api/repos/${REPO_A}/pulls/7`, cookie);
@@ -1211,7 +1210,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       expect(Number.isNaN(Date.parse(rev.createdAt))).toBe(false);
       expect(Number.isNaN(Date.parse(rev.generatedAt))).toBe(false);
     }
-    // generatedAt is the generation row's created_at (BRIEF-95): head-1 was
+    // generatedAt is the generation row's created_at: head-1 was
     // enqueued BEFORE its brief artifact was written, so its cutoff is never
     // later than the artifact write; head-2 has no projection row and falls
     // back to the artifact's own createdAt.
@@ -1309,7 +1308,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   });
 
-  it("meta: top-level comparisons stays byte-compatible with the latest revision's (BRIEF-21 regression)", async () => {
+  it("meta: top-level comparisons stays byte-compatible with the latest revision's (regression)", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
@@ -1353,7 +1352,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     });
   });
 
-  it("meta: top-level comparisons track the CURRENT revision when the same head is rebriefed under a drifted base (codex round-1 finding)", async () => {
+  it("meta: top-level comparisons track the CURRENT revision when the same head is rebriefed under a drifted base", async () => {
     stubGitHub({ repositories: () => repoOk() });
     const cookie = await seedSession(harness.handle, kp);
     const pr = await seedPr(harness.handle, { repoId: REPO_A, prNumber: 7 });
@@ -1406,8 +1405,8 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(body.comparisons).toEqual({ previousBrief: current });
   });
 
-  it("meta: duplicate-head revisions share the same lastReview — marks are a pure function of the SHA pair (locked decision, codex round-2)", async () => {
-    // Plan decision #3 (BRIEF-24 grill): lastReview at a head is ROW EXISTENCE
+  it("meta: duplicate-head revisions share the same lastReview — marks are a pure function of the SHA pair", async () => {
+    // lastReview at a head is ROW EXISTENCE
     // for (checkpointSha -> head), no special-casing. Two revision entries
     // sharing a headSha (rebriefed under a drifted base) view the SAME commit;
     // the comparison renders identically at both, so both carry the offer —
@@ -1453,7 +1452,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     expect(body.revisions?.[1]?.comparisons.lastReview).toBeUndefined();
   });
 
-  it("meta: duplicate-head revisions agree on PENDING while the current head is warming (codex round-3 finding)", async () => {
+  it("meta: duplicate-head revisions agree on PENDING while the current head is warming", async () => {
     // lastReview is a pure function of (checkpoint, headSha) — including the
     // pending/unavailable distinction. When the current head also exists as an
     // OLDER duplicate row (retarget re-brief) and its brief generation is

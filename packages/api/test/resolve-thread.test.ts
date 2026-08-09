@@ -1,10 +1,6 @@
-// Thread-resolution route tests (BRIEF-93): `app.request()` against
-// `createApp` over the PGlite harness, GitHub stubbed at the global-fetch
-// boundary (mark-ready.test.ts pattern). Covers: gate posture (401/404
-// collapse), both directions' happy paths (audit emitted, cache busted),
-// read-time convergence, thread/PR not-found, the mutation-stage 403
-// (github-permission, NOT the 404 collapse), fresh-re-resolve denial
-// collapse, refresh-once, and conversation-cache eviction on success only.
+// Thread-resolution route tests: `app.request()` against `createApp` over the
+// PGlite harness, GitHub stubbed at the global-fetch boundary
+// (mark-ready.test.ts pattern).
 import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,
@@ -32,9 +28,8 @@ import type { Result } from "types";
 import { createApp, type ApiApp, type AuthDeps } from "../src/index";
 import { testLogger, testLogging } from "./logging";
 
-// Every case drives a full request over the PGlite harness. Since BRIEF-114
-// amortized the migrations the slowest measures 3.0s, cold snapshot cache
-// included.
+// Every case drives a full request over the PGlite harness; the slowest
+// measures 3.0s, cold snapshot cache included.
 vi.setConfig({ testTimeout: 10_000 });
 
 const SECRET = "test-webhook-secret";

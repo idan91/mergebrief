@@ -1,5 +1,5 @@
-// Unit tests for the `viewerIsAuthor` derivation (BRIEF-43). The truth table
-// is security-relevant: the boolean gates author-only affordances in the FE,
+// Unit tests for the `viewerIsAuthor` derivation. The truth table is
+// security-relevant: the boolean gates author-only affordances in the FE,
 // so it must NEVER be true for a null/missing author login or a null/missing
 // viewer login — only for an exact match of two present logins.
 import { describe, expect, it } from "vitest";

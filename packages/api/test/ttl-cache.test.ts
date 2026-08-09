@@ -1,4 +1,4 @@
-// Bounded TTL cache (BRIEF-2 stage 7). Guards the memory-bound behavior the
+// Bounded TTL cache. Guards the memory-bound behavior the
 // authz + diff caches rely on: expiry drops entries, and the hard cap evicts
 // the oldest so never-reused keys can't grow the map without bound.
 import { describe, expect, it } from "vitest";

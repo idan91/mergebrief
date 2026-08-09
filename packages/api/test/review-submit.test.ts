@@ -1,10 +1,7 @@
-// Submit-route integration tests (BRIEF-23 PR 2): `app.request()` against
-// `createApp` over the PGlite harness, GitHub stubbed at the global-fetch boundary
-// (same pattern as reads.test.ts). Covers: gate posture (401/404 collapse),
-// body validation, the grouped create-review POST pinned to commitId,
-// refresh-once mid-submit, the one degradation retry on an anchoring 422, the
-// fail-closed unknown-commit 409, audit-on-success, checkpoint NOT written by
-// the route (webhook-only writer), and double-submit = two reviews.
+// Submit-route integration tests: `app.request()` against `createApp` over the
+// PGlite harness, GitHub stubbed at the global-fetch boundary (same pattern as
+// reads.test.ts). Pins that the route never writes the checkpoint — the webhook
+// is its only writer.
 import { createHash, randomBytes } from "node:crypto";
 import {
   encryptToken,
@@ -291,8 +288,7 @@ async function submitAuditCount(harness: PgliteHarness): Promise<number> {
 // Suite.
 // ---------------------------------------------------------------------------
 
-// Conversation port stub (BRIEF-25): these tests never exercise the
-// conversation read; a hit here is a test bug.
+// Conversation port stub: a call here is a test bug.
 const unusedConversationPort = {
   fetchPullRequestConversation: async () => {
     throw new Error("conversation port must not be called in this suite");

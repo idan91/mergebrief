@@ -1,12 +1,9 @@
-// Collaborators-surface integration tests (BRIEF-94): `app.request()` against
-// `createApp` over the PGlite harness. The installation-token GraphQL read
-// enters through the injected `InstallationGitHubPort` (stubbed — the
-// wire→domain mapping is the github package's suite); the gate's access check
-// hits the global-fetch stub. Covers: gate posture (401/404), the
-// viewerCanPush guard (404 WITHOUT a port call — GitHub denies roster reads
-// to non-push viewers, so must we), the per-repo positive cache shared
-// across viewers, and 404-collapse/502 on port failures. Every response is
-// `no-store`.
+// Collaborators-surface integration tests: `app.request()` against `createApp`
+// over the PGlite harness. The installation-token GraphQL read enters through
+// the injected `InstallationGitHubPort` (stubbed — the wire→domain mapping is
+// the github package's suite); the gate's access check hits the global-fetch
+// stub. The viewerCanPush guard must deny with NO port call — GitHub denies
+// roster reads to non-push viewers, so must we.
 import { createHash, randomBytes } from "node:crypto";
 import type { ListRepoCollaboratorsInput, RepoCollaborators } from "github";
 import {
@@ -328,7 +325,7 @@ describe("GET /api/repos/:repoId/collaborators", () => {
     expect((await getCollaborators(app, cookie)).status).toBe(200);
     // The roster is now cached repo-wide. A read-only viewer must still be
     // denied — the guard runs BEFORE the cache lookup, or the shared entry
-    // would leak the roster to any read-access viewer (grill decision 4).
+    // would leak the roster to any read-access viewer.
     const denied = await getCollaborators(app, readOnlyCookie);
     expect(denied.status).toBe(404);
     expect(denied.headers.get("cache-control")).toBe("no-store");

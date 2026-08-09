@@ -1,8 +1,7 @@
-// BRIEF-17 PR 3 — `GET /api/repos` (the CLI's owner/name → repoId
-// resolution, ADR 0028 consequence). The locked contract (plan decision 3):
+// `GET /api/repos` — the CLI's owner/name → repoId resolution. The contract:
 // the installation∩user-access intersection from the pulls.ts allowed-set
-// machinery and its 60s cache (SHARED instance — one GitHub fetch serves
-// both endpoints inside the TTL); stringified repoIds; flat, unpaginated;
+// machinery and its 60s cache (SHARED instance — one GitHub fetch serves both
+// endpoints inside the TTL); stringified repoIds; flat, unpaginated;
 // `no-store`; a GitHub failure is a 401/502, NEVER a DB-only fallback.
 // Bearer and cookie both authenticate (it lives under /api/*).
 import { createHash, randomBytes } from "node:crypto";

@@ -1,13 +1,8 @@
-// Conversation-surface integration tests (BRIEF-25): `app.request()` against
-// `createApp` over the PGlite harness. The installation-token GraphQL read
-// enters through the injected `InstallationGitHubPort` (stubbed here — the
-// wire→domain mapping is the github package's suite); the viewer-token reply
-// POST and the gate's access check hit the global-fetch stub (same pattern as
-// review-submit.test.ts). Covers: gate posture (401/404), the 60s per-PR
-// positive cache (one port call per TTL, shared across viewers),
-// 404-collapse/502 on port failures, reply validation + refresh-once +
-// fresh-repo re-resolve, audit-on-reply, and evict-on-write (reply AND
-// review submit).
+// Conversation-surface integration tests: `app.request()` against `createApp`
+// over the PGlite harness. The installation-token GraphQL read enters through
+// the injected `InstallationGitHubPort` (stubbed here — the wire→domain mapping
+// is the github package's suite); the viewer-token reply POST and the gate's
+// access check hit the global-fetch stub.
 import { createHash, randomBytes } from "node:crypto";
 import type { FetchPullRequestConversationInput, PrConversation } from "github";
 import {
@@ -479,7 +474,7 @@ describe("conversation surface", () => {
       });
     });
 
-    it("filters the stored Entry comment out of prComments (BRIEF-57)", async () => {
+    it("filters the stored Entry comment out of prComments", async () => {
       const fixture = conversationFixture();
       const withEntry = {
         ok: true as const,
@@ -513,7 +508,7 @@ describe("conversation surface", () => {
       expect(body.hasMorePrComments).toBe(false);
     });
 
-    it("does not filter other bot comments — only the stored Entry id (BRIEF-57)", async () => {
+    it("does not filter other bot comments — only the stored Entry id", async () => {
       const fixture = conversationFixture();
       const withBots = {
         ok: true as const,
@@ -741,7 +736,7 @@ describe("conversation surface", () => {
         });
         expect(res.status).toBe(201);
         expect(await res.json()).toEqual({ commentId: REPLY_ID });
-        // The integrity failure is operator-visible (ADR 0034): one
+        // The integrity failure is operator-visible: one
         // audit.fail error line carrying the posted artifact's id.
         const line = capture.lines().find((l) => l["evt"] === "audit.fail");
         expect(line?.["level"]).toBe("error");
