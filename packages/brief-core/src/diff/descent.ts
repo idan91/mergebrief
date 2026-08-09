@@ -1,14 +1,12 @@
 /**
- * Id-descent matcher (BRIEF-143): after an anchored generation, the pipeline
- * rewrites the model's temporary group ids by file-overlap descent so DB ids
- * stay canonical revision to revision (retiring the ADR 0018 D7/D12
- * dangling-id hazard). A re-looked/new group inherits the id of the previous
- * group it shares the most files with — merge → dominant parent's id; split
- * → the dominant child keeps it, the others mint; unmatched → mint. Frozen
- * groups keep their ids by construction and enter only as `reservedIds`.
- * Deterministic and order-stable: ties resolve to the FIRST candidate in
- * input order, and minted ids are a monotone counter skipping every id in
- * play.
+ * Id-descent matcher: after an anchored generation, the pipeline rewrites the
+ * model's temporary group ids by file-overlap descent so DB ids stay canonical
+ * revision to revision. A group inherits the id of the previous group it shares
+ * the most files with — merge → dominant parent's id; split → the dominant
+ * child keeps it, the others mint; unmatched → mint. Frozen groups keep their
+ * ids and enter only as `reservedIds`. Deterministic and order-stable: ties
+ * resolve to the FIRST candidate in input order, and minted ids come from a
+ * monotone counter skipping every id in play.
  */
 
 /** A group reduced to what descent needs: its id and its chunk file set. */

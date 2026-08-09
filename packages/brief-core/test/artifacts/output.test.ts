@@ -100,7 +100,7 @@ const delta: DeltaBrief = {
 };
 
 describe("brief artifact names", () => {
-  it("version the stem with index + head8 (ADR 0012)", () => {
+  it("version the stem with index + head8", () => {
     expect(outName(brief)).toBe("medusajs-medusa-15605_2_abc12300.brief.json");
     expect(diffsName(brief)).toBe(
       "medusajs-medusa-15605_2_abc12300.diffs.json",

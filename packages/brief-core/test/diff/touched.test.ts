@@ -7,7 +7,7 @@ import {
 import type { RevisionChangeFile } from "../../src/diff/revchanges";
 
 /**
- * The touched-ness predicate (BRIEF-143 PR 2): previous-brief groups ×
+ * The touched-ness predicate: previous-brief groups ×
  * incremental-diff evidence → frozen | re-look per group. Conservative by
  * construction: a group is frozen ONLY when every one of its files is
  * positively confirmed untouched; renames, binaries, mode changes, missing

@@ -4,10 +4,9 @@ import { z } from "zod/v4";
 
 /**
  * Per-PR brief manifest: head SHA → PR-global brief ordinal, in first-seen
- * order. This is the CLI's stateless-friendly stand-in for the product DB
- * (ADR 0012): it lets a re-run reuse a known SHA's index and a new SHA take the
- * next ordinal, without the categorizer itself holding any real state. Lives
- * beside the artifacts as `out/<repo>-<num>.briefs.json`.
+ * order. The CLI's stand-in for the product DB — a re-run reuses a known SHA's
+ * index and a new SHA takes the next ordinal, with no real state held here.
+ * Lives beside the artifacts as `out/<repo>-<num>.briefs.json`.
  */
 const ManifestSchema = z.record(z.string(), z.number().int());
 type Manifest = z.infer<typeof ManifestSchema>;
@@ -27,9 +26,8 @@ async function load(path: string): Promise<Manifest> {
 
 /**
  * Look up the brief index for a SHA without assigning one — `null` if that SHA
- * was never briefed. Used to annotate a delta with its endpoint brief indices
- * (`_<base>→<head>`) when both ends have briefs (ADR 0012); a missing end falls
- * back to the SHA.
+ * was never briefed. Annotates a delta with its endpoint brief indices when both
+ * ends have briefs; a missing end falls back to the SHA.
  */
 export async function lookupBriefIndex(
   outDir: string,
@@ -42,8 +40,7 @@ export async function lookupBriefIndex(
 
 /**
  * Reverse lookup: the head SHA assigned to a given brief index, or `null` if no
- * brief holds that index. Used to find a brief's *previous* head (index − 1) for
- * the revision-changes sidecar (ADR 0021).
+ * brief holds that index — used to find a brief's previous head (index − 1).
  */
 export async function lookupBriefShaByIndex(
   outDir: string,

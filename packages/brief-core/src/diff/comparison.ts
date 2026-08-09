@@ -1,13 +1,9 @@
 /**
- * Comparison marks (ADR 0021 generalized by ADR 0024): the **mechanical**
- * baseline→head changed-line ranges per file, parsed straight from a unified
- * diff — no model call. Generalizes `RevisionChanges` (always
- * `baselineLabel: "previous-brief"`) to also cover the per-reviewer
- * `checkpoint→head` span, keyed by `(baselineSha, headSha)`, so FE line
- * highlighting and generated narrative-selection share one artifact shape
- * across both comparison baselines. Line-range parsing itself is unchanged —
- * this module wraps `revchanges.ts`'s mechanical parser rather than
- * duplicating it.
+ * Comparison marks: the mechanical baseline→head changed-line ranges per file,
+ * parsed straight from a unified diff — no model call. Covers both the
+ * previous-brief and the per-reviewer checkpoint span, keyed by
+ * `(baselineSha, headSha)`, so both baselines share one artifact shape. Wraps
+ * `revchanges.ts`'s parser rather than duplicating it.
  */
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -59,13 +55,9 @@ export function buildComparisonMarks(
 }
 
 /**
- * Marks sidecar filename (ADR 0024):
- * `<stem>_<baselineLabel>_<base8>-<head8>.comparison.json`. Span-keyed AND
- * label-keyed: a checkpoint that coincides with prevHead (the common
- * re-review case) must not clobber the previous-brief marks' metadata —
- * the FE discriminates on `baselineLabel`/`baselineIndex`. No ".." (hostile
- * to globbing); "-" separates the span SHAs instead. `revChangesName`
- * (output.ts) remains a back-compat alias for `previous-brief` spans only.
+ * Marks sidecar filename: `<stem>_<baselineLabel>_<base8>-<head8>.comparison.json`.
+ * Span-keyed AND label-keyed so a checkpoint coinciding with prevHead cannot
+ * clobber the previous-brief marks. No ".." — hostile to globbing.
  */
 export function comparisonMarksName(
   stem: string,
@@ -77,13 +69,10 @@ export function comparisonMarksName(
 }
 
 /**
- * Write the marks sidecar for one `(baselineSha, headSha)` span under
- * `outDir` — the single writer behind the marks-emission rule (ADR 0024:
- * whoever fetches a compare diff for a baseline writes the marks sidecar).
- * Shared by the main generation path (`previous-brief`), `delta-cli`
- * (`checkpoint`), and, later, production Checkpoint pre-warming. Callers
- * never catch failures: a marks failure means comparison data is unavailable
- * and must surface loudly. Returns the written path.
+ * Write the marks sidecar for one `(baselineSha, headSha)` span under `outDir` —
+ * the single writer for the rule that whoever fetches a compare diff writes the
+ * marks. Callers never catch failures: a marks failure means comparison data is
+ * unavailable and must surface loudly. Returns the written path.
  */
 export async function writeComparisonMarks(
   outDir: string,

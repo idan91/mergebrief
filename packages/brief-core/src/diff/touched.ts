@@ -1,12 +1,10 @@
 /**
- * Touched-ness predicate (BRIEF-143): previous-brief groups × incremental-diff
- * evidence → frozen | re-look per group, computed mechanically — no model
- * call. Conservative by construction (spec: "anything not positively
- * confirmed untouched counts as touched"): a group freezes ONLY when every
- * one of its files is positively confirmed untouched by the prevHead→head
- * span. Renames (either side), binary/mode-only changes (a compare entry
- * with no parsed hunks), unrecognized statuses, a missing compare file list,
- * or a possibly-truncated one all demote to re-look — wasteful, never wrong.
+ * Touched-ness predicate: previous-brief groups × incremental-diff evidence →
+ * frozen | re-look per group, computed mechanically. Conservative by
+ * construction — a group freezes ONLY when every one of its files is positively
+ * confirmed untouched by the prevHead→head span. Renames, binary/mode-only
+ * changes, unrecognized statuses, and a missing or possibly-truncated compare
+ * file list all demote to re-look: wasteful, never wrong.
  */
 import type { ValueOf } from "types";
 import type { RevisionChangeFile } from "./revchanges";

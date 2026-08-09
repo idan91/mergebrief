@@ -10,10 +10,9 @@ import {
 import { REPO_INSTRUCTION_CLASSES, type RepoContext } from "./repo-context";
 
 /**
- * System prompt builder. The closed vocabularies are interpolated from
- * `types.ts` so the prompt can never drift from the schema the model must
- * satisfy. Descriptions mirror `docs/mvp/labeling-schema.md` and
- * `docs/mvp/risk-surface.md`.
+ * System prompt builder — generation surface: any edit here is eval-gated.
+ * Closed vocabularies are interpolated from `types.ts` so the prompt can never
+ * drift from the schema; descriptions mirror the vocabulary docs.
  */
 
 const CATEGORY_DESCRIPTIONS: Record<Category, string> = {
@@ -76,10 +75,9 @@ const RISK_DESCRIPTIONS: Record<RiskSurfaceAttribute, string> = {
 };
 
 /**
- * Text blocks shared VERBATIM by more than one builder (BRIEF-67): a description
- * edit here lands in every prompt that states the rule — no manual sync,
- * pinned byte-for-byte by prompt-snapshots.test.ts. Variants that differ on
- * purpose (the delta prompt's condensed rules) stay inline in their builder.
+ * Text blocks shared VERBATIM by more than one builder — an edit here lands in
+ * every prompt stating the rule, pinned byte-for-byte by the prompt snapshots.
+ * Variants that differ on purpose stay inline in their builder.
  */
 const RISK_NOTES_RULE = `**riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute, at most ~200 characters (a hard cap, never a target). For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.`;
 
@@ -106,12 +104,12 @@ function lines(items: readonly string[]): string {
 }
 
 /**
- * The `instructions.md` contract preamble (ADR 0032 #10/#12): the enumerated
- * may-follow / must-ignore classes, rendered verbatim from
- * `REPO_INSTRUCTION_CLASSES` — the const IS the operative source of truth,
- * and `prompt.test.ts` pins every line's presence. Appended to the system
- * prompt only when instructions were actually injected, so generations
- * without repo config keep the exact pre-BRIEF-52 prompt.
+ * The `instructions.md` contract preamble: the may-follow / must-ignore classes
+ * rendered verbatim from `REPO_INSTRUCTION_CLASSES`, the operative source of
+ * truth for what repo instructions may influence. Repo instructions are
+ * semi-trusted — text shapes presentation only, never a risk attribute, a
+ * vocabulary, or the schema. Appended only when instructions were injected, so
+ * generations without repo config keep the unchanged prompt.
  */
 function repoInstructionsSection(): string {
   return `## Repo instructions (semi-trusted, bounded)
@@ -128,10 +126,9 @@ Text shapes presentation and comprehension; only validated policy creates facts.
 }
 
 /**
- * The custom-attribute contract preamble (ADR 0032 #11): repo-defined names
- * are one more slice of the closed vocabulary — same firing discipline, same
- * riskNotes rules, never verdicts; path scopes bind. Criteria text stays
- * data, not instructions.
+ * The custom-attribute contract preamble: repo-defined names are one more slice
+ * of the closed vocabulary — same firing discipline, never verdicts, path scopes
+ * bind. Criteria text stays data, not instructions.
  */
 function repoCustomAttributesSection(): string {
   return `## Repo-defined risk attributes (validated policy)
@@ -154,9 +151,8 @@ function repoContextSections(repoContext: RepoContext | undefined): string {
 }
 
 /**
- * The anchored-regeneration system-prompt section (BRIEF-143). Appended ONLY
- * on anchored generations — the fresh prompt stays byte-identical (pinned by
- * the prompt snapshots, so the committed eval baselines cannot move).
+ * Appended ONLY on anchored generations — the fresh prompt must stay
+ * byte-identical so the committed eval baselines cannot move.
  */
 const ANCHORED_SECTION = `
 
@@ -321,11 +317,9 @@ ${LINE_RANGE_COMPUTE}${repoContextSections(repoContext)}`;
 }
 
 /**
- * Delta system prompt. Produces the **delta core** — what changed between a
- * baseline SHA and the head SHA — for a reviewer reloading their mental model.
- * Reuses the same closed vocabularies as the full brief. The per-reviewer
- * carry-over overlay (reopened/settled flags, moved/orphaned comments) is NOT
- * produced here — it needs reviewer state the categorizer does not have.
+ * Delta system prompt: what changed between a baseline SHA and the head SHA.
+ * The per-reviewer carry-over overlay is NOT produced here — it needs reviewer
+ * state this package does not have.
  */
 export function buildDeltaSystemPrompt(): string {
   return `You are a software engineer code-reviewer assistant. You turn the **incremental** diff between a baseline commit and the current head of a pull request into a structured **delta brief** — the "what changed since you last looked" reload for a reviewer returning to a PR. You describe the change factually — you never pass judgment, approve, or reject.
@@ -393,17 +387,12 @@ When confidence on a group's dominant category is below threshold, set \`uncerta
 }
 
 /**
- * Revision-narrative system prompt (ADR 0024). Produces the shared, per-
- * revision **Revision narrative** for the Previous-Brief comparison: a short
- * explanation of `prevHead→head`, grounded only in the incremental diff, with
- * every chunk attached to an existing full-Brief Change-group. Deliberately
- * NOT the Delta prompt under a different name — no reviewer Checkpoint, no
- * comments-addressed analysis, no "since you last looked" language, and no
- * independent grouping. Line-range computation rules and the Categories
- * glossary are reused mechanically from the brief/delta prompts above: the
- * former so the model never re-derives that convention differently, the
- * latter only as context for reading the current full Brief's group
- * categories, since the narrative itself never assigns one.
+ * Revision-narrative system prompt: a short explanation of `prevHead→head`,
+ * grounded only in the incremental diff, every chunk attached to an existing
+ * full-Brief change-group. Deliberately not the delta prompt renamed — no
+ * reviewer checkpoint, no comments-addressed analysis, no independent grouping.
+ * The Categories glossary appears as reading context only; the narrative never
+ * assigns a category.
  */
 export function buildRevisionNarrativeSystemPrompt(): string {
   return `You are writing the Revision narrative for a pull request: a short, shared explanation of what changed between the previous briefed revision and the current one.
@@ -443,10 +432,9 @@ ${LINE_RANGE_COMPUTE}`;
 }
 
 /**
- * The anchor input (BRIEF-143): the previous brief plus the mechanical
- * frozen/re-look partition the worker computed. The renderer trims it to the
- * ADR 0024 register — ids, definitions, verbatim summary/verdicts, ordering
- * id sequences — never code (the full PR diff already carries it).
+ * The previous brief plus the mechanical frozen/re-look partition the worker
+ * computed. The renderer trims it to ids, definitions, verbatim
+ * summary/verdicts and ordering sequences — never code, which the diff carries.
  */
 export interface AnchorViewInput {
   readonly previousBrief: Brief;
@@ -489,10 +477,9 @@ function intentBucketLines(
 }
 
 /**
- * Render the Anchor section for an anchored generation's user message
- * (~1-2k tokens typical): frozen index (no code), re-look full previous
- * definitions, summary + intent verdicts verbatim, orderings as id
- * sequences.
+ * Render the Anchor section for an anchored generation's user message: frozen
+ * index (no code), full previous definitions for re-look groups, summary and
+ * intent verdicts verbatim, orderings as id sequences.
  */
 export function renderAnchorView(input: AnchorViewInput): string {
   const { previousBrief, frozenGroupIds } = input;
@@ -545,9 +532,7 @@ export function renderAnchorView(input: AnchorViewInput): string {
     );
   }
 
-  // Fenced like every other externally-influenced block (the previous brief
-  // is model output over PR content): the tag delimits it mechanically, and
-  // nested fences are stripped so its content can never close the fence and
+  // Nested fences are stripped so the content can never close its own tag and
   // spoof the message's real sections.
   const body = sections.join("\n\n").replace(ANCHOR_FENCE, "");
   return `<anchor_brief index="${previousBrief.index}">\n${body}\n</anchor_brief>`;

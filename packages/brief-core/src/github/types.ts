@@ -19,15 +19,14 @@ export interface PrMetadata {
   body: string;
   url: string;
   sha: string;
-  /** PR base commit SHA — the start of the whole-PR commit range (ADR 0012). */
+  /** PR base commit SHA — the start of the whole-PR commit range. */
   baseSha: string;
   /** Number of commits in the PR at this head. */
   commitCount: number;
   files: PrFile[];
   /**
-   * PR lifecycle snapshot at fetch time (BRIEF-103), stamped into the
-   * artifact envelope's `pr` block. Optional end to end: pre-stamping fetch
-   * paths and old artifacts simply omit them.
+   * PR lifecycle snapshot at fetch time, stamped into the artifact envelope's
+   * `pr` block. Optional end to end: older fetch paths and artifacts omit them.
    */
   state?: PrLifecycleState;
   draft?: boolean;

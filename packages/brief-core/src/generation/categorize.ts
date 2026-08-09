@@ -51,10 +51,8 @@ import type {
 export type { Logger };
 
 /**
- * Normalized reasoning-effort default (BRIEF-75): applied when a caller
- * passes no explicit effort, keeping zero-config behavior byte-identical.
- * The configured value arrives from the loaded generator block (worker,
- * CLIs, eval harness); each adapter maps or honestly declines it.
+ * Applied when a caller passes no explicit effort. Configured values arrive
+ * from the loaded generator block; each adapter maps or declines it.
  */
 const DEFAULT_EFFORT: Effort = "medium";
 
@@ -73,9 +71,9 @@ const SALVAGE_FIELDS = [
 ] as const;
 
 /**
- * The CLI-owned `pr` metadata block every artifact carries (ADR 0012). `sha`
- * varies by artifact: the brief's commit-range head, the delta's PR head, the
- * narrative's current head.
+ * The CLI-owned `pr` metadata block every artifact carries. `sha` varies by
+ * artifact: the brief's commit-range head, the delta's PR head, the narrative's
+ * current head.
  */
 function buildPrRef(locator: PrLocator, meta: PrMetadata, sha: string): PrRef {
   return {
@@ -111,16 +109,12 @@ function renderLinked(links: LinkedContext[]): string {
 /**
  * The repo context ACTUALLY in play for one generation, plus its pre-rendered
  * data blocks — every consumer (system prompt, user message, schema names,
- * post-parse validation) derives from the same accepted context, so a
- * rejected artifact disappears from ALL of them at once (codex round 1: an
- * over-budget instructions file must not leave its system contract behind).
+ * post-parse validation) derives from this same accepted context, so a rejected
+ * artifact disappears from ALL of them at once.
  *
- * Acceptance pipeline (all fail-open, all ⚠-warned into generationWarnings):
- *   1. custom-attribute name floor + collision/duplicate drop;
- *   2. scope pre-filter — a path-scoped attribute matching NONE of the PR's
- *      changed files is not injected at all (ADR 0032 #11 deterministic
- *      pre-filtering; plain log, not a warning — it's the normal case);
- *   3. instructions budget — over-budget means omitted whole.
+ * Acceptance is fail-open: name floor + collision drop, then a scope pre-filter
+ * (a path-scoped attribute matching no changed file is never injected), then the
+ * instructions budget — over-budget means omitted whole.
  */
 function acceptRepoContext(
   repoContext: RepoContext | undefined,
@@ -177,9 +171,8 @@ function renderUser(
   defuseForgedFences = false,
   anchorBlock = "",
 ): string {
-  // With repo context in play, forged fences anywhere else in the message
-  // (PR body, linked context, file paths, diff) are neutralized so a PR
-  // cannot impersonate default-branch config (ADR 0032 #3 trust rule).
+  // With repo context in play, forged fences elsewhere in the message are
+  // neutralized so a PR cannot impersonate default-branch config.
   const clean = defuseForgedFences
     ? stripForgedRepoFences
     : (text: string) => text;
@@ -215,18 +208,16 @@ export async function categorize(
   anchor?: AnchorViewInput,
 ): Promise<Brief> {
   // The model produces analysis only; pr / index / commitRange / generation are
-  // CLI-owned metadata it cannot know, filled in here (ADR 0012/0013).
+  // CLI-owned metadata it cannot know, filled in here.
   const collector = collectGenerationWarnings(log);
-  // Everything repo-context flows from ONE accepted view: name floor,
-  // collision drop, scope pre-filter, and the instructions budget all run
-  // BEFORE any name touches the schema enum or any text touches the prompt.
+  // One accepted repo-context view: every gate runs BEFORE any name touches the
+  // schema enum or any text touches the prompt.
   const accepted = acceptRepoContext(repoContext, pr.meta.files, collector.log);
   const effectiveContext = accepted.context;
   const customNames =
     effectiveContext?.customAttributes.map((attr) => attr.name) ?? [];
-  // Anchored regeneration (BRIEF-143): the anchor view rides the user
-  // message (trusted tier-2 reference) and the system prompt gains the
-  // anchored section; the fresh path stays byte-identical.
+  // The anchor view rides the user message as trusted tier-2 reference and the
+  // system prompt gains the anchored section; the fresh path is unchanged.
   const anchorBlock =
     anchor === undefined ? "" : `\n\n${renderAnchorView(anchor)}`;
   const generated = await generator.generate({
@@ -244,10 +235,9 @@ export async function categorize(
     log: collector.log,
   });
   const { readingOrder, ...rest } = generated;
-  // Anchored runs (BRIEF-143): frozen group ids are live anchors the model
-  // is TOLD to reference (whole orderings, intent verdicts) — the validators
-  // must accept them, not prune them as unknown; the stitch re-verifies
-  // everything against the merged artifact.
+  // On anchored runs the model is told to reference frozen group ids, so the
+  // validators must accept them rather than prune them as unknown; the stitch
+  // re-verifies everything against the merged artifact.
   const carriedGroupIds = anchor?.frozenGroupIds ?? [];
   const readingOrderIssues = validateReadingOrder(
     readingOrder,
@@ -258,21 +248,15 @@ export async function categorize(
   const keepReadingOrder =
     readingOrder !== undefined && readingOrderIssues.length === 0;
 
-  // Intent check (BRIEF-54): ticketUrls ⊆ the URLs actually injected as
-  // linked context; quotes verify against the composite source — the PR
-  // title/description rides as the "" source, matching the sourceUrl
-  // convention. The source text must be the SAME sanitized view the prompt
-  // rendered (linked_context fence strip + forged-fence defusal when repo
-  // context is in play) — verifying against raw text would flag a model
-  // quote as fabricated when the harness altered the text it read.
-  // Warn-and-drop, same register as readingOrder.
+  // Quotes must verify against the SAME sanitized view the prompt rendered —
+  // checking raw text would flag a model quote as fabricated when the harness
+  // altered the text it read. Warn-and-drop, same register as readingOrder.
   const corpusClean =
     effectiveContext !== undefined
       ? stripForgedRepoFences
       : (text: string) => text;
-  // The wire shape is one tagged `items` array (grammar budget, BRIEF-85);
-  // fan it out to the stored five buckets BEFORE validation so every
-  // per-bucket rule applies exactly as it would to native arrays.
+  // The wire shape is one tagged `items` array; fan it out to the stored five
+  // buckets BEFORE validation so every per-bucket rule applies.
   const intentChecked = validateIntentCheck(
     fanOutIntentCheck(generated.intentCheck),
     generated.changeGroups,
@@ -288,9 +272,8 @@ export async function categorize(
   );
   warnIssues(intentChecked.issues, collector.log, "intent check");
 
-  // Repo-attribute floor first (unknown tokens + path scopes, ADR 0032 #11),
-  // then the mechanical risk validation on the surviving tokens. Skipped
-  // entirely without repo context so the no-config path stays byte-identical.
+  // Repo-attribute floor first (unknown tokens + path scopes), then mechanical
+  // risk validation on the survivors. Skipped entirely without repo context.
   const repoChecked =
     effectiveContext === undefined
       ? { chunks: generated.chunks, issues: [] }
@@ -306,8 +289,8 @@ export async function categorize(
   );
   warnIssues(trio.issues, collector.log, "risk attrs");
 
-  // Warn-only length floor (BRIEF-148): the prompt carries the caps; this
-  // measures compliance and stamps the structured violations for the FE.
+  // Warn-only length floor: the prompt carries the caps; this measures
+  // compliance and stamps the structured violations for the FE.
   const textLength = validateTextLength(generated.changeGroups, trio.chunks);
   warnIssues(textLength.issues, collector.log, "text length");
 
@@ -348,11 +331,9 @@ export function warnIssues(
 }
 
 /**
- * Tee warning lines off a Logger into an artifact-bound collection (BRIEF-11
- * UI surfacing): salvage/retry lines from the schema floor (`⚠ …`) and
- * adapter warnings (served-model mismatch, effort-knob gaps — `warning: …`)
- * become part of the artifact so the UI can render what generation did,
- * not just that it finished.
+ * Tee warning lines off a Logger into an artifact-bound collection: salvage/retry
+ * lines (`⚠ …`) and adapter warnings (`warning: …`) become part of the artifact
+ * so the UI can render what generation did, not just that it finished.
  */
 export function collectGenerationWarnings(log: Logger): {
   log: Logger;
@@ -370,7 +351,7 @@ export function collectGenerationWarnings(log: Logger): {
   };
 }
 
-// --- Delta (delta core; per-reviewer carry-over is out of CLI scope) -------
+// --- Delta (per-reviewer carry-over is out of scope) ----------------------
 
 export interface DeltaInput {
   locator: PrLocator;
@@ -444,8 +425,8 @@ export async function categorizeDelta(
   log: Logger = () => {},
   effort: Effort = DEFAULT_EFFORT,
 ): Promise<DeltaBrief> {
-  // The model produces analysis only; identifiers + endpoint indices + generation
-  // are CLI-owned (ADR 0012/0013), filled in here.
+  // The model produces analysis only; identifiers, endpoint indices, and
+  // generation are CLI-owned, filled in here.
   const collector = collectGenerationWarnings(log);
   const generated = await generator.generate({
     schema: DeltaBriefGenerationSchema,
@@ -462,7 +443,7 @@ export async function categorizeDelta(
   );
   warnIssues(trio.issues, collector.log, "risk attrs");
 
-  // Warn-only length floor (BRIEF-148), same posture as the full brief.
+  // Warn-only length floor, same posture as the full brief.
   const textLength = validateTextLength(generated.changedGroups, trio.chunks);
   warnIssues(textLength.issues, collector.log, "text length");
 
@@ -491,7 +472,7 @@ export async function categorizeDelta(
   return delta;
 }
 
-// --- Revision narrative (ADR 0024) -----------------------------------------
+// --- Revision narrative ----------------------------------------------------
 
 export interface RevisionNarrativeInput {
   locator: PrLocator;
@@ -508,10 +489,9 @@ export interface RevisionNarrativeInput {
   /** The current full Brief, trimmed to alignment context by `renderBriefContext`. */
   brief: Brief;
   /**
-   * The span's mechanical comparison-mark ranges, when the caller has them
-   * (both production paths build marks before the narrative call). Enables
-   * the marks↔narrative overlap validations in both directions (BRIEF-73) —
-   * warn-only, collected into `generationWarnings`.
+   * The span's mechanical comparison-mark ranges, when the caller has them.
+   * Enables the warn-only marks↔narrative overlap validations in both
+   * directions.
    */
   marksFiles?: Pick<
     RevisionChangeFile,
@@ -520,10 +500,9 @@ export interface RevisionNarrativeInput {
 }
 
 /**
- * Trim the current full Brief to the alignment context the narrative needs
- * (ADR 0024): change-group id/title/summary/categories and chunk
- * file/ranges/group-id — never risk surface, LoC, or the brief's other
- * fields, which would just invite the model to re-describe them.
+ * Trim the current full Brief to the alignment context the narrative needs:
+ * group id/title/summary/categories and chunk file/ranges/group-id — never risk
+ * surface, LoC, or other fields, which would invite re-describing them.
  */
 function renderBriefContext(brief: Brief): string {
   const groups =
@@ -550,12 +529,10 @@ function renderBriefContext(brief: Brief): string {
 }
 
 /**
- * The fresh-restart discontinuity note (BRIEF-143): when this revision's
- * brief was regenerated from scratch (anchor stamp `fresh-restart`), the
- * narrative must know that group ids/boundaries may not align with the
- * previous revision's — it narrates the discontinuity instead of forcing
- * alignment. Silent for anchored/unstamped briefs (the alignment assumption
- * holds there).
+ * When this revision's brief was regenerated from scratch, the narrative must
+ * know that group ids/boundaries may not align with the previous revision's, so
+ * it narrates the discontinuity instead of forcing alignment. Silent for
+ * anchored/unstamped briefs.
  */
 function renderAnchorDiscontinuity(brief: Brief): string {
   if (brief.anchor?.state !== "fresh-restart") return "";
@@ -592,7 +569,7 @@ export async function categorizeRevisionNarrative(
   effort: Effort = DEFAULT_EFFORT,
 ): Promise<RevisionNarrative> {
   // The model produces overview + chunks only; the rest is CLI-owned metadata
-  // it cannot know (ADR 0012/0013), filled in here.
+  // it cannot know, filled in here.
   const collector = collectGenerationWarnings(log);
   const generated = await generator.generate({
     schema: RevisionNarrativeGenerationSchema,
@@ -619,7 +596,7 @@ export async function categorizeRevisionNarrative(
       "revision narrative coverage",
     );
   }
-  // Warn-only length floor (BRIEF-148): overview + hover-callout summaries.
+  // Warn-only length floor: overview + hover-callout summaries.
   const textLength = validateNarrativeTextLength(
     generated.overview,
     generated.chunks,

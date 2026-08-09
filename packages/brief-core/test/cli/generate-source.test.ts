@@ -1,7 +1,6 @@
-// generateAndWrite honors an INJECTED PrSource (BRIEF-97): the whole point
-// of the port is that a front door with no gh binary (the composed web app)
-// can supply its own transport. The barrel's gh functions are mocked to
-// throw, so any accidental fall-through to the default is a loud failure.
+// generateAndWrite honors an INJECTED PrSource: a front door with no gh binary
+// supplies its own transport. The barrel's gh functions are mocked to throw, so
+// any accidental fall-through to the default is a loud failure.
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

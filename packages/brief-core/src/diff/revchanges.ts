@@ -1,9 +1,8 @@
 /**
- * Revision-changes sidecar (ADR 0021): the **mechanical** prevHead→head
- * changed-line ranges per file, parsed straight from a unified diff — **no
- * model call**. The full-brief view joins these onto its head-line diff rows to
- * mark what is new in *this* revision (shared, per-revision, never the
- * per-reviewer Delta Brief). Absent on the first brief (no previous head).
+ * Revision-changes sidecar: the mechanical prevHead→head changed-line ranges per
+ * file, parsed straight from a unified diff — no model call. The full-brief view
+ * joins these onto its head-line diff rows to mark what is new in this revision.
+ * Absent on the first brief (no previous head).
  */
 import { splitDiffByFile, type FileDiff } from "./diff";
 import type { LineRange } from "../types";
@@ -12,7 +11,7 @@ export interface RevisionChangeFile {
   file: string;
   /** Added/changed lines in head (new-side) coords — the FE join key. */
   addedRanges: LineRange[];
-  /** Removed lines in prevHead (old-side) coords — deletion case B. */
+  /** Removed lines in prevHead (old-side) coords. */
   removedRanges: LineRange[];
 }
 
@@ -108,9 +107,8 @@ function rangeLength(range: LineRange): number {
 }
 
 /**
- * Total changed lines (added + removed, both sides) across a whole unified
- * diff — the cheap size signal the huge-span fallback compares an incremental
- * span against the whole-PR span with (ADR 0006 #7 / ADR 0024).
+ * Total changed lines (added + removed, both sides) across a whole unified diff
+ * — the size signal the huge-span fallback compares spans with.
  */
 export function countChangedLines(diff: string): number {
   return parseChangedRanges(diff).reduce(

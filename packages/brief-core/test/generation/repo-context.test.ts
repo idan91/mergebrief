@@ -1,7 +1,7 @@
-// The repo-context injection surface (ADR 0032 #10/#11/#12): fence rendering
-// and breakout stripping, the assembly-time budget guard, and the path-scope
-// glob matcher. The class-list constant's verbatim presence in the assembled
-// prompt is pinned in prompt.test.ts; its shape is pinned here.
+// The repo-context injection surface: fence rendering and breakout stripping,
+// the assembly-time budget guard, and the path-scope glob matcher. The class
+// list's verbatim presence in the assembled prompt is pinned in prompt.test.ts;
+// its shape is pinned here.
 import { describe, expect, it } from "vitest";
 import {
   INSTRUCTIONS_INJECTION_BUDGET_BYTES,
@@ -29,7 +29,7 @@ describe("REPO_INSTRUCTION_CLASSES", () => {
     }
   });
 
-  it("names the load-bearing classes (ADR 0032 #10)", () => {
+  it("names the load-bearing classes", () => {
     const mayFollow = REPO_INSTRUCTION_CLASSES.MAY_FOLLOW.join("\n");
     expect(mayFollow).toContain("grouping boundaries");
     expect(mayFollow).toContain("glossary");

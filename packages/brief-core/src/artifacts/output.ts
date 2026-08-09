@@ -16,9 +16,9 @@ export function prStem(repo: string, number: number): string {
 }
 
 /**
- * `<stem>_<index>_<head8>` — versioned id for one brief's artifacts (ADR 0012),
- * given just the pieces a caller may have without a full `Brief` object yet
- * (e.g. a dedupe lookup before generation has run).
+ * `<stem>_<index>_<head8>` — versioned id for one brief's artifacts, from just
+ * the pieces a caller may have before a full `Brief` exists (e.g. a dedupe
+ * lookup before generation has run).
  */
 export function briefId(stem: string, index: number, head: string): string {
   return `${stem}_${index}_${shortSha(head)}`;
@@ -47,16 +47,15 @@ export function commentsName(brief: Brief): string {
   return `${briefStem(brief)}.comments.json`;
 }
 
-/** Sidecar filename for revision changes: `<stem>_<index>_<head8>.revchanges.json` (ADR 0021). */
+/** Sidecar filename for revision changes: `<stem>_<index>_<head8>.revchanges.json`. */
 export function revChangesName(brief: Brief): string {
   return `${briefStem(brief)}.revchanges.json`;
 }
 
 /**
- * Sidecar filename for a Revision narrative (or its skip stub):
- * `<stem>_<index>_<head8>.revision-narrative.json`. Named off the current
- * (head) brief, mirroring `outName` — `artifactKind` inside the file
- * discriminates a real narrative from a skip stub.
+ * Sidecar filename for a revision narrative (or its skip stub):
+ * `<stem>_<index>_<head8>.revision-narrative.json`. Named off the head brief;
+ * `artifactKind` inside the file discriminates a narrative from a skip stub.
  */
 export function revisionNarrativeName(brief: Brief): string {
   return `${briefStem(brief)}.revision-narrative.json`;

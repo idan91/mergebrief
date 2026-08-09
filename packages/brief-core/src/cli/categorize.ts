@@ -175,7 +175,7 @@ export async function generateAndWrite(
   const fileDiffs = splitDiffByFile(pr.diff);
   await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
 
-  // Review comments sidecar (display data, +outdated) — ADR 0012.
+  // Review comments sidecar (display data, +outdated).
   const commentsFile = join(outDir, commentsName(brief));
   await writeFile(commentsFile, `${JSON.stringify(comments, null, 2)}\n`);
 
@@ -183,9 +183,8 @@ export async function generateAndWrite(
   log(`wrote ${diffsFile} (${fileDiffs.length} files)`);
   log(`wrote ${commentsFile} (${comments.length} comments)`);
 
-  // Comparison marks + Revision narrative (ADR 0021/0024). Absent on the first
-  // brief (no previous head). Marks use the same three-dot compare diff as the
-  // delta — same documented rebase caveat.
+  // Comparison marks + revision narrative — absent on the first brief (no
+  // previous head). Marks use the same three-dot compare diff as the delta.
   if (index > 1) {
     const prevHeadSha = await lookupBriefShaByIndex(outDir, stem, index - 1);
     if (prevHeadSha) {
@@ -195,10 +194,8 @@ export async function generateAndWrite(
         commitRange.head,
       );
 
-      // Mechanical comparison marks: always written first, and never caught —
-      // per the plan, a marks failure means comparison data is unavailable and
-      // must surface loudly (unlike a narrative failure below, which must not
-      // fail the full Brief).
+      // Never caught: a marks failure means comparison data is unavailable and
+      // must surface loudly, unlike a narrative failure below.
       const marks = buildComparisonMarks(
         commitRange.head,
         prevHeadSha,
@@ -208,10 +205,8 @@ export async function generateAndWrite(
       );
       await writeComparisonMarks(outDir, stem, marks, log);
 
-      // Back-compat alias: identical shape/content to the pre-generalization
-      // sidecar, kept while the FE migrates off `.revchanges.json` (ADR 0021).
-      // Derived from the marks already parsed above — the diff is never
-      // scanned twice.
+      // Back-compat alias kept while the FE migrates off `.revchanges.json`.
+      // Derived from the marks above — the diff is never scanned twice.
       const revChanges: RevisionChanges = {
         headSha: commitRange.head,
         prevHeadSha,
@@ -240,11 +235,10 @@ export async function generateAndWrite(
 }
 
 /**
- * Generate and write the Revision narrative for a non-first Brief, or a skip
- * stub when config-disabled or the incremental span is huge-span-fallback
- * territory (ADR 0006 #7 / ADR 0024). Never throws — a narrative failure must
- * not fail the full Brief, whose artifacts are already written by the time
- * this runs.
+ * Generate and write the revision narrative for a non-first brief, or a skip
+ * stub when config-disabled or the incremental span is huge-span territory.
+ * Never throws — a narrative failure must not fail the full brief, whose
+ * artifacts are already written by the time this runs.
  */
 async function generateAndWriteRevisionNarrative(args: {
   outDir: string;
@@ -388,9 +382,8 @@ async function main(): Promise<void> {
   }
 
   loadEnv();
-  // Explicit --config only (no ambient MERGEBRIEF_CONFIG here); absent →
-  // zero-config default (anthropic + ANTHROPIC_API_KEY + Opus 4.8). This
-  // path doubles as the fast config validator: a bad file refuses loudly.
+  // Explicit --config only (no ambient MERGEBRIEF_CONFIG); absent → the
+  // zero-config default. Doubles as the config validator: a bad file refuses.
   const loaded =
     flagged.configPath !== null
       ? loadGeneratorConfigFile(flagged.configPath)

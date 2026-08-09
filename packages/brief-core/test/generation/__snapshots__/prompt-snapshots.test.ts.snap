@@ -209,7 +209,7 @@ This run UPDATES a previous brief for a new revision of the same PR — it is no
 **Reading order — whole, over ALL ids (frozen ids included):** emit the ordering across every group in the final brief, using frozen ids from the Anchor index alongside your own group ids. Preserve the previous order, insert new groups where they belong, drop removed ids."
 `;
 
-exports[`system prompts are byte-pinned > brief, anchored regeneration (BRIEF-143) 1`] = `
+exports[`system prompts are byte-pinned > brief, anchored regeneration 1`] = `
 "You are a software engineer code reviewer assistant. You turn a pull-request diff into a structured **brief** that helps a reviewer decide where to look. You describe the change factually — you never pass judgment, approve, or reject.
   You have staff-level software engineering skills (both technical and soft) and can fit a description for any level of engineer
 

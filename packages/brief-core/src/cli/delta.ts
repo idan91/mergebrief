@@ -41,16 +41,12 @@ function loadEnv(): void {
 }
 
 /**
- * Fetch inputs, write checkpoint comparison marks, generate the Delta, and
- * write its artifacts under `outDir`. Extracted from `main()` (mirroring
- * `index.ts`'s `generateAndWrite`) so the marks-before-LLM-call ordering is
- * directly testable without shelling out to `gh` or hitting the Anthropic API.
+ * Fetch inputs, write checkpoint comparison marks, generate the delta, and write
+ * its artifacts under `outDir`.
  *
- * Marks are written from the incremental diff we already fetched — BEFORE the
- * Delta LLM call — so a failed Delta generation still leaves marks on disk and
- * the FE can show highlights with the honest "summary unavailable" state
- * (ADR 0021/0024 marks-emission rule: no reuse trick keyed on the delta
- * baseline coinciding with a previous-brief head).
+ * Marks are written BEFORE the model call, so a failed delta generation still
+ * leaves marks on disk and the FE can show highlights with an honest "summary
+ * unavailable" state.
  */
 export async function generateAndWriteDelta(
   outDir: string,
@@ -126,7 +122,7 @@ export async function generateAndWriteDelta(
   await writeFile(file, `${JSON.stringify(delta, null, 2)}\n`);
   const diffsFile = join(outDir, deltaDiffsName(delta));
   await writeFile(diffsFile, `${JSON.stringify(fileDiffs, null, 2)}\n`);
-  // Review comments sidecar (display data, +outdated) — ADR 0012; matches brief.
+  // Review comments sidecar (display data, +outdated) — matches the brief.
   const commentsFile = join(outDir, deltaCommentsName(delta));
   await writeFile(commentsFile, `${JSON.stringify(comments, null, 2)}\n`);
   log(`wrote ${file}`);
@@ -146,8 +142,8 @@ async function main(): Promise<void> {
   }
 
   loadEnv();
-  // Explicit --config only (no ambient MERGEBRIEF_CONFIG); absent →
-  // zero-config default through the registry interface (BRIEF-11).
+  // Explicit --config only (no ambient MERGEBRIEF_CONFIG); absent → the
+  // zero-config default through the registry interface.
   const loaded =
     flagged.configPath !== null
       ? loadGeneratorConfigFile(flagged.configPath)

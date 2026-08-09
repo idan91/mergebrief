@@ -1,16 +1,13 @@
-// Repo-local generation context (BRIEF-52/58, ADR 0032): the `.mergebrief/`
-// surface's two prompt-side artifacts — semi-trusted text instructions
-// (`instructions.md`, bounded by REPO_INSTRUCTION_CLASSES) and validated
-// custom risk attributes (`policy.yaml`, flat facts evaluated in the same
-// single call). This module owns the injection contract: the class-list
-// constant (unit-tested verbatim into the assembled prompt — its operative
-// source of truth, ADR 0032 #10), the fenced data-section renderers (same
-// discipline as `<linked_context>`), the assembly-time budget guard, and the
-// path-scope glob matcher backing deterministic pre-filtering (#11).
+// Repo-local generation context: the `.mergebrief/` surface's two prompt-side
+// artifacts — text instructions (`instructions.md`, bounded by
+// REPO_INSTRUCTION_CLASSES) and validated custom risk attributes
+// (`policy.yaml`). This module owns the injection contract: the class list, the
+// fenced data-section renderers, the assembly-time budget guard, and the
+// path-scope glob matcher.
 //
-// Trust posture (ADR 0032 #9/#12): instructions are SEMI-TRUSTED — directives
-// honored within the enumerated classes only; custom-attribute criteria are
-// validated YAML but still fenced as data. Neither is ever system-level text.
+// Instructions are SEMI-TRUSTED — directives honored within the enumerated
+// classes only; custom-attribute criteria are validated YAML but still fenced
+// as data. Neither is ever system-level text.
 
 import { RiskSurfaceAttributes } from "../types";
 
@@ -20,11 +17,10 @@ function byteLength(text: string): number {
 }
 
 /**
- * The instruction classes — the ONE operative source of truth (ADR 0032 #10;
- * mirrored, not owned, by the ADR and the authoring docs). Changing either
- * list gates on an ADR amendment + prompt change + eval run. Every line is
- * rendered verbatim into the system prompt when instructions are injected;
- * `prompt.test.ts` pins that.
+ * The instruction classes — the ONE operative source of truth for what repo
+ * instructions may influence; the docs mirror it, never own it. Changing either
+ * list is a generation-surface change and gates on an eval run. Every line is
+ * rendered verbatim into the system prompt when instructions are injected.
  */
 export const REPO_INSTRUCTION_CLASSES = {
   MAY_FOLLOW: [
@@ -45,11 +41,9 @@ export const REPO_INSTRUCTION_CLASSES = {
 } as const;
 
 /**
- * Assembly-time injected budget for `instructions.md` (ADR 0032 #6). The
- * upstream validator (`repo-config`) enforces the same number before the
- * worker ever passes content here; this guard is defense in depth for any
- * future caller that skips it — over budget means OMITTED (fail-open, loud
- * warning), never truncated inside the file.
+ * Assembly-time injected budget for `instructions.md`. `repo-config` enforces
+ * the same number upstream; this guard is defense in depth for callers that
+ * skip it — over budget means OMITTED whole, never truncated.
  */
 export const INSTRUCTIONS_INJECTION_BUDGET_BYTES = 16 * 1024;
 
@@ -57,15 +51,15 @@ export const INSTRUCTIONS_INJECTION_BUDGET_BYTES = 16 * 1024;
 export interface RepoInstructionsInput {
   /** Repo-relative path, for the fence attribute + origin tracking. */
   readonly path: string;
-  /** Git blob SHA of the served content (ADR 0032 #8). */
+  /** Git blob SHA of the served content. */
   readonly blobSha: string;
   readonly content: string;
 }
 
 /**
- * One validated custom risk attribute from `policy.yaml` (ADR 0032 #11):
- * flat facts — criteria (model-evaluated), optional implication, optional
- * path scope. No tier/severity/weight can exist here by construction.
+ * One validated custom risk attribute from `policy.yaml`: flat facts — criteria
+ * (model-evaluated), optional implication, optional path scope. No
+ * tier/severity/weight can exist here by construction.
  */
 export interface CustomRiskAttributeInput {
   readonly name: string;
@@ -91,13 +85,10 @@ function stripFences(text: string): string {
 }
 
 /**
- * Neutralize forged repo-config fences in OTHER prompt sections (PR body,
- * linked context, file list, diff): a PR must not be able to smuggle a
- * `<repo_instructions>` block the model could mistake for default-branch
- * config (the trust rule, ADR 0032 #3). Same strip the real fences apply to
- * their own content; a legit code diff virtually never contains these tag
- * names, and the prompt copy is model input only (marks/ranges are computed
- * from the original diff elsewhere).
+ * Neutralize forged repo-config fences in OTHER prompt sections: a PR must not
+ * be able to smuggle a `<repo_instructions>` block the model could mistake for
+ * default-branch config. Model input only — marks/ranges are computed from the
+ * original diff elsewhere.
  */
 export function stripForgedRepoFences(text: string): string {
   return stripFences(text);
@@ -109,9 +100,9 @@ function attributeSafe(value: string): string {
 }
 
 /**
- * Render the fenced `<repo_instructions path sha>` block for the user
- * message's data section. Returns the block, or `undefined` plus a warning
- * when the content is over the injected budget (omitted whole — ADR 0032 #6).
+ * Render the fenced `<repo_instructions path sha>` block for the user message's
+ * data section. Returns the block, or `undefined` plus a warning when the
+ * content is over the injected budget (omitted whole).
  */
 export function renderRepoInstructions(
   instructions: RepoInstructionsInput,
@@ -171,11 +162,9 @@ export const CUSTOM_ATTRIBUTE_NAME_PATTERN = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 const CUSTOM_ATTRIBUTE_NAME_MAX_CHARS = 50;
 
 /**
- * Parked built-in candidates + reserved words (ADR 0032 #11): custom names
- * colliding with any of these are dropped — built-in wins, identical day-one
- * vs upgrade-induced. First code home for the parked list (docs-only until
- * now); `repo-config` performs the same resolution at the YAML boundary with
- * a disclosure chip — this is the categorizer's own floor.
+ * Parked built-in candidates + reserved words: custom names colliding with any
+ * of these are dropped — built-in wins. `repo-config` resolves the same at the
+ * YAML boundary; this is this package's own floor.
  */
 export const PARKED_ATTRIBUTE_CANDIDATES = [
   "unresolved-reference",
@@ -185,13 +174,11 @@ export const PARKED_ATTRIBUTE_CANDIDATES = [
 export const RESERVED_ATTRIBUTE_WORDS = ["uncertain"] as const;
 
 /**
- * Drop custom attributes whose NAME fails the identifier floor, collides
- * with the built-in/parked/reserved vocabulary, or duplicates an earlier
- * entry — a name is interpolated into the fenced block and injected into the
- * closed output vocabulary, so a bad one is discarded whole (warn), never
- * "cleaned up" into something the repo didn't write. A built-in collision in
- * particular could otherwise REDEFINE a built-in's firing criteria in the
- * prompt while bypassing its semantics (codex round 1).
+ * Drop custom attributes whose NAME fails the identifier floor, collides with
+ * the built-in/parked/reserved vocabulary, or duplicates an earlier entry. A
+ * name is interpolated into the fenced block and injected into the closed
+ * output vocabulary, so a bad one is discarded whole, never "cleaned up" —
+ * a built-in collision could otherwise redefine a built-in's firing criteria.
  */
 export function sanitizeCustomAttributes(
   attributes: readonly CustomRiskAttributeInput[],
@@ -215,7 +202,7 @@ export function sanitizeCustomAttributes(
     }
     if (colliding.has(attr.name)) {
       issues.push(
-        `dropped custom attribute "${attr.name}" — collides with the built-in/reserved vocabulary; built-in wins (ADR 0032 #5)`,
+        `dropped custom attribute "${attr.name}" — collides with the built-in/reserved vocabulary; built-in wins`,
       );
       return false;
     }
@@ -244,9 +231,9 @@ function tokenizeGlob(pattern: string): GlobToken[] {
       if (pattern[i + 1] === "*") {
         i++;
         if (pattern[i + 1] === "/") {
-          // `**/` = zero or more COMPLETE directory segments — it must stop
-          // at a segment boundary, so `src/**/fixtures` can never match
-          // `src/notfixtures` (codex round 1).
+          // `**/` = zero or more COMPLETE directory segments — it must stop at
+          // a segment boundary, so `src/**/fixtures` never matches
+          // `src/notfixtures`.
           tokens.push({ kind: "globstar-slash" });
           i++;
         } else {
@@ -297,10 +284,9 @@ export function matchesGlob(pattern: string, filePath: string): boolean {
         break;
       }
       case "star": {
-        // Consume any run (incl. empty) that stays inside one segment.
-        // Linear recurrence: a run may end at j when one started somewhere
-        // reachable and no separator intervened (codex round 1 — the naive
-        // inner scan was quadratic after a globstar).
+        // Consume any run (incl. empty) that stays inside one segment. Linear
+        // recurrence: a run may end at j when one started somewhere reachable
+        // and no separator intervened; a naive inner scan is quadratic here.
         let active = false;
         for (let j = 0; j <= n; j++) {
           active =

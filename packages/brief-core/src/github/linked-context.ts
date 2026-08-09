@@ -161,10 +161,6 @@ export function extractLinks(body: string): string[] {
  * failure (network, non-OK status, timeout, binary body, SSRF block) is logged
  * and skipped — a brief must still be producible from the diff alone. URLs are
  * credential-stripped before they reach a log line or the stored context.
- *
- * Future: richer extraction (HTML→text), auth'd sources, and private trackers
- * will likely move behind MCP servers / connectors. For now we take whatever a
- * plain GET returns, capped, and treat absence as normal.
  */
 export async function fetchLinkedContext(
   body: string,

@@ -1,21 +1,7 @@
 /**
- * Revision-narrative config gate (ADR 0024, cost control per ADR 0023).
- *
- * DEVIATION FROM PLAN (flagged for the handoff): the plan's target shape is a
- * per-repo YAML namespace —
- *
- * ```yaml
- * revisionNarrative:
- *   enabled: true
- * ```
- *
- * — but no per-repo YAML loader exists yet anywhere in the stateless CLI (ADR
- * 0013 explicitly defers it: "the stateless dogfood CLI keeps env + flags for
- * now; YAML is the product-runtime shape"). Building a YAML loader is out of
- * scope for this stage. This is the minimal honest stand-in: an env var,
- * default on, shaped as a namespace object so a future YAML loader slots in
- * behind this same `RevisionNarrativeConfig` return type without changing any
- * caller.
+ * Revision-narrative config gate. Env-backed for now, shaped as a namespace
+ * object so a future per-repo config loader slots in behind this same return
+ * type without changing callers.
  */
 export interface RevisionNarrativeConfig {
   enabled: boolean;

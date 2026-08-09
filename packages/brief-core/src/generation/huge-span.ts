@@ -1,17 +1,8 @@
 /**
- * Huge-span fallback threshold (ADR 0006 #7: "past a tunable ~60-70% size
- * heuristic, skip the [incremental] call and default to the always-available
- * full Brief"). ADR 0024 reuses the same knob for the Revision-narrative
- * fallback rather than introducing a second one — "both fallbacks answer 'is
- * this span too big to summarize incrementally?'; two knobs invite
- * unprincipled drift."
- *
- * DEVIATION FROM PLAN (flagged for the handoff): no such threshold existed in
- * code before this change — ADR 0006 documents the heuristic but the Delta
- * path has never implemented it. This module is the one shared knob the plan
- * asks for; it is wired into the Revision-narrative path (`index.ts`) in this
- * stage. Wiring it into `cli/delta.ts` as well is out of scope for this stage
- * (not requested by the plan's step 9 test list) and is left as follow-up.
+ * Huge-span fallback threshold: past a ~60-70% size heuristic, skip the
+ * incremental call and fall back to the always-available full brief. One shared
+ * knob for both the delta and revision-narrative fallbacks — they answer the
+ * same question, and two knobs would drift.
  */
 const DEFAULT_HUGE_SPAN_RATIO = 0.65;
 

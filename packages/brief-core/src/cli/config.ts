@@ -1,7 +1,7 @@
 /**
- * Extract `--config <path>` (explicit instance config — the CLIs honor NO
- * ambient MERGEBRIEF_CONFIG, per BRIEF-11 decision 6) and return the rest of
- * argv. Null when the flag is present but its value is missing/flag-shaped.
+ * Extract `--config <path>` (explicit instance config — the CLIs honor no
+ * ambient MERGEBRIEF_CONFIG) and return the rest of argv. Null when the flag is
+ * present but its value is missing or flag-shaped.
  */
 export function extractConfigFlag(
   args: string[],

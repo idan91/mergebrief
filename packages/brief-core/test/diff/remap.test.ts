@@ -7,7 +7,7 @@ import {
 } from "../../src/diff/remap";
 
 /**
- * The line-offset remapper (BRIEF-143 PR 2): hunk-header offsets from an
+ * The line-offset remapper: hunk-header offsets from an
  * incremental diff → new-side ranges for carried (frozen) chunk ranges.
  * Ambiguity — a hunk overlapping a carried range — returns a demotion
  * verdict, never a guessed range.

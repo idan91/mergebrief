@@ -42,7 +42,7 @@ vi.mock("../../src/github", async (importOriginal) => {
     ...actual,
     ...mocked,
     // The default PrSource must ride the SAME mocks — the real `ghPrSource`
-    // binds the unmocked gh functions at module init (BRIEF-97).
+    // binds the unmocked gh functions at module init.
     ghPrSource: { ...actual.ghPrSource, ...mocked },
   };
 });
@@ -101,8 +101,8 @@ const incrementalDiff = `diff --git a/src/a.ts b/src/a.ts
 
 /**
  * The STORED intent-check shape (five bucket arrays). Generation emits one
- * tagged `items` array instead (grammar budget, BRIEF-85), so a fixture that
- * plays both roles needs both shapes.
+ * tagged `items` array instead (grammar budget), so a fixture that plays both
+ * roles needs both shapes.
  */
 const storedIntentCheck = {
   ticketUrls: [],
@@ -207,7 +207,7 @@ const deltaGen = {
  */
 class FakeGenerator implements Generator {
   readonly labels: string[] = [];
-  /** Effort of each request, in call order (BRIEF-75 threading tests). */
+  /** Effort of each request, in call order. */
   readonly efforts: (Effort | undefined)[] = [];
   private readonly failLabels: Set<string>;
   private readonly onCall: ((label: string) => void) | undefined;
@@ -293,7 +293,7 @@ describe("categorizeRevisionNarrative", () => {
     expect(narrative.overview).toBe(narrativeGen.overview);
   });
 
-  it("names the fresh-restart discontinuity in the prompt; silent otherwise (BRIEF-143)", async () => {
+  it("names the fresh-restart discontinuity in the prompt; silent otherwise", async () => {
     class RecordingGenerator extends FakeGenerator {
       users: string[] = [];
       override async generate<S extends z.ZodType>(
@@ -347,7 +347,7 @@ describe("categorizeRevisionNarrative", () => {
         (l) => l.includes("unknown brief change-group") && l.includes("g1"),
       ),
     ).toBe(true);
-    // The warning is artifact-bound too (BRIEF-73), not just a log line.
+    // The warning is artifact-bound too, not just a log line.
     expect(
       narrative.generationWarnings?.some((w) =>
         w.includes("unknown brief change-group"),
@@ -356,7 +356,7 @@ describe("categorizeRevisionNarrative", () => {
   });
 
   // Fixture narrative chunk: src/a.ts, addedRanges 6-7, no removedRanges.
-  it("attaches a coverage warning when a mark range has no narrative chunk (BRIEF-73)", async () => {
+  it("attaches a coverage warning when a mark range has no narrative chunk", async () => {
     const narrative = await categorizeRevisionNarrative(
       {
         ...input,
@@ -403,9 +403,9 @@ describe("categorizeRevisionNarrative", () => {
   });
 });
 
-// --- effort threading (BRIEF-75) ----------------------------------------------
+// --- effort threading ------------------------------------------------------
 
-describe("effort threading — delta + narrative (BRIEF-75)", () => {
+describe("effort threading — delta + narrative", () => {
   const deltaInput = {
     locator: { owner: "o", repo: "r", number: 1 },
     meta: makeMeta(HEAD_2),
@@ -466,9 +466,9 @@ describe("effort threading — delta + narrative (BRIEF-75)", () => {
   });
 });
 
-// --- text length floor (BRIEF-148) — delta + narrative pipelines ------------
+// --- text length floor — delta + narrative pipelines -----------------------
 
-describe("text length floor (BRIEF-148) — delta + narrative pipelines", () => {
+describe("text length floor — delta + narrative pipelines", () => {
   /** FakeGenerator with per-label fixture overrides for over-cap text. */
   class OverridingGenerator extends FakeGenerator {
     constructor(private readonly overrides: Record<string, unknown>) {
@@ -638,9 +638,8 @@ describe("generateAndWrite comparison artifacts", () => {
     expect(narrative["headIndex"]).toBe(2);
   });
 
-  // Pins the CLI call-site wiring of `marksFiles` (BRIEF-73): if the caller
-  // drops it, both overlap directions silently stop running and no other
-  // assertion would notice — this one fails.
+  // Pins the CLI call-site wiring of `marksFiles`: if the caller drops it, both
+  // overlap directions silently stop running and no other assertion notices.
   it("lands coverage warnings in the written narrative when the model under-covers the span", async () => {
     class UnderCoveringGenerator extends FakeGenerator {
       override async generate<S extends z.ZodType>(

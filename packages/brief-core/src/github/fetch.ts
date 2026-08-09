@@ -68,9 +68,8 @@ const GhViewSchema = z.object({
       }),
     )
     .nullish(),
-  // gh's state vocabulary folds merged into state (`MERGED`), unlike the
-  // REST shape (state `closed` + a separate merged flag). Unknown values
-  // fail open: the optional lifecycle fields are omitted (BRIEF-103).
+  // gh's state vocabulary folds merged into state (`MERGED`), unlike the REST
+  // shape. Unknown values fail open: the optional lifecycle fields are omitted.
   state: z.string().nullish(),
   isDraft: z.boolean().nullish(),
 });
@@ -151,13 +150,10 @@ export async function resolveFullSha(
 
 /**
  * Incremental unified diff between two commits of a PR's repo, via the GitHub
- * compare API (`base...head`). NOTE: the compare endpoint is **three-dot
- * (merge-base) semantics** — identical to a true tree diff when head descends
- * from baseline (the normal follow-up case), but after a rebase/force-push it
- * can include merge-base noise. The rebase-robust two-dot (`git diff base head`,
- * ADR 0006's intent) needs a local clone — a known CLI limitation to revisit.
- * base/head are validated as hex SHAs before they reach the api path (defense
- * in depth — execFile, no shell).
+ * compare API (`base...head`). Three-dot (merge-base) semantics: identical to a
+ * true tree diff when head descends from baseline, but after a rebase/force-push
+ * it can include merge-base noise — the rebase-robust two-dot form needs a local
+ * clone. base/head are validated as hex SHAs before reaching the api path.
  */
 export async function fetchCompareDiff(
   loc: PrLocator,

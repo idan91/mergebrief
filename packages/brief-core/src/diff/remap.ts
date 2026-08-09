@@ -1,11 +1,9 @@
 /**
- * Line-offset remapper (BRIEF-143): carries a frozen chunk's old-side
- * (prevHead) line ranges into new-side (head) coordinates using ONLY the
- * incremental diff's `@@` hunk headers — no content inspection. Ambiguity —
- * any hunk overlapping a carried range (including a pure insertion strictly
- * inside it, which would split the range) — returns a demotion verdict
- * instead of a guessed range: the FE joins are exact line-number joins, so a
- * wrong range is worse than a re-look (spec: "never point at wrong lines").
+ * Line-offset remapper: carries a frozen chunk's old-side (prevHead) line ranges
+ * into new-side (head) coordinates using ONLY the incremental diff's `@@` hunk
+ * headers — no content inspection. Any hunk overlapping a carried range returns
+ * a demotion verdict instead of a guessed range: the FE joins on exact line
+ * numbers, so a wrong range is worse than a re-look.
  */
 import type { ValueOf } from "types";
 import type { LineRange } from "../types";

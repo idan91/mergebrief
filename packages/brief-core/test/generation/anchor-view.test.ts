@@ -1,7 +1,6 @@
-// The anchored prompt contract (BRIEF-143 PR 4): renderAnchorView (the
-// trimmed previous-brief block, ADR 0024 register) and the anchored
-// system-prompt section — plus categorize() threading both only when an
-// anchor context is passed.
+// The anchored prompt contract: renderAnchorView (the trimmed previous-brief
+// block) and the anchored system-prompt section — plus categorize() threading
+// both only when an anchor context is passed.
 import { describe, expect, it } from "vitest";
 import type { z } from "zod/v4";
 import { categorize } from "../../src/generation/categorize";
@@ -255,7 +254,7 @@ const minimalGen = {
 
 const noopLog: Logger = () => {};
 
-describe("categorize — anchored threading (BRIEF-143)", () => {
+describe("categorize — anchored threading", () => {
   it("includes the anchor view and the anchored section when an anchor is passed", async () => {
     const generator = new RecordingGenerator(minimalGen);
     await categorize(
@@ -274,7 +273,7 @@ describe("categorize — anchored threading (BRIEF-143)", () => {
     expect(request?.user).toContain("Previous lede.");
   });
 
-  it("keeps frozen-id anchors alive through the in-categorize validators (BRIEF-143 fix)", async () => {
+  it("keeps frozen-id anchors alive through the in-categorize validators", async () => {
     // The anchored contract TELLS the model to reference frozen ids (whole
     // orderings; intent verdicts over the whole source). The validators must
     // treat the frozen ids as live anchors — not prune them as unknown.

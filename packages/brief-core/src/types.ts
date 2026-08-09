@@ -2,9 +2,8 @@ import { z } from "zod/v4";
 import { AnchorSchema, GenerationSchema } from "generators";
 import type { ValueOf } from "types";
 
-// Port vocabulary now lives in packages/generators (BRIEF-11); re-exported
-// here so the categorizer's own modules and downstream consumers keep their
-// import paths.
+// Port vocabulary lives in packages/generators; re-exported here so existing
+// import paths keep working.
 export {
   AnchorSchema,
   AnchorStates,
@@ -19,16 +18,13 @@ export {
 } from "generators";
 
 /**
- * Brief schema — the heart of the categorizer.
+ * Brief schema. Generation surface: schema changes are eval-gated.
  *
- * Mirrors the controlled vocabulary in `docs/mvp/labeling-schema.md` (the
- * authoritative closed token list) and `docs/mvp/risk-surface.md` (the 19
- * factual attributes). If a token is not registered there, it is not valid
- * here — keep these enums in lockstep with those files.
+ * Enums mirror the closed vocabulary docs (`docs/mvp/labeling-schema.md`,
+ * `docs/mvp/risk-surface.md`) and change only in lockstep with them.
  *
- * Structured-output constraints (from the claude-api skill): no recursive
- * schemas, no min/max constraints. Optionality is avoided in favour of
- * always-present arrays (empty when N/A) so the strict schema stays simple.
+ * Structured-output constraints: no recursive schemas, no min/max. Always-present
+ * arrays (empty when N/A) instead of optionality, to keep the strict schema simple.
  */
 
 // --- Closed vocabularies (one source of truth per axis) -------------------
@@ -56,10 +52,8 @@ export const Concerns = [
 ] as const;
 
 /**
- * Specificity — how actionable the composite intent source is (BRIEF-54,
- * ADR 0009 §2 as amended). Named here rather than inlined in
- * `IntentCheckSchema`'s `z.enum` so the FE's mirrored union can be pinned to
- * it (BRIEF-44 PR 7); the enum's wire values are unchanged.
+ * Specificity — how actionable the composite intent source is. Named rather
+ * than inlined in `IntentCheckSchema` so the FE's mirrored union can pin to it.
  */
 export const Specificities = {
   PRECISE: "precise",
@@ -68,10 +62,9 @@ export const Specificities = {
 } as const;
 
 /**
- * Why a Previous-Brief revision narrative was deliberately not generated
- * (ADR 0024). Sentence-shaped values, not kebab tokens: these are the
- * historical wire values written into `.revision-narrative.json` stubs, so
- * they are pinned as-is and must not be "corrected".
+ * Why a revision narrative was deliberately not generated. Sentence-shaped
+ * values, not kebab tokens: pinned wire values already written into
+ * `.revision-narrative.json` stubs — never "correct" them.
  */
 export const RevisionNarrativeSkipReasons = {
   SPAN_TOO_LARGE: "span too large",
@@ -127,17 +120,12 @@ const concernEnum = z.enum(Concerns);
 const roleEnum = z.enum(Roles);
 
 /**
- * The risk-token vocabulary for ONE generation: the built-in attributes plus
- * that repo's validated custom-attribute names (ADR 0032 #11). The closed
- * enum stays enforced (server-side via the enum-preserving json_schema);
- * only its membership is per-generation. The static exports below use the
- * built-ins-only vocabulary — the CLI path and every existing caller are
- * byte-for-byte unchanged.
+ * The risk-token vocabulary for ONE generation: built-in attributes plus that
+ * repo's validated custom names. The closed enum stays enforced server-side;
+ * only its membership is per-generation.
  *
- * Typed `z.ZodType<string>` on purpose: a stored chunk's risk tokens are
- * "built-in ∪ that generation's custom names", which the static type system
- * cannot enumerate — the honest static type is `string`, with the enum doing
- * the actual enforcement at parse time.
+ * Typed `z.ZodType<string>` on purpose: the per-generation membership cannot be
+ * enumerated statically — the enum enforces it at parse time.
  */
 function riskTokenEnum(customNames: readonly string[]): z.ZodType<string> {
   const [first, ...rest] = RiskSurfaceAttributes;
@@ -154,10 +142,8 @@ export const PrLifecycleStates = ["open", "closed"] as const;
 export type PrLifecycleState = (typeof PrLifecycleStates)[number];
 
 /**
- * Narrow a wire-level state string (octokit `PullRequestInfo.state`) to a
- * `PrLifecycleState`; anything unrecognized yields `undefined` so the optional
- * envelope fields are simply omitted (fail-open — the badge just won't
- * render).
+ * Narrow a wire-level state string to a `PrLifecycleState`. Unrecognized values
+ * yield `undefined` so the optional envelope fields are omitted (fail-open).
  */
 export function toPrLifecycleState(
   value: string,
@@ -204,10 +190,9 @@ export const LineRangeSchema = z.object({
 });
 
 /**
- * One short factual note attached to a chunk's risk-surface attribute — the
- * cite-or-stay-silent evidence home (ADR 0026). An array of {attr, note}
- * objects, not a record: record keys compile to `additionalProperties` in
- * JSON schema, which strict structured-output modes reject.
+ * One short factual note evidencing a chunk's risk-surface attribute. An array
+ * of {attr, note}, not a record: record keys compile to `additionalProperties`,
+ * which strict structured-output modes reject.
  */
 function buildRiskNoteSchema(riskToken: z.ZodType<string>) {
   return z.object({
@@ -305,9 +290,9 @@ export const ChangeGroupSchema = z.object({
 });
 
 /**
- * One step of a Brief's Reading order (ADR 0025): a change-group id plus a
- * one-line, comprehension-language reason it comes next. `why` is never a
- * verdict — no importance/priority/severity words, no scores.
+ * One step of a Brief's reading order: a change-group id plus a one-line
+ * comprehension-language reason it comes next. `why` is never a verdict — no
+ * importance/priority/severity words, no scores.
  */
 export const ReadingOrderStepSchema = z.object({
   groupId: z
@@ -331,7 +316,7 @@ export const ConcernRollupSchema = z.object({
 
 /**
  * The commit span a full brief covers — the whole PR, base→head — plus a count.
- * CLI-owned metadata (the model never produces it); see ADR 0012.
+ * CLI-owned metadata; the model never produces it.
  */
 export const CommitRangeSchema = z.object({
   base: z.string().describe("PR base commit SHA"),
@@ -343,10 +328,8 @@ export const CommitRangeSchema = z.object({
 });
 
 /**
- * A PR review comment (line comment or thread reply) as carried in the
- * `.comments.json` sidecar — display data for both the brief and the delta
- * (ADR 0012). `outdated` is read from GitHub (position == null), never
- * recomputed (ADR 0007).
+ * A PR review comment as carried in the `.comments.json` sidecar. `outdated` is
+ * read from GitHub (position == null), never recomputed.
  */
 export const ReviewCommentSchema = z.object({
   id: z.string(),
@@ -388,44 +371,22 @@ export const ReviewCommentSchema = z.object({
     ),
 });
 
-// --- Intent check (BRIEF-54 + BRIEF-85, ADR 0009 §2 as twice amended) ------
+// --- Intent check ---------------------------------------------------------
 
 /**
  * ONE item shape shared by ALL FIVE intent buckets, on the STORED/read side.
  *
- * Grammar budget (measured live 2026-07-24 and again 2026-07-25): Anthropic's
- * structured-output grammar inlines the item shape at every `$ref` site, so
- * its cost is (number of bucket arrays × fields per item), NOT the number of
- * distinct object shapes as BRIEF-54's note assumed. Measured cliff on
- * `anthropic:claude-opus-4-8`: four bucket arrays × four fields compiles;
- * five arrays, or four arrays plus a fifth field, both `400 "The compiled
- * grammar is too large"`. Neither a newer model (`claude-opus-5`) nor
- * disabling thinking moves the limit — it is schema compilation, not the
- * request shape.
+ * Grammar budget: the structured-output grammar inlines the item shape at every
+ * `$ref` site, so cost is (bucket arrays × fields per item). Five arrays do not
+ * compile at any field count — generation emits one tagged array
+ * (`IntentCheckGenerationSchema`) and `fanOutIntentCheck` splits it before
+ * validation.
  *
- * Five arrays therefore CANNOT be generated directly at any field count. The
- * GENERATION side instead emits one tagged array
- * (`IntentCheckGenerationSchema` below — a single `$ref` site, so the whole
- * intent check costs less grammar than BRIEF-54's three arrays did) and
- * `fanOutIntentCheck` splits it into these five arrays before validation.
- * The stored shape below is unchanged from the locked design, so the read
- * path, the shipped intent bar, and every BRIEF-54 brief already in the
- * database are untouched.
- *
- * Per-bucket field rules live in the mechanical floor
- * (`validateIntentCheck`) + prompt:
- *
- * - accomplished: `quote`/`sourceUrl` cited; `groupIds` at least one.
- * - statedButMissing: `quote`/`sourceUrl` cited; `groupIds` MUST be empty
- *   (a missing ask has no diff anchor by definition).
- * - doneButUnstated: `intent` describes the unstated work; `quote` and
- *   `sourceUrl` MUST be "" (no ticket side by definition); `groupIds` at
- *   least one.
- * - deviations / claimedButUnachieved (BRIEF-85, alarm-class): `quote`/
- *   `sourceUrl` cited AND `groupIds` at least one — both-sides grounding,
- *   enforced drop-not-warn (stricter than the neutral buckets).
- * - `acknowledged` is meaningful ONLY in `deviations`; MUST be `false` in
- *   every other bucket (dead-field precedent, forced by the validator).
+ * Per-bucket field rules are enforced by `validateIntentCheck` + prompt:
+ * statedButMissing must have empty `groupIds`; doneButUnstated must have empty
+ * `quote`/`sourceUrl`; deviations and claimedButUnachieved require both sides
+ * (quote + at least one groupId), dropped not warned; `acknowledged` is
+ * meaningful only in `deviations` and must be false elsewhere.
  */
 export const IntentItemSchema = z.object({
   intent: z
@@ -456,18 +417,11 @@ export const IntentItemSchema = z.object({
 });
 
 /**
- * The ticket-gated intent check (ADR 0009 §2 as twice amended): did this PR
- * do what its composite intent source (title + description + all ticket-like
- * linked blocks, judged together) asked? Factual buckets, never a verdict.
- * `specificity` is the master switch — broad/none means the buckets MUST be
- * empty ("never a guessed gap"), enforced mechanically post-parse. No optional
- * fields (strict structured-output; empty string / empty array = N/A).
- *
- * BRIEF-85 adds the alarm pair: `deviations` (diff opposes an ask the source
- * states and nowhere retracts) + `claimedButUnachieved` (source claims a
- * fix/delivery, diff touches only the signal/check path). Routing: behavior
- * moved against the ask ⇒ deviations; only the signal touched ⇒
- * claimedButUnachieved; uncertain ⇒ accomplished — never a guessed alarm.
+ * The ticket-gated intent check: did this PR do what its composite intent
+ * source (title + description + ticket-like linked blocks) asked? Factual
+ * buckets, never a verdict. `specificity` is the master switch — broad/none
+ * means every bucket MUST be empty, enforced mechanically post-parse. No
+ * optional fields (strict structured-output; "" / [] = N/A).
  */
 export const IntentCheckSchema = z.object({
   ticketUrls: z
@@ -513,10 +467,9 @@ export const IntentCheckSchema = z.object({
 });
 
 /**
- * The five bucket names, as the generation-side `bucket` tag. Deliberately
- * identical to the stored `IntentCheckSchema` array names so `fanOutIntentCheck`
- * is a mechanical dispatch and the registered vocabulary
- * (`docs/mvp/labeling-schema.md` §7) reads the same on both sides.
+ * The five bucket names, as the generation-side `bucket` tag. Kept identical to
+ * the stored `IntentCheckSchema` array names so `fanOutIntentCheck` is a
+ * mechanical dispatch and the registered vocabulary reads the same on both sides.
  */
 export const IntentBuckets = [
   "accomplished",
@@ -529,13 +482,10 @@ export const IntentBuckets = [
 export type IntentBucket = (typeof IntentBuckets)[number];
 
 /**
- * What the model actually emits for the intent check: ONE tagged array
- * instead of five bucket arrays. The grammar inlines the item shape per
- * `$ref` site, so five arrays cannot compile at any field count (see
- * `IntentItemSchema`); one tagged array costs a single inlined copy and
- * leaves headroom for future schema growth. `fanOutIntentCheck` converts
- * this into the stored five-array `IntentCheckSchema` before validation, so
- * nothing downstream of generation sees this shape.
+ * What the model emits for the intent check: ONE tagged array instead of five
+ * bucket arrays, a grammar-budget requirement (see `IntentItemSchema`).
+ * `fanOutIntentCheck` converts it to the stored shape before validation, so
+ * nothing downstream of generation sees this.
  */
 export const IntentGenerationItemSchema = IntentItemSchema.extend({
   bucket: z
@@ -559,8 +509,8 @@ export const IntentCheckGenerationSchema = z.object({
 export type IntentCheckGeneration = z.infer<typeof IntentCheckGenerationSchema>;
 
 /**
- * Which groups an anchored generation carried verbatim vs regenerated
- * (BRIEF-143) — internal pipeline origin tracking, never rendered.
+ * Which groups an anchored generation carried verbatim vs regenerated —
+ * internal pipeline origin tracking, never rendered.
  */
 export const AnchoringDetailSchema = z.object({
   carried: z.array(z.string()),
@@ -569,9 +519,8 @@ export const AnchoringDetailSchema = z.object({
 export type AnchoringDetail = z.infer<typeof AnchoringDetailSchema>;
 
 /**
- * Text surfaces the BRIEF-148 length floor covers. The PR lede/changelog
- * deliberately stays out — its BRIEF-104 caps are prompt-enforced and were
- * not the observed gap.
+ * Text surfaces the length floor covers. The PR lede/changelog deliberately
+ * stays out — its caps are prompt-enforced.
  */
 export const TextSurfaces = {
   GROUP_TITLE: "group-title",
@@ -583,12 +532,10 @@ export const TextSurfaces = {
 export type TextSurface = ValueOf<typeof TextSurfaces>;
 
 /**
- * One over-cap text field (BRIEF-148): the structured side of a warn-only
- * length check, stamped onto the artifact so the FE can surface a
- * "consider a stronger model" line without parsing warning strings.
- * Pipeline-assigned, never model-produced — NOT part of any generation
- * schema (the caps live in the prompt; the schema stays cap-free by locked
- * design: grammar budget + decode hard-fail + cross-model strictness).
+ * One over-cap text field: the structured side of a warn-only length check, so
+ * the FE need not parse warning strings. Pipeline-assigned, never
+ * model-produced — deliberately NOT part of any generation schema; the caps
+ * live in the prompt and the schema stays cap-free.
  */
 export const LengthViolationSchema = z.object({
   surface: z.enum([
@@ -660,14 +607,11 @@ export const BriefSchema = z.object({
 });
 
 /**
- * What the model actually generates for a full brief: BriefSchema minus the
- * CLI-owned metadata (`pr`, `index`, `commitRange`), which the CLI fills after
- * generation so the model never echoes identifiers it cannot know (ADR 0012).
- * `intentCheck` is REQUIRED here (the model always judges the source) while
- * staying optional on the stored/read `BriefSchema` — pre-BRIEF-54 briefs
- * simply have no intent bar. It also uses the GENERATION shape (one tagged
- * `items` array, a grammar-budget requirement — see `IntentItemSchema`);
- * `fanOutIntentCheck` converts it to the stored five-array shape.
+ * What the model generates for a full brief: BriefSchema minus the CLI-owned
+ * metadata, filled in after generation so the model never echoes identifiers it
+ * cannot know. `intentCheck` is REQUIRED here but optional on the stored
+ * `BriefSchema` — older briefs have no intent bar — and uses the generation
+ * shape (one tagged `items` array).
  */
 export const BriefGenerationSchema = BriefSchema.omit({
   pr: true,
@@ -686,12 +630,9 @@ export type BriefGeneration = z.infer<typeof BriefGenerationSchema>;
 
 /**
  * The brief-generation schema for ONE generation, with the repo's validated
- * custom-attribute names added to the closed risk vocabulary (ADR 0032 #11 /
- * plan PR 3): the extended enum flows into the enum-preserving json_schema,
- * so the model can only decode names the repo actually defined — built-in
- * enforcement stays intact, and no custom names means the exact static
- * schema. The inferred type is identical either way (risk tokens are
- * statically `string` — see `riskTokenEnum`).
+ * custom-attribute names added to the closed risk vocabulary. The extended enum
+ * flows into the enum-preserving json_schema, so the model can only decode names
+ * the repo actually defined; no custom names means the exact static schema.
  */
 export function briefGenerationSchemaWith(
   customNames: readonly string[],
@@ -705,15 +646,9 @@ export function briefGenerationSchemaWith(
 }
 
 /**
- * Delta brief — the re-review reload. This is the **delta core** only: the
- * code-change narrative between a baseline SHA and the head SHA (per ADR 0006).
- * The per-reviewer carry-over overlay (reopened/settled flags, moved/orphaned
- * comments) requires reviewer state and is out of scope for the stateless CLI.
- */
-/**
  * Delta chunk = a brief chunk plus delta-only fields: a one-line what-changed
- * summary and the review comment(s) this chunk resolves (ADR 0011). These are
- * delta-specific; the full brief uses the base ChunkSchema.
+ * summary and the review comment(s) this chunk resolves. The delta covers the
+ * code-change narrative only — per-reviewer carry-over state is out of scope.
  */
 export const DeltaChunkSchema = ChunkSchema.extend({
   summary: z
@@ -784,8 +719,7 @@ export const DeltaBriefSchema = z.object({
 
 /**
  * What the model generates for a delta: DeltaBriefSchema minus the CLI-owned
- * fields (`pr`, `baselineSha`, `headSha`, `baselineIndex`, `headIndex`), which
- * the CLI fills after generation (ADR 0012) — same discipline as the brief.
+ * fields, which the CLI fills after generation — same discipline as the brief.
  */
 export const DeltaBriefGenerationSchema = DeltaBriefSchema.omit({
   pr: true,
@@ -800,10 +734,9 @@ export const DeltaBriefGenerationSchema = DeltaBriefSchema.omit({
 
 /**
  * Revision-narrative chunk — attaches an incremental (prevHead→head) change to
- * an existing full-Brief Change-group via `briefChangeGroupId`. Deliberately
- * lean vs. `Chunk`/`DeltaChunk`: no concern/role/loc/riskSurface — the full
- * Brief already owns that taxonomy for the same lines' prior state, and the
- * narrative only explains what is new (ADR 0024).
+ * an existing full-Brief change-group. Deliberately lean vs `Chunk`/`DeltaChunk`:
+ * no concern/role/loc/riskSurface, since the full Brief already owns that
+ * taxonomy and the narrative only explains what is new.
  */
 export const RevisionNarrativeChunkSchema = z.object({
   id: z.string().describe("stable chunk id, e.g. rc1, rc2, …"),
@@ -831,13 +764,10 @@ export const RevisionNarrativeChunkSchema = z.object({
 });
 
 /**
- * Revision narrative — the shared, per-revision "what changed" explanation for
- * the Previous-Brief comparison (ADR 0024). Distinct from `DeltaBrief`: no
- * reviewer Checkpoint, no `commentsAddressed`/`addressesComments`, no
- * `wholePrImpact` verdict, and no independent `changedGroups` — every chunk
- * attaches to an existing full-Brief Change-group. `.strict()` so the schema
- * itself enforces that exclusion (an invented field like `wholePrImpact` fails
- * validation, not just documentation).
+ * Revision narrative — the shared, per-revision "what changed" explanation.
+ * Distinct from `DeltaBrief`: no reviewer checkpoint, no comment handling, no
+ * `wholePrImpact` verdict, no independent `changedGroups`. `.strict()` so an
+ * invented field fails validation rather than being merely undocumented.
  */
 export const RevisionNarrativeSchema = z
   .object({
@@ -873,9 +803,8 @@ export const RevisionNarrativeSchema = z
 
 /**
  * What the model generates for a revision narrative: RevisionNarrativeSchema
- * minus the CLI-owned metadata (`artifactKind`, `pr`, `prevHeadSha`, `headSha`,
- * `prevIndex`, `headIndex`, `generation`), filled in after generation — same
- * discipline as the brief and delta (ADR 0012/0013).
+ * minus the CLI-owned metadata, filled in after generation — same discipline as
+ * the brief and delta.
  */
 export const RevisionNarrativeGenerationSchema = RevisionNarrativeSchema.omit({
   artifactKind: true,
@@ -890,11 +819,9 @@ export const RevisionNarrativeGenerationSchema = RevisionNarrativeSchema.omit({
 });
 
 /**
- * Explicit skip stub for a Previous-Brief comparison span that never got a
- * generated narrative — huge-span fallback or config gate (ADR 0024, ADR 0006
- * huge-span threshold). Lets the FE distinguish "deliberately skipped, retry
- * won't help" from "generation failed, retry might help" (an absent
- * narrative file with marks present).
+ * Explicit skip stub for a comparison span that never got a generated narrative
+ * — huge-span fallback or config gate. Lets the FE distinguish "deliberately
+ * skipped, retry won't help" from "generation failed, retry might help".
  */
 export interface RevisionNarrativeSkipped {
   artifactKind: "revisionNarrativeSkipped";

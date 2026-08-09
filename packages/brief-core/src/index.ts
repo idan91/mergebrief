@@ -81,9 +81,6 @@ export {
   type AssignGroupIdsArgs,
   type DescentGroup,
 } from "./diff/descent";
-// Closed risk-surface vocabulary — the single source of truth (types.ts).
-// Re-exported so downstream packages (repo-config, ADR 0032) import the
-// built-in attribute list from here instead of duplicating it.
 export { isHugeSpan, hugeSpanRatio } from "./generation/huge-span";
 export {
   CUSTOM_ATTRIBUTE_NAME_PATTERN,
@@ -101,16 +98,15 @@ export {
   revisionNarrativeConfig,
   type RevisionNarrativeConfig,
 } from "./generation/config";
-// Structural validators, exported for post-generation stitching (BRIEF-143):
-// pure warn-issue functions the worker re-runs on a merged artifact.
+// Pure warn-issue validators the worker re-runs on a merged artifact.
 export {
   TEXT_LENGTH_CAPS,
   validatePartition,
   validateTextLength,
   validateReadingOrder,
 } from "./generation/validate";
-// The anchored prompt contract (BRIEF-143 PR 4): the worker builds the
-// AnchorViewInput from its plan; renderAnchorView is exported for tests/CLI.
+// The worker builds AnchorViewInput from its plan; renderAnchorView is
+// exported for tests/CLI.
 export { renderAnchorView, type AnchorViewInput } from "./generation/prompt";
 export { generateAndWrite, type Range } from "./cli/categorize";
 export {

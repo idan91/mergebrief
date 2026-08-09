@@ -105,7 +105,7 @@ describe("BriefSchema", () => {
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
 
-  it("accepts the anchor stamp and its absence; rejects unknown states (BRIEF-143)", () => {
+  it("accepts the anchor stamp and its absence; rejects unknown states", () => {
     const anchored = {
       ...structuredClone(validBrief),
       anchor: { state: "anchored" },
@@ -130,7 +130,7 @@ describe("BriefSchema", () => {
     expect(BriefSchema.safeParse(bad).success).toBe(false);
   });
 
-  it("keeps anchor out of the model-facing generation schema (BRIEF-143)", () => {
+  it("keeps anchor out of the model-facing generation schema", () => {
     expect("anchor" in BriefGenerationSchema.shape).toBe(false);
   });
 
@@ -401,9 +401,9 @@ const validIntentCheck = {
 };
 
 /**
- * The GENERATION shape of the same check: one tagged `items` array. Five
- * bucket arrays cannot compile into Anthropic's grammar at any field count
- * (BRIEF-85) — `fanOutIntentCheck` converts this to the stored shape above.
+ * The GENERATION shape of the same check: one tagged `items` array. Five bucket
+ * arrays cannot compile into the grammar at any field count —
+ * `fanOutIntentCheck` converts this to the stored shape above.
  */
 const validGenerationIntentCheck = {
   ticketUrls: ["https://tracker.example/T-1"],
@@ -429,7 +429,7 @@ const validGenerationIntentCheck = {
   ],
 };
 
-describe("IntentCheckSchema (BRIEF-54)", () => {
+describe("IntentCheckSchema", () => {
   it("accepts a well-formed intent check", () => {
     expect(IntentCheckSchema.safeParse(validIntentCheck).success).toBe(true);
   });
@@ -450,7 +450,7 @@ describe("IntentCheckSchema (BRIEF-54)", () => {
     }
   });
 
-  it("requires the BRIEF-85 alarm buckets (no optionals — strict structured output)", () => {
+  it("requires the alarm buckets (no optionals — strict structured output)", () => {
     const { deviations: _d, ...noDeviations } =
       structuredClone(validIntentCheck);
     expect(IntentCheckSchema.safeParse(noDeviations).success).toBe(false);
@@ -496,10 +496,9 @@ describe("IntentCheckSchema (BRIEF-54)", () => {
   });
 
   it("all five buckets share ONE item shape (grammar budget — see IntentItemSchema)", () => {
-    // A doneButUnstated item parses with the same fields as a stated ask;
-    // the ticket-side fields must be "" there — enforced by the validator,
-    // not the schema (one shared shape is all the grammar budget allows).
-    // BRIEF-85: `acknowledged` rides on the same shared shape everywhere.
+    // A doneButUnstated item parses with the same fields as a stated ask; the
+    // ticket-side fields must be "" there — enforced by the validator, not the
+    // schema, since one shared shape is all the grammar budget allows.
     const parsed = IntentCheckSchema.safeParse({
       ...structuredClone(validIntentCheck),
       doneButUnstated: [
@@ -520,7 +519,7 @@ describe("IntentCheckSchema (BRIEF-54)", () => {
   });
 });
 
-describe("IntentCheckGenerationSchema (BRIEF-85 grammar budget)", () => {
+describe("IntentCheckGenerationSchema (grammar budget)", () => {
   it("accepts the tagged one-array wire shape", () => {
     expect(
       IntentCheckGenerationSchema.safeParse(validGenerationIntentCheck).success,
@@ -568,7 +567,7 @@ describe("IntentCheckGenerationSchema (BRIEF-85 grammar budget)", () => {
   });
 });
 
-describe("intentCheck on the brief schemas (BRIEF-54 back-compat split)", () => {
+describe("intentCheck on the brief schemas (back-compat split)", () => {
   it("BriefGenerationSchema REQUIRES intentCheck", () => {
     const { intentCheck: _dropped, ...withoutIntent } = briefGen([
       "mutates-state",
@@ -622,10 +621,9 @@ describe("intentCheck on the brief schemas (BRIEF-54 back-compat split)", () => 
     );
   });
 
-  it("emits the bucket enum on the wire, and no five-array residue (BRIEF-85)", () => {
-    // The whole fan-out dispatches on `bucket`, so the closed vocabulary must
-    // reach the wire for server-side enforcement (enum-server-enforcement,
-    // PR #22) — not just the client-side Zod parse.
+  it("emits the bucket enum on the wire, and no five-array residue", () => {
+    // The fan-out dispatches on `bucket`, so the closed vocabulary must reach
+    // the wire for server-side enforcement, not just the client-side Zod parse.
     const wire = JSON.stringify(
       enumPreservingJsonSchema(BriefGenerationSchema),
     ).replace(/\s/g, "");
@@ -641,7 +639,7 @@ describe("intentCheck on the brief schemas (BRIEF-54 back-compat split)", () => 
   });
 });
 
-describe("briefGenerationSchemaWith (ADR 0032 #11 — per-generation vocabulary)", () => {
+describe("briefGenerationSchemaWith (per-generation vocabulary)", () => {
   it("returns the exact static schema when no custom names exist", () => {
     expect(briefGenerationSchemaWith([])).toBe(BriefGenerationSchema);
   });

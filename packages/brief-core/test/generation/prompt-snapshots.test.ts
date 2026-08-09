@@ -7,12 +7,11 @@ import {
 import type { RepoContext } from "../../src/generation/repo-context";
 
 /**
- * Byte-level pins on every builder's full output (BRIEF-67). The prompt is
- * the generation surface: any byte that moves is a generation change and
- * must go through the eval gate. These snapshots make text refactors
- * (shared-constant extraction, dedupe) provably inert — a refactor PR ships
- * with these files untouched. A deliberate wording change updates the
- * snapshot in the same commit AND runs the eval per CLAUDE.md.
+ * Byte-level pins on every builder's full output. The prompt is the generation
+ * surface: any byte that moves is a generation change and must go through the
+ * eval gate. These snapshots make text refactors provably inert — a refactor
+ * ships with these files untouched; a deliberate wording change updates the
+ * snapshot in the same commit AND runs the eval.
  */
 
 const bothRepoSections: RepoContext = {
@@ -33,7 +32,7 @@ describe("system prompts are byte-pinned", () => {
     expect(buildSystemPrompt(bothRepoSections)).toMatchSnapshot();
   });
 
-  it("brief, anchored regeneration (BRIEF-143)", () => {
+  it("brief, anchored regeneration", () => {
     expect(buildSystemPrompt(undefined, true)).toMatchSnapshot();
   });
 

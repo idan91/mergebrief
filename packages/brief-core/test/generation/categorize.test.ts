@@ -102,7 +102,7 @@ const twoGroupBriefGen = {
   concernView: [{ concern: "implementation", added: 5, deleted: 0 }],
 };
 
-describe("categorize — PR lifecycle stamping (BRIEF-103)", () => {
+describe("categorize — PR lifecycle stamping", () => {
   it("stamps state/draft/merged from PrMetadata into the envelope pr block", async () => {
     const stamped: FetchedPr = {
       ...pr,
@@ -132,7 +132,7 @@ describe("categorize — PR lifecycle stamping (BRIEF-103)", () => {
   });
 });
 
-describe("categorize — text length floor (BRIEF-148)", () => {
+describe("categorize — text length floor", () => {
   it("stamps lengthViolations and warns when a group summary exceeds its cap", async () => {
     const verbose = {
       ...twoGroupBriefGen,
@@ -245,7 +245,7 @@ describe("categorize — readingOrder pass-through", () => {
   });
 });
 
-describe("categorize — intent check validation (BRIEF-54)", () => {
+describe("categorize — intent check validation", () => {
   const ticketUrl = "https://tracker.example/T-1";
   const prWithLink: FetchedPr = {
     ...pr,
@@ -484,7 +484,7 @@ describe("categorize — intent check validation (BRIEF-54)", () => {
     expect(warnings).toContain("quote");
   });
 
-  it("carries a grounded deviation through but DROPS an unverifiable alarm item (BRIEF-85)", async () => {
+  it("carries a grounded deviation through but DROPS an unverifiable alarm item", async () => {
     const fixture = {
       ...twoGroupBriefGen,
       intentCheck: {
@@ -544,7 +544,7 @@ class WarningGenerator extends FakeGenerator {
   }
 }
 
-describe("categorize — generation warnings surfaced on the artifact (BRIEF-11)", () => {
+describe("categorize — generation warnings surfaced on the artifact", () => {
   it("collects salvage/mismatch warning lines into generationWarnings", async () => {
     const brief = await categorize(
       pr,
@@ -603,7 +603,7 @@ class EffortCapturingGenerator extends FakeGenerator {
   }
 }
 
-describe("categorize — effort threading (BRIEF-75)", () => {
+describe("categorize — effort threading", () => {
   it("requests medium and stamps a medium origin when no effort is given (byte-identical pin)", async () => {
     const generator = new EffortCapturingGenerator(twoGroupBriefGen);
     const brief = await categorize(pr, 1, commitRange, generator);
@@ -627,10 +627,9 @@ describe("categorize — effort threading (BRIEF-75)", () => {
   });
 });
 
-// --- BRIEF-52/58 repo-context injection (golden + adversarial, ADR 0032 #12) —
-// the BRIEF-59 eval-harness graduation set. The FakeGenerator parses fixtures
-// through the REQUEST's own schema, so these also prove the per-generation
-// extended vocabulary end to end.
+// --- repo-context injection (golden + adversarial) --------------------------
+// The FakeGenerator parses fixtures through the REQUEST's own schema, so these
+// also prove the per-generation extended vocabulary end to end.
 
 class CapturingGenerator implements Generator {
   lastRequest: { system: string; user: string; schema: z.ZodType } | undefined;
@@ -766,8 +765,8 @@ describe("categorize with repo context — golden case", () => {
       "## Repo-defined risk attributes (validated policy)",
     );
 
-    // Golden: the in-scope firing survives with its note and source stays structural
-    // (a plain token — no string prefix, ADR 0032 #11).
+    // Golden: the in-scope firing survives with its note, and the token stays
+    // structural (a plain token — no string prefix).
     const c1 = brief.chunks.find((c) => c.id === "c1");
     expect(c1?.riskSurface).toContain("touches-billing");
     expect(c1?.riskNotes?.[0]?.note).toBe("adds a surcharge line item");

@@ -56,12 +56,11 @@ export function validatePartition(
 }
 
 /**
- * Validate a Revision narrative's `briefChangeGroupId` references against the
- * current full Brief's actual change-groups (ADR 0024). Unlike
- * `validatePartition`, group membership here is NOT structurally guaranteed —
- * the narrative and the Brief are two independent model outputs — so a
- * dangling reference is a real possibility the model can produce. Warn, never
- * hard-fail: schema validity is the only hard-fail condition for a narrative.
+ * Validate a revision narrative's `briefChangeGroupId` references against the
+ * full Brief's change-groups. Membership is not structurally guaranteed here —
+ * narrative and Brief are two independent model outputs — so dangling
+ * references happen. Warn, never hard-fail: schema validity is the only
+ * hard-fail condition for a narrative.
  */
 export function validateNarrativeGroups(
   chunks: Pick<RevisionNarrativeChunk, "id" | "briefChangeGroupId">[],
@@ -80,20 +79,17 @@ export function validateNarrativeGroups(
 }
 
 /**
- * Validate a Brief's optional Reading order (ADR 0025): when present, it must
- * be an exact permutation of the Brief's change-group ids — each group
- * exactly once, no missing, no extra, no duplicates. Like `validatePartition`,
- * this is a warn-and-drop check, not a hard failure: an invalid or absent
- * order simply degrades to the Brief's structural (emission) order.
+ * Validate a Brief's optional reading order: when present it must be an exact
+ * permutation of the Brief's change-group ids. Warn-and-drop, not a hard
+ * failure — an invalid order degrades to the Brief's emission order.
  */
 export function validateReadingOrder(
   readingOrder: Pick<ReadingOrderStep, "groupId">[] | undefined,
   groups: Pick<ChangeGroup, "id">[],
   /**
-   * Anchored runs (BRIEF-143): frozen groups are withheld from the model's
-   * output but their ids are LIVE anchors — the contract demands the whole
-   * ordering, frozen ids included, so they join both the known-id set and
-   * the required set.
+   * Frozen groups are withheld from the model's output but their ids are live
+   * anchors — the contract demands the whole ordering, so they join both the
+   * known-id set and the required set.
    */
   carriedGroupIds: readonly string[] = [],
 ): string[] {
@@ -139,22 +135,19 @@ function normalizeWhitespace(text: string): string {
 }
 
 /**
- * Minimum words for an alarm-bucket quote to count as verified (BRIEF-104):
- * below this, the substring check stops discriminating — a generic fragment
- * appears in almost any source text, so it cannot ground an alarm.
+ * Minimum words for an alarm-bucket quote to count as verified: below this the
+ * substring check stops discriminating — a generic fragment appears in almost
+ * any source text, so it cannot ground an alarm.
  */
 const ALARM_QUOTE_MIN_WORDS = 5;
 
 /**
  * Convert the generation-side tagged `items` array into the stored five-bucket
- * shape (BRIEF-85). Purely mechanical dispatch on each item's `bucket` — the
- * grammar budget forces one array on the wire (see `IntentItemSchema`), while
- * everything downstream (validation, storage, the read path, the intent bar)
- * keeps the five-array shape the design locked. The `bucket` tag itself is
- * dropped: it is wire framing, not part of the stored artifact.
+ * shape — mechanical dispatch on each item's `bucket`, which is wire framing
+ * and dropped here. The grammar budget forces one array on the wire (see
+ * `IntentItemSchema`); everything downstream keeps the five-array shape.
  *
- * Runs BEFORE `validateIntentCheck`, so every per-bucket rule the validator
- * enforces applies exactly as it would have to natively-generated arrays.
+ * Runs BEFORE `validateIntentCheck` so every per-bucket rule still applies.
  */
 export function fanOutIntentCheck(
   generated: IntentCheckGeneration,
@@ -178,47 +171,29 @@ export function fanOutIntentCheck(
 }
 
 /**
- * Validate a Brief's intent check (BRIEF-54 + BRIEF-85, ADR 0009 §2 as twice
- * amended) — warn-and-drop into `generationWarnings`, mirroring
- * `validateReadingOrder`'s posture. Pure — returns a sanitized copy, never
- * mutates.
+ * Validate a Brief's intent check — warn-and-drop into `generationWarnings`.
+ * Pure: returns a sanitized copy, never mutates.
  *
- * 1. broad/none with non-empty buckets → all five emptied + warn (the
- *    mechanical "never a guessed gap" floor).
- * 2. `ticketUrls` must be ⊆ the injected linked-context URLs → unknown URLs
- *    dropped + warn; a ticket-side item's `sourceUrl` must be `""`
- *    (title/description) or ∈ the surviving `ticketUrls` → dangling items
- *    dropped + warn.
- * 3. `groupIds` must reference emitted change-groups (readingOrder
- *    precedent): dangling ids pruned + warn; stated-side items (accomplished)
- *    survive with pruned ids — but an accomplished item left with ZERO valid
- *    ids warns (kept: stated-side grounding is the citation, yet the drift
- *    must be visible); `doneButUnstated` items with zero valid ids are
- *    dropped — a diff-side claim with no group anchor has no grounding.
- * 4. Per-bucket field rules for the SHARED item shape (all five buckets use
- *    `IntentItemSchema` — the grammar-size constraint, see types.ts):
- *    `statedButMissing` items must carry NO groupIds (emptied + warn — a
- *    missing ask has no diff anchor); `doneButUnstated` items must carry NO
- *    quote/sourceUrl (emptied + warn — no ticket side by definition);
- *    `acknowledged` is meaningful ONLY in `deviations` — `true` anywhere
- *    else is forced back to `false` + warn (dead-field precedent).
- * 5. Quote verification: each ticket-side quote must be a whitespace-
- *    normalized substring of its source's fetched content — WARN-ONLY in v1
- *    on the neutral buckets (revisit trigger: escalate to drop on
- *    fabrication evidence).
- * 6. ALARM buckets (`deviations`, `claimedButUnachieved`, BRIEF-85) are
- *    deliberately stricter — verified both-sides grounding or the item is
- *    DROPPED + warned: empty quote, unverifiable quote (no fetched source
- *    content), quote not found in its source, or zero surviving groupIds
- *    all drop. A false alarm costs more than a miss.
+ * 1. broad/none with non-empty buckets → all five emptied (never a guessed gap).
+ * 2. `ticketUrls` must be ⊆ the injected linked-context URLs; an item's
+ *    `sourceUrl` must be `""` or one of the survivors, else the item drops.
+ * 3. Dangling `groupIds` are pruned. An `accomplished` item left with zero ids
+ *    is kept but warned; a `doneButUnstated` item with zero ids is dropped.
+ * 4. Per-bucket rules on the shared item shape: `statedButMissing` carries no
+ *    groupIds, `doneButUnstated` no quote/sourceUrl, and `acknowledged` is
+ *    forced false outside `deviations`.
+ * 5. Neutral-bucket quotes are verified as whitespace-normalized substrings of
+ *    their source — warn only.
+ * 6. Alarm buckets (`deviations`, `claimedButUnachieved`) are stricter: verified
+ *    both-sides grounding or the item DROPS. A false alarm costs more than a miss.
  */
 export function validateIntentCheck(
   intentCheck: IntentCheck,
   changeGroups: Pick<ChangeGroup, "id">[],
   injectedUrls: readonly string[],
   fetchedContent: readonly IntentSource[],
-  /** Anchored runs (BRIEF-143): frozen group ids are live anchors — never
-   * pruned as unknown (the stitch re-verifies against the merged brief). */
+  /** Frozen group ids are live anchors — never pruned as unknown; the stitch
+   * re-verifies against the merged brief. */
   carriedGroupIds: readonly string[] = [],
 ): { intentCheck: IntentCheck; issues: string[] } {
   const issues: string[] = [];
@@ -320,9 +295,8 @@ export function validateIntentCheck(
   }
 
   /**
-   * `acknowledged` is meaningful only in `deviations`; anywhere else `true`
-   * is forced back to `false` + warn (dead-field precedent — the shared item
-   * shape is the grammar-budget constraint, see types.ts).
+   * `acknowledged` is meaningful only in `deviations`; anywhere else `true` is
+   * forced back to `false` + warn — the item shape is shared across buckets.
    */
   function forceUnacknowledged<
     T extends { intent: string; acknowledged: boolean },
@@ -335,14 +309,11 @@ export function validateIntentCheck(
   }
 
   /**
-   * The strict alarm-bucket quote check (BRIEF-85): where the neutral
-   * buckets warn-and-keep, an alarm item's quote must VERIFY — non-empty,
-   * long enough to be discriminating, fetched source content present,
-   * whitespace-normalized substring — or the item drops. A false alarm
-   * costs more than a miss. The word floor (BRIEF-104) exists because the
-   * substring check's power is a function of quote length: with the prompt
-   * now nudging toward the shortest span, a bare fragment ("the split")
-   * would verify against almost any source text and launder a fabricated alarm.
+   * Where the neutral buckets warn-and-keep, an alarm item's quote must VERIFY
+   * — non-empty, long enough to discriminate, source content present,
+   * whitespace-normalized substring — or the item drops. The word floor exists
+   * because a bare fragment would match almost any source and launder a
+   * fabricated alarm.
    */
   function quoteVerifies(
     bucket: string,
@@ -405,8 +376,7 @@ export function validateIntentCheck(
       const prunedIds = pruneGroups("accomplished", item.intent, item.groupIds);
       if (prunedIds.length === 0) {
         // Warn, never drop: stated-side grounding is the citation, but an
-        // anchor-less accomplished row renders without jump-links — that
-        // drift must be visible on the artifact, not silent.
+        // anchor-less row renders without jump-links, so the drift must show.
         issues.push(
           `accomplished item "${item.intent}" has no valid group anchor — kept (stated-side grounding is the citation)`,
         );
@@ -740,19 +710,16 @@ function confirmsNewDependency(
  * each drop is a warn issue. Pure — returns sanitized copies, never mutates
  * the input.
  *
- * - `comment-contradicts-code` must carry a matching `riskNotes` citation
- *   (cite-or-stay-silent, ADR 0026) → dropped without one.
+ * - `comment-contradicts-code` must carry a matching `riskNotes` citation →
+ *   dropped without one.
  * - `new-dependency` must be mechanically confirmable from the chunk's own
  *   added lines: a package manifest whose patch adds a dependency entry
  *   (section-aware — metadata fields don't count) inside this chunk's
  *   `addedRanges`, with a key no removed line also carries → dropped
  *   otherwise.
- * - `removes-validation` requires the chunk to actually remove lines: a
- *   purely additive chunk (empty `removedRanges`) can't have deleted a
- *   check. Deliberate trade: an added early-return CAN weaken a guard
- *   without deleting lines, but that shape is rare and this drops the
- *   observed FP class ("parser accepts a new optional field" ≠ weakened
- *   validation).
+ * - `removes-validation` requires the chunk to actually remove lines. Deliberate
+ *   trade: an added early-return can weaken a guard without deleting lines, but
+ *   that shape is rare and this drops the observed false-positive class.
  * - `new-abstraction` has no mechanical confirm (model-observed only).
  *
  * A dropped attribute's `riskNotes` entries go with it; everything else
@@ -828,12 +795,9 @@ export function validateRiskAttributes<C extends Chunk>(
 
 /**
  * Validate risk tokens against THIS generation's vocabulary (built-ins ∪ the
- * repo's injected custom names) and each custom attribute's path scope
- * (ADR 0032 #11) — warn-and-drop, mirroring `validateRiskAttributes`. The
- * extended enum already blocks unknown tokens at decode time on adapters
- * with native enum enforcement; this is the harness-side floor that holds
- * regardless of adapter (and the ONLY enforcement of path scopes, which no
- * schema can express). Pure — returns sanitized copies.
+ * repo's injected custom names) and each custom attribute's path scope —
+ * warn-and-drop. The harness-side floor that holds regardless of adapter, and
+ * the ONLY enforcement of path scopes, which no schema can express. Pure.
  */
 export function validateRepoAttributeTokens<C extends Chunk>(
   chunks: C[],
@@ -845,10 +809,9 @@ export function validateRepoAttributeTokens<C extends Chunk>(
   );
   const builtIn = new Set<string>(RiskSurfaceAttributes);
 
-  // A token is bad on this chunk when it is unknown or a custom attribute
-  // fired outside its path scope — checked for riskSurface AND riskNotes
-  // independently, so a bad token cannot survive by hiding in a note whose
-  // attribute never appeared on the surface (codex round 1).
+  // A token is bad on this chunk when it is unknown or a custom attribute fired
+  // outside its path scope — checked for riskSurface AND riskNotes
+  // independently, so a bad token cannot survive by hiding in a note.
   function badTokenReason(token: string, file: string): string | undefined {
     if (builtIn.has(token)) return undefined;
     const custom = customByName.get(token);
@@ -903,13 +866,9 @@ function anyOverlap(as: LineRange[], bs: LineRange[]): boolean {
 }
 
 /**
- * Validate that each Revision-narrative chunk overlaps a mechanical
- * comparison mark for the same file (ADR 0024: "highlighting is mechanical;
- * generated narratives explain marks but never decide them" — coverage should
- * still line up). Compares added-side to added-side and removed-side to
- * removed-side, matching how the FE joins marks. Warn only. Typed against
- * `RevisionChangeFile` — structurally identical to a `ComparisonMarksFile`
- * (which aliases it), for either baseline label.
+ * Validate that each revision-narrative chunk overlaps a mechanical comparison
+ * mark for the same file. Compares added-side to added-side and removed-side to
+ * removed-side, matching how the FE joins marks. Warn only.
  */
 export function validateNarrativeMarksOverlap(
   chunks: Pick<
@@ -937,12 +896,9 @@ export function validateNarrativeMarksOverlap(
 }
 
 /**
- * Warn ceilings in chars (BRIEF-148) — deliberately above the prompt's
- * stated ideals (~100/~200) so a warning always means a real violation,
- * never borderline noise. Tuning constants, not sacred. Surfaces and the
- * violation shape live in types.ts (the stamp is part of the stored
- * artifact); the PR lede/changelog deliberately stays out — its BRIEF-104
- * caps are prompt-enforced and were not the observed gap.
+ * Warn ceilings in chars — deliberately above the prompt's stated ideals so a
+ * warning always means a real violation, never borderline noise. The PR
+ * lede/changelog stays out; its caps are prompt-enforced.
  */
 export const TEXT_LENGTH_CAPS: Record<TextSurface, number> = {
   "group-title": 150,
@@ -966,12 +922,9 @@ function checkTextLength(
 }
 
 /**
- * Length check for brief-shaped output — full brief change-groups or delta
- * `changedGroups`, plus per-chunk riskNotes (BRIEF-148). WARN-ONLY by locked
- * design: never trim (mechanically unknowable which sentence carried the
- * substance), never retry (full regen spend for a text nit), never a schema
- * `maxLength` (grammar budget + decode hard-fail + cross-model strictness).
- * The prompt carries the caps; this is the floor that measures compliance.
+ * Length check for brief-shaped output — change-groups plus per-chunk riskNotes.
+ * WARN-ONLY by design: never trim, never retry, never a schema `maxLength`. The
+ * prompt carries the caps; this is the floor that measures compliance.
  */
 export function validateTextLength(
   groups: Pick<ChangeGroup, "id" | "title" | "summary">[],
@@ -1009,7 +962,7 @@ export function validateTextLength(
   return { violations, issues };
 }
 
-/** The revision-narrative side of `validateTextLength` (BRIEF-148). */
+/** The revision-narrative side of `validateTextLength`. */
 export function validateNarrativeTextLength(
   overview: string,
   chunks: Pick<RevisionNarrativeChunk, "id" | "summary">[],
@@ -1042,12 +995,10 @@ function formatRange(range: LineRange): string {
 }
 
 /**
- * The reverse direction of `validateNarrativeMarksOverlap` (BRIEF-73): every
- * mechanical mark range should overlap some narrative chunk for the same file
- * and side. The narrative prompt demands full span coverage but nothing
- * enforced it, and weaker models under-cover routinely — an uncovered span
- * has no span summary in the comparison overlay. Warn only, never retry: a
- * regen costs a full narrative spend for what the FE degrades gracefully.
+ * The reverse direction of `validateNarrativeMarksOverlap`: every mechanical
+ * mark range should overlap some narrative chunk for the same file and side —
+ * an uncovered span has no summary in the comparison overlay. Warn only, never
+ * retry: a regen costs a full narrative spend for what the FE degrades over.
  */
 export function validateMarksNarrativeCoverage(
   marksFiles: Pick<

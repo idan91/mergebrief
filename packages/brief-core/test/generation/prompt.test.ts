@@ -23,7 +23,7 @@ describe("prompt role guidance", () => {
   });
 });
 
-describe("prompt risk-attribute trio (ADR 0026)", () => {
+describe("prompt risk-attribute trio", () => {
   const prompts = [buildSystemPrompt(), buildDeltaSystemPrompt()];
 
   it("lists all three tokens with glosses in both prompts", () => {
@@ -63,7 +63,7 @@ describe("prompt risk-attribute trio (ADR 0026)", () => {
   });
 });
 
-describe("repo-context prompt sections (ADR 0032 #10/#11/#12)", () => {
+describe("repo-context prompt sections", () => {
   const instructionsOnly: RepoContext = {
     instructions: {
       path: ".mergebrief/instructions.md",
@@ -112,13 +112,13 @@ describe("repo-context prompt sections (ADR 0032 #10/#11/#12)", () => {
     );
   });
 
-  it("keeps the delta prompt free of repo-context sections (brief-only scope, plan PR 3)", () => {
+  it("keeps the delta prompt free of repo-context sections (brief-only scope)", () => {
     expect(buildDeltaSystemPrompt()).not.toContain("Repo instructions");
     expect(buildDeltaSystemPrompt()).not.toContain("repo_custom_attributes");
   });
 });
 
-describe("authoring docs stay lockstep with REPO_INSTRUCTION_CLASSES (ADR 0032 #10)", () => {
+describe("authoring docs stay lockstep with REPO_INSTRUCTION_CLASSES", () => {
   it("every class line appears verbatim in docs/repo-config/authoring.md", async () => {
     const { readFile } = await import("node:fs/promises");
     const doc = await readFile(
@@ -148,7 +148,7 @@ describe("authoring docs stay lockstep with REPO_INSTRUCTION_CLASSES (ADR 0032 #
   });
 });
 
-describe("summary succinctness (BRIEF-104)", () => {
+describe("summary succinctness", () => {
   const prompts = [buildSystemPrompt(), buildDeltaSystemPrompt()];
 
   it("caps the summary at a 1-3 sentence lede in both prompts", () => {
@@ -182,12 +182,12 @@ describe("summary succinctness (BRIEF-104)", () => {
     expect(brief).toContain("SHORTEST verbatim span");
     expect(brief).toContain("a full clause, never a bare fragment");
     expect(brief).toMatch(/`intent` text to one sentence/);
-    // the ceiling stays a ceiling; this exact clause is the BRIEF-104 framing
+    // the ceiling must stay a ceiling — this exact clause is the framing
     expect(brief).toContain("~200 chars is a ceiling, never a target");
   });
 });
 
-describe("text length caps (BRIEF-148)", () => {
+describe("text length caps", () => {
   it("caps group title and summary in both the full and delta prompts", () => {
     for (const text of [buildSystemPrompt(), buildDeltaSystemPrompt()]) {
       expect(text).toContain("**Group text is scan-length");
@@ -242,7 +242,7 @@ describe("text length caps (BRIEF-148)", () => {
   });
 });
 
-describe("intent-check prompt section (BRIEF-54, ADR 0009 §2 as amended)", () => {
+describe("intent-check prompt section", () => {
   const brief = buildSystemPrompt();
 
   it("judges the composite sources, never a fallback chain", () => {
@@ -291,7 +291,7 @@ describe("intent-check prompt section (BRIEF-54, ADR 0009 §2 as amended)", () =
   });
 });
 
-describe("intent-check alarm buckets in the prompt (BRIEF-85, ADR 0009 §2 second amendment)", () => {
+describe("intent-check alarm buckets in the prompt", () => {
   const brief = buildSystemPrompt();
 
   it("instructs the model to emit ONE tagged array, not five bucket arrays", () => {

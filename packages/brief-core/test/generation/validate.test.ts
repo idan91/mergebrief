@@ -58,7 +58,7 @@ describe("validatePartition", () => {
   });
 });
 
-describe("validateReadingOrder — carried (frozen) ids on anchored runs (BRIEF-143)", () => {
+describe("validateReadingOrder — carried (frozen) ids on anchored runs", () => {
   const emitted = [{ id: "tmp1" }];
 
   it("accepts an order spanning emitted + carried ids and demands BOTH", () => {
@@ -506,7 +506,7 @@ describe("validateNarrativeMarksOverlap", () => {
   });
 });
 
-describe("validateMarksNarrativeCoverage (BRIEF-73 — reverse direction)", () => {
+describe("validateMarksNarrativeCoverage (reverse direction)", () => {
   const marksFiles = [
     {
       file: "a.ts",
@@ -603,7 +603,7 @@ function chunkWith(
   };
 }
 
-describe("validateRepoAttributeTokens (ADR 0032 #11 — warn-and-drop floor)", () => {
+describe("validateRepoAttributeTokens (warn-and-drop floor)", () => {
   const custom = [
     { name: "touches-billing", criteria: "c", paths: ["services/billing/**"] },
     { name: "raw-sql", criteria: "c" },
@@ -673,7 +673,7 @@ describe("validateRepoAttributeTokens — riskNotes cannot smuggle tokens (codex
   });
 });
 
-describe("validateIntentCheck (BRIEF-54)", () => {
+describe("validateIntentCheck", () => {
   const emittedGroups = [{ id: "g1" }, { id: "g2" }];
   const ticketUrl = "https://tracker.example/T-1";
   const injected = [ticketUrl, "https://docs.example/design"];
@@ -1029,7 +1029,7 @@ describe("validateIntentCheck (BRIEF-54)", () => {
     expect(input.accomplished).toHaveLength(1);
   });
 
-  describe("alarm buckets (BRIEF-85) — drop, never warn-and-keep", () => {
+  describe("alarm buckets — drop, never warn-and-keep", () => {
     for (const bucket of ["deviations", "claimedButUnachieved"] as const) {
       it(`keeps a fully grounded ${bucket} item untouched`, () => {
         const input = { ...preciseCheck(), [bucket]: [alarmItem()] };
@@ -1059,7 +1059,7 @@ describe("validateIntentCheck (BRIEF-54)", () => {
         expect(issues.join("\n")).toContain("dropped");
       });
 
-      it(`drops a ${bucket} item whose quote is a bare fragment, even when it verifies (BRIEF-104 word floor)`, () => {
+      it(`drops a ${bucket} item whose quote is a bare fragment, even when it verifies`, () => {
         // "must stop" IS a substring of the ticket content — length, not
         // presence, is what fails here.
         const input = {
@@ -1233,7 +1233,7 @@ const genItem = (bucket: string, intent: string, overrides = {}) => ({
   ...overrides,
 });
 
-describe("fanOutIntentCheck (BRIEF-85 grammar budget)", () => {
+describe("fanOutIntentCheck (grammar budget)", () => {
   it("dispatches each tagged item into its stored bucket and drops the tag", () => {
     const out = fanOutIntentCheck({
       ticketUrls: ["https://tracker.example/T-1"],
@@ -1323,7 +1323,7 @@ const group = (id: string, title: string, summary: string) => ({
   summary,
 });
 
-describe("validateTextLength (BRIEF-148 — warn-only length floor)", () => {
+describe("validateTextLength (warn-only length floor)", () => {
   it("passes text at or under every cap with no violations", () => {
     const { violations, issues } = validateTextLength(
       [group("g1", "a".repeat(150), "b".repeat(250))],
@@ -1387,7 +1387,7 @@ describe("validateTextLength (BRIEF-148 — warn-only length floor)", () => {
   });
 });
 
-describe("validateNarrativeTextLength (BRIEF-148)", () => {
+describe("validateNarrativeTextLength", () => {
   it("flags an over-cap overview and chunk summary, passes compliant ones", () => {
     const { violations, issues } = validateNarrativeTextLength(
       "o".repeat(251),

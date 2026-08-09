@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { assignGroupIds } from "../../src/diff/descent";
 
 /**
- * The id-descent matcher (BRIEF-143 PR 2): generated (re-looked + new) groups
+ * The id-descent matcher: generated (re-looked + new) groups
  * inherit previous group ids by file overlap — merge → dominant parent's id;
  * split → dominant child keeps it, the rest mint; unmatched → mint.
  * Deterministic and order-stable; never collides with reserved (frozen) ids.

@@ -23,10 +23,9 @@ const GhCommentSchema = z.object({
 
 /**
  * GitHub marks a *line* comment outdated by nulling its `line` — the line it
- * anchored to is no longer part of the diff at the PR's current head (the
- * `original_line` is retained). This is read, not recomputed (ADR 0007); the
- * legacy `position` field is unreliable for this. *File*-level comments carry a
- * null `line` by design and are never "outdated".
+ * anchored to is no longer in the diff at the PR's current head. Read, never
+ * recomputed; the legacy `position` field is unreliable for this. *File*-level
+ * comments carry a null `line` by design and are never outdated.
  */
 export function isCommentOutdated(
   line: number | null,
@@ -54,16 +53,12 @@ export function normalizeReviewComment(value: unknown): ReviewComment {
 
 /**
  * Fetch a PR's review comments (line comments + thread replies) via the GitHub
- * API. Stateless, public — display data for the brief + delta comment sidecars
- * (ADR 0012) and input to the delta's "comments addressed" analysis (ADR 0011).
- * Capped in count and per-comment length to bound prompt cost.
+ * API. Capped in count and per-comment length to bound prompt cost.
  *
- * `outdated` is read straight from GitHub (a nulled `line`, see isCommentOutdated),
- * never recomputed (ADR 0007). NOTE: GitHub computes outdated relative to the PR's
- * *current* head. That is exact for the full brief (always at current head), but
- * for a delta run at an arbitrary (base, head) it is outdated-relative-to-current-
- * PR-head, not the delta's head — a documented limitation, like the three-dot
- * compare-diff caveat in `fetch.ts`.
+ * `outdated` is read straight from GitHub, never recomputed. GitHub computes it
+ * relative to the PR's CURRENT head: exact for a full brief, but for a delta at
+ * an arbitrary (base, head) it is relative to the current PR head, not the
+ * delta's — a known limitation.
  */
 export async function fetchReviewComments(
   loc: PrLocator,
