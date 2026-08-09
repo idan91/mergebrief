@@ -1,13 +1,10 @@
-// What the DB-brief route's error boundary shows (BRIEF-20 error-leak
-// sweep). Pure and client-safe so it can be unit-tested and so nothing here
-// can reach `server-only`.
+// What the DB-brief route's error boundary shows. Pure and client-safe so it
+// can be unit-tested and so nothing here can reach `server-only`.
 //
-// THE RULE (apps/web AGENTS.md): never render a server-authored
-// `error.message`. This boundary catches whatever the route loader or a
-// queryFn threw — today always an `ApiError`, but an SSR loader failure or a
-// future server function serializes its own message straight into the page,
-// and Node/framework errors carry absolute paths. Even `ApiError`'s own
-// message is unfit for display: it embeds the request path.
+// THE RULE: never render a server-authored `error.message` — SSR loader and
+// server-function rejections serialize their own text into the page, Node
+// errors carry absolute paths, and `ApiError`'s message embeds the request
+// path.
 import { ApiError, ApiErrorKind } from "../../../../../data/apiFetch";
 
 /** Kind-keyed copy. Total, not partial — a new kind must be answered here. */

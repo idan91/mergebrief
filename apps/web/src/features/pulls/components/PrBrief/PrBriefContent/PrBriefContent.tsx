@@ -1,7 +1,6 @@
-// The rendered-brief composition for the DB route (role naming: this is the
-// CONTENT of a renderable PR brief, whatever its source span). Data assembly
-// (queries + live-diff attach) lives here; plan/transport assembly lives in
-// the usePrBriefPlans hook.
+// The rendered-brief composition for the DB route. Data assembly (queries +
+// live-diff attach) lives here; plan/transport assembly lives in the
+// usePrBriefPlans hook.
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
@@ -42,13 +41,13 @@ export interface PrBriefContentProps {
   searchParams: BriefSearchParams;
   onNavigateSearch: (next: BriefSearch) => void;
   readOnly?: { reason: string } | undefined;
-  /** Head mismatch (BRIEF-127): writable, Submit gated by the receipt ack. */
+  /** Head mismatch: writable, Submit gated by the receipt ack. */
   staleHead?: boolean | undefined;
   timeline?: DbTimelineSelection | undefined;
   onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
   revisionJump?: ThreadRevisionJump | undefined;
   conversationFocusThreadId?: number | undefined;
-  /** Reviewer/verdict filter carried in the URL (BRIEF-99). */
+  /** Reviewer/verdict filter carried in the URL. */
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
 }
@@ -72,8 +71,8 @@ export function PrBriefContent({
   const brief = useSuspenseQuery(
     dbBriefQueryOptions(repoId, prNumber, span.base, span.head),
   ).data;
-  // Repo-config snapshot (BRIEF-52): best-effort — while loading or on
-  // failure the Brief renders without source markers/de-emphasis.
+  // Best-effort: while loading or on failure the Brief renders without source
+  // markers/de-emphasis.
   const repoConfig = useQuery(
     dbBriefContextQueryOptions(repoId, prNumber, span.base, span.head),
   );
@@ -96,11 +95,9 @@ export function PrBriefContent({
     ownDraft,
   } = usePrBriefPlans({ repoId, prNumber, span, meta, timeline, revisionJump });
   const compareState = resolveBriefSearch(searchParams, availability);
-  // The since-marker's delta-lens link (BRIEF-102): the same normalized
-  // search write the header Compare control makes. Deps are PRIMITIVES —
-  // `availability` and `searchParams` are per-render literals, and this
-  // callback rides into GroupCard's memo boundary, which must survive
-  // PR-meta poll ticks.
+  // Deps are PRIMITIVES: `availability` and `searchParams` are per-render
+  // literals, and this callback rides into GroupCard's memo boundary, which
+  // must survive PR-meta poll ticks.
   const searchView = searchParams.view;
   const searchCompare = searchParams.compare;
   const previousBriefAvailable = availability.previousBrief;
@@ -130,8 +127,8 @@ export function PrBriefContent({
     searchCompare,
     searchView,
   ]);
-  // Scope-axis exit for the IntentBar's jumps (BRIEF-134): the same
-  // normalized search write the header View control makes, pinned to `full`.
+  // Scope-axis exit for the IntentBar's jumps: the same normalized search
+  // write the header View control makes, pinned to `full`.
   const exitChangesScope = useCallback(() => {
     const flags = {
       previousBrief: previousBriefAvailable,
@@ -157,9 +154,8 @@ export function PrBriefContent({
     searchCompare,
     searchView,
   ]);
-  // The unified control surface (BRIEF-24 UX pass): revision navigator +
-  // View/Compare lenses render in the STICKY header's control slot — always
-  // discoverable, never scrolled out of reach by the selection focus effect.
+  // Renders in the STICKY header's control slot so the controls are never
+  // scrolled out of reach by the selection focus effect.
   const headerControls = (
     <DbBriefControls
       compare={{
@@ -188,8 +184,8 @@ export function PrBriefContent({
         <WarmingChip />
       ) : null}
       <BriefView
-        // Live webhook state (BRIEF-103): the DB route's badge never shows
-        // the artifact's stale snapshot.
+        // Live webhook state — the badge never shows the artifact's stale
+        // snapshot.
         livePrState={{ state: meta.state, draft: meta.draft }}
         artifacts={[]}
         brief={assembled}

@@ -1,4 +1,4 @@
-// The drafts-off empty-state copy override (BRIEF-64).
+// The drafts-off empty-state copy override.
 import { describe, expect, it } from "vitest";
 
 import { emptyCardCopy } from "./EmptyCard";

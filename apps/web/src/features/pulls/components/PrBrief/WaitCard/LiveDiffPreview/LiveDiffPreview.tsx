@@ -23,8 +23,7 @@ interface FileRows {
 
 /**
  * Read-only whole-PR diff for the wait screen. Deliberately NOT the chunk
- * DiffTable (that one is wired to review comments/comparisons); this is the
- * ADR 0006 #10 "diff-first" placeholder.
+ * DiffTable (that one is wired to review comments/comparisons).
  */
 export function LiveDiffPreview({
   repoId,

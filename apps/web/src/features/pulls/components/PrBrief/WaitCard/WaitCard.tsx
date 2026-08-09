@@ -1,5 +1,5 @@
-// The wait surface for the DB-brief route (BRIEF-19, ADR 0006 #10 diff-first
-// wait). Announced via the polite live region the body owns; presentational.
+// The wait surface for the DB-brief route. Announced via the polite live
+// region the body owns; presentational.
 import type { Span } from "../../../utils/briefRouteState";
 import cardStyles from "../stateCard.module.scss";
 import { LiveDiffPreview } from "./LiveDiffPreview/LiveDiffPreview";
@@ -12,19 +12,17 @@ export interface WaitCardProps {
   repoId: string;
   prNumber: number;
   /**
-   * Draft-damping notice (BRIEF-64, own-draft only): replaces the queued
-   * heading, whose "shortly" is wrong while the configured window runs.
+   * Draft-damping notice (own-draft only): replaces the queued heading, whose
+   * "shortly" is wrong while the configured window runs.
    */
   queuedNotice?: string | undefined;
 }
 
 /**
- * Human label for the generation heading. "brief" is lowercase mid-sentence
- * (house naming rule: the artifact noun capitalizes only at sentence start;
- * product references say "MergeBrief"). A phase that is EXACTLY the verb
+ * Human label for the generation heading. A phase that is EXACTLY the verb
  * ("generating") would read "Generating the brief — generating…", so that
- * echo collapses to the phase-less heading; any other phase (writing,
- * generating-summary) is informative and still shows after the em dash.
+ * echo collapses to the phase-less heading; any other phase is informative
+ * and still shows after the em dash.
  */
 export function waitLabel(
   status: "queued" | "running",
@@ -32,8 +30,8 @@ export function waitLabel(
   queuedNotice?: string,
 ): string {
   if (status === "queued")
-    // Under draft damping (BRIEF-64) "shortly" would lie — the notice text
-    // (which states the configured window) replaces the queued heading.
+    // Under draft damping "shortly" would lie — the notice text (which
+    // states the configured window) replaces the queued heading.
     return queuedNotice ?? "Queued — the brief will start generating shortly.";
   if (phase === null) return "Generating the brief…";
   const phaseText = phase.replaceAll("-", " ");

@@ -1,9 +1,8 @@
-// The picker's DB-backed PR section (BRIEF-19 PR 3.1). Renders one of the
-// three expected session states inline — logged-out (login CTA), unavailable
-// (degraded note; the local section below still works), ready (PR list or the
-// activation hint). Rows are plain anchors: the target route
-// (/repos/:repoId/pulls/:prNumber) ships in PR 3.2, and these URLs are the
-// same deep links the PR-comment Entry uses.
+// The picker's DB-backed PR section. Renders one of the three expected
+// session states inline — logged-out (login CTA), unavailable (degraded note;
+// the local section below still works), ready (PR list or the activation
+// hint). Rows are plain anchors carrying the same deep links the PR-comment
+// Entry uses.
 import type { GenerationSummary, PrSummary, PullsSession } from "../../types";
 import styles from "./PullsSection.module.scss";
 
@@ -28,8 +27,8 @@ function statusLabel(
     case "superseded":
       return "newer push on the way";
     case "capped":
-      // The daily generation cap skipped this push (BRIEF-20) — the row says
-      // so plainly rather than borrowing the failure word.
+      // The daily generation cap skipped this push — the row says so plainly
+      // rather than borrowing the failure word.
       return "daily cap reached";
     case "succeeded":
       // Succeeded but the artifact is for another span — treat as pending.

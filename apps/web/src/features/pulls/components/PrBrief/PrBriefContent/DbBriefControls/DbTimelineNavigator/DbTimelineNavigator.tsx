@@ -1,18 +1,14 @@
-// The DB-path Brief revision navigator (BRIEF-24): the port of the local
-// TimelineNavigator onto PR-meta's `revisions[]`. The local component
-// navigates the `/briefs/$briefId` path param; this one drives the DB route's
-// search params through `onSelect`, so the two surfaces share the same
-// picker + Prev/Next + capped stepper shape without sharing routing.
+// The DB-path Brief revision navigator over PR-meta's `revisions[]`. Unlike
+// the local TimelineNavigator (a path param), this one drives the route's
+// search params through `onSelect`.
 //
 // Selection identity is the POINT (its array position), never a head SHA
 // alone — a retarget re-brief yields two revisions with the same head and
-// different bases (codex round 4), so a SHA-keyed picker could not address
-// (or even legally key) both.
+// different bases, so a SHA-keyed picker could not address both.
 //
-// A11y (ADR 0019 #7): a labelled nav landmark; Prev/Next are real disabled
-// buttons at the ends; the stepper is a capped window of dot buttons. The
-// polite selection announcement and focus-to-heading are the ROUTE's job
-// (one live region per page) — this component only emits the controls.
+// A11y: the polite selection announcement and focus-to-heading are the
+// ROUTE's job (one live region per page) — this component only emits the
+// controls.
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { DbTimelinePoint } from "../../../../../utils/dbTimeline";
 import styles from "./DbTimelineNavigator.module.scss";
@@ -71,7 +67,7 @@ export function DbTimelineNavigator({
     <nav aria-label="PR revision timeline" className={styles["timeline"]}>
       <button
         // Disabled state keeps a descriptive name — a bare arrow glyph is
-        // meaningless to a screen reader (codex round 1).
+        // meaningless to a screen reader.
         aria-label={
           previous
             ? `Previous revision, ${previous.headIndex}`

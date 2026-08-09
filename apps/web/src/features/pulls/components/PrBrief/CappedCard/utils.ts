@@ -1,8 +1,8 @@
 /**
- * The daily generation cap's reset instant (BRIEF-20): the cap counts a UTC
- * calendar day, so it resets at the first midnight UTC strictly after the
- * skip was recorded. Derived from the SKIP time, never from "now" — a capped
- * row left over from an earlier day must not claim to be waiting on tonight.
+ * The cap counts a UTC calendar day, so it resets at the first midnight UTC
+ * strictly after the skip was recorded. Derived from the SKIP time, never
+ * from "now" — a capped row left over from an earlier day must not claim to
+ * be waiting on tonight.
  */
 export function capResetsAt(cappedAtIso: string): Date | undefined {
   const cappedAt = new Date(cappedAtIso);
@@ -17,10 +17,10 @@ export function capResetsAt(cappedAtIso: string): Date | undefined {
 }
 
 /**
- * The capped heading — the grill's copy, with the reset time rendered in the
- * VIEWER's zone (the operator's UTC boundary is an implementation detail).
- * An unparsable timestamp degrades to the capless sentence rather than
- * printing "Invalid Date".
+ * The capped heading. The reset time renders in the VIEWER's zone (the
+ * operator's UTC boundary is an implementation detail). An unparsable
+ * timestamp degrades to the capless sentence rather than printing
+ * "Invalid Date".
  */
 export function cappedLabel(
   cappedAtIso: string,

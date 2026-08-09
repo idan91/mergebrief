@@ -1,5 +1,5 @@
-// The generation heading copy (BRIEF-43 UX follow-up): a phase that restates
-// the verb must not echo it, and "brief" is lowercase for this view.
+// The generation heading copy: a phase that restates the verb must not echo
+// it, and "brief" is lowercase for this view.
 import { describe, expect, it } from "vitest";
 
 import { waitLabel } from "./WaitCard";
@@ -38,7 +38,7 @@ describe("waitLabel", () => {
     );
   });
 
-  it("a queued notice replaces the misleading 'shortly' heading (BRIEF-64)", () => {
+  it("a queued notice replaces the misleading 'shortly' heading", () => {
     expect(waitLabel("queued", null, "Queued — draft mode note.")).toBe(
       "Queued — draft mode note.",
     );

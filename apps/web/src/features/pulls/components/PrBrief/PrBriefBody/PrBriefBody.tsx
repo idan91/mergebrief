@@ -1,7 +1,6 @@
 // The DB-brief route's body: one polite live region announcing state swaps
-// and revision selection (ADR 0019 #7), then the state switch — render,
-// wait, failed, superseded, empty. All state cards are presentational; the
-// announcement is owned here.
+// and revision selection, then the state switch. All state cards are
+// presentational; the announcement is owned here.
 import type {
   BriefSearch,
   BriefSearchParams,
@@ -26,12 +25,12 @@ import { WaitCard, waitLabel } from "../WaitCard/WaitCard";
 
 type BriefRouteState = ReturnType<typeof deriveBriefRouteState>;
 
-/** The BRIEF-64 policy notice for this meta (null for non-authors/defaults). */
+/** The draft-policy notice for this meta (null for non-authors/defaults). */
 function metaPolicyNotice(meta: PrSummary) {
   return draftPolicyNotice(meta.draftPolicy, meta);
 }
 
-/** The polite revision-selection announcement (ADR 0019 #7 a11y contract). */
+/** The polite revision-selection announcement. */
 export function timelineAnnouncement(
   timeline: DbTimelineSelection,
   writable: boolean,
@@ -82,21 +81,21 @@ export interface PrBriefBodyProps {
   state: BriefRouteState;
   searchParams: BriefSearchParams;
   onNavigateSearch: (next: BriefSearch) => void;
-  /** Hard read-only posture + reason (base drift only, ADR 0019 #6 as amended). */
+  /** Hard read-only posture + reason (base drift only). */
   readOnly?: { reason: string } | undefined;
   /**
-   * The rendered span's head is not the PR head (BRIEF-127): writable, but
-   * Submit requires the stale ack in the receipt.
+   * The rendered span's head is not the PR head: writable, but Submit
+   * requires the stale ack in the receipt.
    */
   staleHead?: boolean | undefined;
-  /** The resolved revision timeline (BRIEF-24); absent on legacy metas. */
+  /** The resolved revision timeline; absent on legacy metas. */
   timeline?: DbTimelineSelection | undefined;
   onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
-  /** Outdated-thread revision jump (BRIEF-24); absent when there is no timeline. */
+  /** Outdated-thread revision jump; absent when there is no timeline. */
   revisionJump?: ThreadRevisionJump | undefined;
-  /** `?thread=` landing target (BRIEF-24 reads it). */
+  /** `?thread=` landing target. */
   conversationFocusThreadId?: number | undefined;
-  /** Reviewer/verdict filter carried in the URL (BRIEF-99). */
+  /** Reviewer/verdict filter carried in the URL. */
   conversationFilter?: ConversationFilter | undefined;
   onConversationFilterChange?: ((next: ConversationFilter) => void) | undefined;
 }

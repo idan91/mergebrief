@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Picker-state tests for the DB-backed PR section (BRIEF-19 PR 3.1).
+// Picker-state tests for the DB-backed PR section.
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 

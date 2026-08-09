@@ -1,10 +1,7 @@
-// The mark-ready soft gate (BRIEF-43; ADR 0009 #3 realized per ADR 0031).
-// The retired PreSubmitModal's SHAPE, reused deliberately — same Modal primitive (focus
-// management, Escape, reduced-motion), same content stylesheet, same
-// advisory/list/actions structure — but a separate concern: it gates the
-// ready-for-review handoff, not a review submit.
+// The mark-ready soft gate: it gates the ready-for-review handoff, not a
+// review submit.
 //
-// Contract (locked): lists ALL risk flags on the current head's Brief (no
+// Contract: lists ALL risk flags on the current head's Brief (no
 // read-tracking filter — the author confronts the full surface, not the
 // unread remainder); the unposted-drafts reminder line rides the modal only
 // (N>0), with a jump link and NO auto-post; "Mark ready anyway" is one click
@@ -30,9 +27,9 @@ export interface MarkReadyModalProps {
   /** Lands on the first unposted draft comment; posting stays manual. */
   jumpToDrafts: () => void;
   /**
-   * Opt-in batch post (BRIEF-43 follow-up): "post my drafts before marking
-   * ready". Controlled by the caller so it can default UNCHECKED each time the
-   * gate opens (posting is an outward write). Only rendered when N>0.
+   * Opt-in batch post. Controlled by the caller so it can default UNCHECKED
+   * each time the gate opens (posting is an outward write). Only rendered
+   * when N>0.
    */
   postDrafts?: boolean;
   setPostDrafts?: (value: boolean) => void;
@@ -42,24 +39,20 @@ export interface MarkReadyModalProps {
    */
   busyLabel?: string | undefined;
   /**
-   * BRIEF-54 soft-gate line: the count of precise stated-but-missing intent
-   * asks. Rendered as ONE count-only secondary line only when > 0 — never
-   * gap-first, and the fallible intent signal never drives the gate's OPEN
-   * condition (the caller's render gate ignores it, so gaps alone never open
-   * the modal). Absent/zero → no line (absence, not a green verdict).
+   * The count of precise stated-but-missing intent asks. Rendered as ONE
+   * count-only secondary line when > 0 — never gap-first, and never part of
+   * the gate's OPEN condition (gaps alone never open the modal). Absent/zero
+   * → no line (absence, not a green verdict).
    */
   intentGapCount?: number;
   /**
-   * BRIEF-85 soft-gate line 2: the count of precise intent TENSIONS —
-   * unacknowledged deviations plus claimed-but-unachieved. A second
-   * count-only line under the gap line, on the same terms: rendered only when
-   * > 0, never gap-first, never part of the gate's OPEN condition, and never
-   * blocking. Acknowledged deviations are excluded by the caller (the
-   * description already owns that reversal). Shares the gap line's jump
-   * target — both land on the expanded intent bar.
+   * The count of precise intent TENSIONS — unacknowledged deviations plus
+   * claimed-but-unachieved. A second count-only line on the same terms as the
+   * gap line, sharing its jump target. Acknowledged deviations are excluded
+   * by the caller.
    */
   intentTensionCount?: number;
-  /** Close the modal and jump to the expanded intent bar (PR 3 handle). */
+  /** Close the modal and jump to the expanded intent bar. */
   jumpToIntentGaps?: () => void;
 }
 
@@ -81,9 +74,9 @@ export function MarkReadyModal({
   const busy = busyLabel !== undefined;
   const draftLabel = `Post my ${String(unpostedDraftCount)} draft comment${unpostedDraftCount === 1 ? "" : "s"} before marking ready`;
   return (
-    // Escape is gated on busy exactly like the buttons (reviewer round 1 #2):
-    // dismissing the gate mid-batch would drop the progress feedback while
-    // outward writes continue. An absent close makes Escape a no-op.
+    // Escape is gated on busy exactly like the buttons: dismissing the gate
+    // mid-batch would drop the progress feedback while outward writes
+    // continue. An absent close makes Escape a no-op.
     <Modal
       open={open}
       boxClassName={styles["wideBox"]}
@@ -91,9 +84,9 @@ export function MarkReadyModal({
       labelledBy="mark-ready-modal-heading"
     >
       <h3 id="mark-ready-modal-heading">Before marking ready</h3>
-      {/* Zero flags (owner amendment): the gate can open for unposted drafts
-          alone — no risk-flag copy over an empty list; the advisory line
-          focuses on the drafts instead. */}
+      {/* Zero flags: the gate can open for unposted drafts alone — no
+          risk-flag copy over an empty list; the advisory line focuses on the
+          drafts instead. */}
       {flags.length > 0 ? (
         <>
           <p className={styles["copy"]}>
@@ -141,10 +134,9 @@ export function MarkReadyModal({
           posted — post them first, or mark ready as-is.
         </p>
       )}
-      {/* BRIEF-54 count-only intent line: a quiet secondary affordance below
-          the flags list — factual count, never gap-first, only when the
-          intent source is precise and asks are missing (the caller gates it).
-          Click closes the modal and lands on the expanded intent bar. */}
+      {/* Count-only intent line: a factual count below the flags list, never
+          gap-first, only when the intent source is precise and asks are
+          missing (the caller gates it). */}
       {intentGapCount > 0 ? (
         <p className={styles["copy"]}>
           <button
@@ -157,11 +149,10 @@ export function MarkReadyModal({
           </button>
         </p>
       ) : null}
-      {/* BRIEF-85 second count-only line. Same register as the gap line above
-          and the same jump target — a tension is not more urgent than a gap
-          here, just a different kind of finding. Count only: naming which ask
-          is in tension at the gate would anchor the author on the shakiest
-          inference in the Brief at exactly the moment they are deciding. */}
+      {/* Second count-only line, same register and jump target as the gap
+          line. Count only: naming which ask is in tension here would anchor
+          the author on the shakiest inference in the Brief at exactly the
+          moment they are deciding. */}
       {intentTensionCount > 0 ? (
         <p className={styles["copy"]}>
           <button

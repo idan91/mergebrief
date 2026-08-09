@@ -88,7 +88,7 @@ describe("DbTimelineNavigator", () => {
   it("disables Prev on the first revision and Next on the latest, keeping descriptive names", () => {
     renderNav(0);
     // Disabled arrows KEEP an accessible name — a bare glyph reads as
-    // nothing to a screen reader (codex round 1).
+    // nothing to a screen reader.
     const prev = button(
       screen.getByRole("button", { name: "Previous revision (none)" }),
     );

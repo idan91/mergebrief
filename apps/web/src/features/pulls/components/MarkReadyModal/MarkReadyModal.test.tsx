@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
-// The mark-ready soft gate (BRIEF-43, ADR 0009 #3, ADR 0031): a transient,
-// non-blocking modal listing ALL risk flags on the current head's Brief (no
-// read-tracking filter), plus the unposted-drafts reminder when any exist.
-// "Mark ready anyway" is one click and records nothing. The zero-flag bypass
-// (modal skipped entirely) is the CALLER's contract, pinned in
-// ownDraftView.test.tsx.
+// The mark-ready soft gate: a transient, non-blocking modal listing ALL risk
+// flags on the current head's Brief (no read-tracking filter), plus the
+// unposted-drafts reminder when any exist. "Mark ready anyway" is one click
+// and records nothing. The zero-flag bypass (modal skipped entirely) is the
+// CALLER's contract, pinned in ownDraftView.test.tsx.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -124,9 +123,9 @@ describe("MarkReadyModal", () => {
   });
 
   it("renders coherently with zero flags: drafts advisory, no risk-flag copy or empty list", () => {
-    // Owner amendment: the gate can open for unposted drafts alone. The
-    // risk-flag advisory and jump list must not render over an empty flag
-    // set — the copy focuses on the drafts instead.
+    // The gate can open for unposted drafts alone: the risk-flag advisory
+    // and jump list must not render over an empty flag set — the copy focuses
+    // on the drafts instead.
     renderModal({ flags: [], unpostedDraftCount: 2 });
     expect(screen.queryByText(/these risk flags/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /no-tests/ })).toBeNull();
@@ -145,8 +144,8 @@ describe("MarkReadyModal", () => {
   });
 
   it("Escape closes when idle but is a no-op while the batch runs", () => {
-    // Reviewer round 1 #2: mid-batch the close handler is withheld from the
-    // Modal (absent close = Escape no-op), matching the disabled controls.
+    // Mid-batch the close handler is withheld from the Modal (absent close =
+    // Escape no-op), matching the disabled controls.
     const idle = renderModal({ unpostedDraftCount: 2 });
     fireEvent.keyDown(window, { key: "Escape" });
     expect(idle.close).toHaveBeenCalledTimes(1);
@@ -167,9 +166,9 @@ describe("MarkReadyModal", () => {
       postDrafts: true,
       busyLabel: "Posting 2 of 3…",
     });
-    // Reviewer round 2 #3: the confirm is aria-disabled + aria-busy, never
-    // hard disabled — a disabled element would dump keyboard focus on <body>
-    // inside the modal's trap. The click stays a no-op via the busy guard.
+    // The confirm is aria-disabled + aria-busy, never hard disabled — a
+    // disabled element would dump keyboard focus on <body> inside the modal's
+    // trap. The click stays a no-op via the busy guard.
     const confirm = screen.getByRole("button", {
       name: "Posting 2 of 3…",
     }) as HTMLButtonElement;
@@ -206,7 +205,7 @@ describe("MarkReadyModal", () => {
 
   it("announces batch progress through a polite live region inside the modal", () => {
     // The confirm button's visual relabel is silent to screen readers — the
-    // progress text must also flow through a status live region (round 2 #3).
+    // progress text must also flow through a status live region.
     renderModal({
       unpostedDraftCount: 3,
       postDrafts: true,
@@ -234,7 +233,7 @@ describe("MarkReadyModal", () => {
     expect(markReadyAnyway).toHaveBeenCalledTimes(1);
   });
 
-  // BRIEF-54 count-only intent line.
+  // The count-only intent line.
   const intentLine = /stated ask.* not found in the diff/;
 
   it("shows no intent line when there are no missing asks (absence, not a verdict)", () => {
@@ -278,7 +277,7 @@ describe("MarkReadyModal", () => {
     expect(jumpToIntentGaps).toHaveBeenCalledTimes(0);
   });
 
-  // BRIEF-85 second count-only line: intent tensions.
+  // The second count-only line: intent tensions.
   const tensionLine = /intent tension.* flagged/;
 
   it("shows no tension line when there are none (absence, not a green verdict)", () => {

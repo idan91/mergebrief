@@ -1,10 +1,6 @@
-// The DB route's unified control surface (BRIEF-24 UX pass): revision
-// navigator + View/Compare lenses as ONE compact column, rendered inside the
-// sticky page Header's control slot — the same place the local path's
-// TimelineNavigator lives. Living in the header buys stickiness and offset
-// propagation for free (the header measures itself into --top-bar-h), so the
-// controls stay reachable after the focus-to-heading selection effect
-// (ADR 0019 #7) instead of scrolling away.
+// Revision navigator + View/Compare lenses, rendered inside the sticky page
+// Header's control slot: the header measures itself into --top-bar-h, so the
+// controls stay reachable after the focus-to-heading selection effect.
 import type {
   DbTimelinePoint,
   DbTimelineSelection,
@@ -23,7 +19,7 @@ export interface DbBriefControlsProps {
    */
   timeline?: DbTimelineSelection | undefined;
   onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
-  /** The View/Compare lens wiring (BRIEF-19/21 contract, unchanged). */
+  /** The View/Compare lens wiring. */
   compare: DbCompareBarProps;
   /**
    * Compact status line under the controls (e.g. a degraded revision link).

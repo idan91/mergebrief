@@ -2,10 +2,8 @@
 @use "mixins";
 
 @layer components {
-  // Lens groups in the header toolbar (BRIEF-28 round 2): the two segmented
-  // controls sit co-linear on the lens row, same language as the local
-  // TimelineNavigator's fieldsets. No full-width strip chrome; the header is
-  // the surface.
+  // The two segmented lens controls sit co-linear in the header toolbar; the
+  // header is the surface, so no full-width strip chrome.
   .bar {
     display: flex;
     align-items: center;
@@ -13,10 +11,8 @@
     gap: functions.to-rem(8px);
   }
 
-  // One-line layout loses the vertical grouping that made the Compare
-  // options self-explanatory — a faint prefix label restores it, OUTSIDE
-  // the bordered group so it cannot read as a selectable option. The
-  // accessible name stays on the sr-only legend.
+  // The prefix label sits OUTSIDE the bordered group so it cannot read as a
+  // selectable option; the accessible name stays on the sr-only legend.
   .labeledGroup {
     display: flex;
     align-items: center;
@@ -40,8 +36,8 @@
     border: 1px solid var(--line2);
     border-radius: var(--radius-md);
 
-    // Disabled-with-tooltip options render inside a .tipAnchor wrapper; both
-    // the direct buttons and the wrapper share the row equally.
+    // Disabled-with-tooltip options render inside a .tipAnchor wrapper, which
+    // shares the row equally with the direct buttons.
     > button,
     > .tipAnchor {
       flex: 1;
@@ -74,15 +70,14 @@
     }
   }
 
-  // Focusable-disabled Compare option + its reason tooltip (BRIEF-21).
+  // Focusable-disabled Compare option + its reason tooltip.
   .tipAnchor {
     position: relative;
     display: inline-flex;
 
-    // The brief content below stacks sticky sections at z-index 40–120; the
-    // anchor must rise above them while its tooltip shows, or the tooltip
-    // paints underneath (found in BRIEF-21 smoke). 150 < the top bar's 200,
-    // so nothing global is overlaid.
+    // The brief content below stacks sticky sections at z-index 40–120, so
+    // the anchor must rise above them while its tooltip shows. 150 < the top
+    // bar's 200, so nothing global is overlaid.
     &:hover,
     &:focus-within {
       z-index: 150;

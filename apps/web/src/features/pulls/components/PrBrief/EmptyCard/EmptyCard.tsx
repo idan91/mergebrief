@@ -1,9 +1,8 @@
 import cardStyles from "../stateCard.module.scss";
 
 /**
- * The empty-state copy. The default promises generation "on the next push" —
- * wrong under the instance drafts-off policy (BRIEF-64), so the own-draft
- * notice replaces it wholesale.
+ * The default copy promises generation "on the next push" — wrong under the
+ * instance drafts-off policy, so the own-draft notice replaces it wholesale.
  */
 export function emptyCardCopy(copyOverride: string | undefined): string {
   return (
@@ -13,7 +12,7 @@ export function emptyCardCopy(copyOverride: string | undefined): string {
 }
 
 export interface EmptyCardProps {
-  /** Drafts-off notice (BRIEF-64, own-draft only); replaces the copy. */
+  /** Drafts-off notice (own-draft only); replaces the copy. */
   copyOverride?: string | undefined;
 }
 

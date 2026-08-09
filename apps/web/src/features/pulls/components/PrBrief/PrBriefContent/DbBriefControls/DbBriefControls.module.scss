@@ -1,9 +1,8 @@
 @use "functions";
 
 @layer components {
-  // One flat line in the header's lens toolbar (BRIEF-28 round 2): revision
-  // navigator, then the View/Compare lens groups, co-linear. Wrapping is the
-  // narrow-width fallback — the header re-measures --top-bar-h as it grows.
+  // One flat line in the header's lens toolbar; wrapping is the narrow-width
+  // fallback — the header re-measures --top-bar-h as it grows.
   .controls {
     display: flex;
     flex: 1;
@@ -32,8 +31,7 @@
     white-space: nowrap;
   }
 
-  // The degraded-revision status line: rare, so it may take its own line
-  // rather than squeezing the controls.
+  // Rare status line — takes its own line rather than squeezing the controls.
   .note {
     flex-basis: 100%;
     margin: 0;

@@ -1,12 +1,10 @@
-// View/Compare controls for the DB brief route (BRIEF-19 4.1). The local
-// route's controls live inside TimelineNavigator, which requires a local
-// artifact timeline (deferred to BRIEF-24 for the DB path) — this bar drives
-// the SAME normalized search-state helpers against the route's own params, so
-// the two surfaces cannot drift semantically.
+// View/Compare controls for the DB brief route. Drives the SAME normalized
+// search-state helpers as the local route's controls, so the two surfaces
+// cannot drift semantically.
 //
 // Disabled Compare options stay FOCUSABLE (`aria-disabled`, not `disabled`)
 // so their reason tooltip is keyboard-reachable: shown on hover/focus,
-// referenced via `aria-describedby`, dismissible with Escape (BRIEF-21).
+// referenced via `aria-describedby`, dismissible with Escape.
 import { useState } from "react";
 import {
   compareUnavailableTitle,

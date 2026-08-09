@@ -1,7 +1,7 @@
-// The capped surface for the DB-brief route (BRIEF-20): this push got no
-// brief because the repo hit the instance's daily generation cap. NOT a
-// failure card — nothing went wrong, and the copy says when it resumes.
-// Presentational; the announcement lives in the body's live region.
+// This push got no brief because the repo hit the instance's daily
+// generation cap. NOT a failure card — nothing went wrong, and the copy says
+// when it resumes. Presentational; the announcement lives in the body's live
+// region.
 import cardStyles from "../stateCard.module.scss";
 import { cappedLabel } from "./utils";
 
