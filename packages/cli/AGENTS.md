@@ -1,6 +1,6 @@
 # packages/cli — agent notes
 
-The `mergebrief` CLI (BRIEF-17; ADR 0028 architecture, ADR 0029 contract):
+The `mergebrief` CLI:
 humans and AI agents driving the read/write API. Ships as a single-file
 bundle (`dist/mergebrief.js`, tsup, no workspace runtime deps).
 
@@ -17,7 +17,7 @@ src/
   program.ts        runCli — the whole command surface (commander wiring)
   client.ts         the API-client boundary (injected fetch; CliError mapping)
   exit.ts           the 6-code exit contract — PUBLIC, additive-only,
-                    never renumbered (ADR 0029 #6)
+                    never renumbered
   agents-guide.ts   the packaged --agents guide (constant; zero file reads)
   commands/         command implementations
     read.ts           pr / groups / conversation / diff / delta
@@ -32,14 +32,14 @@ scripts/            embed-help.ts — regenerates the README flag appendix
 
 ## Invariants (enforced, don't weaken)
 
-- **Stream/exit contract (ADR 0029 #5/#6):** exit 0 ⇒ stdout is documented
+- **Stream/exit contract:** exit 0 ⇒ stdout is documented
   JSON; exit ≠ 0 ⇒ empty stdout, ONE stderr line. The 6 exit codes are a
   public surface — additive-only, never renumbered.
-- **Passthrough by default (ADR 0029 #1):** response bodies relay VERBATIM;
-  the CLI synthesizes shapes only where documented (#2, e.g. `delta`).
+- **Passthrough by default:** response bodies relay VERBATIM; the CLI
+  synthesizes shapes only where documented (e.g. `delta`).
 - **One client-side shape check** on writes (`commitId` present → exit 2);
   everything else relays the server's locked validation (4xx → exit 5).
-- **Single-file bundle (ADR 0028 #6):** no workspace runtime deps
+- **Single-file bundle:** no workspace runtime deps
   (compile-time `types` only); assets ship as constants, never file reads.
 - **Secrets:** the profile token is plaintext-on-disk by design (0600, v1,
   disclaimed at mint) — but it never appears in stdout, stderr, or errors.

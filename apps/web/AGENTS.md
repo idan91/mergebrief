@@ -1,9 +1,8 @@
 # apps/web — agent notes
 
 The TanStack Start front end: local file-backed Briefs (the demo path) and
-the DB-backed read + submit surface (BRIEF-19/21/23). Repo-wide TS rules
-live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
-(0022/0024) and `docs/plans/`.
+the DB-backed read + submit surface. Repo-wide TS rules live in the root
+`CLAUDE.md`; feature context lives in `docs/adr/` and `docs/plans/`.
 
 ## Conventions
 
@@ -13,8 +12,8 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
 - Server data crosses `data/apiFetch` only (isomorphic: SSR dispatches
   in-process through the SAME authz gate). Never reach persistence from a
   server function — that would be a second enforcement path.
-- **A server function's rejection is a client-visible string** (BRIEF-20,
-  extending the BRIEF-97 cause-leak rule): TanStack serializes the Error's
+- **A server function's rejection is a client-visible string**: TanStack
+  serializes the Error's
   message — and walks non-enumerable own props, so `{ cause }` ships too.
   Every `createServerFn` handler therefore ends at a curation boundary: the
   raw reason is logged server-side (as a FIELD — `msg` bypasses the boundary's
@@ -36,22 +35,22 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
   `{ warn }`/`{ error }` interface the `packages/logging` `Logger` satisfies);
   they never import `server/logger`, which is `server-only`. No sink passed =
   silent, which is the client default: a browser has no operator, so a
-  `console.*` nobody reads does not earn its level (ADR 0034 #5). Silence is
+  `console.*` nobody reads does not earn its level. Silence is
   only correct client-side, so EVERY server-side caller must pass one —
   `data/ssrWarnSink`'s `getSsrWarnSink()` is the resolver for call sites that
   run on both sides (queryFns reached by route loaders). Forgetting it is
   silent by construction, so it is a review checkpoint, not a lint error.
 
-## Placement and styling (ADR 0037 — full rules + why live there)
+## Placement and styling (full rules + rationale live in `docs/adr/`)
 
 - Every folder answers at a glance: one visible MAIN entry, everything else
-  in a visible support category (2026-07-26 owner ruling, supersedes
-  flat-by-default). A feature root = `index.tsx` (THE entry: the entry
+  in a visible support category. A feature root = `index.tsx` (THE entry: the entry
   component's JSX, or a curated re-export when it has co-located support
   files) + `types.ts` + `components/` / `hooks/` / `utils/` / `server/` /
   topic folders. Inside `components/`, every component nests under its
   owning component. A loose uncategorized file is a defect (except files
-  with an explicit in-ADR justification, e.g. `brief/queries.ts`).
+  with an explicit justification in the decision record, e.g.
+  `brief/queries.ts`).
 - Server-code split: `src/server/` = app-wide infrastructure only (logger,
   webhook composition, health); a feature's server code lives in that
   feature's `server/` (dependency cap — feature knowledge never sits in the
@@ -75,7 +74,7 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
   tokens/mixins only (no value-named tokens); off-scale values stay raw with a
   line-scoped stylelint disable + TODO note, or earn a component-local token
   with a one-line justification.
-- Units (BRIEF-84, ADR 0037 amendment): text and everything text-coupled is
+- Units: text and everything text-coupled is
   rem via `functions.to-rem(<px>)` — font sizes, margin/padding/gap (raw px
   is stylelint-banned there), touch-target min-heights, measure caps,
   menu/dialog widths; chrome stays px — borders, radii, shadows, icon boxes,
@@ -85,7 +84,7 @@ live in the root `CLAUDE.md`; feature context lives in `docs/adr/`
   CSS targets attributes, not toggled classes. Extracted components adopt
   both at birth.
 
-## Async mutations against external systems (BRIEF-23 review loop — enforced)
+## Async mutations against external systems (enforced)
 
 The submit flow earned each of these the hard way; any future mutation
 against GitHub (or any external system) follows them:
@@ -124,8 +123,8 @@ against GitHub (or any external system) follows them:
   into the next test's `screen` queries. Component/hook tests need the
   `// @vitest-environment jsdom` pragma.
 - Route tests that seed the query cache BYPASS the wire parsers — pair them
-  with queryFn-level tests against realistic wire bodies (BRIEF-21 lesson:
-  a wrong parser shipped green).
+  with queryFn-level tests against realistic wire bodies — a wrong parser
+  can otherwise ship green.
 
 ## Verification
 

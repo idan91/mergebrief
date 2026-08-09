@@ -48,7 +48,7 @@ Driving an agent? `mergebrief --agents` prints the packaged guide —
 contract invariants, the exit table with next-moves, and the reviewer and
 author loops.
 
-## The output contract (ADR 0029 — what scripts may rely on)
+## The output contract (what scripts may rely on)
 
 - **exit 0 ⇒ stdout is documented JSON** (or the raw unified diff, for
   `diff`). **exit ≠ 0 ⇒ stdout is empty** and stderr carries exactly one

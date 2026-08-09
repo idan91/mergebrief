@@ -1,16 +1,13 @@
 # packages/api — agent notes
 
-The Hono HTTP surface for BRIEF-2 (P4/M1 workstream 2). This PR (PR B, stage
-4) ships the **webhook trust boundary**: `POST /api/webhooks/github` verifies
-the HMAC over the raw body, parses the event through `github`'s Zod boundary,
-and maps it — transactionally — to `persistence`'s tenant-scoped writes plus
-one debounced graphile `generate` job (`ingestRoutines`). Plan:
-`docs/plans/brief-2-github-app.md` (decision #1); grounding ADRs 0016/0020,
-0006 + 0018 as amended.
+The Hono HTTP surface for the self-host backend. Its **webhook trust
+boundary** — `POST /api/webhooks/github` — verifies the HMAC over the raw
+body, parses the event through `github`'s Zod boundary, and maps it,
+transactionally, to `persistence`'s tenant-scoped writes plus one debounced
+graphile `generate` job (`ingestRoutines`).
 
-Deliberately NOT here: OAuth login/callback/logout, the authz middleware, and
-the read API (PR C); the `apps/web` catch-all mount and the real-Postgres/
-graphile startup wiring (stage 5); any worker/LLM code (BRIEF-3).
+Deliberately NOT here: the `apps/web` catch-all mount, real-Postgres/graphile
+startup wiring, and any worker/LLM code.
 
 ## Invariants (enforced, don't weaken)
 
@@ -21,7 +18,7 @@ graphile startup wiring (stage 5); any worker/LLM code (BRIEF-3).
   payload's `installation.id` (branded by `github`'s parser, revalidated via
   `parseTenantContext`) — never from a spoofable header. All writes go
   through persistence's ctx-bound interfaces (`forTenant`, `ingestRoutines`,
-  `purgeRoutines`); this package never sees a raw DB handle (D2b).
+  `purgeRoutines`); this package never sees a raw DB handle.
 - **Fast 200, no compute.** The webhook handler only upserts rows and
   enqueues one job — no LLM calls, no GitHub API calls, no generation.
   Handled and ignored events alike return 200 quickly.
@@ -35,7 +32,7 @@ graphile startup wiring (stage 5); any worker/LLM code (BRIEF-3).
   (401/400); unexpected throws map to a sanitized 500 (internals go to the
   log, never the response). No secrets/tokens in messages or responses.
 
-## Gated-route rules (BRIEF-23 review loop — enforced, don't weaken)
+## Gated-route rules (enforced, don't weaken)
 
 - **One gate per request.** `readsRoute` guards `/api/repos/:repoId/*` with a
   METHOD-AGNOSTIC `app.use`, so any route module mounted after it in
@@ -82,8 +79,8 @@ imports (`moduleResolution: "bundler"`); verb-first actions, noun factories.
 
 `test/webhook.test.ts` = integration via `app.request()` against
 `persistence/testing`'s PGlite harness (real migrations + a `graphile_worker`
-stub standing in for the real worker schema — tests only; the stage-5 compose
-smoke uses real graphile). Payloads are built inline (shapes cribbed from
+stub standing in for the real worker schema — tests only; the compose smoke
+uses real graphile). Payloads are built inline (shapes cribbed from
 `packages/github/test/fixtures/*.json`, not imported) and signed with
 `@octokit/webhooks-methods` `sign`. Zero network, zero LLM calls.
 

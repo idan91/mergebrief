@@ -1,4 +1,4 @@
-# Local webhook loop (BRIEF-2)
+# Local webhook loop
 
 How to run the webhook receiver end-to-end on your machine and watch a real GitHub
 `pull_request` event turn into a `pull_request` row + a queued `generate` job. This is also
@@ -59,7 +59,7 @@ ngrok http 3000
 ```
 
 GitHub rejects `localhost`, so it must reach you through a public URL. ngrok (not
-`gh webhook forward`) is the recommended tunnel because BRIEF-2 also needs the OAuth callback
+`gh webhook forward`) is the recommended tunnel because the app also needs the OAuth callback
 publicly reachable — one tunnel serves both. See the rationale in
 [`../self-host/github-app.md`](../self-host/github-app.md#webhook).
 
@@ -89,7 +89,7 @@ docker compose exec postgres psql -U code_review -d code_review \
 Expect a `pull_request` row for your PR and a `graphile_worker.jobs` row with
 `task_identifier = generate` and `key = generate:<pull_request_id>`.
 
-Since BRIEF-3, the queue also **drains**: run the worker (`pnpm -C packages/worker start`
+The queue also **drains**: run the worker (`pnpm -C packages/worker start`
 with the same env, or the compose `worker` service — see
 [`../self-host/compose.md`](../self-host/compose.md)) and the job disappears after the
 debounce, the `generation` row walks `queued → running → succeeded`, and the Brief lands in

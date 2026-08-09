@@ -1,6 +1,6 @@
 # packages/logging — agent notes
 
-The structured-logging boundary (BRIEF-51, ADR 0034). Exports a minimal
+The structured-logging boundary. Exports a minimal
 `Logger` interface and `createLogger` — the ONE place pino is constructed.
 Every process (web server, worker, CLI-facing API) builds one logger at its
 startup wiring and injects it; call sites depend on this package only.
@@ -24,7 +24,7 @@ test/         vitest suites; captureDestination injects a line-capturing
 
 ## Invariants (enforced, don't weaken)
 
-- **pino never leaks** (ADR 0034 #1): no pino type or value appears in an
+- **pino never leaks**: no pino type or value appears in an
   exported signature. A future OTel/metrics addition reimplements `Logger`
   without touching call sites.
 - **Four levels only** — error/warn/info/debug (matches graphile-worker).
@@ -34,7 +34,7 @@ test/         vitest suites; captureDestination injects a line-capturing
   request headers plus the secret-key vocabulary at top level and one
   wildcard depth; see `REDACT_PATHS` in `logger.ts`. Extending the
   vocabulary is non-breaking; narrowing it needs an ADR amendment.
-- **URL-shaped substrings are scrubbed** (BRIEF-88): the `err`/`error`
+- **URL-shaped substrings are scrubbed**: the `err`/`error`
   serializers deep-scrub every string field of the serialized error
   (post-serialization, copy-on-write), and `msg` gets the same regex —
   `\w+://\S+` → `[redacted-url]`, `file://` exempt (ESM stack frames).

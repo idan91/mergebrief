@@ -4,20 +4,14 @@ Comprehension scaffolding for human reviewers of pull requests. Not another revi
 
 > This file defines the *meaning* of each term. For the authoritative closed list of valid labeling **tokens** (the current Category / Concern / Role / Risk-Surface values + quick rules), see `docs/mvp/labeling-schema.md` — the controlled vocabulary. A token is not valid unless registered there.
 
-> **Direction note (2026-06-30, OSS-only — `docs/vision.md` / ADR 0023):** the *terms* below
-> are all still valid; the project is now **OSS-only** (no hosted/commercial arm, no moat).
-> Vocabulary is unchanged — what's gone is the commercial scaffolding once built around it
-> (archived in `docs/archive/`). Some entries still carry hosted/headless/multi-reviewer
-> phrasing (e.g. **Trigger**, **Delta Brief**, agent-via-API consumption); read those as
-> *design concepts that survive*, not as a go-to-market plan.
-
-> **Emphasis note (2026-06-13 reshape):** the *terms* below are still valid, but their product weight changed — see `docs/mvp/center-of-gravity.md` for the current center of gravity (story + risk-surface + delta; velocity-through-quality). In short: **Playbook** is demoted (agent-facing + optional junior UI, not a human headline); **Mind-Map Space** shrinks to persistence only (the "thinking space" framing is cut); the **Analysis Layer** is the engine, not the moat. This file describes vocabulary, not priority.
-
-> **Park note (2026-07-23, BRIEF-6 — ADR 0035):** the **Playbook** layer is parked to
-> v2 entirely; no product code consumes it and the FE/product mentions were removed.
-> Entries below that mention playbooks attached to Briefs, groups, or Flags describe
-> the *parked design*, not v1 behavior. Any revival is bound to ADR 0035's rubric
-> identity (post-hoc coverage measurement; never prompt material).
+> **Reading notes.** This file describes vocabulary, not priority — for the
+> current product weighting see `docs/mvp/center-of-gravity.md` (story +
+> risk-surface + delta). The project is **OSS-only**: no hosted arm, no moat.
+> Entries still carrying hosted/headless/multi-reviewer phrasing (**Trigger**,
+> **Delta Brief**, agent-via-API consumption) are design concepts that survive,
+> not a go-to-market plan. The **Playbook** layer is parked to v2 — no product
+> code consumes it, and entries mentioning playbooks describe the parked
+> design, not v1 behavior.
 
 ## Language
 
@@ -76,7 +70,7 @@ _Avoid_: re-anchor (informal), outdated (GitHub's word, only for shipped comment
 **Chunk**:
 A contiguous run of changed lines sharing **one Concern and one Change-group** — the atomic unit of the brief. A chunk is *sub-file*: a single git hunk may be **split into multiple chunks** at concern/group boundaries, and one file's chunks may land in different Change-groups. Each chunk has one Concern, one Role, one Categorization-by-inheritance (from its group), zero or more Risk Surface attributes, and its own LoC.
 _Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
-_Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree (ADR 0005); until then, express it via dominant+secondary Categorization on the group plus a text callout in the Summary.
+_Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree; until then, express it via dominant+secondary Categorization on the group plus a text callout in the Summary.
 
 **Change-group**:
 A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent* — it carries the Categorization and the summary. Spans files and Concerns: one or more carrier chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
@@ -112,7 +106,7 @@ Added/deleted line counts. Shown non-prominently (corner) per Category in the St
 _Avoid_: diff size, churn, lines-changed-as-quality-metric, raw LoC (as the default display)
 
 **Playbook**:
-A templated, domain-rule checklist of items to verify for a given category. Not AI-generated hypotheses — known engineering checklists per change type. Example for `lib-bump`: "verify breaking changes from changelog, all call sites updated." **Parked to v2 (ADR 0035):** no v1 surface renders or consumes playbooks; if revived, the identity is a *coverage rubric* — post-hoc measurement of a finished review (check-off frozen into Receipts, or grading an agent's review), never prompt material for reviewers or agents.
+A templated, domain-rule checklist of items to verify for a given category. Not AI-generated hypotheses — known engineering checklists per change type. Example for `lib-bump`: "verify breaking changes from changelog, all call sites updated." **Parked to v2:** no v1 surface renders or consumes playbooks; if revived, the identity is a *coverage rubric* — post-hoc measurement of a finished review (check-off frozen into Receipts, or grading an agent's review), never prompt material for reviewers or agents.
 _Avoid_: checklist, rules, review template
 
 **Risk Surface**:
@@ -120,11 +114,11 @@ The set of factual attributes attached to a chunk. Attributes only — never ver
 _Avoid_: critical area, hot spot, risky code, severity tag
 
 **Flag**:
-A single AI-surfaced item from the brief that requires reviewer attention. In v1 this means a risk-surface attribute on a specific hunk; unvisited-playbook-item flags are parked with the playbook layer (ADR 0035).
+A single AI-surfaced item from the brief that requires reviewer attention. In v1 this means a risk-surface attribute on a specific hunk; unvisited-playbook-item flags are parked with the playbook layer.
 _Avoid_: issue, warning, finding
 
 **Disposition**:
-A reviewer's recorded decision on a **Flag** — either *addressed* (a **Comment** now targets it) or *dismissed* (with a reason). Anchored to the flagged code region (file, attribute, region@SHA), never to a brief-local id, so it survives regeneration and carries forward across re-reviews (ADR 0007/0008). Frozen into the **Receipt** on **Submit**.
+A reviewer's recorded decision on a **Flag** — either *addressed* (a **Comment** now targets it) or *dismissed* (with a reason). Anchored to the flagged code region (file, attribute, region@SHA), never to a brief-local id, so it survives regeneration and carries forward across re-reviews. Frozen into the **Receipt** on **Submit**.
 _Avoid_: resolution (informal), flag status, decision (bare)
 
 **Dismissal**:
@@ -152,7 +146,7 @@ A static, tool-hosted snapshot page produced when a reviewer submits, linked fro
 _Avoid_: report, dashboard, public mind-map
 
 **Analysis Layer**:
-The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surface, Concern split, LoC. Consumed by the human **Engagement Layer** (v1); the same analysis could later be consumed by an org's own AI agent through a clean internal API (engineering, not a go-to-market lever). The product core. Defensibility is **not** the game (the project is OSS-only — see `docs/vision.md` / ADR 0023): taxonomy + playbooks are deliberately open and reproducible, distributed as a community markdown commons rather than guarded as a moat.
+The reviewer-agnostic core: Change-groups, Categorization, Playbooks, Risk Surface, Concern split, LoC. Consumed by the human **Engagement Layer** (v1); the same analysis could later be consumed by an org's own AI agent through a clean internal API (engineering, not a go-to-market lever). The product core. Defensibility is **not** the game (the project is OSS-only — see `docs/vision.md`): taxonomy + playbooks are deliberately open and reproducible, distributed as a community markdown commons rather than guarded as a moat.
 _Avoid_: engine, backend, core (informal)
 
 **Engagement Layer**:
@@ -164,15 +158,15 @@ The private (per reviewer × PR) workspace inside the web app where the reviewer
 _Avoid_: workspace, scratchpad, draft space
 
 **Trigger**:
-What causes a **Brief** to compute: eager-on-push, debounced (~60s trailing), on PR-open (first push) and every subsequent push — including while the PR is a draft. No lazy "compute-on-first-click" gate; spend is bounded by debounce + **Triage** + skipping trivial/instantly-closed PRs, not by withholding compute. **Delta Briefs** are per-reviewer (from each reviewer's **Checkpoint**), not a push-triggered recompute. See ADR 0020.
+What causes a **Brief** to compute: eager-on-push, debounced (~60s trailing), on PR-open (first push) and every subsequent push — including while the PR is a draft. No lazy "compute-on-first-click" gate; spend is bounded by debounce + **Triage** + skipping trivial/instantly-closed PRs, not by withholding compute. **Delta Briefs** are per-reviewer (from each reviewer's **Checkpoint**), not a push-triggered recompute.
 _Avoid_: activation (as "what fires compute"), cost gate, click-to-activate
 
 **Entry**:
-How a human reaches a computed **Brief**: one branded PR comment carrying a deep-link (ADR 0016), delete+reposted per debounced generation, one ping per settled head. The reviewer-facing Entry posts only when the PR is non-draft (ready). The deep-link click is navigation, never a compute **Trigger**.
+How a human reaches a computed **Brief**: one branded PR comment carrying a deep-link, delete+reposted per debounced generation, one ping per settled head. The reviewer-facing Entry posts only when the PR is non-draft (ready). The deep-link click is navigation, never a compute **Trigger**.
 _Avoid_: activation (as "the click"), deep-link gate
 
 **Draft-first**:
-A per-repo opt-in (repo YAML; org default + per-repo override; off by default) that holds the reviewer-facing **Entry** until the author marks `ready_for_review`, turning the draft window into the author's self-review pass. It does **not** change the **Trigger** — the **Brief** still computes on every push during draft; draft-first only gates *when reviewers are notified*. Native-draft only (never a custom lock), so a generation failure leaves a normal GitHub draft the author controls. See ADR 0020.
+A per-repo opt-in (repo YAML; org default + per-repo override; off by default) that holds the reviewer-facing **Entry** until the author marks `ready_for_review`, turning the draft window into the author's self-review pass. It does **not** change the **Trigger** — the **Brief** still computes on every push during draft; draft-first only gates *when reviewers are notified*. Native-draft only (never a custom lock), so a generation failure leaves a normal GitHub draft the author controls.
 _Avoid_: activation (as "turning the tool on"), draft mode, draft gate
 
 **Triage**:
@@ -208,11 +202,11 @@ A reviewer finalizing their review on GitHub (the **Approval** plus any **Commen
 _Avoid_: send, post, finish (informal)
 
 **Repo instructions**:
-The `.mergebrief/instructions.md` file (ADR 0032) — repo-committed text guidance to generation, read from the default branch only, honored strictly within the enumerated instruction classes (grouping boundaries, glossary/terminology, noise paths, reading conventions, summary phrasing). Semi-trusted: text shapes presentation and comprehension; only validated `policy.yaml` creates facts — instructions can never mint a risk attribute, change a vocabulary, or alter the schema.
+The `.mergebrief/instructions.md` file — repo-committed text guidance to generation, read from the default branch only, honored strictly within the enumerated instruction classes (grouping boundaries, glossary/terminology, noise paths, reading conventions, summary phrasing). Semi-trusted: text shapes presentation and comprehension; only validated `policy.yaml` creates facts — instructions can never mint a risk attribute, change a vocabulary, or alter the schema.
 _Avoid_: repo prompt, custom prompt, system prompt (it is data, never system-level)
 
 **De-emphasis**:
-Display-weight tuning from `.mergebrief/policy.yaml` (ADR 0032 #11): a non-floor risk attribute renders quiet (hue-shifted, excluded from the jump-rail, labeled "de-emphasized by repo policy") — detection always runs and every attribute still lands in the artifact and Receipt. Never suppression; applied from the generation-time policy snapshot stored with the artifact.
+Display-weight tuning from `.mergebrief/policy.yaml`: a non-floor risk attribute renders quiet (hue-shifted, excluded from the jump-rail, labeled "de-emphasized by repo policy") — detection always runs and every attribute still lands in the artifact and Receipt. Never suppression; applied from the generation-time policy snapshot stored with the artifact.
 _Avoid_: hide, suppress, mute (nothing is removed)
 
 **Floor**:
@@ -220,7 +214,7 @@ The three risk attributes that can never be de-emphasized — `touches-auth`, `r
 _Avoid_: severity tier, critical attributes (the floor is a display guarantee, not a score)
 
 **Jump-rail**:
-The attribute-keyed navigation row beside the group TOC (ADR 0032 #11): fired attribute names with carrying-group counts; clicking cycles through the carrying groups in story order. Attribute-keyed, never group-ranked — a "high-risk groups" rail would be the banned ordering verdict rebuilt as navigation. Floor attributes pin first; de-emphasized firings are excluded; collapsed unless a floor attribute fired.
+The attribute-keyed navigation row beside the group TOC: fired attribute names with carrying-group counts; clicking cycles through the carrying groups in story order. Attribute-keyed, never group-ranked — a "high-risk groups" rail would be the banned ordering verdict rebuilt as navigation. Floor attributes pin first; de-emphasized firings are excluded; collapsed unless a floor attribute fired.
 _Avoid_: risk ranking, hotspot list
 
 ## Relationships
@@ -254,20 +248,20 @@ _Avoid_: risk ranking, hotspot list
 - **"Critical area"** was rejected as terminology. It bundled *verdict* into what should be *attributes*. Resolved: split into **Risk Surface** (factual per-chunk attributes) and **Flag** (a specific item needing attention or dismissal).
 - **"Approval"** was used ambiguously to mean reviewer judgment AND AI verification. Resolved: only humans **Approve**. The tool issues a **Receipt**, scoped to mechanical claims.
 - **"Dismissal" vs "Disposition"** — *Dismissal* was used for the whole flag-decision concept. Resolved: **Disposition** is the umbrella (*addressed* or *dismissed*); **Dismissal** is only the *dismissed* value.
-- **"User"** in early scope was ambiguous (author vs reviewer). Resolved: **Reviewer** is the primary v1 surface; the **Author** self-review surface is a *secondary* v1 surface (promoted 2026-06 — see ADR 0009 / `center-of-gravity.md`), consuming the same shared **Brief** plus the **Intent check** and **Soft gate**. Both are named explicitly when referenced.
+- **"User"** in early scope was ambiguous (author vs reviewer). Resolved: **Reviewer** is the primary v1 surface; the **Author** self-review surface is a *secondary* v1 surface (see `center-of-gravity.md`), consuming the same shared **Brief** plus the **Intent check** and **Soft gate**. Both are named explicitly when referenced.
 - **"Critical code areas might mislead reviewer"** — the original concern was anchoring bias. Resolved by Risk Surface + Playbook + no-verdict model. Anchoring is the design's chief enemy at the brief layer.
 - **"Pure AI code review comments"** was an informal phrase. Resolved as a strict product rule: the agent never authors text that ships as a **Comment**. Seeds and validation only.
-- **Intent lived on the chunk** in the original model. Resolved: intent (**Category**, **Summary**) lives on the **Change-group**; the chunk carries **Concern**, **Role**, and **LoC**. A test/doc chunk supports a group's intent rather than re-deriving its own. See ADR 0005.
+- **Intent lived on the chunk** in the original model. Resolved: intent (**Category**, **Summary**) lives on the **Change-group**; the chunk carries **Concern**, **Role**, and **LoC**. A test/doc chunk supports a group's intent rather than re-deriving its own.
 - **`test-only` / `config-only` / `generated-code` as Categories** conflated *artifact* with *intent*. Resolved: these are **Concern** values, not Categories. Category is purely intent (what kind of change); Concern is artifact (what kind of file).
 - **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.
-- **"A file with multiple changes/concerns"** — resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case → deferred sub-operation tree (ADR 0005).
+- **"A file with multiple changes/concerns"** — resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case → deferred sub-operation tree.
 - **"production" rejected** as the carrier-concern name — bakes in a deployment assumption. Resolved: `implementation`.
-- **"Activation"** was one word for three independent things — *what fires compute*, *how a human reaches the brief*, and *turning draft-first on*. The old definition (compute-on-first-click) also contradicted ADR 0006's eager-on-push generation. Resolved into **Trigger** (eager-on-push compute), **Entry** (the branded deep-link comment, posts on ready), and **Draft-first** (per-repo opt-in that gates Entry until `ready_for_review`, never the Trigger). "Activation" is retired. See ADR 0020.
+- **"Activation"** was one word for three independent things — *what fires compute*, *how a human reaches the brief*, and *turning draft-first on*. The old definition (compute-on-first-click) also contradicted the eager-on-push generation model. Resolved into **Trigger** (eager-on-push compute), **Entry** (the branded deep-link comment, posts on ready), and **Draft-first** (per-repo opt-in that gates Entry until `ready_for_review`, never the Trigger). "Activation" is retired.
 - **"AI-authorship signals" as an in-product grouping** was considered for the
-  AI-authored-code review lens and rejected (2026-07-03): Risk-Surface attributes are
+  AI-authored-code review lens and rejected: Risk-Surface attributes are
   authorship-agnostic facts (a human can add a needless dependency or write a lying comment
   too), and a visible "AI-ish" grouping is verdict-adjacent — it implicitly asserts
   authorship the tool cannot know. The lens attributes (`new-dependency`, `new-abstraction`,
   `comment-contradicts-code`) ship as ordinary Risk-Surface attributes; the AI-failure-mode
-  framing lives in positioning copy only. See ADR 0026.
-- **"Consume an AI context manager (Unblocked) to flag cross-context issues"** was proposed as a brief feature. Rejected: a tool asserting AI-hypothesized "potential issues" is the **bug-bot the product is positioned against** (no-verdict rule; `center-of-gravity.md` "no bug-bot noise"; ADR 0003 category-scoped, not general). Resolved into three data-flows: (1) external context may **enrich the Intent check and Risk Surface with *cited* facts only** — cite-or-stay-silent, never a verdict; (2) AI *review* of the code is the **headless dual-consumer lane** — the org hooks its own agent to consume our **Brief**, and that agent owns its verdicts, not us (preserves no-verdict because we are the analysis substrate, not the reviewer); (3) the **comment-to-rule loop** is the inverse arrow (we *produce* repo-local agent context). Only (1) is a consume-side build, and it is deferred. See ADR 0014.
+  framing lives in positioning copy only.
+- **"Consume an AI context manager (Unblocked) to flag cross-context issues"** was proposed as a brief feature. Rejected: a tool asserting AI-hypothesized "potential issues" is the **bug-bot the product is positioned against** (no-verdict rule; `center-of-gravity.md` "no bug-bot noise"; category-scoped, not general). Resolved into three data-flows: (1) external context may **enrich the Intent check and Risk Surface with *cited* facts only** — cite-or-stay-silent, never a verdict; (2) AI *review* of the code is the **headless dual-consumer lane** — the org hooks its own agent to consume our **Brief**, and that agent owns its verdicts, not us (preserves no-verdict because we are the analysis substrate, not the reviewer); (3) the **comment-to-rule loop** is the inverse arrow (we *produce* repo-local agent context). Only (1) is a consume-side build, and it is deferred.

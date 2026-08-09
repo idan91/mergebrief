@@ -16,7 +16,7 @@ The live sources of truth are:
   - **Moat Honesty** — earning a defensive moat (data exhaust, org-learned playbooks,
     switching costs). Dead: with no business there is no moat to build.
   - **Open-Core / BYOK Split** — the OSS-vs-hosted cut line. Dead: there is no hosted side.
-    (BYOK survives as the OSS default — see ADR 0013/0017 — but the open-core *framing* is gone.)
+    (BYOK survives as the OSS default, but the open-core *framing* is gone.)
   - **Headless Distribution** — API/SDK as a go-to-market/partnership lever. Dead as a
     distribution play. (A clean internal API for self-host/demo is still fine engineering.)
   - **PMF Validation Track** — Phases 1–3, interviews, reviewer recruiting, kill-on-signal.
@@ -26,8 +26,8 @@ The live sources of truth are:
   validation protocol. Retired with the validation track.
 
 - **`playbook-fe-condensed-items.md`** — different vintage: the FE's condensed playbook
-  item strings, frozen when the playbook layer was parked to v2 and its code removed
-  (BRIEF-6 / ADR 0035, 2026-07). Reference copy only; the source of truth remains
+  item strings, frozen when the playbook layer was parked to v2 and its code
+  removed. Reference copy only; the source of truth remains
   `../mvp/playbooks.md` (parked in place).
 
 > The product/domain thinking under `docs/mvp/` (labeling schema, risk surface, playbook

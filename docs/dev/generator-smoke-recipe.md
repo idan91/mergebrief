@@ -8,8 +8,8 @@
 > providers' structured-output enforcement.
 
 Every step in this file is `manual-forever: live provider auth and real
-spend` — ADR 0038 keeps live-spend surfaces out of CI permanently, so no
-trigger retires them. The disposition tags (ADR 0038 §11) are therefore
+spend` — live-spend surfaces stay out of CI permanently, so no trigger
+retires them. The disposition tags are therefore
 stated once, here, rather than repeated per step; the one exception is
 tagged where it sits.
 

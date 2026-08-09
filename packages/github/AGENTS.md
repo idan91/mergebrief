@@ -1,14 +1,14 @@
 # packages/github — agent notes
 
-The GitHub client package (BRIEF-2 onward): Zod-parsed env config, GitHub
+The GitHub client package: Zod-parsed env config, GitHub
 App + reviewer-OAuth authentication, typed webhook verification/parsing, and
 the REST + GraphQL **primitives** the rest of the system composes
 (Entry-comment ops, repo/PR/diff fetch, review submit, the conversation
 primitive). All API failures funnel through the single sanitization
 chokepoint in `src/errors.ts` (`mapRequestError` / `mapGraphqlError`).
 
-Deliberately NOT here: the event→state mapping / enqueue / tenant writes
-(stage 4, a different package composes these primitives).
+Deliberately NOT here: the event→state mapping / enqueue / tenant writes —
+a different package composes these primitives.
 
 ## Map
 
@@ -35,16 +35,16 @@ src/
     comments.ts         Entry-comment post/delete/fetch
     repo.ts             repo lookup + installation-repo listing
     pull-request.ts     PR + files + diff/compare fetch
-    review.ts           grouped formal review submit (BRIEF-23)
-    conversation.ts     GraphQL conversation primitive (BRIEF-25)
+    review.ts           grouped formal review submit
+    conversation.ts     GraphQL conversation primitive
     collaborators.ts    GraphQL repo-collaborators list for the @mention pool
-                        (BRIEF-94; affiliation ALL = org/team-granted included)
-    mark-ready.ts       markPullRequestReadyForReview mutation (BRIEF-43)
-    inline-comment.ts   standalone inline review-comment write (BRIEF-43 PR 4)
-    resolve-thread.ts   resolve/unresolveReviewThread mutations (BRIEF-93; walks
+                        (affiliation ALL = org/team-granted included)
+    mark-ready.ts       markPullRequestReadyForReview mutation
+    inline-comment.ts   standalone inline review-comment write
+    resolve-thread.ts   resolve/unresolveReviewThread mutations (walks
                         reviewThreads to map rootCommentId → thread node id)
-    repo-file.ts        one-file contents-API read for `.mergebrief/` (BRIEF-52;
-                        ref unset = default branch — the ADR 0032 #3 trust rule)
+    repo-file.ts        one-file contents-API read for `.mergebrief/`
+                        (ref unset = default branch — the trust rule)
 test/                 per-module suites; fixtures/ = sanitized webhook payloads
 ```
 
@@ -113,10 +113,8 @@ test/                 per-module suites; fixtures/ = sanitized webhook payloads
 
 `test/fixtures/*.json` are sanitized, trimmed webhook payloads sourced from
 `@octokit/webhooks-examples` (GitHub's documented example payloads) — the
-recorded-fixture DoD. They are copied in, not imported at test time (the
-`@octokit/webhooks-examples` devDependency was removed once the copies
-landed — BRIEF-111 knip pass). PR B's live smoke
-re-verifies parsing against real ngrok-captured deliveries.
+recorded-fixture DoD. They are copied in, not imported at test time. A live
+smoke re-verifies parsing against real ngrok-captured deliveries.
 
 ## Verification
 

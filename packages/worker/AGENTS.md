@@ -1,12 +1,10 @@
 # packages/worker — agent notes
 
-The long-lived background worker (BRIEF-3, P4/M1 workstream 3; ADRs 0006 as
-amended, 0013, 0015, 0016, 0018). Drains graphile-worker's `generate` jobs —
+The long-lived background worker. Drains graphile-worker's `generate` jobs —
 the ones `persistence`'s `ingestRoutines` enqueues — and produces the PR's
 artifacts: shared Brief, comparison marks, revision narrative, and pre-warmed
 delta cores (one per distinct checkpoint SHA, huge-span skip honored). The
-generation engine is `brief-core` (the Brief domain core, extracted from
-tools/categorizer in BRIEF-68), reused as-is behind its `Generator` port.
+generation engine is `brief-core`, reused as-is behind its `Generator` port.
 
 ## Map
 
@@ -30,7 +28,7 @@ src/
                         in generate.ts)
     github-port.ts      the GitHub boundary: PR reads + repo-file read behind a
                         testable port
-    repo-config.ts      the `.mergebrief/` phase (ADR 0032): fetch 3 default-
+    repo-config.ts      the `.mergebrief/` phase: fetch 3 default-
                         branch paths → validateRepoConfig → RepoContext +
                         origin/artifact serialization. NEVER fails the job
 test/                 generate.test.ts = integration via persistence/testing
@@ -44,8 +42,8 @@ test/                 generate.test.ts = integration via persistence/testing
   lockstep; the compile-time pin in `payload.ts` breaks the build on drift.
 - **Tenancy:** everything goes through persistence's ctx-bound interfaces
   (`forTenant`, `artifactStore`, `generationProjection`); the installation id
-  enters ONLY via the validated payload (ADR 0016 — never a spoofable source).
-- **Abort is not a failure** (ADR 0006 #6): supersession → terminal
+  enters ONLY via the validated payload — never a spoofable source.
+- **Abort is not a failure**: supersession → terminal
   `superseded`, `attempts` untouched, NO graphile retry, no salvage/dump.
 - **No double-spend:** brief and delta cores are skip-if-stored; marks and
   narratives are content-addressed upserts. A retry pays only for what a
@@ -57,18 +55,18 @@ test/                 generate.test.ts = integration via persistence/testing
   `process.env`. The generator block comes from the instance config
   (`MERGEBRIEF_CONFIG` → `mergebrief.config.yaml`, else zero-config
   defaults); BYOK keys resolve by env-var NAME (`generator.apiKeyEnv`) —
-  never from DB or repo config (ADR 0013/BRIEF-11).
-- **Repo-config is fail-open (ADR 0032 #4/#5):** nothing in the
+  never from DB or repo config.
+- **Repo-config is fail-open:** nothing in the
   `.mergebrief/` phase may fail a generation — fetch failures become loud
   `fetch-failed` outcomes, invalid files are rejected whole, and an
   unexpected crash degrades to no-config. Per-file outcomes are recorded on
   the generation row BEFORE the model call; the policy snapshot rides the
   brief artifact.
-- **Entry-comment draft gate (ADR 0020 #4 as amended):** the Entry comment
+- **Entry-comment draft gate:** the Entry comment
   stays off draft PRs unless `.mergebrief/settings.yaml` opts in; the
   delete-only sweep runs ONLY on known-off settings (a settings fetch
   failure suppresses posting but never deletes a live comment).
-- **The daily generation cap gates ONE boundary** (BRIEF-20): the cap check sits
+- **The daily generation cap gates ONE boundary**: the cap check sits
   in `runGeneration` before `markRunning` and before any GitHub/provider
   call, so the run it is deciding on can never count itself. At the cap the
   run is SKIPPED — terminal `capped` (not `failed`, no retry, no attempt
@@ -82,15 +80,15 @@ test/                 generate.test.ts = integration via persistence/testing
   concurrency C admits up to `cap + C - 1` runs before the cap bites.
 - **Migrations at boot are idempotent** and ordered app-schema → queue-schema
   (`startWorker`); the `graphile_worker` schema stays graphile-owned.
-- **Logging goes through the `packages/logging` boundary** (BRIEF-51, ADR 0034):
+- **Logging goes through the `packages/logging` boundary**:
   `main.ts` builds the one process logger; the task takes it via
   `GenerateTaskDeps.log` and stamps `{prId, headSha}` child bindings on every
   job line; graphile lifecycle logs ride `createGraphileLogFactory`. The
   first-class `evt` names minted here — `job.fail`, `job.retries.exhausted`
   (`attempts === max_attempts`), `provider.error`, `spend.cap.trip` — come
-  ONLY from the ADR 0034 taxonomy table. JOB/PROVIDER failure logs are MESSAGE-ONLY (no `err`
-  field): provider cause chains may carry request contents (BRIEF-11) — and
-  the logging boundary's URL scrub (BRIEF-88) targets URL-shaped secrets, not
+  ONLY from the logging package's taxonomy table. JOB/PROVIDER failure logs
+  are MESSAGE-ONLY (no `err` field): provider cause chains may carry request
+  contents — and the logging boundary's URL scrub targets URL-shaped secrets, not
   prompt/diff payloads, so it is no substitute. Boot failures (`main.ts`
   catch) are exempt: nothing provider-shaped reaches them, and the `err`
   field keeps the stack the operator needs.

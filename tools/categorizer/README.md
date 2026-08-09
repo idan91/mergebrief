@@ -2,10 +2,10 @@
 
 Turns a real pull-request diff into a structured review **brief** — a *story* (what the PR does), *change groups* with an intent category, and per-chunk *concern* + *role* + *risk-surface* flags. The brief is meant to help a reviewer decide where to look; it never approves, rejects, or scores.
 
-> **Layout (BRIEF-68)**: the domain core (schema, prompt, categorize engine,
+> **Layout**: the domain core (schema, prompt, categorize engine,
 > repo-context, delta/comparison — everything production consumes) lives in
 > `packages/brief-core`; this directory keeps the dev CLIs (`pnpm categorize`,
-> `pnpm delta` — thin entries into brief-core) and the BRIEF-59 eval harness
+> `pnpm delta` — thin entries into brief-core) and the eval harness
 > (`eval/`, `pnpm eval`).
 
 This is the dogfoodable thin slice that validates the categorizer (the unproven core) by building it and eyeballing its output against hand-labels. See `docs/plans/categorizer-thin-slice.md` and `docs/mvp/center-of-gravity.md`.
@@ -48,7 +48,7 @@ Example:
 pnpm categorize https://github.com/medusajs/medusa/pull/15605
 ```
 
-For each brief it writes three files under `out/`, versioned by a PR-global **index** and the head SHA (ADR 0012) so successive briefs of one PR coexist:
+For each brief it writes three files under `out/`, versioned by a PR-global **index** and the head SHA so successive briefs of one PR coexist:
 
 - `out/<owner>-<repo>-<num>_<index>_<head8>.brief.json` — the brief (now carrying `index` + `commitRange`)
 - `…_<index>_<head8>.diffs.json` — per-file diffs sidecar
@@ -68,7 +68,7 @@ Generates the **delta core** — "what changed since the baseline" — for a rev
 
 Each delta chunk belongs to exactly one change-group (a file appears in multiple groups only via different chunks), so no line is shown to the reviewer twice.
 
-This is the delta **core** only — the per-reviewer **carry-over overlay** (reopened/settled flags, moved/orphaned comments) needs reviewer state and is out of scope for the stateless CLI (see ADRs 0006–0008). SHAs must be hex commit-ishes (7–40 chars).
+This is the delta **core** only — the per-reviewer **carry-over overlay** (reopened/settled flags, moved/orphaned comments) needs reviewer state and is out of scope for the stateless CLI. SHAs must be hex commit-ishes (7–40 chars).
 
 ### Output
 

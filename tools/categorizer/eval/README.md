@@ -1,4 +1,4 @@
-# Generation-quality eval harness (BRIEF-59)
+# Generation-quality eval harness
 
 Regression net over generation quality: labeled real-PR fixtures, N runs
 per case, mechanical property checklists, provider:model-keyed baselines.
@@ -30,7 +30,7 @@ injection, or output-affecting adapter defaults. Also once when a fixture
 lands (`--rebaseline` records its baseline) and after a model bump.
 Include the report in the PR body. Never wired into CI — live API spend.
 
-**Scoped by default** (BRIEF-87): gate with one `--case <id>` run per
+**Scoped by default**: gate with one `--case <id>` run per
 case whose properties could plausibly move — the flag takes a single
 id (a repeated `--case` silently keeps only the last), and each
 invocation overwrites `out/eval-report.{json,md}`, so capture the
@@ -41,7 +41,7 @@ sections, output schema, salvage) and model bumps, where any property
 could move. An honestly-scoped run beats the real alternative at
 full-suite prices: not gating at all.
 
-## Text-length note (BRIEF-148)
+## Text-length note
 
 Every case report carries a length-compliance note when any run's
 artifact stamps `lengthViolations` (the warn-only text-length floor); silence
@@ -67,8 +67,8 @@ detects cliffs, not drifts. Verdicts are withheld under 5 scored runs.
 
 Not just the new ones. Every property is re-sampled from the fresh
 runs, so a pre-existing property can land in a different class than
-the one on record. During BRIEF-85 a scoped rebaseline re-sampled an
-untouched BRIEF-54 grouping canary
+the one on record. A scoped rebaseline once re-sampled an untouched
+grouping canary
 (`intent-none-no-ticket/at-least-two-groups`), which came back 3/5
 after being recorded 5/5; committing that would have moved it from
 stable-pass (gating) to flaky (never gates) — silently retiring a
@@ -89,8 +89,8 @@ case before believing a demotion.
   captures — origin info lives in the PR that added each case.
 - `expected.ts` — `export const properties: EvalProperty[]`. Anchor on
   run-stable facts (files, group relations, attribute names, categories);
-  NEVER on chunk boundaries or free text. One bounded exception
-  (BRIEF-54): intent-check items may be keyword-matched — their `quote`
+  NEVER on chunk boundaries or free text. One bounded exception:
+  intent-check items may be keyword-matched — their `quote`
   fields are validator-tethered verbatim ticket substrings and the
   regexes match planted markers in fixture-authored ticket text, not
   free model text. A throwing predicate counts as a fail with a note.
@@ -99,7 +99,7 @@ case before believing a demotion.
   Cross-key comparison is refused; v1 maintains the Anthropic default key
   only. Re-baselining is an explicit reviewed commit.
 
-**Source rule: own-repos only.** This repo goes public (BRIEF-38); every
+**Source rule: own-repos only.** This repo goes public; every
 checked-in diff must be publishable. No third-party diffs without a
 license decision.
 
@@ -132,7 +132,7 @@ construction; PR locators are placeholders). The same change extended
 `intent-adversarial-ticket`'s ticket with a manufactured-alarm injection
 block, which invalidated that case's checked-in `adv-*` baseline — the
 predicates were unchanged but the input moved, and stable predicates
-preserve nothing when the input does. Re-recorded in #156 (all seven
+preserve nothing when the input does. Re-recorded later (all seven
 properties 5/5; the hardening changed no original verdict); origin info
 in its `expected.ts` header.
 
@@ -144,8 +144,7 @@ out 267,230 / cache_read 659,692) — ~$0.16 per generation. Estimate a
 run as the pre-flight generation count × a recent measured
 per-generation cost; never trust a previously quoted suite total — the
 suite and the prompt both grow, so cached totals go stale silently (an
-older "~$5 per suite" figure caused a real ~2× budget overrun during
-BRIEF-85).
+older "~$5 per suite" figure once caused a real ~2× budget overrun).
 
 Per-case cost does not track diff size, so don't estimate a scoped run
 from diff bytes. Six measured points (2026-07-25,
@@ -178,7 +177,7 @@ prints token totals (via the generators' `onUsage`) and dollars only if
 not hardcoded). CLI adapters (claude-code/codex) render as "billed to
 the CLI's authenticated account" — never $0, and never "subscription"
 as a claim of fact, since the harness cannot verify which account the
-CLI authenticated with (BRIEF-140).
+CLI authenticated with.
 
 Cache-read semantics differ per provider family and `priceUsage` accounts
 for it: Anthropic's input tokens EXCLUDE cache reads (priced additively);
@@ -195,7 +194,7 @@ jq -r '.cases[] | .caseId as $c | .properties[] | select(.verdict != "unchanged"
 jq '.usage' out/eval-report.json
 ```
 
-## Revision-pair cases (BRIEF-143)
+## Revision-pair cases
 
 `pair-cases/<id>/` = `pair.json` + `expected.ts` (exporting
 `pairProperties`). A pair = a base fixture + a revised fixture + a provably
@@ -216,13 +215,13 @@ built verbatim from this repo's history (daed6dae → db2fe83e → 472b6d7a).
 Mechanical rows (untouched survival, frozen attrs, coverage, id carry,
 anchored stamp) are pipeline guarantees — any failure is a pipeline bug;
 model-judged rows (description updates, verdict transitions, summary
-stability) ride the stable-pass/flaky discipline (BRIEF-74 map).
+stability) ride the stable-pass/flaky discipline.
 
-**No baselines are committed yet** (BRIEF-143 PR 5 lands the source set dry).
+**No baselines are committed yet** — the source set landed dry.
 A pair case without `baseline.json` reports scores with verdicts withheld.
 Recording the first baselines is a deliberate, reviewed step:
 
-1. **Vacuous-pass check first** (BRIEF-59 trap). The shared property
+1. **Vacuous-pass check first.** The shared property
    builders are already shown to FAIL against broken pairs in
    `test/eval-pairs.test.ts` (mechanical evidence, no spend). For the live
    half, run one deliberately broken pass before believing any 5/5:
@@ -254,4 +253,4 @@ Cost expectation: ~$0.16/generation on `anthropic:claude-opus-4-8`
 (2026-07-25 measurement) → a full 11-pair × 5-run recording ≈ 110
 generations ≈ **$17–18** on top of the single-case suite; a scoped
 `--case` pair recording ≈ 10 generations ≈ **$1.60**. Measure, don't
-trust cached totals (the BRIEF-85 lesson).
+trust cached totals.
