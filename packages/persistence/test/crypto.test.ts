@@ -1,7 +1,7 @@
-// Stage 6 token-crypto tests (D11). Cover the security gates: round-trip,
-// tamper/wrong-key auth failure (Result, no throw, no key material leaked), key
-// env validation, IV randomness, and version rejection. Result narrowing uses
-// the repo's `if (!x.ok) throw` pattern so no `expect` is conditional.
+// Token-crypto tests. Cover the security gates: round-trip, tamper/wrong-key
+// auth failure (Result, no throw, no key material leaked), key env validation,
+// IV randomness, and version rejection. Result narrowing uses the repo's
+// `if (!x.ok) throw` pattern so no `expect` is conditional.
 import { randomBytes } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import {

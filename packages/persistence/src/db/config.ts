@@ -1,23 +1,20 @@
-// Persistence env config (ADR 0018 plan — "Implementation choices"). Three
-// knobs, Zod-parsed from an INJECTED env map. This module NEVER reads
-// `process.env` implicitly at import time: `loadConfig(env)` takes the env
-// explicitly so tests are hermetic and the read happens where the caller
-// decides (startup wiring), not as an import side effect.
+// Persistence env config, Zod-parsed from an INJECTED env map. This module
+// NEVER reads `process.env` implicitly at import time: `loadConfig(env)` takes
+// the env explicitly so tests are hermetic and the read happens where the
+// caller decides (startup wiring), not as an import side effect.
 //
 //   DATABASE_URL             required; a postgres(ql):// connection URL.
-//   DATABASE_URL_FILE        optional; path to a file holding the URL
-//                            (compose `secrets:` mount — BRIEF-131). Wins
+//   DATABASE_URL_FILE        optional; path to a file holding the URL. Wins
 //                            over DATABASE_URL with a warning via the
 //                            injected sink; see `dsn.ts`.
-//   PERSIST_BASELINE_SNAPSHOT bool, default TRUE  — self-host default ON (D4).
-//   STORE_DISPLAY_NAMES       bool, default TRUE  — self-host default ON (D1).
-//   MERGEBRIEF_AUTO_MIGRATE   bool, default TRUE  — apply migrations at boot;
-//                             false = check-only (restricted runtime roles,
-//                             BRIEF-131; see db/migrate.ts).
+//   PERSIST_BASELINE_SNAPSHOT bool, default TRUE.
+//   STORE_DISPLAY_NAMES       bool, default TRUE.
+//   MERGEBRIEF_AUTO_MIGRATE   bool, default TRUE — apply migrations at boot;
+//                             false = check-only, for a runtime role without
+//                             DDL; see db/migrate.ts.
 //
-// Defaults encode the SELF-HOST posture (D1/D4): the adopter controls its own
-// code and names, so both minimization gates default OFF-meaning-ON here. The
-// hosted-strict arm flips them via env, no code change.
+// The minimization defaults encode the SELF-HOST posture: the adopter controls
+// its own code and names. A stricter deployment flips them via env.
 import { z } from "zod";
 import type { Result, ValueOf } from "../types";
 import { resolveDatabaseUrl, type ResolveDsnOptions } from "./dsn";
@@ -30,12 +27,12 @@ import { checkDsnTls } from "./tls";
 export interface PersistenceConfig {
   /** Postgres connection URL (`pg` driver, one pool for data + queue). */
   readonly databaseUrl: string;
-  /** D4: persist the `base->checkpoint` baseline snapshot. Self-host: ON. */
+  /** Persist the `base->checkpoint` baseline snapshot. Self-host: ON. */
   readonly persistBaselineSnapshot: boolean;
-  /** D1: keep purgeable display-name columns populated. Self-host: ON. */
+  /** Keep purgeable display-name columns populated. Self-host: ON. */
   readonly storeDisplayNames: boolean;
-  /** BRIEF-131: apply migrations at boot (default) vs check-only refusal —
-   * the posture for a runtime role without DDL. */
+  /** Apply migrations at boot (default) vs check-only refusal — the posture
+   * for a runtime role without DDL. */
   readonly autoMigrate: boolean;
 }
 
@@ -120,8 +117,8 @@ const ConfigSchema = z.object({
 // Loader.
 // ---------------------------------------------------------------------------
 
-/** Injectable collaborators for `loadConfig` (BRIEF-131): the secret-file
- * reader and the warning sink `dsn.ts` documents. */
+/** Injectable collaborators for `loadConfig`: the secret-file reader and the
+ * warning sink `dsn.ts` documents. */
 export type LoadConfigOptions = ResolveDsnOptions;
 
 /**
@@ -163,9 +160,8 @@ export function loadConfig(
       },
     };
   }
-  // TLS explicit-or-refuse (BRIEF-131): runs on the RESOLVED DSN (env or
-  // file), after scheme validation — see `tls.ts` for the rule and its
-  // loopback exemption.
+  // TLS explicit-or-refuse: runs on the RESOLVED DSN (env or file), after
+  // scheme validation — see `tls.ts` for the rule and its loopback exemption.
   const tls = checkDsnTls(parsed.data.DATABASE_URL);
   if (!tls.ok) {
     return {

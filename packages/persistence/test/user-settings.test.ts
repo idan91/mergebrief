@@ -1,4 +1,4 @@
-// BRIEF-19 user_settings tests (PGlite). Prove the D14 NON-tenant boundary: a row
+// user_settings tests (PGlite). Prove the NON-tenant boundary: a row
 // keyed by GitHub user id, readable/writable WITHOUT a tenant ctx, that
 // survives session deletion (the whole point — a default that outlives any one
 // session). Idempotent upsert of the default installation.
@@ -17,7 +17,7 @@ const USER: ReviewerId = brandWith(isReviewerId, 31337n);
 const INSTALL_A: InstallationId = brandWith(isInstallationId, 1000n);
 const INSTALL_B: InstallationId = brandWith(isInstallationId, 2000n);
 
-describe("userSettingsStore — the non-tenant per-user seam (D14)", () => {
+describe("userSettingsStore — the non-tenant per-user seam", () => {
   it("get returns undefined for a user with no settings row", async () => {
     const handle = await freshDatabase();
     expect(await userSettingsStore(handle).get(USER)).toBeUndefined();
@@ -68,7 +68,7 @@ describe("userSettingsStore — the non-tenant per-user seam (D14)", () => {
       }).sessions.deleteByReviewer(USER),
     ).toBe(1);
 
-    // The settings row is untouched — no FK, no tenant scope (D14).
+    // The settings row is untouched — no FK, no tenant scope.
     expect((await store.get(USER))?.defaultInstallationId).toBe(INSTALL_A);
   });
 

@@ -1,4 +1,4 @@
-// BRIEF-131: check-only ledger comparison (`MERGEBRIEF_AUTO_MIGRATE=false`).
+// Check-only ledger comparison (`MERGEBRIEF_AUTO_MIGRATE=false`).
 // The check reads `drizzle.__drizzle_migrations` and compares against the
 // checked-in `drizzle/meta/_journal.json` — read-only, for deployments whose
 // runtime role has no DDL. Matrix: current / behind / ahead-of-journal /
@@ -106,8 +106,8 @@ describe("migration check — checkAppSchemaWith", () => {
   });
 });
 
-// The startup dispatch boundary itself (BRIEF-131 review finding): apply-vs-check
-// selection and refusal propagation, pinned via the injectable deps.
+// The startup dispatch boundary itself: apply-vs-check selection and refusal
+// propagation, pinned via the injectable deps.
 describe("migration check — ensureAppSchema dispatch", () => {
   const URL = "postgres://user:pass@localhost:5432/app";
   const REFUSAL: SchemaCheckError = {

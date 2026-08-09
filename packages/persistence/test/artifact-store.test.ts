@@ -1,8 +1,7 @@
-// Stage 4 ArtifactStore tests (PGlite). Prove the D6 write paths: idempotent
-// content-addressed writes (same span → one row, body updated in place),
-// cross-tenant rejection without a DB write, the D12 brief-anchoring for
-// revision_narrative, and the D13 coordinates-only Zod guard on
-// comparison_marks.
+// ArtifactStore tests (PGlite): idempotent content-addressed writes (same
+// span → one row, body updated in place), cross-tenant rejection without a DB
+// write, brief-anchoring for revision_narrative, and the coordinates-only Zod
+// guard on comparison_marks.
 import { describe, expect, it } from "vitest";
 import {
   artifactStore,
@@ -42,7 +41,7 @@ function validMarks(baselineSha: string, headSha: string) {
   };
 }
 
-describe("artifactStore.briefs — idempotent content-addressed write (D6)", () => {
+describe("artifactStore.briefs — idempotent content-addressed write", () => {
   it("rewrites the same span in place — one row, body updated", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
@@ -129,7 +128,7 @@ describe("artifactStore.briefs — idempotent content-addressed write (D6)", () 
   });
 });
 
-describe("artifactStore.briefs — anchor origin columns (BRIEF-143)", () => {
+describe("artifactStore.briefs — anchor origin columns", () => {
   it("round-trips anchor state + reason and updates them on rewrite", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
@@ -233,7 +232,7 @@ describe("artifactStore.briefs — anchor origin columns (BRIEF-143)", () => {
   });
 });
 
-describe("artifactStore.deltas / diffSnapshots — same D6 write discipline", () => {
+describe("artifactStore.deltas / diffSnapshots — same write discipline", () => {
   it("delta: idempotent span rewrite, origin written, cross-tenant rejected", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
@@ -352,7 +351,7 @@ describe("artifactStore — cross-tenant write is rejected without a DB write", 
   });
 });
 
-describe("artifactStore.revisionNarratives — D12 brief anchoring", () => {
+describe("artifactStore.revisionNarratives — brief anchoring", () => {
   it("rejects a briefId that belongs to another PR/tenant, no row written", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
@@ -434,7 +433,7 @@ describe("artifactStore.revisionNarratives — D12 brief anchoring", () => {
   });
 });
 
-describe("artifactStore.comparisonMarks — D13 coordinates-only guard", () => {
+describe("artifactStore.comparisonMarks — coordinates-only guard", () => {
   it("rejects a body carrying baselineLabel (extra key)", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);

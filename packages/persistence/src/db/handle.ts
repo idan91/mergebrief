@@ -1,18 +1,15 @@
-// Internal database module (D2b compile-time containment). `createDb` is the
-// ONLY way to obtain a live handle, and it returns the OPAQUE `AppDatabase`
-// wrapper — never the raw drizzle instance. The wrapper's sole public shape is
-// a module-private symbol, so an external caller cannot reach the drizzle
-// query methods (`.select`, `.insert`, `.transaction`); the only thing they can
-// do with an `AppDatabase` is hand it to `forTenant`. `internal()` (the unwrap)
-// is exported for the package's own tenant-scoped surface (`tenant.ts`, and the
-// stage-4 `artifact-store.ts`) but is deliberately NOT re-exported from
-// `index.ts`, so it never reaches package consumers.
+// Internal database module — compile-time tenancy containment. `createDb` is
+// the ONLY way to obtain a live handle, and it returns the OPAQUE `AppDatabase`
+// wrapper, never the raw drizzle instance. The wrapper's sole public shape is
+// a module-private symbol, so an external caller cannot reach the drizzle query
+// methods; all they can do with an `AppDatabase` is hand it to `forTenant`.
+// `internal()` (the unwrap) is for the package's own tenant-scoped surface and
+// must NEVER be re-exported from `index.ts`.
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 import * as schema from "../schema/index";
 
-/** The app's full schema (the 11 M1 tables). */
 export type AppSchema = typeof schema;
 
 /**
@@ -33,7 +30,7 @@ interface DbCore {
 
 /**
  * Opaque database handle. Its only property is a module-private symbol, so
- * externally it exposes no queryable surface — the compile-time half of D2b.
+ * externally it exposes no queryable surface.
  */
 export interface AppDatabase {
   readonly [INTERNAL]: DbCore;
@@ -42,13 +39,10 @@ export interface AppDatabase {
 export interface CreateDbOptions {
   /**
    * Pool-level error observer. pg's `Pool` emits `'error'` for failures on
-   * IDLE clients — e.g. the server terminating connections during a restart
-   * — and with no listener Node's unhandled-'error' default takes the whole
-   * process down, which the /healthz liveness contract forbids (ADR 0034
-   * #7: the web tier must stay alive through a DB blip; /readyz is what
-   * reports unavailability). Omitted → the error is dropped here on purpose:
-   * the NEXT query fails loudly through its own path, so nothing is lost
-   * except the crash.
+   * IDLE clients, and with no listener Node's unhandled-'error' default takes
+   * the whole process down — the liveness contract requires the web tier to
+   * survive a DB blip (/readyz reports unavailability). Omitted → the error is
+   * dropped on purpose: the NEXT query fails loudly through its own path.
    */
   readonly onError?: (error: Error) => void;
 }
@@ -89,10 +83,9 @@ export async function closeDb(handle: AppDatabase): Promise<void> {
 }
 
 /**
- * Readiness probe (BRIEF-51, ADR 0034 #7): one `SELECT 1` round-trip through
- * the handle. `false` — never a throw — when the database is unreachable; an
- * unreachable database is the EXPECTED failure a /readyz caller reports as
- * 503, not a programmer error.
+ * Readiness probe: one `SELECT 1` round-trip through the handle. `false` —
+ * never a throw — when the database is unreachable; that is an EXPECTED
+ * failure a /readyz caller reports as 503, not a programmer error.
  */
 export async function pingDb(handle: AppDatabase): Promise<boolean> {
   try {

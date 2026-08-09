@@ -1,18 +1,16 @@
-// `audit_log` — the append-only SOC2-readiness boundary (D9). NO outbound FKs
-// (audit must survive the target's deletion), numeric-only (never purged,
-// so it must hold nothing identifying — no names, no route/method/headers/
-// IP), never swept by retention (D5). Append-only is convention in M1; the
-// REVOKE UPDATE/DELETE hardening is documented (commented out) in the
-// raw-sql-hardening migration.
+// `audit_log` — the append-only compliance boundary. NO outbound FKs (audit
+// must survive the target's deletion), numeric-only (never purged, so it must
+// hold nothing identifying — no names, no route/method/headers/IP), never
+// swept by retention. Append-only is convention; the REVOKE UPDATE/DELETE
+// hardening is documented (commented out) in the raw-sql-hardening migration.
 //
-// `target_type` is intentionally NOT a closed vocabulary — D9 leaves it
-// open-ended ("pull_request | brief | delta | installation | ...").
+// `target_type` is intentionally NOT a closed vocabulary.
 import { bigint, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import type { AuditAction, AuditActorType, InstallationId } from "../types";
 
 export const auditLog = pgTable("audit_log", {
   id: bigint("id", { mode: "bigint" }).generatedAlwaysAsIdentity().primaryKey(),
-  /** Tenant scope; plain column, NOT an FK (D9). */
+  /** Tenant scope; plain column, NOT an FK. */
   installationId: bigint("installation_id", { mode: "bigint" })
     .$type<InstallationId>()
     .notNull(),

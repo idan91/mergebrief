@@ -1,5 +1,5 @@
-// Key-completeness invariant for the snapshot cache (BRIEF-114, #208 review):
-// every migration input must move the key. If a change to the migrations
+// Key-completeness invariant for the snapshot cache: every migration input
+// must move the key. If a change to the migrations
 // directory can leave the key unchanged, a warm cache serves a stale schema —
 // silently, and only on machines that had the old snapshot.
 import {

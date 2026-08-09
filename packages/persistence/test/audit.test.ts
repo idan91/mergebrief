@@ -1,5 +1,5 @@
-// Stage 4 audit-emit tests (PGlite). Prove the D9 append-only emit inserts with
-// dangling (non-FK) targets and validates metadata.
+// Audit-emit tests (PGlite): the append-only emit inserts with dangling
+// (non-FK) targets and validates metadata.
 import { describe, expect, it } from "vitest";
 import {
   audit,
@@ -17,7 +17,7 @@ import { brandWith, freshDatabase } from "./helpers";
 
 const TENANT: InstallationId = brandWith(isInstallationId, 1000n);
 
-describe("audit — append-only emit (D9)", () => {
+describe("audit — append-only emit", () => {
   it("inserts a generate emit with a dangling numeric target (no FK)", async () => {
     const handle = await freshDatabase();
     const entry: AuditEntry = {
@@ -50,7 +50,7 @@ describe("audit — append-only emit (D9)", () => {
     expect(row.targetType).toBeNull();
   });
 
-  it("records a review submit as action=submit against the CHECK vocabulary (BRIEF-23)", async () => {
+  it("records a review submit as action=submit against the CHECK vocabulary", async () => {
     const handle = await freshDatabase();
     const row = await audit(handle, {
       installationId: TENANT,
@@ -64,7 +64,7 @@ describe("audit — append-only emit (D9)", () => {
     expect(row.action).toBe("submit");
   });
 
-  it("records thread resolution flips against the CHECK vocabulary (BRIEF-93)", async () => {
+  it("records thread resolution flips against the CHECK vocabulary", async () => {
     // Both directions must clear the DB CHECK constraint (migration 0014, in
     // lockstep with `AuditAction` — the 0007/0010 pattern).
     const handle = await freshDatabase();

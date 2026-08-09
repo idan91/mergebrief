@@ -1,5 +1,5 @@
-// API-token boundary tests (BRIEF-17 PR 1 — ADR 0016 #4 as amended, re-anchored
-// by D15/BRIEF-40). Exercises the `api_token` schema and the PRE-TENANT,
+// API-token boundary tests. Exercises the `api_token` schema and the
+// PRE-TENANT,
 // hash-keyed `tokenAuth` resolver against real migrations on PGlite,
 // mirroring `session.test.ts`. Credential rotation lives on the grant boundary —
 // see grant.test.ts.
@@ -184,7 +184,7 @@ describe("tokenAuth mint / resolve / touch", () => {
     expect(resolved.value.token).not.toHaveProperty("ghTokenCiphertext");
   });
 
-  it("settings-facing results carry NO secret-bearing columns (codex R1)", async () => {
+  it("settings-facing results carry NO secret-bearing columns", async () => {
     const auth = tokenAuth(handle);
     const minted = await auth.mintToken(mintInput(grant));
     const listed = await auth.listForUser(USER);
@@ -288,8 +288,8 @@ describe("tokenAuth list / revoke", () => {
     expect(resolved.error.code).toBe(TokenAuthErrorCode.REVOKED);
 
     // Still listable (the settings list stays honest after revocation), and
-    // the soft revoke KEEPS the grant reference (D15: only hard deletes
-    // orphan-clean).
+    // the soft revoke KEEPS the grant reference — only hard deletes
+    // orphan-clean.
     const listed = await auth.listForUser(USER);
     expect(listed).toHaveLength(1);
     expect(listed[0]?.revokedAt).toEqual(NOW);
@@ -318,8 +318,8 @@ describe("tokenAuth list / revoke", () => {
   });
 });
 
-describe("tokenAuth.mintToken audit atomicity (codex PR2 R1)", () => {
-  it("mint emits its D9 auth audit row in the same transaction", async () => {
+describe("tokenAuth.mintToken audit atomicity", () => {
+  it("mint emits its auth audit row in the same transaction", async () => {
     const handle = await freshDatabase();
     const grant = await seedGrant(handle);
     await tokenAuth(handle).mintToken(mintInput(grant));

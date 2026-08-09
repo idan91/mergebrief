@@ -1,10 +1,9 @@
-// `generation` — mutable CQRS status projection of a worker job (D10).
-// NOT a queue, NOT a lock, NOT a domain entity: graphile-worker deletes
-// succeeded jobs, so the web tier polls this instead. `kind` includes
-// `revision-narrative` (D12). The unique key is NULLS NOT DISTINCT because
+// `generation` — mutable status projection of a worker job. NOT a queue, NOT
+// a lock, NOT a domain entity: graphile-worker deletes succeeded jobs, so the
+// web tier polls this instead. The unique key is NULLS NOT DISTINCT because
 // `baseline_sha` is null for briefs — without it Postgres would treat every
-// brief row as distinct and the single-row-per-key upsert (D10 transitions)
-// could never conflict.
+// brief row as distinct and the single-row-per-key upsert could never
+// conflict.
 import {
   bigint,
   integer,
@@ -40,10 +39,10 @@ export const generation = pgTable(
     /** Sanitized reason when failed. */
     error: text("error"),
     /**
-     * Repo-config per-file origin (ADR 0032 #8): JSON `{files, collisions}`
-     * written right after acquisition — BEFORE generation — so failed and
-     * superseded runs still show `invalid`/`over-budget`/`fetch-failed`
-     * outcomes. The policy snapshot lives on the brief artifact, not here.
+     * Repo-config per-file origin: JSON `{files, collisions}` written right
+     * after acquisition — BEFORE generation — so failed and superseded runs
+     * still show their outcomes. The policy snapshot lives on the brief
+     * artifact, not here.
      */
     repoConfig: text("repo_config"),
     attempts: integer("attempts").notNull().default(0),

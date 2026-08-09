@@ -1,9 +1,9 @@
-// `reviewer_session` — the cookie-channel session adapter (D11). The
-// credential itself lives on `github_grant` (D15) — this row only references
-// it, so no ciphertext copy can diverge from the pair. Per
-// (installation, reviewer) — deliberately NOT FK'd to `pull_request`.
-// Cleared by TTL sweep, logout, and the installation-purge routine (D5);
-// every delete path orphan-cleans the grant (auth/grant.ts).
+// `reviewer_session` — the cookie-channel session adapter. The credential
+// itself lives on `github_grant` — this row only references it, so no
+// ciphertext copy can diverge from the pair. Per (installation, reviewer) —
+// deliberately NOT FK'd to `pull_request`. Cleared by TTL sweep, logout, and
+// the installation-purge routine; every delete path orphan-cleans the grant
+// (auth/grant.ts).
 import { bigint, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import type { GrantRowId, ReviewerId } from "../types";
 import { githubGrant } from "./github-grant";
@@ -18,9 +18,9 @@ export const reviewerSession = pgTable(
     reviewerId: bigint("reviewer_id", { mode: "bigint" })
       .$type<ReviewerId>()
       .notNull(),
-    /** Purgeable display label (D1). */
+    /** Purgeable display label. */
     reviewerLogin: text("reviewer_login"),
-    /** The GitHub credential pair lives on the grant row (D15). */
+    /** The GitHub credential pair lives on the grant row. */
     grantId: bigint("grant_id", { mode: "bigint" })
       .$type<GrantRowId>()
       .notNull()

@@ -1,29 +1,19 @@
-// GitHub OAuth token encryption for `reviewer_session.gh_token_ciphertext`
-// (ADR 0018 D11). AES-256-GCM (authenticated encryption) behind a key-provider
-// interface, matching the identity/generator ports elsewhere in the system.
+// GitHub OAuth token encryption for `reviewer_session.gh_token_ciphertext`.
+// AES-256-GCM (authenticated encryption) behind a key-provider interface.
 //
-// ENCRYPTION MODEL (D11 / ADR 0016 #7): DIRECT encryption with a
-// provider-resolved key — NOT a per-row envelope DEK. Reviewer tokens are
-// short-lived and deleted on expiry/logout, so key rotation rides on natural
-// token churn: publish `SESSION_KEY_V2`, point new sessions' `key_ref` at it,
-// and old ciphertext ages out on its own. A full per-row envelope DEK is the
-// documented hardening reserved for a future *long-lived* secret.
+// ENCRYPTION MODEL: DIRECT encryption with a provider-resolved key — NOT a
+// per-row envelope DEK. Reviewer tokens are short-lived and deleted on
+// expiry/logout, so rotation rides on natural token churn.
 //
-// KEY ROTATION WITHOUT A MIGRATION: `key_ref` is a stored column on every
-// `reviewer_session` row (D11), and it travels into `decryptToken`. The row
-// itself names the key that sealed it, so adding `SESSION_KEY_V2` is a config
-// change (new env var + resolve it) with ZERO schema change — v1 rows keep
-// decrypting under `key_ref = "SESSION_KEY_V1"` while new rows seal under v2.
+// KEY ROTATION WITHOUT A MIGRATION: every row stores the `key_ref` that sealed
+// it and passes it back into `decryptToken`, so publishing a new key is a
+// config change only — old rows keep decrypting under their own `key_ref`.
 //
-// KEY PROVIDER SEAM: `resolveKey(keyRef)` is the swap point. M1 ships
-// `envKeyProvider` (keyRef -> env var -> base64 32 bytes). The hosted arm can
-// drop in a KMS-backed provider without touching call sites; `resolveKey`
-// returns a `MaybePromise` precisely so an async KMS lookup needs no signature
-// churn here (`encryptToken`/`decryptToken` already `await` it).
+// KEY PROVIDER SEAM: `resolveKey(keyRef)` is the swap point; it returns a
+// `MaybePromise` so an async (KMS) provider drops in without call-site change.
 //
 // SECURITY: every expected failure is a `Result`, never a throw, and NO error
-// message ever contains plaintext or key material — an auth-tag mismatch,
-// malformed input, or unknown version all return opaque, safe-to-log errors.
+// message ever contains plaintext or key material.
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import type { MaybePromise, Result, ValueOf } from "../types";
 
@@ -44,7 +34,7 @@ const VERSION = "v1";
 const SEPARATOR = ".";
 
 // ---------------------------------------------------------------------------
-// Key provider interface + its M1 env implementation.
+// Key provider interface + its env implementation.
 // ---------------------------------------------------------------------------
 
 /** Why a key could not be resolved. No value/material is ever surfaced. */
@@ -65,9 +55,9 @@ export interface KeyError {
 }
 
 /**
- * The key-resolution interface (ADR 0016 #7: env -> KMS). `resolveKey` maps a
- * `keyRef` to raw 32 key bytes, or a `KeyError`. Returns a `MaybePromise` so a
- * future async provider (KMS) is a drop-in with no call-site change.
+ * The key-resolution interface. `resolveKey` maps a `keyRef` to raw 32 key
+ * bytes, or a `KeyError`. Returns a `MaybePromise` so a future async provider
+ * (KMS) is a drop-in with no call-site change.
  */
 export interface KeyProvider {
   resolveKey(keyRef: string): MaybePromise<Result<Buffer, KeyError>>;
@@ -77,10 +67,9 @@ export interface KeyProvider {
 type EnvSource = Record<string, string | undefined>;
 
 /**
- * M1 key provider: `keyRef` is an env var name (e.g. `"SESSION_KEY_V1"`) whose
+ * Env key provider: `keyRef` is an env var name (e.g. `"SESSION_KEY_V1"`) whose
  * value is base64-encoded 32 bytes. Missing / non-base64 / wrong-length all
- * yield a `KeyError` (never a throw). `env` defaults to `process.env` but is
- * injectable for tests.
+ * yield a `KeyError` (never a throw).
  */
 export function envKeyProvider(env: EnvSource = process.env): KeyProvider {
   return {

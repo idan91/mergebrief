@@ -1,17 +1,13 @@
-// Programmatic app-schema migration (BRIEF-3 Part 1). The checked-in
-// `drizzle/` SQL has so far been applied via the `drizzle-kit migrate` CLI
-// (dev) or the PGlite migrator (tests); the long-lived worker and the compose
-// composition roots need the same thing at BOOT, idempotently, without
-// shelling out to drizzle-kit. This wraps drizzle-orm's node-postgres migrator
-// over the package-owned migrations folder — the folder stays owned by THIS
-// package, so a consumer never needs to know where the SQL lives.
+// Programmatic app-schema migration at BOOT, without shelling out to
+// drizzle-kit. Wraps drizzle-orm's node-postgres migrator over the
+// package-owned migrations folder, so a consumer never needs to know where the
+// SQL lives.
 //
 // Idempotent by construction: drizzle records applied migrations in
 // `drizzle.__drizzle_migrations` and no-ops when current — safe for every
-// process to call at startup (mirrors `migrateQueue`'s contract in
-// `packages/api/src/queue.ts`). Scoped to the app schema only: the
+// process to call at startup. Scoped to the app schema only: the
 // `graphile_worker` schema is graphile-owned and migrated by graphile's own
-// `runMigrations`, never here (see AGENTS.md — drizzle must not manage it).
+// `runMigrations`, never here — drizzle must not manage it.
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -81,7 +77,7 @@ export async function migrateApp(databaseUrl: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Check-only mode (BRIEF-131): `MERGEBRIEF_AUTO_MIGRATE=false`.
+// Check-only mode: `MERGEBRIEF_AUTO_MIGRATE=false`.
 //
 // Deployments whose RUNTIME role has no DDL (managed Postgres, least
 // privilege) cannot let the boot path apply migrations. Check-only compares
@@ -212,7 +208,7 @@ export interface EnsureAppSchemaDeps {
 }
 
 /**
- * The one boot-time boundary both startup-wiring paths call (BRIEF-131): apply the
+ * The one boot-time boundary both startup-wiring paths call: apply the
  * app-schema migrations, or — under `MERGEBRIEF_AUTO_MIGRATE=false` — verify
  * read-only that nothing is pending. The returned error is the operator
  * refusal; infra failures still throw.

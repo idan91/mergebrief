@@ -1,23 +1,19 @@
-// TLS explicit-or-refuse (BRIEF-131). An external Postgres DSN must carry an
-// explicit `sslmode` parameter — a managed-DB connection silently running
-// plaintext (or unverified TLS) is exactly the misconfiguration an operator
-// never notices. The DSN is the whole config surface: `pg` itself already
-// honors `sslmode`/`sslrootcert` via pg-connection-string, so the gate only
-// enforces that a CHOICE was made, never how to connect.
+// TLS explicit-or-refuse. An external Postgres DSN must carry an explicit
+// `sslmode` parameter — a managed-DB connection silently running plaintext (or
+// unverified TLS) is the misconfiguration an operator never notices. The gate
+// only enforces that a CHOICE was made; `pg` itself honors the parameters.
 //
 // Loopback and unix-socket hosts are exempt: traffic that never leaves the
-// machine (the all-in-one compose, dev) has nothing to encrypt.
+// machine has nothing to encrypt.
 //
-// node-postgres trap, documented for operators in docs/self-host/compose.md:
-// with pg 8.x / pg-connection-string 2.x, `sslmode=require`/`prefer`/
-// `verify-ca` are treated as ALIASES for verify-full (a security warning is
-// emitted); pg v9 adopts libpq semantics where `require` does NOT verify
-// certificates. Real verification is `verify-full` — plus `sslrootcert=/path`
-// when the provider's CA is not in the system store.
-// Lockstep note: this package's `pg-connection-string` dependency must keep
-// resolving to the same version pg itself bundles — the gate's soundness
-// rests on classifying the DSN exactly as the driver will parse it (host
-// query-param precedence, repeated-param last-wins, sslmode handling).
+// node-postgres trap: with pg 8.x / pg-connection-string 2.x,
+// `sslmode=require`/`prefer`/`verify-ca` are ALIASES for verify-full; pg v9
+// adopts libpq semantics where `require` does NOT verify certificates. Real
+// verification is `verify-full`, plus `sslrootcert=/path` when the provider's
+// CA is not in the system store.
+// This package's `pg-connection-string` must keep resolving to the version pg
+// itself bundles — the gate's soundness rests on classifying the DSN exactly
+// as the driver will parse it.
 import { parse } from "pg-connection-string";
 import type { Result } from "../types";
 

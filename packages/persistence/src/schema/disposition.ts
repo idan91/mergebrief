@@ -1,7 +1,6 @@
-// `disposition` — an anchored reviewer decision on a risk-surface flag
-// (D7). Table ships in M1; ROWS are written in M2 (engagement write-side).
+// `disposition` — an anchored reviewer decision on a risk-surface flag.
 // Anchored by content coordinates (file/attribute/region/sha), never a
-// brief-local id — those dangle on regeneration. M1 shape covers only
+// brief-local id — those dangle on regeneration. Current shape covers only
 // region-anchored flags (region NOT NULL).
 import {
   bigint,
@@ -30,7 +29,7 @@ export const disposition = pgTable(
     reviewerId: bigint("reviewer_id", { mode: "bigint" })
       .$type<ReviewerId>()
       .notNull(),
-    /** Canonical within an artifact; rename-stable id is M2. */
+    /** Canonical within an artifact; not rename-stable. */
     filePath: text("file_path").notNull(),
     /** The risk-surface attribute token — the Flag's identity. */
     attribute: text("attribute").notNull(),

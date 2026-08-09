@@ -1,7 +1,7 @@
-// Stage 2 schema tests: apply the checked-in migrations to a fresh PGlite
-// instance and prove the ADR 0018 decisions — table inventory, natural-key
-// uniqueness, the D5 erasure cascade (and its deliberate survivors), the
-// D12 brief_id cascade, and the D9 no-FK audit ledger.
+// Schema tests: apply the checked-in migrations to a fresh PGlite instance
+// and prove the table inventory, natural-key uniqueness, the erasure cascade
+// (and its deliberate survivors), the brief_id cascade, and the no-FK audit
+// ledger.
 import { eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
 import { describe, expect, it } from "vitest";
@@ -329,8 +329,8 @@ describe("M1 schema migrations", () => {
       await db.select({ id: generation.id }).from(generation),
     ).toHaveLength(0);
 
-    // Deliberate survivors: the audit ledger (D9, no FKs) and the
-    // per-(installation, reviewer) session (D11, not FK'd to pull_request).
+    // Deliberate survivors: the audit ledger (no FKs) and the
+    // per-(installation, reviewer) session (not FK'd to pull_request).
     expect(await db.select({ id: auditLog.id }).from(auditLog)).toHaveLength(1);
     expect(
       await db.select({ id: reviewerSession.id }).from(reviewerSession),
@@ -397,7 +397,7 @@ async function expectCheckViolation(
   expect(found, `no error in the cause chain names ${constraint}`).toBe(true);
 }
 
-describe("closed-vocabulary + shape CHECK constraints (PR #23 review)", () => {
+describe("closed-vocabulary + shape CHECK constraints", () => {
   it("rejects an out-of-vocabulary pull_request.state at the DB", async () => {
     const db = await freshDb();
     await expectCheckViolation(
@@ -474,7 +474,7 @@ describe("closed-vocabulary + shape CHECK constraints (PR #23 review)", () => {
     );
   });
 
-  it("accepts audit_log.action 'submit' after the 0007 vocab swap (BRIEF-23)", async () => {
+  it("accepts audit_log.action 'submit' after the 0007 vocab swap", async () => {
     const db = await freshDb();
     await db.execute(
       sql`insert into audit_log (installation_id, actor_type, action) values (1000, 'reviewer', 'submit')`,
@@ -486,7 +486,7 @@ describe("closed-vocabulary + shape CHECK constraints (PR #23 review)", () => {
   it("accepts generation.status 'superseded' after the 0003 vocab swap", async () => {
     const db = await freshDb();
     const prId = await insertPullRequest(db);
-    // In-vocab (BRIEF-2) — the migration-0003 CHECK swap admits it.
+    // In-vocab — the migration-0003 CHECK swap admits it.
     await db.execute(
       sql`insert into generation (installation_id, pull_request_id, kind, head_sha, status) values (1000, ${prId}, 'brief', 'head', 'superseded')`,
     );
@@ -497,7 +497,7 @@ describe("closed-vocabulary + shape CHECK constraints (PR #23 review)", () => {
   });
 });
 
-describe("BRIEF-2 schema additions (migration 0003)", () => {
+describe("schema additions (migration 0003)", () => {
   it("pull_request.entry_comment_id is selectable and defaults to null (no writer)", async () => {
     const db = await freshDb();
     const prId = await insertPullRequest(db);
@@ -509,7 +509,7 @@ describe("BRIEF-2 schema additions (migration 0003)", () => {
     expect(rows[0]?.entryCommentId).toBeNull();
   });
 
-  it("rejects a reviewer_session insert omitting grant_id (NOT NULL, D15)", async () => {
+  it("rejects a reviewer_session insert omitting grant_id (NOT NULL)", async () => {
     const db = await freshDb();
     await expectCheckViolation(
       db.execute(
@@ -519,7 +519,7 @@ describe("BRIEF-2 schema additions (migration 0003)", () => {
     );
   });
 
-  it("rejects a github_grant insert omitting gh_refresh_token_ciphertext (NOT NULL, D15)", async () => {
+  it("rejects a github_grant insert omitting gh_refresh_token_ciphertext (NOT NULL)", async () => {
     const db = await freshDb();
     await expectCheckViolation(
       db.execute(

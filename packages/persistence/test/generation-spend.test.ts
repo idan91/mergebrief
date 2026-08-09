@@ -1,4 +1,4 @@
-// BRIEF-20 spend-cap counter: the repo-scoped, UTC-day-windowed count of
+// Spend-cap counter: the repo-scoped, UTC-day-windowed count of
 // generation runs that STARTED, plus the terminal `capped` transition. The
 // boundary cases (23:59:59.999 vs 00:00:00.000) are the whole point of the
 // half-open window, so `created_at` is backdated through the raw harness

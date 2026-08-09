@@ -1,5 +1,5 @@
-// Stage 5 purge + retention tests (PGlite). Prove the D5/D9/D11 deletion boundary:
-// a PR purge cascades all 8 child tables while sparing the no-FK audit ledger
+// Purge + retention tests (PGlite). Prove the deletion boundary: a PR purge
+// cascades all 8 child tables while sparing the no-FK audit ledger
 // (an appended `delete` row proves survival) and the non-PR reviewer_session;
 // cross-tenant purge is a Result `notFound` with nothing deleted;
 // installation purge is tenant-isolated with audit_log retained; the retention
@@ -49,7 +49,7 @@ import {
 } from "../src/types";
 import { brandWith, freshPglite } from "./helpers";
 
-/** Seed one grant row (D15) so secret-bearing referents can link it. */
+/** Seed one grant row so secret-bearing referents can link it. */
 async function insertGrant(db: Db): Promise<GrantRowId> {
   const rows = await db
     .insert(githubGrant)
@@ -231,7 +231,7 @@ async function seedFullGraph(
     targetId: pullRequestId,
     metadata: { kind: "brief" },
   });
-  // The one non-PR table (D11) — must survive a PR-scoped purge.
+  // The one non-PR table — must survive a PR-scoped purge.
   await db.insert(reviewerSession).values({
     installationId,
     sessionTokenHash: `sha256:${installationId}:${pullRequestId}`,
@@ -287,7 +287,7 @@ async function deleteAudits(db: Db, installationId: InstallationId) {
     );
 }
 
-describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival (D5/D9)", () => {
+describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival", () => {
   let pair: Pair;
   let prId: PullRequestRowId;
 
@@ -313,7 +313,7 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival (D5/
       await pair.raw.select({ id: pullRequest.id }).from(pullRequest),
     ).toHaveLength(0);
 
-    // Survivors: the non-PR session (D11) and the whole audit ledger (D9).
+    // Survivors: the non-PR session and the whole audit ledger.
     expect(
       await pair.raw.select({ id: reviewerSession.id }).from(reviewerSession),
     ).toHaveLength(1);
@@ -349,7 +349,7 @@ describe("purgeRoutines.purgePullRequest — cascade + no-FK audit survival (D5/
   });
 });
 
-describe("purgeRoutines.purgeRepo — scoped predicate-delete (D5)", () => {
+describe("purgeRoutines.purgeRepo — scoped predicate-delete", () => {
   it("purges only the named repo's PRs and returns the count", async () => {
     const { raw, handle } = await freshPair();
     const pr1 = await insertPr(raw, {
@@ -386,7 +386,7 @@ describe("purgeRoutines.purgeRepo — scoped predicate-delete (D5)", () => {
   });
 });
 
-describe("purgeRoutines.purgeRepos — set-based multi-repo purge (D5)", () => {
+describe("purgeRoutines.purgeRepos — set-based multi-repo purge", () => {
   it("purges every named repo in one tx, one audit entry per repo, count-0 included", async () => {
     const { raw, handle } = await freshPair();
     const a1 = await insertPr(raw, {
@@ -438,15 +438,15 @@ describe("purgeRoutines.purgeRepos — set-based multi-repo purge (D5)", () => {
   });
 });
 
-describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D11)", () => {
+describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding", () => {
   it("removes tenant A's PRs + sessions + api tokens only; B untouched; audit_log retained", async () => {
     const { raw, handle } = await freshPair();
     const aPr = await insertPr(raw, { installationId: TENANT_A, prNumber: 1 });
     const bPr = await insertPr(raw, { installationId: TENANT_B, prNumber: 1 });
     await seedFullGraph(raw, TENANT_A, aPr);
     await seedFullGraph(raw, TENANT_B, bPr);
-    // The second non-PR secret-bearing table (BRIEF-17): installation-bound
-    // API tokens must die with the tenant, like sessions.
+    // The second non-PR secret-bearing table: installation-bound API tokens
+    // must die with the tenant, like sessions.
     for (const [installationId, hash] of [
       [TENANT_A, "e".repeat(64)],
       [TENANT_B, "f".repeat(64)],
@@ -480,7 +480,7 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D1
       .from(apiToken);
     expect(tokens).toHaveLength(1);
     expect(tokens[0]?.installationId).toBe(TENANT_B);
-    // D15: the purged referents' grants died with them; B's two remain.
+    // The purged referents' grants died with them; B's two remain.
     expect(
       await raw.select({ id: githubGrant.id }).from(githubGrant),
     ).toHaveLength(2);
@@ -500,7 +500,7 @@ describe("purgeRoutines.purgeInstallation — tenant-isolated offboarding (D5/D1
   });
 });
 
-describe("purgeRoutines.sweepExpired — retention sweep (D5)", () => {
+describe("purgeRoutines.sweepExpired — retention sweep", () => {
   it("removes only expired, non-null, in-tenant rows and audits the count", async () => {
     const { raw, handle } = await freshPair();
     const now = new Date("2026-07-04T00:00:00Z");
@@ -549,7 +549,7 @@ describe("purgeRoutines.sweepExpired — retention sweep (D5)", () => {
     expect(await deleteAudits(raw, TENANT_B)).toHaveLength(0);
   });
 
-  it("emits no audit entry when the sweep erases nothing (D9 low-volume rule)", async () => {
+  it("emits no audit entry when the sweep erases nothing", async () => {
     const { raw, handle } = await freshPair();
     await insertPr(raw, { installationId: TENANT_A, prNumber: 1 }); // null purge_after
     const purged = await purgeRoutines(handle, CTX_A).sweepExpired(new Date());
@@ -558,7 +558,7 @@ describe("purgeRoutines.sweepExpired — retention sweep (D5)", () => {
   });
 });
 
-describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
+describe("purgeRoutines.setRetention — purge_after semantics", () => {
   it("sets purge_after = closedAt + grace and stamps closed_at", async () => {
     const { raw, handle } = await freshPair();
     const closedAt = new Date("2026-07-01T00:00:00Z");
@@ -641,7 +641,7 @@ describe("purgeRoutines.setRetention — purge_after semantics (D5)", () => {
   });
 });
 
-describe("purgeRoutines.sweepExpiredSessions — TTL sweep (D11)", () => {
+describe("purgeRoutines.sweepExpiredSessions — TTL sweep", () => {
   it("removes only in-tenant expired sessions and emits no audit entry", async () => {
     const { raw, handle } = await freshPair();
     const now = new Date("2026-07-04T00:00:00Z");
@@ -676,7 +676,7 @@ describe("purgeRoutines.sweepExpiredSessions — TTL sweep (D11)", () => {
     expect(
       remaining.map((r) => r.token).toSorted((a, b) => a.localeCompare(b)),
     ).toEqual(["a-live", "b-expired"]);
-    // D15: the swept session's grant died with it; the live rows keep theirs.
+    // The swept session's grant died with it; the live rows keep theirs.
     expect(
       await raw.select({ id: githubGrant.id }).from(githubGrant),
     ).toHaveLength(2);

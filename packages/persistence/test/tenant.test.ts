@@ -1,4 +1,4 @@
-// Stage 3 tenant-repository tests. Prove the D2b invariant end to end on real
+// Tenant-repository tests. Prove the tenancy invariant end to end on real
 // Postgres semantics (PGlite): tenant A cannot read or attach to tenant B's
 // rows, cross-tenant child writes are rejected WITHOUT a DB write, and the
 // upsert paths are idempotent. Plus a type-level guard that the package's
@@ -174,7 +174,7 @@ describe("forTenant — cross-tenant child writes are rejected without a DB writ
   });
 });
 
-describe("forTenant — entry comment rotation (ADR 0016 #3 delete+repost)", () => {
+describe("forTenant — entry comment rotation (delete+repost)", () => {
   it("setEntryComment stores and rotates the comment id", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
@@ -196,7 +196,7 @@ describe("forTenant — entry comment rotation (ADR 0016 #3 delete+repost)", () 
   });
 });
 
-describe("forTenant — setDraft (BRIEF-43 mark-ready flip)", () => {
+describe("forTenant — setDraft (mark-ready flip)", () => {
   it("flips draft=true to false in place and is idempotent", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
@@ -253,7 +253,7 @@ describe("forTenant — idempotent upserts", () => {
     expect(second.state).toBe(PrState.MERGED); // updated in place
   });
 
-  it("reopening a closed PR disarms retention (PR #23 review)", async () => {
+  it("reopening a closed PR disarms retention", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
 
@@ -313,7 +313,7 @@ describe("forTenant — idempotent upserts", () => {
     expect(second.value.lastSubmittedSha).toBe("b".repeat(40));
   });
 
-  it("checkpoint upsertOnSubmit is monotonic — an older submitted_at never regresses the row (BRIEF-23)", async () => {
+  it("checkpoint upsertOnSubmit is monotonic — an older submitted_at never regresses the row", async () => {
     const handle = await freshDatabase();
     const a = forTenant(handle, CTX_A);
     const pr = await a.pullRequests.upsert(upsertInput(7));
@@ -389,7 +389,7 @@ describe("forTenant — idempotent upserts", () => {
     expect(await b.sessions.getByTokenHash("hash-a")).toBeUndefined();
     const aRow = await a.sessions.getByTokenHash("hash-a");
     expect(aRow).toBeDefined();
-    // The grant reference (D15) round-trips through create → select.
+    // The grant reference round-trips through create → select.
     expect(aRow?.grantId).toBe(grant.id);
 
     // B's delete-by-reviewer does not touch A's row.
@@ -397,7 +397,7 @@ describe("forTenant — idempotent upserts", () => {
     expect(await a.sessions.getByTokenHash("hash-a")).toBeDefined();
 
     // A's delete-by-reviewer removes the row AND orphan-cleans its grant
-    // in the same transaction (D15 last-referent lifecycle).
+    // in the same transaction (last-referent lifecycle).
     expect(await a.sessions.deleteByReviewer(REVIEWER)).toBe(1);
     expect(await grantAuth(handle).deleteIfOrphaned(grant.id)).toBe(0); // already gone
     const grantRows = await internal(handle)
@@ -432,7 +432,7 @@ describe("parseTenantContext — boundary validation", () => {
   });
 });
 
-describe("compile-time containment (D2b)", () => {
+describe("compile-time containment", () => {
   it("the opaque AppDatabase exposes no queryable surface", () => {
     // A live handle carries none of drizzle's query methods — the only thing
     // a consumer can do with it is pass it to forTenant.
@@ -459,7 +459,7 @@ describe("compile-time containment (D2b)", () => {
     expectTypeOf<TenantRepository>().not.toHaveProperty("transaction");
   });
 
-  it("the non-tenant userSettings seam (D14) leaks no query surface either", () => {
+  it("the non-tenant userSettings seam leaks no query surface either", () => {
     // Treated like `audit`/`sessionAuth`: a NON-tenant surface that takes the
     // opaque handle and unwraps in-package — never a raw drizzle handle. It is
     // NOT reachable through TenantRepository (it is keyed by user id, not ctx).

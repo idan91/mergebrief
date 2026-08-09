@@ -1,7 +1,6 @@
-// `diff_snapshot` — the config-gated baseline snapshot (D4): the persisted
+// `diff_snapshot` — the config-gated baseline snapshot: the persisted
 // `base→checkpoint` diff, written only at submit. The ONE persisted-code
-// exception to "no raw code in the DB". `sha` is a checkpoint SHA. No
-// origin columns — a fetched diff, not LLM output (D6).
+// exception to "no raw code in the DB". `sha` is a checkpoint SHA.
 import { bigint, pgTable, text, unique } from "drizzle-orm/pg-core";
 import type { PullRequestRowId } from "../types";
 import { artifactColumns, tenantColumns } from "./columns";
@@ -15,7 +14,7 @@ export const diffSnapshot = pgTable(
       .$type<PullRequestRowId>()
       .notNull()
       .references(() => pullRequest.id, { onDelete: "cascade" }),
-    /** A checkpoint SHA (D4). */
+    /** A checkpoint SHA. */
     sha: text("sha").notNull(),
     ...artifactColumns(),
   },

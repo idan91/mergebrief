@@ -13,9 +13,8 @@ import * as schema from "../src/schema/index";
  *
  * The close is critical, not hygiene: a live instance pins ~215MB of WASM
  * heap that V8 never reclaims on its own, so one leaked instance per test
- * walked this suite into swap and produced the "a different test times out
- * every run" reports (#205). Registering the cleanup here rather than in each
- * suite means no caller can forget it.
+ * walks the suite into swap and produces unrelated timeouts. Registering the
+ * cleanup here rather than in each suite means no caller can forget it.
  */
 export async function freshPglite(): Promise<PGlite> {
   const client = await migratedPglite();

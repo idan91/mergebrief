@@ -1,5 +1,5 @@
-// Session-auth boundary tests (BRIEF-2 stage 6, D11 — re-anchored by D15/BRIEF-40).
-// Exercises the PRE-TENANT, token-hash-keyed resolver against real migrations
+// Session-auth boundary tests. Exercises the PRE-TENANT, token-hash-keyed
+// resolver against real migrations
 // on PGlite: the grant-JOINed find, delete-by-hash with same-transaction
 // grant orphan-clean (shared grants survive, last-referent grants die), and
 // the `setExpiresAt` mirror the cookie channel writes after a rotation.
@@ -82,7 +82,7 @@ describe("sessionAuth.findSession", () => {
   });
 });
 
-describe("sessionAuth.deleteSession — D15 last-referent lifecycle", () => {
+describe("sessionAuth.deleteSession — last-referent lifecycle", () => {
   let handle: AppDatabase;
   beforeEach(async () => {
     handle = await freshDatabase();
@@ -127,7 +127,7 @@ describe("sessionAuth.setExpiresAt", () => {
   });
 });
 
-describe("reviewer_session schema — no credential columns (D15)", () => {
+describe("reviewer_session schema — no credential columns", () => {
   it("the session table carries a grant FK and NO ciphertext columns", async () => {
     const { PGlite } = await import("@electric-sql/pglite");
     const { drizzle } = await import("drizzle-orm/pglite");

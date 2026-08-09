@@ -1,4 +1,4 @@
-// BRIEF-19 PR 1.2 read boundaries (PGlite): the list endpoint's tenant query
+// Read boundaries (PGlite): the list endpoint's tenant query
 // (`pullRequests.listForRepos` — allowed-repo filter, updated_at ordering,
 // cap) and the per-PR "current span" enrichment batches
 // (`briefs.latestForPullRequests`, `generation.latestBriefForPullRequests`).
@@ -55,7 +55,7 @@ describe("pull_request title persistence", () => {
   });
 });
 
-describe("pull_request base_sha persistence (BRIEF-21 fold-in)", () => {
+describe("pull_request base_sha persistence", () => {
   it("persists baseSha, refreshes it when provided, preserves it when omitted", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
@@ -200,7 +200,7 @@ describe("briefs.latestForPullRequests", () => {
   });
 });
 
-describe("comparison existence seams (BRIEF-19 4.1)", () => {
+describe("comparison existence seams", () => {
   it("comparisonMarks.existsForSpan / revisionNarratives.existsForSpan reflect writes, lean", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
@@ -260,7 +260,7 @@ describe("comparison existence seams (BRIEF-19 4.1)", () => {
     ).toBe(true);
   });
 
-  it("deltas.existsForSpan reflects writes, lean (BRIEF-21)", async () => {
+  it("deltas.existsForSpan reflects writes, lean", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const store = artifactStore(handle, CTX_A);
@@ -336,7 +336,7 @@ describe("comparison existence seams (BRIEF-19 4.1)", () => {
   });
 });
 
-describe("batched span listings (BRIEF-24 per-revision joins)", () => {
+describe("batched span listings — per-revision joins", () => {
   it("briefs.listForPullRequest carries createdAt and orders by headIndex, lean", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);

@@ -1,4 +1,4 @@
-// pingDb (BRIEF-51, ADR 0034 #7): the /readyz probe's `SELECT 1` — true on a
+// pingDb: the /readyz probe's `SELECT 1` — true on a
 // reachable database, false (never a throw) when the round-trip fails.
 import { describe, expect, it } from "vitest";
 import { pingDb } from "../src/index";

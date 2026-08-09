@@ -1,5 +1,5 @@
-// Stage 4 generation-projection tests (PGlite). Prove the D10 transitions
-// (queued→running→succeeded) with attempts/updated_at maintenance, and the
+// Generation-projection tests (PGlite): the queued→running→succeeded
+// transitions with attempts/updated_at maintenance, and the
 // NULLS-NOT-DISTINCT proof: a brief-kind re-queue (null baseline_sha) conflicts
 // on the natural key rather than inserting a second row.
 import { describe, expect, it, onTestFinished } from "vitest";
@@ -30,7 +30,7 @@ const REPO: RepoId = brandWith(isRepoId, 777n);
 const CTX_A: TenantContext = { installationId: TENANT_A };
 const CTX_B: TenantContext = { installationId: TENANT_B };
 
-describe("generationProjection — D10 transitions", () => {
+describe("generationProjection — status transitions", () => {
   it("queued → running → succeeded, attempts stable, updated_at advances", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
@@ -181,7 +181,7 @@ describe("generationProjection — D10 transitions", () => {
     expect(sanitizeGenerationError("x".repeat(1000)).length).toBe(300);
   });
 
-  it("markSuperseded is terminal, leaves attempts, clears error (ADR 0006 #6)", async () => {
+  it("markSuperseded is terminal, leaves attempts, clears error", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
@@ -360,7 +360,7 @@ describe("generationProjection — D10 transitions", () => {
   });
 });
 
-describe("repo-config origin on the generation row (ADR 0032 #8)", () => {
+describe("repo-config origin on the generation row", () => {
   it("recordRepoConfig round-trips; a re-queue through ingest clears it", async () => {
     // PGlite harness: the ingest enqueue needs the graphile_worker stub.
     const harness = await createPgliteHarness();

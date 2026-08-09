@@ -1,8 +1,7 @@
-// DATABASE_URL_FILE resolution (BRIEF-131). The `_FILE` convention — official
-// postgres/mysql image precedent — for exactly this one variable: compose
-// `secrets:` mounts land as files, and a connection string in a file never
-// shows up in `docker inspect` or a leaked env dump. Deliberately NOT a
-// generic `*_FILE` mechanism; the other secrets keep their existing channels.
+// DATABASE_URL_FILE resolution. The `_FILE` convention for exactly this one
+// variable: compose `secrets:` mounts land as files, and a connection string
+// in a file never shows up in `docker inspect` or a leaked env dump.
+// Deliberately NOT a generic `*_FILE` mechanism.
 //
 // Precedence: the file wins over a plain `DATABASE_URL`, with a warning
 // through the injected sink naming the shadowed variable — silent precedence

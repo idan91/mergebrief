@@ -1,19 +1,13 @@
-// The reviewer-session auth boundary (BRIEF-2 stage 6, PR C — ADR 0016 #4 + ADR
-// 0018 D11, re-anchored by D15/BRIEF-40). This is the PRE-TENANT resolver:
-// unlike `forTenant(db, ctx)`, nothing here is bound to an `installation_id`.
-// It CANNOT be — session resolution is the authN primitive that PRECEDES
-// tenant scoping. You cannot know the installation until you have resolved
-// the session, and the globally UNIQUE `session_token_hash` (a high-entropy
-// random cookie token, stored only as its SHA-256) is exactly what tells you
-// it. So these functions are keyed by that hash, not by ctx — the same trust
-// shape as the webhook route deriving its tenant from the signed payload's
-// `installation.id`: the lookup PRODUCES the tenant, it is not scoped by one.
+// The reviewer-session auth boundary. This is the PRE-TENANT resolver: nothing
+// here is bound to an `installation_id` and it CANNOT be — session resolution
+// PRECEDES tenant scoping. The globally UNIQUE `session_token_hash` (a
+// high-entropy random cookie token, stored only as its SHA-256) is the key,
+// and the lookup PRODUCES the tenant rather than being scoped by one.
 //
-// Since D15 the session row carries NO credential material — the GitHub pair
-// lives on the `github_grant` row it references, and rotation lives in
-// `grantAuth.refreshGrant` (one CAS for both presentation channels).
-// Resolution therefore JOINS the grant so the api layer gets both halves in
-// one query; deletes orphan-clean the grant in the same transaction.
+// The session row carries NO credential material — the GitHub pair lives on
+// the `github_grant` row it references, and rotation lives in
+// `grantAuth.refreshGrant`. Resolution therefore JOINS the grant; deletes
+// orphan-clean the grant in the same transaction.
 import { and, eq } from "drizzle-orm";
 import { type AppDatabase, internal } from "../db/handle";
 import { githubGrant } from "../schema/github-grant";
@@ -63,26 +57,25 @@ export interface SessionAuth {
   findSession(sessionTokenHash: string): Promise<SessionWithGrant | undefined>;
   /**
    * Delete by hash (logout / refresh-failure cleanup). ONE transaction with
-   * the D15 orphan-clean: if this was the grant's last referent, the grant
-   * dies too. Returns session rows deleted.
+   * the orphan-clean: if this was the grant's last referent, the grant dies
+   * too. Returns session rows deleted.
    */
   deleteSession(sessionTokenHash: string): Promise<number>;
   /**
    * Mirror the grant's rotated `refresh_expires_at` onto the session's own
-   * `expires_at` (D11 semantics: session lifetime tracks the refresh token).
-   * A plain idempotent value write — no lock needed; called by the cookie
-   * channel after a successful `refreshGrant`. Returns rows touched.
+   * `expires_at` — session lifetime tracks the refresh token. A plain
+   * idempotent value write, called by the cookie channel after a successful
+   * `refreshGrant`. Returns rows touched.
    */
   setExpiresAt(sessionTokenHash: string, expiresAt: Date): Promise<number>;
   /**
-   * Rebind the session to a DIFFERENT installation (BRIEF-19 multi-org switch —
-   * D14). The session row's `installation_id` IS the tenant stamp, so the switch
-   * endpoint validates the target is in the viewer's LIVE accessible set (never
-   * trusting the caller) BEFORE calling this — this boundary only persists a
-   * pre-validated rebinding. Atomic, ctx-safe: `SELECT … FOR UPDATE` the row by
-   * its hash, then UPDATE its `installation_id` scoped by the locked row's OWN
-   * current `installation_id` + `id` (the gate value comes from the row, never
-   * from an unscoped caller argument). A vanished row → `NOT_FOUND`.
+   * Rebind the session to a DIFFERENT installation (multi-org switch). The
+   * session row's `installation_id` IS the tenant stamp, so callers must
+   * validate the target against the viewer's LIVE accessible set BEFORE
+   * calling — this boundary only persists a pre-validated rebinding.
+   * `SELECT … FOR UPDATE` by hash, then UPDATE gated by the locked row's OWN
+   * `installation_id` + `id`, never by an unscoped caller argument. A vanished
+   * row → `NOT_FOUND`.
    */
   rebindInstallation(
     sessionTokenHash: string,
@@ -93,7 +86,7 @@ export interface SessionAuth {
 /**
  * Build the pre-tenant, token-hash-keyed session resolver over the opaque
  * `AppDatabase`. Uses the in-package `internal()` unwrap; never exposes a raw
- * query surface (D2b), and is intentionally NOT ctx-bound (see the file header).
+ * query surface, and is intentionally NOT ctx-bound (see the file header).
  */
 export function sessionAuth(handle: AppDatabase): SessionAuth {
   const db = internal(handle);

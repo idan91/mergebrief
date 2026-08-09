@@ -1,4 +1,4 @@
-// The transactional ingest boundary (stage 4): PR upsert + queued generation
+// The transactional ingest boundary: PR upsert + queued generation
 // projection + debounced graphile `generate` job, atomically. Runs on the
 // PGlite harness because it provides the `graphile_worker` stub the enqueue
 // step calls by name.
@@ -148,7 +148,7 @@ describe("ingestRoutines.triggerGeneration", () => {
     expect(runAtDelta).toBeLessThan(65_000);
   });
 
-  it("persists baseSha and preserves it when a later trigger omits it (BRIEF-21 fold-in)", async () => {
+  it("persists baseSha and preserves it when a later trigger omits it", async () => {
     const first = unwrap(await trigger({ baseSha: "base-1" }));
     expect(first.pullRequest.baseSha).toBe("base-1");
 
@@ -255,7 +255,7 @@ describe("ingestRoutines.triggerGeneration", () => {
     expect(await harness.raw("select id from pull_request")).toHaveLength(0);
   });
 
-  // recordState (BRIEF-43): the enqueue-free sibling — state-only events
+  // recordState: the enqueue-free sibling — state-only events
   // (converted_to_draft) persist PR fields WITHOUT touching the generation
   // projection or scheduling work.
   describe("recordState", () => {
@@ -319,7 +319,7 @@ describe("ingestRoutines.triggerGeneration", () => {
     });
   });
 
-  describe("regeneration debounce (BRIEF-64)", () => {
+  describe("regeneration debounce", () => {
     /** Mark the PR's stored brief generation(s) succeeded, out-of-band. */
     async function markSucceeded(): Promise<void> {
       await harness.raw("update generation set status = 'succeeded'");

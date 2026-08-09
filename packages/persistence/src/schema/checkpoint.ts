@@ -1,5 +1,5 @@
-// `checkpoint` — a reviewer's position on a PR (D7). Webhook-driven
-// (`pull_request_review`), never an in-app write in M1. One row per
+// `checkpoint` — a reviewer's position on a PR. Webhook-driven
+// (`pull_request_review`), never an in-app write. One row per
 // (reviewer, PR); `last_submitted_sha` advances on submit, never on view.
 import { bigint, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
 import type { PullRequestRowId, ReviewerId } from "../types";
@@ -17,7 +17,7 @@ export const checkpoint = pgTable(
     reviewerId: bigint("reviewer_id", { mode: "bigint" })
       .$type<ReviewerId>()
       .notNull(),
-    /** Purgeable display label (D1). */
+    /** Purgeable display label. */
     reviewerLogin: text("reviewer_login"),
     /** = the Delta's `baseline_sha`; advances on submit, never on view. */
     lastSubmittedSha: text("last_submitted_sha").notNull(),

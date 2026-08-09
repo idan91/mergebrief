@@ -1,22 +1,19 @@
-// The API-token auth boundary (BRIEF-17 PR 1 — ADR 0016 #4 as amended, re-anchored
-// by D15/BRIEF-40). Mirrors `session.ts`: this is the PRE-TENANT resolver for
-// the SECOND presentation channel (CLI/agent Bearer tokens over the same
-// session machinery). Nothing here is bound to an `installation_id` —
-// resolution by the globally UNIQUE `token_hash` (the opaque `mergebrief_...`
-// token, stored only as its SHA-256) is what PRODUCES the tenant, so it
-// precedes `forTenant` scoping, the same trust shape as `sessionAuth`.
+// The API-token auth boundary. Mirrors `session.ts`: the PRE-TENANT resolver
+// for the SECOND presentation channel (CLI/agent Bearer tokens). Nothing here
+// is bound to an `installation_id` — resolution by the globally UNIQUE
+// `token_hash` (the opaque token, stored only as its SHA-256) is what PRODUCES
+// the tenant, so it precedes `forTenant` scoping.
 //
-// Since D15 the token row carries NO credential material — mint LINKS the
-// minting session's `github_grant` row (never copies), and rotation lives in
+// The token row carries NO credential material — mint LINKS the minting
+// session's `github_grant` row (never copies), and rotation lives in
 // `grantAuth.refreshGrant`. Resolution JOINs the grant; the soft revoke keeps
 // the grant reference (a revoked token stays listable), so only the
 // installation-purge hard delete orphan-cleans.
 //
 // This surface NEVER sees token plaintext: mint takes the caller-computed
 // `tokenHash`, and no operation accepts or returns token material. Mint's
-// `installationId` arrives pre-validated — the mint route derives it from the
-// viewer's cookie session and validates it against their LIVE accessible set
-// (never caller-asserted; ADR 0016 #4) before calling this boundary.
+// `installationId` arrives pre-validated against the viewer's LIVE accessible
+// set — never caller-asserted.
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { insertAudit } from "../stores/audit";
 import { type AppDatabase, internal } from "../db/handle";
@@ -37,8 +34,8 @@ import type { GithubGrantRow } from "./grant";
 export type ApiTokenRow = typeof apiToken.$inferSelect;
 
 /**
- * The settings-facing projection (codex R1): everything the mint/list/revoke
- * surfaces return. Deliberately excludes `tokenHash` (secret-adjacent) and
+ * The settings-facing projection: everything the mint/list/revoke surfaces
+ * return. Deliberately excludes `tokenHash` (secret-adjacent) and
  * `grantId` (internal linkage) so a route serializing one of these rows
  * CANNOT leak credential material — only `resolveByHash` (the Bearer path,
  * which needs the grant to decrypt) sees the full row.
@@ -117,13 +114,13 @@ function livenessError(
 export interface TokenMintInput {
   readonly installationId: InstallationId;
   readonly userId: ReviewerId;
-  /** Purgeable display label (D1). */
+  /** Purgeable display label. */
   readonly userLogin?: string;
   readonly name: string;
   readonly tokenHash: string;
-  /** The minting session's grant — LINKED, never copied (D15). */
+  /** The minting session's grant — LINKED, never copied. */
   readonly grantId: GrantRowId;
-  /** `null` = no expiry (ADR 0016 #4: the adopter's call for self-host CI). */
+  /** `null` = no expiry — the adopter's call for self-host CI. */
   readonly expiresAt: Date | null;
 }
 
@@ -136,8 +133,8 @@ export interface TokenWithGrant {
 export interface TokenAuth {
   /**
    * Insert a minted token row (installation binding pre-validated upstream)
-   * AND its D9 `auth` audit entry, atomically — a mint that cannot be
-   * audited must not exist.
+   * AND its `auth` audit entry, atomically — a mint that cannot be audited
+   * must not exist.
    */
   mintToken(input: TokenMintInput): Promise<ApiTokenMetadataRow>;
   /**
@@ -151,7 +148,7 @@ export interface TokenAuth {
   ): Promise<Result<TokenWithGrant, TokenAuthError>>;
   /**
    * The settings-page list: ALL of a user's tokens (a person spans
-   * installations, D14) — revoked and expired included, newest first.
+   * installations) — revoked and expired included, newest first.
    * Metadata rows only — credential material is structurally absent.
    */
   listForUser(userId: ReviewerId): Promise<ApiTokenMetadataRow[]>;
@@ -176,18 +173,16 @@ export interface TokenAuth {
 /**
  * Build the pre-tenant, hash-keyed token resolver over the opaque
  * `AppDatabase`. Uses the in-package `internal()` unwrap; never exposes a raw
- * query surface (D2b), and is intentionally NOT ctx-bound (see the file
- * header).
+ * query surface, and is intentionally NOT ctx-bound (see the file header).
  */
 export function tokenAuth(handle: AppDatabase): TokenAuth {
   const db = internal(handle);
 
   return {
     async mintToken(input) {
-      // ONE transaction with the D9 audit emit (codex PR2 R1): a mint that
-      // cannot be audited must not exist — otherwise an audit failure leaves
-      // a live, unaudited credential behind a 500, and the caller's retry
-      // mints another.
+      // ONE transaction with the audit emit: an audit failure would otherwise
+      // leave a live, unaudited credential behind a 500, and the caller's
+      // retry mints another.
       return db.transaction(async (tx) => {
         const rows = await tx
           .insert(apiToken)

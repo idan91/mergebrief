@@ -1,4 +1,4 @@
-// Stage 6 config tests. Defaults applied, bad DATABASE_URL rejected, boolean
+// Config tests. Defaults applied, bad DATABASE_URL rejected, boolean
 // token parsing, injectable env (never touches process.env), no secret leak.
 // Result narrowing uses `if (!x.ok) throw` so no `expect` is conditional.
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -121,8 +121,8 @@ describe("config — loadConfig", () => {
   });
 });
 
-// BRIEF-131: DATABASE_URL_FILE — the `_FILE` secret-file convention for
-// exactly this one variable. File wins over the plain variable (with a
+// DATABASE_URL_FILE — the `_FILE` secret-file convention for exactly this
+// one variable. File wins over the plain variable (with a
 // warning through the injected sink); content is trimmed; an unreadable
 // file is a clear boot error.
 const fileEnv = (path: string) => ({ DATABASE_URL_FILE: path });
@@ -265,7 +265,7 @@ describe("config — DATABASE_URL_FILE", () => {
   });
 });
 
-// BRIEF-131: MERGEBRIEF_AUTO_MIGRATE — default TRUE (apply at boot); false
+// MERGEBRIEF_AUTO_MIGRATE — default TRUE (apply at boot); false
 // switches both services to the check-only ledger comparison.
 describe("config — MERGEBRIEF_AUTO_MIGRATE", () => {
   it("defaults to auto-migrate ON", () => {
@@ -290,7 +290,7 @@ describe("config — MERGEBRIEF_AUTO_MIGRATE", () => {
   });
 });
 
-// BRIEF-131: TLS explicit-or-refuse. A non-loopback host with no `sslmode`
+// TLS explicit-or-refuse. A non-loopback host with no `sslmode`
 // DSN parameter refuses boot — the operator must choose; loopback and
 // unix-socket DSNs are exempt. Any EXPLICIT sslmode (including `disable`)
 // passes the gate.

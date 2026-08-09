@@ -1,5 +1,5 @@
-// Migration 0013 backfill test (BRIEF-40, D15). The only migration so far
-// with a data transform: it must be exercised against PRE-migration data,
+// Migration 0013 backfill test. The only migration so far with a data
+// transform: it must be exercised against PRE-migration data,
 // which the shared `freshDatabase` harness (all migrations upfront) cannot
 // express. So this suite applies 0000–0012 raw, seeds old-shape rows
 // (ciphertext columns still on `reviewer_session`/`api_token`), applies 0013,
@@ -30,7 +30,7 @@ async function applyFile(client: PGlite, name: string): Promise<void> {
   await client.exec(readFileSync(join(MIGRATIONS_DIR, name), "utf8"));
 }
 
-describe("migration 0013 — grant backfill (D15)", () => {
+describe("migration 0013 — grant backfill", () => {
   it("dedups shared pairs into one grant, isolates diverged ones, drops the old columns", async () => {
     const client = new PGlite();
     const files = migrationFiles();
