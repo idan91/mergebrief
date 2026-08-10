@@ -38,6 +38,7 @@ import type {
   ThreadRevisionJump,
 } from "../../wiring";
 import { DigestGroupView } from "./DigestGroupView/DigestGroupView";
+import { headSummary } from "./utils";
 import styles from "./ConversationSection.module.scss";
 
 /** The route-injected data plan (absent on the local demo path). */
@@ -328,6 +329,9 @@ export function ConversationSection({
   // are already dropped by `applyConversationFilter`.
   const verdicts = filtered?.reviews ?? [];
 
+  const summary =
+    conversation === undefined ? undefined : headSummary(conversation);
+
   return (
     <section
       aria-labelledby="conversation-heading"
@@ -356,16 +360,8 @@ export function ConversationSection({
             {/* Totals ONLY: the header describes the whole conversation;
                 filter state renders in exactly one place — the toolbar's
                 Filter trigger. */}
-            {conversation !== undefined ? (
-              <span className={styles["headSummary"]}>
-                {conversation.threads.length} thread
-                {conversation.threads.length === 1 ? "" : "s"} ·{" "}
-                {
-                  conversation.threads.filter((thread) => !thread.isResolved)
-                    .length
-                }{" "}
-                open
-              </span>
+            {summary !== undefined ? (
+              <span className={styles["headSummary"]}>{summary}</span>
             ) : null}
           </button>
         </h2>
