@@ -31,7 +31,7 @@ Snapshot: **2026-06-18.** Supersedes the preliminary scan in `docs/next-steps.md
 |---|---|---|
 | **GitHub Copilot code review** | Bundled free in Business/Enterprise; **agentic review** (Mar 2026) + autonomous fix-PRs | Owns org adoption. The "good-enough + free + native" gravity well. **Un-out-bundleable.** |
 | **Cursor BugBot** | IDE-native; **2M+ PRs/mo, 80% resolution**; "**real bugs, not style/formatting**" | Disciplined low-noise; + now owns Graphite → end-to-end create→review |
-| **Linear Diffs** (May 2026) | Review **inside Linear**, alongside product context; **guided reviews** (separates glue/secondary from core); agents + **MCP server** | Converging on our **grouping substrate** (carrier/supporting) → that substrate is now **table stakes**, not a differentiator |
+| **Linear Diffs** (May 2026) | Review **inside Linear**, alongside product context; **guided reviews** (separates glue/secondary from core); agents + **MCP server** | Converging on our **grouping substrate** (core/supporting) → that substrate is now **table stakes**, not a differentiator |
 
 ### Tier 3 — quality / static-analysis hybrids
 
@@ -264,7 +264,7 @@ But the **honest counter-risk** stands (unchanged from "Moat Honesty"): the mark
 1. **Full-codebase / graph context** (Greptile) — feeds better change-group understanding + blast-radius risk-surface (`widely-imported`, `cross-service`). Analysis-layer upgrade.
 2. **FP-suppression rigor + "real bugs, not style"** (Graphite < 5%, Cursor BugBot, DeepSource, Sonar 3.2%) — directly operationalizes our `Uncertain` threshold + no-noise discipline for Flags.
 3. **PR walkthrough / summary UX** (CodeRabbit) — parity check against our change-group Summary + Story view.
-4. **Guided reviews / glue-vs-core separation** (Linear) — = our carrier/supporting + concern split; now table stakes, ensure we match cleanly.
+4. **Guided reviews / glue-vs-core separation** (Linear) — = our core/supporting + concern split; now table stakes, ensure we match cleanly.
 5. **MCP / agent-native integration** (Linear, Copilot) — our headless dual-consumer lane (ADR 0014): an MCP server exposing the Analysis Layer.
 6. **Benchmark-driven marketing** (Greptile) — publish our own *comprehension/re-review* benchmark (the Phase-1 B′ test) rather than a bug-catch number.
 7. **IDE / pre-PR presence** (Sourcery, Cursor) — aligns with the author-side soft-gate (ADR 0009): comprehension *before* request-for-review.

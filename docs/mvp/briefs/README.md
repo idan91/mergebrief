@@ -55,4 +55,4 @@ Backups / candidates (pick during selection pass):
 - `zod-5926.md` — logic-refactor + move-with-edits (great move case, but needs zod internals; save for the move-heavy gate slot)
 - `medusa-15605.md` — validate http(s) URL scheme (new-feature; impl/test/doc; solid but heavier wiring)
 - `drizzle-5331.md` — logic-refactor + new-feature mix (BE TS, schema-aware)
-- `nextjs-93940.md` — **demoted**: mostly test scaffolding, thin carrier.
+- `nextjs-93940.md` — **demoted**: mostly test scaffolding, thin core chunk.

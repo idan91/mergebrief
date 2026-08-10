@@ -27,7 +27,7 @@ const CATEGORY_DESCRIPTIONS: Record<Category, string> = {
 };
 
 const CONCERN_DESCRIPTIONS: Record<Concern, string> = {
-  implementation: "the functional change itself (default role: carrier)",
+  implementation: "the functional change itself (default role: core)",
   test: "tests, fixtures (incl. .test.* / .spec.* files) — supporting",
   doc: "docs, READMEs, changesets, doc-only files — supporting",
   spec: "specification document (NOT .spec.ts — that is test) — supporting",
@@ -81,9 +81,9 @@ const RISK_DESCRIPTIONS: Record<RiskSurfaceAttribute, string> = {
  */
 const RISK_NOTES_RULE = `**riskNotes**: when an attribute needs evidence, attach \`{ attr, note }\` to the chunk's \`riskNotes\` — one short factual note per attribute, at most ~200 characters (a hard cap, never a target). For \`comment-contradicts-code\` the note is mandatory and must cite both sides: "comment says X (L12), code does Y (L15)". Omit \`riskNotes\` entirely when no attribute needs a note.`;
 
-const STYLE_FILES_CARRIER_RULE = `Type, context, and CSS/style files are not automatically supporting. They are \`carrier\` when they define the changed contract, state model, or visual behavior; they are \`supporting\` only when they merely accompany another carrier without carrying the group's intent.`;
+const STYLE_FILES_CORE_RULE = `Type, context, and CSS/style files are not automatically supporting. They are \`core\` when they define the changed contract, state model, or visual behavior; they are \`supporting\` only when they merely accompany another core chunk without holding the group's intent.`;
 
-const STANDALONE_GROUP_RULE = `- **A standalone change with its own intent (e.g. dropping a CSS rule, a config tweak) is its own group with that chunk as the carrier** — don't fold it into an unrelated group.`;
+const STANDALONE_GROUP_RULE = `- **A standalone change with its own intent (e.g. dropping a CSS rule, a config tweak) is its own group with that chunk as the core** — don't fold it into an unrelated group.`;
 
 const GROUP_TEXT_CAPS = `- **Group text is scan-length (hard caps, never targets)**: the **title** is one line, ideally under ~100 characters (~150 absolute ceiling). The **summary** is **1-2 short sentences — aim for ONE** (~200 characters ideal, ~250 absolute ceiling); a reviewer scans groups, and a wall of text gets skipped, not read. State the intent, not an inventory — the chunks already carry files, ranges, and attributes. If a summary seems to need more than two sentences, the group probably holds two intents — split the group instead of inflating the summary.`;
 
@@ -201,8 +201,8 @@ You will receive a PR's title, description, file list, and unified diff — and,
 ## What a brief contains
 
 - **summary**: Markdown, deliberately short — a **lede of 1-3 short sentences** stating what the PR does and why (plain text, no headings, no filler), then optionally a "## Changelog" section of **1-3 bullets** when the change warrants an itemized list. These are hard caps, never targets: a reviewer skips walls of text, and the change-group summaries below carry the detail — never restate it here. The lede is required; the changelog is not.
-- **chunks[]**: a chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group — it is **sub-file**. One file commonly yields several chunks: the same file can split across multiple hunks, multiple concerns, or multiple change-groups, and each such run is its own chunk with its own stable id (c1, c2, …). **Do not assume one file = one chunk or one group.** A single file's changed lines may serve different intents — when they do, split them into separate chunks and attach each chunk to the change-group it actually serves, so a file's hunks can be distributed across several groups. **Each chunk belongs to exactly ONE change-group — set its \`changeGroupId\` to that group's id. A file appears in multiple groups only via *different* chunks, so a reviewer never reviews the same lines twice.** Record each chunk's \`changeGroupId\`, file, concern, role (carrier/supporting), git LoC (added/deleted), **line ranges** (see below), and risk-surface attributes.
-- **changeGroups[]**: one group = the largest chunk set expressible as ONE title + ONE summary + ONE dominant category. Give each a stable **id** (g1, g2, …) and a one-line **title**. The group does **not** list chunk ids — each chunk attaches to it via its \`changeGroupId\`. Every group must have at least one carrier chunk.
+- **chunks[]**: a chunk is a contiguous run of changed lines sharing ONE concern and ONE change-group — it is **sub-file**. One file commonly yields several chunks: the same file can split across multiple hunks, multiple concerns, or multiple change-groups, and each such run is its own chunk with its own stable id (c1, c2, …). **Do not assume one file = one chunk or one group.** A single file's changed lines may serve different intents — when they do, split them into separate chunks and attach each chunk to the change-group it actually serves, so a file's hunks can be distributed across several groups. **Each chunk belongs to exactly ONE change-group — set its \`changeGroupId\` to that group's id. A file appears in multiple groups only via *different* chunks, so a reviewer never reviews the same lines twice.** Record each chunk's \`changeGroupId\`, file, concern, role (core/supporting), git LoC (added/deleted), **line ranges** (see below), and risk-surface attributes.
+- **changeGroups[]**: one group = the largest chunk set expressible as ONE title + ONE summary + ONE dominant category. Give each a stable **id** (g1, g2, …) and a one-line **title**. The group does **not** list chunk ids — each chunk attaches to it via its \`changeGroupId\`. Every group must have at least one core chunk.
 - **concernView[]**: LoC rollup per concern present in the PR.
 - **readingOrder[]** (optional): a reasoned reading sequence over \`changeGroups\` — see "Reading order" below.
 - **intentCheck**: did this PR do what its stated intent asked? — see "Intent check" below.
@@ -223,14 +223,16 @@ Not categories (common mistakes): test-only, config-only, generated-code — tho
 
 ${bullets(Concerns, CONCERN_DESCRIPTIONS)}
 
-## Role — carrier vs supporting (per chunk)
+## Role — core vs supporting (per chunk)
 
-- \`carrier\`: holds the change-group's intent (the implementation that carries the change).
-- \`supporting\`: serves the carrier (its tests, docs, specs, config).
+- \`core\`: holds the change-group's intent — the chunk doing the thing the group exists to do.
+- \`supporting\`: serves the core (its tests, docs, specs, config).
 
-Default from concern (implementation → carrier, else → supporting). **Flip** when a supporting artifact is itself the purpose (e.g. a flaky-test fix or a coverage backfill) — that chunk becomes the carrier and takes the group's intent.
+**"Core" means intent-holder, nothing else.** It does NOT mean "the most important chunk", the largest, or the riskiest: a one-line implementation change is the core chunk when it is what the group sets out to do, and a large test or config chunk stays supporting when it merely serves that intent. Judge role by whose intent the chunk holds, never by size or salience.
 
-${STYLE_FILES_CARRIER_RULE}
+Default from concern (implementation → core, else → supporting). **Flip** when a supporting artifact is itself the purpose (e.g. a flaky-test fix or a coverage backfill) — that chunk becomes the core chunk and takes the group's intent.
+
+${STYLE_FILES_CORE_RULE}
 
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
 
@@ -254,8 +256,8 @@ ${RISK_NOTES_RULE}
 ${GROUP_TEXT_CAPS}
 - **One capability = one group, regardless of file anatomy.** An all-new feature or component is ONE group even though its parts live in separate files: its types/contract file, hook or facade, view, and styles all serve the same intent ("Add X") and are chunks of that one group — never per-file or per-layer groups. Its tests/stories and barrel exports are supporting chunks of that same group (rules below). Split a new capability only when the diff truly contains a second, separately-summarizable intent — never along file or layer boundaries.
 - The author's commit structure is a hint, never the boundary.
-- Intent lives on the carrier chunk(s); supporting chunks inherit it and are not independently categorized.
-- **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if a set of changes has no intent-holder of its own, those chunks are *supporting* chunks of the group whose intent they serve, not a group.
+- Intent lives on the core chunk(s); supporting chunks inherit it and are not independently categorized.
+- **Every group MUST have at least one core chunk. Never form a group whose chunks are all supporting** — if a set of changes has no intent-holder of its own, those chunks are *supporting* chunks of the group whose intent they serve, not a group.
 - **Export / barrel / re-export chunks (e.g. \`index.ts\`) are supporting** — attach each to the group whose feature it exports, never a catch-all "exports" group. If one file re-exports several features, split it into separate chunks (one per feature), each attached to its group.
 ${STANDALONE_GROUP_RULE}
 
@@ -331,7 +333,7 @@ You will receive the PR's title and description, the baseline and head SHAs, and
 - **summary**: Markdown reload, deliberately short — a **lede of 1-3 short sentences** on what changed *since the baseline* (plain text, no headings), then optionally a "## Changelog" of **1-3 bullets** covering the follow-up commits. These are hard caps, never targets — the \`changedGroups\` summaries and \`wholePrImpact\` carry the detail. Frame it as "since you last looked."
 - **commentsAddressed**: Markdown — how the follow-up answers the prior **Review comments** overall (see below). Empty string when there are no comments. Describe how the change addresses them; **never author a reply.**
 - **chunks[]**: same rules as a full brief — sub-file, one concern + one change-group each (named by the chunk's \`changeGroupId\`), a file's lines may split across multiple chunks/groups, with line ranges (see below), covering the **incremental** change only. Each chunk also carries a one-line **summary** (what changed here) and **addressesComments** (ids of the review comments this chunk resolves — empty if none).
-- **changedGroups[]**: change-groups for the incremental change — each with a stable **id**, one title, one summary, one dominant category. Groups don't list chunk ids; each chunk attaches via its \`changeGroupId\`. Every group has at least one carrier chunk.
+- **changedGroups[]**: change-groups for the incremental change — each with a stable **id**, one title, one summary, one dominant category. Groups don't list chunk ids; each chunk attaches via its \`changeGroupId\`. Every group has at least one core chunk.
 - **wholePrImpact**: how this follow-up affects the overall PR — does it complete or alter the original intent, or introduce new risk not present at the baseline. Grounded in the diff; not a verdict.
 
 ## Review comments
@@ -350,11 +352,11 @@ ${bullets(Categories, CATEGORY_DESCRIPTIONS)}
 
 ${bullets(Concerns, CONCERN_DESCRIPTIONS)}
 
-## Role — carrier vs supporting (per chunk)
+## Role — core vs supporting (per chunk)
 
-- \`carrier\`: holds the change-group's intent. \`supporting\`: serves it (tests, docs, specs, config). Default from concern; flip when a supporting artifact is itself the purpose.
+- \`core\`: holds the change-group's intent — the intent-holder, never "the most important" or largest chunk. \`supporting\`: serves it (tests, docs, specs, config). Default from concern; flip when a supporting artifact is itself the purpose.
 
-${STYLE_FILES_CARRIER_RULE}
+${STYLE_FILES_CORE_RULE}
 
 ## Risk surface — factual attributes per chunk (0..n; never verdicts)
 
@@ -372,7 +374,7 @@ A chunk is a contiguous run of changed lines sharing ONE concern and ONE change-
 
 ## Change-group rules
 
-- **Every group MUST have at least one carrier chunk. Never form a group whose chunks are all supporting** — if changes have no intent-holder of their own, they are *supporting* chunks of the group they serve, not a group.
+- **Every group MUST have at least one core chunk. Never form a group whose chunks are all supporting** — if changes have no intent-holder of their own, they are *supporting* chunks of the group they serve, not a group.
 ${GROUP_TEXT_CAPS}
 - **Export / barrel / re-export chunks (e.g. \`index.ts\`) are supporting** — attach each to the group whose feature it exports (split per feature when it exports several); never a catch-all "exports" group.
 ${STANDALONE_GROUP_RULE}

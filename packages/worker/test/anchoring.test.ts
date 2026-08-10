@@ -36,7 +36,7 @@ function chunk(
     changeGroupId: groupId,
     file,
     concern: "implementation",
-    role: "carrier",
+    role: "core",
     loc: { added: end - start + 1, deleted: 0 },
     addedRanges: [{ start, end }],
     removedRanges: [],

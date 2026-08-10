@@ -226,7 +226,7 @@ describe("brief screen characterization", () => {
     );
   });
 
-  it("marking a carrier chunk reviewed advances the chunks progress stat", async () => {
+  it("marking a core chunk reviewed advances the chunks progress stat", async () => {
     await renderBriefScreen();
     const stat = () => statText("chunks");
     expect(stat()).toBe("0/2");

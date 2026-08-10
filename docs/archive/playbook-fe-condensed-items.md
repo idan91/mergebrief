@@ -86,7 +86,7 @@ sketch — ADR 0035 says rebuild deliberately, not resurrect.
 
 ### `doc`
 
-- Confirm the doc/update accurately describes the behavior introduced by the carrier chunks.
+- Confirm the doc/update accurately describes the behavior introduced by the core chunks.
 - Check that names, package scopes, version notes, and public API references match the implementation exactly.
 - Verify the doc/update does not promise behavior that is not covered by implementation or tests.
 

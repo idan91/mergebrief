@@ -33,12 +33,12 @@ const chunkA: BriefChunk = {
   changeGroupId: "g1",
   file: "src/a.ts",
   concern: "implementation",
-  role: "carrier",
+  role: "core",
   loc: { added: 1, deleted: 0 },
   addedRanges: [{ start: 11, end: 11 }],
   removedRanges: [],
   riskSurface: [],
-  summary: "Carrier chunk.",
+  summary: "Core chunk.",
   diff: [
     { kind: "hunk", content: "@@ -10,1 +10,2 @@" },
     { kind: "ctx", content: "const a = 1;", oldLine: 10, newLine: 10 },
@@ -138,7 +138,7 @@ const delta: Brief = {
       changeGroupId: "dg1",
       file: "src/a.ts",
       concern: "implementation",
-      role: "carrier",
+      role: "core",
       loc: { added: 1, deleted: 0 },
       addedRanges: [{ start: 11, end: 11 }],
       removedRanges: [],
@@ -214,7 +214,7 @@ describe("Full Brief comparison overlay (step 7)", () => {
       />,
     );
     // Degraded, not unavailable: chunk summary + owning group + the note.
-    expect(screen.getByText("Carrier chunk.")).toBeTruthy();
+    expect(screen.getByText("Core chunk.")).toBeTruthy();
     expect(screen.getByText("In: Tighten validation")).toBeTruthy();
     expect(
       screen.getByText("Span summary unavailable — showing group context."),

@@ -11,7 +11,7 @@ export interface RoleBadgeProps {
  * palette.
  */
 export function RoleBadge({ role }: RoleBadgeProps) {
-  return role === Roles.CARRIER ? (
+  return role === Roles.CORE ? (
     <Badge color={BadgeColors.TEXT} fill>
       core
     </Badge>

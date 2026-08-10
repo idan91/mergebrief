@@ -51,7 +51,7 @@ net — store unit tests alone don't prove the *screen* still works.
   for `localBriefQueryOptions(fixtureId)` + `localRevisionChangesQueryOptions(fixtureId)` from a
   committed JSON fixture (or mock `brief.functions`), plus the router context and
   `MindMapProvider`, and (c) resolve Suspense. Assert the critical couplings end-to-end:
-  groups render; disposing a flag moves the receipt counts; marking a carrier chunk reviewed
+  groups render; disposing a flag moves the receipt counts; marking a core chunk reviewed
   updates progress; reclassifying a group resets its playbook checks. **Written in Slice A
   against the pre-split screen** so it stays green across Slice B's extraction — it is the guard
   that B didn't change behavior. Building the harness (seed + providers) is itself a Slice A task,
@@ -107,7 +107,7 @@ export interface MindMapActions {
   // so it needs a resolver, not one shared value (see briefs.$briefId.tsx:751–758):
   addressFlags(flagIds: string[], evidenceFor: (flagId: string) => RiskEvidence): void;
   reclassifyGroup(groupId: string, category: Category): void; // sets dominant, marks
-                                                     // reclassified, resets checkedItems[`carrier:${groupId}`]
+                                                     // reclassified, resets checkedItems[`core:${groupId}`]
   checkPlaybookItem(bucket: CheckBucket, index: number): void; // toggle
   saveComment(c: ReviewComment): void;
   updateComment(id: string, body: string): void;
@@ -174,7 +174,7 @@ subtree.
   union makes today's manual evidence-deletion implicit. `addressFlags` writes per-flag evidence.
 - `addressed` **without** evidence stays valid → still produces a `missing-evidence`
   `UnresolvedItem`.
-- `reclassifyGroup` resets **only** `carrier:${groupId}` checks (matches current `chooseDominant`).
+- `reclassifyGroup` resets **only** `core:${groupId}` checks (matches current `chooseDominant`).
 - Both flag actions are **atomic** over the batch (one update), not N sequential.
 - `selectedRiskFlags` is **not** in the store — it's local UI; the component clears its own
   selection after calling a flag action.

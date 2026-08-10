@@ -4,7 +4,7 @@ import { Callout } from "@web/components/Callout/Callout";
 import styles from "./CoreLinesDisclosure.module.scss";
 
 export interface CoreLinesDisclosureProps {
-  /** Core (carrier-chunk) adjusted-line sums at the trigger's scope. */
+  /** Core-chunk adjusted-line sums at the trigger's scope. */
   coreAdded: number;
   coreDeleted: number;
   /** The matching all-chunks adjusted-line sums. */

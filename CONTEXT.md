@@ -52,7 +52,7 @@ The shared, generated explanation of what changed between a **Brief** and the im
 _Avoid_: Delta Brief, reviewer delta, update summary
 
 **Reading order**:
-The reasoned sequence over a **Brief**'s **Change-groups** — a strict permutation (each group appears exactly once, no revisits), each step carrying a one-line *why-this-next* rationale. The rule: **foundation-first** (groups whose changes other groups build on come first: schema/types → core logic → call sites/wiring), falling back to **context-first, churn-last** for independent groups (dominant-intent groups first; mechanically-known low-signal Categories such as `pure-move`, `lib-bump`, `dependency-update` last — keyed on Category, never a free-floating importance judgment). Orders the *existing* groups; it is never a new grouping and never exposes a score or rank label (no-verdict holds). Within-group order stays structural (carrier → supporting, Concern order).
+The reasoned sequence over a **Brief**'s **Change-groups** — a strict permutation (each group appears exactly once, no revisits), each step carrying a one-line *why-this-next* rationale. The rule: **foundation-first** (groups whose changes other groups build on come first: schema/types → core logic → call sites/wiring), falling back to **context-first, churn-last** for independent groups (dominant-intent groups first; mechanically-known low-signal Categories such as `pure-move`, `lib-bump`, `dependency-update` last — keyed on Category, never a free-floating importance judgment). Orders the *existing* groups; it is never a new grouping and never exposes a score or rank label (no-verdict holds). Within-group order stays structural (core → supporting, Concern order).
 _Avoid_: narrative (reserved for generated text), story, layers/cohorts (Atlas's terms), walkthrough (CodeRabbit's term), importance/priority/severity (verdict language)
 
 **Read-through**:
@@ -73,7 +73,7 @@ _Avoid_: hunk (a chunk may be finer than a git hunk), file, diff block
 _Limitation_: a chunk cannot express multiplicity *interleaved within one inseparable contiguous span* (e.g., move and logic-fix woven line-by-line). That is the deferred sub-operation tree; until then, express it via dominant+secondary Categorization on the group plus a text callout in the Summary.
 
 **Change-group**:
-A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent* — it carries the Categorization and the summary. Spans files and Concerns: one or more carrier chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
+A cluster of chunks that together accomplish one coherent piece of work (e.g., "fix the cross-param leak"). The unit of *intent* — it carries the Categorization and the summary. Spans files and Concerns: one or more core chunks (the intent's implementation may span files) plus zero or more supporting test/doc/spec chunks. The Story view pivots the brief by Change-group.
 **Boundary rule:** one group = the largest chunk set expressible as ONE Summary + ONE Dominant Category. If a set needs two unrelated summaries, split it. Author commit structure is a *hint* for understanding intent, never the boundary itself. A single-intent PR is one group; a grab-bag PR (fix + lib bump + README typo) is several.
 _Avoid_: chapter (Linear's narrative-only term), story, cluster, section
 
@@ -94,7 +94,7 @@ The artifact a chunk touches: `implementation`, `test`, `doc`, `spec`, `config`,
 _Avoid_: production (env-restrictive), file-type, type, bucket
 
 **Role**:
-Whether a chunk is the `carrier` of its Change-group's intent or `supporting`. Default: `implementation` concern → carrier; `test`/`doc`/`spec`/`config` → supporting. Flippable when a supporting artifact is itself the purpose (e.g., a flaky-test fix makes the test chunk the carrier, and it then takes the group's intent).
+Whether a chunk holds its Change-group intent (`core`) or serves it (`supporting`). Default: `implementation` concern → core; `test`/`doc`/`spec`/`config` → supporting. Flippable when a supporting artifact is itself the purpose (e.g., a flaky-test fix makes the test chunk the core chunk, and it then takes the group's intent).
 _Avoid_: primary/secondary (collides with Dominant/secondary Category), main, lead
 
 **Summary**:
@@ -222,8 +222,8 @@ _Avoid_: risk ranking, hotspot list
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.
 - A **Brief**'s **index** is a PR-global ordinal over the *distinct head SHAs* briefed (shared, not per-reviewer); a **Delta Brief** spans the gap between two such SHAs.
 - A **Brief** contains many **Chunks**, clustered into **Change-groups**. A chunk is a contiguous run of changed lines sharing one Concern and one Change-group; a git hunk may be split into multiple chunks, and one file's chunks may span multiple Change-groups.
-- A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one carrier chunk plus zero or more supporting chunks.
-- A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (carrier/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (+added/−deleted).
+- A **Change-group** has one **Categorization** (one or more **Categories**, exactly one **Dominant**), one **Summary**, and inherits a **Playbook** from its **Dominant Category**. A group spans one core chunk plus zero or more supporting chunks.
+- A **Chunk** belongs to exactly one **Change-group**, has one **Concern**, one **Role** (core/supporting), zero or more **Risk Surface** attributes, and its own **LoC** (+added/−deleted).
 - The brief is read through two pivots over the same chunk set: the **Story view** (by Change-group) and the **Concern view** (by Concern). LoC rolls up under both.
 - A full **Brief** at a given SHA is shared across all reviewers of that SHA. A **Delta Brief** spans the *reviewer's* last-reviewed SHA → current head, so two reviewers at different checkpoints receive different Delta Briefs over different commit spans. The full Brief is the shared, per-SHA artifact; the Delta Brief is selected per reviewer by their baseline. New pushes (debounced) move the head, after which a fresh full Brief and new Delta Briefs become available.
 - A **Comparison overlay** applies one **Comparison baseline** to the current **Brief**; **Previous Brief** uses shared **Revision changes** + **Revision narrative**, while **Checkpoint** uses the reviewer's personal **Delta Brief** and matching changed-line marks.
@@ -255,7 +255,7 @@ _Avoid_: risk ranking, hotspot list
 - **`test-only` / `config-only` / `generated-code` as Categories** conflated *artifact* with *intent*. Resolved: these are **Concern** values, not Categories. Category is purely intent (what kind of change); Concern is artifact (what kind of file).
 - **"spec" is overloaded** — `.spec.ts` test files vs specification documents. Resolved default: `spec` Concern = specification document; `.spec.ts`/`.test.ts` → `test` Concern.
 - **"A file with multiple changes/concerns"** — resolved: the **Chunk** (not the file) is the atomic unit and is sub-file. Separable multiplicity (different intents or concerns in different parts of a file) is handled by splitting into multiple chunks across groups/concerns. *Interleaved* multiplicity within one inseparable contiguous span is the one unhandled case → deferred sub-operation tree.
-- **"production" rejected** as the carrier-concern name — bakes in a deployment assumption. Resolved: `implementation`.
+- **"production" rejected** as the core-concern name — bakes in a deployment assumption. Resolved: `implementation`.
 - **"Activation"** was one word for three independent things — *what fires compute*, *how a human reaches the brief*, and *turning draft-first on*. The old definition (compute-on-first-click) also contradicted the eager-on-push generation model. Resolved into **Trigger** (eager-on-push compute), **Entry** (the branded deep-link comment, posts on ready), and **Draft-first** (per-repo opt-in that gates Entry until `ready_for_review`, never the Trigger). "Activation" is retired.
 - **"AI-authorship signals" as an in-product grouping** was considered for the
   AI-authored-code review lens and rejected: Risk-Surface attributes are

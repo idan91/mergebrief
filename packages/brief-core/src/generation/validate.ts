@@ -25,7 +25,7 @@ import {
  * (`changeGroupId`), duplicate and orphan chunks are structurally impossible
  * (a chunk has exactly one required group id). What remains to check is a
  * dangling reference (a chunk pointing at a group that doesn't exist) and a
- * group with no chunks / no carrier. Returns human-readable issues — empty
+ * group with no chunks / no core chunk. Returns human-readable issues — empty
  * means clean.
  */
 export function validatePartition(
@@ -47,8 +47,8 @@ export function validatePartition(
     const members = chunks.filter((c) => c.changeGroupId === g.id);
     if (members.length === 0) {
       issues.push(`group ${g.id} has no chunks`);
-    } else if (!members.some((c) => c.role === "carrier")) {
-      issues.push(`group ${g.id} has no carrier chunk`);
+    } else if (!members.some((c) => c.role === "core")) {
+      issues.push(`group ${g.id} has no core chunk`);
     }
   }
 

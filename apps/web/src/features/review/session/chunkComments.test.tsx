@@ -41,7 +41,7 @@ const brief: Brief = {
       changeGroupId: "g1",
       file: "src/a.ts",
       concern: "implementation",
-      role: "carrier",
+      role: "core",
       loc: { added: 1, deleted: 0 },
       addedRanges: [],
       removedRanges: [],

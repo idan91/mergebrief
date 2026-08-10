@@ -30,7 +30,7 @@ Sample now spans mid-level→staff, startup→500-eng org, backend/infra→front
 
 - B: eyes "glazed over" at the third file of generated DTOs; approved 400 lines unread. On Linear Diffs: "it doesn't tell me **which parts of this 800-line PR actually matter** and which parts are just AI boilerplate."
 - C: "I stopped reading carefully once the diff became repetitive… **At that point I sampled instead of reviewed.**" Wants a "review briefing — what changed semantically, risky files, behavior deltas… **less interested in another bot leaving line comments.**"
-- D (coping, unprompted carrier/concern behavior): "I first identify the main files with the core pieces of logic and focus on them, ignore nitpicks, then tests, then nits last." → the grouping/concern-split layer **lands**.
+- D (coping, unprompted core/concern behavior): "I first identify the main files with the core pieces of logic and focus on them, ignore nitpicks, then tests, then nits last." → the grouping/concern-split layer **lands**.
 - D (the challenge): grouping by story/intent is "nice," but **the playbook is "unnecessary noise… by the time I read the playbook, I can already review the PR. Maybe this is more helpful for more junior engs."**
 - Bug-catch as anti-signal: B — CodeRabbit "mostly noise… never catches actual business logic flaws"; C — auto-resolves 30–50% of CodeRabbit; D — never ignores Unblocked but uses it to "confirm or push back," "other devs mostly accept blindly."
 

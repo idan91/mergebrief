@@ -20,7 +20,7 @@ export const ExitCode = {
 export type ExitCode = ValueOf<typeof ExitCode>;
 
 /**
- * The one expected-failure carrier inside the CLI: commands throw it, the
+ * The one expected-failure envelope inside the CLI: commands throw it, the
  * runner maps it to the stream/exit invariant (empty stdout, ONE stderr
  * line, the carried code). Anything else that escapes is a programmer error
  * → GENERIC with the same invariant.

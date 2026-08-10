@@ -9,12 +9,12 @@ import {
   summarySignatureLine,
 } from "./state";
 
-const carrierChunk = {
+const coreChunk = {
   id: "chunk-a",
   changeGroupId: "g1",
   file: "src/a.ts",
   concern: "implementation",
-  role: Roles.CARRIER,
+  role: Roles.CORE,
   loc: { added: 1, deleted: 0 },
   addedRanges: [],
   removedRanges: [],
@@ -66,31 +66,31 @@ describe("riskEvidenceLabel", () => {
       riskEvidenceLabel(
         { kind: "linked-comment", commentId: "comment-1" },
         [reviewComment],
-        [carrierChunk],
+        [coreChunk],
       ),
     ).toBe("linked comment src/a.ts:+12");
     expect(
       riskEvidenceLabel(
         { kind: "chunk-reviewed", chunkId: "chunk-a" },
         [reviewComment],
-        [carrierChunk],
+        [coreChunk],
       ),
     ).toBe("reviewed related chunk src/a.ts");
     expect(
       riskEvidenceLabel(
         { kind: "manual-note", note: "Checked the fallback path." },
         [reviewComment],
-        [carrierChunk],
+        [coreChunk],
       ),
     ).toBe("manually verified: Checked the fallback path.");
   });
 });
 
 describe("deriveUnresolvedItems", () => {
-  it("finds open risks, addressed risks without evidence, unreviewed carriers, draft comments, and thin dismissals", () => {
+  it("finds open risks, addressed risks without evidence, unreviewed core chunks, draft comments, and thin dismissals", () => {
     expect(
       deriveUnresolvedItems({
-        chunks: [carrierChunk, supportingChunk],
+        chunks: [coreChunk, supportingChunk],
         flags: [riskFlag],
         dispositions: { "chunk-a-no-tests-0": { kind: "addressed" } },
         reviewedChunkIds: new Set(["chunk-b"]),
@@ -104,8 +104,8 @@ describe("deriveUnresolvedItems", () => {
         targetId: "chunk-a",
       },
       {
-        id: "carrier:chunk-a",
-        kind: "unreviewed-carrier",
+        id: "core:chunk-a",
+        kind: "unreviewed-core",
         label: "src/a.ts",
         targetId: "chunk-a",
       },
@@ -121,7 +121,7 @@ describe("deriveUnresolvedItems", () => {
   it("finds open risks and thin dismissal reasons", () => {
     expect(
       deriveUnresolvedItems({
-        chunks: [carrierChunk],
+        chunks: [coreChunk],
         flags: [riskFlag],
         dispositions: {
           "chunk-a-no-tests-0": { kind: "dismissed", reason: "ok" },
@@ -140,7 +140,7 @@ describe("deriveUnresolvedItems", () => {
 
     expect(
       deriveUnresolvedItems({
-        chunks: [carrierChunk],
+        chunks: [coreChunk],
         flags: [riskFlag],
         dispositions: {},
         reviewedChunkIds: new Set(["chunk-a"]),

@@ -45,7 +45,7 @@ interface ParsedChangeGroup {
   secondaryCategories: Category[];
   uncertain: boolean;
   uncertainBetween: Category[];
-  carrierChunkIds: string[];
+  coreChunkIds: string[];
   supportingChunkIds: string[];
 }
 
@@ -600,11 +600,11 @@ function parseChangeGroup(value: unknown): Result<ParsedChangeGroup> {
   if (!secondaryCategories.ok) return secondaryCategories;
   const uncertainBetween = categoryArray(value["uncertainBetween"]);
   if (!uncertainBetween.ok) return uncertainBetween;
-  const carrierChunkIds =
-    value["carrierChunkIds"] === undefined
+  const coreChunkIds =
+    value["coreChunkIds"] === undefined
       ? ({ ok: true, value: [] } satisfies Result<string[]>)
-      : stringArray(value["carrierChunkIds"]);
-  if (!carrierChunkIds.ok) return carrierChunkIds;
+      : stringArray(value["coreChunkIds"]);
+  if (!coreChunkIds.ok) return coreChunkIds;
   const supportingChunkIds =
     value["supportingChunkIds"] === undefined
       ? ({ ok: true, value: [] } satisfies Result<string[]>)
@@ -635,7 +635,7 @@ function parseChangeGroup(value: unknown): Result<ParsedChangeGroup> {
       secondaryCategories: secondaryCategories.value,
       uncertain,
       uncertainBetween: uncertainBetween.value,
-      carrierChunkIds: carrierChunkIds.value,
+      coreChunkIds: coreChunkIds.value,
       supportingChunkIds: supportingChunkIds.value,
     },
   };
@@ -1106,7 +1106,7 @@ function normalizeGroupsAndChunks(
   const changeGroups = groups.map(
     (
       {
-        carrierChunkIds: _carrierChunkIds,
+        coreChunkIds: _coreChunkIds,
         supportingChunkIds: _supportingChunkIds,
         ...group
       },
@@ -1122,7 +1122,7 @@ function normalizeGroupsAndChunks(
   groups.forEach((group, index) => {
     const groupId = group.id ?? `g${index + 1}`;
     for (const chunkId of [
-      ...group.carrierChunkIds,
+      ...group.coreChunkIds,
       ...group.supportingChunkIds,
     ]) {
       if (legacyMembership.has(chunkId)) {

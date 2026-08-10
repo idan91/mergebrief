@@ -251,7 +251,7 @@ describe("dbBriefQueryOptions queryFn — warn sink", () => {
           changeGroupId: "g1",
           file: "a.ts",
           concern: "implementation",
-          role: "carrier",
+          role: "core",
           loc: { added: 1, deleted: 0 },
           addedRanges: [],
           removedRanges: [],

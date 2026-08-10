@@ -122,7 +122,7 @@ export const GroupCard = memo(function GroupCard({
             <ScreenReaderOnly>approximately </ScreenReaderOnly>
             <span className="green">+{group.coreAdded}</span> /{" "}
             <span className="red">−{group.coreDeleted}</span> core ·{" "}
-            {group.carrierChunks.length} core ·{" "}
+            {group.coreChunks.length} core ·{" "}
             {group.supportingChunks.length} supporting
           </CoreLinesDisclosure>
           {sinceBaselineShortSha !== undefined ? (

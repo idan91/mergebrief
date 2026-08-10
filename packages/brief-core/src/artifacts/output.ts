@@ -88,14 +88,12 @@ export function summaryLines(brief: Brief): string[] {
       `  • [${group.dominantCategory}]${secondary} ${group.title}${uncertain}`,
     );
     const members = brief.chunks.filter((c) => c.changeGroupId === group.id);
-    const carriers = members
-      .filter((c) => c.role === "carrier")
-      .map((c) => c.id);
+    const cores = members.filter((c) => c.role === "core").map((c) => c.id);
     const supporting = members
       .filter((c) => c.role === "supporting")
       .map((c) => c.id);
     lines.push(
-      `      carriers: ${carriers.join(", ") || "—"}` +
+      `      core: ${cores.join(", ") || "—"}` +
         `  supporting: ${supporting.join(", ") || "—"}`,
     );
   }

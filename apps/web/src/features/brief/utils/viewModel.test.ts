@@ -45,7 +45,7 @@ function twoGroupBrief(readingOrder?: unknown) {
         changeGroupId: "g1",
         file: "src/consumer.ts",
         concern: "implementation",
-        role: "carrier",
+        role: "core",
         loc: { added: 4, deleted: 1 },
         addedRanges: [{ start: 1, end: 4 }],
         removedRanges: [{ start: 1, end: 1 }],
@@ -56,7 +56,7 @@ function twoGroupBrief(readingOrder?: unknown) {
         changeGroupId: "g2",
         file: "src/schema.ts",
         concern: "implementation",
-        role: "carrier",
+        role: "core",
         loc: { added: 6, deleted: 0 },
         addedRanges: [{ start: 1, end: 6 }],
         removedRanges: [],
@@ -97,7 +97,7 @@ describe("riskChipView", () => {
 });
 
 describe("buildBriefViewModel", () => {
-  it("groups chunks by chunk.changeGroupId and derives carrier/supporting buckets", () => {
+  it("groups chunks by chunk.changeGroupId and derives core/supporting buckets", () => {
     const parsed = parseBrief({
       pr: {
         repo: "Idan91/components",
@@ -125,7 +125,7 @@ describe("buildBriefViewModel", () => {
           changeGroupId: "g1",
           file: "src/component.tsx",
           concern: "implementation",
-          role: "carrier",
+          role: "core",
           loc: { added: 4, deleted: 1 },
           addedRanges: [{ start: 1, end: 4 }],
           removedRanges: [{ start: 1, end: 1 }],
@@ -158,7 +158,7 @@ describe("buildBriefViewModel", () => {
       "c1",
       "c2",
     ]);
-    expect(model.groups[0]?.carrierChunks.map((chunk) => chunk.id)).toEqual([
+    expect(model.groups[0]?.coreChunks.map((chunk) => chunk.id)).toEqual([
       "c1",
     ]);
     expect(model.groups[0]?.supportingChunks.map((chunk) => chunk.id)).toEqual([
@@ -168,7 +168,7 @@ describe("buildBriefViewModel", () => {
     expect(model.flags[0]?.groupId).toBe("g1");
   });
 
-  it("sums core (carrier-only) lines per group and brief-wide beside the full sums", () => {
+  it("sums core-chunk-only lines per group and brief-wide beside the full sums", () => {
     const parsed = parseBrief({
       ...twoGroupBrief(),
       chunks: [
@@ -177,7 +177,7 @@ describe("buildBriefViewModel", () => {
           changeGroupId: "g1",
           file: "src/consumer.ts",
           concern: "implementation",
-          role: "carrier",
+          role: "core",
           loc: { added: 4, deleted: 1 },
           addedRanges: [{ start: 1, end: 4 }],
           removedRanges: [{ start: 1, end: 1 }],
@@ -199,7 +199,7 @@ describe("buildBriefViewModel", () => {
           changeGroupId: "g2",
           file: "src/schema.ts",
           concern: "implementation",
-          role: "carrier",
+          role: "core",
           loc: { added: 0, deleted: 5 },
           addedRanges: [],
           removedRanges: [{ start: 1, end: 5 }],
@@ -218,7 +218,7 @@ describe("buildBriefViewModel", () => {
       coreAdded: 4,
       coreDeleted: 1,
     });
-    // Deletion-only carrier set stays a plain sum — no special casing.
+    // Deletion-only core set stays a plain sum — no special casing.
     expect(model.groups[1]).toMatchObject({ coreAdded: 0, coreDeleted: 5 });
     expect(model.totalAdded).toBe(12);
     expect(model.totalDeleted).toBe(8);

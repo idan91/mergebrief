@@ -11,7 +11,7 @@ export type RiskEvidenceKind =
 export type UnresolvedItemKind =
   | "open-risk"
   | "missing-evidence"
-  | "unreviewed-carrier"
+  | "unreviewed-core"
   | "draft-comment"
   | "thin-dismissal";
 
@@ -120,10 +120,10 @@ export function deriveUnresolvedItems(
   }
 
   for (const chunk of input.chunks) {
-    if (chunk.role === Roles.CARRIER && !input.reviewedChunkIds.has(chunk.id)) {
+    if (chunk.role === Roles.CORE && !input.reviewedChunkIds.has(chunk.id)) {
       items.push({
-        id: `carrier:${chunk.id}`,
-        kind: "unreviewed-carrier",
+        id: `core:${chunk.id}`,
+        kind: "unreviewed-core",
         label: chunk.file,
         targetId: chunk.id,
       });

@@ -48,7 +48,7 @@ const brief: Brief = {
       changeGroupId: "g1",
       file: "src/module.ts",
       concern: "implementation",
-      role: "carrier",
+      role: "core",
       loc: { added: 40, deleted: 2 },
       addedRanges: [{ start: 10, end: 49 }],
       removedRanges: [{ start: 10, end: 11 }],
@@ -142,7 +142,7 @@ describe("summaryLines", () => {
 
   it("lists only chunks that carry risk-surface flags", () => {
     expect(text).toContain(
-      "c1 src/module.ts [carrier]: widely-imported, no-tests",
+      "c1 src/module.ts [core]: widely-imported, no-tests",
     );
     expect(text).toContain("flags (1/2 chunks)");
     expect(text).not.toContain("c2 src/module.test.ts");

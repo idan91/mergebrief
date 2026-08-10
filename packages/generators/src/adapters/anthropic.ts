@@ -303,7 +303,7 @@ function classifySdkError(error: unknown): unknown {
   const status = Reflect.get(error, "status");
   if (typeof status !== "number") return wrapStatuslessSdkError(error);
   // SDK Error messages are provider-authored status descriptions (never
-  // credential-bearing); a non-Error carrier gets a fixed message instead
+  // credential-bearing); a non-Error value gets a fixed message instead
   // of echoing arbitrary object contents.
   const message =
     error instanceof Error

@@ -6,7 +6,7 @@
 **Size (git):** 6 files, +165/−32
 
 > Labeling instructions (full process in `labeling-workflow.md`):
-> 1. **Inventory** — verify the suggested Concern + Role for each chunk (Concern derived from path; Role derived from Concern: `implementation` → carrier, else → supporting). Override where wrong.
+> 1. **Inventory** — verify the suggested Concern + Role for each chunk (Concern derived from path; Role derived from Concern: `implementation` → core, else → supporting). Override where wrong.
 > 2. **Group** — cluster chunks into Change-groups using the boundary rule: one group = the largest chunk set expressible as ONE Summary + ONE Dominant Category. Assign each chunk a Group #.
 > 3. For each group: write the **Summary** (descriptive *what*, not narrative *why*), the **Categorization** (dominant + secondary), and copy the **Playbook** items for the dominant Category from `../playbooks.md`.
 > 4. **Adjusted LoC** — fill per chunk: `+added/−deleted` excluding moved & generated lines; note moves as `moved N`, generated as collapsed.
@@ -22,7 +22,7 @@ Verify suggested Concern/Role. Assign each chunk to a Change-group (Group # — 
 
 | Chunk | Suggested Concern | Suggested Role | Group # | Adjusted LoC | Risk Surface |
 |---|---|---|---|---|---|
-| `packages/next/src/client/components/segment-cache/cache.ts` (+24/−10) · (+) 2597-2614, 2629, 2632, 2658, 2661, 2684-2685 · (−) 2611-2612, 2615, 2641-2642, 2645, 2667-2668, 2670-2671 | implementation | carrier | <TODO> | <TODO> | <TODO> |
+| `packages/next/src/client/components/segment-cache/cache.ts` (+24/−10) · (+) 2597-2614, 2629, 2632, 2658, 2661, 2684-2685 · (−) 2611-2612, 2615, 2641-2642, 2645, 2667-2668, 2670-2671 | implementation | core | <TODO> | <TODO> | <TODO> |
 | `test/e2e/app-dir/segment-cache/cached-navigations/app/with-fallback-params/[slug]/layout.tsx` (−22, deleted) · (+) — · (−) 1-22 | test | supporting | <TODO> | <TODO> | <TODO> |
 | `test/e2e/app-dir/segment-cache/cached-navigations/app/with-fallback-params/layout.tsx` (+51, added) · (+) 1-51 · (−) — | test | supporting | <TODO> | <TODO> | <TODO> |
 | `test/e2e/app-dir/segment-cache/cached-navigations/app/with-fallback-params/page.tsx` (+3) · (+) 1-3 · (−) — | test | supporting | <TODO> | <TODO> | <TODO> |
@@ -39,7 +39,7 @@ Verify suggested Concern/Role. Assign each chunk to a Change-group (Group # — 
 
 **Categorization:** dominant: `<TODO>` · secondary: [`<TODO>`]
 **Summary:** <one descriptive sentence — what these chunks do, not why>
-**Carrier chunks:** <list>
+**Core chunks:** <list>
 **Supporting chunks:** <list>
 **Adjusted LoC:** +<A>/−<D> (moved <M>, generated <G> excluded)
 

@@ -19,7 +19,7 @@ function chunk(id: string, file: string): BriefChunk {
     changeGroupId: "g1",
     file,
     concern: "implementation",
-    role: "carrier",
+    role: "core",
     loc: { added: 1, deleted: 0 },
     addedRanges: [],
     removedRanges: [],

@@ -18,7 +18,7 @@ describe("prompt role guidance", () => {
       "Type, context, and CSS/style files are not automatically supporting",
     );
     expect(text).toContain(
-      "`carrier` when they define the changed contract, state model, or visual behavior",
+      "`core` when they define the changed contract, state model, or visual behavior",
     );
   });
 });

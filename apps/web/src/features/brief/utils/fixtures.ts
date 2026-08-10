@@ -9,7 +9,7 @@ import {
 /**
  * Hand-built brief used by the screen characterization suite (and reusable by
  * store/receipt tests). Small but exercises the critical couplings: an
- * uncertain group, one carrier chunk with a risk flag, one supporting chunk.
+ * uncertain group, one core chunk with a risk flag, one supporting chunk.
  */
 export const briefFixture: Brief = {
   artifactKind: "brief",
@@ -40,7 +40,7 @@ export const briefFixture: Brief = {
       changeGroupId: "g1",
       file: "src/leak.ts",
       concern: Concerns.IMPLEMENTATION,
-      role: Roles.CARRIER,
+      role: Roles.CORE,
       loc: { added: 4, deleted: 1 },
       addedRanges: [{ start: 10, end: 13 }],
       removedRanges: [],
@@ -51,7 +51,7 @@ export const briefFixture: Brief = {
           note: "comment says the param is optional (L10), code throws when absent (L12)",
         },
       ],
-      summary: "Carrier chunk for the fix.",
+      summary: "Core chunk for the fix.",
       diff: [
         { kind: "hunk", content: "@@ -9,2 +9,5 @@" },
         { kind: "ctx", content: "const a = 1;", oldLine: 9, newLine: 9 },

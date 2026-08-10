@@ -43,7 +43,7 @@ export const Categories = [
 
 /** Concern — artifact. Attaches to a chunk. Mostly derivable from file path. */
 export const Concerns = [
-  "implementation", // the functional change itself (default carrier)
+  "implementation", // the functional change itself (default core)
   "test", // tests, fixtures (incl. .test.* / .spec.* files)
   "doc", // docs, READMEs, changesets, doc-only files
   "spec", // specification document (NOT .spec.ts — that's test)
@@ -71,10 +71,10 @@ export const RevisionNarrativeSkipReasons = {
   DISABLED_BY_CONFIG: "disabled by config",
 } as const;
 
-/** Role — carrier vs supporting. Attaches to a chunk. */
+/** Role — core vs supporting. Attaches to a chunk. */
 export const Roles = [
-  "carrier", // holds the change-group's intent
-  "supporting", // serves the carrier (its tests, docs, specs, config)
+  "core", // holds the change-group's intent
+  "supporting", // serves the core (its tests, docs, specs, config)
 ] as const;
 
 /**
@@ -222,7 +222,7 @@ const buildChunkSchema = (riskToken: z.ZodType<string>) =>
       "artifact kind; mostly derivable from the file path",
     ),
     role: roleEnum.describe(
-      "carrier holds intent; supporting serves it. Default from concern (implementation→carrier, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are carrier when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another carrier.",
+      "core holds the group's intent — never 'most important' or largest; supporting serves it. Default from concern (implementation→core, else supporting); flip when a supporting artifact is itself the purpose (e.g. flaky-test fix). Type, context, and CSS/style files are core when they define the changed contract, state model, or visual behavior; supporting only when they merely accompany another core chunk.",
     ),
     loc: z
       .object({

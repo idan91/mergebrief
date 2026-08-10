@@ -30,7 +30,7 @@ const chunk: BriefChunk = {
   changeGroupId: "g1",
   file: "src/deeply/nested/path/a.ts",
   concern: "implementation",
-  role: "carrier",
+  role: "core",
   loc: { added: 1, deleted: 0 },
   addedRanges: [{ start: 11, end: 11 }],
   removedRanges: [],

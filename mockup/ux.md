@@ -31,16 +31,16 @@
 |---|---|
 | View toggle — **Story / Concerns** | Two pivots over the same 8 chunks. Story = by change-group (group card + chunk list). Concerns = by artifact (implementation / test / doc buckets with LoC bars and per-file jump links; generated/spec/config shown as an excluded 0-line bucket). (`CONTEXT.md` → Story view, Concern view.) |
 | Layout toggle — **Stacked / Side by side** | Stacked: details card on top, changes below (default). Side by side: changes left, details rail right at `max(600px, 25%)` width; the rail is sticky and independently scrollable so playbook + flags stay visible while scrolling the diff. Below 1180px viewport the split collapses back to stacked. Story view only. Switching layouts preserves any active-chunk highlight. |
-| **Collapse supporting** switch | On by default: supporting chunks (test/doc) render collapsed, carriers expanded — the attention-routing default. Off: everything expands. Per-chunk manual folding always overrides. |
+| **Collapse supporting** switch | On by default: supporting chunks (test/doc) render collapsed, core chunks expanded — the attention-routing default. Off: everything expands. Per-chunk manual folding always overrides. |
 
 ## Group card (Story view)
 
 | Behavior | Detail |
 |---|---|
-| Group summary | One descriptive sentence — *what*, never *why* (`CONTEXT.md` → Summary). LoC + carrier/supporting counts in the corner, non-prominent. |
+| Group summary | One descriptive sentence — *what*, never *why* (`CONTEXT.md` → Summary). LoC + core/supporting counts in the corner, non-prominent. |
 | Categorization + **uncertain** | Dominant category chip (`new-feature`) with an amber `uncertain` chip: the categorizer is split between new-feature and bugfix (this PR's real labeling tension). A panel asks the reviewer to pick. (`initial-scope.md` → AI failure modes: low confidence surfaces explicitly, never hidden.) |
-| One-click reclassify | Picking a category: chip updates, **playbook swaps** to the chosen category's items (carrier checks reset), a note appears ("set by you · playbook swapped · recorded on receipt"), and the receipt records the reclassification. (`CONTEXT.md` → example dialogue.) |
-| Playbook checklist | Carrier items verbatim from `docs/mvp/playbooks.md` for the dominant category. Click to check/uncheck; checked items grey out; counts update header + receipt. |
+| One-click reclassify | Picking a category: chip updates, **playbook swaps** to the chosen category's items (core checks reset), a note appears ("set by you · playbook swapped · recorded on receipt"), and the receipt records the reclassification. (`CONTEXT.md` → example dialogue.) |
+| Playbook checklist | Core items verbatim from `docs/mvp/playbooks.md` for the dominant category. Click to check/uncheck; checked items grey out; counts update header + receipt. |
 | Supporting checks | `test` (5) and `doc` (3) concern checks in collapsible sections — collapsed by default, mirroring supporting-chunk de-emphasis. |
 | Risk surface rail | 4 flags using real attributes from `docs/mvp/risk-surface.md` (`widely-imported`, `cross-service` ×2, `no-tests`). Factual descriptions only — attributes, never verdicts (ADR 0002). Location links jump + expand the chunk. |
 | Flag — **Addressed** | Marks the flag addressed (green); receipt will pair it with the reviewer's comment. |
@@ -50,9 +50,9 @@
 
 | Behavior | Detail |
 |---|---|
-| Ordering | Carriers first, then supporting. |
-| Chunk header | Sticky below the app header while its diff scrolls. Shows: fold arrow, path (dimmed) + filename, risk attribute (amber), concern dot + name (+ `· carrier` for carriers), colored adjusted LoC, Mark reviewed button. |
-| Fold + **click-activation** | Click header to expand/collapse. Collapsed carriers show "collapsed"; collapsed supporting chunks show "supporting chunk — collapsed" (role-aware note). Clicking a header also makes that chunk the **active** one: subtle outline on the chunk card + its playbook section heading highlights. Works in both layouts; in stacked, the click-set highlight persists until the next click. A short (~0.8s) suppression window stops reflow-triggered scroll events from immediately overriding the click in split view. |
+| Ordering | Core chunks first, then supporting. |
+| Chunk header | Sticky below the app header while its diff scrolls. Shows: fold arrow, path (dimmed) + filename, risk attribute (amber), concern dot + name (+ `· core` for core chunks), colored adjusted LoC, Mark reviewed button. |
+| Fold + **click-activation** | Click header to expand/collapse. Collapsed core chunks show "collapsed"; collapsed supporting chunks show "supporting chunk — collapsed" (role-aware note). Clicking a header also makes that chunk the **active** one: subtle outline on the chunk card + its playbook section heading highlights. Works in both layouts; in stacked, the click-set highlight persists until the next click. A short (~0.8s) suppression window stops reflow-triggered scroll events from immediately overriding the click in split view. |
 | Mark reviewed | Toggles per-chunk read state; card border lightens, counter + progress update. (`initial-scope.md` → state persistence: per-chunk read state.) |
 | Diff rendering | Real PR diff, hunk headers, dual line numbers, soft green/red row tints. Repeated identical hunks abbreviated with an italic note ("3 more identical fixture-URL replacements"). |
 | **Scroll-spy** (side-by-side only) | While scrolling, the chunk under the reading line (~150px from top) becomes active: subtle outline on the chunk + the matching playbook section heading highlights (implementation → category playbook, test → test checks, doc → doc checks). The details rail auto-scrolls **its own content only** (never the window) just enough to keep the highlighted heading visible. Scroll drives the highlight only in split view; cleared when leaving Story view. |

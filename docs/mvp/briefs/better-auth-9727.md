@@ -12,14 +12,14 @@
 
 | Chunk | Suggested Concern | Suggested Role | Group # | Adjusted LoC | Risk Surface |
 |---|---|---|---|---|---|
-| `packages/core/src/utils/string.ts` (+37) · (+) 4-40 · (−) — | implementation | carrier | 1 | +37/−0 | widely-imported |
+| `packages/core/src/utils/string.ts` (+37) · (+) 4-40 · (−) — | implementation | core | 1 | +37/−0 | widely-imported |
 | `packages/core/src/utils/string.test.ts` (+77) · (+) 1-77 · (−) — | test | supporting | 1 | +77/−0 | — |
-| `packages/better-auth/src/client/proxy.ts` (+2/−7) · (+) 6, 71 · (−) 70-76 | implementation | carrier | 1 | +2/−7 | hot-path |
-| `packages/better-auth/src/plugins/open-api/generator.ts` (+2/−2) · (+) 7, 430 · (−) 7, 430 | implementation | carrier | 1 | +2/−2 | cross-service |
-| `packages/cli/src/generators/drizzle.ts` (+2/−8) · (+) 2, 11 · (−) 10-17 | implementation | carrier | 1 | +2/−8 | schema-adjacent |
+| `packages/better-auth/src/client/proxy.ts` (+2/−7) · (+) 6, 71 · (−) 70-76 | implementation | core | 1 | +2/−7 | hot-path |
+| `packages/better-auth/src/plugins/open-api/generator.ts` (+2/−2) · (+) 7, 430 · (−) 7, 430 | implementation | core | 1 | +2/−2 | cross-service |
+| `packages/cli/src/generators/drizzle.ts` (+2/−8) · (+) 2, 11 · (−) 10-17 | implementation | core | 1 | +2/−8 | schema-adjacent |
 | `.changeset/string-case-utils.md` (+5) · (+) 1-5 · (−) — | doc | supporting | 1 | +5/−0 | — |
 
-> The 3 small `−7/−8/−2` chunks are call sites swapping an inline regex for the new shared helper. They are a `logic-refactor` (dedup), riding on the new-feature carrier.
+> The 3 small `−7/−8/−2` chunks are call sites swapping an inline regex for the new shared helper. They are a `logic-refactor` (dedup), riding on the new-feature core chunk.
 
 ## 2. Change-groups (Story View)
 
@@ -27,7 +27,7 @@
 
 **Categorization:** dominant: `new-feature` · secondary: [`logic-refactor`]
 **Summary:** Added shared Unicode-aware string case conversion helpers and replaced inline case-conversion logic in the client proxy, Drizzle generator, and OpenAPI generator.
-**Carrier chunks:** `packages/core/src/utils/string.ts`; `packages/better-auth/src/client/proxy.ts`; `packages/better-auth/src/plugins/open-api/generator.ts`; `packages/cli/src/generators/drizzle.ts`
+**Core chunks:** `packages/core/src/utils/string.ts`; `packages/better-auth/src/client/proxy.ts`; `packages/better-auth/src/plugins/open-api/generator.ts`; `packages/cli/src/generators/drizzle.ts`
 **Supporting chunks:** `packages/core/src/utils/string.test.ts`; `.changeset/string-case-utils.md`
 **Adjusted LoC:** +125/−17
 
@@ -42,7 +42,7 @@
 - [ ] Confirm the test exercises the production code path, not just mocks or setup code (no "tests the mock" anti-pattern).
 - [ ] Check the test for ordering, timing, or external-state dependencies that could cause flakiness.
 - [ ] Identify the branch / code path the test covers; confirm it is the path most likely to break (not the easy happy path while the bug lives on the error path).
-- [ ] Confirm the doc/update accurately describes the behavior introduced by the carrier chunks.
+- [ ] Confirm the doc/update accurately describes the behavior introduced by the core chunks.
 - [ ] Check that names, package scopes, version notes, and public API references match the implementation exactly.
 - [ ] Verify the doc/update does not promise behavior that is not covered by implementation or tests.
 

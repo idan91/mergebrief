@@ -74,7 +74,7 @@ export function buildRawSpanDiffChunks(diff: string): BriefChunk[] {
       changeGroupId: "raw-span",
       file,
       concern: "implementation",
-      role: "carrier",
+      role: "core",
       loc: { added, deleted },
       addedRanges: [],
       removedRanges: [],

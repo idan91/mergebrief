@@ -22,10 +22,10 @@
 
 | Chunk | Suggested Concern | Suggested Role | Group # | Adjusted LoC | Risk Surface |
 |---|---|---|---|---|---|
-| `packages/medusa/src/api/utils/common-validators/common.ts` (+20) · (+) 19-38 · (−) — | implementation | carrier | <TODO> | <TODO> | <TODO> |
-| `packages/medusa/src/api/admin/fulfillments/validators.ts` (+3/−3) · (+) 2, 18-19 · (−) 2, 18-19 | implementation | carrier | <TODO> | <TODO> | <TODO> |
-| `packages/medusa/src/api/admin/orders/validators.ts` (+3/−3) · (+) 2, 109-110 · (−) 2, 109-110 | implementation | carrier | <TODO> | <TODO> | <TODO> |
-| `packages/admin/dashboard/src/routes/orders/order-detail/components/order-fulfillment-section/order-fulfillment-section.tsx` (+11/−1) · (+) 329-339 · (−) 329 | implementation | carrier | <TODO> | <TODO> | <TODO> |
+| `packages/medusa/src/api/utils/common-validators/common.ts` (+20) · (+) 19-38 · (−) — | implementation | core | <TODO> | <TODO> | <TODO> |
+| `packages/medusa/src/api/admin/fulfillments/validators.ts` (+3/−3) · (+) 2, 18-19 · (−) 2, 18-19 | implementation | core | <TODO> | <TODO> | <TODO> |
+| `packages/medusa/src/api/admin/orders/validators.ts` (+3/−3) · (+) 2, 109-110 · (−) 2, 109-110 | implementation | core | <TODO> | <TODO> | <TODO> |
+| `packages/admin/dashboard/src/routes/orders/order-detail/components/order-fulfillment-section/order-fulfillment-section.tsx` (+11/−1) · (+) 329-339 · (−) 329 | implementation | core | <TODO> | <TODO> | <TODO> |
 | `packages/medusa/src/api/utils/common-validators/__tests__/common.spec.ts` (+24) · (+) 1-24 · (−) — | test | supporting | <TODO> | <TODO> | <TODO> |
 | `integration-tests/modules/__tests__/fulfillment/index.spec.ts` (+8/−8) · (+) 226-227, 256-257, 274-275, 301-302 · (−) 226-227, 256-257, 274-275, 301-302 | test | supporting | <TODO> | <TODO> | <TODO> |
 | `integration-tests/modules/__tests__/fixtures/fulfillment/index.ts` (+2/−2) · (+) 49-50 · (−) 49-50 | test | supporting | <TODO> | <TODO> | <TODO> |
@@ -41,7 +41,7 @@
 
 **Categorization:** dominant: `<TODO>` · secondary: [`<TODO>`]
 **Summary:** <one descriptive sentence — what changed, not why>
-**Carrier chunks:** <list>
+**Core chunks:** <list>
 **Supporting chunks:** <list>
 **Adjusted LoC:** +<A>/−<D>
 

@@ -25,7 +25,7 @@ How to fill in a Phase 1 brief. Follow this order — different from the order t
 Fill the **Chunk Inventory** table. For each chunk:
 
 - **Concern** — what artifact does it touch? `implementation` / `test` / `doc` / `spec` / `config` / `generated`. Mostly from file path (`*.test.*` → test, `*.md` → doc, lockfiles/bundles → generated). Verify the suggested value; override if wrong.
-- **Role** — `carrier` or `supporting`. Default: `implementation` → carrier, everything else → supporting. **Flip** only when a supporting artifact is itself the PR's purpose (flaky-test fix, coverage backfill) — then that chunk becomes carrier and takes the group's intent.
+- **Role** — `core` or `supporting`. Default: `implementation` → core, everything else → supporting. **Flip** only when a supporting artifact is itself the PR's purpose (flaky-test fix, coverage backfill) — then that chunk becomes core and takes the group's intent.
 - **Adjusted LoC** — `+added/−deleted`, but exclude moved & generated lines:
   - **Moves:** for relocated code, show `moved N` and do NOT count those lines in +/− (net logic change is zero). Inspect content (`gh pr diff <n> --repo <owner>/<repo>`) to separate moved bytes from edited bytes.
   - **Generated:** mark the chunk `generated` Concern; its LoC is collapsed, excluded from the split.
@@ -50,7 +50,7 @@ Cluster the chunks into **Change-groups**. The boundary rule:
 
 For each group:
 
-1. **Assign member chunks** (carriers + their supporting chunks). Intent lives on the carrier(s); supporting test/doc chunks serve it — do NOT independently categorize them.
+1. **Assign member chunks** (core chunks + their supporting chunks). Intent lives on the core chunk(s); supporting test/doc chunks serve it — do NOT independently categorize them.
 2. **Summary** — one descriptive sentence. *What* not *why*.
    - Good: "Cache.ts scopes prefetch params per-route-segment instead of leaking across segments."
    - Bad: "Elegantly fixes a long-standing cross-segment caching bug by isolating the param scope."
@@ -59,7 +59,7 @@ For each group:
 4. **Playbook** — copy the dominant Category's items from `playbooks.md` **verbatim** (no paraphrase — Phase 2 benchmark relies on consistency). Add supporting-Concern checks for the group's test/doc/spec chunks.
 5. **Adjusted LoC** — roll up across the group's chunks.
 
-If a carrier doesn't fit any Category, or a chunk resists every group's single-summary test → note it in `## Labeling Scratch`. Don't force it. Taxonomy gap, feeds Phase 2.
+If a core chunk doesn't fit any Category, or a chunk resists every group's single-summary test → note it in `## Labeling Scratch`. Don't force it. Taxonomy gap, feeds Phase 2.
 
 ## Step 5 — Concern View Rollup (~5 min)
 
@@ -85,11 +85,11 @@ This is the **pre-registration** for the Phase 1 success metric. The hardest ste
 ## After Filling a Brief
 
 1. Delete the instruction callout from the top of the brief.
-2. Generate the `.baseline.md` (**Baseline B′**) — copy the full brief, then **strip the three differentiator fields**: Category labels (dominant + secondary), all playbook items, and risk-surface attributes. **Keep** everything else: change-groups, member chunks, carrier/supporting roles, concern split, adjusted LoC, and the descriptive per-group summaries. B′ is the grouped substrate Linear already ships — the within-subject test measures what your differentiator layer adds on top of it. (B′ is a derived rendering of the same labeling, not a separate labeling pass.)
+2. Generate the `.baseline.md` (**Baseline B′**) — copy the full brief, then **strip the three differentiator fields**: Category labels (dominant + secondary), all playbook items, and risk-surface attributes. **Keep** everything else: change-groups, member chunks, core/supporting roles, concern split, adjusted LoC, and the descriptive per-group summaries. B′ is the grouped substrate Linear already ships — the within-subject test measures what your differentiator layer adds on top of it. (B′ is a derived rendering of the same labeling, not a separate labeling pass.)
 3. Commit both files.
 4. Ping for review. Reviewer (Claude or human) checks:
    - Do the Change-group boundaries hold (one summary + one dominant Category each)?
-   - Does intent sit on carriers, with test/doc chunks marked supporting (not independently categorized)?
+   - Does intent sit on core chunks, with test/doc chunks marked supporting (not independently categorized)?
    - Are Concern + Role assignments right? Adjusted LoC excludes moves & generated?
    - Are risk-surface attributes truly factual, or did any verdict slip in?
    - Are tricky-cases concrete enough to grade reviewer comments against?
@@ -98,8 +98,8 @@ This is the **pre-registration** for the Phase 1 success metric. The hardest ste
 ## Anti-Patterns
 
 - **Reading the PR description before the diff.** Anchors you to the author's framing. Always diff first.
-- **Forcing every chunk into a category.** Only carriers get a Category, and only via their group. If a carrier doesn't fit, capture the gap. The taxonomy is what you're testing, too.
-- **Independently categorizing supporting chunks.** A test chunk in a bugfix group is `test` Concern, `supporting` Role — NOT its own "bugfix" or "new-feature". Intent flows from the carrier. The only exception is a flipped-role test-as-purpose chunk.
+- **Forcing every chunk into a category.** Only core chunks get a Category, and only via their group. If a core chunk doesn't fit, capture the gap. The taxonomy is what you're testing, too.
+- **Independently categorizing supporting chunks.** A test chunk in a bugfix group is `test` Concern, `supporting` Role — NOT its own "bugfix" or "new-feature". Intent flows from the core chunk. The only exception is a flipped-role test-as-purpose chunk.
 - **Counting moved or generated lines in adjusted LoC.** Moves are `moved N` (excluded); generated is collapsed (excluded). Raw git numbers stay reachable but are never the displayed adjusted value.
 - **Editorial summary.** "This PR cleverly handles X" smuggles a verdict. Stick to "This PR does X by changing Y."
 - **Narrative drift in per-category summaries.** Writing "the author elegantly solves the race by…" or "step 1 is setting up the fixture, step 2 is fixing the cache" is *narrative-mode summary*. That's Linear Diffs' lane. Yours is descriptive-mode summary: "the bugfix portion scopes params per-route-segment." Stay in observable *what*.

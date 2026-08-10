@@ -158,7 +158,7 @@ Items:
 
 ## Concern checks
 
-These are NOT Category playbooks. They apply to **supporting** chunks based on their **Concern**. A bugfix group with test chunks pulls the `bugfix` Category playbook (for the carrier) plus the `test` Concern check below (for the supporting test chunks).
+These are NOT Category playbooks. They apply to **supporting** chunks based on their **Concern**. A bugfix group with test chunks pulls the `bugfix` Category playbook (for the core chunk) plus the `test` Concern check below (for the supporting test chunks).
 
 ### `test` Concern check
 
@@ -184,14 +184,14 @@ Failure modes this check is designed to catch:
 - Release-note phrasing over-promises support for behavior not covered by implementation or tests.
 
 Items:
-- [ ] Confirm the doc/update accurately describes the behavior introduced by the carrier chunks.
+- [ ] Confirm the doc/update accurately describes the behavior introduced by the core chunks.
 - [ ] Check that names, package scopes, version notes, and public API references match the implementation exactly.
 - [ ] Verify the doc/update does not promise behavior that is not covered by implementation or tests.
 
 ### `spec` Concern check
 
 Failure modes this check is designed to catch:
-- The spec document drifts from the implementation it describes — the carrier changed a contract the spec still states the old way.
+- The spec document drifts from the implementation it describes — the core chunk changed a contract the spec still states the old way.
 - Examples or terminology in the spec no longer match the changed code, so the spec teaches the wrong usage.
 
 Items:

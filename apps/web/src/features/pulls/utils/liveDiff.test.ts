@@ -59,7 +59,7 @@ function chunk(overrides: Partial<BriefChunk>): BriefChunk {
     changeGroupId: "g1",
     file: "src/app.ts",
     concern: "implementation",
-    role: "carrier",
+    role: "core",
     loc: { added: 1, deleted: 1 },
     addedRanges: [{ start: 1, end: 1 }],
     removedRanges: [{ start: 1, end: 1 }],

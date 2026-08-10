@@ -10,7 +10,7 @@ export interface BriefDetailsPanelProps {
   /** Adjusted-line totals from the view model — the Artifact section's LOC line. */
   totalAdded: number;
   totalDeleted: number;
-  /** Core (carrier-chunk) adjusted-line totals from the view model. */
+  /** Core-chunk adjusted-line totals from the view model. */
   totalCoreAdded: number;
   totalCoreDeleted: number;
   /** Repo-config snapshot; absent/null → the section reports "no config". */

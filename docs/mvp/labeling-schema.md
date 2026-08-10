@@ -14,7 +14,7 @@ Division of labor:
 |---|---|---|
 | **Category** (one dominant + secondary) + **Summary** | **Change-group** | intent |
 | **Concern** | **Chunk** | artifact |
-| **Role** | **Chunk** | carrier vs supporting |
+| **Role** | **Chunk** | core vs supporting |
 | **Risk Surface** attributes | **Chunk** | factual flags |
 | **LoC** | **Chunk** (rolls up to group + concern) | size/attention |
 | **Intent-check bucket** | **Brief** (intent check section) | stated intent vs diff |
@@ -48,7 +48,7 @@ Closed set. Mostly derivable from file path.
 
 | Token | Description | Default Role |
 |---|---|---|
-| `implementation` | the functional change itself | carrier |
+| `implementation` | the functional change itself | core |
 | `test` | tests, fixtures (incl. `.test.*` / `.spec.*` files) | supporting |
 | `doc` | docs, READMEs, changesets, doc-only files | supporting |
 | `spec` | specification document (NOT `.spec.ts` — that's `test`) | supporting |
@@ -59,14 +59,14 @@ Closed set. Mostly derivable from file path.
 
 ---
 
-## 3. Role — carrier vs supporting (attaches to Chunk)
+## 3. Role — core vs supporting (attaches to Chunk)
 
 | Token | Description |
 |---|---|
-| `carrier` | holds the Change-group's intent (the implementation that carries the change) |
-| `supporting` | serves the carrier (its tests, docs, specs, config) |
+| `core` | holds the Change-group's intent (the implementation that carries the change) |
+| `supporting` | serves the core chunk (its tests, docs, specs, config) |
 
-Default from Concern (`implementation` → carrier, else → supporting). **Flip** when a supporting artifact is itself the purpose (flaky-test fix, coverage backfill) — that chunk becomes carrier and takes the group's intent.
+Default from Concern (`implementation` → core, else → supporting). **Flip** when a supporting artifact is itself the purpose (flaky-test fix, coverage backfill) — that chunk becomes core and takes the group's intent.
 
 ---
 
@@ -110,7 +110,7 @@ This added/removed-by-side model is exactly how diff-viewer libraries (e.g. diff
 - One group = the largest chunk set expressible as **ONE Summary + ONE Dominant Category**.
 - Need two unrelated summaries → split.
 - Author commit structure is a *hint*, never the boundary.
-- Intent lives on the carrier chunk(s); supporting chunks inherit it, are not independently categorized.
+- Intent lives on the core chunk(s); supporting chunks inherit it, are not independently categorized.
 
 ---
 

@@ -36,7 +36,7 @@ function validGeneration() {
         changeGroupId: "g1",
         file: "a.ts",
         concern: "implementation",
-        role: "carrier",
+        role: "core",
         loc: { added: 1, deleted: 0 },
         addedRanges: [{ start: 5, end: 5 }],
         removedRanges: [],

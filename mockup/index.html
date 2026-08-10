@@ -353,7 +353,7 @@ body.split .uncertain-panel{flex-direction:column;align-items:flex-start;gap:10p
       <div class="group-head">
         <div class="group-eyebrow">
           <span class="gnum">Change-group 1 of 1 — single-intent PR</span>
-          <span class="gloc" id="grpLoc"><span style="color:var(--green)">+77</span> / <span style="color:var(--red)">−17</span> · 4 carrier · 4 supporting</span>
+          <span class="gloc" id="grpLoc"><span style="color:var(--green)">+77</span> / <span style="color:var(--red)">−17</span> · 4 core · 4 supporting</span>
         </div>
         <div class="group-summary">Adds a shared <code>safeHttpUrl</code> refinement and applies it to <code>tracking_url</code> / <code>label_url</code> in the fulfillments and orders admin validators and the dashboard fulfillment section; <code>""</code> and <code>"#"</code> remain accepted.</div>
         <div class="cat-row" id="catRow">
@@ -371,8 +371,8 @@ body.split .uncertain-panel{flex-direction:column;align-items:flex-start;gap:10p
 
       <div class="group-body">
         <div class="playbook">
-          <div class="label" id="pbCarrierLabel">Playbook — <span id="pbCatName">new-feature</span> &nbsp;<span class="count" id="pbCount">0/5</span></div>
-          <div id="pbCarrier"></div>
+          <div class="label" id="pbCoreLabel">Playbook — <span id="pbCatName">new-feature</span> &nbsp;<span class="count" id="pbCount">0/5</span></div>
+          <div id="pbCore"></div>
 
           <div class="pb-sub" id="subTest">
             <div class="label" data-toggle="subTest"><span class="tw">▶</span> Supporting checks — tests <span class="count" id="pbTestCount">0/5</span></div>
@@ -393,7 +393,7 @@ body.split .uncertain-panel{flex-direction:column;align-items:flex-start;gap:10p
 
     <div id="chunksArea">
       <div class="chunks-label reveal" style="animation-delay:.2s">
-        <span>8 chunks · carriers first</span>
+        <span>8 chunks · core first</span>
         <span class="rule"></span>
         <label class="switch"><input type="checkbox" id="collapseSupporting" checked><span class="track"></span>Collapse supporting</label>
       </div>
@@ -466,7 +466,7 @@ const TEST_CHECK = [
   "Identify the code path the test covers; confirm it is the path most likely to break — not the easy happy path while the bug lives on the error path."
 ];
 const DOC_CHECK = [
-  "Confirm the doc/update accurately describes the behavior introduced by the carrier chunks.",
+  "Confirm the doc/update accurately describes the behavior introduced by the core chunks.",
   "Check that names, package scopes, version notes, and public API references match the implementation exactly.",
   "Verify the doc/update does not promise behavior that is not covered by implementation or tests."
 ];
@@ -484,7 +484,7 @@ const FLAGS = [
 
 const CHUNKS = [
   {id:"c1", dir:"packages/medusa/src/api/utils/common-validators/", file:"common.ts",
-   concern:"implementation", role:"carrier", loc:["+20","−0"], risk:["widely-imported"], open:true,
+   concern:"implementation", role:"core", loc:["+20","−0"], risk:["widely-imported"], open:true,
    diff:[
     {t:"hunk", x:"@@ -16,6 +16,26 @@"},
     {t:"ctx", o:"16", n:"16", c:"  })"},
@@ -513,7 +513,7 @@ const CHUNKS = [
     {t:"ctx", o:"19", n:"39", c:"export const BigNumberInput = z.union(["}
    ]},
   {id:"c2", dir:"packages/medusa/src/api/admin/fulfillments/", file:"validators.ts",
-   concern:"implementation", role:"carrier", loc:["+3","−3"], risk:["cross-service"], open:true,
+   concern:"implementation", role:"core", loc:["+3","−3"], risk:["cross-service"], open:true,
    diff:[
     {t:"hunk", x:"@@ -1,5 +1,5 @@"},
     {t:"ctx", o:"1", n:"1", c:"import { z } from \"@medusajs/framework/zod\""},
@@ -530,7 +530,7 @@ const CHUNKS = [
     {t:"ctx", o:"19", n:"19", c:"})"}
    ]},
   {id:"c3", dir:"packages/medusa/src/api/admin/orders/", file:"validators.ts",
-   concern:"implementation", role:"carrier", loc:["+3","−3"], risk:["cross-service"], open:true,
+   concern:"implementation", role:"core", loc:["+3","−3"], risk:["cross-service"], open:true,
    diff:[
     {t:"hunk", x:"@@ -1,5 +1,5 @@"},
     {t:"ctx", o:"1", n:"1", c:"import { z } from \"@medusajs/framework/zod\""},
@@ -546,7 +546,7 @@ const CHUNKS = [
     {t:"ctx", o:"110", n:"110", c:"})"}
    ]},
   {id:"c4", dir:"packages/admin/dashboard/src/routes/orders/order-detail/…/", file:"order-fulfillment-section.tsx",
-   concern:"implementation", role:"carrier", loc:["+11","−1"], risk:["no-tests"], open:true,
+   concern:"implementation", role:"core", loc:["+11","−1"], risk:["no-tests"], open:true,
    diff:[
     {t:"hunk", x:"@@ -326,7 +326,17 @@"},
     {t:"ctx", o:"326", n:"326", c:"    throw error"},
@@ -640,7 +640,7 @@ const CHUNKS = [
 const state = {
   dominant: "new-feature",
   reclassified: false,
-  checked: { carrier:new Set(), test:new Set(), doc:new Set() },
+  checked: { core:new Set(), test:new Set(), doc:new Set() },
   reviewed: new Set(),
   flags: Object.fromEntries(FLAGS.map(f=>[f.id,{status:"open",reason:""}])),
   dismissTarget: null
@@ -657,11 +657,11 @@ function renderPlaybookList(el, items, bucket){
 }
 
 function renderPlaybooks(){
-  renderPlaybookList($("pbCarrier"), PLAYBOOKS[state.dominant], "carrier");
+  renderPlaybookList($("pbCore"), PLAYBOOKS[state.dominant], "core");
   renderPlaybookList($("pbTest"), TEST_CHECK, "test");
   renderPlaybookList($("pbDoc"), DOC_CHECK, "doc");
   $("pbCatName").textContent = state.dominant;
-  $("pbCount").textContent = `${state.checked.carrier.size}/5`;
+  $("pbCount").textContent = `${state.checked.core.size}/5`;
   $("pbTestCount").textContent = `${state.checked.test.size}/5`;
   $("pbDocCount").textContent = `${state.checked.doc.size}/3`;
 }
@@ -710,7 +710,7 @@ function renderChunks(){
         <span class="cfile"><span class="dir">${esc(ch.dir)}</span>${esc(ch.file)}${ch.newfile?'<span class="new">new</span>':''}</span>
         <span class="cchips">
           ${riskChips}
-          <span class="cc concern-${ch.concern}"><span class="dot"></span>${ch.concern}${ch.role==="carrier"?" · carrier":""}</span>
+          <span class="cc concern-${ch.concern}"><span class="dot"></span>${ch.concern}${ch.role==="core"?" · core":""}</span>
           <span class="cc loc"><span class="a">${ch.loc[0]}</span> <span class="d">${ch.loc[1]}</span></span>
           <button class="markbtn" data-mark="${ch.id}">${state.reviewed.has(ch.id)?"Reviewed ✓":"Mark reviewed"}</button>
         </span>
@@ -751,7 +751,7 @@ function renderConcern(){
 }
 
 function totals(){
-  const pb = state.checked.carrier.size + state.checked.test.size + state.checked.doc.size;
+  const pb = state.checked.core.size + state.checked.test.size + state.checked.doc.size;
   const fl = Object.values(state.flags).filter(f=>f.status!=="open").length;
   return {pb, ch:state.reviewed.size, fl};
 }
@@ -771,7 +771,7 @@ function renderReceipt(){
   let body = "";
   body += `Reviewed by @you (human) · medusajs/medusa #15605 @ 2803816\n`;
   body += `Tool verification receipt — mechanical claims only\n\n`;
-  body += `  ${mk(state.checked.carrier.size,5,`playbook (${state.dominant})`)} items visited\n`;
+  body += `  ${mk(state.checked.core.size,5,`playbook (${state.dominant})`)} items visited\n`;
   body += `  ${mk(state.checked.test.size,5,"supporting checks (test)")} · ${state.checked.doc.size}/3 (doc)\n`;
   body += `  ${mk(t.ch,8,"chunks read")}\n`;
   body += `  ${addr.length+dis.length===4?'<span class="ok">✓</span>':'<span class="warn">•</span>'} risk surface: ${addr.length} addressed · ${dis.length} dismissed · ${open.length} open\n`;
@@ -853,7 +853,7 @@ document.addEventListener("click", e=>{
   if(pk){
     state.dominant = pk.dataset.cat;
     state.reclassified = true;
-    state.checked.carrier.clear();
+    state.checked.core.clear();
     $("uncPanel").style.display = "none";
     $("uncChip").remove();
     const chip = $("domChip");
@@ -914,7 +914,7 @@ $("laySplit").onclick = ()=>{
 /* active chunk: set by scroll-spy (split view) or by clicking a chunk header (any layout).
    Highlights the chunk card + the matching playbook section heading. */
 const spyLabel = concern =>
-  concern==="implementation" ? $("pbCarrierLabel")
+  concern==="implementation" ? $("pbCoreLabel")
   : concern==="test" ? $("subTest").querySelector(".label")
   : $("subDoc").querySelector(".label");
 function clearActive(){

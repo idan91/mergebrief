@@ -24,7 +24,7 @@ export const Concerns = {
 } as const;
 
 export const Roles = {
-  CARRIER: "carrier",
+  CORE: "core",
   SUPPORTING: "supporting",
 } as const;
 

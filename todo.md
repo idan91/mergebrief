@@ -126,7 +126,7 @@ fast enough to run on every commit without thinking about it.
 ## [x] Skip off-screen `DiffTable` render with `content-visibility`
 
 Done. The real bottleneck was the **aggregate layout/paint of many simultaneously-expanded
-moderate diffs** (all carrier chunks open by default), not one giant chunk. Fixed with CSS
+moderate diffs** (all core chunks open by default), not one giant chunk. Fixed with CSS
 `content-visibility: auto` on a `.viewport` wrapper per `DiffTable`, plus a data-driven
 `contain-intrinsic-block-size` (`--diff-rows` = `chunk.diff.length`, ≈22px/row) so off-screen
 diffs reserve roughly their real height and don't thrash the scrollbar. Near-zero JS; `<table>`

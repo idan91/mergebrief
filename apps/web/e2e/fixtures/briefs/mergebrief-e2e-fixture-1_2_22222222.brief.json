@@ -26,7 +26,7 @@
       "changeGroupId": "g1",
       "file": "apps/web/src/features/brief/components/Header/Header.tsx",
       "concern": "implementation",
-      "role": "carrier",
+      "role": "core",
       "loc": {
         "added": 1,
         "deleted": 1
@@ -50,7 +50,7 @@
       "changeGroupId": "g1",
       "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
       "concern": "implementation",
-      "role": "carrier",
+      "role": "core",
       "loc": {
         "added": 8,
         "deleted": 3
@@ -86,7 +86,7 @@
       "changeGroupId": "g4",
       "file": "apps/web/src/features/brief/viewModel.ts",
       "concern": "implementation",
-      "role": "carrier",
+      "role": "core",
       "loc": {
         "added": 38,
         "deleted": 15
@@ -138,7 +138,7 @@
       "changeGroupId": "g4",
       "file": "apps/web/src/features/brief/components/BriefPage/BriefPage.tsx",
       "concern": "implementation",
-      "role": "carrier",
+      "role": "core",
       "loc": {
         "added": 90,
         "deleted": 57

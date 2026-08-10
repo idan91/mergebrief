@@ -36,11 +36,11 @@ export interface GroupView {
   index: number;
   group: ChangeGroup;
   chunks: BriefChunk[];
-  carrierChunks: BriefChunk[];
+  coreChunks: BriefChunk[];
   supportingChunks: BriefChunk[];
   added: number;
   deleted: number;
-  /** Adjusted-line sums over the group's carrier chunks ("core" in the UI). */
+  /** Adjusted-line sums over the group's core chunks. */
   coreAdded: number;
   coreDeleted: number;
   headerRisk: GroupHeaderRisk;
@@ -74,7 +74,7 @@ export interface BriefViewModel {
   flagsByGroup: Map<string, RiskFlag[]>;
   totalAdded: number;
   totalDeleted: number;
-  /** Adjusted-line sums over ALL carrier chunks ("core" in the UI). */
+  /** Adjusted-line sums over ALL core chunks. */
   totalCoreAdded: number;
   totalCoreDeleted: number;
   concernChunks: Map<Concern, BriefChunk[]>;
@@ -184,8 +184,8 @@ export function buildBriefViewModel(
       (chunk) => chunk.changeGroupId === id,
     );
     groupChunks.forEach((chunk) => chunkToGroup.set(chunk.id, id));
-    const carrierChunks = sortByConcern(
-      groupChunks.filter((chunk) => chunk.role === Roles.CARRIER),
+    const coreChunks = sortByConcern(
+      groupChunks.filter((chunk) => chunk.role === Roles.CORE),
     );
     const supportingChunks = sortByConcern(
       groupChunks.filter((chunk) => chunk.role === Roles.SUPPORTING),
@@ -195,13 +195,13 @@ export function buildBriefViewModel(
       id,
       index,
       group,
-      chunks: [...carrierChunks, ...supportingChunks],
-      carrierChunks,
+      chunks: [...coreChunks, ...supportingChunks],
+      coreChunks,
       supportingChunks,
       added: sumLoc(groupChunks, "added"),
       deleted: sumLoc(groupChunks, "deleted"),
-      coreAdded: sumLoc(carrierChunks, "added"),
-      coreDeleted: sumLoc(carrierChunks, "deleted"),
+      coreAdded: sumLoc(coreChunks, "added"),
+      coreDeleted: sumLoc(coreChunks, "deleted"),
       headerRisk: buildGroupHeaderRisk(groupChunks, riskMetaByChunk),
     } satisfies GroupView;
   });
@@ -219,8 +219,8 @@ export function buildBriefViewModel(
     );
   }
 
-  const carrierOnly = brief.chunks.filter(
-    (chunk) => chunk.role === Roles.CARRIER,
+  const coreOnly = brief.chunks.filter(
+    (chunk) => chunk.role === Roles.CORE,
   );
 
   const flags: RiskFlag[] = [];
@@ -265,8 +265,8 @@ export function buildBriefViewModel(
     flagsByGroup,
     totalAdded: sumLoc(brief.chunks, "added"),
     totalDeleted: sumLoc(brief.chunks, "deleted"),
-    totalCoreAdded: sumLoc(carrierOnly, "added"),
-    totalCoreDeleted: sumLoc(carrierOnly, "deleted"),
+    totalCoreAdded: sumLoc(coreOnly, "added"),
+    totalCoreDeleted: sumLoc(coreOnly, "deleted"),
     concernChunks,
     chunkToGroup,
     riskMetaByChunk,

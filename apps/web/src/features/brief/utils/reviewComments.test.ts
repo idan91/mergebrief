@@ -11,7 +11,7 @@ const chunk = {
   changeGroupId: "g1",
   file: "src/components/Accordion/Accordion.tsx",
   concern: "implementation",
-  role: "carrier",
+  role: "core",
   loc: { added: 1, deleted: 1 },
   addedRanges: [{ start: 103, end: 103 }],
   removedRanges: [{ start: 101, end: 101 }],

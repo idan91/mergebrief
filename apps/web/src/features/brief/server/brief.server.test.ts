@@ -48,7 +48,7 @@ describe("readLocalBrief", () => {
               changeGroupId: "g1",
               file: "src/components/Accordion/Accordion.tsx",
               concern: "implementation",
-              role: "carrier",
+              role: "core",
               loc: { added: 1, deleted: 0 },
               addedRanges: [{ start: 1, end: 1 }],
               removedRanges: [],
