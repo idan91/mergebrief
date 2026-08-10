@@ -31,9 +31,7 @@ export function SummaryPreview({
   const model = buildBriefViewModel(brief);
   const receipt = buildReceipt(snapshot, brief, model);
   const reviewedChunkIds = new Set(snapshot.reviewedChunkIds);
-  const coreChunks = brief.chunks.filter(
-    (chunk) => chunk.role === Roles.CORE,
-  );
+  const coreChunks = brief.chunks.filter((chunk) => chunk.role === Roles.CORE);
   const supportingChunks = brief.chunks.filter(
     (chunk) => chunk.role === Roles.SUPPORTING,
   );
@@ -89,9 +87,8 @@ export function SummaryPreview({
                 <dt>Core chunks</dt>
                 <dd>
                   {
-                    coreChunks.filter((chunk) =>
-                      reviewedChunkIds.has(chunk.id),
-                    ).length
+                    coreChunks.filter((chunk) => reviewedChunkIds.has(chunk.id))
+                      .length
                   }
                   /{coreChunks.length}
                 </dd>

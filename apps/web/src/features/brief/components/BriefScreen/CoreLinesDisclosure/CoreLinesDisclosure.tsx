@@ -105,8 +105,8 @@ export function CoreLinesDisclosure({
               </dd>
             </dl>
             <span className={styles["caveat"]}>
-              Adjusted approximation — not the raw git count. Exact lines are
-              on GitHub.
+              Adjusted approximation — not the raw git count. Exact lines are on
+              GitHub.
             </span>
           </span>
         </Callout>

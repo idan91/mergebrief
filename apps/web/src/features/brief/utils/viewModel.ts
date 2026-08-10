@@ -219,9 +219,7 @@ export function buildBriefViewModel(
     );
   }
 
-  const coreOnly = brief.chunks.filter(
-    (chunk) => chunk.role === Roles.CORE,
-  );
+  const coreOnly = brief.chunks.filter((chunk) => chunk.role === Roles.CORE);
 
   const flags: RiskFlag[] = [];
   const flagsById = new Map<string, RiskFlag>();

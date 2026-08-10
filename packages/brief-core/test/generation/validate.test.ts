@@ -48,9 +48,7 @@ describe("validatePartition", () => {
   });
 
   it("flags a group with no chunks", () => {
-    const chunks = [
-      { id: "c1", changeGroupId: "g1", role: "core" as const },
-    ];
+    const chunks = [{ id: "c1", changeGroupId: "g1", role: "core" as const }];
     const issues = validatePartition(groups, chunks);
     expect(
       issues.some((i) => i.includes("g2") && i.includes("no chunks")),

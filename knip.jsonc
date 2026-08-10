@@ -54,7 +54,12 @@
       "ignoreDependencies": ["pino-pretty"],
     },
     "packages/persistence": {
-      "entry": ["src/index.ts", "src/testing.ts", "drizzle.config.ts", "toDelete-*.ts"],
+      "entry": [
+        "src/index.ts",
+        "src/testing.ts",
+        "drizzle.config.ts",
+        "toDelete-*.ts",
+      ],
       // knip's drizzle plugin EXECUTES drizzle.config.ts, which refuses to
       // load without DATABASE_URL — the config is listed as a plain entry
       // instead, which is all the plugin would have contributed here.

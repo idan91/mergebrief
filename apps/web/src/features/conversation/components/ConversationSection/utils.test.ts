@@ -22,10 +22,7 @@ function review(
   };
 }
 
-function thread(
-  rootCommentId: number,
-  isResolved = false,
-): ConversationThread {
+function thread(rootCommentId: number, isResolved = false): ConversationThread {
   return {
     rootCommentId,
     path: "src/a.ts",

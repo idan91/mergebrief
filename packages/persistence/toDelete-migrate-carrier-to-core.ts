@@ -85,7 +85,9 @@ async function migrateTable(pool: Pool, table: ArtifactTable): Promise<void> {
     );
     rewritten += 1;
   }
-  console.info(`${table}: ${rewritten}/${rows.length} candidate rows rewritten`);
+  console.info(
+    `${table}: ${rewritten}/${rows.length} candidate rows rewritten`,
+  );
 }
 
 const ARTIFACT_SUFFIXES = [
@@ -123,7 +125,9 @@ async function migrateFiles(dir: string): Promise<void> {
     await writeFile(path, raw.endsWith("\n") ? `${body}\n` : body);
     rewritten += 1;
   }
-  console.info(`${dir}: ${rewritten}/${targets.length} artifact files rewritten`);
+  console.info(
+    `${dir}: ${rewritten}/${targets.length} artifact files rewritten`,
+  );
 }
 
 async function main(): Promise<void> {

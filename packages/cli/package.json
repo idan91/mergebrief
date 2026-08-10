@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "MergeBrief CLI \u2014 humans and AI agents over the read/write API.",
+  "description": "MergeBrief CLI — humans and AI agents over the read/write API.",
   "bin": {
     "mergebrief": "./dist/mergebrief.js"
   },
