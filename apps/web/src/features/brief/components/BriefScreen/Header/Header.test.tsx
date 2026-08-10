@@ -284,13 +284,20 @@ describe("generation warnings chip", () => {
 });
 
 describe("Header menu and stats", () => {
-  it("shows the progress facts on the lens row, LOC as plain text", () => {
+  it("shows the progress facts on the lens row, LOC as the core-lines disclosure", () => {
     renderHeader();
     expect(screen.getByText("chunks").textContent).toContain("1/2");
     expect(screen.getByText("flags").textContent).toContain("0/1");
-    const loc = screen.getByText("adjusted lines");
-    // The LOC cell is plain text, not a button.
-    expect(loc.closest("button")).toBeNull();
+    // The LOC cell is the core-lines disclosure trigger: a real button whose
+    // name carries the sr-only "approximately" for the ≈ glyph.
+    const loc = screen.getByTestId("core-lines-disclosure");
+    expect(loc.textContent).toContain("core lines");
+    expect(loc.textContent).toContain("approximately");
+    expect(loc.textContent).toContain("+3");
+    expect(loc.textContent).toContain("−1");
+    fireEvent.click(loc);
+    expect(screen.getByText("all adjusted lines")).toBeTruthy();
+    expect(screen.getByText(/not the raw git count/)).toBeTruthy();
   });
 
   it("keeps rare actions in a menu with menu-button semantics", () => {

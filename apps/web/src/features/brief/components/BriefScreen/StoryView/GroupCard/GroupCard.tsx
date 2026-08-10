@@ -18,6 +18,7 @@ import {
   type RiskFlag,
 } from "../../../../utils/viewModel";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
+import { CoreLinesDisclosure } from "../../CoreLinesDisclosure/CoreLinesDisclosure";
 import { RiskBadge } from "../../RiskBadge/RiskBadge";
 import { RiskChipDisclosure } from "../../RiskChipDisclosure/RiskChipDisclosure";
 import { RiskDetailList } from "../../RiskDetailList/RiskDetailList";
@@ -110,12 +111,20 @@ export const GroupCard = memo(function GroupCard({
           <span className={styles["number"]}>
             Change-group {group.index + 1} of {model.groups.length}
           </span>
-          <span className={styles["loc"]}>
-            <span className="green">+{group.added}</span> /{" "}
-            <span className="red">−{group.deleted}</span> ·{" "}
-            {group.carrierChunks.length} carrier ·{" "}
+          <CoreLinesDisclosure
+            allAdded={group.added}
+            allDeleted={group.deleted}
+            className={styles["loc"]}
+            coreAdded={group.coreAdded}
+            coreDeleted={group.coreDeleted}
+          >
+            <span aria-hidden="true">{"≈ "}</span>
+            <ScreenReaderOnly>approximately </ScreenReaderOnly>
+            <span className="green">+{group.coreAdded}</span> /{" "}
+            <span className="red">−{group.coreDeleted}</span> core ·{" "}
+            {group.carrierChunks.length} core ·{" "}
             {group.supportingChunks.length} supporting
-          </span>
+          </CoreLinesDisclosure>
           {sinceBaselineShortSha !== undefined ? (
             <SinceMarker
               baselineShortSha={sinceBaselineShortSha}

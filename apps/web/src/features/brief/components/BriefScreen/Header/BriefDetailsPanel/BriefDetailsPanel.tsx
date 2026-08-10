@@ -10,6 +10,9 @@ export interface BriefDetailsPanelProps {
   /** Adjusted-line totals from the view model — the Artifact section's LOC line. */
   totalAdded: number;
   totalDeleted: number;
+  /** Core (carrier-chunk) adjusted-line totals from the view model. */
+  totalCoreAdded: number;
+  totalCoreDeleted: number;
   /** Repo-config snapshot; absent/null → the section reports "no config". */
   repoConfig?: RepoConfigContext | null | undefined;
 }
@@ -28,6 +31,8 @@ export function BriefDetailsPanel({
   brief,
   totalAdded,
   totalDeleted,
+  totalCoreAdded,
+  totalCoreDeleted,
   repoConfig,
 }: BriefDetailsPanelProps) {
   const detailId = useId();
@@ -140,6 +145,8 @@ export function BriefDetailsPanel({
                 brief={brief}
                 totalAdded={totalAdded}
                 totalDeleted={totalDeleted}
+                totalCoreAdded={totalCoreAdded}
+                totalCoreDeleted={totalCoreDeleted}
               />
               <GenerationSection brief={brief} warningsRef={landOnWarnings} />
               <RepoConfigSection repoConfig={repoConfig} />
@@ -182,10 +189,14 @@ function ArtifactSection({
   brief,
   totalAdded,
   totalDeleted,
+  totalCoreAdded,
+  totalCoreDeleted,
 }: {
   brief: Brief;
   totalAdded: number;
   totalDeleted: number;
+  totalCoreAdded: number;
+  totalCoreDeleted: number;
 }) {
   return (
     <section className={styles["section"]} data-details-section="artifact">
@@ -242,11 +253,16 @@ function ArtifactSection({
           <span className="green">+{totalAdded}</span>{" "}
           <span className="red">−{totalDeleted}</span>
         </dd>
+        <dt>core lines</dt>
+        <dd>
+          <span className="green">+{totalCoreAdded}</span>{" "}
+          <span className="red">−{totalCoreDeleted}</span>
+        </dd>
       </dl>
       <p className={styles["caveat"]}>
         <b>Adjusted ≈ git for this local brief.</b> Move detection is not in the
         current categorizer output, so moved/generated exclusions are not
-        claimed yet.
+        claimed yet. Core lines share the same approximation.
       </p>
     </section>
   );

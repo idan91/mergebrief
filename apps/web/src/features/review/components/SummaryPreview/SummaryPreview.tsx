@@ -86,7 +86,7 @@ export function SummaryPreview({
                 </dd>
               </div>
               <div>
-                <dt>Carrier chunks</dt>
+                <dt>Core chunks</dt>
                 <dd>
                   {
                     carrierChunks.filter((chunk) =>

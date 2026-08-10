@@ -345,7 +345,7 @@ function unresolvedKindLabel(kind: UnresolvedItem["kind"]): string {
   const labels: Record<UnresolvedItem["kind"], string> = {
     "open-risk": "Open risk",
     "missing-evidence": "Addressed without evidence",
-    "unreviewed-carrier": "Unreviewed carrier chunk",
+    "unreviewed-carrier": "Unreviewed core chunk",
     "draft-comment": "Draft comment",
     "thin-dismissal": "Thin dismissal reason",
   };

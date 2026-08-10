@@ -168,6 +168,64 @@ describe("buildBriefViewModel", () => {
     expect(model.flags[0]?.groupId).toBe("g1");
   });
 
+  it("sums core (carrier-only) lines per group and brief-wide beside the full sums", () => {
+    const parsed = parseBrief({
+      ...twoGroupBrief(),
+      chunks: [
+        {
+          id: "c1",
+          changeGroupId: "g1",
+          file: "src/consumer.ts",
+          concern: "implementation",
+          role: "carrier",
+          loc: { added: 4, deleted: 1 },
+          addedRanges: [{ start: 1, end: 4 }],
+          removedRanges: [{ start: 1, end: 1 }],
+          riskSurface: [],
+        },
+        {
+          id: "c2",
+          changeGroupId: "g1",
+          file: "src/consumer.test.ts",
+          concern: "test",
+          role: "supporting",
+          loc: { added: 8, deleted: 2 },
+          addedRanges: [{ start: 1, end: 8 }],
+          removedRanges: [{ start: 1, end: 2 }],
+          riskSurface: [],
+        },
+        {
+          id: "c3",
+          changeGroupId: "g2",
+          file: "src/schema.ts",
+          concern: "implementation",
+          role: "carrier",
+          loc: { added: 0, deleted: 5 },
+          addedRanges: [],
+          removedRanges: [{ start: 1, end: 5 }],
+          riskSurface: [],
+        },
+      ],
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    const model = buildBriefViewModel(parsed.value);
+
+    expect(model.groups[0]).toMatchObject({
+      added: 12,
+      deleted: 3,
+      coreAdded: 4,
+      coreDeleted: 1,
+    });
+    // Deletion-only carrier set stays a plain sum — no special casing.
+    expect(model.groups[1]).toMatchObject({ coreAdded: 0, coreDeleted: 5 });
+    expect(model.totalAdded).toBe(12);
+    expect(model.totalDeleted).toBe(8);
+    expect(model.totalCoreAdded).toBe(4);
+    expect(model.totalCoreDeleted).toBe(6);
+  });
+
   it("falls back to source order when the Brief has no readingOrder", () => {
     const parsed = parseBrief(twoGroupBrief());
     expect(parsed.ok).toBe(true);

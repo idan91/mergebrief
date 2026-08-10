@@ -40,6 +40,9 @@ export interface GroupView {
   supportingChunks: BriefChunk[];
   added: number;
   deleted: number;
+  /** Adjusted-line sums over the group's carrier chunks ("core" in the UI). */
+  coreAdded: number;
+  coreDeleted: number;
   headerRisk: GroupHeaderRisk;
   /** 1-based position in the Brief's Reading order; unset without a valid one. */
   readingOrderStep?: number;
@@ -71,6 +74,9 @@ export interface BriefViewModel {
   flagsByGroup: Map<string, RiskFlag[]>;
   totalAdded: number;
   totalDeleted: number;
+  /** Adjusted-line sums over ALL carrier chunks ("core" in the UI). */
+  totalCoreAdded: number;
+  totalCoreDeleted: number;
   concernChunks: Map<Concern, BriefChunk[]>;
   chunkToGroup: Map<string, string>;
   /** Per-chunk attribute display meta, keyed `chunkId` → `attr`. */
@@ -194,6 +200,8 @@ export function buildBriefViewModel(
       supportingChunks,
       added: sumLoc(groupChunks, "added"),
       deleted: sumLoc(groupChunks, "deleted"),
+      coreAdded: sumLoc(carrierChunks, "added"),
+      coreDeleted: sumLoc(carrierChunks, "deleted"),
       headerRisk: buildGroupHeaderRisk(groupChunks, riskMetaByChunk),
     } satisfies GroupView;
   });
@@ -210,6 +218,10 @@ export function buildBriefViewModel(
       brief.chunks.filter((chunk) => chunk.concern === concern),
     );
   }
+
+  const carrierOnly = brief.chunks.filter(
+    (chunk) => chunk.role === Roles.CARRIER,
+  );
 
   const flags: RiskFlag[] = [];
   const flagsById = new Map<string, RiskFlag>();
@@ -253,6 +265,8 @@ export function buildBriefViewModel(
     flagsByGroup,
     totalAdded: sumLoc(brief.chunks, "added"),
     totalDeleted: sumLoc(brief.chunks, "deleted"),
+    totalCoreAdded: sumLoc(carrierOnly, "added"),
+    totalCoreDeleted: sumLoc(carrierOnly, "deleted"),
     concernChunks,
     chunkToGroup,
     riskMetaByChunk,

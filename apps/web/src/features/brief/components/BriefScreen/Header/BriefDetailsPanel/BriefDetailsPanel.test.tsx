@@ -60,6 +60,8 @@ function renderPanel(
       repoConfig={repoConfig}
       totalAdded={137}
       totalDeleted={76}
+      totalCoreAdded={104}
+      totalCoreDeleted={41}
     />,
   );
 }
@@ -184,7 +186,11 @@ describe("BriefDetailsPanel sections — full brief", () => {
     expect(text).toContain("a".repeat(40));
     expect(text).toContain("+137");
     expect(text).toContain("−76");
+    expect(text).toContain("core lines");
+    expect(text).toContain("+104");
+    expect(text).toContain("−41");
     expect(text).toContain("Adjusted ≈ git for this local brief.");
+    expect(text).toContain("Core lines share the same approximation.");
   });
 
   it("Generation: provider, model, effort, warnings text", () => {

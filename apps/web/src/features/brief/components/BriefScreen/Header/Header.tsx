@@ -20,6 +20,7 @@ import type { Brief, LivePrState } from "../../../types";
 import type { BriefViewModel } from "../../../utils/viewModel";
 import type { LensControlState, ViewMode } from "../modeLegality";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
+import { CoreLinesDisclosure } from "../CoreLinesDisclosure/CoreLinesDisclosure";
 import { RiskChipDisclosure } from "../RiskChipDisclosure/RiskChipDisclosure";
 import { BriefDetailsPanel } from "./BriefDetailsPanel/BriefDetailsPanel";
 import { ProviderBadge } from "./ProviderBadge/ProviderBadge";
@@ -223,6 +224,8 @@ export function Header({
             repoConfig={repoConfig}
             totalAdded={model.totalAdded}
             totalDeleted={model.totalDeleted}
+            totalCoreAdded={model.totalCoreAdded}
+            totalCoreDeleted={model.totalCoreDeleted}
           />
           {repoConfig != null ? (
             <RepoConfigChip repoConfig={repoConfig} />
@@ -296,14 +299,24 @@ export function Header({
         {/* The three progress facts read as ONE object — hairline-divided
             cells instead of three floating text blocks. */}
         <div className={styles["statsGroup"]}>
-          <div className={`stat ${styles["stat"]}`}>
-            adjusted lines
+          <CoreLinesDisclosure
+            allAdded={model.totalAdded}
+            allDeleted={model.totalDeleted}
+            coreAdded={model.totalCoreAdded}
+            coreDeleted={model.totalCoreDeleted}
+            triggerClassName={`stat ${styles["stat"]}`}
+          >
+            core lines
             <b>
-              <span className="green">+{model.totalAdded}</span>{" "}
+              <span aria-hidden="true" className="faint">
+                {"≈ "}
+              </span>
+              <ScreenReaderOnly>approximately </ScreenReaderOnly>
+              <span className="green">+{model.totalCoreAdded}</span>{" "}
               <span className="faint">/</span>{" "}
-              <span className="red">−{model.totalDeleted}</span>
+              <span className="red">−{model.totalCoreDeleted}</span>
             </b>
-          </div>
+          </CoreLinesDisclosure>
           <div className={`stat ${styles["stat"]}`}>
             chunks
             <b>

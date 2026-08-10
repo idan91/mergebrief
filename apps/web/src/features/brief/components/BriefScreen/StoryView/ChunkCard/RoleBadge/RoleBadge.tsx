@@ -6,14 +6,14 @@ export interface RoleBadgeProps {
 }
 
 /**
- * Carrier reads loud (bright neutral, filled), supporting reads quiet (muted
+ * Core reads loud (bright neutral, filled), supporting reads quiet (muted
  * outline) — weight, not hue, so it doesn't collide with the concern-dot
  * palette.
  */
 export function RoleBadge({ role }: RoleBadgeProps) {
   return role === Roles.CARRIER ? (
     <Badge color={BadgeColors.TEXT} fill>
-      carrier
+      core
     </Badge>
   ) : (
     <Badge color={BadgeColors.NEUTRAL}>supporting</Badge>
