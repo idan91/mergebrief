@@ -1,0 +1,62 @@
+// @vitest-environment jsdom
+import { cleanup, render, screen } from "@testing-library/react";
+import { useTranslation } from "react-i18next";
+import { afterEach, describe, expect, it } from "vitest";
+import { LOCALE_STORAGE_KEY } from "./locale";
+import { activeLocale, changeLocale, I18nProvider } from "./I18nProvider";
+
+function CatalogProbe() {
+  const { t } = useTranslation();
+  return <span>{t("errors.not-found")}</span>;
+}
+
+describe("I18nProvider", () => {
+  afterEach(async () => {
+    cleanup();
+    window.localStorage.clear();
+    await changeLocale("en");
+  });
+
+  it("renders catalog copy through useTranslation", () => {
+    render(
+      <I18nProvider>
+        <CatalogProbe />
+      </I18nProvider>,
+    );
+    expect(screen.getByText("not found")).toBeDefined();
+  });
+
+  it("stamps <html lang> with the active locale on mount", () => {
+    render(
+      <I18nProvider>
+        <CatalogProbe />
+      </I18nProvider>,
+    );
+    expect(document.documentElement.lang).toBe(activeLocale());
+  });
+
+  it("changeLocale switches, persists, and restamps lang", async () => {
+    render(
+      <I18nProvider>
+        <CatalogProbe />
+      </I18nProvider>,
+    );
+    await changeLocale("fr");
+    expect(activeLocale()).toBe("fr");
+    expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("fr");
+    expect(document.documentElement.lang).toBe("fr");
+    // No fr catalog ships — the chain falls back to the en template.
+    expect(screen.getByText("not found")).toBeDefined();
+  });
+
+  it("changeLocale re-renders t() consumers (pseudo makes it visible)", async () => {
+    render(
+      <I18nProvider>
+        <CatalogProbe />
+      </I18nProvider>,
+    );
+    await changeLocale("pseudo");
+    // Accent-padded output proves languageChanged reached the consumer.
+    expect(screen.getByText(/ñóŧ fóúñð/).textContent).toMatch(/^\[.*\]$/);
+  });
+});
