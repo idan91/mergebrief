@@ -193,10 +193,13 @@ interface RiskListProps {
 }
 
 function RiskList({ title, items }: RiskListProps) {
+  const { t } = useTranslation();
   return (
     <div>
       <h3>{title}</h3>
-      {items.length === 0 ? <p className={styles["empty"]}>None.</p> : null}
+      {items.length === 0 ? (
+        <p className={styles["empty"]}>{t("review.summary.none")}</p>
+      ) : null}
       {items.map((item) => (
         <div className={styles["risk"]} key={item.id}>
           <span>

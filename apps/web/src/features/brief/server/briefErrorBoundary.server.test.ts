@@ -3,10 +3,14 @@
 // message: absolute paths, node error codes, and reflected caller input.
 import { describe, expect, it } from "vitest";
 
+import { appI18n } from "../../../i18n/I18nProvider";
+
 import { readComparisonMarks, readLocalBrief } from "./brief.server";
 import {
+  briefErrorCode,
   briefErrorDetail,
-  BriefErrorMessage,
+  BriefErrorCode,
+  GenerateErrorCode,
   isCuratedBriefError,
 } from "../utils/briefErrors";
 
@@ -18,7 +22,7 @@ describe("readLocalBrief on a missing artifact", () => {
     // A raw rejection here would be `ENOENT: … open '<abs>/…delta.json'`,
     // handing the deployment's filesystem layout to any visitor.
     await expect(readLocalBrief(ABSENT_ID)).rejects.toThrow(
-      BriefErrorMessage.NOT_FOUND,
+      BriefErrorCode.NOT_FOUND,
     );
     const error = await readLocalBrief(ABSENT_ID).catch((caught: unknown) =>
       caught instanceof Error ? caught.message : String(caught),
@@ -35,15 +39,17 @@ describe("brief id validation", () => {
     const error = await readComparisonMarks(hostile).catch((caught: unknown) =>
       caught instanceof Error ? caught.message : String(caught),
     );
-    expect(error).toBe(BriefErrorMessage.INVALID_ID);
+    expect(error).toBe(BriefErrorCode.INVALID_ID);
     expect(error).not.toContain("passwd");
   });
 });
 
-describe("briefErrorDetail", () => {
-  it("passes a curated message through", () => {
-    expect(briefErrorDetail(new Error(BriefErrorMessage.NOT_FOUND))).toBe(
-      BriefErrorMessage.NOT_FOUND,
+describe("briefErrorCode / briefErrorDetail", () => {
+  it("passes a curated code through and renders its catalog copy", () => {
+    const error = new Error(BriefErrorCode.NOT_FOUND);
+    expect(briefErrorCode(error)).toBe(BriefErrorCode.NOT_FOUND);
+    expect(briefErrorDetail(appI18n.t, error)).toBe(
+      appI18n.t("briefError.not-found"),
     );
   });
 
@@ -51,11 +57,24 @@ describe("briefErrorDetail", () => {
     const raw = new Error(
       "ENOENT: no such file or directory, open '/app/tools/categorizer/out/x.json'",
     );
-    expect(briefErrorDetail(raw)).toBe(BriefErrorMessage.UNEXPECTED);
+    expect(briefErrorCode(raw)).toBe(BriefErrorCode.UNEXPECTED);
+    // The rendered sentence must never carry the raw path.
+    expect(briefErrorDetail(appI18n.t, raw)).toBe(
+      appI18n.t("briefError.unexpected"),
+    );
+    expect(briefErrorDetail(appI18n.t, raw)).not.toContain("/app/");
     expect(isCuratedBriefError(raw.message)).toBe(false);
   });
 
+  it("renders a GENERATE code as copy — the URL box must never show a token", () => {
+    for (const code of Object.values(GenerateErrorCode)) {
+      const rendered = briefErrorDetail(appI18n.t, new Error(code));
+      expect(rendered).not.toBe(code);
+      expect(rendered.length).toBeGreaterThan(code.length);
+    }
+  });
+
   it("handles a non-Error rejection", () => {
-    expect(briefErrorDetail("boom")).toBe(BriefErrorMessage.UNEXPECTED);
+    expect(briefErrorCode("boom")).toBe(BriefErrorCode.UNEXPECTED);
   });
 });

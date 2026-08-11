@@ -88,7 +88,7 @@ function EvidenceForm({
             type="radio"
             onChange={() => setKind("linked-comment")}
           />{" "}
-          Linked comment
+          {t("review.evidence.linkedComment")}
         </label>
         <label>
           <input
@@ -97,7 +97,7 @@ function EvidenceForm({
             type="radio"
             onChange={() => setKind("chunk-reviewed")}
           />{" "}
-          Reviewed related chunk
+          {t("review.evidence.chunkReviewed")}
         </label>
         <label>
           <input
@@ -106,7 +106,7 @@ function EvidenceForm({
             type="radio"
             onChange={() => setKind("manual-note")}
           />{" "}
-          Manually verified
+          {t("review.evidence.manualNote")}
         </label>
       </div>
       {kind === "linked-comment" ? (
@@ -124,10 +124,7 @@ function EvidenceForm({
         </select>
       ) : null}
       {kind === "chunk-reviewed" ? (
-        <p className={styles["copy"]}>
-          Each selected risk will link to its related chunk. Reviewed chunks are
-          shown as evidence in the receipt.
-        </p>
+        <p className={styles["copy"]}>{t("review.evidence.chunkNote")}</p>
       ) : null}
       {kind === "manual-note" ? (
         <textarea
@@ -139,7 +136,7 @@ function EvidenceForm({
       ) : null}
       <div className={styles["actions"]}>
         <button className="btn" type="button" onClick={cancel}>
-          Cancel
+          {t("review.evidence.cancel")}
         </button>
         <button
           className="btn primary"
@@ -149,7 +146,7 @@ function EvidenceForm({
             confirm(kind, commentId || undefined, note.trim() || undefined)
           }
         >
-          Mark addressed
+          {t("review.evidence.confirm")}
         </button>
       </div>
     </>

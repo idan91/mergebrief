@@ -20,7 +20,7 @@ import {
 } from "generators";
 
 import { createSingleFlight } from "./singleFlight";
-import { GenerateErrorMessage } from "../utils/briefErrors";
+import { GenerateErrorCode } from "../utils/briefErrors";
 import { getServerLogger } from "../../../server/logger";
 
 const logger = getServerLogger();
@@ -198,7 +198,7 @@ export async function generateBriefFromUrl(
   } catch {
     // `parsePrUrl` reflects the WHOLE pasted string (uncapped) in its
     // message, and this rejection is rendered into a role="alert".
-    throw new Error(GenerateErrorMessage.NOT_A_PR_URL);
+    throw new Error(GenerateErrorCode.NOT_A_PR_URL);
   }
 
   let head: string;
@@ -221,10 +221,10 @@ export async function generateBriefFromUrl(
     // or gh auth misleads; the signed-in path is the one that works here.
     if (isSpawnGhMissing(error)) {
       // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-      throw new Error(GenerateErrorMessage.NO_GH_CLI);
+      throw new Error(GenerateErrorCode.NO_GH_CLI);
     }
     // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-    throw new Error(GenerateErrorMessage.FETCH_FAILED);
+    throw new Error(GenerateErrorCode.FETCH_FAILED);
   }
 
   const stem = prStem(`${locator.owner}/${locator.repo}`, locator.number);
@@ -243,7 +243,7 @@ export async function generateBriefFromUrl(
       // No `{ cause: error }` — serialized to the browser (see the fetch
       // catch above); the raw failure is already in the server log.
       // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-      throw new Error(GenerateErrorMessage.GENERATION_FAILED);
+      throw new Error(GenerateErrorCode.GENERATION_FAILED);
     }
     return briefId(
       prStem(result.repo, result.number),

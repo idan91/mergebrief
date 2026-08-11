@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
@@ -26,7 +27,15 @@ export const Route = createFileRoute("/")({
   errorComponent: BriefPickerError,
 });
 
+// A command the reader copies verbatim — an identifier, not copy.
+const CLI_COMMAND = "pnpm categorize <pr-url>";
+
+// The product name — an identifier, never translated.
+const PRODUCT_NAME = "MergeBrief";
+const PRODUCT_SUFFIX = " / review";
+
 function BriefPicker() {
+  const { t } = useTranslation();
   const briefs = useSuspenseQuery(localBriefsQueryOptions()).data;
   const session = useSuspenseQuery(pullsSessionQueryOptions()).data;
   const queryClient = useQueryClient();
@@ -51,11 +60,10 @@ function BriefPicker() {
       await queryClient.invalidateQueries({ queryKey: ["briefs", "local"] });
       await navigate({ to: "/briefs/$briefId", params: { briefId } });
     } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : "Something went wrong generating this brief.",
-      );
+      // The server function rejects with a CODE, never a sentence — render
+      // it through the catalog (unmapped reasons fall back to the unexpected
+      // line) rather than putting a raw token in a `role="alert"`.
+      setError(briefErrorDetail(t, caught));
       setPending(false);
     }
   }
@@ -64,33 +72,28 @@ function BriefPicker() {
     <main className={styles["pickerMain"]} id="main-content" tabIndex={-1}>
       <section className={styles["picker"]}>
         <div className={styles["wordmark"]}>
-          MergeBrief<span> / review</span>
+          {PRODUCT_NAME}
+          <span>{PRODUCT_SUFFIX}</span>
         </div>
-        <div className={styles["eyebrow"]}>
-          Open-source · self-hosted · BYOK
-        </div>
-        <h1>Turn a PR into a brief</h1>
-        <p className={styles["copy"]}>
-          A brief re-unitizes a pull request into Change-groups, each with a
-          plain-language summary and Risk Surface attributes: facts worth a
-          closer look, never a verdict.
-        </p>
+        <div className={styles["eyebrow"]}>{t("shell.landingEyebrow")}</div>
+        <h1>{t("shell.landingHeading")}</h1>
+        <p className={styles["copy"]}>{t("shell.landingCopy")}</p>
         <ul className={styles["pillars"]}>
-          <li>Stable taxonomy, queryable across every PR you review</li>
-          <li>Your model key, your infrastructure, nothing phones home</li>
-          <li>Plain-markdown taxonomy you can read, fork, and extend</li>
+          <li>{t("shell.landingBullet1")}</li>
+          <li>{t("shell.landingBullet2")}</li>
+          <li>{t("shell.landingBullet3")}</li>
         </ul>
         <form className={styles["form"]} onSubmit={handleGenerate}>
           <input
-            aria-label="GitHub PR URL"
+            aria-label={t("shell.ariaLabelPrUrl")}
             disabled={pending}
-            placeholder="https://github.com/owner/repo/pull/123"
+            placeholder={t("shell.prUrlPlaceholder")}
             type="url"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
           />
           <button className="btn primary" disabled={pending} type="submit">
-            {pending ? "Generating…" : "Generate"}
+            {pending ? t("shell.generating") : t("shell.generate")}
           </button>
         </form>
         {error ? (
@@ -102,16 +105,15 @@ function BriefPicker() {
         <PullsSection session={session} />
         {briefs.length === 0 ? (
           <div className={styles["empty"]}>
-            <p>No Briefs yet. Paste a GitHub PR URL above to generate one.</p>
+            <p>{t("shell.noBriefs")}</p>
             <p>
-              Working from the CLI instead? Run{" "}
-              <code>pnpm categorize &lt;pr-url&gt;</code> from the repo root;
-              outputs land here automatically.
+              {t("shell.cliHintLead")} <code>{CLI_COMMAND}</code>{" "}
+              {t("shell.cliHintTail")}
             </p>
           </div>
         ) : (
           <>
-            <h2 className={styles["listLabel"]}>Local Briefs</h2>
+            <h2 className={styles["listLabel"]}>{t("shell.localBriefs")}</h2>
             <ul className={styles["list"]}>
               {briefs.map((brief) => (
                 <li key={brief.id}>
@@ -125,7 +127,9 @@ function BriefPicker() {
                         className={styles["artifactPill"]}
                         data-kind={brief.artifactKind}
                       >
-                        {brief.artifactKind === "delta" ? "delta" : "brief"}
+                        {brief.artifactKind === "delta"
+                          ? t("shell.artifactDelta")
+                          : t("shell.artifactBrief")}
                       </span>
                       {brief.title}
                     </span>
@@ -149,12 +153,13 @@ function BriefPicker() {
 }
 
 function BriefPickerError({ error }: { error: Error }) {
+  const { t } = useTranslation();
   return (
     <main className="main" id="main-content" tabIndex={-1}>
       <section className={sharedStyles["errorState"]}>
-        <h1>Brief list failed to load</h1>
+        <h1>{t("shell.briefListFailed")}</h1>
         {/* Curated copy only: a raw server message would leak internals. */}
-        <p>{briefErrorDetail(error)}</p>
+        <p>{briefErrorDetail(t, error)}</p>
       </section>
     </main>
   );

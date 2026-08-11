@@ -1,5 +1,6 @@
 // Settings page. Session-gated like the picker's DB sections — logged-out
 // viewers get the sign-in pointer, never a broken form.
+import { useTranslation } from "react-i18next";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
@@ -14,27 +15,30 @@ export const Route = createFileRoute("/settings")({
 });
 
 function SettingsPage() {
+  const { t } = useTranslation();
   const session = useSuspenseQuery(pullsSessionQueryOptions()).data;
 
   return (
     <main className={styles["main"]} id="main-content" tabIndex={-1}>
-      <nav aria-label="Breadcrumb" className={styles["breadcrumb"]}>
-        <Link to="/">← Back to Briefs</Link>
+      <nav
+        aria-label={t("shell.ariaLabelBreadcrumb")}
+        className={styles["breadcrumb"]}
+      >
+        <Link to="/">{t("shell.backToBriefs")}</Link>
       </nav>
-      <h1>Settings</h1>
+      <h1>{t("shell.settingsHeading")}</h1>
       {session.kind === "ready" ? (
         <TokenSettings enabled />
       ) : session.kind === "unavailable" ? (
         // A backend/GitHub failure is NOT proof the viewer is logged out, so
         // the copy stays recoverable rather than telling them to sign in.
         <p className={styles["signedOut"]} role="alert">
-          The server is unavailable right now — your tokens are untouched.
-          Refresh to retry.
+          {t("shell.serverUnavailable")}
         </p>
       ) : (
         <p className={styles["signedOut"]}>
-          <a href="/api/auth/github">Sign in with GitHub</a> to manage API
-          tokens.
+          <a href="/api/auth/github">{t("shell.signInWithGithub")}</a>{" "}
+          {t("shell.toManageTokens")}
         </p>
       )}
     </main>

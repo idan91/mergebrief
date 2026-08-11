@@ -5,7 +5,7 @@ import {
   GeneratorConfigurationError,
   type GenerateBriefEngine,
 } from "./generate.server";
-import { GenerateErrorMessage } from "../utils/briefErrors";
+import { GenerateErrorCode } from "../utils/briefErrors";
 
 const URL = "https://github.com/octo/repo/pull/42";
 const HEAD = "abcdef1234567890";
@@ -37,10 +37,10 @@ describe("generateBriefFromUrl", () => {
       (error: unknown) =>
         error instanceof Error ? error.message : String(error),
     );
-    expect(message).toBe(GenerateErrorMessage.NOT_A_PR_URL);
+    expect(message).toBe(GenerateErrorCode.NOT_A_PR_URL);
     expect(message).not.toContain("shhh");
     await expect(generateBriefFromUrl(pasted, engine)).rejects.toThrow(
-      /GitHub pull request URL/,
+      GenerateErrorCode.NOT_A_PR_URL,
     );
 
     expect(engine.fetchHeadSha).not.toHaveBeenCalled();
@@ -78,7 +78,7 @@ describe("generateBriefFromUrl", () => {
     });
 
     await expect(generateBriefFromUrl(URL, engine)).rejects.toThrow(
-      /couldn't fetch this PR/i,
+      GenerateErrorCode.FETCH_FAILED,
     );
   });
 
@@ -91,7 +91,7 @@ describe("generateBriefFromUrl", () => {
     });
 
     await expect(generateBriefFromUrl(URL, engine)).rejects.toThrow(
-      /no gh CLI — sign in with GitHub/,
+      GenerateErrorCode.NO_GH_CLI,
     );
   });
 
@@ -141,7 +141,7 @@ describe("generateBriefFromUrl", () => {
       /sk-ant-secret/,
     );
     await expect(generateBriefFromUrl(URL, engine)).rejects.toThrow(
-      /couldn't generate the brief/i,
+      GenerateErrorCode.GENERATION_FAILED,
     );
   });
 
@@ -173,7 +173,7 @@ describe("generateBriefFromUrl", () => {
     });
 
     await expect(generateBriefFromUrl(URL, engine)).rejects.toThrow(
-      /couldn't generate the brief/i,
+      GenerateErrorCode.GENERATION_FAILED,
     );
   });
 

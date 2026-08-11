@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -17,6 +18,7 @@ export const Route = createFileRoute("/briefs/$briefId_/summary-preview")({
 });
 
 function SummaryPreviewRoute() {
+  const { t } = useTranslation();
   const { briefId } = Route.useParams();
   const brief = useSuspenseQuery(localBriefQueryOptions(briefId)).data;
   // Storage is client-only; start from the empty snapshot (matching SSR) and
@@ -36,7 +38,7 @@ function SummaryPreviewRoute() {
         params={{ briefId }}
         to="/briefs/$briefId"
       >
-        Back to review
+        {t("shell.backToReview")}
       </Link>
     </>
   );

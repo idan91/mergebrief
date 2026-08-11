@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   autoUpdate,
   flip,
@@ -48,6 +49,7 @@ export function RiskAttrsDisclosure({
   rail,
   targets,
 }: RiskAttrsDisclosureProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const [cycle, setCycle] = useState<ReadonlyMap<string, number>>(new Map());
   const panelId = useId();
@@ -89,14 +91,18 @@ export function RiskAttrsDisclosure({
             data-emphasis-dot=""
           />
         ) : null}
-        <span className={styles["labelShort"]}>Attrs</span>
-        <span className={styles["labelLong"]}>Risk attrs</span>
+        <span className={styles["labelShort"]}>
+          {t("brief.toolbar.attrsShort")}
+        </span>
+        <span className={styles["labelLong"]}>
+          {t("brief.toolbar.attrsLong")}
+        </span>
         <span aria-hidden="true" className={styles["sep"]}>
           ·
         </span>
         <b className={styles["count"]}>{rail.entries.length}</b>
         {rail.floorFired ? (
-          <ScreenReaderOnly> — floor attribute fired</ScreenReaderOnly>
+          <ScreenReaderOnly>{t("brief.toolbar.srFloorFired")}</ScreenReaderOnly>
         ) : null}
       </button>
       {open ? (

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Markdown } from "@web/components/Markdown/Markdown";
@@ -32,6 +33,7 @@ export function ThreadDetail({
   composer,
   hideJump = false,
 }: ThreadDetailProps) {
+  const { t } = useTranslation();
   const { thread, placement } = row;
   // This detail is the nearest common ancestor of the flow's two consumers:
   // the standalone action below and the composer's Reply & resolve leg.
@@ -116,7 +118,9 @@ export function ThreadDetail({
     <div className={rowStyles["detail"]} ref={detailRef}>
       {thread.comments.map((comment) => (
         <article
-          aria-label={`Comment by ${comment.author.login}`}
+          aria-label={t("conversation.ariaLabelComment", {
+            login: comment.author.login,
+          })}
           className={rowStyles["comment"]}
           key={comment.commentId}
         >
@@ -134,7 +138,9 @@ export function ThreadDetail({
             <span className={rowStyles["author"]}>
               @{comment.author.login}
               {comment.author.isBot ? (
-                <span className={rowStyles["botTag"]}>bot</span>
+                <span className={rowStyles["botTag"]}>
+                  {t("conversation.botTag")}
+                </span>
               ) : null}
             </span>
             <time dateTime={comment.createdAt}>
@@ -142,25 +148,25 @@ export function ThreadDetail({
             </time>
             {postdatesBrief(comment.createdAt, row.briefGeneratedAt) ? (
               <span className={rowStyles["chip"]} data-state="after-brief">
-                after this brief
+                {t("conversation.afterThisBrief")}
               </span>
             ) : null}
             <button
-              aria-label={`Quote reply to @${comment.author.login}`}
+              aria-label={t("conversation.ariaLabelQuoteReply", {
+                login: comment.author.login,
+              })}
               className={rowStyles["action"]}
               type="button"
               onClick={() => pushQuote(selectionInsideDetail() ?? comment.body)}
             >
-              Quote reply
+              {t("conversation.quoteReply")}
             </button>
           </header>
           <Markdown content={comment.body} renderSuggestions />
         </article>
       ))}
       {thread.hasMoreComments ? (
-        <p className={rowStyles["note"]}>
-          Longer thread — the rest is on GitHub.
-        </p>
+        <p className={rowStyles["note"]}>{t("conversation.longerThread")}</p>
       ) : null}
       <div className={rowStyles["detailActions"]}>
         {placement.kind === "chunk" && !hideJump ? (
@@ -174,7 +180,7 @@ export function ThreadDetail({
               })
             }
           >
-            Jump to comment
+            {t("conversation.jumpToComment")}
           </button>
         ) : null}
         <RevisionJumpAction jump={composer.revisionJump} thread={thread} />
@@ -184,8 +190,10 @@ export function ThreadDetail({
           rel="noreferrer"
           target="_blank"
         >
-          View on GitHub
-          <span className={rowStyles["srOnly"]}> (opens in a new tab)</span>
+          {t("conversation.viewOnGithub")}
+          <span className={rowStyles["srOnly"]}>
+            {t("conversation.srOpensNewTab")}
+          </span>
         </a>
       </div>
       <ReplyComposer

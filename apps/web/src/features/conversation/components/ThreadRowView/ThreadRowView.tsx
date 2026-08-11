@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { threadStateChip } from "../../utils/chips";
 import type { DigestThreadRow } from "../../utils/digest";
 import rowStyles from "../../rows.module.scss";
@@ -41,6 +42,7 @@ export function ThreadRowView({
   composer,
   hideJump = false,
 }: ThreadRowViewProps) {
+  const { t } = useTranslation();
   const { thread } = row;
   const author = thread.comments[0]?.author;
   const commentCount = thread.comments.length;
@@ -70,7 +72,9 @@ export function ThreadRowView({
           <>
             {/* The literal, not the chip: a settled row's whole point is to
                 stop competing for attention. */}
-            <span className={rowStyles["slimLabel"]}>resolved</span>
+            <span className={rowStyles["slimLabel"]}>
+              {t("conversation.resolved")}
+            </span>
             <SlimSeparator />
             <span className={rowStyles["rowAuthor"]}>@{author?.login}</span>
             <SlimSeparator />
@@ -79,7 +83,7 @@ export function ThreadRowView({
               <>
                 <SlimSeparator />
                 <span className={rowStyles["count"]}>
-                  {commentCount} comments
+                  {t("conversation.comments", { count: commentCount })}
                 </span>
               </>
             ) : null}
@@ -105,11 +109,13 @@ export function ThreadRowView({
             <span className={rowStyles["rowAuthor"]}>@{author?.login}</span>
             <span className={rowStyles["rowLine"]}>{row.digestLine}</span>
             {row.isOwn ? (
-              <span className={rowStyles["ownTag"]}>yours</span>
+              <span className={rowStyles["ownTag"]}>
+                {t("conversation.yours")}
+              </span>
             ) : null}
             {row.anchorLabel !== undefined ? (
               <span className={rowStyles["revision"]}>
-                at {row.anchorLabel}
+                {t("conversation.atRevision", { label: row.anchorLabel })}
               </span>
             ) : null}
             <span className={rowStyles["count"]}>

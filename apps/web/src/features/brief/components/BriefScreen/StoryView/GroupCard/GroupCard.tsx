@@ -104,7 +104,7 @@ export const GroupCard = memo(function GroupCard({
 
   function chooseDominant(category: Category) {
     actions.reclassifyGroup(group.id, category);
-    announce(`Dominant category set to ${category} — recorded on the receipt.`);
+    announce(t("brief.story.dominantAnnounce", { category }));
   }
 
   return (
@@ -112,7 +112,10 @@ export const GroupCard = memo(function GroupCard({
       <div className={styles["head"]}>
         <div className={styles["eyebrow"]}>
           <span className={styles["number"]}>
-            Change-group {group.index + 1} of {model.groups.length}
+            {t("brief.group.changeGroupOf", {
+              index: group.index + 1,
+              total: model.groups.length,
+            })}
           </span>
           <CoreLinesDisclosure
             allAdded={group.added}
@@ -126,9 +129,12 @@ export const GroupCard = memo(function GroupCard({
               {t("brief.group.approximately")}
             </ScreenReaderOnly>
             <span className="green">+{group.coreAdded}</span> /{" "}
-            <span className="red">−{group.coreDeleted}</span> core ·{" "}
-            {group.coreChunks.length} core · {group.supportingChunks.length}{" "}
-            supporting
+            <span className="red">−{group.coreDeleted}</span>{" "}
+            {t("brief.group.coreSuffix")} ·{" "}
+            {t("brief.group.chunkCounts", {
+              core: group.coreChunks.length,
+              supporting: group.supportingChunks.length,
+            })}
           </CoreLinesDisclosure>
           {sinceBaselineShortSha !== undefined ? (
             <SinceMarker
@@ -142,7 +148,10 @@ export const GroupCard = memo(function GroupCard({
         <p className={styles["summary"]}>{group.group.summary}</p>
         {group.readingOrderStep !== undefined ? (
           <p className={styles["readingOrder"]}>
-            Step {group.readingOrderStep} of {model.groups.length}
+            {t("brief.group.stepOf", {
+              step: group.readingOrderStep,
+              total: model.groups.length,
+            })}
             {group.readingOrderWhy ? ` — ${group.readingOrderWhy}` : ""}
           </p>
         ) : null}
@@ -152,17 +161,17 @@ export const GroupCard = memo(function GroupCard({
           </span>
           {group.group.secondaryCategories.map((category) => (
             <span className={styles["chip"]} key={category}>
-              secondary {category}
+              {t("brief.group.secondary", { category })}
             </span>
           ))}
           {group.group.uncertain && !isReclassified ? (
             <span className={styles["chip"]} data-kind="uncertain">
-              uncertain
+              {t("brief.group.uncertain")}
             </span>
           ) : null}
           {isReclassified ? (
             <span className={styles["reclassNote"]}>
-              set by you · recorded on receipt
+              {t("brief.group.reclassNote")}
             </span>
           ) : null}
         </div>
@@ -223,9 +232,13 @@ export const GroupCard = memo(function GroupCard({
                 }
               >
                 <RiskBadge meta={{ source: "built-in", deEmphasized: true }}>
-                  +{group.headerRisk.deEmphasized.length} de-emphasized
+                  {t("brief.group.deEmphasizedCount", {
+                    count: group.headerRisk.deEmphasized.length,
+                  })}
                   <ScreenReaderOnly>
-                    {`: ${group.headerRisk.deEmphasized.join(", ")} — de-emphasized by repo policy`}
+                    {t("brief.group.srDeEmphasizedList", {
+                      attrs: group.headerRisk.deEmphasized.join(", "),
+                    })}
                   </ScreenReaderOnly>
                 </RiskBadge>
               </RiskChipDisclosure>
@@ -235,9 +248,13 @@ export const GroupCard = memo(function GroupCard({
         {group.group.uncertain && !isReclassified ? (
           <div className={styles["uncertainPanel"]}>
             <span className={styles["question"]}>
-              The categorizer is split on this group’s intent:{" "}
-              <b>{group.group.uncertainBetween.join(" vs ")}</b>. Your call; the
-              receipt records the override.
+              {t("brief.group.splitIntent")}{" "}
+              <b>
+                {group.group.uncertainBetween.join(
+                  t("brief.group.uncertainSeparator"),
+                )}
+              </b>
+              {t("brief.group.yourCall")}
             </span>
             <span className={styles["pick"]}>
               {group.group.uncertainBetween.map((category) => (
@@ -267,8 +284,10 @@ export const GroupCard = memo(function GroupCard({
         <div className={styles["flags"]}>
           <div className={`${styles["label"]} ${styles["riskLabel"]}`}>
             <span>
-              Risk surface — {groupFlags.length} flags{" "}
-              <span className={styles["count"]}>attributes, not verdicts</span>
+              {t("brief.group.riskSurfaceCount", { count: groupFlags.length })}{" "}
+              <span className={styles["count"]}>
+                {t("brief.group.attributesNotVerdicts")}
+              </span>
             </span>
             {/* The popover documents the disposition controls — it goes with
                 them in the read-only mirror (nothing dangling). */}
@@ -358,11 +377,14 @@ export const GroupCard = memo(function GroupCard({
                             flagIds: openRiskFlagIds.filter((flagId) =>
                               selectedFlagSet.has(flagId),
                             ),
-                            label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
+                            label: t("brief.group.flagsIn", {
+                              count: selectedCount,
+                              attr: riskGroup.attr,
+                            }),
                           });
                         }}
                       >
-                        Address selected
+                        {t("brief.group.addressSelected")}
                       </button>
                       <button
                         className={styles["button"]}
@@ -374,11 +396,14 @@ export const GroupCard = memo(function GroupCard({
                             flagIds: openRiskFlagIds.filter((flagId) =>
                               selectedFlagSet.has(flagId),
                             ),
-                            label: `${selectedCount} ${selectedCount === 1 ? "flag" : "flags"} in ${riskGroup.attr}`,
+                            label: t("brief.group.flagsIn", {
+                              count: selectedCount,
+                              attr: riskGroup.attr,
+                            }),
                           });
                         }}
                       >
-                        Dismiss selected…
+                        {t("brief.group.dismissSelected")}
                       </button>
                     </div>
                   )}
@@ -435,7 +460,7 @@ export const GroupCard = memo(function GroupCard({
                                 className={styles["description"]}
                                 data-kind="repo-policy-source"
                               >
-                                Defined by repo policy
+                                {t("brief.group.definedByRepoPolicy")}
                                 {flag.implication
                                   ? ` — ${flag.implication}`
                                   : ""}
@@ -446,7 +471,7 @@ export const GroupCard = memo(function GroupCard({
                                 className={styles["description"]}
                                 data-kind="deemphasized-note"
                               >
-                                De-emphasized by repo policy
+                                {t("brief.group.deEmphasizedByRepoPolicy")}
                               </div>
                             ) : null}
                             {flag.note ? (
@@ -470,7 +495,7 @@ export const GroupCard = memo(function GroupCard({
                                     });
                                   }}
                                 >
-                                  Addressed
+                                  {t("brief.group.addressed")}
                                 </button>
                                 <button
                                   className={styles["button"]}
@@ -483,7 +508,7 @@ export const GroupCard = memo(function GroupCard({
                                     })
                                   }
                                 >
-                                  Dismiss…
+                                  {t("brief.group.dismiss")}
                                 </button>
                               </div>
                             )}

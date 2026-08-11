@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { GenerateErrorMessage } from "../utils/briefErrors";
+import { GenerateErrorCode } from "../utils/briefErrors";
 import { briefHandlers } from "./briefHandlers.server";
 
 // The RPC surface: validators plus one-line delegation to `briefHandlers`,
@@ -61,7 +61,7 @@ function parseGenerateBriefRequest(value: unknown): GenerateBriefRequest {
   }
   // Bound the input before anything downstream can echo a fragment of it.
   if (value.url.length > MAX_URL_LENGTH) {
-    throw new Error(GenerateErrorMessage.URL_TOO_LONG);
+    throw new Error(GenerateErrorCode.URL_TOO_LONG);
   }
   return { url: value.url };
 }

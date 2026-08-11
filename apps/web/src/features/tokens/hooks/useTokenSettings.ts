@@ -6,6 +6,7 @@
 // hook's `mintedToken` state. Dismissing clears that state AND resets the
 // mutation (react-query's `mutation.data` would otherwise retain the
 // material), so nothing in client state can re-render it afterwards.
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -54,6 +55,7 @@ export interface TokenSettingsState {
 }
 
 export function useTokenSettings(enabled: boolean): TokenSettingsState {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   // `enabled` gates the fetches too: a disabled mount must never hit the
   // protected /api/auth/* endpoints.
@@ -103,11 +105,11 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
   const trimmedName = name.trim();
   const mintBlockedReason =
     trimmedName.length === 0
-      ? "Name the token before minting."
+      ? t("tokens.nameRequired")
       : trimmedName.length > TOKEN_NAME_MAX
-        ? `Token names are capped at ${TOKEN_NAME_MAX} characters.`
+        ? t("tokens.nameTooLong", { max: TOKEN_NAME_MAX })
         : effectiveInstallationId === ""
-          ? "Pick the organization the token is bound to."
+          ? t("tokens.organizationRequired")
           : null;
 
   const submitMint = (): void => {

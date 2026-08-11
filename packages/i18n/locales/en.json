@@ -213,7 +213,8 @@
       "selfReviewTooltip": "You're viewing your own draft PR. Review submission and the receipt unlock once it's marked ready for review.",
       "ariaLabelMoreActions": "More actions",
       "summaryPreview": "Summary preview",
-      "clearDrafts": "Clear local drafts"
+      "clearDrafts": "Clear local drafts",
+      "submitReviewCta": "Submit"
     },
     "details": {
       "ariaLabelTrigger": "Brief details",
@@ -235,7 +236,14 @@
       "effort": "effort",
       "noOriginStamp": "No origin stamp on this artifact.",
       "repoConfigHeading": "Repo config",
-      "noRepoConfig": "No .mergebrief configuration applied to this generation."
+      "noRepoConfig": "No .mergebrief configuration applied to this generation.",
+      "warnings_one": "{{count}} generation warning",
+      "warnings_other": "{{count}} generation warnings",
+      "applied": "applied",
+      "notApplied": "not applied",
+      "collisionsLine_one": "built-in wins over custom name: {{names}}",
+      "collisionsLine_other": "built-in wins over custom names: {{names}}",
+      "bytesUsed": "{{used}} of {{budget}} bytes"
     },
     "shortcuts": {
       "heading": "Keyboard shortcuts",
@@ -275,7 +283,10 @@
       "statedButMissing_one": "{{count}} stated but missing",
       "statedButMissing_other": "{{count}} stated but missing",
       "doneButUnstated_one": "{{count}} done but unstated",
-      "doneButUnstated_other": "{{count}} done but unstated"
+      "doneButUnstated_other": "{{count}} done but unstated",
+      "acknowledged": "acknowledged",
+      "source": "source",
+      "prDescription": "PR description"
     },
     "toolbar": {
       "ariaLabelGroupStepper": "Step between change groups",
@@ -284,7 +295,18 @@
       "ariaLabelChangeStepperLastReview": "Jump between changes since your last review",
       "ariaLabelChangeStepperRevision": "Jump between changes in this revision",
       "ariaLabelPreviousChange": "Previous change",
-      "ariaLabelNextChange": "Next change"
+      "ariaLabelNextChange": "Next change",
+      "collapseShort": "Collapse",
+      "collapseLong": "Collapse supporting",
+      "groupCount": "Group {{current}}/{{total}}",
+      "changes_one": "{{count}} change",
+      "changes_other": "{{count}} changes",
+      "attrsShort": "Attrs",
+      "attrsLong": "Risk attrs",
+      "srFloorFired": " — floor attribute fired",
+      "filterLabel": "Filter",
+      "threadsInDiff_one": " thread in the diff",
+      "threadsInDiff_other": " threads in the diff"
     },
     "group": {
       "approximately": "approximately ",
@@ -301,7 +323,29 @@
       "titleMarkAddressed": "Mark this risk as reviewed and handled",
       "titleMarkDismissed": "Mark this risk as not applicable",
       "dismissedBody": "this risk is not applicable, duplicate, or a false positive.",
-      "noGroupFlags": "No risk-surface attributes on this group."
+      "noGroupFlags": "No risk-surface attributes on this group.",
+      "changeGroupOf": "Change-group {{index}} of {{total}}",
+      "stepOf": "Step {{step}} of {{total}}",
+      "secondary": "secondary {{category}}",
+      "uncertain": "uncertain",
+      "reclassNote": "set by you · recorded on receipt",
+      "splitIntent": "The categorizer is split on this group’s intent:",
+      "riskSurfaceCount": "Risk surface — {{count}} flags",
+      "attributesNotVerdicts": "attributes, not verdicts",
+      "definedByRepoPolicy": "Defined by repo policy",
+      "deEmphasizedByRepoPolicy": "De-emphasized by repo policy",
+      "coreSuffix": "core",
+      "chunkCounts": "{{core}} core · {{supporting}} supporting",
+      "uncertainSeparator": " vs ",
+      "deEmphasizedCount": "+{{count}} de-emphasized",
+      "srDeEmphasizedList": ": {{attrs}} — de-emphasized by repo policy",
+      "yourCall": ". Your call; the receipt records the override.",
+      "addressSelected": "Address selected",
+      "dismissSelected": "Dismiss selected…",
+      "flagsIn_one": "{{count}} flag in {{attr}}",
+      "flagsIn_other": "{{count}} flags in {{attr}}",
+      "addressed": "Addressed",
+      "dismiss": "Dismiss…"
     },
     "risk": {
       "noTests": "Changed code path has no direct test coverage in the brief; verify behavior manually or ask for coverage.",
@@ -329,7 +373,21 @@
       "ariaLabelFocusContext": "Focused change-group context",
       "ariaLabelCollapseContext": "Collapse group context",
       "ariaLabelExpandContext": "Expand group context",
-      "ariaLabelGroupDetails": "Change-group details"
+      "ariaLabelGroupDetails": "Change-group details",
+      "stepLabel": "Step {{step}}",
+      "groupLabel": "Group {{index}}",
+      "stepOf": "Step {{step}} of {{total}}",
+      "groupOf": "Change-group {{index}} of {{total}}",
+      "dominantAnnounce": "Dominant category set to {{category}} — recorded on the receipt.",
+      "startReadThrough": "Start read-through",
+      "railDominant": "dominant {{category}}",
+      "railUncertain": "uncertain",
+      "flags_one": "{{count}} flag",
+      "flags_other": "{{count}} flags",
+      "railActiveRisks": "Active chunk risks",
+      "railNoRisks": "No risk-surface attributes on this chunk.",
+      "railChunks": "Chunks",
+      "railSecondary": "secondary {{category}}"
     },
     "changes": {
       "regeneratedModelChange": "Regenerated fresh — model change.",
@@ -337,7 +395,16 @@
       "revisionSummaryUnavailableLead": "Revision summary unavailable.",
       "revisionSummaryUnavailableBody": "The mechanical highlights in Full Brief still show what changed since the previous Brief.",
       "changesSummaryUnavailableLead": "Changes summary unavailable.",
-      "changesSummaryUnavailableBody": "The highlighted lines in Full brief still show what changed since your last review."
+      "changesSummaryUnavailableBody": "The highlighted lines in Full brief still show what changed since your last review.",
+      "noRevisionSummaryLead": "No revision summary.",
+      "noRevisionSummaryTooLarge": "The change from the previous brief was too large to summarize incrementally. The highlighted lines in Full Brief still show what changed.",
+      "noRevisionSummaryDisabled": "The change from the previous brief was not summarized (disabled by config). The highlighted lines in Full Brief still show what changed.",
+      "eyebrowPreviousBrief": "Changes Only · since the previous Brief",
+      "eyebrowLastReview": "Changes Only · since your last review",
+      "otherChanges": "Other changes",
+      "removedLines_one": "−{{count}} line removed",
+      "removedLines_other": "−{{count}} lines removed",
+      "lengthGuidance": "Some brief text exceeds length guidance — a stronger model may keep summaries tighter."
     },
     "diff": {
       "unavailable": "diff unavailable",
@@ -347,7 +414,17 @@
       "colContent": "Content",
       "rawReadOnlyReason": "This is the raw diff for the comparison — comment from the brief itself.",
       "summarySkipped": "Summary skipped — {{reason}}.",
-      "summaryUnavailable": "Summary unavailable for this span."
+      "summaryUnavailable": "Summary unavailable for this span.",
+      "rawToggle": "Raw diff",
+      "rawLoading": "Loading the raw diff…",
+      "rawIdentical": "No raw changes in this span — the compared revisions have identical content.",
+      "rawUnavailable": "The raw diff is not viewable right now.",
+      "noMatchingRaw": "The brief loaded, but no matching raw diff was available for this chunk. The durable fix is to emit chunk-level hunk rows from the categorizer.",
+      "caption": "Diff for {{file}}",
+      "calloutIn": "In: {{group}}",
+      "spanSummaryUnavailable": "Span summary unavailable — showing group context.",
+      "revRemoved": "removed",
+      "revNew": "new"
     },
     "summarySection": {
       "eyebrowDelta": "Delta brief",
@@ -397,6 +474,81 @@
       "srRepoPolicy": " — defined by repo policy",
       "srRepoPolicyWithImplication": " — defined by repo policy. {{implication}}",
       "srDeEmphasized": " — de-emphasized by repo policy"
+    },
+    "timeline": {
+      "selectLabel": "Select PR revision",
+      "briefOption": "Brief {{index}}",
+      "viewLegend": "View",
+      "compareLegend": "Compare",
+      "fullBrief": "Full brief",
+      "changesOnly": "Changes Only",
+      "off": "Off",
+      "offOnlyFull": "Off is only available in Full brief",
+      "lastReview": "Your last review",
+      "previousBrief": "Previous brief",
+      "ariaLabelNav": "PR revision timeline",
+      "viewingBrief": "Viewing Brief {{index}} of {{total}}",
+      "compareLabel": "Compare",
+      "briefOptionSha": "Brief {{index}} · {{sha}}"
+    },
+    "chunk": {
+      "viewed": "Viewed",
+      "collapsed": "Collapsed",
+      "roleCore": "core",
+      "roleSupporting": "supporting",
+      "copyFilePath": "Copy file path",
+      "drafts_one": "{{count}} draft",
+      "drafts_other": "{{count}} drafts",
+      "reviewComment": "review comment",
+      "addressed": "addressed",
+      "addressedCount": "{{count}} addressed",
+      "reviewCount": "{{count}} review"
+    },
+    "coreLines": {
+      "core": "core lines",
+      "allAdjusted": "all adjusted lines",
+      "caveat": "Adjusted approximation — not the raw git count. Exact lines are on GitHub."
+    },
+    "focusBanner": {
+      "lead": "Focus mode",
+      "body": "— one chunk at a time.",
+      "keysHint": "to move,",
+      "exitHint": "to exit.",
+      "exit": "Exit focus",
+      "escKey": "Esc"
+    },
+    "toc": {
+      "ariaLabel": "Change groups",
+      "srHasConversation": " — has conversation"
+    },
+    "progress": {
+      "ariaLabel": "Read-through progress",
+      "step": "Step",
+      "group": "Group"
+    },
+    "sinceMarker": {
+      "titleOpenDeltaLens": "Open the delta lens — compare against your last review",
+      "unchanged": "unchanged since your last review"
+    },
+    "concern": {
+      "eyebrow": "Attention split",
+      "emptyConcerns": "empty concerns",
+      "emptyNote": "generated · spec · config may be absent from this local brief",
+      "riskDetails": "risk details",
+      "srRiskDetailsFor": " for {{file}}",
+      "intro_one": "The same {{count}} chunk, pivoted by artifact instead of intent.",
+      "intro_other": "The same {{count}} chunks, pivoted by artifact instead of intent."
+    },
+    "delta": {
+      "commentsAddressed": "Comments addressed",
+      "wholePrImpact": "Whole-PR impact"
+    },
+    "summaryPreviewDrawer": {
+      "label": "Summary preview",
+      "closeLabel": "Close summary preview"
+    },
+    "stateBadge": {
+      "pullRequest": "pull request "
     }
   },
   "review": {
@@ -428,7 +580,8 @@
       "notCheckedIntent": "business intent",
       "notCheckedRuntime": "runtime behavior",
       "notCheckedPerformance": "performance under load",
-      "notCheckedIntegration": "integration with downstream systems"
+      "notCheckedIntegration": "integration with downstream systems",
+      "none": "None."
     },
     "submit": {
       "outcomeLegend": "Review outcome",
@@ -448,19 +601,35 @@
       "staleAck": "Submit against the reviewed revision anyway",
       "previewReceipt": "Preview receipt",
       "keepReviewing": "Keep reviewing",
-      "note": "Scoped to mechanical claims. The approve / request-changes verdict is yours alone."
+      "note": "Scoped to mechanical claims. The approve / request-changes verdict is yours alone.",
+      "beforeYouSubmit": "Before you submit",
+      "advisoryIntro": "This is advisory. You can continue, but the summary will show unresolved items exactly as they are.",
+      "jumpClosesDialog": "Jumping to an item closes this dialog.",
+      "continueAction": "Continue",
+      "receiptHeading": "Verification receipt",
+      "notAnApproval": "not an approval",
+      "receiptSub": "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours. The signature line links a public summary.",
+      "backToVerdict": "Back to verdict"
     },
     "evidence": {
       "heading": "Address risk with evidence",
       "ariaLabelLinkedComment": "Linked comment",
-      "verifyLabel": "What did you verify?"
+      "verifyLabel": "What did you verify?",
+      "linkedComment": "Linked comment",
+      "chunkReviewed": "Reviewed related chunk",
+      "manualNote": "Manually verified",
+      "chunkNote": "Each selected risk will link to its related chunk. Reviewed chunks are shown as evidence in the receipt.",
+      "cancel": "Cancel",
+      "confirm": "Mark addressed"
     },
     "dismiss": {
       "heading": "Dismiss flag",
       "reasonLabel": "Dismissal reason",
       "reasonPlaceholder": "Why is this flag not actionable here? Your reason lands on the receipt, verbatim.",
       "dismissAnyway": "Dismiss anyway",
-      "dismissWithReason": "Dismiss with reason"
+      "dismissWithReason": "Dismiss with reason",
+      "thinWarning": "Thin reason on a flag — it will appear on the receipt exactly as written. Dismiss anyway?",
+      "cancel": "Cancel"
     },
     "comment": {
       "saveFirst": "Save or cancel your edit first — posting sends the last saved text.",
@@ -470,7 +639,23 @@
       "editLabel": "Edit comment",
       "deleteConfirm": "Delete this draft?",
       "posting": "Posting…",
-      "post": "Post"
+      "post": "Post",
+      "addressesComments": "addresses comments {{ids}}",
+      "replyTo": "reply to {{id}}",
+      "lines_one": "{{count}} line",
+      "lines_other": "{{count}} lines",
+      "composerLabel": "Comment",
+      "cancel": "Cancel",
+      "postedToGithub": "@you posted to GitHub",
+      "pending": "@you pending",
+      "save": "Save",
+      "delete": "Delete",
+      "deleteDraft": "Delete draft",
+      "keep": "Keep",
+      "edit": "Edit",
+      "previewEmpty": "Nothing to preview.",
+      "collapse": "Collapse",
+      "commentLabel": "comment"
     },
     "announce": {
       "commentEmpty": "Comment cannot be empty.",
@@ -490,5 +675,161 @@
       "ownPr": "GitHub rejected the review — note you can't approve or request changes on your own pull request. Try again, or switch the outcome to Comment.",
       "indeterminate": "Something went wrong submitting the review — it may or may not have posted. Check the pull request on GitHub before retrying."
     }
+  },
+  "conversation": {
+    "ariaLabelInlineThreads": "Conversation at this chunk",
+    "ariaLabelFilterPanel": "Filter the conversation",
+    "jumpToRevision": "Jump to revision {{sha}}",
+    "ariaLabelComment": "Comment by {{login}}",
+    "ariaLabelQuoteReply": "Quote reply to @{{login}}",
+    "replyTooLong": "This reply is longer than GitHub allows ({{max, number}} characters) — shorten it to post.",
+    "composerPlaceholder": "Leave a comment",
+    "heading": "Conversation",
+    "refreshing": "Refreshing…",
+    "refresh": "Refresh",
+    "afterBrief_one": "{{count}} comment arrived after this brief was generated",
+    "afterBrief_other": "{{count}} comments arrived after this brief was generated",
+    "loading": "Loading the conversation…",
+    "readFailed": "The conversation could not be read (unexpected response). Refresh to retry.",
+    "unauthorized": "Your GitHub session expired — sign in again to see the conversation.",
+    "notFound": "This pull request's conversation is no longer accessible on GitHub.",
+    "unavailable": "GitHub (or the backend) is unreachable — the conversation could not be fetched. Refresh to retry.",
+    "ariaLabelVerdicts": "Review verdicts",
+    "noneMatchFilter": "No activity matches these filters.",
+    "noneYet": "No conversation yet — comments land here as teammates review.",
+    "tooLarge": "This conversation is unusually large — some items are only on GitHub.",
+    "botTag": "bot",
+    "threadsOpen": "{{threads}} threads · {{open}} open",
+    "afterThisBrief": "after this brief",
+    "filterVerdict": "Verdict",
+    "filterReviewer": "Reviewer",
+    "filterLatestOnly": "Only each reviewer's latest",
+    "filterAll": "All",
+    "filterNone": "None",
+    "filterClear": "Clear filters",
+    "srFiltersToAuthor": " — filters the conversation to this author",
+    "inlineHeading": "Conversation",
+    "revisionNeverBriefed": "This revision was never briefed — open it on GitHub.",
+    "replyLabel": "Reply (posts to GitHub immediately)",
+    "posting": "Posting…",
+    "postingAndResolving": "Posting & resolving…",
+    "replyAndResolve": "Reply & resolve",
+    "longerThread": "Longer thread — the rest is on GitHub.",
+    "jumpToComment": "Jump to comment",
+    "viewOnGithub": "View on GitHub",
+    "srOpensNewTab": " (opens in a new tab)",
+    "resolved": "resolved",
+    "comments_one": "{{count}} comment",
+    "comments_other": "{{count}} comments",
+    "yours": "yours",
+    "atRevision": "at {{label}}",
+    "botCount": "{{count}} bot",
+    "openThreads_one": "{{count}} open thread",
+    "openThreads_other": "{{count}} open threads",
+    "showMore_one": "Show {{count}} more",
+    "showMore_other": "Show {{count}} more",
+    "resolve": {
+      "resolved": "Thread resolved on GitHub.",
+      "unresolved": "Thread marked unresolved on GitHub.",
+      "unauthorized": "Your GitHub session expired — sign in again to change this thread.",
+      "notFound": "This thread is no longer on GitHub — it may have been deleted.",
+      "githubPermission": "GitHub refused the change — your permission to resolve threads here may have changed.",
+      "invalid": "The request was rejected as invalid — reload and try again.",
+      "upstream": "GitHub rejected the change or is unreachable — try again shortly.",
+      "failed": "Something went wrong — the thread may or may not have changed. The conversation was refreshed; check the thread before retrying."
+    },
+    "replyResult": {
+      "posted": "Reply posted to GitHub under your account.",
+      "unauthorized": "Your GitHub session expired — sign in again. Your reply draft is saved locally.",
+      "notFound": "This thread is no longer on GitHub — it may have been deleted. Your draft is saved locally.",
+      "invalid": "The reply was rejected as invalid — reload and try again.",
+      "upstream": "GitHub rejected the reply or is unreachable — try again shortly.",
+      "failed": "Something went wrong posting the reply — it may or may not have posted. Check the thread on GitHub before retrying.",
+      "both": "Reply posted and the thread resolved.",
+      "partial": "Your reply posted, but resolving the thread failed. The reply is on GitHub — use Resolve on the thread to finish.",
+      "partialIndeterminate": "Your reply posted; the thread may or may not have been resolved. The conversation was refreshed — check the thread before resolving it again.",
+      "replyFailedSuffix": "The thread was left unresolved."
+    },
+    "reply": "Reply",
+    "quoteReply": "Quote reply"
+  },
+  "tokens": {
+    "heading": "API tokens",
+    "nameLabel": "Token name",
+    "namePlaceholder": "ci-reviewer",
+    "organizationLabel": "Organization",
+    "expiresLabel": "Expires",
+    "noExpiry": "No expiry",
+    "ariaLabelRevoke": "Revoke {{name}}",
+    "nameTooLong": "Token names are capped at {{max}} characters.",
+    "introLead": "Tokens let the",
+    "introTail": "CLI and agents read and submit through the API as you, bound to one organization each.",
+    "expiry30": "30 days",
+    "expiry90": "90 days",
+    "expiry365": "1 year",
+    "minting": "Minting…",
+    "mintToken": "Mint token",
+    "mintedHeading": "Copy your token now — it is shown exactly once and cannot be retrieved again.",
+    "disclaimerLead": "Treat it like a password. The CLI stores it in plaintext in your home directory (",
+    "disclaimerTail": ") — anyone with the token can act as you in",
+    "itsOrganization": "its organization",
+    "dismissMinted": "I saved it — dismiss",
+    "loadFailed": "Could not load your tokens.",
+    "noTokens": "No tokens yet.",
+    "never": "never",
+    "revoking": "Revoking…",
+    "revoke": "Revoke",
+    "nameRequired": "Name the token before minting.",
+    "organizationRequired": "Pick the organization the token is bound to."
+  },
+  "shell": {
+    "settingsHeading": "Settings",
+    "signInWithGithub": "Sign in with GitHub",
+    "briefListFailed": "Brief list failed to load",
+    "briefFailed": "Brief failed to load",
+    "landingHeading": "Turn a PR into a brief",
+    "landingBullet1": "Stable taxonomy, queryable across every PR you review",
+    "landingBullet2": "Your model key, your infrastructure, nothing phones home",
+    "landingBullet3": "Plain-markdown taxonomy you can read, fork, and extend",
+    "ariaLabelPrUrl": "GitHub PR URL",
+    "prUrlPlaceholder": "https://github.com/owner/repo/pull/123",
+    "noBriefs": "No Briefs yet. Paste a GitHub PR URL above to generate one.",
+    "ariaLabelSuggestedDiff": "Suggested change diff",
+    "ariaLabelMarkdownEditor": "Markdown editor",
+    "ariaLabelEditorMode": "Editor mode",
+    "ariaLabelFormatting": "Formatting",
+    "ariaLabelMentionSuggestions": "Mention suggestions",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
+    "footerRights": "© {{year}} Idan Ram. All rights reserved.",
+    "suggestedChange": "Suggested change",
+    "nothingToPreview": "Nothing to preview.",
+    "markdownSupported": "Markdown is supported",
+    "skipToContent": "Skip to content",
+    "backToReview": "Back to review",
+    "backToBriefs": "← Back to Briefs",
+    "ariaLabelBreadcrumb": "Breadcrumb",
+    "landingEyebrow": "Open-source · self-hosted · BYOK",
+    "landingCopy": "A brief re-unitizes a pull request into Change-groups, each with a plain-language summary and Risk Surface attributes: facts worth a closer look, never a verdict.",
+    "generating": "Generating…",
+    "generate": "Generate",
+    "cliHintLead": "Working from the CLI instead? Run",
+    "cliHintTail": "from the repo root; outputs land here automatically.",
+    "localBriefs": "Local Briefs",
+    "serverUnavailable": "The server is unavailable right now — your tokens are untouched. Refresh to retry.",
+    "toManageTokens": "to manage API tokens.",
+    "artifactDelta": "delta",
+    "artifactBrief": "brief"
+  },
+  "briefError": {
+    "not-found": "That brief isn't on this instance.",
+    "invalid-id": "That brief link isn't valid.",
+    "unreadable": "That brief's files are unreadable — regenerate it.",
+    "unexpected": "Something went wrong reading this brief — check the server logs.",
+    "not-a-pr-url": "That doesn't look like a GitHub pull request URL — expected https://github.com/OWNER/REPO/pull/NUMBER.",
+    "url-too-long": "That URL is too long to be a GitHub pull request link.",
+    "no-gh-cli": "This deployment has no gh CLI — sign in with GitHub to generate with your account.",
+    "fetch-failed": "Couldn't fetch this PR — is it public, and are you `gh auth login`'d?",
+    "generation-failed": "Couldn't generate the brief for this PR — check the server logs and try again."
   }
 }

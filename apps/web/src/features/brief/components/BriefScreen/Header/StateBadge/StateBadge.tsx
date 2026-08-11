@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { ValueOf } from "types";
 import type { LivePrState, PrRef } from "../../../../types";
@@ -57,6 +58,7 @@ function badgeVariant(
  * header's reading order.
  */
 export function StateBadge({ pr, live }: StateBadgeProps) {
+  const { t } = useTranslation();
   const variant = badgeVariant(pr, live);
   if (variant === null) return null;
   return (
@@ -65,7 +67,7 @@ export function StateBadge({ pr, live }: StateBadgeProps) {
       data-state-badge=""
       data-variant={variant}
     >
-      <ScreenReaderOnly>{"pull request "}</ScreenReaderOnly>
+      <ScreenReaderOnly>{t("brief.stateBadge.pullRequest")}</ScreenReaderOnly>
       {BADGE_LABEL[variant]}
     </span>
   );

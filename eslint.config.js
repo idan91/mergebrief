@@ -5,7 +5,10 @@
 //
 //   1. the plain-`enum` ban (oxlint has `no-const-enum` and no
 //      `no-restricted-syntax`, so plain `enum` is unreachable there),
-//   2. extensionless relative imports.
+//   2. extensionless relative imports,
+//   3. the no-hard-coded-UI-copy gate on apps/web (eslint-plugin-i18next —
+//      the one rule here that DOES need a plugin, because no linter can
+//      express "this string reaches a browser" without i18n awareness).
 //
 // Both ride ESLint core's `no-restricted-syntax` over the TypeScript AST,
 // which is why the only dependency beyond eslint is the parser: no plugin, no
@@ -20,6 +23,7 @@
 // config record or a fixture bundle; measured on this repo it produced 8
 // reports, all false positives, and 0 true ones. That convention stays prose.
 
+import i18next from "eslint-plugin-i18next";
 import tsParser from "@typescript-eslint/parser";
 
 /**
@@ -97,6 +101,91 @@ export default [
         // Known gap, accepted: a template-literal dynamic import
         // (import(`./x.js`)) is invisible to esquery value matching. Static
         // specifiers — the only shape the convention governs — are covered.
+      ],
+    },
+  },
+  {
+    // User-facing copy lives in the catalog, never in a component. Scoped to
+    // apps/web source: `jsx-only` covers JSX text AND attributes, which is
+    // the shape a reviewer misses most. Tests and stories are exempt —
+    // fixtures are not copy. The rule cannot see strings assigned to a
+    // const (the sweep closed those by hand); the dev pseudo-locale is the
+    // detector for what it misses.
+    files: ["apps/web/src/**/*.tsx"],
+    ignores: ["**/*.test.tsx", "**/*.stories.tsx"],
+    plugins: { i18next },
+    rules: {
+      "i18next/no-literal-string": [
+        "error",
+        {
+          mode: "jsx-only",
+          "jsx-attributes": {
+            // Structural/behavioural attributes are never copy.
+            exclude: [
+              "className",
+              "data-.*",
+              "id",
+              "key",
+              "type",
+              "role",
+              "href",
+              "to",
+              "name",
+              "value",
+              "scope",
+              "color",
+              "as",
+              "testId",
+              "labelledBy",
+              "describedBy",
+              "aria-hidden",
+              "autoComplete",
+              "rel",
+              "target",
+              "charSet",
+              "property",
+              "content",
+              "crossOrigin",
+              "boxClassName",
+              "labelClassName",
+              "triggerClassName",
+              // SVG geometry/paint and other structural attributes.
+              "stroke",
+              "fill",
+              "focusable",
+              "viewBox",
+              "xmlns",
+              "d",
+              "points",
+              "offset",
+              "stopColor",
+              // Discriminant/behavioural props, never rendered as copy.
+              "placement",
+              "kind",
+              "variant",
+              "state",
+              "side",
+              "anchor",
+              "components",
+            ],
+          },
+          // The plugin's DEFAULT callee list (which already exempts `t`)
+          // stays in force: a blanket exclude would silently exempt every
+          // JSX nested in a call expression — `memo(...)`, `forwardRef(...)`,
+          // and every `.map()` callback — which is most of this tree.
+          words: {
+            // Punctuation-only and single-glyph nodes are decoration, not
+            // copy (arrows, separators, the disclosure caret). The named
+            // entries are DISCRIMINANTS that happen to sit inside a JSX
+            // attribute expression — union members, ARIA token values, and
+            // floating-ui middleware names, never rendered text.
+            exclude: [
+              "^[^a-zA-Z]*$",
+              "^.$",
+              "^(chunk|group|last-review|previous-brief|step|reference|content|repo-policy|built-in|open)$",
+            ],
+          },
+        },
       ],
     },
   },

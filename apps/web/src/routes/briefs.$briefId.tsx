@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useCallback } from "react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
@@ -80,13 +81,14 @@ function BriefRoute() {
 }
 
 function BriefError({ error }: { error: Error }) {
+  const { t } = useTranslation();
   return (
     <main className="main" id="main-content" tabIndex={-1}>
       <section className={styles["errorState"]}>
-        <h1>Brief failed to load</h1>
+        <h1>{t("shell.briefFailed")}</h1>
         {/* Curated copy only: a raw server message here would print the
             deployment's filesystem paths into the page. */}
-        <p>{briefErrorDetail(error)}</p>
+        <p>{briefErrorDetail(t, error)}</p>
       </section>
     </main>
   );

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Roles, type Role } from "../../../../../types";
 import { Badge, BadgeColors } from "@web/components/Badge/Badge";
 
@@ -11,11 +12,12 @@ export interface RoleBadgeProps {
  * palette.
  */
 export function RoleBadge({ role }: RoleBadgeProps) {
+  const { t } = useTranslation();
   return role === Roles.CORE ? (
     <Badge color={BadgeColors.TEXT} fill>
-      core
+      {t("brief.chunk.roleCore")}
     </Badge>
   ) : (
-    <Badge color={BadgeColors.NEUTRAL}>supporting</Badge>
+    <Badge color={BadgeColors.NEUTRAL}>{t("brief.chunk.roleSupporting")}</Badge>
   );
 }

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { GroupView } from "../../../utils/viewModel";
 import styles from "./ReadThroughProgress.module.scss";
 
@@ -73,6 +74,7 @@ export function ReadThroughProgress({
   activeChunkId,
   jumpToChunk,
 }: ReadThroughProgressProps) {
+  const { t } = useTranslation();
   const segments = buildReadThroughSegments(groups, activeChunkId);
   if (segments.length === 0) return null;
   const complete =
@@ -81,14 +83,18 @@ export function ReadThroughProgress({
       : false;
   return (
     <nav
-      aria-label="Read-through progress"
+      aria-label={t("brief.progress.ariaLabel")}
       className={styles["progress"]}
       data-complete={complete ? "" : undefined}
     >
       {segments.map((segment) => (
         <button
           aria-current={segment.isCurrent ? "step" : undefined}
-          aria-label={`${segment.hasReadingOrder ? "Step" : "Group"} ${segment.step} of ${segments.length}: ${segment.title}`}
+          aria-label={`${
+            segment.hasReadingOrder
+              ? t("brief.progress.step")
+              : t("brief.progress.group")
+          } ${segment.step} of ${segments.length}: ${segment.title}`}
           className={styles["segment"]}
           data-current={segment.isCurrent ? "" : undefined}
           data-past={segment.isPast ? "" : undefined}

@@ -164,11 +164,10 @@ export function SubmitModal({
       {view === "advisory" ? (
         <>
           <h3 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
-            Before you submit
+            {t("review.submit.beforeYouSubmit")}
           </h3>
           <p className={modalStyles["copy"]}>
-            This is advisory. You can continue, but the summary will show
-            unresolved items exactly as they are.
+            {t("review.submit.advisoryIntro")}
           </p>
           <div className={modalStyles["unresolvedList"]}>
             {advisoryItems.map((item) => (
@@ -184,7 +183,7 @@ export function SubmitModal({
             ))}
           </div>
           <p className={styles["hint"]}>
-            Jumping to an item closes this dialog.
+            {t("review.submit.jumpClosesDialog")}
           </p>
           <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
             <button className="btn" type="button" onClick={close}>
@@ -195,7 +194,7 @@ export function SubmitModal({
               type="button"
               onClick={() => setView("verdict")}
             >
-              Continue
+              {t("review.submit.continueAction")}
             </button>
           </div>
         </>
@@ -311,15 +310,13 @@ export function SubmitModal({
         <>
           <div className={styles["receiptTitle"]}>
             <h3 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
-              Verification receipt
+              {t("review.submit.receiptHeading")}
             </h3>
-            <span className={styles["tag"]}>not an approval</span>
+            <span className={styles["tag"]}>
+              {t("review.submit.notAnApproval")}
+            </span>
           </div>
-          <p className={styles["sub"]}>
-            Frozen at submit · linked from a one-line signature on your normal
-            GitHub review · the review itself stays yours. The signature line
-            links a public summary.
-          </p>
+          <p className={styles["sub"]}>{t("review.submit.receiptSub")}</p>
           <pre className={styles["receiptBody"]}>{receiptText(receipt)}</pre>
           <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
             <button
@@ -327,7 +324,7 @@ export function SubmitModal({
               type="button"
               onClick={() => setView("verdict")}
             >
-              Back to verdict
+              {t("review.submit.backToVerdict")}
             </button>
             <button className="btn" type="button" onClick={close}>
               {t("review.submit.keepReviewing")}

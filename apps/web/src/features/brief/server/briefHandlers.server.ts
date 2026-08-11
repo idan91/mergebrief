@@ -1,9 +1,9 @@
 import "@tanstack/react-start/server-only";
 
 import {
-  briefErrorDetail,
+  briefErrorCode,
   clampConfigMessage,
-  GenerateErrorMessage,
+  GenerateErrorCode,
   isCuratedBriefError,
 } from "../utils/briefErrors";
 import { getServerLogger } from "../../../server/logger";
@@ -49,16 +49,16 @@ async function curated<T>(action: string, body: () => Promise<T>): Promise<T> {
   try {
     return await body();
   } catch (error) {
-    const detail = briefErrorDetail(error);
+    const code = briefErrorCode(error);
     const raw = error instanceof Error ? error.message : String(error);
-    if (raw !== detail) {
+    if (raw !== code) {
       // A failure nobody mapped escaped a reader — worth an operator's
       // attention. The raw error rides as a FIELD, never interpolated into
       // `msg`: the logging boundary redacts fields, and `msg` bypasses that.
       logger.warn(`${action}: unmapped read failure`, { err: error });
     }
     // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-    throw new Error(detail);
+    throw new Error(code);
   }
 }
 
@@ -84,7 +84,7 @@ async function curatedGeneration(body: () => Promise<string>): Promise<string> {
     if (isCuratedBriefError(raw)) throw error;
     logger.warn("generateBrief: unmapped generation failure", { err: error });
     // oxlint-disable-next-line preserve-caught-error -- cause would serialize to the browser
-    throw new Error(GenerateErrorMessage.GENERATION_FAILED);
+    throw new Error(GenerateErrorCode.GENERATION_FAILED);
   }
 }
 

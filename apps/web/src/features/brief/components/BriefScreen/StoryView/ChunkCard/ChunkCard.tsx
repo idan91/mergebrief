@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { memo, useMemo, useRef } from "react";
 
 import { CopyButton } from "@web/components/CopyButton/CopyButton";
@@ -122,6 +123,7 @@ export const ChunkCard = memo(function ChunkCard({
   conversationComposer,
   riskMeta,
 }: ChunkCardProps) {
+  const { t } = useTranslation();
   const reviewed = useMindMap((state) => state.reviewedChunks.has(chunk.id));
   // Selection identity when the toggle gesture started — only a selection
   // CHANGED by this gesture suppresses the click. A stale selection that
@@ -224,7 +226,7 @@ export const ChunkCard = memo(function ChunkCard({
         </button>
         <CopyButton
           className={styles["copyPath"]}
-          label="Copy file path"
+          label={t("brief.chunk.copyFilePath")}
           text={chunk.file}
         />
         <span className={styles["chips"]}>
@@ -268,13 +270,18 @@ export const ChunkCard = memo(function ChunkCard({
           <RoleBadge role={chunk.role} />
           {comments.length > 0 ? (
             <span className={styles["chip"]}>
-              {comments.length} draft{comments.length === 1 ? "" : "s"}
+              {t("brief.chunk.drafts", { count: comments.length })}
             </span>
           ) : null}
           {chunkReviewComments.length > 0 ? (
             <span className={styles["chip"]}>
-              {chunkReviewComments.length}{" "}
-              {hasLinkedAddressedComments ? "addressed" : "review"}
+              {hasLinkedAddressedComments
+                ? t("brief.chunk.addressedCount", {
+                    count: chunkReviewComments.length,
+                  })
+                : t("brief.chunk.reviewCount", {
+                    count: chunkReviewComments.length,
+                  })}
             </span>
           ) : null}
           <span className={`${styles["chip"]} ${styles["loc"]}`}>
@@ -288,11 +295,13 @@ export const ChunkCard = memo(function ChunkCard({
             checked={reviewed}
             onChange={() => markReviewed(chunk.id)}
           />
-          <span>Viewed</span>
+          <span>{t("brief.chunk.viewed")}</span>
           <ScreenReaderOnly>{` ${chunk.file}`}</ScreenReaderOnly>
         </label>
       </div>
-      {!expanded ? <ScreenReaderOnly>Collapsed</ScreenReaderOnly> : null}
+      {!expanded ? (
+        <ScreenReaderOnly>{t("brief.chunk.collapsed")}</ScreenReaderOnly>
+      ) : null}
       {expanded ? (
         <div className={styles["body"]}>
           {chunk.summary ||
@@ -307,7 +316,7 @@ export const ChunkCard = memo(function ChunkCard({
               topReviewComments.length > 0 ? (
                 <ReviewComments
                   comments={topReviewComments}
-                  label="review comment"
+                  label={t("brief.chunk.reviewComment")}
                 />
               ) : null}
             </div>
@@ -328,7 +337,9 @@ export const ChunkCard = memo(function ChunkCard({
             comparisonSource={comparison.source}
             comparisonSkipReason={comparison.skipReason}
             reviewCommentLabel={
-              hasLinkedAddressedComments ? "addressed" : "review comment"
+              hasLinkedAddressedComments
+                ? t("brief.chunk.addressed")
+                : t("brief.chunk.reviewComment")
             }
           />
         </div>

@@ -31,6 +31,22 @@ the DB-backed read + submit surface. Repo-wide TS rules live in the root
   Node errors are the specific hazard: `readFile` on a missing artifact
   discloses the deployment's absolute paths. Messages that reflect caller
   input (a pasted URL) are curated too — they land in a `role="alert"`.
+- **User-facing copy lives in the `packages/i18n` catalog, never in a
+  component.** Module-local `COPY` maps are dead: a component reads
+  `useTranslation()`; a pure helper takes a `TFunction` first parameter; a
+  data structure stores a `TranslationKey` and resolves at render (the view
+  model stays locale-free). `eslint-plugin-i18next` (`jsx-only`) fails the
+  build on JSX text and attributes, but it CANNOT see a string assigned to a
+  const or built in a template literal — those are a review checkpoint, and
+  the dev-only `pseudo` locale is the runtime detector for anything that
+  never reached `t()`.
+  Three things stay English on purpose: text written INTO GitHub (the review
+  signature, the receipt `<pre>`'s frozen artifact format), repo-authored
+  strings passed through verbatim (`criteria`/`implication`), and parse-error
+  messages the callers discard. A server function throws a CODE
+  (`briefErrors.ts`), never a sentence — the client renders it from the
+  catalog, so the cross-boundary allowlist stays an identity check on a
+  stable token.
 - Isomorphic and shared client/server modules INJECT their log sink (a narrow
   `{ warn }`/`{ error }` interface the `packages/logging` `Logger` satisfies);
   they never import `server/logger`, which is `server-only`. No sink passed =

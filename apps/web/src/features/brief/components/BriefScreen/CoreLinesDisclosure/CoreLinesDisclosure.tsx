@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useId, useState, type ReactNode } from "react";
 
 import { Callout } from "@web/components/Callout/Callout";
@@ -33,6 +34,7 @@ export function CoreLinesDisclosure({
   className,
   triggerClassName,
 }: CoreLinesDisclosureProps) {
+  const { t } = useTranslation();
   const [anchor, setAnchor] = useState<Element | null>(null);
   const detailId = useId();
   useEffect(() => {
@@ -93,20 +95,19 @@ export function CoreLinesDisclosure({
         <Callout anchor={anchor} fit onClose={() => setAnchor(null)}>
           <span className={styles["panel"]} id={detailId}>
             <dl className={styles["rows"]}>
-              <dt>core lines</dt>
+              <dt>{t("brief.coreLines.core")}</dt>
               <dd>
                 <span className="green">+{coreAdded}</span>{" "}
                 <span className="red">−{coreDeleted}</span>
               </dd>
-              <dt>all adjusted lines</dt>
+              <dt>{t("brief.coreLines.allAdjusted")}</dt>
               <dd>
                 <span className="green">+{allAdded}</span>{" "}
                 <span className="red">−{allDeleted}</span>
               </dd>
             </dl>
             <span className={styles["caveat"]}>
-              Adjusted approximation — not the raw git count. Exact lines are on
-              GitHub.
+              {t("brief.coreLines.caveat")}
             </span>
           </span>
         </Callout>

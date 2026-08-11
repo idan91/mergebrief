@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import type {
   AddressedReviewComment,
@@ -22,6 +23,7 @@ export interface ReviewCommentsProps {
 }
 
 export function ReviewComments({ comments, label }: ReviewCommentsProps) {
+  const { t } = useTranslation();
   return (
     <div className={styles["comments"]}>
       {comments.map((comment) => (
@@ -41,7 +43,7 @@ export function ReviewComments({ comments, label }: ReviewCommentsProps) {
           </div>
           {comment.inReplyToId ? (
             <div className={styles["replyNote"]}>
-              reply to {comment.inReplyToId}
+              {t("review.comment.replyTo", { id: comment.inReplyToId })}
             </div>
           ) : null}
         </details>
@@ -56,10 +58,20 @@ export interface AddressedCommentsProps {
 }
 
 export function AddressedComments({ chunk, comments }: AddressedCommentsProps) {
+  const { t } = useTranslation();
   const ids = chunk.addressesComments ?? [];
   if (ids.length === 0) return null;
   if (comments.length === 0) {
-    return <span>addresses comments {ids.join(", ")}</span>;
+    return (
+      <span>
+        {t("review.comment.addressesComments", { ids: ids.join(", ") })}
+      </span>
+    );
   }
-  return <ReviewComments comments={comments} label="comment" />;
+  return (
+    <ReviewComments
+      comments={comments}
+      label={t("review.comment.commentLabel")}
+    />
+  );
 }

@@ -64,9 +64,15 @@ export function TimelineNavigator({
 
   if (!selected) return null;
   return (
-    <nav className={styles["timeline"]} aria-label="PR revision timeline">
+    <nav
+      className={styles["timeline"]}
+      aria-label={t("brief.timeline.ariaLabelNav")}
+    >
       <span aria-live="polite" className="sr-only">
-        Viewing Brief {selected.index} of {timeline.points.length}
+        {t("brief.timeline.viewingBrief", {
+          index: selected.index,
+          total: timeline.points.length,
+        })}
       </span>
       {previous ? (
         <Link
@@ -88,7 +94,7 @@ export function TimelineNavigator({
         </span>
       )}
       <label>
-        <ScreenReaderOnly>Select PR revision</ScreenReaderOnly>
+        <ScreenReaderOnly>{t("brief.timeline.selectLabel")}</ScreenReaderOnly>
         <select
           value={selected.briefId}
           onChange={(event) =>
@@ -101,7 +107,10 @@ export function TimelineNavigator({
         >
           {timeline.points.map((point) => (
             <option key={point.briefId} value={point.briefId}>
-              Brief {point.index} · {point.headSha.slice(0, 7)}
+              {t("brief.timeline.briefOptionSha", {
+                index: point.index,
+                sha: point.headSha.slice(0, 7),
+              })}
             </option>
           ))}
         </select>
@@ -147,13 +156,17 @@ export function TimelineNavigator({
                 search={(prev) => prev}
                 to="/briefs/$briefId"
               >
-                <ScreenReaderOnly>Brief {point.index}</ScreenReaderOnly>
+                <ScreenReaderOnly>
+                  {t("brief.timeline.briefOption", { index: point.index })}
+                </ScreenReaderOnly>
               </Link>
             </li>
           ))}
       </ol>
       <fieldset className={styles["lens"]}>
-        <ScreenReaderOnly as="legend">View</ScreenReaderOnly>
+        <ScreenReaderOnly as="legend">
+          {t("brief.timeline.viewLegend")}
+        </ScreenReaderOnly>
         <button
           aria-pressed={compareState.view === "full"}
           data-state={compareState.view === "full" ? "active" : undefined}
@@ -161,7 +174,7 @@ export function TimelineNavigator({
           type="button"
           onClick={() => selectView("full")}
         >
-          Full brief
+          {t("brief.timeline.fullBrief")}
         </button>
         <button
           aria-pressed={compareState.view === "changes"}
@@ -170,15 +183,17 @@ export function TimelineNavigator({
           type="button"
           onClick={() => selectView("changes")}
         >
-          Changes Only
+          {t("brief.timeline.changesOnly")}
         </button>
       </fieldset>
       <fieldset className={styles["labeledLens"]}>
-        <ScreenReaderOnly as="legend">Compare</ScreenReaderOnly>
+        <ScreenReaderOnly as="legend">
+          {t("brief.timeline.compareLegend")}
+        </ScreenReaderOnly>
         {/* Outside the bordered group — inside it the label reads as a
             fourth (selectable) option. */}
         <span aria-hidden="true" className={styles["lensLabel"]}>
-          Compare
+          {t("brief.timeline.compareLabel")}
         </span>
         <div className={styles["lens"]}>
           <button
@@ -195,7 +210,7 @@ export function TimelineNavigator({
             type="button"
             onClick={() => selectCompare("last-review")}
           >
-            Your last review
+            {t("brief.timeline.lastReview")}
           </button>
           <button
             aria-pressed={compareState.compare === "previous-brief"}
@@ -211,7 +226,7 @@ export function TimelineNavigator({
             type="button"
             onClick={() => selectCompare("previous-brief")}
           >
-            Previous brief
+            {t("brief.timeline.previousBrief")}
           </button>
           <button
             aria-pressed={compareState.compare === "off"}
@@ -219,13 +234,13 @@ export function TimelineNavigator({
             disabled={compareState.view === "changes"}
             title={
               compareState.view === "changes"
-                ? "Off is only available in Full brief"
+                ? t("brief.timeline.offOnlyFull")
                 : undefined
             }
             type="button"
             onClick={() => selectCompare("off")}
           >
-            Off
+            {t("brief.timeline.off")}
           </button>
         </div>
       </fieldset>

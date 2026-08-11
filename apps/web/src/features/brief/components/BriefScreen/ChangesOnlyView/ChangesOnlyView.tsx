@@ -111,11 +111,10 @@ function PreviousBriefChanges({
         {restartNote}
         {lengthNote}
         <EmptyState>
-          <b>No revision summary.</b> The change from the previous brief was{" "}
+          <b>{t("brief.changes.noRevisionSummaryLead")}</b>{" "}
           {skipReason === "span too large"
-            ? "too large to summarize incrementally"
-            : "not summarized (disabled by config)"}
-          . The highlighted lines in Full Brief still show what changed.
+            ? t("brief.changes.noRevisionSummaryTooLarge")
+            : t("brief.changes.noRevisionSummaryDisabled")}
         </EmptyState>
       </>
     );
@@ -146,7 +145,7 @@ function PreviousBriefChanges({
   return (
     <div className={styles["changesOnly"]}>
       <div className={styles["eyebrow"]}>
-        Changes Only · since the previous Brief
+        {t("brief.changes.eyebrowPreviousBrief")}
       </div>
       {restartNote}
       {lengthNote}
@@ -180,7 +179,9 @@ function PreviousBriefChanges({
       {orphanChunks.length > 0 ? (
         <section className={styles["group"]}>
           <div className={styles["groupHead"]}>
-            <h3 className={styles["groupTitle"]}>Other changes</h3>
+            <h3 className={styles["groupTitle"]}>
+              {t("brief.changes.otherChanges")}
+            </h3>
           </div>
           {orphanChunks.map((chunk) => (
             <NarrativeChunkCard brief={brief} chunk={chunk} key={chunk.id} />
@@ -197,6 +198,7 @@ interface NarrativeChunkCardProps {
 }
 
 function NarrativeChunkCard({ brief, chunk }: NarrativeChunkCardProps) {
+  const { t } = useTranslation();
   const addedRows = addedRowsForNarrativeChunk(brief, chunk);
   const removedCount = countLines(chunk.removedRanges);
   return (
@@ -206,7 +208,7 @@ function NarrativeChunkCard({ brief, chunk }: NarrativeChunkCardProps) {
       {addedRows.length > 0 ? <ReadonlyDiff rows={addedRows} /> : null}
       {removedCount > 0 ? (
         <div className={styles["removedNote"]}>
-          −{removedCount} line{removedCount === 1 ? "" : "s"} removed
+          {t("brief.changes.removedLines", { count: removedCount })}
         </div>
       ) : null}
     </div>
@@ -219,10 +221,10 @@ interface LastReviewChangesProps {
 
 /** The over-length muted line — shared by both compare lenses. */
 function LengthGuidanceNote() {
+  const { t } = useTranslation();
   return (
     <p className={styles["restartNote"]} role="note">
-      Some brief text exceeds length guidance — a stronger model may keep
-      summaries tighter.
+      {t("brief.changes.lengthGuidance")}
     </p>
   );
 }
@@ -249,7 +251,7 @@ function LastReviewChanges({ delta }: LastReviewChangesProps) {
   return (
     <div className={styles["changesOnly"]}>
       <div className={styles["eyebrow"]}>
-        Changes Only · since your last review
+        {t("brief.changes.eyebrowLastReview")}
       </div>
       {hasLengthViolations(delta) ? <LengthGuidanceNote /> : null}
       <div className={styles["overview"]}>

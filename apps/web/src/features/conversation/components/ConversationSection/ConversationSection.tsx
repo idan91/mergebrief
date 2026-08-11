@@ -6,6 +6,7 @@
 // No background poll — refetch on focus/navigation via the query's staleTime
 // plus the manual refresh control. Expansion state is keyed by thread id in
 // component state so it survives refetch.
+import { useTranslation } from "react-i18next";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -127,6 +128,7 @@ export function ConversationSection({
   focusThreadId,
   filter: filterProp,
 }: ConversationSectionProps) {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const query = useQuery(plan.queryOptions);
   // Shared query key with the inline wiring; non-ready = empty =
@@ -356,7 +358,7 @@ export function ConversationSection({
             >
               ▶
             </span>
-            Conversation
+            {t("conversation.heading")}
             {/* Totals ONLY: the header describes the whole conversation;
                 filter state renders in exactly one place — the toolbar's
                 Filter trigger. */}
@@ -372,58 +374,60 @@ export function ConversationSection({
             type="button"
             onClick={refresh}
           >
-            {query.isFetching ? "Refreshing…" : "Refresh"}
+            {query.isFetching
+              ? t("conversation.refreshing")
+              : t("conversation.refresh")}
           </button>
         ) : null}
       </div>
       {afterBriefCount > 0 ? (
         <p className={styles["afterBriefNote"]}>
-          {afterBriefCount} comment{afterBriefCount === 1 ? "" : "s"} arrived
-          after this brief was generated
+          {t("conversation.afterBrief", { count: afterBriefCount })}
         </p>
       ) : null}
       {open ? (
         <>
           {query.isPending ? (
             <p className={rowStyles["note"]} role="status">
-              Loading the conversation…
+              {t("conversation.loading")}
             </p>
           ) : null}
           {query.isError ? (
             <p className={rowStyles["error"]} role="alert">
-              The conversation could not be read (unexpected response). Refresh
-              to retry.
+              {t("conversation.readFailed")}
             </p>
           ) : null}
           {query.data?.kind === "unauthorized" ? (
             <p className={rowStyles["error"]} role="alert">
-              Your GitHub session expired — sign in again to see the
-              conversation.
+              {t("conversation.unauthorized")}
             </p>
           ) : null}
           {query.data?.kind === "not-found" ? (
             <p className={rowStyles["error"]} role="alert">
-              This pull request&apos;s conversation is no longer accessible on
-              GitHub.
+              {t("conversation.notFound")}
             </p>
           ) : null}
           {query.data?.kind === "unavailable" ? (
             <p className={rowStyles["error"]} role="alert">
-              GitHub (or the backend) is unreachable — the conversation could
-              not be fetched. Refresh to retry.
+              {t("conversation.unavailable")}
             </p>
           ) : null}
 
           {conversation !== undefined ? (
             <>
               {verdicts.length > 0 ? (
-                <ul aria-label="Review verdicts" className={styles["verdicts"]}>
+                <ul
+                  aria-label={t("conversation.ariaLabelVerdicts")}
+                  className={styles["verdicts"]}
+                >
                   {verdicts.map((review) => (
                     <li className={styles["verdict"]} key={review.reviewId}>
                       <span className={rowStyles["author"]}>
                         @{review.author.login}
                         {review.author.isBot ? (
-                          <span className={rowStyles["botTag"]}>bot</span>
+                          <span className={rowStyles["botTag"]}>
+                            {t("conversation.botTag")}
+                          </span>
                         ) : null}
                       </span>
                       <span
@@ -445,8 +449,8 @@ export function ConversationSection({
               {digest.length === 0 && verdicts.length === 0 ? (
                 <p className={rowStyles["note"]}>
                   {isFilterActive(filter)
-                    ? "No activity matches these filters."
-                    : "No conversation yet — comments land here as teammates review."}
+                    ? t("conversation.noneMatchFilter")
+                    : t("conversation.noneYet")}
                 </p>
               ) : null}
 
@@ -470,8 +474,7 @@ export function ConversationSection({
               conversation.hasMoreReviews ||
               conversation.hasMorePrComments ? (
                 <p className={rowStyles["note"]}>
-                  This conversation is unusually large — some items are only on
-                  GitHub.
+                  {t("conversation.tooLarge")}
                 </p>
               ) : null}
             </>

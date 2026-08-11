@@ -2,6 +2,7 @@
    Single deliberate use: the composer mounts in response to an explicit
    click on a diff line, so moving focus into the textarea is the expected
    next action — not a page-load focus steal. */
+import { useTranslation } from "react-i18next";
 import { useEffect, useId } from "react";
 
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
@@ -31,6 +32,7 @@ export function CommentComposer({
   mentionCandidates,
   save,
 }: CommentComposerProps) {
+  const { t } = useTranslation();
   const composer = useCommentComposerFacade(anchor, save);
   const errorId = useId();
   const guardId = useId();
@@ -60,16 +62,16 @@ export function CommentComposer({
       <div className={styles["meta"]}>
         <span>{commentAnchorLabel(anchor)}</span>
         <span>
-          {anchor.rowIds.length} line{anchor.rowIds.length === 1 ? "" : "s"}
+          {t("review.comment.lines", { count: anchor.rowIds.length })}
         </span>
       </div>
       <MarkdownTextarea
         ariaInvalid={composer.error !== ""}
         autoFocus
         describedBy={composer.error !== "" ? errorId : undefined}
-        label="Comment"
+        label={t("review.comment.composerLabel")}
         mentionCandidates={mentionCandidates}
-        placeholder="Leave a comment"
+        placeholder={t("conversation.composerPlaceholder")}
         renderPreview={(body) => (
           <MarkdownPreview anchor={anchor} body={body} />
         )}
@@ -88,7 +90,7 @@ export function CommentComposer({
           {reviewCommentSubmitLabel(existingReviewCommentCount)}
         </button>
         <button className="btn" type="button" onClick={cancel}>
-          Cancel
+          {t("review.comment.cancel")}
         </button>
       </div>
     </div>

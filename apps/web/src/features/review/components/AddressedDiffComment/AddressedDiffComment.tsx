@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import type { AddressedReviewComment } from "@web/features/brief/types";
 import { addressedCommentRange } from "../AddressedComments/AddressedComments";
@@ -12,6 +13,7 @@ export function AddressedDiffComment({
   comment,
   label,
 }: AddressedDiffCommentProps) {
+  const { t } = useTranslation();
   return (
     <details className={styles["comment"]}>
       <summary className={styles["head"]}>
@@ -28,7 +30,7 @@ export function AddressedDiffComment({
       </div>
       {comment.inReplyToId ? (
         <div className={styles["replyNote"]}>
-          reply to {comment.inReplyToId}
+          {t("review.comment.replyTo", { id: comment.inReplyToId })}
         </div>
       ) : null}
     </details>

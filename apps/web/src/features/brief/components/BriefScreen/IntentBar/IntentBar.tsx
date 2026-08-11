@@ -134,7 +134,9 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
               {/* Only meaningful in `deviations` — generation and the read
                   path both force it false in every other bucket. */}
               {item.acknowledged ? (
-                <span className={styles["ackChip"]}>acknowledged</span>
+                <span className={styles["ackChip"]}>
+                  {t("brief.intent.acknowledged")}
+                </span>
               ) : null}
             </span>
             {/* Evidence rides one muted line beneath the claim: quote, then
@@ -156,10 +158,12 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
                     rel="noreferrer"
                     target="_blank"
                   >
-                    source
+                    {t("brief.intent.source")}
                   </a>
                 ) : item.sourceUrl === "" && item.quote !== "" ? (
-                  <span className={styles["source"]}>PR description</span>
+                  <span className={styles["source"]}>
+                    {t("brief.intent.prDescription")}
+                  </span>
                 ) : null}
               </span>
             ) : null}

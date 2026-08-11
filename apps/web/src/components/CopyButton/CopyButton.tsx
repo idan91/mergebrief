@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 
 import { ScreenReaderOnly } from "../ScreenReaderOnly/ScreenReaderOnly";
@@ -31,6 +32,7 @@ export function CopyButton({
   onCopy,
   className,
 }: CopyButtonProps) {
+  const { t } = useTranslation();
   const [state, setState] = useState<CopyState>("idle");
   const resetTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(resetTimer.current), []);
@@ -80,9 +82,9 @@ export function CopyButton({
       {/* Announce the outcome without moving focus. */}
       <span aria-live="polite" className="sr-only">
         {state === "copied"
-          ? "Copied"
+          ? t("shell.copied")
           : state === "failed"
-            ? "Copy failed"
+            ? t("shell.copyFailed")
             : ""}
       </span>
     </button>

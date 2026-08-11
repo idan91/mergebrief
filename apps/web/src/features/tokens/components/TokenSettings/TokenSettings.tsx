@@ -1,5 +1,6 @@
 // API-token settings section. All flow state lives in `useTokenSettings` —
 // this component only wires it to the DOM.
+import { useTranslation } from "react-i18next";
 import {
   useTokenSettings,
   ExpiryChoice,
@@ -21,7 +22,13 @@ function formatWhen(iso: string | null): string {
   });
 }
 
+// Identifiers, never copy: a translated binary name or shell flag would
+// be a broken instruction.
+const CLI_BINARY = "mergebrief";
+const CHMOD_COMMAND = "chmod 600";
+
 export function TokenSettings({ enabled }: TokenSettingsProps) {
+  const { t } = useTranslation();
   const state = useTokenSettings(enabled);
 
   if (!enabled) return null;
@@ -31,10 +38,10 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
       aria-labelledby="token-settings-heading"
       className={styles["root"]}
     >
-      <h2 id="token-settings-heading">API tokens</h2>
+      <h2 id="token-settings-heading">{t("tokens.heading")}</h2>
       <p className={styles["copy"]}>
-        Tokens let the <code>mergebrief</code> CLI and agents read and submit
-        through the API as you, bound to one organization each.
+        {t("tokens.introLead")} <code>{CLI_BINARY}</code>{" "}
+        {t("tokens.introTail")}
       </p>
 
       <form
@@ -45,17 +52,17 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
         }}
       >
         <label className={styles["field"]}>
-          <span>Token name</span>
+          <span>{t("tokens.nameLabel")}</span>
           <input
             maxLength={TOKEN_NAME_MAX}
             onChange={(event) => state.setName(event.target.value)}
-            placeholder="ci-reviewer"
+            placeholder={t("tokens.namePlaceholder")}
             type="text"
             value={state.name}
           />
         </label>
         <label className={styles["field"]}>
-          <span>Organization</span>
+          <span>{t("tokens.organizationLabel")}</span>
           <select
             onChange={(event) => state.setInstallationId(event.target.value)}
             value={state.installationId}
@@ -68,7 +75,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
           </select>
         </label>
         <label className={styles["field"]}>
-          <span>Expires</span>
+          <span>{t("tokens.expiresLabel")}</span>
           <select
             onChange={(event) => {
               const value = event.target.value;
@@ -79,10 +86,16 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             }}
             value={state.expiry}
           >
-            <option value={ExpiryChoice.THIRTY_DAYS}>30 days</option>
-            <option value={ExpiryChoice.NINETY_DAYS}>90 days</option>
-            <option value={ExpiryChoice.ONE_YEAR}>1 year</option>
-            <option value={ExpiryChoice.NONE}>No expiry</option>
+            <option value={ExpiryChoice.THIRTY_DAYS}>
+              {t("tokens.expiry30")}
+            </option>
+            <option value={ExpiryChoice.NINETY_DAYS}>
+              {t("tokens.expiry90")}
+            </option>
+            <option value={ExpiryChoice.ONE_YEAR}>
+              {t("tokens.expiry365")}
+            </option>
+            <option value={ExpiryChoice.NONE}>{t("tokens.noExpiry")}</option>
           </select>
         </label>
         <button
@@ -90,7 +103,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
           disabled={state.mintPending || state.mintBlockedReason !== null}
           type="submit"
         >
-          {state.mintPending ? "Minting…" : "Mint token"}
+          {state.mintPending ? t("tokens.minting") : t("tokens.mintToken")}
         </button>
         {state.mintBlockedReason !== null && state.name !== "" ? (
           <p className={styles["hint"]}>{state.mintBlockedReason}</p>
@@ -104,21 +117,18 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
 
       {state.mintedToken !== null ? (
         <div aria-live="polite" className={styles["minted"]} role="status">
-          <p className={styles["mintedHeading"]}>
-            Copy your token now — it is shown exactly once and cannot be
-            retrieved again.
-          </p>
+          <p className={styles["mintedHeading"]}>{t("tokens.mintedHeading")}</p>
           <code className={styles["mintedValue"]}>
             {state.mintedToken.token}
           </code>
           <p className={styles["mintedDisclaimer"]}>
-            Treat it like a password. The CLI stores it in plaintext in your
-            home directory (<code>chmod 600</code>) — anyone with the token can
-            act as you in{" "}
+            {t("tokens.disclaimerLead")}
+            <code>{CHMOD_COMMAND}</code>
+            {t("tokens.disclaimerTail")}{" "}
             <strong>
               {state.installations.find(
                 (i) => i.id === state.mintedToken?.apiToken.installationId,
-              )?.label ?? "its organization"}
+              )?.label ?? t("tokens.itsOrganization")}
             </strong>
             .
           </p>
@@ -127,7 +137,7 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             onClick={state.dismissMintedToken}
             type="button"
           >
-            I saved it — dismiss
+            {t("tokens.dismissMinted")}
           </button>
         </div>
       ) : null}
@@ -135,11 +145,11 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
       <div className={styles["list"]}>
         {state.tokensError ? (
           <p className={styles["error"]} role="alert">
-            Could not load your tokens.
+            {t("tokens.loadFailed")}
           </p>
         ) : null}
         {state.tokens !== undefined && state.tokens.length === 0 ? (
-          <p className={styles["empty"]}>No tokens yet.</p>
+          <p className={styles["empty"]}>{t("tokens.noTokens")}</p>
         ) : null}
         {(state.tokens ?? []).map((token) => (
           <div
@@ -151,19 +161,25 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             <span className={styles["rowMeta"]}>
               {token.revokedAt !== null
                 ? `revoked ${formatWhen(token.revokedAt)}`
-                : `expires ${token.expiresAt === null ? "never" : formatWhen(token.expiresAt)} · last used ${formatWhen(token.lastUsedAt)}`}
+                : `expires ${
+                    token.expiresAt === null
+                      ? t("tokens.never")
+                      : formatWhen(token.expiresAt)
+                  } · last used ${formatWhen(token.lastUsedAt)}`}
             </span>
             {token.revokedAt === null ? (
               <button
                 // Token-specific accessible name: multiple rows must be
                 // distinguishable when navigating by buttons.
-                aria-label={`Revoke ${token.name}`}
+                aria-label={t("tokens.ariaLabelRevoke", { name: token.name })}
                 className={styles["revoke"]}
                 disabled={state.revokePendingId === token.id}
                 onClick={() => state.revoke(token.id)}
                 type="button"
               >
-                {state.revokePendingId === token.id ? "Revoking…" : "Revoke"}
+                {state.revokePendingId === token.id
+                  ? t("tokens.revoking")
+                  : t("tokens.revoke")}
               </button>
             ) : null}
           </div>

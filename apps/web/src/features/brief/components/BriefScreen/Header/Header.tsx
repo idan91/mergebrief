@@ -99,6 +99,9 @@ export interface HeaderProps {
   ownDraft?: OwnDraftHeaderProps | undefined;
 }
 
+// The product name — an identifier, never translated.
+const PRODUCT_NAME = "MergeBrief";
+
 export function Header({
   brief,
   repoConfig,
@@ -194,7 +197,7 @@ export function Header({
             one flex line); at ≤880px they become the two content rows of
             the grid layout, with the CTA + overflow column spanning both. */}
         <div className={styles["lead"]}>
-          <div className={styles["wordmark"]}>MergeBrief</div>
+          <div className={styles["wordmark"]}>{PRODUCT_NAME}</div>
           <StateBadge live={livePrState} pr={brief.pr} />
           {/* The self-review chip must stay adjacent to the Draft badge. */}
           {ownDraft !== undefined ? <SelfReviewChip /> : null}
@@ -273,7 +276,7 @@ export function Header({
             }}
             onClick={openSubmit}
           >
-            Submit
+            {t("brief.header.submitReviewCta")}
           </button>
         )}
         <HeaderMenu
@@ -658,6 +661,7 @@ const REPO_CONFIG_ERROR_OUTCOMES = new Set([
  * a collision).
  */
 function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
+  const { t } = useTranslation();
   const anyPresent =
     repoConfig.files.some((file) => file.outcome !== "absent") ||
     repoConfig.collisions.length > 0;
@@ -689,7 +693,10 @@ function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
               {file.bytesUsed !== undefined &&
               file.bytesBudget !== undefined ? (
                 <span>
-                  {file.bytesUsed} of {file.bytesBudget} bytes
+                  {t("brief.details.bytesUsed", {
+                    used: file.bytesUsed,
+                    budget: file.bytesBudget,
+                  })}
                 </span>
               ) : null}
               {file.detail ? <i>{file.detail}</i> : null}
@@ -699,9 +706,10 @@ function RepoConfigChip({ repoConfig }: { repoConfig: RepoConfigContext }) {
           {repoConfig.collisions.length > 0 ? (
             <span className={styles["repoConfigRow"]}>
               <i>
-                built-in wins over custom name
-                {repoConfig.collisions.length === 1 ? "" : "s"}:{" "}
-                {repoConfig.collisions.join(", ")}
+                {t("brief.details.collisionsLine", {
+                  count: repoConfig.collisions.length,
+                  names: repoConfig.collisions.join(", "),
+                })}
               </i>
             </span>
           ) : null}

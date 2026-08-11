@@ -172,10 +172,7 @@ export function BriefDetailsPanel({
           }
         >
           <span aria-hidden="true">⚠</span>
-          <span>
-            {warnings.length} generation warning
-            {warnings.length === 1 ? "" : "s"}
-          </span>
+          <span>{t("brief.details.warnings", { count: warnings.length })}</span>
         </button>
       ) : null}
     </>
@@ -349,7 +346,9 @@ function RepoConfigSection({
               <li key={file.path}>
                 <code>{file.path}</code>
                 <span data-outcome={file.outcome}>
-                  {file.outcome === "applied" ? "applied" : "not applied"}
+                  {file.outcome === "applied"
+                    ? t("brief.details.applied")
+                    : t("brief.details.notApplied")}
                 </span>
                 {file.warning ? <i>{file.warning}</i> : null}
               </li>
@@ -357,9 +356,10 @@ function RepoConfigSection({
           {repoConfig.collisions.length > 0 ? (
             <li>
               <i>
-                built-in wins over custom name
-                {repoConfig.collisions.length === 1 ? "" : "s"}:{" "}
-                {repoConfig.collisions.join(", ")}
+                {t("brief.details.collisionsLine", {
+                  count: repoConfig.collisions.length,
+                  names: repoConfig.collisions.join(", "),
+                })}
               </i>
             </li>
           ) : null}

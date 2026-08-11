@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { SuggestionDiffRow } from "../utils";
 import styles from "./SuggestionCard.module.scss";
 
@@ -10,15 +11,18 @@ export interface SuggestionCardProps {
  * consumers pass addition-only rows and the number columns collapse.
  */
 export function SuggestionCard({ rows }: SuggestionCardProps) {
+  const { t } = useTranslation();
   const withNumbers = rows.some(
     (row) => row.oldLine !== undefined || row.newLine !== undefined,
   );
   return (
     <div className={styles["suggestionCard"]}>
-      <div className={styles["suggestionTitle"]}>Suggested change</div>
+      <div className={styles["suggestionTitle"]}>
+        {t("shell.suggestedChange")}
+      </div>
       <table
         className={styles["suggestionDiff"]}
-        aria-label="Suggested change diff"
+        aria-label={t("shell.ariaLabelSuggestedDiff")}
       >
         {withNumbers ? (
           <colgroup>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -41,6 +42,7 @@ export function GroupTocBar({
   jumpToGroup,
   conversationGroupIds,
 }: GroupTocBarProps) {
+  const { t } = useTranslation();
   const navRef = useRef<HTMLElement>(null);
   const lineRefs = useRef(new Map<string, HTMLButtonElement>());
   const frameRef = useRef<number | null>(null);
@@ -111,7 +113,7 @@ export function GroupTocBar({
   return (
     <nav
       ref={navRef}
-      aria-label="Change groups"
+      aria-label={t("brief.toc.ariaLabel")}
       className={styles["bar"]}
       onPointerLeave={handlePointerLeave}
       onPointerMove={handlePointerMove}
@@ -119,7 +121,7 @@ export function GroupTocBar({
       {groups.map((group) => {
         const hasConversation = conversationGroupIds?.has(group.id) ?? false;
         const name = `${group.group.title || group.group.summary}${
-          hasConversation ? " — has conversation" : ""
+          hasConversation ? t("brief.toc.srHasConversation") : ""
         }`;
         return (
           <button

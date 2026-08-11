@@ -75,6 +75,7 @@ function useRawSpanDiff(query: ComparisonQuery<string>): RawSpanDiffState {
 }
 
 export function RawSpanDiff({ query, children }: RawSpanDiffProps) {
+  const { t } = useTranslation();
   const raw = useRawSpanDiff(query);
   return (
     <div className={styles["wrap"]}>
@@ -87,7 +88,7 @@ export function RawSpanDiff({ query, children }: RawSpanDiffProps) {
           onClick={raw.toggle}
           type="button"
         >
-          Raw diff
+          {t("brief.diff.rawToggle")}
         </button>
       </div>
       {raw.showRaw ? <RawSpanDiffBody state={raw} /> : children}
@@ -100,10 +101,11 @@ interface RawSpanDiffBodyProps {
 }
 
 function RawSpanDiffBody({ state }: RawSpanDiffBodyProps) {
+  const { t } = useTranslation();
   if (state.isLoading) {
     return (
       <p className={styles["meta"]} role="status">
-        Loading the raw diff…
+        {t("brief.diff.rawLoading")}
       </p>
     );
   }
@@ -112,15 +114,14 @@ function RawSpanDiffBody({ state }: RawSpanDiffBodyProps) {
   if (state.isSuccess && state.chunks.length === 0) {
     return (
       <p className={styles["meta"]} role="status">
-        No raw changes in this span — the compared revisions have identical
-        content.
+        {t("brief.diff.rawIdentical")}
       </p>
     );
   }
   if (state.isError || state.chunks.length === 0) {
     return (
       <p className={styles["meta"]} role="status">
-        The raw diff is not viewable right now.
+        {t("brief.diff.rawUnavailable")}
       </p>
     );
   }

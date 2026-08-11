@@ -189,11 +189,7 @@ export function DiffTable({
     return (
       <div className={styles["metadataDiff"]}>
         <span>{t("brief.diff.unavailable")}</span>
-        <p>
-          The brief loaded, but no matching raw diff was available for this
-          chunk. The durable fix is to emit chunk-level hunk rows from the
-          categorizer.
-        </p>
+        <p>{t("brief.diff.noMatchingRaw")}</p>
       </div>
     );
   }
@@ -250,7 +246,7 @@ export function DiffTable({
           {/* Sr-only caption + column headers (the LiveDiffPreview pattern):
               without them AT table navigation reads bare cell soup. */}
           <ScreenReaderOnly as="caption">
-            Diff for {chunk.file}
+            {t("brief.diff.caption", { file: chunk.file })}
           </ScreenReaderOnly>
           <ScreenReaderOnly as="thead">
             <tr>
@@ -399,7 +395,9 @@ export function DiffTable({
                           className={styles["newTag"]}
                           data-kind={revRun.kind}
                         >
-                          {revRun.kind === "removed" ? "removed" : "new"}
+                          {revRun.kind === "removed"
+                            ? t("brief.diff.revRemoved")
+                            : t("brief.diff.revNew")}
                         </span>
                       ) : null}
                     </td>

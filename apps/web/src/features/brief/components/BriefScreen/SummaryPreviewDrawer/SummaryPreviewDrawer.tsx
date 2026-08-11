@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Drawer } from "@web/components/Drawer/Drawer";
 import { SummaryPreview } from "@web/features/review";
 import type { SessionSnapshot } from "@web/features/review/session";
@@ -21,11 +22,12 @@ export function SummaryPreviewDrawer({
   open,
   snapshot,
 }: SummaryPreviewDrawerProps) {
+  const { t } = useTranslation();
   return (
     <Drawer
       open={open}
-      label="Summary preview"
-      closeLabel="Close summary preview"
+      label={t("brief.summaryPreviewDrawer.label")}
+      closeLabel={t("brief.summaryPreviewDrawer.closeLabel")}
       close={close}
       asideClassName={styles["summaryDrawer"]}
     >

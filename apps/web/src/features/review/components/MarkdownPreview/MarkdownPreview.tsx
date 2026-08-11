@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -23,6 +24,7 @@ export interface MarkdownPreviewProps {
  * anchor-less path (pulled comments) lives in the shared Markdown renderer.
  */
 export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
+  const { t } = useTranslation();
   const suggestions = parseSuggestionBlocks(body);
   const markdown = stripSuggestionBlocks(body);
   return (
@@ -31,7 +33,7 @@ export function MarkdownPreview({ anchor, body }: MarkdownPreviewProps) {
       {markdown ? (
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
       ) : (
-        <p className={styles["empty"]}>Nothing to preview.</p>
+        <p className={styles["empty"]}>{t("review.comment.previewEmpty")}</p>
       )}
       {suggestions.map((suggestion) => (
         <SuggestionCard

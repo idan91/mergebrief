@@ -45,6 +45,7 @@ export interface StoryViewProps {
 }
 
 export function StoryView(props: StoryViewProps) {
+  const { t } = useTranslation();
   const [focusRailOpen, setFocusRailOpen] = useState(true);
   const addressedReviewComments =
     props.addressedReviewComments ?? EMPTY_ADDRESSED_REVIEW_COMMENTS;
@@ -62,7 +63,7 @@ export function StoryView(props: StoryViewProps) {
             type="button"
             onClick={props.startReadThrough}
           >
-            Start read-through
+            {t("brief.story.startReadThrough")}
           </button>
         </div>
       ) : null}
@@ -178,8 +179,8 @@ function FocusGroupRail({
       >
         <span className={styles["railToggleText"]}>
           {group.readingOrderStep !== undefined
-            ? `Step ${group.readingOrderStep}`
-            : `Group ${group.index + 1}`}
+            ? t("brief.story.stepLabel", { step: group.readingOrderStep })
+            : t("brief.story.groupLabel", { index: group.index + 1 })}
         </span>
         <span aria-hidden="true" className={styles["railToggleMark"]}>
           {open ? "−" : "+"}
@@ -192,8 +193,14 @@ function FocusGroupRail({
           <div className={styles["railHead"]}>
             <div className={styles["railMeta"]}>
               {group.readingOrderStep !== undefined
-                ? `Step ${group.readingOrderStep} of ${model.groups.length}`
-                : `Change-group ${group.index + 1} of ${model.groups.length}`}
+                ? t("brief.story.stepOf", {
+                    step: group.readingOrderStep,
+                    total: model.groups.length,
+                  })
+                : t("brief.story.groupOf", {
+                    index: group.index + 1,
+                    total: model.groups.length,
+                  })}
             </div>
             <h2 className={styles["railTitle"]}>{group.group.title}</h2>
             <p className={styles["railSummary"]}>{group.group.summary}</p>
@@ -202,16 +209,16 @@ function FocusGroupRail({
             ) : null}
             <div className={styles["railChips"]}>
               <span className={styles["railChip"]} data-kind="dominant">
-                dominant {dominant}
+                {t("brief.story.railDominant", { category: dominant })}
               </span>
               {group.group.secondaryCategories.map((category) => (
                 <span className={styles["railChip"]} key={category}>
-                  secondary {category}
+                  {t("brief.story.railSecondary", { category })}
                 </span>
               ))}
               {group.group.uncertain ? (
                 <span className={styles["railChip"]} data-kind="uncertain">
-                  uncertain
+                  {t("brief.story.railUncertain")}
                 </span>
               ) : null}
             </div>
@@ -230,12 +237,14 @@ function FocusGroupRail({
                 <span className="red">−{group.deleted}</span>
               </span>
               <span>
-                {groupFlags.length} flag{groupFlags.length === 1 ? "" : "s"}
+                {t("brief.story.flags", { count: groupFlags.length })}
               </span>
             </div>
             {activeChunk ? (
               <div className={styles["railRiskFacts"]}>
-                <div className={styles["railLabel"]}>Active chunk risks</div>
+                <div className={styles["railLabel"]}>
+                  {t("brief.story.railActiveRisks")}
+                </div>
                 {activeChunk.riskSurface.length > 0 ? (
                   <div className={styles["railRiskChips"]}>
                     {activeChunk.riskSurface.map((risk) => {
@@ -269,13 +278,15 @@ function FocusGroupRail({
                   </div>
                 ) : (
                   <p className={styles["railNoRisks"]}>
-                    No risk-surface attributes on this chunk.
+                    {t("brief.story.railNoRisks")}
                   </p>
                 )}
               </div>
             ) : null}
             <div className={styles["railChunkList"]}>
-              <div className={styles["railLabel"]}>Chunks</div>
+              <div className={styles["railLabel"]}>
+                {t("brief.story.railChunks")}
+              </div>
               {group.chunks.map((chunk) => (
                 <button
                   className={styles["railChunkButton"]}

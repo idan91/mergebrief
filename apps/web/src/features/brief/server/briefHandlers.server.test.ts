@@ -10,10 +10,7 @@
 import { describe, expect, it } from "vitest";
 
 import { briefHandlers, type BriefHandlers } from "./briefHandlers.server";
-import {
-  GenerateErrorMessage,
-  isCuratedBriefError,
-} from "../utils/briefErrors";
+import { GenerateErrorCode, isCuratedBriefError } from "../utils/briefErrors";
 
 /**
  * One rejecting call per handler. Ids pass the charset guard but name no
@@ -67,6 +64,6 @@ describe("generateBrief boundary", () => {
       .catch((error: unknown) =>
         error instanceof Error ? error.message : String(error),
       );
-    expect(message).toBe(GenerateErrorMessage.NOT_A_PR_URL);
+    expect(message).toBe(GenerateErrorCode.NOT_A_PR_URL);
   });
 });

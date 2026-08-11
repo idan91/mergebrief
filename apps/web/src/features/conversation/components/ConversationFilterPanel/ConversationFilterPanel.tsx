@@ -12,6 +12,7 @@
 // belong to the disclosure wrapper: a region living here would unmount with
 // the panel, which is exactly the insertion screen readers skip. Selection
 // lives in the URL, so this component is pure props.
+import { useTranslation } from "react-i18next";
 import { Checkbox } from "@web/components/Checkbox/Checkbox";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import {
@@ -74,6 +75,7 @@ export function ConversationFilterPanel({
   reviewers,
   onChange,
 }: ConversationFilterPanelProps) {
+  const { t } = useTranslation();
   const chips = chipFacets(verdicts, filter);
   const humans = reviewers.filter((reviewer) => !reviewer.isBot);
   const bots = reviewers.filter((reviewer) => reviewer.isBot);
@@ -82,7 +84,7 @@ export function ConversationFilterPanel({
 
   return (
     <div
-      aria-label="Filter the conversation"
+      aria-label={t("conversation.ariaLabelFilterPanel")}
       className={styles["body"]}
       data-testid="conversation-filter-panel"
       role="group"
@@ -91,7 +93,9 @@ export function ConversationFilterPanel({
           reads as a lane of dead space promising controls it lacks. */}
       {chips.length > 0 ? (
         <div className={styles["row"]}>
-          <span className={styles["rowLabel"]}>Verdict</span>
+          <span className={styles["rowLabel"]}>
+            {t("conversation.filterVerdict")}
+          </span>
           <ul className={styles["chips"]}>
             {chips.map((facet) => (
               <li key={facet.state}>
@@ -107,7 +111,7 @@ export function ConversationFilterPanel({
                   <span className={styles["count"]}>{facet.humanCount}</span>
                   {facet.botCount > 0 ? (
                     <span className={rowStyles["botTag"]}>
-                      {facet.botCount} bot
+                      {t("conversation.botCount", { count: facet.botCount })}
                     </span>
                   ) : null}
                   <ScreenReaderOnly>
@@ -122,7 +126,9 @@ export function ConversationFilterPanel({
 
       {reviewers.length > 0 ? (
         <div className={styles["row"]}>
-          <span className={styles["rowLabel"]}>Reviewer</span>
+          <span className={styles["rowLabel"]}>
+            {t("conversation.filterReviewer")}
+          </span>
           <ul className={styles["chips"]}>
             {humans.map((reviewer) => (
               <li key={reviewer.login}>
@@ -160,7 +166,7 @@ export function ConversationFilterPanel({
             onChange(withLatestOnly(filter, latestOnly))
           }
         >
-          Only each reviewer&apos;s latest
+          {t("conversation.filterLatestOnly")}
         </Checkbox>
         <span className={styles["links"]}>
           {reviewers.length > 0 ? (
@@ -179,7 +185,7 @@ export function ConversationFilterPanel({
                   );
                 }}
               >
-                All
+                {t("conversation.filterAll")}
               </button>
               <button
                 aria-disabled={filter.reviewers.size === 0}
@@ -190,7 +196,7 @@ export function ConversationFilterPanel({
                   onChange(withNoReviewers(filter));
                 }}
               >
-                None
+                {t("conversation.filterNone")}
               </button>
             </>
           ) : null}
@@ -203,7 +209,7 @@ export function ConversationFilterPanel({
               onChange(withNoFilters(filter));
             }}
           >
-            Clear filters
+            {t("conversation.filterClear")}
           </button>
         </span>
       </div>
@@ -218,6 +224,7 @@ interface ReviewerChipProps {
 }
 
 function ReviewerChip({ filter, reviewer, onChange }: ReviewerChipProps) {
+  const { t } = useTranslation();
   return (
     <button
       aria-pressed={filter.reviewers.has(reviewer.login)}
@@ -227,10 +234,10 @@ function ReviewerChip({ filter, reviewer, onChange }: ReviewerChipProps) {
       onClick={() => onChange(withReviewerSelection(filter, reviewer.login))}
     >
       @{reviewer.login}
-      {reviewer.isBot ? <span className={rowStyles["botTag"]}>bot</span> : null}
-      <ScreenReaderOnly>
-        {" — filters the conversation to this author"}
-      </ScreenReaderOnly>
+      {reviewer.isBot ? (
+        <span className={rowStyles["botTag"]}>{t("conversation.botTag")}</span>
+      ) : null}
+      <ScreenReaderOnly>{t("conversation.srFiltersToAuthor")}</ScreenReaderOnly>
     </button>
   );
 }

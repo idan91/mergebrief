@@ -53,12 +53,14 @@ export function ComparisonCallout({
             <Callout.Title clamp={4}>{callout.summary}</Callout.Title>
           )}
           {callout.groupTitle && (
-            <Callout.Context>In: {callout.groupTitle}</Callout.Context>
+            <Callout.Context>
+              {t("brief.diff.calloutIn", { group: callout.groupTitle })}
+            </Callout.Context>
           )}
           {callout.degraded && (
             <Callout.Context>
               <span className={styles["unavailable"]}>
-                Span summary unavailable — showing group context.
+                {t("brief.diff.spanSummaryUnavailable")}
               </span>
             </Callout.Context>
           )}

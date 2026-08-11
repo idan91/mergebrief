@@ -40,13 +40,12 @@ export function DismissModal({
           change role="alert" announces; visible timing is unchanged. */}
       {warned ? (
         <div className={styles["warn"]} data-state="visible" role="alert">
-          Thin reason on a flag — it will appear on the receipt exactly as
-          written. Dismiss anyway?
+          {t("review.dismiss.thinWarning")}
         </div>
       ) : null}
       <div className={styles["actions"]}>
         <button className="btn" type="button" onClick={cancel}>
-          Cancel
+          {t("review.dismiss.cancel")}
         </button>
         <button className="btn primary" type="button" onClick={confirm}>
           {warned

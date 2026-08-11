@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { botGroupChip } from "../../../../utils/chips";
 import type { DigestRow } from "../../../../utils/digest";
 import rowStyles from "../../../../rows.module.scss";
@@ -29,6 +30,7 @@ export function BotGroupRowView({
   jumpToChunk,
   composer,
 }: BotGroupRowViewProps) {
+  const { t } = useTranslation();
   const key = `${groupId}:${row.author}`;
   const expanded = expandedGroups.has(key);
   const groupChip = botGroupChip(row);
@@ -45,10 +47,15 @@ export function BotGroupRowView({
         </span>
         <span className={rowStyles["rowAuthor"]}>
           @{row.author}
-          <span className={rowStyles["botTag"]}>bot</span>
+          <span className={rowStyles["botTag"]}>
+            {t("conversation.botTag")}
+          </span>
         </span>
         <span className={rowStyles["rowLine"]}>
-          {row.threads.length} threads · {row.openCount} open
+          {t("conversation.threadsOpen", {
+            threads: row.threads.length,
+            open: row.openCount,
+          })}
         </span>
       </button>
       {expanded ? (

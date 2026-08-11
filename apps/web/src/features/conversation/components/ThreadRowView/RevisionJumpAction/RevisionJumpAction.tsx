@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useId } from "react";
 
 import rowStyles from "../../../rows.module.scss";
@@ -20,6 +21,7 @@ export interface RevisionJumpActionProps {
  * nearest-revision guessing.
  */
 export function RevisionJumpAction({ thread, jump }: RevisionJumpActionProps) {
+  const { t } = useTranslation();
   const reasonId = `${useId()}-jump-reason`;
   if (
     !thread.isOutdated ||
@@ -29,7 +31,9 @@ export function RevisionJumpAction({ thread, jump }: RevisionJumpActionProps) {
     return null;
   }
   const anchorSha = thread.anchorSha;
-  const label = `Jump to revision ${anchorSha.slice(0, SHORT_SHA)}`;
+  const label = t("conversation.jumpToRevision", {
+    sha: anchorSha.slice(0, SHORT_SHA),
+  });
   if (jump.knownHeads.has(anchorSha)) {
     return (
       <button
@@ -52,7 +56,7 @@ export function RevisionJumpAction({ thread, jump }: RevisionJumpActionProps) {
         {label}
       </button>
       <span className={rowStyles["note"]} id={reasonId}>
-        This revision was never briefed — open it on GitHub.
+        {t("conversation.revisionNeverBriefed")}
       </span>
     </>
   );

@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import type { TranslationKey } from "i18n";
 // Thread-resolution facade: ThreadDetail wires the transport in, this hook
 // owns pending/error/copy for both entry points — the standalone
 // Resolve/Unresolve action and the Reply & resolve combo's second leg.
@@ -17,35 +19,32 @@ import { useReviewActions } from "@web/features/review/session";
 import type { ResolveThreadResult } from "../../../resolve";
 import type { ThreadResolutionWiring } from "../../../wiring";
 
-export const RESOLVE_COPY = {
-  resolved: "Thread resolved on GitHub.",
-  unresolved: "Thread marked unresolved on GitHub.",
-  unauthorized:
-    "Your GitHub session expired — sign in again to change this thread.",
-  notFound: "This thread is no longer on GitHub — it may have been deleted.",
+export const RESOLVE_KEYS = {
+  resolved: "conversation.resolve.resolved",
+  unresolved: "conversation.resolve.unresolved",
+  unauthorized: "conversation.resolve.unauthorized",
+  notFound: "conversation.resolve.notFound",
   // The route only returns 403 at the MUTATION stage, after the viewer proved
   // repo access — so this is a real capability gap (raced revocation,
   // read-only collaborator), not an existence miss.
-  githubPermission:
-    "GitHub refused the change — your permission to resolve threads here may have changed.",
-  invalid: "The request was rejected as invalid — reload and try again.",
-  upstream: "GitHub rejected the change or is unreachable — try again shortly.",
+  githubPermission: "conversation.resolve.githubPermission",
+  invalid: "conversation.resolve.invalid",
+  upstream: "conversation.resolve.upstream",
   // INDETERMINATE: a throw can land after the POST reached GitHub. Both
   // directions are idempotent, so retrying is safe — but the copy must not
   // claim the thread is unchanged.
-  failed:
-    "Something went wrong — the thread may or may not have changed. The conversation was refreshed; check the thread before retrying.",
-} as const;
+  failed: "conversation.resolve.failed",
+} as const satisfies Record<string, TranslationKey>;
 
-const FAILURE_COPY: Record<
+const FAILURE_KEYS: Record<
   Exclude<ResolveThreadResult["kind"], "done">,
-  string
+  TranslationKey
 > = {
-  unauthorized: RESOLVE_COPY.unauthorized,
-  "github-permission": RESOLVE_COPY.githubPermission,
-  "not-found": RESOLVE_COPY.notFound,
-  invalid: RESOLVE_COPY.invalid,
-  upstream: RESOLVE_COPY.upstream,
+  unauthorized: RESOLVE_KEYS.unauthorized,
+  "github-permission": RESOLVE_KEYS.githubPermission,
+  "not-found": RESOLVE_KEYS.notFound,
+  invalid: RESOLVE_KEYS.invalid,
+  upstream: RESOLVE_KEYS.upstream,
 };
 
 /**
@@ -86,6 +85,7 @@ export interface UseThreadResolutionValue {
 export function useThreadResolution(
   input: UseThreadResolutionInput,
 ): UseThreadResolutionValue {
+  const { t } = useTranslation();
   const { threadId, isResolved, resolution } = input;
   const { announce } = useReviewActions();
   const [pending, setPending] = useState(false);
@@ -119,7 +119,7 @@ export function useThreadResolution(
           // The write may have landed — refetch so the row shows where it
           // actually ended up, and say so in the (indeterminate) copy.
           resolution.refetchConversation();
-          fail(RESOLVE_COPY.failed);
+          fail(t(RESOLVE_KEYS.failed));
           return "indeterminate";
         }
         if (result.kind === "done") {
@@ -127,7 +127,9 @@ export function useThreadResolution(
           // out of date either way, so the refetch is the correction.
           resolution.refetchConversation();
           if (surfaceCopy) {
-            announce(target ? RESOLVE_COPY.resolved : RESOLVE_COPY.unresolved);
+            announce(
+              target ? t(RESOLVE_KEYS.resolved) : t(RESOLVE_KEYS.unresolved),
+            );
           }
           return "resolved";
         }
@@ -137,7 +139,7 @@ export function useThreadResolution(
           resolution.refetchConversation();
           resolution.refetchCapability();
         }
-        fail(FAILURE_COPY[result.kind]);
+        fail(t(FAILURE_KEYS[result.kind]));
         // A route-level rejection is determinate: the server answered, and it
         // did not apply the flip.
         return "failed";
@@ -146,7 +148,7 @@ export function useThreadResolution(
         setPending(false);
       }
     },
-    [announce, resolution, threadId],
+    [announce, resolution, threadId, t],
   );
 
   // Direction captured HERE, at initiation: a conversation refetch settling

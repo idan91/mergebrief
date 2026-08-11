@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { Brief } from "../../../types";
 import { Fragment } from "react";
 
@@ -15,15 +16,13 @@ export interface ConcernViewProps {
 }
 
 export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
+  const { t } = useTranslation();
   const totalTouched = Math.max(1, model.totalAdded + model.totalDeleted);
   return (
     <section>
       <div className={`${styles["intro"]} reveal`}>
-        <div className={styles["eyebrow"]}>Attention split</div>
-        <p>
-          The same {brief.chunks.length} chunks, pivoted by artifact instead of
-          intent.
-        </p>
+        <div className={styles["eyebrow"]}>{t("brief.concern.eyebrow")}</div>
+        <p>{t("brief.concern.intro", { count: brief.chunks.length })}</p>
       </div>
       {brief.concernView.map((rollup) => {
         const chunks = model.concernChunks.get(rollup.concern) ?? [];
@@ -105,8 +104,12 @@ export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
                       }
                     >
                       <RiskBadge>
-                        risk details
-                        <ScreenReaderOnly>{` for ${chunk.file}`}</ScreenReaderOnly>
+                        {t("brief.concern.riskDetails")}
+                        <ScreenReaderOnly>
+                          {t("brief.concern.srRiskDetailsFor", {
+                            file: chunk.file,
+                          })}
+                        </ScreenReaderOnly>
                       </RiskBadge>
                     </RiskChipDisclosure>
                   ) : null}
@@ -119,10 +122,10 @@ export function ConcernView({ brief, model, jumpToChunk }: ConcernViewProps) {
       <div className={`${styles["bucket"]} reveal`} data-muted="">
         <div className={styles["head"]}>
           <span className={styles["name"]} data-muted="">
-            empty concerns
+            {t("brief.concern.emptyConcerns")}
           </span>
           <span className={styles["count"]}>
-            generated · spec · config may be absent from this local brief
+            {t("brief.concern.emptyNote")}
           </span>
         </div>
       </div>

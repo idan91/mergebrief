@@ -6,6 +6,7 @@
    The root group's keydown is a composite-widget shortcut scope
    (Cmd+Shift+P / Escape from the textarea, tabs, and focused preview
    panel alike); the wrapper itself is not focusable and traps nothing. */
+import { useTranslation } from "react-i18next";
 import {
   useId,
   useRef,
@@ -103,6 +104,7 @@ export function MarkdownTextarea({
   renderPreview,
   exposeTextarea,
 }: MarkdownTextareaProps) {
+  const { t } = useTranslation();
   const facade = useMarkdownTextareaFacade({
     value,
     onChange,
@@ -182,7 +184,7 @@ export function MarkdownTextarea({
     ) : value.trim() ? (
       <Markdown content={value} renderSuggestions />
     ) : (
-      <p className={styles["empty"]}>Nothing to preview.</p>
+      <p className={styles["empty"]}>{t("shell.nothingToPreview")}</p>
     );
 
   // Root-level shortcut scope — these must work from the textarea, the tabs,
@@ -223,7 +225,7 @@ export function MarkdownTextarea({
     <div
       // Group role names the editor region for SR users; the keydown is a
       // composite-widget shortcut scope, not a keyboard-only interaction.
-      aria-label="Markdown editor"
+      aria-label={t("shell.ariaLabelMarkdownEditor")}
       className={styles["markdownTextarea"]}
       data-testid="markdown-textarea"
       role="group"
@@ -237,7 +239,7 @@ export function MarkdownTextarea({
       <div
         // Deliberately NOT derived from `label`: a substring match on the
         // textarea's label must find exactly one element (label queries).
-        aria-label="Editor mode"
+        aria-label={t("shell.ariaLabelEditorMode")}
         className={styles["tabs"]}
         role="tablist"
         tabIndex={-1}
@@ -266,7 +268,7 @@ export function MarkdownTextarea({
         role="tabpanel"
       >
         <div
-          aria-label="Formatting"
+          aria-label={t("shell.ariaLabelFormatting")}
           className={styles["toolbar"]}
           ref={toolbarRef}
           role="toolbar"
@@ -326,7 +328,7 @@ export function MarkdownTextarea({
         />
         {mentions.open ? (
           <div
-            aria-label="Mention suggestions"
+            aria-label={t("shell.ariaLabelMentionSuggestions")}
             className={styles["mentionPopup"]}
             id={mentions.listId}
             role="listbox"
@@ -373,7 +375,7 @@ export function MarkdownTextarea({
             ))}
           </div>
         ) : null}
-        <div className={styles["hint"]}>Markdown is supported</div>
+        <div className={styles["hint"]}>{t("shell.markdownSupported")}</div>
       </div>
       <div
         aria-labelledby={tabId("preview")}

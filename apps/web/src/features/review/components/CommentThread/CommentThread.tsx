@@ -108,7 +108,11 @@ export function CommentThread({
   return (
     <div className={styles["thread"]}>
       <div className={styles["head"]}>
-        <span>{submitted ? "@you posted to GitHub" : "@you pending"}</span>
+        <span>
+          {submitted
+            ? t("review.comment.postedToGithub")
+            : t("review.comment.pending")}
+        </span>
         <span>
           {comment.anchor.file}:{comment.anchor.startLine}
           {comment.anchor.endLine !== comment.anchor.startLine
@@ -140,10 +144,10 @@ export function CommentThread({
               type="button"
               onClick={saveEdit}
             >
-              Save
+              {t("review.comment.save")}
             </button>
             <button className="btn" type="button" onClick={cancelEdit}>
-              Cancel
+              {t("review.comment.cancel")}
             </button>
           </div>
         </>
@@ -168,7 +172,7 @@ export function CommentThread({
                 setEditing(true);
               }}
             >
-              Edit
+              {t("review.comment.edit")}
             </button>
           )}
           <button
@@ -180,7 +184,7 @@ export function CommentThread({
               toggle(comment.id);
             }}
           >
-            Collapse
+            {t("review.comment.collapse")}
           </button>
           {submitted ? null : (
             <button
@@ -188,7 +192,7 @@ export function CommentThread({
               type="button"
               onClick={() => setConfirmingDelete(true)}
             >
-              Delete
+              {t("review.comment.delete")}
             </button>
           )}
         </div>
@@ -206,14 +210,14 @@ export function CommentThread({
                 deleteComment(comment.id);
               }}
             >
-              Delete draft
+              {t("review.comment.deleteDraft")}
             </button>
             <button
               className="btn"
               type="button"
               onClick={() => setConfirmingDelete(false)}
             >
-              Keep
+              {t("review.comment.keep")}
             </button>
           </div>
         ) : null}

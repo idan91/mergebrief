@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import styles from "./SinceMarker.module.scss";
 
 export interface SinceMarkerProps {
@@ -23,6 +24,7 @@ export function SinceMarker({
   baselineShortSha,
   openDeltaLens,
 }: SinceMarkerProps) {
+  const { t } = useTranslation();
   if (changedFileCount === 0) {
     return (
       <span
@@ -30,7 +32,7 @@ export function SinceMarker({
         data-state="unchanged"
         data-testid="group-since-marker"
       >
-        unchanged since your last review
+        {t("brief.sinceMarker.unchanged")}
       </span>
     );
   }
@@ -46,7 +48,7 @@ export function SinceMarker({
       ) : (
         <button
           className={styles["deltaLink"]}
-          title="Open the delta lens — compare against your last review"
+          title={t("brief.sinceMarker.titleOpenDeltaLens")}
           type="button"
           onClick={openDeltaLens}
         >

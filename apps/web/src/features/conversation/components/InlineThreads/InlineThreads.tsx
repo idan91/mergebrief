@@ -3,6 +3,7 @@
 // (unresolved only; resolved/outdated bot threads are digest-only). Same
 // aria-expanded pattern as the section; expansion state is local to the chunk
 // instance.
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { toggleSet } from "@web/utils/collections";
@@ -21,6 +22,7 @@ export interface InlineThreadsProps {
 }
 
 export function InlineThreads({ rows, composer }: InlineThreadsProps) {
+  const { t } = useTranslation();
   const [expandedThreads, setExpandedThreads] = useState<ReadonlySet<number>>(
     new Set(),
   );
@@ -34,10 +36,10 @@ export function InlineThreads({ rows, composer }: InlineThreadsProps) {
   if (rows.length === 0) return null;
   return (
     <section
-      aria-label="Conversation at this chunk"
+      aria-label={t("conversation.ariaLabelInlineThreads")}
       className={styles["inline"]}
     >
-      <h4 className={styles["label"]}>Conversation</h4>
+      <h4 className={styles["label"]}>{t("conversation.inlineHeading")}</h4>
       <ul className={styles["rows"]}>
         {rows.map((row) =>
           row.kind === "thread" ? (
@@ -59,10 +61,13 @@ export function InlineThreads({ rows, composer }: InlineThreadsProps) {
                 onClick={() => toggleBot(row.author)}
               >
                 @{row.author}
-                <span className={styles["botTag"]}>bot</span>
+                <span className={styles["botTag"]}>
+                  {t("conversation.botTag")}
+                </span>
                 <span className={styles["botSummary"]}>
-                  {row.threads.length} open thread
-                  {row.threads.length === 1 ? "" : "s"}
+                  {t("conversation.openThreads", {
+                    count: row.threads.length,
+                  })}
                 </span>
               </button>
               {expandedBots.has(row.author) ? (

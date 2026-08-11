@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { DigestGroup } from "../../../utils/digest";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
@@ -43,6 +44,7 @@ export function DigestGroupView({
   composer,
   briefGeneratedAt,
 }: DigestGroupViewProps) {
+  const { t } = useTranslation();
   const rows = shownAll ? group.rows : group.rows.slice(0, GROUP_ROW_CAP);
   const hidden = group.rows.length - rows.length;
   const allPrComments = group.prComments ?? [];
@@ -100,7 +102,7 @@ export function DigestGroupView({
           type="button"
           onClick={() => showAll(group.id)}
         >
-          Show {hidden} more
+          {t("conversation.showMore", { count: hidden })}
         </button>
       ) : null}
       {prComments.length > 0 ? (
@@ -122,7 +124,7 @@ export function DigestGroupView({
           type="button"
           onClick={() => showAll(group.id)}
         >
-          Show {hiddenPrComments} more
+          {t("conversation.showMore", { count: hiddenPrComments })}
         </button>
       ) : null}
     </section>

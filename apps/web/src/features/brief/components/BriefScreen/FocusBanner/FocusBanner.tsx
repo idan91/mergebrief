@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { Ref } from "react";
 
 import type { BriefViewModel } from "../../../utils/viewModel";
@@ -26,6 +27,7 @@ export function FocusBanner({
   toggleFocusMode,
   bannerRef,
 }: FocusBannerProps) {
+  const { t } = useTranslation();
   return (
     <div
       className={styles["focusBannerWrap"]}
@@ -36,8 +38,11 @@ export function FocusBanner({
     >
       <div className={styles["focusBanner"]}>
         <span>
-          <b>Focus mode</b> — one chunk at a time. <kbd>J</kbd>
-          <kbd>K</kbd> to move, <kbd>Esc</kbd> to exit.
+          <b>{t("brief.focusBanner.lead")}</b> {t("brief.focusBanner.body")}{" "}
+          <kbd>J</kbd>
+          <kbd>K</kbd> {t("brief.focusBanner.keysHint")}{" "}
+          <kbd>{t("brief.focusBanner.escKey")}</kbd>{" "}
+          {t("brief.focusBanner.exitHint")}
         </span>
         <ReadThroughProgress
           activeChunkId={activeChunkId}
@@ -45,7 +50,7 @@ export function FocusBanner({
           jumpToChunk={jumpToChunk}
         />
         <button className="btn" type="button" onClick={toggleFocusMode}>
-          Exit focus
+          {t("brief.focusBanner.exit")}
         </button>
       </div>
     </div>

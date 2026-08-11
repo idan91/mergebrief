@@ -144,8 +144,12 @@ export function ReadingToolbar({
           >
             {/* CSS swaps which label renders; the accessible name follows
                 the visible one. */}
-            <span className={styles["labelShort"]}>Collapse</span>
-            <span className={styles["labelLong"]}>Collapse supporting</span>
+            <span className={styles["labelShort"]}>
+              {t("brief.toolbar.collapseShort")}
+            </span>
+            <span className={styles["labelLong"]}>
+              {t("brief.toolbar.collapseLong")}
+            </span>
           </button>
           {groups.length > 0 ? (
             <span
@@ -155,8 +159,10 @@ export function ReadingToolbar({
               role="group"
             >
               <span className={styles["count"]}>
-                Group {activeGroupIndex === -1 ? "–" : activeGroupIndex + 1}/
-                {groups.length}
+                {t("brief.toolbar.groupCount", {
+                  current: activeGroupIndex === -1 ? "–" : activeGroupIndex + 1,
+                  total: groups.length,
+                })}
               </span>
               <button
                 aria-label={t("brief.toolbar.ariaLabelPreviousGroup")}
@@ -187,8 +193,7 @@ export function ReadingToolbar({
               role="group"
             >
               <span className={styles["count"]}>
-                {comparison.runCount} change
-                {comparison.runCount === 1 ? "" : "s"}
+                {t("brief.toolbar.changes", { count: comparison.runCount })}
               </span>
               <button
                 aria-label={t("brief.toolbar.ariaLabelPreviousChange")}

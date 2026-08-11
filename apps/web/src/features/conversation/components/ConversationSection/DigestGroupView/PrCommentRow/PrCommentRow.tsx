@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { deriveDigestLine } from "../../../../utils/digestLine";
 import { postdatesBrief } from "../../../../utils/postdate";
@@ -22,6 +23,7 @@ export function PrCommentRow({
   toggle,
   briefGeneratedAt,
 }: PrCommentRowProps) {
+  const { t } = useTranslation();
   return (
     <li className={rowStyles["row"]}>
       <button
@@ -33,7 +35,9 @@ export function PrCommentRow({
         <span className={rowStyles["rowAuthor"]}>
           @{comment.author.login}
           {comment.author.isBot ? (
-            <span className={rowStyles["botTag"]}>bot</span>
+            <span className={rowStyles["botTag"]}>
+              {t("conversation.botTag")}
+            </span>
           ) : null}
         </span>
         <span className={rowStyles["rowLine"]}>
@@ -41,7 +45,7 @@ export function PrCommentRow({
         </span>
         {postdatesBrief(comment.createdAt, briefGeneratedAt) ? (
           <span className={rowStyles["chip"]} data-state="after-brief">
-            after this brief
+            {t("conversation.afterThisBrief")}
           </span>
         ) : null}
       </button>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   autoUpdate,
   flip,
@@ -54,6 +55,7 @@ export function FilterDisclosure({
   hiddenInlineThreads,
   onChange,
 }: FilterDisclosureProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const panelId = useId();
 
@@ -100,7 +102,7 @@ export function FilterDisclosure({
         type="button"
         {...getReferenceProps()}
       >
-        Filter
+        {t("brief.toolbar.filterLabel")}
         {segments.map((segment, index) => (
           <span className={styles["segment"]} key={segment}>
             <span aria-hidden="true" className={styles["sep"]}>
@@ -111,9 +113,9 @@ export function FilterDisclosure({
                 screen reader — "3 hidden" has no referent read alone. */}
             {index === segments.length - 1 && hiddenInlineThreads > 0 ? (
               <ScreenReaderOnly>
-                {hiddenInlineThreads === 1
-                  ? " thread in the diff"
-                  : " threads in the diff"}
+                {t("brief.toolbar.threadsInDiff", {
+                  count: hiddenInlineThreads,
+                })}
               </ScreenReaderOnly>
             ) : null}
           </span>

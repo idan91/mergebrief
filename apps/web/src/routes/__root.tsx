@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -64,6 +65,7 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
+  const { t } = useTranslation();
   return (
     <html lang="en">
       <head>
@@ -71,7 +73,7 @@ function RootDocument({ children }: Readonly<{ children: ReactNode }>) {
       </head>
       <body suppressHydrationWarning>
         <a className="skip-link" href="#main-content">
-          Skip to content
+          {t("shell.skipToContent")}
         </a>
         {children}
         <Scripts />

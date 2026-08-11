@@ -1,3 +1,5 @@
+import type { TranslationKey } from "i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
@@ -14,29 +16,26 @@ import type { ResolveAttempt } from "../useThreadResolution";
 import rowStyles from "../../../../rows.module.scss";
 import styles from "./ReplyComposer.module.scss";
 
-const REPLY_COPY = {
-  posted: "Reply posted to GitHub under your account.",
-  unauthorized:
-    "Your GitHub session expired — sign in again. Your reply draft is saved locally.",
-  "not-found":
-    "This thread is no longer on GitHub — it may have been deleted. Your draft is saved locally.",
-  invalid: "The reply was rejected as invalid — reload and try again.",
-  upstream: "GitHub rejected the reply or is unreachable — try again shortly.",
+const REPLY_KEYS = {
+  posted: "conversation.replyResult.posted",
+  unauthorized: "conversation.replyResult.unauthorized",
+  "not-found": "conversation.replyResult.notFound",
+  invalid: "conversation.replyResult.invalid",
+  upstream: "conversation.replyResult.upstream",
   // INDETERMINATE: a throw can land after the POST reached GitHub — never
   // claim "nothing was posted".
-  failed:
-    "Something went wrong posting the reply — it may or may not have posted. Check the thread on GitHub before retrying.",
-} as const;
+  failed: "conversation.replyResult.failed",
+} as const satisfies Record<string, TranslationKey>;
 
-/** Failure copy per non-posted result kind — every kind keeps the draft. */
-const REPLY_FAILURE_COPY: Record<
+/** Failure key per non-posted result kind — every kind keeps the draft. */
+const REPLY_FAILURE_KEYS: Record<
   Exclude<ReplyResult["kind"], "posted">,
-  string
+  TranslationKey
 > = {
-  unauthorized: REPLY_COPY.unauthorized,
-  "not-found": REPLY_COPY["not-found"],
-  invalid: REPLY_COPY.invalid,
-  upstream: REPLY_COPY.upstream,
+  unauthorized: REPLY_KEYS.unauthorized,
+  "not-found": REPLY_KEYS["not-found"],
+  invalid: REPLY_KEYS.invalid,
+  upstream: REPLY_KEYS.upstream,
 };
 
 /**
@@ -44,24 +43,15 @@ const REPLY_FAILURE_COPY: Record<
  * exactly what did and did not happen — never a shared "failed": whether the
  * reply landed decides whether retrying is safe.
  */
-const COMBO_COPY = {
-  both: "Reply posted and the thread resolved.",
-  /**
-   * The reply LANDED and the resolve did not. The reply is GitHub's record now
-   * — the copy must send the reviewer to the standalone Resolve button, never
-   * back through this composer (that would double-post).
-   */
-  partial:
-    "Your reply posted, but resolving the thread failed. The reply is on GitHub — use Resolve on the thread to finish.",
-  /**
-   * The reply landed and the resolve THREW — it may have reached GitHub before
-   * the connection died, so never assert a failure that may not have happened.
-   */
-  partialIndeterminate:
-    "Your reply posted; the thread may or may not have been resolved. The conversation was refreshed — check the thread before resolving it again.",
+const COMBO_KEYS = {
+  both: "conversation.replyResult.both",
+  /** The reply LANDED and the resolve did not — send them to Resolve. */
+  partial: "conversation.replyResult.partial",
+  /** The reply landed and the resolve THREW — never assert a failure. */
+  partialIndeterminate: "conversation.replyResult.partialIndeterminate",
   /** Appended to the reply's own failure copy: the resolve leg never ran. */
-  replyFailedSuffix: "The thread was left unresolved.",
-} as const;
+  replyFailedSuffix: "conversation.replyResult.replyFailedSuffix",
+} as const satisfies Record<string, TranslationKey>;
 
 export interface ReplyComposerProps {
   briefId: string;
@@ -100,6 +90,7 @@ export function ReplyComposer({
   resolveAfterPost,
   focusResolveAction,
 }: ReplyComposerProps) {
+  const { t } = useTranslation();
   // Draft reads/writes go straight to the session stores — no draft prop
   // chain through the digest tree.
   const draft = useMindMap(
@@ -227,18 +218,18 @@ export function ReplyComposer({
     const replyFailureCopy = (copy: string) =>
       resolveLeg === undefined
         ? copy
-        : `${copy} ${COMBO_COPY.replyFailedSuffix}`;
+        : `${copy} ${t(COMBO_KEYS.replyFailedSuffix)}`;
     void (async () => {
       try {
         let result: ReplyResult;
         try {
           result = await post(threadId, body);
         } catch {
-          fail(replyFailureCopy(REPLY_COPY.failed));
+          fail(replyFailureCopy(t(REPLY_KEYS.failed)));
           return;
         }
         if (result.kind !== "posted") {
-          fail(replyFailureCopy(REPLY_FAILURE_COPY[result.kind]));
+          fail(replyFailureCopy(t(REPLY_FAILURE_KEYS[result.kind])));
           return;
         }
         // The external write is the commit point: clear the draft (the
@@ -256,7 +247,7 @@ export function ReplyComposer({
           console.error("reply draft: durable clear failed", persistError);
         }
         if (resolveLeg === undefined) {
-          announce(REPLY_COPY.posted);
+          announce(t(REPLY_KEYS.posted));
           onPosted();
           return;
         }
@@ -265,14 +256,14 @@ export function ReplyComposer({
         // retried from here — a landed reply retried is a double post.
         const outcome = await resolveLeg();
         if (outcome === "resolved") {
-          announce(COMBO_COPY.both);
+          announce(t(COMBO_KEYS.both));
         } else {
           // Partial: the copy stays next to the Resolve button that finishes
           // the job, and distinguishes a known failure from an unproven one.
           fail(
             outcome === "indeterminate"
-              ? COMBO_COPY.partialIndeterminate
-              : COMBO_COPY.partial,
+              ? t(COMBO_KEYS.partialIndeterminate)
+              : t(COMBO_KEYS.partial),
           );
         }
         // The reply landed either way, so the conversation is stale either
@@ -300,7 +291,7 @@ export function ReplyComposer({
         ariaBusy={pending}
         ariaInvalid={overCap}
         describedBy={overCap || error !== null ? `${inputId}-error` : undefined}
-        label="Reply (posts to GitHub immediately)"
+        label={t("conversation.replyLabel")}
         labelClassName={styles["composerLabel"]}
         exposeTextarea={(element) => {
           textareaElement.current = element;
@@ -328,7 +319,7 @@ export function ReplyComposer({
       {overCap || error !== null ? (
         <p className={rowStyles["error"]} id={`${inputId}-error`} role="alert">
           {overCap
-            ? `This reply is longer than GitHub allows (${MAX_REPLY_LENGTH.toLocaleString()} characters) — shorten it to post.`
+            ? t("conversation.replyTooLong", { max: MAX_REPLY_LENGTH })
             : error}
         </p>
       ) : null}
@@ -343,7 +334,9 @@ export function ReplyComposer({
           type="button"
           onClick={() => submit(false)}
         >
-          {pendingAction === "reply" ? "Posting…" : "Reply"}
+          {pendingAction === "reply"
+            ? t("conversation.posting")
+            : t("conversation.reply")}
         </button>
         {/* Only with text in the box: closing a thread you have nothing to say
             on is the standalone Resolve button's job. It stays mounted for its
@@ -361,8 +354,8 @@ export function ReplyComposer({
             onClick={() => submit(true)}
           >
             {pendingAction === "reply-and-resolve"
-              ? "Posting & resolving…"
-              : "Reply & resolve"}
+              ? t("conversation.postingAndResolving")
+              : t("conversation.replyAndResolve")}
           </button>
         ) : null}
       </div>
