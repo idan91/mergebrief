@@ -8,8 +8,10 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --coverage"
+    "generate:types": "node scripts/generate-catalog-types.mjs",
+    "generate:types:check": "node scripts/generate-catalog-types.mjs --check",
+    "typecheck": "pnpm generate:types:check && tsc --noEmit",
+    "test": "pnpm generate:types:check && vitest run --coverage"
   },
   "dependencies": {
     "i18next": "^26.3.6"

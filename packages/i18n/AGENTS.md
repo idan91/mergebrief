@@ -18,6 +18,8 @@ src/
   create.ts   createI18n — synchronous init, resources baked in
   locales.ts  LOCALES registry (picker list) + RESOURCES map
   pseudo.ts   dev-only pseudo-locale postProcessor (accent map + ~35% pad)
+  catalog.generated.ts
+              generated literal overrides for parameterized catalog leaves
   types.ts    TranslationKey (dotted key union from en.json) + the
               CustomTypeOptions wiring (typed keys for every consumer)
 test/         QA gates (hard-fail mechanical + report-only completeness)
@@ -62,10 +64,12 @@ test/         QA gates (hard-fail mechanical + report-only completeness)
   match, plural suffixes valid and only on pluralized en bases, no markup
   beyond positional slots, no empty values). Completeness only reports — a
   partial locale ships and falls back through `locale → base-lang → en`.
-- **Typed keys**: `types.ts` ships the `CustomTypeOptions` wiring —
-  an unknown key fails to compile in every consumer. JSON imports widen
-  values to `string`, so `{{param}}` integrity is gate-enforced, not
-  compile-enforced.
+- **Typed keys and params**: `types.ts` ships the `CustomTypeOptions` wiring —
+  an unknown key fails to compile, and parameterized calls infer expected
+  replacement names plus formatted value types. JSON imports widen values to
+  `string`, so `catalog.generated.ts` restores literals only for parameterized
+  leaves. Run `pnpm generate:types` after editing catalog parameters;
+  typecheck rejects stale generated output.
 - **Registry ↔ files**: every `locales/<id>.json` has exactly one
   `LOCALES` row and one `RESOURCES` entry; the suite pins the bijection.
   The pseudo locale has NO file and NO registry row — it exists only as

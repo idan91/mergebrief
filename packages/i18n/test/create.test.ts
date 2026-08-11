@@ -77,4 +77,16 @@ describe("typed keys", () => {
     // @ts-expect-error — key absent from en.json must not compile
     expect(i18n.t("errors.no-such-code")).toBeTruthy();
   });
+
+  it("rejects mistyped interpolation replacements at compile time", () => {
+    const i18n = createI18n();
+    expect(i18n.t("tokens.nameTooLong", { max: 100 })).toContain("100");
+    // @ts-expect-error — the template requires max, not a mistyped replacement
+    const wrongName = i18n.t("tokens.nameTooLong", { wrong: 100 });
+    expect(wrongName).toBeTruthy();
+    const numberFormattedKey = "review.comment.tooLongToPost";
+    // @ts-expect-error — the number formatter requires a numeric max
+    const wrongType = i18n.t(numberFormattedKey, { max: "65,536" });
+    expect(wrongType).toBeTruthy();
+  });
 });

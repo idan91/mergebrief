@@ -1,14 +1,15 @@
 import type en from "../locales/en.json";
+import type { Catalog } from "./catalog.generated";
 
 // Typed keys for every consumer: an unknown catalog key fails to compile.
 // The barrel's type-only re-export pulls this augmentation into any program
 // that imports the package. JSON imports widen values to `string`, so
-// interpolation-param sets are gate-enforced by the catalog suite, not
-// compile-enforced.
+// Parameterized leaves are literal-preserved by the generated Catalog type,
+// so i18next also infers replacement names and formatted value types.
 declare module "i18next" {
   interface CustomTypeOptions {
     defaultNS: "translation";
-    resources: { translation: typeof en };
+    resources: { translation: Catalog };
     strictKeyChecks: true;
     returnNull: false;
   }
