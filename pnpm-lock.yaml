@@ -68,6 +68,9 @@ importers:
       i18n:
         specifier: workspace:*
         version: link:../../packages/i18n
+      i18next:
+        specifier: ^26.3.6
+        version: 26.3.6(typescript@5.9.3)
       logging:
         specifier: workspace:*
         version: link:../../packages/logging

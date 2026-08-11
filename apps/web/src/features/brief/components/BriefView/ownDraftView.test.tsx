@@ -22,7 +22,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MarkReadyResult } from "../../../pulls/transport/markReady";
 import type { PostCommentResult } from "../../../pulls/transport/postComment";
-import { MARK_READY_COPY } from "../../../pulls/hooks/useMarkReady";
+import { appI18n, I18nProvider } from "../../../../i18n/I18nProvider";
+
+const MARK_READY_COPY = {
+  upstream: appI18n.t("pulls.markReady.upstream"),
+};
 import type { ReviewComment } from "../../../review/utils/comments";
 import { writeSnapshot } from "../../../review/session";
 import type { OwnDraftPlan } from "./BriefView";
@@ -95,16 +99,18 @@ function renderBriefView(
     defaultOptions: { queries: { retry: false } },
   });
   const view = (plan: OwnDraftPlan | undefined) => (
-    <QueryClientProvider client={queryClient}>
-      <BriefView
-        artifacts={[]}
-        brief={brief}
-        briefId="own-draft-test"
-        searchParams={{}}
-        ownDraft={plan}
-        staleHead={staleHead}
-      />
-    </QueryClientProvider>
+    <I18nProvider>
+      <QueryClientProvider client={queryClient}>
+        <BriefView
+          artifacts={[]}
+          brief={brief}
+          briefId="own-draft-test"
+          searchParams={{}}
+          ownDraft={plan}
+          staleHead={staleHead}
+        />
+      </QueryClientProvider>
+    </I18nProvider>
   );
   const utils = render(view(ownDraft));
   return {

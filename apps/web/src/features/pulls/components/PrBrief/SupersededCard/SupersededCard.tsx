@@ -1,19 +1,18 @@
+import { useTranslation } from "react-i18next";
 import cardStyles from "../stateCard.module.scss";
 
 export function SupersededCard() {
+  const { t } = useTranslation();
   return (
     <section
       aria-labelledby="superseded-heading"
       className={cardStyles["card"]}
     >
       <h1 className={cardStyles["heading"]} id="superseded-heading">
-        A newer revision is on the way
+        {t("pulls.superseded.heading")}
       </h1>
       <span aria-hidden="true" className={cardStyles["spinner"]} />
-      <p className={cardStyles["copy"]}>
-        This push was superseded before its brief finished; the brief for the
-        newest push will appear here automatically.
-      </p>
+      <p className={cardStyles["copy"]}>{t("pulls.superseded.copy")}</p>
     </section>
   );
 }

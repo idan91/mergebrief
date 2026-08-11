@@ -1,6 +1,7 @@
 // Revision navigator + View/Compare lenses, rendered inside the sticky page
 // Header's control slot: the header measures itself into --top-bar-h, so the
 // controls stay reachable after the focus-to-heading selection effect.
+import { useTranslation } from "react-i18next";
 import type {
   DbTimelinePoint,
   DbTimelineSelection,
@@ -37,6 +38,7 @@ export function DbBriefControls({
   note,
   readOnly,
 }: DbBriefControlsProps) {
+  const { t } = useTranslation();
   return (
     <div className={styles["controls"]}>
       {timeline !== undefined && onSelectRevision !== undefined ? (
@@ -51,7 +53,9 @@ export function DbBriefControls({
           {readOnly ? (
             // Factual chip, not a verdict: the reachable REASON lives on the
             // disabled controls themselves (diff rows, submit).
-            <span className={styles["readOnlyChip"]}>read-only</span>
+            <span className={styles["readOnlyChip"]}>
+              {t("pulls.compare.readOnlyChip")}
+            </span>
           ) : null}
         </div>
       ) : null}

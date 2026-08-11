@@ -1,6 +1,7 @@
 // Org switcher dropdown. WAI-ARIA menu-button pattern: menuitemradio items
 // (switching is choosing one of a set), arrows/Home/End roam, Escape and
 // outside-click close, focus returns to the trigger.
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
@@ -17,6 +18,7 @@ export interface OrgSwitcherProps {
 }
 
 export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
+  const { t } = useTranslation();
   const menuId = useId();
   const [open, setOpen] = useState(false);
   const [setDefault, setSetDefault] = useState(false);
@@ -111,15 +113,17 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
         ref={triggerRef}
         type="button"
       >
-        <span className={styles["triggerLabel"]}>Organization</span>
-        {current?.accountLogin ?? "unknown"}
+        <span className={styles["triggerLabel"]}>
+          {t("installations.orgSwitcher.label")}
+        </span>
+        {current?.accountLogin ?? t("installations.orgSwitcher.unknown")}
         <span aria-hidden="true" className={styles["caret"]}>
           ▾
         </span>
       </button>
       {open ? (
         <div
-          aria-label="Switch organization"
+          aria-label={t("installations.orgSwitcher.menuLabel")}
           className={styles["menu"]}
           id={menuId}
           onKeyDown={(event) => {
@@ -156,9 +160,9 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
             >
               <span className={styles["itemLogin"]}>{item.accountLogin}</span>
               <span className={styles["itemMeta"]}>
-                {item.isCurrent ? "current" : ""}
+                {item.isCurrent ? t("installations.orgSwitcher.current") : ""}
                 {item.isCurrent && item.isDefault ? " · " : ""}
-                {item.isDefault ? "default" : ""}
+                {item.isDefault ? t("installations.orgSwitcher.default") : ""}
               </span>
             </button>
           ))}
@@ -182,11 +186,11 @@ export function OrgSwitcher({ enabled }: OrgSwitcherProps) {
             >
               {setDefault ? "✓" : ""}
             </span>
-            Remember my choice as default
+            {t("installations.orgSwitcher.rememberDefault")}
           </button>
           {switching.isError ? (
             <p className={styles["error"]} role="alert">
-              Switching failed — the organization may no longer be accessible.
+              {t("installations.orgSwitcher.switchFailed")}
             </p>
           ) : null}
         </div>

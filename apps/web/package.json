@@ -27,6 +27,7 @@
     "generators": "workspace:*",
     "github": "workspace:*",
     "i18n": "workspace:*",
+    "i18next": "^26.3.6",
     "logging": "workspace:*",
     "persistence": "workspace:*",
     "react": "^19.0.0",

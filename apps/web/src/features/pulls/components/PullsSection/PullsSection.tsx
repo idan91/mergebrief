@@ -3,6 +3,8 @@
 // the local section below still works), ready (PR list or the activation
 // hint). Rows are plain anchors carrying the same deep links the PR-comment
 // Entry uses.
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { GenerationSummary, PrSummary, PullsSession } from "../../types";
 import styles from "./PullsSection.module.scss";
 
@@ -12,32 +14,33 @@ export interface PullsSectionProps {
 
 /** Human status for a row — never color-only; rendered as text. */
 function statusLabel(
+  t: TFunction,
   briefAvailable: boolean,
   generation: GenerationSummary | null,
 ): string {
-  if (briefAvailable) return "brief ready";
-  if (generation === null) return "no brief yet";
+  if (briefAvailable) return t("pulls.status.ready");
+  if (generation === null) return t("pulls.status.none");
   switch (generation.status) {
     case "queued":
-      return "queued";
+      return t("pulls.status.queued");
     case "running":
-      return "generating…";
+      return t("pulls.status.running");
     case "failed":
-      return "failed";
+      return t("pulls.status.failed");
     case "superseded":
-      return "newer push on the way";
+      return t("pulls.status.superseded");
     case "capped":
       // The daily generation cap skipped this push — the row says so plainly
       // rather than borrowing the failure word.
-      return "daily cap reached";
+      return t("pulls.status.capped");
     case "succeeded":
       // Succeeded but the artifact is for another span — treat as pending.
-      return "no brief yet";
+      return t("pulls.status.none");
   }
 }
 
-function rowTitle(pull: PrSummary): string {
-  return pull.title ?? `PR #${pull.prNumber}`;
+function rowTitle(t: TFunction, pull: PrSummary): string {
+  return pull.title ?? t("pulls.list.fallbackTitle", { number: pull.prNumber });
 }
 
 function rowKey(pull: PrSummary): string {
@@ -45,19 +48,17 @@ function rowKey(pull: PrSummary): string {
 }
 
 export function PullsSection({ session }: PullsSectionProps) {
+  const { t } = useTranslation();
   if (session.kind === "logged-out") {
     return (
       <section aria-labelledby="pulls-heading" className={styles["section"]}>
         <h2 className={styles["heading"]} id="pulls-heading">
-          Pull requests
+          {t("pulls.list.heading")}
         </h2>
         <div className={styles["panel"]}>
-          <p>
-            Sign in with GitHub to read Briefs for the repositories where the
-            App is installed.
-          </p>
+          <p>{t("pulls.list.signInPrompt")}</p>
           <a className="btn primary" href="/api/auth/github">
-            Sign in with GitHub
+            {t("pulls.list.signIn")}
           </a>
         </div>
       </section>
@@ -68,11 +69,10 @@ export function PullsSection({ session }: PullsSectionProps) {
     return (
       <section aria-labelledby="pulls-heading" className={styles["section"]}>
         <h2 className={styles["heading"]} id="pulls-heading">
-          Pull requests
+          {t("pulls.list.heading")}
         </h2>
         <p className={styles["panel"]} role="status">
-          The PR list is unavailable right now (GitHub or the backend could not
-          be reached). Local Briefs below still work — try again shortly.
+          {t("pulls.list.unavailable")}
         </p>
       </section>
     );
@@ -81,13 +81,10 @@ export function PullsSection({ session }: PullsSectionProps) {
   return (
     <section aria-labelledby="pulls-heading" className={styles["section"]}>
       <h2 className={styles["heading"]} id="pulls-heading">
-        Pull requests
+        {t("pulls.list.heading")}
       </h2>
       {session.pulls.length === 0 ? (
-        <p className={styles["panel"]}>
-          No pull requests yet. Push to a pull request in a repository where the
-          App is installed and its Brief generates automatically.
-        </p>
+        <p className={styles["panel"]}>{t("pulls.list.empty")}</p>
       ) : (
         <ul className={styles["list"]}>
           {session.pulls.map((pull) => (
@@ -105,9 +102,9 @@ export function PullsSection({ session }: PullsSectionProps) {
                         : (pull.generation?.status ?? "none")
                     }
                   >
-                    {statusLabel(pull.briefAvailable, pull.generation)}
+                    {statusLabel(t, pull.briefAvailable, pull.generation)}
                   </span>
-                  {rowTitle(pull)}
+                  {rowTitle(t, pull)}
                 </span>
                 <span className={styles["meta"]}>
                   {pull.repoSlug ?? pull.repoId} #{pull.prNumber} · {pull.state}

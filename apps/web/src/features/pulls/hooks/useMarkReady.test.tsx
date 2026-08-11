@@ -7,7 +7,18 @@ import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MarkReadyResult } from "../transport/markReady";
-import { MARK_READY_COPY, useMarkReady } from "./useMarkReady";
+import { appI18n, I18nProvider } from "../../../i18n/I18nProvider";
+import { useMarkReady } from "./useMarkReady";
+
+const t = appI18n.t;
+const MARK_READY_COPY = {
+  ready: t("pulls.markReady.ready"),
+  unauthorized: t("pulls.markReady.unauthorized"),
+  notFound: t("pulls.markReady.notFound"),
+  githubPermission: t("pulls.markReady.githubPermission"),
+  upstream: t("pulls.markReady.upstream"),
+  failed: t("pulls.markReady.failed"),
+} as const;
 
 afterEach(cleanup);
 
@@ -30,8 +41,11 @@ function deferred(): Deferred {
 describe("useMarkReady", () => {
   it("is a no-op without an action (not own-draft / local path)", () => {
     const announce = vi.fn();
-    const { result } = renderHook(() =>
-      useMarkReady({ action: undefined, announce }),
+    const { result } = renderHook(
+      () => useMarkReady({ action: undefined, announce }),
+      {
+        wrapper: I18nProvider,
+      },
     );
     act(() => result.current.markReady());
     expect(result.current.pending).toBe(false);
@@ -42,7 +56,9 @@ describe("useMarkReady", () => {
     const gate = deferred();
     const action = vi.fn(() => gate.promise);
     const announce = vi.fn();
-    const { result } = renderHook(() => useMarkReady({ action, announce }));
+    const { result } = renderHook(() => useMarkReady({ action, announce }), {
+      wrapper: I18nProvider,
+    });
 
     act(() => result.current.markReady());
     expect(result.current.pending).toBe(true);
@@ -67,8 +83,11 @@ describe("useMarkReady", () => {
     ] as const) {
       const announce = vi.fn();
       const action = vi.fn(() => Promise.resolve<MarkReadyResult>({ kind }));
-      const { result, unmount } = renderHook(() =>
-        useMarkReady({ action, announce }),
+      const { result, unmount } = renderHook(
+        () => useMarkReady({ action, announce }),
+        {
+          wrapper: I18nProvider,
+        },
       );
       await act(async () => {
         result.current.markReady();
@@ -82,7 +101,9 @@ describe("useMarkReady", () => {
   it("maps a thrown transport error to the retry-safe failure copy", async () => {
     const announce = vi.fn();
     const action = vi.fn(() => Promise.reject(new Error("network")));
-    const { result } = renderHook(() => useMarkReady({ action, announce }));
+    const { result } = renderHook(() => useMarkReady({ action, announce }), {
+      wrapper: I18nProvider,
+    });
     await act(async () => {
       result.current.markReady();
     });

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import { parseUnifiedDiffPatch } from "../../../../../brief/utils/diffSlicing";
@@ -30,6 +31,7 @@ export function LiveDiffPreview({
   prNumber,
   span,
 }: LiveDiffPreviewProps) {
+  const { t } = useTranslation();
   const diff = useQuery(
     prDiffQueryOptions(repoId, prNumber, span.base, span.head),
   );
@@ -42,11 +44,11 @@ export function LiveDiffPreview({
   }, [diff.data]);
 
   if (diff.isPending) {
-    return <p className={cardStyles["meta"]}>Loading the diff…</p>;
+    return <p className={cardStyles["meta"]}>{t("pulls.wait.diffLoading")}</p>;
   }
   if (diff.isError || files.length === 0) {
     return (
-      <p className={cardStyles["meta"]}>The diff is not viewable right now.</p>
+      <p className={cardStyles["meta"]}>{t("pulls.wait.diffUnavailable")}</p>
     );
   }
   return (
@@ -59,12 +61,14 @@ export function LiveDiffPreview({
         >
           <summary>{file}</summary>
           <table className={styles["diffTable"]}>
-            <ScreenReaderOnly as="caption">Diff for {file}</ScreenReaderOnly>
+            <ScreenReaderOnly as="caption">
+              {t("pulls.wait.diffCaption", { file })}
+            </ScreenReaderOnly>
             <ScreenReaderOnly as="thead">
               <tr>
-                <th scope="col">Old line</th>
-                <th scope="col">New line</th>
-                <th scope="col">Content</th>
+                <th scope="col">{t("pulls.wait.diffColOld")}</th>
+                <th scope="col">{t("pulls.wait.diffColNew")}</th>
+                <th scope="col">{t("pulls.wait.diffColContent")}</th>
               </tr>
             </ScreenReaderOnly>
             <tbody>

@@ -31,5 +31,170 @@
     "diff-too-large": "The diff is too large to summarize.",
     "github-unavailable": "GitHub was unavailable while reading the pull request.",
     "unknown": "Generation failed: {{detail}}"
+  },
+  "pulls": {
+    "list": {
+      "heading": "Pull requests",
+      "signInPrompt": "Sign in with GitHub to read Briefs for the repositories where the App is installed.",
+      "signIn": "Sign in with GitHub",
+      "unavailable": "The PR list is unavailable right now (GitHub or the backend could not be reached). Local Briefs below still work — try again shortly.",
+      "empty": "No pull requests yet. Push to a pull request in a repository where the App is installed and its Brief generates automatically.",
+      "fallbackTitle": "PR #{{number}}"
+    },
+    "status": {
+      "ready": "brief ready",
+      "none": "no brief yet",
+      "queued": "queued",
+      "running": "generating…",
+      "failed": "failed",
+      "superseded": "newer push on the way",
+      "capped": "daily cap reached",
+      "warmingChip": "comparisons warming…"
+    },
+    "wait": {
+      "queued": "Queued — the brief will start generating shortly.",
+      "generating": "Generating the brief…",
+      "generatingPhase": "Generating the brief — {{phase}}…",
+      "diffPending": "The diff preview appears here once the span is known; the brief replaces it when ready.",
+      "diffReady": "Read the raw diff while you wait — the brief replaces it when ready.",
+      "diffLoading": "Loading the diff…",
+      "diffUnavailable": "The diff is not viewable right now.",
+      "diffCaption": "Diff for {{file}}",
+      "diffColOld": "Old line",
+      "diffColNew": "New line",
+      "diffColContent": "Content"
+    },
+    "capped": {
+      "reached": "Daily generation cap reached.",
+      "resumed": "Daily generation cap reached — generation has since resumed.",
+      "resumes": "Daily generation cap reached — resumes {{resetsAt, datetime(dateStyle: medium; timeStyle: short)}}",
+      "copy": "This instance limits how many briefs each repository generates per day. The next push after the cap resets is briefed normally — this one will not be picked up again on its own."
+    },
+    "superseded": {
+      "heading": "A newer revision is on the way",
+      "copy": "This push was superseded before its brief finished; the brief for the newest push will appear here automatically."
+    },
+    "empty": {
+      "heading": "No brief for this pull request yet",
+      "copy": "Generation starts automatically on the next push (or a submitted review) in a repository where the App is installed."
+    },
+    "failed": {
+      "heading": "Brief generation failed",
+      "noDetail": "No failure detail was recorded.",
+      "attempts_one": "{{count}} attempt so far.",
+      "attempts_other": "{{count}} attempts so far.",
+      "requeueNote": "A new push re-queues generation automatically."
+    },
+    "headAdvanced": {
+      "notice": "This pull request has new commits since this brief's span.",
+      "action": "Go to the newest revision"
+    },
+    "announce": {
+      "revisionDegraded": "That revision is unavailable. Showing the latest brief.",
+      "viewingRevision": "Viewing revision {{index}} of {{total}}.",
+      "viewingRevisionReadOnly": "Viewing revision {{index}} of {{total}}. Read-only.",
+      "briefReady": "Brief ready.",
+      "briefReadyWarming": "Brief ready. Comparisons are still warming.",
+      "failed": "Brief generation failed.",
+      "superseded": "A newer revision is on the way.",
+      "noBrief": "No brief for this pull request yet."
+    },
+    "errorBoundary": {
+      "heading": "Brief failed to load",
+      "signIn": "Sign in with GitHub"
+    },
+    "briefError": {
+      "not-found": "This pull request (or this span's brief) was not found.",
+      "unauthorized": "You need to sign in to read this brief.",
+      "sign-in-failed": "Signing in didn't complete — try signing in again.",
+      "invalid-signature": "You need to sign in to read this brief.",
+      "forbidden": "You don't have access to this repository's briefs.",
+      "github-permission": "GitHub denied the app the permission this needs.",
+      "app-not-installed": "The app is not installed for this account.",
+      "invalid-request": "That request wasn't valid — check the link and try again.",
+      "not-a-pr-url": "That link isn't a pull request URL — paste a PR link and try again.",
+      "request-too-large": "That request was too large to process.",
+      "diff-too-large": "This diff is too large to render.",
+      "pr-changed-since-read": "This pull request changed since it was read — reload to pick up the latest revision, then try again.",
+      "pr-rewritten-since-read": "This pull request was rewritten since it was read — reload to pick up the latest revision, then try again.",
+      "generation-failed": "Generating this brief failed — try again shortly.",
+      "generation-unavailable": "Brief generation isn't available on this server right now.",
+      "generation-config": "The generator on this server is misconfigured — check the server logs.",
+      "github-unavailable": "The MergeBrief backend is unreachable right now — try again shortly.",
+      "internal-error": "The MergeBrief backend is unreachable right now — try again shortly.",
+      "malformed": "The MergeBrief backend returned something this page couldn't read — check the server logs.",
+      "generic": "Something went wrong loading this brief — check the server logs."
+    },
+    "markReady": {
+      "ready": "Marked ready for review.",
+      "unauthorized": "Your GitHub session expired — sign in again to mark this pull request ready.",
+      "notFound": "This pull request is no longer accessible on GitHub.",
+      "githubPermission": "GitHub blocked the action: the MergeBrief App needs the 'Contents: Read & write' repository permission to mark a PR ready. Update the App's permissions and retry.",
+      "upstream": "GitHub rejected the request or is unreachable — try again shortly.",
+      "failed": "Something went wrong marking this pull request ready — try again."
+    },
+    "markReadyModal": {
+      "heading": "Before marking ready",
+      "advisoryFlags": "This is advisory. These risk flags are on the current brief — fix and push (the brief regenerates and flags drop), or mark ready as-is.",
+      "advisoryDrafts": "This is advisory. Your unposted draft comments stay local unless posted — post them first, or mark ready as-is.",
+      "flagPolicy": "defined by repo policy",
+      "flagPolicyImplication": "defined by repo policy — {{implication}}",
+      "flagDeEmphasized": "de-emphasized by repo policy",
+      "statedAsks_one": "{{count}} stated ask not found in the diff",
+      "statedAsks_other": "{{count}} stated asks not found in the diff",
+      "intentTensions_one": "{{count}} intent tension flagged",
+      "intentTensions_other": "{{count}} intent tensions flagged",
+      "unpostedDrafts_one": "You have {{count}} unposted draft comment.",
+      "unpostedDrafts_other": "You have {{count}} unposted draft comments.",
+      "jumpToDrafts": "Jump to your drafts",
+      "keepReviewing": "Keep self-reviewing",
+      "markReadyAnyway": "Mark ready anyway",
+      "postDrafts_one": "Post my {{count}} draft comment before marking ready",
+      "postDrafts_other": "Post my {{count}} draft comments before marking ready"
+    },
+    "timeline": {
+      "navLabel": "PR revision timeline",
+      "prevRevision": "Previous revision, {{index}}",
+      "prevNone": "Previous revision (none)",
+      "nextRevision": "Next revision, {{index}}",
+      "nextNone": "Next revision (none)",
+      "selectLabel": "Select PR revision",
+      "option": "Revision {{index}} · {{sha}}",
+      "optionBaseSuffix": "(base {{sha}})",
+      "stepRevision": "Revision {{index}}"
+    },
+    "compare": {
+      "navLabel": "Brief view and compare",
+      "viewLegend": "View",
+      "compareLegend": "Compare",
+      "fullBrief": "Full brief",
+      "changesOnly": "Changes Only",
+      "off": "Off",
+      "offOnlyFull": "Off is only available in Full brief",
+      "lastReview": "Your last review",
+      "previousBrief": "Previous brief",
+      "readOnlyChip": "read-only"
+    },
+    "content": {
+      "revisionLinkGone": "That revision link is no longer available — showing the latest brief."
+    },
+    "ownDraft": {
+      "draftsOff": "Brief generation for draft pull requests is off on this instance — the brief will generate when this pull request is marked ready for review.",
+      "damped": "Draft mode — the brief can take up to {{window}} to refresh after the last push.",
+      "windowMinute": "about a minute",
+      "windowMinutes_one": "about {{count}} minute",
+      "windowMinutes_other": "about {{count}} minutes"
+    }
+  },
+  "installations": {
+    "orgSwitcher": {
+      "label": "Organization",
+      "unknown": "unknown",
+      "menuLabel": "Switch organization",
+      "current": "current",
+      "default": "default",
+      "rememberDefault": "Remember my choice as default",
+      "switchFailed": "Switching failed — the organization may no longer be accessible."
+    }
   }
 }

@@ -7,6 +7,7 @@
 // (N>0), with a jump link and NO auto-post; "Mark ready anyway" is one click
 // and records nothing. The zero-flag bypass lives in the caller: the modal
 // shows iff flags exist.
+import { useTranslation } from "react-i18next";
 import { Modal } from "@web/components/Modal/Modal";
 import type { RiskFlag } from "@web/features/brief/utils";
 import styles from "@web/components/Modal/Modal.module.scss";
@@ -71,8 +72,11 @@ export function MarkReadyModal({
   intentTensionCount = 0,
   jumpToIntentGaps,
 }: MarkReadyModalProps) {
+  const { t } = useTranslation();
   const busy = busyLabel !== undefined;
-  const draftLabel = `Post my ${String(unpostedDraftCount)} draft comment${unpostedDraftCount === 1 ? "" : "s"} before marking ready`;
+  const draftLabel = t("pulls.markReadyModal.postDrafts", {
+    count: unpostedDraftCount,
+  });
   return (
     // Escape is gated on busy exactly like the buttons: dismissing the gate
     // mid-batch would drop the progress feedback while outward writes
@@ -83,16 +87,14 @@ export function MarkReadyModal({
       close={busy ? undefined : close}
       labelledBy="mark-ready-modal-heading"
     >
-      <h3 id="mark-ready-modal-heading">Before marking ready</h3>
+      <h3 id="mark-ready-modal-heading">{t("pulls.markReadyModal.heading")}</h3>
       {/* Zero flags: the gate can open for unposted drafts alone — no
           risk-flag copy over an empty list; the advisory line focuses on the
           drafts instead. */}
       {flags.length > 0 ? (
         <>
           <p className={styles["copy"]}>
-            This is advisory. These risk flags are on the current brief — fix
-            and push (the brief regenerates and flags drop), or mark ready
-            as-is.
+            {t("pulls.markReadyModal.advisoryFlags")}
           </p>
           <div className={styles["unresolvedList"]}>
             {flags.map((flag) => (
@@ -115,11 +117,18 @@ export function MarkReadyModal({
                     {[
                       ...(flag.source === "repo-policy"
                         ? [
-                            `defined by repo policy${flag.implication ? ` — ${flag.implication}` : ""}`,
+                            flag.implication
+                              ? t(
+                                  "pulls.markReadyModal.flagPolicyImplication",
+                                  {
+                                    implication: flag.implication,
+                                  },
+                                )
+                              : t("pulls.markReadyModal.flagPolicy"),
                           ]
                         : []),
                       ...(flag.deEmphasized
-                        ? ["de-emphasized by repo policy"]
+                        ? [t("pulls.markReadyModal.flagDeEmphasized")]
                         : []),
                     ].join(" · ")}
                   </i>
@@ -130,8 +139,7 @@ export function MarkReadyModal({
         </>
       ) : (
         <p className={styles["copy"]}>
-          This is advisory. Your unposted draft comments stay local unless
-          posted — post them first, or mark ready as-is.
+          {t("pulls.markReadyModal.advisoryDrafts")}
         </p>
       )}
       {/* Count-only intent line: a factual count below the flags list, never
@@ -145,7 +153,7 @@ export function MarkReadyModal({
             disabled={busy}
             onClick={jumpToIntentGaps}
           >
-            {`${String(intentGapCount)} stated ask${intentGapCount === 1 ? "" : "s"} not found in the diff`}
+            {t("pulls.markReadyModal.statedAsks", { count: intentGapCount })}
           </button>
         </p>
       ) : null}
@@ -161,7 +169,9 @@ export function MarkReadyModal({
             disabled={busy}
             onClick={jumpToIntentGaps}
           >
-            {`${String(intentTensionCount)} intent tension${intentTensionCount === 1 ? "" : "s"} flagged`}
+            {t("pulls.markReadyModal.intentTensions", {
+              count: intentTensionCount,
+            })}
           </button>
         </p>
       ) : null}
@@ -169,7 +179,9 @@ export function MarkReadyModal({
         <>
           <p className={styles["copy"]}>
             <span>
-              {`You have ${String(unpostedDraftCount)} unposted draft comment${unpostedDraftCount === 1 ? "" : "s"}.`}
+              {t("pulls.markReadyModal.unpostedDrafts", {
+                count: unpostedDraftCount,
+              })}
             </span>{" "}
             <button
               className="btn"
@@ -177,7 +189,7 @@ export function MarkReadyModal({
               disabled={busy}
               onClick={jumpToDrafts}
             >
-              Jump to your drafts
+              {t("pulls.markReadyModal.jumpToDrafts")}
             </button>
           </p>
           <label className={styles["postDraftsToggle"]}>
@@ -193,7 +205,7 @@ export function MarkReadyModal({
       ) : null}
       <div className={styles["actions"]}>
         <button className="btn" type="button" disabled={busy} onClick={close}>
-          Keep self-reviewing
+          {t("pulls.markReadyModal.keepReviewing")}
         </button>
         {/* aria-disabled (never hard disabled) while the batch runs: a
             disabled element dumps keyboard focus on <body> inside the modal's
@@ -207,7 +219,7 @@ export function MarkReadyModal({
           type="button"
           onClick={busy ? undefined : markReadyAnyway}
         >
-          {busyLabel ?? "Mark ready anyway"}
+          {busyLabel ?? t("pulls.markReadyModal.markReadyAnyway")}
         </button>
       </div>
       {/* Batch progress for screen readers: the confirm button's visual

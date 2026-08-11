@@ -1,6 +1,8 @@
 // The DB-brief route's body: one polite live region announcing state swaps
 // and revision selection, then the state switch. All state cards are
 // presentational; the announcement is owned here.
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type {
   BriefSearch,
   BriefSearchParams,
@@ -26,51 +28,59 @@ import { WaitCard, waitLabel } from "../WaitCard/WaitCard";
 type BriefRouteState = ReturnType<typeof deriveBriefRouteState>;
 
 /** The draft-policy notice for this meta (null for non-authors/defaults). */
-function metaPolicyNotice(meta: PrSummary) {
-  return draftPolicyNotice(meta.draftPolicy, meta);
+function metaPolicyNotice(t: TFunction, meta: PrSummary) {
+  return draftPolicyNotice(t, meta.draftPolicy, meta);
 }
 
 /** The polite revision-selection announcement. */
 export function timelineAnnouncement(
+  t: TFunction,
   timeline: DbTimelineSelection,
   writable: boolean,
 ): string {
   if (timeline.degraded) {
-    return "That revision is unavailable. Showing the latest brief.";
+    return t("pulls.announce.revisionDegraded");
   }
-  const position = `Viewing revision ${timeline.selected.headIndex} of ${timeline.points.length}`;
-  return writable ? `${position}.` : `${position}. Read-only.`;
+  const params = {
+    index: timeline.selected.headIndex,
+    total: timeline.points.length,
+  };
+  return writable
+    ? t("pulls.announce.viewingRevision", params)
+    : t("pulls.announce.viewingRevisionReadOnly", params);
 }
 
 export function stateAnnouncement(
+  t: TFunction,
   state: BriefRouteState,
   meta: PrSummary,
   staleHead = false,
 ): string {
-  const notice = metaPolicyNotice(meta);
+  const notice = metaPolicyNotice(t, meta);
   switch (state.kind) {
     case "render":
       // Warming is a property of the LATEST generation — on a stale span the
       // chip is suppressed (PrBriefContent), so the announcement matches.
       return comparisonsWarming(meta) && !staleHead
-        ? "Brief ready. Comparisons are still warming."
-        : "Brief ready.";
+        ? t("pulls.announce.briefReadyWarming")
+        : t("pulls.announce.briefReady");
     case "waiting":
       return waitLabel(
+        t,
         state.status,
         state.phase,
         notice?.kind === "damped" ? notice.text : undefined,
       );
     case "failed":
-      return "Brief generation failed.";
+      return t("pulls.announce.failed");
     case "superseded":
-      return "A newer revision is on the way.";
+      return t("pulls.announce.superseded");
     case "capped":
-      return cappedLabel(state.cappedAt);
+      return cappedLabel(t, state.cappedAt);
     case "empty":
       return notice?.kind === "drafts-off"
         ? notice.text
-        : "No brief for this pull request yet.";
+        : t("pulls.announce.noBrief");
   }
 }
 
@@ -116,7 +126,8 @@ function PrBriefBodyState({
   conversationFilter,
   onConversationFilterChange,
 }: PrBriefBodyProps) {
-  const policyNotice = metaPolicyNotice(meta);
+  const { t } = useTranslation();
+  const policyNotice = metaPolicyNotice(t, meta);
   switch (state.kind) {
     case "render":
       return (
@@ -187,9 +198,10 @@ function PrBriefBodyState({
 
 export function PrBriefBody(props: PrBriefBodyProps) {
   const { state, meta, timeline, readOnly, staleHead } = props;
+  const { t } = useTranslation();
   const announcement = timeline
-    ? timelineAnnouncement(timeline, readOnly === undefined)
-    : stateAnnouncement(state, meta, staleHead === true);
+    ? timelineAnnouncement(t, timeline, readOnly === undefined)
+    : stateAnnouncement(t, state, meta, staleHead === true);
   return (
     <>
       {/* One PERSISTENT live region ahead of the switch: state swaps update

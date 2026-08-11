@@ -1,5 +1,7 @@
 // The wait surface for the DB-brief route. Announced via the polite live
 // region the body owns; presentational.
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import type { Span } from "../../../utils/briefRouteState";
 import cardStyles from "../stateCard.module.scss";
 import { LiveDiffPreview } from "./LiveDiffPreview/LiveDiffPreview";
@@ -25,6 +27,7 @@ export interface WaitCardProps {
  * and still shows after the em dash.
  */
 export function waitLabel(
+  t: TFunction,
   status: "queued" | "running",
   phase: string | null,
   queuedNotice?: string,
@@ -32,12 +35,12 @@ export function waitLabel(
   if (status === "queued")
     // Under draft damping "shortly" would lie — the notice text (which
     // states the configured window) replaces the queued heading.
-    return queuedNotice ?? "Queued — the brief will start generating shortly.";
-  if (phase === null) return "Generating the brief…";
+    return queuedNotice ?? t("pulls.wait.queued");
+  if (phase === null) return t("pulls.wait.generating");
   const phaseText = phase.replaceAll("-", " ");
   return phaseText.toLowerCase() === "generating"
-    ? "Generating the brief…"
-    : `Generating the brief — ${phaseText}…`;
+    ? t("pulls.wait.generating")
+    : t("pulls.wait.generatingPhase", { phase: phaseText });
 }
 
 export function WaitCard({
@@ -48,16 +51,17 @@ export function WaitCard({
   prNumber,
   queuedNotice,
 }: WaitCardProps) {
+  const { t } = useTranslation();
   return (
     <section aria-labelledby="wait-heading" className={cardStyles["card"]}>
       <h1 className={cardStyles["heading"]} id="wait-heading">
-        {waitLabel(status, phase, queuedNotice)}
+        {waitLabel(t, status, phase, queuedNotice)}
       </h1>
       <span aria-hidden="true" className={cardStyles["spinner"]} />
       <p className={cardStyles["copy"]}>
         {span === undefined
-          ? "The diff preview appears here once the span is known; the brief replaces it when ready."
-          : "Read the raw diff while you wait — the brief replaces it when ready."}
+          ? t("pulls.wait.diffPending")
+          : t("pulls.wait.diffReady")}
       </p>
       {span === undefined ? null : (
         <LiveDiffPreview prNumber={prNumber} repoId={repoId} span={span} />

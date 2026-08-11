@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
+import { appI18n, I18nProvider } from "../../../../../i18n/I18nProvider";
 import { CappedCard } from "./CappedCard";
 import { capResetsAt, cappedLabel } from "./utils";
+
+const t = appI18n.t;
 
 afterEach(cleanup);
 
@@ -27,6 +30,7 @@ describe("capResetsAt", () => {
 describe("cappedLabel", () => {
   it("names a reset time still in the future", () => {
     const label = cappedLabel(
+      t,
       "2026-08-03T18:30:00.000Z",
       new Date("2026-08-03T19:00:00.000Z"),
     );
@@ -36,6 +40,7 @@ describe("cappedLabel", () => {
   it("says generation has resumed once the window rolled over", () => {
     // A stale capped row must not promise a reset time that already passed.
     const label = cappedLabel(
+      t,
       "2026-08-01T18:30:00.000Z",
       new Date("2026-08-03T09:00:00.000Z"),
     );
@@ -45,13 +50,17 @@ describe("cappedLabel", () => {
   });
 
   it("degrades without a time rather than printing Invalid Date", () => {
-    expect(cappedLabel("nonsense")).toBe("Daily generation cap reached.");
+    expect(cappedLabel(t, "nonsense")).toBe("Daily generation cap reached.");
   });
 });
 
 describe("CappedCard", () => {
   it("renders the cap heading and says the push is not retried on its own", () => {
-    render(<CappedCard cappedAt="2026-08-03T18:30:00.000Z" />);
+    render(
+      <I18nProvider>
+        <CappedCard cappedAt="2026-08-03T18:30:00.000Z" />
+      </I18nProvider>,
+    );
     expect(
       screen.getByRole("heading", { name: /daily generation cap reached/i }),
     ).toBeDefined();

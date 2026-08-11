@@ -4,6 +4,8 @@
 // was entered (behavior follows visible state). Everything the own-draft state
 // changes keys off this one predicate.
 
+import type { TFunction } from "i18next";
+
 /** The two server-derived booleans the state reads (a `PrSummary` slice). */
 export interface OwnDraftSource {
   /** GitHub draft state, mirrored from the PR row. */
@@ -38,6 +40,7 @@ export interface DraftPolicyNotice {
  * default.
  */
 export function draftPolicyNotice(
+  t: TFunction,
   policy: DraftPolicyNoticeSource | undefined,
   view: OwnDraftSource,
 ): DraftPolicyNotice | null {
@@ -45,7 +48,7 @@ export function draftPolicyNotice(
   if (!policy.generate) {
     return {
       kind: "drafts-off",
-      text: "Brief generation for draft pull requests is off on this instance — the brief will generate when this pull request is marked ready for review.",
+      text: t("pulls.ownDraft.draftsOff"),
     };
   }
   if (policy.debounceSeconds !== null) {
@@ -57,14 +60,18 @@ export function draftPolicyNotice(
     // in the plan (echo the applied window on the generation summary).
     return {
       kind: "damped",
-      text: `Draft mode — the brief can take up to ${formatWindow(policy.debounceSeconds)} to refresh after the last push.`,
+      text: t("pulls.ownDraft.damped", {
+        window: formatWindow(t, policy.debounceSeconds),
+      }),
     };
   }
   return null;
 }
 
 /** "about a minute" under 2 minutes, else "about N minutes" (rounded). */
-function formatWindow(seconds: number): string {
-  if (seconds < 120) return "about a minute";
-  return `about ${String(Math.round(seconds / 60))} minutes`;
+function formatWindow(t: TFunction, seconds: number): string {
+  if (seconds < 120) return t("pulls.ownDraft.windowMinute");
+  return t("pulls.ownDraft.windowMinutes", {
+    count: Math.round(seconds / 60),
+  });
 }

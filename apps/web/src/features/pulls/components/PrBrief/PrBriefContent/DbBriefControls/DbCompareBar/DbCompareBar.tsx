@@ -6,6 +6,7 @@
 // so their reason tooltip is keyboard-reachable: shown on hover/focus,
 // referenced via `aria-describedby`, dismissible with Escape.
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   compareUnavailableTitle,
   isCompareAvailable,
@@ -38,6 +39,7 @@ export function DbCompareBar({
   lastReviewDisabledReason,
   onNavigate,
 }: DbCompareBarProps) {
+  const { t } = useTranslation();
   // Escape hides the focused option's tooltip until the pointer/focus leaves
   // (WAI-ARIA tooltip pattern); re-entry re-arms it.
   const [dismissedTip, setDismissedTip] = useState<CompareParam | null>(null);
@@ -94,16 +96,18 @@ export function DbCompareBar({
   };
 
   return (
-    <nav aria-label="Brief view and compare" className={styles["bar"]}>
+    <nav aria-label={t("pulls.compare.navLabel")} className={styles["bar"]}>
       <fieldset className={styles["group"]}>
-        <ScreenReaderOnly as="legend">View</ScreenReaderOnly>
+        <ScreenReaderOnly as="legend">
+          {t("pulls.compare.viewLegend")}
+        </ScreenReaderOnly>
         <button
           aria-pressed={compareState.view === "full"}
           data-state={compareState.view === "full" ? "active" : undefined}
           onClick={() => selectView("full")}
           type="button"
         >
-          Full brief
+          {t("pulls.compare.fullBrief")}
         </button>
         <button
           aria-pressed={compareState.view === "changes"}
@@ -112,19 +116,21 @@ export function DbCompareBar({
           onClick={() => selectView("changes")}
           type="button"
         >
-          Changes Only
+          {t("pulls.compare.changesOnly")}
         </button>
       </fieldset>
       <fieldset className={styles["labeledGroup"]}>
-        <ScreenReaderOnly as="legend">Compare</ScreenReaderOnly>
+        <ScreenReaderOnly as="legend">
+          {t("pulls.compare.compareLegend")}
+        </ScreenReaderOnly>
         {/* Outside the bordered group — inside it the label reads as a
             fourth (selectable) option. */}
         <span aria-hidden="true" className={styles["groupLabel"]}>
-          Compare
+          {t("pulls.compare.compareLegend")}
         </span>
         <div className={styles["group"]}>
-          {compareButton("last-review", "Your last review")}
-          {compareButton("previous-brief", "Previous brief")}
+          {compareButton("last-review", t("pulls.compare.lastReview"))}
+          {compareButton("previous-brief", t("pulls.compare.previousBrief"))}
           <button
             aria-pressed={compareState.compare === "off"}
             data-state={compareState.compare === "off" ? "active" : undefined}
@@ -132,12 +138,12 @@ export function DbCompareBar({
             onClick={() => selectCompare("off")}
             title={
               compareState.view === "changes"
-                ? "Off is only available in Full brief"
+                ? t("pulls.compare.offOnlyFull")
                 : undefined
             }
             type="button"
           >
-            Off
+            {t("pulls.compare.off")}
           </button>
         </div>
       </fieldset>

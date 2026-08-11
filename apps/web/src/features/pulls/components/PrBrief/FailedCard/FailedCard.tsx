@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import cardStyles from "../stateCard.module.scss";
 
 export interface FailedCardProps {
@@ -6,18 +7,19 @@ export interface FailedCardProps {
 }
 
 export function FailedCard({ error, attempts }: FailedCardProps) {
+  const { t } = useTranslation();
   return (
     <section aria-labelledby="failed-heading" className={cardStyles["card"]}>
       <h1 className={cardStyles["heading"]} id="failed-heading">
-        Brief generation failed
+        {t("pulls.failed.heading")}
       </h1>
       <p className={cardStyles["copy"]}>
         {/* Sanitized at write time (first line, URLs redacted, capped). */}
-        {error ?? "No failure detail was recorded."}
+        {error ?? t("pulls.failed.noDetail")}
       </p>
       <p className={cardStyles["meta"]}>
-        {attempts + 1} attempt{attempts === 0 ? "" : "s"} so far. A new push
-        re-queues generation automatically.
+        {t("pulls.failed.attempts", { count: attempts + 1 })}{" "}
+        {t("pulls.failed.requeueNote")}
       </p>
     </section>
   );

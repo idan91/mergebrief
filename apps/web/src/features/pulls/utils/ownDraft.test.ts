@@ -3,7 +3,10 @@
 // must hold: someone else's draft and the viewer's own ready PR are both
 // plain reviewer views.
 import { describe, expect, it } from "vitest";
+import { appI18n } from "../../../i18n/I18nProvider";
 import { draftPolicyNotice, isOwnDraft } from "./ownDraft";
+
+const t = appI18n.t;
 
 describe("isOwnDraft", () => {
   it("is true only for the viewer's own draft", () => {
@@ -29,23 +32,24 @@ describe("draftPolicyNotice", () => {
   it("is null for anyone but the draft's own author", () => {
     const policy = { generate: false, debounceSeconds: null };
     expect(
-      draftPolicyNotice(policy, { draft: true, viewerIsAuthor: false }),
+      draftPolicyNotice(t, policy, { draft: true, viewerIsAuthor: false }),
     ).toBeNull();
     expect(
-      draftPolicyNotice(policy, { draft: false, viewerIsAuthor: true }),
+      draftPolicyNotice(t, policy, { draft: false, viewerIsAuthor: true }),
     ).toBeNull();
   });
 
   it("is null when the policy is absent (list rows) or all-default", () => {
-    expect(draftPolicyNotice(undefined, ownDraft)).toBeNull();
+    expect(draftPolicyNotice(t, undefined, ownDraft)).toBeNull();
     expect(
-      draftPolicyNotice({ generate: true, debounceSeconds: null }, ownDraft),
+      draftPolicyNotice(t, { generate: true, debounceSeconds: null }, ownDraft),
     ).toBeNull();
   });
 
   it("explains drafts-off, and off wins over damping", () => {
     for (const debounceSeconds of [null, 900]) {
       const notice = draftPolicyNotice(
+        t,
         { generate: false, debounceSeconds },
         ownDraft,
       );
@@ -57,6 +61,7 @@ describe("draftPolicyNotice", () => {
 
   it("states the CONFIGURED damping window in minutes", () => {
     const notice = draftPolicyNotice(
+      t,
       { generate: true, debounceSeconds: 900 },
       ownDraft,
     );
@@ -66,6 +71,7 @@ describe("draftPolicyNotice", () => {
 
   it("rounds sub-2-minute windows to 'about a minute'", () => {
     const notice = draftPolicyNotice(
+      t,
       { generate: true, debounceSeconds: 90 },
       ownDraft,
     );

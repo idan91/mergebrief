@@ -2,6 +2,7 @@
 // generation cap. NOT a failure card — nothing went wrong, and the copy says
 // when it resumes. Presentational; the announcement lives in the body's live
 // region.
+import { useTranslation } from "react-i18next";
 import cardStyles from "../stateCard.module.scss";
 import { cappedLabel } from "./utils";
 
@@ -11,6 +12,7 @@ export interface CappedCardProps {
 }
 
 export function CappedCard({ cappedAt }: CappedCardProps) {
+  const { t } = useTranslation();
   return (
     <section
       aria-labelledby="capped-heading"
@@ -18,13 +20,9 @@ export function CappedCard({ cappedAt }: CappedCardProps) {
       data-testid="brief-capped-card"
     >
       <h1 className={cardStyles["heading"]} id="capped-heading">
-        {cappedLabel(cappedAt)}
+        {cappedLabel(t, cappedAt)}
       </h1>
-      <p className={cardStyles["copy"]}>
-        This instance limits how many briefs each repository generates per day.
-        The next push after the cap resets is briefed normally — this one will
-        not be picked up again on its own.
-      </p>
+      <p className={cardStyles["copy"]}>{t("pulls.capped.copy")}</p>
     </section>
   );
 }

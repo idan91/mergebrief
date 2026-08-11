@@ -9,6 +9,7 @@
 // A11y: the polite selection announcement and focus-to-heading are the
 // ROUTE's job (one live region per page) — this component only emits the
 // controls.
+import { useTranslation } from "react-i18next";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { DbTimelinePoint } from "../../../../../utils/dbTimeline";
 import styles from "./DbTimelineNavigator.module.scss";
@@ -50,6 +51,7 @@ export function DbTimelineNavigator({
   next,
   onSelect,
 }: DbTimelineNavigatorProps) {
+  const { t } = useTranslation();
   // Only a real timeline (more than one revision) earns a navigator.
   if (points.length < 2) return null;
   const stepperStart = Math.max(0, selectedIndex - STEPPER_RADIUS);
@@ -64,14 +66,17 @@ export function DbTimelineNavigator({
     headCounts.set(point.headSha, (headCounts.get(point.headSha) ?? 0) + 1);
   }
   return (
-    <nav aria-label="PR revision timeline" className={styles["timeline"]}>
+    <nav
+      aria-label={t("pulls.timeline.navLabel")}
+      className={styles["timeline"]}
+    >
       <button
         // Disabled state keeps a descriptive name — a bare arrow glyph is
         // meaningless to a screen reader.
         aria-label={
           previous
-            ? `Previous revision, ${previous.headIndex}`
-            : "Previous revision (none)"
+            ? t("pulls.timeline.prevRevision", { index: previous.headIndex })
+            : t("pulls.timeline.prevNone")
         }
         className={styles["arrow"]}
         disabled={previous === undefined}
@@ -81,7 +86,7 @@ export function DbTimelineNavigator({
         ←
       </button>
       <label className={styles["picker"]}>
-        <ScreenReaderOnly>Select PR revision</ScreenReaderOnly>
+        <ScreenReaderOnly>{t("pulls.timeline.selectLabel")}</ScreenReaderOnly>
         <select
           onChange={(event) => {
             const point = points[Number(event.target.value)];
@@ -91,9 +96,14 @@ export function DbTimelineNavigator({
         >
           {points.map((point, position) => (
             <option key={pointKey(position, point)} value={String(position)}>
-              Revision {point.headIndex} · {shortSha(point.headSha)}
+              {t("pulls.timeline.option", {
+                index: point.headIndex,
+                sha: shortSha(point.headSha),
+              })}
               {(headCounts.get(point.headSha) ?? 0) > 1
-                ? ` (base ${shortSha(point.baseSha)})`
+                ? ` ${t("pulls.timeline.optionBaseSuffix", {
+                    sha: shortSha(point.baseSha),
+                  })}`
                 : ""}
             </option>
           ))}
@@ -101,7 +111,9 @@ export function DbTimelineNavigator({
       </label>
       <button
         aria-label={
-          next ? `Next revision, ${next.headIndex}` : "Next revision (none)"
+          next
+            ? t("pulls.timeline.nextRevision", { index: next.headIndex })
+            : t("pulls.timeline.nextNone")
         }
         className={styles["arrow"]}
         disabled={next === undefined}
@@ -124,7 +136,11 @@ export function DbTimelineNavigator({
                 onClick={() => onSelect(point)}
                 type="button"
               >
-                <ScreenReaderOnly>Revision {point.headIndex}</ScreenReaderOnly>
+                <ScreenReaderOnly>
+                  {t("pulls.timeline.stepRevision", {
+                    index: point.headIndex,
+                  })}
+                </ScreenReaderOnly>
               </button>
             </li>
           );

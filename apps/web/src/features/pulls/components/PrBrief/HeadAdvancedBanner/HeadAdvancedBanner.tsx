@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import styles from "./HeadAdvancedBanner.module.scss";
 
 export interface HeadAdvancedBannerProps {
@@ -6,11 +7,12 @@ export interface HeadAdvancedBannerProps {
 
 /** Offered, never forced — the viewer stays pinned until they choose. */
 export function HeadAdvancedBanner({ onNavigate }: HeadAdvancedBannerProps) {
+  const { t } = useTranslation();
   return (
     <div className={styles["banner"]} role="status">
-      <span>This pull request has new commits since this brief's span.</span>
+      <span>{t("pulls.headAdvanced.notice")}</span>
       <button className="btn" onClick={onNavigate} type="button">
-        Go to the newest revision
+        {t("pulls.headAdvanced.action")}
       </button>
     </div>
   );

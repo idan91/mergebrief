@@ -1,6 +1,7 @@
 // The rendered-brief composition for the DB route. Data assembly (queries +
 // live-diff attach) lives here; plan/transport assembly lives in the
 // usePrBriefPlans hook.
+import { useTranslation } from "react-i18next";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
@@ -68,6 +69,7 @@ export function PrBriefContent({
   conversationFilter,
   onConversationFilterChange,
 }: PrBriefContentProps) {
+  const { t } = useTranslation();
   const brief = useSuspenseQuery(
     dbBriefQueryOptions(repoId, prNumber, span.base, span.head),
   ).data;
@@ -165,9 +167,7 @@ export function PrBriefContent({
         onNavigate: onNavigateSearch,
       }}
       note={
-        timeline?.degraded
-          ? "That revision link is no longer available — showing the latest brief."
-          : undefined
+        timeline?.degraded ? t("pulls.content.revisionLinkGone") : undefined
       }
       onSelectRevision={onSelectRevision}
       readOnly={readOnly !== undefined}

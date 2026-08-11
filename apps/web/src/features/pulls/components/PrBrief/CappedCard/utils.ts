@@ -4,6 +4,8 @@
  * from "now" — a capped row left over from an earlier day must not claim to
  * be waiting on tonight.
  */
+import type { TFunction } from "i18next";
+
 export function capResetsAt(cappedAtIso: string): Date | undefined {
   const cappedAt = new Date(cappedAtIso);
   if (Number.isNaN(cappedAt.getTime())) return undefined;
@@ -23,23 +25,17 @@ export function capResetsAt(cappedAtIso: string): Date | undefined {
  * "Invalid Date".
  */
 export function cappedLabel(
+  t: TFunction,
   cappedAtIso: string,
   now: Date = new Date(),
 ): string {
   const resetsAt = capResetsAt(cappedAtIso);
-  if (resetsAt === undefined) return "Daily generation cap reached.";
+  if (resetsAt === undefined) return t("pulls.capped.reached");
   if (resetsAt.getTime() <= now.getTime()) {
     // The window already rolled over: the cap is no longer holding anything
     // back, so promising a future resume time would be a lie.
-    return "Daily generation cap reached — generation has since resumed.";
+    return t("pulls.capped.resumed");
   }
-  return `Daily generation cap reached — resumes ${formatLocal(resetsAt)}`;
-}
-
-/** Viewer-local date+time, minute precision. */
-function formatLocal(instant: Date): string {
-  return instant.toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  // The template's datetime formatter renders in the ACTIVE locale.
+  return t("pulls.capped.resumes", { resetsAt });
 }
