@@ -1,4 +1,5 @@
 import type { TranslationKey } from "i18n";
+import type { TFunction } from "i18next";
 import type { RepoConfigContext } from "../../brief/utils/repoConfig";
 import type { Brief } from "../../brief/types";
 import type { BriefViewModel } from "@web/features/brief/utils";
@@ -108,6 +109,7 @@ export const RECEIPT_NOT_CHECKED_KEYS: readonly TranslationKey[] = [
 ];
 
 export function buildReceipt(
+  t: TFunction,
   snapshot: SessionSnapshot,
   brief: Brief,
   model: BriefViewModel,
@@ -130,6 +132,7 @@ export function buildReceipt(
               file: flag.file,
               evidence: disposition.evidence,
               evidenceLabel: riskEvidenceLabel(
+                t,
                 disposition.evidence,
                 snapshot.reviewComments,
                 brief.chunks,

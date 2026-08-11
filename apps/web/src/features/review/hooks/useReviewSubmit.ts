@@ -141,8 +141,8 @@ export function useReviewSubmit(
   const blockedReasonWith = useCallback(
     (reviewComment: string) =>
       blockedExternally ??
-      submitBlockedReason(outcome, comments, reviewComment),
-    [blockedExternally, comments, outcome],
+      submitBlockedReason(t, outcome, comments, reviewComment),
+    [blockedExternally, comments, outcome, t],
   );
 
   const submit = useCallback(() => {
@@ -153,7 +153,8 @@ export function useReviewSubmit(
     // rendered blocked state may lag the keystroke.
     if (
       blockedExternally !== undefined ||
-      submitBlockedReason(outcome, comments, getReviewComment()) !== undefined
+      submitBlockedReason(t, outcome, comments, getReviewComment()) !==
+        undefined
     ) {
       return;
     }
@@ -281,6 +282,7 @@ export function useReviewSubmit(
     recordSubmittedReview,
     resetOutcome,
     COPY,
+    t,
   ]);
 
   const clearError = useCallback(() => setError(null), []);

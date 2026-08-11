@@ -67,21 +67,28 @@ export interface RiskDispositionCounts {
 }
 
 export function riskEvidenceLabel(
+  t: TFunction,
   evidence: RiskEvidence,
   comments: ReviewComment[],
   chunks: BriefChunk[],
 ): string {
   if (evidence.kind === "linked-comment") {
     const comment = comments.find((item) => item.id === evidence.commentId);
-    if (!comment) return "linked comment";
-    return `linked comment ${comment.anchor.file}:${comment.anchor.side === "new" ? "+" : "-"}${comment.anchor.startLine}`;
+    if (!comment) return t("review.summary.evidenceLinkedCommentMissing");
+    return t("review.summary.evidenceLinkedComment", {
+      location: `${comment.anchor.file}:${comment.anchor.side === "new" ? "+" : "-"}${comment.anchor.startLine}`,
+    });
   }
   if (evidence.kind === "chunk-reviewed") {
     const chunk = chunks.find((item) => item.id === evidence.chunkId);
-    return `reviewed related chunk ${chunk?.file ?? "selected chunk"}`;
+    return t("review.summary.evidenceChunkReviewed", {
+      file: chunk?.file ?? t("review.summary.evidenceSelectedChunk"),
+    });
   }
   const note = evidence.note?.trim();
-  return note ? `manually verified: ${note}` : "manually verified";
+  return note
+    ? t("review.summary.evidenceManualWithNote", { note })
+    : t("review.summary.evidenceManual");
 }
 
 export function deriveUnresolvedItems(

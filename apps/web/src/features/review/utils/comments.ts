@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+
 import type { SuggestionDiffRow } from "@web/components/Markdown/utils";
 import type { DiffLine } from "../../brief/types";
 
@@ -109,21 +111,29 @@ export const MAX_POSTED_COMMENT_PATH_LENGTH = 1_024;
  * post handler (belt and braces for programmatic/keyboard paths).
  */
 export function postCommentBlockedReason(
+  t: TFunction,
   comment: Pick<ReviewComment, "anchor" | "body">,
 ): string | undefined {
   if (comment.body.length > MAX_POSTED_COMMENT_LENGTH) {
-    return "This comment is longer than GitHub's 65,536-character limit — shorten it to post.";
+    return t("review.comment.tooLongToPost", {
+      max: MAX_POSTED_COMMENT_LENGTH,
+    });
   }
   if (comment.anchor.file.length > MAX_POSTED_COMMENT_PATH_LENGTH) {
     // Mirrors submitBlockedReason's overlong-path copy: no edit can fix the
     // anchor's path, so the only recovery is deleting the draft.
-    return "This comment is anchored to a file whose path is too long to post. Delete the draft to continue.";
+    return t("review.comment.pathTooLongToPost");
   }
   return undefined;
 }
 
-export function reviewCommentSubmitLabel(existingCommentCount: number): string {
-  return existingCommentCount === 0 ? "Start review" : "Add review comment";
+export function reviewCommentSubmitLabel(
+  t: TFunction,
+  existingCommentCount: number,
+): string {
+  return existingCommentCount === 0
+    ? t("review.comment.startReview")
+    : t("review.comment.addReviewComment");
 }
 
 export function commentAnchorLabel(anchor: CommentAnchor): string {

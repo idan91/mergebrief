@@ -573,12 +573,19 @@
       "dismissedRisks": "Dismissed risks",
       "openRisks": "Open risks at submit",
       "noEvidenceLinked": "no evidence linked",
+      "addressedWithoutEvidence": "addressed without linked evidence",
       "notAddressedNotDismissed": "not addressed, not dismissed",
       "notCheckedHeading": "Not checked",
       "notCheckedIntent": "business intent",
       "notCheckedRuntime": "runtime behavior",
       "notCheckedPerformance": "performance under load",
       "notCheckedIntegration": "integration with downstream systems",
+      "evidenceLinkedComment": "linked comment {{location}}",
+      "evidenceLinkedCommentMissing": "linked comment",
+      "evidenceChunkReviewed": "reviewed related chunk {{file}}",
+      "evidenceSelectedChunk": "selected chunk",
+      "evidenceManualWithNote": "manually verified: {{note}}",
+      "evidenceManual": "manually verified",
       "none": "None."
     },
     "submit": {
@@ -607,7 +614,12 @@
       "receiptHeading": "Verification receipt",
       "notAnApproval": "not an approval",
       "receiptSub": "Frozen at submit · linked from a one-line signature on your normal GitHub review · the review itself stays yours. The signature line links a public summary.",
-      "backToVerdict": "Back to verdict"
+      "backToVerdict": "Back to verdict",
+      "tooManyComments": "A review can carry at most {{max}} comments. Trim {{excess}} draft(s), or submit in parts by deleting some drafts and re-adding them after this review posts.",
+      "tooLargeWithReviewComment": "This review is too large to submit as one review (GitHub's body limit). Shorten the review comment or some inline comments, or submit in parts.",
+      "tooLargeComments": "This review's comments are too large to submit as one review (GitHub's body limit). Shorten some comments, or submit in parts.",
+      "pathTooLong": "A comment is anchored to a file whose path is too long to submit. Delete that draft to continue.",
+      "commentNeedsContent": "A comment-only review needs at least one comment — inline or the review comment. Add one, or pick a verdict."
     },
     "evidence": {
       "heading": "Address risk with evidence",
@@ -653,7 +665,11 @@
       "edit": "Edit",
       "previewEmpty": "Nothing to preview.",
       "collapse": "Collapse",
-      "commentLabel": "comment"
+      "commentLabel": "comment",
+      "startReview": "Start review",
+      "addReviewComment": "Add review comment",
+      "tooLongToPost": "This comment is longer than GitHub's {{max, number}}-character limit — shorten it to post.",
+      "pathTooLongToPost": "This comment is anchored to a file whose path is too long to post. Delete the draft to continue."
     },
     "announce": {
       "commentEmpty": "Comment cannot be empty.",
@@ -778,7 +794,10 @@
     "nameRequired": "Name the token before minting.",
     "organizationRequired": "Pick the organization the token is bound to.",
     "rowRevoked": "revoked {{when}}",
-    "rowActive": "expires {{expires}} · last used {{lastUsed}}"
+    "rowActive": "expires {{expires}} · last used {{lastUsed}}",
+    "mintForbidden": "That organization is no longer accessible to you.",
+    "mintFailed": "Minting failed — nothing was created. Try again.",
+    "revokeFailed": "Revoking failed — the token is still active. Try again."
   },
   "shell": {
     "settingsHeading": "Settings",

@@ -131,8 +131,8 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
   const mintError = minting.isError
     ? minting.error instanceof ApiError &&
       minting.error.code === ApiErrorCode.FORBIDDEN
-      ? "That organization is no longer accessible to you."
-      : "Minting failed — nothing was created. Try again."
+      ? t("tokens.mintForbidden")
+      : t("tokens.mintFailed")
     : null;
 
   return {
@@ -152,9 +152,7 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
     mintedToken,
     dismissMintedToken,
     revokePendingId,
-    revokeError: revoking.isError
-      ? "Revoking failed — the token is still active. Try again."
-      : null,
+    revokeError: revoking.isError ? t("tokens.revokeFailed") : null,
     revoke: (tokenId) => {
       if (revoking.isPending) return;
       setRevokePendingId(tokenId);

@@ -139,7 +139,7 @@ export function useOwnDraftFlow(
       // Cap mirror: an over-cap body/anchor is a deterministic route 400 —
       // same copy as the disabled Post button, guarding the programmatic
       // path. In a batch the reason is suppressed (the summary owns it).
-      const blocked = postCommentBlockedReason(comment);
+      const blocked = postCommentBlockedReason(t, comment);
       if (blocked !== undefined) {
         if (!batchOwnsMessaging) announce(blocked);
         return "rejected";

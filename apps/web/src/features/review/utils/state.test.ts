@@ -65,6 +65,7 @@ describe("riskEvidenceLabel", () => {
   it("describes linked comments, reviewed chunks, and manual notes", () => {
     expect(
       riskEvidenceLabel(
+        appI18n.t,
         { kind: "linked-comment", commentId: "comment-1" },
         [reviewComment],
         [coreChunk],
@@ -72,6 +73,7 @@ describe("riskEvidenceLabel", () => {
     ).toBe("linked comment src/a.ts:+12");
     expect(
       riskEvidenceLabel(
+        appI18n.t,
         { kind: "chunk-reviewed", chunkId: "chunk-a" },
         [reviewComment],
         [coreChunk],
@@ -79,6 +81,7 @@ describe("riskEvidenceLabel", () => {
     ).toBe("reviewed related chunk src/a.ts");
     expect(
       riskEvidenceLabel(
+        appI18n.t,
         { kind: "manual-note", note: "Checked the fallback path." },
         [reviewComment],
         [coreChunk],

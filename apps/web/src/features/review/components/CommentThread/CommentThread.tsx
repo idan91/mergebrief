@@ -89,7 +89,7 @@ export function CommentThread({
       ? (postBlockedExternally ??
         (editing
           ? t("review.comment.saveFirst")
-          : postCommentBlockedReason(comment)))
+          : postCommentBlockedReason(t, comment)))
       : undefined;
 
   if (comment.collapsed) {

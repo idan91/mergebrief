@@ -1,4 +1,5 @@
 import { riskFlagDescription } from "../../../../utils/viewModel";
+import type { TFunction } from "i18next";
 import { Trans, useTranslation } from "react-i18next";
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
@@ -46,13 +47,14 @@ export interface GroupCardProps {
 }
 
 function evidenceText(
+  t: TFunction,
   disposition: Disposition | undefined,
   comments: ReviewComment[],
   chunks: BriefChunk[],
 ): string {
   return disposition?.kind === "addressed" && disposition.evidence
-    ? riskEvidenceLabel(disposition.evidence, comments, chunks)
-    : "addressed without linked evidence";
+    ? riskEvidenceLabel(t, disposition.evidence, comments, chunks)
+    : t("review.summary.addressedWithoutEvidence");
 }
 
 export const GroupCard = memo(function GroupCard({
@@ -519,6 +521,7 @@ export const GroupCard = memo(function GroupCard({
                         ) : kind === "addressed" ? (
                           <div className={styles["stateDetail"]}>
                             {evidenceText(
+                              t,
                               disposition,
                               reviewComments,
                               brief.chunks,

@@ -2,6 +2,8 @@
 // contract. The FE owns the anchor→GitHub translation (the server validates
 // shape only): side old→LEFT / new→RIGHT, multi-line ranges as
 // start_line..line, commitId = the Brief's viewed head.
+import type { TFunction } from "i18next";
+
 import type { CommentAnchor, ReviewComment } from "./comments";
 import type { Receipt } from "./receipt";
 import type { ReviewOutcome } from "./state";
@@ -195,31 +197,35 @@ function foldedLengthEstimate(drafts: readonly ReviewComment[]): number {
  * recoverable reason — the UI resubmits the same draft set on retry.
  */
 export function submitBlockedReason(
+  t: TFunction,
   outcome: ReviewOutcome,
   comments: ReviewComment[],
   reviewComment = "",
 ): string | undefined {
   const drafts = comments.filter((comment) => comment.status === "draft");
   if (drafts.length > MAX_COMMENTS_PER_SUBMIT) {
-    return `A review can carry at most ${MAX_COMMENTS_PER_SUBMIT} comments. Trim ${drafts.length - MAX_COMMENTS_PER_SUBMIT} draft(s), or submit in parts by deleting some drafts and re-adding them after this review posts.`;
+    return t("review.submit.tooManyComments", {
+      max: MAX_COMMENTS_PER_SUBMIT,
+      excess: drafts.length - MAX_COMMENTS_PER_SUBMIT,
+    });
   }
   const commentCost = reviewCommentFoldCost(reviewComment);
   if (foldedLengthEstimate(drafts) + commentCost > FOLD_BUDGET) {
     return commentCost > 0
-      ? "This review is too large to submit as one review (GitHub's body limit). Shorten the review comment or some inline comments, or submit in parts."
-      : "This review's comments are too large to submit as one review (GitHub's body limit). Shorten some comments, or submit in parts.";
+      ? t("review.submit.tooLargeWithReviewComment")
+      : t("review.submit.tooLargeComments");
   }
   const overlongPath = drafts.find(
     (draft) => draft.anchor.file.length > MAX_PATH_LENGTH,
   );
   if (overlongPath !== undefined) {
-    return "A comment is anchored to a file whose path is too long to submit. Delete that draft to continue.";
+    return t("review.submit.pathTooLong");
   }
   if (outcome !== "comment") {
     return undefined;
   }
   if (drafts.length === 0 && reviewComment.trim() === "") {
-    return "A comment-only review needs at least one comment — inline or the review comment. Add one, or pick a verdict.";
+    return t("review.submit.commentNeedsContent");
   }
   return undefined;
 }

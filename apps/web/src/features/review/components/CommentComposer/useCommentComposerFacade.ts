@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import type { CommentAnchor } from "../../utils/comments";
@@ -18,6 +19,7 @@ export function useCommentComposerFacade(
   anchor: CommentAnchor,
   save: (anchor: CommentAnchor, body: string) => void,
 ): CommentComposerFacade {
+  const { t } = useTranslation();
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
 
@@ -30,7 +32,7 @@ export function useCommentComposerFacade(
     },
     submit: () => {
       if (!body.trim()) {
-        setError("Comment cannot be empty.");
+        setError(t("review.announce.commentEmpty"));
         return;
       }
       save(anchor, body);

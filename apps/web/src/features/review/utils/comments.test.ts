@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { createI18n } from "i18n";
 
 import type { DiffLine } from "../../brief/types";
 import {
   buildSuggestionDiffRows,
   commentAnchorLabel,
   createCommentAnchor,
+  MAX_POSTED_COMMENT_LENGTH,
+  postCommentBlockedReason,
   reviewCommentSubmitLabel,
 } from "./comments";
 
@@ -16,6 +19,7 @@ const diffRows: DiffLine[] = [
   { kind: "add", content: "const enabled = true;", newLine: 12 },
   { kind: "ctx", content: "export { label };", oldLine: 12, newLine: 13 },
 ];
+const t = createI18n().t;
 
 describe("createCommentAnchor", () => {
   it("anchors a single added line", () => {
@@ -78,8 +82,29 @@ describe("buildSuggestionDiffRows", () => {
 
 describe("reviewCommentSubmitLabel", () => {
   it("uses GitHub's start-review label for the first draft comment only", () => {
-    expect(reviewCommentSubmitLabel(0)).toBe("Start review");
-    expect(reviewCommentSubmitLabel(1)).toBe("Add review comment");
+    expect(reviewCommentSubmitLabel(t, 0)).toBe("Start review");
+    expect(reviewCommentSubmitLabel(t, 1)).toBe("Add review comment");
+  });
+});
+
+describe("postCommentBlockedReason", () => {
+  it("renders recoverable route-cap failures through the catalog", () => {
+    const comment = {
+      anchor: {
+        chunkId: "c1",
+        file: "src/a.ts",
+        side: "new" as const,
+        startLine: 1,
+        endLine: 1,
+        rowIds: [],
+        selectedText: "",
+      },
+      body: "x".repeat(MAX_POSTED_COMMENT_LENGTH + 1),
+    };
+
+    expect(postCommentBlockedReason(t, comment)).toMatch(
+      /65,536-character limit/i,
+    );
   });
 });
 

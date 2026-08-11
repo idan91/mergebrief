@@ -10,6 +10,7 @@ import {
   useState,
   type RefObject,
 } from "react";
+import { createI18n } from "i18n";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
 import { useScrollSpy } from "@web/hooks/useScrollSpy";
@@ -28,6 +29,8 @@ import {
   type ReviewOutcome,
   type UnresolvedItem,
 } from "@web/features/review/utils/state";
+
+const receiptArtifactI18n = createI18n();
 import { summarizeProgress, type ProgressTotals } from "../../utils/progress";
 import type { Brief } from "../../types";
 import type { BriefViewModel, GroupView } from "../../utils/viewModel";
@@ -323,7 +326,8 @@ export function useReadingSession(
     ],
   );
   const receipt = useMemo(
-    () => buildReceipt(snapshot, brief, model, repoConfig),
+    () =>
+      buildReceipt(receiptArtifactI18n.t, snapshot, brief, model, repoConfig),
     [snapshot, brief, model, repoConfig],
   );
 

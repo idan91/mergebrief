@@ -1,8 +1,11 @@
+import { createI18n } from "i18n";
 import { describe, expect, it } from "vitest";
 
 import { briefFixture } from "@web/features/brief/utils/fixtures";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import { buildReceipt } from "./receipt";
+
+const t = createI18n().t;
 import type { SessionSnapshot } from "../session";
 
 const model = buildBriefViewModel(briefFixture);
@@ -25,6 +28,7 @@ function snapshot(overrides: Partial<SessionSnapshot> = {}): SessionSnapshot {
 describe("buildReceipt", () => {
   it("reports progress and subject from the brief and snapshot", () => {
     const receipt = buildReceipt(
+      t,
       snapshot({ reviewedChunkIds: ["chunk-a"] }),
       briefFixture,
       model,
@@ -42,7 +46,7 @@ describe("buildReceipt", () => {
   });
 
   it("counts dispositions and lists an open flag by default", () => {
-    const receipt = buildReceipt(snapshot(), briefFixture, model);
+    const receipt = buildReceipt(t, snapshot(), briefFixture, model);
     expect(receipt.counts).toEqual({ addressed: 0, dismissed: 0, open: 2 });
     expect(receipt.open).toEqual([
       { id: flagId, attr: "no-tests", file: "src/leak.ts" },
@@ -56,6 +60,7 @@ describe("buildReceipt", () => {
 
   it("carries a dismissal reason verbatim", () => {
     const receipt = buildReceipt(
+      t,
       snapshot({
         dispositions: {
           [flagId]: {
@@ -80,6 +85,7 @@ describe("buildReceipt", () => {
 
   it("resolves addressed evidence per flag", () => {
     const receipt = buildReceipt(
+      t,
       snapshot({
         dispositions: {
           [flagId]: {
@@ -104,6 +110,7 @@ describe("buildReceipt", () => {
 
   it("keeps addressed-pending-evidence (no evidence key)", () => {
     const receipt = buildReceipt(
+      t,
       snapshot({ dispositions: { [flagId]: { kind: "addressed" } } }),
       briefFixture,
       model,
@@ -124,6 +131,7 @@ describe("buildReceipt", () => {
       selectedText: "validate(a);",
     };
     const receipt = buildReceipt(
+      t,
       snapshot({
         reclassifiedGroupIds: ["g1"],
         reviewComments: [
@@ -202,7 +210,7 @@ describe("receipt repo-config record", () => {
   };
 
   it("carries the per-file table, collisions, and the de-emphasis line", () => {
-    const receipt = buildReceipt(snapshot(), briefFixture, model, SNAPSHOT);
+    const receipt = buildReceipt(t, snapshot(), briefFixture, model, SNAPSHOT);
     expect(receipt.repoConfig?.files.map((f) => f.outcome)).toEqual([
       "applied",
       "absent",
@@ -216,7 +224,7 @@ describe("receipt repo-config record", () => {
 
   it("stays absent without a snapshot or with an all-absent surface", () => {
     expect(
-      buildReceipt(snapshot(), briefFixture, model).repoConfig,
+      buildReceipt(t, snapshot(), briefFixture, model).repoConfig,
     ).toBeUndefined();
     const allAbsent = {
       files: SNAPSHOT.files.map((file) => ({
@@ -228,14 +236,14 @@ describe("receipt repo-config record", () => {
       policy: null,
     };
     expect(
-      buildReceipt(snapshot(), briefFixture, model, allAbsent).repoConfig,
+      buildReceipt(t, snapshot(), briefFixture, model, allAbsent).repoConfig,
     ).toBeUndefined();
   });
 });
 
 describe("receipt de-emphasis count dedupes path-scoped rules", () => {
   it("two rules on one attribute count as one attribute", () => {
-    const receipt = buildReceipt(snapshot(), briefFixture, model, {
+    const receipt = buildReceipt(t, snapshot(), briefFixture, model, {
       files: [
         {
           path: ".mergebrief/instructions.md",

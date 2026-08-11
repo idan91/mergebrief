@@ -31,7 +31,7 @@ export function SummaryPreview({
 }: SummaryPreviewProps) {
   const { t } = useTranslation();
   const model = buildBriefViewModel(brief);
-  const receipt = buildReceipt(snapshot, brief, model);
+  const receipt = buildReceipt(t, snapshot, brief, model);
   const reviewedChunkIds = new Set(snapshot.reviewedChunkIds);
   const coreChunks = brief.chunks.filter((chunk) => chunk.role === Roles.CORE);
   const supportingChunks = brief.chunks.filter(

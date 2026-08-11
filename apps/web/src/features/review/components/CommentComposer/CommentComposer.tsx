@@ -87,7 +87,7 @@ export function CommentComposer({
       ) : null}
       <div className={styles["actions"]}>
         <button className="btn primary" type="button" onClick={composer.submit}>
-          {reviewCommentSubmitLabel(existingReviewCommentCount)}
+          {reviewCommentSubmitLabel(t, existingReviewCommentCount)}
         </button>
         <button className="btn" type="button" onClick={cancel}>
           {t("review.comment.cancel")}

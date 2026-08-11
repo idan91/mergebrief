@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createI18n } from "i18n";
 
 import type { CommentAnchor, ReviewComment } from "./comments";
 import type { Receipt } from "./receipt";
@@ -11,6 +12,7 @@ import {
 } from "./submit";
 
 const COMMIT_ID = "c".repeat(40);
+const t = createI18n().t;
 
 function anchor(overrides: Partial<CommentAnchor> = {}): CommentAnchor {
   return {
@@ -171,41 +173,45 @@ describe("buildSignatureLine", () => {
 
 describe("submitBlockedReason", () => {
   it("blocks a neutral comment submit with nothing to say", () => {
-    expect(submitBlockedReason("comment", [])).toMatch(/at least one comment/i);
+    expect(submitBlockedReason(t, "comment", [])).toMatch(
+      /at least one comment/i,
+    );
   });
 
   it("allows a neutral comment submit with a draft comment", () => {
-    expect(submitBlockedReason("comment", [comment("a")])).toBeUndefined();
+    expect(submitBlockedReason(t, "comment", [comment("a")])).toBeUndefined();
   });
 
   it("blocks a comment-outcome submit whose drafts were all already submitted", () => {
     const submitted: ReviewComment = { ...comment("a"), status: "submitted" };
-    expect(submitBlockedReason("comment", [submitted])).toMatch(
+    expect(submitBlockedReason(t, "comment", [submitted])).toMatch(
       /at least one comment/i,
     );
   });
 
   it("allows approve and request-changes without comments", () => {
-    expect(submitBlockedReason("approve", [])).toBeUndefined();
-    expect(submitBlockedReason("request-changes", [])).toBeUndefined();
+    expect(submitBlockedReason(t, "approve", [])).toBeUndefined();
+    expect(submitBlockedReason(t, "request-changes", [])).toBeUndefined();
   });
 
   it("blocks a submit past the route's 100-comment cap with reachable copy", () => {
     const drafts = Array.from({ length: 101 }, (_, index) =>
       comment(`c${index}`),
     );
-    expect(submitBlockedReason("approve", drafts)).toMatch(/100/);
+    expect(submitBlockedReason(t, "approve", drafts)).toMatch(/100/);
     expect(
-      submitBlockedReason("approve", drafts.slice(0, 100)),
+      submitBlockedReason(t, "approve", drafts.slice(0, 100)),
     ).toBeUndefined();
   });
 
   it("blocks a draft anchored to a path past the route's length cap", () => {
     const longPath = `src/${"a".repeat(1_100)}.ts`;
     const drafts = [comment("a", { file: longPath })];
-    expect(submitBlockedReason("approve", drafts)).toMatch(/path.*too long/i);
+    expect(submitBlockedReason(t, "approve", drafts)).toMatch(
+      /path.*too long/i,
+    );
     expect(
-      submitBlockedReason("approve", [comment("b", { file: "src/ok.ts" })]),
+      submitBlockedReason(t, "approve", [comment("b", { file: "src/ok.ts" })]),
     ).toBeUndefined();
   });
 
@@ -217,19 +223,19 @@ describe("submitBlockedReason", () => {
       comment("a", {}, "x".repeat(40_000)),
       comment("b", {}, "y".repeat(40_000)),
     ];
-    expect(submitBlockedReason("approve", drafts)).toMatch(
+    expect(submitBlockedReason(t, "approve", drafts)).toMatch(
       /too large|shorten/i,
     );
     expect(
-      submitBlockedReason("approve", [comment("a", {}, "x".repeat(1_000))]),
+      submitBlockedReason(t, "approve", [comment("a", {}, "x".repeat(1_000))]),
     ).toBeUndefined();
   });
 
   it("allows a neutral comment submit with only a review comment", () => {
     expect(
-      submitBlockedReason("comment", [], "Looks fine overall."),
+      submitBlockedReason(t, "comment", [], "Looks fine overall."),
     ).toBeUndefined();
-    expect(submitBlockedReason("comment", [], "   ")).toMatch(
+    expect(submitBlockedReason(t, "comment", [], "   ")).toMatch(
       /at least one comment/i,
     );
   });
@@ -239,11 +245,11 @@ describe("submitBlockedReason", () => {
     // the same pre-validation the route runs, with copy that points at the
     // review comment as a thing to shorten.
     const drafts = [comment("a", {}, "x".repeat(40_000))];
-    expect(submitBlockedReason("approve", drafts, "r".repeat(30_000))).toMatch(
-      /review comment/i,
-    );
     expect(
-      submitBlockedReason("approve", drafts, "short note"),
+      submitBlockedReason(t, "approve", drafts, "r".repeat(30_000)),
+    ).toMatch(/review comment/i);
+    expect(
+      submitBlockedReason(t, "approve", drafts, "short note"),
     ).toBeUndefined();
   });
 });

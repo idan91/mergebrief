@@ -157,6 +157,21 @@ describe("TokenSettings", () => {
     expect(document.body.textContent).not.toContain(SECRET);
   });
 
+  it("renders a catalog-backed mint failure", async () => {
+    mintMock.mockRejectedValue(new Error("provider detail"));
+    renderSettings();
+
+    fireEvent.change(screen.getByLabelText(/token name/i), {
+      target: { value: "ci-token" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /mint token/i }));
+
+    const alert = await screen.findByText(
+      "Minting failed — nothing was created. Try again.",
+    );
+    expect(alert.getAttribute("role")).toBe("alert");
+  });
+
   it("lists tokens with their lifecycle and revokes in place", async () => {
     revokeMock.mockResolvedValue(undefined);
     renderSettings({ tokens: [LIVE_TOKEN] });
@@ -178,5 +193,17 @@ describe("TokenSettings", () => {
     expect(
       screen.queryByRole("button", { name: /^revoke ci-token$/i }),
     ).toBeNull();
+  });
+
+  it("renders a catalog-backed revoke failure", async () => {
+    revokeMock.mockRejectedValue(new Error("provider detail"));
+    renderSettings({ tokens: [LIVE_TOKEN] });
+
+    fireEvent.click(screen.getByRole("button", { name: /^revoke ci-token$/i }));
+
+    const alert = await screen.findByText(
+      "Revoking failed — the token is still active. Try again.",
+    );
+    expect(alert.getAttribute("role")).toBe("alert");
   });
 });
