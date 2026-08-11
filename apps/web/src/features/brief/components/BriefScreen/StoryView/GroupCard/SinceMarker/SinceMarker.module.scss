@@ -6,7 +6,13 @@
     font-size: var(--font-size-sm);
 
     &[data-state="changed"] {
+      // Only this state is underlined, and a wrapped underline reads as a
+      // stray link — so only this state refuses to break. The unchanged
+      // string is the longer one and stays wrappable: the eyebrow's
+      // ancestor clips on overflow-x rather than scrolling.
+      flex: none;
       color: var(--amber);
+      white-space: nowrap;
     }
   }
 

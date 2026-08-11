@@ -31,20 +31,33 @@
     overflow: hidden auto;
   }
 
+  // Narrow card columns are the norm here, not an edge case, so the row
+  // reflows between its items rather than breaking them mid-phrase.
   .eyebrow {
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: functions.to-rem(12px);
+    gap: functions.to-rem(6px) functions.to-rem(12px);
     margin-block-end: functions.to-rem(12px);
   }
 
   .number {
+    flex: none;
     color: var(--faint);
     font-size: var(--font-size-md);
+    white-space: nowrap;
+  }
+
+  .metrics {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: functions.to-rem(6px) functions.to-rem(12px);
+    margin-inline-start: auto;
   }
 
   .loc {
-    margin-inline-start: auto;
     color: var(--faint);
     font-family: var(--mono);
     font-size: var(--font-size-sm);

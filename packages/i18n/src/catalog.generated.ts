@@ -137,6 +137,10 @@ export type Catalog = typeof en & {
     progress: (typeof en)["brief"]["progress"] & {
       segmentLabel: "{{label}} {{step}} of {{total}}: {{title}}";
     };
+    sinceMarker: (typeof en)["brief"]["sinceMarker"] & {
+      changed_one: "{{count}} file changed since {{sha}}";
+      changed_other: "{{count}} files changed since {{sha}}";
+    };
     concern: (typeof en)["brief"]["concern"] & {
       srRiskDetailsFor: " for {{file}}";
       intro_one: "The same {{count}} chunk, pivoted by artifact instead of intent.";

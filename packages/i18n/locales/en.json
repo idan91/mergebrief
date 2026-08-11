@@ -526,7 +526,9 @@
     },
     "sinceMarker": {
       "titleOpenDeltaLens": "Open the delta lens — compare against your last review",
-      "unchanged": "unchanged since your last review"
+      "unchanged": "unchanged since your last review",
+      "changed_one": "{{count}} file changed since {{sha}}",
+      "changed_other": "{{count}} files changed since {{sha}}"
     },
     "concern": {
       "eyebrow": "Attention split",

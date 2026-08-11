@@ -36,7 +36,10 @@ export function SinceMarker({
       </span>
     );
   }
-  const label = `${changedFileCount} file${changedFileCount === 1 ? "" : "s"} changed since ${baselineShortSha}`;
+  const label = t("brief.sinceMarker.changed", {
+    count: changedFileCount,
+    sha: baselineShortSha,
+  });
   return (
     <span
       className={styles["marker"]}

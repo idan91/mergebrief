@@ -119,32 +119,36 @@ export const GroupCard = memo(function GroupCard({
               total: model.groups.length,
             })}
           </span>
-          <CoreLinesDisclosure
-            allAdded={group.added}
-            allDeleted={group.deleted}
-            className={styles["loc"]}
-            coreAdded={group.coreAdded}
-            coreDeleted={group.coreDeleted}
-          >
-            <span aria-hidden="true">{"≈ "}</span>
-            <ScreenReaderOnly>
-              {t("brief.group.approximately")}
-            </ScreenReaderOnly>
-            <span className="green">+{group.coreAdded}</span> /{" "}
-            <span className="red">−{group.coreDeleted}</span>{" "}
-            {t("brief.group.coreSuffix")} ·{" "}
-            {t("brief.group.chunkCounts", {
-              core: group.coreChunks.length,
-              supporting: group.supportingChunks.length,
-            })}
-          </CoreLinesDisclosure>
-          {sinceBaselineShortSha !== undefined ? (
-            <SinceMarker
-              baselineShortSha={sinceBaselineShortSha}
-              changedFileCount={sinceChangedFileCount ?? 0}
-              openDeltaLens={openDeltaLens}
-            />
-          ) : null}
+          {/* Owns the eyebrow's right edge, so adding a metric cannot move
+              the anchor. */}
+          <div className={styles["metrics"]}>
+            <CoreLinesDisclosure
+              allAdded={group.added}
+              allDeleted={group.deleted}
+              className={styles["loc"]}
+              coreAdded={group.coreAdded}
+              coreDeleted={group.coreDeleted}
+            >
+              <span aria-hidden="true">{"≈ "}</span>
+              <ScreenReaderOnly>
+                {t("brief.group.approximately")}
+              </ScreenReaderOnly>
+              <span className="green">+{group.coreAdded}</span> /{" "}
+              <span className="red">−{group.coreDeleted}</span>{" "}
+              {t("brief.group.coreSuffix")} ·{" "}
+              {t("brief.group.chunkCounts", {
+                core: group.coreChunks.length,
+                supporting: group.supportingChunks.length,
+              })}
+            </CoreLinesDisclosure>
+            {sinceBaselineShortSha !== undefined ? (
+              <SinceMarker
+                baselineShortSha={sinceBaselineShortSha}
+                changedFileCount={sinceChangedFileCount ?? 0}
+                openDeltaLens={openDeltaLens}
+              />
+            ) : null}
+          </div>
         </div>
         <h2 className={styles["title"]}>{group.group.title}</h2>
         <p className={styles["summary"]}>{group.group.summary}</p>
