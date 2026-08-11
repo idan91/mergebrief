@@ -2,6 +2,7 @@
 // `useMarkReady` with the soft gate (risk flags OR unposted drafts), the
 // opt-in "post my drafts, then mark ready" batch, the gate's intent-check
 // lines, and the entry/exit/head-advance focus rescues.
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useLatestRef } from "@web/hooks/useLatestRef";
@@ -95,6 +96,7 @@ export interface UseMarkReadyFlowValue {
 export function useMarkReadyFlow(
   input: UseMarkReadyFlowInput,
 ): UseMarkReadyFlowValue {
+  const { t } = useTranslation();
   const {
     action,
     announce,
@@ -259,7 +261,7 @@ export function useMarkReadyFlow(
             // STARTED the batch and a remount-mid-batch would drop it.
             recordPostNotice(
               briefId,
-              markReadyBatchFailureCopy(posted, total, outcome),
+              markReadyBatchFailureCopy(t, posted, total, outcome),
             );
             // The closing modal may hold focus and NEITHER sibling rescue
             // fires here (no state exit, no head advance) — re-home dropped
@@ -290,7 +292,7 @@ export function useMarkReadyFlow(
         batchInFlight.current = false;
       }
     },
-    [briefId, markReady, postDraft],
+    [briefId, markReady, postDraft, t],
   );
   const markReadyAnyway = useCallback(() => {
     if (postDraftsOnReady && unpostedDraftComments.length > 0) {
@@ -308,7 +310,7 @@ export function useMarkReadyFlow(
     gateOpen: markReadyGateOpen,
     closeGate: closeMarkReadyGate,
     markReadyAnyway,
-    batchBusyLabel: markReadyBatchBusyLabel(markReadyBatch),
+    batchBusyLabel: markReadyBatchBusyLabel(t, markReadyBatch),
     postDraftsOnReady,
     setPostDraftsOnReady,
     unpostedDraftCount: unpostedDraftComments.length,

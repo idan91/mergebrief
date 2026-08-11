@@ -1,5 +1,7 @@
 // Closure-free BriefScreen logic: derivations extracted from the screen/hooks
 // so they are unit-testable directly, without rendering.
+import type { TFunction } from "i18next";
+import type { TranslationKey } from "i18n";
 import type {
   RiskEvidence,
   RiskEvidenceKind,
@@ -204,33 +206,40 @@ export function discriminateNarrativeArtifact(
  * on the stop-cause. Only `indeterminate` reads as may-have-posted — a
  * confident "not posted" there would invite a double-posting retry.
  */
+const BATCH_CAUSE_KEYS = {
+  rejected: "brief.markReadyBatch.causeRejected",
+  unauthorized: "brief.markReadyBatch.causeUnauthorized",
+  stale: "brief.markReadyBatch.causeStale",
+  "not-found": "brief.markReadyBatch.causeNotFound",
+  indeterminate: "brief.markReadyBatch.causeIndeterminate",
+} as const satisfies Record<
+  Exclude<PostDraftOutcome, "posted">,
+  TranslationKey
+>;
+
 export function markReadyBatchFailureCopy(
+  t: TFunction,
   posted: number,
   total: number,
   cause: Exclude<PostDraftOutcome, "posted">,
 ): string {
-  const counts = `Posted ${String(posted)} of ${String(total)}.`;
-  const suffix = "The PR was NOT marked ready.";
-  switch (cause) {
-    case "rejected":
-      return `${counts} One comment was rejected before posting — edit the draft and try again. ${suffix}`;
-    case "unauthorized":
-      return `${counts} One comment could not be posted — your GitHub session expired, sign in again to continue. ${suffix}`;
-    case "stale":
-      return `${counts} One comment could not be posted — the pull request has newer commits, reload to post against the current diff. ${suffix}`;
-    case "not-found":
-      return `${counts} One comment could not be posted — this pull request is no longer accessible on GitHub. ${suffix}`;
-    case "indeterminate":
-      return `${counts} One comment may or may not have posted — check GitHub before retrying. ${suffix}`;
-  }
+  return [
+    t("brief.markReadyBatch.counts", { posted, total }),
+    t(BATCH_CAUSE_KEYS[cause]),
+    t("brief.markReadyBatch.suffix"),
+  ].join(" ");
 }
 
 /** The running batch's confirm-button pending label, if a batch runs. */
 export function markReadyBatchBusyLabel(
+  t: TFunction,
   batch: { current: number; total: number } | null,
 ): string | undefined {
   return batch !== null
-    ? `Posting ${String(batch.current)} of ${String(batch.total)}…`
+    ? t("brief.markReadyBatch.busyLabel", {
+        current: batch.current,
+        total: batch.total,
+      })
     : undefined;
 }
 

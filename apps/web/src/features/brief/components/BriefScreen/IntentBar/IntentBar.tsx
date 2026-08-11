@@ -1,3 +1,5 @@
+import type { TranslationKey } from "i18n";
+import { useTranslation } from "react-i18next";
 import {
   forwardRef,
   useId,
@@ -22,12 +24,12 @@ export interface IntentBarHandle {
 }
 
 /** Neutral one-liner shown when the intent source is not checkable. */
-const UNAVAILABLE_REASON: Record<
+const UNAVAILABLE_REASON_KEY: Record<
   Exclude<IntentCheck["specificity"], "precise">,
-  string
+  TranslationKey
 > = {
-  broad: "the ticket scope is too broad to check against this PR",
-  none: "no stated intent was available for this PR",
+  broad: "brief.intent.reasonBroad",
+  none: "brief.intent.reasonNone",
 };
 
 /**
@@ -65,6 +67,7 @@ function isHttpUrl(value: string): boolean {
  */
 export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
   function IntentBar({ intentCheck, jumpToGroup }, ref) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const sectionRef = useRef<HTMLElement>(null);
     const panelId = useId();
@@ -216,54 +219,60 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
           >
             ▶
           </span>
-          <span className={styles["title"]}>Intent check</span>
+          <span className={styles["title"]}>{t("brief.intent.title")}</span>
           {available ? (
             <span className={styles["counts"]}>
               {/* Every count stays neutral and uncolored — an alarm count
                   reads exactly like the others; the register lives in the
                   body's caution lines, not here. */}
               <span className={styles["count"]}>
-                {intentCheck.accomplished.length} accomplished
+                {t("brief.intent.accomplished", {
+                  count: intentCheck.accomplished.length,
+                })}
               </span>
               <span className={styles["count"]}>
-                {intentCheck.claimedButUnachieved.length} claimed but unachieved
+                {t("brief.intent.claimedButUnachieved", {
+                  count: intentCheck.claimedButUnachieved.length,
+                })}
               </span>
               <span className={styles["count"]}>
-                {intentCheck.deviations.length}{" "}
-                {intentCheck.deviations.length === 1
-                  ? "deviation"
-                  : "deviations"}
+                {t("brief.intent.deviations", {
+                  count: intentCheck.deviations.length,
+                })}
               </span>
               <span className={styles["count"]}>
-                {intentCheck.statedButMissing.length} stated but missing
+                {t("brief.intent.statedButMissing", {
+                  count: intentCheck.statedButMissing.length,
+                })}
               </span>
               <span className={styles["count"]}>
-                {intentCheck.doneButUnstated.length} done but unstated
+                {t("brief.intent.doneButUnstated", {
+                  count: intentCheck.doneButUnstated.length,
+                })}
               </span>
               {ticketUrls.length > 0 ? (
                 <span className={styles["sources"]}>
-                  {ticketUrls.length} linked{" "}
-                  {ticketUrls.length === 1 ? "ticket" : "tickets"}
+                  {t("brief.intent.linkedTickets", {
+                    count: ticketUrls.length,
+                  })}
                 </span>
               ) : null}
             </span>
           ) : (
             <span className={styles["unavailable"]}>
-              intent check unavailable — {UNAVAILABLE_REASON[specificity]}
+              {t("brief.intent.unavailable", {
+                reason: t(UNAVAILABLE_REASON_KEY[specificity]),
+              })}
             </span>
           )}
         </button>
         <div className={styles["panel"]} hidden={!open} id={panelId}>
           <ExpandableContent
-            collapseLabel="Collapse intent check"
-            expandLabel="Show full intent check"
+            collapseLabel={t("brief.intent.collapseLabel")}
+            expandLabel={t("brief.intent.expandLabel")}
             testId="intent-text"
           >
-            <p className={styles["framing"]}>
-              This is the AI&rsquo;s fallible read of the PR&rsquo;s stated
-              intent — a factual summary of what the diff does against what the
-              ticket asked, never a verdict.
-            </p>
+            <p className={styles["framing"]}>{t("brief.intent.framing")}</p>
             {scopeNote !== "" ? (
               <p className={styles["scopeNote"]}>{scopeNote}</p>
             ) : null}
@@ -272,24 +281,30 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
               oriented, then neutral gaps, acknowledged deviations last. */}
             {available ? (
               <>
-                {renderBucket("Accomplished", intentCheck.accomplished)}
                 {renderBucket(
-                  "Claimed but unachieved",
+                  t("brief.intent.bucketAccomplished"),
+                  intentCheck.accomplished,
+                )}
+                {renderBucket(
+                  t("brief.intent.bucketClaimedButUnachieved"),
                   intentCheck.claimedButUnachieved,
                   ALARM_CAUTION,
                 )}
                 {renderBucket(
-                  "Deviations",
+                  t("brief.intent.bucketDeviations"),
                   unacknowledgedDeviations,
                   ALARM_CAUTION,
                 )}
                 {renderBucket(
-                  "Stated but missing",
+                  t("brief.intent.bucketStatedButMissing"),
                   intentCheck.statedButMissing,
                 )}
-                {renderBucket("Done but unstated", intentCheck.doneButUnstated)}
                 {renderBucket(
-                  "Deviations acknowledged in the description",
+                  t("brief.intent.bucketDoneButUnstated"),
+                  intentCheck.doneButUnstated,
+                )}
+                {renderBucket(
+                  t("brief.intent.bucketAcknowledgedDeviations"),
                   acknowledgedDeviations,
                 )}
               </>

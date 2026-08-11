@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { ExpandableContent } from "@web/components/ExpandableContent/ExpandableContent";
@@ -17,6 +18,7 @@ export interface SummarySectionProps {
  * risk-surface summary — this section carries no risk chip lane of its own.
  */
 export function SummarySection({ brief }: SummarySectionProps) {
+  const { t } = useTranslation();
   const [descriptionOpen, setDescriptionOpen] = useState(false);
   return (
     <section
@@ -24,7 +26,9 @@ export function SummarySection({ brief }: SummarySectionProps) {
       data-testid="brief-summary"
     >
       <div className={styles["eyebrow"]}>
-        {brief.artifactKind === "delta" ? "Delta brief" : "Brief"}
+        {brief.artifactKind === "delta"
+          ? t("brief.summarySection.eyebrowDelta")
+          : t("brief.summarySection.eyebrowBrief")}
       </div>
       <ExpandableContent testId="summary-text">
         <div>
@@ -41,15 +45,18 @@ export function SummarySection({ brief }: SummarySectionProps) {
             onClick={() => setDescriptionOpen((current) => !current)}
           >
             {descriptionOpen
-              ? "Hide original PR description"
-              : "Show original PR description"}
+              ? t("brief.summarySection.hideDescription")
+              : t("brief.summarySection.showDescription")}
           </button>
           {descriptionOpen ? (
             <div className={styles["description"]} data-testid="pr-description">
-              <div className={styles["eyebrow"]}>Original PR description</div>
+              <div className={styles["eyebrow"]}>
+                {t("brief.summarySection.originalDescription")}
+              </div>
               <Markdown
                 content={
-                  brief.pr.description || "_No PR description provided._"
+                  brief.pr.description ||
+                  t("brief.summarySection.noDescription")
                 }
               />
             </div>

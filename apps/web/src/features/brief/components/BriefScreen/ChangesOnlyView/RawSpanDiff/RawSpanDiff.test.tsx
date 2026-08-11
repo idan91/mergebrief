@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { appI18n } from "../../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -64,6 +65,7 @@ function renderRaw(query: ComparisonQuery<string>, client?: QueryClient) {
       postBlockedExternally: undefined,
       postComment: undefined,
     },
+    appI18n.t,
   );
   return render(
     <QueryClientProvider client={client}>

@@ -67,7 +67,7 @@ export function DbCompareBar({
     }
     const reason =
       (compare === "last-review" ? lastReviewDisabledReason : undefined) ??
-      compareUnavailableTitle(compare);
+      compareUnavailableTitle(t, compare);
     const tooltipId = `db-compare-${compare}-reason`;
     return (
       <span

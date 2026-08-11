@@ -2,6 +2,7 @@
 // The one-modal submit flow: verdict-first default view, receipt as pure
 // preview, live blocked-reason against the store draft, and the stale-head
 // submit ack (modal-local, resets on reopen).
+import { appI18n } from "../../../../i18n/I18nProvider";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -41,6 +42,7 @@ function flowStore(): ReviewFlowStore {
       postBlockedExternally: undefined,
       postComment: undefined,
     },
+    appI18n.t,
   );
 }
 

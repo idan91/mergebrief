@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
 
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
@@ -148,6 +149,7 @@ function FocusGroupRail({
   setOpen,
   jumpToChunk,
 }: FocusGroupRailProps) {
+  const { t } = useTranslation();
   const panelId = useId();
   const groupFlags = model.flagsByGroup.get(group.id) ?? EMPTY_RISK_FLAGS;
   const dominant = group.group.dominantCategory;
@@ -158,14 +160,18 @@ function FocusGroupRail({
 
   return (
     <aside
-      aria-label="Focused change-group context"
+      aria-label={t("brief.story.ariaLabelFocusContext")}
       className={`${styles["focusRail"]} focus-group-rail`}
       data-state={open ? "open" : "collapsed"}
     >
       <button
         aria-controls={panelId}
         aria-expanded={open}
-        aria-label={open ? "Collapse group context" : "Expand group context"}
+        aria-label={
+          open
+            ? t("brief.story.ariaLabelCollapseContext")
+            : t("brief.story.ariaLabelExpandContext")
+        }
         className={styles["railToggle"]}
         type="button"
         onClick={() => setOpen(!open)}
@@ -213,7 +219,7 @@ function FocusGroupRail({
           {/* The keyboard-reachable scroll region: tabindex + label live here,
               on the element that actually scrolls, so they coincide. */}
           <div
-            aria-label="Change-group details"
+            aria-label={t("brief.story.ariaLabelGroupDetails")}
             className={styles["railScroller"]}
             role="region"
             tabIndex={0}

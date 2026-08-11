@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Callout } from "@web/components/Callout/Callout";
 import {
   bindComparisonCallout,
@@ -34,6 +35,7 @@ export function ComparisonCallout({
   source,
   skipReason,
 }: ComparisonCalloutProps) {
+  const { t } = useTranslation();
   const callout = bindComparisonCallout(run, chunk, source);
   const verb = run.kind === "removed" ? "Removed" : "New";
   const eyebrow =
@@ -65,8 +67,8 @@ export function ComparisonCallout({
         <Callout.Body>
           <span className={styles["unavailable"]}>
             {skipReason
-              ? `Summary skipped — ${skipReason}.`
-              : "Summary unavailable for this span."}
+              ? t("brief.diff.summarySkipped", { reason: skipReason })
+              : t("brief.diff.summaryUnavailable")}
           </span>
         </Callout.Body>
       )}

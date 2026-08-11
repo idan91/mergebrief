@@ -3,6 +3,7 @@
 // identity pinning that keeps every plan stable across PR-meta poll ticks
 // (each refetch rebuilds `timeline` object identities, and these plans feed
 // memoized ChunkCards).
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 
@@ -79,6 +80,7 @@ export interface UsePrBriefPlansValue {
 export function usePrBriefPlans(
   input: UsePrBriefPlansInput,
 ): UsePrBriefPlansValue {
+  const { t } = useTranslation();
   const { repoId, prNumber, span, meta, timeline, revisionJump } = input;
 
   // On the timeline path the SELECTED revision's own availability drives the
@@ -184,7 +186,7 @@ export function usePrBriefPlans(
   // the disabled control; an absent field keeps the generic copy.
   const lastReviewDisabledReason =
     lastReview?.kind === "unavailable"
-      ? lastReviewUnavailableReasonTitle(lastReview.reason)
+      ? lastReviewUnavailableReasonTitle(t, lastReview.reason)
       : undefined;
 
   // Anchors were read against THIS span's head, so the review pins

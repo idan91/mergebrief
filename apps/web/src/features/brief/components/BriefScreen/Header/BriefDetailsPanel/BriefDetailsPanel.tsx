@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Callout } from "@web/components/Callout/Callout";
@@ -35,6 +36,7 @@ export function BriefDetailsPanel({
   totalCoreDeleted,
   repoConfig,
 }: BriefDetailsPanelProps) {
+  const { t } = useTranslation();
   const detailId = useId();
   const [open, setOpen] = useState(false);
   const [landing, setLanding] = useState<"warnings" | null>(null);
@@ -129,7 +131,7 @@ export function BriefDetailsPanel({
         <button
           aria-controls={open ? detailId : undefined}
           aria-expanded={open}
-          aria-label="Brief details"
+          aria-label={t("brief.details.ariaLabelTrigger")}
           className={styles["trigger"]}
           data-brief-details-trigger=""
           ref={setTriggerEl}
@@ -198,27 +200,31 @@ function ArtifactSection({
   totalCoreAdded: number;
   totalCoreDeleted: number;
 }) {
+  const { t } = useTranslation();
   return (
     <section className={styles["section"]} data-details-section="artifact">
-      <h2 className={styles["heading"]}>Artifact</h2>
+      <h2 className={styles["heading"]}>
+        {t("brief.details.artifactHeading")}
+      </h2>
       <dl className={styles["facts"]}>
-        <dt>kind</dt>
+        <dt>{t("brief.details.kind")}</dt>
         <dd>{brief.artifactKind}</dd>
         {brief.artifactKind === "brief" && brief.index != null ? (
           <>
-            <dt>brief index</dt>
+            <dt>{t("brief.details.briefIndex")}</dt>
             <dd>_{brief.index}</dd>
           </>
         ) : null}
         {brief.artifactKind === "brief" && brief.commitRange ? (
           <>
-            <dt>commit range</dt>
+            <dt>{t("brief.details.commitRange")}</dt>
             <dd>
               {short(brief.commitRange.base)}..{short(brief.commitRange.head)} ·{" "}
-              {brief.commitRange.commitCount} commit
-              {brief.commitRange.commitCount === 1 ? "" : "s"}
+              {t("brief.details.commits", {
+                count: brief.commitRange.commitCount,
+              })}
             </dd>
-            <dt>full SHAs</dt>
+            <dt>{t("brief.details.fullShas")}</dt>
             <dd className={styles["shas"]}>
               {brief.commitRange.base}
               {" → "}
@@ -230,7 +236,7 @@ function ArtifactSection({
         brief.baselineSha &&
         brief.headSha ? (
           <>
-            <dt>span</dt>
+            <dt>{t("brief.details.span")}</dt>
             <dd>
               {brief.baselineIndex != null
                 ? `_${brief.baselineIndex}`
@@ -240,7 +246,7 @@ function ArtifactSection({
                 ? `_${brief.headIndex}`
                 : short(brief.headSha)}
             </dd>
-            <dt>full SHAs</dt>
+            <dt>{t("brief.details.fullShas")}</dt>
             <dd className={styles["shas"]}>
               {brief.baselineSha}
               {" → "}
@@ -248,21 +254,20 @@ function ArtifactSection({
             </dd>
           </>
         ) : null}
-        <dt>adjusted lines</dt>
+        <dt>{t("brief.details.adjustedLines")}</dt>
         <dd>
           <span className="green">+{totalAdded}</span>{" "}
           <span className="red">−{totalDeleted}</span>
         </dd>
-        <dt>core lines</dt>
+        <dt>{t("brief.details.coreLines")}</dt>
         <dd>
           <span className="green">+{totalCoreAdded}</span>{" "}
           <span className="red">−{totalCoreDeleted}</span>
         </dd>
       </dl>
       <p className={styles["caveat"]}>
-        <b>Adjusted ≈ git for this local brief.</b> Move detection is not in the
-        current categorizer output, so moved/generated exclusions are not
-        claimed yet. Core lines share the same approximation.
+        <b>{t("brief.details.adjustedCaveatLead")}</b>{" "}
+        {t("brief.details.adjustedCaveatBody")}
       </p>
     </section>
   );
@@ -275,26 +280,29 @@ function GenerationSection({
   brief: Brief;
   warningsRef: (node: HTMLDivElement | null) => void;
 }) {
+  const { t } = useTranslation();
   const generation = brief.generation;
   const warnings = [...new Set(brief.generationWarnings ?? [])];
   return (
     <section className={styles["section"]} data-details-section="generation">
-      <h2 className={styles["heading"]}>Generation</h2>
+      <h2 className={styles["heading"]}>
+        {t("brief.details.generationHeading")}
+      </h2>
       {generation ? (
         <dl className={styles["facts"]}>
-          <dt>provider</dt>
+          <dt>{t("brief.details.provider")}</dt>
           <dd>{generation.provider}</dd>
-          <dt>model</dt>
+          <dt>{t("brief.details.model")}</dt>
           <dd className={styles["shas"]}>{generation.model}</dd>
           {generation.effort ? (
             <>
-              <dt>effort</dt>
+              <dt>{t("brief.details.effort")}</dt>
               <dd>{generation.effort}</dd>
             </>
           ) : null}
         </dl>
       ) : (
-        <p className={styles["caveat"]}>No origin stamp on this artifact.</p>
+        <p className={styles["caveat"]}>{t("brief.details.noOriginStamp")}</p>
       )}
       {warnings.length > 0 ? (
         // The header chip's landing target, hence focusable.
@@ -319,17 +327,18 @@ function RepoConfigSection({
 }: {
   repoConfig: RepoConfigContext | null | undefined;
 }) {
+  const { t } = useTranslation();
   const anyPresent =
     repoConfig != null &&
     (repoConfig.files.some((file) => file.outcome !== "absent") ||
       repoConfig.collisions.length > 0);
   return (
     <section className={styles["section"]} data-details-section="repo-config">
-      <h2 className={styles["heading"]}>Repo config</h2>
+      <h2 className={styles["heading"]}>
+        {t("brief.details.repoConfigHeading")}
+      </h2>
       {!anyPresent ? (
-        <p className={styles["caveat"]}>
-          No .mergebrief configuration applied to this generation.
-        </p>
+        <p className={styles["caveat"]}>{t("brief.details.noRepoConfig")}</p>
       ) : (
         // Slimmed on purpose: bytes-of-budget and per-file blob SHAs stay
         // out; the warning-state chip's own callout keeps the full table.

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Markdown } from "@web/components/Markdown/Markdown";
 import { categoryLabel } from "../../../utils/viewModel";
 import type { BriefViewModel } from "../../../utils/viewModel";
@@ -86,6 +87,7 @@ function PreviousBriefChanges({
   narrative,
   skipReason,
 }: PreviousBriefChangesProps) {
+  const { t } = useTranslation();
   // Brief origin, not narrative content — so it renders independently of
   // narrative availability, and stays hidden for anchored revisions,
   // always-regenerate instances, and briefs with no stamp.
@@ -93,8 +95,8 @@ function PreviousBriefChanges({
     brief.anchor?.state === "fresh-restart" ? (
       <p className={styles["restartNote"]} role="note">
         {brief.anchor.reason === "model-swap"
-          ? "Regenerated fresh — model change."
-          : "Regenerated fresh."}
+          ? t("brief.changes.regeneratedModelChange")
+          : t("brief.changes.regeneratedFresh")}
       </p>
     ) : null;
   // The actionable read is "pick a stronger model", so the individual
@@ -124,8 +126,8 @@ function PreviousBriefChanges({
         {restartNote}
         {lengthNote}
         <EmptyState>
-          <b>Revision summary unavailable.</b> The mechanical highlights in Full
-          Brief still show what changed since the previous Brief.
+          <b>{t("brief.changes.revisionSummaryUnavailableLead")}</b>{" "}
+          {t("brief.changes.revisionSummaryUnavailableBody")}
         </EmptyState>
       </>
     );
@@ -234,11 +236,12 @@ function hasLengthViolations(
 }
 
 function LastReviewChanges({ delta }: LastReviewChangesProps) {
+  const { t } = useTranslation();
   if (!delta) {
     return (
       <EmptyState>
-        <b>Changes summary unavailable.</b> The highlighted lines in Full brief
-        still show what changed since your last review.
+        <b>{t("brief.changes.changesSummaryUnavailableLead")}</b>{" "}
+        {t("brief.changes.changesSummaryUnavailableBody")}
       </EmptyState>
     );
   }

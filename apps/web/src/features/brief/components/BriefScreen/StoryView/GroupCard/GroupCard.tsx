@@ -1,3 +1,5 @@
+import { riskFlagDescription } from "../../../../utils/viewModel";
+import { useTranslation } from "react-i18next";
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -62,6 +64,7 @@ export const GroupCard = memo(function GroupCard({
   sinceBaselineShortSha,
   openDeltaLens,
 }: GroupCardProps) {
+  const { t } = useTranslation();
   const dispositions = useMindMap((state) => state.dispositions);
   const dominants = useMindMap((state) => state.dominants);
   const reclassifiedGroups = useMindMap((state) => state.reclassifiedGroups);
@@ -119,7 +122,9 @@ export const GroupCard = memo(function GroupCard({
             coreDeleted={group.coreDeleted}
           >
             <span aria-hidden="true">{"≈ "}</span>
-            <ScreenReaderOnly>approximately </ScreenReaderOnly>
+            <ScreenReaderOnly>
+              {t("brief.group.approximately")}
+            </ScreenReaderOnly>
             <span className="green">+{group.coreAdded}</span> /{" "}
             <span className="red">−{group.coreDeleted}</span> core ·{" "}
             {group.coreChunks.length} core · {group.supportingChunks.length}{" "}
@@ -143,7 +148,7 @@ export const GroupCard = memo(function GroupCard({
         ) : null}
         <div className={styles["categoryRow"]}>
           <span className={styles["chip"]} data-kind="dominant">
-            <em>dominant</em> {dominant}
+            <em>{t("brief.group.dominant")}</em> {dominant}
           </span>
           {group.group.secondaryCategories.map((category) => (
             <span className={styles["chip"]} key={category}>
@@ -167,7 +172,7 @@ export const GroupCard = memo(function GroupCard({
              fully-de-emphasized attributes behind "+n". Disclosure, never a
              count-as-severity signal or an aggregate glyph. */
           <div
-            aria-label="Risk-surface attributes in this group"
+            aria-label={t("brief.group.ariaLabelGroupRisks")}
             className={styles["groupRiskRow"]}
             data-testid="group-risk-union"
             role="group"
@@ -183,7 +188,13 @@ export const GroupCard = memo(function GroupCard({
               if (meta?.source === "repo-policy") {
                 return (
                   <RiskChipDisclosure
-                    detail={`Defined by repo policy${meta.implication ? ` — ${meta.implication}` : ""}`}
+                    detail={
+                      meta.implication !== undefined
+                        ? t("brief.riskBadge.repoPolicyWithImplication", {
+                            implication: meta.implication,
+                          })
+                        : t("brief.riskBadge.repoPolicyLead")
+                    }
                     key={attr}
                   >
                     <RiskBadge meta={meta}>{attr}</RiskBadge>
@@ -246,7 +257,9 @@ export const GroupCard = memo(function GroupCard({
       {/* The scrollable region under the fixed head; keyboard-reachable with
           the label on the element that scrolls, so they coincide. */}
       <div
-        aria-label={`${group.group.title} — risk surface`}
+        aria-label={t("brief.group.ariaLabelGroupRiskSurface", {
+          title: group.group.title,
+        })}
         className={styles["body"]}
         role="region"
         tabIndex={0}
@@ -263,7 +276,7 @@ export const GroupCard = memo(function GroupCard({
               <span className={styles["riskInfo"]}>
                 <button
                   aria-describedby={`${group.id}-risk-help`}
-                  aria-label="Risk surface status meanings"
+                  aria-label={t("brief.group.ariaLabelStatusMeanings")}
                   className={styles["infoButton"]}
                   type="button"
                 >
@@ -275,20 +288,19 @@ export const GroupCard = memo(function GroupCard({
                   role="tooltip"
                 >
                   <span>
-                    <b>Addressed:</b> this risk was reviewed and handled.
+                    <b>{t("brief.group.addressedLead")}</b>{" "}
+                    {t("brief.group.addressedBody")}
                   </span>
                   <span>
-                    <b>Dismissed:</b> this risk is not applicable, duplicate, or
-                    a false positive.
+                    <b>{t("brief.group.dismissedLead")}</b>{" "}
+                    {t("brief.group.dismissedBody")}
                   </span>
                 </span>
               </span>
             )}
           </div>
           {groupFlags.length === 0 ? (
-            <p className={styles["empty"]}>
-              No risk-surface attributes on this group.
-            </p>
+            <p className={styles["empty"]}>{t("brief.group.noGroupFlags")}</p>
           ) : null}
           {groupRiskByAttribute(groupFlags).map((riskGroup) => {
             const openRiskFlagIds = riskGroup.flags
@@ -339,7 +351,7 @@ export const GroupCard = memo(function GroupCard({
                       <button
                         className={styles["button"]}
                         disabled={!hasSelection}
-                        title="Mark selected risks as reviewed and handled"
+                        title={t("brief.group.titleMarkSelectedAddressed")}
                         type="button"
                         onClick={() => {
                           setEvidenceTarget({
@@ -355,7 +367,7 @@ export const GroupCard = memo(function GroupCard({
                       <button
                         className={styles["button"]}
                         disabled={!hasSelection}
-                        title="Mark selected risks as not applicable"
+                        title={t("brief.group.titleMarkSelectedDismissed")}
                         type="button"
                         onClick={() => {
                           setDismissTarget({
@@ -388,7 +400,10 @@ export const GroupCard = memo(function GroupCard({
                         <div className={styles["flagRow"]}>
                           {flagsReadOnly ? null : (
                             <input
-                              aria-label={`Select ${flag.attr} flag for ${flag.file}`}
+                              aria-label={t("brief.group.ariaLabelSelectFlag", {
+                                attr: flag.attr,
+                                file: flag.file,
+                              })}
                               checked={
                                 !isResolved && selectedFlagSet.has(flag.id)
                               }
@@ -413,7 +428,7 @@ export const GroupCard = memo(function GroupCard({
                         {!isResolved ? (
                           <>
                             <div className={styles["description"]}>
-                              {flag.description}
+                              {riskFlagDescription(t, flag)}
                             </div>
                             {flag.source === "repo-policy" ? (
                               <div
@@ -446,7 +461,7 @@ export const GroupCard = memo(function GroupCard({
                               <div className={styles["flagActions"]}>
                                 <button
                                   className={styles["button"]}
-                                  title="Mark this risk as reviewed and handled"
+                                  title={t("brief.group.titleMarkAddressed")}
                                   type="button"
                                   onClick={() => {
                                     setEvidenceTarget({
@@ -459,7 +474,7 @@ export const GroupCard = memo(function GroupCard({
                                 </button>
                                 <button
                                   className={styles["button"]}
-                                  title="Mark this risk as not applicable"
+                                  title={t("brief.group.titleMarkDismissed")}
                                   type="button"
                                   onClick={() =>
                                     setDismissTarget({

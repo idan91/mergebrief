@@ -1,3 +1,4 @@
+import { appI18n } from "../../../../i18n/I18nProvider";
 import { describe, expect, it } from "vitest";
 
 import type { ProgressTotals } from "../../utils/progress";
@@ -49,6 +50,8 @@ function intentCheck(overrides: Partial<IntentCheck> = {}): IntentCheck {
     ...overrides,
   };
 }
+
+const t = appI18n.t;
 
 describe("countIntentGaps", () => {
   it("returns 0 for a pre-feature Brief (no intent check)", () => {
@@ -332,29 +335,29 @@ describe("markReadyBatchFailureCopy", () => {
       "not-found",
       "indeterminate",
     ] as const) {
-      const copy = markReadyBatchFailureCopy(1, 3, cause);
+      const copy = markReadyBatchFailureCopy(t, 1, 3, cause);
       expect(copy).toContain("Posted 1 of 3.");
       expect(copy).toContain("The PR was NOT marked ready.");
     }
   });
 
   it("gives the cause's own recovery guidance", () => {
-    expect(markReadyBatchFailureCopy(0, 1, "rejected")).toContain(
+    expect(markReadyBatchFailureCopy(t, 0, 1, "rejected")).toContain(
       "edit the draft and try again",
     );
-    expect(markReadyBatchFailureCopy(0, 1, "unauthorized")).toContain(
+    expect(markReadyBatchFailureCopy(t, 0, 1, "unauthorized")).toContain(
       "sign in again",
     );
-    expect(markReadyBatchFailureCopy(0, 1, "stale")).toContain(
+    expect(markReadyBatchFailureCopy(t, 0, 1, "stale")).toContain(
       "reload to post against the current diff",
     );
-    expect(markReadyBatchFailureCopy(0, 1, "not-found")).toContain(
+    expect(markReadyBatchFailureCopy(t, 0, 1, "not-found")).toContain(
       "no longer accessible",
     );
   });
 
   it("keeps the indeterminate cause indeterminate — never a confident 'not posted'", () => {
-    expect(markReadyBatchFailureCopy(2, 3, "indeterminate")).toContain(
+    expect(markReadyBatchFailureCopy(t, 2, 3, "indeterminate")).toContain(
       "may or may not have posted — check GitHub before retrying",
     );
   });
@@ -362,11 +365,11 @@ describe("markReadyBatchFailureCopy", () => {
 
 describe("markReadyBatchBusyLabel", () => {
   it("returns undefined while no batch runs", () => {
-    expect(markReadyBatchBusyLabel(null)).toBeUndefined();
+    expect(markReadyBatchBusyLabel(t, null)).toBeUndefined();
   });
 
   it("labels the running batch's progress", () => {
-    expect(markReadyBatchBusyLabel({ current: 2, total: 3 })).toBe(
+    expect(markReadyBatchBusyLabel(t, { current: 2, total: 3 })).toBe(
       "Posting 2 of 3…",
     );
   });

@@ -1,3 +1,4 @@
+import { appI18n } from "../../../i18n/I18nProvider";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -26,6 +27,8 @@ const none: CompareOptionFlags = {
   previousBrief: false,
   lastReview: false,
 };
+
+const t = appI18n.t;
 
 describe("parseViewParam / parseCompareParam", () => {
   it("accepts only the canonical vocabulary", () => {
@@ -165,10 +168,10 @@ describe("isCompareAvailable", () => {
 
 describe("lastReviewUnavailableReasonTitle", () => {
   it("maps each unavailable reason to its honest copy", () => {
-    expect(lastReviewUnavailableReasonTitle("pending")).toBe(
+    expect(lastReviewUnavailableReasonTitle(t, "pending")).toBe(
       "Delta still generating",
     );
-    expect(lastReviewUnavailableReasonTitle("baseline-unavailable")).toBe(
+    expect(lastReviewUnavailableReasonTitle(t, "baseline-unavailable")).toBe(
       "History rewritten since your last review",
     );
   });

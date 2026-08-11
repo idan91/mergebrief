@@ -1,3 +1,4 @@
+import type { TranslationKey } from "i18n";
 import type { RepoConfigContext } from "../../brief/utils/repoConfig";
 import type { Brief } from "../../brief/types";
 import type { BriefViewModel } from "@web/features/brief/utils";
@@ -86,12 +87,24 @@ export interface Receipt {
   repoConfig?: ReceiptRepoConfig;
 }
 
-/** Mechanical scope the tool does NOT verify — a builder constant, not faked data. */
+/**
+ * Mechanical scope the tool does NOT verify — a builder constant, not faked
+ * data. Two forms on purpose: the receipt `<pre>` renders a FROZEN artifact
+ * format (fixed-shape lines a reader may copy or diff), so it stays English
+ * and locale-independent; the prose list in the summary reads the catalog.
+ */
 export const RECEIPT_NOT_CHECKED: readonly string[] = [
   "business intent",
   "runtime behavior",
   "performance under load",
   "integration with downstream systems",
+];
+
+export const RECEIPT_NOT_CHECKED_KEYS: readonly TranslationKey[] = [
+  "review.summary.notCheckedIntent",
+  "review.summary.notCheckedRuntime",
+  "review.summary.notCheckedPerformance",
+  "review.summary.notCheckedIntegration",
 ];
 
 export function buildReceipt(

@@ -5,6 +5,7 @@
 // state offers, the refetch-not-optimistic state update, the 403's double
 // refetch (conversation AND capability), and the combo's three outcomes —
 // including that a landed reply is NEVER re-posted.
+import { appI18n } from "../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -187,6 +188,7 @@ function renderDetail(options: RenderOptions = {}) {
       postBlockedExternally: undefined,
       postComment: undefined,
     },
+    appI18n.t,
   );
   const announce = vi.fn(flowStore.getState().actions.announce);
   flowStore.setState({

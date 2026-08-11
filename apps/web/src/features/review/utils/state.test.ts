@@ -1,3 +1,4 @@
+import { appI18n } from "../../../i18n/I18nProvider";
 import { describe, expect, it } from "vitest";
 
 import { Roles, type BriefChunk } from "../../brief/types";
@@ -39,7 +40,7 @@ const riskFlag = {
   chunkId: "chunk-a",
   file: "src/a.ts",
   groupId: "g1",
-  description: "Changed code path has no direct test coverage.",
+  descriptionKey: "brief.risk.noTests",
   source: "built-in",
   deEmphasized: false,
 } satisfies RiskFlag;
@@ -157,10 +158,12 @@ describe("deriveUnresolvedItems", () => {
   });
 });
 
+const t = appI18n.t;
+
 describe("summarySignatureLine", () => {
   it("counts reviewed chunks and risk disposition", () => {
     expect(
-      summarySignatureLine({
+      summarySignatureLine(t, {
         reviewedChunks: 7,
         addressedRisks: 5,
         dismissedRisks: 1,

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Modal } from "@web/components/Modal/Modal";
 import type { DismissTarget } from "../../utils/state";
 import styles from "@web/components/Modal/Modal.module.scss";
@@ -19,20 +20,21 @@ export function DismissModal({
   confirm,
   setReason,
 }: DismissModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal
       open={Boolean(target)}
       close={cancel}
       labelledBy="dismiss-modal-heading"
     >
-      <h3 id="dismiss-modal-heading">Dismiss flag</h3>
+      <h3 id="dismiss-modal-heading">{t("review.dismiss.heading")}</h3>
       <div className={styles["target"]}>{target?.label}</div>
       <textarea
-        aria-label="Dismissal reason"
+        aria-label={t("review.dismiss.reasonLabel")}
         suppressHydrationWarning
         value={reason}
         onChange={(event) => setReason(event.target.value)}
-        placeholder="Why is this flag not actionable here? Your reason lands on the receipt, verbatim."
+        placeholder={t("review.dismiss.reasonPlaceholder")}
       />
       {/* Conditionally rendered (not CSS-toggled) so its appearance is a DOM
           change role="alert" announces; visible timing is unchanged. */}
@@ -47,7 +49,9 @@ export function DismissModal({
           Cancel
         </button>
         <button className="btn primary" type="button" onClick={confirm}>
-          {warned ? "Dismiss anyway" : "Dismiss with reason"}
+          {warned
+            ? t("review.dismiss.dismissAnyway")
+            : t("review.dismiss.dismissWithReason")}
         </button>
       </div>
     </Modal>

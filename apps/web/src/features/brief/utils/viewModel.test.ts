@@ -310,7 +310,7 @@ describe("buildBriefViewModel", () => {
     const flag = model.flags.find((f) => f.attr === "new-abstraction");
     expect(flag).toBeDefined();
     expect(flag?.note).toBeUndefined();
-    expect(flag?.description.length).toBeGreaterThan(0);
+    expect(flag?.descriptionKey).toBe("brief.risk.newAbstraction");
   });
 
   it("falls back to source order when readingOrder is not a valid permutation, even bypassing the parser", () => {
@@ -366,7 +366,9 @@ describe("buildBriefViewModel — repo-config display weight", () => {
     const billing = model.flags.find((f) => f.attr === "touches-billing");
     expect(billing?.source).toBe("repo-policy");
     expect(billing?.implication).toBe("needs finance review");
-    expect(billing?.description).toContain("modifies invoicing code");
+    // Repo-defined attributes carry the repo's own criteria verbatim.
+    expect(billing?.descriptionKey).toBeUndefined();
+    expect(billing?.criteria).toContain("modifies invoicing code");
 
     // c1 has no floor attribute → its widens-error-handling firing is quiet.
     const quiet = model.flags.find(

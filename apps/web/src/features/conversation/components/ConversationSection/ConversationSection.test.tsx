@@ -3,6 +3,7 @@
 // data. Pins the a11y contract (disclosure buttons carry aria-expanded; chips
 // carry text), expansion surviving refetch, the specific error states, the
 // empty state, and the reconciliation flip.
+import { appI18n } from "../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   act,
@@ -223,6 +224,7 @@ function renderSection(
       postBlockedExternally: undefined,
       postComment: undefined,
     },
+    appI18n.t,
   );
   const announce = vi.fn(flowStore.getState().actions.announce);
   flowStore.setState({

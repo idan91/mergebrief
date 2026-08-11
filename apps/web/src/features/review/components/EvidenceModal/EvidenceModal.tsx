@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useState } from "react";
 
 import { Modal } from "@web/components/Modal/Modal";
@@ -66,6 +67,7 @@ function EvidenceForm({
   confirm,
   target,
 }: EvidenceFormProps) {
+  const { t } = useTranslation();
   const [kind, setKind] = useState<RiskEvidenceKind>(
     comments.length > 0 ? "linked-comment" : "chunk-reviewed",
   );
@@ -75,7 +77,7 @@ function EvidenceForm({
   const linkedCommentDisabled = kind === "linked-comment" && !commentId;
   return (
     <>
-      <h3 id="evidence-modal-heading">Address risk with evidence</h3>
+      <h3 id="evidence-modal-heading">{t("review.evidence.heading")}</h3>
       <div className={styles["target"]}>{target.label}</div>
       <div className={styles["evidenceOptions"]}>
         <label>
@@ -109,7 +111,7 @@ function EvidenceForm({
       </div>
       {kind === "linked-comment" ? (
         <select
-          aria-label="Linked comment"
+          aria-label={t("review.evidence.ariaLabelLinkedComment")}
           className={styles["select"]}
           value={commentId}
           onChange={(event) => setCommentId(event.target.value)}
@@ -129,8 +131,8 @@ function EvidenceForm({
       ) : null}
       {kind === "manual-note" ? (
         <textarea
-          aria-label="What did you verify?"
-          placeholder="What did you verify?"
+          aria-label={t("review.evidence.verifyLabel")}
+          placeholder={t("review.evidence.verifyLabel")}
           value={note}
           onChange={(event) => setNote(event.target.value)}
         />

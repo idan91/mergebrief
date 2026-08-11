@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { appI18n } from "../../../../i18n/I18nProvider";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CommentAnchor } from "../../utils/comments";
@@ -49,7 +50,7 @@ describe("ReviewFlow store", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     session = sessionMock();
-    store = createReviewFlowStore(session, writablePosture());
+    store = createReviewFlowStore(session, writablePosture(), appI18n.t);
   });
   afterEach(() => {
     vi.useRealTimers();

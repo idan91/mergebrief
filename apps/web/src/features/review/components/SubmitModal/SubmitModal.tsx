@@ -1,3 +1,6 @@
+import type { TFunction } from "i18next";
+import type { TranslationKey } from "i18n";
+import { useTranslation } from "react-i18next";
 import { useEffect, useId, useRef, useState } from "react";
 import clsx from "clsx";
 
@@ -81,6 +84,7 @@ export function SubmitModal({
   submitNote = null,
   staleHead = false,
 }: SubmitModalProps) {
+  const { t } = useTranslation();
   const outcomeGroupName = useId();
   const reviewComment = useReviewFlow((state) => state.reviewComment);
   const { setReviewComment } = useReviewActions();
@@ -174,7 +178,7 @@ export function SubmitModal({
                 type="button"
                 onClick={() => jumpToItem(item)}
               >
-                <span>{unresolvedKindLabel(item.kind)}</span>
+                <span>{unresolvedKindLabel(t, item.kind)}</span>
                 <b>{item.label}</b>
               </button>
             ))}
@@ -184,7 +188,7 @@ export function SubmitModal({
           </p>
           <div className={clsx(modalStyles["actions"], styles["actionsRow"])}>
             <button className="btn" type="button" onClick={close}>
-              Keep reviewing
+              {t("review.submit.keepReviewing")}
             </button>
             <button
               className="btn primary"
@@ -198,14 +202,11 @@ export function SubmitModal({
       ) : view === "verdict" ? (
         <>
           <h3 id="submit-modal-heading" ref={headingRef} tabIndex={-1}>
-            Submit review
+            {t("review.submit.heading")}
           </h3>
-          <p className={modalStyles["copy"]}>
-            The verdict and the words are yours. The tool adds one signature
-            line of mechanical claims under them.
-          </p>
+          <p className={modalStyles["copy"]}>{t("review.submit.intro")}</p>
           <fieldset className={styles["outcomes"]}>
-            <legend>Review outcome</legend>
+            <legend>{t("review.submit.outcomeLegend")}</legend>
             {OUTCOMES.map((option) => (
               <label
                 className={styles["outcome"]}
@@ -219,23 +220,22 @@ export function SubmitModal({
                   value={option}
                   onChange={() => setOutcome(option)}
                 />
-                {reviewOutcomeLabel(option)}
+                {reviewOutcomeLabel(t, option)}
               </label>
             ))}
           </fieldset>
           <MarkdownTextarea
             value={reviewComment}
             onChange={setReviewComment}
-            label="Review comment"
+            label={t("review.submit.commentLabel")}
             labelVisible
             labelClassName={styles["commentLabel"]}
-            placeholder="Optional — your words, posted above the signature line."
+            placeholder={t("review.submit.commentPlaceholder")}
             describedBy="submit-modal-comment-hint"
             onSubmit={attemptSubmit}
           />
           <p className={styles["hint"]} id="submit-modal-comment-hint">
-            Posted as your comment, a rule, then the tool&apos;s one-line
-            signature.
+            {t("review.submit.commentHint")}
           </p>
           {staleHead ? (
             <div className={styles["staleWarning"]}>
@@ -243,8 +243,7 @@ export function SubmitModal({
                   a live region wrapping the checkbox would re-announce the
                   control on every state change. */}
               <p id="submit-modal-stale-warning" role="status">
-                This pull request has newer commits. Comments will anchor to the
-                revision you reviewed and may appear as outdated on GitHub.
+                {t("review.submit.staleWarning")}
               </p>
               <label className={styles["staleAck"]}>
                 <input
@@ -254,7 +253,7 @@ export function SubmitModal({
                   }}
                   type="checkbox"
                 />
-                Submit against the reviewed revision anyway
+                {t("review.submit.staleAck")}
               </label>
             </div>
           ) : null}
@@ -264,10 +263,10 @@ export function SubmitModal({
               type="button"
               onClick={() => setView("receipt")}
             >
-              Preview receipt
+              {t("review.submit.previewReceipt")}
             </button>
             <button className="btn" type="button" onClick={close}>
-              Keep reviewing
+              {t("review.submit.keepReviewing")}
             </button>
             <button
               aria-busy={submitPending || undefined}
@@ -277,13 +276,12 @@ export function SubmitModal({
               type="button"
               onClick={attemptSubmit}
             >
-              {submitPending ? "Submitting…" : "Submit review"}
+              {submitPending
+                ? t("review.submit.submitting")
+                : t("review.submit.submitReview")}
             </button>
           </div>
-          <p className={styles["note"]}>
-            Scoped to mechanical claims. The approve / request-changes verdict
-            is yours alone.
-          </p>
+          <p className={styles["note"]}>{t("review.submit.note")}</p>
           {blockedReason !== undefined ? (
             <p className={styles["submitStatus"]} id="submit-modal-blocked">
               {blockedReason}
@@ -332,7 +330,7 @@ export function SubmitModal({
               Back to verdict
             </button>
             <button className="btn" type="button" onClick={close}>
-              Keep reviewing
+              {t("review.submit.keepReviewing")}
             </button>
           </div>
         </>
@@ -341,15 +339,18 @@ export function SubmitModal({
   );
 }
 
-function unresolvedKindLabel(kind: UnresolvedItem["kind"]): string {
-  const labels: Record<UnresolvedItem["kind"], string> = {
-    "open-risk": "Open risk",
-    "missing-evidence": "Addressed without evidence",
-    "unreviewed-core": "Unreviewed core chunk",
-    "draft-comment": "Draft comment",
-    "thin-dismissal": "Thin dismissal reason",
+function unresolvedKindLabel(
+  t: TFunction,
+  kind: UnresolvedItem["kind"],
+): string {
+  const keys: Record<UnresolvedItem["kind"], TranslationKey> = {
+    "open-risk": "review.submit.blockerOpenRisk",
+    "missing-evidence": "review.submit.blockerMissingEvidence",
+    "unreviewed-core": "review.submit.blockerUnreviewedCore",
+    "draft-comment": "review.submit.blockerDraftComment",
+    "thin-dismissal": "review.submit.blockerThinDismissal",
   };
-  return labels[kind];
+  return t(keys[kind]);
 }
 
 /** The frozen receipt rendering: mechanical claims plus a visible "not

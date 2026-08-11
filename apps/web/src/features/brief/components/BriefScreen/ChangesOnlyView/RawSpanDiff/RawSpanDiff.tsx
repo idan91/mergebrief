@@ -2,6 +2,8 @@
 // summary for the raw diff of the SAME span. The toggle is ephemeral: the
 // parent keys this component by the span descriptor, so switching compare lens
 // or revision resets it to off. The whole-PR diff is fetched lazily.
+import { useTranslation } from "react-i18next";
+import type { TranslationKey } from "i18n";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 
@@ -21,8 +23,7 @@ export interface RawSpanDiffProps {
 
 // The raw diff's rows carry no meaningful comment anchors, so `DiffTable` is
 // always read-only here; the reason keeps disabled rows keyboard-discoverable.
-const READ_ONLY_REASON =
-  "This is the raw diff for the comparison — comment from the brief itself.";
+const READ_ONLY_REASON_KEY: TranslationKey = "brief.diff.rawReadOnlyReason";
 // A read-only table paints no overlay, so this never mutates — hoisted so
 // every file's table shares one identity.
 const EMPTY_COMPARISON_VIEW: ChunkComparisonView = {
@@ -145,6 +146,7 @@ interface ReadonlyDiffTableProps {
 
 /** A `DiffTable` with every write affordance stood down (raw diff is read-only). */
 function ReadonlyDiffTable({ chunk }: ReadonlyDiffTableProps) {
+  const { t } = useTranslation();
   return (
     <DiffTable
       addressedComments={[]}
@@ -152,7 +154,7 @@ function ReadonlyDiffTable({ chunk }: ReadonlyDiffTableProps) {
       comparisonSkipReason={null}
       comparisonSource={{ kind: "last-review", delta: null }}
       comparisonView={EMPTY_COMPARISON_VIEW}
-      readOnlyReason={READ_ONLY_REASON}
+      readOnlyReason={t(READ_ONLY_REASON_KEY)}
       reviewCommentLabel=""
     />
   );

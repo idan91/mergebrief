@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { appI18n } from "../../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   cleanup,
@@ -89,6 +90,7 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
       postBlockedExternally: undefined,
       postComment: undefined,
     },
+    appI18n.t,
   );
   const props: ChunkCardProps = {
     chunk,

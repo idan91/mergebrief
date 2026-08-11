@@ -1,6 +1,7 @@
 // Owns pending/blocked/error/note state and the result-kind copy. The action
 // is injected by the DB route; absent action = the local demo path.
-import { useCallback, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type { ReviewComment } from "../utils/comments";
 import type { Receipt } from "../utils/receipt";
@@ -90,33 +91,29 @@ export interface UseReviewSubmitValue {
   clearError: () => void;
 }
 
-const COPY = {
-  posted: "Review posted to GitHub under your account.",
-  postedDegraded:
-    "Review posted — GitHub couldn't anchor the inline comments to the diff, so they were folded into the review body. Nothing was dropped.",
-  degradedNote:
-    "Anchors didn't apply on GitHub's side: the inline comments were folded into the review body. Nothing was dropped.",
-  rewritten:
-    "This pull request was rewritten since you read it — reload to re-read it at the new head. Your drafts are saved locally.",
-  unauthorized:
-    "Your GitHub session expired — sign in again. Your drafts are saved locally.",
-  notFound: "This pull request is no longer accessible on GitHub.",
-  invalid: "The review was rejected as invalid — reload and try again.",
-  upstreamNeutral:
-    "GitHub rejected the review or is unreachable — try again shortly.",
-  upstreamVerdict:
-    "GitHub rejected the review — note you can't approve or request changes on your own pull request. Try again, or switch the outcome to Comment.",
-  // Deliberately INDETERMINATE: a throw can land after the POST reached
-  // GitHub (connection drop mid-response, malformed 201), so this copy must
-  // not claim "nothing was posted" — a confident retry prompt could
-  // double-post.
-  failed:
-    "Something went wrong submitting the review — it may or may not have posted. Check the pull request on GitHub before retrying.",
-} as const;
-
 export function useReviewSubmit(
   input: UseReviewSubmitInput,
 ): UseReviewSubmitValue {
+  const { t } = useTranslation();
+  // One memoized object so the submit callback takes a single stable dep
+  // instead of ten string members.
+  const COPY = useMemo(
+    () => ({
+      posted: t("review.submitResult.posted"),
+      postedDegraded: t("review.submitResult.postedDegraded"),
+      degradedNote: t("review.submitResult.anchorsFolded"),
+      rewritten: t("review.submitResult.rewritten"),
+      unauthorized: t("review.submitResult.unauthorized"),
+      notFound: t("review.submitResult.notFound"),
+      invalid: t("review.submitResult.invalid"),
+      upstreamNeutral: t("review.submitResult.upstream"),
+      upstreamVerdict: t("review.submitResult.ownPr"),
+      // Deliberately INDETERMINATE: a throw can land after the POST reached
+      // GitHub, so this copy must not claim "nothing was posted".
+      failed: t("review.submitResult.indeterminate"),
+    }),
+    [t],
+  );
   const {
     action,
     briefId,
@@ -283,6 +280,7 @@ export function useReviewSubmit(
     receipt,
     recordSubmittedReview,
     resetOutcome,
+    COPY,
   ]);
 
   const clearError = useCallback(() => setError(null), []);

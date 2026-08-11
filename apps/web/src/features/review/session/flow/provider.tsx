@@ -1,3 +1,4 @@
+import { appI18n } from "../../../../i18n/I18nProvider";
 import {
   createContext,
   useContext,
@@ -31,7 +32,11 @@ export function useCreateReviewFlowStore(
 ): ReviewFlowStore {
   const sessionActions = useMindMapActions();
   const storeRef = useRef<ReviewFlowStore | null>(null);
-  storeRef.current ??= createReviewFlowStore(sessionActions, initialPosture);
+  storeRef.current ??= createReviewFlowStore(
+    sessionActions,
+    initialPosture,
+    (key) => appI18n.t(key),
+  );
   return storeRef.current;
 }
 

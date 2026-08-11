@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import type { TranslationKey } from "i18n";
 import {
   useCallback,
   useEffect,
@@ -58,7 +60,7 @@ import {
 } from "./useComparisonOverlay";
 import { useConversationWiring } from "./useConversationWiring";
 import { useMarkReadyFlow } from "./useMarkReadyFlow";
-import { POST_COMMENT_COPY, useOwnDraftFlow } from "./useOwnDraftFlow";
+import { POST_COMMENT_COPY_KEYS, useOwnDraftFlow } from "./useOwnDraftFlow";
 import { deriveRegionBlocks } from "./modeLegality";
 import { useReadingSession } from "./useReadingSession";
 import styles from "./BriefScreen.module.scss";
@@ -68,15 +70,15 @@ export type { BriefComparisonPlan } from "./useComparisonOverlay";
 // not reach into the hook files directly.
 export { markReadyBatchFailureCopy } from "./utils";
 import { groupSinceMarkers } from "./utils";
-export { POST_COMMENT_COPY } from "./useOwnDraftFlow";
+export { POST_COMMENT_COPY_KEYS } from "./useOwnDraftFlow";
 
 /**
  * Own-draft composer block on a stale view: post-now exists only at the
  * current head, so a stale-staged draft would have no exit — unlike reviewer
  * views, whose exit is Submit behind the ack.
  */
-export const OWN_DRAFT_STALE_COMPOSER_REASON =
-  "This isn't the pull request's current revision. Switch to the latest revision to comment.";
+export const OWN_DRAFT_STALE_COMPOSER_REASON_KEY: TranslationKey =
+  "brief.screen.staleRevisionReason";
 
 /**
  * Own-draft state wiring: injected by the DB route ONLY while
@@ -175,6 +177,7 @@ export function BriefScreen({
   staleHead,
   submitReview,
 }: BriefScreenProps) {
+  const { t } = useTranslation();
   const attributeRail = useMemo(() => buildAttributeRail(model), [model]);
 
   // Comparison overlay: timeline, View/Compare resolution, and the active
@@ -217,7 +220,7 @@ export function BriefScreen({
   const composerDisabledReason =
     readOnly?.reason ??
     (ownDraftActive && staleHead === true
-      ? OWN_DRAFT_STALE_COMPOSER_REASON
+      ? t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY)
       : undefined);
 
   // The reading session: per-brief Mind-Map store wiring, the progress/receipt
@@ -371,7 +374,7 @@ export function BriefScreen({
     // (reason + hard guard) until every post settles.
     blockedExternally:
       postingCommentIds.size > 0
-        ? POST_COMMENT_COPY.submitWhilePosting
+        ? t(POST_COMMENT_COPY_KEYS.submitWhilePosting)
         : undefined,
   });
   const liveSubmit = submitFlow.available;
@@ -401,7 +404,7 @@ export function BriefScreen({
     flagsReadOnly: ownDraftActive,
     postingCommentIds,
     postBlockedExternally: submitPending
-      ? POST_COMMENT_COPY.postWhileSubmitting
+      ? t(POST_COMMENT_COPY_KEYS.postWhileSubmitting)
       : undefined,
     postComment: postComment !== undefined ? postDraftComment : undefined,
   });
@@ -481,9 +484,7 @@ export function BriefScreen({
       return;
     }
     setSubmitOpen(false);
-    announce(
-      "Mockup flow — submit posts your review natively to GitHub with one signature line linking this receipt.",
-    );
+    announce(t("brief.screen.mockupSubmit"));
   };
   const closeSummaryPreview = () => setSummaryPreviewOpen(false);
   const jumpToSubmitItem = (item: UnresolvedItem) => {
@@ -738,11 +739,11 @@ export function BriefScreen({
       <div className={styles["kbdHint"]} data-testid="kbd-hint">
         {focusMode ? (
           <button className="btn" type="button" onClick={toggleFocusMode}>
-            Exit focus (Z)
+            {t("brief.screen.exitFocus")}
           </button>
         ) : null}
         <button
-          aria-label="Keyboard shortcuts"
+          aria-label={t("brief.screen.ariaLabelShortcuts")}
           className={styles["shortcutsTrigger"]}
           type="button"
           onClick={session.toggleShortcuts}

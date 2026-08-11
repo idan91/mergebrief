@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import {
   Fragment,
   useEffect,
@@ -81,6 +82,7 @@ export function DiffTable({
   reviewCommentLabel,
   readOnlyReason,
 }: DiffTableProps) {
+  const { t } = useTranslation();
   const readOnly = readOnlyReason !== undefined;
   // Every stateful read below is chunk-scoped so this table re-renders for
   // ITS composer/posts only, never a sibling's.
@@ -186,7 +188,7 @@ export function DiffTable({
   if (!chunk.diff || chunk.diff.length === 0) {
     return (
       <div className={styles["metadataDiff"]}>
-        <span>diff unavailable</span>
+        <span>{t("brief.diff.unavailable")}</span>
         <p>
           The brief loaded, but no matching raw diff was available for this
           chunk. The durable fix is to emit chunk-level hunk rows from the
@@ -252,10 +254,12 @@ export function DiffTable({
           </ScreenReaderOnly>
           <ScreenReaderOnly as="thead">
             <tr>
-              {overlayActive ? <th scope="col">Revision</th> : null}
-              <th scope="col">Old line</th>
-              <th scope="col">New line</th>
-              <th scope="col">Content</th>
+              {overlayActive ? (
+                <th scope="col">{t("brief.diff.colRevision")}</th>
+              ) : null}
+              <th scope="col">{t("brief.diff.colOld")}</th>
+              <th scope="col">{t("brief.diff.colNew")}</th>
+              <th scope="col">{t("brief.diff.colContent")}</th>
             </tr>
           </ScreenReaderOnly>
           <tbody>

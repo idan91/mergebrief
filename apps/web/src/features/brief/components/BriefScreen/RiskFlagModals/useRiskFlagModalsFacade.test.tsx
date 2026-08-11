@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Pins the dismiss-input choreography: reopening always starts blank, and a
 // short reason warns once then commits (warn-then-accept).
+import { appI18n } from "../../../../../i18n/I18nProvider";
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
@@ -34,6 +35,7 @@ function setup() {
       postBlockedExternally: undefined,
       postComment: undefined,
     },
+    appI18n.t,
   );
   const wrapper = ({ children }: { children: ReactNode }) => (
     <MindMapProvider briefId="test-brief" model={model}>

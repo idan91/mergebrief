@@ -1,3 +1,4 @@
+import type { TranslationKey } from "i18n";
 import { createStore, type StoreApi } from "zustand/vanilla";
 
 import { toggleSet } from "@web/utils/collections";
@@ -130,6 +131,12 @@ export function initialReviewFlowState(
 export function createReviewFlowStore(
   session: ReviewFlowSessionActions,
   posture: ReviewFlowPosture,
+  /**
+   * Resolver called at ANNOUNCE time, never captured copy: `useTranslation`'s
+   * `t` is pinned to the mount-time language (`getFixedT`), so holding one
+   * here would keep announcing English after a locale switch.
+   */
+  translate: (key: TranslationKey) => string,
 ): ReviewFlowStore {
   return createStore<ReviewFlowStoreValue>((set, get) => {
     let announceTimer: number | undefined;
@@ -159,7 +166,7 @@ export function createReviewFlowStore(
         saveComment(anchor, body) {
           const trimmed = body.trim();
           if (!trimmed) {
-            announce("Comment cannot be empty.");
+            announce(translate("review.announce.commentEmpty"));
             return;
           }
           session.saveComment({
@@ -169,20 +176,20 @@ export function createReviewFlowStore(
             collapsed: false,
           });
           set({ composerAnchor: null });
-          announce("Draft comment added to this review.");
+          announce(translate("review.announce.commentAdded"));
         },
         updateComment(commentId, body) {
           const trimmed = body.trim();
           if (!trimmed) {
-            announce("Comment cannot be empty.");
+            announce(translate("review.announce.commentEmpty"));
             return;
           }
           session.updateComment(commentId, trimmed);
-          announce("Draft comment updated.");
+          announce(translate("review.announce.commentUpdated"));
         },
         deleteComment(commentId) {
           session.deleteComment(commentId);
-          announce("Draft comment deleted.");
+          announce(translate("review.announce.commentDeleted"));
         },
         toggleComment(commentId) {
           session.toggleComment(commentId);

@@ -3,6 +3,7 @@
 // (aria-expanded buttons), bots aggregated into one disclosure per author,
 // and the detail hides its jump button (the rows already sit at their
 // chunk).
+import { appI18n } from "../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -145,6 +146,7 @@ function renderInline(threads: ConversationThread[]) {
       postBlockedExternally: undefined,
       postComment: undefined,
     },
+    appI18n.t,
   );
   return render(
     <QueryClientProvider client={new QueryClient()}>

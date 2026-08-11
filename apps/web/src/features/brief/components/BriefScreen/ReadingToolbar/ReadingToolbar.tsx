@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
 
 import { useRevisionNavigation } from "../../../hooks/useRevisionNavigation";
@@ -55,6 +56,7 @@ export function ReadingToolbar({
   activeGroupId,
   comparison,
 }: ReadingToolbarProps) {
+  const { t } = useTranslation();
   const { jumpPrev, jumpNext } = useRevisionNavigation();
   const barRef = useRef<HTMLDivElement | null>(null);
 
@@ -147,7 +149,7 @@ export function ReadingToolbar({
           </button>
           {groups.length > 0 ? (
             <span
-              aria-label="Step between change groups"
+              aria-label={t("brief.toolbar.ariaLabelGroupStepper")}
               className={styles["stepper"]}
               data-stepper="group"
               role="group"
@@ -157,7 +159,7 @@ export function ReadingToolbar({
                 {groups.length}
               </span>
               <button
-                aria-label="Previous group"
+                aria-label={t("brief.toolbar.ariaLabelPreviousGroup")}
                 className={styles["stepBtn"]}
                 type="button"
                 onClick={() => stepGroup(-1)}
@@ -165,7 +167,7 @@ export function ReadingToolbar({
                 ◂
               </button>
               <button
-                aria-label="Next group"
+                aria-label={t("brief.toolbar.ariaLabelNextGroup")}
                 className={styles["stepBtn"]}
                 type="button"
                 onClick={() => stepGroup(1)}
@@ -178,8 +180,8 @@ export function ReadingToolbar({
             <span
               aria-label={
                 comparison.compare === "last-review"
-                  ? "Jump between changes since your last review"
-                  : "Jump between changes in this revision"
+                  ? t("brief.toolbar.ariaLabelChangeStepperLastReview")
+                  : t("brief.toolbar.ariaLabelChangeStepperRevision")
               }
               className={styles["stepper"]}
               role="group"
@@ -189,7 +191,7 @@ export function ReadingToolbar({
                 {comparison.runCount === 1 ? "" : "s"}
               </span>
               <button
-                aria-label="Previous change"
+                aria-label={t("brief.toolbar.ariaLabelPreviousChange")}
                 className={styles["stepBtn"]}
                 type="button"
                 onClick={jumpPrev}
@@ -197,7 +199,7 @@ export function ReadingToolbar({
                 ◂
               </button>
               <button
-                aria-label="Next change"
+                aria-label={t("brief.toolbar.ariaLabelNextChange")}
                 className={styles["stepBtn"]}
                 type="button"
                 onClick={jumpNext}

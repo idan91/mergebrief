@@ -2,6 +2,8 @@
 // against GitHub, plus the module-registry choreography that makes it
 // remount-safe — the settled-post drain and the double-post guards in both
 // directions against a Submit review in flight.
+import { useTranslation } from "react-i18next";
+import type { TranslationKey } from "i18n";
 import { useCallback, useEffect } from "react";
 
 import type {
@@ -19,33 +21,26 @@ import {
   type PostCommentResult,
 } from "@web/features/pulls/transport/postComment";
 
-/** Toast copy for per-comment post-now: failures always keep the draft. */
-export const POST_COMMENT_COPY = {
-  posted: "Comment posted to GitHub.",
-  unauthorized:
-    "Your GitHub session expired — sign in again to post this comment.",
-  notFound: "This pull request is no longer accessible on GitHub.",
-  stale:
-    "The pull request has newer commits — reload to post this comment against the current diff.",
+/** Toast keys for per-comment post-now: failures always keep the draft. */
+export const POST_COMMENT_COPY_KEYS = {
+  posted: "brief.postComment.posted",
+  unauthorized: "brief.postComment.unauthorized",
+  notFound: "brief.postComment.notFound",
+  stale: "brief.postComment.stale",
   // Deterministic route reject: retrying the SAME draft can never succeed
   // (unlike `upstream`) — ask for an edit, never a plain retry.
-  invalid:
-    "This comment couldn't be posted as sent — edit the draft and post again.",
-  upstream:
-    "GitHub rejected the request or is unreachable — your draft is kept, try again shortly.",
+  invalid: "brief.postComment.invalid",
+  upstream: "brief.postComment.upstream",
   // Deliberately INDETERMINATE: the catch can land AFTER the POST reached
   // GitHub — a confident retry prompt could double-post.
-  failed:
-    "Something went wrong posting this comment — it may or may not have posted. Check the pull request on GitHub before retrying.",
+  failed: "brief.postComment.failed",
   // Blocks Submit review while a post-now settles: the payload capture would
   // re-ship the still-draft comment.
-  submitWhilePosting:
-    "A comment is still posting to GitHub — wait for it to finish before submitting the review.",
+  submitWhilePosting: "brief.postComment.submitWhilePosting",
   // Symmetric block: a Submit review in flight already CAPTURED the drafts —
   // posting one now would double-post when the review lands.
-  postWhileSubmitting:
-    "A review is being submitted — wait for it to finish before posting this comment.",
-} as const;
+  postWhileSubmitting: "brief.postComment.postWhileSubmitting",
+} as const satisfies Record<string, TranslationKey>;
 
 /**
  * How a single post ended. Every value except `posted`/`indeterminate` is a
@@ -101,6 +96,7 @@ export interface UseOwnDraftFlowValue {
 export function useOwnDraftFlow(
   input: UseOwnDraftFlowInput,
 ): UseOwnDraftFlowValue {
+  const { t } = useTranslation();
   const {
     actions,
     announce,
@@ -152,7 +148,7 @@ export function useOwnDraftFlow(
       // would double-post when the review lands.
       if (submitPending) {
         if (!batchOwnsMessaging) {
-          announce(POST_COMMENT_COPY.postWhileSubmitting);
+          announce(t(POST_COMMENT_COPY_KEYS.postWhileSubmitting));
         }
         return "rejected";
       }
@@ -170,7 +166,7 @@ export function useOwnDraftFlow(
               briefId,
               comment.id,
               result.reviewId,
-              batchOwnsMessaging ? null : POST_COMMENT_COPY.posted,
+              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.posted),
             );
             // Conversation write — refetch so the new thread renders. The
             // query client is app-level, so this closure is remount-safe.
@@ -181,35 +177,37 @@ export function useOwnDraftFlow(
             recordFailedPost(
               briefId,
               comment.id,
-              batchOwnsMessaging ? null : POST_COMMENT_COPY.unauthorized,
+              batchOwnsMessaging
+                ? null
+                : t(POST_COMMENT_COPY_KEYS.unauthorized),
             );
             return "unauthorized";
           case "not-found":
             recordFailedPost(
               briefId,
               comment.id,
-              batchOwnsMessaging ? null : POST_COMMENT_COPY.notFound,
+              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.notFound),
             );
             return "not-found";
           case "stale":
             recordFailedPost(
               briefId,
               comment.id,
-              batchOwnsMessaging ? null : POST_COMMENT_COPY.stale,
+              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.stale),
             );
             return "stale";
           case "invalid":
             recordFailedPost(
               briefId,
               comment.id,
-              batchOwnsMessaging ? null : POST_COMMENT_COPY.invalid,
+              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.invalid),
             );
             return "rejected";
           case "upstream":
             recordFailedPost(
               briefId,
               comment.id,
-              batchOwnsMessaging ? null : POST_COMMENT_COPY.upstream,
+              batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.upstream),
             );
             return "indeterminate";
         }
@@ -218,14 +216,14 @@ export function useOwnDraftFlow(
         recordFailedPost(
           briefId,
           comment.id,
-          batchOwnsMessaging ? null : POST_COMMENT_COPY.failed,
+          batchOwnsMessaging ? null : t(POST_COMMENT_COPY_KEYS.failed),
         );
         return "indeterminate";
       } finally {
         endInFlightPost(briefId, comment.id);
       }
     },
-    [announce, briefId, invalidateConversation, postComment, submitPending],
+    [announce, briefId, invalidateConversation, postComment, submitPending, t],
   );
 
   return { postDraftComment };

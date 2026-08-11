@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+import type { TranslationKey } from "i18n";
 import {
   attributeDisplayMeta,
   floorFirst,
@@ -56,7 +58,15 @@ export interface RiskFlag {
   chunkId: string;
   file: string;
   groupId: string;
-  description: string;
+  /**
+   * Catalog key for a built-in attribute's reviewer implication; absent for
+   * a repo-defined attribute, whose `criteria` are the repo's own words.
+   * Resolved at RENDER (`riskFlagDescription`) so the model stays a pure,
+   * locale-free data structure.
+   */
+  descriptionKey?: TranslationKey;
+  /** Repo-authored criteria line (repo-defined attributes only). */
+  criteria?: string;
   /** built-in vs repo-policy (structural marker from the snapshot). */
   source: AttributeSource;
   /** Quiet render (repo de-emphasis); already false on floor co-fire chunks. */
@@ -88,45 +98,26 @@ export interface RiskAttributeGroup {
   flags: RiskFlag[];
 }
 
-const RISK_DESCRIPTIONS: Record<RiskSurfaceAttribute, string> = {
-  "no-tests":
-    "Changed code path has no direct test coverage in the brief; verify behavior manually or ask for coverage.",
-  "no-types":
-    "Changed code lacks useful type coverage; verify runtime safety and narrowing at the boundary.",
-  "legacy-area":
-    "Chunk touches legacy-marked code; verify the change follows current patterns rather than entrenching the old one.",
-  "dense-logic":
-    "Chunk contains branching or state-heavy logic; enumerate edge cases before signing off.",
-  "touches-auth":
-    "Authentication, authorization, session, or identity behavior changed; verify access boundaries explicitly.",
-  "mutates-state":
-    "Chunk writes or invalidates persistent state; check ordering, idempotency, and rollback behavior.",
-  "removes-validation":
-    "A guard or validation boundary changed; verify the newly accepted input space is intentional.",
-  "relaxes-permissions":
-    "Permission scope may be broader; enumerate newly admitted actors and confirm intent.",
-  "widens-error-handling":
-    "Error handling became broader or quieter; verify correctness bugs cannot be hidden.",
-  "adds-feature-flag":
-    "Feature-flag behavior changed; check defaults, rollout plan, and cleanup obligation.",
-  "new-dependency":
-    "A new direct dependency entered a manifest; verify it earns its place — stdlib or an existing dep may cover it.",
-  "new-abstraction":
-    "A new named abstraction was introduced; check whether an existing pattern or utility already covers it.",
-  "comment-contradicts-code":
-    "A comment and its adjacent code appear to disagree; read both and resolve which side is right.",
-  "external-io":
-    "Chunk reaches outside the process; verify timeout, retry, idempotency, and outage behavior.",
-  "cross-service":
-    "Chunk touches a contract consumed outside this app; check compatibility and migration expectations.",
-  "schema-adjacent":
-    "Chunk sits near persistence/schema assumptions; verify consistency with the data model.",
-  "hot-path":
-    "Chunk lives on a high-traffic or latency-sensitive path; check allocations, sync I/O, and unbounded work.",
-  "widely-imported":
-    "Changed API has broad call-site reach; enumerate consumers and contract impact.",
-  "release-imminent":
-    "Change appears close to release; verify revert and mitigation paths are clear.",
+const RISK_DESCRIPTION_KEYS: Record<RiskSurfaceAttribute, TranslationKey> = {
+  "no-tests": "brief.risk.noTests",
+  "no-types": "brief.risk.noTypes",
+  "legacy-area": "brief.risk.legacyArea",
+  "dense-logic": "brief.risk.denseLogic",
+  "touches-auth": "brief.risk.touchesAuth",
+  "mutates-state": "brief.risk.mutatesState",
+  "removes-validation": "brief.risk.removesValidation",
+  "relaxes-permissions": "brief.risk.relaxesPermissions",
+  "widens-error-handling": "brief.risk.widensErrorHandling",
+  "adds-feature-flag": "brief.risk.addsFeatureFlag",
+  "new-dependency": "brief.risk.newDependency",
+  "new-abstraction": "brief.risk.newAbstraction",
+  "comment-contradicts-code": "brief.risk.commentContradictsCode",
+  "external-io": "brief.risk.externalIo",
+  "cross-service": "brief.risk.crossService",
+  "schema-adjacent": "brief.risk.schemaAdjacent",
+  "hot-path": "brief.risk.hotPath",
+  "widely-imported": "brief.risk.widelyImported",
+  "release-imminent": "brief.risk.releaseImminent",
 };
 
 const CONCERN_ORDER: Concern[] = [
@@ -138,19 +129,21 @@ const CONCERN_ORDER: Concern[] = [
   Concerns.GENERATED,
 ];
 
-/** Description for a token: the built-in reviewer-implication line, or the repo's criteria. */
-export function riskDescription(
-  attr: RiskToken,
-  meta: AttributeDisplayMeta,
+/**
+ * A flag's reviewer-implication line at render time: the built-in catalog
+ * copy, else the repo's own criteria (passed through, never translated),
+ * else the generic repo-defined line.
+ */
+export function riskFlagDescription(
+  t: TFunction,
+  flag: Pick<RiskFlag, "descriptionKey" | "criteria">,
 ): string {
-  if (isBuiltInAttribute(attr)) {
-    return RISK_DESCRIPTIONS[attr];
-  }
-  return meta.criteria ?? "Repo-defined risk attribute (see repo policy).";
+  if (flag.descriptionKey !== undefined) return t(flag.descriptionKey);
+  return flag.criteria ?? t("brief.risk.repoDefined");
 }
 
 const BUILT_IN_ATTRIBUTES: ReadonlySet<string> = new Set(
-  Object.keys(RISK_DESCRIPTIONS),
+  Object.keys(RISK_DESCRIPTION_KEYS),
 );
 
 function isBuiltInAttribute(attr: string): attr is RiskSurfaceAttribute {
@@ -240,7 +233,11 @@ export function buildBriefViewModel(
         chunkId: chunk.id,
         file: chunk.file,
         groupId,
-        description: riskDescription(attr, meta),
+        ...(isBuiltInAttribute(attr)
+          ? { descriptionKey: RISK_DESCRIPTION_KEYS[attr] }
+          : meta.criteria !== undefined
+            ? { criteria: meta.criteria }
+            : {}),
         source: meta.source,
         deEmphasized: meta.deEmphasized,
         ...(meta.implication !== undefined

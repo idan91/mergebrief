@@ -1,3 +1,5 @@
+import type { TFunction } from "i18next";
+import type { TranslationKey } from "i18n";
 import type { BriefTimelinePoint } from "../utils/timeline";
 
 /**
@@ -43,25 +45,29 @@ export interface CompareOptionFlags {
   lastReview: boolean;
 }
 
-export const PREVIOUS_BRIEF_UNAVAILABLE_TITLE =
-  "No previous brief for this revision";
-export const LAST_REVIEW_UNAVAILABLE_TITLE =
-  "No submitted review checkpoint yet";
-export const LAST_REVIEW_PENDING_TITLE = "Delta still generating";
-export const LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE =
-  "History rewritten since your last review";
+export const PREVIOUS_BRIEF_UNAVAILABLE_TITLE_KEY: TranslationKey =
+  "brief.compareTitles.previousBriefUnavailable";
+export const LAST_REVIEW_UNAVAILABLE_TITLE_KEY: TranslationKey =
+  "brief.compareTitles.lastReviewUnavailable";
+export const LAST_REVIEW_PENDING_TITLE_KEY: TranslationKey =
+  "brief.compareTitles.lastReviewPending";
+export const LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE_KEY: TranslationKey =
+  "brief.compareTitles.lastReviewBaselineUnavailable";
 
 /**
  * Honest reason copy for a checkpoint that EXISTS but cannot be compared.
- * Distinct from `LAST_REVIEW_UNAVAILABLE_TITLE`, which covers "never
+ * Distinct from `LAST_REVIEW_UNAVAILABLE_TITLE_KEY`, which covers "never
  * submitted" (the field-absent case).
  */
 export function lastReviewUnavailableReasonTitle(
+  t: TFunction,
   reason: "pending" | "baseline-unavailable",
 ): string {
-  return reason === "pending"
-    ? LAST_REVIEW_PENDING_TITLE
-    : LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE;
+  return t(
+    reason === "pending"
+      ? LAST_REVIEW_PENDING_TITLE_KEY
+      : LAST_REVIEW_BASELINE_UNAVAILABLE_TITLE_KEY,
+  );
 }
 
 export function parseViewParam(value: unknown): ViewParam | undefined {
@@ -197,9 +203,12 @@ export function isCompareAvailable(
 
 /** Short, honest reason a Compare option is disabled. */
 export function compareUnavailableTitle(
+  t: TFunction,
   compare: "previous-brief" | "last-review",
 ): string {
-  return compare === "previous-brief"
-    ? PREVIOUS_BRIEF_UNAVAILABLE_TITLE
-    : LAST_REVIEW_UNAVAILABLE_TITLE;
+  return t(
+    compare === "previous-brief"
+      ? PREVIOUS_BRIEF_UNAVAILABLE_TITLE_KEY
+      : LAST_REVIEW_UNAVAILABLE_TITLE_KEY,
+  );
 }

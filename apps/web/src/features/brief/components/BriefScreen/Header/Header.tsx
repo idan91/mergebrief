@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
   useEffect,
@@ -119,6 +120,7 @@ export function Header({
   controlsSlot,
   ownDraft,
 }: HeaderProps) {
+  const { t } = useTranslation();
   const headerRef = useRef<HTMLElement>(null);
   // The header height is content-driven (title length, meta line, viewport),
   // so publish the measured height as --top-bar-h. Sticky chunk headers and the
@@ -253,7 +255,9 @@ export function Header({
             }}
             onClick={ownDraft.markReady}
           >
-            {ownDraft.pending ? "Marking ready…" : "Mark ready for review"}
+            {ownDraft.pending
+              ? t("brief.header.markingReady")
+              : t("brief.header.markReady")}
           </button>
         ) : (
           <button
@@ -306,25 +310,27 @@ export function Header({
             coreDeleted={model.totalCoreDeleted}
             triggerClassName={`stat ${styles["stat"]}`}
           >
-            core lines
+            {t("brief.header.coreLines")}
             <b>
               <span aria-hidden="true" className="faint">
                 {"≈ "}
               </span>
-              <ScreenReaderOnly>approximately </ScreenReaderOnly>
+              <ScreenReaderOnly>
+                {t("brief.header.approximately")}
+              </ScreenReaderOnly>
               <span className="green">+{model.totalCoreAdded}</span>{" "}
               <span className="faint">/</span>{" "}
               <span className="red">−{model.totalCoreDeleted}</span>
             </b>
           </CoreLinesDisclosure>
           <div className={`stat ${styles["stat"]}`}>
-            chunks
+            {t("brief.header.chunks")}
             <b>
               {totals.reviewed}/{totals.chunkTotal}
             </b>
           </div>
           <div className={`stat ${styles["stat"]}`}>
-            flags
+            {t("brief.header.flags")}
             {/* Own-draft state: dispositions are unreachable (flags are a
                 read-only mirror), so a resolved/total fraction would sit at a
                 permanent 0/N — show the count alone. */}
@@ -342,7 +348,9 @@ export function Header({
           data-state={lensDisabled ? "disabled" : undefined}
           title={lensDisabled ? lensControl.reason : undefined}
         >
-          <ScreenReaderOnly as="legend">Review view</ScreenReaderOnly>
+          <ScreenReaderOnly as="legend">
+            {t("brief.header.viewLegend")}
+          </ScreenReaderOnly>
           <label className={styles["viewOption"]}>
             <input
               aria-describedby={lensDisabled ? lensReasonId : undefined}
@@ -354,7 +362,9 @@ export function Header({
               value="story"
               onChange={() => selectLens("story")}
             />
-            <span className={styles["viewLabel"]}>Story</span>
+            <span className={styles["viewLabel"]}>
+              {t("brief.header.viewStory")}
+            </span>
           </label>
           <label className={styles["viewOption"]}>
             <input
@@ -367,7 +377,9 @@ export function Header({
               value="concerns"
               onChange={() => selectLens("concerns")}
             />
-            <span className={styles["viewLabel"]}>Concerns</span>
+            <span className={styles["viewLabel"]}>
+              {t("brief.header.viewConcerns")}
+            </span>
           </label>
           {lensDisabled ? (
             <span className="sr-only" id={lensReasonId}>
@@ -399,6 +411,7 @@ export function Header({
  * PERSISTENT — it stays while hovered or focused; leaving re-arms it.
  */
 function SelfReviewChip() {
+  const { t } = useTranslation();
   const tooltipId = useId();
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
@@ -429,7 +442,7 @@ function SelfReviewChip() {
   }, [focused, hovered]);
   return (
     <span className={styles["selfReviewChip"]} data-self-review-chip="">
-      <span>Self-review — your draft</span>
+      <span>{t("brief.header.selfReviewChip")}</span>
       <span
         className={styles["chipInfo"]}
         data-tooltip-dismissed={tooltipDismissed ? "" : undefined}
@@ -438,7 +451,7 @@ function SelfReviewChip() {
       >
         <button
           aria-describedby={tooltipId}
-          aria-label="About self-review"
+          aria-label={t("brief.header.ariaLabelAboutSelfReview")}
           className={styles["chipInfoButton"]}
           type="button"
           onFocus={() => setFocused(true)}
@@ -447,9 +460,7 @@ function SelfReviewChip() {
           i
         </button>
         <span className={styles["chipTooltip"]} id={tooltipId} role="tooltip">
-          {
-            "You're viewing your own draft PR. Review submission and the receipt unlock once it's marked ready for review."
-          }
+          {t("brief.header.selfReviewTooltip")}
         </span>
       </span>
     </span>
@@ -475,6 +486,7 @@ function HeaderMenu({
   hideSummaryPreview,
   openSummaryPreviewDrawer,
 }: HeaderMenuProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -547,7 +559,7 @@ function HeaderMenu({
         aria-controls={open ? menuId : undefined}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label="More actions"
+        aria-label={t("brief.header.ariaLabelMoreActions")}
         className={styles["menuTrigger"]}
         ref={triggerRef}
         type="button"
@@ -563,7 +575,7 @@ function HeaderMenu({
           className={styles["menu"]}
           id={menuId}
           role="menu"
-          aria-label="More actions"
+          aria-label={t("brief.header.ariaLabelMoreActions")}
           tabIndex={-1}
         >
           {hideSummaryPreview ? null : openSummaryPreviewDrawer ===
@@ -583,7 +595,7 @@ function HeaderMenu({
                 }
               }}
             >
-              Summary preview
+              {t("brief.header.summaryPreview")}
             </Link>
           ) : (
             <button
@@ -598,7 +610,7 @@ function HeaderMenu({
                 openSummaryPreviewDrawer();
               }}
             >
-              Summary preview
+              {t("brief.header.summaryPreview")}
             </button>
           )}
           <button
@@ -610,7 +622,7 @@ function HeaderMenu({
               clearDrafts();
             }}
           >
-            Clear local drafts
+            {t("brief.header.clearDrafts")}
           </button>
         </div>
       ) : null}

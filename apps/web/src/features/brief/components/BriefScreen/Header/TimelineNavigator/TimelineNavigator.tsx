@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "@tanstack/react-router";
 
 import {
@@ -37,6 +38,7 @@ export function TimelineNavigator({
   compareState,
   timeline,
 }: TimelineNavigatorProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const selected = timeline.selectedPoint;
   const currentIndex = selected
@@ -188,7 +190,7 @@ export function TimelineNavigator({
             title={
               isCompareAvailable("last-review", availability)
                 ? undefined
-                : compareUnavailableTitle("last-review")
+                : compareUnavailableTitle(t, "last-review")
             }
             type="button"
             onClick={() => selectCompare("last-review")}
@@ -204,7 +206,7 @@ export function TimelineNavigator({
             title={
               isCompareAvailable("previous-brief", availability)
                 ? undefined
-                : compareUnavailableTitle("previous-brief")
+                : compareUnavailableTitle(t, "previous-brief")
             }
             type="button"
             onClick={() => selectCompare("previous-brief")}

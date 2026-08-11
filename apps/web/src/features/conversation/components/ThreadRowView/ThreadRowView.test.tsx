@@ -4,6 +4,7 @@
 // variant (outdated wins over resolved), that the slim row stays the SAME
 // single-button disclosure, and that its accessible name still carries who
 // said what — "resolved" alone would name every settled row identically.
+import { appI18n } from "../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -143,6 +144,7 @@ function renderRow(row: DigestThreadRow, expanded = false) {
       postBlockedExternally: undefined,
       postComment: undefined,
     },
+    appI18n.t,
   );
   const toggle = vi.fn();
   const view = render(
@@ -265,6 +267,7 @@ describe("ThreadRowView — slim resolved rows", () => {
         postBlockedExternally: undefined,
         postComment: undefined,
       },
+      appI18n.t,
     );
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>

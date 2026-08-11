@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { appI18n } from "../../../../../i18n/I18nProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -131,6 +132,7 @@ function renderTable(
       postBlockedExternally: undefined,
       postComment: undefined,
     }),
+    appI18n.t,
   );
   flowStore.setState(flowState);
   // Call-count observability for composer entry: wrap the real action.

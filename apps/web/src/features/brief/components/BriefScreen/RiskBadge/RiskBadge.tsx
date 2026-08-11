@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
@@ -23,9 +24,13 @@ export interface RiskBadgeProps {
  * of this chip (data-source), never a second chip kind.
  */
 export function RiskBadge({ children, meta }: RiskBadgeProps) {
+  const { t } = useTranslation();
   const repoDefined = meta?.source === "repo-policy";
+  const implication = meta?.implication;
   const title = repoDefined
-    ? `Defined by repo policy${meta?.implication ? ` — ${meta.implication}` : ""}`
+    ? implication !== undefined
+      ? t("brief.riskBadge.repoPolicyWithImplication", { implication })
+      : t("brief.riskBadge.repoPolicyLead")
     : undefined;
   return (
     <Badge
@@ -42,11 +47,15 @@ export function RiskBadge({ children, meta }: RiskBadgeProps) {
       {children}
       {repoDefined ? (
         <ScreenReaderOnly>
-          {` — defined by repo policy${meta?.implication ? `. ${meta.implication}` : ""}`}
+          {implication !== undefined
+            ? t("brief.riskBadge.srRepoPolicyWithImplication", { implication })
+            : t("brief.riskBadge.srRepoPolicy")}
         </ScreenReaderOnly>
       ) : null}
       {meta?.deEmphasized ? (
-        <ScreenReaderOnly> — de-emphasized by repo policy</ScreenReaderOnly>
+        <ScreenReaderOnly>
+          {t("brief.riskBadge.srDeEmphasized")}
+        </ScreenReaderOnly>
       ) : null}
     </Badge>
   );

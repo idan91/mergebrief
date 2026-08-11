@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -5,7 +6,7 @@ import { Roles, type Brief } from "@web/features/brief/types";
 import { buildBriefViewModel } from "@web/features/brief/utils";
 import {
   buildReceipt,
-  RECEIPT_NOT_CHECKED,
+  RECEIPT_NOT_CHECKED_KEYS,
   type Receipt,
 } from "../../utils/receipt";
 import type { SessionSnapshot } from "../../session";
@@ -28,6 +29,7 @@ export function SummaryPreview({
   snapshot,
   standalone = false,
 }: SummaryPreviewProps) {
+  const { t } = useTranslation();
   const model = buildBriefViewModel(brief);
   const receipt = buildReceipt(snapshot, brief, model);
   const reviewedChunkIds = new Set(snapshot.reviewedChunkIds);
@@ -43,29 +45,32 @@ export function SummaryPreview({
       tabIndex={standalone ? -1 : undefined}
     >
       <section className={styles["shell"]}>
-        <div className={styles["kicker"]}>Frozen preview · interview demo</div>
+        <div className={styles["kicker"]}>{t("review.summary.kicker")}</div>
         <div className={styles["head"]}>
           <div>
-            <h1>Review Summary</h1>
+            <h1>{t("review.summary.heading")}</h1>
             <p>
-              Reviewed by @you · {brief.pr.repo} #{brief.pr.number} ·{" "}
-              {brief.pr.sha.slice(0, 7)}
+              {t("review.summary.byline", {
+                repo: brief.pr.repo,
+                number: brief.pr.number,
+                sha: brief.pr.sha.slice(0, 7),
+              })}
             </p>
           </div>
-          <span className={styles["badge"]}>Tool receipt, not an approval</span>
+          <span className={styles["badge"]}>{t("review.summary.badge")}</span>
         </div>
 
         <section className={styles["card"]}>
           {/* Read-only document: the verdict is chosen in the submit modal;
               this surface only reflects it. */}
           <div className={styles["row"]}>
-            <span>Review outcome</span>
+            <span>{t("review.summary.outcomeLabel")}</span>
             <span className={styles["outcomeValue"]}>
-              {reviewOutcomeLabel(snapshot.reviewOutcome)}
+              {reviewOutcomeLabel(t, snapshot.reviewOutcome)}
             </span>
           </div>
           <div className={styles["signature"]}>
-            {summarySignatureLine({
+            {summarySignatureLine(t, {
               reviewedChunks: reviewedChunkIds.size,
               addressedRisks: receipt.counts.addressed,
               dismissedRisks: receipt.counts.dismissed,
@@ -75,16 +80,16 @@ export function SummaryPreview({
 
         <section className={styles["grid"]}>
           <div className={styles["card"]}>
-            <h2>What the reviewer covered</h2>
+            <h2>{t("review.summary.coveredHeading")}</h2>
             <dl className={styles["metrics"]}>
               <div>
-                <dt>Chunks reviewed</dt>
+                <dt>{t("review.summary.chunksReviewed")}</dt>
                 <dd>
                   {reviewedChunkIds.size}/{brief.chunks.length}
                 </dd>
               </div>
               <div>
-                <dt>Core chunks</dt>
+                <dt>{t("review.summary.coreChunks")}</dt>
                 <dd>
                   {
                     coreChunks.filter((chunk) => reviewedChunkIds.has(chunk.id))
@@ -94,7 +99,7 @@ export function SummaryPreview({
                 </dd>
               </div>
               <div>
-                <dt>Supporting chunks</dt>
+                <dt>{t("review.summary.supportingChunks")}</dt>
                 <dd>
                   {
                     supportingChunks.filter((chunk) =>
@@ -105,10 +110,10 @@ export function SummaryPreview({
                 </dd>
               </div>
             </dl>
-            <h3>Inline comments</h3>
+            <h3>{t("review.summary.inlineComments")}</h3>
             {receipt.comments.length === 0 ? (
               <p className={styles["empty"]}>
-                No draft comments in this preview.
+                {t("review.summary.noComments")}
               </p>
             ) : null}
             {receipt.comments.map((comment) => (
@@ -122,18 +127,19 @@ export function SummaryPreview({
           </div>
 
           <div className={styles["card"]}>
-            <h2>Risk surface disposition</h2>
+            <h2>{t("review.summary.dispositionHeading")}</h2>
             <RiskList
-              title="Addressed risks"
+              title={t("review.summary.addressedRisks")}
               items={receipt.addressed.map((flag) => ({
                 id: flag.id,
                 attr: flag.attr,
                 file: flag.file,
-                detail: flag.evidenceLabel ?? "no evidence linked",
+                detail:
+                  flag.evidenceLabel ?? t("review.summary.noEvidenceLinked"),
               }))}
             />
             <RiskList
-              title="Dismissed risks"
+              title={t("review.summary.dismissedRisks")}
               items={receipt.dismissed.map((flag) => ({
                 id: flag.id,
                 attr: flag.attr,
@@ -142,21 +148,21 @@ export function SummaryPreview({
               }))}
             />
             <RiskList
-              title="Open risks at submit"
+              title={t("review.summary.openRisks")}
               items={receipt.open.map((flag) => ({
                 id: flag.id,
                 attr: flag.attr,
                 file: flag.file,
-                detail: "not addressed, not dismissed",
+                detail: t("review.summary.notAddressedNotDismissed"),
               }))}
             />
           </div>
         </section>
 
         <section className={`${styles["card"]} ${styles["notChecked"]}`}>
-          <h2>Not checked</h2>
-          {RECEIPT_NOT_CHECKED.map((item) => (
-            <span key={item}>{item}</span>
+          <h2>{t("review.summary.notCheckedHeading")}</h2>
+          {RECEIPT_NOT_CHECKED_KEYS.map((key) => (
+            <span key={key}>{t(key)}</span>
           ))}
         </section>
       </section>

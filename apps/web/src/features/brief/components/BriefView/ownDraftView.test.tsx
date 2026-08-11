@@ -33,8 +33,8 @@ import type { OwnDraftPlan } from "./BriefView";
 import { BriefView } from "./BriefView";
 import {
   markReadyBatchFailureCopy,
-  OWN_DRAFT_STALE_COMPOSER_REASON,
-  POST_COMMENT_COPY,
+  OWN_DRAFT_STALE_COMPOSER_REASON_KEY,
+  POST_COMMENT_COPY_KEYS,
 } from "../BriefScreen/BriefScreen";
 import type { Brief } from "../../types";
 import { briefFixture } from "../../utils/fixtures";
@@ -146,11 +146,14 @@ describe("own-draft Brief view", () => {
     // actions (usePrBriefPlans withholds markReady/postComment).
     renderBriefView({}, briefFixture, true);
     expect(
-      screen.getAllByText(OWN_DRAFT_STALE_COMPOSER_REASON).length,
+      screen.getAllByText(appI18n.t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY))
+        .length,
     ).toBeGreaterThan(0);
     cleanup();
     renderBriefView(undefined, briefFixture, true);
-    expect(screen.queryByText(OWN_DRAFT_STALE_COMPOSER_REASON)).toBeNull();
+    expect(
+      screen.queryByText(appI18n.t(OWN_DRAFT_STALE_COMPOSER_REASON_KEY)),
+    ).toBeNull();
   });
 
   it("hides the submit machinery and the receipt entirely — nothing dangling", () => {
@@ -611,7 +614,7 @@ describe("own-draft Brief view", () => {
 
     // Honest counts, indeterminate for the one that failed (upstream is an
     // around-the-write failure), PR not marked ready.
-    const summary = markReadyBatchFailureCopy(1, 3, "indeterminate");
+    const summary = markReadyBatchFailureCopy(appI18n.t, 1, 3, "indeterminate");
     expect(await screen.findByText(summary)).toBeTruthy();
     // The summary must be the SETTLED live-region message, not a transient
     // 30ms window — flush the failed post's drain and every pending
@@ -619,7 +622,9 @@ describe("own-draft Brief view", () => {
     // the per-comment upstream copy never took the region over.
     await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
     expect(screen.getByText(summary)).toBeTruthy();
-    expect(screen.queryByText(POST_COMMENT_COPY.upstream)).toBeNull();
+    expect(
+      screen.queryByText(appI18n.t(POST_COMMENT_COPY_KEYS.upstream)),
+    ).toBeNull();
     // Stopped at the failure: the third draft was never attempted…
     expect(postComment).toHaveBeenCalledTimes(2);
     // …and mark-ready never ran.
@@ -667,7 +672,9 @@ describe("own-draft Brief view", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mark ready anyway" }));
 
     expect(
-      await screen.findByText(markReadyBatchFailureCopy(1, 2, "rejected")),
+      await screen.findByText(
+        markReadyBatchFailureCopy(appI18n.t, 1, 2, "rejected"),
+      ),
     ).toBeTruthy();
     // Not the indeterminate wording — the reject was deterministic.
     expect(screen.queryByText(/may or may not have posted/)).toBeNull();
@@ -711,7 +718,9 @@ describe("own-draft Brief view", () => {
     // The guard rejected pre-network: only the first draft was sent, the
     // deterministic summary is announced…
     expect(
-      await screen.findByText(markReadyBatchFailureCopy(1, 2, "rejected")),
+      await screen.findByText(
+        markReadyBatchFailureCopy(appI18n.t, 1, 2, "rejected"),
+      ),
     ).toBeTruthy();
     expect(postComment).toHaveBeenCalledTimes(1);
     expect(markReady).toHaveBeenCalledTimes(0);
@@ -721,11 +730,11 @@ describe("own-draft Brief view", () => {
     // the toast reads exactly the summary.
     await act(() => new Promise((resolve) => setTimeout(resolve, 120)));
     const toast = screen
-      .getByText(markReadyBatchFailureCopy(1, 2, "rejected"))
+      .getByText(markReadyBatchFailureCopy(appI18n.t, 1, 2, "rejected"))
       .closest('[data-state="visible"]');
     expect(toast).not.toBeNull();
     expect(toast?.textContent).toBe(
-      markReadyBatchFailureCopy(1, 2, "rejected"),
+      markReadyBatchFailureCopy(appI18n.t, 1, 2, "rejected"),
     );
   });
 
@@ -769,7 +778,7 @@ describe("own-draft Brief view", () => {
         screen.getByRole("button", { name: "Mark ready anyway" }),
       );
 
-      const summary = markReadyBatchFailureCopy(0, 1, kind);
+      const summary = markReadyBatchFailureCopy(appI18n.t, 0, 1, kind);
       expect(await screen.findByText(summary)).toBeTruthy();
       // The variant keeps the honest-counts prefix + NOT-marked-ready suffix
       // and carries the cause's own guidance.
@@ -818,7 +827,9 @@ describe("own-draft Brief view", () => {
 
     // The batch fails on the first post; the gate closes…
     expect(
-      await screen.findByText(markReadyBatchFailureCopy(0, 2, "indeterminate")),
+      await screen.findByText(
+        markReadyBatchFailureCopy(appI18n.t, 0, 2, "indeterminate"),
+      ),
     ).toBeTruthy();
     expect(overlayState("Before marking ready")).toBe("closed");
     // …and focus lands on the terminal-slot CTA, never silently on <body>.

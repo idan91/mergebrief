@@ -1,3 +1,5 @@
+import type { TranslationKey } from "i18n";
+import { useTranslation } from "react-i18next";
 import { Modal } from "@web/components/Modal/Modal";
 import styles from "./ShortcutsModal.module.scss";
 
@@ -8,34 +10,27 @@ export interface ShortcutsModalProps {
 
 interface ShortcutDefinition {
   key: string;
-  description: string;
+  /** Catalog key for the binding's description. */
+  descriptionKey: TranslationKey;
 }
 
 const SHORTCUTS: ShortcutDefinition[] = [
-  { key: "J", description: "Next chunk" },
-  { key: "K", description: "Previous chunk" },
-  {
-    key: "Shift+J",
-    description: "Next group — Read-through, in Reading order",
-  },
-  {
-    key: "Shift+K",
-    description: "Previous group — Read-through, in Reading order",
-  },
-  { key: "Z", description: "Focus mode — isolate the current chunk" },
-  { key: "C", description: "Jump to the Conversation section (DB path)" },
-  {
-    key: "R",
-    description: "Quote selected thread text into the reply box",
-  },
-  { key: "?", description: "Toggle this shortcuts list" },
-  { key: "Esc", description: "Close focus mode or a dialog" },
+  { key: "J", descriptionKey: "brief.shortcuts.nextChunk" },
+  { key: "K", descriptionKey: "brief.shortcuts.previousChunk" },
+  { key: "Shift+J", descriptionKey: "brief.shortcuts.nextGroup" },
+  { key: "Shift+K", descriptionKey: "brief.shortcuts.previousGroup" },
+  { key: "Z", descriptionKey: "brief.shortcuts.focusMode" },
+  { key: "C", descriptionKey: "brief.shortcuts.jumpConversation" },
+  { key: "R", descriptionKey: "brief.shortcuts.quoteThread" },
+  { key: "?", descriptionKey: "brief.shortcuts.toggleShortcuts" },
+  { key: "Esc", descriptionKey: "brief.shortcuts.closeDialog" },
 ];
 
 export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
+  const { t } = useTranslation();
   return (
     <Modal open={open} close={close} labelledBy="shortcuts-modal-heading">
-      <h3 id="shortcuts-modal-heading">Keyboard shortcuts</h3>
+      <h3 id="shortcuts-modal-heading">{t("brief.shortcuts.heading")}</h3>
       {/* Key→description pairs are a definition list; <div> inside <dl> is
           valid grouping markup and keeps the row layout untouched. */}
       <dl className={styles["list"]}>
@@ -44,12 +39,12 @@ export function ShortcutsModal({ open, close }: ShortcutsModalProps) {
             <dt>
               <kbd className={styles["key"]}>{shortcut.key}</kbd>
             </dt>
-            <dd>{shortcut.description}</dd>
+            <dd>{t(shortcut.descriptionKey)}</dd>
           </div>
         ))}
       </dl>
       <button className="btn" type="button" onClick={close}>
-        Close
+        {t("brief.shortcuts.close")}
       </button>
     </Modal>
   );

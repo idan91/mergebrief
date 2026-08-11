@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { Roles, type BriefChunk } from "../../brief/types";
 import type { RiskFlag } from "@web/features/brief/utils";
 import type { ReviewComment } from "./comments";
@@ -145,14 +146,29 @@ export function deriveUnresolvedItems(
 }
 
 /** Display label for a review outcome (SubmitModal picker, SummaryPreview). */
-export function reviewOutcomeLabel(outcome: ReviewOutcome): string {
-  if (outcome === "request-changes") return "Request changes";
-  if (outcome === "approve") return "Approve";
-  return "Comment";
+export function reviewOutcomeLabel(
+  t: TFunction,
+  outcome: ReviewOutcome,
+): string {
+  if (outcome === "request-changes") return t("review.outcome.requestChanges");
+  if (outcome === "approve") return t("review.outcome.approve");
+  return t("review.outcome.comment");
 }
 
-export function summarySignatureLine(counts: SignatureCounts): string {
-  return `Reviewed with MergeBrief / review — summary: ${counts.reviewedChunks} chunks read, ${counts.addressedRisks} risks addressed, ${counts.dismissedRisks} dismissed.`;
+/**
+ * The PREVIEW's signature line. The one actually posted to GitHub lives in
+ * `submit.ts` and stays English — it is written into an external system, not
+ * rendered to the viewer.
+ */
+export function summarySignatureLine(
+  t: TFunction,
+  counts: SignatureCounts,
+): string {
+  return t("review.summary.signature", {
+    reviewedChunks: counts.reviewedChunks,
+    addressedRisks: counts.addressedRisks,
+    dismissedRisks: counts.dismissedRisks,
+  });
 }
 
 export function riskDispositionCounts(

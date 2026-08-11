@@ -2,6 +2,7 @@
    Single deliberate use: the edit surface mounts in response to an explicit
    Edit click, so moving focus into the textarea is the expected next
    action — not a page-load focus steal. */
+import { useTranslation } from "react-i18next";
 import { useId, useState } from "react";
 
 import { MarkdownTextarea } from "@web/components/MarkdownTextarea/MarkdownTextarea";
@@ -52,6 +53,7 @@ export function CommentThread({
   toggle,
   update,
 }: CommentThreadProps) {
+  const { t } = useTranslation();
   const [editing, setEditing] = useState(false);
   const [body, setBody] = useState(comment.body);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -86,7 +88,7 @@ export function CommentThread({
     post !== undefined && !submitted
       ? (postBlockedExternally ??
         (editing
-          ? "Save or cancel your edit first — posting sends the last saved text."
+          ? t("review.comment.saveFirst")
           : postCommentBlockedReason(comment)))
       : undefined;
 
@@ -94,7 +96,8 @@ export function CommentThread({
     return (
       <div className={styles["thread"]} data-state="collapsed">
         <button type="button" onClick={() => toggle(comment.id)}>
-          {submitted ? "Posted" : "Draft"} comment on{" "}
+          {submitted ? t("review.comment.posted") : t("review.comment.draft")}{" "}
+          {t("review.comment.commentOn")}
           {comment.anchor.side === "new" ? "+" : "-"}
           {comment.anchor.startLine}
         </button>
@@ -119,7 +122,7 @@ export function CommentThread({
         <>
           <MarkdownTextarea
             autoFocus
-            label="Edit comment"
+            label={t("review.comment.editLabel")}
             mentionCandidates={mentionCandidates}
             renderPreview={(previewBody) => (
               <MarkdownPreview anchor={comment.anchor} body={previewBody} />
@@ -193,7 +196,7 @@ export function CommentThread({
             region, so an undo BUTTON has no surface. */}
         {confirmingDelete && !submitted ? (
           <div className={styles["deleteConfirm"]} role="alert">
-            <span>Delete this draft?</span>
+            <span>{t("review.comment.deleteConfirm")}</span>
             <button
               className="btn"
               disabled={posting}
@@ -226,7 +229,7 @@ export function CommentThread({
               type="button"
               onClick={() => post(comment)}
             >
-              {posting ? "Posting…" : "Post"}
+              {posting ? t("review.comment.posting") : t("review.comment.post")}
             </button>
           </div>
         ) : null}
