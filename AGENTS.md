@@ -34,9 +34,13 @@ it, alongside a `CLAUDE.md` that points at it — a new package adds both.
   it carries a temporary floor plus a catch-up ticket. Never lower a floor to
   absorb a drop. A `v8 ignore` comment needs a stated reason, and is reviewed
   like a lint-disable.
-- **CI is path-filtered per package**: changing a contract another package
-  consumes (parser shapes, route bodies, exported types) does NOT run the
-  dependents' suites in CI — run them locally before pushing.
+- **CI selects changed packages PLUS their dependents** (`--filter
+  "...[<base>]"` off the real workspace graph), so changing a contract another
+  package consumes does run that consumer's suite. Two holes remain, and both
+  need a local run before pushing: a consumer that mirrors a contract without
+  declaring the dependency (`apps/web`'s hand-rolled wire types), and any
+  agreement that is not a package edge at all (a wire shape a separate service
+  parses).
 - **Comments stay lean and reference-free**: a comment earns its place only
   by stating a constraint the code can't show on its own — one short line,
   not a paragraph. Delete rationale essays, "why we chose X" writeups, and
