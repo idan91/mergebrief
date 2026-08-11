@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Markdown } from "@web/components/Markdown/Markdown";
+import { formatDate, renderedLocale } from "@web/i18n/locale";
 import type { DigestThreadRow } from "../../../utils/digest";
 import rowStyles from "../../../rows.module.scss";
 import type { ThreadComposerWiring } from "../../../wiring";
@@ -33,7 +34,8 @@ export function ThreadDetail({
   composer,
   hideJump = false,
 }: ThreadDetailProps) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
+  const locale = renderedLocale(i18n.resolvedLanguage);
   const { thread, placement } = row;
   // This detail is the nearest common ancestor of the flow's two consumers:
   // the standalone action below and the composer's Reply & resolve leg.
@@ -144,7 +146,7 @@ export function ThreadDetail({
               ) : null}
             </span>
             <time dateTime={comment.createdAt}>
-              {new Date(comment.createdAt).toLocaleDateString()}
+              {formatDate(comment.createdAt, locale)}
             </time>
             {postdatesBrief(comment.createdAt, row.briefGeneratedAt) ? (
               <span className={rowStyles["chip"]} data-state="after-brief">

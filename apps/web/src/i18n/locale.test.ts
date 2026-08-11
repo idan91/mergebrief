@@ -2,6 +2,7 @@
 import { PSEUDO_LOCALE } from "i18n";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  formatDate,
   LOCALE_STORAGE_KEY,
   persistLocale,
   resolveInitialLocale,
@@ -34,5 +35,20 @@ describe("resolveInitialLocale", () => {
   it("persistLocale writes the choice", () => {
     persistLocale("en");
     expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("en");
+  });
+
+  it("formats dates with the rendered locale instead of the browser default", () => {
+    const iso = "2026-01-02T12:00:00.000Z";
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    };
+    expect(formatDate(iso, "fr", options)).toBe(
+      new Intl.DateTimeFormat("fr", options).format(new Date(iso)),
+    );
+    expect(formatDate(iso, "fr", options)).not.toBe(
+      new Intl.DateTimeFormat("en-US", options).format(new Date(iso)),
+    );
   });
 });

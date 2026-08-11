@@ -6,6 +6,7 @@ import {
   ExpiryChoice,
   TOKEN_NAME_MAX,
 } from "../../hooks/useTokenSettings";
+import { formatDate, renderedLocale } from "../../../../i18n/locale";
 import styles from "./TokenSettings.module.scss";
 
 export interface TokenSettingsProps {
@@ -13,9 +14,9 @@ export interface TokenSettingsProps {
   enabled: boolean;
 }
 
-function formatWhen(iso: string | null): string {
-  if (iso === null) return "never";
-  return new Date(iso).toLocaleDateString(undefined, {
+function formatWhen(iso: string | null, locale: string, never: string): string {
+  if (iso === null) return never;
+  return formatDate(iso, locale, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -28,8 +29,9 @@ const CLI_BINARY = "mergebrief";
 const CHMOD_COMMAND = "chmod 600";
 
 export function TokenSettings({ enabled }: TokenSettingsProps) {
-  const { t } = useTranslation();
+  const { i18n, t } = useTranslation();
   const state = useTokenSettings(enabled);
+  const locale = renderedLocale(i18n.resolvedLanguage);
 
   if (!enabled) return null;
 
@@ -164,13 +166,27 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             <span className={styles["rowName"]}>{token.name}</span>
             <span className={styles["rowMeta"]}>
               {token.revokedAt !== null
-                ? t("tokens.rowRevoked", { when: formatWhen(token.revokedAt) })
+                ? t("tokens.rowRevoked", {
+                    when: formatWhen(
+                      token.revokedAt,
+                      locale,
+                      t("tokens.never"),
+                    ),
+                  })
                 : t("tokens.rowActive", {
                     expires:
                       token.expiresAt === null
                         ? t("tokens.never")
-                        : formatWhen(token.expiresAt),
-                    lastUsed: formatWhen(token.lastUsedAt),
+                        : formatWhen(
+                            token.expiresAt,
+                            locale,
+                            t("tokens.never"),
+                          ),
+                    lastUsed: formatWhen(
+                      token.lastUsedAt,
+                      locale,
+                      t("tokens.never"),
+                    ),
                   })}
             </span>
             {token.revokedAt === null ? (

@@ -3,6 +3,7 @@
 // SHOWN-ONCE minted token (never re-renderable from any client state after
 // dismissal), the deterministic-400 mirror, and revoke.
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { I18nextProvider } from "react-i18next";
 import {
   cleanup,
   fireEvent,
@@ -11,6 +12,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { appI18n } from "../../../../i18n/I18nProvider";
 
 import type * as QueriesModule from "../../queries";
 
@@ -65,9 +67,11 @@ function renderSettings(tokens: TokensView = { tokens: [] }) {
   queryClient.setQueryData(installationsQueryOptions().queryKey, INSTALLATIONS);
   queryClient.setQueryData(tokensQueryOptions().queryKey, tokens);
   render(
-    <QueryClientProvider client={queryClient}>
-      <TokenSettings enabled />
-    </QueryClientProvider>,
+    <I18nextProvider i18n={appI18n}>
+      <QueryClientProvider client={queryClient}>
+        <TokenSettings enabled />
+      </QueryClientProvider>
+    </I18nextProvider>,
   );
   return queryClient;
 }
