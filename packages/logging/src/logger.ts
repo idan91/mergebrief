@@ -81,17 +81,33 @@ const REDACT_PATHS = [
 ];
 
 // Substring scrub for secrets embedded in strings, which key-path redaction is
-// structurally blind to. Scope is `err`/`error` (every string field of the
-// serialized error) plus `msg` ONLY — a secret under any other field name still
-// emits verbatim, so structured secrets must ride SECRET_KEYS. There is
+// structurally blind to. Two families: URL-shaped (credentialed DSNs) and
+// credential-shaped (provider/API tokens). Scope is `err`/`error` (every
+// string field of the serialized error) plus `msg` ONLY — a secret under any
+// other field name still emits verbatim, so structured secrets must ride
+// SECRET_KEYS. There is
 // deliberately no disable knob. `file://` is EXEMPT: consumers are ESM, so
 // redacting it would erase every stack frame. The `\b` keeps the lookahead from
 // sliding one character right and matching `ile://`.
 const URL_SHAPED = /\b(?!file:\/\/)\w+:\/\/\S+/g;
 const REDACTED_URL = "[redacted-url]";
 
+// Credential-SHAPED substrings, scrubbed alongside URLs. Key-path redaction
+// cannot see these: a provider's own error text ("invalid x-api-key
+// sk-ant-...") is free-form prose, not a field we hold, and it reaches `msg`
+// through call sites that deliberately avoid the `err` field because a cause
+// chain can carry request contents. Matched by ISSUER PREFIX rather than by
+// entropy — a prefix match cannot swallow ordinary prose, which an
+// entropy heuristic would. Extending the list is non-breaking; narrowing it
+// needs a decision-record amendment, like the key vocabulary.
+const TOKEN_SHAPED =
+  /\b(?:sk-ant-[\w-]+|sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,}|xox[abposr]-[A-Za-z0-9-]{10,}|mergebrief_[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{12,})/g;
+const REDACTED_TOKEN = "[redacted-token]";
+
 function scrubString(text: string): string {
-  return text.replace(URL_SHAPED, REDACTED_URL);
+  return text
+    .replace(URL_SHAPED, REDACTED_URL)
+    .replace(TOKEN_SHAPED, REDACTED_TOKEN);
 }
 
 // Copy-on-write: the non-Error path hands us the CALLER's object, which must

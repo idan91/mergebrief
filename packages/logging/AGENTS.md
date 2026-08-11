@@ -34,14 +34,24 @@ test/         vitest suites; captureDestination injects a line-capturing
   request headers plus the secret-key vocabulary at top level and one
   wildcard depth; see `REDACT_PATHS` in `logger.ts`. Extending the
   vocabulary is non-breaking; narrowing it needs an ADR amendment.
-- **URL-shaped substrings are scrubbed**: the `err`/`error`
-  serializers deep-scrub every string field of the serialized error
-  (post-serialization, copy-on-write), and `msg` gets the same regex —
-  `\w+://\S+` → `[redacted-url]`, `file://` exempt (ESM stack frames).
-  Scope is err/error + msg ONLY: a secret under any other field name
-  emits verbatim — structured secrets must ride the `SECRET_KEYS`
-  vocabulary. No disable knob, deliberately. Narrowing the scrub (or
-  widening the exemption) needs an ADR amendment, like the vocabulary.
+- **URL-shaped AND credential-shaped substrings are scrubbed**: the
+  `err`/`error` serializers deep-scrub every string field of the serialized
+  error (post-serialization, copy-on-write), and `msg` gets the same two
+  regexes — `\w+://\S+` → `[redacted-url]` (`file://` exempt, ESM stack
+  frames) and issuer-prefixed tokens (`sk-ant-`, `sk-`, `ghp_`/`gho_`/…,
+  `github_pat_`, `xox*-`, `mergebrief_`, `AKIA`) → `[redacted-token]`.
+  Prefix matching, never entropy: a heuristic would swallow ordinary prose.
+  Scope is err/error + msg ONLY: a secret under any other field name emits
+  verbatim — structured secrets must ride the `SECRET_KEYS` vocabulary. No
+  disable knob, deliberately. Narrowing either scrub (or widening the
+  exemption) needs an ADR amendment, like the vocabulary.
+- **The two mechanisms cover different threats, and both are needed.**
+  Key-path redaction protects secrets WE hold and name (a `token` field).
+  Content scrubbing protects secrets EMBEDDED in prose we do not
+  control — a provider's own error text quoting the key it rejected. Call
+  sites that log provider failures message-only (deliberately avoiding the
+  `err` field, whose cause chain can carry request contents) depend
+  entirely on the content scrub.
 - **Env is injected**: `createLogger({ env })` — this package never reads
   `process.env`. `LOG_LEVEL` (default `info`) picks the level; format is
   NODE_ENV-decided (pino-pretty transport only when `development`).

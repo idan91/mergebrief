@@ -365,6 +365,49 @@ describe("createLogger URL scrubbing — err serializer", () => {
   });
 });
 
+describe("createLogger credential scrubbing", () => {
+  // Real shapes: a provider's own error prose carries the key it rejected,
+  // and key-path redaction cannot see inside a sentence.
+  const CASES: ReadonlyArray<readonly [string, string]> = [
+    ["anthropic", "sk-ant-api03-AbCdEf_ghij-klmn"],
+    ["openai", "sk-proj-AbCdEfGhIjKlMnOpQrSt"],
+    ["github pat", "ghp_AbCdEfGhIjKlMnOpQrStUvWx0123"],
+    ["github fine-grained", "github_pat_11ABCDEFG0abcdefghij_KLMNOP"],
+    ["slack", "xoxb-1234567890-abcdefghij"],
+    ["mergebrief api token", "mergebrief_AbCdEfGhIjKlMnOpQr"],
+    ["aws access key", "AKIAIOSFODNN7EXAMPLE"],
+  ];
+
+  it.each(CASES)("redacts a %s token interpolated into msg", (_name, token) => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error(`generation failed — invalid key ${token} for the request`);
+    const raw = destination.raw()[0] ?? "";
+    expect(raw).not.toContain(token);
+    expect(destination.lines()[0]?.["msg"]).toContain("[redacted-token]");
+  });
+
+  it("redacts a token riding a serialized error message", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.error("boom", {
+      err: new Error("401 invalid x-api-key sk-ant-api03-LeAkEd_Key-999"),
+    });
+    const raw = destination.raw()[0] ?? "";
+    expect(raw).not.toContain("sk-ant-api03-LeAkEd_Key-999");
+    expect(raw).toContain("[redacted-token]");
+  });
+
+  it("leaves ordinary prose untouched — prefixes, not entropy", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    const msg =
+      "generate: succeeded for 1234abcd — sk is fine, so is ghost_writer and AKIA";
+    log.info(msg);
+    expect(destination.lines()[0]?.["msg"]).toBe(msg);
+  });
+});
+
 describe("createLogger URL scrubbing — msg", () => {
   it("redacts a URL-shaped substring interpolated into msg", () => {
     const destination = captureDestination();
