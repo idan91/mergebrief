@@ -49,6 +49,7 @@ import {
 import type { Logger } from "logging";
 import type { DraftPolicy, Result, ValueOf } from "types";
 import { z } from "zod";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 // ---------------------------------------------------------------------------
 // Injected deps.
@@ -451,11 +452,11 @@ export function authRoute(deps: AuthRouteDeps): Hono {
       state: c.req.query("state"),
     });
     if (!query.success) {
-      return c.json({ error: "invalid callback parameters" }, 400);
+      return errorJson(c, ApiErrorCode.SIGN_IN_FAILED);
     }
     // CSRF: the returned state must match the cookie we set at /api/auth/github.
     if (stateCookie === undefined || stateCookie !== query.data.state) {
-      return c.json({ error: "invalid oauth state" }, 400);
+      return errorJson(c, ApiErrorCode.SIGN_IN_FAILED);
     }
 
     const tokens = await exchangeWebFlowCode(oauthApp, {
@@ -463,7 +464,7 @@ export function authRoute(deps: AuthRouteDeps): Hono {
       state: query.data.state,
     });
     if (!tokens.ok) {
-      return c.json({ error: "oauth code exchange failed" }, 400);
+      return errorJson(c, ApiErrorCode.SIGN_IN_FAILED);
     }
 
     // Independent of each other (both need only the access token) → run
@@ -473,20 +474,17 @@ export function authRoute(deps: AuthRouteDeps): Hono {
       listAppInstallationsForUser(tokens.value.accessToken),
     ]);
     if (!user.ok) {
-      return c.json({ error: "could not resolve the authenticated user" }, 502);
+      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
     }
     if (!installations.ok) {
-      return c.json({ error: "could not resolve app installations" }, 502);
+      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
     }
     const accessible = installations.value;
     const firstAccessible = accessible[0];
     if (firstAccessible === undefined) {
       // No accessible installation → the app isn't installed where this
       // reviewer can reach it, so they aren't authorized to log in.
-      return c.json(
-        { error: "the app is not installed for this account" },
-        403,
-      );
+      return errorJson(c, ApiErrorCode.APP_NOT_INSTALLED);
     }
     // Bind the session to the user's DEFAULT installation when it is still in
     // their LIVE accessible set, else the first accessible one. The default is
@@ -517,7 +515,7 @@ export function authRoute(deps: AuthRouteDeps): Hono {
       tokens.value.refreshToken,
     );
     if (!sealedAccess.ok || !sealedRefresh.ok) {
-      return c.json({ error: "could not persist the session" }, 500);
+      return errorJson(c, ApiErrorCode.INTERNAL_ERROR);
     }
 
     // The credential pair lands on a fresh grant row; the session LINKS it.

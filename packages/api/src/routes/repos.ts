@@ -6,6 +6,7 @@
 // never a DB-only fallback. Lives under `/api/*`, so both presentation channels
 // (cookie + Bearer) authenticate.
 import { Hono } from "hono";
+import { ApiErrorCode, errorJson } from "../error-response";
 import type { AuthRouteDeps } from "./auth";
 import type { AllowedRepoResolver } from "./allowed-repos";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
@@ -28,13 +29,11 @@ export function reposRoute(
       c.get("logger"),
     );
     if (!resolved.ok) {
-      return c.json(
-        {
-          error:
-            resolved.error.status === 401 ? "unauthorized" : "upstream error",
-        },
-        resolved.error.status,
-        NO_STORE,
+      return errorJson(
+        c,
+        resolved.error.status === 401
+          ? ApiErrorCode.UNAUTHORIZED
+          : ApiErrorCode.GITHUB_UNAVAILABLE,
       );
     }
     // Deterministic order for humans and diffs: fullName ascending.

@@ -241,6 +241,9 @@ describe("reviewer auth routes", () => {
       },
     );
     expect(res.status).toBe(400);
+    expect(((await res.json()) as { code?: string }).code).toBe(
+      "sign-in-failed",
+    );
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("rs_oauth_state=");
     expect(await countRows(harness, "reviewer_session")).toBe(0);
@@ -305,6 +308,9 @@ describe("reviewer auth routes", () => {
       },
     );
     expect(res.status).toBe(403);
+    expect(((await res.json()) as { code?: string }).code).toBe(
+      "app-not-installed",
+    );
     expect(await countRows(harness, "reviewer_session")).toBe(0);
   });
 

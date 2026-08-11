@@ -10,6 +10,7 @@
 import { Hono } from "hono";
 import { artifactStore, forTenant, generationProjection } from "persistence";
 import { z } from "zod";
+import { ApiErrorCode, errorJson } from "../error-response";
 import type { AuthRouteDeps } from "./auth";
 import type { AllowedRepoResolver } from "./allowed-repos";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
@@ -45,7 +46,7 @@ export function pullsRoute(
       limit: c.req.query("limit") ?? undefined,
     });
     if (!query.success) {
-      return c.json({ error: "invalid query parameters" }, 400, NO_STORE);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const ctx = c.get("ctx");
 
@@ -54,13 +55,11 @@ export function pullsRoute(
       c.get("logger"),
     );
     if (!resolved.ok) {
-      return c.json(
-        {
-          error:
-            resolved.error.status === 401 ? "unauthorized" : "upstream error",
-        },
-        resolved.error.status,
-        NO_STORE,
+      return errorJson(
+        c,
+        resolved.error.status === 401
+          ? ApiErrorCode.UNAUTHORIZED
+          : ApiErrorCode.GITHUB_UNAVAILABLE,
       );
     }
     const allowed = resolved.value.allowed;

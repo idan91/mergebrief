@@ -454,12 +454,18 @@ describe("reviewer read API + authz gate", () => {
       headers: { Cookie: `rs_session=${cookie}` },
     });
     expect(missing.status).toBe(404);
+    expect(((await missing.json()) as { code?: string }).code).toBe(
+      "not-found",
+    );
 
     const malformed = await app.request(
       `/api/repos/${REPO_ID}/pulls/${PR_NUMBER}/brief-context?base=only`,
       { headers: { Cookie: `rs_session=${cookie}` } },
     );
     expect(malformed.status).toBe(400);
+    expect(((await malformed.json()) as { code?: string }).code).toBe(
+      "invalid-request",
+    );
   });
 
   it("200 authorized delta read returns the stored body; a missing span is 404", async () => {
@@ -757,6 +763,9 @@ describe("reviewer read API + authz gate", () => {
         headers: { Cookie: `rs_session=${cookie}` },
       });
       expect(res.status).toBe(413);
+      expect(((await res.json()) as { code?: string }).code).toBe(
+        "diff-too-large",
+      );
     },
   );
 

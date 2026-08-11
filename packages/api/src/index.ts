@@ -34,6 +34,17 @@ export type {
 export { LastReviewUnavailableReason } from "./routes/reads";
 export type { LastReviewComparisonView } from "./routes/reads";
 
+// The wire error contract. `API_ERROR_ENGLISH`/`API_ERROR_STATUS` are
+// mirror-only: `packages/i18n` pins `errors.<code>` templates against them;
+// `apps/web` pins its hand-rolled code mirror. No route behavior may depend
+// on these exports.
+export {
+  API_ERROR_ENGLISH,
+  API_ERROR_STATUS,
+  ApiErrorCode,
+} from "./error-response";
+export type { ApiErrorBody, ApiErrorParams } from "./error-response";
+
 // Installs/upgrades the `graphile_worker` schema so the webhook's by-name
 // `add_job` enqueue works against real Postgres. Composition roots call this
 // once at startup.

@@ -32,6 +32,35 @@ startup wiring, and any worker/LLM code.
   (401/400); unexpected throws map to a sanitized 500 (internals go to the
   log, never the response). No secrets/tokens in messages or responses.
 
+## Wire error contract (enforced, don't weaken)
+
+Every expected failure exits through `errorJson(c, code, params?)` from
+`src/error-response.ts` — the one producer of `{ error, code, params? }`
+bodies, the 1:1 code→status map, and the uniform `no-store` posture. Never
+hand-roll `c.json({ error })`.
+
+**Adding a new error code** (the recipe):
+
+1. Add the kebab-case code to `ApiErrorCode`, its status to
+   `API_ERROR_STATUS` (1:1 — a code needing two statuses is two codes), and
+   its English template to `API_ERROR_ENGLISH` (i18next `{{param}}` syntax
+   for any params, typed in `ApiErrorParams`).
+2. Add the identical template as `errors.<code>` in
+   `packages/i18n/locales/en.json` — the i18n suite pins completeness and
+   wording equality against the exported maps. CI's path filter will NOT
+   run that suite for an api-only edit: run
+   `pnpm -C packages/i18n test` locally.
+3. Mirror the code in `apps/web`'s hand-rolled `ApiErrorCode` (its Equals
+   pin fails to compile otherwise).
+4. A param value must never carry free-form upstream text unless
+   pre-sanitized (`sanitizeErrorDetail` from `logging`).
+
+Security collapses stay at the per-route `…Failure` mappers, BEFORE the
+contract module: internal enums (`GitHubApiErrorCode`, `UrlBriefErrorKind`,
+`RefreshErrorCode`) translate to wire codes there, keeping the uniform-404
+posture. A wire code is already the public posture, never the internal
+cause.
+
 ## Gated-route rules (enforced, don't weaken)
 
 - **One gate per request.** `readsRoute` guards `/api/repos/:repoId/*` with a

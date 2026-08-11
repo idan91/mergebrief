@@ -1,0 +1,77 @@
+import { Hono, type Context } from "hono";
+import { describe, expect, it } from "vitest";
+import {
+  API_ERROR_ENGLISH,
+  API_ERROR_STATUS,
+  ApiErrorCode,
+  errorJson,
+} from "../src/error-response";
+
+function appFor(handler: (c: Context) => Response): Hono {
+  const app = new Hono();
+  app.get("/probe", (c) => handler(c));
+  return app;
+}
+
+describe("errorJson", () => {
+  it("emits { error, code } with the code's mapped status and no-store", async () => {
+    const app = appFor((c) => errorJson(c, ApiErrorCode.NOT_FOUND));
+    const res = await app.request("/probe");
+    expect(res.status).toBe(404);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
+  });
+
+  it("composes the English line from the template and carries params", async () => {
+    const app = appFor((c) =>
+      errorJson(c, ApiErrorCode.GENERATION_CONFIG, {
+        detail: "missing ANTHROPIC_API_KEY",
+      }),
+    );
+    const res = await app.request("/probe");
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: "missing ANTHROPIC_API_KEY",
+      code: "generation-config",
+      params: { detail: "missing ANTHROPIC_API_KEY" },
+    });
+  });
+
+  it("omits params entirely for paramless codes", async () => {
+    const app = appFor((c) => errorJson(c, ApiErrorCode.UNAUTHORIZED));
+    const body: unknown = await (await app.request("/probe")).json();
+    expect(body).not.toHaveProperty("params");
+  });
+
+  it("maps every code to exactly one status and one template", () => {
+    const codes = Object.values(ApiErrorCode);
+    expect(codes).toHaveLength(18);
+    for (const code of codes) {
+      expect(API_ERROR_STATUS[code]).toBeGreaterThanOrEqual(400);
+      expect(API_ERROR_ENGLISH[code]).toBeTruthy();
+    }
+  });
+
+  it("pins the full code→status table — a flip is a contract decision", () => {
+    expect(API_ERROR_STATUS).toEqual({
+      unauthorized: 401,
+      "invalid-signature": 401,
+      forbidden: 403,
+      "github-permission": 403,
+      "not-found": 404,
+      "invalid-request": 400,
+      "not-a-pr-url": 400,
+      "sign-in-failed": 400,
+      "request-too-large": 413,
+      "diff-too-large": 413,
+      "pr-changed-since-read": 409,
+      "pr-rewritten-since-read": 409,
+      "app-not-installed": 403,
+      "github-unavailable": 502,
+      "generation-failed": 502,
+      "generation-unavailable": 503,
+      "generation-config": 503,
+      "internal-error": 500,
+    });
+  });
+});

@@ -274,6 +274,7 @@ describe("GET /api/repos", () => {
       const res = await getRepos({ Cookie: `rs_session=${cookie}` });
       expect(res.status).toBe(502);
       const text = await res.text();
+      expect(text).toContain('"code":"github-unavailable"');
       expect(text).not.toContain("octo/hello");
       expect(text).not.toContain(String(REPO_A));
     },

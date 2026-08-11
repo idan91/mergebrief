@@ -528,7 +528,11 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
     const body = (await limited.json()) as { pulls: unknown[] };
     expect(body.pulls).toHaveLength(1);
 
-    expect((await get("/api/pulls?limit=101", cookie)).status).toBe(400);
+    const capped = await get("/api/pulls?limit=101", cookie);
+    expect(capped.status).toBe(400);
+    expect(((await capped.json()) as { code?: string }).code).toBe(
+      "invalid-request",
+    );
     expect((await get("/api/pulls?limit=abc", cookie)).status).toBe(400);
   });
 
@@ -547,6 +551,7 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
       const res = await get("/api/pulls", cookie);
       expect(res.status).toBe(502);
       const text = await res.text();
+      expect(text).toContain('"code":"github-unavailable"');
       expect(text).not.toContain("prNumber"); // no rows leak on failure
     },
   );

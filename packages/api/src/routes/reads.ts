@@ -39,6 +39,7 @@ import {
   type ValueOf,
 } from "persistence";
 import { z } from "zod";
+import { ApiErrorCode, errorJson } from "../error-response";
 import { DEFAULT_DRAFT_POLICY } from "../draft-policy";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
 import { refreshSessionToken, type AuthRouteDeps } from "./auth";
@@ -156,9 +157,11 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.req.param("prNumber"),
     );
     if (!resolved.ok) {
-      return c.json(
-        { error: resolved.status === 400 ? "invalid request" : "not found" },
-        resolved.status,
+      return errorJson(
+        c,
+        resolved.status === 400
+          ? ApiErrorCode.INVALID_REQUEST
+          : ApiErrorCode.NOT_FOUND,
       );
     }
     const store = artifactStore(deps.handle, ctx);
@@ -290,7 +293,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       head: c.req.query("head"),
     });
     if (!query.success) {
-      return c.json({ error: "invalid query parameters" }, 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const resolved = await resolvePr(
       c.get("ctx"),
@@ -298,9 +301,11 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.req.param("prNumber"),
     );
     if (!resolved.ok) {
-      return c.json(
-        { error: resolved.status === 400 ? "invalid request" : "not found" },
-        resolved.status,
+      return errorJson(
+        c,
+        resolved.status === 400
+          ? ApiErrorCode.INVALID_REQUEST
+          : ApiErrorCode.NOT_FOUND,
       );
     }
     const row = await artifactStore(deps.handle, c.get("ctx")).briefs.get(
@@ -309,7 +314,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       query.data.head,
     );
     if (row === undefined) {
-      return c.json({ error: "not found" }, 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
     return artifactJson(c, row.body);
   });
@@ -325,7 +330,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       head: c.req.query("head"),
     });
     if (!query.success) {
-      return c.json({ error: "invalid query parameters" }, 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const resolved = await resolvePr(
       c.get("ctx"),
@@ -333,9 +338,11 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.req.param("prNumber"),
     );
     if (!resolved.ok) {
-      return c.json(
-        { error: resolved.status === 400 ? "invalid request" : "not found" },
-        resolved.status,
+      return errorJson(
+        c,
+        resolved.status === 400
+          ? ApiErrorCode.INVALID_REQUEST
+          : ApiErrorCode.NOT_FOUND,
       );
     }
     const repoConfig = await artifactStore(
@@ -343,7 +350,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.get("ctx"),
     ).briefs.getRepoConfig(resolved.pr.id, query.data.base, query.data.head);
     if (repoConfig === undefined) {
-      return c.json({ error: "not found" }, 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
     // The column already holds validated JSON — compose the envelope as a
     // string so the snapshot is never re-parsed per request.
@@ -357,7 +364,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       head: c.req.query("head"),
     });
     if (!query.success) {
-      return c.json({ error: "invalid query parameters" }, 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const resolved = await resolvePr(
       c.get("ctx"),
@@ -365,9 +372,11 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.req.param("prNumber"),
     );
     if (!resolved.ok) {
-      return c.json(
-        { error: resolved.status === 400 ? "invalid request" : "not found" },
-        resolved.status,
+      return errorJson(
+        c,
+        resolved.status === 400
+          ? ApiErrorCode.INVALID_REQUEST
+          : ApiErrorCode.NOT_FOUND,
       );
     }
     const row = await artifactStore(
@@ -375,7 +384,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.get("ctx"),
     ).comparisonMarks.get(resolved.pr.id, query.data.baseline, query.data.head);
     if (row === undefined) {
-      return c.json({ error: "not found" }, 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
     return artifactJson(c, row.body);
   });
@@ -389,7 +398,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       head: c.req.query("head"),
     });
     if (!query.success) {
-      return c.json({ error: "invalid query parameters" }, 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const resolved = await resolvePr(
       c.get("ctx"),
@@ -397,9 +406,11 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.req.param("prNumber"),
     );
     if (!resolved.ok) {
-      return c.json(
-        { error: resolved.status === 400 ? "invalid request" : "not found" },
-        resolved.status,
+      return errorJson(
+        c,
+        resolved.status === 400
+          ? ApiErrorCode.INVALID_REQUEST
+          : ApiErrorCode.NOT_FOUND,
       );
     }
     const row = await artifactStore(deps.handle, c.get("ctx")).deltas.get(
@@ -408,7 +419,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       query.data.head,
     );
     if (row === undefined) {
-      return c.json({ error: "not found" }, 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
     return artifactJson(c, row.body);
   });
@@ -420,7 +431,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       head: c.req.query("head"),
     });
     if (!query.success) {
-      return c.json({ error: "invalid query parameters" }, 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const resolved = await resolvePr(
       c.get("ctx"),
@@ -428,9 +439,11 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.req.param("prNumber"),
     );
     if (!resolved.ok) {
-      return c.json(
-        { error: resolved.status === 400 ? "invalid request" : "not found" },
-        resolved.status,
+      return errorJson(
+        c,
+        resolved.status === 400
+          ? ApiErrorCode.INVALID_REQUEST
+          : ApiErrorCode.NOT_FOUND,
       );
     }
     const row = await artifactStore(
@@ -442,7 +455,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       query.data.head,
     );
     if (row === undefined) {
-      return c.json({ error: "not found" }, 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
     return artifactJson(c, row.body);
   });
@@ -456,15 +469,17 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       head: c.req.query("head"),
     });
     if (!query.success) {
-      return c.json({ error: "invalid query parameters" }, 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const ctx = c.get("ctx");
     const repoId = c.get("repoId");
     const resolved = await resolvePr(ctx, repoId, c.req.param("prNumber"));
     if (!resolved.ok) {
-      return c.json(
-        { error: resolved.status === 400 ? "invalid request" : "not found" },
-        resolved.status,
+      return errorJson(
+        c,
+        resolved.status === 400
+          ? ApiErrorCode.INVALID_REQUEST
+          : ApiErrorCode.NOT_FOUND,
       );
     }
     // Fetch by the AUTHZ-VERIFIED full name (set by the gate from its GitHub
@@ -473,7 +488,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     // the numeric id the gate authorized.
     const target = splitRepoSlug(c.get("repoFullName"));
     if (target === undefined) {
-      return c.json({ error: "not found" }, 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     const session = c.get("session");
@@ -490,7 +505,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     let accessToken =
       c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
     if (accessToken === undefined) {
-      return c.json({ error: "unauthorized" }, 401);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
 
     // Fetch the diff for the REQUESTED span (base...head), not the whole PR.
@@ -512,7 +527,7 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
         c.get("logger"),
       );
       if (!refreshed.ok) {
-        return c.json({ error: "unauthorized" }, 401);
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
       }
       currentSession = refreshed.value.session;
       accessToken = refreshed.value.accessToken;
@@ -523,13 +538,13 @@ export function readsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       // lines) — a PERMANENT condition for this span, so surface it as 413
       // rather than a retryable-looking 502.
       if (diff.error.status === 406) {
-        return c.json({ error: "diff too large to render" }, 413);
+        return errorJson(c, ApiErrorCode.DIFF_TOO_LARGE);
       }
-      const status =
-        diff.error.code === GitHubApiErrorCode.NOT_FOUND ? 404 : 502;
-      return c.json(
-        { error: status === 404 ? "not found" : "upstream error" },
-        status,
+      return errorJson(
+        c,
+        diff.error.code === GitHubApiErrorCode.NOT_FOUND
+          ? ApiErrorCode.NOT_FOUND
+          : ApiErrorCode.GITHUB_UNAVAILABLE,
       );
     }
     // Serve always; cache only when small enough (oversized diffs are rare and
