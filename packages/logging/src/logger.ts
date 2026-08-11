@@ -2,6 +2,7 @@
 // and no pino type or value ever appears in an exported signature.
 import { pino, stdSerializers } from "pino";
 import type { ValueOf } from "types";
+import { scrubSecrets, URL_SHAPED_LOG } from "./scrub";
 
 /** Structured fields riding a log line. Secrets go HERE, never in `msg`. */
 export interface LogFields {
@@ -56,7 +57,8 @@ export function resolveLoggerConfig(env: NodeJS.ProcessEnv): LoggerConfig {
   return { level: raw, pretty: env["NODE_ENV"] === "development" };
 }
 
-// Secret vocabulary redacted at top level AND one wildcard depth, plus the
+// Secret vocabulary redacted at top level AND one wildcard depth — including
+// under `params` (wire-error interpolation params) at both depths — plus the
 // sensitive request headers; `remove: true` makes redacted keys VANISH with no
 // placeholder. Extending the vocabulary is non-breaking; narrowing it needs a
 // decision-record amendment.
@@ -78,36 +80,18 @@ const REDACT_PATHS = [
   'headers["x-hub-signature-256"]',
   ...SECRET_KEYS,
   ...SECRET_KEYS.map((key) => `*.${key}`),
+  ...SECRET_KEYS.map((key) => `params.${key}`),
+  ...SECRET_KEYS.map((key) => `*.params.${key}`),
 ];
 
 // Substring scrub for secrets embedded in strings, which key-path redaction is
-// structurally blind to. Two families: URL-shaped (credentialed DSNs) and
-// credential-shaped (provider/API tokens). Scope is `err`/`error` (every
-// string field of the serialized error) plus `msg` ONLY — a secret under any
-// other field name still emits verbatim, so structured secrets must ride
-// SECRET_KEYS. There is
-// deliberately no disable knob. `file://` is EXEMPT: consumers are ESM, so
-// redacting it would erase every stack frame. The `\b` keeps the lookahead from
-// sliding one character right and matching `ile://`.
-const URL_SHAPED = /\b(?!file:\/\/)\w+:\/\/\S+/g;
-const REDACTED_URL = "[redacted-url]";
-
-// Credential-SHAPED substrings, scrubbed alongside URLs. Key-path redaction
-// cannot see these: a provider's own error text ("invalid x-api-key
-// sk-ant-...") is free-form prose, not a field we hold, and it reaches `msg`
-// through call sites that deliberately avoid the `err` field because a cause
-// chain can carry request contents. Matched by ISSUER PREFIX rather than by
-// entropy — a prefix match cannot swallow ordinary prose, which an
-// entropy heuristic would. Extending the list is non-breaking; narrowing it
-// needs a decision-record amendment, like the key vocabulary.
-const TOKEN_SHAPED =
-  /\b(?:sk-ant-[\w-]+|sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,}|xox[abposr]-[A-Za-z0-9-]{10,}|mergebrief_[A-Za-z0-9_-]{16,}|AKIA[0-9A-Z]{12,})/g;
-const REDACTED_TOKEN = "[redacted-token]";
-
+// structurally blind to — both families live in `scrub.ts`, shared with the
+// error-detail sanitizer. Scope is `err`/`error` (every string field of the
+// serialized error) plus `msg` ONLY: a secret under any other field name
+// emits verbatim, so structured secrets must ride SECRET_KEYS. There is
+// deliberately no disable knob.
 function scrubString(text: string): string {
-  return text
-    .replace(URL_SHAPED, REDACTED_URL)
-    .replace(TOKEN_SHAPED, REDACTED_TOKEN);
+  return scrubSecrets(text, URL_SHAPED_LOG);
 }
 
 // Copy-on-write: the non-Error path hands us the CALLER's object, which must

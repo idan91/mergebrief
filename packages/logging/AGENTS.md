@@ -18,6 +18,12 @@ src/
               redaction paths, err serializer
   graphile.ts createGraphileLogFactory — adapter for graphile-worker's
               @graphile/logger (scope → child bindings)
+  sanitize.ts sanitizeErrorDetail — boundary sanitizer for free-form error
+              text leaving the process (wire params, DB columns): first
+              line, URLs redacted (file:// included), tokens redacted,
+              300-char cap
+  scrub.ts    the content-scrub vocabulary (URL + credential patterns),
+              shared by logger.ts and sanitize.ts so they cannot drift
 test/         vitest suites; captureDestination injects a line-capturing
               sink so tests assert on real NDJSON output
 ```
@@ -52,6 +58,11 @@ test/         vitest suites; captureDestination injects a line-capturing
   sites that log provider failures message-only (deliberately avoiding the
   `err` field, whose cause chain can carry request contents) depend
   entirely on the content scrub.
+- **One scrub vocabulary, two exits.** `scrub.ts` owns the patterns; the log
+  boundary and `sanitizeErrorDetail` both consume them, so a credential
+  closed on one path cannot leak through the other. They differ in exactly
+  one respect: logs exempt `file://` (ESM stack frames), error detail does
+  not (detail is never a stack).
 - **Env is injected**: `createLogger({ env })` — this package never reads
   `process.env`. `LOG_LEVEL` (default `info`) picks the level; format is
   NODE_ENV-decided (pino-pretty transport only when `development`).

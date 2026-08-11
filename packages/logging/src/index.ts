@@ -13,6 +13,9 @@ export {
   type LogLevel,
 } from "./logger";
 
+// Boundary sanitizer for error detail leaving the process (wire, DB).
+export { sanitizeErrorDetail } from "./sanitize";
+
 // graphile-worker adapter (worker startup wiring).
 export {
   createGraphileLogFactory,

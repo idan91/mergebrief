@@ -174,6 +174,20 @@ describe("createLogger redaction", () => {
     }
   });
 
+  it("removes secret keys under params at top level and one level deep", () => {
+    const destination = captureDestination();
+    const log = createLogger({ env: {}, destination });
+    log.info("wire error", {
+      params: { token: "ghs_wire", detail: "kept" },
+      response: { params: { clientSecret: "cs_1", status: 503 } },
+    });
+    const line = destination.lines()[0];
+    expect(line?.["params"]).toEqual({ detail: "kept" });
+    expect(line?.["response"]).toEqual({ params: { status: 503 } });
+    expect(destination.raw()[0]).not.toContain("ghs_wire");
+    expect(destination.raw()[0]).not.toContain("cs_1");
+  });
+
   it("redacts secrets carried in child bindings", () => {
     const destination = captureDestination();
     const log = createLogger({ env: {}, destination });
