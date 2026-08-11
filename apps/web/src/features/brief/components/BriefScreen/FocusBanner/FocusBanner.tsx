@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import type { Ref } from "react";
 
 import type { BriefViewModel } from "../../../utils/viewModel";
@@ -38,11 +38,15 @@ export function FocusBanner({
     >
       <div className={styles["focusBanner"]}>
         <span>
-          <b>{t("brief.focusBanner.lead")}</b> {t("brief.focusBanner.body")}{" "}
-          <kbd>J</kbd>
-          <kbd>K</kbd> {t("brief.focusBanner.keysHint")}{" "}
-          <kbd>{t("brief.focusBanner.escKey")}</kbd>{" "}
-          {t("brief.focusBanner.exitHint")}
+          <Trans
+            components={[
+              <b key="lead">{t("brief.focusBanner.lead")}</b>,
+              <kbd key="j">J</kbd>,
+              <kbd key="k">K</kbd>,
+              <kbd key="esc">{t("brief.focusBanner.escKey")}</kbd>,
+            ]}
+            i18nKey="brief.focusBanner.hint"
+          />
         </span>
         <ReadThroughProgress
           activeChunkId={activeChunkId}

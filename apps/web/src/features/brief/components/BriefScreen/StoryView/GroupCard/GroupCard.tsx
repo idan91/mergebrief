@@ -1,5 +1,5 @@
 import { riskFlagDescription } from "../../../../utils/viewModel";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { memo, useMemo } from "react";
 import { useShallow } from "zustand/react/shallow";
 
@@ -248,13 +248,16 @@ export const GroupCard = memo(function GroupCard({
         {group.group.uncertain && !isReclassified ? (
           <div className={styles["uncertainPanel"]}>
             <span className={styles["question"]}>
-              {t("brief.group.splitIntent")}{" "}
-              <b>
-                {group.group.uncertainBetween.join(
-                  t("brief.group.uncertainSeparator"),
-                )}
-              </b>
-              {t("brief.group.yourCall")}
+              <Trans
+                components={[
+                  <b key="between">
+                    {group.group.uncertainBetween.join(
+                      t("brief.group.uncertainSeparator"),
+                    )}
+                  </b>,
+                ]}
+                i18nKey="brief.group.splitIntent"
+              />
             </span>
             <span className={styles["pick"]}>
               {group.group.uncertainBetween.map((category) => (

@@ -1,6 +1,6 @@
 // Settings page. Session-gated like the picker's DB sections — logged-out
 // viewers get the sign-in pointer, never a broken form.
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 
@@ -37,8 +37,14 @@ function SettingsPage() {
         </p>
       ) : (
         <p className={styles["signedOut"]}>
-          <a href="/api/auth/github">{t("shell.signInWithGithub")}</a>{" "}
-          {t("shell.toManageTokens")}
+          <Trans
+            components={[
+              <a href="/api/auth/github" key="signIn">
+                {t("shell.signInWithGithub")}
+              </a>,
+            ]}
+            i18nKey="shell.signInPrompt"
+          />
         </p>
       )}
     </main>

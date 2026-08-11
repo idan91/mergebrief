@@ -35,11 +35,32 @@ test/         QA gates (hard-fail mechanical + report-only completeness)
   `{ count }`; no `_zero` in English (`_other` covers 0; special zero-copy
   is its own key). Composite sentences split — plural core as a keyed
   pair, suffixes as separate keys, composition in code. No ICU.
+- **Inline markup rides positional slots**: a sentence wrapping an element
+  (`<code>`, a link) is ONE entry with `<0>…</0>` / `<0/>` marking where the
+  element sits; the call site passes them through `<Trans components={…}>`.
+  Element NAMES never appear in a value — that is what keeps the markup ban
+  absolute. Indices run 0..n-1 exactly once each, no nesting, no empty or blank pair.
+  The shape this replaces is a fragment pair whose split point sits MID-CLAUSE
+  around an element. Shapes that are NOT that and stay split: a whole sentence
+  beside another whole sentence (`brief.changes.noRevisionSummary*`); a leading
+  label with its own clause (`brief.group.addressedLead` + `addressedBody`);
+  and a unit label trailing a value (`brief.group.coreSuffix`) — in none of
+  them is an element's position what a translation needs to move.
+- **Slots are self-closing (`<0/>`); the element brings its own children.**
+  A `<code>` gets its identifier, a link gets its label from its own key
+  (`shell.signInWithGithub`). Two rules make this the default rather than the
+  paired `<0>…</0>` form: `<Trans>` parses an interpolated `{{param}}` as
+  HTML, so `<0>{{cmd}}</0>` renders a bracket-bearing command escaped and
+  visible (`pnpm categorize &lt;pr-url&gt;`) and would feed external data to
+  an HTML parser; and an empty `<a/>` in a `components` array fails oxlint's
+  `jsx-a11y/anchor-has-content`, which cannot see that Trans fills it. Use the
+  paired form only for prose that must stay inside the sentence — the gate
+  accepts it, nothing ships it today.
 - **en.json is the source of truth**; locale files are community-owned.
   The mechanical review bar lives in this package's vitest suite
-  (hard-fail: parse, no invented/stale keys, `{{param}}` sets match,
-  plural suffixes valid and only on pluralized en bases, no markup, no
-  empty values). Completeness only reports — a
+  (hard-fail: parse, no invented/stale keys, `{{param}}` and slot sets
+  match, plural suffixes valid and only on pluralized en bases, no markup
+  beyond positional slots, no empty values). Completeness only reports — a
   partial locale ships and falls back through `locale → base-lang → en`.
 - **Typed keys**: `types.ts` ships the `CustomTypeOptions` wiring —
   an unknown key fails to compile in every consumer. JSON imports widen

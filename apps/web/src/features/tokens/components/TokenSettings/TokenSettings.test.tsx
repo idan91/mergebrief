@@ -116,6 +116,19 @@ describe("TokenSettings", () => {
     expect(status.textContent).toMatch(/shown exactly once/i);
     expect(status.textContent).toMatch(/like a password/i);
     expect(status.textContent).toMatch(/plaintext/i);
+    // The disclaimer's slots: a wrong components arity drops an element and
+    // leaves its text bare, which no textContent assertion would notice.
+    expect(
+      [...status.querySelectorAll("code")].map((node) => node.textContent),
+    ).toContain("chmod 600");
+    // `LIVE_TOKEN` is minted against installation 111, not the picked 222.
+    expect(status.querySelector("strong")?.textContent).toBe("acme");
+  });
+
+  it("renders the intro's CLI name as code, not as bare text", () => {
+    renderSettings();
+    const intro = screen.getByText(/tokens let the/i);
+    expect(intro.querySelector("code")?.textContent).toBe("mergebrief");
   });
 
   it("dismissal is final — the token is not re-renderable from any state", async () => {

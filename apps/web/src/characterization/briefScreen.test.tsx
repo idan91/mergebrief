@@ -360,6 +360,21 @@ describe("brief screen characterization", () => {
     );
   });
 
+  it("keeps the split-intent categories bolded inside the sentence", async () => {
+    // One <Trans> sentence: a short components array would drop the <b> and
+    // the category names with it, leaving the question with no candidates.
+    await renderBriefScreen();
+    const bolded = [...document.querySelectorAll("b")].map(
+      (node) => node.textContent,
+    );
+    expect(bolded).toContain("bugfix vs logic-refactor");
+    // Whole sentence, so the separator spacing is pinned too — losing the
+    // space around the slot welds the categories to the preceding colon.
+    expect(screen.getByText(/categorizer is split/).textContent).toBe(
+      "The categorizer is split on this group\u2019s intent: bugfix vs logic-refactor. Your call; the receipt records the override.",
+    );
+  });
+
   it("reclassifying an uncertain group records the override on the card", async () => {
     await renderBriefScreen();
     expect(screen.queryByText("set by you · recorded on receipt")).toBeNull();

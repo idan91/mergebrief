@@ -1,4 +1,4 @@
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
@@ -111,8 +111,10 @@ function BriefPicker() {
           <div className={styles["empty"]}>
             <p>{t("shell.noBriefs")}</p>
             <p>
-              {t("shell.cliHintLead")} <code>{CLI_COMMAND}</code>{" "}
-              {t("shell.cliHintTail")}
+              <Trans
+                components={[<code key="command">{CLI_COMMAND}</code>]}
+                i18nKey="shell.cliHint"
+              />
             </p>
           </div>
         ) : (

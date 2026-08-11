@@ -324,6 +324,19 @@ describe("Read-through progress + auto-advance", () => {
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
   });
 
+  it("keeps the focus banner's key hints as kbd elements", async () => {
+    // The banner is one <Trans> sentence: a short components array would drop
+    // a <kbd> and its letter with it, leaving "to move," with nothing to press.
+    await renderReadThroughScreen();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+    fireEvent.keyDown(window, { key: "z" });
+    const banner = await screen.findByTestId("focus-banner");
+    expect(
+      [...banner.querySelectorAll("kbd")].map((k) => k.textContent),
+    ).toEqual(["J", "K", "Esc"]);
+    expect(banner.textContent).toContain("Focus mode");
+  });
+
   it("does not auto-advance outside focus mode entirely", async () => {
     await renderReadThroughScreen();
 

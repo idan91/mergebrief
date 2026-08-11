@@ -1,6 +1,6 @@
 // API-token settings section. All flow state lives in `useTokenSettings` —
 // this component only wires it to the DOM.
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import {
   useTokenSettings,
   ExpiryChoice,
@@ -40,8 +40,10 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
     >
       <h2 id="token-settings-heading">{t("tokens.heading")}</h2>
       <p className={styles["copy"]}>
-        {t("tokens.introLead")} <code>{CLI_BINARY}</code>{" "}
-        {t("tokens.introTail")}
+        <Trans
+          components={[<code key="cli">{CLI_BINARY}</code>]}
+          i18nKey="tokens.intro"
+        />
       </p>
 
       <form
@@ -122,15 +124,17 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             {state.mintedToken.token}
           </code>
           <p className={styles["mintedDisclaimer"]}>
-            {t("tokens.disclaimerLead")}
-            <code>{CHMOD_COMMAND}</code>
-            {t("tokens.disclaimerTail")}{" "}
-            <strong>
-              {state.installations.find(
-                (i) => i.id === state.mintedToken?.apiToken.installationId,
-              )?.label ?? t("tokens.itsOrganization")}
-            </strong>
-            .
+            <Trans
+              components={[
+                <code key="chmod">{CHMOD_COMMAND}</code>,
+                <strong key="org">
+                  {state.installations.find(
+                    (i) => i.id === state.mintedToken?.apiToken.installationId,
+                  )?.label ?? t("tokens.itsOrganization")}
+                </strong>,
+              ]}
+              i18nKey="tokens.disclaimer"
+            />
           </p>
           <button
             className="btn"

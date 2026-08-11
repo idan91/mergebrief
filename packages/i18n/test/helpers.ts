@@ -42,6 +42,48 @@ export function pluralBase(key: string): string {
   return PLURAL_SUFFIXES.has(suffix) ? key.slice(0, underscore) : key;
 }
 
+// Positional `<Trans>` slots: `<0>…</0>` and `<0/>`. The pair's interior
+// forbids nesting and requires a non-space character: both an empty and a
+// whitespace-only pair leave brackets behind and trip the markup ban, since
+// either would render an element with no accessible name.
+const TRANS_SLOT = /<(\d+)>[^<>]*\S[^<>]*<\/\1>|<(\d+)\s*\/>/g;
+
+/**
+ * Slots a value references, in source order and with repeats. `paired` carries
+ * translatable inner text; `self` takes its content from the call site.
+ */
+export function slots(
+  template: string,
+): { index: number; form: "paired" | "self" }[] {
+  const found: { index: number; form: "paired" | "self" }[] = [];
+  for (const match of template.matchAll(TRANS_SLOT)) {
+    const paired = match[1];
+    const raw = paired ?? match[2];
+    if (raw !== undefined) {
+      found.push({
+        index: Number(raw),
+        form: paired === undefined ? "self" : "paired",
+      });
+    }
+  }
+  return found;
+}
+
+/** Slot indices a value references, in source order and with repeats. */
+export function tagIndices(template: string): number[] {
+  return slots(template).map((slot) => slot.index);
+}
+
+/**
+ * En's counterpart for a key's slots. Per-suffix, NOT a union across plural
+ * variants: forms legitimately differ in structure, and unlike `{{count}}`
+ * nothing makes a slot mandatory in every form. A locale-only form (`ru`'s
+ * `_few`) falls back to en's `_other`.
+ */
+function enSlotSource(flat: FlatCatalog, key: string, base: string): string {
+  return flat[key] ?? flat[`${base}_other`] ?? flat[base] ?? "";
+}
+
 export function paramTokens(template: string): Set<string> {
   const tokens = new Set<string>();
   for (const match of template.matchAll(/\{\{\s*([^}]+?)\s*\}\}/g)) {
@@ -66,8 +108,9 @@ function baseParamTokens(flat: FlatCatalog, base: string): Set<string> {
 
 /**
  * The mechanical review bar for a locale file, against en:
- * no invented/stale keys, `{{param}}` sets untouched, plural suffixes valid,
- * no markup. Fluency stays community-owned — nothing here reads the prose.
+ * no invented/stale keys, `{{param}}` and slot sets untouched, plural suffixes
+ * valid, no markup beyond positional slots. Fluency stays community-owned —
+ * nothing here reads the prose.
  */
 export function checkLocale(locale: object, en: object): CatalogIssue[] {
   const issues: CatalogIssue[] = [];
@@ -107,8 +150,50 @@ export function checkLocale(locale: object, en: object): CatalogIssue[] {
         problem: `{{param}} set differs from en (expected {${[...expected].join(", ")}}, got {${[...actual].join(", ")}})`,
       });
     }
-    if (/[<>]/.test(template)) {
+    const parsed = slots(template);
+    if (/[<>]/.test(template.replace(TRANS_SLOT, ""))) {
       issues.push({ key, problem: "markup is not allowed in catalog values" });
+    }
+    // Components are passed positionally, so a gap or a repeat drops or
+    // duplicates one: the wrapped text renders bare, or the element twice.
+    const ordered = parsed
+      .map((slot) => slot.index)
+      .toSorted((left, right) => left - right);
+    if (ordered.some((index, position) => index !== position)) {
+      issues.push({
+        key,
+        problem: `slot indices must run 0..n-1 exactly once each (got {${ordered.join(", ")}})`,
+      });
+    }
+    const enForms = new Map(
+      slots(enSlotSource(flatEn, key, base)).map((slot) => [
+        slot.index,
+        slot.form,
+      ]),
+    );
+    const actualSlots = new Set(ordered);
+    const slotsDrifted =
+      [...actualSlots].some((index) => !enForms.has(index)) ||
+      [...enForms.keys()].some((index) => !actualSlots.has(index));
+    if (slotsDrifted) {
+      // Dropping a slot silently loses whatever it wrapped — a link becomes
+      // prose with nothing to click.
+      issues.push({
+        key,
+        problem: `slot set differs from en (expected {${[...enForms.keys()].join(", ")}}, got {${[...actualSlots].join(", ")}})`,
+      });
+    }
+    // Turning `<0/>` into `<0>…</0>` makes Trans render the value's text
+    // INSTEAD of the call site's children, so a translation could replace a
+    // link's label with its own — and the index set alone cannot see it.
+    for (const slot of parsed) {
+      const enForm = enForms.get(slot.index);
+      if (enForm !== undefined && enForm !== slot.form) {
+        issues.push({
+          key,
+          problem: `slot <${slot.index}> must stay ${enForm === "self" ? "self-closing" : "paired"}, as in en`,
+        });
+      }
     }
   }
   return issues;

@@ -9,6 +9,7 @@ import {
   missingKeys,
   paramTokens,
   pluralBase,
+  tagIndices,
 } from "./helpers";
 
 const LOCALES_DIR = fileURLToPath(new URL("../locales", import.meta.url));
@@ -56,6 +57,25 @@ describe("catalog gates (hard-fail)", () => {
     }
   });
 
+  it("pins every slot-bearing key to its slot count", () => {
+    // A slot-bearing key read through a bare `t()` renders its tags as text,
+    // and a slot with no component renders as NOTHING. Pinning counts (not
+    // just the key set) forces a slot change to be re-checked against the
+    // call site's `components` arity by hand — nothing here reaches one.
+    const flat = flattenCatalog(parseLocale("en.json"));
+    const slotted = Object.entries(flat)
+      .filter(([, template]) => tagIndices(template).length > 0)
+      .map(([key, template]) => [key, tagIndices(template).length]);
+    expect(Object.fromEntries(slotted)).toEqual({
+      "brief.focusBanner.hint": 4,
+      "brief.group.splitIntent": 1,
+      "shell.cliHint": 1,
+      "shell.signInPrompt": 1,
+      "tokens.disclaimer": 2,
+      "tokens.intro": 1,
+    });
+  });
+
   it("en carries every wire-error and generation-failure template", () => {
     // Scaffold pin: counts only. The vocabulary-equality pins against the
     // api contract module and the persistence failure codes land with those
@@ -95,6 +115,12 @@ describe("catalog completeness (report-only)", () => {
 // ---------------------------------------------------------------------------
 // Checker behaviour — fixtures exercising each failure mode the gates rely on.
 // ---------------------------------------------------------------------------
+
+function carriesMarkup(locale: object, source: object): boolean {
+  return checkLocale(locale, source).some((issue) =>
+    issue.problem.includes("markup"),
+  );
+}
 
 describe("checkLocale", () => {
   const en = {
@@ -138,6 +164,95 @@ describe("checkLocale", () => {
   it("flags markup in a value", () => {
     const issues = checkLocale({ plain: "<b>hallo</b>" }, en);
     expect(issues.some((issue) => issue.problem.includes("markup"))).toBe(true);
+  });
+
+  it("accepts positional slots, and lets a translation move them", () => {
+    const paired = { linked: "read the <0>guide</0> first" };
+    expect(
+      checkLocale({ linked: "erst den <0>Leitfaden</0> lesen" }, paired),
+    ).toEqual([]);
+    const selfClosing = { icon: "see <0/>" };
+    expect(checkLocale({ icon: "<0/> siehe dort" }, selfClosing)).toEqual([]);
+    expect(checkLocale({ icon: "<0 /> siehe" }, selfClosing)).toEqual([]);
+  });
+
+  it("accepts a multi-slot value, reordered", () => {
+    const two = { pair: "run <0>cmd</0> as <1>you</1>." };
+    expect(
+      checkLocale({ pair: "als <1>du</1> <0>cmd</0> starten." }, two),
+    ).toEqual([]);
+  });
+
+  it("flags an emptied or blank paired slot — the element would have no name", () => {
+    const paired = { linked: "read the <0>guide</0>" };
+    expect(carriesMarkup({ linked: "lies <0></0>" }, paired)).toBe(true);
+    expect(carriesMarkup({ linked: "lies <0> </0>" }, paired)).toBe(true);
+  });
+
+  it("flags a slot reshaped from self-closing to paired", () => {
+    // Trans would render the value's text INSTEAD of the call site's element
+    // children, letting a translation replace a link's label.
+    const selfClosing = { linked: "<0/> and <1/> to manage tokens." };
+    const issues = checkLocale(
+      { linked: "<0>Se connecter</0> et <1>gérer</1>." },
+      selfClosing,
+    );
+    // Every reshaped slot is reported, not only the first — otherwise a
+    // multi-slot value costs one round trip per slot.
+    expect(
+      issues.filter((issue) => issue.problem.includes("self-closing")),
+    ).toHaveLength(2);
+  });
+
+  it("flags a slot dropped by a translation — the link stops being one", () => {
+    const slotted = { linked: "read the <0>guide</0> first" };
+    const issues = checkLocale({ linked: "erst den Leitfaden lesen" }, slotted);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]?.problem).toContain("slot set differs");
+  });
+
+  it("flags a gap in slot indices — the wrapped text renders bare", () => {
+    const slotted = { linked: "<0>a</0> and <1>b</1>" };
+    const issues = checkLocale({ linked: "<1>b</1> und <2>c</2>" }, slotted);
+    expect(issues.some((issue) => issue.problem.includes("0..n-1"))).toBe(true);
+  });
+
+  it("flags a repeated slot — the element would render twice", () => {
+    const slotted = { linked: "read the <0>guide</0>" };
+    const issues = checkLocale({ linked: "<0>a</0> und <0>b</0>" }, slotted);
+    expect(issues.some((issue) => issue.problem.includes("0..n-1"))).toBe(true);
+  });
+
+  it("compares slots per plural form, never unioned across them", () => {
+    // `_one` carrying fewer slots than `_other` is a legitimate structure —
+    // unioning would fail en against itself.
+    const plural = {
+      skipped_one: "<0>{{count}} file</0> skipped",
+      skipped_other: "<0>{{count}} files</0> skipped, <1>see log</1>",
+    };
+    expect(checkLocale(plural, plural)).toEqual([]);
+    // A locale-only form falls back to en's `_other`.
+    expect(
+      checkLocale(
+        { skipped_few: "<0>{{count}} soubory</0>, <1>log</1>" },
+        plural,
+      ),
+    ).toEqual([]);
+    const issues = checkLocale({ skipped_few: "<0>{{count}}</0>" }, plural);
+    expect(issues.some((issue) => issue.problem.includes("slot set"))).toBe(
+      true,
+    );
+  });
+
+  it("still rejects named tags, orphans, and nesting", () => {
+    expect(carriesMarkup({ plain: "<script>x</script>" }, en)).toBe(true);
+    expect(carriesMarkup({ plain: "a < b" }, en)).toBe(true);
+    expect(carriesMarkup({ plain: "hallo</0>" }, en)).toBe(true);
+    // Unbalanced: the opener survives the strip and trips the ban.
+    expect(carriesMarkup({ plain: "<0>hallo" }, en)).toBe(true);
+    expect(
+      carriesMarkup({ linked: "<0>a <1>b</1></0>" }, { linked: "<0>a</0>" }),
+    ).toBe(true);
   });
 
   it("treats a format tail as part of the token, not a param", () => {
