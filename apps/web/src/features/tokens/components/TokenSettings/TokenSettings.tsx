@@ -160,12 +160,14 @@ export function TokenSettings({ enabled }: TokenSettingsProps) {
             <span className={styles["rowName"]}>{token.name}</span>
             <span className={styles["rowMeta"]}>
               {token.revokedAt !== null
-                ? `revoked ${formatWhen(token.revokedAt)}`
-                : `expires ${
-                    token.expiresAt === null
-                      ? t("tokens.never")
-                      : formatWhen(token.expiresAt)
-                  } · last used ${formatWhen(token.lastUsedAt)}`}
+                ? t("tokens.rowRevoked", { when: formatWhen(token.revokedAt) })
+                : t("tokens.rowActive", {
+                    expires:
+                      token.expiresAt === null
+                        ? t("tokens.never")
+                        : formatWhen(token.expiresAt),
+                    lastUsed: formatWhen(token.lastUsedAt),
+                  })}
             </span>
             {token.revokedAt === null ? (
               <button

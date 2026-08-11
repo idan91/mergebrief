@@ -10,6 +10,7 @@ import {
 } from "../features/brief/queries";
 import { briefErrorDetail } from "@web/features/brief/utils/briefErrors";
 import { OrgSwitcher } from "@web/features/installations";
+import { LocalePicker } from "../i18n/LocalePicker/LocalePicker";
 import { PullsSection } from "@web/features/pulls";
 import { pullsSessionQueryOptions } from "../features/pulls/queries";
 import sharedStyles from "./routeShared.module.scss";
@@ -71,9 +72,12 @@ function BriefPicker() {
   return (
     <main className={styles["pickerMain"]} id="main-content" tabIndex={-1}>
       <section className={styles["picker"]}>
-        <div className={styles["wordmark"]}>
-          {PRODUCT_NAME}
-          <span>{PRODUCT_SUFFIX}</span>
+        <div className={styles["topBar"]}>
+          <div className={styles["wordmark"]}>
+            {PRODUCT_NAME}
+            <span>{PRODUCT_SUFFIX}</span>
+          </div>
+          <LocalePicker />
         </div>
         <div className={styles["eyebrow"]}>{t("shell.landingEyebrow")}</div>
         <h1>{t("shell.landingHeading")}</h1>

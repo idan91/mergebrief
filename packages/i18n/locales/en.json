@@ -524,7 +524,8 @@
     "progress": {
       "ariaLabel": "Read-through progress",
       "step": "Step",
-      "group": "Group"
+      "group": "Group",
+      "segmentLabel": "{{label}} {{step}} of {{total}}: {{title}}"
     },
     "sinceMarker": {
       "titleOpenDeltaLens": "Open the delta lens — compare against your last review",
@@ -780,7 +781,9 @@
     "revoking": "Revoking…",
     "revoke": "Revoke",
     "nameRequired": "Name the token before minting.",
-    "organizationRequired": "Pick the organization the token is bound to."
+    "organizationRequired": "Pick the organization the token is bound to.",
+    "rowRevoked": "revoked {{when}}",
+    "rowActive": "expires {{expires}} · last used {{lastUsed}}"
   },
   "shell": {
     "settingsHeading": "Settings",
@@ -819,7 +822,11 @@
     "serverUnavailable": "The server is unavailable right now — your tokens are untouched. Refresh to retry.",
     "toManageTokens": "to manage API tokens.",
     "artifactDelta": "delta",
-    "artifactBrief": "brief"
+    "artifactBrief": "brief",
+    "localePicker": {
+      "ariaLabelTrigger": "Language: {{locale}}",
+      "ariaLabelMenu": "Choose a language"
+    }
   },
   "briefError": {
     "not-found": "That brief isn't on this instance.",

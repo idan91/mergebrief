@@ -1,3 +1,4 @@
+import { LocalePicker } from "../../../../../i18n/LocalePicker/LocalePicker";
 import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
@@ -279,6 +280,7 @@ export function Header({
             {t("brief.header.submitReviewCta")}
           </button>
         )}
+        <LocalePicker />
         <HeaderMenu
           briefId={briefId}
           clearDrafts={clearDrafts}

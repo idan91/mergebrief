@@ -90,11 +90,14 @@ export function ReadThroughProgress({
       {segments.map((segment) => (
         <button
           aria-current={segment.isCurrent ? "step" : undefined}
-          aria-label={`${
-            segment.hasReadingOrder
+          aria-label={t("brief.progress.segmentLabel", {
+            label: segment.hasReadingOrder
               ? t("brief.progress.step")
-              : t("brief.progress.group")
-          } ${segment.step} of ${segments.length}: ${segment.title}`}
+              : t("brief.progress.group"),
+            step: segment.step,
+            total: segments.length,
+            title: segment.title,
+          })}
           className={styles["segment"]}
           data-current={segment.isCurrent ? "" : undefined}
           data-past={segment.isPast ? "" : undefined}

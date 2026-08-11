@@ -209,3 +209,14 @@
     line-height: 1.5;
   }
 }
+
+@layer components {
+  // The landing page's header row: the wordmark owns the start, the language
+  // picker the end — the same corner it occupies on the brief screen.
+  .topBar {
+    display: flex;
+    gap: functions.to-rem(12px);
+    align-items: center;
+    justify-content: space-between;
+  }
+}
