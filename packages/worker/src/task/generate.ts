@@ -63,6 +63,7 @@ import {
   AuditActorType,
   AuditMetadataKey,
   forTenant,
+  GenerationFailureCode,
   generationProjection,
   GenerationKind,
   GenerationPhase,
@@ -92,6 +93,11 @@ import {
   type PullRequestSource,
 } from "./github-port";
 import type { Logger } from "logging";
+import {
+  classifyFailure,
+  PermanentJobError,
+  TransientJobError,
+} from "./failure";
 import { parseGeneratePayload, type ParsedGeneratePayload } from "./payload";
 import { RepoConfigOutcome, RepoConfigPaths } from "repo-config";
 import {
@@ -212,13 +218,6 @@ function withAbortSignal(generator: Generator, signal: AbortSignal): Generator {
   };
 }
 
-/**
- * A failure that retrying cannot fix (missing PR, unrenderable diff,
- * deterministic generation failure). Marked `failed` on the projection but
- * NOT rethrown to graphile — a retry would only burn spend.
- */
-class PermanentJobError extends Error {}
-
 /** 406 = GitHub refuses to render the diff (too large) — permanent per span. */
 function isPermanentGitHubError(error: GitHubApiError): boolean {
   return (
@@ -235,10 +234,17 @@ function unwrapGitHub<T>(result: Result<T, GitHubApiError>): T {
     return result.value;
   }
   if (isPermanentGitHubError(result.error)) {
-    throw new PermanentJobError(result.error.message);
+    throw new PermanentJobError(result.error.message, {
+      failure:
+        result.error.status === 406
+          ? { code: GenerationFailureCode.DIFF_TOO_LARGE }
+          : { code: GenerationFailureCode.GITHUB_ACCESS },
+    });
   }
-  // Transient (rate limit / 5xx / network): plain Error → graphile retries.
-  throw new Error(result.error.message);
+  // Transient (rate limit / 5xx / network): rethrown → graphile retries.
+  throw new TransientJobError(result.error.message, {
+    failure: { code: GenerationFailureCode.GITHUB_UNAVAILABLE },
+  });
 }
 
 /**
@@ -376,7 +382,7 @@ export function createGenerateTask(
         throw error;
       }
       const message = error instanceof Error ? error.message : String(error);
-      await projection.markFailed(target, message);
+      await projection.markFailed(target, classifyFailure(error));
       emitProviderError(jobLog, deps, error);
       const permanent = error instanceof PermanentJobError;
       const attempt = helpers?.job?.attempts;

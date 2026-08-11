@@ -120,6 +120,13 @@
       "when": 1786127675090,
       "tag": "0016_brief-anchor-provenance",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786428696297,
+      "tag": "0017_generation-failure-codes",
+      "breakpoints": true
     }
   ]
 }

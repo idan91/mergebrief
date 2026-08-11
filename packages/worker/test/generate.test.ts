@@ -403,7 +403,7 @@ describe("generate task", () => {
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.SUCCEEDED);
-    expect(row?.error).toBeNull();
+    expect(row?.errorCode).toBeNull();
 
     const audits = await harness.raw(
       "select action, target_type from audit_log",
@@ -1081,7 +1081,9 @@ describe("generate task", () => {
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
-    expect(row?.error).toContain("404");
+    // Stamped at the GitHub throw site — the code, not prose, is the record.
+    expect(row?.errorCode).toBe("github-access");
+    expect(row?.errorParams).toBeNull();
   });
 
   it("marks a transient failure failed AND rethrows so graphile retries", async () => {
@@ -1156,7 +1158,7 @@ describe("generate task", () => {
     const after = await projection.get(target(pr, HEAD_1));
     expect(after?.status).toBe(GenerationStatus.SUPERSEDED);
     expect(after?.attempts).toBe(before?.attempts);
-    expect(after?.error).toBeNull();
+    expect(after?.errorCode).toBeNull();
     expect(
       await artifactStore(harness.handle, ctx).briefs.get(pr.id, BASE, HEAD_1),
     ).toBeUndefined();
@@ -1265,7 +1267,7 @@ describe("generate task", () => {
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.RUNNING);
-    expect(row?.error).toBeNull();
+    expect(row?.errorCode).toBeNull();
   });
 
   it("recovers the revision narrative on a retry that reuses the stored brief", async () => {
@@ -1366,7 +1368,9 @@ describe("generate task", () => {
       target(pr, HEAD_1),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
-    expect(row?.error).toContain("refused");
+    // A plain-Error refusal has no stamp and no taxonomy — unknown{detail}.
+    expect(row?.errorCode).toBe("unknown");
+    expect(row?.errorParams?.detail).toContain("refused");
   });
 });
 
@@ -1697,7 +1701,8 @@ describe("generate task — anchored generation", () => {
       target(pr, HEAD_2),
     );
     expect(row?.status).toBe(GenerationStatus.FAILED);
-    expect(row?.error).toContain("coverage");
+    expect(row?.errorCode).toBe("unknown");
+    expect(row?.errorParams?.detail).toContain("coverage");
     // No brief row was written for the failed span.
     const brief = await artifactStore(harness.handle, ctx).briefs.get(
       pr.id,
@@ -2555,8 +2560,8 @@ describe("generate task — daily generation cap", () => {
       target(pr, HEAD_2),
     );
     expect(row?.status).toBe(GenerationStatus.CAPPED);
-    // Not a failure: no error text, no attempt consumed.
-    expect(row?.error).toBeNull();
+    // Not a failure: no error code, no attempt consumed.
+    expect(row?.errorCode).toBeNull();
     expect(row?.attempts).toBe(0);
 
     const trip = lines().find((line) => line["evt"] === "spend.cap.trip");
@@ -2667,7 +2672,7 @@ describe("generate task — daily generation cap", () => {
       target(pr, HEAD_2),
     );
     expect(failed?.status).toBe(GenerationStatus.FAILED);
-    expect(failed?.error).not.toBeNull();
+    expect(failed?.errorCode).not.toBeNull();
 
     // The retry: at cap now, so the run is skipped — but the record stays.
     const generator = stubGenerator();
@@ -2684,7 +2689,7 @@ describe("generate task — daily generation cap", () => {
       target(pr, HEAD_2),
     );
     expect(afterRetry?.status).toBe(GenerationStatus.FAILED);
-    expect(afterRetry?.error).toBe(failed?.error);
+    expect(afterRetry?.errorCode).toBe(failed?.errorCode);
   });
 
   it("a per-repo override beats the instance default", async () => {

@@ -104,6 +104,55 @@ export const GenerationPhase = {
 } as const;
 export type GenerationPhase = ValueOf<typeof GenerationPhase>;
 
+/**
+ * `generation.error_code` — the DB-stored failure vocabulary (CHECK-
+ * constrained; adding a code needs a migration in lockstep). Distinct from
+ * the store-internal `GenerationErrorCode`. The web catalog renders
+ * `generationError.<code>`; a new code also needs its catalog key and the
+ * web vocab mirror.
+ */
+export const GenerationFailureCode = {
+  PROVIDER_AUTH: "provider-auth",
+  PROVIDER_RATE_LIMIT: "provider-rate-limit",
+  PROVIDER_TIMEOUT: "provider-timeout",
+  PROVIDER_UNAVAILABLE: "provider-unavailable",
+  PROVIDER_REFUSAL: "provider-refusal",
+  OUTPUT_INVALID: "output-invalid",
+  GENERATION_CONFIG: "generation-config",
+  GITHUB_ACCESS: "github-access",
+  DIFF_TOO_LARGE: "diff-too-large",
+  GITHUB_UNAVAILABLE: "github-unavailable",
+  UNKNOWN: "unknown",
+} as const;
+export type GenerationFailureCode = ValueOf<typeof GenerationFailureCode>;
+
+/** Codes that carry interpolation params, typed per code. */
+export interface GenerationFailureParamMap {
+  [GenerationFailureCode.GENERATION_CONFIG]: { readonly detail: string };
+  [GenerationFailureCode.UNKNOWN]: { readonly detail: string };
+}
+
+type ParamFailureCode = keyof GenerationFailureParamMap;
+type ParamlessFailureCode = Exclude<GenerationFailureCode, ParamFailureCode>;
+
+/**
+ * What `markFailed` takes: the typed failure union. `detail` params are
+ * sanitized INSIDE persistence (callers cannot bypass).
+ */
+export type GenerationFailure =
+  | { readonly code: ParamlessFailureCode }
+  | {
+      [K in ParamFailureCode]: {
+        readonly code: K;
+        readonly params: GenerationFailureParamMap[K];
+      };
+    }[ParamFailureCode];
+
+/** The `generation.error_params` jsonb shape (today: detail only). */
+export interface GenerationFailureParams {
+  readonly detail: string;
+}
+
 /** `audit_log.actor_type`. */
 export const AuditActorType = {
   REVIEWER: "reviewer",

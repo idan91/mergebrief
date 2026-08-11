@@ -55,8 +55,8 @@ drizzle/              generated SQL migrations — append-only
   closed key allowlist (`src/stores/audit.ts`) — that allowlist IS the PII enforcement for an
   un-erasable ledger; widen it only with a matching decision-record note.
 - **Errors:** expected failures return `Result`, never throw. Error messages must not carry
-  key material, tokens, credentials, or unsanitized upstream errors
-  (`sanitizeGenerationError` owns generation-error sanitization inside `markFailed`).
+  key material, tokens, credentials, or unsanitized upstream errors (`markFailed`
+  sanitizes any failure `detail` itself via `logging`'s `sanitizeErrorDetail`).
 - **Migrations:** `drizzle-kit generate` only — never `push` (the `graphile_worker` schema
   is owned by graphile-worker and must not be managed by drizzle; `drizzle.config.ts`
   scopes to `public`). Checked-in SQL under `drizzle/` is append-only.
@@ -66,8 +66,19 @@ drizzle/              generated SQL migrations — append-only
 - **No `enum`:** `as const` maps + `ValueOf<T>`. **Keys SHOUT_CASE, string values
   kebab-case** (`PurgeErrorCode.NOT_FOUND` → `"not-found"`). The doc example in
   `src/types.ts` demonstrates it. DB-stored vocabularies (state, kind, status, phase,
-  decision, actor_type, action) are also CHECK-constrained (migration 0002) — **adding a
-  value needs a code change AND a migration**, in lockstep.
+  decision, actor_type, action, generation error_code) are also CHECK-constrained
+  (migrations 0002 and 0017) — **adding a value needs a code change AND a
+  migration**, in lockstep.
+- **`GenerationFailureCode` is the widest of those locksteps.** It is the
+  DB-stored failure vocabulary (distinct from the store-internal
+  `GenerationErrorCode`), so a new code needs FOUR changes together: the
+  `as const` map in `src/types.ts`, a CHECK migration, a
+  `generationError.<code>` template in `packages/i18n`, and the hand-rolled
+  mirror in `apps/web` (`GenerationFailureCodes`). The web mirror parses
+  tolerantly — an unknown code renders the generic failed line rather than
+  failing the view — so a half-done addition degrades quietly instead of
+  breaking loudly. `markFailed` sanitizes any `detail` param itself; callers
+  cannot bypass it.
 - **Naming grammar:** verb-first for anything that acts or has effects (`loadConfig`,
   `encryptToken`, `resolveKey`); noun factories for pure returns-a-thing constructors in
   builder/DSL position (`tenantColumns()`, `artifactStore()`, `purgeRoutines()`,

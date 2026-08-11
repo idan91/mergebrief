@@ -27,9 +27,11 @@ import { type AppDatabase, internal } from "../db/handle";
 import { generation } from "../schema/generation";
 import { pullRequest } from "../schema/pull-request";
 import type { TenantContext } from "./tenant";
+import { sanitizeErrorDetail } from "logging";
 import {
   GenerationKind,
   GenerationStatus,
+  type GenerationFailure,
   type GenerationPhase,
   type PullRequestRowId,
   type RepoId,
@@ -38,28 +40,6 @@ import {
 } from "../types";
 
 export type GenerationRow = typeof generation.$inferSelect;
-
-// ---------------------------------------------------------------------------
-// Error sanitization — the boundary is enforced HERE, not by the caller.
-// ---------------------------------------------------------------------------
-
-const URL_SHAPED = /\w+:\/\/\S+/g;
-const MAX_ERROR_LENGTH = 300;
-
-/**
- * Sanitize a raw error message for the `generation.error` column. Applied
- * unconditionally inside `markFailed` so callers cannot bypass it:
- * (a) first line only — drops stack traces;
- * (b) URL-shaped substrings redacted — a connection string with credentials
- *     (`postgres://user:pass@host/db`) is the realistic leak;
- * (c) capped at 300 chars.
- * Exported so callers can preview what will be stored.
- */
-export function sanitizeGenerationError(raw: string): string {
-  const firstLine = raw.split("\n", 1)[0] ?? "";
-  const redacted = firstLine.replace(URL_SHAPED, "[redacted-url]");
-  return redacted.slice(0, MAX_ERROR_LENGTH);
-}
 
 // ---------------------------------------------------------------------------
 // Errors — expected failures. Programmer errors still `throw`.
@@ -126,7 +106,7 @@ export interface GenerationProjection {
   /**
    * Project a job as `queued`. First call inserts (`attempts = 0`); a re-queue
    * of the same key conflicts (NULLS NOT DISTINCT) and increments `attempts`,
-   * resetting `phase`/`error`. Verifies the parent PR is in ctx's tenant.
+   * resetting `phase` and the error columns. Verifies the parent PR is in ctx's tenant.
    */
   upsertQueued(
     target: GenerationTarget,
@@ -136,14 +116,14 @@ export interface GenerationProjection {
     target: GenerationTarget,
     phase?: GenerationPhase,
   ): Promise<Result<GenerationRow, GenerationError>>;
-  /** Reflect `succeeded`; clears `phase` and `error` (terminal rows carry neither). */
+  /** Reflect `succeeded`; clears `phase` and the error columns (terminal rows carry neither). */
   markSucceeded(
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * Reflect `superseded` — a terminal mid-call abort because the PR head
    * advanced. An abort is NOT a failure: it leaves `attempts`
-   * untouched (unlike a re-queue) and clears `phase`/`error` (like
+   * untouched (unlike a re-queue) and clears `phase` + error columns (like
    * `markSucceeded`), so a superseded job never consumes a retry.
    */
   markSuperseded(
@@ -152,20 +132,20 @@ export interface GenerationProjection {
   /**
    * Reflect `capped` — the terminal skip a repo's daily generation cap
    * produces. Like `markSuperseded` this is NOT a failure:
-   * `attempts` is untouched and `phase`/`error` are cleared, so a capped run
+   * `attempts` is untouched and `phase` + error columns are cleared, so a capped run
    * consumes no retry and shows no error text.
    */
   markCapped(
     target: GenerationTarget,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
-   * Reflect `failed`. The raw error is passed as-is; `markFailed` applies
-   * `sanitizeGenerationError` itself (first line, URLs redacted, 300-char
-   * cap), so callers cannot store an unsanitized reason.
+   * Reflect `failed` with a typed failure. Any `detail` param is sanitized
+   * HERE (`sanitizeErrorDetail`: first line, URLs redacted, 300-char cap),
+   * so callers cannot store an unsanitized reason.
    */
   markFailed(
     target: GenerationTarget,
-    error: string,
+    failure: GenerationFailure,
   ): Promise<Result<GenerationRow, GenerationError>>;
   /**
    * Attach the repo-config per-file outcome table — written right after
@@ -231,7 +211,7 @@ export interface GenerationProjection {
    * case — push B inside the debounce window swaps the job's payload
    * (`job_key_mode => 'replace'`), so no worker run ever carries head A and
    * its queued row would otherwise sit non-terminal forever. Same abort
-   * semantics as `markSuperseded` (attempts untouched, phase/error cleared).
+   * semantics as `markSuperseded` (attempts untouched, phase/errors cleared).
    * Returns the number of rows swept.
    */
   supersedeStaleBriefs(
@@ -327,7 +307,8 @@ export function generationProjection(
               status: GenerationStatus.QUEUED,
               attempts: sql`${generation.attempts} + 1`,
               phase: null,
-              error: null,
+              errorCode: null,
+              errorParams: null,
               repoConfig: null,
               updatedAt: new Date(),
             },
@@ -354,17 +335,19 @@ export function generationProjection(
       return transition(target, {
         status: GenerationStatus.SUCCEEDED,
         phase: null,
-        error: null,
+        errorCode: null,
+        errorParams: null,
       });
     },
 
     async markSuperseded(target) {
       // Not a failure, so `attempts` is deliberately left untouched and
-      // `error` is cleared. Terminal → no phase.
+      // the error columns are cleared. Terminal → no phase.
       return transition(target, {
         status: GenerationStatus.SUPERSEDED,
         phase: null,
-        error: null,
+        errorCode: null,
+        errorParams: null,
       });
     },
 
@@ -374,14 +357,21 @@ export function generationProjection(
       return transition(target, {
         status: GenerationStatus.CAPPED,
         phase: null,
-        error: null,
+        errorCode: null,
+        errorParams: null,
       });
     },
 
-    async markFailed(target, error) {
+    async markFailed(target, failure) {
+      // An empty sanitized detail (empty message, leading newline) drops to
+      // null params so readers fall back to the code, per the sanitizer's
+      // gate-on-the-result contract.
+      const detail =
+        "params" in failure ? sanitizeErrorDetail(failure.params.detail) : "";
       return transition(target, {
         status: GenerationStatus.FAILED,
-        error: sanitizeGenerationError(error),
+        errorCode: failure.code,
+        errorParams: detail === "" ? null : { detail },
       });
     },
 
@@ -472,7 +462,8 @@ export function generationProjection(
         .set({
           status: GenerationStatus.SUPERSEDED,
           phase: null,
-          error: null,
+          errorCode: null,
+          errorParams: null,
           updatedAt: new Date(),
         })
         .where(

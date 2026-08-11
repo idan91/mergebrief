@@ -8,7 +8,7 @@ import {
   generationProjection,
   GenerationErrorCode,
   ingestRoutines,
-  sanitizeGenerationError,
+  GenerationFailureCode,
   type TenantContext,
 } from "../src/index";
 import {
@@ -22,7 +22,10 @@ import {
   type RepoId,
 } from "../src/types";
 import { createPgliteHarness } from "../src/testing";
-import { brandWith, freshDatabase } from "./helpers";
+import { drizzle } from "drizzle-orm/pglite";
+import { fromDrizzle } from "../src/db/handle";
+import * as schema from "../src/schema/index";
+import { brandWith, freshDatabase, freshPglite } from "./helpers";
 
 const TENANT_A: InstallationId = brandWith(isInstallationId, 1000n);
 const TENANT_B: InstallationId = brandWith(isInstallationId, 2000n);
@@ -87,14 +90,18 @@ describe("generationProjection — status transitions", () => {
     };
 
     const first = await gen.upsertQueued(target);
-    await gen.markFailed(target, "boom");
+    await gen.markFailed(target, {
+      code: GenerationFailureCode.UNKNOWN,
+      params: { detail: "boom" },
+    });
     const requeued = await gen.upsertQueued(target);
 
     if (!first.ok || !requeued.ok) throw new Error("queue failed");
     expect(requeued.value.id).toBe(first.value.id);
     expect(requeued.value.attempts).toBe(1);
     expect(requeued.value.status).toBe(GenerationStatus.QUEUED);
-    expect(requeued.value.error).toBeNull();
+    expect(requeued.value.errorCode).toBeNull();
+    expect(requeued.value.errorParams).toBeNull();
   });
 
   it("brief-kind (null baseline_sha) upsert conflicts — NULLS NOT DISTINCT proof", async () => {
@@ -144,7 +151,7 @@ describe("generationProjection — status transitions", () => {
     expect(result.error.code).toBe(GenerationErrorCode.PARENT_NOT_IN_TENANT);
   });
 
-  it("markFailed sanitizes the stored error: first line, URLs redacted, capped", async () => {
+  it("markFailed stores the typed code and sanitizes the detail param", async () => {
     const handle = await freshDatabase();
     const repo = forTenant(handle, CTX_A);
     const gen = generationProjection(handle, CTX_A);
@@ -166,19 +173,87 @@ describe("generationProjection — status transitions", () => {
       "    at TCPConnectWrap.afterConnect (node:net:1494:16)",
       "    at processTicksAndRejections (node:internal/process/task_queues:82:21)",
     ].join("\n");
-    const failed = await gen.markFailed(target, raw);
+    const failed = await gen.markFailed(target, {
+      code: GenerationFailureCode.UNKNOWN,
+      params: { detail: raw },
+    });
 
     if (!failed.ok) throw new Error("markFailed failed");
-    const stored = failed.value.error;
+    expect(failed.value.errorCode).toBe(GenerationFailureCode.UNKNOWN);
+    const stored = failed.value.errorParams?.detail;
     expect(stored).toBe("connect ECONNREFUSED [redacted-url] retrying");
     expect(stored).not.toContain("\n"); // one line — stack trace dropped
     expect(stored).not.toContain("pass"); // credentials gone
     expect(stored).not.toContain("postgres://");
     expect((stored ?? "").length).toBeLessThanOrEqual(300);
-    // The pure function is exported and matches what was stored.
-    expect(sanitizeGenerationError(raw)).toBe(stored);
-    // The cap applies even to a single very long line.
-    expect(sanitizeGenerationError("x".repeat(1000)).length).toBe(300);
+  });
+
+  it("markFailed stores a paramless code with null params", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const gen = generationProjection(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 8,
+      state: PrState.OPEN,
+    });
+    const target = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-8",
+      baselineSha: null,
+    };
+    await gen.upsertQueued(target);
+    const failed = await gen.markFailed(target, {
+      code: GenerationFailureCode.PROVIDER_RATE_LIMIT,
+    });
+    if (!failed.ok) throw new Error("markFailed failed");
+    expect(failed.value.errorCode).toBe(
+      GenerationFailureCode.PROVIDER_RATE_LIMIT,
+    );
+    expect(failed.value.errorParams).toBeNull();
+  });
+
+  it("drops an empty sanitized detail to null params — readers fall back to the code", async () => {
+    const handle = await freshDatabase();
+    const repo = forTenant(handle, CTX_A);
+    const gen = generationProjection(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 10,
+      state: PrState.OPEN,
+    });
+    const target = {
+      pullRequestId: pr.id,
+      kind: GenerationKind.BRIEF,
+      headSha: "head-10",
+      baselineSha: null,
+    };
+    await gen.upsertQueued(target);
+    const failed = await gen.markFailed(target, {
+      code: GenerationFailureCode.UNKNOWN,
+      params: { detail: "\nreal message on line two" },
+    });
+    if (!failed.ok) throw new Error("markFailed failed");
+    expect(failed.value.errorCode).toBe(GenerationFailureCode.UNKNOWN);
+    expect(failed.value.errorParams).toBeNull();
+  });
+
+  it("the CHECK constraint rejects a code outside the vocabulary", async () => {
+    const client = await freshPglite();
+    const handle = fromDrizzle(drizzle(client, { schema }));
+    const repo = forTenant(handle, CTX_A);
+    const pr = await repo.pullRequests.upsert({
+      repoId: REPO,
+      prNumber: 9,
+      state: PrState.OPEN,
+    });
+    await expect(
+      client.query(
+        `insert into generation (installation_id, pull_request_id, kind, head_sha, status, error_code)
+         values (${String(CTX_A.installationId)}, ${String(pr.id)}, 'brief', 'head-9', 'failed', 'not-a-code')`,
+      ),
+    ).rejects.toThrow(/generation_error_code_check/);
   });
 
   it("markSuperseded is terminal, leaves attempts, clears error", async () => {
@@ -201,7 +276,10 @@ describe("generationProjection — status transitions", () => {
     // A prior failure sets attempts/error; supersession must not disturb either.
     const requeued = await gen.upsertQueued(target); // attempts → 1 (already ran once)
     await gen.markRunning(target, GenerationPhase.GENERATING); // mid-run abort — phase is set
-    await gen.markFailed(target, "boom");
+    await gen.markFailed(target, {
+      code: GenerationFailureCode.UNKNOWN,
+      params: { detail: "boom" },
+    });
     if (!requeued.ok) throw new Error("requeue failed");
     const attemptsBefore = requeued.value.attempts;
 
@@ -211,7 +289,8 @@ describe("generationProjection — status transitions", () => {
     // An abort is NOT a failure: attempts untouched, error cleared — and the
     // mid-run phase must not survive into the terminal row.
     expect(superseded.value.attempts).toBe(attemptsBefore);
-    expect(superseded.value.error).toBeNull();
+    expect(superseded.value.errorCode).toBeNull();
+    expect(superseded.value.errorParams).toBeNull();
     expect(superseded.value.phase).toBeNull();
   });
 
@@ -247,7 +326,7 @@ describe("generationProjection — status transitions", () => {
     const staleRow = await gen.get(stale);
     expect(staleRow?.status).toBe(GenerationStatus.SUPERSEDED);
     expect(staleRow?.phase).toBeNull();
-    expect(staleRow?.error).toBeNull();
+    expect(staleRow?.errorCode).toBeNull();
     // The current head's row is untouched.
     expect((await gen.get(current))?.status).toBe(GenerationStatus.SUCCEEDED);
   });

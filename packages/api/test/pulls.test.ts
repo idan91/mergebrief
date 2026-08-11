@@ -12,6 +12,7 @@ import {
   envKeyProvider,
   forTenant,
   generationProjection,
+  GenerationFailureCode,
   GenerationKind,
   GenerationStatus,
   grantAuth,
@@ -1068,7 +1069,10 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
         headSha: "head-2",
         baselineSha: "gone-sha",
       },
-      "span diff unavailable",
+      {
+        code: GenerationFailureCode.UNKNOWN,
+        params: { detail: "span diff unavailable" },
+      },
     );
     if (!failed.ok) throw new Error("generation transition failed");
     expect(await metaLastReview(cookie)).toEqual({

@@ -310,7 +310,7 @@ describe("markCapped", () => {
     expect(capped.value.status).toBe(GenerationStatus.CAPPED);
     expect(capped.value.attempts).toBe(queued.value.attempts);
     expect(capped.value.phase).toBeNull();
-    expect(capped.value.error).toBeNull();
+    expect(capped.value.errorCode).toBeNull();
     expect(capped.value.id).toBe(queued.value.id);
   });
 });

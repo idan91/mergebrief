@@ -7,12 +7,15 @@
 import {
   bigint,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
   unique,
 } from "drizzle-orm/pg-core";
 import type {
+  GenerationFailureCode,
+  GenerationFailureParams,
   GenerationKind,
   GenerationPhase,
   GenerationStatus,
@@ -36,8 +39,10 @@ export const generation = pgTable(
     status: text("status").$type<GenerationStatus>().notNull(),
     /** Optional determinate-progress detail. */
     phase: text("phase").$type<GenerationPhase>(),
-    /** Sanitized reason when failed. */
-    error: text("error"),
+    /** Failure vocabulary code when failed (CHECK-constrained). */
+    errorCode: text("error_code").$type<GenerationFailureCode>(),
+    /** Interpolation params for the code's template; `detail` pre-sanitized. */
+    errorParams: jsonb("error_params").$type<GenerationFailureParams>(),
     /**
      * Repo-config per-file origin: JSON `{files, collisions}` written right
      * after acquisition — BEFORE generation — so failed and superseded runs

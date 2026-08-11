@@ -318,7 +318,8 @@ export function ingestRoutines(
               status: GenerationStatus.QUEUED,
               attempts: sql`${generation.attempts} + 1`,
               phase: null,
-              error: null,
+              errorCode: null,
+              errorParams: null,
               // A fresh attempt re-acquires repo config; stale origin data
               // from a prior drain must not survive the re-queue.
               repoConfig: null,

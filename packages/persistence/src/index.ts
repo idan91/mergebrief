@@ -101,11 +101,7 @@ export type {
 } from "./stores/artifact-store";
 
 // The `generation` status-projection write helpers.
-export {
-  generationProjection,
-  GenerationErrorCode,
-  sanitizeGenerationError,
-} from "./stores/generation";
+export { generationProjection, GenerationErrorCode } from "./stores/generation";
 export type {
   GenerationProjection,
   GenerationError,

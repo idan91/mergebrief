@@ -1,5 +1,6 @@
-// Migration 0013 backfill test. The only migration so far with a data
-// transform: it must be exercised against PRE-migration data,
+// Migration 0013 backfill test (0017 has the same posture — see
+// migration-0017.test.ts): a data transform must be exercised against
+// PRE-migration data,
 // which the shared `freshDatabase` harness (all migrations upfront) cannot
 // express. So this suite applies 0000–0012 raw, seeds old-shape rows
 // (ciphertext columns still on `reviewer_session`/`api_token`), applies 0013,
