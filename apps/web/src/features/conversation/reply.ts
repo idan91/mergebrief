@@ -2,7 +2,12 @@
 // GitHub's create-review comments[] has no in_reply_to, so there is no
 // batched alternative. Expected failure statuses are RESULT KINDS the
 // composer renders; only a malformed 2xx throws (contract violation).
-import { ApiError, ApiErrorKind, apiFetch } from "../../data/apiFetch";
+import {
+  ApiError,
+  ApiErrorCode,
+  apiFetch,
+  errorFromResponse,
+} from "../../data/apiFetch";
 
 export type ReplyResult =
   | { readonly kind: "posted"; readonly commentId: number }
@@ -40,18 +45,21 @@ export async function postConversationReply(
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ body }),
   });
-  if (response.status === 401) return { kind: "unauthorized" };
-  if (response.status === 404) return { kind: "not-found" };
-  if (response.status === 400) return { kind: "invalid" };
-  if (!response.ok) return { kind: "upstream" };
+  if (!response.ok) {
+    const { code } = await errorFromResponse(response, path);
+    if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
+    if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
+    if (code === ApiErrorCode.INVALID_REQUEST) return { kind: "invalid" };
+    return { kind: "upstream" };
+  }
   let parsed: unknown;
   try {
     parsed = await response.json();
   } catch {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   if (!isPostedBody(parsed)) {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   return { kind: "posted", commentId: parsed.commentId };
 }

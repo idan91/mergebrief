@@ -4,7 +4,12 @@
 // allowed to see.
 import { queryOptions } from "@tanstack/react-query";
 
-import { ApiError, ApiErrorKind, apiFetchJson } from "../../data/apiFetch";
+import {
+  ApiError,
+  ApiErrorCode,
+  apiFetchJson,
+  errorFromResponse,
+} from "../../data/apiFetch";
 import { parseInstallationsView, type InstallationsView } from "./types";
 
 export function installationsQueryOptions() {
@@ -15,7 +20,7 @@ export function installationsQueryOptions() {
       const body = await apiFetchJson(path);
       const parsed = parseInstallationsView(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
       }
       return parsed.value;
     },
@@ -48,12 +53,6 @@ export async function switchInstallation(
     body: JSON.stringify(input),
   });
   if (!response.ok) {
-    const kind =
-      response.status === 401
-        ? ApiErrorKind.UNAUTHORIZED
-        : response.status === 403
-          ? ApiErrorKind.FORBIDDEN
-          : ApiErrorKind.UPSTREAM;
-    throw new ApiError(kind, response.status, "/api/auth/installation");
+    throw await errorFromResponse(response, "/api/auth/installation");
   }
 }

@@ -16,7 +16,12 @@
 //
 // Both directions are idempotent server-side (a converged state answers 200
 // with `alreadyInTargetState`), so retrying after ANY failure kind is safe.
-import { ApiError, ApiErrorKind, apiFetch } from "../../data/apiFetch";
+import {
+  ApiError,
+  ApiErrorCode,
+  apiFetch,
+  errorFromResponse,
+} from "../../data/apiFetch";
 
 export type ResolveThreadResult =
   /**
@@ -65,21 +70,30 @@ export async function setThreadResolution(
 ): Promise<ResolveThreadResult> {
   const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/comments/${String(rootCommentId)}/${resolved ? "resolve" : "unresolve"}`;
   const response = await apiFetch(path, { method: "POST" });
-  if (response.status === 401) return { kind: "unauthorized" };
-  if (response.status === 403) return { kind: "github-permission" };
-  if (response.status === 404) return { kind: "not-found" };
-  if (response.status === 400) return { kind: "invalid" };
-  if (!response.ok) return { kind: "upstream" };
+  if (!response.ok) {
+    const { code } = await errorFromResponse(response, path);
+    if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
+    // forbidden covers the codeless-403 fallback.
+    if (
+      code === ApiErrorCode.GITHUB_PERMISSION ||
+      code === ApiErrorCode.FORBIDDEN
+    ) {
+      return { kind: "github-permission" };
+    }
+    if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
+    if (code === ApiErrorCode.INVALID_REQUEST) return { kind: "invalid" };
+    return { kind: "upstream" };
+  }
   let parsed: unknown;
   try {
     parsed = await response.json();
   } catch {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   // A body echoing the OTHER direction would have the UI announce a state the
   // server never set — a contract violation, so it throws rather than lying.
   if (!isResolutionBody(parsed) || parsed.resolved !== resolved) {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   return {
     kind: "done",

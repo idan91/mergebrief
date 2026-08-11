@@ -2,7 +2,12 @@
 // statuses are RESULT KINDS the flow renders — the fail-closed 409, the clean
 // 401 re-login, and upstream rejections — never throws for those; only a
 // malformed 2xx throws (contract violation).
-import { ApiError, ApiErrorKind, apiFetch } from "../../../data/apiFetch";
+import {
+  ApiError,
+  ApiErrorCode,
+  apiFetch,
+  errorFromResponse,
+} from "../../../data/apiFetch";
 import type {
   SubmitPayload,
   SubmitReviewResult,
@@ -37,29 +42,29 @@ export async function submitReview(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (response.status === 409) {
-    return { kind: "rewritten" };
-  }
-  if (response.status === 401) {
-    return { kind: "unauthorized" };
-  }
-  if (response.status === 404) {
-    return { kind: "not-found" };
-  }
-  if (response.status === 400) {
-    return { kind: "invalid" };
-  }
   if (!response.ok) {
+    const { code } = await errorFromResponse(response, path);
+    // Either 409 code maps to rewritten: this route only ever emits
+    // pr-rewritten-since-read; pr-changed is the codeless-409 fallback.
+    if (
+      code === ApiErrorCode.PR_REWRITTEN_SINCE_READ ||
+      code === ApiErrorCode.PR_CHANGED_SINCE_READ
+    ) {
+      return { kind: "rewritten" };
+    }
+    if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
+    if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
+    if (code === ApiErrorCode.INVALID_REQUEST) return { kind: "invalid" };
     return { kind: "upstream" };
   }
   let body: unknown;
   try {
     body = await response.json();
   } catch {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   if (!isSubmittedBody(body)) {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   return {
     kind: "submitted",

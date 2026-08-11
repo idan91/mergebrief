@@ -5,10 +5,14 @@
 // the server entry answers, never a thrown internal error.
 import { createLogger } from "logging";
 import { describe, expect, it, vi } from "vitest";
+import { ApiErrorCode as SOURCE_API_ERROR_CODE } from "api";
+import type { Equals } from "types";
 import {
   ApiError,
+  ApiErrorCode,
   apiJsonFromResponse,
   dispatchInProcess,
+  errorFromResponse,
   type DispatchLogSink,
 } from "./apiFetch";
 
@@ -195,15 +199,53 @@ describe("apiJsonFromResponse", () => {
   });
 
   it.each([
-    [400, "bad-request"],
+    [400, "invalid-request"],
     [401, "unauthorized"],
     [404, "not-found"],
-    [502, "upstream"],
-    [503, "unavailable"],
-  ])("throws a typed ApiError for %i", async (status, kind) => {
-    const attempt = apiJsonFromResponse(new Response("{}", { status }), "/x");
-    await expect(attempt).rejects.toBeInstanceOf(ApiError);
-    await expect(attempt).rejects.toMatchObject({ status, kind });
+    [409, "pr-changed-since-read"],
+    [413, "request-too-large"],
+    [500, "internal-error"],
+    [502, "github-unavailable"],
+    [503, "github-unavailable"],
+  ])(
+    "throws a typed ApiError with the status-bucket code for a codeless %i",
+    async (status, code) => {
+      const attempt = apiJsonFromResponse(new Response("{}", { status }), "/x");
+      await expect(attempt).rejects.toBeInstanceOf(ApiError);
+      await expect(attempt).rejects.toMatchObject({ status, code });
+    },
+  );
+
+  it("prefers the wire code over the status bucket", async () => {
+    const attempt = apiJsonFromResponse(
+      new Response(
+        '{"error":"diff too large to render","code":"diff-too-large"}',
+        {
+          status: 413,
+        },
+      ),
+      "/x",
+    );
+    await expect(attempt).rejects.toMatchObject({
+      status: 413,
+      code: "diff-too-large",
+    });
+  });
+
+  it("ignores an unknown wire code and keeps the status bucket", async () => {
+    const attempt = apiJsonFromResponse(
+      new Response('{"error":"x","code":"brand-new-code"}', { status: 404 }),
+      "/x",
+    );
+    await expect(attempt).rejects.toMatchObject({ code: "not-found" });
+  });
+
+  it("never accepts the web-local malformed code from the wire", async () => {
+    const attempt = apiJsonFromResponse(
+      new Response('{"error":"x","code":"malformed"}', { status: 400 }),
+      "/x",
+    );
+    await expect(attempt).rejects.toMatchObject({ code: "invalid-request" });
   });
 
   it("throws a malformed ApiError when a 2xx body is not JSON", async () => {
@@ -211,6 +253,32 @@ describe("apiJsonFromResponse", () => {
       new Response("<html>", { status: 200 }),
       "/x",
     );
-    await expect(attempt).rejects.toMatchObject({ kind: "malformed" });
+    await expect(attempt).rejects.toMatchObject({ code: "malformed" });
+  });
+});
+
+describe("errorFromResponse", () => {
+  it("tolerates a non-JSON error body", async () => {
+    const error = await errorFromResponse(
+      new Response("<html>bad gateway</html>", { status: 502 }),
+      "/x",
+    );
+    expect(error.code).toBe(ApiErrorCode.GITHUB_UNAVAILABLE);
+    expect(error.status).toBe(502);
+  });
+});
+
+describe("wire vocabulary mirror (drift pins)", () => {
+  type WebWireCode = Exclude<ApiErrorCode, "malformed">;
+  // Compile-time: the mirror minus the web-local member IS the api vocabulary.
+  true satisfies Equals<WebWireCode, SOURCE_API_ERROR_CODE>;
+
+  it("runtime vocabulary equals the api's, plus only malformed", () => {
+    const web = Object.values(ApiErrorCode);
+    const source = Object.values(SOURCE_API_ERROR_CODE);
+    expect(web.filter((code) => code !== "malformed").toSorted()).toEqual(
+      [...source].toSorted(),
+    );
+    expect(web).toContain("malformed");
   });
 });

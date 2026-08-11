@@ -13,49 +13,103 @@
 import { createIsomorphicFn } from "@tanstack/react-start";
 import type { ValueOf } from "types";
 
-export const ApiErrorKind = {
-  BAD_REQUEST: "bad-request",
+// Hand-rolled mirror of the api package's wire vocabulary plus the ONE
+// web-local member: `malformed` (a 2xx whose body failed to parse — a
+// programmer/contract error surfaced as data; never on the wire). The
+// Equals + runtime pins in apiFetch.test.ts fail on any drift.
+export const ApiErrorCode = {
   UNAUTHORIZED: "unauthorized",
+  INVALID_SIGNATURE: "invalid-signature",
   FORBIDDEN: "forbidden",
+  GITHUB_PERMISSION: "github-permission",
   NOT_FOUND: "not-found",
-  TOO_LARGE: "too-large",
-  UPSTREAM: "upstream",
-  UNAVAILABLE: "unavailable",
-  /** A 2xx whose body failed to parse — a programmer/contract error surfaced as data. */
+  INVALID_REQUEST: "invalid-request",
+  NOT_A_PR_URL: "not-a-pr-url",
+  SIGN_IN_FAILED: "sign-in-failed",
+  REQUEST_TOO_LARGE: "request-too-large",
+  DIFF_TOO_LARGE: "diff-too-large",
+  PR_CHANGED_SINCE_READ: "pr-changed-since-read",
+  PR_REWRITTEN_SINCE_READ: "pr-rewritten-since-read",
+  APP_NOT_INSTALLED: "app-not-installed",
+  GITHUB_UNAVAILABLE: "github-unavailable",
+  GENERATION_FAILED: "generation-failed",
+  GENERATION_UNAVAILABLE: "generation-unavailable",
+  GENERATION_CONFIG: "generation-config",
+  INTERNAL_ERROR: "internal-error",
   MALFORMED: "malformed",
 } as const;
-export type ApiErrorKind = ValueOf<typeof ApiErrorKind>;
+export type ApiErrorCode = ValueOf<typeof ApiErrorCode>;
+
+function isWireCode(value: string): value is ApiErrorCode {
+  return Object.values(ApiErrorCode).some(
+    (code) => code === value && code !== ApiErrorCode.MALFORMED,
+  );
+}
 
 /** Typed expected-failure for read-API calls; queryFns throw it (react-query idiom). */
 export class ApiError extends Error {
-  readonly kind: ApiErrorKind;
+  readonly code: ApiErrorCode;
   readonly status: number;
 
-  constructor(kind: ApiErrorKind, status: number, path: string) {
-    super(`api request failed: ${kind} (${status}) for ${path}`);
+  constructor(code: ApiErrorCode, status: number, path: string) {
+    super(`api request failed: ${code} (${status}) for ${path}`);
     this.name = "ApiError";
-    this.kind = kind;
+    this.code = code;
     this.status = status;
   }
 }
 
-function kindForStatus(status: number): ApiErrorKind {
+// Fallback for a body that carries no code (a proxy error page, a legacy
+// server): the pre-contract status buckets, expressed in the new vocabulary.
+function codeForStatus(status: number): ApiErrorCode {
   switch (status) {
     case 400:
-      return ApiErrorKind.BAD_REQUEST;
+      return ApiErrorCode.INVALID_REQUEST;
     case 401:
-      return ApiErrorKind.UNAUTHORIZED;
+      return ApiErrorCode.UNAUTHORIZED;
     case 403:
-      return ApiErrorKind.FORBIDDEN;
+      return ApiErrorCode.FORBIDDEN;
     case 404:
-      return ApiErrorKind.NOT_FOUND;
+      return ApiErrorCode.NOT_FOUND;
+    case 409:
+      return ApiErrorCode.PR_CHANGED_SINCE_READ;
     case 413:
-      return ApiErrorKind.TOO_LARGE;
-    case 503:
-      return ApiErrorKind.UNAVAILABLE;
+      return ApiErrorCode.REQUEST_TOO_LARGE;
+    case 500:
+      return ApiErrorCode.INTERNAL_ERROR;
+    // A codeless 503 is typically a proxy answering for a down backend, not
+    // the generation feature — bucket it with unreachable, never a coded 503.
     default:
-      return ApiErrorKind.UPSTREAM;
+      return ApiErrorCode.GITHUB_UNAVAILABLE;
   }
+}
+
+/**
+ * Map a non-2xx response to its typed error, reading the wire body
+ * TOLERANTLY: a `{ code }` in the closed wire vocabulary wins; anything else
+ * (no body, non-JSON, unknown code, the never-on-wire `malformed`) falls back
+ * to the status bucket. Consumes the body — call at most once per response.
+ */
+export async function errorFromResponse(
+  response: Response,
+  path: string,
+): Promise<ApiError> {
+  let code = codeForStatus(response.status);
+  try {
+    const body: unknown = await response.json();
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      "code" in body &&
+      typeof body.code === "string" &&
+      isWireCode(body.code)
+    ) {
+      code = body.code;
+    }
+  } catch {
+    // Non-JSON error body — the status bucket stands.
+  }
+  return new ApiError(code, response.status, path);
 }
 
 /** The Hono-shaped surface the SSR branch dispatches against. */
@@ -159,7 +213,7 @@ export async function apiJsonFromResponse(
   path: string,
 ): Promise<unknown> {
   if (!response.ok) {
-    throw new ApiError(kindForStatus(response.status), response.status, path);
+    throw await errorFromResponse(response, path);
   }
   try {
     // Annotated, not asserted: `Response.json()` resolves to `any`, and the
@@ -167,7 +221,7 @@ export async function apiJsonFromResponse(
     const body: unknown = await response.json();
     return body;
   } catch {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
 }
 
@@ -180,7 +234,7 @@ export async function apiFetchJson(path: string): Promise<unknown> {
 export async function apiFetchText(path: string): Promise<string> {
   const response = await apiFetch(path);
   if (!response.ok) {
-    throw new ApiError(kindForStatus(response.status), response.status, path);
+    throw await errorFromResponse(response, path);
   }
   return response.text();
 }

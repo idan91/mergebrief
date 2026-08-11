@@ -10,7 +10,12 @@
 // is always safe.
 import type { QueryKey } from "@tanstack/react-query";
 
-import { ApiError, ApiErrorKind, apiFetch } from "../../../data/apiFetch";
+import {
+  ApiError,
+  ApiErrorCode,
+  apiFetch,
+  errorFromResponse,
+} from "../../../data/apiFetch";
 import { prMetaQueryOptions } from "../queries";
 
 export type MarkReadyResult =
@@ -44,28 +49,29 @@ export async function markPrReady(
 ): Promise<MarkReadyResult> {
   const path = `/api/repos/${encodeURIComponent(repoId)}/pulls/${String(prNumber)}/ready`;
   const response = await apiFetch(path, { method: "POST" });
-  if (response.status === 401) {
-    return { kind: "unauthorized" };
-  }
-  if (response.status === 404) {
-    return { kind: "not-found" };
-  }
-  // A 403 here is ONLY the missing `contents: write` — the fresh-resolve
-  // denial collapses to 404 server-side.
-  if (response.status === 403) {
-    return { kind: "github-permission" };
-  }
   if (!response.ok) {
+    const { code } = await errorFromResponse(response, path);
+    if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
+    if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
+    // A 403 here is ONLY the missing `contents: write` — the fresh-resolve
+    // denial collapses to 404 server-side. forbidden covers the codeless-403
+    // fallback.
+    if (
+      code === ApiErrorCode.GITHUB_PERMISSION ||
+      code === ApiErrorCode.FORBIDDEN
+    ) {
+      return { kind: "github-permission" };
+    }
     return { kind: "upstream" };
   }
   let body: unknown;
   try {
     body = await response.json();
   } catch {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   if (!isReadyBody(body)) {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   return { kind: "ready" };
 }

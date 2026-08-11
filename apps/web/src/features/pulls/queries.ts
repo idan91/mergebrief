@@ -8,7 +8,7 @@ import { queryOptions, type QueryKey } from "@tanstack/react-query";
 
 import {
   ApiError,
-  ApiErrorKind,
+  ApiErrorCode,
   apiFetch,
   apiFetchJson,
   apiFetchText,
@@ -66,7 +66,7 @@ export function pullsSessionQueryOptions() {
       const body = await apiJsonFromResponse(response, path);
       const parsed = parsePullsList(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
       }
       return { kind: "ready", pulls: parsed.value };
     },
@@ -84,7 +84,7 @@ export function prMetaQueryOptions(repoId: string, prNumber: number) {
       const body = await apiFetchJson(path);
       const parsed = parsePrSummary(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
       }
       return parsed.value;
     },
@@ -111,7 +111,7 @@ export function dbBriefQueryOptions(
       // stays silent by design.
       const parsed = parseBrief(body, await getSsrWarnSink());
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
       }
       return parsed.value;
     },
@@ -138,7 +138,7 @@ export function dbBriefContextQueryOptions(
       const body = await apiFetchJson(path);
       const parsed = parseBriefContext(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
       }
       return parsed.value;
     },
@@ -185,7 +185,7 @@ export function dbComparisonMarksQueryOptions(
       const path = `${prPath(repoId, prNumber)}/marks?baseline=${encodeURIComponent(baselineSha)}&head=${encodeURIComponent(headSha)}`;
       const body = await apiFetchJson(path);
       if (typeof body !== "object" || body === null) {
-        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
       }
       const parsed = parseComparisonMarks({
         ...body,
@@ -193,7 +193,7 @@ export function dbComparisonMarksQueryOptions(
         baselineIndex,
       });
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
       }
       return parsed.value;
     },
@@ -231,7 +231,7 @@ export function dbDeltaQueryOptions(
       const body = await apiFetchJson(path);
       const parsed = parseDeltaBrief(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
       }
       return parsed.value;
     },
@@ -263,7 +263,7 @@ export function dbRevisionNarrativeQueryOptions(
       const body = await apiFetchJson(path);
       const parsed = parseRevisionNarrativeArtifact(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
       }
       return parsed.value;
     },

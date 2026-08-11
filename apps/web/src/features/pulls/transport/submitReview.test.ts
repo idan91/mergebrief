@@ -66,6 +66,19 @@ describe("submitReview", () => {
     await expect(run()).resolves.toEqual({ kind: "rewritten" });
   });
 
+  it("maps the wire pr-rewritten-since-read code to rewritten", async () => {
+    apiFetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "pull request was rewritten since it was read",
+          code: "pr-rewritten-since-read",
+        }),
+        { status: 409 },
+      ),
+    );
+    await expect(run()).resolves.toEqual({ kind: "rewritten" });
+  });
+
   it("maps 401 to unauthorized (clean re-login)", async () => {
     apiFetchMock.mockResolvedValue(new Response("{}", { status: 401 }));
     await expect(run()).resolves.toEqual({ kind: "unauthorized" });
@@ -86,6 +99,6 @@ describe("submitReview", () => {
       new Response(JSON.stringify({ nope: true }), { status: 201 }),
     );
     await expect(run()).rejects.toBeInstanceOf(ApiError);
-    await expect(run()).rejects.toMatchObject({ kind: "malformed" });
+    await expect(run()).rejects.toMatchObject({ code: "malformed" });
   });
 });

@@ -53,7 +53,7 @@ describe("pullsSessionQueryOptions queryFn", () => {
       new Response(JSON.stringify({ nope: true }), { status: 200 }),
     );
     await expect(run()).rejects.toBeInstanceOf(ApiError);
-    await expect(run()).rejects.toMatchObject({ kind: "malformed" });
+    await expect(run()).rejects.toMatchObject({ code: "malformed" });
   });
 
   it("maps a 502 to the unavailable state (picker degrades, local briefs still render)", async () => {
@@ -101,7 +101,7 @@ describe("dbComparisonMarksQueryOptions queryFn", () => {
 
   it("throws typed malformed on a bad body", async () => {
     apiFetchJsonMock.mockResolvedValue({ nope: true });
-    await expect(runMarks()).rejects.toMatchObject({ kind: "malformed" });
+    await expect(runMarks()).rejects.toMatchObject({ code: "malformed" });
   });
 });
 
@@ -216,7 +216,7 @@ describe("dbDeltaQueryOptions queryFn", () => {
       chunks: [],
       concernView: [],
     });
-    await expect(runDelta()).rejects.toMatchObject({ kind: "malformed" });
+    await expect(runDelta()).rejects.toMatchObject({ code: "malformed" });
   });
 });
 

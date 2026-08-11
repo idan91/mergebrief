@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { ApiError, ApiErrorKind } from "../../../../../data/apiFetch";
+import { ApiError, ApiErrorCode } from "../../../../../data/apiFetch";
 import { PrBriefError } from "./PrBriefError";
 import { PR_BRIEF_GENERIC_DETAIL, prBriefErrorDetail } from "./utils";
 
@@ -9,7 +9,7 @@ afterEach(cleanup);
 
 describe("prBriefErrorDetail", () => {
   it("answers every ApiError kind with curated copy", () => {
-    for (const kind of Object.values(ApiErrorKind)) {
+    for (const kind of Object.values(ApiErrorCode)) {
       const detail = prBriefErrorDetail(new ApiError(kind, 500, "/api/x"));
       expect(detail.length).toBeGreaterThan(0);
       // Never the ApiError message — it embeds the request path.
@@ -41,7 +41,7 @@ describe("PrBriefError", () => {
   it("offers the sign-in CTA only on an unauthorized ApiError", () => {
     render(
       <PrBriefError
-        error={new ApiError(ApiErrorKind.UNAUTHORIZED, 401, "/api/pulls")}
+        error={new ApiError(ApiErrorCode.UNAUTHORIZED, 401, "/api/pulls")}
       />,
     );
     expect(screen.getByRole("link", { name: /sign in/i })).toBeDefined();
@@ -49,7 +49,7 @@ describe("PrBriefError", () => {
     cleanup();
     render(
       <PrBriefError
-        error={new ApiError(ApiErrorKind.NOT_FOUND, 404, "/api/pulls")}
+        error={new ApiError(ApiErrorCode.NOT_FOUND, 404, "/api/pulls")}
       />,
     );
     expect(screen.queryByRole("link", { name: /sign in/i })).toBeNull();

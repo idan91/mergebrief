@@ -75,6 +75,21 @@ describe("setThreadResolution", () => {
     }
   });
 
+  it("maps the wire github-permission code to its own kind", async () => {
+    apiFetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: "github-permission",
+          code: "github-permission",
+        }),
+        { status: 403 },
+      ),
+    );
+    await expect(setThreadResolution("42", 7, 9001, true)).resolves.toEqual({
+      kind: "github-permission",
+    });
+  });
+
   it("throws typed on a malformed 200", async () => {
     for (const shape of [
       { nope: true },

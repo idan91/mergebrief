@@ -3,7 +3,12 @@
 // (mutations never run during SSR).
 import { queryOptions } from "@tanstack/react-query";
 
-import { ApiError, ApiErrorKind, apiFetchJson } from "../../data/apiFetch";
+import {
+  ApiError,
+  ApiErrorCode,
+  apiFetchJson,
+  errorFromResponse,
+} from "../../data/apiFetch";
 import {
   parseMintedToken,
   parseTokensView,
@@ -19,7 +24,7 @@ export function tokensQueryOptions() {
       const body = await apiFetchJson(path);
       const parsed = parseTokensView(body);
       if (!parsed.ok) {
-        throw new ApiError(ApiErrorKind.MALFORMED, 200, path);
+        throw new ApiError(ApiErrorCode.MALFORMED, 200, path);
       }
       return parsed.value;
     },
@@ -35,18 +40,6 @@ export interface MintTokenInput {
   readonly expiresInDays?: number | null;
 }
 
-function kindForStatus(status: number): ApiErrorKind {
-  return status === 401
-    ? ApiErrorKind.UNAUTHORIZED
-    : status === 403
-      ? ApiErrorKind.FORBIDDEN
-      : status === 400
-        ? ApiErrorKind.BAD_REQUEST
-        : status === 404
-          ? ApiErrorKind.NOT_FOUND
-          : ApiErrorKind.UPSTREAM;
-}
-
 /** POST the mint; the response is the ONE body carrying token material. */
 export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
   const response = await fetch("/api/auth/tokens", {
@@ -55,11 +48,7 @@ export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
     body: JSON.stringify(input),
   });
   if (!response.ok) {
-    throw new ApiError(
-      kindForStatus(response.status),
-      response.status,
-      "/api/auth/tokens",
-    );
+    throw await errorFromResponse(response, "/api/auth/tokens");
   }
   // The JSON parse is part of the boundary too: a 201 with a non-JSON body is
   // the same typed MALFORMED as a wrong shape.
@@ -68,7 +57,7 @@ export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
     body = await response.json();
   } catch {
     throw new ApiError(
-      ApiErrorKind.MALFORMED,
+      ApiErrorCode.MALFORMED,
       response.status,
       "/api/auth/tokens",
     );
@@ -76,7 +65,7 @@ export async function mintToken(input: MintTokenInput): Promise<MintedToken> {
   const parsed = parseMintedToken(body);
   if (!parsed.ok) {
     throw new ApiError(
-      ApiErrorKind.MALFORMED,
+      ApiErrorCode.MALFORMED,
       response.status,
       "/api/auth/tokens",
     );
@@ -89,6 +78,6 @@ export async function revokeToken(tokenId: string): Promise<void> {
   const path = `/api/auth/tokens/${tokenId}`;
   const response = await fetch(path, { method: "DELETE" });
   if (!response.ok) {
-    throw new ApiError(kindForStatus(response.status), response.status, path);
+    throw await errorFromResponse(response, path);
   }
 }

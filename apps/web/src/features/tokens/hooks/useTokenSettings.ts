@@ -9,7 +9,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import { ApiError, ApiErrorKind } from "../../../data/apiFetch";
+import { ApiError, ApiErrorCode } from "../../../data/apiFetch";
 import { installationsQueryOptions } from "../../installations/queries";
 import { mintToken, revokeToken, tokensQueryOptions } from "../queries";
 import type { ApiTokenView, MintedToken } from "../types";
@@ -128,7 +128,7 @@ export function useTokenSettings(enabled: boolean): TokenSettingsState {
 
   const mintError = minting.isError
     ? minting.error instanceof ApiError &&
-      minting.error.kind === ApiErrorKind.FORBIDDEN
+      minting.error.code === ApiErrorCode.FORBIDDEN
       ? "That organization is no longer accessible to you."
       : "Minting failed — nothing was created. Try again."
     : null;

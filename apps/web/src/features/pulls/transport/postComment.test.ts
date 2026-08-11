@@ -93,6 +93,19 @@ describe("postInlineComment", () => {
     }
   });
 
+  it("maps both wire 409 codes to stale (the production path)", async () => {
+    for (const code of ["pr-changed-since-read", "pr-rewritten-since-read"]) {
+      apiFetchMock.mockResolvedValue(
+        new Response(JSON.stringify({ error: "conflict", code }), {
+          status: 409,
+        }),
+      );
+      await expect(postInlineComment("42", 7, PAYLOAD)).resolves.toEqual({
+        kind: "stale",
+      });
+    }
+  });
+
   it("throws typed on a malformed 2xx", async () => {
     apiFetchMock.mockResolvedValue(
       new Response(JSON.stringify({ nope: true }), { status: 201 }),

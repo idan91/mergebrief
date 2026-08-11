@@ -13,7 +13,12 @@
 // a retry-as-is invitation.
 import { useSyncExternalStore } from "react";
 
-import { ApiError, ApiErrorKind, apiFetch } from "../../../data/apiFetch";
+import {
+  ApiError,
+  ApiErrorCode,
+  apiFetch,
+  errorFromResponse,
+} from "../../../data/apiFetch";
 import { markSnapshotCommentsSubmitted } from "../../review/session";
 import type { WireSide } from "../../review/utils/submit";
 
@@ -343,19 +348,30 @@ export async function postInlineComment(
     headers: { "content-type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (response.status === 401) return { kind: "unauthorized" };
-  if (response.status === 404) return { kind: "not-found" };
-  if (response.status === 409) return { kind: "stale" };
-  if (response.status === 400) return { kind: "invalid" };
-  if (!response.ok) return { kind: "upstream" };
+  if (!response.ok) {
+    const { code } = await errorFromResponse(response, path);
+    if (code === ApiErrorCode.UNAUTHORIZED) return { kind: "unauthorized" };
+    if (code === ApiErrorCode.NOT_FOUND) return { kind: "not-found" };
+    // Either 409 code maps to stale: this route only ever emits
+    // pr-changed-since-read, so a rewritten code here is the codeless-409
+    // fallback ambiguity, and reload-to-re-anchor is right for both.
+    if (
+      code === ApiErrorCode.PR_CHANGED_SINCE_READ ||
+      code === ApiErrorCode.PR_REWRITTEN_SINCE_READ
+    ) {
+      return { kind: "stale" };
+    }
+    if (code === ApiErrorCode.INVALID_REQUEST) return { kind: "invalid" };
+    return { kind: "upstream" };
+  }
   let parsed: unknown;
   try {
     parsed = await response.json();
   } catch {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   if (!isPostedBody(parsed)) {
-    throw new ApiError(ApiErrorKind.MALFORMED, response.status, path);
+    throw new ApiError(ApiErrorCode.MALFORMED, response.status, path);
   }
   return {
     kind: "posted",
