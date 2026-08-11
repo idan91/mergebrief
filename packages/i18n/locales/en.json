@@ -1,0 +1,35 @@
+{
+  "errors": {
+    "unauthorized": "unauthorized",
+    "invalid-signature": "invalid signature",
+    "forbidden": "forbidden",
+    "github-permission": "github-permission",
+    "not-found": "not found",
+    "invalid-request": "invalid request",
+    "not-a-pr-url": "not a pr url",
+    "sign-in-failed": "sign-in failed",
+    "request-too-large": "request body too large",
+    "diff-too-large": "diff too large to render",
+    "pr-changed-since-read": "pull request changed since it was read",
+    "pr-rewritten-since-read": "pull request was rewritten since it was read",
+    "app-not-installed": "the app is not installed for this account",
+    "github-unavailable": "upstream error",
+    "generation-failed": "generation failed",
+    "generation-unavailable": "url generation unavailable",
+    "generation-config": "{{detail}}",
+    "internal-error": "internal error"
+  },
+  "generationError": {
+    "provider-auth": "The model provider rejected the configured credentials.",
+    "provider-rate-limit": "The model provider's rate limit was hit. The next attempt may succeed.",
+    "provider-timeout": "The model provider timed out before finishing.",
+    "provider-unavailable": "The model provider could not be reached.",
+    "provider-refusal": "The model declined to summarize this pull request.",
+    "output-invalid": "The model returned output that could not be read as a brief.",
+    "generation-config": "Generator configuration is invalid: {{detail}}",
+    "github-access": "GitHub denied access to this repository's content.",
+    "diff-too-large": "The diff is too large to summarize.",
+    "github-unavailable": "GitHub was unavailable while reading the pull request.",
+    "unknown": "Generation failed: {{detail}}"
+  }
+}

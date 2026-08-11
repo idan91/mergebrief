@@ -47,6 +47,7 @@
       "entry": ["src/index.ts", "smoke/generate-smoke.ts", "test/shims/*.cjs"],
     },
     "packages/github": { "entry": ["src/index.ts"] },
+    "packages/i18n": { "entry": ["src/index.ts"] },
     "packages/logging": {
       "entry": ["src/index.ts"],
       // pino-pretty is loaded by pino BY NAME (`transport.target`) in

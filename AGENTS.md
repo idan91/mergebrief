@@ -20,6 +20,10 @@ it, alongside a `CLAUDE.md` that points at it — a new package adds both.
   `types.ts`, or a small domain-cued support file (loose count ≤ ~5); a
   category earns a folder only when it clarifies; generic names are defects.
   `index.tsx` feature barrels remain an apps/web convention.
+- **User-facing copy lives in the `packages/i18n` catalog** — never
+  hard-coded in components or route handlers. A new wire error code follows
+  the recipe in `packages/api/AGENTS.md`; its `errors.<code>` template rides
+  the same change.
 - **Logging goes through the `packages/logging` boundary** — no bare
   `console.*` in `packages/api`, `packages/worker`, or server-side
   `apps/web` code. Secrets ride as structured fields (redacted by path),

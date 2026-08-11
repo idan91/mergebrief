@@ -151,6 +151,16 @@ There are no auto-accept windows, votes, or response-time promises. Disputes are
 in the PR or issue — convincing the maintainer is the process. This model has recorded
 loosening triggers and will be revisited when the project earns a second maintainer.
 
+## Translations
+
+The UI ships English-only today; every other locale is community-contributed. A locale
+PR touches two files — `packages/i18n/locales/<id>.json` plus one registry row — and the
+package's test suite is the review bar (mechanical checks hard-fail; completeness only
+reports, so partial locales ship and fall back to English). The full walkthrough lives in
+[`packages/i18n/README.md`](./packages/i18n/README.md). Machine translation is fine as a
+declared, human-reviewed starting point. Right-to-left locales are not yet supported —
+open an issue before starting one.
+
 ## Code contributions
 
 Bug fixes and features are welcome through ordinary PRs — run the verification commands
