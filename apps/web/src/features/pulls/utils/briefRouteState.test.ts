@@ -33,7 +33,8 @@ function generation(overrides: Partial<GenerationSummary>): GenerationSummary {
     status: "running",
     phase: null,
     attempts: 0,
-    error: null,
+    errorCode: null,
+    errorDetail: null,
     updatedAt: "2026-07-06T12:00:00.000Z",
     ...overrides,
   };
@@ -145,18 +146,24 @@ describe("deriveBriefRouteState", () => {
     expect(running).toMatchObject({ kind: "waiting", phase: "generating" });
   });
 
-  it("failed → sanitized error + attempts", () => {
+  it("failed → failure code + sanitized detail + attempts", () => {
     const state = deriveBriefRouteState(
       meta({
         generation: generation({
           status: "failed",
-          error: "boom",
+          errorCode: "unknown",
+          errorDetail: "boom",
           attempts: 2,
         }),
       }),
       undefined,
     );
-    expect(state).toEqual({ kind: "failed", error: "boom", attempts: 2 });
+    expect(state).toEqual({
+      kind: "failed",
+      errorCode: "unknown",
+      errorDetail: "boom",
+      attempts: 2,
+    });
   });
 
   it("superseded → superseded (newer revision coming)", () => {

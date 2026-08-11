@@ -27,7 +27,8 @@ const ROW = {
     status: "succeeded",
     phase: null,
     attempts: 0,
-    error: null,
+    errorCode: null,
+    errorParams: null,
     updatedAt: "2026-07-06T12:00:00.000Z",
   },
   updatedAt: "2026-07-06T12:00:00.000Z",
@@ -36,6 +37,61 @@ const ROW = {
 };
 
 describe("parsePrSummary", () => {
+  it("parses the failure code and sanitized detail off the wire", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      generation: {
+        status: "failed",
+        phase: null,
+        attempts: 1,
+        errorCode: "provider-rate-limit",
+        errorParams: { detail: "429 from the provider" },
+        updatedAt: "2026-07-06T12:00:00.000Z",
+      },
+    });
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.generation?.errorCode).toBe("provider-rate-limit");
+    expect(parsed.value.generation?.errorDetail).toBe("429 from the provider");
+  });
+
+  it("degrades a code this bundle does not know, keeping the detail", () => {
+    const parsed = parsePrSummary({
+      ...ROW,
+      generation: {
+        status: "failed",
+        phase: null,
+        attempts: 1,
+        errorCode: "spend-capped",
+        errorParams: { detail: "cap reached" },
+        updatedAt: "2026-07-06T12:00:00.000Z",
+      },
+    });
+    if (!parsed.ok) throw new Error("unreachable");
+    expect(parsed.value.generation?.errorCode).toBeNull();
+    expect(parsed.value.generation?.errorDetail).toBe("cap reached");
+  });
+
+  it("rejects a non-object errorParams and ignores a non-string detail", () => {
+    const base = {
+      status: "failed",
+      phase: null,
+      attempts: 1,
+      errorCode: "unknown",
+      updatedAt: "2026-07-06T12:00:00.000Z",
+    };
+    expect(
+      parsePrSummary({ ...ROW, generation: { ...base, errorParams: "nope" } })
+        .ok,
+    ).toBe(false);
+    const loose = parsePrSummary({
+      ...ROW,
+      generation: { ...base, errorParams: { detail: 5 } },
+    });
+    if (!loose.ok) throw new Error("unreachable");
+    expect(loose.value.generation?.errorDetail).toBeNull();
+  });
+
   it("accepts a full row", () => {
     const parsed = parsePrSummary(ROW);
     expect(parsed.ok).toBe(true);

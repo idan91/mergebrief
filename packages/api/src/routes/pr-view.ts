@@ -7,6 +7,8 @@
 // back to the base SHA persisted at ingest.
 import type {
   BriefSpanRow,
+  GenerationFailureCode,
+  GenerationFailureParams,
   GenerationPhase,
   GenerationRow,
   GenerationStatus,
@@ -14,25 +16,19 @@ import type {
   PullRequestRow,
 } from "persistence";
 
-/**
- * Wire shim until the failure code rides the wire itself: the sanitized
- * `detail` when present (backfilled rows carry their old text there), else
- * the code. Keeps `GenerationSummaryView.error` stable for consumers.
- */
-function failureLine(row: GenerationRow): string | null {
-  if (row.errorCode === null) {
-    return null;
-  }
-  return row.errorParams?.detail ?? row.errorCode;
-}
-
 /** The poll-relevant slice of a `generation` projection row. */
 export interface GenerationSummaryView {
   readonly status: GenerationStatus;
   readonly phase: GenerationPhase | null;
   readonly attempts: number;
-  /** Legacy line composed from the stored failure code (detail pre-sanitized). */
-  readonly error: string | null;
+  /**
+   * The stored failure vocabulary code — MODELED DATA inside a 200, not a
+   * wire `ApiErrorCode`. Consumers render `generationError.<code>` from the
+   * catalog; a code they do not know degrades to the generic failed line.
+   */
+  readonly errorCode: GenerationFailureCode | null;
+  /** Interpolation params for the code's template; `detail` pre-sanitized. */
+  readonly errorParams: GenerationFailureParams | null;
   readonly updatedAt: string;
 }
 
@@ -123,7 +119,8 @@ export function buildPrView(
             status: latestGeneration.status,
             phase: latestGeneration.phase,
             attempts: latestGeneration.attempts,
-            error: failureLine(latestGeneration),
+            errorCode: latestGeneration.errorCode,
+            errorParams: latestGeneration.errorParams,
             updatedAt: latestGeneration.updatedAt.toISOString(),
           },
     updatedAt: row.updatedAt.toISOString(),

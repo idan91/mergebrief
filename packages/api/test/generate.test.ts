@@ -284,6 +284,27 @@ describe("POST /api/generate", () => {
     });
   });
 
+  it("scrubs a credential the engine quoted into its config message", async () => {
+    // The port contract says config messages name env vars, never values —
+    // this route is the boundary that enforces it, and the shared sanitizer
+    // now covers credential shapes as well as URLs.
+    const engine = fakeEngine({
+      generate: vi.fn(async () => ({
+        ok: false as const,
+        error: {
+          kind: UrlBriefErrorKind.CONFIG,
+          message: "rejected key sk-ant-api03-LeAkEd_Key-999",
+        },
+      })),
+    });
+    const app = buildApp(engine);
+    const cookie = await seedSession(harness.handle, kp);
+    const res = await post(app, cookie, PR_URL);
+    const raw = await res.text();
+    expect(raw).not.toContain("sk-ant-api03-LeAkEd_Key-999");
+    expect(raw).toContain("[redacted-token]");
+  });
+
   it("clamps a contract-violating config message (URL scrubbed, first line only)", async () => {
     const engine = fakeEngine({
       generate: vi.fn(async () => ({

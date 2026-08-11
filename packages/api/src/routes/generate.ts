@@ -10,6 +10,7 @@
 // pipeline; this route owns URL validation, dedupe-by-head, single-flight,
 // and the refresh-once budget. Token rides as a string so no octokit type
 // crosses the port.
+import { sanitizeErrorDetail } from "logging";
 import { briefId, parsePrUrl, prStem, type PrLocator } from "brief-core";
 import { Hono, type Context } from "hono";
 import type { Result, ValueOf } from "types";
@@ -91,16 +92,11 @@ function createSingleFlight<T>() {
 // Runtime clamp on the ONE engine-authored string that reaches a response
 // body. The port contract says config messages carry env-var NAMES only, but
 // the engine is an injected, swappable implementation — a TS comment is not a
-// trust boundary; this route is. First line, URL-shaped substrings redacted,
-// bounded length, generic fallback.
-const CONFIG_MESSAGE_MAX = 300;
-const URL_SHAPED = /\w+:\/\/\S+/g;
-
+// trust boundary; this route is. The shared sanitizer does the redacting
+// (first line, URLs and credential shapes out, 300-char cap); only the
+// empty-result fallback is this route's own decision.
 function clampConfigMessage(message: string): string {
-  const firstLine = message.split("\n", 1)[0] ?? "";
-  const clamped = firstLine
-    .replace(URL_SHAPED, "[redacted-url]")
-    .slice(0, CONFIG_MESSAGE_MAX);
+  const clamped = sanitizeErrorDetail(message);
   return clamped === "" ? "generator configuration invalid" : clamped;
 }
 

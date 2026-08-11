@@ -4,7 +4,7 @@
 // warmup, well after the artifact is readable). Generation status drives the
 // waiting/failed/superseded display and the polling cadence only.
 import { isOwnDraft } from "./ownDraft";
-import type { PrSummary } from "../types";
+import type { GenerationFailureCode, PrSummary } from "../types";
 
 export interface Span {
   readonly base: string;
@@ -26,10 +26,11 @@ export type BriefRouteState =
       readonly phase: string | null;
       readonly span: Span | undefined;
     }
-  /** Terminal failure — sanitized error + attempts. */
+  /** Terminal failure — the catalog code (if known) + attempts. */
   | {
       readonly kind: "failed";
-      readonly error: string | null;
+      readonly errorCode: GenerationFailureCode | null;
+      readonly errorDetail: string | null;
       readonly attempts: number;
     }
   /** Aborted because the head advanced — a newer brief is on the way. */
@@ -103,7 +104,8 @@ export function deriveBriefRouteState(
     case "failed":
       return {
         kind: "failed",
-        error: generation.error,
+        errorCode: generation.errorCode,
+        errorDetail: generation.errorDetail,
         attempts: generation.attempts,
       };
     case "superseded":

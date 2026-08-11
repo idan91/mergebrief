@@ -166,7 +166,11 @@ function PrBriefBodyState({
     case "failed":
       return (
         <main className="main" id="main-content" tabIndex={-1}>
-          <FailedCard attempts={state.attempts} error={state.error} />
+          <FailedCard
+            attempts={state.attempts}
+            errorCode={state.errorCode}
+            errorDetail={state.errorDetail}
+          />
         </main>
       );
     case "superseded":

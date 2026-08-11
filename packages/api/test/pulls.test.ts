@@ -475,7 +475,34 @@ describe("GET /api/pulls + GET /api/repos/:repoId/pulls/:prNumber", () => {
         status: GenerationStatus.QUEUED,
         phase: null,
         attempts: 0,
-        error: null,
+        errorCode: null,
+        errorParams: null,
+      },
+    });
+
+    // A failed row must serialize its CODE and params, not a composed line.
+    const failedRow = await gen.markFailed(
+      {
+        pullRequestId: pr.id,
+        kind: GenerationKind.BRIEF,
+        headSha: "head-2",
+        baselineSha: null,
+      },
+      {
+        code: GenerationFailureCode.GENERATION_CONFIG,
+        params: { detail: "missing ANTHROPIC_API_KEY" },
+      },
+    );
+    if (!failedRow.ok) throw new Error("markFailed failed");
+    const failedList = await get("/api/pulls", cookie);
+    const failedBody = (await failedList.json()) as {
+      pulls: Array<Record<string, unknown>>;
+    };
+    expect(failedBody.pulls[0]).toMatchObject({
+      generation: {
+        status: GenerationStatus.FAILED,
+        errorCode: "generation-config",
+        errorParams: { detail: "missing ANTHROPIC_API_KEY" },
       },
     });
 

@@ -27,12 +27,45 @@ export const GenerationStatuses = {
 } as const;
 export type GenerationStatus = ValueOf<typeof GenerationStatuses>;
 
+/**
+ * Hand-rolled mirror of persistence's `GenerationFailureCode` — modeled data
+ * inside a 200, so it never rides the wire-error vocabulary. An unknown code
+ * degrades to the generic failed line rather than failing the parse: the
+ * server may ship a code this bundle predates.
+ */
+export const GenerationFailureCodes = {
+  PROVIDER_AUTH: "provider-auth",
+  PROVIDER_RATE_LIMIT: "provider-rate-limit",
+  PROVIDER_TIMEOUT: "provider-timeout",
+  PROVIDER_UNAVAILABLE: "provider-unavailable",
+  PROVIDER_REFUSAL: "provider-refusal",
+  OUTPUT_INVALID: "output-invalid",
+  GENERATION_CONFIG: "generation-config",
+  GITHUB_ACCESS: "github-access",
+  DIFF_TOO_LARGE: "diff-too-large",
+  GITHUB_UNAVAILABLE: "github-unavailable",
+  UNKNOWN: "unknown",
+} as const;
+export type GenerationFailureCode = ValueOf<typeof GenerationFailureCodes>;
+
+const FAILURE_CODE_VALUES: readonly string[] = Object.values(
+  GenerationFailureCodes,
+);
+
+export function isGenerationFailureCode(
+  value: unknown,
+): value is GenerationFailureCode {
+  return typeof value === "string" && FAILURE_CODE_VALUES.includes(value);
+}
+
 /** The poll-relevant slice of the generation projection (already sanitized). */
 export interface GenerationSummary {
   readonly status: GenerationStatus;
   readonly phase: string | null;
   readonly attempts: number;
-  readonly error: string | null;
+  /** Null when the row never failed, or when the code is one we don't know. */
+  readonly errorCode: GenerationFailureCode | null;
+  readonly errorDetail: string | null;
   readonly updatedAt: string;
 }
 
@@ -215,8 +248,12 @@ function parseGenerationSummary(
   if (typeof value["attempts"] !== "number") {
     return { ok: false, error: "generation.attempts must be a number" };
   }
-  if (!isStringOrNull(value["error"])) {
-    return { ok: false, error: "generation.error must be a string or null" };
+  const rawParams = value["errorParams"];
+  if (rawParams !== null && rawParams !== undefined && !isRecord(rawParams)) {
+    return {
+      ok: false,
+      error: "generation.errorParams must be an object or null",
+    };
   }
   if (typeof value["updatedAt"] !== "string") {
     return { ok: false, error: "generation.updatedAt must be a string" };
@@ -227,7 +264,15 @@ function parseGenerationSummary(
       status: value["status"],
       phase: value["phase"],
       attempts: value["attempts"],
-      error: value["error"],
+      // Tolerant on purpose: a code this bundle predates parses as null and
+      // renders the generic failed line, rather than failing the whole view.
+      errorCode: isGenerationFailureCode(value["errorCode"])
+        ? value["errorCode"]
+        : null,
+      errorDetail:
+        isRecord(rawParams) && typeof rawParams["detail"] === "string"
+          ? rawParams["detail"]
+          : null,
       updatedAt: value["updatedAt"],
     },
   };
