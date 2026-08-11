@@ -217,6 +217,10 @@ _Avoid_: severity tier, critical attributes (the floor is a display guarantee, n
 The attribute-keyed navigation row beside the group TOC: fired attribute names with carrying-group counts; clicking cycles through the carrying groups in story order. Attribute-keyed, never group-ranked — a "high-risk groups" rail would be the banned ordering verdict rebuilt as navigation. Floor attributes pin first; de-emphasized firings are excluded; collapsed unless a floor attribute fired.
 _Avoid_: risk ranking, hotspot list
 
+**Wire error code**:
+The stable kebab-case identifier a non-2xx API response carries, alongside optional typed params and a composed English error line. A public, additive-only vocabulary: one code per distinct meaning — same code unless a translator would write a different sentence or a user would take a different action — never one per call site or per HTTP status. Distinct from the internal error vocabularies (GitHub, port, and auth codes), which never ride the wire and are translated to wire codes at the response boundary. Consumers render a wire code through the shared string catalog, falling back to the English error line when the code is unknown.
+_Avoid_: error kind, error message (for the identifier), status-derived kind
+
 ## Relationships
 
 - A **PR** has at most one **Brief** per commit SHA. The brief is **shared** across reviewers.
