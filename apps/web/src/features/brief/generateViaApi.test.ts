@@ -4,7 +4,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 const apiFetch = vi.hoisted(() => vi.fn());
-vi.mock("../../data/apiFetch", () => ({ apiFetch }));
+vi.mock("../../data/apiFetch", async (importOriginal) => ({
+  ...(await importOriginal()),
+  apiFetch,
+}));
 // The server-fn module is irrelevant here and must not load its
 // createServerFn graph into a node test.
 vi.mock("./server/brief.functions", () => ({
@@ -40,26 +43,39 @@ describe("generateBriefViaApi", () => {
   });
 
   it.each([
-    [400, /pull request URL/],
-    [401, /sign in again/],
-    [404, /install the app on it or set MERGEBRIEF_URL_BOX_TOKEN/],
-    [502, /try again/],
-  ])("maps a %s to recoverable copy", async (status, copy) => {
-    apiFetch.mockResolvedValue(jsonResponse({ error: "x" }, status));
-    await expect(generateBriefViaApi("u")).rejects.toThrow(copy);
+    [400, "not-a-pr-url"],
+    [401, "unauthorized"],
+    [404, "not-found"],
+    [502, "generation-failed"],
+  ])("preserves wire code %s as a typed error", async (status, code) => {
+    apiFetch.mockResolvedValue(jsonResponse({ error: "x", code }, status));
+    await expect(generateBriefViaApi("u")).rejects.toMatchObject({
+      status,
+      code,
+    });
   });
 
   it("surfaces the server-authored 503 config copy", async () => {
     apiFetch.mockResolvedValue(
-      jsonResponse({ error: "ANTHROPIC_API_KEY is required" }, 503),
+      jsonResponse(
+        {
+          error: "ANTHROPIC_API_KEY is required",
+          code: "generation-config",
+          params: { detail: "ANTHROPIC_API_KEY is required" },
+        },
+        503,
+      ),
     );
-    await expect(generateBriefViaApi("u")).rejects.toThrow(
-      "ANTHROPIC_API_KEY is required",
-    );
+    await expect(generateBriefViaApi("u")).rejects.toMatchObject({
+      code: "generation-config",
+      params: { detail: "ANTHROPIC_API_KEY is required" },
+    });
   });
 
   it("falls back to generic copy on a malformed 200", async () => {
     apiFetch.mockResolvedValue(jsonResponse({ nope: true }, 200));
-    await expect(generateBriefViaApi("u")).rejects.toThrow(/try again/);
+    await expect(generateBriefViaApi("u")).rejects.toMatchObject({
+      code: "malformed",
+    });
   });
 });

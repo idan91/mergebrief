@@ -579,6 +579,23 @@ describe("/api/auth/tokens mint / list / revoke (cookie-only)", () => {
     ).toEqual([{ n: 0 }]);
   });
 
+  it("returns the wire error contract when the live installation lookup fails", async () => {
+    stubGitHub({
+      userInstallations: () => jsonResponse({ message: "forbidden" }, 403),
+    });
+    const cookie = await seedSession();
+    const res = await mint(
+      { name: "blocked", installationId: INSTALLATION_ID },
+      cookie,
+    );
+    expect(res.status).toBe(502);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(await res.json()).toEqual({
+      error: "upstream error",
+      code: "github-unavailable",
+    });
+  }, 10_000);
+
   it("is cookie-only: no cookie → 401; a Bearer token cannot mint or list", async () => {
     stubGitHub({
       userInstallations: () =>

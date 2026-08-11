@@ -40,6 +40,10 @@ export const ApiErrorCode = {
 } as const;
 export type ApiErrorCode = ValueOf<typeof ApiErrorCode>;
 
+export interface ApiErrorParams {
+  readonly detail: string;
+}
+
 function isWireCode(value: string): value is ApiErrorCode {
   return Object.values(ApiErrorCode).some(
     (code) => code === value && code !== ApiErrorCode.MALFORMED,
@@ -49,14 +53,37 @@ function isWireCode(value: string): value is ApiErrorCode {
 /** Typed expected-failure for read-API calls; queryFns throw it (react-query idiom). */
 export class ApiError extends Error {
   readonly code: ApiErrorCode;
+  readonly params: ApiErrorParams | undefined;
   readonly status: number;
 
-  constructor(code: ApiErrorCode, status: number, path: string) {
+  constructor(
+    code: ApiErrorCode,
+    status: number,
+    path: string,
+    params?: ApiErrorParams,
+  ) {
     super(`api request failed: ${code} (${status}) for ${path}`);
     this.name = "ApiError";
     this.code = code;
+    this.params = params;
     this.status = status;
   }
+}
+
+function configParams(value: unknown): ApiErrorParams | undefined {
+  if (typeof value !== "object" || value === null || !("params" in value)) {
+    return undefined;
+  }
+  const params: unknown = value.params;
+  if (
+    typeof params !== "object" ||
+    params === null ||
+    !("detail" in params) ||
+    typeof params.detail !== "string"
+  ) {
+    return undefined;
+  }
+  return { detail: params.detail };
 }
 
 // Fallback for a body that carries no code (a proxy error page, a legacy
@@ -95,6 +122,7 @@ export async function errorFromResponse(
   path: string,
 ): Promise<ApiError> {
   let code = codeForStatus(response.status);
+  let params: ApiErrorParams | undefined;
   try {
     const body: unknown = await response.json();
     if (
@@ -105,11 +133,14 @@ export async function errorFromResponse(
       isWireCode(body.code)
     ) {
       code = body.code;
+      if (code === ApiErrorCode.GENERATION_CONFIG) {
+        params = configParams(body);
+      }
     }
   } catch {
     // Non-JSON error body — the status bucket stands.
   }
-  return new ApiError(code, response.status, path);
+  return new ApiError(code, response.status, path, params);
 }
 
 /** The Hono-shaped surface the SSR branch dispatches against. */

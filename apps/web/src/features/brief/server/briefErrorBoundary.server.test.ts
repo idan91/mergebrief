@@ -10,9 +10,11 @@ import {
   briefErrorCode,
   briefErrorDetail,
   BriefErrorCode,
+  clampConfigMessage,
   GenerateErrorCode,
   isCuratedBriefError,
 } from "../utils/briefErrors";
+import { ApiError, ApiErrorCode } from "../../../data/apiFetch";
 
 /** Passes the id charset guard; no artifact of that name exists. */
 const ABSENT_ID = "no-such-brief_1_deadbeef";
@@ -76,5 +78,32 @@ describe("briefErrorCode / briefErrorDetail", () => {
 
   it("handles a non-Error rejection", () => {
     expect(briefErrorCode("boom")).toBe(BriefErrorCode.UNEXPECTED);
+  });
+
+  it.each([
+    [ApiErrorCode.NOT_A_PR_URL, "pull request URL"],
+    [ApiErrorCode.UNAUTHORIZED, "sign in again"],
+    [ApiErrorCode.NOT_FOUND, "private repo"],
+    [ApiErrorCode.GENERATION_UNAVAILABLE, "try again"],
+  ])("renders signed generation code %s as actionable copy", (code, copy) => {
+    expect(
+      briefErrorDetail(appI18n.t, new ApiError(code, 503, "/x")),
+    ).toContain(copy);
+  });
+
+  it("renders a validated generation-config detail", () => {
+    expect(
+      briefErrorDetail(
+        appI18n.t,
+        new ApiError(ApiErrorCode.GENERATION_CONFIG, 503, "/api/generate", {
+          detail: "ANTHROPIC_API_KEY is required",
+        }),
+      ),
+    ).toBe("ANTHROPIC_API_KEY is required");
+  });
+
+  it("redacts token-shaped config detail before it reaches the browser", () => {
+    const leaked = "bad sk-ant-api03-abcdefghijkl";
+    expect(clampConfigMessage(leaked)).toBe("bad [redacted-token]");
   });
 });

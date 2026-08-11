@@ -12,7 +12,9 @@
 
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "i18n";
+import { sanitizeErrorDetail } from "logging/sanitize";
 import type { ValueOf } from "types";
+import { ApiError, ApiErrorCode } from "../../../data/apiFetch";
 
 /**
  * The closed set of CODES this path may surface to a browser. The server
@@ -58,22 +60,15 @@ export function isCuratedBriefError(message: string): boolean {
   return CURATED.has(message);
 }
 
-const CONFIG_MESSAGE_MAX = 300;
-const URL_SHAPED = /\w+:\/\/\S+/g;
-
 /**
  * Clamp a generator-CONFIG message before it crosses to the browser: first
  * line only, URL-shaped substrings redacted, length capped. The upstream
  * messages carry only env-var names and config fields, but that safety is a
- * convention — this is the boundary that enforces it. Mirrors
- * `clampConfigMessage` in `packages/api/src/routes/generate.ts` — the shared
- * `logging` sanitizer cannot be used here: this module is client-reachable
- * and `logging` constructs pino.
+ * convention — this is the boundary that enforces it through the shared
+ * logging sanitizer.
  */
 export function clampConfigMessage(message: string): string {
-  const clamped = (message.split("\n", 1)[0] ?? "")
-    .replace(URL_SHAPED, "[redacted-url]")
-    .slice(0, CONFIG_MESSAGE_MAX);
+  const clamped = sanitizeErrorDetail(message);
   return clamped === "" ? "generator configuration invalid" : clamped;
 }
 
@@ -110,6 +105,25 @@ function isKnownDetailCode(code: string): code is keyof typeof DETAIL_KEYS {
 }
 
 export function briefErrorDetail(t: TFunction, error: unknown): string {
+  if (error instanceof ApiError) {
+    if (
+      error.code === ApiErrorCode.GENERATION_CONFIG &&
+      error.params !== undefined
+    ) {
+      return t("errors.generation-config", { detail: error.params.detail });
+    }
+    switch (error.code) {
+      case ApiErrorCode.NOT_A_PR_URL:
+      case ApiErrorCode.INVALID_REQUEST:
+        return t("briefError.not-a-pr-url");
+      case ApiErrorCode.UNAUTHORIZED:
+        return t("briefError.sessionExpired");
+      case ApiErrorCode.NOT_FOUND:
+        return t("briefError.signedFetchFailed");
+      default:
+        return t("briefError.generation-failed");
+    }
+  }
   const code = briefErrorCode(error);
   return t(
     isKnownDetailCode(code) ? DETAIL_KEYS[code] : "briefError.unexpected",

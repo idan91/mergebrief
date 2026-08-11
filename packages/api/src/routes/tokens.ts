@@ -115,13 +115,11 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.get("logger"),
     );
     if (!resolved.ok) {
-      return c.json(
-        {
-          error:
-            resolved.error.status === 401 ? "unauthorized" : "upstream error",
-        },
-        resolved.error.status,
-        NO_STORE,
+      return errorJson(
+        c,
+        resolved.error.status === 401
+          ? ApiErrorCode.UNAUTHORIZED
+          : ApiErrorCode.GITHUB_UNAVAILABLE,
       );
     }
     const { installations, session: currentSession } = resolved.value;

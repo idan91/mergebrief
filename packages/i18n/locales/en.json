@@ -831,6 +831,8 @@
     "url-too-long": "That URL is too long to be a GitHub pull request link.",
     "no-gh-cli": "This deployment has no gh CLI — sign in with GitHub to generate with your account.",
     "fetch-failed": "Couldn't fetch this PR — is it public, and are you `gh auth login`'d?",
-    "generation-failed": "Couldn't generate the brief for this PR — check the server logs and try again."
+    "generation-failed": "Couldn't generate the brief for this PR — check the server logs and try again.",
+    "sessionExpired": "Your session expired — sign in again to generate.",
+    "signedFetchFailed": "Couldn't fetch this PR — check the URL; for a private repo, make sure the app is installed and can access it."
   }
 }

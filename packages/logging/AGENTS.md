@@ -7,8 +7,9 @@ startup wiring and injects it; call sites depend on this package only.
 
 ## Map
 
-**Entry point: `src/index.ts`** — the package's only export
-(`package.json` `exports["."]`).
+**Entry point: `src/index.ts`** — the package's process-side export
+(`package.json` `exports["."]`). `logging/sanitize` is the browser-safe pure
+subpath; it must never import `logger.ts` or pino.
 
 ```
 src/

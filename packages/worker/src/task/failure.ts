@@ -51,18 +51,18 @@ export class TransientJobError extends Error {
   }
 }
 
-function transientCode(cause: unknown): GenerationFailureCode {
+function transientFailure(cause: unknown): GenerationFailure {
   const status =
     typeof cause === "object" && cause !== null
       ? Reflect.get(cause, "status")
       : undefined;
   if (status === 429) {
-    return GenerationFailureCode.PROVIDER_RATE_LIMIT;
+    return { code: GenerationFailureCode.PROVIDER_RATE_LIMIT };
   }
   if (status === 408) {
-    return GenerationFailureCode.PROVIDER_TIMEOUT;
+    return { code: GenerationFailureCode.PROVIDER_TIMEOUT };
   }
-  return GenerationFailureCode.PROVIDER_UNAVAILABLE;
+  return { code: GenerationFailureCode.PROVIDER_UNAVAILABLE };
 }
 
 function detailOf(error: unknown): string {
@@ -86,7 +86,7 @@ export function classifyFailure(error: unknown): GenerationFailure {
       case GeneratorErrorKind.PROVIDER_TRANSIENT:
         // Adapters fold 408/429/5xx into one kind but keep the SDK error as
         // cause — recover the rate-limit/timeout distinction from it.
-        return { code: transientCode(unwrapped.cause) };
+        return transientFailure(unwrapped.cause);
       case GeneratorErrorKind.TIMEOUT:
         return { code: GenerationFailureCode.PROVIDER_TIMEOUT };
       case GeneratorErrorKind.SCHEMA_FLOOR:

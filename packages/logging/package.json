@@ -5,7 +5,8 @@
   "type": "module",
   "description": "The structured-logging boundary: a minimal Logger interface + createLogger over pino. Call sites depend on this package only — pino types never leak; a later OTel/metrics addition reimplements the interface without touching call sites.",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./sanitize": "./src/sanitize.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
