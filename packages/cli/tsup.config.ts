@@ -1,5 +1,6 @@
-// Single-file bundle: everything — commander, zod — bundles into
-// dist/mergebrief.js; no workspace runtime deps (compile-time `types` only).
+// Single-file bundle: everything — commander, zod, the workspace `i18n`
+// catalog — bundles into dist/mergebrief.js (compile-time `types` aside,
+// i18n is the one workspace runtime dep).
 // The shebang lives in src/bin.ts and survives the bundle.
 import { defineConfig } from "tsup";
 

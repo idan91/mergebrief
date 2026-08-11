@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "commander": "^14.0.2",
+    "i18n": "workspace:*",
     "zod": "^3.25.0"
   },
   "devDependencies": {

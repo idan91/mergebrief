@@ -1,9 +1,14 @@
 // The client boundary. Takes an injected fetch-compatible function, so command
 // tests run against the REAL api Hono app (`app.request` is fetch-shaped) with
 // zero network. Every non-2xx becomes a `CliError` carrying the 6-code mapping
-// and ONE stderr-ready line (server error text + HTTP status); bodies pass
-// through VERBATIM — never re-shaped.
+// and ONE stderr-ready line: a known wire `code` renders its catalog
+// template + HTTP status; anything else relays the server's `error` text
+// verbatim. Success bodies pass through VERBATIM — never re-shaped.
+import { createI18n, en } from "i18n";
 import { CliError, ExitCode, exitCodeForStatus } from "./exit";
+
+// One instance for the process — resources are baked in, init is sync.
+const i18n = createI18n();
 
 /** `fetch`-compatible; `app.request` satisfies it in tests. */
 export type FetchLike = (
@@ -40,11 +45,34 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-/** Best-effort extraction of the server's one-line error text. */
+function isKnownErrorCode(value: string): value is keyof typeof en.errors {
+  return Object.hasOwn(en.errors, value);
+}
+
+/**
+ * Best-effort extraction of the server's one-line error text. Tolerant
+ * probe: a known wire `code` renders the catalog template (with `params`
+ * interpolated); an unknown/absent code — or a render that comes back
+ * empty — relays the `error` field verbatim.
+ */
 function serverErrorLine(bodyText: string, status: number): string {
   try {
     const parsed: unknown = JSON.parse(bodyText);
     if (isRecord(parsed)) {
+      const code = parsed["code"];
+      const params = parsed["params"];
+      if (typeof code === "string" && isKnownErrorCode(code)) {
+        // `replace` isolates interpolation variables from i18next OPTIONS —
+        // a wire param named `count`/`context` must not steer the lookup.
+        const rendered = i18n.t(`errors.${code}`, {
+          replace: isRecord(params) ? params : {},
+        });
+        // Missing params leave literal {{tokens}} (skipOnVariables default):
+        // an unrendered template relays the server's line instead.
+        if (rendered.trim() !== "" && !rendered.includes("{{")) {
+          return `${rendered} (HTTP ${status})`;
+        }
+      }
       const error = parsed["error"];
       if (typeof error === "string") {
         return `${error} (HTTP ${status})`;

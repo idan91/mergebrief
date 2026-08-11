@@ -39,8 +39,9 @@ scripts/            embed-help.ts — regenerates the README flag appendix
   synthesizes shapes only where documented (e.g. `delta`).
 - **One client-side shape check** on writes (`commitId` present → exit 2);
   everything else relays the server's locked validation (4xx → exit 5).
-- **Single-file bundle:** no workspace runtime deps
-  (compile-time `types` only); assets ship as constants, never file reads.
+- **Single-file bundle:** workspace runtime deps are limited to `i18n`
+  (the string catalog — tsup bundles it in; the bundle stays one file)
+  plus compile-time `types`; assets ship as constants, never file reads.
 - **Secrets:** the profile token is plaintext-on-disk by design (0600, v1,
   disclaimed at mint) — but it never appears in stdout, stderr, or errors.
 
