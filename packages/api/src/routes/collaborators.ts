@@ -17,6 +17,7 @@ import type { AuthRouteDeps } from "./auth";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
 import type { InstallationGitHubPort } from "./github-port";
 import { createTtlCache } from "./ttl-cache";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 /** Positive TTL — same 60s staleness family as the other gated reads. */
 const COLLABORATORS_CACHE_TTL_MS = 60 * 1000;
@@ -25,15 +26,6 @@ const COLLABORATORS_CACHE_MAX_ENTRIES = 2_000;
 
 function cacheKey(installationId: InstallationId, repoId: RepoId): string {
   return `${String(installationId)}:${String(repoId)}`;
-}
-
-/** Sanitized error response with the gated-route `no-store` posture. */
-function errorJson(
-  c: Context<AuthzEnv>,
-  message: string,
-  status: 404 | 502,
-): Response {
-  return c.json({ error: message }, status, { "cache-control": "no-store" });
 }
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
@@ -74,7 +66,7 @@ export function collaboratorsRoute(
     // Push-gate BEFORE the cache: the cached roster is repo-shared, and a
     // read-only viewer must not be able to read it out of the cache either.
     if (!c.get("viewerCanPush")) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     const ctx = c.get("ctx");
@@ -90,7 +82,7 @@ export function collaboratorsRoute(
     // the same budget as the gate's own positive cache).
     const target = splitRepoSlug(c.get("repoFullName"));
     if (target === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
     const fetched = await deps.github.listRepoCollaborators(
       ctx.installationId,
@@ -103,9 +95,9 @@ export function collaboratorsRoute(
       // 404-collapse posture identical to the other reads; everything else is
       // an honest upstream error.
       if (fetched.error.code === GitHubApiErrorCode.NOT_FOUND) {
-        return errorJson(c, "not found", 404);
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
-      return errorJson(c, "upstream error", 502);
+      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
     }
     const body = JSON.stringify(fetched.value);
     cache.set(key, body, now + COLLABORATORS_CACHE_TTL_MS, now);

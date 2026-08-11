@@ -42,6 +42,7 @@ import {
   type ViewerPrincipal,
 } from "./auth";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 /** The switch body — `installationId` as a numeric string or JSON number. */
 const switchBodySchema = z.object({
@@ -137,12 +138,11 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.get("logger"),
     );
     if (!resolved.ok) {
-      return c.json(
-        {
-          error:
-            resolved.error.status === 401 ? "unauthorized" : "upstream error",
-        },
-        resolved.error.status,
+      return errorJson(
+        c,
+        resolved.error.status === 401
+          ? ApiErrorCode.UNAUTHORIZED
+          : ApiErrorCode.GITHUB_UNAVAILABLE,
       );
     }
     const { installations, session: currentSession } = resolved.value;
@@ -171,11 +171,11 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     const raw: unknown = await c.req.json().catch(() => undefined);
     const parsed = switchBodySchema.safeParse(raw);
     if (!parsed.success) {
-      return c.json({ error: "invalid request body" }, 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const target = toInstallationId(parsed.data.installationId);
     if (target === undefined) {
-      return c.json({ error: "invalid installation id" }, 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
 
     const session = c.get("session");
@@ -185,12 +185,11 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       c.get("logger"),
     );
     if (!resolved.ok) {
-      return c.json(
-        {
-          error:
-            resolved.error.status === 401 ? "unauthorized" : "upstream error",
-        },
-        resolved.error.status,
+      return errorJson(
+        c,
+        resolved.error.status === 401
+          ? ApiErrorCode.UNAUTHORIZED
+          : ApiErrorCode.GITHUB_UNAVAILABLE,
       );
     }
     const { installations, session: currentSession } = resolved.value;
@@ -211,7 +210,7 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
         targetId: target,
         metadata: { [AuditMetadataKey.DECISION]: "403" },
       });
-      return c.json({ error: "forbidden" }, 403);
+      return errorJson(c, ApiErrorCode.FORBIDDEN);
     }
 
     // Atomic, ctx-safe rebinding of the session's tenant stamp.
@@ -221,7 +220,7 @@ export function installationsRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     );
     if (!rebound.ok) {
       // The row vanished between resolve and rebind (logout / sweep) → re-login.
-      return c.json({ error: "unauthorized" }, 401);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
 
     let defaultId =

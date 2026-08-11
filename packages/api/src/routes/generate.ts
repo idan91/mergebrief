@@ -21,6 +21,7 @@ import {
   type ViewerPrincipal,
 } from "./auth";
 import { accessStampLayer, sessionLayer, type AuthzEnv } from "./authz";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 // Deliberately NO "forbidden" kind: an engine implementation maps a GitHub
 // FORBIDDEN onto NOT_FOUND, so a viewer who cannot read a repo sees exactly
@@ -87,14 +88,6 @@ function createSingleFlight<T>() {
   };
 }
 
-function errorJson(
-  c: Context<AuthzEnv>,
-  message: string,
-  status: 400 | 401 | 404 | 502 | 503,
-): Response {
-  return c.json({ error: message }, status, { "cache-control": "no-store" });
-}
-
 // Runtime clamp on the ONE engine-authored string that reaches a response
 // body. The port contract says config messages carry env-var NAMES only, but
 // the engine is an injected, swappable implementation — a TS comment is not a
@@ -114,15 +107,17 @@ function clampConfigMessage(message: string): string {
 /** Map an engine failure to the sanitized response posture (posture note above). */
 function engineFailure(c: Context<AuthzEnv>, error: UrlBriefError): Response {
   if (error.kind === UrlBriefErrorKind.UNAUTHORIZED) {
-    return errorJson(c, "unauthorized", 401);
+    return errorJson(c, ApiErrorCode.UNAUTHORIZED);
   }
   if (error.kind === UrlBriefErrorKind.NOT_FOUND) {
-    return errorJson(c, "not found", 404);
+    return errorJson(c, ApiErrorCode.NOT_FOUND);
   }
   if (error.kind === UrlBriefErrorKind.CONFIG) {
-    return errorJson(c, clampConfigMessage(error.message), 503);
+    return errorJson(c, ApiErrorCode.GENERATION_CONFIG, {
+      detail: clampConfigMessage(error.message),
+    });
   }
-  return errorJson(c, "generation failed", 502);
+  return errorJson(c, ApiErrorCode.GENERATION_FAILED);
 }
 
 /** Decrypt the session's stored access token; `undefined` if unreadable. */
@@ -152,27 +147,27 @@ export function generateRoute(
 
   app.post("/api/generate", async (c) => {
     if (engine === undefined) {
-      return errorJson(c, "url generation unavailable", 503);
+      return errorJson(c, ApiErrorCode.GENERATION_UNAVAILABLE);
     }
 
     const body = bodySchema.safeParse(
       await c.req.json().catch(() => undefined),
     );
     if (!body.success) {
-      return errorJson(c, "invalid body", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     let locator: PrLocator;
     try {
       locator = parsePrUrl(body.data.url);
     } catch {
-      return errorJson(c, "not a pr url", 400);
+      return errorJson(c, ApiErrorCode.NOT_A_PR_URL);
     }
 
     let currentSession = c.get("session");
     let accessToken =
       c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
     if (accessToken === undefined) {
-      return errorJson(c, "unauthorized", 401);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
 
     // One refresh-once budget per REQUEST, shared across every engine call:

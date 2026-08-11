@@ -292,7 +292,10 @@ describe("Bearer presentation on /api/*", () => {
     ]) {
       const res = await getWithBearer("/api/pulls", bearer);
       expect(res.status).toBe(401);
-      expect(await res.json()).toEqual({ error: "unauthorized" });
+      expect(await res.json()).toEqual({
+        error: "unauthorized",
+        code: "unauthorized",
+      });
     }
   });
 

@@ -42,20 +42,9 @@ import type { Result } from "types";
 import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 const prNumberSchema = z.coerce.number().int().positive();
-
-/**
- * A sanitized error response carrying the gated-route `no-store` posture —
- * every response (success or failure) of a gated route is per-viewer state.
- */
-function errorJson(
-  c: Context<AuthzEnv>,
-  message: string,
-  status: 400 | 401 | 403 | 404 | 502,
-): Response {
-  return c.json({ error: message }, status, { "cache-control": "no-store" });
-}
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
 function splitRepoSlug(
@@ -100,15 +89,15 @@ function resolveRepoFailure(
   error: GitHubApiError,
 ): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    return errorJson(c, "unauthorized", 401);
+    return errorJson(c, ApiErrorCode.UNAUTHORIZED);
   }
   if (
     error.code === GitHubApiErrorCode.NOT_FOUND ||
     error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
-    return errorJson(c, "not found", 404);
+    return errorJson(c, ApiErrorCode.NOT_FOUND);
   }
-  return errorJson(c, "upstream error", 502);
+  return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
 }
 
 /**
@@ -126,15 +115,15 @@ function markReadyMutationFailure(
   error: GitHubApiError,
 ): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    return errorJson(c, "unauthorized", 401);
+    return errorJson(c, ApiErrorCode.UNAUTHORIZED);
   }
   if (error.code === GitHubApiErrorCode.FORBIDDEN) {
-    return errorJson(c, "github-permission", 403);
+    return errorJson(c, ApiErrorCode.GITHUB_PERMISSION);
   }
   if (error.code === GitHubApiErrorCode.NOT_FOUND) {
-    return errorJson(c, "not found", 404);
+    return errorJson(c, ApiErrorCode.NOT_FOUND);
   }
-  return errorJson(c, "upstream error", 502);
+  return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
 }
 
 /**
@@ -152,14 +141,14 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     const ctx = c.get("ctx");
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedPr.success) {
-      return errorJson(c, "invalid request", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
       c.get("repoId"),
       parsedPr.data,
     );
     if (pr === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     // Viewer token: set by the gate on the verified path; on a positive-cache
@@ -168,7 +157,7 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     const resolvedToken =
       c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
     if (resolvedToken === undefined) {
-      return errorJson(c, "unauthorized", 401);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
     // Plain `string` binding: the narrowing above doesn't survive into the
     // closures below for a mutable `let` of union type.
@@ -218,7 +207,7 @@ export function markReadyRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     }
     const target = splitRepoSlug(repoInfo.value.fullName);
     if (target === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     // A 401'd GraphQL call performed no write, so a refreshed retry cannot

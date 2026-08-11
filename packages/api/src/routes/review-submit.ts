@@ -39,6 +39,7 @@ import type { Result } from "types";
 import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 // ---------------------------------------------------------------------------
 // Boundary schemas — shape only (the server needs no chunk knowledge; the FE
@@ -189,18 +190,6 @@ function toPrimitiveComments(
   }));
 }
 
-/**
- * A sanitized error response carrying the gated-route `no-store` posture —
- * every handler response (success or failure) is per-viewer state.
- */
-function errorJson(
-  c: Context<AuthzEnv>,
-  message: string,
-  status: 400 | 401 | 404 | 409 | 502,
-): Response {
-  return c.json({ error: message }, status, { "cache-control": "no-store" });
-}
-
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
 function splitRepoSlug(
   fullName: string,
@@ -256,25 +245,25 @@ export function reviewSubmitRoute(
     try {
       rawBody = await c.req.json();
     } catch {
-      return errorJson(c, "invalid request", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const parsedBody = submitBodySchema.safeParse(rawBody);
     if (!parsedBody.success) {
-      return errorJson(c, "invalid request", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const submitBody = parsedBody.data;
 
     const ctx = c.get("ctx");
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedPr.success) {
-      return errorJson(c, "invalid request", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
       c.get("repoId"),
       parsedPr.data,
     );
     if (pr === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     // Viewer token: set by the gate on the verified path; on a positive-cache
@@ -283,7 +272,7 @@ export function reviewSubmitRoute(
     const resolvedToken =
       c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
     if (resolvedToken === undefined) {
-      return errorJson(c, "unauthorized", 401);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
     // Plain `string` binding: the narrowing above doesn't survive into the
     // closures below for a mutable `let` of union type.
@@ -334,7 +323,7 @@ export function reviewSubmitRoute(
     }
     if (!repoInfo.ok) {
       if (repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-        return errorJson(c, "unauthorized", 401);
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
       }
       // 403/404 both collapse to the gate's 404 posture: a viewer whose
       // access was revoked inside the positive-cache TTL must see exactly
@@ -344,13 +333,13 @@ export function reviewSubmitRoute(
         repoInfo.error.code === GitHubApiErrorCode.NOT_FOUND ||
         repoInfo.error.code === GitHubApiErrorCode.FORBIDDEN
       ) {
-        return errorJson(c, "not found", 404);
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
-      return errorJson(c, "upstream error", 502);
+      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
     }
     const target = splitRepoSlug(repoInfo.value.fullName);
     if (target === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     const baseInput: Omit<CreatePullRequestReviewInput, "body" | "comments"> = {
@@ -451,15 +440,15 @@ function submitFailure(
   // Unknown commit → the PR was rewritten since it was read. Fail closed;
   // the FE tells the reviewer to reload (drafts survive via sessionStorage).
   if (isValidation(error, ReviewValidationClass.UNKNOWN_COMMIT)) {
-    return errorJson(c, "pull request was rewritten since it was read", 409);
+    return errorJson(c, ApiErrorCode.PR_REWRITTEN_SINCE_READ);
   }
   // A still-unauthorized final result (refresh budget spent or hard-failed)
   // is a clean re-login prompt, not an upstream error.
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    return errorJson(c, "unauthorized", 401);
+    return errorJson(c, ApiErrorCode.UNAUTHORIZED);
   }
   if (error.code === GitHubApiErrorCode.NOT_FOUND) {
-    return errorJson(c, "not found", 404);
+    return errorJson(c, ApiErrorCode.NOT_FOUND);
   }
-  return errorJson(c, "upstream error", 502);
+  return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
 }

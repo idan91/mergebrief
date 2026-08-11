@@ -35,6 +35,7 @@ import type { Result } from "types";
 import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 const prNumberSchema = z.coerce.number().int().positive();
 /** A thread's root comment id — bounded by JS integer precision. */
@@ -43,15 +44,6 @@ const commentIdSchema = z.coerce
   .int()
   .positive()
   .refine((value) => Number.isSafeInteger(value));
-
-/** Sanitized error response with the gated-route `no-store` posture. */
-function errorJson(
-  c: Context<AuthzEnv>,
-  message: string,
-  status: 400 | 401 | 403 | 404 | 502,
-): Response {
-  return c.json({ error: message }, status, { "cache-control": "no-store" });
-}
 
 /** Split the fresh-resolve's verified `owner/name`; `undefined` on a non-slug shape. */
 function splitRepoSlug(
@@ -94,15 +86,15 @@ function resolveRepoFailure(
   error: GitHubApiError,
 ): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    return errorJson(c, "unauthorized", 401);
+    return errorJson(c, ApiErrorCode.UNAUTHORIZED);
   }
   if (
     error.code === GitHubApiErrorCode.NOT_FOUND ||
     error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
-    return errorJson(c, "not found", 404);
+    return errorJson(c, ApiErrorCode.NOT_FOUND);
   }
-  return errorJson(c, "upstream error", 502);
+  return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
 }
 
 /**
@@ -117,15 +109,15 @@ function mutationFailure(
   error: GitHubApiError,
 ): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    return errorJson(c, "unauthorized", 401);
+    return errorJson(c, ApiErrorCode.UNAUTHORIZED);
   }
   if (error.code === GitHubApiErrorCode.FORBIDDEN) {
-    return errorJson(c, "github-permission", 403);
+    return errorJson(c, ApiErrorCode.GITHUB_PERMISSION);
   }
   if (error.code === GitHubApiErrorCode.NOT_FOUND) {
-    return errorJson(c, "not found", 404);
+    return errorJson(c, ApiErrorCode.NOT_FOUND);
   }
-  return errorJson(c, "upstream error", 502);
+  return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
 }
 
 /**
@@ -159,7 +151,7 @@ export function resolveThreadRoute(
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     const parsedComment = commentIdSchema.safeParse(c.req.param("commentId"));
     if (!parsedPr.success || !parsedComment.success) {
-      return errorJson(c, "invalid request", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
 
     const ctx = c.get("ctx");
@@ -169,7 +161,7 @@ export function resolveThreadRoute(
       parsedPr.data,
     );
     if (pr === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     // Viewer token: set by the gate on the verified path; on a positive-cache
@@ -178,7 +170,7 @@ export function resolveThreadRoute(
     const resolvedToken =
       c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
     if (resolvedToken === undefined) {
-      return errorJson(c, "unauthorized", 401);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
     let accessToken: string = resolvedToken;
 
@@ -224,7 +216,7 @@ export function resolveThreadRoute(
     }
     const target = splitRepoSlug(repoInfo.value.fullName);
     if (target === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     const input = {

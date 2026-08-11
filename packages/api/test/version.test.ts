@@ -101,6 +101,9 @@ describe("GET /api/version", () => {
   it("is gated: no auth → hint-free 401", async () => {
     const res = await app.request("/api/version");
     expect(res.status).toBe(401);
-    expect(await res.json()).toEqual({ error: "unauthorized" });
+    expect(await res.json()).toEqual({
+      error: "unauthorized",
+      code: "unauthorized",
+    });
   });
 });

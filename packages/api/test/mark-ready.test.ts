@@ -490,7 +490,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
     const res = await markReady(app, cookie);
     expect(res.status).toBe(403);
     expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(await res.json()).toEqual({ error: "github-permission" });
+    expect(await res.json()).toEqual({
+      error: "github-permission",
+      code: "github-permission",
+    });
     // Reached the mutation (resolve + mutation = 2 GraphQL calls).
     expect(counts.graphql).toBe(2);
     // Row untouched, no audit — GitHub rejected the write.
@@ -510,7 +513,7 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/ready", () => {
 
     const res = await markReady(app, cookie);
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not found" });
+    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
     expect(counts.graphql).toBe(0);
     expect(await readDraft(harness.handle)).toBe(true);
     expect(await markReadyAuditCount(harness)).toBe(0);

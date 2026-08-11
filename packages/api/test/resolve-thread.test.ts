@@ -575,7 +575,10 @@ describe("POST /api/repos/:repoId/pulls/:prNumber/comments/:commentId/{resolve,u
 
     const res = await post(app, cookie, RESOLVE_PATH);
     expect(res.status).toBe(403);
-    expect(await res.json()).toEqual({ error: "github-permission" });
+    expect(await res.json()).toEqual({
+      error: "github-permission",
+      code: "github-permission",
+    });
     expect(counts.graphql).toBe(2);
     expect(await auditCount(harness, "resolve-thread")).toBe(0);
   });

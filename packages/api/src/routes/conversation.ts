@@ -38,6 +38,7 @@ import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
 import type { InstallationGitHubPort } from "./github-port";
 import { createTtlCache } from "./ttl-cache";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 // ---------------------------------------------------------------------------
 // Boundary schemas + constants.
@@ -72,15 +73,6 @@ function cacheKey(
   prNumber: number,
 ): string {
   return `${String(installationId)}:${String(repoId)}:${prNumber}`;
-}
-
-/** Sanitized error response with the gated-route `no-store` posture. */
-function errorJson(
-  c: Context<AuthzEnv>,
-  message: string,
-  status: 400 | 401 | 404 | 502,
-): Response {
-  return c.json({ error: message }, status, { "cache-control": "no-store" });
 }
 
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
@@ -157,14 +149,14 @@ export function conversationRoutes(
     const repoId = c.get("repoId");
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedPr.success) {
-      return errorJson(c, "invalid request", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
       repoId,
       parsedPr.data,
     );
     if (pr === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     const key = cacheKey(ctx.installationId, repoId, pr.prNumber);
@@ -178,7 +170,7 @@ export function conversationRoutes(
     // the same budget as the gate's own positive cache).
     const target = splitRepoSlug(c.get("repoFullName"));
     if (target === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
     const fetched = await deps.github.fetchPullRequestConversation(
       ctx.installationId,
@@ -192,9 +184,9 @@ export function conversationRoutes(
       // 404-collapse posture identical to the other reads; everything else is
       // an honest upstream error (no REST fallback tier).
       if (fetched.error.code === GitHubApiErrorCode.NOT_FOUND) {
-        return errorJson(c, "not found", 404);
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
-      return errorJson(c, "upstream error", 502);
+      return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
     }
     const body = JSON.stringify(
       withoutEntryComment(fetched.value, pr.entryCommentId),
@@ -210,16 +202,16 @@ export function conversationRoutes(
       try {
         rawBody = await c.req.json();
       } catch {
-        return errorJson(c, "invalid request", 400);
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
       const parsedBody = replyBodySchema.safeParse(rawBody);
       if (!parsedBody.success) {
-        return errorJson(c, "invalid request", 400);
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
       const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
       const parsedComment = commentIdSchema.safeParse(c.req.param("commentId"));
       if (!parsedPr.success || !parsedComment.success) {
-        return errorJson(c, "invalid request", 400);
+        return errorJson(c, ApiErrorCode.INVALID_REQUEST);
       }
 
       const ctx = c.get("ctx");
@@ -229,7 +221,7 @@ export function conversationRoutes(
         parsedPr.data,
       );
       if (pr === undefined) {
-        return errorJson(c, "not found", 404);
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
 
       // Viewer token: set by the gate on the verified path; on a positive-cache
@@ -239,7 +231,7 @@ export function conversationRoutes(
         c.get("accessToken") ??
         (await resolveSessionToken(deps, currentSession));
       if (resolvedToken === undefined) {
-        return errorJson(c, "unauthorized", 401);
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
       }
       let accessToken: string = resolvedToken;
 
@@ -282,20 +274,20 @@ export function conversationRoutes(
       }
       if (!repoInfo.ok) {
         if (repoInfo.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-          return errorJson(c, "unauthorized", 401);
+          return errorJson(c, ApiErrorCode.UNAUTHORIZED);
         }
         // 403/404 collapse to the gate's 404 posture — no existence leak.
         if (
           repoInfo.error.code === GitHubApiErrorCode.NOT_FOUND ||
           repoInfo.error.code === GitHubApiErrorCode.FORBIDDEN
         ) {
-          return errorJson(c, "not found", 404);
+          return errorJson(c, ApiErrorCode.NOT_FOUND);
         }
-        return errorJson(c, "upstream error", 502);
+        return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
       }
       const target = splitRepoSlug(repoInfo.value.fullName);
       if (target === undefined) {
-        return errorJson(c, "not found", 404);
+        return errorJson(c, ApiErrorCode.NOT_FOUND);
       }
 
       const replyInput = {
@@ -321,7 +313,7 @@ export function conversationRoutes(
       }
       if (!created.ok) {
         if (created.error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-          return errorJson(c, "unauthorized", 401);
+          return errorJson(c, ApiErrorCode.UNAUTHORIZED);
         }
         // Gated-route rule: ANY in-route GitHub denial (403/404) collapses to
         // the gate's 404 posture — a root comment gone and a permission denial
@@ -330,9 +322,9 @@ export function conversationRoutes(
           created.error.code === GitHubApiErrorCode.NOT_FOUND ||
           created.error.code === GitHubApiErrorCode.FORBIDDEN
         ) {
-          return errorJson(c, "not found", 404);
+          return errorJson(c, ApiErrorCode.NOT_FOUND);
         }
-        return errorJson(c, "upstream error", 502);
+        return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
       }
 
       // The write happened: the cached conversation is stale — drop it so the

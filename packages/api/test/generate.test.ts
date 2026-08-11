@@ -209,7 +209,10 @@ describe("POST /api/generate", () => {
     const cookie = await seedSession(harness.handle, kp);
     const res = await post(app, cookie, PR_URL);
     expect(res.status).toBe(503);
-    expect(await res.json()).toEqual({ error: "url generation unavailable" });
+    expect(await res.json()).toEqual({
+      error: "url generation unavailable",
+      code: "generation-unavailable",
+    });
   });
 
   it("400s a non-PR URL without reaching the engine", async () => {
@@ -257,7 +260,7 @@ describe("POST /api/generate", () => {
     const cookie = await seedSession(harness.handle, kp);
     const res = await post(app, cookie, PR_URL);
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ error: "not found" });
+    expect(await res.json()).toEqual({ error: "not found", code: "not-found" });
   });
 
   it("surfaces a config failure as 503 with the env-safe message", async () => {
@@ -276,6 +279,8 @@ describe("POST /api/generate", () => {
     expect(res.status).toBe(503);
     expect(await res.json()).toEqual({
       error: "ANTHROPIC_API_KEY is required",
+      code: "generation-config",
+      params: { detail: "ANTHROPIC_API_KEY is required" },
     });
   });
 
@@ -296,7 +301,11 @@ describe("POST /api/generate", () => {
     const body = await res.json();
     expect(JSON.stringify(body)).not.toContain("pass");
     expect(JSON.stringify(body)).not.toContain("stack line");
-    expect(body).toEqual({ error: "bad DSN [redacted-url]" });
+    expect(body).toEqual({
+      error: "bad DSN [redacted-url]",
+      code: "generation-config",
+      params: { detail: "bad DSN [redacted-url]" },
+    });
   });
 
   it("spends the refresh once on an unauthorized head fetch, then retries with the rotated token", async () => {

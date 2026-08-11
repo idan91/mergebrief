@@ -579,6 +579,10 @@ describe("POST /api/webhooks/github", () => {
       },
     );
     expect(res.status).toBe(401);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(((await res.json()) as { code?: string }).code).toBe(
+      "invalid-signature",
+    );
     expect(await countRows(harness, "pull_request")).toBe(0);
     expect(await countRows(harness, "graphile_worker.jobs")).toBe(0);
   });

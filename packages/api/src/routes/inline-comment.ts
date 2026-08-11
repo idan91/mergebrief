@@ -35,6 +35,7 @@ import type { Result } from "types";
 import { z } from "zod";
 import { refreshSessionToken, type AuthRouteDeps } from "./auth";
 import { createAuthzMiddleware, type AuthzEnv } from "./authz";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 // ---------------------------------------------------------------------------
 // Boundary schema — shape only. Each deterministic reject below MUST stay
@@ -81,15 +82,6 @@ const commentBodySchema = z
 
 const prNumberSchema = z.coerce.number().int().positive();
 
-/** A sanitized error response carrying the gated-route `no-store` posture. */
-function errorJson(
-  c: Context<AuthzEnv>,
-  message: string,
-  status: 400 | 401 | 404 | 409 | 502,
-): Response {
-  return c.json({ error: message }, status, { "cache-control": "no-store" });
-}
-
 /** Split the gate's verified `owner/name`; `undefined` on a non-slug shape. */
 function splitRepoSlug(
   fullName: string,
@@ -127,15 +119,15 @@ function repoResolveFailure(
   error: GitHubApiError,
 ): Response {
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    return errorJson(c, "unauthorized", 401);
+    return errorJson(c, ApiErrorCode.UNAUTHORIZED);
   }
   if (
     error.code === GitHubApiErrorCode.NOT_FOUND ||
     error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
-    return errorJson(c, "not found", 404);
+    return errorJson(c, ApiErrorCode.NOT_FOUND);
   }
-  return errorJson(c, "upstream error", 502);
+  return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
 }
 
 /** Map a final create-comment failure to the sanitized response posture. */
@@ -148,19 +140,19 @@ function writeFailure(
   // the author to reload (the draft survives locally), never a retry-looking
   // 502.
   if (error.staleAnchor === true) {
-    return errorJson(c, "pull request changed since it was read", 409);
+    return errorJson(c, ApiErrorCode.PR_CHANGED_SINCE_READ);
   }
   if (error.code === GitHubApiErrorCode.UNAUTHORIZED) {
-    return errorJson(c, "unauthorized", 401);
+    return errorJson(c, ApiErrorCode.UNAUTHORIZED);
   }
   // 403/404 collapse to the gate's 404 posture — no existence leak.
   if (
     error.code === GitHubApiErrorCode.NOT_FOUND ||
     error.code === GitHubApiErrorCode.FORBIDDEN
   ) {
-    return errorJson(c, "not found", 404);
+    return errorJson(c, ApiErrorCode.NOT_FOUND);
   }
-  return errorJson(c, "upstream error", 502);
+  return errorJson(c, ApiErrorCode.GITHUB_UNAVAILABLE);
 }
 
 /**
@@ -187,11 +179,11 @@ export function inlineCommentRoute(
     try {
       rawBody = await c.req.json();
     } catch {
-      return errorJson(c, "invalid request", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const parsedBody = commentBodySchema.safeParse(rawBody);
     if (!parsedBody.success) {
-      return errorJson(c, "invalid request", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const commentInput = parsedBody.data;
 
@@ -199,14 +191,14 @@ export function inlineCommentRoute(
     const repoId = c.get("repoId");
     const parsedPr = prNumberSchema.safeParse(c.req.param("prNumber"));
     if (!parsedPr.success) {
-      return errorJson(c, "invalid request", 400);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const pr = await forTenant(deps.handle, ctx).pullRequests.getByNumber(
       repoId,
       parsedPr.data,
     );
     if (pr === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     // Viewer token: set by the gate on the verified path; on a positive-cache
@@ -215,7 +207,7 @@ export function inlineCommentRoute(
     const resolvedToken =
       c.get("accessToken") ?? (await resolveSessionToken(deps, currentSession));
     if (resolvedToken === undefined) {
-      return errorJson(c, "unauthorized", 401);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
     let accessToken: string = resolvedToken;
 
@@ -263,7 +255,7 @@ export function inlineCommentRoute(
     }
     const target = splitRepoSlug(repoInfo.value.fullName);
     if (target === undefined) {
-      return errorJson(c, "not found", 404);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     const writeInput = {

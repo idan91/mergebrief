@@ -61,6 +61,7 @@ import {
 } from "./auth";
 import { stampAccess, type RequestLogVariables } from "../request-logging";
 import { createTtlCache } from "./ttl-cache";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 // ---------------------------------------------------------------------------
 // Typed Hono context vars. Handlers read these safely (no `any`): `ctx`/
@@ -104,9 +105,6 @@ export interface AuthzEnv {
  * per-session allowed-repo-set cache deliberately shares this constant.
  */
 
-// Gate denials are per-viewer state like every gated-route response — the
-// no-store contract covers middleware 401/404s too.
-const NO_STORE = { "cache-control": "no-store" } as const;
 export const AUTHZ_CACHE_TTL_MS = 60 * 1000;
 /**
  * Hard cap on live positive-cache entries (one per session×repo). Bounds memory
@@ -181,7 +179,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       // Wrong prefix / miss / expired / revoked — the SAME hint-free 401.
       if (!bearer.startsWith(API_TOKEN_PREFIX)) {
         stampAccess(c, "401", {});
-        return c.json({ error: "unauthorized" }, 401, NO_STORE);
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
       }
       const tokenHash = sha256Hex(bearer);
       const resolved = await tokenAuth(deps.handle).resolveByHash(
@@ -190,7 +188,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
       );
       if (!resolved.ok) {
         stampAccess(c, "401", {});
-        return c.json({ error: "unauthorized" }, 401, NO_STORE);
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
       }
       const principal = principalFromApiToken(resolved.value);
 
@@ -219,7 +217,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     const cookie = getCookie(c, SESSION_COOKIE);
     if (cookie === undefined) {
       stampAccess(c, "401", {});
-      return c.json({ error: "unauthorized" }, 401, NO_STORE);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
     const sessionTokenHash = sha256Hex(cookie);
     const resolved = await sessionAuth(deps.handle).findSession(
@@ -227,7 +225,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     );
     if (resolved === undefined) {
       stampAccess(c, "401", {});
-      return c.json({ error: "unauthorized" }, 401, NO_STORE);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
     // `findSession` is a plain resolver (it doesn't filter on expiry), so expiry
     // is enforced HERE, at the auth decision point. `expires_at` tracks the ~6mo
@@ -238,7 +236,7 @@ export function sessionLayer(deps: AuthRouteDeps): MiddlewareHandler<AuthzEnv> {
     if (resolved.session.expiresAt.getTime() <= startedAt) {
       await sessionAuth(deps.handle).deleteSession(sessionTokenHash);
       stampAccess(c, "401", { reviewerId: resolved.session.reviewerId });
-      return c.json({ error: "unauthorized" }, 401, NO_STORE);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
 
     c.set("ctx", { installationId: resolved.session.installationId });
@@ -275,7 +273,7 @@ export function repoAuthzLayer(
     const repoId = parseRepoId(c.req.param("repoId"));
     if (repoId === undefined) {
       stampAccess(c, "404", { reviewerId: session.reviewerId });
-      return c.json({ error: "not found" }, 404, NO_STORE);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     // Positive-cache hit → already authorized within the TTL; skip GitHub
@@ -307,7 +305,7 @@ export function repoAuthzLayer(
     if (!decrypted.ok) {
       await sessionAuth(deps.handle).deleteSession(session.sessionTokenHash);
       stampAccess(c, "401", { repoId, reviewerId: session.reviewerId });
-      return c.json({ error: "unauthorized" }, 401, NO_STORE);
+      return errorJson(c, ApiErrorCode.UNAUTHORIZED);
     }
 
     // The session/token we carry forward — updated if a refresh rotates them.
@@ -332,7 +330,7 @@ export function repoAuthzLayer(
           repoId,
           reviewerId: currentSession.reviewerId,
         });
-        return c.json({ error: "unauthorized" }, 401, NO_STORE);
+        return errorJson(c, ApiErrorCode.UNAUTHORIZED);
       }
       currentSession = refreshed.value.session;
       accessToken = refreshed.value.accessToken;
@@ -352,7 +350,7 @@ export function repoAuthzLayer(
         metadata: { [AuditMetadataKey.DECISION]: "404" },
       });
       stampAccess(c, "404", { repoId, reviewerId: currentSession.reviewerId });
-      return c.json({ error: "not found" }, 404, NO_STORE);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
 
     // 2xx → authorized. Cache the verified full name, hand the token to the

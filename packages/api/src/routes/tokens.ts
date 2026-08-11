@@ -36,6 +36,7 @@ import {
   type AuthzEnv,
 } from "./authz";
 import { resolveAccessibleInstallations } from "./installations";
+import { ApiErrorCode, errorJson } from "../error-response";
 
 const NO_STORE = { "cache-control": "no-store" } as const;
 
@@ -101,7 +102,7 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
     const raw: unknown = await c.req.json().catch(() => undefined);
     const parsed = mintBodySchema.safeParse(raw);
     if (!parsed.success) {
-      return c.json({ error: "invalid request body" }, 400, NO_STORE);
+      return errorJson(c, ApiErrorCode.INVALID_REQUEST);
     }
     const session = c.get("session");
 
@@ -141,7 +142,7 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
           [AuditMetadataKey.KIND]: "mint",
         },
       });
-      return c.json({ error: "forbidden" }, 403, NO_STORE);
+      return errorJson(c, ApiErrorCode.FORBIDDEN);
     }
 
     const expiresInDays = parsed.data.expiresInDays;
@@ -187,7 +188,7 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
   app.delete("/api/auth/tokens/:id", async (c) => {
     const tokenId = parseTokenId(c.req.param("id"));
     if (tokenId === undefined) {
-      return c.json({ error: "not found" }, 404, NO_STORE);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
     const session = c.get("session");
     const revoked = await tokenAuth(deps.handle).revokeToken(
@@ -200,7 +201,7 @@ export function tokensRoute(deps: AuthRouteDeps): Hono<AuthzEnv> {
       if (revoked.error.code !== TokenAuthErrorCode.NOT_FOUND) {
         throw new Error(`unexpected revoke failure: ${revoked.error.code}`);
       }
-      return c.json({ error: "not found" }, 404, NO_STORE);
+      return errorJson(c, ApiErrorCode.NOT_FOUND);
     }
     await audit(deps.handle, {
       installationId: revoked.value.installationId,
