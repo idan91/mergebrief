@@ -21,7 +21,6 @@ import {
   type Span,
 } from "../features/pulls/utils/briefRouteState";
 import {
-  HeadAdvancedBanner,
   PrBriefBody,
   PrBriefError,
   REVISION_NAV_CONTROL_ATTR,
@@ -334,7 +333,7 @@ function PrBriefRoute() {
     renderedHead !== undefined &&
     meta.headSha !== null &&
     meta.headSha !== renderedHead;
-  // Whether a stale head has anywhere to go; see HeadAdvancedBannerProps.
+  // Whether a stale head has anywhere to go; see StaleRevisionChipProps.
   const newerRevisionSelectable =
     timeline === undefined ||
     timeline.selectedIndex < timeline.points.length - 1;
@@ -345,6 +344,25 @@ function PrBriefRoute() {
     () => (baseDrift ? { reason: BASE_DRIFT_REASON } : undefined),
     [baseDrift],
   );
+
+  // Hoisted: an inline literal is a new object per render, busting the memo
+  // boundaries downstream on every poll tick.
+  const briefSearch = useMemo<BriefSearchParams>(
+    () => ({
+      ...(search.view !== undefined ? { view: search.view } : {}),
+      ...(search.compare !== undefined ? { compare: search.compare } : {}),
+    }),
+    [search.view, search.compare],
+  );
+
+  /** Drop the pinned span so it re-resolves to latest. */
+  const goToNewest = useCallback(() => {
+    void navigate({
+      search: ({ head: _h, base: _b, thread: _spent, ...rest }) => rest,
+      replace: false,
+      resetScroll: false,
+    });
+  }, [navigate]);
 
   const selectRevision = useCallback(
     (point: DbTimelinePoint) => {
@@ -535,42 +553,22 @@ function PrBriefRoute() {
   );
 
   return (
-    <>
-      {/* Dropping the span re-resolves to latest; the lens rides along. */}
-      {staleHead ? (
-        <HeadAdvancedBanner
-          {...(newerRevisionSelectable
-            ? {
-                onNavigate: () => {
-                  void navigate({
-                    search: ({ head: _h, base: _b, thread: _spent, ...rest }) =>
-                      rest,
-                    replace: false,
-                  });
-                },
-              }
-            : {})}
-        />
-      ) : null}
-      <PrBriefBody
-        meta={meta}
-        onNavigateSearch={onNavigateSearch}
-        conversationFilter={conversationFilter}
-        onConversationFilterChange={onConversationFilterChange}
-        conversationFocusThreadId={search.thread}
-        onSelectRevision={selectRevision}
-        prNumber={prNumber}
-        readOnly={readOnly}
-        repoId={repoId}
-        revisionJump={revisionJump}
-        searchParams={{
-          ...(search.view !== undefined ? { view: search.view } : {}),
-          ...(search.compare !== undefined ? { compare: search.compare } : {}),
-        }}
-        staleHead={staleHead}
-        state={state}
-        timeline={timeline}
-      />
-    </>
+    <PrBriefBody
+      meta={meta}
+      onNavigateSearch={onNavigateSearch}
+      conversationFilter={conversationFilter}
+      onConversationFilterChange={onConversationFilterChange}
+      conversationFocusThreadId={search.thread}
+      onSelectRevision={selectRevision}
+      prNumber={prNumber}
+      readOnly={readOnly}
+      repoId={repoId}
+      revisionJump={revisionJump}
+      searchParams={briefSearch}
+      staleHead={staleHead}
+      state={state}
+      timeline={timeline}
+      {...(newerRevisionSelectable ? { onGoToNewest: goToNewest } : {})}
+    />
   );
 }

@@ -44,6 +44,8 @@ export interface PrBriefContentProps {
   readOnly?: { reason: string } | undefined;
   /** Head mismatch: writable, Submit gated by the receipt ack. */
   staleHead?: boolean | undefined;
+  /** Present only when a newer briefed revision exists to move to. */
+  onGoToNewest?: (() => void) | undefined;
   timeline?: DbTimelineSelection | undefined;
   onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
   revisionJump?: ThreadRevisionJump | undefined;
@@ -62,6 +64,7 @@ export function PrBriefContent({
   onNavigateSearch,
   readOnly,
   staleHead,
+  onGoToNewest,
   timeline,
   onSelectRevision,
   revisionJump,
@@ -171,7 +174,9 @@ export function PrBriefContent({
       }
       onSelectRevision={onSelectRevision}
       readOnly={readOnly !== undefined}
+      staleHead={staleHead}
       timeline={timeline}
+      {...(onGoToNewest ? { onGoToNewest } : {})}
     />
   );
   return (

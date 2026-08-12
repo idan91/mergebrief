@@ -98,6 +98,8 @@ export interface PrBriefBodyProps {
    * requires the stale ack in the receipt.
    */
   staleHead?: boolean | undefined;
+  /** Present only when a newer briefed revision exists to move to. */
+  onGoToNewest?: (() => void) | undefined;
   /** The resolved revision timeline; absent on legacy metas. */
   timeline?: DbTimelineSelection | undefined;
   onSelectRevision?: ((point: DbTimelinePoint) => void) | undefined;
@@ -119,6 +121,7 @@ function PrBriefBodyState({
   onNavigateSearch,
   readOnly,
   staleHead,
+  onGoToNewest,
   timeline,
   onSelectRevision,
   revisionJump,
@@ -145,6 +148,7 @@ function PrBriefBodyState({
           searchParams={searchParams}
           span={state.span}
           staleHead={staleHead}
+          {...(onGoToNewest ? { onGoToNewest } : {})}
           timeline={timeline}
         />
       );

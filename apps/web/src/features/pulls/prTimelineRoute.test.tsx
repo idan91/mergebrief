@@ -180,7 +180,7 @@ describe("DB brief route — revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
     );
     expect(
-      await screen.findByText(/new commits since this brief's span/i),
+      await screen.findByRole("button", { name: /newer commits/i }),
     ).toBeTruthy();
   });
 
@@ -191,14 +191,10 @@ describe("DB brief route — revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
       timelineMeta({ headSha: "head-3-just-pushed", baseSha: "base-3" }),
     );
-    expect(
-      await screen.findByText(/new commits since this brief's span/i),
-    ).toBeTruthy();
+    const chip = await screen.findByTestId("stale-revision-chip");
     // …and offers no action: the newest brief IS selected, so navigating
     // would resolve back to this same span and change nothing.
-    expect(
-      screen.queryByRole("button", { name: /go to the newest revision/i }),
-    ).toBeNull();
+    expect(chip.tagName).toBe("SPAN");
   });
 
   it("shows no notice when the meta has no head to compare against", async () => {
@@ -209,9 +205,7 @@ describe("DB brief route — revision timeline", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    expect(
-      screen.queryByText(/new commits since this brief's span/i),
-    ).toBeNull();
+    expect(screen.queryByTestId("stale-revision-chip")).toBeNull();
   });
 
   it("shows no notice on the current head", async () => {
@@ -221,9 +215,7 @@ describe("DB brief route — revision timeline", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    expect(
-      screen.queryByText(/new commits since this brief's span/i),
-    ).toBeNull();
+    expect(screen.queryByTestId("stale-revision-chip")).toBeNull();
   });
 
   it("the notice returns to the latest revision and keeps the View/Compare lens", async () => {
@@ -231,7 +223,7 @@ describe("DB brief route — revision timeline", () => {
       `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&view=changes&thread=42`,
     );
     fireEvent.click(
-      await screen.findByRole("button", { name: /go to the newest revision/i }),
+      await screen.findByRole("button", { name: /newer commits/i }),
     );
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);

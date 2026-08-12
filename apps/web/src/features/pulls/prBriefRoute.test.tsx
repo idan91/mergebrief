@@ -567,7 +567,7 @@ describe("DB brief route", () => {
     );
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: /go to the newest revision/i }),
+        screen.getByRole("button", { name: /newer commits/i }),
       ).toBeTruthy(),
     );
     // Still pinned: the OLD span's brief renders behind the banner.

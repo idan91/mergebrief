@@ -1,0 +1,55 @@
+@use "functions";
+@use "mixins";
+
+@layer components {
+  // Amber lives on the dot and the frame, never the label: amber text on an
+  // amber tint measured 4.6:1 at 11px, which is legible only on paper.
+  .dot {
+    flex: none;
+    color: var(--amber);
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: var(--radius-circle);
+    background: currentcolor;
+  }
+
+  // Amber: blue is the SELECTED colour, so a notice in it competes.
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: functions.to-rem(6px);
+    min-block-size: functions.to-rem(24px);
+    padding-block: functions.to-rem(3px);
+    padding-inline: functions.to-rem(8px);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--amber) 18%, transparent);
+    border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent);
+    color: var(--text);
+    font-size: var(--font-size-sm);
+    white-space: nowrap;
+    cursor: pointer;
+
+    @include mixins.focus-visible;
+
+    &:hover {
+      background: color-mix(in srgb, var(--amber) 26%, transparent);
+    }
+
+    // No action, so it stops looking pressable.
+    &[data-static] {
+      cursor: default;
+
+      &:hover {
+        background: color-mix(in srgb, var(--amber) 18%, transparent);
+      }
+    }
+  }
+
+  .action {
+    padding-inline-start: functions.to-rem(8px);
+    margin-inline-start: functions.to-rem(2px);
+    border-inline-start: 1px solid
+      color-mix(in srgb, var(--amber) 40%, transparent);
+    color: var(--text);
+  }
+}

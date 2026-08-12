@@ -11,6 +11,7 @@ import {
   type DbCompareBarProps,
 } from "./DbCompareBar/DbCompareBar";
 import { DbTimelineNavigator } from "./DbTimelineNavigator/DbTimelineNavigator";
+import { StaleRevisionChip } from "./StaleRevisionChip/StaleRevisionChip";
 import styles from "./DbBriefControls.module.scss";
 
 export interface DbBriefControlsProps {
@@ -29,6 +30,10 @@ export interface DbBriefControlsProps {
   note?: string | undefined;
   /** The selected revision is read-only (not the PR's current span). */
   readOnly?: boolean | undefined;
+  /** The rendered span is behind the PR head; absent when it is current. */
+  staleHead?: boolean | undefined;
+  /** Present only when a newer briefed revision exists to move to. */
+  onGoToNewest?: (() => void) | undefined;
 }
 
 export function DbBriefControls({
@@ -37,19 +42,28 @@ export function DbBriefControls({
   compare,
   note,
   readOnly,
+  staleHead,
+  onGoToNewest,
 }: DbBriefControlsProps) {
   const { t } = useTranslation();
+  const showRevisionRegion =
+    timeline !== undefined || staleHead === true || readOnly === true;
   return (
     <>
-      {timeline !== undefined && onSelectRevision !== undefined ? (
+      {showRevisionRegion ? (
         <div className={styles["revisionRow"]}>
-          <DbTimelineNavigator
-            next={timeline.next}
-            onSelect={onSelectRevision}
-            points={timeline.points}
-            previous={timeline.previous}
-            selectedIndex={timeline.selectedIndex}
-          />
+          {timeline !== undefined && onSelectRevision !== undefined ? (
+            <DbTimelineNavigator
+              next={timeline.next}
+              onSelect={onSelectRevision}
+              points={timeline.points}
+              previous={timeline.previous}
+              selectedIndex={timeline.selectedIndex}
+            />
+          ) : null}
+          {staleHead ? (
+            <StaleRevisionChip {...(onGoToNewest ? { onGoToNewest } : {})} />
+          ) : null}
           {readOnly ? (
             // Factual chip, not a verdict: the reachable REASON lives on the
             // disabled controls themselves (diff rows, submit).

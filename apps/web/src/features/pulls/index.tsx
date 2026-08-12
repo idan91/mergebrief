@@ -14,10 +14,6 @@ export {
   type PrBriefErrorProps,
 } from "./components/PrBrief/PrBriefError/PrBriefError";
 export {
-  HeadAdvancedBanner,
-  type HeadAdvancedBannerProps,
-} from "./components/PrBrief/HeadAdvancedBanner/HeadAdvancedBanner";
-export {
   PullsSection,
   type PullsSectionProps,
 } from "./components/PullsSection/PullsSection";

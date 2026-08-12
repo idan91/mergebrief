@@ -185,6 +185,11 @@
       "windowMinute": "about a minute",
       "windowMinutes_one": "about {{count}} minute",
       "windowMinutes_other": "about {{count}} minutes"
+    },
+    "staleChip": {
+      "label": "Newer commits",
+      "action": "Go to newest",
+      "title": "This pull request has new commits since the revision you are reading. Comments will anchor to the revision you reviewed."
     }
   },
   "installations": {
