@@ -175,6 +175,75 @@ describe("DB brief route — revision timeline", () => {
     expect(screen.queryByText(/viewing an earlier revision/i)).toBeNull();
   });
 
+  it("surfaces the head-advanced notice while a historical revision is selected", async () => {
+    await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
+    );
+    expect(
+      await screen.findByText(/new commits since this brief's span/i),
+    ).toBeTruthy();
+  });
+
+  it("surfaces the notice when meta.headSha ran past the newest revision", async () => {
+    // The timeline's own latest point is behind the PR head — the case the
+    // navigator alone cannot signal, since its last dot reads as selected.
+    await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
+      timelineMeta({ headSha: "head-3-just-pushed", baseSha: "base-3" }),
+    );
+    expect(
+      await screen.findByText(/new commits since this brief's span/i),
+    ).toBeTruthy();
+    // …and offers no action: the newest brief IS selected, so navigating
+    // would resolve back to this same span and change nothing.
+    expect(
+      screen.queryByRole("button", { name: /go to the newest revision/i }),
+    ).toBeNull();
+  });
+
+  it("shows no notice when the meta has no head to compare against", async () => {
+    await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}`,
+      timelineMeta({ headSha: null }),
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    expect(
+      screen.queryByText(/new commits since this brief's span/i),
+    ).toBeNull();
+  });
+
+  it("shows no notice on the current head", async () => {
+    await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
+    );
+    expect(
+      screen.queryByText(/new commits since this brief's span/i),
+    ).toBeNull();
+  });
+
+  it("the notice returns to the latest revision and keeps the View/Compare lens", async () => {
+    const router = await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&view=changes&thread=42`,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: /go to the newest revision/i }),
+    );
+    await waitFor(() => {
+      const search = searchRecord(router.state.location.search);
+      // A jump target is spent once a revision is selected.
+      expect(search["thread"]).toBeUndefined();
+      // The span is dropped, then re-pinned by the resolve effect — landing
+      // on latest either way; the lens must survive the round trip.
+      expect(search["head"]).toBe(REV2.headSha);
+      expect(search["view"]).toBe("changes");
+    });
+  });
+
   it("gates submit behind the ack when meta.headSha advanced past the newest revision", async () => {
     // The newest revision is not the PR's current head (next brief still
     // generating): writable, but the receipt requires the stale ack —

@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   comparisonsWarming,
   deriveBriefRouteState,
-  headAdvanced,
   shouldPollMeta,
 } from "./briefRouteState";
 import type { GenerationSummary, PrSummary } from "../types";
@@ -357,14 +356,5 @@ describe("comparisonsWarming", () => {
         meta({ generation: generation({ status: "running" }) }),
       ),
     ).toBe(false);
-  });
-});
-
-describe("headAdvanced", () => {
-  it("flags a pinned span once the meta's head moves past it", () => {
-    const pinned = { base: "b1", head: "head-1" };
-    expect(headAdvanced(meta({ headSha: "head-2" }), pinned)).toBe(true);
-    expect(headAdvanced(meta({ headSha: "head-1" }), pinned)).toBe(false);
-    expect(headAdvanced(meta({ headSha: null }), pinned)).toBe(false);
   });
 });

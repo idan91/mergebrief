@@ -152,12 +152,3 @@ export function comparisonsWarming(meta: PrSummary): boolean {
   const status = meta.generation?.status;
   return meta.briefAvailable && (status === "queued" || status === "running");
 }
-
-/**
- * The viewer is pinned to `span` but the PR head moved on — offer navigation,
- * never yank the page out from under them (invisible-mode rule: behavior
- * follows visible state).
- */
-export function headAdvanced(meta: PrSummary, pinnedSpan: Span): boolean {
-  return meta.headSha !== null && meta.headSha !== pinnedSpan.head;
-}

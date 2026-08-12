@@ -17,7 +17,6 @@ import {
 } from "../features/brief/comparison/compareState";
 import {
   deriveBriefRouteState,
-  headAdvanced,
   shouldPollMeta,
   type Span,
 } from "../features/pulls/utils/briefRouteState";
@@ -299,6 +298,10 @@ function PrBriefRoute() {
     renderedHead !== undefined &&
     meta.headSha !== null &&
     meta.headSha !== renderedHead;
+  // Whether a stale head has anywhere to go; see HeadAdvancedBannerProps.
+  const newerRevisionSelectable =
+    timeline === undefined ||
+    timeline.selectedIndex < timeline.points.length - 1;
   // Memoized so its reference is stable across PR-meta poll ticks — an inline
   // literal would recreate the composer wiring downstream and bust every
   // ChunkCard's memo boundary on each tick.
@@ -447,15 +450,20 @@ function PrBriefRoute() {
 
   return (
     <>
-      {/* The navigator OWNS head navigation on a multi-revision PR; the legacy
-          head-advanced banner only fires on the non-timeline path. */}
-      {timeline === undefined &&
-      explicit !== undefined &&
-      headAdvanced(meta, explicit) ? (
+      {/* Dropping the span re-resolves to latest; the lens rides along. */}
+      {staleHead ? (
         <HeadAdvancedBanner
-          onNavigate={() => {
-            void navigate({ search: {}, replace: false });
-          }}
+          {...(newerRevisionSelectable
+            ? {
+                onNavigate: () => {
+                  void navigate({
+                    search: ({ head: _h, base: _b, thread: _spent, ...rest }) =>
+                      rest,
+                    replace: false,
+                  });
+                },
+              }
+            : {})}
         />
       ) : null}
       <PrBriefBody
