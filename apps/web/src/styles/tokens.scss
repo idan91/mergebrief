@@ -65,10 +65,10 @@
     // ships dark-only today; the pair is kept so a light scheme stays possible.
     --color-inverse: #fff;
 
-    // Diff line text. Deliberately distinct from --color-positive/--color-
-    // negative: these are desaturated for long code runs, not status accents.
-    --color-diff-add-text: #c3e6d2;
-    --color-diff-del-text: #e0bcbc;
+    // Diff line text: desaturated for long code runs, near text-1 lightness
+    // — the hue alone carries add/del.
+    --color-diff-add-text: #d6efe1;
+    --color-diff-del-text: #eed3d3;
 
     // Near-white fill for solid indicators (progress bar, concern dot).
     // Earned: folding into --color-text-1 (Δ~20) would visibly brighten both.

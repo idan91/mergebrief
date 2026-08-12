@@ -37,6 +37,10 @@ import type { BriefViewModel, GroupView } from "../../utils/viewModel";
 import type { RepoConfigContext } from "../../utils/repoConfig";
 import type { LayoutMode, ViewMode } from "./Header/Header";
 import {
+  SupportingCollapseStates,
+  type SupportingCollapseState,
+} from "./ReadingToolbar/ReadingToolbar";
+import {
   deriveBriefProgress,
   groupStartIndexes,
   toggleSetMember,
@@ -186,8 +190,9 @@ export interface UseReadingSessionValue {
   /** Active group derived from the active chunk — no second scroll listener. */
   activeGroupId: string | null;
   openChunks: Set<string>;
-  collapseSupporting: boolean;
-  setCollapseSupporting: (collapse: boolean) => void;
+  /** Bulk action over `openChunks`, never an override — derived state. */
+  supportingCollapse: SupportingCollapseState;
+  toggleCollapseSupporting: () => void;
   shortcutsOpen: boolean;
   toggleShortcuts: () => void;
   closeShortcuts: () => void;
@@ -244,10 +249,43 @@ export function useReadingSession(
   // Transient UI state stays local and colocated.
   const [viewMode, setViewMode] = useState<ViewMode>("story");
   const [layoutMode] = useState<LayoutMode>("split");
-  const [collapseSupporting, setCollapseSupporting] = useState(false);
   const [openChunks, setOpenChunks] = useState<Set<string>>(
     () => new Set(chunkIds),
   );
+
+  // Derived, never stored: mirrors openChunks, so collapse-on-review and
+  // manual toggles keep it honest.
+  const supportingChunkIds = useMemo(
+    () =>
+      readingOrderedChunks
+        .filter((chunk) => chunk.role === "supporting")
+        .map((chunk) => chunk.id),
+    [readingOrderedChunks],
+  );
+  const collapsedSupportingCount = supportingChunkIds.filter(
+    (id) => !openChunks.has(id),
+  ).length;
+  let supportingCollapse: SupportingCollapseState =
+    SupportingCollapseStates.NONE;
+  if (collapsedSupportingCount > 0) {
+    supportingCollapse =
+      collapsedSupportingCount === supportingChunkIds.length
+        ? SupportingCollapseStates.ALL
+        : SupportingCollapseStates.SOME;
+  }
+  const toggleCollapseSupporting = useCallback(() => {
+    setOpenChunks((current) => {
+      const next = new Set(current);
+      const allCollapsed =
+        supportingChunkIds.length > 0 &&
+        supportingChunkIds.every((id) => !current.has(id));
+      for (const id of supportingChunkIds) {
+        if (allCollapsed) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+  }, [supportingChunkIds]);
   const [activeChunkId, setActiveChunkId] = useState<string | null>(null);
   const [focusMode, setFocusMode] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -367,19 +405,20 @@ export function useReadingSession(
   const markReviewed = useCallback(
     (chunkId: string) => {
       const alreadyReviewed = reviewedChunksRef.current.has(chunkId);
-      // In ANY focus mode, Viewed means "confirmed viewed → next" and must
-      // never stall: an already-viewed chunk is re-affirmed and advanced past,
-      // NOT un-checked (un-viewing stays in the normal scrolling view).
-      // Advance is the strict next chunk in `chunkIds`; never wraps.
+      // Focus mode: checking collapses + advances (never wraps); un-checking
+      // is a correction — reopen and stay put.
       if (focusModeRef.current) {
-        if (!alreadyReviewed) {
+        if (alreadyReviewed) {
           actions.reviewChunk(chunkId);
-          setOpenChunks((current) => {
-            const next = new Set(current);
-            next.delete(chunkId);
-            return next;
-          });
+          setOpenChunks((current) => new Set(current).add(chunkId));
+          return;
         }
+        actions.reviewChunk(chunkId);
+        setOpenChunks((current) => {
+          const next = new Set(current);
+          next.delete(chunkId);
+          return next;
+        });
         const index = chunkIds.indexOf(chunkId);
         const next = index >= 0 ? chunkIds[index + 1] : undefined;
         if (next) {
@@ -497,8 +536,8 @@ export function useReadingSession(
     activeChunkId,
     activeGroupId,
     openChunks,
-    collapseSupporting,
-    setCollapseSupporting,
+    supportingCollapse,
+    toggleCollapseSupporting,
     shortcutsOpen,
     toggleShortcuts,
     closeShortcuts,

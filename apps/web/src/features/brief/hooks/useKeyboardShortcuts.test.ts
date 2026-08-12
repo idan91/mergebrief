@@ -83,6 +83,22 @@ describe("resolveShortcut", () => {
     expect(resolveShortcut(key("Z"), state())).toEqual({ type: "toggleFocus" });
   });
 
+  it("v marks the active chunk viewed in focus mode", () => {
+    expect(resolveShortcut(key("v"), state({ focusModeActive: true }))).toEqual(
+      { type: "markViewed", chunkId: "b" },
+    );
+  });
+
+  it("v is inert outside focus mode and with no active chunk", () => {
+    expect(resolveShortcut(key("v"), state())).toBeNull();
+    expect(
+      resolveShortcut(
+        key("v"),
+        state({ focusModeActive: true, activeChunkId: null }),
+      ),
+    ).toBeNull();
+  });
+
   it("? toggles the help modal", () => {
     expect(resolveShortcut(key("?"), state())).toEqual({ type: "toggleHelp" });
   });

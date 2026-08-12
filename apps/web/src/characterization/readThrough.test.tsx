@@ -232,7 +232,7 @@ describe("Read-through progress + auto-advance", () => {
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
   });
 
-  it("advances past an already-viewed chunk without un-viewing it (last-of-group stall regression)", async () => {
+  it("un-checks an already-viewed chunk in place — a correction, never an advance", async () => {
     await renderReadThroughScreen();
     vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 
@@ -248,12 +248,12 @@ describe("Read-through progress + auto-advance", () => {
     fireEvent.click(viewedCheckboxFor("chunk-1"));
     await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
 
-    // Regression: this click used to be a silent uncheck (viewed-on-edge
-    // gating), stalling read-through on the group's last chunk. It must
-    // advance across the boundary and keep the chunk viewed.
+    // Un-checking un-views and STAYS; advancing past a viewed chunk is J's job.
     fireEvent.click(viewedCheckboxFor("chunk-2"));
-    await waitFor(() => expect(activeChunkId()).toBe("chunk-3"));
-    expect(viewedCheckboxFor("chunk-2").checked).toBe(true);
+    await waitFor(() =>
+      expect(viewedCheckboxFor("chunk-2").checked).toBe(false),
+    );
+    expect(activeChunkId()).toBe("chunk-2");
   });
 
   it("still un-views an already-viewed chunk outside read-through", async () => {
@@ -333,7 +333,7 @@ describe("Read-through progress + auto-advance", () => {
     const banner = await screen.findByTestId("focus-banner");
     expect(
       [...banner.querySelectorAll("kbd")].map((k) => k.textContent),
-    ).toEqual(["J", "K", "Esc"]);
+    ).toEqual(["J", "K", "V", "Esc"]);
     expect(banner.textContent).toContain("Focus mode");
   });
 

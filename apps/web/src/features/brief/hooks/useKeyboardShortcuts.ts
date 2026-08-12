@@ -16,6 +16,11 @@ export interface KeyboardShortcutsOptions {
   jumpToChunk: (chunkId: string) => void;
   toggleFocusMode: () => void;
   toggleHelp: () => void;
+  /**
+   * Mark the active chunk viewed (focus mode's confirm-and-advance path);
+   * the session's markReviewed already advances while focus mode is on.
+   */
+  markViewed: (chunkId: string) => void;
   /** Jump to the Conversation section; absent on the local path (no section). */
   jumpToConversation?: (() => void) | undefined;
 }
@@ -43,12 +48,20 @@ export type ShortcutAction =
   | { type: "jump"; chunkId: string }
   | { type: "toggleFocus" }
   | { type: "toggleHelp" }
-  | { type: "jumpToConversation" };
+  | { type: "jumpToConversation" }
+  | { type: "markViewed"; chunkId: string };
 
 const TYPING_TAGS = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
+// Focus parked on a click-operated input (the Viewed checkbox) must not kill
+// single-key shortcuts — only actual text entry stands them down.
+const CLICK_INPUT_TYPES = new Set(["checkbox", "radio", "button", "submit"]);
+
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
+  if (target instanceof HTMLInputElement) {
+    return !CLICK_INPUT_TYPES.has(target.type);
+  }
   return TYPING_TAGS.has(target.tagName) || target.isContentEditable;
 }
 
@@ -110,12 +123,17 @@ export function resolveShortcut(
   if (key === "z") return { type: "toggleFocus" };
   if (key === "?") return { type: "toggleHelp" };
   if (key === "c") return { type: "jumpToConversation" };
+  // Focus mode only — a global V would silently collapse arbitrary chunks.
+  if (key === "v" && state.focusModeActive && state.activeChunkId !== null) {
+    return { type: "markViewed", chunkId: state.activeChunkId };
+  }
   return null;
 }
 
 /**
  * Global J/K (next/prev chunk), Shift+J/Shift+K (next/prev group in Reading
- * order — Read-through), Z (focus mode), ? (shortcuts hint), Esc (exit focus
+ * order — Read-through), Z (focus mode), V (mark viewed + advance, focus mode
+ * only), ? (shortcuts hint), Esc (exit focus
  * mode). Modeled on Atlas's reading shortcuts. Stands down while typing or
  * while an overlay (drawer/modal/composer) holds focus, so it never steals keys
  * mid-edit.
@@ -160,6 +178,7 @@ export function useKeyboardShortcuts(options: KeyboardShortcutsOptions): void {
       if (action.type === "jump") o.jumpToChunk(action.chunkId);
       else if (action.type === "toggleFocus") o.toggleFocusMode();
       else if (action.type === "jumpToConversation") o.jumpToConversation?.();
+      else if (action.type === "markViewed") o.markViewed(action.chunkId);
       else o.toggleHelp();
     }
 

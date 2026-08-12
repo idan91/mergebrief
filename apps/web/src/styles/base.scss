@@ -14,6 +14,9 @@
   }
 
   body {
+    // Lets the root footer pin to the page bottom on short pages.
+    display: flex;
+    flex-direction: column;
     min-block-size: 100vh;
     background: var(--bg);
     background-image: radial-gradient(

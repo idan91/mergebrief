@@ -48,8 +48,8 @@ function renderToolbar(overrides: Partial<ReadingToolbarProps> = {}) {
     rail: RAIL,
     jumpToGroup: () => {},
     jumpToChunk: () => {},
-    collapseSupporting: false,
-    setCollapseSupporting: () => {},
+    supportingCollapse: "none",
+    toggleCollapseSupporting: () => {},
     groups: [{ id: "g1" }, { id: "g2" }, { id: "g3" }],
     activeGroupId: null,
     comparison: comparisonState(0),
@@ -115,20 +115,32 @@ describe("ReadingToolbar clusters", () => {
 });
 
 describe("ReadingToolbar collapse-supporting toggle", () => {
-  it("is an aria-pressed toggle button reflecting the current state", () => {
-    const set = vi.fn();
-    renderToolbar({ collapseSupporting: false, setCollapseSupporting: set });
-    const toggle = screen.getByRole("button", { name: /Collapse supporting/ });
-    expect(toggle.getAttribute("aria-pressed")).toBe("false");
-    fireEvent.click(toggle);
-    expect(set).toHaveBeenCalledWith(true);
+  it("maps the derived state onto aria-pressed, including mixed", () => {
+    const toggle = vi.fn();
+    renderToolbar({
+      supportingCollapse: "none",
+      toggleCollapseSupporting: toggle,
+    });
+    const button = screen.getByRole("button", { name: /Collapse supporting/ });
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(button);
+    expect(toggle).toHaveBeenCalledTimes(1);
     cleanup();
-    renderToolbar({ collapseSupporting: true, setCollapseSupporting: set });
+    renderToolbar({ supportingCollapse: "all" });
     expect(
       screen
         .getByRole("button", { name: /Collapse supporting/ })
         .getAttribute("aria-pressed"),
     ).toBe("true");
+    cleanup();
+    // Some supporting chunks manually expanded while collapsed: the control
+    // reports the intermediate state instead of lying about either pole.
+    renderToolbar({ supportingCollapse: "some" });
+    expect(
+      screen
+        .getByRole("button", { name: /Collapse supporting/ })
+        .getAttribute("aria-pressed"),
+    ).toBe("mixed");
   });
 });
 

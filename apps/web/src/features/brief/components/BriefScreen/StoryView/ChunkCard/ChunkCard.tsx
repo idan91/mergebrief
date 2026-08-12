@@ -36,7 +36,6 @@ export interface ChunkCardProps {
   comparison: ComparisonOverlayState;
   active: boolean;
   open: boolean;
-  forceCollapsed: boolean;
   addressedReviewComments: AddressedReviewComment[];
   toggleChunk: (chunkId: string) => void;
   markReviewed: (chunkId: string) => void;
@@ -115,7 +114,6 @@ export const ChunkCard = memo(function ChunkCard({
   comparison,
   active,
   open,
-  forceCollapsed,
   addressedReviewComments,
   toggleChunk,
   markReviewed,
@@ -140,7 +138,6 @@ export const ChunkCard = memo(function ChunkCard({
   const comments = useChunkReviewComments(chunk.id);
 
   const riskChips = riskChipView(chunk.riskSurface);
-  const expanded = open && !forceCollapsed;
   const comparisonView = useMemo(
     () => buildChunkComparisonView(chunk, comparison.marks),
     [chunk, comparison.marks],
@@ -171,7 +168,7 @@ export const ChunkCard = memo(function ChunkCard({
       className={styles["chunk"]}
       data-current={active ? "" : undefined}
       data-reviewed={reviewed ? "" : undefined}
-      data-state={expanded ? "open" : "collapsed"}
+      data-state={open ? "open" : "collapsed"}
       data-testid="brief-chunk"
       id={chunk.id}
       // Programmatic focus target for the conversation jump: move focus with
@@ -182,7 +179,7 @@ export const ChunkCard = memo(function ChunkCard({
         <button
           className={styles["toggle"]}
           type="button"
-          aria-expanded={expanded}
+          aria-expanded={open}
           data-testid="chunk-toggle"
           onMouseDown={(event) => {
             selectionAtMouseDown.current = snapshotSelection();
@@ -299,10 +296,10 @@ export const ChunkCard = memo(function ChunkCard({
           <ScreenReaderOnly>{` ${chunk.file}`}</ScreenReaderOnly>
         </label>
       </div>
-      {!expanded ? (
+      {!open ? (
         <ScreenReaderOnly>{t("brief.chunk.collapsed")}</ScreenReaderOnly>
       ) : null}
-      {expanded ? (
+      {open ? (
         <div className={styles["body"]}>
           {chunk.summary ||
           chunk.addressesComments?.length ||

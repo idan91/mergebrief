@@ -43,6 +43,7 @@ export function FocusBanner({
               <b key="lead">{t("brief.focusBanner.lead")}</b>,
               <kbd key="j">J</kbd>,
               <kbd key="k">K</kbd>,
+              <kbd key="v">V</kbd>,
               <kbd key="esc">{t("brief.focusBanner.escKey")}</kbd>,
             ]}
             i18nKey="brief.focusBanner.hint"

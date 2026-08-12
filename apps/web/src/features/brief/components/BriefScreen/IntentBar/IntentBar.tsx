@@ -1,5 +1,5 @@
 import type { TranslationKey } from "i18n";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import {
   forwardRef,
   useId,
@@ -230,29 +230,39 @@ export const IntentBar = forwardRef<IntentBarHandle, IntentBarProps>(
                   reads exactly like the others; the register lives in the
                   body's caution lines, not here. */}
               <span className={styles["count"]}>
-                {t("brief.intent.accomplished", {
-                  count: intentCheck.accomplished.length,
-                })}
+                <Trans
+                  components={[<b className={styles["countNum"]} key="n" />]}
+                  count={intentCheck.accomplished.length}
+                  i18nKey="brief.intent.accomplished"
+                />
               </span>
               <span className={styles["count"]}>
-                {t("brief.intent.claimedButUnachieved", {
-                  count: intentCheck.claimedButUnachieved.length,
-                })}
+                <Trans
+                  components={[<b className={styles["countNum"]} key="n" />]}
+                  count={intentCheck.claimedButUnachieved.length}
+                  i18nKey="brief.intent.claimedButUnachieved"
+                />
               </span>
               <span className={styles["count"]}>
-                {t("brief.intent.deviations", {
-                  count: intentCheck.deviations.length,
-                })}
+                <Trans
+                  components={[<b className={styles["countNum"]} key="n" />]}
+                  count={intentCheck.deviations.length}
+                  i18nKey="brief.intent.deviations"
+                />
               </span>
               <span className={styles["count"]}>
-                {t("brief.intent.statedButMissing", {
-                  count: intentCheck.statedButMissing.length,
-                })}
+                <Trans
+                  components={[<b className={styles["countNum"]} key="n" />]}
+                  count={intentCheck.statedButMissing.length}
+                  i18nKey="brief.intent.statedButMissing"
+                />
               </span>
               <span className={styles["count"]}>
-                {t("brief.intent.doneButUnstated", {
-                  count: intentCheck.doneButUnstated.length,
-                })}
+                <Trans
+                  components={[<b className={styles["countNum"]} key="n" />]}
+                  count={intentCheck.doneButUnstated.length}
+                  i18nKey="brief.intent.doneButUnstated"
+                />
               </span>
               {ticketUrls.length > 0 ? (
                 <span className={styles["sources"]}>

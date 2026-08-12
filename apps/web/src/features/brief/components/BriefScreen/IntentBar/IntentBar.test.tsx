@@ -57,12 +57,19 @@ const BROAD: IntentCheck = {
 describe("IntentBar", () => {
   it("shows all five neutral bucket counts in the always-visible header", () => {
     render(<IntentBar intentCheck={PRECISE} jumpToGroup={() => {}} />);
-    expect(screen.getByText("1 accomplished")).toBeTruthy();
-    expect(screen.getByText("0 claimed but unachieved")).toBeTruthy();
-    expect(screen.getByText("0 deviations")).toBeTruthy();
-    expect(screen.getByText("1 stated but missing")).toBeTruthy();
-    expect(screen.getByText("1 done but unstated")).toBeTruthy();
-    expect(screen.getByText("1 linked ticket")).toBeTruthy();
+    // The count digit renders in its own weighted element, so the pair is
+    // asserted on the toggle's full text rather than one text node.
+    const toggle = screen.getByRole("button", { name: /intent check/i });
+    for (const pair of [
+      "1 accomplished",
+      "0 claimed but unachieved",
+      "0 deviations",
+      "1 stated but missing",
+      "1 done but unstated",
+      "1 linked ticket",
+    ]) {
+      expect(toggle.textContent).toContain(pair);
+    }
   });
 
   it("starts collapsed and never auto-expands, even with a missing ask", () => {
@@ -303,7 +310,9 @@ describe("IntentBar — alarm buckets", () => {
       deviations: [item("ack", true), item("unack")],
     };
     render(<IntentBar intentCheck={mixed} jumpToGroup={() => {}} />);
-    expect(screen.getByText("2 deviations")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: /intent check/i }).textContent,
+    ).toContain("2 deviations");
   });
 
   it('singularizes the deviations count (never "1 deviations")', () => {
@@ -313,8 +322,11 @@ describe("IntentBar — alarm buckets", () => {
         jumpToGroup={() => {}}
       />,
     );
-    expect(screen.getByText("1 deviation")).toBeTruthy();
-    expect(screen.queryByText("1 deviations")).toBeNull();
+    const header = screen.getByRole("button", {
+      name: /intent check/i,
+    }).textContent;
+    expect(header).toContain("1 deviation");
+    expect(header).not.toContain("1 deviations");
   });
 
   it("renders a brief with no alarm items byte-identically to the old bar", () => {

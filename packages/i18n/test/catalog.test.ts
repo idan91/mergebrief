@@ -67,8 +67,18 @@ describe("catalog gates (hard-fail)", () => {
       .filter(([, template]) => tagIndices(template).length > 0)
       .map(([key, template]) => [key, tagIndices(template).length]);
     expect(Object.fromEntries(slotted)).toEqual({
-      "brief.focusBanner.hint": 4,
+      "brief.focusBanner.hint": 5,
       "brief.group.splitIntent": 1,
+      "brief.intent.accomplished_one": 1,
+      "brief.intent.accomplished_other": 1,
+      "brief.intent.claimedButUnachieved_one": 1,
+      "brief.intent.claimedButUnachieved_other": 1,
+      "brief.intent.deviations_one": 1,
+      "brief.intent.deviations_other": 1,
+      "brief.intent.doneButUnstated_one": 1,
+      "brief.intent.doneButUnstated_other": 1,
+      "brief.intent.statedButMissing_one": 1,
+      "brief.intent.statedButMissing_other": 1,
       "shell.cliHint": 1,
       "shell.signInPrompt": 1,
       "tokens.disclaimer": 2,

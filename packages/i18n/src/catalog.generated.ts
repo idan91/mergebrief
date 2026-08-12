@@ -63,19 +63,19 @@ export type Catalog = typeof en & {
       bytesUsed: "{{used}} of {{budget}} bytes";
     };
     intent: (typeof en)["brief"]["intent"] & {
-      deviations_one: "{{count}} deviation";
-      deviations_other: "{{count}} deviations";
+      deviations_one: "<0>{{count}}</0> deviation";
+      deviations_other: "<0>{{count}}</0> deviations";
       linkedTickets_one: "{{count}} linked ticket";
       linkedTickets_other: "{{count}} linked tickets";
       unavailable: "intent check unavailable — {{reason}}";
-      accomplished_one: "{{count}} accomplished";
-      accomplished_other: "{{count}} accomplished";
-      claimedButUnachieved_one: "{{count}} claimed but unachieved";
-      claimedButUnachieved_other: "{{count}} claimed but unachieved";
-      statedButMissing_one: "{{count}} stated but missing";
-      statedButMissing_other: "{{count}} stated but missing";
-      doneButUnstated_one: "{{count}} done but unstated";
-      doneButUnstated_other: "{{count}} done but unstated";
+      accomplished_one: "<0>{{count}}</0> accomplished";
+      accomplished_other: "<0>{{count}}</0> accomplished";
+      claimedButUnachieved_one: "<0>{{count}}</0> claimed but unachieved";
+      claimedButUnachieved_other: "<0>{{count}}</0> claimed but unachieved";
+      statedButMissing_one: "<0>{{count}}</0> stated but missing";
+      statedButMissing_other: "<0>{{count}}</0> stated but missing";
+      doneButUnstated_one: "<0>{{count}}</0> done but unstated";
+      doneButUnstated_other: "<0>{{count}}</0> done but unstated";
     };
     toolbar: (typeof en)["brief"]["toolbar"] & {
       groupCount: "Group {{current}}/{{total}}";

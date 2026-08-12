@@ -51,6 +51,13 @@ export function CoreLinesDisclosure({
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [anchor]);
+  // Close on scroll: the portal'd panel repositions a frame late (stutter).
+  useEffect(() => {
+    if (anchor === null) return;
+    const close = () => setAnchor(null);
+    window.addEventListener("scroll", close, { capture: true, passive: true });
+    return () => window.removeEventListener("scroll", close, { capture: true });
+  }, [anchor]);
   return (
     // Hover EXIT is owned by Callout's safePolygon (its onClose): closing on
     // this span's mouseleave would kill the portal'd callout before the
@@ -92,7 +99,13 @@ export function CoreLinesDisclosure({
         {children}
       </button>
       {anchor ? (
-        <Callout anchor={anchor} fit onClose={() => setAnchor(null)}>
+        // Downwards: upwards lands under the sticky toolbar's controls.
+        <Callout
+          anchor={anchor}
+          fit
+          placement="bottom"
+          onClose={() => setAnchor(null)}
+        >
           <span className={styles["panel"]} id={detailId}>
             <dl className={styles["rows"]}>
               <dt>{t("brief.coreLines.core")}</dt>

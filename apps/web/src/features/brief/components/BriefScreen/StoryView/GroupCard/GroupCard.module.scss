@@ -473,8 +473,9 @@
   .groupRiskRow {
     display: flex;
     flex-wrap: wrap;
-    gap: functions.to-rem(6px);
-    margin-top: functions.to-rem(6px);
+    align-items: center;
+    gap: functions.to-rem(8px);
+    margin-top: functions.to-rem(10px);
   }
 }
 

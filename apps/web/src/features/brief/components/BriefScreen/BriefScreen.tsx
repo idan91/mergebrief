@@ -460,6 +460,7 @@ export function BriefScreen({
     jumpToChunk: session.jumpToChunkFromShortcut,
     toggleFocusMode,
     toggleHelp: session.toggleShortcuts,
+    markViewed: session.markReviewed,
     // Gated on the legality cell, not just plan presence: with the section
     // unmounted (focus mode, Changes scope) the target is gone — an
     // undefined action lets the shortcut hook's don't-swallow branch pass
@@ -586,7 +587,6 @@ export function BriefScreen({
           <ReadingToolbar
             variant={blocks.toolbar}
             activeGroupId={session.activeGroupId}
-            collapseSupporting={session.collapseSupporting}
             comparison={comparison}
             filter={
               conversation !== undefined &&
@@ -612,7 +612,8 @@ export function BriefScreen({
             jumpToChunk={jumpToChunk}
             jumpToGroup={jumpToGroup}
             rail={attributeRail}
-            setCollapseSupporting={session.setCollapseSupporting}
+            supportingCollapse={session.supportingCollapse}
+            toggleCollapseSupporting={session.toggleCollapseSupporting}
           />
         ) : null}
 
@@ -651,7 +652,6 @@ export function BriefScreen({
             model={model}
             comparison={comparison}
             activeChunkId={activeChunkId}
-            collapseSupporting={session.collapseSupporting}
             focusMode={focusMode}
             openDeltaLens={openDeltaLens}
             sinceMarkers={sinceMarkers}

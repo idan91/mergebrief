@@ -16,11 +16,9 @@
     backdrop-filter: blur(12px);
     container: header / inline-size;
 
-    // The FocusBanner sticks below at z-index 90, above this header's 50, so
-    // the open overflow menu (z-index 60 inside this stacking context) would
-    // render underneath it. Rise above the banner exactly while the menu
-    // exists; staying at 50 otherwise lets the drawer scrim dim the header.
-    &:has(.menu) {
+    // Rise above the FocusBanner (90) exactly while a menu popup is open;
+    // staying at 50 otherwise lets the drawer scrim dim the header.
+    &:has([role="menu"]) {
       z-index: 91;
     }
   }
@@ -171,6 +169,9 @@
   // Same segmented vocabulary as the View/Compare groups, parked at the
   // row's far end.
   .viewbar {
+    // Concentric inner radius, matching SegmentedControl.
+    --segmented-inner-radius: calc(var(--radius-md) - 3px);
+
     display: inline-flex;
     flex: none;
     gap: functions.to-rem(2px);
@@ -204,7 +205,7 @@
     min-block-size: functions.to-rem(24px);
     padding-block: functions.to-rem(3px);
     padding-inline: functions.to-rem(14px);
-    border-radius: var(--radius-md);
+    border-radius: var(--segmented-inner-radius);
     background: transparent;
     color: var(--dim);
     font-size: var(--font-size-md);

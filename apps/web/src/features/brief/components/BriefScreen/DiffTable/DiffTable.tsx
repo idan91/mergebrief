@@ -316,12 +316,12 @@ export function DiffTable({
                     }}
                     onMouseDown={(event) => {
                       if (composerDisabledReason !== undefined) return;
-                      // Range anchoring starts from the line-number gutter
-                      // only — a mousedown on the code cell stays native so
-                      // the code text is selectable.
+                      // Range anchoring starts from a comment anchor — the
+                      // line-number gutter or the +/− sign column — never
+                      // the code text, which stays natively selectable.
                       if (
                         !(event.target instanceof Element) ||
-                        event.target.closest("[data-line-number]") === null
+                        event.target.closest("[data-comment-anchor]") === null
                       ) {
                         return;
                       }
@@ -343,13 +343,13 @@ export function DiffTable({
                         finishSelection(index);
                         return;
                       }
-                      // Plain mouseup: composer entry is gutter-only — the
-                      // code column is reserved for text selection, so a
-                      // double-click word-select never pops the composer.
-                      // Keyboard entry stays row-level (Enter).
+                      // Plain mouseup: composer entry is anchor-only (gutter
+                      // or sign column) — the code text is reserved for
+                      // selection, so a double-click word-select never pops
+                      // the composer. Keyboard entry stays row-level (Enter).
                       if (
                         !(event.target instanceof Element) ||
-                        event.target.closest("[data-line-number]") === null
+                        event.target.closest("[data-comment-anchor]") === null
                       ) {
                         return;
                       }
@@ -381,14 +381,24 @@ export function DiffTable({
                         onRailLeave={handleRailLeave}
                       />
                     ) : null}
-                    <td className={styles["lineNumber"]} data-line-number="">
+                    <td
+                      className={styles["lineNumber"]}
+                      data-comment-anchor=""
+                      data-line-number=""
+                    >
                       {line.oldLine ?? ""}
                     </td>
-                    <td className={styles["lineNumber"]} data-line-number="">
+                    <td
+                      className={styles["lineNumber"]}
+                      data-comment-anchor=""
+                      data-line-number=""
+                    >
                       {line.newLine ?? ""}
                     </td>
                     <td className={styles["code"]}>
-                      <span className={styles["sign"]}>{sign}</span>
+                      <span className={styles["sign"]} data-comment-anchor="">
+                        {sign}
+                      </span>
                       {line.content}
                       {isRevStart && revRun ? (
                         <span

@@ -20,6 +20,7 @@ const SHORTCUTS: ShortcutDefinition[] = [
   { key: "Shift+J", descriptionKey: "brief.shortcuts.nextGroup" },
   { key: "Shift+K", descriptionKey: "brief.shortcuts.previousGroup" },
   { key: "Z", descriptionKey: "brief.shortcuts.focusMode" },
+  { key: "V", descriptionKey: "brief.shortcuts.markViewed" },
   { key: "C", descriptionKey: "brief.shortcuts.jumpConversation" },
   { key: "R", descriptionKey: "brief.shortcuts.quoteThread" },
   { key: "?", descriptionKey: "brief.shortcuts.toggleShortcuts" },

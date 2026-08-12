@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef } from "react";
+import type { ValueOf } from "types";
 
 import { useRevisionNavigation } from "../../../hooks/useRevisionNavigation";
 import type { ComparisonOverlayState } from "../../../comparison/comparisonOverlay";
@@ -16,6 +17,21 @@ export interface GroupStepTarget {
   readonly id: string;
 }
 
+/** How many supporting chunks are collapsed; `some` = the mixed state. */
+export const SupportingCollapseStates = {
+  NONE: "none",
+  SOME: "some",
+  ALL: "all",
+} as const;
+
+export type SupportingCollapseState = ValueOf<typeof SupportingCollapseStates>;
+
+const COLLAPSE_PRESSED: Record<SupportingCollapseState, boolean | "mixed"> = {
+  none: false,
+  some: "mixed",
+  all: true,
+};
+
 export interface ReadingToolbarProps {
   /**
    * `full` = the Story bar; `filter-and-attrs` = the Concerns bar, which
@@ -31,8 +47,10 @@ export interface ReadingToolbarProps {
   jumpToGroup: (groupId: string) => void;
   /** The Concerns variant's risk-attr target — chunks, not groups. */
   jumpToChunk: (chunkId: string) => void;
-  collapseSupporting: boolean;
-  setCollapseSupporting: (value: boolean) => void;
+  /** Bulk status, never a lock — chunks stay individually expandable. */
+  supportingCollapse: SupportingCollapseState;
+  /** All collapsed → expand all; otherwise collapse all. */
+  toggleCollapseSupporting: () => void;
   groups: readonly GroupStepTarget[];
   activeGroupId: string | null;
   comparison: ComparisonOverlayState;
@@ -50,8 +68,8 @@ export function ReadingToolbar({
   rail,
   jumpToGroup,
   jumpToChunk,
-  collapseSupporting,
-  setCollapseSupporting,
+  supportingCollapse,
+  toggleCollapseSupporting,
   groups,
   activeGroupId,
   comparison,
@@ -137,10 +155,10 @@ export function ReadingToolbar({
       {variant === "filter-and-attrs" ? null : (
         <div className={styles["navCluster"]}>
           <button
-            aria-pressed={collapseSupporting}
+            aria-pressed={COLLAPSE_PRESSED[supportingCollapse]}
             className={styles["tbtn"]}
             type="button"
-            onClick={() => setCollapseSupporting(!collapseSupporting)}
+            onClick={toggleCollapseSupporting}
           >
             {/* CSS swaps which label renders; the accessible name follows
                 the visible one. */}

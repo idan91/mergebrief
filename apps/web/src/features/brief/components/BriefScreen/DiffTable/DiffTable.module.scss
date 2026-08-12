@@ -59,7 +59,14 @@
   }
 
   .line {
+    // Hover deepens the row's OWN hue — grey over green/red is invisible.
+    --row-hue: var(--text);
+    --row-hover-tint: 6%;
+
     &[data-line-kind="add"] {
+      --row-hue: var(--green);
+      --row-hover-tint: 13%;
+
       background: color-mix(in srgb, var(--green) 5%, transparent);
 
       .code {
@@ -74,6 +81,9 @@
     }
 
     &[data-line-kind="del"] {
+      --row-hue: var(--red);
+      --row-hover-tint: 13%;
+
       background: color-mix(in srgb, var(--red) 5%, transparent);
 
       .code {
@@ -107,7 +117,11 @@
       cursor: cell;
 
       &:hover {
-        background: color-mix(in srgb, var(--text) 3.5%, transparent);
+        background: color-mix(
+          in srgb,
+          var(--row-hue) var(--row-hover-tint),
+          transparent
+        );
       }
     }
 
@@ -152,7 +166,7 @@
   }
 
   .code {
-    color: var(--color-text-3);
+    color: var(--color-text-1);
 
     // Code text is selectable; the row keeps `cell` for the gutter, where
     // range anchoring starts.
@@ -163,6 +177,9 @@
     display: inline-block;
     inline-size: functions.to-rem(16px);
     opacity: 0.6;
+
+    // Comment anchor like the gutter.
+    cursor: cell;
 
     // Copied code must be the code: the sign is a literal text node with
     // no separating space, so a selection would paste `+code` fused.

@@ -39,11 +39,19 @@ export function RiskChipDisclosure({
     document.addEventListener("keydown", onKeyDown, true);
     return () => document.removeEventListener("keydown", onKeyDown, true);
   }, [anchor]);
+  // Close on scroll: the portal'd panel repositions a frame late (stutter).
+  useEffect(() => {
+    if (anchor === null) return;
+    const close = () => setAnchor(null);
+    window.addEventListener("scroll", close, { capture: true, passive: true });
+    return () => window.removeEventListener("scroll", close, { capture: true });
+  }, [anchor]);
   return (
     // Hover EXIT is owned by Callout's safePolygon (its onClose): closing on
     // this span's mouseleave would kill the portal'd callout before the
     // pointer can travel into it.
     <span
+      className={styles["root"]}
       onPointerEnter={(event) => {
         // Touch browsers synthesize mouseenter before click — a hover-open
         // there would be immediately toggled shut by the click. Hover
@@ -64,7 +72,13 @@ export function RiskChipDisclosure({
         {children}
       </button>
       {anchor ? (
-        <Callout anchor={anchor} fit onClose={() => setAnchor(null)}>
+        // Downwards: upwards lands under the sticky toolbar's controls.
+        <Callout
+          anchor={anchor}
+          fit
+          placement="bottom"
+          onClose={() => setAnchor(null)}
+        >
           <span className={styles["detail"]} id={detailId}>
             {detail}
           </span>

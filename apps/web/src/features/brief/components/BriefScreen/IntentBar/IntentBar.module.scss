@@ -62,6 +62,13 @@
     opacity: 0.8;
   }
 
+  // Weighted digit + widened word space so each pair reads as one unit.
+  .countNum {
+    margin-inline-end: functions.to-rem(3px);
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+  }
+
   .count::after {
     content: "·";
     margin-inline-start: functions.to-rem(12px);

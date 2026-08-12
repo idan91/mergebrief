@@ -62,6 +62,14 @@
       background: color-mix(in srgb, var(--color-accent) 16%, transparent);
       color: var(--text);
     }
+
+    // Mixed: dashed border carries the state without colour.
+    &[aria-pressed="mixed"] {
+      border-color: color-mix(in srgb, var(--color-accent) 55%, var(--line));
+      border-style: dashed;
+      background: color-mix(in srgb, var(--color-accent) 8%, transparent);
+      color: var(--text);
+    }
   }
 
   // Label compression ladder: long label by default, short below 1280px.

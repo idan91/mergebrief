@@ -97,7 +97,6 @@ function renderCard(overrides: Partial<ChunkCardProps> = {}) {
     comparison,
     active: false,
     open: false,
-    forceCollapsed: false,
     addressedReviewComments: [],
     toggleChunk,
     markReviewed: vi.fn(),

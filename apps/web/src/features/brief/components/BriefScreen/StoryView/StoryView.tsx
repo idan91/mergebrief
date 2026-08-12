@@ -21,7 +21,6 @@ export interface StoryViewProps {
   model: BriefViewModel;
   comparison: ComparisonOverlayState;
   activeChunkId: string | null;
-  collapseSupporting: boolean;
   focusMode: boolean;
   openChunks: Set<string>;
   addressedReviewComments: AddressedReviewComment[] | undefined;
@@ -92,9 +91,6 @@ export function StoryView(props: StoryViewProps) {
                   chunk={chunk}
                   riskMeta={props.model.riskMetaByChunk.get(chunk.id)}
                   comparison={props.comparison}
-                  forceCollapsed={
-                    props.collapseSupporting && chunk.role === "supporting"
-                  }
                   open={props.openChunks.has(chunk.id)}
                   addressedReviewComments={addressedReviewComments}
                   conversationComposer={props.conversationComposer}
