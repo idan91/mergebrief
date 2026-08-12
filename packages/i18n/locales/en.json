@@ -173,7 +173,8 @@
       "offOnlyFull": "Off is only available in Full brief",
       "lastReview": "Your last review",
       "previousBrief": "Previous brief",
-      "readOnlyChip": "read-only"
+      "readOnlyChip": "read-only",
+      "changesNeedsBaseline": "Changes Only needs a baseline to compare against"
     },
     "content": {
       "revisionLinkGone": "That revision link is no longer available — showing the latest brief."
@@ -487,7 +488,6 @@
       "previousBrief": "Previous brief",
       "ariaLabelNav": "PR revision timeline",
       "viewingBrief": "Viewing Brief {{index}} of {{total}}",
-      "compareLabel": "Compare",
       "briefOptionSha": "Brief {{index}} · {{sha}}"
     },
     "chunk": {

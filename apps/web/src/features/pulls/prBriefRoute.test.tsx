@@ -298,7 +298,7 @@ describe("DB brief route", () => {
     );
     // Disabled options stay focusable (`aria-disabled`) with the reason in a
     // keyboard-reachable tooltip referenced by aria-describedby.
-    const button = screen.getByRole("button", { name: /^previous brief$/i });
+    const button = screen.getByRole("radio", { name: /^previous brief$/i });
     expect(button.getAttribute("aria-disabled")).toBe("true");
     const tooltipId = button.getAttribute("aria-describedby");
     expect(tooltipId).toBeTruthy();
@@ -325,9 +325,9 @@ describe("DB brief route", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    const button = screen.getByRole("button", { name: /^previous brief$/i });
-    expect((button as HTMLButtonElement).disabled).toBe(false);
-    expect(button.getAttribute("aria-pressed")).toBe("true");
+    const button = screen.getByRole("radio", { name: /^previous brief$/i });
+    expect(button.getAttribute("aria-disabled")).toBeNull();
+    expect((button as HTMLInputElement).checked).toBe(true);
     void queryClient;
   });
 
@@ -389,10 +389,10 @@ describe("DB brief route", () => {
       </QueryClientProvider>,
     );
     const button = await waitFor(() =>
-      screen.getByRole("button", { name: /^your last review$/i }),
+      screen.getByRole("radio", { name: /^your last review$/i }),
     );
-    expect((button as HTMLButtonElement).disabled).toBe(false);
-    expect(button.getAttribute("aria-pressed")).toBe("true");
+    expect((button as HTMLInputElement).disabled).toBe(false);
+    expect((button as HTMLInputElement).checked).toBe(true);
     // Marks-only tier: the changes pane degrades — no delta core to render.
     await waitFor(() =>
       expect(screen.getByText(/changes summary unavailable/i)).toBeTruthy(),
@@ -486,9 +486,9 @@ describe("DB brief route", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    const off = screen.getByRole("button", { name: /^off$/i });
+    const off = screen.getByRole("radio", { name: /^off$/i });
     expect((off as HTMLButtonElement).disabled).toBe(false);
-    expect(off.getAttribute("aria-pressed")).toBe("true");
+    expect((off as HTMLInputElement).checked).toBe(true);
   });
 
   it("Compare last-review is disabled with the honest reason tooltip per unavailable tier", async () => {
@@ -510,7 +510,7 @@ describe("DB brief route", () => {
       await waitFor(() =>
         expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
       );
-      const button = screen.getByRole("button", {
+      const button = screen.getByRole("radio", {
         name: /^your last review$/i,
       });
       expect(button.getAttribute("aria-disabled")).toBe("true");
@@ -529,7 +529,7 @@ describe("DB brief route", () => {
     await waitFor(() =>
       expect(screen.getByText(briefFixture.pr.title)).toBeTruthy(),
     );
-    const button = screen.getByRole("button", { name: /^your last review$/i });
+    const button = screen.getByRole("radio", { name: /^your last review$/i });
     expect(button.getAttribute("aria-disabled")).toBe("true");
     const tooltip = document.getElementById(
       button.getAttribute("aria-describedby") ?? "",

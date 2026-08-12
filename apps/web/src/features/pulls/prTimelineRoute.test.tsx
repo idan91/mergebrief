@@ -468,22 +468,54 @@ describe("DB brief route — revision timeline", () => {
     // The Brief view/compare controls navigate through a FUNCTIONAL search
     // updater (`(current) => ({ ...current, ...next })`), so changing a lens
     // must never drop head/base and silently re-resolve to latest.
+    // The selection must be a HISTORICAL revision: on the latest one, a
+    // regression that drops head/base would re-resolve to that same span and
+    // the assertions below would pass for the wrong reason. REV2 here is a
+    // middle revision carrying a baseline, so "Previous brief" is a real
+    // change to make — a radio navigates only when the selection moves.
+    const REV3: RevisionSummary = {
+      headSha: "head-3",
+      baseSha: "base-3",
+      headIndex: 3,
+      createdAt: "2026-07-07T12:00:00.000Z",
+      comparisons: {},
+    };
+    const withBaseline = timelineMeta({
+      baseSha: REV3.baseSha,
+      headSha: REV3.headSha,
+      revisions: [
+        REV1,
+        {
+          ...REV2,
+          comparisons: {
+            previousBrief: {
+              baselineSha: REV1.headSha,
+              baselineIndex: 1,
+              narrativeAvailable: false,
+            },
+          },
+        },
+        REV3,
+      ],
+    });
     const router = await renderTimeline(
-      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV1.headSha}&base=${REV1.baseSha}`,
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}&base=${REV2.baseSha}`,
+      withBaseline,
     );
     const picker = await waitFor(() =>
       screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
     );
-    expect(picker.value).toBe("0");
-    fireEvent.click(screen.getByRole("button", { name: /^full brief$/i }));
+    expect(picker.value).toBe("1");
+    fireEvent.click(screen.getByRole("radio", { name: /^previous brief$/i }));
     await waitFor(() => {
       const search = searchRecord(router.state.location.search);
-      expect(search["view"]).toBe("full");
-      // The historical selection survives the lens change…
-      expect(search["head"]).toBe("head-1");
-      expect(search["base"]).toBe("base-1");
+      expect(search["compare"]).toBe("previous-brief");
+      // The explicit selection survives the lens change…
+      expect(search["head"]).toBe(REV2.headSha);
+      expect(search["base"]).toBe(REV2.baseSha);
     });
-    // …and so does the stale (not read-only) posture: no read-only chip.
+    // …and the stale-but-writable posture survives too: head-2 is behind the
+    // PR head, which is a submit-ack case, never a hard read-only one.
     expect(screen.queryByText(/^read-only$/i)).toBeNull();
   });
 

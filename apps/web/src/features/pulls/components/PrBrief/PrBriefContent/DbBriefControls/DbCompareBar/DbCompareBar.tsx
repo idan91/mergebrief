@@ -2,10 +2,9 @@
 // search-state helpers as the local route's controls, so the two surfaces
 // cannot drift semantically.
 //
-// Disabled Compare options stay FOCUSABLE (`aria-disabled`, not `disabled`)
-// so their reason tooltip is keyboard-reachable: shown on hover/focus,
-// referenced via `aria-describedby`, dismissible with Escape.
-import { useState } from "react";
+// Both lenses are one-of-N choices, so both are radio groups (SegmentedControl)
+// rather than toggle-button rows: the browser then supplies group semantics,
+// a single tab stop, and arrow-key movement.
 import { useTranslation } from "react-i18next";
 import {
   compareUnavailableTitle,
@@ -17,7 +16,10 @@ import {
   type CompareParam,
   type ViewParam,
 } from "../../../../../../brief/comparison/compareState";
-import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
+import {
+  SegmentedControl,
+  type SegmentedOption,
+} from "@web/components/SegmentedControl/SegmentedControl";
 import styles from "./DbCompareBar.module.scss";
 
 export interface DbCompareBarProps {
@@ -40,113 +42,65 @@ export function DbCompareBar({
   onNavigate,
 }: DbCompareBarProps) {
   const { t } = useTranslation();
-  // Escape hides the focused option's tooltip until the pointer/focus leaves
-  // (WAI-ARIA tooltip pattern); re-entry re-arms it.
-  const [dismissedTip, setDismissedTip] = useState<CompareParam | null>(null);
-  const selectView = (view: ViewParam) =>
-    onNavigate(withView(compareState, view, availability));
-  const selectCompare = (compare: CompareParam) =>
-    onNavigate(withCompare(compareState, compare, availability));
+  const changesUnavailable =
+    !availability.previousBrief && !availability.lastReview;
 
-  const compareButton = (
-    compare: "previous-brief" | "last-review",
+  const viewOptions: SegmentedOption<ViewParam>[] = [
+    { value: "full", label: t("pulls.compare.fullBrief") },
+    changesUnavailable
+      ? {
+          value: "changes",
+          label: t("pulls.compare.changesOnly"),
+          unavailableReason: t("pulls.compare.changesNeedsBaseline"),
+        }
+      : { value: "changes", label: t("pulls.compare.changesOnly") },
+  ];
+
+  const compareOption = (
+    compare: "last-review" | "previous-brief",
     label: string,
-  ) => {
-    const available = isCompareAvailable(compare, availability);
-    if (available) {
-      return (
-        <button
-          aria-pressed={compareState.compare === compare}
-          data-state={compareState.compare === compare ? "active" : undefined}
-          onClick={() => selectCompare(compare)}
-          type="button"
-        >
-          {label}
-        </button>
-      );
-    }
+  ): SegmentedOption<CompareParam> => {
+    if (isCompareAvailable(compare, availability))
+      return { value: compare, label };
     const reason =
       (compare === "last-review" ? lastReviewDisabledReason : undefined) ??
       compareUnavailableTitle(t, compare);
-    const tooltipId = `db-compare-${compare}-reason`;
-    return (
-      <span
-        className={styles["tipAnchor"]}
-        data-tip-dismissed={dismissedTip === compare ? "true" : undefined}
-      >
-        <button
-          aria-describedby={tooltipId}
-          aria-disabled="true"
-          aria-pressed={false}
-          className={styles["disabledOption"]}
-          onBlur={() => setDismissedTip(null)}
-          onKeyDown={(event) => {
-            if (event.key === "Escape") setDismissedTip(compare);
-          }}
-          onMouseLeave={() => setDismissedTip(null)}
-          type="button"
-        >
-          {label}
-        </button>
-        <span className={styles["tip"]} id={tooltipId} role="tooltip">
-          {reason}
-        </span>
-      </span>
-    );
+    return { value: compare, label, unavailableReason: reason };
   };
+
+  const compareOptions: SegmentedOption<CompareParam>[] = [
+    compareOption("last-review", t("pulls.compare.lastReview")),
+    compareOption("previous-brief", t("pulls.compare.previousBrief")),
+    compareState.view === "changes"
+      ? {
+          value: "off",
+          label: t("pulls.compare.off"),
+          unavailableReason: t("pulls.compare.offOnlyFull"),
+        }
+      : { value: "off", label: t("pulls.compare.off") },
+  ];
 
   return (
     <nav aria-label={t("pulls.compare.navLabel")} className={styles["bar"]}>
-      <fieldset className={styles["group"]}>
-        <ScreenReaderOnly as="legend">
-          {t("pulls.compare.viewLegend")}
-        </ScreenReaderOnly>
-        <button
-          aria-pressed={compareState.view === "full"}
-          data-state={compareState.view === "full" ? "active" : undefined}
-          onClick={() => selectView("full")}
-          type="button"
-        >
-          {t("pulls.compare.fullBrief")}
-        </button>
-        <button
-          aria-pressed={compareState.view === "changes"}
-          data-state={compareState.view === "changes" ? "active" : undefined}
-          disabled={!availability.previousBrief && !availability.lastReview}
-          onClick={() => selectView("changes")}
-          type="button"
-        >
-          {t("pulls.compare.changesOnly")}
-        </button>
-      </fieldset>
-      <fieldset className={styles["labeledGroup"]}>
-        <ScreenReaderOnly as="legend">
-          {t("pulls.compare.compareLegend")}
-        </ScreenReaderOnly>
-        {/* Outside the bordered group — inside it the label reads as a
-            fourth (selectable) option. */}
-        <span aria-hidden="true" className={styles["groupLabel"]}>
-          {t("pulls.compare.compareLegend")}
-        </span>
-        <div className={styles["group"]}>
-          {compareButton("last-review", t("pulls.compare.lastReview"))}
-          {compareButton("previous-brief", t("pulls.compare.previousBrief"))}
-          <button
-            aria-pressed={compareState.compare === "off"}
-            data-state={compareState.compare === "off" ? "active" : undefined}
-            disabled={compareState.view === "changes"}
-            onClick={() => selectCompare("off")}
-            title={
-              compareState.view === "changes"
-                ? t("pulls.compare.offOnlyFull")
-                : undefined
-            }
-            type="button"
-          >
-            {t("pulls.compare.off")}
-          </button>
-        </div>
-      </fieldset>
+      <SegmentedControl
+        legend={t("pulls.compare.viewLegend")}
+        name="db-brief-view"
+        onChange={(view) => {
+          onNavigate(withView(compareState, view, availability));
+        }}
+        options={viewOptions}
+        value={compareState.view ?? "full"}
+      />
+      <SegmentedControl
+        legend={t("pulls.compare.compareLegend")}
+        name="db-brief-compare"
+        onChange={(compare) => {
+          onNavigate(withCompare(compareState, compare, availability));
+        }}
+        options={compareOptions}
+        showLegend
+        value={compareState.compare ?? "off"}
+      />
     </nav>
   );
 }

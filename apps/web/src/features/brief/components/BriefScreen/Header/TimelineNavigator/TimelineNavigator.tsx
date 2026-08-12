@@ -12,6 +12,11 @@ import {
   type ViewParam,
 } from "../../../../comparison/compareState";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
+import {
+  SegmentedControl,
+  SegmentedDensities,
+  type SegmentedOption,
+} from "@web/components/SegmentedControl/SegmentedControl";
 import type { BriefTimeline } from "../../../../utils/timeline";
 import styles from "./TimelineNavigator.module.scss";
 
@@ -55,12 +60,41 @@ export function TimelineNavigator({
       params: { briefId },
       search: withView(compareState, view, availability),
     });
+  const compareOption = (
+    compare: "last-review" | "previous-brief",
+    label: string,
+  ): SegmentedOption<CompareParam> =>
+    isCompareAvailable(compare, availability)
+      ? { value: compare, label }
+      : {
+          value: compare,
+          label,
+          unavailableReason: compareUnavailableTitle(t, compare),
+        };
   const selectCompare = (compare: CompareParam) =>
     navigate({
       to: "/briefs/$briefId",
       params: { briefId },
       search: withCompare(compareState, compare, availability),
     });
+
+  const viewOptions: SegmentedOption<ViewParam>[] = [
+    { value: "full", label: t("brief.timeline.fullBrief") },
+    { value: "changes", label: t("brief.timeline.changesOnly") },
+  ];
+  const offOption: SegmentedOption<CompareParam> =
+    compareState.view === "changes"
+      ? {
+          value: "off",
+          label: t("brief.timeline.off"),
+          unavailableReason: t("brief.timeline.offOnlyFull"),
+        }
+      : { value: "off", label: t("brief.timeline.off") };
+  const compareOptions: SegmentedOption<CompareParam>[] = [
+    compareOption("last-review", t("brief.timeline.lastReview")),
+    compareOption("previous-brief", t("brief.timeline.previousBrief")),
+    offOption,
+  ];
 
   if (!selected) return null;
   return (
@@ -163,87 +197,25 @@ export function TimelineNavigator({
             </li>
           ))}
       </ol>
-      <fieldset className={styles["lens"]}>
-        <ScreenReaderOnly as="legend">
-          {t("brief.timeline.viewLegend")}
-        </ScreenReaderOnly>
-        <button
-          aria-pressed={compareState.view === "full"}
-          data-state={compareState.view === "full" ? "active" : undefined}
-          data-testid="view-full"
-          type="button"
-          onClick={() => selectView("full")}
-        >
-          {t("brief.timeline.fullBrief")}
-        </button>
-        <button
-          aria-pressed={compareState.view === "changes"}
-          data-state={compareState.view === "changes" ? "active" : undefined}
-          data-testid="view-changes"
-          type="button"
-          onClick={() => selectView("changes")}
-        >
-          {t("brief.timeline.changesOnly")}
-        </button>
-      </fieldset>
-      <fieldset className={styles["labeledLens"]}>
-        <ScreenReaderOnly as="legend">
-          {t("brief.timeline.compareLegend")}
-        </ScreenReaderOnly>
-        {/* Outside the bordered group — inside it the label reads as a
-            fourth (selectable) option. */}
-        <span aria-hidden="true" className={styles["lensLabel"]}>
-          {t("brief.timeline.compareLabel")}
-        </span>
-        <div className={styles["lens"]}>
-          <button
-            aria-pressed={compareState.compare === "last-review"}
-            data-state={
-              compareState.compare === "last-review" ? "active" : undefined
-            }
-            disabled={!isCompareAvailable("last-review", availability)}
-            title={
-              isCompareAvailable("last-review", availability)
-                ? undefined
-                : compareUnavailableTitle(t, "last-review")
-            }
-            type="button"
-            onClick={() => selectCompare("last-review")}
-          >
-            {t("brief.timeline.lastReview")}
-          </button>
-          <button
-            aria-pressed={compareState.compare === "previous-brief"}
-            data-state={
-              compareState.compare === "previous-brief" ? "active" : undefined
-            }
-            disabled={!isCompareAvailable("previous-brief", availability)}
-            title={
-              isCompareAvailable("previous-brief", availability)
-                ? undefined
-                : compareUnavailableTitle(t, "previous-brief")
-            }
-            type="button"
-            onClick={() => selectCompare("previous-brief")}
-          >
-            {t("brief.timeline.previousBrief")}
-          </button>
-          <button
-            aria-pressed={compareState.compare === "off"}
-            data-state={compareState.compare === "off" ? "active" : undefined}
-            disabled={compareState.view === "changes"}
-            title={
-              compareState.view === "changes"
-                ? t("brief.timeline.offOnlyFull")
-                : undefined
-            }
-            type="button"
-            onClick={() => selectCompare("off")}
-          >
-            {t("brief.timeline.off")}
-          </button>
-        </div>
-      </fieldset>
+      <SegmentedControl
+        className={styles["lens"]}
+        density={SegmentedDensities.ROOMY}
+        legend={t("brief.timeline.viewLegend")}
+        name="local-brief-view"
+        onChange={selectView}
+        options={viewOptions}
+        value={compareState.view ?? "full"}
+      />
+      <SegmentedControl
+        className={styles["labeledLens"]}
+        density={SegmentedDensities.ROOMY}
+        legend={t("brief.timeline.compareLegend")}
+        name="local-brief-compare"
+        onChange={selectCompare}
+        options={compareOptions}
+        showLegend
+        value={compareState.compare ?? "off"}
+      />
     </nav>
   );
 }

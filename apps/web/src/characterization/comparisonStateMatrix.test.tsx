@@ -315,24 +315,24 @@ describe("comparison state matrix characterization", () => {
 
     expect(screen.getByText("Tighten validation")).toBeTruthy();
     expect(screen.queryByText(/Changes Only ·/)).toBeNull();
-    const offButton = screen.getByRole("button", { name: "Off" });
-    expect(offButton.getAttribute("aria-pressed")).toBe("true");
+    const offButton = screen.getByRole("radio", { name: "Off" });
+    expect((offButton as HTMLInputElement).checked).toBe(true);
   });
 
   it("offers Previous Brief on a non-first Brief and applies the overlay on selection", async () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
     await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
 
-    const previousBriefButton = screen.getByRole("button", {
+    const previousBriefButton = screen.getByRole("radio", {
       name: "Previous brief",
     });
-    expect((previousBriefButton as HTMLButtonElement).disabled).toBe(false);
-    expect(previousBriefButton.getAttribute("aria-pressed")).toBe("false");
+    expect(previousBriefButton.getAttribute("aria-disabled")).toBeNull();
+    expect((previousBriefButton as HTMLInputElement).checked).toBe(false);
 
     fireEvent.click(previousBriefButton);
 
     await waitFor(() =>
-      expect(previousBriefButton.getAttribute("aria-pressed")).toBe("true"),
+      expect((previousBriefButton as HTMLInputElement).checked).toBe(true),
     );
     expect(screen.getByText(/1 change/)).toBeTruthy();
   });
@@ -341,15 +341,15 @@ describe("comparison state matrix characterization", () => {
     await renderAt("/briefs/head-brief-2?view=full&compare=off");
     await waitFor(() => expect(screen.getByText(PR.title)).toBeTruthy());
 
-    const lastReviewButton = screen.getByRole("button", {
+    const lastReviewButton = screen.getByRole("radio", {
       name: "Your last review",
     });
-    expect((lastReviewButton as HTMLButtonElement).disabled).toBe(false);
+    expect(lastReviewButton.getAttribute("aria-disabled")).toBeNull();
 
     fireEvent.click(lastReviewButton);
 
     await waitFor(() =>
-      expect(lastReviewButton.getAttribute("aria-pressed")).toBe("true"),
+      expect((lastReviewButton as HTMLInputElement).checked).toBe(true),
     );
   });
 
@@ -360,33 +360,29 @@ describe("comparison state matrix characterization", () => {
     );
 
     // No comparison is available for this Brief — both Compare options are
-    // disabled, and Full Brief is the only View that has product meaning.
+    // unavailable (focusable, with a reason), and Full Brief is the only
+    // View with product meaning.
     expect(
-      (
-        screen.getByRole("button", {
-          name: "Previous brief",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
+      screen
+        .getByRole("radio", { name: "Previous brief" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
     expect(
-      (
-        screen.getByRole("button", {
-          name: "Your last review",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(true);
+      screen
+        .getByRole("radio", { name: "Your last review" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
 
-    fireEvent.click(screen.getByRole("button", { name: "Changes Only" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Changes Only" }));
 
     // Changes+off has no product meaning and there's nothing to fall back to —
     // normalization keeps the page on Full Brief.
     expect(screen.getByText("Lonely group")).toBeTruthy();
     expect(screen.queryByText(/Changes Only ·/)).toBeNull();
     expect(
-      screen
-        .getByRole("button", { name: "Full brief" })
-        .getAttribute("aria-pressed"),
-    ).toBe("true");
+      (screen.getByRole("radio", { name: "Full brief" }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
   });
 
   it("has keyboard-reachable, labelled segmented View/Compare controls that update route state", async () => {
@@ -400,17 +396,17 @@ describe("comparison state matrix characterization", () => {
     expect(viewGroup).toBeTruthy();
     expect(compareGroup).toBeTruthy();
 
-    const changesButton = screen.getByRole("button", { name: "Changes Only" });
-    // Real buttons are focusable/activatable by keyboard by default.
+    const changesButton = screen.getByRole("radio", { name: "Changes Only" });
+    // Native radios are focusable by default.
     changesButton.focus();
     expect(document.activeElement).toBe(changesButton);
 
-    const previousBriefButton = screen.getByRole("button", {
+    const previousBriefButton = screen.getByRole("radio", {
       name: "Previous brief",
     });
     fireEvent.click(previousBriefButton);
     await waitFor(() =>
-      expect(previousBriefButton.getAttribute("aria-pressed")).toBe("true"),
+      expect((previousBriefButton as HTMLInputElement).checked).toBe(true),
     );
 
     fireEvent.click(changesButton);
