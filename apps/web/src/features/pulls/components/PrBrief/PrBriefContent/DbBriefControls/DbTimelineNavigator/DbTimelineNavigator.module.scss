@@ -41,14 +41,20 @@
     cursor: pointer;
     place-items: center;
 
-    &:not(:disabled):hover {
+    &:not([aria-disabled="true"]):hover {
       border-color: color-mix(in srgb, var(--blue) 42%, var(--line2));
       background: color-mix(in srgb, var(--panel2) 82%, var(--blue));
     }
 
-    &:disabled {
+    // aria-disabled, never `disabled`: that drops focus at the ends.
+    &[aria-disabled="true"] {
       cursor: not-allowed;
       opacity: 0.35;
+
+      // opacity dims the outline too, so undim the focus ring.
+      &:focus-visible {
+        opacity: 1;
+      }
     }
   }
 

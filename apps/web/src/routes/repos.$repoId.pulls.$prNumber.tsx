@@ -79,8 +79,8 @@ function parseThreadParam(value: unknown): number | undefined {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 }
 
+/** Only a HARD-disabled control refuses focus; `aria-disabled` keeps it. */
 function isDisabled(element: HTMLElement): boolean {
-  if (element.getAttribute("aria-disabled") === "true") return true;
   return (
     (element instanceof HTMLButtonElement ||
       element instanceof HTMLSelectElement) &&
@@ -468,7 +468,8 @@ function PrBriefRoute() {
       (element) =>
         element.getAttribute(REVISION_NAV_CONTROL_ATTR) === pending.token,
     );
-    // Disabled or hidden cannot hold focus; the fallback below picks it up.
+    // A HARD-disabled or hidden control cannot hold focus; the fallback
+    // below picks it up.
     if (control instanceof HTMLElement && !isDisabled(control)) {
       control.focus({ preventScroll: true });
     }

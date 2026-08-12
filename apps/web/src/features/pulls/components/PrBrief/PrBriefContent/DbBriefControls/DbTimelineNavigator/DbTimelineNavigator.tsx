@@ -9,6 +9,7 @@
 // A11y: the polite selection announcement and focus-to-heading are the
 // ROUTE's job (one live region per page) — this component only emits the
 // controls.
+import { type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { ScreenReaderOnly } from "@web/components/ScreenReaderOnly/ScreenReaderOnly";
 import type { DbTimelinePoint } from "../../../../../utils/dbTimeline";
@@ -85,6 +86,27 @@ export function DbTimelineNavigator({
   for (const point of points) {
     headCounts.set(point.headSha, (headCounts.get(point.headSha) ?? 0) + 1);
   }
+  /**
+   * Left/Right step revisions from ANY control in the navigator, the picker
+   * included. Up/Down stay native so the select keeps walking its options.
+   */
+  const stepFromNav = (event: KeyboardEvent<HTMLElement>) => {
+    if (event.defaultPrevented) return;
+    const target =
+      event.key === "ArrowLeft"
+        ? previous
+        : event.key === "ArrowRight"
+          ? next
+          : event.key === "Home"
+            ? points[0]
+            : event.key === "End"
+              ? points[points.length - 1]
+              : undefined;
+    if (target === undefined || target === points[selectedIndex]) return;
+    event.preventDefault();
+    onSelect(target);
+  };
+
   return (
     <nav
       aria-label={t("pulls.timeline.navLabel")}
@@ -92,6 +114,7 @@ export function DbTimelineNavigator({
     >
       <button
         data-revnav={RevisionNavControls.PREVIOUS}
+        onKeyDown={stepFromNav}
         // Disabled state keeps a descriptive name — a bare arrow glyph is
         // meaningless to a screen reader.
         aria-label={
@@ -99,8 +122,8 @@ export function DbTimelineNavigator({
             ? t("pulls.timeline.prevRevision", { index: previous.headIndex })
             : t("pulls.timeline.prevNone")
         }
+        aria-disabled={previous === undefined || undefined}
         className={styles["arrow"]}
-        disabled={previous === undefined}
         onClick={() => previous && onSelect(previous)}
         type="button"
       >
@@ -110,6 +133,7 @@ export function DbTimelineNavigator({
         <ScreenReaderOnly>{t("pulls.timeline.selectLabel")}</ScreenReaderOnly>
         <select
           data-revnav={RevisionNavControls.PICKER}
+          onKeyDown={stepFromNav}
           onChange={(event) => {
             const point = points[Number(event.target.value)];
             if (point !== undefined) onSelect(point);
@@ -133,13 +157,14 @@ export function DbTimelineNavigator({
       </label>
       <button
         data-revnav={RevisionNavControls.NEXT}
+        onKeyDown={stepFromNav}
         aria-label={
           next
             ? t("pulls.timeline.nextRevision", { index: next.headIndex })
             : t("pulls.timeline.nextNone")
         }
+        aria-disabled={next === undefined || undefined}
         className={styles["arrow"]}
-        disabled={next === undefined}
         onClick={() => next && onSelect(next)}
         type="button"
       >
@@ -157,9 +182,12 @@ export function DbTimelineNavigator({
                 className={styles["step"]}
                 data-comparable={hasComparison(point) ? "" : undefined}
                 data-state={isSelected ? "active" : undefined}
+                // One tab stop; the arrows move, so it stays on the selection.
+                tabIndex={isSelected ? 0 : -1}
                 onClick={() => {
                   if (!isSelected) onSelect(point);
                 }}
+                onKeyDown={stepFromNav}
                 type="button"
               >
                 <ScreenReaderOnly>

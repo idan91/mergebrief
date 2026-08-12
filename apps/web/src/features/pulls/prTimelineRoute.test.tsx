@@ -300,10 +300,12 @@ describe("DB brief route — revision timeline", () => {
     await waitFor(() =>
       expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
     );
-    // Oldest revision: the arrow came back disabled, so focus falls through.
+    // Oldest revision: the arrow is aria-disabled, not hard-disabled, so
+    // focus STAYS on it.
     await waitFor(() =>
-      expect(document.activeElement?.id).toBe("main-content"),
+      expect(document.activeElement?.getAttribute("data-revnav")).toBe("prev"),
     );
+    expect(document.activeElement?.getAttribute("aria-disabled")).toBe("true");
   });
 
   it("selects without resetting scroll — a revision is a lateral move", async () => {

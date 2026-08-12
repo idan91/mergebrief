@@ -85,23 +85,94 @@ describe("DbTimelineNavigator", () => {
     ).toBeDefined();
   });
 
-  it("disables Prev on the first revision and Next on the latest, keeping descriptive names", () => {
+  it("marks Prev unavailable on the first revision and Next on the latest, keeping descriptive names and focus", () => {
     renderNav(0);
-    // Disabled arrows KEEP an accessible name — a bare glyph reads as
-    // nothing to a screen reader.
+    // Unavailable arrows keep their name AND stay focusable: a hard
+    // `disabled` drops focus at the ends.
     const prev = button(
       screen.getByRole("button", { name: "Previous revision (none)" }),
     );
-    expect(prev.disabled).toBe(true);
+    expect(prev.getAttribute("aria-disabled")).toBe("true");
+    expect(prev.disabled).toBe(false);
+    prev.focus();
+    expect(document.activeElement).toBe(prev);
     const next = button(screen.getByLabelText("Next revision, 2"));
-    expect(next.disabled).toBe(false);
+    expect(next.getAttribute("aria-disabled")).toBeNull();
 
     cleanup();
     renderNav(2);
     const nextAtLatest = button(
       screen.getByRole("button", { name: "Next revision (none)" }),
     );
-    expect(nextAtLatest.disabled).toBe(true);
+    expect(nextAtLatest.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("does nothing when an unavailable arrow is activated", () => {
+    const { onSelect } = renderNav(0);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Previous revision (none)" }),
+    );
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("steps revisions with Left/Right from ANY control in the navigator", () => {
+    const { onSelect } = renderNav(1);
+    // Binding the contract to the dots alone left the arrows dead.
+    fireEvent.keyDown(screen.getByLabelText("Previous revision, 1"), {
+      key: "ArrowLeft",
+    });
+    expect(onSelect).toHaveBeenLastCalledWith(POINTS[0]);
+    fireEvent.keyDown(screen.getByRole("button", { current: "step" }), {
+      key: "ArrowRight",
+    });
+    expect(onSelect).toHaveBeenLastCalledWith(POINTS[2]);
+  });
+
+  it("jumps to the first/last revision with Home/End", () => {
+    const { onSelect } = renderNav(1);
+    const nav = screen.getByLabelText("Next revision, 3");
+    fireEvent.keyDown(nav, { key: "Home" });
+    expect(onSelect).toHaveBeenLastCalledWith(POINTS[0]);
+    fireEvent.keyDown(nav, { key: "End" });
+    expect(onSelect).toHaveBeenLastCalledWith(POINTS[2]);
+  });
+
+  it("does not step past either end, and never re-selects the current point", () => {
+    const first = renderNav(0);
+    fireEvent.keyDown(screen.getByLabelText("Next revision, 2"), {
+      key: "ArrowLeft",
+    });
+    expect(first.onSelect).not.toHaveBeenCalled();
+    fireEvent.keyDown(screen.getByLabelText("Next revision, 2"), {
+      key: "Home",
+    });
+    expect(first.onSelect).not.toHaveBeenCalled();
+    cleanup();
+    const last = renderNav(2);
+    fireEvent.keyDown(screen.getByLabelText("Previous revision, 2"), {
+      key: "ArrowRight",
+    });
+    expect(last.onSelect).not.toHaveBeenCalled();
+  });
+
+  it("steps from the picker too, without shadowing its Up/Down", () => {
+    const { onSelect } = renderNav(1);
+    const picker = screen.getByLabelText("Select PR revision");
+    fireEvent.keyDown(picker, { key: "ArrowRight" });
+    expect(onSelect).toHaveBeenLastCalledWith(POINTS[2]);
+    fireEvent.keyDown(picker, { key: "ArrowLeft" });
+    expect(onSelect).toHaveBeenLastCalledWith(POINTS[0]);
+    // Up/Down stay native: the select walks its own options.
+    onSelect.mockClear();
+    fireEvent.keyDown(picker, { key: "ArrowDown" });
+    fireEvent.keyDown(picker, { key: "ArrowUp" });
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  it("keeps the stepper to a single tab stop, anchored on the selection", () => {
+    renderNav(1);
+    const steps = screen.getAllByRole("button", { name: /^Revision \d$/ });
+    expect(steps.map((s) => button(s).tabIndex)).toEqual([-1, 0, -1]);
   });
 
   it("navigates to the previous/next revision point on arrow click", () => {
