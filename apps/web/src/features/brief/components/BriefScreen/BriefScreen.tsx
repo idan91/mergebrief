@@ -24,8 +24,10 @@ import {
   deriveInitialState,
   ReviewFlowProvider,
   useCreateReviewFlowStore,
+  useMindMap,
   useSyncReviewFlowPosture,
 } from "@web/features/review/session";
+import { useLatestRef } from "@web/hooks/useLatestRef";
 import type { UnresolvedItem } from "@web/features/review/utils/state";
 import type { BriefSearchParams } from "../../comparison/compareState";
 import type { MarkReadyAction } from "@web/features/pulls/transport/markReady";
@@ -442,6 +444,20 @@ export function BriefScreen({
     showIntentBar,
   });
 
+  // Pre-toggle state through a ref: markReviewed toggles, and the message
+  // must name what the press DID.
+  const reviewedChunks = useMindMap((state) => state.reviewedChunks);
+  const reviewedChunksRef = useLatestRef(reviewedChunks);
+  const markViewedFromShortcut = (chunkId: string) => {
+    const wasViewed = reviewedChunksRef.current.has(chunkId);
+    session.markReviewed(chunkId);
+    announce(
+      wasViewed
+        ? t("brief.chunk.announceUnviewed")
+        : t("brief.chunk.announceViewed"),
+    );
+  };
+
   // Shortcuts stand down whenever an overlay holds focus (drawers/modals use
   // `inert`, which doesn't stop a window-level keydown listener on its own).
   const shortcutsDisabled =
@@ -460,7 +476,8 @@ export function BriefScreen({
     jumpToChunk: session.jumpToChunkFromShortcut,
     toggleFocusMode,
     toggleHelp: session.toggleShortcuts,
-    markViewed: session.markReviewed,
+    // Keyboard-only announcement: the checkbox click is self-announcing.
+    markViewed: markViewedFromShortcut,
     // Gated on the legality cell, not just plan presence: with the section
     // unmounted (focus mode, Changes scope) the target is gone — an
     // undefined action lets the shortcut hook's don't-swallow branch pass

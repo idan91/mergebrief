@@ -256,6 +256,32 @@ describe("Read-through progress + auto-advance", () => {
     expect(activeChunkId()).toBe("chunk-2");
   });
 
+  it("V announces mark/unmark to the page live region", async () => {
+    await renderReadThroughScreen();
+    vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
+
+    fireEvent.click(screen.getByRole("button", { name: "Start read-through" }));
+    await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
+
+    fireEvent.keyDown(window, { key: "v" });
+    await waitFor(() =>
+      expect(screen.getByTestId("brief-toast").textContent).toBe(
+        "Marked viewed",
+      ),
+    );
+    await waitFor(() => expect(activeChunkId()).toBe("chunk-2"));
+
+    fireEvent.keyDown(window, { key: "k" });
+    await waitFor(() => expect(activeChunkId()).toBe("chunk-1"));
+    fireEvent.keyDown(window, { key: "v" });
+    await waitFor(() =>
+      expect(screen.getByTestId("brief-toast").textContent).toBe(
+        "Viewed unchecked",
+      ),
+    );
+    expect(activeChunkId()).toBe("chunk-1");
+  });
+
   it("still un-views an already-viewed chunk outside read-through", async () => {
     await renderReadThroughScreen();
 

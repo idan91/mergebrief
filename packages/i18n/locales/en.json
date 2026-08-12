@@ -498,6 +498,8 @@
     },
     "chunk": {
       "viewed": "Viewed",
+      "announceViewed": "Marked viewed",
+      "announceUnviewed": "Viewed unchecked",
       "collapsed": "Collapsed",
       "roleCore": "core",
       "roleSupporting": "supporting",
