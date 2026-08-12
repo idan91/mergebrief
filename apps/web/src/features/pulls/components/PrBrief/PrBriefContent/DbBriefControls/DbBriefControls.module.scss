@@ -13,6 +13,14 @@
       clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
   }
 
+  .lensRegion {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: functions.to-rem(6px);
+    min-inline-size: 0;
+  }
+
   .revisionRow {
     display: flex;
     align-items: center;

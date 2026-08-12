@@ -36,10 +36,12 @@
 
   // A second neutral layer (product register) so the working controls read
   // as a toolbar rather than more header.
+  // Three regions in reading order: revision, filtering, details.
   .lensRow {
     display: flex;
-    align-items: center;
     flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
     gap: functions.to-rem(8px)
       clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
     min-block-size: functions.to-rem(44px);
@@ -124,6 +126,15 @@
 
   // One visual object for the three progress facts: hairline-divided cells
   // read as a group, not three floating text blocks.
+  // No region claims the slack, so a hidden one (the local navigator drops
+  // below 1120px) just leaves the survivors spread, never re-mapped.
+  .detailsRegion {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: clamp(functions.to-rem(10px), 1.5vw, functions.to-rem(18px));
+  }
+
   .statsGroup {
     display: flex;
     flex: none;
@@ -522,16 +533,13 @@
       padding-inline: functions.to-rem(18px);
     }
 
-    // The controls own their full line(s) so the stats group cannot flow
-    // beside the tall wrapped controls block and interleave mid-controls.
-    // `:first-child` is the controls slot on both paths — the local
-    // TimelineNavigator stays first even while display: none.
-    .lensRow > :first-child {
+    // Narrow: each region owns its own line instead of competing for one.
+    .lensRow > * {
       flex-basis: 100%;
     }
 
-    .statsGroup {
-      flex: 1;
+    .detailsRegion {
+      margin-inline-start: 0;
     }
   }
 }

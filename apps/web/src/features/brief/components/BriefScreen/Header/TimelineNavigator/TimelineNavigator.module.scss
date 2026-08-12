@@ -4,14 +4,23 @@
 @layer components {
   // One flat row: arrows + picker + stepper dots, then the View and Compare
   // lens groups — the same shape as the DB path's DbBriefControls.
-  .timeline {
+  // Region 2 — filtering, split out of the revision nav.
+  .lensRegion {
     display: flex;
-    flex: 1;
-    min-inline-size: 0;
+    flex: 0 1 auto;
     align-items: center;
     flex-wrap: wrap;
     gap: functions.to-rem(8px);
-    container: timeline / inline-size;
+    min-inline-size: 0;
+  }
+
+  // Region 1 — revision navigation. No inline-size container: containment
+  // makes this report no content size and collapse in an auto track.
+  .timeline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: functions.to-rem(8px);
 
     select,
     .arrow {
@@ -67,6 +76,16 @@
   }
 
   @media (width <= 1120px) {
+    // Region 2 — the filtering lenses, split out of the revision nav so each
+    // region means one thing.
+    .lensRegion {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: functions.to-rem(8px);
+      min-inline-size: 0;
+    }
+
     .timeline {
       display: none;
     }

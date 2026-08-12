@@ -98,96 +98,100 @@ export function TimelineNavigator({
 
   if (!selected) return null;
   return (
-    <nav
-      className={styles["timeline"]}
-      aria-label={t("brief.timeline.ariaLabelNav")}
-    >
-      <span aria-live="polite" className="sr-only">
-        {t("brief.timeline.viewingBrief", {
-          index: selected.index,
-          total: timeline.points.length,
-        })}
-      </span>
-      {previous ? (
-        <Link
-          aria-label={`Previous brief, ${previous.index}`}
-          className={styles["arrow"]}
-          params={{ briefId: previous.briefId }}
-          search={(prev) => prev}
-          to="/briefs/$briefId"
-        >
-          ←
-        </Link>
-      ) : (
-        <span
-          aria-hidden="true"
-          className={styles["arrow"]}
-          data-state="disabled"
-        >
-          ←
+    <>
+      <nav
+        className={styles["timeline"]}
+        aria-label={t("brief.timeline.ariaLabelNav")}
+      >
+        <span aria-live="polite" className="sr-only">
+          {t("brief.timeline.viewingBrief", {
+            index: selected.index,
+            total: timeline.points.length,
+          })}
         </span>
-      )}
-      <label>
-        <ScreenReaderOnly>{t("brief.timeline.selectLabel")}</ScreenReaderOnly>
-        <select
-          value={selected.briefId}
-          onChange={(event) =>
-            navigate({
-              to: "/briefs/$briefId",
-              params: { briefId: event.target.value },
-              search: (prev) => prev,
-            })
-          }
-        >
-          {timeline.points.map((point) => (
-            <option key={point.briefId} value={point.briefId}>
-              {t("brief.timeline.briefOptionSha", {
-                index: point.index,
-                sha: point.headSha.slice(0, 7),
-                total: timeline.points.length,
-              })}
-            </option>
-          ))}
-        </select>
-      </label>
-      {next ? (
-        <Link
-          aria-label={`Next brief, ${next.index}`}
-          className={styles["arrow"]}
-          params={{ briefId: next.briefId }}
-          search={(prev) => prev}
-          to="/briefs/$briefId"
-        >
-          →
-        </Link>
-      ) : (
-        <span
-          aria-hidden="true"
-          className={styles["arrow"]}
-          data-state="disabled"
-        >
-          →
-        </span>
-      )}
-      <SegmentedControl
-        className={styles["lens"]}
-        density={SegmentedDensities.ROOMY}
-        legend={t("brief.timeline.viewLegend")}
-        name="local-brief-view"
-        onChange={selectView}
-        options={viewOptions}
-        value={compareState.view ?? "full"}
-      />
-      <SegmentedControl
-        className={styles["labeledLens"]}
-        density={SegmentedDensities.ROOMY}
-        legend={t("brief.timeline.compareLegend")}
-        name="local-brief-compare"
-        onChange={selectCompare}
-        options={compareOptions}
-        showLegend
-        value={compareState.compare ?? "off"}
-      />
-    </nav>
+        {previous ? (
+          <Link
+            aria-label={`Previous brief, ${previous.index}`}
+            className={styles["arrow"]}
+            params={{ briefId: previous.briefId }}
+            search={(prev) => prev}
+            to="/briefs/$briefId"
+          >
+            ←
+          </Link>
+        ) : (
+          <span
+            aria-hidden="true"
+            className={styles["arrow"]}
+            data-state="disabled"
+          >
+            ←
+          </span>
+        )}
+        <label>
+          <ScreenReaderOnly>{t("brief.timeline.selectLabel")}</ScreenReaderOnly>
+          <select
+            value={selected.briefId}
+            onChange={(event) =>
+              navigate({
+                to: "/briefs/$briefId",
+                params: { briefId: event.target.value },
+                search: (prev) => prev,
+              })
+            }
+          >
+            {timeline.points.map((point) => (
+              <option key={point.briefId} value={point.briefId}>
+                {t("brief.timeline.briefOptionSha", {
+                  index: point.index,
+                  sha: point.headSha.slice(0, 7),
+                  total: timeline.points.length,
+                })}
+              </option>
+            ))}
+          </select>
+        </label>
+        {next ? (
+          <Link
+            aria-label={`Next brief, ${next.index}`}
+            className={styles["arrow"]}
+            params={{ briefId: next.briefId }}
+            search={(prev) => prev}
+            to="/briefs/$briefId"
+          >
+            →
+          </Link>
+        ) : (
+          <span
+            aria-hidden="true"
+            className={styles["arrow"]}
+            data-state="disabled"
+          >
+            →
+          </span>
+        )}
+      </nav>
+      <div className={styles["lensRegion"]}>
+        <SegmentedControl
+          className={styles["lens"]}
+          density={SegmentedDensities.ROOMY}
+          legend={t("brief.timeline.viewLegend")}
+          name="local-brief-view"
+          onChange={selectView}
+          options={viewOptions}
+          value={compareState.view ?? "full"}
+        />
+        <SegmentedControl
+          className={styles["labeledLens"]}
+          density={SegmentedDensities.ROOMY}
+          legend={t("brief.timeline.compareLegend")}
+          name="local-brief-compare"
+          onChange={selectCompare}
+          options={compareOptions}
+          showLegend
+          value={compareState.compare ?? "off"}
+        />
+      </div>
+    </>
   );
 }

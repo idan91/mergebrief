@@ -40,7 +40,7 @@ export function DbBriefControls({
 }: DbBriefControlsProps) {
   const { t } = useTranslation();
   return (
-    <div className={styles["controls"]}>
+    <>
       {timeline !== undefined && onSelectRevision !== undefined ? (
         <div className={styles["revisionRow"]}>
           <DbTimelineNavigator
@@ -59,8 +59,10 @@ export function DbBriefControls({
           ) : null}
         </div>
       ) : null}
-      <DbCompareBar {...compare} />
-      {note !== undefined ? <p className={styles["note"]}>{note}</p> : null}
-    </div>
+      <div className={styles["lensRegion"]}>
+        <DbCompareBar {...compare} />
+        {note !== undefined ? <p className={styles["note"]}>{note}</p> : null}
+      </div>
+    </>
   );
 }

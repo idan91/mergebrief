@@ -307,91 +307,93 @@ export function Header({
         )}
         {/* The three progress facts read as ONE object — hairline-divided
             cells instead of three floating text blocks. */}
-        <div className={styles["statsGroup"]}>
-          <CoreLinesDisclosure
-            allAdded={model.totalAdded}
-            allDeleted={model.totalDeleted}
-            coreAdded={model.totalCoreAdded}
-            coreDeleted={model.totalCoreDeleted}
-            triggerClassName={`stat ${styles["stat"]}`}
-          >
-            {t("brief.header.coreLines")}
-            <b>
-              <span aria-hidden="true" className="faint">
-                {"≈ "}
-              </span>
-              <ScreenReaderOnly>
-                {t("brief.header.approximately")}
-              </ScreenReaderOnly>
-              <span className="green">+{model.totalCoreAdded}</span>{" "}
-              <span className="faint">/</span>{" "}
-              <span className="red">−{model.totalCoreDeleted}</span>
-            </b>
-          </CoreLinesDisclosure>
-          <div className={`stat ${styles["stat"]}`}>
-            {t("brief.header.chunks")}
-            <b>
-              {totals.reviewed}/{totals.chunkTotal}
-            </b>
-          </div>
-          <div className={`stat ${styles["stat"]}`}>
-            {t("brief.header.flags")}
-            {/* Own-draft state: dispositions are unreachable (flags are a
+        <div className={styles["detailsRegion"]}>
+          <div className={styles["statsGroup"]}>
+            <CoreLinesDisclosure
+              allAdded={model.totalAdded}
+              allDeleted={model.totalDeleted}
+              coreAdded={model.totalCoreAdded}
+              coreDeleted={model.totalCoreDeleted}
+              triggerClassName={`stat ${styles["stat"]}`}
+            >
+              {t("brief.header.coreLines")}
+              <b>
+                <span aria-hidden="true" className="faint">
+                  {"≈ "}
+                </span>
+                <ScreenReaderOnly>
+                  {t("brief.header.approximately")}
+                </ScreenReaderOnly>
+                <span className="green">+{model.totalCoreAdded}</span>{" "}
+                <span className="faint">/</span>{" "}
+                <span className="red">−{model.totalCoreDeleted}</span>
+              </b>
+            </CoreLinesDisclosure>
+            <div className={`stat ${styles["stat"]}`}>
+              {t("brief.header.chunks")}
+              <b>
+                {totals.reviewed}/{totals.chunkTotal}
+              </b>
+            </div>
+            <div className={`stat ${styles["stat"]}`}>
+              {t("brief.header.flags")}
+              {/* Own-draft state: dispositions are unreachable (flags are a
                 read-only mirror), so a resolved/total fraction would sit at a
                 permanent 0/N — show the count alone. */}
-            {ownDraft !== undefined ? (
-              <b>{totals.flagTotal}</b>
-            ) : (
-              <b>
-                {totals.flagsResolved}/{totals.flagTotal}
-              </b>
-            )}
+              {ownDraft !== undefined ? (
+                <b>{totals.flagTotal}</b>
+              ) : (
+                <b>
+                  {totals.flagsResolved}/{totals.flagTotal}
+                </b>
+              )}
+            </div>
           </div>
+          <fieldset
+            className={styles["viewbar"]}
+            data-state={lensDisabled ? "disabled" : undefined}
+            title={lensDisabled ? lensControl.reason : undefined}
+          >
+            <ScreenReaderOnly as="legend">
+              {t("brief.header.viewLegend")}
+            </ScreenReaderOnly>
+            <label className={styles["viewOption"]}>
+              <input
+                aria-describedby={lensDisabled ? lensReasonId : undefined}
+                aria-disabled={lensDisabled || undefined}
+                checked={viewMode === "story"}
+                className={styles["viewControl"]}
+                name="review-view"
+                type="radio"
+                value="story"
+                onChange={() => selectLens("story")}
+              />
+              <span className={styles["viewLabel"]}>
+                {t("brief.header.viewStory")}
+              </span>
+            </label>
+            <label className={styles["viewOption"]}>
+              <input
+                aria-describedby={lensDisabled ? lensReasonId : undefined}
+                aria-disabled={lensDisabled || undefined}
+                checked={viewMode === "concerns"}
+                className={styles["viewControl"]}
+                name="review-view"
+                type="radio"
+                value="concerns"
+                onChange={() => selectLens("concerns")}
+              />
+              <span className={styles["viewLabel"]}>
+                {t("brief.header.viewConcerns")}
+              </span>
+            </label>
+            {lensDisabled ? (
+              <span className="sr-only" id={lensReasonId}>
+                {lensControl.reason}
+              </span>
+            ) : null}
+          </fieldset>
         </div>
-        <fieldset
-          className={styles["viewbar"]}
-          data-state={lensDisabled ? "disabled" : undefined}
-          title={lensDisabled ? lensControl.reason : undefined}
-        >
-          <ScreenReaderOnly as="legend">
-            {t("brief.header.viewLegend")}
-          </ScreenReaderOnly>
-          <label className={styles["viewOption"]}>
-            <input
-              aria-describedby={lensDisabled ? lensReasonId : undefined}
-              aria-disabled={lensDisabled || undefined}
-              checked={viewMode === "story"}
-              className={styles["viewControl"]}
-              name="review-view"
-              type="radio"
-              value="story"
-              onChange={() => selectLens("story")}
-            />
-            <span className={styles["viewLabel"]}>
-              {t("brief.header.viewStory")}
-            </span>
-          </label>
-          <label className={styles["viewOption"]}>
-            <input
-              aria-describedby={lensDisabled ? lensReasonId : undefined}
-              aria-disabled={lensDisabled || undefined}
-              checked={viewMode === "concerns"}
-              className={styles["viewControl"]}
-              name="review-view"
-              type="radio"
-              value="concerns"
-              onChange={() => selectLens("concerns")}
-            />
-            <span className={styles["viewLabel"]}>
-              {t("brief.header.viewConcerns")}
-            </span>
-          </label>
-          {lensDisabled ? (
-            <span className="sr-only" id={lensReasonId}>
-              {lensControl.reason}
-            </span>
-          ) : null}
-        </fieldset>
       </div>
       {/* Decorative twin of the stats' numbers — hidden from the tree. */}
       <div
