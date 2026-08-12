@@ -20,7 +20,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { briefFixture } from "@web/features/brief/utils/fixtures";
 import type { ComparisonMarks } from "@web/features/brief/types";
@@ -244,6 +244,107 @@ describe("DB brief route — revision timeline", () => {
     });
   });
 
+  it("keeps focus on the navigator across a selection, so stepping continues", async () => {
+    const router = await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
+    );
+    const picker = await waitFor(() =>
+      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
+    );
+    picker.focus();
+    fireEvent.change(picker, { target: { value: "0" } });
+    await waitFor(() =>
+      expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
+    );
+    // The subtree remounts, so focus must land on the REBUILT picker.
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute("data-revnav")).toBe(
+        "picker",
+      ),
+    );
+    expect(document.activeElement).not.toBe(picker);
+  });
+
+  it("keeps focus on the arrow so a second press keeps stepping", async () => {
+    const REV3: RevisionSummary = {
+      headSha: "head-3",
+      baseSha: "base-3",
+      headIndex: 3,
+      createdAt: "2026-07-07T12:00:00.000Z",
+      comparisons: {},
+    };
+    const router = await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV3.headSha}`,
+      timelineMeta({
+        revisions: [REV1, REV2, REV3],
+        baseSha: REV3.baseSha,
+        headSha: REV3.headSha,
+      }),
+    );
+    const prev = await waitFor(() =>
+      screen.getByRole("button", { name: /previous revision, 2/i }),
+    );
+    prev.focus();
+    fireEvent.click(prev);
+    await waitFor(() =>
+      expect(searchRecord(router.state.location.search)["head"]).toBe("head-2"),
+    );
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute("data-revnav")).toBe("prev"),
+    );
+    expect(document.activeElement).not.toBe(prev);
+    // A different node, and pressing it again steps on.
+    fireEvent.click(
+      screen.getByRole("button", { name: /previous revision, 1/i }),
+    );
+    await waitFor(() =>
+      expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
+    );
+    // Oldest revision: the arrow came back disabled, so focus falls through.
+    await waitFor(() =>
+      expect(document.activeElement?.id).toBe("main-content"),
+    );
+  });
+
+  it("selects without resetting scroll — a revision is a lateral move", async () => {
+    const router = await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
+    );
+    const picker = await waitFor(() =>
+      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
+    );
+    // jsdom has no layout to observe scroll with, so pin the option.
+    const navigateSpy = vi.spyOn(router, "navigate");
+    fireEvent.change(picker, { target: { value: "0" } });
+    await waitFor(() =>
+      expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
+    );
+    expect(
+      navigateSpy.mock.calls.some(
+        ([options]) => options?.resetScroll === false,
+      ),
+    ).toBe(true);
+    navigateSpy.mockRestore();
+  });
+
+  it("re-anchors to the brief when a selection left focus nowhere", async () => {
+    const router = await renderTimeline(
+      `/repos/${REPO_ID}/pulls/${PR_NUMBER}?head=${REV2.headSha}`,
+    );
+    const picker = await waitFor(() =>
+      screen.getByLabelText<HTMLSelectElement>("Select PR revision"),
+    );
+    // Nothing holds focus (mouse-driven selection, or a disabled control).
+    picker.blur();
+    fireEvent.change(picker, { target: { value: "0" } });
+    await waitFor(() =>
+      expect(searchRecord(router.state.location.search)["head"]).toBe("head-1"),
+    );
+    await waitFor(() =>
+      expect(document.activeElement?.id).toBe("main-content"),
+    );
+  });
+
   it("gates submit behind the ack when meta.headSha advanced past the newest revision", async () => {
     // The newest revision is not the PR's current head (next brief still
     // generating): writable, but the receipt requires the stale ack —
@@ -456,15 +557,17 @@ describe("DB brief route — revision timeline", () => {
     expect(
       screen.getAllByText(/generated against a superseded base/i).length,
     ).toBeGreaterThan(0);
-    // Moving to the SAME-HEAD newer duplicate re-anchors keyboard focus —
-    // the focus effect keys on the full span, not the head SHA: only the base
-    // changes here, yet the content and read-only posture swap.
+    // Same head, different base: the effect keys on the full span, and the
+    // subtree remounts, so focus lands on the REBUILT picker.
     picker.focus();
     expect(document.activeElement).toBe(picker);
     fireEvent.change(picker, { target: { value: "2" } });
     await waitFor(() =>
-      expect(document.activeElement?.id).toBe("main-content"),
+      expect(document.activeElement?.getAttribute("data-revnav")).toBe(
+        "picker",
+      ),
     );
+    expect(document.activeElement).not.toBe(picker);
     cleanup();
 
     // A BARE head resolves to the newest duplicate (backend at(-1) choice),

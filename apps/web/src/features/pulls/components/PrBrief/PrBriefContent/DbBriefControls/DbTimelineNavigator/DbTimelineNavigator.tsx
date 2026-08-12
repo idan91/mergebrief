@@ -28,6 +28,26 @@ export interface DbTimelineNavigatorProps {
 /** Rendered dots either side of the selected point (the "capped" stepper). */
 const STEPPER_RADIUS = 4;
 
+/**
+ * Identifies a control across the remount a selection causes — the brief
+ * subtree is keyed by brief id, so these very nodes are destroyed and rebuilt
+ * whenever the reviewer steps. Behavioral hook, not styling or test
+ * selection; the route reads it to put focus back where the reviewer left it.
+ */
+export const REVISION_NAV_CONTROL_ATTR = "data-revnav";
+
+/** The tokens `REVISION_NAV_CONTROL_ATTR` carries. */
+export const RevisionNavControls = {
+  PREVIOUS: "prev",
+  NEXT: "next",
+  PICKER: "picker",
+} as const;
+
+/** A stepper dot's token. One builder, so producer and reader cannot drift. */
+export function revisionStepToken(position: number): string {
+  return `step-${String(position)}`;
+}
+
 function shortSha(sha: string): string {
   return sha.slice(0, 7);
 }
@@ -71,6 +91,7 @@ export function DbTimelineNavigator({
       className={styles["timeline"]}
     >
       <button
+        data-revnav={RevisionNavControls.PREVIOUS}
         // Disabled state keeps a descriptive name — a bare arrow glyph is
         // meaningless to a screen reader.
         aria-label={
@@ -88,6 +109,7 @@ export function DbTimelineNavigator({
       <label className={styles["picker"]}>
         <ScreenReaderOnly>{t("pulls.timeline.selectLabel")}</ScreenReaderOnly>
         <select
+          data-revnav={RevisionNavControls.PICKER}
           onChange={(event) => {
             const point = points[Number(event.target.value)];
             if (point !== undefined) onSelect(point);
@@ -110,6 +132,7 @@ export function DbTimelineNavigator({
         </select>
       </label>
       <button
+        data-revnav={RevisionNavControls.NEXT}
         aria-label={
           next
             ? t("pulls.timeline.nextRevision", { index: next.headIndex })
@@ -129,11 +152,14 @@ export function DbTimelineNavigator({
           return (
             <li key={pointKey(position, point)}>
               <button
+                data-revnav={revisionStepToken(position)}
                 aria-current={isSelected ? "step" : undefined}
                 className={styles["step"]}
                 data-comparable={hasComparison(point) ? "" : undefined}
                 data-state={isSelected ? "active" : undefined}
-                onClick={() => onSelect(point)}
+                onClick={() => {
+                  if (!isSelected) onSelect(point);
+                }}
                 type="button"
               >
                 <ScreenReaderOnly>

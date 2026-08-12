@@ -6,7 +6,7 @@
 // `features/pulls`.
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { ApiError, ApiErrorCode } from "../data/apiFetch";
 import {
@@ -24,6 +24,7 @@ import {
   HeadAdvancedBanner,
   PrBriefBody,
   PrBriefError,
+  REVISION_NAV_CONTROL_ATTR,
 } from "@web/features/pulls";
 import {
   dbBriefQueryOptions,
@@ -33,6 +34,7 @@ import {
   resolveDbTimeline,
   type DbTimelinePoint,
 } from "../features/pulls/utils/dbTimeline";
+import { useLatestRef } from "@web/hooks/useLatestRef";
 import { useUnsavedComposerBlocker } from "@web/hooks/useUnsavedComposerGuard";
 import {
   conversationFilterSearch,
@@ -75,6 +77,31 @@ function parseThreadParam(value: unknown): number | undefined {
         ? Number(value)
         : NaN;
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function isDisabled(element: HTMLElement): boolean {
+  if (element.getAttribute("aria-disabled") === "true") return true;
+  return (
+    (element instanceof HTMLButtonElement ||
+      element instanceof HTMLSelectElement) &&
+    element.disabled
+  );
+}
+
+/** Full-span identity: duplicate-head revisions differ only by base. */
+function spanKeyOf(baseSha: string, headSha: string): string {
+  return `${baseSha} ${headSha}`;
+}
+
+/**
+ * A focus restore owed to a navigator-driven selection. Both span ends are
+ * recorded so the consuming effect can tell "not landed yet" from "a different
+ * navigation won" and drop the token instead of firing it at a later render.
+ */
+interface PendingNavFocus {
+  token: string;
+  fromSpanKey: string | undefined;
+  toSpanKey: string;
 }
 
 function parsePrNumber(raw: string): number {
@@ -233,6 +260,8 @@ function PrBriefRoute() {
   const prNumber = parsePrNumber(params.prNumber);
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  /** Which navigator control the reviewer was on when they stepped, if any. */
+  const pendingNavFocus = useRef<PendingNavFocus | null>(null);
   // Memoized on the primitives: `state`/`pinnedSpan` identity chains hang off
   // this object, and a fresh literal per render re-runs the span-pinning
   // effect whenever ?base=&head= are present.
@@ -259,6 +288,13 @@ function PrBriefRoute() {
     () => resolveDbTimeline(meta.revisions, search.head, search.base),
     [meta.revisions, search.base, search.head],
   );
+
+  // Full SPAN identity: duplicate-head revisions differ only by base.
+  const selectedSpanKey =
+    timeline === undefined
+      ? undefined
+      : spanKeyOf(timeline.selected.baseSha, timeline.selected.headSha);
+  const selectedSpanKeyRef = useLatestRef(selectedSpanKey);
 
   const state = useMemo(
     () =>
@@ -312,6 +348,21 @@ function PrBriefRoute() {
 
   const selectRevision = useCallback(
     (point: DbTimelinePoint) => {
+      // Captured before navigating: the brief subtree is keyed by brief id,
+      // so this control is about to be destroyed and rebuilt.
+      const token =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement.getAttribute(REVISION_NAV_CONTROL_ATTR)
+          : null;
+      const pending: PendingNavFocus | null =
+        token === null
+          ? null
+          : {
+              token,
+              fromSpanKey: selectedSpanKeyRef.current,
+              toSpanKey: spanKeyOf(point.baseSha, point.headSha),
+            };
+      pendingNavFocus.current = pending;
       void navigate({
         // The FULL span is written — head alone cannot address a duplicate-
         // head revision. A jump target (`thread`) is spent once a revision is
@@ -323,9 +374,19 @@ function PrBriefRoute() {
           base: point.baseSha,
         }),
         replace: false,
+        // A revision is a lateral move, not a new page.
+        resetScroll: false,
+      }).then(() => {
+        // Bounds the token to its own navigation: an abandoned step would
+        // otherwise leave it live for whatever reached that span next.
+        const abandoned =
+          pendingNavFocus.current === pending &&
+          selectedSpanKeyRef.current !== pending?.toSpanKey;
+        if (abandoned) pendingNavFocus.current = null;
+        return abandoned;
       });
     },
-    [navigate],
+    [navigate, selectedSpanKeyRef],
   );
 
   // Outdated-thread → revision jump: a thread anchored on a briefed head
@@ -387,16 +448,40 @@ function PrBriefRoute() {
     });
   }, [navigate, pinnedSpan, search.base, search.head, timeline?.degraded]);
 
-  // Re-anchor keyboard focus onto the Brief heading region on a state swap or
-  // a revision selection. Keyed by the full SPAN identity — duplicate-head
-  // revisions differ only by base, and moving between them swaps content and
-  // read-only posture like any other selection.
-  const selectedSpanKey =
-    timeline === undefined
-      ? undefined
-      : `${timeline.selected.baseSha} ${timeline.selected.headSha}`;
+  // Restore focus onto the rebuilt control. Runs on EVERY commit: the
+  // selection's own render can land before the span does.
   useEffect(() => {
-    document.getElementById("main-content")?.focus();
+    const pending = pendingNavFocus.current;
+    if (pending === null) return;
+    if (pending.toSpanKey !== selectedSpanKey) {
+      // Still on the span we left = not landed yet; anywhere else = a
+      // different navigation won.
+      if (pending.fromSpanKey !== selectedSpanKey)
+        pendingNavFocus.current = null;
+      return;
+    }
+    pendingNavFocus.current = null;
+    // Static selector: an interpolated one could be malformed by a token.
+    const control = [
+      ...document.querySelectorAll(`[${REVISION_NAV_CONTROL_ATTR}]`),
+    ].find(
+      (element) =>
+        element.getAttribute(REVISION_NAV_CONTROL_ATTR) === pending.token,
+    );
+    // Disabled or hidden cannot hold focus; the fallback below picks it up.
+    if (control instanceof HTMLElement && !isDisabled(control)) {
+      control.focus({ preventScroll: true });
+    }
+  });
+  // Re-anchor onto the brief only when focus was left NOWHERE. Never scrolls.
+  useEffect(() => {
+    const active = document.activeElement;
+    const focusSurvived =
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      active.isConnected;
+    if (focusSurvived) return;
+    document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [state.kind, selectedSpanKey]);
 
   // Stable across renders (navigate is): GroupCard's memo boundary rides on

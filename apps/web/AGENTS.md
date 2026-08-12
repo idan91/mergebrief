@@ -98,7 +98,10 @@ the DB-backed read + submit surface. Repo-wide TS rules live in the root
   `docs/plans/brief-84-px-to-rem.md`.
 - `data-testid` for test selection; `data-state`/`data-variant` for styling —
   CSS targets attributes, not toggled classes. Extracted components adopt
-  both at birth.
+  both at birth. A third category exists only where runtime behavior must
+  find a node across a remount (`data-revnav`): it carries an exported
+  constant and its own doc comment, never a bare literal, and never doubles
+  as a test or styling hook.
 
 ## Async mutations against external systems (enforced)
 

@@ -331,8 +331,18 @@ export function useReadingSession(
     [snapshot, brief, model, repoConfig],
   );
 
+  // Only anchor when nothing else holds focus: a reviewer who switched brief
+  // from a live control must keep it. Never scrolls.
   useEffect(() => {
-    document.getElementById("main-content")?.focus();
+    const active = document.activeElement;
+    if (
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      active.isConnected
+    ) {
+      return;
+    }
+    document.getElementById("main-content")?.focus({ preventScroll: true });
   }, [briefId]);
 
   // activeChunkId has two write sources: scroll-spy (below) and explicit nav
